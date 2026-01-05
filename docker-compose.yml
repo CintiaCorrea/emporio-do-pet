@@ -1,0 +1,126 @@
+# =====================================================
+# Docker Compose - Empório do Pet
+# =====================================================
+# Este arquivo configura os serviços do backend:
+# - PostgreSQL (database)
+# - Redis (cache/sessions)
+# - API NestJS (backend)
+#
+# Portas escolhidas para evitar conflitos com outros containers:
+# - PostgreSQL: 5433 (padrão é 5432)
+# - Redis: 6380 (padrão é 6379)
+# - Backend API: 3001 (frontend usa 3000)
+# =====================================================
+
+services:
+  # ===================================================
+  # PostgreSQL Database
+  # ===================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: emporio-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-emporio}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-emporio_secret_2024}
+      POSTGRES_DB: ${POSTGRES_DB:-emporio_db}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    networks:
+      - emporio-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-emporio} -d ${POSTGRES_DB:-emporio_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ===================================================
+  # Redis Cache
+  # ===================================================
+  redis:
+    image: redis:7-alpine
+    container_name: emporio-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis_secret_2024}
+    volumes:
+      - redis_data:/data
+    ports:
+      - "${REDIS_PORT:-6380}:6379"
+    networks:
+      - emporio-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis_secret_2024}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  # ===================================================
+  # Backend API (NestJS)
+  # ===================================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: emporio-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 3001
+      
+      # Database
+      DATABASE_URL: postgresql://${POSTGRES_USER:-emporio}:${POSTGRES_PASSWORD:-emporio_secret_2024}@postgres:5432/${POSTGRES_DB:-emporio_db}?schema=public
+      DIRECT_URL: postgresql://${POSTGRES_USER:-emporio}:${POSTGRES_PASSWORD:-emporio_secret_2024}@postgres:5432/${POSTGRES_DB:-emporio_db}?schema=public
+      
+      # Redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_secret_2024}
+      
+      # JWT/Auth
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-your-nextauth-secret-change-in-production}
+      
+      # Frontend URL (para CORS)
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+    ports:
+      - "${BACKEND_PORT:-3001}:3001"
+    networks:
+      - emporio-network
+    volumes:
+      # Mount para desenvolvimento (hot reload)
+      - ./backend/src:/app/src:ro
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+# =====================================================
+# Volumes
+# =====================================================
+volumes:
+  postgres_data:
+    name: emporio_postgres_data
+  redis_data:
+    name: emporio_redis_data
+
+# =====================================================
+# Networks
+# =====================================================
+networks:
+  emporio-network:
+    name: emporio-network
+    driver: bridge
+

@@ -1,0 +1,103 @@
+# =====================================================
+# Docker Compose - Empório do Pet
+# =====================================================
+# Container isolado com PostgreSQL, Redis e pgAdmin
+# Não afeta outros containers existentes
+#
+# Para iniciar:   docker-compose -f docker-compose.emporio.yml up -d
+# Para parar:     docker-compose -f docker-compose.emporio.yml down
+# =====================================================
+
+name: emporio
+
+services:
+  # ===================================================
+  # PostgreSQL Database
+  # ===================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: emporio-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-emporio}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-emporio_2024}
+      POSTGRES_DB: ${POSTGRES_DB:-emporio_db}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - emporio_postgres_data:/var/lib/postgresql/data
+    ports:
+      # Windows pode reservar/excluir ranges de portas altas (erro: "forbidden by its access permissions").
+      # Ajuste via env `EMPORIO_POSTGRES_PORT` se precisar.
+      - "127.0.0.1:${EMPORIO_POSTGRES_PORT:-15432}:5432"
+    networks:
+      - emporio-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-emporio} -d ${POSTGRES_DB:-emporio_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ===================================================
+  # Redis Cache
+  # ===================================================
+  redis:
+    image: redis:7-alpine
+    container_name: emporio-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - emporio_redis_data:/data
+    ports:
+      - "56379:6379"
+    networks:
+      - emporio-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  # ===================================================
+  # pgAdmin 4 - Interface Web para PostgreSQL
+  # ===================================================
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: emporio-pgadmin
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@emporiodopet.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin123}
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+    volumes:
+      - emporio_pgadmin_data:/var/lib/pgadmin
+    ports:
+      # Ajuste via env `EMPORIO_PGADMIN_PORT` se precisar.
+      - "127.0.0.1:${EMPORIO_PGADMIN_PORT:-15050}:80"
+    networks:
+      - emporio-network
+
+# =====================================================
+# Volumes (isolados com prefixo emporio_)
+# =====================================================
+volumes:
+  emporio_postgres_data:
+    name: emporio_postgres_data
+  emporio_redis_data:
+    name: emporio_redis_data
+  emporio_pgadmin_data:
+    name: emporio_pgadmin_data
+
+# =====================================================
+# Network (isolada)
+# =====================================================
+networks:
+  emporio-network:
+    name: emporio-network
+    driver: bridge
+

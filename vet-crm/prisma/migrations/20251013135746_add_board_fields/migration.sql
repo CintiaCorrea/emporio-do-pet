@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "Board" ADD COLUMN     "color" TEXT NOT NULL DEFAULT 'bg-blue-500',
+ADD COLUMN     "favorite" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN     "progress" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "totalDeals" INTEGER NOT NULL DEFAULT 0;

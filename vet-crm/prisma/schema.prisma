@@ -1,0 +1,474 @@
+// schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+  relationMode = "prisma" 
+}
+
+// Enums //
+enum Role {
+  ADMIN
+  VETERINARIAN
+  RECEPTIONIST
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELED
+  CONFIRMED
+  IN_PROGRESS
+}
+
+// NOVO ENUM para status de pagamento
+enum PaymentStatus {
+  PAID
+  PENDING
+  OVERDUE
+  CANCELLED
+}
+
+enum ProductType {
+  MEDICINE
+  VACCINE
+  SERVICE
+}
+
+enum BoardType {
+  APPOINTMENT
+  TASK
+  PROJECT
+}
+
+enum NewsletterStatus {
+  DRAFT
+  SCHEDULED
+  SENT
+  FAILED
+}
+
+enum RecipientType {
+  CLIENT
+  LEAD
+  TUTOR
+  ALL
+}
+
+// NOVOS ENUMS para Tutor, Contact e Pet
+enum PersonType {
+  INDIVIDUAL
+  LEGAL_ENTITY
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum ContactType {
+  MOBILE
+  PHONE
+  BUSINESS
+}
+
+enum PetStatus {
+  ACTIVE
+  DECEASED
+  TRANSFERRED
+  INACTIVE
+}
+
+enum PetSpecies {
+  CANINE
+  FELINE
+  BIRD
+  RODENT
+  REPTILE
+  OTHER
+}
+
+enum SterilizationStatus {
+  NOT_STERILIZED
+  STERILIZED
+  SCHEDULED
+}
+
+enum CoatType {
+  SHORT
+  LONG
+  SMOOTH
+  WAVY
+  CURLY
+  GOLDEN
+  BLACK
+  WHITE
+  BROWN
+  MIXED
+}
+
+// NextAuth Models
+model Account {
+  id                String   @id @default(uuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+  @@unique([identifier, token])
+}
+
+// User Models - ATUALIZADO
+model User {
+  id            String       @id @default(uuid())
+  name          String?
+  email         String       @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  role          Role         @default(VETERINARIAN)
+  permissions   String[]     @default([])
+  
+  // Relacionamentos
+  accounts      Account[]
+  sessions      Session[]
+  boards        Board[]
+  newsletters   Newsletter[]
+  appointments  Appointment[] // NOVO: Relacionamento com agendamentos
+  integrationSettings IntegrationSettings?
+  
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+}
+
+// NOVOS MODELS: Tutor e Contact
+model Tutor {
+  id               String       @id @default(uuid())
+  // Informações Básicas
+  type             PersonType   @default(INDIVIDUAL)
+  name             String
+  email            String?      @unique
+  nationality      String       @default("Brasileira")
+  gender           Gender?
+  // Documentos
+  cpf              String?      @unique
+  rg               String?
+  birthDate        DateTime?    // Data completa para aniversário
+  profession       String?
+  // Como nos conheceu
+  howFoundUs       String?
+  // Preferências de Contato
+  acceptsEmail     Boolean      @default(true)
+  acceptsWhatsApp  Boolean      @default(true)
+  acceptsSMS       Boolean      @default(true)
+  acceptsSmsCampaign Boolean    @default(false)
+  // Endereço
+  cep              String?
+  address          String?
+  addressNumber    String?
+  complement       String?
+  referencePoint   String?
+  neighborhood     String?
+  city             String?
+  state            String?
+  // Extras
+  observations     String?
+  tags             String[]     // Para marcações
+  formDate         DateTime?    // Ficha
+  inclusionDate    DateTime?    // Inclusão
+  // Contatos
+  contacts         Contact[]
+  // Relacionamentos
+  recipients       Recipient[]
+  pets             Pet[]
+  appointments     Appointment[]
+  // Timestamps
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@map("tutors")
+}
+
+model Contact {
+  id           String      @id @default(uuid())
+  type         ContactType @default(MOBILE)
+  number       String
+  isWhatsApp   Boolean     @default(false)
+  observations String?
+  isPrimary    Boolean     @default(false) // Para a estrela (favorito)
+  tutorId      String
+  tutor        Tutor       @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+  // Timestamps
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@map("contacts")
+}
+
+// CRM Models
+model Client {
+  id          String       @id @default(uuid())
+  name        String
+  email       String       @unique
+  phone       String?
+  address     String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  // Manter apenas relacionamentos comerciais (vendas, newsletter)
+  recipients  Recipient[]
+}
+
+// ATUALIZADO: Pet agora relaciona com Tutor e tem campos expandidos
+model Pet {
+  id              String            @id @default(uuid())
+  name            String
+  species         PetSpecies        @default(CANINE)
+  breed           String?
+  status          PetStatus         @default(ACTIVE)
+  gender          Gender?
+  sterilization   SterilizationStatus? @default(NOT_STERILIZED)
+  birthDate       DateTime?
+  coat            CoatType?
+  coatColor       String?           // Cor específica da pelagem
+  weight          Float?            // Peso do animal
+  microchip       String?           // Número do microchip
+  avatar          String?           // URL da foto do pet
+  observations    String?           // Observações gerais
+  allergies       String[]          // Lista de alergias
+  medicalNotes    String?           // Notas médicas importantes
+  // Relacionamentos
+  tutorId         String
+  tutor           Tutor             @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+  appointments    Appointment[]
+  treatments      Treatment[]
+  // Timestamps
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@map("pets")
+}
+
+// ATUALIZADO: Appointment com campos para a UI
+model Appointment {
+  id           String            @id @default(uuid())
+  tutorId      String
+  petId        String
+  userId       String            // Veterinário responsável
+  date         DateTime
+  duration     Int               @default(30) // Duração em minutos
+  description  String?
+  notes        String?
+  value        Float             @default(0)
+  status       String            @default("SCHEDULED")
+  paymentStatus PaymentStatus    @default(PENDING)
+  
+  // Relacionamentos
+  tutor        Tutor             @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+  pet          Pet               @relation(fields: [petId], references: [id], onDelete: Cascade)
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  treatments   Treatment[]
+  kanbanCard   KanbanCard?
+  boardId      String?
+  board        Board?   @relation(fields: [boardId], references: [id], onDelete: SetNull)
+  
+  // Timestamps
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@index([date])
+  @@index([status])
+  @@index([userId])
+}
+
+model Treatment {
+  id            String      @id @default(uuid())
+  appointmentId String
+  petId         String
+  description   String
+  cost          Float
+  productId     String?
+  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  pet           Pet         @relation(fields: [petId], references: [id], onDelete: Cascade)
+  product       Product?    @relation(fields: [productId], references: [id], onDelete: SetNull)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+model Product {
+  id          String      @id @default(uuid())
+  name        String
+  type        ProductType
+  price       Float
+  stock       Int         @default(0)
+  treatments  Treatment[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+// Kanban Models
+model Board {
+  id          String        @id @default(uuid())
+  name        String
+  type        BoardType     @default(APPOINTMENT)
+  description String?
+  color       String        @default("bg-blue-500")
+  progress    Int           @default(0)
+  totalDeals  Int           @default(0)
+  favorite    Boolean       @default(false)
+  userId      String
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  columns     KanbanColumn[]
+  appointments Appointment[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  @@unique([userId, name])
+}
+
+model KanbanColumn {
+  id          String       @id @default(uuid())
+  name        String
+  position    Int
+  color       String?
+  boardId     String
+  board       Board        @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  cards       KanbanCard[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  @@unique([boardId, name])
+  @@unique([boardId, position])
+}
+
+model KanbanCard {
+  id            String       @id @default(uuid())
+  title         String
+  description   String?
+  position      Int
+  columnId      String
+  column        KanbanColumn @relation(fields: [columnId], references: [id], onDelete: Cascade)
+  appointmentId String?      @unique
+  appointment   Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  metadata      Json?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  @@unique([columnId, position])
+}
+
+// Newsletter Models - ATUALIZADO com NewsletterTemplate
+model Newsletter {
+  id            String         @id @default(uuid())
+  title         String
+  subject       String
+  content       String
+  status        NewsletterStatus
+  scheduledFor  DateTime?
+  recipientType RecipientType
+  sentAt        DateTime?
+  userId        String
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  templateId    String?        // NOVO: Referência ao template usado
+  template      NewsletterTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  recipients    Recipient[]
+  newsletterLogs NewsletterLog[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+// NOVO MODEL: NewsletterTemplate
+model NewsletterTemplate {
+  id          String       @id @default(uuid())
+  name        String       @unique
+  subject     String
+  content     String       @db.Text
+  description String?
+  category    String       @default("Geral")
+  isActive    Boolean      @default(true)
+  
+  // Relacionamentos
+  newsletters Newsletter[]
+  
+  // Timestamps
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@map("newsletter_templates")
+}
+
+model Recipient {
+  id           String     @id @default(uuid())
+  newsletterId String
+  clientId     String?
+  tutorId      String?
+  leadEmail    String?
+  newsletter   Newsletter @relation(fields: [newsletterId], references: [id], onDelete: Cascade)
+  client       Client?    @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  tutor        Tutor?     @relation(fields: [tutorId], references: [id], onDelete: SetNull)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  
+  @@unique([newsletterId, clientId])
+  @@unique([newsletterId, leadEmail])
+  @@unique([newsletterId, tutorId])
+}
+
+model NewsletterLog {
+  id           String     @id @default(uuid())
+  newsletterId String
+  sentAt       DateTime   @default(now())
+  details      Json?
+  newsletter   Newsletter @relation(fields: [newsletterId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  @@index([newsletterId])
+  @@index([sentAt])
+}
+
+// Model para configurações de integrações
+model IntegrationSettings {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  
+  // Configurações das integrações (armazenadas como JSON)
+  whatsappConfig  String?  @db.Text
+  openaiConfig    String?  @db.Text
+  geminiConfig    String?  @db.Text
+  deepseekConfig  String?  @db.Text
+  
+  // Relacionamento com usuário
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("integration_settings")
+}

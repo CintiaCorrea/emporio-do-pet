@@ -1,0 +1,41 @@
+# Dependencies
+node_modules
+
+# Build output
+dist
+
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Environment files (serão montados como volumes)
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+logs
+
+# Coverage
+coverage
+
+# Test
+test
+*.spec.ts
+jest.config.js
+
+# Documentation
+*.md
+!README.md
+
+# OS
+.DS_Store
+Thumbs.db
+

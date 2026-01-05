@@ -1,0 +1,88 @@
+# =====================================================
+# Docker Compose - Desenvolvimento Local
+# =====================================================
+# Use este arquivo para desenvolvimento:
+# docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+#
+# Ou apenas os serviços de infraestrutura (sem backend):
+# docker-compose -f docker-compose.dev.yml up -d postgres redis
+# =====================================================
+
+services:
+  # ===================================================
+  # PostgreSQL Database (Dev)
+  # ===================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: emporio-postgres-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-emporio}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-emporio_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-emporio_db}
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    networks:
+      - emporio-dev-network
+
+  # ===================================================
+  # Redis Cache (Dev)
+  # ===================================================
+  redis:
+    image: redis:7-alpine
+    container_name: emporio-redis-dev
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_dev_data:/data
+    ports:
+      - "${REDIS_PORT:-6380}:6379"
+    networks:
+      - emporio-dev-network
+
+  # ===================================================
+  # Adminer (Database GUI) - Opcional
+  # ===================================================
+  adminer:
+    image: adminer:latest
+    container_name: emporio-adminer
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    ports:
+      - "${ADMINER_PORT:-8080}:8080"
+    networks:
+      - emporio-dev-network
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+      ADMINER_DESIGN: dracula
+
+  # ===================================================
+  # Redis Commander (Redis GUI) - Opcional
+  # ===================================================
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: emporio-redis-commander
+    restart: unless-stopped
+    depends_on:
+      - redis
+    ports:
+      - "${REDIS_COMMANDER_PORT:-8081}:8081"
+    networks:
+      - emporio-dev-network
+    environment:
+      REDIS_HOSTS: local:redis:6379
+
+volumes:
+  postgres_dev_data:
+    name: emporio_postgres_dev_data
+  redis_dev_data:
+    name: emporio_redis_dev_data
+
+networks:
+  emporio-dev-network:
+    name: emporio-dev-network
+    driver: bridge
+
