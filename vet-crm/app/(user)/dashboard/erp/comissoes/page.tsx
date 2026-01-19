@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Sidebar from '@/components/protected/dashboard/Sidebar';
 import toast, { Toaster } from 'react-hot-toast';
 import { 
   LuPercent,
@@ -59,7 +58,6 @@ interface ApiResponse {
 }
 
 export default function ComissoesPage() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [commissions, setCommissions] = useState<Commission[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -116,7 +114,6 @@ export default function ComissoesPage() {
     }
   };
 
-  const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
   // Profissionais únicos para o filtro
   const professionals = Array.from(new Set(commissions.map(c => c.professional.id)))
@@ -291,13 +288,8 @@ export default function ComissoesPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/10 w-full overflow-hidden">
       <Toaster position="top-right" />
-      <Sidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
-      
-      <div className={`min-h-screen transition-all duration-500 ${
-        sidebarOpen ? 'ml-48 sm:ml-64' : 'ml-12 sm:ml-16'
-      } w-[calc(100vw-3rem)] sm:w-[calc(100vw-4rem)]`}>
-        <div className="p-6">
-          <div className="max-w-7xl mx-auto">
+      <div className="p-6">
+        <div className="max-w-7xl mx-auto">
             {/* Header */}
             <div className="mb-8">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -565,7 +557,6 @@ export default function ComissoesPage() {
             )}
           </div>
         </div>
-      </div>
 
       {/* Modal de Detalhes */}
       {isModalOpen && selectedCommission && (

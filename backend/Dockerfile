@@ -7,10 +7,11 @@ WORKDIR /app
 
 # Copiar arquivos de dependências
 COPY package*.json ./
+COPY pnpm-lock.yaml ./
 COPY prisma ./prisma/
 
-# Instalar dependências
-RUN npm ci
+# Instalar pnpm e dependências
+RUN npm install -g pnpm && pnpm install --frozen-lockfile
 
 # Copiar código fonte
 COPY . .
@@ -19,7 +20,7 @@ COPY . .
 RUN npx prisma generate
 
 # Build da aplicação
-RUN npm run build
+RUN pnpm run build
 
 # ========================================
 # Production Stage
@@ -27,6 +28,9 @@ RUN npm run build
 FROM node:20-alpine AS production
 
 WORKDIR /app
+
+# Instalar dependências necessárias para Prisma e healthcheck
+RUN apk add --no-cache wget openssl
 
 # Criar usuário não-root para segurança
 RUN addgroup -g 1001 -S nodejs && \
@@ -47,13 +51,15 @@ RUN chown -R nestjs:nodejs /app
 # Mudar para usuário não-root
 USER nestjs
 
-# Expor porta
-EXPOSE 3001
+# Expor porta (Fly.io usa 8080)
+EXPOSE 8080
+
+# Variável de ambiente para porta
+ENV PORT=8080
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:3001/api/health || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:${PORT}/api/health || exit 1
 
 # Comando de inicialização
 CMD ["node", "dist/main"]
-

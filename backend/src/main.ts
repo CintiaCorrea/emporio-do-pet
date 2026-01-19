@@ -9,15 +9,41 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   const configService = app.get(ConfigService);
-  const port = configService.get<number>('PORT', 3001);
-  const frontendUrl = configService.get<string>('FRONTEND_URL', 'http://localhost:3000');
+  // ConfigModule carrega `configuration.ts` (chaves em camelCase)
+  const port = configService.get<number>('port', 3001);
+  const frontendUrl = configService.get<string>(
+    'frontendUrl',
+    'http://localhost:3000',
+  );
 
   // Global prefix para todas as rotas da API
   app.setGlobalPrefix('api');
 
-  // Configuração de CORS
+  // Configuração de CORS - aceita frontend em produção e desenvolvimento
+  const allowedOrigins = [
+    frontendUrl,
+    'http://localhost:3000',
+    'http://localhost:3001',
+  ].filter(Boolean);
+
   app.enableCors({
-    origin: [frontendUrl, 'http://localhost:3000'],
+    origin: (origin, callback) => {
+      // Permitir requests sem origin (mobile apps, curl, etc)
+      if (!origin) return callback(null, true);
+      
+      // Verificar se a origin está na lista ou é um domínio permitido
+      if (
+        allowedOrigins.includes(origin) ||
+        origin.endsWith('.vercel.app') ||
+        origin.endsWith('.fly.dev') ||
+        origin.endsWith('.emporiodopet.com.br') ||
+        origin === 'https://emporiodopet.com.br'
+      ) {
+        return callback(null, true);
+      }
+      
+      callback(new Error('Not allowed by CORS'));
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
@@ -57,8 +83,9 @@ async function bootstrap() {
     logger.log(`📚 Swagger disponível em: http://localhost:${port}/docs`);
   }
 
-  await app.listen(port);
-  logger.log(`🚀 Backend rodando em: http://localhost:${port}`);
+  // Escutar em 0.0.0.0 para funcionar no Docker/Fly.io
+  await app.listen(port, '0.0.0.0');
+  logger.log(`🚀 Backend rodando em: http://0.0.0.0:${port}`);
   logger.log(`🌐 Frontend URL configurado: ${frontendUrl}`);
 }
 

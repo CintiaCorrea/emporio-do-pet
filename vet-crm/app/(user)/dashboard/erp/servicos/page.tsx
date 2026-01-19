@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import Sidebar from '@/components/protected/dashboard/Sidebar';
 import { 
   LuWrench,
   LuSearch,
@@ -65,7 +64,6 @@ interface ApiResponse {
 }
 
 export default function ServicesPage() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -125,9 +123,6 @@ export default function ServicesPage() {
     return () => clearTimeout(timeoutId);
   }, [searchTerm]);
 
-  const toggleSidebar = () => {
-    setSidebarOpen((prev) => !prev);
-  };
 
   // Filtrar serviços localmente (backup)
   const filteredServices = services.filter(service => {
@@ -275,14 +270,9 @@ export default function ServicesPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/10 w-full overflow-hidden">
-      <Sidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
-      
       {/* Main Content */}
-      <div className={`min-h-screen transition-all duration-500 ${
-        sidebarOpen ? 'ml-48 sm:ml-64' : 'ml-12 sm:ml-16'
-      } w-[calc(100vw-3rem)] sm:w-[calc(100vw-4rem)]`}>
-        <div className="p-6">
-          <div className="max-w-7xl mx-auto">
+      <div className="p-6">
+        <div className="max-w-7xl mx-auto">
             {/* Header */}
             <div className="mb-8">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -544,7 +534,6 @@ export default function ServicesPage() {
             </div>
           </div>
         </div>
-      </div>
 
       {/* Modal de Detalhes/Edição do Serviço */}
       {isModalOpen && selectedService && (

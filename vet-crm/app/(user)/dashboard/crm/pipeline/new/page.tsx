@@ -2,8 +2,6 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Sidebar from '@/components/protected/dashboard/Sidebar';
-import MobileHeader from '@/components/protected/pipeline/new/MobileHeader';
 import NewBoardHeader from '@/components/protected/pipeline/new/NewBoardHeader';
 import ErrorMessage from '@/components/protected/pipeline/new/ErrorMessage';
 import BoardForm from '@/components/protected/pipeline/new/BoardForm';
@@ -12,7 +10,6 @@ import { BoardFormData } from '@/types/board-form';
 
 export default function NewBoardPage() {
   const router = useRouter();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -22,10 +19,6 @@ export default function NewBoardPage() {
     color: 'bg-blue-500',
     type: 'APPOINTMENT',
   });
-
-  const toggleSidebar = () => {
-    setSidebarOpen((prev) => !prev);
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,34 +61,22 @@ export default function NewBoardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/10 w-full overflow-hidden">
-      <Sidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
-      
-      {/* Main Content */}
-      <div className={`min-h-screen transition-all duration-500 ${
-        sidebarOpen ? 'ml-48 sm:ml-64' : 'ml-12 sm:ml-16'
-      } w-[calc(100vw-3rem)] sm:w-[calc(100vw-4rem)]`}>
+    <div className="p-6">
+      <div className="max-w-4xl mx-auto">
+        <NewBoardHeader />
         
-        <MobileHeader onToggleSidebar={toggleSidebar} />
+        <ErrorMessage error={error} />
 
-        <div className="p-6">
-          <div className="max-w-4xl mx-auto">
-            <NewBoardHeader />
-            
-            <ErrorMessage error={error} />
+        <BoardForm
+          formData={formData}
+          isLoading={isLoading}
+          error={error}
+          onFormDataChange={setFormData}
+          onSubmit={handleSubmit}
+          onCancel={handleCancel}
+        />
 
-            <BoardForm
-              formData={formData}
-              isLoading={isLoading}
-              error={error}
-              onFormDataChange={setFormData}
-              onSubmit={handleSubmit}
-              onCancel={handleCancel}
-            />
-
-            <BoardPreview formData={formData} />
-          </div>
-        </div>
+        <BoardPreview formData={formData} />
       </div>
     </div>
   );

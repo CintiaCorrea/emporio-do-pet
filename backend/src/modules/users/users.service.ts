@@ -17,7 +17,12 @@ export class UsersService {
     }
 
     return this.prisma.user.create({
-      data: createUserDto,
+      data: {
+        ...createUserDto,
+        // Por padrão, somente ADMIN entra aprovado. Demais roles aguardam aprovação.
+        isApproved: createUserDto.role === 'ADMIN',
+        isBlocked: false,
+      },
     });
   }
 
@@ -29,6 +34,9 @@ export class UsersService {
         email: true,
         role: true,
         image: true,
+        permissions: true,
+        isApproved: true,
+        isBlocked: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -65,6 +73,9 @@ export class UsersService {
         email: true,
         role: true,
         image: true,
+        permissions: true,
+        isApproved: true,
+        isBlocked: true,
         createdAt: true,
         updatedAt: true,
       },

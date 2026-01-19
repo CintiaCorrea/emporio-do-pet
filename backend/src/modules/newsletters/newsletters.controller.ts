@@ -23,6 +23,28 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 export class NewslettersController {
   constructor(private readonly newslettersService: NewslettersService) {}
 
+  private coerceNonNegativeInt(value: unknown, fallback: number) {
+    const n =
+      typeof value === 'number'
+        ? value
+        : typeof value === 'string'
+          ? Number.parseInt(value, 10)
+          : Number.NaN;
+
+    return Number.isFinite(n) && n >= 0 ? Math.floor(n) : fallback;
+  }
+
+  private coercePositiveInt(value: unknown, fallback: number) {
+    const n =
+      typeof value === 'number'
+        ? value
+        : typeof value === 'string'
+          ? Number.parseInt(value, 10)
+          : Number.NaN;
+
+    return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
+  }
+
   @Post()
   @ApiOperation({ summary: 'Criar newsletter' })
   create(
@@ -40,10 +62,13 @@ export class NewslettersController {
   findAll(
     @CurrentUser('id') userId: string,
     @Query('status') status?: string,
-    @Query('skip') skip?: number,
-    @Query('take') take?: number,
+    @Query('skip') skip?: string,
+    @Query('take') take?: string,
   ) {
-    return this.newslettersService.findAll(userId, { status, skip, take });
+    const safeSkip = this.coerceNonNegativeInt(skip, 0);
+    const safeTake = this.coercePositiveInt(take, 20);
+
+    return this.newslettersService.findAll(userId, { status, skip: safeSkip, take: safeTake });
   }
 
   @Get('templates')

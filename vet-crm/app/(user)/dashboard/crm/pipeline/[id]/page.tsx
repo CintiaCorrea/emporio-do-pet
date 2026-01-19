@@ -2,22 +2,16 @@
 
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
-import Sidebar from "@/components/protected/dashboard/Sidebar";
 import KanbanBoard from "@/components/protected/dashboard/kanban/KanbanBoard";
 import { LuLoader } from "react-icons/lu";
 import { Board } from "@/types/board";
 
 export default function BoardPage() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [board, setBoard] = useState<Board | null>(null);
   const [error, setError] = useState<string | null>(null);
   const params = useParams();
   const boardId = params.id as string;
-
-  const toggleSidebar = () => {
-    setSidebarOpen((prev) => !prev);
-  };
 
   // Buscar dados do board
   useEffect(() => {
@@ -47,16 +41,11 @@ export default function BoardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-100 w-full overflow-hidden">
-        <Sidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
-        <div className={`min-h-screen transition-all duration-500 ${
-          sidebarOpen ? 'ml-48 sm:ml-64' : 'ml-12 sm:ml-16'
-        } w-[calc(100vw-3rem)] sm:w-[calc(100vw-4rem)]`}>
-          <div className="flex items-center justify-center h-64">
-            <div className="flex items-center gap-3 text-gray-600">
-              <LuLoader className="w-6 h-6 animate-spin" />
-              <span>Carregando board...</span>
-            </div>
+      <div className="p-6">
+        <div className="flex items-center justify-center min-h-[calc(100vh-8rem)]">
+          <div className="flex items-center gap-3 text-gray-600">
+            <LuLoader className="w-6 h-6 animate-spin" />
+            <span>Carregando board...</span>
           </div>
         </div>
       </div>
@@ -65,36 +54,22 @@ export default function BoardPage() {
 
   if (error || !board) {
     return (
-      <div className="min-h-screen bg-gray-100 w-full overflow-hidden">
-        <Sidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
-        <div className={`min-h-screen transition-all duration-500 ${
-          sidebarOpen ? 'ml-48 sm:ml-64' : 'ml-12 sm:ml-16'
-        } w-[calc(100vw-3rem)] sm:w-[calc(100vw-4rem)]`}>
-          <div className="p-6">
-            <div className="bg-red-50 border border-red-200 rounded-2xl p-6 text-center">
-              <h3 className="text-lg font-semibold text-red-800 mb-2">Erro ao carregar board</h3>
-              <p className="text-red-600 mb-4">{error || 'Board não encontrado'}</p>
-              <button
-                onClick={() => window.location.reload()}
-                className="px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors"
-              >
-                Tentar Novamente
-              </button>
-            </div>
-          </div>
+      <div className="p-6">
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-6 text-center">
+          <h3 className="text-lg font-semibold text-red-800 mb-2">Erro ao carregar board</h3>
+          <p className="text-red-600 mb-4">{error || 'Board não encontrado'}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors"
+          >
+            Tentar Novamente
+          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 w-full overflow-hidden">
-      <Sidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
-      <KanbanBoard 
-        sidebarOpen={sidebarOpen} 
-        boardId={boardId}
-        boardName={board.name}
-      />
-    </div>
+    <KanbanBoard boardId={boardId} boardName={board.name} />
   );
 }

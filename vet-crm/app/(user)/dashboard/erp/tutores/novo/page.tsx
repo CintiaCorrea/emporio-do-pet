@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { LuPlus, LuStar, LuTrash2, LuUser, LuMapPin, LuFolder, LuSave, LuX, LuArrowLeft, LuMail } from 'react-icons/lu';
 import Link from 'next/link';
-import Sidebar from '@/components/protected/dashboard/Sidebar';
 
 interface Contact {
   id: string;
@@ -63,7 +62,6 @@ export default function TutorRegistrationPage() {
       isPrimary: true 
     }
   ]);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -97,10 +95,6 @@ export default function TutorRegistrationPage() {
     inclusionDate: '',
     contacts: []
   });
-
-  const toggleSidebar = () => {
-    setSidebarOpen((prev) => !prev);
-  };
 
   const addContact = () => {
     const newContact: Contact = {
@@ -166,16 +160,47 @@ export default function TutorRegistrationPage() {
         throw new Error('Pelo menos um contato com número é necessário');
       }
 
+      const sanitize = <T,>(value: T) => {
+        if (typeof value === 'string' && value.trim() === '') return undefined;
+        return value;
+      };
+
       // Preparar dados para API
       const payload = {
         ...formData,
-        contacts: validContacts,
+        // Remover o id local do frontend e não enviar strings vazias
+        email: sanitize(formData.email),
+        cpf: sanitize(formData.cpf),
+        rg: sanitize(formData.rg),
+        profession: sanitize(formData.profession),
+        howFoundUs: sanitize(formData.howFoundUs),
+        cep: sanitize(formData.cep),
+        address: sanitize(formData.address),
+        addressNumber: sanitize(formData.addressNumber),
+        complement: sanitize(formData.complement),
+        referencePoint: sanitize(formData.referencePoint),
+        neighborhood: sanitize(formData.neighborhood),
+        city: sanitize(formData.city),
+        state: sanitize(formData.state),
+        observations: sanitize(formData.observations),
+        nationality: sanitize(formData.nationality) || 'Brasileira',
+        contacts: validContacts.map(({ id, ...rest }) => ({
+          ...rest,
+          number: rest.number.trim(),
+          observations: sanitize(rest.observations),
+        })),
         // Garantir que arrays vazios sejam enviados
         tags: formData.tags || [],
         // Converter datas para o formato ISO
-        birthDate: formData.birthDate ? new Date(formData.birthDate).toISOString() : undefined,
-        formDate: formData.formDate ? new Date(formData.formDate).toISOString() : undefined,
-        inclusionDate: formData.inclusionDate ? new Date(formData.inclusionDate).toISOString() : undefined,
+        birthDate: sanitize(formData.birthDate)
+          ? new Date(formData.birthDate as string).toISOString()
+          : undefined,
+        formDate: sanitize(formData.formDate)
+          ? new Date(formData.formDate as string).toISOString()
+          : undefined,
+        inclusionDate: sanitize(formData.inclusionDate)
+          ? new Date(formData.inclusionDate as string).toISOString()
+          : undefined,
       };
 
       const response = await fetch('/api/tutors', {
@@ -209,14 +234,9 @@ export default function TutorRegistrationPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/20 w-full overflow-hidden">
-      <Sidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
-      
       {/* Main Content */}
-      <div className={`min-h-screen transition-all duration-500 ${
-        sidebarOpen ? 'ml-48 sm:ml-64' : 'ml-12 sm:ml-16'
-      } w-[calc(100vw-3rem)] sm:w-[calc(100vw-4rem)]`}>
-        <div className="p-6">
-          <div className="max-w-7xl mx-auto">
+      <div className="p-6">
+        <div className="max-w-7xl mx-auto">
             {/* Header */}
             <div className="mb-8">
               <div className="flex items-center gap-4 mb-4">
@@ -769,7 +789,6 @@ export default function TutorRegistrationPage() {
                 </div>
               </form>
             </div>
-          </div>
         </div>
       </div>
     </div>

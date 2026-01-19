@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import Sidebar from "@/components/protected/dashboard/Sidebar";
 import Link from "next/link";
 import { LuArrowLeft, LuPawPrint, LuVenetianMask, LuCalendar, LuUser, LuSave, LuX } from "react-icons/lu";
 
@@ -56,7 +55,6 @@ export default function NewPetPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'geral' | 'foto' | 'extras'>('geral');
 
   // Carregar tutores da API
@@ -97,10 +95,6 @@ export default function NewPetPage() {
     fetchTutors();
   }, []);
 
-  const toggleSidebar = () => {
-    setSidebarOpen((prev) => !prev);
-  };
-
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     
@@ -123,10 +117,25 @@ export default function NewPetPage() {
     setError(null);
     
     try {
+      const sanitize = <T,>(value: T) => {
+        if (typeof value === 'string' && value.trim() === '') return undefined;
+        return value;
+      };
+
       // Preparar dados para envio (sem o campo owner que não existe no backend)
       const petToSubmit = {
         ...pet,
-        owner: undefined // Remover campo que não existe no modelo do Prisma
+        owner: undefined,
+        tutorId: sanitize(pet.tutorId),
+        breed: sanitize(pet.breed),
+        coat: sanitize(pet.coat),
+        coatColor: sanitize((pet as any).coatColor),
+        microchip: sanitize((pet as any).microchip),
+        observations: sanitize((pet as any).observations),
+        avatar: sanitize((pet as any).avatar),
+        birthDate: sanitize(pet.birthDate)
+          ? new Date(pet.birthDate as string).toISOString()
+          : undefined,
       };
 
       // Enviar dados do novo pet para a API
@@ -161,13 +170,8 @@ export default function NewPetPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-green-50/20 to-emerald-50/10 w-full overflow-hidden">
-      <Sidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
-      
-      <div className={`min-h-screen transition-all duration-500 ${
-        sidebarOpen ? "ml-48 sm:ml-64" : "ml-12 sm:ml-16"
-      } w-[calc(100vw-3rem)] sm:w-[calc(100vw-4rem)]`}>
-        <div className="p-6">
-          <div className="max-w-4xl mx-auto">
+      <div className="p-6">
+        <div className="max-w-4xl mx-auto">
             {/* Header */}
             <div className="mb-8">
               <div className="flex items-center justify-between">
@@ -501,7 +505,6 @@ export default function NewPetPage() {
             </div>
           </div>
         </div>
-      </div>
     </div>
   );
 }

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Sidebar from '@/components/protected/dashboard/Sidebar';
 import toast, { Toaster } from 'react-hot-toast';
 import { 
   LuWarehouse,
@@ -66,7 +65,6 @@ interface ApiProduct {
 }
 
 export default function StockPage() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [loading, setLoading] = useState(true);
@@ -157,9 +155,6 @@ export default function StockPage() {
     }
   };
 
-  const toggleSidebar = () => {
-    setSidebarOpen((prev) => !prev);
-  };
 
   // Filtrar produtos
   const filteredProducts = products.filter(product => {
@@ -364,14 +359,9 @@ export default function StockPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/10 w-full overflow-hidden">
       <Toaster position="top-right" />
-      <Sidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
-      
       {/* Main Content */}
-      <div className={`min-h-screen transition-all duration-500 ${
-        sidebarOpen ? 'ml-48 sm:ml-64' : 'ml-12 sm:ml-16'
-      } w-[calc(100vw-3rem)] sm:w-[calc(100vw-4rem)]`}>
-        <div className="p-6">
-          <div className="max-w-7xl mx-auto">
+      <div className="p-6">
+        <div className="max-w-7xl mx-auto">
             {/* Header */}
             <div className="mb-8">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -706,7 +696,6 @@ export default function StockPage() {
             </div>
           </div>
         </div>
-      </div>
 
       {/* Modal de Movimentação */}
       {isMovementModalOpen && selectedProduct && (

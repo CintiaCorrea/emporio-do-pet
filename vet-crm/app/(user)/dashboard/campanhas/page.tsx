@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Sidebar from '@/components/protected/dashboard/Sidebar';
 import Link from 'next/link';
 import { 
   LuMegaphone,
@@ -92,7 +91,6 @@ const mockRecentCampaigns: RecentCampaign[] = [
 ];
 
 export default function CampanhasPage() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [stats, setStats] = useState<CampaignStats>(mockStats);
   const [recentCampaigns, setRecentCampaigns] = useState<RecentCampaign[]>(mockRecentCampaigns);
   const [loading, setLoading] = useState(true);
@@ -108,8 +106,6 @@ export default function CampanhasPage() {
     };
     loadData();
   }, []);
-
-  const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -188,10 +184,7 @@ export default function CampanhasPage() {
   ];
 
   return (
-    <div className="flex min-h-screen bg-gradient-to-br from-slate-900 via-cyan-950 to-slate-900">
-      <Sidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
-      
-      <main className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'ml-56 sm:ml-64' : 'ml-12 sm:ml-16'}`}>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-cyan-950 to-slate-900">
         {/* Header com gradiente */}
         <div className="relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-r from-cyan-600/20 via-teal-600/20 to-emerald-600/20"></div>
@@ -368,7 +361,6 @@ export default function CampanhasPage() {
             )}
           </div>
         </div>
-      </main>
     </div>
   );
 }

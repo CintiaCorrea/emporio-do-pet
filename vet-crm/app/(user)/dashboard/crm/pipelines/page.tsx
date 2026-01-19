@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Sidebar from '@/components/protected/dashboard/Sidebar';
 import LoadingState from '@/components/protected/pipeline/LoadingState';
 import ErrorState from '@/components/protected/pipeline/ErrorState';
 import PipelineHeader from '@/components/protected/pipeline/PipelineHeader';
@@ -18,11 +17,6 @@ export default function PipelinePage() {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  const toggleSidebar = () => {
-    setSidebarOpen((prev) => !prev);
-  };
 
   // Buscar boards da API
   useEffect(() => {
@@ -116,75 +110,52 @@ export default function PipelinePage() {
   );
 
   if (loading) {
-    return (
-      <>
-        <Sidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
-        <LoadingState sidebarOpen={sidebarOpen} />
-      </>
-    );
+    return <LoadingState />;
   }
 
   if (error) {
-    return (
-      <>
-        <Sidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
-        <ErrorState 
-          error={error} 
-          sidebarOpen={sidebarOpen} 
-          onRetry={() => window.location.reload()} 
-        />
-      </>
-    );
+    return <ErrorState error={error} onRetry={() => window.location.reload()} />;
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/10 w-full overflow-hidden">
-      <Sidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
-      
-      {/* Main Content */}
-      <div className={`min-h-screen transition-all duration-500 ${
-        sidebarOpen ? 'ml-48 sm:ml-64' : 'ml-12 sm:ml-16'
-      } w-[calc(100vw-3rem)] sm:w-[calc(100vw-4rem)]`}>
-        <div className="p-6">
-          <div className="max-w-7xl mx-auto">
-            <PipelineHeader />
-            <StatsCards boards={boards} />
-            <SearchAndFilters 
-              searchTerm={searchTerm}
-              onSearchChange={setSearchTerm}
-              viewMode={viewMode}
-              onViewModeChange={setViewMode}
-            />
+    <div className="p-6">
+      <div className="max-w-7xl mx-auto">
+        <PipelineHeader />
+        <StatsCards boards={boards} />
+        <SearchAndFilters 
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+        />
 
-            {/* Boards Grid/List */}
-            {filteredBoards.length === 0 ? (
-              <EmptyState boardsCount={boards.length} />
-            ) : viewMode === 'grid' ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
-                {filteredBoards.map((board) => (
-                  <BoardCard
-                    key={board.id}
-                    board={board}
-                    onToggleFavorite={toggleFavorite}
-                    onDelete={deleteBoard}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-blue-500/5 overflow-hidden">
-                {filteredBoards.map((board, index) => (
-                  <BoardListItem
-                    key={board.id}
-                    board={board}
-                    onToggleFavorite={toggleFavorite}
-                    onDelete={deleteBoard}
-                    isLast={index === filteredBoards.length - 1}
-                  />
-                ))}
-              </div>
-            )}
+        {/* Boards Grid/List */}
+        {filteredBoards.length === 0 ? (
+          <EmptyState boardsCount={boards.length} />
+        ) : viewMode === 'grid' ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
+            {filteredBoards.map((board) => (
+              <BoardCard
+                key={board.id}
+                board={board}
+                onToggleFavorite={toggleFavorite}
+                onDelete={deleteBoard}
+              />
+            ))}
           </div>
-        </div>
+        ) : (
+          <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-blue-500/5 overflow-hidden">
+            {filteredBoards.map((board, index) => (
+              <BoardListItem
+                key={board.id}
+                board={board}
+                onToggleFavorite={toggleFavorite}
+                onDelete={deleteBoard}
+                isLast={index === filteredBoards.length - 1}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

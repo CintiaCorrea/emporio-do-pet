@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Sidebar from '@/components/protected/dashboard/Sidebar';
 import Link from 'next/link';
 import { 
   LuArrowLeft, 
@@ -54,7 +53,6 @@ interface AppointmentFormData {
 
 export default function NewAppointmentPage() {
   const router = useRouter();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -157,10 +155,6 @@ export default function NewAppointmentPage() {
     fetchPets();
   }, [formData.tutorId]);
 
-  const toggleSidebar = () => {
-    setSidebarOpen((prev) => !prev);
-  };
-
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     
@@ -260,13 +254,8 @@ export default function NewAppointmentPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/10 w-full overflow-hidden">
       <Toaster position="top-right" />
-      <Sidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
-      
-      <div className={`min-h-screen transition-all duration-500 ${
-        sidebarOpen ? 'ml-48 sm:ml-64' : 'ml-12 sm:ml-16'
-      } w-[calc(100vw-3rem)] sm:w-[calc(100vw-4rem)]`}>
-        <div className="p-6">
-          <div className="max-w-4xl mx-auto">
+      <div className="p-6">
+        <div className="max-w-4xl mx-auto">
             {/* Header */}
             <div className="mb-8">
               <div className="flex items-center justify-between">
@@ -588,7 +577,6 @@ export default function NewAppointmentPage() {
                 </div>
               </form>
             </div>
-          </div>
         </div>
       </div>
     </div>

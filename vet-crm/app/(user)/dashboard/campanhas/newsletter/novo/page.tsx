@@ -10,7 +10,6 @@ import {
   CreateNewsletterInput,
   Tutor 
 } from '@/types/newsletter';
-import Sidebar from '@/components/protected/dashboard/Sidebar';
 import { TemplateSelector } from '@/components/protected/newsletter/TemplateSelector';
 import { NewsletterForm } from '@/components/protected/newsletter/NewsletterForm';
 import { RecipientSelector } from '@/components/protected/newsletter/RecipientSelector';
@@ -19,7 +18,6 @@ import { ActionButtons } from '@/components/protected/newsletter/ActionButtons';
 import { LuEye } from 'react-icons/lu';
 
 const NewsletterPage = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [newsletter, setNewsletter] = useState<Partial<CreateNewsletterInput>>({
     title: '',
     content: '',
@@ -39,10 +37,6 @@ const NewsletterPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [preview, setPreview] = useState(false);
-
-  const toggleSidebar = () => {
-    setSidebarOpen((prev) => !prev);
-  };
 
   // Carregar clientes, tutores e templates do banco
   useEffect(() => {
@@ -382,8 +376,6 @@ const NewsletterPage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/10 w-full overflow-hidden">
-      <Sidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
-      
       {/* Toaster Component - Adicionado diretamente aqui */}
       <Toaster 
         position="top-center"
@@ -433,11 +425,8 @@ const NewsletterPage = () => {
       />
       
       {/* Main Content */}
-      <div className={`min-h-screen transition-all duration-500 ${
-        sidebarOpen ? 'ml-48 sm:ml-64' : 'ml-12 sm:ml-16'
-      } w-[calc(100vw-3rem)] sm:w-[calc(100vw-4rem)]`}>
-        <div className="p-6">
-          <div className="max-w-7xl mx-auto">
+      <div className="p-6">
+        <div className="max-w-7xl mx-auto">
             {/* Header */}
             <div className="mb-8">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -509,7 +498,6 @@ const NewsletterPage = () => {
                 />
               </div>
             </div>
-          </div>
         </div>
       </div>
     </div>

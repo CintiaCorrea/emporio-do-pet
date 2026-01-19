@@ -7,6 +7,7 @@ import { STATUS_BG_COLORS, STATUS_TEXT_COLORS } from "@/constants/status";
 import { formatCurrency } from "@/utils/formatters";
 import KanbanCard from "./KanbanCard";
 import NewTaskModal from "./modals/NewTaskModal";
+import ConfirmDeleteColumnModal from "./modals/ConfirmDeleteColumnModal";
 import { LuTrash2, LuEllipsisVertical, LuPlus, LuPencil, LuCheck, LuX } from "react-icons/lu";
 
 // Função para atribuir cores dinamicamente com base no nome do status
@@ -46,7 +47,7 @@ const KanbanColumn = ({
   const columnRef = useRef<HTMLDivElement>(null);
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [newColumnName, setNewColumnName] = useState(status);
   
@@ -87,21 +88,9 @@ const KanbanColumn = ({
   const isTerminal = terminalStatuses.includes(status);
 
   // Função para excluir coluna
-  const handleDeleteColumn = async () => {
-    if (!confirm(`Tem certeza que deseja excluir a coluna "${status}"? Esta ação não pode ser desfeita.`)) {
-      return;
-    }
-
-    try {
-      setIsDeleting(true);
-      await onDeleteColumn(columnId);
-      setIsMenuOpen(false);
-    } catch (error) {
-      console.error('Erro ao excluir coluna:', error);
-      alert('Erro ao excluir coluna. Tente novamente.');
-    } finally {
-      setIsDeleting(false);
-    }
+  const openDeleteModal = () => {
+    setIsMenuOpen(false);
+    setIsDeleteModalOpen(true);
   };
 
   // Função para iniciar a edição do nome
@@ -259,6 +248,14 @@ const KanbanColumn = ({
       role="region"
       aria-label={`Coluna ${status}`}
     >
+      <ConfirmDeleteColumnModal
+        isOpen={isDeleteModalOpen}
+        columnName={status}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={async () => {
+          await onDeleteColumn(columnId);
+        }}
+      />
       {/* Header da Coluna */}
       <div className="mb-3 sm:mb-4">
         <div className="flex justify-between items-center mb-2">
@@ -344,13 +341,12 @@ const KanbanColumn = ({
                       
                       <div className="border-t border-gray-200">
                         <button
-                          onClick={handleDeleteColumn}
-                          disabled={isDeleting}
+                          onClick={openDeleteModal}
                           className="w-full px-4 py-3 text-left text-red-600 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-3 transition-colors rounded-b-lg"
                         >
                           <LuTrash2 className="w-4 h-4" />
                           <span className="font-medium">
-                            {isDeleting ? 'Excluindo...' : 'Excluir Coluna'}
+                            Excluir Coluna
                           </span>
                         </button>
                       </div>

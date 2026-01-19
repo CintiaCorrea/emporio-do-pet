@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import Sidebar from "@/components/protected/dashboard/Sidebar";
 import { 
   LuUsers, 
   LuMail, 
@@ -31,7 +30,6 @@ export default function NewClientPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [tutors, setTutors] = useState<Tutor[]>([]);
   const [loadingTutors, setLoadingTutors] = useState(true);
 
@@ -137,20 +135,11 @@ export default function NewClientPage() {
     }
   };
 
-  const toggleSidebar = () => {
-    setSidebarOpen((prev) => !prev);
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/10 w-full overflow-hidden">
-      <Sidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
-      
       {/* Main Content */}
-      <div className={`min-h-screen transition-all duration-500 ${
-        sidebarOpen ? 'ml-48 sm:ml-64' : 'ml-12 sm:ml-16'
-      } w-[calc(100vw-3rem)] sm:w-[calc(100vw-4rem)]`}>
-        <div className="p-6">
-          <div className="max-w-4xl mx-auto">
+      <div className="p-6">
+        <div className="max-w-4xl mx-auto">
             {/* Header */}
             <div className="mb-8">
               <div className="flex items-center gap-4 mb-4">
@@ -333,7 +322,6 @@ export default function NewClientPage() {
                 <li>• Cada tutor pode ter múltiplos contatos, mas apenas um principal</li>
               </ul>
             </div>
-          </div>
         </div>
       </div>
     </div>

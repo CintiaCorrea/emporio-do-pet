@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { LuPlus, LuSearch, LuPencil, LuTrash2, LuMail, LuFilter, LuDownload, LuEye, LuSend, LuClock, LuSave, LuUsers, LuCalendar, LuTriangle, LuCircleCheck, LuCopy } from 'react-icons/lu';
-import Sidebar from '@/components/protected/dashboard/Sidebar';
 import Link from 'next/link';
 
 interface Newsletter {
@@ -27,7 +26,6 @@ export default function NewslettersListPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [filterStatus, setFilterStatus] = useState<'all' | 'draft' | 'scheduled' | 'sent' | 'failed'>('all');
   const [filterType, setFilterType] = useState<'all' | 'client' | 'lead' | 'tutor'>('all');
   
@@ -38,10 +36,6 @@ export default function NewslettersListPage() {
   const [selectedNewsletter, setSelectedNewsletter] = useState<Newsletter | null>(null);
   const [modalMessage, setModalMessage] = useState('');
   const [modalType, setModalType] = useState<'delete' | 'success' | 'error'>('delete');
-
-  const toggleSidebar = () => {
-    setSidebarOpen((prev) => !prev);
-  };
 
   // Buscar newsletters da API
   useEffect(() => {
@@ -661,17 +655,12 @@ export default function NewslettersListPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/20 w-full overflow-hidden">
-      <Sidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
-      
       {/* Modal */}
       <Modal />
 
       {/* Main Content */}
-      <div className={`min-h-screen transition-all duration-500 ${
-        sidebarOpen ? 'ml-48 sm:ml-64' : 'ml-12 sm:ml-16'
-      } w-[calc(100vw-3rem)] sm:w-[calc(100vw-4rem)]`}>
-        <div className="p-6">
-          <div className="max-w-7xl mx-auto">
+      <div className="p-6">
+        <div className="max-w-7xl mx-auto">
             {/* Header */}
             <div className="mb-8">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
@@ -849,7 +838,6 @@ export default function NewslettersListPage() {
                 </div>
               )}
             </div>
-          </div>
         </div>
       </div>
     </div>

@@ -35,6 +35,15 @@ export class AuthService {
       return null;
     }
 
+    // Bloqueios / aprovação
+    // ADMIN não precisa de aprovação
+    if ((user as any).isBlocked) {
+      throw new UnauthorizedException('Usuário bloqueado');
+    }
+    if (user.role !== 'ADMIN' && !(user as any).isApproved) {
+      throw new UnauthorizedException('Usuário pendente de aprovação');
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password: _, ...result } = user;
     return result;
@@ -59,11 +68,21 @@ export class AuthService {
     });
 
     // Salvar refresh token no Redis
-    await this.redisService.set(
-      `refresh:${user.id}`,
-      refreshToken,
-      60 * 60 * 24 * 30, // 30 dias
-    );
+    try {
+      await this.redisService.set(
+        `refresh:${user.id}`,
+        refreshToken,
+        60 * 60 * 24 * 30, // 30 dias
+      );
+    } catch (err) {
+      // Redis indisponível não deve derrubar login em produção.
+      // Mantemos o refresh token retornado, mas sem persistência/revogação.
+      this.logger.warn(
+        `Falha ao salvar refresh token no Redis para ${user.email}: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
 
     this.logger.log(`Usuário ${user.email} logado com sucesso`);
 
@@ -81,19 +100,27 @@ export class AuthService {
   }
 
   async register(registerDto: RegisterDto) {
-    const hashedPassword = await bcrypt.hash(registerDto.password, 12);
+    try {
+      const hashedPassword = await bcrypt.hash(registerDto.password, 12);
 
-    const user = await this.usersService.create({
-      ...registerDto,
-      password: hashedPassword,
-    });
+      const user = await this.usersService.create({
+        ...registerDto,
+        password: hashedPassword,
+      });
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { password: _, ...result } = user;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { password: _, ...result } = user;
 
-    this.logger.log(`Novo usuário registrado: ${user.email}`);
+      this.logger.log(`Novo usuário registrado: ${user.email}`);
 
-    return result;
+      return result;
+    } catch (err) {
+      this.logger.error(
+        `Erro ao registrar usuário (${registerDto?.email ?? 'email desconhecido'}):`,
+        err instanceof Error ? err.stack : String(err),
+      );
+      throw err;
+    }
   }
 
   async refreshToken(userId: string) {
@@ -115,7 +142,15 @@ export class AuthService {
   }
 
   async logout(userId: string) {
-    await this.redisService.del(`refresh:${userId}`);
+    try {
+      await this.redisService.del(`refresh:${userId}`);
+    } catch (err) {
+      this.logger.warn(
+        `Falha ao remover refresh token no Redis para userId=${userId}: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
     this.logger.log(`Usuário ${userId} deslogado`);
   }
 

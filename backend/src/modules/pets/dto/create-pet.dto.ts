@@ -9,6 +9,19 @@ import {
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
+enum CoatType {
+  SHORT = 'SHORT',
+  LONG = 'LONG',
+  SMOOTH = 'SMOOTH',
+  WAVY = 'WAVY',
+  CURLY = 'CURLY',
+  GOLDEN = 'GOLDEN',
+  BLACK = 'BLACK',
+  WHITE = 'WHITE',
+  BROWN = 'BROWN',
+  MIXED = 'MIXED',
+}
+
 enum PetSpecies {
   CANINE = 'CANINE',
   FELINE = 'FELINE',
@@ -81,6 +94,11 @@ export class CreatePetDto {
   @IsNumber()
   weight?: number;
 
+  @ApiPropertyOptional({ enum: CoatType })
+  @IsOptional()
+  @IsEnum(CoatType)
+  coat?: CoatType;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
@@ -90,6 +108,11 @@ export class CreatePetDto {
   @IsOptional()
   @IsString()
   microchip?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  avatar?: string;
 
   @ApiPropertyOptional()
   @IsOptional()

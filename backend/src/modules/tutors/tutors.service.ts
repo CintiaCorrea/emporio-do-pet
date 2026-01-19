@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTutorDto } from './dto/create-tutor.dto';
 import { UpdateTutorDto } from './dto/update-tutor.dto';
@@ -8,8 +8,41 @@ export class TutorsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(createTutorDto: CreateTutorDto) {
+    const { contacts, ...tutorData } = createTutorDto as any;
+
+    const contactCreates = Array.isArray(contacts)
+      ? contacts
+          .filter((c: any) => typeof c?.number === 'string' && c.number.trim().length > 0)
+          .map((c: any) => ({
+            type: c.type,
+            number: c.number.trim(),
+            isWhatsApp: c.isWhatsApp ?? false,
+            observations: c.observations || undefined,
+            isPrimary: c.isPrimary ?? false,
+          }))
+      : [];
+
+    if (contactCreates.length === 0) {
+      throw new BadRequestException('Pelo menos um contato com número é necessário');
+    }
+
+    // Garantir que exista exatamente 1 contato primário
+    const firstPrimaryIndex = contactCreates.findIndex((c) => c.isPrimary === true);
+    if (firstPrimaryIndex === -1) {
+      contactCreates[0].isPrimary = true;
+    } else {
+      contactCreates.forEach((c, idx) => {
+        c.isPrimary = idx === firstPrimaryIndex;
+      });
+    }
+
     return this.prisma.tutor.create({
-      data: createTutorDto,
+      data: {
+        ...tutorData,
+        contacts: {
+          create: contactCreates,
+        },
+      },
       include: {
         contacts: true,
         pets: true,

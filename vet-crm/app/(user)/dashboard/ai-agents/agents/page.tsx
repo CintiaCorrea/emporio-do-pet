@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Sidebar from '@/components/protected/dashboard/Sidebar';
 import Link from 'next/link';
 import { 
   LuBot,
@@ -132,7 +131,6 @@ const mockAgents: AIAgent[] = [
 ];
 
 export default function AgentsPage() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [agents, setAgents] = useState<AIAgent[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -151,8 +149,6 @@ export default function AgentsPage() {
     };
     loadAgents();
   }, []);
-
-  const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
   // Filtros
   const filteredAgents = agents.filter(agent => {
@@ -231,25 +227,18 @@ export default function AgentsPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen bg-gray-50/50">
-        <Sidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
-        <div className={`flex-1 flex items-center justify-center transition-all duration-300 ${sidebarOpen ? 'ml-56 sm:ml-64' : 'ml-12 sm:ml-16'}`}>
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-12 h-12 border-4 border-violet-100 border-t-violet-600 rounded-full animate-spin"></div>
-            <p className="text-gray-500 font-medium">Carregando agentes...</p>
-          </div>
+      <div className="flex items-center justify-center min-h-[calc(100vh-8rem)]">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-violet-100 border-t-violet-600 rounded-full animate-spin"></div>
+          <p className="text-gray-500 font-medium">Carregando agentes...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen bg-gray-50/50">
-      <Sidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
-      
-      <main className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'ml-56 sm:ml-64' : 'ml-12 sm:ml-16'}`}>
-        <div className="p-6 lg:p-8">
-          <div className="max-w-[1600px] mx-auto">
+    <div className="p-6 lg:p-8">
+      <div className="max-w-[1600px] mx-auto">
             
             {/* Breadcrumb e Header */}
             <div className="mb-8">
@@ -467,8 +456,6 @@ export default function AgentsPage() {
               </div>
             )}
           </div>
-        </div>
-      </main>
 
       {/* Modal de Detalhes do Agente */}
       {isModalOpen && selectedAgent && (

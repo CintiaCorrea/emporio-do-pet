@@ -17,17 +17,32 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   async onModuleInit() {
     const redisConfig = this.configService.get('redis');
 
-    this.client = new Redis({
-      host: redisConfig.host,
-      port: redisConfig.port,
-      password: redisConfig.password || undefined,
-      db: redisConfig.db,
-      retryStrategy: (times) => {
-        const delay = Math.min(times * 50, 2000);
-        return delay;
-      },
-      maxRetriesPerRequest: 3,
-    });
+    // Se REDIS_URL estiver definida (Upstash/Fly.io), usar ela
+    // Caso contrário, usar configuração por host/port/password
+    if (redisConfig.url) {
+      this.logger.log('🔗 Conectando ao Redis via URL (Upstash/Fly.io)');
+      this.client = new Redis(redisConfig.url, {
+        retryStrategy: (times) => {
+          const delay = Math.min(times * 50, 2000);
+          return delay;
+        },
+        maxRetriesPerRequest: 3,
+        tls: redisConfig.tls ? {} : undefined,
+      });
+    } else {
+      this.logger.log('🔗 Conectando ao Redis via host/port');
+      this.client = new Redis({
+        host: redisConfig.host,
+        port: redisConfig.port,
+        password: redisConfig.password || undefined,
+        db: redisConfig.db,
+        retryStrategy: (times) => {
+          const delay = Math.min(times * 50, 2000);
+          return delay;
+        },
+        maxRetriesPerRequest: 3,
+      });
+    }
 
     this.client.on('connect', () => {
       this.logger.log('✅ Conectado ao Redis');

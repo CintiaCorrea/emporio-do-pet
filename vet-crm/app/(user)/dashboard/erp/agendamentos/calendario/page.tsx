@@ -3,7 +3,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import Sidebar from '@/components/protected/dashboard/Sidebar';
 import { 
   LuArrowLeft, 
   LuCalendar,
@@ -69,7 +68,6 @@ interface ApiResponse {
 
 export default function CalendarPage() {
   const router = useRouter();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -223,10 +221,6 @@ export default function CalendarPage() {
     setIsModalOpen(true);
   };
 
-  const toggleSidebar = () => {
-    setSidebarOpen((prev) => !prev);
-  };
-
   if (loading && appointments.length === 0) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/10 flex items-center justify-center">
@@ -241,13 +235,8 @@ export default function CalendarPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/10 w-full overflow-hidden">
       <Toaster position="top-right" />
-      <Sidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
-      
-      <div className={`min-h-screen transition-all duration-500 ${
-        sidebarOpen ? 'ml-48 sm:ml-64' : 'ml-12 sm:ml-16'
-      } w-[calc(100vw-3rem)] sm:w-[calc(100vw-4rem)]`}>
-        <div className="p-6">
-          <div className="max-w-7xl mx-auto">
+      <div className="p-6">
+        <div className="max-w-7xl mx-auto">
             {/* Header */}
             <div className="mb-8">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -404,7 +393,6 @@ export default function CalendarPage() {
             </div>
           </div>
         </div>
-      </div>
 
       {/* Modal de Detalhes */}
       {isModalOpen && selectedAppointment && (

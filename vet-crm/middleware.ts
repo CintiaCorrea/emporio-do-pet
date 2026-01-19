@@ -53,11 +53,25 @@ export async function middleware(request: NextRequest) {
       })
 
       if (token) {
+        const userId = (token as any).id ?? token.sub
+        const userEmail = (token as any).email
+        const userRole = (token as any).role
+
+        // Se faltar info mínima do usuário, tratar como não autenticado
+        if (!userId) {
+          return new Response(JSON.stringify({ error: 'Não autorizado' }), {
+            status: 401,
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          })
+        }
+
         // Clonar a request e adicionar headers com informações do usuário
         const requestHeaders = new Headers(request.headers)
-        requestHeaders.set('x-user-id', token.id as string)
-        requestHeaders.set('x-user-email', token.email as string)
-        requestHeaders.set('x-user-role', token.role as string)
+        requestHeaders.set('x-user-id', String(userId))
+        if (userEmail) requestHeaders.set('x-user-email', String(userEmail))
+        if (userRole) requestHeaders.set('x-user-role', String(userRole))
 
         return NextResponse.next({
           request: {

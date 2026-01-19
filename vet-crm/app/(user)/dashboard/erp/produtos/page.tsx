@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import Sidebar from '@/components/protected/dashboard/Sidebar';
 import { 
   LuPackage,
   LuSearch,
@@ -68,7 +67,6 @@ interface ApiResponse {
 }
 
 export default function ProductsPage() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [stats, setStats] = useState<ProductStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -133,9 +131,6 @@ export default function ProductsPage() {
     return () => clearTimeout(timeoutId);
   }, [searchTerm, typeFilter, lowStockFilter]);
 
-  const toggleSidebar = () => {
-    setSidebarOpen((prev) => !prev);
-  };
 
   // Filtrar produtos localmente (backup)
   const filteredProducts = products.filter(product => {
@@ -311,14 +306,9 @@ export default function ProductsPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/10 w-full overflow-hidden">
-      <Sidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
-      
       {/* Main Content */}
-      <div className={`min-h-screen transition-all duration-500 ${
-        sidebarOpen ? 'ml-48 sm:ml-64' : 'ml-12 sm:ml-16'
-      } w-[calc(100vw-3rem)] sm:w-[calc(100vw-4rem)]`}>
-        <div className="p-6">
-          <div className="max-w-7xl mx-auto">
+      <div className="p-6">
+        <div className="max-w-7xl mx-auto">
             {/* Header */}
             <div className="mb-8">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -617,7 +607,6 @@ export default function ProductsPage() {
             </div>
           </div>
         </div>
-      </div>
 
       {/* Modal de Detalhes/Edição do Produto */}
       {isModalOpen && selectedProduct && (

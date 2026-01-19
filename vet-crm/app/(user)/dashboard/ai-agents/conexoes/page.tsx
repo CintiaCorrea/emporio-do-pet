@@ -2,7 +2,6 @@
 
 // Página de Integrações - AI Agents
 import { useState, useEffect } from 'react';
-import Sidebar from '@/components/protected/dashboard/Sidebar';
 import { 
   LuSettings,
   LuCheck,
@@ -96,7 +95,6 @@ const defaultConfig: IntegrationConfig = {
 };
 
 export default function IntegracoesPage() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
   const [testing, setTesting] = useState<string | null>(null);
@@ -200,8 +198,6 @@ export default function IntegracoesPage() {
       return { ...integration, status };
     }));
   };
-
-  const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
   const toggleShowKey = (key: string) => {
     setShowKeys(prev => ({ ...prev, [key]: !prev[key] }));
@@ -343,29 +339,22 @@ export default function IntegracoesPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen bg-gray-50/50">
-        <Sidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
-        <div className={`flex-1 flex items-center justify-center transition-all duration-300 ${sidebarOpen ? 'ml-56 sm:ml-64' : 'ml-12 sm:ml-16'}`}>
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-12 h-12 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin"></div>
-            <p className="text-gray-500 font-medium">Carregando integrações...</p>
-          </div>
+      <div className="flex items-center justify-center min-h-[calc(100vh-8rem)]">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin"></div>
+          <p className="text-gray-500 font-medium">Carregando integrações...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen bg-gray-50/50">
-      <Sidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
-      
-      <main className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'ml-56 sm:ml-64' : 'ml-12 sm:ml-16'}`}>
-        <div className="p-6 lg:p-8">
-          <div className="max-w-[1400px] mx-auto">
+    <div className="p-4 sm:p-6 lg:p-8">
+      <div className="max-w-[1400px] mx-auto">
             
             {/* Breadcrumb e Header */}
             <div className="mb-8">
-              <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
+              <div className="flex flex-wrap items-center gap-2 text-sm text-gray-500 mb-4">
                 <Link href="/dashboard/ai-agents/agents" className="hover:text-blue-600 transition-colors">
                   AI Agents
                 </Link>
@@ -384,7 +373,7 @@ export default function IntegracoesPage() {
                 </div>
                 <button 
                   onClick={loadConfig}
-                  className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl font-medium transition-colors"
+                  className="flex w-full sm:w-auto justify-center sm:justify-start items-center gap-2 px-4 py-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl font-medium transition-colors"
                 >
                   <LuRefreshCw className="w-5 h-5" />
                   Atualizar
@@ -393,12 +382,12 @@ export default function IntegracoesPage() {
             </div>
 
             {/* Cards de Status */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-8">
               {integrations.map((integration) => (
                 <button
                   key={integration.id}
                   onClick={() => setActiveTab(integration.id)}
-                  className={`bg-white rounded-2xl border p-5 text-left transition-all hover:shadow-lg ${
+                  className={`bg-white rounded-2xl border p-4 sm:p-5 text-left transition-all hover:shadow-lg ${
                     activeTab === integration.id 
                       ? 'border-blue-500 ring-2 ring-blue-500/20' 
                       : 'border-gray-100 hover:border-gray-200'
@@ -422,8 +411,8 @@ export default function IntegracoesPage() {
             <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
               {/* WhatsApp Business API */}
               {activeTab === 'whatsapp' && (
-                <div className="p-6">
-                  <div className="flex items-center gap-4 mb-6">
+                <div className="p-4 sm:p-6">
+                  <div className="flex flex-col md:flex-row md:items-center gap-4 mb-6">
                     <div className="p-3 rounded-xl bg-green-50">
                       <LuMessageSquare className="w-6 h-6 text-green-600" />
                     </div>
@@ -435,7 +424,7 @@ export default function IntegracoesPage() {
                       href="https://developers.facebook.com/docs/whatsapp/cloud-api" 
                       target="_blank" 
                       rel="noopener noreferrer"
-                      className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700"
+                      className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 md:self-auto self-start"
                     >
                       <LuExternalLink className="w-4 h-4" />
                       Documentação
@@ -447,16 +436,16 @@ export default function IntegracoesPage() {
                     <div className="p-4 bg-blue-50 rounded-xl border border-blue-100">
                       <div className="flex items-start gap-3">
                         <LuInfo className="w-5 h-5 text-blue-600 mt-0.5" />
-                        <div className="flex-1">
+                        <div className="flex-1 min-w-0">
                           <h4 className="font-medium text-blue-900 mb-1">URL do Webhook</h4>
                           <p className="text-sm text-blue-700 mb-2">Configure esta URL no painel do Meta Business</p>
-                          <div className="flex items-center gap-2">
-                            <code className="flex-1 px-3 py-2 bg-white rounded-lg text-sm font-mono text-gray-800 border border-blue-200">
+                          <div className="flex flex-col md:flex-row md:items-center gap-2">
+                            <code className="w-full sm:flex-1 px-3 py-2 bg-white rounded-lg text-sm font-mono text-gray-800 border border-blue-200 break-all">
                               {webhookUrl}
                             </code>
                             <button 
                               onClick={() => copyToClipboard(webhookUrl)}
-                              className="p-2 hover:bg-blue-100 rounded-lg transition-colors"
+                              className="w-full md:w-auto inline-flex justify-center p-2 hover:bg-blue-100 rounded-lg transition-colors"
                               title="Copiar"
                             >
                               <LuCopy className="w-4 h-4 text-blue-600" />
@@ -562,11 +551,11 @@ export default function IntegracoesPage() {
                     )}
 
                     {/* Actions */}
-                    <div className="flex items-center gap-3 pt-4 border-t border-gray-100">
+                    <div className="flex flex-col md:flex-row md:items-center gap-3 pt-4 border-t border-gray-100">
                       <button
                         onClick={() => handleTest('whatsapp')}
                         disabled={testing === 'whatsapp' || !config.whatsapp.accessToken}
-                        className="flex items-center gap-2 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="flex w-full md:w-auto justify-center md:justify-start items-center gap-2 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {testing === 'whatsapp' ? (
                           <LuRefreshCw className="w-4 h-4 animate-spin" />
@@ -578,7 +567,7 @@ export default function IntegracoesPage() {
                       <button
                         onClick={() => handleSave('whatsapp')}
                         disabled={saving === 'whatsapp'}
-                        className="flex items-center gap-2 px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl font-semibold transition-colors disabled:opacity-50"
+                        className="flex w-full md:w-auto justify-center md:justify-start items-center gap-2 px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl font-semibold transition-colors disabled:opacity-50"
                       >
                         {saving === 'whatsapp' ? (
                           <LuRefreshCw className="w-4 h-4 animate-spin" />
@@ -590,7 +579,7 @@ export default function IntegracoesPage() {
                       {integrations.find(i => i.id === 'whatsapp')?.status === 'connected' && (
                         <button
                           onClick={() => handleDisconnect('whatsapp')}
-                          className="flex items-center gap-2 px-4 py-2.5 text-red-600 hover:bg-red-50 rounded-xl font-medium transition-colors ml-auto"
+                          className="flex w-full md:w-auto justify-center md:justify-start items-center gap-2 px-4 py-2.5 text-red-600 hover:bg-red-50 rounded-xl font-medium transition-colors md:ml-auto"
                         >
                           <LuTrash2 className="w-4 h-4" />
                           Desconectar
@@ -603,8 +592,8 @@ export default function IntegracoesPage() {
 
               {/* OpenAI */}
               {activeTab === 'openai' && (
-                <div className="p-6">
-                  <div className="flex items-center gap-4 mb-6">
+                <div className="p-4 sm:p-6">
+                  <div className="flex flex-col md:flex-row md:items-center gap-4 mb-6">
                     <div className="p-3 rounded-xl bg-emerald-50">
                       <LuBrain className="w-6 h-6 text-emerald-600" />
                     </div>
@@ -616,7 +605,7 @@ export default function IntegracoesPage() {
                       href="https://platform.openai.com/docs" 
                       target="_blank" 
                       rel="noopener noreferrer"
-                      className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700"
+                      className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 md:self-auto self-start"
                     >
                       <LuExternalLink className="w-4 h-4" />
                       Documentação
@@ -707,11 +696,11 @@ export default function IntegracoesPage() {
                     )}
 
                     {/* Actions */}
-                    <div className="flex items-center gap-3 pt-4 border-t border-gray-100">
+                    <div className="flex flex-col md:flex-row md:items-center gap-3 pt-4 border-t border-gray-100">
                       <button
                         onClick={() => handleTest('openai')}
                         disabled={testing === 'openai' || !config.openai.apiKey}
-                        className="flex items-center gap-2 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="flex w-full md:w-auto justify-center md:justify-start items-center gap-2 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {testing === 'openai' ? (
                           <LuRefreshCw className="w-4 h-4 animate-spin" />
@@ -723,7 +712,7 @@ export default function IntegracoesPage() {
                       <button
                         onClick={() => handleSave('openai')}
                         disabled={saving === 'openai'}
-                        className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold transition-colors disabled:opacity-50"
+                        className="flex w-full md:w-auto justify-center md:justify-start items-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold transition-colors disabled:opacity-50"
                       >
                         {saving === 'openai' ? (
                           <LuRefreshCw className="w-4 h-4 animate-spin" />
@@ -735,7 +724,7 @@ export default function IntegracoesPage() {
                       {integrations.find(i => i.id === 'openai')?.status === 'connected' && (
                         <button
                           onClick={() => handleDisconnect('openai')}
-                          className="flex items-center gap-2 px-4 py-2.5 text-red-600 hover:bg-red-50 rounded-xl font-medium transition-colors ml-auto"
+                          className="flex w-full md:w-auto justify-center md:justify-start items-center gap-2 px-4 py-2.5 text-red-600 hover:bg-red-50 rounded-xl font-medium transition-colors md:ml-auto"
                         >
                           <LuTrash2 className="w-4 h-4" />
                           Desconectar
@@ -748,8 +737,8 @@ export default function IntegracoesPage() {
 
               {/* Gemini */}
               {activeTab === 'gemini' && (
-                <div className="p-6">
-                  <div className="flex items-center gap-4 mb-6">
+                <div className="p-4 sm:p-6">
+                  <div className="flex flex-col md:flex-row md:items-center gap-4 mb-6">
                     <div className="p-3 rounded-xl bg-blue-50">
                       <LuSparkles className="w-6 h-6 text-blue-600" />
                     </div>
@@ -761,7 +750,7 @@ export default function IntegracoesPage() {
                       href="https://ai.google.dev/docs" 
                       target="_blank" 
                       rel="noopener noreferrer"
-                      className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700"
+                      className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 md:self-auto self-start"
                     >
                       <LuExternalLink className="w-4 h-4" />
                       Documentação
@@ -833,11 +822,11 @@ export default function IntegracoesPage() {
                     )}
 
                     {/* Actions */}
-                    <div className="flex items-center gap-3 pt-4 border-t border-gray-100">
+                    <div className="flex flex-col md:flex-row md:items-center gap-3 pt-4 border-t border-gray-100">
                       <button
                         onClick={() => handleTest('gemini')}
                         disabled={testing === 'gemini' || !config.gemini.apiKey}
-                        className="flex items-center gap-2 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="flex w-full md:w-auto justify-center md:justify-start items-center gap-2 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {testing === 'gemini' ? (
                           <LuRefreshCw className="w-4 h-4 animate-spin" />
@@ -849,7 +838,7 @@ export default function IntegracoesPage() {
                       <button
                         onClick={() => handleSave('gemini')}
                         disabled={saving === 'gemini'}
-                        className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition-colors disabled:opacity-50"
+                        className="flex w-full md:w-auto justify-center md:justify-start items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition-colors disabled:opacity-50"
                       >
                         {saving === 'gemini' ? (
                           <LuRefreshCw className="w-4 h-4 animate-spin" />
@@ -861,7 +850,7 @@ export default function IntegracoesPage() {
                       {integrations.find(i => i.id === 'gemini')?.status === 'connected' && (
                         <button
                           onClick={() => handleDisconnect('gemini')}
-                          className="flex items-center gap-2 px-4 py-2.5 text-red-600 hover:bg-red-50 rounded-xl font-medium transition-colors ml-auto"
+                          className="flex w-full md:w-auto justify-center md:justify-start items-center gap-2 px-4 py-2.5 text-red-600 hover:bg-red-50 rounded-xl font-medium transition-colors md:ml-auto"
                         >
                           <LuTrash2 className="w-4 h-4" />
                           Desconectar
@@ -874,8 +863,8 @@ export default function IntegracoesPage() {
 
               {/* DeepSeek */}
               {activeTab === 'deepseek' && (
-                <div className="p-6">
-                  <div className="flex items-center gap-4 mb-6">
+                <div className="p-4 sm:p-6">
+                  <div className="flex flex-col md:flex-row md:items-center gap-4 mb-6">
                     <div className="p-3 rounded-xl bg-violet-50">
                       <LuZap className="w-6 h-6 text-violet-600" />
                     </div>
@@ -887,7 +876,7 @@ export default function IntegracoesPage() {
                       href="https://platform.deepseek.com/docs" 
                       target="_blank" 
                       rel="noopener noreferrer"
-                      className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700"
+                      className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 md:self-auto self-start"
                     >
                       <LuExternalLink className="w-4 h-4" />
                       Documentação
@@ -974,11 +963,11 @@ export default function IntegracoesPage() {
                     )}
 
                     {/* Actions */}
-                    <div className="flex items-center gap-3 pt-4 border-t border-gray-100">
+                    <div className="flex flex-col md:flex-row md:items-center gap-3 pt-4 border-t border-gray-100">
                       <button
                         onClick={() => handleTest('deepseek')}
                         disabled={testing === 'deepseek' || !config.deepseek.apiKey}
-                        className="flex items-center gap-2 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="flex w-full md:w-auto justify-center md:justify-start items-center gap-2 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {testing === 'deepseek' ? (
                           <LuRefreshCw className="w-4 h-4 animate-spin" />
@@ -990,7 +979,7 @@ export default function IntegracoesPage() {
                       <button
                         onClick={() => handleSave('deepseek')}
                         disabled={saving === 'deepseek'}
-                        className="flex items-center gap-2 px-6 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-semibold transition-colors disabled:opacity-50"
+                        className="flex w-full md:w-auto justify-center md:justify-start items-center gap-2 px-6 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-semibold transition-colors disabled:opacity-50"
                       >
                         {saving === 'deepseek' ? (
                           <LuRefreshCw className="w-4 h-4 animate-spin" />
@@ -1002,7 +991,7 @@ export default function IntegracoesPage() {
                       {integrations.find(i => i.id === 'deepseek')?.status === 'connected' && (
                         <button
                           onClick={() => handleDisconnect('deepseek')}
-                          className="flex items-center gap-2 px-4 py-2.5 text-red-600 hover:bg-red-50 rounded-xl font-medium transition-colors ml-auto"
+                          className="flex w-full md:w-auto justify-center md:justify-start items-center gap-2 px-4 py-2.5 text-red-600 hover:bg-red-50 rounded-xl font-medium transition-colors md:ml-auto"
                         >
                           <LuTrash2 className="w-4 h-4" />
                           Desconectar
@@ -1015,7 +1004,5 @@ export default function IntegracoesPage() {
             </div>
           </div>
         </div>
-      </main>
-    </div>
   );
 }

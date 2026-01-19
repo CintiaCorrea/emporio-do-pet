@@ -9,12 +9,11 @@ import NewColumnModal from "./modals/NewColumnModal";
 import { LuLoader } from "react-icons/lu";
 
 interface KanbanBoardProps {
-  sidebarOpen: boolean;
   boardId: string;
   boardName?: string;
 }
 
-const KanbanBoard = ({ sidebarOpen, boardId, boardName = "CRM" }: KanbanBoardProps) => {
+const KanbanBoard = ({ boardId, boardName = "CRM" }: KanbanBoardProps) => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [statuses, setStatuses] = useState<KanbanColumn[]>([]);
   const [isColumnModalOpen, setIsColumnModalOpen] = useState(false);
@@ -114,7 +113,14 @@ const KanbanBoard = ({ sidebarOpen, boardId, boardName = "CRM" }: KanbanBoardPro
       });
 
       if (!response.ok) {
-        throw new Error('Erro ao excluir coluna');
+        const errData = await response.json().catch(() => null);
+        const message =
+          (errData &&
+            (errData.error ||
+              (Array.isArray(errData.message) ? errData.message.join(', ') : errData.message) ||
+              errData.message)) ||
+          `Erro ao excluir coluna (HTTP ${response.status})`;
+        throw new Error(message);
       }
 
       // Atualizar estado local removendo a coluna
@@ -288,10 +294,8 @@ const KanbanBoard = ({ sidebarOpen, boardId, boardName = "CRM" }: KanbanBoardPro
 
   if (loading) {
     return (
-      <div className={`min-h-screen bg-gray-100 transition-all duration-300 ${
-        sidebarOpen ? "ml-48 sm:ml-64" : "ml-12 sm:ml-16"
-      } w-[calc(100vw-3rem)] sm:w-[calc(100vw-4rem)]`}>
-        <div className="flex items-center justify-center h-64">
+      <div className="w-full">
+        <div className="flex items-center justify-center min-h-[calc(100vh-8rem)]">
           <div className="flex items-center gap-3 text-gray-600">
             <LuLoader className="w-6 h-6 animate-spin" />
             <span>Carregando board...</span>
@@ -303,9 +307,7 @@ const KanbanBoard = ({ sidebarOpen, boardId, boardName = "CRM" }: KanbanBoardPro
 
   if (error) {
     return (
-      <div className={`min-h-screen bg-gray-100 transition-all duration-300 ${
-        sidebarOpen ? "ml-48 sm:ml-64" : "ml-12 sm:ml-16"
-      } w-[calc(100vw-3rem)] sm:w-[calc(100vw-4rem)]`}>
+      <div className="w-full">
         <div className="p-6">
           <div className="bg-red-50 border border-red-200 rounded-2xl p-6 text-center">
             <h3 className="text-lg font-semibold text-red-800 mb-2">Erro ao carregar board</h3>
@@ -325,9 +327,7 @@ const KanbanBoard = ({ sidebarOpen, boardId, boardName = "CRM" }: KanbanBoardPro
   return (
     <DndProvider backend={HTML5Backend}>
       <div
-        className={`min-h-screen bg-gray-100 transition-all duration-300 ${
-          sidebarOpen ? "ml-48 sm:ml-64" : "ml-12 sm:ml-16"
-        } w-[calc(100vw-3rem)] sm:w-[calc(100vw-4rem)]`}
+        className="min-h-[calc(100vh-4rem)] w-full"
       >
         <div className="w-full py-4 sm:py-6 px-4 sm:px-6">
           <div className="flex flex-col items-start sm:flex-row sm:justify-between sm:items-center mb-4 sm:mb-6 gap-4">

@@ -7,6 +7,19 @@ import { UpdateNewsletterDto } from './dto/update-newsletter.dto';
 export class NewslettersService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private normalizePagination(params?: { skip?: number; take?: number }) {
+    const rawSkip = params?.skip;
+    const rawTake = params?.take;
+
+    const skip =
+      typeof rawSkip === 'number' && Number.isFinite(rawSkip) && rawSkip >= 0 ? Math.floor(rawSkip) : 0;
+
+    const take =
+      typeof rawTake === 'number' && Number.isFinite(rawTake) && rawTake > 0 ? Math.floor(rawTake) : 20;
+
+    return { skip, take };
+  }
+
   async create(userId: string, createNewsletterDto: CreateNewsletterDto) {
     return this.prisma.newsletter.create({
       data: {
@@ -25,7 +38,8 @@ export class NewslettersService {
   }
 
   async findAll(userId: string, params?: { status?: string; skip?: number; take?: number }) {
-    const { status, skip = 0, take = 20 } = params || {};
+    const { status } = params || {};
+    const { skip, take } = this.normalizePagination(params);
 
     const where = {
       userId,

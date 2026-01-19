@@ -58,6 +58,28 @@ enum RecipientType {
   ALL
 }
 
+enum FinanceEntryType {
+  INCOME
+  EXPENSE
+}
+
+enum FinanceEntryStatus {
+  PAID
+  PENDING
+  OVERDUE
+  CANCELED
+}
+
+enum FinancePaymentMethod {
+  CASH
+  PIX
+  BOLETO
+  CREDIT_CARD
+  DEBIT_CARD
+  TRANSFER
+  OTHER
+}
+
 // NOVOS ENUMS para Tutor, Contact e Pet
 enum PersonType {
   INDIVIDUAL
@@ -158,6 +180,8 @@ model User {
   password      String?
   role          Role         @default(VETERINARIAN)
   permissions   String[]     @default([])
+  isApproved    Boolean      @default(true)
+  isBlocked     Boolean      @default(false)
   
   // Relacionamentos
   accounts      Account[]
@@ -165,6 +189,7 @@ model User {
   boards        Board[]
   newsletters   Newsletter[]
   appointments  Appointment[] // NOVO: Relacionamento com agendamentos
+  financeEntries FinanceEntry[]
   integrationSettings IntegrationSettings?
   
   createdAt     DateTime     @default(now())
@@ -383,6 +408,36 @@ model KanbanCard {
   @@unique([columnId, position])
 }
 
+// Financeiro (ERP) - Lançamentos
+model FinanceEntry {
+  id               String             @id @default(uuid())
+  userId           String
+  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type             FinanceEntryType   @default(INCOME)
+  status           FinanceEntryStatus @default(PENDING)
+  method           FinancePaymentMethod? @default(OTHER)
+
+  // Para manter a UI atual (Cliente / Serviço)
+  counterpartyName String
+  service          String
+  description      String?
+
+  // Armazenar em centavos para evitar problemas de float
+  amountCents      Int
+
+  date             DateTime           @default(now())
+  dueDate          DateTime?
+  paidAt           DateTime?
+
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  @@index([userId, date])
+  @@index([userId, status])
+  @@index([userId, type])
+}
+
 // Newsletter Models - ATUALIZADO com NewsletterTemplate
 model Newsletter {
   id            String         @id @default(uuid())
@@ -470,5 +525,282 @@ model IntegrationSettings {
   updatedAt       DateTime @updatedAt
   
   @@map("integration_settings")
+}
+
+// ============================================
+// CRM B2C - Leads com Insights Preditivos
+// ============================================
+
+enum LeadStatus {
+  NEW
+  ENRICHING
+  ENRICHED
+  QUALIFIED
+  CONTACTED
+  CONVERTED
+  LOST
+}
+
+enum LeadSource {
+  ORGANIC
+  GOOGLE_ADS
+  INSTAGRAM
+  FACEBOOK
+  TIKTOK
+  REFERRAL
+  LANDING_PAGE
+  WHATSAPP
+  EMAIL
+  DIRECT
+  OTHER
+}
+
+enum DeviceType {
+  MOBILE
+  DESKTOP
+  TABLET
+  UNKNOWN
+}
+
+enum InsightType {
+  HIGH_INTENT
+  REENGAGEMENT
+  CHURN_RISK
+  COLD_LEAD
+  HOT_LEAD
+  SEND_WHATSAPP
+  SEND_EMAIL
+  OFFER_DISCOUNT
+  NURTURE_CONTENT
+}
+
+enum InsightPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+model Lead {
+  id               String       @id @default(uuid())
+  
+  // Dados básicos
+  name             String?
+  email            String       @unique
+  phone            String?
+  
+  // Origem e tracking
+  source           LeadSource   @default(OTHER)
+  sourceDetail     String?      // Ex: "campanha_verao_2024"
+  utmSource        String?
+  utmMedium        String?
+  utmCampaign      String?
+  utmContent       String?
+  referrer         String?      // URL de referência
+  landingPage      String?      // Página de entrada
+  
+  // Dispositivo e localização
+  device           DeviceType   @default(UNKNOWN)
+  userAgent        String?
+  ip               String?      // Para geolocalização aproximada (não sensível)
+  city             String?
+  state            String?
+  country          String       @default("BR")
+  
+  // Status e ciclo de vida
+  status           LeadStatus   @default(NEW)
+  firstSeenAt      DateTime     @default(now())
+  lastSeenAt       DateTime     @default(now())
+  lastActivityAt   DateTime?
+  convertedAt      DateTime?
+  
+  // Score atual (desnormalizado para queries rápidas)
+  currentScore     Int          @default(0)
+  scoreUpdatedAt   DateTime?
+  
+  // Flags comportamentais (cache para queries)
+  visitedPricing   Boolean      @default(false)
+  abandonedCart    Boolean      @default(false)
+  returnedWithin24h Boolean     @default(false)
+  
+  // Metadados extras
+  tags             String[]     @default([])
+  customFields     Json?        // Campos customizados
+  notes            String?
+  
+  // Relacionamentos
+  events           LeadEvent[]
+  enrichment       LeadEnrichment?
+  scores           LeadScore[]
+  insights         LeadInsight[]
+  history          LeadHistory[]
+  
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  
+  @@index([status])
+  @@index([currentScore])
+  @@index([source])
+  @@index([lastSeenAt])
+  @@index([email])
+  @@map("leads")
+}
+
+model LeadEvent {
+  id          String     @id @default(uuid())
+  leadId      String
+  lead        Lead       @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  
+  // Tipo e dados do evento
+  eventType   String     // page_view, pricing_view, checkout_start, checkout_abandon, form_submit, etc.
+  eventData   Json?      // Dados extras do evento
+  
+  // Contexto
+  page        String?    // URL ou identificador da página
+  sessionId   String?    // Para agrupar eventos de uma sessão
+  duration    Int?       // Tempo na página em segundos
+  
+  // Dispositivo (no momento do evento)
+  device      DeviceType @default(UNKNOWN)
+  
+  createdAt   DateTime   @default(now())
+  
+  @@index([leadId, eventType])
+  @@index([leadId, createdAt])
+  @@index([sessionId])
+  @@index([eventType])
+  @@map("lead_events")
+}
+
+model LeadEnrichment {
+  id              String   @id @default(uuid())
+  leadId          String   @unique
+  lead            Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  
+  // Análise de email
+  emailProvider   String?  // gmail, hotmail, outlook, corporativo, etc.
+  emailValid      Boolean  @default(true)
+  emailDisposable Boolean  @default(false)
+  emailRisk       String?  // low, medium, high
+  
+  // Dados comportamentais agregados
+  totalPageViews      Int     @default(0)
+  uniquePages         Int     @default(0)
+  pricingPageViews    Int     @default(0)
+  checkoutStarts      Int     @default(0)
+  checkoutAbandons    Int     @default(0)
+  formSubmissions     Int     @default(0)
+  totalSessions       Int     @default(0)
+  avgSessionDuration  Int     @default(0)  // segundos
+  totalTimeOnSite     Int     @default(0)  // segundos
+  
+  // Padrões temporais
+  preferredTimeSlot   String? // morning, afternoon, evening, night
+  preferredDayOfWeek  String? // monday, tuesday, etc.
+  mostActiveHour      Int?    // 0-23
+  
+  // Engajamento
+  daysActive          Int     @default(0)
+  daysSinceFirstVisit Int     @default(0)
+  daysSinceLastVisit  Int     @default(0)
+  visitFrequency      Float   @default(0) // visitas por dia
+  
+  // Canal preferido (inferido)
+  primaryChannel      String? // instagram, google, direto, etc.
+  
+  // Intenção de compra inferida
+  purchaseIntent      String  @default("unknown") // low, medium, high, very_high
+  
+  // Raw data (para debug e reprocessamento)
+  rawData             Json?
+  
+  enrichedAt          DateTime @default(now())
+  version             Int      @default(1)
+  
+  @@index([emailDisposable])
+  @@index([purchaseIntent])
+  @@map("lead_enrichments")
+}
+
+model LeadScore {
+  id          String   @id @default(uuid())
+  leadId      String
+  lead        Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  
+  // Score calculado
+  score       Int      // 0-100
+  
+  // Breakdown explicável (auditoria)
+  breakdown   Json     // { "pricing_view": 30, "email_valid": 10, "checkout_abandon": 20, ... }
+  
+  // Metadados
+  version     Int      @default(1)
+  algorithm   String   @default("rules_v1") // Para evolução futura para ML
+  
+  createdAt   DateTime @default(now())
+  
+  @@index([leadId, createdAt])
+  @@index([score])
+  @@map("lead_scores")
+}
+
+model LeadInsight {
+  id          String          @id @default(uuid())
+  leadId      String
+  lead        Lead            @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  
+  // Tipo e ação recomendada
+  type        InsightType
+  action      String          // "Abordar agora via WhatsApp", "Enviar email com desconto", etc.
+  title       String          // Título curto para UI
+  description String?         // Descrição detalhada
+  
+  // Prioridade e ordenação
+  priority    InsightPriority @default(MEDIUM)
+  confidence  Float           @default(0.8) // 0-1, confiança na recomendação
+  
+  // Rastreabilidade (quais regras/dados geraram)
+  rule        String          // Nome da regra que gerou
+  triggerData Json?           // Dados que triggaram o insight
+  
+  // Status
+  dismissed   Boolean         @default(false)
+  dismissedAt DateTime?
+  actedOn     Boolean         @default(false)
+  actedOnAt   DateTime?
+  
+  // Expiração (insights podem ficar obsoletos)
+  expiresAt   DateTime?
+  
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  
+  @@index([leadId, dismissed])
+  @@index([type])
+  @@index([priority])
+  @@index([expiresAt])
+  @@map("lead_insights")
+}
+
+model LeadHistory {
+  id          String   @id @default(uuid())
+  leadId      String
+  lead        Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  
+  // O que mudou
+  action      String   // status_change, score_update, enrichment_complete, insight_generated, etc.
+  field       String?  // Campo que mudou (se aplicável)
+  oldValue    String?
+  newValue    String?
+  
+  // Contexto
+  metadata    Json?    // Dados extras sobre a mudança
+  triggeredBy String?  // system, user, worker, etc.
+  
+  createdAt   DateTime @default(now())
+  
+  @@index([leadId, createdAt])
+  @@index([action])
+  @@map("lead_history")
 }
 

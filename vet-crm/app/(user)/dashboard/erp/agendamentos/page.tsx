@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import Sidebar from '@/components/protected/dashboard/Sidebar';
 import { 
   LuCalendar,
   LuClock,
@@ -90,7 +89,6 @@ interface ApiResponse {
 }
 
 export default function AppointmentsPage() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -142,10 +140,6 @@ export default function AppointmentsPage() {
     
     return () => clearTimeout(timeoutId);
   }, [searchTerm, statusFilter, tutorFilter, dateFilter]);
-
-  const toggleSidebar = () => {
-    setSidebarOpen((prev) => !prev);
-  };
 
   // Filtrar consultas localmente (backup)
   const filteredAppointments = appointments.filter(appointment => {
@@ -334,14 +328,8 @@ export default function AppointmentsPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/10 w-full overflow-hidden">
-      <Sidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
-      
-      {/* Main Content */}
-      <div className={`min-h-screen transition-all duration-500 ${
-        sidebarOpen ? 'ml-48 sm:ml-64' : 'ml-12 sm:ml-16'
-      } w-[calc(100vw-3rem)] sm:w-[calc(100vw-4rem)]`}>
-        <div className="p-6">
-          <div className="max-w-7xl mx-auto">
+      <div className="p-6">
+        <div className="max-w-7xl mx-auto">
             {/* Header */}
             <div className="mb-8">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -676,10 +664,8 @@ export default function AppointmentsPage() {
                 </div>
               </div>
             </div>
-          </div>
         </div>
       </div>
-
       {/* Modal de Detalhes da Consulta */}
       {isModalOpen && selectedAppointment && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">

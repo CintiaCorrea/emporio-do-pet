@@ -2,8 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import Sidebar from '@/components/protected/dashboard/Sidebar';
-import MobileHeader from '@/components/protected/pipeline/new/MobileHeader';
 import BoardFormHeader from '@/components/protected/pipeline/shared/BoardFormHeader';
 import ErrorMessage from '@/components/protected/pipeline/new/ErrorMessage';
 import BoardForm from '@/components/protected/pipeline/new/BoardForm';
@@ -16,7 +14,6 @@ export default function EditBoardPage() {
   const params = useParams();
   const boardId = params.id as string;
   
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState<BoardFormData>({
@@ -35,10 +32,6 @@ export default function EditBoardPage() {
       setFormData(board);
     }
   }, [board]);
-
-  const toggleSidebar = () => {
-    setSidebarOpen((prev) => !prev);
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,23 +77,12 @@ export default function EditBoardPage() {
   // Loading state para carregamento inicial
   if (loadingBoard) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/10 w-full overflow-hidden">
-        <Sidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
-        
-        <div className={`min-h-screen transition-all duration-500 ${
-          sidebarOpen ? 'ml-48 sm:ml-64' : 'ml-12 sm:ml-16'
-        } w-[calc(100vw-3rem)] sm:w-[calc(100vw-4rem)]`}>
-          
-          <MobileHeader onToggleSidebar={toggleSidebar} />
-
-          <div className="p-6">
-            <div className="max-w-4xl mx-auto">
-              <div className="flex items-center justify-center h-64">
-                <div className="flex items-center gap-3 text-gray-600">
-                  <div className="w-6 h-6 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
-                  <span>Carregando board...</span>
-                </div>
-              </div>
+      <div className="p-6">
+        <div className="max-w-4xl mx-auto">
+          <div className="flex items-center justify-center min-h-[calc(100vh-8rem)]">
+            <div className="flex items-center gap-3 text-gray-600">
+              <div className="w-6 h-6 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+              <span>Carregando board...</span>
             </div>
           </div>
         </div>
@@ -111,28 +93,17 @@ export default function EditBoardPage() {
   // Error state para erro no carregamento
   if (loadError) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/10 w-full overflow-hidden">
-        <Sidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
-        
-        <div className={`min-h-screen transition-all duration-500 ${
-          sidebarOpen ? 'ml-48 sm:ml-64' : 'ml-12 sm:ml-16'
-        } w-[calc(100vw-3rem)] sm:w-[calc(100vw-4rem)]`}>
-          
-          <MobileHeader onToggleSidebar={toggleSidebar} />
-
-          <div className="p-6">
-            <div className="max-w-4xl mx-auto">
-              <div className="bg-red-50 border border-red-200 rounded-2xl p-6 text-center">
-                <h3 className="text-lg font-semibold text-red-800 mb-2">Erro ao carregar board</h3>
-                <p className="text-red-600 mb-4">{loadError}</p>
-                <button
-                  onClick={() => router.back()}
-                  className="px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors"
-                >
-                  Voltar
-                </button>
-              </div>
-            </div>
+      <div className="p-6">
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-red-50 border border-red-200 rounded-2xl p-6 text-center">
+            <h3 className="text-lg font-semibold text-red-800 mb-2">Erro ao carregar board</h3>
+            <p className="text-red-600 mb-4">{loadError}</p>
+            <button
+              onClick={() => router.back()}
+              className="px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors"
+            >
+              Voltar
+            </button>
           </div>
         </div>
       </div>
@@ -140,38 +111,26 @@ export default function EditBoardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/10 w-full overflow-hidden">
-      <Sidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
-      
-      {/* Main Content */}
-      <div className={`min-h-screen transition-all duration-500 ${
-        sidebarOpen ? 'ml-48 sm:ml-64' : 'ml-12 sm:ml-16'
-      } w-[calc(100vw-3rem)] sm:w-[calc(100vw-4rem)]`}>
+    <div className="p-6">
+      <div className="max-w-4xl mx-auto">
+        <BoardFormHeader
+          title="Editar Board"
+          description="Atualize as informações do seu pipeline"
+          backHref="/dashboard/crm/pipelines"
+        />
         
-        <MobileHeader onToggleSidebar={toggleSidebar} />
+        <ErrorMessage error={error} />
 
-        <div className="p-6">
-          <div className="max-w-4xl mx-auto">
-            <BoardFormHeader
-              title="Editar Board"
-              description="Atualize as informações do seu pipeline"
-              backHref="/dashboard/crm/pipelines"
-            />
-            
-            <ErrorMessage error={error} />
+        <BoardForm
+          formData={formData}
+          isLoading={isLoading}
+          error={error}
+          onFormDataChange={setFormData}
+          onSubmit={handleSubmit}
+          onCancel={handleCancel}
+        />
 
-            <BoardForm
-              formData={formData}
-              isLoading={isLoading}
-              error={error}
-              onFormDataChange={setFormData}
-              onSubmit={handleSubmit}
-              onCancel={handleCancel}
-            />
-
-            <BoardPreview formData={formData} />
-          </div>
-        </div>
+        <BoardPreview formData={formData} />
       </div>
     </div>
   );

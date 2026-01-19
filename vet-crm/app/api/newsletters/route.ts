@@ -96,6 +96,9 @@ export async function GET(request: NextRequest) {
     const upstream = new URL(`${buildApiBase(backendBaseUrl)}/newsletters`);
     // repassa filtros/paginação se houver
     url.searchParams.forEach((value, key) => upstream.searchParams.set(key, value));
+    // defaults para evitar NaN/undefined no backend
+    if (!upstream.searchParams.has('skip')) upstream.searchParams.set('skip', '0');
+    if (!upstream.searchParams.has('take')) upstream.searchParams.set('take', '20');
 
     const authHeader = await buildAuthHeader(request);
     const upstreamResponse = await fetch(upstream.toString(), {
