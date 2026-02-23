@@ -47,10 +47,7 @@ export class NewslettersController {
 
   @Post()
   @ApiOperation({ summary: 'Criar newsletter' })
-  create(
-    @CurrentUser('id') userId: string,
-    @Body() createNewsletterDto: CreateNewsletterDto,
-  ) {
+  create(@CurrentUser('id') userId: string, @Body() createNewsletterDto: CreateNewsletterDto) {
     return this.newslettersService.create(userId, createNewsletterDto);
   }
 
@@ -99,4 +96,3 @@ export class NewslettersController {
     return this.newslettersService.remove(id, userId);
   }
 }
-

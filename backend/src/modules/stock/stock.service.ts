@@ -29,8 +29,8 @@ export class StockService {
     });
 
     const movements = treatments
-      .filter((t) => t.product)
-      .map((t) => ({
+      .filter((t: any) => t.product)
+      .map((t: any) => ({
         id: `treatment_${t.id}`,
         productId: t.product!.id,
         productName: t.product!.name,
@@ -43,7 +43,7 @@ export class StockService {
         userName: t.appointment.user.name || t.appointment.user.email,
         createdAt: t.createdAt.toISOString(),
       }))
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
     const paginated = movements.slice(skip, skip + limit);
 
@@ -75,7 +75,7 @@ export class StockService {
     });
 
     const movements = treatments
-      .map((t) => ({
+      .map((t: any) => ({
         id: `treatment_${t.id}`,
         productId: product.id,
         productName: product.name,
@@ -88,12 +88,15 @@ export class StockService {
         userName: t.appointment.user.name || t.appointment.user.email,
         createdAt: t.createdAt.toISOString(),
       }))
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
     return movements;
   }
 
-  async createMovement(dto: CreateStockMovementDto, user: { id: string; name?: string; email: string }) {
+  async createMovement(
+    dto: CreateStockMovementDto,
+    user: { id: string; name?: string; email: string },
+  ) {
     const product = await this.prisma.product.findUnique({ where: { id: dto.productId } });
     if (!product) throw new NotFoundException('Produto não encontrado');
 
@@ -125,12 +128,14 @@ export class StockService {
       newStock,
       reason:
         dto.reason ||
-        (dto.type === 'IN' ? 'Entrada de estoque' : dto.type === 'OUT' ? 'Saída de estoque' : 'Ajuste de estoque'),
+        (dto.type === 'IN'
+          ? 'Entrada de estoque'
+          : dto.type === 'OUT'
+            ? 'Saída de estoque'
+            : 'Ajuste de estoque'),
       userId: user.id,
       userName: user.name || user.email,
       createdAt: new Date().toISOString(),
     };
   }
 }
-
-

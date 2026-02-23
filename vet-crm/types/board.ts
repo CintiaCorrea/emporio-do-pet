@@ -1,10 +1,12 @@
 // types/board.ts
 
 // Tipos base
+export type BoardType = 'APPOINTMENT' | 'CONSULTATION' | 'HOSPITALIZATION' | 'TASK' | 'PROJECT';
+
 export interface Board {
   id: string;
   name: string;
-  type: 'APPOINTMENT' | 'TASK' | 'PROJECT';
+  type: BoardType;
   description: string | null;
   color: string;
   progress: number;
@@ -18,7 +20,7 @@ export interface Board {
 // Tipo para criação de board
 export interface CreateBoardInput {
   name: string;
-  type?: 'APPOINTMENT' | 'TASK' | 'PROJECT';
+  type?: BoardType;
   description?: string;
   color?: string;
 }

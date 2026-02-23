@@ -75,5 +75,3 @@ export class TreatmentsController {
     return this.treatmentsService.remove(id);
   }
 }
-
-

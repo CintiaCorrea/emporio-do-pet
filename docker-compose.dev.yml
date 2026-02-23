@@ -75,6 +75,29 @@ services:
     environment:
       REDIS_HOSTS: local:redis:6379
 
+  # ===================================================
+  # AI Service (FastAPI)
+  # ===================================================
+  ai-service:
+    build:
+      context: ./ai-service
+      dockerfile: Dockerfile
+    container_name: emporio-ai-service
+    restart: unless-stopped
+    ports:
+      - "${AI_SERVICE_PORT:-8000}:8080"
+    networks:
+      - emporio-dev-network
+    environment:
+      - ENVIRONMENT=development
+      - LOG_LEVEL=DEBUG
+      - CORS_ORIGINS=http://localhost:3000,http://localhost:3001,http://localhost:8000
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
 volumes:
   postgres_dev_data:
     name: emporio_postgres_dev_data

@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  OnModuleInit,
-  OnModuleDestroy,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
 
@@ -81,8 +76,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   }
 
   async set(key: string, value: unknown, ttlSeconds?: number): Promise<void> {
-    const serialized =
-      typeof value === 'string' ? value : JSON.stringify(value);
+    const serialized = typeof value === 'string' ? value : JSON.stringify(value);
 
     if (ttlSeconds) {
       await this.client.setex(key, ttlSeconds, serialized);
@@ -129,11 +123,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   }
 
   // Cache helpers
-  async getOrSet<T>(
-    key: string,
-    factory: () => Promise<T>,
-    ttlSeconds = 300,
-  ): Promise<T> {
+  async getOrSet<T>(key: string, factory: () => Promise<T>, ttlSeconds = 300): Promise<T> {
     const cached = await this.get<T>(key);
     if (cached !== null) {
       return cached;
@@ -148,4 +138,3 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     await this.delByPattern(`${prefix}:*`);
   }
 }
-

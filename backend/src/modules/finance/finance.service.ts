@@ -92,7 +92,9 @@ export class FinanceService {
         ...(dto.description !== undefined ? { description: dto.description } : {}),
         ...(dto.amountCents !== undefined ? { amountCents: dto.amountCents } : {}),
         ...(dto.date !== undefined ? { date: new Date(dto.date) } : {}),
-        ...(dto.dueDate !== undefined ? { dueDate: dto.dueDate ? new Date(dto.dueDate) : null } : {}),
+        ...(dto.dueDate !== undefined
+          ? { dueDate: dto.dueDate ? new Date(dto.dueDate) : null }
+          : {}),
         ...(dto.paidAt !== undefined ? { paidAt: dto.paidAt ? new Date(dto.paidAt) : null } : {}),
       },
     });
@@ -124,7 +126,11 @@ export class FinanceService {
         _count: { _all: true },
       }),
       this.prisma.financeEntry.aggregate({
-        where: { ...whereBase, type: 'INCOME' as any, status: { in: ['PENDING', 'OVERDUE'] } as any },
+        where: {
+          ...whereBase,
+          type: 'INCOME' as any,
+          status: { in: ['PENDING', 'OVERDUE'] } as any,
+        },
         _sum: { amountCents: true },
         _count: { _all: true },
       }),
@@ -155,5 +161,3 @@ export class FinanceService {
     };
   }
 }
-
-

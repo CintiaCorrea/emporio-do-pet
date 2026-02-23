@@ -15,6 +15,8 @@ import {
   LuActivity,
   LuClipboardList
 } from 'react-icons/lu';
+import ConfirmDeleteModal from '@/components/common/ConfirmDeleteModal';
+import toast from 'react-hot-toast';
 
 // Tipo SERVICE
 type ServiceType = 'SERVICE';
@@ -69,6 +71,7 @@ export default function ServicesPage() {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedService, setSelectedService] = useState<Service | null>(null);
+  const [serviceToDelete, setServiceToDelete] = useState<Service | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -152,17 +155,23 @@ export default function ServicesPage() {
         }),
       });
 
-      if (response.ok) {
-        fetchServices();
-        setIsCreateModalOpen(false);
-        resetForm();
-      } else {
-        const data = await response.json();
-        throw new Error(data.error || 'Erro ao criar serviço');
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        const message =
+          (data && (data.error || (Array.isArray(data.message) ? data.message.join(', ') : data.message))) ||
+          'Erro ao criar serviço';
+        throw new Error(String(message));
       }
+
+      toast.success('Serviço criado com sucesso!');
+      fetchServices();
+      setIsCreateModalOpen(false);
+      resetForm();
     } catch (err) {
       console.error('Erro ao criar service:', err);
-      setError(err instanceof Error ? err.message : 'Erro ao criar serviço');
+      const message = err instanceof Error ? err.message : 'Erro ao criar serviço';
+      setError(message);
+      toast.error(message);
     }
   };
 
@@ -182,42 +191,47 @@ export default function ServicesPage() {
         }),
       });
 
-      if (response.ok) {
-        fetchServices();
-        setIsModalOpen(false);
-        setIsEditMode(false);
-        resetForm();
-      } else {
-        const data = await response.json();
-        throw new Error(data.error || 'Erro ao atualizar serviço');
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        const message =
+          (data && (data.error || (Array.isArray(data.message) ? data.message.join(', ') : data.message))) ||
+          'Erro ao atualizar serviço';
+        throw new Error(String(message));
       }
+
+      toast.success('Serviço atualizado com sucesso!');
+      fetchServices();
+      setIsModalOpen(false);
+      setIsEditMode(false);
+      resetForm();
     } catch (err) {
       console.error('Erro ao atualizar service:', err);
-      setError(err instanceof Error ? err.message : 'Erro ao atualizar serviço');
+      const message = err instanceof Error ? err.message : 'Erro ao atualizar serviço';
+      setError(message);
+      toast.error(message);
     }
   };
 
-  const handleDeleteService = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir este serviço?')) {
-      return;
+  const requestDeleteService = (service: Service) => {
+    setServiceToDelete(service);
+  };
+
+  const confirmDeleteService = async () => {
+    if (!serviceToDelete) return;
+
+    const res = await fetch(`/api/products/${serviceToDelete.id}`, { method: 'DELETE' });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      const message =
+        (data && (data.error || (Array.isArray(data.message) ? data.message.join(', ') : data.message))) ||
+        'Erro ao excluir serviço';
+      throw new Error(message);
     }
 
-    try {
-      const response = await fetch(`/api/products/${id}`, {
-        method: 'DELETE',
-      });
-
-      if (response.ok) {
-        fetchServices();
-        setIsModalOpen(false);
-      } else {
-        const data = await response.json();
-        throw new Error(data.error || 'Erro ao excluir serviço');
-      }
-    } catch (err) {
-      console.error('Erro ao excluir service:', err);
-      setError(err instanceof Error ? err.message : 'Erro ao excluir serviço');
-    }
+    await fetchServices();
+    setIsModalOpen(false);
+    toast.success('Serviço excluído com sucesso!');
+    setServiceToDelete(null);
   };
 
   const openServiceDetails = (service: Service) => {
@@ -270,6 +284,14 @@ export default function ServicesPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/10 w-full overflow-hidden">
+      <ConfirmDeleteModal
+        isOpen={Boolean(serviceToDelete)}
+        entityLabel="Serviço"
+        itemName={serviceToDelete?.name || '—'}
+        consequenceText="Esta ação não pode ser desfeita. Os dados do serviço serão removidos."
+        onClose={() => setServiceToDelete(null)}
+        onConfirm={confirmDeleteService}
+      />
       {/* Main Content */}
       <div className="p-6">
         <div className="max-w-7xl mx-auto">
@@ -488,7 +510,7 @@ export default function ServicesPage() {
                               <LuPencil className="w-4 h-4" />
                             </button>
                             <button
-                              onClick={() => handleDeleteService(service.id)}
+                              onClick={() => requestDeleteService(service)}
                               className="p-2 text-gray-400 hover:bg-gray-50 hover:text-red-600 rounded-2xl transition-colors"
                               title="Excluir serviço"
                             >

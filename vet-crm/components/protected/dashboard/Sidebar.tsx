@@ -26,7 +26,9 @@ import {
   LuFileText,
   LuPercent,
   LuDollarSign,
-  LuMegaphone
+  LuMegaphone,
+  LuMessageSquare,
+  LuFiles
 } from "react-icons/lu";
 
 interface SidebarProps {
@@ -403,6 +405,17 @@ const Sidebar = ({ isOpen, toggleSidebar }: SidebarProps) => {
                     <LuDollarSign className="mr-3 w-4 h-4" /> 
                     Financeiro
                   </Link>
+                  <Link
+                    href="/dashboard/erp/documentos"
+                    className={`mx-2 my-1 flex items-center py-2 pl-10 pr-3 sm:pl-11 sm:pr-4 rounded-xl text-sm sm:text-base border-l-2 transition-all ${
+                      isActive("/dashboard/documentos") || isActive("/dashboard/erp/documentos")
+                        ? "bg-[color:var(--sidebar-active-bg)] text-[color:var(--sidebar-active-text)] border-[color:var(--sidebar-active-border)]"
+                        : "text-[color:var(--sidebar-muted)] border-transparent hover:bg-[color:var(--sidebar-hover)] hover:text-[color:var(--sidebar-text)] hover:border-[color:var(--sidebar-active-border)]"
+                    }`}
+                  >
+                    <LuFiles className="mr-3 w-4 h-4" /> 
+                    Documentos
+                  </Link>
                 </div>
               </div>
 
@@ -439,18 +452,43 @@ const Sidebar = ({ isOpen, toggleSidebar }: SidebarProps) => {
                   }`}
                 >
                   <Link
-                    href="/dashboard/campanhas/newsletter"
+                    href="/dashboard/campanhas/email"
                     className={`mx-2 my-1 flex items-center py-2 pl-10 pr-3 sm:pl-11 sm:pr-4 rounded-xl text-sm sm:text-base border-l-2 transition-all ${
-                      isActive("/dashboard/campanhas/newsletter")
+                      isActive("/dashboard/campanhas/email")
                         ? "bg-[color:var(--sidebar-active-bg)] text-[color:var(--sidebar-active-text)] border-[color:var(--sidebar-active-border)]"
                         : "text-[color:var(--sidebar-muted)] border-transparent hover:bg-[color:var(--sidebar-hover)] hover:text-[color:var(--sidebar-text)] hover:border-[color:var(--sidebar-active-border)]"
                     }`}
                   >
                     <LuMail className="mr-3 w-4 h-4" />
-                    Newsletter
+                    Email
+                  </Link>
+                  <Link
+                    href="/dashboard/campanhas/whatsapp"
+                    className={`mx-2 my-1 flex items-center py-2 pl-10 pr-3 sm:pl-11 sm:pr-4 rounded-xl text-sm sm:text-base border-l-2 transition-all ${
+                      isActive("/dashboard/campanhas/whatsapp")
+                        ? "bg-[color:var(--sidebar-active-bg)] text-[color:var(--sidebar-active-text)] border-[color:var(--sidebar-active-border)]"
+                        : "text-[color:var(--sidebar-muted)] border-transparent hover:bg-[color:var(--sidebar-hover)] hover:text-[color:var(--sidebar-text)] hover:border-[color:var(--sidebar-active-border)]"
+                    }`}
+                  >
+                    <LuMessageSquare className="mr-3 w-4 h-4" />
+                    WhatsApp
                   </Link>
                 </div>
               </div>
+
+              {/* Menu Landing Pages */}
+              <Link
+                href="/dashboard/landing-pages"
+                className={`mx-2 my-1 flex items-center gap-3 px-3 sm:px-4 py-2.5 rounded-xl text-sm sm:text-base transition-colors ${
+                  isActive("/dashboard/landing-pages")
+                    ? "bg-[color:var(--sidebar-active-bg)] text-[color:var(--sidebar-active-text)]"
+                    : "text-[color:var(--sidebar-muted)] hover:bg-[color:var(--sidebar-hover)] hover:text-[color:var(--sidebar-text)]"
+                }`}
+              >
+                <LuFileText className="w-5 h-5" />
+                Landing Pages
+              </Link>
+
             </nav>
           )}
 
@@ -627,6 +665,13 @@ const Sidebar = ({ isOpen, toggleSidebar }: SidebarProps) => {
                     >
                       <LuDollarSign className="w-4 h-4" />
                     </Link>
+                    <Link
+                      href="/dashboard/erp/documentos"
+                      className="w-full p-3 sm:p-4 hover:bg-[color:var(--sidebar-hover)] flex justify-center transition-colors"
+                      title="Documentos"
+                    >
+                      <LuFiles className="w-4 h-4" />
+                    </Link>
                   </>
                 )}
                 
@@ -641,14 +686,45 @@ const Sidebar = ({ isOpen, toggleSidebar }: SidebarProps) => {
                 
                 {/* Subitens de Campanhas - mostrados apenas quando campanhasOpen é true */}
                 {campanhasOpen && (
-                  <Link
-                    href="/dashboard/campanhas/newsletter"
-                    className="w-full p-3 sm:p-4 hover:bg-[color:var(--sidebar-hover)] flex justify-center transition-colors"
-                    title="Newsletter"
-                  >
-                    <LuMail className="w-4 h-4" />
-                  </Link>
+                  <>
+                    <Link
+                      href="/dashboard/campanhas/email"
+                      className={`w-full p-3 sm:p-4 flex justify-center transition-colors ${
+                        isActive("/dashboard/campanhas/email")
+                          ? "bg-[color:var(--sidebar-active-bg)] text-[color:var(--sidebar-active-text)]"
+                          : "hover:bg-[color:var(--sidebar-hover)] text-[color:var(--sidebar-muted)] hover:text-[color:var(--sidebar-text)]"
+                      }`}
+                      title="Email"
+                    >
+                      <LuMail className="w-4 h-4" />
+                    </Link>
+                    <Link
+                      href="/dashboard/campanhas/whatsapp"
+                      className={`w-full p-3 sm:p-4 flex justify-center transition-colors ${
+                        isActive("/dashboard/campanhas/whatsapp")
+                          ? "bg-[color:var(--sidebar-active-bg)] text-[color:var(--sidebar-active-text)]"
+                          : "hover:bg-[color:var(--sidebar-hover)] text-[color:var(--sidebar-muted)] hover:text-[color:var(--sidebar-text)]"
+                      }`}
+                      title="WhatsApp"
+                    >
+                      <LuMessageSquare className="w-4 h-4" />
+                    </Link>
+                  </>
                 )}
+
+                {/* Landing Pages */}
+                <Link
+                  href="/dashboard/landing-pages"
+                  className={`w-full p-3 sm:p-4 flex justify-center transition-colors ${
+                    isActive("/dashboard/landing-pages")
+                      ? "bg-[color:var(--sidebar-active-bg)] text-[color:var(--sidebar-active-text)]"
+                      : "hover:bg-[color:var(--sidebar-hover)] text-[color:var(--sidebar-muted)] hover:text-[color:var(--sidebar-text)]"
+                  }`}
+                  title="Landing Pages"
+                >
+                  <LuFileText className="w-5 h-5" />
+                </Link>
+
               </div>
             </nav>
           )}

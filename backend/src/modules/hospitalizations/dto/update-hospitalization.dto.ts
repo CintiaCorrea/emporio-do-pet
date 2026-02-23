@@ -60,5 +60,3 @@ export class UpdateHospitalizationDto {
   @IsObject()
   vitalSigns?: Record<string, any>;
 }
-
-

@@ -3,6 +3,8 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 enum BoardType {
   APPOINTMENT = 'APPOINTMENT',
+  CONSULTATION = 'CONSULTATION',
+  HOSPITALIZATION = 'HOSPITALIZATION',
   TASK = 'TASK',
   PROJECT = 'PROJECT',
 }
@@ -32,4 +34,3 @@ export class CreateBoardDto {
   @IsBoolean()
   favorite?: boolean;
 }
-

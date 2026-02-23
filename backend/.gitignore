@@ -34,3 +34,5 @@ coverage/
 prisma/*.db
 prisma/*.db-journal
 
+# Media uploads
+uploads/

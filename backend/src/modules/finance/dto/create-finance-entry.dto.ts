@@ -73,5 +73,3 @@ export class CreateFinanceEntryDto {
   @IsISO8601()
   paidAt?: string;
 }
-
-

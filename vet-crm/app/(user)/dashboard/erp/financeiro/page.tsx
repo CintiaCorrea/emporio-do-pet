@@ -20,6 +20,7 @@ import {
 } from 'react-icons/lu';
 import FinanceEntryModal, { FinanceEntryFormValues } from '@/components/protected/dashboard/erp/financeiro/modals/FinanceEntryModal';
 import ConfirmDeleteFinanceEntryModal from '@/components/protected/dashboard/erp/financeiro/modals/ConfirmDeleteFinanceEntryModal';
+import toast from 'react-hot-toast';
 
 type FinanceStatus = 'PAID' | 'PENDING' | 'OVERDUE' | 'CANCELED';
 type FinanceType = 'INCOME' | 'EXPENSE';
@@ -206,45 +207,69 @@ export default function FinanceiroPage() {
   };
 
   const handleSubmitEntry = async (values: FinanceEntryFormValues) => {
-    const payload: any = {
-      type: values.type,
-      status: values.status,
-      method: values.method,
-      counterpartyName: values.counterpartyName,
-      service: values.service,
-      description: values.description,
-      amountCents: parseBrlToCents(values.amountBRL),
-      date: toDateISO(values.date),
-      dueDate: values.dueDate ? toDateISO(values.dueDate) : null,
-      paidAt: values.status === 'PAID' ? toDateISO(values.date) : null,
-    };
+    try {
+      const payload: any = {
+        type: values.type,
+        status: values.status,
+        method: values.method,
+        counterpartyName: values.counterpartyName,
+        service: values.service,
+        description: values.description,
+        amountCents: parseBrlToCents(values.amountBRL),
+        date: toDateISO(values.date),
+        dueDate: values.dueDate ? toDateISO(values.dueDate) : null,
+        paidAt: values.status === 'PAID' ? toDateISO(values.date) : null,
+      };
 
-    const url = editingEntry ? `/api/finance/entries/${editingEntry.id}` : '/api/finance/entries';
-    const method = editingEntry ? 'PATCH' : 'POST';
+      const url = editingEntry ? `/api/finance/entries/${editingEntry.id}` : '/api/finance/entries';
+      const method = editingEntry ? 'PATCH' : 'POST';
 
-    const res = await fetch(url, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => null);
-      throw new Error(err?.error || `Erro ao salvar (HTTP ${res.status})`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => null);
+        const message =
+          (err &&
+            (err.error ||
+              (Array.isArray(err.message) ? err.message.join(', ') : err.message))) ||
+          `Erro ao salvar (HTTP ${res.status})`;
+        throw new Error(String(message));
+      }
+
+      await fetchData();
+      toast.success(editingEntry ? 'Lançamento atualizado com sucesso!' : 'Lançamento criado com sucesso!');
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Erro ao salvar lançamento';
+      toast.error(message);
+      throw e;
     }
-
-    await fetchData();
   };
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
-    const res = await fetch(`/api/finance/entries/${deleteTarget.id}`, { method: 'DELETE' });
-    if (!res.ok) {
-      const err = await res.json().catch(() => null);
-      throw new Error(err?.error || `Erro ao excluir (HTTP ${res.status})`);
+    try {
+      const res = await fetch(`/api/finance/entries/${deleteTarget.id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const err = await res.json().catch(() => null);
+        const message =
+          (err &&
+            (err.error ||
+              (Array.isArray(err.message) ? err.message.join(', ') : err.message))) ||
+          `Erro ao excluir (HTTP ${res.status})`;
+        throw new Error(String(message));
+      }
+      setDeleteTarget(null);
+      await fetchData();
+      toast.success('Lançamento excluído com sucesso!');
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Erro ao excluir lançamento';
+      toast.error(message);
+      throw e;
     }
-    setDeleteTarget(null);
-    await fetchData();
   };
 
   const stats = [

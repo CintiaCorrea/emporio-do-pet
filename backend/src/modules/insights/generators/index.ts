@@ -63,10 +63,7 @@ export const insightGenerators: InsightGenerator[] = [
         return null;
       }
 
-      if (
-        ctx.lead.abandonedCart ||
-        (ctx.enrichment?.checkoutAbandons ?? 0) > 0
-      ) {
+      if (ctx.lead.abandonedCart || (ctx.enrichment?.checkoutAbandons ?? 0) > 0) {
         const abandonCount = ctx.enrichment?.checkoutAbandons ?? 1;
 
         return {
@@ -77,10 +74,7 @@ export const insightGenerators: InsightGenerator[] = [
               ? 'Enviar desconto agressivo — já abandonou várias vezes'
               : 'Reengajar com desconto ou benefício',
           description: `${ctx.lead.name || 'Lead'} abandonou o checkout ${abandonCount}x. Oferecer incentivo pode recuperar a venda.`,
-          priority:
-            abandonCount >= 2
-              ? InsightPriorityEnum.URGENT
-              : InsightPriorityEnum.HIGH,
+          priority: abandonCount >= 2 ? InsightPriorityEnum.URGENT : InsightPriorityEnum.HIGH,
           confidence: 0.85,
           rule: 'cart_abandon_recovery',
           triggerData: {

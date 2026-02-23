@@ -47,4 +47,3 @@ export class CreateNewsletterDto {
   @IsUUID()
   templateId?: string;
 }
-

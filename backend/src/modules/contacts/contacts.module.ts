@@ -9,5 +9,3 @@ import { ContactsService } from './contacts.service';
   providers: [ContactsService],
 })
 export class ContactsModule {}
-
-

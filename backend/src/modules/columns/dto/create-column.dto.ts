@@ -22,5 +22,3 @@ export class CreateColumnDto {
   @IsString()
   color?: string;
 }
-
-

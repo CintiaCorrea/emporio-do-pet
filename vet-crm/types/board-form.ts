@@ -1,8 +1,22 @@
+export type BoardType = 'APPOINTMENT' | 'CONSULTATION' | 'HOSPITALIZATION' | 'TASK' | 'PROJECT';
+
 export interface BoardFormData {
   name: string;
   description: string;
   color: string;
-  type: 'APPOINTMENT' | 'TASK' | 'PROJECT';
+  type: BoardType;
+}
+
+export function detectBoardTypeFromName(name: string): BoardType {
+  const normalizedName = name.toLowerCase().trim();
+  if (normalizedName === 'consultas' || normalizedName === 'consulta') {
+    return 'CONSULTATION';
+  }
+  if (normalizedName === 'internações' || normalizedName === 'internacoes' || 
+      normalizedName === 'internação' || normalizedName === 'internacao') {
+    return 'HOSPITALIZATION';
+  }
+  return 'APPOINTMENT';
 }
 
 export interface ColorOption {

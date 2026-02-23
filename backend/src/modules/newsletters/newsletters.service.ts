@@ -12,10 +12,14 @@ export class NewslettersService {
     const rawTake = params?.take;
 
     const skip =
-      typeof rawSkip === 'number' && Number.isFinite(rawSkip) && rawSkip >= 0 ? Math.floor(rawSkip) : 0;
+      typeof rawSkip === 'number' && Number.isFinite(rawSkip) && rawSkip >= 0
+        ? Math.floor(rawSkip)
+        : 0;
 
     const take =
-      typeof rawTake === 'number' && Number.isFinite(rawTake) && rawTake > 0 ? Math.floor(rawTake) : 20;
+      typeof rawTake === 'number' && Number.isFinite(rawTake) && rawTake > 0
+        ? Math.floor(rawTake)
+        : 20;
 
     return { skip, take };
   }
@@ -121,4 +125,3 @@ export class NewslettersService {
     });
   }
 }
-

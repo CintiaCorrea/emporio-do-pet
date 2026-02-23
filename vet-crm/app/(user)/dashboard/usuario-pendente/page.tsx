@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 
 interface User {
   id: string;
@@ -150,7 +150,6 @@ export default function UsuarioPendentePage() {
 
   return (
     <>
-      <Toaster position="top-right" />
       
       <div className="min-h-screen bg-gray-50">
         {/* Header */}

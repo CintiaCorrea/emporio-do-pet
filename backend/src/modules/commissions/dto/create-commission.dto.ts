@@ -57,5 +57,3 @@ export class CreateCommissionDto {
   @IsString()
   notes?: string;
 }
-
-

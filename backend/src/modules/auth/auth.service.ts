@@ -123,20 +123,53 @@ export class AuthService {
     }
   }
 
-  async refreshToken(userId: string) {
-    const user = await this.usersService.findById(userId);
+  async refreshToken(refreshToken: string) {
+    if (!refreshToken) {
+      throw new UnauthorizedException('Refresh token não fornecido');
+    }
+
+    let payload: JwtPayload;
+    try {
+      payload = this.jwtService.verify<JwtPayload>(refreshToken);
+    } catch (error) {
+      if (error.name === 'TokenExpiredError') {
+        throw new UnauthorizedException('Refresh token expirado. Por favor, faça login novamente.');
+      }
+      throw new UnauthorizedException('Refresh token inválido');
+    }
+
+    const user = await this.usersService.findById(payload.sub);
 
     if (!user) {
       throw new UnauthorizedException('Usuário não encontrado');
     }
 
-    const payload: JwtPayload = {
+    // Verificar se o refresh token está no Redis (se disponível)
+    try {
+      const storedToken = await this.redisService.get(`refresh:${user.id}`);
+      if (storedToken && storedToken !== refreshToken) {
+        throw new UnauthorizedException('Refresh token foi revogado');
+      }
+    } catch (err) {
+      // Redis indisponível - continuar sem validação de revogação
+      if (!(err instanceof UnauthorizedException)) {
+        this.logger.warn(
+          `Falha ao verificar refresh token no Redis para ${user.email}: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+      } else {
+        throw err;
+      }
+    }
+
+    const newPayload: JwtPayload = {
       sub: user.id,
       email: user.email,
       role: user.role,
     };
 
-    const accessToken = this.jwtService.sign(payload);
+    const accessToken = this.jwtService.sign(newPayload);
 
     return { accessToken };
   }
@@ -162,4 +195,3 @@ export class AuthService {
     }
   }
 }
-

@@ -130,7 +130,7 @@ export default function NewslettersListPage() {
   const openDeleteModal = (newsletter: Newsletter) => {
     setSelectedNewsletter(newsletter);
     setModalType('delete');
-    setModalMessage(`Você está prestes a excluir a newsletter "${newsletter.title}". Esta ação é irreversível e não pode ser desfeita.`);
+    setModalMessage(`Você está prestes a excluir o email "${newsletter.title}". Esta ação é irreversível e não pode ser desfeita.`);
     setShowDeleteModal(true);
   };
 
@@ -167,19 +167,19 @@ export default function NewslettersListPage() {
       if (response.ok) {
         setNewsletters(prevNewsletters => prevNewsletters.filter(newsletter => newsletter.id !== selectedNewsletter.id));
         setModalType('success');
-        setModalMessage('Newsletter excluída com sucesso! A lista foi atualizada.');
+        setModalMessage('Email excluído com sucesso! A lista foi atualizada.');
         setShowDeleteModal(false);
         setShowSuccessModal(true);
       } else {
         setModalType('error');
-        setModalMessage(result.error || 'Erro ao excluir newsletter');
+        setModalMessage(result.error || 'Erro ao excluir email');
         setShowDeleteModal(false);
         setShowErrorModal(true);
       }
     } catch (error) {
       console.error('Erro ao excluir newsletter:', error);
       setModalType('error');
-      setModalMessage(error instanceof Error ? `Erro ao excluir newsletter: ${error.message}` : 'Erro ao excluir newsletter. Tente novamente.');
+      setModalMessage(error instanceof Error ? `Erro ao excluir email: ${error.message}` : 'Erro ao excluir email. Tente novamente.');
       setShowDeleteModal(false);
       setShowErrorModal(true);
     }
@@ -217,17 +217,17 @@ export default function NewslettersListPage() {
         };
         setNewsletters(prev => [duplicatedWithMetrics, ...prev]);
         setModalType('success');
-        setModalMessage('Newsletter duplicada com sucesso! Uma nova cópia foi adicionada à lista.');
+        setModalMessage('Email duplicado com sucesso! Uma nova cópia foi adicionada à lista.');
         setShowSuccessModal(true);
       } else {
         setModalType('error');
-        setModalMessage(result.error || 'Erro ao duplicar newsletter');
+        setModalMessage(result.error || 'Erro ao duplicar email');
         setShowErrorModal(true);
       }
     } catch (error) {
       console.error('Erro ao duplicar newsletter:', error);
       setModalType('error');
-      setModalMessage(error instanceof Error ? `Erro ao duplicar newsletter: ${error.message}` : 'Erro ao duplicar newsletter. Tente novamente.');
+      setModalMessage(error instanceof Error ? `Erro ao duplicar email: ${error.message}` : 'Erro ao duplicar email. Tente novamente.');
       setShowErrorModal(true);
     }
   };
@@ -494,11 +494,11 @@ export default function NewslettersListPage() {
             Comece criando sua primeira newsletter
           </p>
           <Link
-            href="/dashboard/campanhas/newsletter/novo"
+            href="/dashboard/campanhas/email/novo"
             className="mt-4 inline-flex items-center gap-2 px-6 py-3 text-white bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl hover:from-blue-700 hover:to-purple-700 transition-all duration-300"
           >
             <LuPlus className="w-5 h-5" />
-            <span className="font-semibold">Criar Primeira Newsletter</span>
+            <span className="font-semibold">Criar Primeiro Email</span>
           </Link>
         </div>
       );
@@ -523,7 +523,7 @@ export default function NewslettersListPage() {
         <table className="w-full">
           <thead>
             <tr className="border-b border-white/20 bg-gradient-to-r from-white to-white/95">
-              <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Newsletter</th>
+              <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Email</th>
               <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Destinatários</th>
               <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Status</th>
               <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Engajamento</th>
@@ -665,19 +665,19 @@ export default function NewslettersListPage() {
             <div className="mb-8">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-                    Newsletters
+                    <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+                    Email
                   </h1>
                   <p className="text-gray-600 mt-2">
-                    Gerencie todas as newsletters do sistema
+                    Gerencie todas as campanhas de email do sistema
                   </p>
                 </div>
                 <Link
-                  href="/dashboard/campanhas/newsletter/novo"
+                  href="/dashboard/campanhas/email/novo"
                   className="group mt-4 sm:mt-0 flex items-center gap-2 px-6 py-3 text-white bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-blue-500/25"
                 >
                   <LuPlus className="w-5 h-5 transition-transform duration-300 group-hover:rotate-90" />
-                  <span className="font-semibold">Nova Newsletter</span>
+                  <span className="font-semibold">Novo Email</span>
                 </Link>
               </div>
             </div>
@@ -814,7 +814,7 @@ export default function NewslettersListPage() {
               </div>
             )}
 
-            {/* Tabela de Newsletters */}
+            {/* Tabela de Emails */}
             <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-3xl shadow-2xl shadow-blue-500/10 overflow-hidden">
               {renderContent()}
 

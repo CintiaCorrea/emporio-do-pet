@@ -333,9 +333,11 @@ export default function IntegracoesPage() {
     }
   };
 
+  // Webhook URL aponta para a rota do Next.js que faz proxy ao backend
+  // Em produção: https://app.emporiodopet.com.br/webhooks/whatsapp
   const webhookUrl = typeof window !== 'undefined' 
-    ? `${window.location.origin}/api/webhook/whatsapp` 
-    : '';
+    ? `${window.location.origin}/webhooks/whatsapp`
+    : 'https://app.emporiodopet.com.br/webhooks/whatsapp';
 
   if (loading) {
     return (
@@ -437,20 +439,37 @@ export default function IntegracoesPage() {
                       <div className="flex items-start gap-3">
                         <LuInfo className="w-5 h-5 text-blue-600 mt-0.5" />
                         <div className="flex-1 min-w-0">
-                          <h4 className="font-medium text-blue-900 mb-1">URL do Webhook</h4>
-                          <p className="text-sm text-blue-700 mb-2">Configure esta URL no painel do Meta Business</p>
-                          <div className="flex flex-col md:flex-row md:items-center gap-2">
-                            <code className="w-full sm:flex-1 px-3 py-2 bg-white rounded-lg text-sm font-mono text-gray-800 border border-blue-200 break-all">
-                              {webhookUrl}
-                            </code>
-                            <button 
-                              onClick={() => copyToClipboard(webhookUrl)}
-                              className="w-full md:w-auto inline-flex justify-center p-2 hover:bg-blue-100 rounded-lg transition-colors"
-                              title="Copiar"
-                            >
-                              <LuCopy className="w-4 h-4 text-blue-600" />
-                            </button>
+                          <h4 className="font-medium text-blue-900 mb-1">Configuração do Webhook</h4>
+                          <p className="text-sm text-blue-700 mb-3">Configure estas informações no painel Meta Business → WhatsApp → Configuração</p>
+                          
+                          <div className="space-y-3">
+                            <div>
+                              <p className="text-xs text-blue-600 font-medium mb-1">URL do Webhook (Callback URL):</p>
+                              <div className="flex flex-col md:flex-row md:items-center gap-2">
+                                <code className="w-full sm:flex-1 px-3 py-2 bg-white rounded-lg text-sm font-mono text-gray-800 border border-blue-200 break-all">
+                                  {webhookUrl}
+                                </code>
+                                <button 
+                                  onClick={() => copyToClipboard(webhookUrl)}
+                                  className="w-full md:w-auto inline-flex justify-center p-2 hover:bg-blue-100 rounded-lg transition-colors"
+                                  title="Copiar"
+                                >
+                                  <LuCopy className="w-4 h-4 text-blue-600" />
+                                </button>
+                              </div>
+                            </div>
+                            
+                            <div className="pt-2 border-t border-blue-200">
+                              <p className="text-xs text-blue-600 font-medium mb-1">Campos para assinar (Webhook Fields):</p>
+                              <code className="px-3 py-2 bg-white rounded-lg text-sm font-mono text-gray-800 border border-blue-200 inline-block">
+                                messages
+                              </code>
+                            </div>
                           </div>
+                          
+                          <p className="text-xs text-blue-600 mt-3">
+                            <strong>Nota:</strong> Para desenvolvimento local, use ngrok: <code className="bg-white px-1 rounded">ngrok http 3001</code>
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -488,6 +507,7 @@ export default function IntegracoesPage() {
                         placeholder="Ex: 123456789012345"
                         className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500"
                       />
+                      <p className="mt-1 text-xs text-gray-500">Encontre no Meta Business Suite → Configurações → Informações da conta comercial</p>
                     </div>
 
                     {/* Access Token */}
@@ -521,17 +541,30 @@ export default function IntegracoesPage() {
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Webhook Verify Token
                       </label>
-                      <input
-                        type="text"
-                        value={config.whatsapp.webhookVerifyToken}
-                        onChange={(e) => setConfig(prev => ({
-                          ...prev,
-                          whatsapp: { ...prev.whatsapp, webhookVerifyToken: e.target.value }
-                        }))}
-                        placeholder="Seu token de verificação personalizado"
-                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500"
-                      />
-                      <p className="mt-1 text-xs text-gray-500">Token que você define para validar o webhook</p>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={config.whatsapp.webhookVerifyToken}
+                          onChange={(e) => setConfig(prev => ({
+                            ...prev,
+                            whatsapp: { ...prev.whatsapp, webhookVerifyToken: e.target.value }
+                          }))}
+                          placeholder="Ex: meu_token_secreto_123"
+                          className="w-full px-4 py-3 pr-12 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => copyToClipboard(config.whatsapp.webhookVerifyToken)}
+                          disabled={!config.whatsapp.webhookVerifyToken}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-200 rounded disabled:opacity-50"
+                          title="Copiar para usar no Meta"
+                        >
+                          <LuCopy className="w-4 h-4 text-gray-500" />
+                        </button>
+                      </div>
+                      <p className="mt-1 text-xs text-gray-500">
+                        Crie um token secreto aqui e use o <strong>mesmo valor</strong> no campo "Verify Token" ao configurar o webhook no Meta Developer Portal
+                      </p>
                     </div>
 
                     {/* Test Result */}

@@ -19,12 +19,7 @@ import { InsightsModule } from '../insights/insights.module';
     forwardRef(() => ScoringModule),
     forwardRef(() => InsightsModule),
   ],
-  providers: [
-    EnrichmentService,
-    EnrichmentProcessor,
-    EmailAnalyzer,
-    BehaviorAnalyzer,
-  ],
+  providers: [EnrichmentService, EnrichmentProcessor, EmailAnalyzer, BehaviorAnalyzer],
   exports: [EnrichmentService, EmailAnalyzer, BehaviorAnalyzer],
 })
 export class EnrichmentModule {}

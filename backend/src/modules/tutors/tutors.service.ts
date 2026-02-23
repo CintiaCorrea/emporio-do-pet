@@ -1,11 +1,15 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { EventsService } from '../events/events.service';
 import { CreateTutorDto } from './dto/create-tutor.dto';
 import { UpdateTutorDto } from './dto/update-tutor.dto';
 
 @Injectable()
 export class TutorsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly eventsService: EventsService,
+  ) {}
 
   async create(createTutorDto: CreateTutorDto) {
     const { contacts, ...tutorData } = createTutorDto as any;
@@ -36,7 +40,7 @@ export class TutorsService {
       });
     }
 
-    return this.prisma.tutor.create({
+    const tutor = await this.prisma.tutor.create({
       data: {
         ...tutorData,
         contacts: {
@@ -48,6 +52,18 @@ export class TutorsService {
         pets: true,
       },
     });
+
+    // Emit tutor created event for automations
+    // Note: userId would need to be passed from controller if multi-tenant
+    const primaryContact = tutor.contacts.find((c: { isPrimary: boolean }) => c.isPrimary);
+    this.eventsService.emitTutorCreated('system', {
+      tutorId: tutor.id,
+      name: tutor.name,
+      email: tutor.email || undefined,
+      phone: primaryContact?.number,
+    });
+
+    return tutor;
   }
 
   async findAll(params?: { search?: string; skip?: number; take?: number }) {
@@ -106,6 +122,13 @@ export class TutorsService {
             },
           },
         },
+        _count: {
+          select: {
+            pets: true,
+            contacts: true,
+            appointments: true,
+          },
+        },
       },
     });
 
@@ -137,4 +160,3 @@ export class TutorsService {
     });
   }
 }
-

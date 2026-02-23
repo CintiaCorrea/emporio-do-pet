@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { BoardsService } from '../boards/boards.service';
 import { CreateHospitalizationDto } from './dto/create-hospitalization.dto';
 import { UpdateHospitalizationDto } from './dto/update-hospitalization.dto';
 
@@ -19,7 +20,10 @@ interface HospitalizationMetadata {
 
 @Injectable()
 export class HospitalizationsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly boardsService: BoardsService,
+  ) {}
 
   private parseMetadata(notes: any): HospitalizationMetadata | null {
     try {
@@ -38,7 +42,8 @@ export class HospitalizationsService {
     const diffTime = Math.abs(now.getTime() - admissionDate.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-    const treatmentsCost = appointment.treatments?.reduce((acc: number, t: any) => acc + t.cost, 0) || 0;
+    const treatmentsCost =
+      appointment.treatments?.reduce((acc: number, t: any) => acc + t.cost, 0) || 0;
     const totalCost = metadata.dailyRate * diffDays + treatmentsCost + (appointment.value || 0);
 
     return {
@@ -89,7 +94,13 @@ export class HospitalizationsService {
     };
   }
 
-  async list(params?: { page?: number; limit?: number; search?: string; status?: string; priority?: string }) {
+  async list(params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    status?: string;
+    priority?: string;
+  }) {
     const { page = 1, limit = 100, search = '', status = '', priority = '' } = params || {};
     const skip = (page - 1) * limit;
 
@@ -123,16 +134,18 @@ export class HospitalizationsService {
     });
 
     const hospitalAppointments = allAppointments
-      .map((apt) => ({ apt, metadata: this.parseMetadata(apt.notes) }))
-      .filter((x) => x.metadata && x.metadata.type === 'HOSPITALIZATION');
+      .map((apt: any) => ({ apt, metadata: this.parseMetadata(apt.notes) }))
+      .filter((x: any) => x.metadata && x.metadata.type === 'HOSPITALIZATION');
 
     const total = hospitalAppointments.length;
     const paginated = hospitalAppointments.slice(skip, skip + limit);
 
-    let hospitalizations = paginated.map(({ apt, metadata }) => this.toHospitalization(apt, metadata!));
+    let hospitalizations = paginated.map(({ apt, metadata }: { apt: any; metadata: any }) =>
+      this.toHospitalization(apt, metadata!),
+    );
 
     if (priority && priority !== 'all') {
-      hospitalizations = hospitalizations.filter((h) => h.priority === priority);
+      hospitalizations = hospitalizations.filter((h: any) => h.priority === priority);
     }
 
     return {
@@ -183,6 +196,12 @@ export class HospitalizationsService {
         user: { select: { id: true, name: true, email: true } },
       },
     });
+
+    // Create card in Hospitalization board (async, don't block the response)
+    const cardTitle = `${appointment.pet.name} - ${appointment.tutor.name}`;
+    this.boardsService
+      .createCardForAppointment(dto.userId, appointment.id, 'HOSPITALIZATION', cardTitle, 'Admissão')
+      .catch((err) => console.error('Error creating hospitalization card:', err));
 
     // Retorna formato igual ao frontend
     return {
@@ -256,7 +275,8 @@ export class HospitalizationsService {
     if (!current) throw new NotFoundException('Internação não encontrada');
 
     let metadata: HospitalizationMetadata =
-      this.parseMetadata(current.notes) || ({
+      this.parseMetadata(current.notes) ||
+      ({
         type: 'HOSPITALIZATION',
         dailyRate: 0,
         priority: 'MEDIUM',
@@ -265,8 +285,10 @@ export class HospitalizationsService {
     if (dto.roomNumber !== undefined) metadata.roomNumber = dto.roomNumber;
     if (dto.dailyRate !== undefined) metadata.dailyRate = dto.dailyRate;
     if (dto.priority !== undefined) metadata.priority = dto.priority as any;
-    if (dto.estimatedDischargeDate !== undefined) metadata.estimatedDischargeDate = dto.estimatedDischargeDate;
-    if (dto.actualDischargeDate !== undefined) metadata.actualDischargeDate = dto.actualDischargeDate;
+    if (dto.estimatedDischargeDate !== undefined)
+      metadata.estimatedDischargeDate = dto.estimatedDischargeDate;
+    if (dto.actualDischargeDate !== undefined)
+      metadata.actualDischargeDate = dto.actualDischargeDate;
     if (dto.diagnosis !== undefined) metadata.diagnosis = dto.diagnosis;
     if (dto.vitalSigns !== undefined) metadata.vitalSigns = dto.vitalSigns;
 
@@ -299,6 +321,24 @@ export class HospitalizationsService {
       },
     });
 
+    // Move card in Hospitalization board based on status
+    if (dto.status && dto.status !== current.status) {
+      const statusToColumnMap: Record<string, string> = {
+        ADMITTED: 'Admissão',
+        IN_TREATMENT: 'Em Tratamento',
+        OBSERVATION: 'Observação',
+        DISCHARGE_SCHEDULED: 'Alta Programada',
+        DISCHARGED: 'Alta',
+      };
+
+      const targetColumn = statusToColumnMap[dto.status];
+      if (targetColumn) {
+        this.boardsService
+          .moveCardToColumn(id, targetColumn)
+          .catch((err) => console.error('Error moving hospitalization card:', err));
+      }
+    }
+
     return this.toHospitalization(updated, metadata);
   }
 
@@ -309,5 +349,3 @@ export class HospitalizationsService {
     return { message: 'Internação excluída com sucesso' };
   }
 }
-
-

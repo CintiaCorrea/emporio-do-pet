@@ -51,5 +51,3 @@ export class ListFinanceEntriesQuery {
   @Min(1)
   take?: number;
 }
-
-

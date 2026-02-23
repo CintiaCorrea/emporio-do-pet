@@ -185,11 +185,7 @@ export class EmailAnalyzer {
     if (domain.includes('yahoo')) {
       return 'yahoo';
     }
-    if (
-      domain.includes('icloud') ||
-      domain === 'me.com' ||
-      domain === 'mac.com'
-    ) {
+    if (domain.includes('icloud') || domain === 'me.com' || domain === 'mac.com') {
       return 'apple';
     }
     if (domain.includes('proton')) {
@@ -232,8 +228,7 @@ export class EmailAnalyzer {
     hasSuspiciousPattern: boolean;
     domain: string;
   }): 'low' | 'medium' | 'high' {
-    const { isValidFormat, isDisposable, provider, hasSuspiciousPattern } =
-      params;
+    const { isValidFormat, isDisposable, provider, hasSuspiciousPattern } = params;
 
     // Formato inválido ou descartável = alto risco
     if (!isValidFormat || isDisposable) {
@@ -246,7 +241,11 @@ export class EmailAnalyzer {
     }
 
     // Provedor confiável = baixo risco
-    if (['gmail', 'microsoft', 'yahoo', 'apple', 'protonmail', 'brasileiro', 'trusted'].includes(provider)) {
+    if (
+      ['gmail', 'microsoft', 'yahoo', 'apple', 'protonmail', 'brasileiro', 'trusted'].includes(
+        provider,
+      )
+    ) {
       return 'low';
     }
 

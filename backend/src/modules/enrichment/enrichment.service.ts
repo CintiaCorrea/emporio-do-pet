@@ -45,14 +45,11 @@ export class EnrichmentService {
 
     if (cached) {
       const enrichedAt = new Date(cached.enrichedAt);
-      const hoursSinceEnrichment =
-        (Date.now() - enrichedAt.getTime()) / (1000 * 60 * 60);
+      const hoursSinceEnrichment = (Date.now() - enrichedAt.getTime()) / (1000 * 60 * 60);
 
       // Se foi enriquecido há menos de 1 hora, pular
       if (hoursSinceEnrichment < 1) {
-        this.logger.debug(
-          `Lead ${leadId} foi enriquecido recentemente, pulando`,
-        );
+        this.logger.debug(`Lead ${leadId} foi enriquecido recentemente, pulando`);
         return;
       }
     }
@@ -63,7 +60,7 @@ export class EnrichmentService {
 
       // 2. Análise de Comportamento
       const behaviorAnalysis = this.behaviorAnalyzer.analyze(
-        lead.events.map((e) => ({
+        lead.events.map((e: any) => ({
           eventType: e.eventType,
           page: e.page || undefined,
           sessionId: e.sessionId || undefined,
@@ -113,11 +110,13 @@ export class EnrichmentService {
         // Metadata
         enrichedAt: new Date(),
         version: lead.enrichment ? lead.enrichment.version + 1 : 1,
-        rawData: JSON.parse(JSON.stringify({
-          emailAnalysis,
-          behaviorAnalysis,
-          analyzedAt: new Date().toISOString(),
-        })),
+        rawData: JSON.parse(
+          JSON.stringify({
+            emailAnalysis,
+            behaviorAnalysis,
+            analyzedAt: new Date().toISOString(),
+          }),
+        ),
       };
 
       // 4. Upsert enrichment
@@ -143,21 +142,19 @@ export class EnrichmentService {
         data: {
           leadId,
           action: 'enrichment_complete',
-          metadata: JSON.parse(JSON.stringify({
-            version: enrichmentData.version,
-            purchaseIntent: enrichmentData.purchaseIntent,
-            emailRisk: enrichmentData.emailRisk,
-          })),
+          metadata: JSON.parse(
+            JSON.stringify({
+              version: enrichmentData.version,
+              purchaseIntent: enrichmentData.purchaseIntent,
+              emailRisk: enrichmentData.emailRisk,
+            }),
+          ),
           triggeredBy: 'worker',
         },
       });
 
       // 7. Atualizar cache
-      await this.redis.set(
-        cacheKey,
-        { enrichedAt: new Date().toISOString() },
-        this.CACHE_TTL,
-      );
+      await this.redis.set(cacheKey, { enrichedAt: new Date().toISOString() }, this.CACHE_TTL);
 
       // 8. Invalidar cache do lead
       await this.redis.del(`lead:${leadId}`);

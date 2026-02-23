@@ -1,176 +1,124 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { 
-  LuMegaphone,
+  LuClock,
   LuMail,
   LuMessageSquare,
-  LuSend,
-  LuUsers,
-  LuTrendingUp,
-  LuPlus,
   LuArrowUpRight,
-  LuCircleCheck
+  LuMegaphone,
+  LuSave,
+  LuSend,
+  LuUsers
 } from 'react-icons/lu';
 
-// Tipos
-interface CampaignStats {
-  totalCampaigns: number;
-  activeCampaigns: number;
-  scheduledCampaigns: number;
-  completedCampaigns: number;
-  totalRecipients: number;
-  avgOpenRate: number;
-  avgClickRate: number;
-}
-
-interface RecentCampaign {
-  id: string;
-  name: string;
-  type: 'newsletter' | 'sms' | 'whatsapp' | 'email';
-  status: 'active' | 'scheduled' | 'completed' | 'draft';
-  recipients: number;
-  openRate: number;
-  clickRate: number;
-  date: string;
-}
-
-// Mock data
-const mockStats: CampaignStats = {
-  totalCampaigns: 24,
-  activeCampaigns: 3,
-  scheduledCampaigns: 5,
-  completedCampaigns: 16,
-  totalRecipients: 4850,
-  avgOpenRate: 32.5,
-  avgClickRate: 8.2
+type NewsletterLike = {
+  id?: string;
+  title?: string;
+  status?: string;
+  recipients?: any[];
+  recipientCount?: number;
+  openCount?: number;
+  clickCount?: number;
 };
 
-const mockRecentCampaigns: RecentCampaign[] = [
-  {
-    id: '1',
-    name: 'Promoção de Natal',
-    type: 'newsletter',
-    status: 'active',
-    recipients: 1250,
-    openRate: 38.5,
-    clickRate: 12.3,
-    date: '2024-12-01'
-  },
-  {
-    id: '2',
-    name: 'Lembrete de Vacinas',
-    type: 'email',
-    status: 'scheduled',
-    recipients: 450,
-    openRate: 0,
-    clickRate: 0,
-    date: '2024-12-05'
-  },
-  {
-    id: '3',
-    name: 'Black Friday Pet',
-    type: 'newsletter',
-    status: 'completed',
-    recipients: 2100,
-    openRate: 45.2,
-    clickRate: 15.8,
-    date: '2024-11-25'
-  },
-  {
-    id: '4',
-    name: 'Novos Serviços',
-    type: 'email',
-    status: 'draft',
-    recipients: 0,
-    openRate: 0,
-    clickRate: 0,
-    date: '2024-12-03'
-  }
-];
-
 export default function CampanhasPage() {
-  const [stats, setStats] = useState<CampaignStats>(mockStats);
-  const [recentCampaigns, setRecentCampaigns] = useState<RecentCampaign[]>(mockRecentCampaigns);
-  const [loading, setLoading] = useState(true);
+  const [emailCampaigns, setEmailCampaigns] = useState<NewsletterLike[]>([]);
+  const [whatsAppCampaigns, setWhatsAppCampaigns] = useState<any[]>([]);
+  const [smsCampaigns, setSmsCampaigns] = useState<any[]>([]);
+  const [resultsLoading, setResultsLoading] = useState(true);
+  const [emailHasEngagementMetrics, setEmailHasEngagementMetrics] = useState(false);
 
   useEffect(() => {
-    // Simular carregamento
-    const loadData = async () => {
-      setLoading(true);
-      await new Promise(resolve => setTimeout(resolve, 800));
-      setStats(mockStats);
-      setRecentCampaigns(mockRecentCampaigns);
-      setLoading(false);
+    const loadResults = async () => {
+      try {
+        setResultsLoading(true);
+
+        const safeFetchList = async (url: string) => {
+          const res = await fetch(url, { cache: 'no-store' });
+          const data = await res.json().catch(() => null);
+          if (!res.ok) return [];
+          if (Array.isArray(data)) return data;
+          if (Array.isArray(data?.campaigns)) return data.campaigns;
+          if (Array.isArray(data?.items)) return data.items;
+          if (Array.isArray(data?.newsletters)) return data.newsletters;
+          return [];
+        };
+
+        const [emailList, whatsappList, smsList] = await Promise.all([
+          safeFetchList('/api/newsletters'),
+          // Se ainda não existir endpoint, vai retornar [] sem quebrar a UI
+          safeFetchList('/api/whatsapp-campaigns'),
+          safeFetchList('/api/sms-campaigns'),
+        ]);
+
+        const normalizedEmail: NewsletterLike[] = (emailList as any[]).map((n) => n as NewsletterLike);
+        setEmailCampaigns(normalizedEmail);
+        setWhatsAppCampaigns(whatsappList as any[]);
+        setSmsCampaigns(smsList as any[]);
+
+        setEmailHasEngagementMetrics(
+          normalizedEmail.some((n) => typeof n.openCount === 'number' || typeof n.clickCount === 'number')
+        );
+      } catch {
+        setEmailCampaigns([]);
+        setWhatsAppCampaigns([]);
+        setSmsCampaigns([]);
+        setEmailHasEngagementMetrics(false);
+      } finally {
+        setResultsLoading(false);
+      }
     };
-    loadData();
+
+    loadResults();
   }, []);
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active': return 'bg-emerald-100 text-emerald-700';
-      case 'scheduled': return 'bg-blue-100 text-blue-700';
-      case 'completed': return 'bg-gray-100 text-gray-700';
-      case 'draft': return 'bg-amber-100 text-amber-700';
-      default: return 'bg-gray-100 text-gray-700';
-    }
-  };
+  const computeResults = useMemo(() => {
+    const lower = (s: unknown) => String(s || '').toLowerCase();
+    const calc = (list: any[]) => {
+      const total = list.length;
+      const drafts = list.filter((n) => lower(n?.status) === 'draft').length;
+      const scheduled = list.filter((n) => lower(n?.status) === 'scheduled').length;
+      const sent = list.filter((n) => lower(n?.status) === 'sent').length;
+      const failed = list.filter((n) => lower(n?.status) === 'failed').length;
 
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'active': return 'Ativa';
-      case 'scheduled': return 'Agendada';
-      case 'completed': return 'Concluída';
-      case 'draft': return 'Rascunho';
-      default: return status;
-    }
-  };
+      const totalRecipients = list.reduce((acc, n) => {
+        const rc =
+          typeof n?.recipientCount === 'number'
+            ? n.recipientCount
+            : Array.isArray(n?.recipients)
+              ? n.recipients.length
+              : 0;
+        return acc + rc;
+      }, 0);
 
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case 'newsletter': return <LuMail className="w-4 h-4" />;
-      case 'sms': return <LuMessageSquare className="w-4 h-4" />;
-      case 'whatsapp': return <LuMessageSquare className="w-4 h-4" />;
-      case 'email': return <LuMail className="w-4 h-4" />;
-      default: return <LuSend className="w-4 h-4" />;
-    }
-  };
+      const openCount = list.reduce((acc, n) => acc + (typeof n?.openCount === 'number' ? n.openCount : 0), 0);
+      const clickCount = list.reduce((acc, n) => acc + (typeof n?.clickCount === 'number' ? n.clickCount : 0), 0);
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
-  };
+      const openRate = totalRecipients > 0 ? (openCount / totalRecipients) * 100 : 0;
+      const clickRate = totalRecipients > 0 ? (clickCount / totalRecipients) * 100 : 0;
+
+      return { total, drafts, scheduled, sent, failed, totalRecipients, openRate, clickRate };
+    };
+
+    return {
+      email: calc(emailCampaigns),
+      whatsapp: calc(whatsAppCampaigns),
+      sms: calc(smsCampaigns),
+      all: calc([...emailCampaigns, ...whatsAppCampaigns, ...smsCampaigns]),
+    };
+  }, [emailCampaigns, whatsAppCampaigns, smsCampaigns]);
 
   const campaignModules = [
     {
-      title: 'Newsletter',
-      description: 'Envie newsletters para seus clientes',
+      title: 'Email',
+      description: 'Campanhas de email para seus clientes',
       icon: LuMail,
-      href: '/dashboard/campanhas/newsletter',
-      color: 'from-blue-500 to-indigo-600',
-      stats: '12 enviadas'
-    },
-    {
-      title: 'Email Marketing',
-      description: 'Campanhas de email personalizadas',
-      icon: LuSend,
       href: '/dashboard/campanhas/email',
-      color: 'from-purple-500 to-pink-600',
-      stats: 'Em breve',
-      disabled: true
-    },
-    {
-      title: 'SMS',
-      description: 'Mensagens de texto diretas',
-      icon: LuMessageSquare,
-      href: '/dashboard/campanhas/sms',
-      color: 'from-green-500 to-emerald-600',
-      stats: 'Em breve',
-      disabled: true
+      color: 'from-blue-500 to-indigo-600',
+      badge: 'Disponível',
+      disabled: false
     },
     {
       title: 'WhatsApp',
@@ -178,7 +126,16 @@ export default function CampanhasPage() {
       icon: LuMessageSquare,
       href: '/dashboard/campanhas/whatsapp',
       color: 'from-emerald-500 to-teal-600',
-      stats: 'Em breve',
+      badge: 'Disponível',
+      disabled: false
+    },
+    {
+      title: 'SMS',
+      description: 'Mensagens de texto diretas',
+      icon: LuMessageSquare,
+      href: '/dashboard/campanhas/sms',
+      color: 'from-green-500 to-emerald-600',
+      badge: 'Em breve',
       disabled: true
     }
   ];
@@ -193,67 +150,17 @@ export default function CampanhasPage() {
           
           <div className="relative px-4 sm:px-6 lg:px-8 py-8">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div>
-                <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-cyan-400 via-teal-400 to-emerald-400 bg-clip-text text-transparent">
-                  Campanhas
-                </h1>
-                <p className="mt-2 text-gray-400">
-                  Central de marketing e comunicação com clientes
-                </p>
-              </div>
-              <button className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-500 hover:to-teal-500 text-white rounded-xl font-semibold shadow-lg shadow-cyan-500/25 transition-all duration-200 hover:shadow-xl hover:shadow-cyan-500/30">
-                <LuPlus className="w-5 h-5" />
-                Nova Campanha
-              </button>
-            </div>
-
-            {/* Cards de estatísticas */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-8">
-              <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-5 hover:bg-white/10 transition-colors">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-cyan-500/20">
-                    <LuMegaphone className="w-5 h-5 text-cyan-400" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-400">Total Campanhas</p>
-                    <p className="text-2xl font-bold text-white">{stats.totalCampaigns}</p>
-                  </div>
+              <div className="flex items-start gap-3">
+                <div className="mt-1 p-2.5 rounded-2xl bg-cyan-500/20 border border-cyan-500/20">
+                  <LuMegaphone className="w-5 h-5 text-cyan-300" />
                 </div>
-              </div>
-
-              <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-5 hover:bg-white/10 transition-colors">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-emerald-500/20">
-                    <LuCircleCheck className="w-5 h-5 text-emerald-400" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-400">Ativas</p>
-                    <p className="text-2xl font-bold text-white">{stats.activeCampaigns}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-5 hover:bg-white/10 transition-colors">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-blue-500/20">
-                    <LuUsers className="w-5 h-5 text-blue-400" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-400">Destinatários</p>
-                    <p className="text-2xl font-bold text-white">{stats.totalRecipients.toLocaleString()}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-5 hover:bg-white/10 transition-colors">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-teal-500/20">
-                    <LuTrendingUp className="w-5 h-5 text-teal-400" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-400">Taxa de Abertura</p>
-                    <p className="text-2xl font-bold text-white">{stats.avgOpenRate}%</p>
-                  </div>
+                <div>
+                  <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-cyan-400 via-teal-400 to-emerald-400 bg-clip-text text-transparent">
+                    Campanhas
+                  </h1>
+                  <p className="mt-2 text-gray-400">
+                    Escolha o canal para criar e gerenciar campanhas.
+                  </p>
                 </div>
               </div>
             </div>
@@ -262,10 +169,129 @@ export default function CampanhasPage() {
 
         {/* Conteúdo principal */}
         <div className="px-4 sm:px-6 lg:px-8 py-6">
+          {/* Resultados (sem mock) */}
+          <div className="mb-8">
+            <div className="flex items-center justify-between gap-4 mb-4">
+              <h2 className="text-xl font-semibold text-white">Resultados</h2>
+              <span className="text-xs text-gray-400">Todos os canais</span>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              {[
+                {
+                  key: 'email',
+                  title: 'Email',
+                  icon: LuMail,
+                  href: '/dashboard/campanhas/email',
+                  tint: 'bg-blue-500/20',
+                  iconColor: 'text-blue-300',
+                  showEngagement: emailHasEngagementMetrics,
+                  data: computeResults.email,
+                },
+                {
+                  key: 'whatsapp',
+                  title: 'WhatsApp',
+                  icon: LuMessageSquare,
+                  href: '/dashboard/campanhas/whatsapp',
+                  tint: 'bg-emerald-500/20',
+                  iconColor: 'text-emerald-300',
+                  showEngagement: false,
+                  data: computeResults.whatsapp,
+                },
+                {
+                  key: 'sms',
+                  title: 'SMS',
+                  icon: LuMessageSquare,
+                  href: '/dashboard/campanhas/sms',
+                  tint: 'bg-green-500/20',
+                  iconColor: 'text-green-300',
+                  showEngagement: false,
+                  data: computeResults.sms,
+                },
+              ].map((section) => (
+                <div key={section.key} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className={`p-2.5 rounded-xl ${section.tint}`}>
+                        <section.icon className={`w-5 h-5 ${section.iconColor}`} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-white font-semibold">{section.title}</p>
+                        <p className="text-xs text-gray-400">Resultados do canal</p>
+                      </div>
+                    </div>
+                    <Link
+                      href={section.href}
+                      className="text-sm text-cyan-300 hover:text-cyan-200 transition-colors inline-flex items-center gap-1 whitespace-nowrap"
+                    >
+                      Ver <LuArrowUpRight className="w-4 h-4" />
+                    </Link>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 mt-4">
+                    {[
+                      { label: 'Total', value: section.data.total, icon: LuMail },
+                      { label: 'Enviados', value: section.data.sent, icon: LuSend },
+                      { label: 'Agendados', value: section.data.scheduled, icon: LuClock },
+                      { label: 'Rascunhos', value: section.data.drafts, icon: LuSave },
+                    ].map((kpi) => (
+                      <div key={kpi.label} className="rounded-xl border border-white/10 bg-white/5 p-3">
+                        <p className="text-xs text-gray-400">{kpi.label}</p>
+                        <p className={`text-lg font-bold text-white ${resultsLoading ? 'animate-pulse' : ''}`}>
+                          {resultsLoading ? '—' : kpi.value.toLocaleString('pt-BR')}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 mt-3">
+                    <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                      <p className="text-xs text-gray-400">Destinatários</p>
+                      <p className={`text-lg font-bold text-white ${resultsLoading ? 'animate-pulse' : ''}`}>
+                        {resultsLoading ? '—' : section.data.totalRecipients.toLocaleString('pt-BR')}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                      <p className="text-xs text-gray-400">Falhas</p>
+                      <p className={`text-lg font-bold text-white ${resultsLoading ? 'animate-pulse' : ''}`}>
+                        {resultsLoading ? '—' : section.data.failed.toLocaleString('pt-BR')}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 mt-3">
+                    <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                      <p className="text-xs text-gray-400">Abertura</p>
+                      <p className={`text-lg font-bold text-white ${resultsLoading ? 'animate-pulse' : ''}`}>
+                        {resultsLoading
+                          ? '—'
+                          : section.showEngagement
+                            ? `${section.data.openRate.toFixed(1)}%`
+                            : '—'}
+                      </p>
+                      {!section.showEngagement && <p className="text-[11px] text-gray-500 mt-1">Em breve</p>}
+                    </div>
+                    <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                      <p className="text-xs text-gray-400">Cliques</p>
+                      <p className={`text-lg font-bold text-white ${resultsLoading ? 'animate-pulse' : ''}`}>
+                        {resultsLoading
+                          ? '—'
+                          : section.showEngagement
+                            ? `${section.data.clickRate.toFixed(1)}%`
+                            : '—'}
+                      </p>
+                      {!section.showEngagement && <p className="text-[11px] text-gray-500 mt-1">Em breve</p>}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
           {/* Módulos de Campanha */}
           <div className="mb-8">
             <h2 className="text-xl font-semibold text-white mb-4">Tipos de Campanha</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {campaignModules.map((module) => (
                 <Link
                   key={module.title}
@@ -284,7 +310,7 @@ export default function CampanhasPage() {
                     <h3 className="font-semibold text-white mb-1">{module.title}</h3>
                     <p className="text-sm text-gray-400 mb-3">{module.description}</p>
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-gray-500">{module.stats}</span>
+                      <span className="text-xs text-gray-400">{module.badge}</span>
                       {!module.disabled && (
                         <LuArrowUpRight className="w-4 h-4 text-gray-500 group-hover:text-cyan-400 transition-colors" />
                       )}
@@ -298,67 +324,6 @@ export default function CampanhasPage() {
                 </Link>
               ))}
             </div>
-          </div>
-
-          {/* Campanhas Recentes */}
-          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden">
-            <div className="p-5 border-b border-white/10">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-white">Campanhas Recentes</h2>
-                <Link
-                  href="/dashboard/campanhas/newsletter"
-                  className="text-sm text-cyan-400 hover:text-cyan-300 transition-colors"
-                >
-                  Ver todas
-                </Link>
-              </div>
-            </div>
-
-            {loading ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="w-10 h-10 border-4 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin"></div>
-              </div>
-            ) : (
-              <div className="divide-y divide-white/5">
-                {recentCampaigns.map((campaign) => (
-                  <div
-                    key={campaign.id}
-                    className="p-5 hover:bg-white/5 transition-colors"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="p-2.5 rounded-xl bg-white/10">
-                          {getTypeIcon(campaign.type)}
-                        </div>
-                        <div>
-                          <h3 className="font-medium text-white">{campaign.name}</h3>
-                          <div className="flex items-center gap-3 mt-1">
-                            <span className="text-sm text-gray-500">{formatDate(campaign.date)}</span>
-                            <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getStatusColor(campaign.status)}`}>
-                              {getStatusText(campaign.status)}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-6 text-right">
-                        <div>
-                          <p className="text-sm text-gray-400">Destinatários</p>
-                          <p className="font-medium text-white">{campaign.recipients.toLocaleString()}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-gray-400">Abertura</p>
-                          <p className="font-medium text-white">{campaign.openRate}%</p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-gray-400">Cliques</p>
-                          <p className="font-medium text-white">{campaign.clickRate}%</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         </div>
     </div>

@@ -1,4 +1,14 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -34,7 +44,11 @@ export class FinanceController {
 
   @Patch('entries/:id')
   @ApiOperation({ summary: 'Atualizar lançamento' })
-  update(@CurrentUser('id') userId: string, @Param('id') id: string, @Body() dto: UpdateFinanceEntryDto) {
+  update(
+    @CurrentUser('id') userId: string,
+    @Param('id') id: string,
+    @Body() dto: UpdateFinanceEntryDto,
+  ) {
     return this.financeService.update(userId, id, dto);
   }
 
@@ -46,9 +60,11 @@ export class FinanceController {
 
   @Get('summary')
   @ApiOperation({ summary: 'Resumo financeiro (receitas)' })
-  summary(@CurrentUser('id') userId: string, @Query('from') from?: string, @Query('to') to?: string) {
+  summary(
+    @CurrentUser('id') userId: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
     return this.financeService.summary(userId, { from, to });
   }
 }
-
-

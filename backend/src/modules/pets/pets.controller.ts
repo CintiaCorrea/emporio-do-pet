@@ -78,4 +78,3 @@ export class PetsController {
     return this.petsService.remove(id);
   }
 }
-

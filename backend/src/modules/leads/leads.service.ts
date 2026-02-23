@@ -1,20 +1,11 @@
-import {
-  Injectable,
-  NotFoundException,
-  ConflictException,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, Logger } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
+import { EventsService } from '../events/events.service';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
-import {
-  CreateLeadDto,
-  UpdateLeadDto,
-  TrackEventDto,
-  ListLeadsQueryDto,
-  SortByDto,
-} from './dto';
+import { CreateLeadDto, UpdateLeadDto, TrackEventDto, ListLeadsQueryDto, SortByDto } from './dto';
 import { Prisma } from '@prisma/client';
 
 @Injectable()
@@ -27,6 +18,8 @@ export class LeadsService {
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
     @InjectQueue('lead-enrichment') private enrichmentQueue: Queue,
+    private readonly eventsService: EventsService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   /**
@@ -232,6 +225,12 @@ export class LeadsService {
     // Enfileirar enriquecimento
     await this.queueEnrichment(lead.id);
 
+    // Emit lead created event for CRM integrations
+    this.eventEmitter.emit('crm.lead.created', {
+      leadId: lead.id,
+      source: dto.source,
+    });
+
     this.logger.log(`Lead ${lead.id} criado e enfileirado para enriquecimento`);
 
     return lead;
@@ -275,15 +274,11 @@ export class LeadsService {
       throw new NotFoundException(`Lead ${id} não encontrado`);
     }
 
+    const previousStatus = existing.status;
+
     // Registrar mudança de status se houver
     if (dto.status && dto.status !== existing.status) {
-      await this.createHistory(
-        id,
-        'status_change',
-        'status',
-        existing.status,
-        dto.status,
-      );
+      await this.createHistory(id, 'status_change', 'status', existing.status, dto.status);
     }
 
     const updated = await this.prisma.lead.update({
@@ -297,6 +292,23 @@ export class LeadsService {
 
     // Invalidar cache
     await this.redis.del(`lead:${id}`);
+
+    // Emit status change event for CRM integrations
+    if (dto.status && dto.status !== previousStatus) {
+      this.eventEmitter.emit('crm.lead.status_changed', {
+        leadId: id,
+        previousStatus,
+        newStatus: dto.status,
+      });
+
+      // Emit converted event if status changed to CONVERTED
+      if (dto.status === 'CONVERTED') {
+        this.eventEmitter.emit('crm.lead.converted', {
+          leadId: id,
+          clientId: existing.convertedToClientId,
+        });
+      }
+    }
 
     return updated;
   }
@@ -355,8 +367,7 @@ export class LeadsService {
     }
 
     // Verificar se retornou em menos de 24h
-    const hoursSinceLastSeen =
-      (Date.now() - lead.lastSeenAt.getTime()) / (1000 * 60 * 60);
+    const hoursSinceLastSeen = (Date.now() - lead.lastSeenAt.getTime()) / (1000 * 60 * 60);
     if (hoursSinceLastSeen > 0.5 && hoursSinceLastSeen < 24) {
       updateData.returnedWithin24h = true;
     }
@@ -472,54 +483,41 @@ export class LeadsService {
     const cached = await this.redis.get<any>(cacheKey);
     if (cached) return cached;
 
-    const [
-      total,
-      byStatus,
-      bySource,
-      avgScore,
-      hotLeads,
-      recentLeads,
-      pendingInsights,
-    ] = await Promise.all([
-      this.prisma.lead.count(),
-      this.prisma.lead.groupBy({
-        by: ['status'],
-        _count: { id: true },
-      }),
-      this.prisma.lead.groupBy({
-        by: ['source'],
-        _count: { id: true },
-      }),
-      this.prisma.lead.aggregate({
-        _avg: { currentScore: true },
-      }),
-      this.prisma.lead.count({
-        where: { currentScore: { gte: 70 } },
-      }),
-      this.prisma.lead.count({
-        where: {
-          createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
-        },
-      }),
-      this.prisma.leadInsight.count({
-        where: {
-          dismissed: false,
-          actedOn: false,
-          OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
-        },
-      }),
-    ]);
+    const [total, byStatus, bySource, avgScore, hotLeads, recentLeads, pendingInsights] =
+      await Promise.all([
+        this.prisma.lead.count(),
+        this.prisma.lead.groupBy({
+          by: ['status'],
+          _count: { id: true },
+        }),
+        this.prisma.lead.groupBy({
+          by: ['source'],
+          _count: { id: true },
+        }),
+        this.prisma.lead.aggregate({
+          _avg: { currentScore: true },
+        }),
+        this.prisma.lead.count({
+          where: { currentScore: { gte: 70 } },
+        }),
+        this.prisma.lead.count({
+          where: {
+            createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
+          },
+        }),
+        this.prisma.leadInsight.count({
+          where: {
+            dismissed: false,
+            actedOn: false,
+            OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+          },
+        }),
+      ]);
 
     const stats = {
       total,
-      byStatus: byStatus.reduce(
-        (acc, curr) => ({ ...acc, [curr.status]: curr._count.id }),
-        {},
-      ),
-      bySource: bySource.reduce(
-        (acc, curr) => ({ ...acc, [curr.source]: curr._count.id }),
-        {},
-      ),
+      byStatus: byStatus.reduce((acc: Record<string, number>, curr: { status: string; _count: { id: number } }) => ({ ...acc, [curr.status]: curr._count.id }), {}),
+      bySource: bySource.reduce((acc: Record<string, number>, curr: { source: string; _count: { id: number } }) => ({ ...acc, [curr.source]: curr._count.id }), {}),
       avgScore: Math.round(avgScore._avg.currentScore || 0),
       hotLeads,
       recentLeads,

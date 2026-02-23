@@ -1,19 +1,40 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { Appointment, KanbanColumn, KanbanCard } from "@/types";
+import { BoardType } from "@/types/board";
 import KanbanColumnComponent from "./KanbanColumn";
 import NewColumnModal from "./modals/NewColumnModal";
 import { LuLoader } from "react-icons/lu";
 
+function detectBoardTypeFromName(name: string): BoardType {
+  const normalizedName = name.toLowerCase().trim();
+  if (normalizedName === 'consultas' || normalizedName === 'consulta') {
+    return 'CONSULTATION';
+  }
+  if (normalizedName === 'internações' || normalizedName === 'internacoes' || 
+      normalizedName === 'internação' || normalizedName === 'internacao') {
+    return 'HOSPITALIZATION';
+  }
+  return 'APPOINTMENT';
+}
+
 interface KanbanBoardProps {
   boardId: string;
   boardName?: string;
+  boardType?: BoardType;
 }
 
-const KanbanBoard = ({ boardId, boardName = "CRM" }: KanbanBoardProps) => {
+const KanbanBoard = ({ boardId, boardName = "CRM", boardType: propBoardType = "APPOINTMENT" }: KanbanBoardProps) => {
+  const effectiveBoardType = useMemo(() => {
+    const detectedFromName = detectBoardTypeFromName(boardName);
+    if (detectedFromName !== 'APPOINTMENT') {
+      return detectedFromName;
+    }
+    return propBoardType;
+  }, [boardName, propBoardType]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [statuses, setStatuses] = useState<KanbanColumn[]>([]);
   const [isColumnModalOpen, setIsColumnModalOpen] = useState(false);
@@ -191,46 +212,77 @@ const KanbanBoard = ({ boardId, boardName = "CRM" }: KanbanBoardProps) => {
     }
   };
 
-  // ✅ CORRIGIDO: Função para adicionar tarefa - tratamento melhorado
-  const handleAddTask = async (taskData: Omit<Appointment, "id">) => {
-    try {
-      console.log('Enviando dados para criar appointment:', {
+  // Função para criar consulta (appointment)
+  const createConsultation = async (taskData: Omit<Appointment, "id">) => {
+    const response = await fetch("/api/appointments", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
         tutorId: taskData.tutorId,
         petId: taskData.petId || undefined,
         userId: taskData.userId,
-        date: taskData.date,
+        date: taskData.date.toISOString(),
         duration: taskData.duration || 30,
         description: taskData.description,
         notes: taskData.notes,
         value: taskData.value,
         status: taskData.status || statuses[0]?.name || 'SCHEDULED',
         paymentStatus: taskData.paymentStatus || 'PENDING',
-      });
+      }),
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Erro desconhecido' }));
+      throw new Error(errorData.error || "Failed to create consultation");
+    }
+    
+    return response.json();
+  };
 
-      const response = await fetch("/api/appointments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          tutorId: taskData.tutorId,
-          petId: taskData.petId || undefined,
-          userId: taskData.userId,
-          date: taskData.date.toISOString(),
-          duration: taskData.duration || 30,
-          description: taskData.description,
-          notes: taskData.notes,
-          value: taskData.value,
-          status: taskData.status || statuses[0]?.name || 'SCHEDULED',
-          paymentStatus: taskData.paymentStatus || 'PENDING',
-        }),
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Erro desconhecido' }));
-        throw new Error(errorData.error || "Failed to create appointment");
+  // Função para criar internação (hospitalization)
+  const createHospitalization = async (taskData: Omit<Appointment, "id">) => {
+    const response = await fetch("/api/hospitalizations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tutorId: taskData.tutorId,
+        petId: taskData.petId || undefined,
+        userId: taskData.userId,
+        admissionDate: taskData.date.toISOString(),
+        reason: taskData.description || 'Internação',
+        dailyRate: taskData.value || 0,
+        notes: taskData.notes,
+        status: 'ADMITTED',
+      }),
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Erro desconhecido' }));
+      throw new Error(errorData.error || "Failed to create hospitalization");
+    }
+    
+    return response.json();
+  };
+
+  // ✅ Função para adicionar tarefa - agora detecta o tipo do board
+  const handleAddTask = async (taskData: Omit<Appointment, "id">) => {
+    try {
+      let newRecord: Appointment;
+      let cardTitle: string;
+
+      console.log(`Criando registro no board tipo: ${effectiveBoardType}`);
+
+      if (effectiveBoardType === 'HOSPITALIZATION') {
+        console.log('Criando internação...');
+        newRecord = await createHospitalization(taskData);
+        cardTitle = `Internação - ${newRecord.pet?.name || 'Pet'}`;
+      } else {
+        console.log('Criando consulta...');
+        newRecord = await createConsultation(taskData);
+        cardTitle = `Consulta de ${newRecord.pet?.name || 'Pet'}`;
       }
-      
-      const newAppointment: Appointment = await response.json();
-      console.log('Appointment criado com sucesso:', newAppointment);
+
+      console.log('Registro criado com sucesso:', newRecord);
       
       // Encontrar a primeira coluna para adicionar o card
       const firstColumn = statuses[0];
@@ -239,8 +291,8 @@ const KanbanBoard = ({ boardId, boardName = "CRM" }: KanbanBoardProps) => {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            title: `Consulta de ${newAppointment.pet.name}`,
-            appointmentId: newAppointment.id,
+            title: cardTitle,
+            appointmentId: newRecord.id,
             position: appointments.length,
           }),
         });
@@ -254,11 +306,12 @@ const KanbanBoard = ({ boardId, boardName = "CRM" }: KanbanBoardProps) => {
       }
       
       // Atualizar a lista de appointments
-      setAppointments((prev) => [...prev, newAppointment]);
+      setAppointments((prev) => [...prev, newRecord]);
       
     } catch (error) {
       console.error("Erro ao adicionar tarefa:", error);
-      alert(error instanceof Error ? error.message : "Erro ao criar agendamento. Tente novamente.");
+      const entityName = effectiveBoardType === 'HOSPITALIZATION' ? 'internação' : 'consulta';
+      alert(error instanceof Error ? error.message : `Erro ao criar ${entityName}. Tente novamente.`);
     }
   };
 
@@ -291,6 +344,13 @@ const KanbanBoard = ({ boardId, boardName = "CRM" }: KanbanBoardProps) => {
   const totalRevenue = appointments
     .filter((app) => !["CANCELED", "DELETED"].includes(app.status))
     .reduce((sum, app) => sum + app.value, 0);
+
+  const getEntityLabel = (count: number) => {
+    if (effectiveBoardType === 'HOSPITALIZATION') {
+      return count === 1 ? 'internação' : 'internações';
+    }
+    return count === 1 ? 'consulta' : 'consultas';
+  };
 
   if (loading) {
     return (
@@ -340,7 +400,7 @@ const KanbanBoard = ({ boardId, boardName = "CRM" }: KanbanBoardProps) => {
                 </span>
                 {" • "}
                 <span className="text-gray-500">
-                  {appointments.length} {appointments.length === 1 ? 'consulta' : 'consultas'}
+                  {appointments.length} {getEntityLabel(appointments.length)}
                 </span>
               </p>
             </div>

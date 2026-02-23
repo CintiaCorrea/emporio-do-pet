@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import { 
   LuWarehouse,
   LuSearch,
@@ -358,7 +358,6 @@ export default function StockPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/10 w-full overflow-hidden">
-      <Toaster position="top-right" />
       {/* Main Content */}
       <div className="p-6">
         <div className="max-w-7xl mx-auto">

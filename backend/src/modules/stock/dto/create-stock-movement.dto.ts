@@ -26,5 +26,3 @@ export class CreateStockMovementDto {
   @IsString()
   reason?: string;
 }
-
-

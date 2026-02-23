@@ -10,5 +10,3 @@ import { ColumnsService } from './columns.service';
   exports: [ColumnsService],
 })
 export class ColumnsModule {}
-
-

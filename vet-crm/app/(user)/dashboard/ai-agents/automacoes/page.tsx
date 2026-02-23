@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { 
   LuWorkflow,
@@ -22,193 +22,183 @@ import {
   LuBell,
   LuArrowRight,
   LuGitBranch,
-  LuChevronRight
+  LuChevronRight,
+  LuLoader
 } from 'react-icons/lu';
+import { toast } from 'sonner';
 
 // Tipos para Automações
 type AutomationStatus = 'ACTIVE' | 'PAUSED' | 'DRAFT' | 'ERROR';
 type AutomationTrigger = 'SCHEDULE' | 'WEBHOOK' | 'EVENT' | 'MANUAL';
 type AutomationCategory = 'ATENDIMENTO' | 'MARKETING' | 'NOTIFICACAO' | 'INTEGRACAO' | 'AGENDAMENTO';
 
-interface AutomationStats {
-  executions: number;
-  successRate: number;
-  avgDuration: number;
-  lastRun?: string;
-}
-
 interface AutomationStep {
   id: string;
   type: string;
   name: string;
+  config?: Record<string, unknown>;
+  position: number;
 }
 
 interface Automation {
   id: string;
   name: string;
-  description: string;
+  description?: string;
   category: AutomationCategory;
   status: AutomationStatus;
   trigger: AutomationTrigger;
-  triggerConfig?: string;
+  triggerConfig?: Record<string, unknown>;
+  agentId?: string;
+  agent?: {
+    id: string;
+    name: string;
+    status: string;
+  };
   steps: AutomationStep[];
-  stats: AutomationStats;
+  executions: number;
+  successRate: number;
+  avgDuration: number;
+  lastRunAt?: string;
   createdAt: string;
   updatedAt: string;
+  _count?: {
+    logs: number;
+    steps: number;
+  };
 }
-
-// Mock data
-const mockAutomations: Automation[] = [
-  {
-    id: '1',
-    name: 'Lembrete de Consulta',
-    description: 'Envia WhatsApp 24h antes da consulta agendada',
-    category: 'NOTIFICACAO',
-    status: 'ACTIVE',
-    trigger: 'SCHEDULE',
-    triggerConfig: 'Diariamente às 08:00',
-    steps: [
-      { id: 's1', type: 'query', name: 'Buscar consultas de amanhã' },
-      { id: 's2', type: 'filter', name: 'Filtrar não confirmadas' },
-      { id: 's3', type: 'message', name: 'Enviar WhatsApp' }
-    ],
-    stats: { executions: 892, successRate: 98.5, avgDuration: 2.3, lastRun: new Date().toISOString() },
-    createdAt: '2024-01-15T10:00:00Z',
-    updatedAt: '2024-12-01T15:30:00Z'
-  },
-  {
-    id: '2',
-    name: 'Boas-vindas Novo Cliente',
-    description: 'Sequência de emails para novos cadastros',
-    category: 'MARKETING',
-    status: 'ACTIVE',
-    trigger: 'EVENT',
-    triggerConfig: 'Novo cadastro de tutor',
-    steps: [
-      { id: 's1', type: 'delay', name: 'Aguardar 1 hora' },
-      { id: 's2', type: 'email', name: 'Email de boas-vindas' }
-    ],
-    stats: { executions: 156, successRate: 94.2, avgDuration: 5.1, lastRun: new Date(Date.now() - 3600000).toISOString() },
-    createdAt: '2024-02-20T08:00:00Z',
-    updatedAt: '2024-11-28T12:00:00Z'
-  },
-  {
-    id: '3',
-    name: 'Alerta Estoque Baixo',
-    description: 'Notifica equipe quando produto atinge estoque mínimo',
-    category: 'NOTIFICACAO',
-    status: 'ACTIVE',
-    trigger: 'EVENT',
-    triggerConfig: 'Produto abaixo do mínimo',
-    steps: [
-      { id: 's1', type: 'query', name: 'Verificar estoque' },
-      { id: 's2', type: 'notification', name: 'Enviar alerta' }
-    ],
-    stats: { executions: 45, successRate: 100, avgDuration: 0.8, lastRun: new Date(Date.now() - 7200000).toISOString() },
-    createdAt: '2024-03-10T14:00:00Z',
-    updatedAt: '2024-11-30T18:45:00Z'
-  },
-  {
-    id: '4',
-    name: 'Follow-up Pós-Consulta',
-    description: 'Envia pesquisa de satisfação após atendimento',
-    category: 'ATENDIMENTO',
-    status: 'PAUSED',
-    trigger: 'EVENT',
-    triggerConfig: 'Consulta finalizada',
-    steps: [
-      { id: 's1', type: 'delay', name: 'Aguardar 2 horas' },
-      { id: 's2', type: 'message', name: 'Enviar pesquisa' }
-    ],
-    stats: { executions: 234, successRate: 87.5, avgDuration: 3.2, lastRun: '2024-11-25T18:45:00Z' },
-    createdAt: '2024-04-05T11:00:00Z',
-    updatedAt: '2024-11-25T18:45:00Z'
-  },
-  {
-    id: '5',
-    name: 'Sincronização N8N',
-    description: 'Integra dados com sistema externo via N8N',
-    category: 'INTEGRACAO',
-    status: 'ACTIVE',
-    trigger: 'SCHEDULE',
-    triggerConfig: 'A cada 30 minutos',
-    steps: [
-      { id: 's1', type: 'webhook', name: 'Chamar N8N' },
-      { id: 's2', type: 'update', name: 'Atualizar banco' }
-    ],
-    stats: { executions: 1456, successRate: 99.1, avgDuration: 4.5, lastRun: new Date().toISOString() },
-    createdAt: '2024-01-20T09:00:00Z',
-    updatedAt: '2024-12-01T14:30:00Z'
-  },
-  {
-    id: '6',
-    name: 'Campanha Aniversário Pet',
-    description: 'Envia cupom de desconto no aniversário do pet',
-    category: 'MARKETING',
-    status: 'DRAFT',
-    trigger: 'SCHEDULE',
-    triggerConfig: 'Diariamente às 09:00',
-    steps: [
-      { id: 's1', type: 'query', name: 'Buscar aniversariantes' },
-      { id: 's2', type: 'email', name: 'Enviar email' }
-    ],
-    stats: { executions: 0, successRate: 0, avgDuration: 0 },
-    createdAt: '2024-12-01T09:00:00Z',
-    updatedAt: '2024-12-01T09:00:00Z'
-  },
-  {
-    id: '7',
-    name: 'Reagendamento Automático',
-    description: 'Oferece reagendamento quando consulta é cancelada',
-    category: 'AGENDAMENTO',
-    status: 'ERROR',
-    trigger: 'EVENT',
-    triggerConfig: 'Consulta cancelada',
-    steps: [
-      { id: 's1', type: 'delay', name: 'Aguardar 1 hora' },
-      { id: 's2', type: 'message', name: 'Oferecer reagendamento' }
-    ],
-    stats: { executions: 78, successRate: 65.4, avgDuration: 1.2, lastRun: '2024-11-30T22:15:00Z' },
-    createdAt: '2024-05-15T11:00:00Z',
-    updatedAt: '2024-11-30T22:15:00Z'
-  }
-];
 
 export default function AutomacoesPage() {
   const [automations, setAutomations] = useState<Automation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<AutomationStatus | 'all'>('all');
   const [categoryFilter, setCategoryFilter] = useState<AutomationCategory | 'all'>('all');
   const [selectedAutomation, setSelectedAutomation] = useState<Automation | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  useEffect(() => {
-    const loadAutomations = async () => {
-      setLoading(true);
-      await new Promise(resolve => setTimeout(resolve, 800));
-      setAutomations(mockAutomations);
-      setLoading(false);
-    };
-    loadAutomations();
-  }, []);
+  const loadAutomations = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (statusFilter !== 'all') params.set('status', statusFilter);
+      if (categoryFilter !== 'all') params.set('category', categoryFilter);
+      params.set('limit', '50');
 
+      const response = await fetch(`/api/automations?${params.toString()}`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Erro ao carregar automações');
+      }
+
+      setAutomations(data.data || []);
+    } catch (error) {
+      console.error('Erro ao carregar automações:', error);
+      toast.error('Erro ao carregar automações');
+      setAutomations([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [statusFilter, categoryFilter]);
+
+  useEffect(() => {
+    loadAutomations();
+  }, [loadAutomations]);
+
+  const handleUpdateStatus = async (automationId: string, newStatus: AutomationStatus) => {
+    setActionLoading(automationId);
+    try {
+      const response = await fetch(`/api/automations/${automationId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Erro ao atualizar status');
+      }
+
+      toast.success(`Automação ${newStatus === 'ACTIVE' ? 'ativada' : 'pausada'} com sucesso!`);
+      loadAutomations();
+      
+      if (selectedAutomation?.id === automationId) {
+        setSelectedAutomation({ ...selectedAutomation, status: newStatus });
+      }
+    } catch (error) {
+      console.error('Erro ao atualizar status:', error);
+      toast.error(error instanceof Error ? error.message : 'Erro ao atualizar status');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleDuplicate = async (automationId: string) => {
+    setActionLoading(automationId);
+    try {
+      const response = await fetch(`/api/automations/${automationId}/duplicate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Erro ao duplicar automação');
+      }
+
+      toast.success('Automação duplicada com sucesso!');
+      loadAutomations();
+    } catch (error) {
+      console.error('Erro ao duplicar automação:', error);
+      toast.error(error instanceof Error ? error.message : 'Erro ao duplicar automação');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleExecute = async (automationId: string) => {
+    setActionLoading(automationId);
+    try {
+      const response = await fetch(`/api/automations/${automationId}/execute`, {
+        method: 'POST',
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Erro ao executar automação');
+      }
+
+      toast.success(`Automação executada com sucesso! (${data.stepsExecuted} steps em ${data.duration}ms)`);
+      loadAutomations();
+    } catch (error) {
+      console.error('Erro ao executar automação:', error);
+      toast.error(error instanceof Error ? error.message : 'Erro ao executar automação');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // Filtros locais (busca por texto)
   const filteredAutomations = automations.filter(automation => {
     const matchesSearch = automation.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      automation.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || automation.status === statusFilter;
-    const matchesCategory = categoryFilter === 'all' || automation.category === categoryFilter;
-    return matchesSearch && matchesStatus && matchesCategory;
+      (automation.description?.toLowerCase() || '').includes(searchTerm.toLowerCase());
+    return matchesSearch;
   });
 
+  // Estatísticas
   const stats = {
     total: automations.length,
     active: automations.filter(a => a.status === 'ACTIVE').length,
     paused: automations.filter(a => a.status === 'PAUSED').length,
-    totalExecutions: automations.reduce((sum, a) => sum + a.stats.executions, 0),
-    avgSuccessRate: automations.filter(a => a.stats.executions > 0).length > 0
-      ? (automations.filter(a => a.stats.executions > 0).reduce((sum, a) => sum + a.stats.successRate, 0) / automations.filter(a => a.stats.executions > 0).length).toFixed(1)
-      : 0
+    totalExecutions: automations.reduce((sum, a) => sum + (a.executions || 0), 0),
+    avgSuccessRate: automations.filter(a => (a.executions || 0) > 0).length > 0
+      ? (automations.filter(a => (a.executions || 0) > 0).reduce((sum, a) => sum + (a.successRate || 0), 0) / automations.filter(a => (a.executions || 0) > 0).length).toFixed(1)
+      : '0'
   };
 
   const getStatusColor = (status: AutomationStatus) => {
@@ -323,10 +313,13 @@ export default function AutomacoesPage() {
                   <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Automações</h1>
                   <p className="text-gray-500 mt-1">Crie e gerencie fluxos de trabalho automatizados</p>
                 </div>
-                <button className="flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold shadow-lg shadow-emerald-500/20 transition-all duration-200 hover:shadow-xl">
+                <Link
+                  href="/dashboard/ai-agents/automacoes/nova"
+                  className="flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold shadow-lg shadow-emerald-500/20 transition-all duration-200 hover:shadow-xl"
+                >
                   <LuPlus className="w-5 h-5" />
                   Nova Automação
-                </button>
+                </Link>
               </div>
             </div>
 
@@ -442,9 +435,9 @@ export default function AutomacoesPage() {
                       {automation.steps.length > 3 && <span className="text-xs text-gray-400 ml-1">+{automation.steps.length - 3}</span>}
                     </div>
                     <div className="grid grid-cols-3 gap-2 pt-4 border-t border-gray-100">
-                      <div className="text-center"><p className="text-lg font-semibold text-gray-900">{formatNumber(automation.stats.executions)}</p><p className="text-xs text-gray-500">Execuções</p></div>
-                      <div className="text-center"><p className="text-lg font-semibold text-gray-900">{automation.stats.successRate}%</p><p className="text-xs text-gray-500">Sucesso</p></div>
-                      <div className="text-center"><p className="text-lg font-semibold text-gray-900">{formatRelativeTime(automation.stats.lastRun)}</p><p className="text-xs text-gray-500">Última exec.</p></div>
+                      <div className="text-center"><p className="text-lg font-semibold text-gray-900">{formatNumber(automation.executions || 0)}</p><p className="text-xs text-gray-500">Execuções</p></div>
+                      <div className="text-center"><p className="text-lg font-semibold text-gray-900">{(automation.successRate || 0).toFixed(1)}%</p><p className="text-xs text-gray-500">Sucesso</p></div>
+                      <div className="text-center"><p className="text-lg font-semibold text-gray-900">{formatRelativeTime(automation.lastRunAt)}</p><p className="text-xs text-gray-500">Última exec.</p></div>
                     </div>
                   </div>
                 ))}
@@ -479,12 +472,39 @@ export default function AutomacoesPage() {
                 <span className={`px-3 py-1.5 text-sm font-medium rounded-full ${getStatusColor(selectedAutomation.status)}`}>{getStatusText(selectedAutomation.status)}</span>
                 <div className="flex items-center gap-2">
                   {selectedAutomation.status === 'ACTIVE' ? (
-                    <button className="flex items-center gap-2 px-4 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg transition-colors"><LuPause className="w-4 h-4" />Pausar</button>
+                    <button 
+                      onClick={() => handleUpdateStatus(selectedAutomation.id, 'PAUSED')}
+                      disabled={actionLoading === selectedAutomation.id}
+                      className="flex items-center gap-2 px-4 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      {actionLoading === selectedAutomation.id ? <LuLoader className="w-4 h-4 animate-spin" /> : <LuPause className="w-4 h-4" />}
+                      Pausar
+                    </button>
                   ) : selectedAutomation.status !== 'ERROR' && (
-                    <button className="flex items-center gap-2 px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg transition-colors"><LuPlay className="w-4 h-4" />Ativar</button>
+                    <button 
+                      onClick={() => handleUpdateStatus(selectedAutomation.id, 'ACTIVE')}
+                      disabled={actionLoading === selectedAutomation.id}
+                      className="flex items-center gap-2 px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      {actionLoading === selectedAutomation.id ? <LuLoader className="w-4 h-4 animate-spin" /> : <LuPlay className="w-4 h-4" />}
+                      Ativar
+                    </button>
                   )}
-                  <button className="flex items-center gap-2 px-4 py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-lg transition-colors"><LuPencil className="w-4 h-4" />Editar</button>
-                  <button className="flex items-center gap-2 px-4 py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-lg transition-colors"><LuCopy className="w-4 h-4" />Duplicar</button>
+                  <Link 
+                    href={`/dashboard/ai-agents/automacoes/${selectedAutomation.id}/editar`}
+                    className="flex items-center gap-2 px-4 py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-lg transition-colors"
+                  >
+                    <LuPencil className="w-4 h-4" />
+                    Editar
+                  </Link>
+                  <button 
+                    onClick={() => handleDuplicate(selectedAutomation.id)}
+                    disabled={actionLoading === selectedAutomation.id}
+                    className="flex items-center gap-2 px-4 py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    {actionLoading === selectedAutomation.id ? <LuLoader className="w-4 h-4 animate-spin" /> : <LuCopy className="w-4 h-4" />}
+                    Duplicar
+                  </button>
                 </div>
               </div>
               <div><h3 className="text-sm font-medium text-gray-500 mb-2">Descrição</h3><p className="text-gray-900">{selectedAutomation.description}</p></div>
@@ -509,10 +529,10 @@ export default function AutomacoesPage() {
               <div>
                 <h3 className="text-sm font-medium text-gray-500 mb-3">Métricas de Performance</h3>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  <div className="bg-gray-50 rounded-xl p-4"><p className="text-2xl font-bold text-gray-900">{formatNumber(selectedAutomation.stats.executions)}</p><p className="text-sm text-gray-500">Execuções</p></div>
-                  <div className="bg-gray-50 rounded-xl p-4"><p className="text-2xl font-bold text-gray-900">{selectedAutomation.stats.successRate}%</p><p className="text-sm text-gray-500">Taxa de Sucesso</p></div>
-                  <div className="bg-gray-50 rounded-xl p-4"><p className="text-2xl font-bold text-gray-900">{selectedAutomation.stats.avgDuration}s</p><p className="text-sm text-gray-500">Duração Média</p></div>
-                  <div className="bg-gray-50 rounded-xl p-4"><p className="text-2xl font-bold text-gray-900">{formatRelativeTime(selectedAutomation.stats.lastRun)}</p><p className="text-sm text-gray-500">Última Execução</p></div>
+                  <div className="bg-gray-50 rounded-xl p-4"><p className="text-2xl font-bold text-gray-900">{formatNumber(selectedAutomation.executions || 0)}</p><p className="text-sm text-gray-500">Execuções</p></div>
+                  <div className="bg-gray-50 rounded-xl p-4"><p className="text-2xl font-bold text-gray-900">{(selectedAutomation.successRate || 0).toFixed(1)}%</p><p className="text-sm text-gray-500">Taxa de Sucesso</p></div>
+                  <div className="bg-gray-50 rounded-xl p-4"><p className="text-2xl font-bold text-gray-900">{((selectedAutomation.avgDuration || 0) / 1000).toFixed(1)}s</p><p className="text-sm text-gray-500">Duração Média</p></div>
+                  <div className="bg-gray-50 rounded-xl p-4"><p className="text-2xl font-bold text-gray-900">{formatRelativeTime(selectedAutomation.lastRunAt)}</p><p className="text-sm text-gray-500">Última Execução</p></div>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-100">
@@ -520,7 +540,23 @@ export default function AutomacoesPage() {
                 <div><h3 className="text-sm font-medium text-gray-500 mb-1">Atualizado em</h3><p className="text-gray-900">{formatDate(selectedAutomation.updatedAt)}</p></div>
               </div>
               <div className="pt-4 border-t border-gray-100">
-                <button className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold transition-all"><LuPlay className="w-5 h-5" />Executar Agora</button>
+                <button 
+                  onClick={() => handleExecute(selectedAutomation.id)}
+                  disabled={actionLoading === selectedAutomation.id}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold transition-all disabled:opacity-50"
+                >
+                  {actionLoading === selectedAutomation.id ? (
+                    <>
+                      <LuLoader className="w-5 h-5 animate-spin" />
+                      Executando...
+                    </>
+                  ) : (
+                    <>
+                      <LuPlay className="w-5 h-5" />
+                      Executar Agora
+                    </>
+                  )}
+                </button>
               </div>
             </div>
           </div>

@@ -19,8 +19,9 @@ export class ProductsService {
     const { page = 1, limit = 10, skip, take, search, type, lowStock } = params || {};
 
     const resolvedTake = Number.isFinite(take as any) ? (take as number) : limit;
-    const resolvedSkip =
-      Number.isFinite(skip as any) ? (skip as number) : Math.max(0, (page - 1) * resolvedTake);
+    const resolvedSkip = Number.isFinite(skip as any)
+      ? (skip as number)
+      : Math.max(0, (page - 1) * resolvedTake);
 
     const where: any = {};
     if (type) where.type = type;
@@ -113,7 +114,8 @@ export class ProductsService {
 
   async create(dto: CreateProductDto) {
     if (dto.price < 0) throw new BadRequestException('Preço não pode ser negativo');
-    if (dto.stock !== undefined && dto.stock < 0) throw new BadRequestException('Estoque não pode ser negativo');
+    if (dto.stock !== undefined && dto.stock < 0)
+      throw new BadRequestException('Estoque não pode ser negativo');
 
     const existing = await this.prisma.product.findFirst({
       where: { name: { equals: dto.name, mode: 'insensitive' as const } },
@@ -189,5 +191,3 @@ export class ProductsService {
     return { message: 'Product excluído com sucesso' };
   }
 }
-
-

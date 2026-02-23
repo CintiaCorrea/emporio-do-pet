@@ -19,9 +19,7 @@ export const scoringRules: ScoringRule[] = [
     description: 'Visitou página de preços',
     category: 'behavior',
     score: 25,
-    evaluate: (ctx) =>
-      ctx.lead.visitedPricing ||
-      (ctx.enrichment?.pricingPageViews ?? 0) > 0,
+    evaluate: (ctx) => ctx.lead.visitedPricing || (ctx.enrichment?.pricingPageViews ?? 0) > 0,
   },
   {
     name: 'pricing_multiple_views',
@@ -42,9 +40,7 @@ export const scoringRules: ScoringRule[] = [
     description: 'Abandonou carrinho (oportunidade de recuperação)',
     category: 'behavior',
     score: 20,
-    evaluate: (ctx) =>
-      ctx.lead.abandonedCart ||
-      (ctx.enrichment?.checkoutAbandons ?? 0) > 0,
+    evaluate: (ctx) => ctx.lead.abandonedCart || (ctx.enrichment?.checkoutAbandons ?? 0) > 0,
   },
   {
     name: 'form_submit',
@@ -115,8 +111,7 @@ export const scoringRules: ScoringRule[] = [
     description: 'Origem orgânica ou direta (alta intenção)',
     category: 'source',
     score: 10,
-    evaluate: (ctx) =>
-      ctx.lead.source === 'ORGANIC' || ctx.lead.source === 'DIRECT',
+    evaluate: (ctx) => ctx.lead.source === 'ORGANIC' || ctx.lead.source === 'DIRECT',
   },
   {
     name: 'referral_source',
@@ -167,8 +162,7 @@ export const scoringRules: ScoringRule[] = [
     category: 'engagement',
     score: -15,
     evaluate: (ctx) =>
-      (ctx.enrichment?.avgSessionDuration ?? 999) < 10 &&
-      (ctx.enrichment?.totalSessions ?? 0) > 0,
+      (ctx.enrichment?.avgSessionDuration ?? 999) < 10 && (ctx.enrichment?.totalSessions ?? 0) > 0,
   },
   {
     name: 'inactive_long',
@@ -190,8 +184,7 @@ export const scoringRules: ScoringRule[] = [
     category: 'engagement',
     score: -5,
     evaluate: (ctx) =>
-      (ctx.enrichment?.totalPageViews ?? 0) === 1 &&
-      (ctx.enrichment?.avgSessionDuration ?? 0) < 30,
+      (ctx.enrichment?.totalPageViews ?? 0) === 1 && (ctx.enrichment?.avgSessionDuration ?? 0) < 30,
   },
 
   // ============================================

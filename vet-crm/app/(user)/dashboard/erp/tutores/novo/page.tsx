@@ -1,8 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { LuPlus, LuStar, LuTrash2, LuUser, LuMapPin, LuFolder, LuSave, LuX, LuArrowLeft, LuMail } from 'react-icons/lu';
+import { useState } from 'react';
+import { LuPlus, LuStar, LuTrash2, LuUser, LuMapPin, LuFolder, LuSave, LuX, LuArrowLeft, LuMail, LuPawPrint } from 'react-icons/lu';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
+import PetsTab from '@/components/protected/dashboard/tutors/edit/tabs/PetsTab';
+import { PetInline, parseAllergies, parseWeight, parseBirthDateToISOString } from '@/types/pet-inline';
 
 interface Contact {
   id: string;
@@ -17,6 +21,7 @@ interface TutorFormData {
   // Informações Básicas
   type: 'INDIVIDUAL' | 'LEGAL_ENTITY';
   name: string;
+  isActive: boolean;
   email?: string; // ✅ NOVO CAMPO ADICIONADO
   nationality: string;
   gender?: 'MALE' | 'FEMALE' | 'OTHER';
@@ -51,7 +56,8 @@ interface TutorFormData {
 }
 
 export default function TutorRegistrationPage() {
-  const [activeTab, setActiveTab] = useState<'geral' | 'endereco' | 'extras'>('geral');
+  const router = useRouter();
+  const [activeTab, setActiveTab] = useState<'geral' | 'endereco' | 'extras' | 'pets'>('geral');
   const [contacts, setContacts] = useState<Contact[]>([
     { 
       id: '1', 
@@ -62,6 +68,7 @@ export default function TutorRegistrationPage() {
       isPrimary: true 
     }
   ]);
+  const [pets, setPets] = useState<PetInline[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -69,6 +76,7 @@ export default function TutorRegistrationPage() {
   const [formData, setFormData] = useState<TutorFormData>({
     type: 'INDIVIDUAL',
     name: '',
+    isActive: true,
     email: '', // ✅ NOVO CAMPO INICIALIZADO
     nationality: 'Brasileira',
     gender: undefined,
@@ -160,6 +168,14 @@ export default function TutorRegistrationPage() {
         throw new Error('Pelo menos um contato com número é necessário');
       }
 
+      // Validar pets
+      const validPets = pets.filter(p => !p.isDeleted && p.name.trim());
+      for (const pet of validPets) {
+        if (!pet.name.trim()) {
+          throw new Error('Todos os pets precisam ter nome');
+        }
+      }
+
       const sanitize = <T,>(value: T) => {
         if (typeof value === 'string' && value.trim() === '') return undefined;
         return value;
@@ -217,15 +233,61 @@ export default function TutorRegistrationPage() {
         throw new Error(data.error || 'Erro ao criar tutor');
       }
 
+      const tutorId = data.id;
+
+      // Criar pets associados ao tutor
+      if (validPets.length > 0) {
+        const petPromises = validPets.map(async (pet) => {
+          const birthDateIso = pet.birthDate?.trim()
+            ? parseBirthDateToISOString(pet.birthDate)
+            : undefined;
+
+          const petPayload = {
+            name: pet.name,
+            species: pet.species,
+            breed: sanitize(pet.breed),
+            status: pet.status,
+            sex: sanitize(pet.sex),
+            sterilization: sanitize(pet.sterilization),
+            birthDate: birthDateIso,
+            coat: sanitize(pet.coat),
+            coatColor: sanitize(pet.coatColor),
+            weight: parseWeight(pet.weight),
+            microchip: sanitize(pet.microchip),
+            allergies: parseAllergies(pet.allergies),
+            medicalNotes: sanitize(pet.medicalNotes),
+            observations: sanitize(pet.observations),
+            documents: pet.documents,
+            avatar: sanitize(pet.avatar),
+            tutorId: tutorId,
+          };
+
+          const petResponse = await fetch('/api/pets', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(petPayload),
+          });
+
+          if (!petResponse.ok) {
+            const petError = await petResponse.json();
+            console.error(`Erro ao criar pet ${pet.name}:`, petError);
+          }
+        });
+
+        await Promise.all(petPromises);
+      }
+
       setSuccess(true);
-      
-      // Redirecionar após sucesso
-      setTimeout(() => {
-        window.location.href = '/dashboard/erp/contatos';
-      }, 2000);
+      toast.success(validPets.length > 0 
+        ? `Tutor e ${validPets.length} pet(s) cadastrados com sucesso!`
+        : 'Tutor cadastrado com sucesso!'
+      );
+      router.push('/dashboard/erp/tutores');
 
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro desconhecido');
+      const message = err instanceof Error ? err.message : 'Erro desconhecido';
+      setError(message);
+      toast.error(message);
       console.error('Erro ao criar tutor:', err);
     } finally {
       setLoading(false);
@@ -284,10 +346,11 @@ export default function TutorRegistrationPage() {
             <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-3xl shadow-2xl shadow-blue-500/10 overflow-hidden">
               {/* Tabs */}
               <div className="border-b border-white/20 bg-gradient-to-r from-white to-white/95">
-                <div className="flex">
+                <div className="overflow-x-auto">
+                  <div className="flex flex-nowrap min-w-max">
                   <button
                     onClick={() => setActiveTab('geral')}
-                    className={`group px-8 py-4 text-sm font-semibold transition-all duration-300 flex items-center space-x-2 ${
+                    className={`group shrink-0 px-8 py-4 text-sm font-semibold transition-all duration-300 flex items-center space-x-2 ${
                       activeTab === 'geral'
                         ? 'border-b-2 border-blue-500 text-blue-600 bg-blue-50/50'
                         : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50/50'
@@ -299,8 +362,26 @@ export default function TutorRegistrationPage() {
                     <span>Geral</span>
                   </button>
                   <button
+                    onClick={() => setActiveTab('pets')}
+                    className={`group shrink-0 px-8 py-4 text-sm font-semibold transition-all duration-300 flex items-center space-x-2 ${
+                      activeTab === 'pets'
+                        ? 'border-b-2 border-emerald-500 text-emerald-600 bg-emerald-50/50'
+                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50/50'
+                    }`}
+                  >
+                    <LuPawPrint className={`w-4 h-4 transition-transform duration-300 ${
+                      activeTab === 'pets' ? 'scale-110' : 'group-hover:scale-110'
+                    }`} />
+                    <span>Pets</span>
+                    {pets.filter(p => !p.isDeleted).length > 0 && (
+                      <span className="ml-1 px-2 py-0.5 text-xs bg-emerald-100 text-emerald-700 rounded-full">
+                        {pets.filter(p => !p.isDeleted).length}
+                      </span>
+                    )}
+                  </button>
+                  <button
                     onClick={() => setActiveTab('endereco')}
-                    className={`group px-8 py-4 text-sm font-semibold transition-all duration-300 flex items-center space-x-2 ${
+                    className={`group shrink-0 px-8 py-4 text-sm font-semibold transition-all duration-300 flex items-center space-x-2 ${
                       activeTab === 'endereco'
                         ? 'border-b-2 border-green-500 text-green-600 bg-green-50/50'
                         : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50/50'
@@ -313,7 +394,7 @@ export default function TutorRegistrationPage() {
                   </button>
                   <button
                     onClick={() => setActiveTab('extras')}
-                    className={`group px-8 py-4 text-sm font-semibold transition-all duration-300 flex items-center space-x-2 ${
+                    className={`group shrink-0 px-8 py-4 text-sm font-semibold transition-all duration-300 flex items-center space-x-2 ${
                       activeTab === 'extras'
                         ? 'border-b-2 border-purple-500 text-purple-600 bg-purple-50/50'
                         : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50/50'
@@ -324,6 +405,7 @@ export default function TutorRegistrationPage() {
                     }`} />
                     <span>Extras</span>
                   </button>
+                  </div>
                 </div>
               </div>
 
@@ -392,6 +474,21 @@ export default function TutorRegistrationPage() {
                           <option value="MALE">Masculino</option>
                           <option value="FEMALE">Feminino</option>
                           <option value="OTHER">Outro</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="flex items-center text-sm font-semibold text-gray-700">
+                          <LuUser className="w-4 h-4 mr-2 text-blue-500" />
+                          Status
+                        </label>
+                        <select
+                          value={formData.isActive ? 'true' : 'false'}
+                          onChange={(e) => handleInputChange('isActive', e.target.value === 'true')}
+                          className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                        >
+                          <option value="true">Ativo</option>
+                          <option value="false">Inativo</option>
                         </select>
                       </div>
                     </div>
@@ -764,6 +861,14 @@ export default function TutorRegistrationPage() {
                       </div>
                     </div>
                   </div>
+                )}
+
+                {/* Tab Pets */}
+                {activeTab === 'pets' && (
+                  <PetsTab
+                    pets={pets}
+                    onPetsChange={setPets}
+                  />
                 )}
 
                 {/* Botões de ação */}

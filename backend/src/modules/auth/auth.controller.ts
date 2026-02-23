@@ -1,16 +1,9 @@
-import {
-  Controller,
-  Post,
-  Body,
-  UseGuards,
-  Request,
-  HttpCode,
-  HttpStatus,
-} from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, Request, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 
@@ -39,13 +32,12 @@ export class AuthController {
   }
 
   @Post('refresh')
-  @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Renovar token de acesso' })
+  @ApiOperation({ summary: 'Renovar token de acesso usando refresh token' })
   @ApiResponse({ status: 200, description: 'Token renovado com sucesso' })
-  async refresh(@Request() req: { user: { id: string } }) {
-    return this.authService.refreshToken(req.user.id);
+  @ApiResponse({ status: 401, description: 'Refresh token inválido ou expirado' })
+  async refresh(@Body() dto: RefreshTokenDto) {
+    return this.authService.refreshToken(dto.refreshToken);
   }
 
   @Post('logout')
@@ -69,4 +61,3 @@ export class AuthController {
     return { user: req.user };
   }
 }
-

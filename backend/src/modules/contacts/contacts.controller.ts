@@ -72,5 +72,3 @@ export class ContactsController {
     return this.contactsService.remove(id);
   }
 }
-
-

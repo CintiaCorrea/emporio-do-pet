@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { LuArrowLeft, LuPawPrint, LuVenetianMask, LuCalendar, LuUser, LuSave, LuX } from "react-icons/lu";
+import Image from "next/image";
+import { LuArrowLeft, LuPawPrint, LuVenetianMask, LuCalendar, LuUser, LuSave, LuX, LuCamera, LuLoaderCircle, LuTrash2, LuFiles } from "react-icons/lu";
+import toast from "react-hot-toast";
 
 interface Tutor {
   id: string;
@@ -21,8 +23,86 @@ interface Pet {
   sterilization: string;
   birthDate: string;
   coat: string;
+  coatColor: string;
+  weight: string; // armazenar como string para input controlado; converter no submit
+  microchip: string;
+  allergies: string; // uma por linha; converter no submit
+  medicalNotes: string;
+  observations: string;
+  documents: string[]; // IDs dos templates de documentos selecionados
   owner: string;
   tutorId?: string; // Adicionando campo para vincular ao tutor
+  avatar?: string; // URL da foto (Cloudinary)
+}
+
+function normalizeBreed(value: string) {
+  return value
+    .trim()
+    .replace(/\s+/g, " ")
+    .replace(/[^\S\r\n]+/g, " ");
+}
+
+function parseAllergies(raw: string): string[] {
+  return raw
+    .split(/\r?\n|,/g)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function parseWeight(raw: string): number | undefined {
+  const normalized = raw.replace(",", ".").trim();
+  if (!normalized) return undefined;
+  const n = Number(normalized);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+function parseBirthDateToISOString(raw: string): string | undefined {
+  const s = raw.trim();
+  if (!s) return undefined;
+
+  // Helper to validate and return ISO string
+  const tryDate = (year: number, month: number, day: number): string | undefined => {
+    if (!Number.isFinite(day) || !Number.isFinite(month) || !Number.isFinite(year)) return undefined;
+    if (year < 1900 || year > 3000) return undefined;
+    if (month < 1 || month > 12) return undefined;
+    if (day < 1 || day > 31) return undefined;
+
+    const d = new Date(Date.UTC(year, month - 1, day));
+    if (d.getUTCFullYear() !== year || d.getUTCMonth() !== month - 1 || d.getUTCDate() !== day) return undefined;
+    return d.toISOString();
+  };
+
+  // Remove time portion if present (e.g., "20/01/2026 10:30" or "2026-01-20T00:00:00Z")
+  const datePart = s.split(/[T\s]/)[0]?.trim() || s;
+
+  // Try ISO format first: yyyy-mm-dd / yyyy/mm/dd / yyyy.mm.dd
+  const isoCal = datePart.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})$/);
+  if (isoCal) {
+    const result = tryDate(Number(isoCal[1]), Number(isoCal[2]), Number(isoCal[3]));
+    if (result) return result;
+  }
+
+  // Try pt-BR format: dd/mm/aaaa or dd-mm-aaaa or dd.mm.aaaa (1 or 2 digit day/month, 2 or 4 digit year)
+  const normalized = datePart.replace(/[.\-]/g, "/").replace(/\s+/g, "");
+  const br = normalized.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  if (br) {
+    const day = Number(br[1]);
+    const month = Number(br[2]);
+    let year = Number(br[3]);
+    if (br[3].length === 2) {
+      year = year <= 49 ? 2000 + year : 1900 + year;
+    }
+    const result = tryDate(year, month, day);
+    if (result) return result;
+  }
+
+  // Fallback: try native Date parsing (handles many formats)
+  const fallback = new Date(s);
+  if (!Number.isNaN(fallback.getTime())) {
+    return fallback.toISOString();
+  }
+
+  return undefined;
 }
 
 // Pet vazio para criação
@@ -35,8 +115,24 @@ const emptyPet: Pet = {
   sterilization: "",
   birthDate: "",
   coat: "",
+  coatColor: "",
+  weight: "",
+  microchip: "",
+  allergies: "",
+  medicalNotes: "",
+  observations: "",
+  documents: [],
   owner: "",
+  avatar: "",
 };
+
+interface DocumentTemplate {
+  id: string;
+  title: string;
+  status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+  category: string | null;
+  updatedAt: string;
+}
 
 interface ApiResponse {
   tutors: Tutor[];
@@ -51,11 +147,99 @@ interface ApiResponse {
 export default function NewPetPage() {
   const router = useRouter();
   const [pet, setPet] = useState<Pet>(emptyPet);
+  const [breedOptions, setBreedOptions] = useState<string[]>([]);
+  const [newBreed, setNewBreed] = useState<string>("");
+  const [breedsLoading, setBreedsLoading] = useState(false);
+  const [breedsSubmitting, setBreedsSubmitting] = useState(false);
+  const [breedsError, setBreedsError] = useState<string | null>(null);
   const [tutors, setTutors] = useState<Tutor[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'geral' | 'foto' | 'extras'>('geral');
+  const [activeTab, setActiveTab] = useState<'geral' | 'foto' | 'extras' | 'documentos'>('geral');
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+  const [docTemplates, setDocTemplates] = useState<DocumentTemplate[]>([]);
+  const [docTemplatesLoading, setDocTemplatesLoading] = useState(false);
+  const [docTemplatesError, setDocTemplatesError] = useState<string | null>(null);
+  const [docSearch, setDocSearch] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const petKeyRef = useRef<string>("");
+  if (!petKeyRef.current) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const c: any = (globalThis as any).crypto;
+      if (c && typeof c.randomUUID === "function") {
+        petKeyRef.current = c.randomUUID();
+      }
+    } catch {
+      // ignore
+    }
+    if (!petKeyRef.current) {
+      petKeyRef.current = `${Date.now()}_${Math.random().toString(16).slice(2)}`;
+    }
+  }
+
+  // Carregar raças do banco (por espécie)
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchBreeds = async () => {
+      try {
+        setBreedsLoading(true);
+        setBreedsError(null);
+
+        const res = await fetch(`/api/breeds?species=${encodeURIComponent(pet.species)}`, { method: "GET" });
+        const data = await res.json().catch(() => null);
+
+        if (!res.ok) {
+          throw new Error(data?.error || "Erro ao carregar raças");
+        }
+
+        const arr: any[] = Array.isArray(data) ? data : Array.isArray(data?.breeds) ? data.breeds : [];
+        const names = arr
+          .map((item) => (typeof item === "string" ? item : item?.name))
+          .filter((v) => typeof v === "string")
+          .map((v) => normalizeBreed(v))
+          .filter(Boolean);
+
+        const unique = Array.from(new Map(names.map((b) => [b.toLowerCase(), b])).values());
+        if (!cancelled) setBreedOptions(unique);
+      } catch (e) {
+        if (!cancelled) setBreedsError(e instanceof Error ? e.message : "Erro ao carregar raças");
+      } finally {
+        if (!cancelled) setBreedsLoading(false);
+      }
+    };
+
+    // Se não houver espécie selecionada, limpa
+    if (!pet.species) {
+      setBreedOptions([]);
+      setBreedsError(null);
+      setBreedsLoading(false);
+      return;
+    }
+
+    fetchBreeds();
+    return () => {
+      cancelled = true;
+    };
+  }, [pet.species]);
+
+  const currentBreeds = useMemo(() => {
+    const list = breedOptions || [];
+    // Ordena só para UX, mantendo SRD no topo quando existir
+    const normalized = list.map((b) => normalizeBreed(b)).filter(Boolean);
+    const srd = normalized.filter((b) => b.toLowerCase() === "srd");
+    const rest = normalized.filter((b) => b.toLowerCase() !== "srd").sort((a, b) => a.localeCompare(b, "pt-BR"));
+    return [...srd, ...rest];
+  }, [breedOptions]);
+
+  const breedExists = useMemo(() => {
+    const key = normalizeBreed(newBreed).toLowerCase();
+    if (!key) return false;
+    return currentBreeds.some((b) => normalizeBreed(b).toLowerCase() === key);
+  }, [currentBreeds, newBreed]);
 
   // Carregar tutores da API
   useEffect(() => {
@@ -95,7 +279,64 @@ export default function NewPetPage() {
     fetchTutors();
   }, []);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  // Carregar templates de documentos (para selecionar no pet)
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchDocs = async () => {
+      try {
+        setDocTemplatesLoading(true);
+        setDocTemplatesError(null);
+
+        // Por padrão, lista apenas templates publicados
+        const res = await fetch('/api/documents?status=PUBLISHED');
+        const data = await res.json().catch(() => null);
+        if (!res.ok) throw new Error(data?.error || 'Erro ao carregar templates de documentos');
+
+        const docs: DocumentTemplate[] = Array.isArray(data?.documents) ? data.documents : [];
+        if (!cancelled) setDocTemplates(docs);
+      } catch (e) {
+        if (!cancelled) setDocTemplatesError(e instanceof Error ? e.message : 'Erro ao carregar templates de documentos');
+      } finally {
+        if (!cancelled) setDocTemplatesLoading(false);
+      }
+    };
+
+    fetchDocs();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const filteredDocTemplates = useMemo(() => {
+    const q = docSearch.trim().toLowerCase();
+    if (!q) return docTemplates;
+    return docTemplates.filter((d) => d.title?.toLowerCase().includes(q));
+  }, [docTemplates, docSearch]);
+
+  const togglePetDocument = (docId: string) => {
+    setPet((prev) => {
+      const has = prev.documents.includes(docId);
+      return { ...prev, documents: has ? prev.documents.filter((id) => id !== docId) : [...prev.documents, docId] };
+    });
+  };
+
+  // Máscara para data: formata automaticamente dd/mm/aaaa
+  const formatDateMask = (value: string): string => {
+    // Remove tudo que não for número
+    const digits = value.replace(/\D/g, "");
+    
+    // Aplica a máscara dd/mm/aaaa
+    if (digits.length <= 2) {
+      return digits;
+    } else if (digits.length <= 4) {
+      return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+    } else {
+      return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4, 8)}`;
+    }
+  };
+
+  const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     
     if (name === 'tutorId') {
@@ -106,12 +347,16 @@ export default function NewPetPage() {
         tutorId: value,
         owner: selectedTutor ? selectedTutor.name : ""
       }));
+    } else if (name === 'birthDate') {
+      // Aplicar máscara de data
+      const maskedValue = formatDateMask(value);
+      setPet((prev) => ({ ...prev, birthDate: maskedValue }));
     } else {
       setPet((prev) => ({ ...prev, [name]: value }));
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     setError(null);
@@ -122,6 +367,13 @@ export default function NewPetPage() {
         return value;
       };
 
+      const birthDateIso = pet.birthDate?.trim()
+        ? parseBirthDateToISOString(pet.birthDate)
+        : undefined;
+      if (pet.birthDate?.trim() && !birthDateIso) {
+        throw new Error("Data de nascimento inválida. Use dd/mm/aaaa.");
+      }
+
       // Preparar dados para envio (sem o campo owner que não existe no backend)
       const petToSubmit = {
         ...pet,
@@ -129,13 +381,15 @@ export default function NewPetPage() {
         tutorId: sanitize(pet.tutorId),
         breed: sanitize(pet.breed),
         coat: sanitize(pet.coat),
-        coatColor: sanitize((pet as any).coatColor),
-        microchip: sanitize((pet as any).microchip),
-        observations: sanitize((pet as any).observations),
-        avatar: sanitize((pet as any).avatar),
-        birthDate: sanitize(pet.birthDate)
-          ? new Date(pet.birthDate as string).toISOString()
-          : undefined,
+        coatColor: sanitize(pet.coatColor),
+        microchip: sanitize(pet.microchip),
+        observations: sanitize(pet.observations),
+        avatar: sanitize(pet.avatar),
+        weight: parseWeight(pet.weight),
+        allergies: parseAllergies(pet.allergies),
+        medicalNotes: sanitize(pet.medicalNotes),
+        documents: pet.documents,
+        birthDate: birthDateIso,
       };
 
       // Enviar dados do novo pet para a API
@@ -156,16 +410,143 @@ export default function NewPetPage() {
       console.log("Pet criado com sucesso", newPet);
       
       // Feedback de sucesso e redirecionamento
-      alert('Pet cadastrado com sucesso!');
+      toast.success('Pet cadastrado com sucesso!');
       router.push('/dashboard/erp/pets');
       
     } catch (error) {
       console.error('Erro ao criar pet:', error);
-      setError(error instanceof Error ? error.message : 'Erro desconhecido ao criar pet');
+      const message = error instanceof Error ? error.message : 'Erro desconhecido ao criar pet';
+      setError(message);
+      toast.error(message);
       // Aqui você pode adicionar feedback de erro mais elaborado para o usuário
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const addBreedToCurrentSpecies = () => {
+    const run = async () => {
+      const normalized = normalizeBreed(newBreed || "");
+      if (!normalized) return;
+      if (breedExists) {
+        // Se já existe, apenas seleciona e limpa o campo
+        setPet((prev) => ({ ...prev, breed: normalized }));
+        setNewBreed("");
+        return;
+      }
+
+      try {
+        setBreedsSubmitting(true);
+        setBreedsError(null);
+
+        const res = await fetch("/api/breeds", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ species: pet.species, name: normalized }),
+        });
+
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+          throw new Error(data?.error || "Erro ao adicionar raça");
+        }
+
+        const createdName = typeof data?.name === "string" ? normalizeBreed(data.name) : normalized;
+        setBreedOptions((prev) => {
+          const map = new Map((prev || []).map((b) => [normalizeBreed(b).toLowerCase(), normalizeBreed(b)]));
+          map.set(createdName.toLowerCase(), createdName);
+          return Array.from(map.values());
+        });
+        // Seleciona a raça recém-criada e limpa o campo
+        setPet((prev) => ({ ...prev, breed: createdName }));
+        setNewBreed("");
+      } catch (e) {
+        setBreedsError(e instanceof Error ? e.message : "Erro ao adicionar raça");
+      } finally {
+        setBreedsSubmitting(false);
+      }
+    };
+
+    void run();
+  };
+
+  const openFilePicker = () => {
+    if (isUploadingAvatar) return;
+    fileInputRef.current?.click();
+  };
+
+  const uploadPetAvatar = async (file: File) => {
+    // Basic validation
+    const maxBytes = 5 * 1024 * 1024; // 5MB
+    if (!file.type.startsWith("image/")) {
+      setAvatarError("Selecione um arquivo de imagem.");
+      return;
+    }
+    if (file.size > maxBytes) {
+      setAvatarError("A imagem deve ter no máximo 5MB.");
+      return;
+    }
+
+    setIsUploadingAvatar(true);
+    setAvatarError(null);
+
+    try {
+      // 1) get signed params
+      const sigRes = await fetch("/api/cloudinary/signature", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kind: "petAvatar", petKey: petKeyRef.current }),
+      });
+      const sigData = await sigRes.json().catch(() => null);
+      if (!sigRes.ok) throw new Error(sigData?.error || "Erro ao preparar upload");
+
+      const { cloudName, apiKey, timestamp, signature, folder, publicId, overwrite, invalidate } = sigData;
+
+      // 2) upload to cloudinary
+      const form = new FormData();
+      form.append("file", file);
+      form.append("api_key", apiKey);
+      form.append("timestamp", String(timestamp));
+      form.append("signature", signature);
+      form.append("folder", folder);
+      form.append("public_id", publicId);
+      form.append("overwrite", String(Boolean(overwrite)));
+      form.append("invalidate", String(Boolean(invalidate)));
+
+      const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+        method: "POST",
+        body: form,
+      });
+      const uploadData = await uploadRes.json().catch(() => null);
+      if (!uploadRes.ok) {
+        const msg =
+          (uploadData && typeof uploadData === "object" && "error" in uploadData && (uploadData as any).error?.message) ||
+          `Falha no upload do Cloudinary (HTTP ${uploadRes.status})`;
+        throw new Error(msg);
+      }
+
+      const secureUrl: string | undefined = uploadData?.secure_url;
+      if (!secureUrl) throw new Error("Cloudinary não retornou a URL da imagem");
+
+      setPet((prev) => ({ ...prev, avatar: secureUrl }));
+    } catch (err) {
+      console.error(err);
+      setAvatarError(err instanceof Error ? err.message : "Erro ao enviar imagem");
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+
+  const onAvatarFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    // allow re-select same file later
+    e.target.value = "";
+    if (!file) return;
+    await uploadPetAvatar(file);
+  };
+
+  const removeAvatar = () => {
+    setPet((prev) => ({ ...prev, avatar: "" }));
+    setAvatarError(null);
   };
 
   return (
@@ -230,12 +611,13 @@ export default function NewPetPage() {
 
               {/* Tabs Modernizadas */}
               <div className="border-b border-white/20 bg-gradient-to-r from-white to-white/95">
-                <div className="flex">
+                <div className="overflow-x-auto">
+                  <div className="flex flex-nowrap min-w-max">
                   <button
                     onClick={() => setActiveTab('geral')}
-                    className={`group px-8 py-4 text-sm font-semibold transition-all duration-300 flex items-center space-x-2 ${
+                    className={`group shrink-0 px-8 py-4 text-sm font-semibold transition-all duration-300 flex items-center space-x-2 ${
                       activeTab === 'geral'
-                        ? 'border-b-2 border-green-500 text-green-600 bg-green-50/50'
+                        ? 'border-b-2 border-blue-500 text-blue-600 bg-blue-50/50'
                         : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50/50'
                     }`}
                   >
@@ -246,7 +628,7 @@ export default function NewPetPage() {
                   </button>
                   <button
                     onClick={() => setActiveTab('foto')}
-                    className={`group px-8 py-4 text-sm font-semibold transition-all duration-300 flex items-center space-x-2 ${
+                    className={`group shrink-0 px-8 py-4 text-sm font-semibold transition-all duration-300 flex items-center space-x-2 ${
                       activeTab === 'foto'
                         ? 'border-b-2 border-blue-500 text-blue-600 bg-blue-50/50'
                         : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50/50'
@@ -259,9 +641,9 @@ export default function NewPetPage() {
                   </button>
                   <button
                     onClick={() => setActiveTab('extras')}
-                    className={`group px-8 py-4 text-sm font-semibold transition-all duration-300 flex items-center space-x-2 ${
+                    className={`group shrink-0 px-8 py-4 text-sm font-semibold transition-all duration-300 flex items-center space-x-2 ${
                       activeTab === 'extras'
-                        ? 'border-b-2 border-purple-500 text-purple-600 bg-purple-50/50'
+                        ? 'border-b-2 border-blue-500 text-blue-600 bg-blue-50/50'
                         : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50/50'
                     }`}
                   >
@@ -270,6 +652,20 @@ export default function NewPetPage() {
                     }`} />
                     <span>Extras</span>
                   </button>
+                  <button
+                    onClick={() => setActiveTab('documentos')}
+                    className={`group shrink-0 px-8 py-4 text-sm font-semibold transition-all duration-300 flex items-center space-x-2 ${
+                      activeTab === 'documentos'
+                        ? 'border-b-2 border-blue-500 text-blue-600 bg-blue-50/50'
+                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50/50'
+                    }`}
+                  >
+                    <LuFiles className={`w-4 h-4 transition-transform duration-300 ${
+                      activeTab === 'documentos' ? 'scale-110' : 'group-hover:scale-110'
+                    }`} />
+                    <span>Documentos</span>
+                  </button>
+                  </div>
                 </div>
               </div>
 
@@ -319,18 +715,50 @@ export default function NewPetPage() {
                       <label className="flex items-center text-sm font-semibold text-gray-700">
                         Raça
                       </label>
+                      {/* Selector das raças existentes */}
                       <select
                         name="breed"
                         value={pet.breed}
                         onChange={handleChange}
-                        className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                        disabled={breedsLoading}
+                        className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <option value="">Selecione...</option>
-                        <option value="SRD">SRD</option>
-                        <option value="Labrador">Labrador</option>
-                        <option value="Poodle">Poodle</option>
-                        <option value="Dachshund Miniatura">Dachshund Miniatura</option>
+                        {currentBreeds.map((breed) => (
+                          <option key={`${pet.species}:${breed}`} value={breed}>
+                            {breed}
+                          </option>
+                        ))}
                       </select>
+
+                      {/* Campo para cadastrar nova raça */}
+                      <div className="mt-2 flex gap-2">
+                        <input
+                          type="text"
+                          value={newBreed}
+                          onChange={(e) => setNewBreed(e.target.value)}
+                          className="flex-1 px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500/50 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                          placeholder="Nova raça (se não existir)"
+                        />
+                        <button
+                          type="button"
+                          onClick={addBreedToCurrentSpecies}
+                          disabled={breedsSubmitting || breedsLoading || !normalizeBreed(newBreed || "")}
+                          className="px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl text-sm font-semibold text-gray-700 hover:bg-white hover:border-gray-300/50 shadow-sm transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                          title="Adicionar esta raça ao banco para esta espécie"
+                        >
+                          {breedsSubmitting ? "Adicionando..." : "Adicionar"}
+                        </button>
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        {breedsLoading
+                          ? "Carregando raças..."
+                          : breedsError
+                            ? `Erro ao carregar/adicionar raças: ${breedsError}`
+                            : breedExists
+                              ? "Essa raça já existe no banco. Ao adicionar, ela será apenas selecionada."
+                              : "Selecione uma raça existente ou cadastre uma nova e clique em Adicionar."}
+                      </p>
                     </div>
                     <div className="space-y-2">
                       <label className="flex items-center text-sm font-semibold text-gray-700">
@@ -482,23 +910,228 @@ export default function NewPetPage() {
               {activeTab === 'foto' && (
                 <div className="p-8 text-center">
                   <div className="max-w-md mx-auto">
-                    <div className="w-32 h-32 mx-auto bg-gray-100 rounded-2xl flex items-center justify-center mb-4">
-                      <LuVenetianMask className="w-12 h-12 text-gray-400" />
+                    <div className="relative w-40 h-40 mx-auto mb-4">
+                      {pet.avatar ? (
+                        <Image
+                          src={pet.avatar}
+                          alt={pet.name || "Foto do pet"}
+                          fill
+                          className="rounded-2xl object-cover ring-2 ring-white/60 shadow-lg"
+                        />
+                      ) : (
+                        <div className="w-40 h-40 bg-gray-100 rounded-2xl flex items-center justify-center">
+                          <LuVenetianMask className="w-12 h-12 text-gray-400" />
+                        </div>
+                      )}
                     </div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Adicionar Foto</h3>
-                    <p className="text-gray-600 mb-6">Faça upload de uma foto do pet</p>
-                    <button className="px-6 py-3 bg-green-600 text-white rounded-2xl hover:bg-green-700 transition-all duration-300">
-                      Selecionar Arquivo
-                    </button>
+
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Foto do Pet</h3>
+                    <p className="text-gray-600 mb-6">Envie uma foto e ela será salva no cadastro.</p>
+
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={onAvatarFileChange}
+                    />
+
+                    <div className="flex items-center justify-center gap-3">
+                      <button
+                        type="button"
+                        onClick={openFilePicker}
+                        disabled={isUploadingAvatar}
+                        className="inline-flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-2xl hover:bg-green-700 transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        {isUploadingAvatar ? (
+                          <LuLoaderCircle className="w-5 h-5 animate-spin" />
+                        ) : (
+                          <LuCamera className="w-5 h-5" />
+                        )}
+                        {isUploadingAvatar ? "Enviando..." : "Selecionar arquivo"}
+                      </button>
+
+                      {pet.avatar ? (
+                        <button
+                          type="button"
+                          onClick={removeAvatar}
+                          disabled={isUploadingAvatar}
+                          className="inline-flex items-center gap-2 px-6 py-3 bg-white/80 border border-gray-200/80 text-gray-700 rounded-2xl hover:bg-white transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                          <LuTrash2 className="w-5 h-5" />
+                          Remover
+                        </button>
+                      ) : null}
+                    </div>
+
+                    {avatarError ? (
+                      <p className="mt-4 text-sm text-red-600">{avatarError}</p>
+                    ) : null}
                   </div>
                 </div>
               )}
 
               {activeTab === 'extras' && (
                 <div className="p-8">
-                  <div className="max-w-2xl">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Informações Extras</h3>
-                    <p className="text-gray-600">Em desenvolvimento...</p>
+                  <div className="max-w-3xl mx-auto">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-1">Informações Extras</h3>
+                    <p className="text-gray-600 mb-6">Campos opcionais para complementar o cadastro do pet.</p>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <label className="text-sm font-semibold text-gray-700">Cor da Pelagem</label>
+                        <input
+                          type="text"
+                          name="coatColor"
+                          value={pet.coatColor}
+                          onChange={handleChange}
+                          className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500/40 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                          placeholder="Ex.: Preto e branco"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-semibold text-gray-700">Peso (kg)</label>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          name="weight"
+                          value={pet.weight}
+                          onChange={handleChange}
+                          className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500/40 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                          placeholder="Ex.: 12,5"
+                        />
+                        <p className="text-xs text-gray-500">Aceita ponto ou vírgula.</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                      <div className="space-y-2">
+                        <label className="text-sm font-semibold text-gray-700">Microchip</label>
+                        <input
+                          type="text"
+                          name="microchip"
+                          value={pet.microchip}
+                          onChange={handleChange}
+                          className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500/40 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                          placeholder="Número do microchip"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-semibold text-gray-700">Alergias</label>
+                        <textarea
+                          name="allergies"
+                          value={pet.allergies}
+                          onChange={handleChange}
+                          rows={3}
+                          className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500/40 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm resize-none"
+                          placeholder={"Uma por linha (ou separadas por vírgula)\nEx.: Frango\nEx.: Pólen"}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-6 mt-6">
+                      <div className="space-y-2">
+                        <label className="text-sm font-semibold text-gray-700">Observações</label>
+                        <textarea
+                          name="observations"
+                          value={pet.observations}
+                          onChange={handleChange}
+                          rows={4}
+                          className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500/40 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm resize-none"
+                          placeholder="Observações gerais do pet (temperamento, cuidados, etc.)"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-semibold text-gray-700">Notas Médicas Importantes</label>
+                        <textarea
+                          name="medicalNotes"
+                          value={pet.medicalNotes}
+                          onChange={handleChange}
+                          rows={4}
+                          className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500/40 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm resize-none"
+                          placeholder="Ex.: Faz uso contínuo de medicação X, histórico de convulsões..."
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'documentos' && (
+                <div className="p-8">
+                  <div className="max-w-3xl mx-auto">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-1">Documentos</h3>
+                    <p className="text-gray-600 mb-6">
+                      Selecione quantos templates de documentos forem necessários para este pet.
+                    </p>
+
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                      <div className="flex-1">
+                        <label className="text-sm font-semibold text-gray-700">Buscar template</label>
+                        <input
+                          type="text"
+                          value={docSearch}
+                          onChange={(e) => setDocSearch(e.target.value)}
+                          placeholder="Ex.: termo, contrato, prontuário..."
+                          className="mt-1 w-full px-4 py-2.5 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500/40 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                        />
+                      </div>
+                      <div className="sm:text-right pt-1">
+                        <div className="text-sm font-semibold text-gray-900">
+                          Selecionados: {pet.documents.length}
+                        </div>
+                        <Link
+                          href="/dashboard/erp/documentos"
+                          className="text-sm text-blue-600 hover:text-blue-700 underline underline-offset-2"
+                        >
+                          Gerenciar templates
+                        </Link>
+                      </div>
+                    </div>
+
+                    <div className="bg-white/70 border border-gray-200/70 rounded-2xl overflow-hidden">
+                      {docTemplatesLoading ? (
+                        <div className="p-4 text-sm text-gray-600">Carregando templates...</div>
+                      ) : docTemplatesError ? (
+                        <div className="p-4 text-sm text-red-600">{docTemplatesError}</div>
+                      ) : filteredDocTemplates.length === 0 ? (
+                        <div className="p-4 text-sm text-gray-600">
+                          Nenhum template publicado encontrado.
+                        </div>
+                      ) : (
+                        <ul className="divide-y divide-gray-100">
+                          {filteredDocTemplates.map((doc) => {
+                            const checked = pet.documents.includes(doc.id);
+                            return (
+                              <li key={doc.id} className="p-4 hover:bg-gray-50/60 transition-colors">
+                                <label className="flex items-start gap-3 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    onChange={() => togglePetDocument(doc.id)}
+                                    className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                  />
+                                  <div className="min-w-0">
+                                    <div className="font-semibold text-gray-900 truncate">{doc.title}</div>
+                                    <div className="text-sm text-gray-500 mt-0.5 flex flex-wrap gap-x-3 gap-y-1">
+                                      {doc.category ? <span>Categoria: {doc.category}</span> : null}
+                                      <span>Atualizado: {new Date(doc.updatedAt).toLocaleDateString('pt-BR')}</span>
+                                    </div>
+                                  </div>
+                                </label>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                    </div>
+
+                    <p className="text-xs text-gray-500 mt-3">
+                      Os templates selecionados serão vinculados ao pet (salvo como IDs no banco).
+                    </p>
                   </div>
                 </div>
               )}

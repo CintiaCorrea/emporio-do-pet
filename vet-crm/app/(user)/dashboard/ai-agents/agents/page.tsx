@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { 
   LuBot,
@@ -22,141 +22,224 @@ import {
   LuTrash2,
   LuRefreshCw,
   LuFileText,
-  LuChevronRight
+  LuChevronRight,
+  LuLoader
 } from 'react-icons/lu';
+import { toast } from 'sonner';
 
 // Tipos para AI Agents
 type AgentStatus = 'ACTIVE' | 'PAUSED' | 'DRAFT' | 'ERROR';
 type AgentType = 'CHATBOT' | 'AUTOMATION' | 'ASSISTANT' | 'SCHEDULER';
-
-interface AgentMetrics {
-  totalInteractions: number;
-  successRate: number;
-  avgResponseTime: number;
-  lastActive?: string;
-}
+type AIProvider = 'OPENAI' | 'GEMINI' | 'DEEPSEEK';
 
 interface AIAgent {
   id: string;
   name: string;
-  description: string;
+  description?: string;
   type: AgentType;
   status: AgentStatus;
-  template?: string;
-  metrics: AgentMetrics;
+  provider: AIProvider;
+  model: string;
+  systemPrompt: string;
+  temperature: number;
+  maxTokens: number;
+  templateId?: string;
+  template?: {
+    id: string;
+    name: string;
+    category: string;
+  };
+  totalInteractions: number;
+  successRate: number;
+  avgResponseTime: number;
+  lastActiveAt?: string;
   createdAt: string;
   updatedAt: string;
+  _count?: {
+    executions: number;
+    automations?: number;
+  };
 }
 
-// Mock data para agentes
-const mockAgents: AIAgent[] = [
-  {
-    id: '1',
-    name: 'Atendimento WhatsApp',
-    description: 'Agente para atendimento automático via WhatsApp',
-    type: 'CHATBOT',
-    status: 'ACTIVE',
-    template: 'Atendimento Veterinário',
-    metrics: {
-      totalInteractions: 1250,
-      successRate: 94.5,
-      avgResponseTime: 1.2,
-      lastActive: new Date().toISOString()
-    },
-    createdAt: '2024-01-15T10:00:00Z',
-    updatedAt: '2024-12-01T15:30:00Z'
-  },
-  {
-    id: '2',
-    name: 'Lembrete de Consultas',
-    description: 'Envia lembretes automáticos de consultas agendadas',
-    type: 'AUTOMATION',
-    status: 'ACTIVE',
-    template: 'Lembretes',
-    metrics: {
-      totalInteractions: 845,
-      successRate: 98.2,
-      avgResponseTime: 0.5,
-      lastActive: new Date().toISOString()
-    },
-    createdAt: '2024-02-20T08:00:00Z',
-    updatedAt: '2024-11-28T12:00:00Z'
-  },
-  {
-    id: '3',
-    name: 'Assistente de Vendas',
-    description: 'Auxilia no processo de venda de produtos e serviços',
-    type: 'ASSISTANT',
-    status: 'PAUSED',
-    template: 'Vendas',
-    metrics: {
-      totalInteractions: 320,
-      successRate: 87.5,
-      avgResponseTime: 2.1,
-      lastActive: '2024-11-25T18:45:00Z'
-    },
-    createdAt: '2024-03-10T14:00:00Z',
-    updatedAt: '2024-11-25T18:45:00Z'
-  },
-  {
-    id: '4',
-    name: 'Agendador Inteligente',
-    description: 'Agenda consultas automaticamente baseado na disponibilidade',
-    type: 'SCHEDULER',
-    status: 'DRAFT',
-    metrics: {
-      totalInteractions: 0,
-      successRate: 0,
-      avgResponseTime: 0
-    },
-    createdAt: '2024-12-01T09:00:00Z',
-    updatedAt: '2024-12-01T09:00:00Z'
-  },
-  {
-    id: '5',
-    name: 'Bot de Triagem',
-    description: 'Realiza triagem inicial de emergências',
-    type: 'CHATBOT',
-    status: 'ERROR',
-    template: 'Emergências',
-    metrics: {
-      totalInteractions: 156,
-      successRate: 72.4,
-      avgResponseTime: 1.8,
-      lastActive: '2024-11-30T22:15:00Z'
-    },
-    createdAt: '2024-04-05T11:00:00Z',
-    updatedAt: '2024-11-30T22:15:00Z'
-  }
-];
+interface NewAgentForm {
+  name: string;
+  description: string;
+  type: AgentType;
+  provider: AIProvider;
+  model: string;
+  systemPrompt: string;
+  templateId?: string;
+}
 
 export default function AgentsPage() {
   const [agents, setAgents] = useState<AIAgent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<AgentStatus | 'all'>('all');
   const [typeFilter, setTypeFilter] = useState<AgentType | 'all'>('all');
   const [selectedAgent, setSelectedAgent] = useState<AIAgent | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isNewAgentModalOpen, setIsNewAgentModalOpen] = useState(false);
+  const [newAgentForm, setNewAgentForm] = useState<NewAgentForm>({
+    name: '',
+    description: '',
+    type: 'CHATBOT',
+    provider: 'OPENAI',
+    model: 'gpt-4o-mini',
+    systemPrompt: 'Você é um assistente útil.',
+  });
+  const [templates, setTemplates] = useState<{id: string; name: string; category: string}[]>([]);
+
+  const loadAgents = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (statusFilter !== 'all') params.set('status', statusFilter);
+      if (typeFilter !== 'all') params.set('type', typeFilter);
+      params.set('limit', '50');
+
+      const response = await fetch(`/api/agents?${params.toString()}`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Erro ao carregar agentes');
+      }
+
+      setAgents(data.data || []);
+    } catch (error) {
+      console.error('Erro ao carregar agentes:', error);
+      toast.error('Erro ao carregar agentes');
+      setAgents([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [statusFilter, typeFilter]);
+
+  const loadTemplates = async () => {
+    try {
+      const response = await fetch('/api/templates?status=PUBLISHED&limit=50');
+      const data = await response.json();
+      if (response.ok) {
+        setTemplates(data.data || []);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar templates:', error);
+    }
+  };
 
   useEffect(() => {
-    const loadAgents = async () => {
-      setLoading(true);
-      await new Promise(resolve => setTimeout(resolve, 800));
-      setAgents(mockAgents);
-      setLoading(false);
-    };
     loadAgents();
+  }, [loadAgents]);
+
+  useEffect(() => {
+    loadTemplates();
   }, []);
 
-  // Filtros
+  const handleCreateAgent = async () => {
+    if (!newAgentForm.name.trim()) {
+      toast.error('Nome do agente é obrigatório');
+      return;
+    }
+    if (!newAgentForm.systemPrompt.trim()) {
+      toast.error('System Prompt é obrigatório');
+      return;
+    }
+
+    setActionLoading('create');
+    try {
+      const response = await fetch('/api/agents', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newAgentForm),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Erro ao criar agente');
+      }
+
+      toast.success('Agente criado com sucesso!');
+      setIsNewAgentModalOpen(false);
+      setNewAgentForm({
+        name: '',
+        description: '',
+        type: 'CHATBOT',
+        provider: 'OPENAI',
+        model: 'gpt-4o-mini',
+        systemPrompt: 'Você é um assistente útil.',
+      });
+      loadAgents();
+    } catch (error) {
+      console.error('Erro ao criar agente:', error);
+      toast.error(error instanceof Error ? error.message : 'Erro ao criar agente');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleUpdateStatus = async (agentId: string, newStatus: AgentStatus) => {
+    setActionLoading(agentId);
+    try {
+      const response = await fetch(`/api/agents/${agentId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Erro ao atualizar status');
+      }
+
+      toast.success(`Agente ${newStatus === 'ACTIVE' ? 'ativado' : 'pausado'} com sucesso!`);
+      loadAgents();
+      
+      if (selectedAgent?.id === agentId) {
+        setSelectedAgent({ ...selectedAgent, status: newStatus });
+      }
+    } catch (error) {
+      console.error('Erro ao atualizar status:', error);
+      toast.error(error instanceof Error ? error.message : 'Erro ao atualizar status');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleDeleteAgent = async (agentId: string) => {
+    if (!confirm('Tem certeza que deseja excluir este agente?')) return;
+
+    setActionLoading(agentId);
+    try {
+      const response = await fetch(`/api/agents/${agentId}`, {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Erro ao excluir agente');
+      }
+
+      toast.success('Agente excluído com sucesso!');
+      setIsModalOpen(false);
+      setSelectedAgent(null);
+      loadAgents();
+    } catch (error) {
+      console.error('Erro ao excluir agente:', error);
+      toast.error(error instanceof Error ? error.message : 'Erro ao excluir agente');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // Filtros locais (busca por texto)
   const filteredAgents = agents.filter(agent => {
     const matchesSearch = agent.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      agent.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || agent.status === statusFilter;
-    const matchesType = typeFilter === 'all' || agent.type === typeFilter;
-    return matchesSearch && matchesStatus && matchesType;
+      (agent.description?.toLowerCase() || '').includes(searchTerm.toLowerCase());
+    return matchesSearch;
   });
 
   // Estatísticas
@@ -164,10 +247,10 @@ export default function AgentsPage() {
     total: agents.length,
     active: agents.filter(a => a.status === 'ACTIVE').length,
     paused: agents.filter(a => a.status === 'PAUSED').length,
-    totalInteractions: agents.reduce((sum, a) => sum + a.metrics.totalInteractions, 0),
+    totalInteractions: agents.reduce((sum, a) => sum + (a.totalInteractions || 0), 0),
     avgSuccessRate: agents.length > 0 
-      ? (agents.reduce((sum, a) => sum + a.metrics.successRate, 0) / agents.filter(a => a.metrics.successRate > 0).length).toFixed(1)
-      : 0
+      ? (agents.reduce((sum, a) => sum + (a.successRate || 0), 0) / agents.filter(a => (a.successRate || 0) > 0).length || 0).toFixed(1)
+      : '0'
   };
 
   const getStatusColor = (status: AgentStatus) => {
@@ -432,22 +515,22 @@ export default function AgentsPage() {
                       <div className="mb-4">
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-violet-50 text-violet-600 text-xs rounded-full">
                           <LuFileText className="w-3 h-3" />
-                          {agent.template}
+                          {agent.template.name}
                         </span>
                       </div>
                     )}
 
                     <div className="grid grid-cols-3 gap-2 pt-4 border-t border-gray-100">
                       <div className="text-center">
-                        <p className="text-lg font-semibold text-gray-900">{formatNumber(agent.metrics.totalInteractions)}</p>
+                        <p className="text-lg font-semibold text-gray-900">{formatNumber(agent.totalInteractions || 0)}</p>
                         <p className="text-xs text-gray-500">Interações</p>
                       </div>
                       <div className="text-center">
-                        <p className="text-lg font-semibold text-gray-900">{agent.metrics.successRate}%</p>
+                        <p className="text-lg font-semibold text-gray-900">{(agent.successRate || 0).toFixed(1)}%</p>
                         <p className="text-xs text-gray-500">Sucesso</p>
                       </div>
                       <div className="text-center">
-                        <p className="text-lg font-semibold text-gray-900">{agent.metrics.avgResponseTime}s</p>
+                        <p className="text-lg font-semibold text-gray-900">{((agent.avgResponseTime || 0) / 1000).toFixed(1)}s</p>
                         <p className="text-xs text-gray-500">Resp. Média</p>
                       </div>
                     </div>
@@ -499,22 +582,49 @@ export default function AgentsPage() {
                 </span>
                 <div className="flex items-center gap-2">
                   {selectedAgent.status === 'ACTIVE' ? (
-                    <button className="flex items-center gap-2 px-4 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg transition-colors">
-                      <LuPause className="w-4 h-4" />
+                    <button 
+                      onClick={() => handleUpdateStatus(selectedAgent.id, 'PAUSED')}
+                      disabled={actionLoading === selectedAgent.id}
+                      className="flex items-center gap-2 px-4 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      {actionLoading === selectedAgent.id ? (
+                        <LuLoader className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <LuPause className="w-4 h-4" />
+                      )}
                       Pausar
                     </button>
                   ) : selectedAgent.status !== 'ERROR' && (
-                    <button className="flex items-center gap-2 px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg transition-colors">
-                      <LuPlay className="w-4 h-4" />
+                    <button 
+                      onClick={() => handleUpdateStatus(selectedAgent.id, 'ACTIVE')}
+                      disabled={actionLoading === selectedAgent.id}
+                      className="flex items-center gap-2 px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      {actionLoading === selectedAgent.id ? (
+                        <LuLoader className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <LuPlay className="w-4 h-4" />
+                      )}
                       Ativar
                     </button>
                   )}
-                  <button className="flex items-center gap-2 px-4 py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-lg transition-colors">
+                  <Link 
+                    href={`/dashboard/ai-agents/agents/${selectedAgent.id}/editar`}
+                    className="flex items-center gap-2 px-4 py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-lg transition-colors"
+                  >
                     <LuPencil className="w-4 h-4" />
                     Editar
-                  </button>
-                  <button className="flex items-center gap-2 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-colors">
-                    <LuTrash2 className="w-4 h-4" />
+                  </Link>
+                  <button 
+                    onClick={() => handleDeleteAgent(selectedAgent.id)}
+                    disabled={actionLoading === selectedAgent.id}
+                    className="flex items-center gap-2 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    {actionLoading === selectedAgent.id ? (
+                      <LuLoader className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <LuTrash2 className="w-4 h-4" />
+                    )}
                     Excluir
                   </button>
                 </div>
@@ -532,31 +642,43 @@ export default function AgentsPage() {
                   <h3 className="text-sm font-medium text-gray-500 mb-2">Template</h3>
                   <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-violet-50 text-violet-600 rounded-lg">
                     <LuFileText className="w-4 h-4" />
-                    {selectedAgent.template}
+                    {selectedAgent.template.name}
                   </span>
                 </div>
               )}
+
+              {/* Provider e Modelo */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500 mb-2">Provider</h3>
+                  <span className="text-gray-900">{selectedAgent.provider}</span>
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500 mb-2">Modelo</h3>
+                  <span className="text-gray-900">{selectedAgent.model}</span>
+                </div>
+              </div>
 
               {/* Métricas */}
               <div>
                 <h3 className="text-sm font-medium text-gray-500 mb-3">Métricas de Performance</h3>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                   <div className="bg-gray-50 rounded-xl p-4">
-                    <p className="text-2xl font-bold text-gray-900">{formatNumber(selectedAgent.metrics.totalInteractions)}</p>
+                    <p className="text-2xl font-bold text-gray-900">{formatNumber(selectedAgent.totalInteractions || 0)}</p>
                     <p className="text-sm text-gray-500">Interações Totais</p>
                   </div>
                   <div className="bg-gray-50 rounded-xl p-4">
-                    <p className="text-2xl font-bold text-gray-900">{selectedAgent.metrics.successRate}%</p>
+                    <p className="text-2xl font-bold text-gray-900">{(selectedAgent.successRate || 0).toFixed(1)}%</p>
                     <p className="text-sm text-gray-500">Taxa de Sucesso</p>
                   </div>
                   <div className="bg-gray-50 rounded-xl p-4">
-                    <p className="text-2xl font-bold text-gray-900">{selectedAgent.metrics.avgResponseTime}s</p>
+                    <p className="text-2xl font-bold text-gray-900">{((selectedAgent.avgResponseTime || 0) / 1000).toFixed(1)}s</p>
                     <p className="text-sm text-gray-500">Tempo Médio</p>
                   </div>
                   <div className="bg-gray-50 rounded-xl p-4">
                     <p className="text-2xl font-bold text-gray-900">
-                      {selectedAgent.metrics.lastActive 
-                        ? new Date(selectedAgent.metrics.lastActive).toLocaleDateString('pt-BR')
+                      {selectedAgent.lastActiveAt 
+                        ? new Date(selectedAgent.lastActiveAt).toLocaleDateString('pt-BR')
                         : '-'}
                     </p>
                     <p className="text-sm text-gray-500">Última Atividade</p>
@@ -576,9 +698,16 @@ export default function AgentsPage() {
                 </div>
               </div>
 
-              {/* Botão de Configurações */}
-              <div className="pt-4 border-t border-gray-100">
-                <button className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-semibold transition-all">
+              {/* Botões de Ação */}
+              <div className="pt-4 border-t border-gray-100 space-y-3">
+                <Link
+                  href={`/dashboard/ai-agents/agents/${selectedAgent.id}/testar`}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-semibold transition-all"
+                >
+                  <LuMessageSquare className="w-5 h-5" />
+                  Testar Agente
+                </Link>
+                <button className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-all">
                   <LuSettings className="w-5 h-5" />
                   Configurações Avançadas
                 </button>
@@ -591,7 +720,7 @@ export default function AgentsPage() {
       {/* Modal de Novo Agente */}
       {isNewAgentModalOpen && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl">
+          <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl">
             <div className="p-6 border-b border-gray-100">
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-bold text-gray-900">Criar Novo Agente</h2>
@@ -606,10 +735,12 @@ export default function AgentsPage() {
 
             <div className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Nome do Agente</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Nome do Agente *</label>
                 <input
                   type="text"
                   placeholder="Ex: Assistente de Vendas"
+                  value={newAgentForm.name}
+                  onChange={(e) => setNewAgentForm({ ...newAgentForm, name: e.target.value })}
                   className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500"
                 />
               </div>
@@ -618,42 +749,119 @@ export default function AgentsPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">Descrição</label>
                 <textarea
                   placeholder="Descreva a função do agente..."
-                  rows={3}
+                  rows={2}
+                  value={newAgentForm.description}
+                  onChange={(e) => setNewAgentForm({ ...newAgentForm, description: e.target.value })}
                   className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 resize-none"
                 />
               </div>
 
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de Agente</label>
+                  <select 
+                    value={newAgentForm.type}
+                    onChange={(e) => setNewAgentForm({ ...newAgentForm, type: e.target.value as AgentType })}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 cursor-pointer"
+                  >
+                    <option value="CHATBOT">Chatbot</option>
+                    <option value="AUTOMATION">Automação</option>
+                    <option value="ASSISTANT">Assistente</option>
+                    <option value="SCHEDULER">Agendador</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Provider</label>
+                  <select 
+                    value={newAgentForm.provider}
+                    onChange={(e) => setNewAgentForm({ ...newAgentForm, provider: e.target.value as AIProvider })}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 cursor-pointer"
+                  >
+                    <option value="OPENAI">OpenAI</option>
+                    <option value="GEMINI">Google Gemini</option>
+                    <option value="DEEPSEEK">DeepSeek</option>
+                  </select>
+                </div>
+              </div>
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de Agente</label>
-                <select className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 cursor-pointer">
-                  <option value="">Selecione um tipo</option>
-                  <option value="CHATBOT">Chatbot</option>
-                  <option value="AUTOMATION">Automação</option>
-                  <option value="ASSISTANT">Assistente</option>
-                  <option value="SCHEDULER">Agendador</option>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Modelo</label>
+                <select 
+                  value={newAgentForm.model}
+                  onChange={(e) => setNewAgentForm({ ...newAgentForm, model: e.target.value })}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 cursor-pointer"
+                >
+                  {newAgentForm.provider === 'OPENAI' && (
+                    <>
+                      <option value="gpt-4o-mini">GPT-4o Mini</option>
+                      <option value="gpt-4o">GPT-4o</option>
+                      <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                    </>
+                  )}
+                  {newAgentForm.provider === 'GEMINI' && (
+                    <>
+                      <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+                      <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                    </>
+                  )}
+                  {newAgentForm.provider === 'DEEPSEEK' && (
+                    <>
+                      <option value="deepseek-chat">DeepSeek Chat</option>
+                      <option value="deepseek-coder">DeepSeek Coder</option>
+                    </>
+                  )}
                 </select>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Template (opcional)</label>
-                <select className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 cursor-pointer">
-                  <option value="">Selecione um template</option>
-                  <option value="atendimento">Atendimento Veterinário</option>
-                  <option value="vendas">Vendas</option>
-                  <option value="lembretes">Lembretes</option>
-                  <option value="emergencias">Emergências</option>
+                <select 
+                  value={newAgentForm.templateId || ''}
+                  onChange={(e) => setNewAgentForm({ ...newAgentForm, templateId: e.target.value || undefined })}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 cursor-pointer"
+                >
+                  <option value="">Sem template</option>
+                  {templates.map((template) => (
+                    <option key={template.id} value={template.id}>
+                      {template.name} ({template.category})
+                    </option>
+                  ))}
                 </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">System Prompt *</label>
+                <textarea
+                  placeholder="Defina o comportamento do agente..."
+                  rows={4}
+                  value={newAgentForm.systemPrompt}
+                  onChange={(e) => setNewAgentForm({ ...newAgentForm, systemPrompt: e.target.value })}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 resize-none"
+                />
               </div>
 
               <div className="flex gap-3 pt-4">
                 <button
                   onClick={() => setIsNewAgentModalOpen(false)}
-                  className="flex-1 px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-colors"
+                  disabled={actionLoading === 'create'}
+                  className="flex-1 px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-colors disabled:opacity-50"
                 >
                   Cancelar
                 </button>
-                <button className="flex-1 px-4 py-3 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-semibold transition-all">
-                  Criar Agente
+                <button 
+                  onClick={handleCreateAgent}
+                  disabled={actionLoading === 'create'}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-semibold transition-all disabled:opacity-50"
+                >
+                  {actionLoading === 'create' ? (
+                    <>
+                      <LuLoader className="w-5 h-5 animate-spin" />
+                      Criando...
+                    </>
+                  ) : (
+                    'Criar Agente'
+                  )}
                 </button>
               </div>
             </div>

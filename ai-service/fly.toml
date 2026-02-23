@@ -1,0 +1,43 @@
+# =====================================================
+# Fly.io Configuration - Empório do Pet AI Service
+# =====================================================
+# Deploy: fly deploy
+# Logs: fly logs
+# SSH: fly ssh console
+# =====================================================
+
+app = "emporio-pet-ai"
+primary_region = "gru"  # São Paulo, Brasil
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  ENVIRONMENT = "production"
+  LOG_LEVEL = "INFO"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+  [http_service.concurrency]
+    type = "requests"
+    hard_limit = 50
+    soft_limit = 40
+
+[[http_service.checks]]
+  grace_period = "10s"
+  interval = "30s"
+  method = "GET"
+  timeout = "5s"
+  path = "/health"
+
+# Machine configuration
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1

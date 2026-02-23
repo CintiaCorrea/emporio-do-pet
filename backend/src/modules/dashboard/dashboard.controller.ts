@@ -20,10 +20,7 @@ export class DashboardController {
   @Get('recent-activities')
   @ApiOperation({ summary: 'Get recent activities for the dashboard' })
   @ApiQuery({ name: 'limit', required: false, type: Number })
-  async getRecentActivities(
-    @CurrentUser() user: { id: string },
-    @Query('limit') limit?: string,
-  ) {
+  async getRecentActivities(@CurrentUser() user: { id: string }, @Query('limit') limit?: string) {
     const limitNum = limit ? parseInt(limit, 10) : 10;
     return this.dashboardService.getRecentActivities(user.id, limitNum);
   }
@@ -36,4 +33,3 @@ export class DashboardController {
     return this.dashboardService.getUpcomingAppointments(limitNum);
   }
 }
-

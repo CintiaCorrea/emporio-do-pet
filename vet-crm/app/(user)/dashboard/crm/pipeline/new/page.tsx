@@ -1,12 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import NewBoardHeader from '@/components/protected/pipeline/new/NewBoardHeader';
 import ErrorMessage from '@/components/protected/pipeline/new/ErrorMessage';
 import BoardForm from '@/components/protected/pipeline/new/BoardForm';
 import BoardPreview from '@/components/protected/pipeline/new/BoardPreview';
-import { BoardFormData } from '@/types/board-form';
+import { BoardFormData, detectBoardTypeFromName } from '@/types/board-form';
 
 export default function NewBoardPage() {
   const router = useRouter();
@@ -20,10 +20,19 @@ export default function NewBoardPage() {
     type: 'APPOINTMENT',
   });
 
+  useEffect(() => {
+    const detectedType = detectBoardTypeFromName(formData.name);
+    if (detectedType !== formData.type) {
+      setFormData(prev => ({ ...prev, type: detectedType }));
+    }
+  }, [formData.name]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
+
+    const boardType = detectBoardTypeFromName(formData.name);
 
     try {
       const response = await fetch('/api/boards', {
@@ -36,7 +45,7 @@ export default function NewBoardPage() {
           name: formData.name,
           description: formData.description,
           color: formData.color,
-          type: formData.type,
+          type: boardType,
         }),
       });
 

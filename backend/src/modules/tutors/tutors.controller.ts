@@ -59,4 +59,3 @@ export class TutorsController {
     return this.tutorsService.remove(id);
   }
 }
-

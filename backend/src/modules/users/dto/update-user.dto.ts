@@ -6,6 +6,7 @@ import {
   IsEnum,
   IsOptional,
   IsString,
+  IsUrl,
   MinLength,
 } from 'class-validator';
 
@@ -27,6 +28,13 @@ export class UpdateUserDto {
   @IsEmail()
   email?: string;
 
+  @ApiPropertyOptional({
+    example: 'https://res.cloudinary.com/<cloud>/image/upload/v123/avatar.jpg',
+  })
+  @IsOptional()
+  @IsUrl({ require_protocol: true }, { message: 'image deve ser uma URL válida' })
+  image?: string;
+
   @ApiPropertyOptional({ example: 'senha123' })
   @IsOptional()
   @IsString()
@@ -38,13 +46,19 @@ export class UpdateUserDto {
   @IsEnum(Role)
   role?: Role;
 
-  @ApiPropertyOptional({ type: [String], description: 'Lista de permissões no formato module:action' })
+  @ApiPropertyOptional({
+    type: [String],
+    description: 'Lista de permissões no formato module:action',
+  })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
   permissions?: string[];
 
-  @ApiPropertyOptional({ example: true, description: 'Se o usuário está aprovado para acessar o dashboard' })
+  @ApiPropertyOptional({
+    example: true,
+    description: 'Se o usuário está aprovado para acessar o dashboard',
+  })
   @IsOptional()
   @IsBoolean()
   isApproved?: boolean;
@@ -54,4 +68,3 @@ export class UpdateUserDto {
   @IsBoolean()
   isBlocked?: boolean;
 }
-

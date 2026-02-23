@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsInt, IsOptional, IsString, IsUUID, Min, MinLength } from 'class-validator';
+import { IsInt, IsOptional, IsString, IsUUID, Min, MinLength, IsArray, IsDateString, IsIn } from 'class-validator';
 
 export class CreateCardDto {
   @ApiProperty({ example: 'Consulta de retorno' })
@@ -12,19 +12,50 @@ export class CreateCardDto {
   @IsString()
   description?: string;
 
-  @ApiPropertyOptional({ example: 'c5a0a0b4-1e65-4d4f-9db2-8a3f0c2fb8d0' })
+  @ApiPropertyOptional({ example: 'c5a0a0b4-1e65-4d4f-9db2-8a3f0c2fb8d0', description: 'Link to appointment' })
   @IsOptional()
   @IsUUID()
   appointmentId?: string;
 
-  /**
-   * Índice 0-based vindo do frontend.
-   */
-  @ApiPropertyOptional({ example: 0, description: 'Índice 0-based da posição do card na coluna' })
+  @ApiPropertyOptional({ example: 'c5a0a0b4-1e65-4d4f-9db2-8a3f0c2fb8d0', description: 'Link to lead' })
+  @IsOptional()
+  @IsUUID()
+  leadId?: string;
+
+  @ApiPropertyOptional({ example: 'c5a0a0b4-1e65-4d4f-9db2-8a3f0c2fb8d0', description: 'Link to client' })
+  @IsOptional()
+  @IsUUID()
+  clientId?: string;
+
+  @ApiPropertyOptional({ example: 0, description: '0-based position index in column' })
   @IsOptional()
   @IsInt()
   @Min(0)
   position?: number;
+
+  @ApiPropertyOptional({ example: 'medium', enum: ['low', 'medium', 'high', 'urgent'] })
+  @IsOptional()
+  @IsString()
+  @IsIn(['low', 'medium', 'high', 'urgent'])
+  priority?: string;
+
+  @ApiPropertyOptional({ example: '2026-03-01T10:00:00Z' })
+  @IsOptional()
+  @IsDateString()
+  dueDate?: string;
+
+  @ApiPropertyOptional({ example: 'user-uuid', description: 'User ID to assign this card to' })
+  @IsOptional()
+  @IsUUID()
+  assignedTo?: string;
+
+  @ApiPropertyOptional({ example: ['vip', 'urgent'], description: 'Tags for the card' })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  tags?: string[];
+
+  @ApiPropertyOptional({ description: 'Additional metadata as JSON' })
+  @IsOptional()
+  metadata?: Record<string, unknown>;
 }
-
-

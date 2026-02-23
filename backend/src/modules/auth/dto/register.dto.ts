@@ -40,4 +40,3 @@ export class RegisterDto {
   @IsEnum(Role, { message: 'Role inválido' })
   role?: Role;
 }
-

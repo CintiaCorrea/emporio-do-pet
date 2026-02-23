@@ -28,23 +28,25 @@ export default function TutorDetailHeader({ tutor, onDelete }: TutorDetailHeader
             </p>
           </div>
         </div>
-        <div className="flex gap-2 flex-shrink-0">
-          <Link
-            href={`/dashboard/erp/tutores/${tutor.id}/editar`}
-            className="flex items-center gap-2 px-3 sm:px-4 py-2 text-blue-600 bg-blue-50 border border-blue-200 rounded-xl hover:bg-blue-100 transition-all duration-300 text-sm sm:text-base"
-          >
-            <LuPencil className="w-4 h-4" />
-            <span className="hidden sm:inline">Editar</span>
-            <span className="sm:hidden">Editar</span>
-          </Link>
-          <button
-            onClick={onDelete}
-            className="flex items-center gap-2 px-3 sm:px-4 py-2 text-red-600 bg-red-50 border border-red-200 rounded-xl hover:bg-red-100 transition-all duration-300 text-sm sm:text-base"
-          >
-            <LuTrash2 className="w-4 h-4" />
-            <span className="hidden sm:inline">Excluir</span>
-            <span className="sm:hidden">Excluir</span>
-          </button>
+        <div className="overflow-x-auto">
+          <div className="flex flex-nowrap min-w-max gap-2 flex-shrink-0">
+            <Link
+              href={`/dashboard/erp/tutores/${tutor.id}/editar`}
+              className="shrink-0 flex items-center gap-2 px-3 sm:px-4 py-2 text-blue-600 bg-blue-50 border border-blue-200 rounded-xl hover:bg-blue-100 transition-all duration-300 text-sm sm:text-base"
+            >
+              <LuPencil className="w-4 h-4" />
+              <span className="hidden sm:inline">Editar</span>
+              <span className="sm:hidden">Editar</span>
+            </Link>
+            <button
+              onClick={onDelete}
+              className="shrink-0 flex items-center gap-2 px-3 sm:px-4 py-2 text-red-600 bg-red-50 border border-red-200 rounded-xl hover:bg-red-100 transition-all duration-300 text-sm sm:text-base"
+            >
+              <LuTrash2 className="w-4 h-4" />
+              <span className="hidden sm:inline">Excluir</span>
+              <span className="sm:hidden">Excluir</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>

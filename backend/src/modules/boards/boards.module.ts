@@ -8,4 +8,3 @@ import { BoardsController } from './boards.controller';
   exports: [BoardsService],
 })
 export class BoardsModule {}
-

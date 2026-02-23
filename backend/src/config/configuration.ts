@@ -48,10 +48,26 @@ export default () => ({
     openai: {
       apiKey: process.env.OPENAI_API_KEY,
     },
-    botConversa: {
-      apiKey: process.env.BOT_CONVERSA_API_KEY,
-      webhookSecret: process.env.BOT_CONVERSA_WEBHOOK_SECRET,
-    },
+  },
+
+  // WhatsApp Business API (Meta Cloud API)
+  whatsapp: {
+    accessToken: process.env.WHATSAPP_ACCESS_TOKEN,
+    phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID,
+    businessAccountId: process.env.WHATSAPP_BUSINESS_ACCOUNT_ID,
+    appSecret: process.env.WHATSAPP_APP_SECRET,
+    webhookVerifyToken: process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN,
+    apiVersion: process.env.WHATSAPP_API_VERSION || 'v21.0',
+  },
+
+  // AI Service (FastAPI)
+  aiService: {
+    url: process.env.AI_SERVICE_URL || 'http://localhost:8000',
+  },
+
+  // TTS Audio Cache
+  ttsCache: {
+    enabled: process.env.TTS_CACHE_ENABLED !== 'false',
+    ttlSeconds: parseInt(process.env.TTS_CACHE_TTL ?? '86400', 10), // 24 hours default
   },
 });
-

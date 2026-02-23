@@ -22,5 +22,3 @@ export class UpdateColumnDto {
   @IsString()
   color?: string;
 }
-
-

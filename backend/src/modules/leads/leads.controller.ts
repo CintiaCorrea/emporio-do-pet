@@ -11,13 +11,7 @@ import {
   HttpStatus,
   UseGuards,
 } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiBearerAuth,
-  ApiParam,
-} from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { LeadsService } from './leads.service';
 import {
@@ -156,10 +150,7 @@ export class LeadsController {
   @ApiOperation({ summary: 'Lista eventos do lead' })
   @ApiParam({ name: 'id', description: 'ID do lead' })
   @ApiResponse({ status: 200, description: 'Lista de eventos' })
-  async getEvents(
-    @Param('id') id: string,
-    @Query('limit') limit?: number,
-  ) {
+  async getEvents(@Param('id') id: string, @Query('limit') limit?: number) {
     return this.leadsService.getEvents(id, limit);
   }
 
@@ -209,10 +200,7 @@ export class LeadsController {
   @ApiOperation({ summary: 'Histórico de score do lead' })
   @ApiParam({ name: 'id', description: 'ID do lead' })
   @ApiResponse({ status: 200, description: 'Histórico de scores' })
-  async getScoreHistory(
-    @Param('id') id: string,
-    @Query('limit') limit?: number,
-  ) {
+  async getScoreHistory(@Param('id') id: string, @Query('limit') limit?: number) {
     return this.leadsService.getScoreHistory(id, limit);
   }
 

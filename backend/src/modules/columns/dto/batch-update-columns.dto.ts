@@ -21,5 +21,3 @@ export class BatchUpdateColumnsDto {
   @Type(() => BatchColumnUpdateItemDto)
   columns: BatchColumnUpdateItemDto[];
 }
-
-

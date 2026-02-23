@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { LuPlus, LuSearch, LuPencil, LuTrash2, LuUsers, LuFilter, LuDownload, LuEye, LuMail, LuPhone, LuUser } from 'react-icons/lu';
 import Link from 'next/link';
+import ConfirmDeleteModal from '@/components/common/ConfirmDeleteModal';
+import toast from 'react-hot-toast';
 
 interface Client {
   id: string;
@@ -23,6 +25,7 @@ export default function ClientsListPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive' | 'lead' | 'customer'>('all');
   const [filterSource, setFilterSource] = useState<'all' | 'website' | 'referral' | 'social' | 'event' | 'other'>('all');
+  const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
 
   // Buscar clientes da API
   useEffect(() => {
@@ -86,23 +89,25 @@ export default function ClientsListPage() {
     return matchesSearch && matchesStatus && matchesSource;
   }) : [];
 
-  const handleDeleteClient = async (id: string) => {
-    if (confirm('Tem certeza que deseja excluir este cliente?')) {
-      try {
-        const response = await fetch(`/api/clients/${id}`, {
-          method: 'DELETE',
-        });
+  const requestDeleteClient = (client: Client) => {
+    setClientToDelete(client);
+  };
 
-        if (response.ok) {
-          setClients(prevClients => prevClients.filter(client => client.id !== id));
-        } else {
-          alert('Erro ao excluir cliente');
-        }
-      } catch (error) {
-        console.error('Erro ao excluir cliente:', error);
-        alert('Erro ao excluir cliente');
-      }
+  const confirmDeleteClient = async () => {
+    if (!clientToDelete) return;
+
+    const res = await fetch(`/api/clients/${clientToDelete.id}`, { method: 'DELETE' });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      const message =
+        (data && (data.error || (Array.isArray(data.message) ? data.message.join(', ') : data.message))) ||
+        'Erro ao excluir cliente';
+      throw new Error(message);
     }
+
+    setClients((prev) => prev.filter((c) => c.id !== clientToDelete.id));
+    toast.success('Cliente excluído com sucesso!');
+    setClientToDelete(null);
   };
 
   const formatDate = (dateString: string) => {
@@ -297,7 +302,7 @@ export default function ClientsListPage() {
                       <LuPencil className="w-4 h-4" />
                     </Link>
                     <button
-                      onClick={() => handleDeleteClient(client.id)}
+                      onClick={() => requestDeleteClient(client)}
                       className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl transition-all duration-300 hover:scale-110"
                       title="Excluir"
                     >
@@ -315,6 +320,14 @@ export default function ClientsListPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/20 w-full overflow-hidden">
+      <ConfirmDeleteModal
+        isOpen={Boolean(clientToDelete)}
+        entityLabel="Cliente"
+        itemName={clientToDelete?.contactName || '—'}
+        consequenceText="Esta ação não pode ser desfeita. Os dados do cliente serão removidos."
+        onClose={() => setClientToDelete(null)}
+        onConfirm={confirmDeleteClient}
+      />
       {/* Main Content */}
       <div className="p-6">
         <div className="max-w-7xl mx-auto">

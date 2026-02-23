@@ -26,7 +26,8 @@ import {
   LuStethoscope,
   LuSave
 } from 'react-icons/lu';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
+import ConfirmDeleteModal from '@/components/common/ConfirmDeleteModal';
 
 // Tipos para Internação
 type HospitalizationStatus = 'ADMITTED' | 'IN_TREATMENT' | 'STABLE' | 'CRITICAL' | 'DISCHARGE_PENDING' | 'DISCHARGED' | 'DECEASED';
@@ -101,6 +102,7 @@ export default function HospitalizationsPage() {
   const [statusFilter, setStatusFilter] = useState<HospitalizationStatus | 'all'>('all');
   const [priorityFilter, setPriorityFilter] = useState<'all' | 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'>('all');
   const [selectedHospitalization, setSelectedHospitalization] = useState<Hospitalization | null>(null);
+  const [hospitalizationToDelete, setHospitalizationToDelete] = useState<Hospitalization | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -400,8 +402,13 @@ export default function HospitalizationsPage() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Erro ao criar internação');
+        const errorData = await response.json().catch(() => null);
+        const message =
+          (errorData &&
+            (errorData.error ||
+              (Array.isArray(errorData.message) ? errorData.message.join(', ') : errorData.message))) ||
+          'Erro ao criar internação';
+        throw new Error(String(message));
       }
 
       toast.success('Internação criada com sucesso!');
@@ -458,8 +465,13 @@ export default function HospitalizationsPage() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Erro ao atualizar internação');
+        const errorData = await response.json().catch(() => null);
+        const message =
+          (errorData &&
+            (errorData.error ||
+              (Array.isArray(errorData.message) ? errorData.message.join(', ') : errorData.message))) ||
+          'Erro ao atualizar internação';
+        throw new Error(String(message));
       }
 
       toast.success('Internação atualizada com sucesso!');
@@ -490,8 +502,13 @@ export default function HospitalizationsPage() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Erro ao dar alta');
+        const errorData = await response.json().catch(() => null);
+        const message =
+          (errorData &&
+            (errorData.error ||
+              (Array.isArray(errorData.message) ? errorData.message.join(', ') : errorData.message))) ||
+          'Erro ao dar alta';
+        throw new Error(String(message));
       }
 
       toast.success('Alta registrada com sucesso!');
@@ -503,26 +520,31 @@ export default function HospitalizationsPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir este registro?')) return;
+  const requestDelete = (hosp: Hospitalization) => {
+    setHospitalizationToDelete(hosp);
+  };
 
-    try {
-      const response = await fetch(`/api/hospitalizations/${id}`, {
-        method: 'DELETE',
-      });
+  const confirmDelete = async () => {
+    if (!hospitalizationToDelete) return;
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Erro ao excluir internação');
-      }
+    const response = await fetch(`/api/hospitalizations/${hospitalizationToDelete.id}`, {
+      method: 'DELETE',
+    });
 
-      toast.success('Internação excluída com sucesso!');
-      setIsModalOpen(false);
-      fetchHospitalizations();
-    } catch (err) {
-      console.error('Erro ao excluir internação:', err);
-      toast.error(err instanceof Error ? err.message : 'Erro ao excluir internação');
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+      const message =
+        (errorData &&
+          (errorData.error ||
+            (Array.isArray(errorData.message) ? errorData.message.join(', ') : errorData.message))) ||
+        'Erro ao excluir internação';
+      throw new Error(message);
     }
+
+    toast.success('Internação excluída com sucesso!');
+    setIsModalOpen(false);
+    await fetchHospitalizations();
+    setHospitalizationToDelete(null);
   };
 
   if (loading) {
@@ -538,7 +560,18 @@ export default function HospitalizationsPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/10 w-full overflow-hidden">
-      <Toaster position="top-right" />
+      <ConfirmDeleteModal
+        isOpen={Boolean(hospitalizationToDelete)}
+        entityLabel="Internação"
+        itemName={
+          hospitalizationToDelete
+            ? `${hospitalizationToDelete.pet?.name || 'Pet'} • ${hospitalizationToDelete.tutor?.name || 'Tutor'}`
+            : '—'
+        }
+        consequenceText="Esta ação não pode ser desfeita. O registro de internação será removido."
+        onClose={() => setHospitalizationToDelete(null)}
+        onConfirm={confirmDelete}
+      />
       {/* Main Content */}
       <div className="p-6">
         <div className="max-w-7xl mx-auto">
@@ -841,7 +874,7 @@ export default function HospitalizationsPage() {
                               <LuPencil className="w-4 h-4" />
                             </button>
                             <button
-                              onClick={() => handleDelete(hosp.id)}
+                              onClick={() => requestDelete(hosp)}
                               className="p-2 text-gray-400 hover:bg-gray-50 hover:text-red-600 rounded-2xl transition-colors"
                               title="Excluir"
                             >

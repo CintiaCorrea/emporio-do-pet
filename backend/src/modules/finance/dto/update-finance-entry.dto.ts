@@ -77,5 +77,3 @@ export class UpdateFinanceEntryDto {
   @IsISO8601()
   paidAt?: string | null;
 }
-
-

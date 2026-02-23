@@ -1,0 +1,116 @@
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  UseGuards,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { CrmIntegrationService, LeadConversionData } from './crm-integration.service';
+import { IsString, IsOptional, IsArray } from 'class-validator';
+
+class ConvertLeadDto {
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  companyName?: string;
+
+  @IsOptional()
+  @IsString()
+  taxId?: string;
+
+  @IsOptional()
+  @IsString()
+  address?: string;
+
+  @IsOptional()
+  @IsString()
+  notes?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  tags?: string[];
+}
+
+@ApiTags('CRM')
+@ApiBearerAuth()
+@Controller('crm')
+@UseGuards(JwtAuthGuard)
+export class CrmController {
+  constructor(private readonly crmService: CrmIntegrationService) {}
+
+  @Get('stats')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Get CRM statistics' })
+  async getStats(@CurrentUser() user: { userId: string }) {
+    return this.crmService.getStats(user.userId);
+  }
+
+  @Post('leads/:id/convert')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Convert a lead to a client' })
+  async convertLead(
+    @Param('id') leadId: string,
+    @Body() dto: ConvertLeadDto,
+    @CurrentUser() user: { userId: string },
+  ) {
+    const data: LeadConversionData = {
+      leadId,
+      userId: user.userId,
+      clientData: dto,
+    };
+
+    const clientId = await this.crmService.convertLeadToClient(data);
+
+    if (!clientId) {
+      return {
+        success: false,
+        error: 'Failed to convert lead',
+      };
+    }
+
+    return {
+      success: true,
+      clientId,
+    };
+  }
+
+  @Post('whatsapp/create-lead')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Create a lead from WhatsApp conversation data' })
+  async createLeadFromWhatsApp(
+    @Body() data: {
+      conversationId: string;
+      contactPhone: string;
+      contactName?: string;
+      firstMessage?: string;
+    },
+    @CurrentUser() user: { userId: string },
+  ) {
+    const leadId = await this.crmService.createLeadFromWhatsApp({
+      ...data,
+      userId: user.userId,
+    });
+
+    if (!leadId) {
+      return {
+        success: false,
+        error: 'Failed to create lead',
+      };
+    }
+
+    return {
+      success: true,
+      leadId,
+    };
+  }
+}

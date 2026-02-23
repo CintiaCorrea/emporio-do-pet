@@ -76,10 +76,7 @@ export class AppointmentsController {
   @Get('upcoming')
   @ApiOperation({ summary: 'Listar próximos agendamentos' })
   @ApiQuery({ name: 'days', required: false, type: Number })
-  getUpcoming(
-    @CurrentUser('id') userId: string,
-    @Query('days') days?: number,
-  ) {
+  getUpcoming(@CurrentUser('id') userId: string, @Query('days') days?: number) {
     return this.appointmentsService.getUpcoming(userId, days);
   }
 
@@ -91,10 +88,7 @@ export class AppointmentsController {
 
   @Patch(':id')
   @ApiOperation({ summary: 'Atualizar agendamento' })
-  update(
-    @Param('id') id: string,
-    @Body() updateAppointmentDto: UpdateAppointmentDto,
-  ) {
+  update(@Param('id') id: string, @Body() updateAppointmentDto: UpdateAppointmentDto) {
     return this.appointmentsService.update(id, updateAppointmentDto);
   }
 
@@ -104,4 +98,3 @@ export class AppointmentsController {
     return this.appointmentsService.remove(id);
   }
 }
-

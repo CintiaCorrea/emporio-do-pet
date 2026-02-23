@@ -7,11 +7,19 @@ import { UpdateContactDto } from './dto/update-contact.dto';
 export class ContactsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(params?: { page?: number; limit?: number; skip?: number; take?: number; search?: string; tutorId?: string }) {
+  async findAll(params?: {
+    page?: number;
+    limit?: number;
+    skip?: number;
+    take?: number;
+    search?: string;
+    tutorId?: string;
+  }) {
     const { page = 1, limit = 10, skip, take, search, tutorId } = params || {};
     const resolvedTake = Number.isFinite(take as any) ? (take as number) : limit;
-    const resolvedSkip =
-      Number.isFinite(skip as any) ? (skip as number) : Math.max(0, (page - 1) * resolvedTake);
+    const resolvedSkip = Number.isFinite(skip as any)
+      ? (skip as number)
+      : Math.max(0, (page - 1) * resolvedTake);
 
     const where: any = {};
     if (tutorId) where.tutorId = tutorId;
@@ -144,5 +152,3 @@ export class ContactsService {
     return { message: 'Contato excluído com sucesso' };
   }
 }
-
-

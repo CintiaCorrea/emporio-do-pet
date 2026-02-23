@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { LuPlus, LuSearch, LuPencil, LuTrash2, LuPawPrint, LuFilter, LuDownload, LuEye, LuUser } from 'react-icons/lu';
 import Link from 'next/link';
+import ConfirmDeleteModal from '@/components/common/ConfirmDeleteModal';
+import toast from 'react-hot-toast';
 
 interface Pet {
   id: string;
@@ -39,6 +41,7 @@ export default function PetsListPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'ACTIVE' | 'DECEASED' | 'TRANSFERRED' | 'INACTIVE'>('all');
   const [filterSpecies, setFilterSpecies] = useState<'all' | 'Canina' | 'Felina' | 'Ave' | 'Roedor' | 'Réptil'>('all');
+  const [petToDelete, setPetToDelete] = useState<Pet | null>(null);
 
 
   // Buscar pets da API
@@ -93,33 +96,63 @@ export default function PetsListPage() {
     return matchesSearch && matchesStatus && matchesSpecies;
   });
 
-  const handleDeletePet = async (id: string) => {
-    if (confirm('Tem certeza que deseja excluir este pet?')) {
-      try {
-        const response = await fetch(`/api/pets/${id}`, {
-          method: 'DELETE',
-        });
+  const requestDeletePet = (pet: Pet) => {
+    setPetToDelete(pet);
+  };
 
-        if (response.ok) {
-          setPets(prevPets => prevPets.filter(pet => pet.id !== id));
-          alert('Pet excluído com sucesso!');
-        } else {
-          const errorData = await response.json();
-          alert(errorData.error || 'Erro ao excluir pet');
-        }
-      } catch (error) {
-        console.error('Erro ao excluir pet:', error);
-        alert('Erro ao excluir pet');
-      }
+  const confirmDeletePet = async () => {
+    if (!petToDelete) return;
+
+    const res = await fetch(`/api/pets/${petToDelete.id}`, { method: 'DELETE' });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      const message =
+        (data && (data.error || (Array.isArray(data.message) ? data.message.join(', ') : data.message))) ||
+        'Erro ao excluir pet';
+      throw new Error(message);
     }
+
+    setPets((prev) => prev.filter((p) => p.id !== petToDelete.id));
+    toast.success('Pet excluído com sucesso!');
+    setPetToDelete(null);
   };
 
   const formatDate = (dateString: string) => {
     try {
       if (!dateString) return 'Não informada';
-      return new Date(dateString).toLocaleDateString('pt-BR');
+      
+      // BirthDate é "data-only" (não é um instante). Se vier como ISO (com Z ou offset),
+      // pegamos o YYYY-MM-DD para não deslocar um dia por fuso horário.
+      const isoDateMatch = dateString.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (isoDateMatch) {
+        const yyyy = isoDateMatch[1];
+        const mm = isoDateMatch[2];
+        const dd = isoDateMatch[3];
+        return `${dd}/${mm}/${yyyy}`;
+      }
+      
+      // Tenta parsear formato dd/mm/aaaa ou similar
+      const cleaned = dateString.replace(/[.\-]/g, "/").trim();
+      const brMatch = cleaned.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+      if (brMatch) {
+        const day = String(Number(brMatch[1])).padStart(2, '0');
+        const month = String(Number(brMatch[2])).padStart(2, '0');
+        let year = Number(brMatch[3]);
+        if (brMatch[3].length === 2) {
+          year = year <= 49 ? 2000 + year : 1900 + year;
+        }
+        return `${day}/${month}/${year}`;
+      }
+
+      // Último fallback: tenta Date (apenas se não parecer data-only)
+      const d = new Date(dateString);
+      if (!Number.isNaN(d.getTime())) {
+        return d.toLocaleDateString('pt-BR');
+      }
+      
+      return 'Não informada';
     } catch {
-      return 'Data inválida';
+      return 'Não informada';
     }
   };
 
@@ -309,7 +342,7 @@ export default function PetsListPage() {
                       <LuPencil className="w-4 h-4" />
                     </Link>
                     <button
-                      onClick={() => handleDeletePet(pet.id)}
+                      onClick={() => requestDeletePet(pet)}
                       className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl transition-all duration-300 hover:scale-110"
                       title="Excluir"
                     >
@@ -327,6 +360,14 @@ export default function PetsListPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-green-50/20 to-emerald-50/10 w-full overflow-hidden">
+      <ConfirmDeleteModal
+        isOpen={Boolean(petToDelete)}
+        entityLabel="Pet"
+        itemName={petToDelete?.name || '—'}
+        consequenceText="Esta ação não pode ser desfeita. Os dados do pet serão removidos."
+        onClose={() => setPetToDelete(null)}
+        onConfirm={confirmDeletePet}
+      />
       {/* Main Content */}
       <div className="p-6">
         <div className="max-w-7xl mx-auto">

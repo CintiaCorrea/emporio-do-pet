@@ -6,31 +6,29 @@ import { AppModule } from './app.module';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    // Enable rawBody for webhook signature validation (WhatsApp, Stripe, etc.)
+    rawBody: true,
+  });
 
   const configService = app.get(ConfigService);
   // ConfigModule carrega `configuration.ts` (chaves em camelCase)
   const port = configService.get<number>('port', 3001);
-  const frontendUrl = configService.get<string>(
-    'frontendUrl',
-    'http://localhost:3000',
-  );
+  const frontendUrl = configService.get<string>('frontendUrl', 'http://localhost:3000');
 
   // Global prefix para todas as rotas da API
   app.setGlobalPrefix('api');
 
   // Configuração de CORS - aceita frontend em produção e desenvolvimento
-  const allowedOrigins = [
-    frontendUrl,
-    'http://localhost:3000',
-    'http://localhost:3001',
-  ].filter(Boolean);
+  const allowedOrigins = [frontendUrl, 'http://localhost:3000', 'http://localhost:3001'].filter(
+    Boolean,
+  );
 
   app.enableCors({
     origin: (origin, callback) => {
       // Permitir requests sem origin (mobile apps, curl, etc)
       if (!origin) return callback(null, true);
-      
+
       // Verificar se a origin está na lista ou é um domínio permitido
       if (
         allowedOrigins.includes(origin) ||
@@ -41,7 +39,7 @@ async function bootstrap() {
       ) {
         return callback(null, true);
       }
-      
+
       callback(new Error('Not allowed by CORS'));
     },
     credentials: true,
@@ -90,4 +88,3 @@ async function bootstrap() {
 }
 
 bootstrap();
-

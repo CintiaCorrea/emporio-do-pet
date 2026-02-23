@@ -13,13 +13,33 @@ export function useTutors() {
       const response = await fetch('/api/tutors');
       
       if (!response.ok) {
-        throw new Error(`Erro ${response.status}: ${response.statusText}`);
+        const raw = await response.text();
+        let message = response.statusText;
+        try {
+          const parsed = raw ? (JSON.parse(raw) as any) : null;
+          const fromApi =
+            parsed?.error ||
+            (Array.isArray(parsed?.message) ? parsed.message.join(', ') : parsed?.message);
+          if (typeof fromApi === 'string' && fromApi.trim().length > 0) {
+            message = fromApi;
+          } else if (raw && raw.trim().length > 0) {
+            message = raw;
+          }
+        } catch {
+          if (raw && raw.trim().length > 0) message = raw;
+        }
+        throw new Error(`Erro ${response.status}: ${message}`);
       }
       
       const data: ApiResponse = await response.json();
       
       if (data && Array.isArray(data.tutors)) {
-        setTutors(data.tutors);
+        // Transform isActive (boolean) from backend to status ('active' | 'inactive') for frontend
+        const transformedTutors = data.tutors.map((tutor: any) => ({
+          ...tutor,
+          status: tutor.isActive !== false ? 'active' : 'inactive',
+        }));
+        setTutors(transformedTutors);
       } else {
         console.warn('Estrutura de dados inesperada:', data);
         setTutors([]);

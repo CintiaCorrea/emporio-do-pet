@@ -16,6 +16,8 @@ import {
   LuBox,
   LuTrendingUp
 } from 'react-icons/lu';
+import ConfirmDeleteModal from '@/components/common/ConfirmDeleteModal';
+import toast from 'react-hot-toast';
 
 // Tipos baseados no schema Prisma (sem SERVICE)
 type ProductType = 'MEDICINE' | 'VACCINE';
@@ -75,6 +77,7 @@ export default function ProductsPage() {
   const [typeFilter, setTypeFilter] = useState<ProductType | 'all'>('all');
   const [lowStockFilter, setLowStockFilter] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -161,17 +164,23 @@ export default function ProductsPage() {
         body: JSON.stringify(formData),
       });
 
-      if (response.ok) {
-        fetchProducts();
-        setIsCreateModalOpen(false);
-        resetForm();
-      } else {
-        const data = await response.json();
-        throw new Error(data.error || 'Erro ao criar produto');
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        const message =
+          (data && (data.error || (Array.isArray(data.message) ? data.message.join(', ') : data.message))) ||
+          'Erro ao criar produto';
+        throw new Error(String(message));
       }
+
+      toast.success('Produto cadastrado com sucesso!');
+      fetchProducts();
+      setIsCreateModalOpen(false);
+      resetForm();
     } catch (err) {
       console.error('Erro ao criar product:', err);
-      setError(err instanceof Error ? err.message : 'Erro ao criar produto');
+      const message = err instanceof Error ? err.message : 'Erro ao criar produto';
+      setError(message);
+      toast.error(message);
     }
   };
 
@@ -187,42 +196,47 @@ export default function ProductsPage() {
         body: JSON.stringify(formData),
       });
 
-      if (response.ok) {
-        fetchProducts();
-        setIsModalOpen(false);
-        setIsEditMode(false);
-        resetForm();
-      } else {
-        const data = await response.json();
-        throw new Error(data.error || 'Erro ao atualizar produto');
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        const message =
+          (data && (data.error || (Array.isArray(data.message) ? data.message.join(', ') : data.message))) ||
+          'Erro ao atualizar produto';
+        throw new Error(String(message));
       }
+
+      toast.success('Produto atualizado com sucesso!');
+      fetchProducts();
+      setIsModalOpen(false);
+      setIsEditMode(false);
+      resetForm();
     } catch (err) {
       console.error('Erro ao atualizar product:', err);
-      setError(err instanceof Error ? err.message : 'Erro ao atualizar produto');
+      const message = err instanceof Error ? err.message : 'Erro ao atualizar produto';
+      setError(message);
+      toast.error(message);
     }
   };
 
-  const handleDeleteProduct = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir este produto?')) {
-      return;
+  const requestDeleteProduct = (product: Product) => {
+    setProductToDelete(product);
+  };
+
+  const confirmDeleteProduct = async () => {
+    if (!productToDelete) return;
+
+    const res = await fetch(`/api/products/${productToDelete.id}`, { method: 'DELETE' });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      const message =
+        (data && (data.error || (Array.isArray(data.message) ? data.message.join(', ') : data.message))) ||
+        'Erro ao excluir produto';
+      throw new Error(message);
     }
 
-    try {
-      const response = await fetch(`/api/products/${id}`, {
-        method: 'DELETE',
-      });
-
-      if (response.ok) {
-        fetchProducts();
-        setIsModalOpen(false);
-      } else {
-        const data = await response.json();
-        throw new Error(data.error || 'Erro ao excluir produto');
-      }
-    } catch (err) {
-      console.error('Erro ao excluir product:', err);
-      setError(err instanceof Error ? err.message : 'Erro ao excluir produto');
-    }
+    await fetchProducts();
+    setIsModalOpen(false);
+    toast.success('Produto excluído com sucesso!');
+    setProductToDelete(null);
   };
 
   const openProductDetails = (product: Product) => {
@@ -306,6 +320,14 @@ export default function ProductsPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/10 w-full overflow-hidden">
+      <ConfirmDeleteModal
+        isOpen={Boolean(productToDelete)}
+        entityLabel="Produto"
+        itemName={productToDelete?.name || '—'}
+        consequenceText="Esta ação não pode ser desfeita. Os dados do produto serão removidos."
+        onClose={() => setProductToDelete(null)}
+        onConfirm={confirmDeleteProduct}
+      />
       {/* Main Content */}
       <div className="p-6">
         <div className="max-w-7xl mx-auto">
@@ -560,7 +582,7 @@ export default function ProductsPage() {
                                 <LuPencil className="w-4 h-4" />
                               </button>
                               <button
-                                onClick={() => handleDeleteProduct(product.id)}
+                                onClick={() => requestDeleteProduct(product)}
                                 className="p-2 text-gray-400 hover:bg-gray-50 hover:text-red-600 rounded-2xl transition-colors"
                                 title="Excluir produto"
                               >

@@ -23,7 +23,8 @@ export class CommissionsService {
 
     const where: any = {};
     if (status) {
-      where.paymentStatus = status === 'PAID' ? 'PAID' : status === 'PENDING' ? 'PENDING' : undefined;
+      where.paymentStatus =
+        status === 'PAID' ? 'PAID' : status === 'PENDING' ? 'PENDING' : undefined;
     }
     if (userId) where.userId = userId;
     if (startDate || endDate) {
@@ -48,14 +49,16 @@ export class CommissionsService {
       this.prisma.appointment.count({ where }),
     ]);
 
-    const commissions = appointments.map((appointment) => {
+    const commissions = appointments.map((appointment: any) => {
       let serviceType: CommissionType = 'CONSULTATION';
       let serviceName = appointment.description || 'Consulta';
 
       try {
         if (appointment.notes) {
           const parsed =
-            typeof appointment.notes === 'string' ? JSON.parse(appointment.notes) : (appointment.notes as any);
+            typeof appointment.notes === 'string'
+              ? JSON.parse(appointment.notes)
+              : (appointment.notes as any);
           if (parsed.type === 'HOSPITALIZATION') {
             serviceType = 'HOSPITALIZATION';
             serviceName = parsed.details?.reason || 'Internação';
@@ -102,7 +105,8 @@ export class CommissionsService {
               ? ('CANCELLED' as CommissionStatus)
               : ('PENDING' as CommissionStatus),
         serviceDate: appointment.date.toISOString(),
-        paymentDate: appointment.paymentStatus === 'PAID' ? appointment.updatedAt.toISOString() : undefined,
+        paymentDate:
+          appointment.paymentStatus === 'PAID' ? appointment.updatedAt.toISOString() : undefined,
         createdAt: appointment.createdAt.toISOString(),
       };
     });
@@ -136,7 +140,9 @@ export class CommissionsService {
     try {
       if (appointment.notes) {
         const parsed =
-          typeof appointment.notes === 'string' ? JSON.parse(appointment.notes) : (appointment.notes as any);
+          typeof appointment.notes === 'string'
+            ? JSON.parse(appointment.notes)
+            : (appointment.notes as any);
         if (parsed.type === 'HOSPITALIZATION') {
           serviceType = 'HOSPITALIZATION';
           serviceName = parsed.details?.reason || 'Internação';
@@ -182,17 +188,22 @@ export class CommissionsService {
             ? ('CANCELLED' as CommissionStatus)
             : ('PENDING' as CommissionStatus),
       serviceDate: appointment.date.toISOString(),
-      paymentDate: appointment.paymentStatus === 'PAID' ? appointment.updatedAt.toISOString() : undefined,
+      paymentDate:
+        appointment.paymentStatus === 'PAID' ? appointment.updatedAt.toISOString() : undefined,
       createdAt: appointment.createdAt.toISOString(),
     };
   }
 
   async create(dto: CreateCommissionDto) {
     if (!dto.appointmentId) {
-      throw new BadRequestException('Criação de comissão sem agendamento não implementada. Use appointmentId.');
+      throw new BadRequestException(
+        'Criação de comissão sem agendamento não implementada. Use appointmentId.',
+      );
     }
 
-    const appointment = await this.prisma.appointment.findUnique({ where: { id: dto.appointmentId } });
+    const appointment = await this.prisma.appointment.findUnique({
+      where: { id: dto.appointmentId },
+    });
     if (!appointment) throw new NotFoundException('Agendamento não encontrado');
 
     const paymentStatus =
@@ -244,7 +255,8 @@ export class CommissionsService {
 
     const updateData: any = {};
     if (dto.status) {
-      updateData.paymentStatus = dto.status === 'PAID' ? 'PAID' : dto.status === 'CANCELLED' ? 'CANCELLED' : 'PENDING';
+      updateData.paymentStatus =
+        dto.status === 'PAID' ? 'PAID' : dto.status === 'CANCELLED' ? 'CANCELLED' : 'PENDING';
     }
     if (dto.totalValue !== undefined) updateData.value = dto.totalValue;
 
@@ -263,7 +275,8 @@ export class CommissionsService {
     let serviceName = updated.description || 'Consulta';
     try {
       if (updated.notes) {
-        const parsed = typeof updated.notes === 'string' ? JSON.parse(updated.notes) : (updated.notes as any);
+        const parsed =
+          typeof updated.notes === 'string' ? JSON.parse(updated.notes) : (updated.notes as any);
         if (parsed.type === 'HOSPITALIZATION') {
           serviceType = 'HOSPITALIZATION';
           serviceName = parsed.details?.reason || 'Internação';
@@ -326,5 +339,3 @@ export class CommissionsService {
     return { message: 'Comissão cancelada com sucesso' };
   }
 }
-
-

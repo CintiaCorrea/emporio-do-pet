@@ -81,13 +81,13 @@ export class DashboardService {
     ] = await Promise.all([
       // Total tutores
       this.prisma.tutor.count(),
-      
+
       // Total pets
       this.prisma.pet.count(),
-      
+
       // Total clientes
       this.prisma.client.count(),
-      
+
       // Agendamentos hoje
       this.prisma.appointment.count({
         where: {
@@ -97,7 +97,7 @@ export class DashboardService {
           },
         },
       }),
-      
+
       // Consultas pendentes (status SCHEDULED)
       this.prisma.appointment.count({
         where: {
@@ -108,7 +108,7 @@ export class DashboardService {
           status: 'SCHEDULED',
         },
       }),
-      
+
       // Faturamento do mês (receitas pagas)
       this.prisma.financeEntry.aggregate({
         where: {
@@ -124,7 +124,7 @@ export class DashboardService {
           amountCents: true,
         },
       }),
-      
+
       // Faturamento hoje
       this.prisma.financeEntry.aggregate({
         where: {
@@ -140,7 +140,7 @@ export class DashboardService {
           amountCents: true,
         },
       }),
-      
+
       // Comissões pendentes (appointments com paymentStatus PENDING)
       this.prisma.appointment.aggregate({
         where: {
@@ -150,7 +150,7 @@ export class DashboardService {
           value: true,
         },
       }),
-      
+
       // Produtos com baixo estoque (< 10 unidades)
       this.prisma.product.count({
         where: {
@@ -159,7 +159,7 @@ export class DashboardService {
           },
         },
       }),
-      
+
       // Newsletters ativas (DRAFT ou SCHEDULED)
       this.prisma.newsletter.count({
         where: {
@@ -168,7 +168,7 @@ export class DashboardService {
           },
         },
       }),
-      
+
       // Total de emails enviados (conta logs de newsletter)
       this.prisma.newsletterLog.count(),
     ]);
@@ -213,7 +213,7 @@ export class DashboardService {
     const faturamentoMes = (faturamentoMesData._sum.amountCents || 0) / 100;
     const faturamentoHoje = (faturamentoHojeData._sum.amountCents || 0) / 100;
     const ticketMedio = totalAppointmentsMonth > 0 ? faturamentoMes / totalAppointmentsMonth : 0;
-    
+
     // Comissões pendentes: 20% do valor dos appointments pendentes
     const comissoesPendentes = ((comissoesPendentesData._sum.value || 0) * 20) / 100;
 
@@ -226,33 +226,70 @@ export class DashboardService {
       },
     });
 
-    // Calcular taxa de abertura de emails (placeholder - precisa de tracking real)
-    const taxaAbertura = emailsEnviadosData > 0 ? 38.5 : 0;
+    // CRM: Leads data
+    let leadsNovos = 0;
+    let leadsQualificados = 0;
+    let taxaConversao = 0;
+    try {
+      leadsNovos = await this.prisma.lead.count({
+        where: { createdAt: { gte: monthStart } },
+      });
+      leadsQualificados = await this.prisma.lead.count({
+        where: { status: 'QUALIFIED', createdAt: { gte: monthStart } },
+      });
+      const leadsConvertidos = await this.prisma.lead.count({
+        where: { status: 'CONVERTED', createdAt: { gte: monthStart } },
+      });
+      taxaConversao = leadsNovos > 0 ? Math.round((leadsConvertidos / leadsNovos) * 100 * 10) / 10 : 0;
+    } catch {}
+
+    // AI Agents: real stats
+    let agentesAtivos = 0;
+    let interacoesHoje = 0;
+    let taxaSucessoAgentes = 0;
+    try {
+      agentesAtivos = await this.prisma.aIAgent.count({
+        where: { status: 'ACTIVE' },
+      });
+      interacoesHoje = await this.prisma.agentExecution.count({
+        where: { createdAt: { gte: todayStart } },
+      });
+      const totalExecucoes = await this.prisma.agentExecution.count({
+        where: { createdAt: { gte: monthStart } },
+      });
+      const execucoesSucesso = await this.prisma.agentExecution.count({
+        where: { status: 'SUCCESS', createdAt: { gte: monthStart } },
+      });
+      taxaSucessoAgentes = totalExecucoes > 0 ? Math.round((execucoesSucesso / totalExecucoes) * 100 * 10) / 10 : 0;
+    } catch {}
+
+    // Email open rate: placeholder (requires tracking pixel/webhook integration)
+    const taxaAbertura = emailsEnviadosData > 0 ? 0 : 0;
 
     return {
       totalTutores,
       totalPets,
       totalClientes,
       agendamentosHoje,
-      consultasHoje: agendamentosHoje, // usando agendamentos como consultas
+      consultasHoje: agendamentosHoje,
       consultasPendentes,
       internacoesAtivas,
       faturamentoMes,
       faturamentoHoje,
       ticketMedio: Math.round(ticketMedio * 100) / 100,
       comissoesPendentes,
-      // CRM placeholders (podem ser implementados com módulo CRM)
-      leadsNovos: 0,
-      leadsQualificados: 0,
-      taxaConversao: 0,
+      // CRM
+      leadsNovos,
+      leadsQualificados,
+      taxaConversao,
       // Campanhas
       campanhasAtivas: newslettersAtivas,
       emailsEnviados: emailsEnviadosData,
       taxaAbertura,
-      // AI Agents (placeholder)
-      agentesAtivos: 0,
-      interacoesHoje: 0,
-      taxaSucessoAgentes: 0,
+      // AI Agents
+      agentesAtivos,
+      interacoesHoje,
+      taxaSucessoAgentes,
       // Estoque
       produtosBaixoEstoque,
       alertasEstoque,
@@ -369,9 +406,7 @@ export class DashboardService {
     }
 
     // Sort by createdAt descending and limit
-    return activities
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-      .slice(0, limit);
+    return activities.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()).slice(0, limit);
   }
 
   async getUpcomingAppointments(limit = 5): Promise<UpcomingAppointment[]> {
@@ -395,7 +430,7 @@ export class DashboardService {
       },
     });
 
-    return appointments.map((apt) => {
+    return appointments.map((apt: any) => {
       let status: 'confirmado' | 'pendente' | 'em_atendimento' = 'pendente';
       if (apt.status === 'CONFIRMED') status = 'confirmado';
       else if (apt.status === 'IN_PROGRESS') status = 'em_atendimento';
@@ -403,7 +438,10 @@ export class DashboardService {
 
       return {
         id: apt.id,
-        horario: new Date(apt.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+        horario: new Date(apt.date).toLocaleTimeString('pt-BR', {
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
         tutor: apt.tutor?.name || 'Tutor não informado',
         pet: apt.pet?.name || 'Pet não informado',
         servico: apt.description || 'Consulta',

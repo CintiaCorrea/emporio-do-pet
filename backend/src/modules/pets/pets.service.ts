@@ -1,19 +1,36 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { EventsService } from '../events/events.service';
 import { CreatePetDto } from './dto/create-pet.dto';
 import { UpdatePetDto } from './dto/update-pet.dto';
 
 @Injectable()
 export class PetsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly eventsService: EventsService,
+  ) {}
 
   async create(createPetDto: CreatePetDto) {
-    return this.prisma.pet.create({
+    const pet = await this.prisma.pet.create({
       data: createPetDto,
       include: {
         tutor: true,
       },
     });
+
+    // Emit pet created event (find userId from tutor's appointments or skip)
+    try {
+      this.eventsService.emitPetCreated('system', {
+        petId: pet.id,
+        name: pet.name,
+        species: pet.species || undefined,
+        tutorId: pet.tutorId,
+        tutorName: (pet as any).tutor?.name,
+      });
+    } catch {}
+
+    return pet;
   }
 
   async findAll(params?: {
@@ -29,8 +46,9 @@ export class PetsService {
     const { tutorId, search, species, status, page = 1, limit = 10, skip, take } = params || {};
 
     const resolvedTake = Number.isFinite(take as any) ? (take as number) : limit;
-    const resolvedSkip =
-      Number.isFinite(skip as any) ? (skip as number) : Math.max(0, (page - 1) * resolvedTake);
+    const resolvedSkip = Number.isFinite(skip as any)
+      ? (skip as number)
+      : Math.max(0, (page - 1) * resolvedTake);
 
     const where: any = {};
     if (tutorId) where.tutorId = tutorId;
@@ -133,4 +151,3 @@ export class PetsService {
     });
   }
 }
-

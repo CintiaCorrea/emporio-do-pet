@@ -58,6 +58,7 @@ export const mapPetToBackend = (petData: any) => {
     observations: petData.observations || null,
     allergies: petData.allergies || [],
     medicalNotes: petData.medicalNotes || null,
+    documents: petData.documents || [],
     tutorId: petData.tutorId
   };
 

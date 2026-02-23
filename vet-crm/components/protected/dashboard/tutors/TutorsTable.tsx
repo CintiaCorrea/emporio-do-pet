@@ -5,7 +5,7 @@ import { formatDate, formatCPF, formatPhone, getPrimaryPhone, getGenderDisplay }
 
 interface TutorsTableProps {
   tutors: Tutor[];
-  onDeleteTutor: (id: string) => void;
+  onDeleteTutor: (tutor: Tutor) => void;
 }
 
 export default function TutorsTable({ tutors, onDeleteTutor }: TutorsTableProps) {
@@ -87,7 +87,7 @@ export default function TutorsTable({ tutors, onDeleteTutor }: TutorsTableProps)
                     <LuPencil className="w-4 h-4" />
                   </Link>
                   <button
-                    onClick={() => onDeleteTutor(tutor.id)}
+                    onClick={() => onDeleteTutor(tutor)}
                     className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl transition-all duration-300 hover:scale-110"
                     title="Excluir"
                   >

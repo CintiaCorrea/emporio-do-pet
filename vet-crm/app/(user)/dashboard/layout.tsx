@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Sidebar from '@/components/protected/dashboard/Sidebar';
 import Topbar from '@/components/protected/dashboard/Topbar';
+import HotToaster from '@/components/common/HotToaster';
 
 export default function DashboardLayout({
   children,
@@ -17,6 +18,7 @@ export default function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-[color:var(--background)] transition-colors">
+      <HotToaster />
       {/* Sidebar */}
       <Sidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
       

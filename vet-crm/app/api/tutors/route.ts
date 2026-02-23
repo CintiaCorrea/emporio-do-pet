@@ -16,10 +16,18 @@ function buildApiBase(backendBaseUrl: string) {
 }
 
 async function buildAuthHeader(request: NextRequest) {
-  const token = await getToken({
-    req: request as any,
-    secret: process.env.NEXTAUTH_SECRET,
-  });
+  const secret = process.env.NEXTAUTH_SECRET;
+  if (!secret) return {};
+
+  let token: any = null;
+  try {
+    token = await getToken({
+      req: request as any,
+      secret,
+    });
+  } catch {
+    return {};
+  }
 
   if (token?.accessToken && typeof token.accessToken === 'string') {
     return { Authorization: `Bearer ${token.accessToken}` };

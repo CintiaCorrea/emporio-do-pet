@@ -9,8 +9,8 @@ import {
   LuSettings, 
   LuLogOut, 
   LuChevronDown,
-  LuBell
 } from 'react-icons/lu';
+import NotificationBell from './NotificationBell';
 
 interface TopbarProps {
   sidebarOpen?: boolean;
@@ -65,12 +65,8 @@ export default function Topbar({ sidebarOpen = false }: TopbarProps) {
 
         {/* Área direita */}
         <div className="flex items-center gap-3">
-          {/* Botão de notificações (placeholder) */}
-          <button className="relative p-2 text-[color:var(--topbar-muted)] hover:text-[color:var(--topbar-text)] hover:bg-[color:var(--topbar-hover)] rounded-xl transition-all">
-            <LuBell className="w-5 h-5" />
-            {/* Badge de notificação */}
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"></span>
-          </button>
+          {/* Notificações em tempo real (WebSocket) */}
+          <NotificationBell />
 
           {/* Separador */}
           <div className="w-px h-8 bg-[color:var(--topbar-separator)]"></div>

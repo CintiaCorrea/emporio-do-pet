@@ -59,5 +59,3 @@ export class CreateHospitalizationDto {
   @IsObject()
   vitalSigns?: Record<string, any>;
 }
-
-

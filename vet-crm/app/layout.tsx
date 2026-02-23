@@ -1,8 +1,5 @@
-"use client";
-
-import { SessionProvider } from "next-auth/react";
+import { Providers } from './providers';
 import "@/styles/globals.css";
-import { ThemeProvider } from "@/components/common/ThemeProvider";
 import { ThemeScript } from "@/components/common/ThemeScript";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -12,9 +9,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeScript />
       </head>
       <body suppressHydrationWarning={true}>
-        <ThemeProvider>
-          <SessionProvider>{children}</SessionProvider>
-        </ThemeProvider>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

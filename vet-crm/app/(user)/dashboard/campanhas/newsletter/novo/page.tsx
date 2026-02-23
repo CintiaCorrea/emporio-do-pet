@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { toast, Toaster } from 'react-hot-toast';
+import { toast } from 'react-hot-toast';
 import { 
   NewsletterStatus, 
   RecipientType, 
@@ -271,7 +271,7 @@ const NewsletterPage = () => {
     
     try {
       setIsSending(true);
-      toastId = toast.loading('Agendando newsletter...');
+      toastId = toast.loading('Agendando email...');
       const recipients = prepareRecipients();
       
       const response = await fetch('/api/newsletter/send', {
@@ -286,16 +286,16 @@ const NewsletterPage = () => {
 
       if (response.ok) {
         if (toastId) toast.dismiss(toastId);
-        toast.success('Newsletter agendada com sucesso!');
+        toast.success('Email agendado com sucesso!');
         resetForm();
       } else {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Erro ao agendar newsletter');
+        throw new Error(errorData.message || 'Erro ao agendar email');
       }
     } catch (error) {
       console.error('Error:', error);
       if (toastId) toast.dismiss(toastId);
-      toast.error(error instanceof Error ? error.message : 'Erro ao agendar newsletter');
+      toast.error(error instanceof Error ? error.message : 'Erro ao agendar email');
     } finally {
       setIsSending(false);
     }
@@ -306,7 +306,7 @@ const NewsletterPage = () => {
     
     try {
       setIsSending(true);
-      toastId = toast.loading('Enviando newsletter...');
+      toastId = toast.loading('Enviando email...');
       const recipients = prepareRecipients();
       
       const response = await fetch('/api/newsletter/send', {
@@ -322,16 +322,16 @@ const NewsletterPage = () => {
 
       if (response.ok) {
         if (toastId) toast.dismiss(toastId);
-        toast.success('Newsletter enviada com sucesso!');
+        toast.success('Email enviado com sucesso!');
         resetForm();
       } else {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Erro ao enviar newsletter');
+        throw new Error(errorData.message || 'Erro ao enviar email');
       }
     } catch (error) {
       console.error('Error:', error);
       if (toastId) toast.dismiss(toastId);
-      toast.error(error instanceof Error ? error.message : 'Erro ao enviar newsletter');
+      toast.error(error instanceof Error ? error.message : 'Erro ao enviar email');
     } finally {
       setIsSending(false);
     }
@@ -376,54 +376,6 @@ const NewsletterPage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/10 w-full overflow-hidden">
-      {/* Toaster Component - Adicionado diretamente aqui */}
-      <Toaster 
-        position="top-center"
-        toastOptions={{
-          duration: 4000,
-          style: {
-            background: '#363636',
-            color: '#fff',
-            borderRadius: '8px',
-            fontSize: '14px',
-            fontWeight: '500',
-            padding: '12px 16px',
-          },
-          success: {
-            duration: 3000,
-            style: {
-              background: '#22c55e',
-              color: '#fff',
-            },
-            iconTheme: {
-              primary: '#fff',
-              secondary: '#22c55e',
-            },
-          },
-          error: {
-            duration: 5000,
-            style: {
-              background: '#ef4444',
-              color: '#fff',
-            },
-            iconTheme: {
-              primary: '#fff',
-              secondary: '#ef4444',
-            },
-          },
-          loading: {
-            style: {
-              background: '#3b82f6',
-              color: '#fff',
-            },
-            iconTheme: {
-              primary: '#fff',
-              secondary: '#3b82f6',
-            },
-          },
-        }}
-      />
-      
       {/* Main Content */}
       <div className="p-6">
         <div className="max-w-7xl mx-auto">
@@ -432,10 +384,10 @@ const NewsletterPage = () => {
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                   <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-                    Criar Newsletter
+                    Criar Email
                   </h1>
                   <p className="text-gray-600 mt-2">
-                    Envie newsletters personalizadas para clientes, tutores e leads
+                    Envie emails personalizados para clientes, tutores e leads
                   </p>
                 </div>
                 <div className="flex gap-3">

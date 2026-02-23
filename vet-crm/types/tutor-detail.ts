@@ -27,6 +27,7 @@ export interface Tutor {
   id: string;
   type: 'INDIVIDUAL' | 'LEGAL_ENTITY';
   name: string;
+  isActive: boolean;
   email?: string;
   nationality: string;
   gender?: 'MALE' | 'FEMALE' | 'OTHER';

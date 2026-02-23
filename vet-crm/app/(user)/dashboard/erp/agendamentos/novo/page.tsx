@@ -16,7 +16,7 @@ import {
   LuX,
   LuPlus
 } from 'react-icons/lu';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 
 interface Tutor {
   id: string;
@@ -221,11 +221,7 @@ export default function NewAppointmentPage() {
       }
 
       toast.success('Agendamento criado com sucesso!');
-      
-      // Redirecionar após sucesso
-      setTimeout(() => {
-        router.push('/dashboard/erp/agendamentos');
-      }, 1000);
+      router.push('/dashboard/erp/agendamentos');
 
     } catch (err) {
       console.error('Erro ao criar agendamento:', err);
@@ -253,7 +249,6 @@ export default function NewAppointmentPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/10 w-full overflow-hidden">
-      <Toaster position="top-right" />
       <div className="p-6">
         <div className="max-w-4xl mx-auto">
             {/* Header */}

@@ -1,0 +1,15 @@
+# FastAPI AI Service - Development Dependencies
+# ==============================================
+
+-r requirements.txt
+
+# Testing
+pytest==8.0.0
+pytest-asyncio==0.23.4
+
+# Code Quality
+ruff==0.2.1
+mypy==1.8.0
+
+# Type stubs
+types-requests==2.31.0

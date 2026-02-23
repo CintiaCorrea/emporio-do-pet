@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaService, PrismaTransactionClient } from '../prisma/prisma.service';
 import { CreateTreatmentDto } from './dto/create-treatment.dto';
 import { UpdateTreatmentDto } from './dto/update-treatment.dto';
 
@@ -18,8 +18,9 @@ export class TreatmentsService {
   }) {
     const { page = 1, limit = 10, skip, take, search, appointmentId, petId } = params || {};
     const resolvedTake = Number.isFinite(take as any) ? (take as number) : limit;
-    const resolvedSkip =
-      Number.isFinite(skip as any) ? (skip as number) : Math.max(0, (page - 1) * resolvedTake);
+    const resolvedSkip = Number.isFinite(skip as any)
+      ? (skip as number)
+      : Math.max(0, (page - 1) * resolvedTake);
 
     const where: any = {};
     if (appointmentId) where.appointmentId = appointmentId;
@@ -118,7 +119,7 @@ export class TreatmentsService {
       }
     }
 
-    const result = await this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx: PrismaTransactionClient) => {
       const treatment = await tx.treatment.create({
         data: {
           appointmentId: dto.appointmentId,
@@ -176,7 +177,7 @@ export class TreatmentsService {
         }
       }
 
-      await this.prisma.$transaction(async (tx) => {
+      await this.prisma.$transaction(async (tx: PrismaTransactionClient) => {
         if (existing.productId) {
           const oldProduct = await tx.product.findUnique({ where: { id: existing.productId } });
           if (oldProduct && oldProduct.type !== ('SERVICE' as any)) {
@@ -242,5 +243,3 @@ export class TreatmentsService {
     return { message: 'Treatment excluído com sucesso' };
   }
 }
-
-

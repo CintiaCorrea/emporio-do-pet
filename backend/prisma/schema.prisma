@@ -4,8 +4,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
@@ -40,8 +40,13 @@ enum ProductType {
 
 enum BoardType {
   APPOINTMENT
+  CONSULTATION
+  HOSPITALIZATION
   TASK
   PROJECT
+  LEAD
+  CLIENT
+  SALES
 }
 
 enum NewsletterStatus {
@@ -133,6 +138,36 @@ enum CoatType {
   MIXED
 }
 
+// Documentos (templates e documentos)
+enum DocumentStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+// Documentos Clínicos
+enum ClinicalDocumentType {
+  ANAMNESIS
+  PRESCRIPTION
+  DIAGNOSIS
+  TUTOR_REPORT
+  MEDICAL_CERTIFICATE
+  EXAM_REQUEST
+  SURGICAL_REPORT
+  DISCHARGE_SUMMARY
+  VACCINATION_CARD
+  GENERAL
+}
+
+enum RecordingStatus {
+  RECORDING
+  PROCESSING
+  TRANSCRIBED
+  ANALYZED
+  COMPLETED
+  FAILED
+}
+
 // NextAuth Models
 model Account {
   id                String   @id @default(uuid())
@@ -150,6 +185,7 @@ model Account {
   user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
+
   @@unique([provider, providerAccountId])
 }
 
@@ -167,79 +203,121 @@ model VerificationToken {
   identifier String
   token      String   @unique
   expires    DateTime
+
   @@unique([identifier, token])
 }
 
 // User Models - ATUALIZADO
 model User {
-  id            String       @id @default(uuid())
+  id            String    @id @default(uuid())
   name          String?
-  email         String       @unique
+  email         String    @unique
   emailVerified DateTime?
   image         String?
   password      String?
-  role          Role         @default(VETERINARIAN)
-  permissions   String[]     @default([])
-  isApproved    Boolean      @default(true)
-  isBlocked     Boolean      @default(false)
-  
+  role          Role      @default(VETERINARIAN)
+  permissions   String[]  @default([])
+  isApproved    Boolean   @default(true)
+  isBlocked     Boolean   @default(false)
+
   // Relacionamentos
-  accounts      Account[]
-  sessions      Session[]
-  boards        Board[]
-  newsletters   Newsletter[]
-  appointments  Appointment[] // NOVO: Relacionamento com agendamentos
-  financeEntries FinanceEntry[]
+  accounts            Account[]
+  sessions            Session[]
+  boards              Board[]
+  newsletters         Newsletter[]
+  appointments        Appointment[] // NOVO: Relacionamento com agendamentos
+  financeEntries      FinanceEntry[]
   integrationSettings IntegrationSettings?
-  
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+
+  // AI Agents
+  aiAgents       AIAgent[]
+  agentTemplates AgentTemplate[]
+  automations    Automation[]
+
+  // WhatsApp
+  whatsappConversations WhatsAppConversation[]
+  whatsappCampaigns     WhatsAppCampaign[]
+
+  // Notificações
+  notifications Notification[]
+
+  // Documentos (templates)
+  documents Document[]
+
+  // Documentos Clínicos
+  clinicalDocuments ClinicalDocument[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Document {
+  id       String         @id @default(uuid())
+  userId   String
+  title    String
+  content  String         @db.Text
+  status   DocumentStatus @default(DRAFT)
+  category String?
+  tags     String[]       @default([])
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, status])
+  @@index([category])
+  @@map("documents")
 }
 
 // NOVOS MODELS: Tutor e Contact
 model Tutor {
-  id               String       @id @default(uuid())
+  id                    String                 @id @default(uuid())
   // Informações Básicas
-  type             PersonType   @default(INDIVIDUAL)
-  name             String
-  email            String?      @unique
-  nationality      String       @default("Brasileira")
-  gender           Gender?
+  type                  PersonType             @default(INDIVIDUAL)
+  name                  String
+  isActive              Boolean                @default(true) @map("isactive")
+  email                 String?                @unique
+  nationality           String                 @default("Brasileira")
+  gender                Gender?
   // Documentos
-  cpf              String?      @unique
-  rg               String?
-  birthDate        DateTime?    // Data completa para aniversário
-  profession       String?
+  cpf                   String?                @unique
+  rg                    String?
+  birthDate             DateTime? // Data completa para aniversário
+  profession            String?
   // Como nos conheceu
-  howFoundUs       String?
+  howFoundUs            String?
   // Preferências de Contato
-  acceptsEmail     Boolean      @default(true)
-  acceptsWhatsApp  Boolean      @default(true)
-  acceptsSMS       Boolean      @default(true)
-  acceptsSmsCampaign Boolean    @default(false)
+  acceptsEmail          Boolean                @default(true)
+  acceptsWhatsApp       Boolean                @default(true)
+  acceptsSMS            Boolean                @default(true)
+  acceptsSmsCampaign    Boolean                @default(false)
   // Endereço
-  cep              String?
-  address          String?
-  addressNumber    String?
-  complement       String?
-  referencePoint   String?
-  neighborhood     String?
-  city             String?
-  state            String?
+  cep                   String?
+  address               String?
+  addressNumber         String?
+  complement            String?
+  referencePoint        String?
+  neighborhood          String?
+  city                  String?
+  state                 String?
   // Extras
-  observations     String?
-  tags             String[]     // Para marcações
-  formDate         DateTime?    // Ficha
-  inclusionDate    DateTime?    // Inclusão
+  observations          String?
+  tags                  String[] // Para marcações
+  formDate              DateTime? // Ficha
+  inclusionDate         DateTime? // Inclusão
   // Contatos
-  contacts         Contact[]
+  contacts              Contact[]
   // Relacionamentos
-  recipients       Recipient[]
-  pets             Pet[]
-  appointments     Appointment[]
+  recipients            Recipient[]
+  pets                  Pet[]
+  appointments          Appointment[]
+  clinicalDocuments     ClinicalDocument[]
+  // WhatsApp
+  whatsappConversations WhatsAppConversation[]
   // Timestamps
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
 
   @@map("tutors")
 }
@@ -262,73 +340,133 @@ model Contact {
 
 // CRM Models
 model Client {
-  id          String       @id @default(uuid())
-  name        String
-  email       String       @unique
-  phone       String?
-  address     String?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  // Manter apenas relacionamentos comerciais (vendas, newsletter)
-  recipients  Recipient[]
+  id         String      @id @default(uuid())
+  name       String
+  email      String      @unique
+  phone      String?
+  address    String?
+  
+  // Client status and lifecycle
+  status     ClientStatus @default(ACTIVE)
+  type       ClientType   @default(INDIVIDUAL)
+  
+  // Business info (for companies)
+  companyName   String?
+  taxId         String?    // CNPJ/CPF
+  
+  // Additional contact
+  website       String?
+  notes         String?
+  tags          String[]   @default([])
+  
+  // CRM Integrations
+  convertedFromLeadId String?  // Lead que originou este cliente
+  kanbanCards         KanbanCard[]
+  
+  // Financial
+  totalRevenue  Int        @default(0) // Em centavos
+  totalOrders   Int        @default(0)
+  lastOrderAt   DateTime?
+  
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  
+  // Relacionamentos comerciais
+  recipients Recipient[]
+  
+  @@index([status])
+  @@index([convertedFromLeadId])
+  @@map("clients")
+}
+
+enum ClientStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  CHURNED
+}
+
+enum ClientType {
+  INDIVIDUAL
+  COMPANY
 }
 
 // ATUALIZADO: Pet agora relaciona com Tutor e tem campos expandidos
 model Pet {
-  id              String            @id @default(uuid())
-  name            String
-  species         PetSpecies        @default(CANINE)
-  breed           String?
-  status          PetStatus         @default(ACTIVE)
-  gender          Gender?
-  sterilization   SterilizationStatus? @default(NOT_STERILIZED)
-  birthDate       DateTime?
-  coat            CoatType?
-  coatColor       String?           // Cor específica da pelagem
-  weight          Float?            // Peso do animal
-  microchip       String?           // Número do microchip
-  avatar          String?           // URL da foto do pet
-  observations    String?           // Observações gerais
-  allergies       String[]          // Lista de alergias
-  medicalNotes    String?           // Notas médicas importantes
+  id            String               @id @default(uuid())
+  name          String
+  species       PetSpecies           @default(CANINE)
+  breed         String?
+  status        PetStatus            @default(ACTIVE)
+  gender        Gender?
+  sterilization SterilizationStatus? @default(NOT_STERILIZED)
+  birthDate     DateTime?
+  coat          CoatType?
+  coatColor     String? // Cor específica da pelagem
+  weight        Float? // Peso do animal
+  microchip     String? // Número do microchip
+  avatar        String? // URL da foto do pet
+  observations  String? // Observações gerais
+  allergies     String[] // Lista de alergias
+  medicalNotes  String? // Notas médicas importantes
+  documents     String[]             @default([]) // Lista de documentos (URLs/nomes)
   // Relacionamentos
-  tutorId         String
-  tutor           Tutor             @relation(fields: [tutorId], references: [id], onDelete: Cascade)
-  appointments    Appointment[]
-  treatments      Treatment[]
+  tutorId       String
+  tutor         Tutor                @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+  appointments  Appointment[]
+  treatments    Treatment[]
+  clinicalDocuments ClinicalDocument[]
   // Timestamps
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
 
   @@map("pets")
 }
 
+// Raças de pet (por espécie) para autocomplete/criação dinâmica
+model PetBreed {
+  id        String     @id @default(uuid())
+  species   PetSpecies
+  name      String
+  nameKey   String     @map("name_key") // lowercase/trim para unicidade
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@unique([species, nameKey])
+  @@index([species])
+  @@map("pet_breeds")
+}
+
 // ATUALIZADO: Appointment com campos para a UI
 model Appointment {
-  id           String            @id @default(uuid())
-  tutorId      String
-  petId        String
-  userId       String            // Veterinário responsável
-  date         DateTime
-  duration     Int               @default(30) // Duração em minutos
-  description  String?
-  notes        String?
-  value        Float             @default(0)
-  status       String            @default("SCHEDULED")
-  paymentStatus PaymentStatus    @default(PENDING)
-  
+  id            String        @id @default(uuid())
+  tutorId       String
+  petId         String
+  userId        String // Veterinário responsável
+  date          DateTime
+  duration      Int           @default(30) // Duração em minutos
+  description   String?
+  notes         String?
+  value         Float         @default(0)
+  status        String        @default("SCHEDULED")
+  paymentStatus PaymentStatus @default(PENDING)
+
   // Relacionamentos
-  tutor        Tutor             @relation(fields: [tutorId], references: [id], onDelete: Cascade)
-  pet          Pet               @relation(fields: [petId], references: [id], onDelete: Cascade)
-  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  treatments   Treatment[]
-  kanbanCard   KanbanCard?
-  boardId      String?
-  board        Board?   @relation(fields: [boardId], references: [id], onDelete: SetNull)
-  
+  tutor      Tutor       @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+  pet        Pet         @relation(fields: [petId], references: [id], onDelete: Cascade)
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  treatments Treatment[]
+  kanbanCard KanbanCard?
+  boardId    String?
+  board      Board?      @relation(fields: [boardId], references: [id], onDelete: SetNull)
+
+  // Gravação e documentos clínicos
+  recording         ConsultationRecording?
+  clinicalDocuments ClinicalDocument[]
+
   // Timestamps
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([date])
   @@index([status])
@@ -350,45 +488,126 @@ model Treatment {
 }
 
 model Product {
-  id          String      @id @default(uuid())
-  name        String
-  type        ProductType
-  price       Float
-  stock       Int         @default(0)
-  treatments  Treatment[]
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id         String      @id @default(uuid())
+  name       String
+  type       ProductType
+  price      Float
+  stock      Int         @default(0)
+  treatments Treatment[]
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+}
+
+// ============================================
+// Documentos Clínicos - Gravação e Geração por IA
+// ============================================
+
+// Gravação de Consulta - Áudio e transcrição
+model ConsultationRecording {
+  id              String          @id @default(uuid())
+  appointmentId   String          @unique
+  userId          String
+  audioUrl        String?         // URL do áudio armazenado
+  audioFileName   String?         // Nome do arquivo de áudio
+  audioDuration   Int?            // Duração em segundos
+  transcription   String?         @db.Text // Transcrição completa
+  aiAnalysis      String?         @db.Text // Análise da IA (JSON estruturado)
+  aiSummary       String?         @db.Text // Resumo gerado pela IA
+  status          RecordingStatus @default(RECORDING)
+  language        String          @default("pt-BR")
+  errorMessage    String?         // Mensagem de erro se falhou
+
+  // Relacionamentos
+  appointment     Appointment     @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  clinicalDocuments ClinicalDocument[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@map("consultation_recordings")
+}
+
+// Documento Clínico - Gerado por IA ou manualmente
+model ClinicalDocument {
+  id              String               @id @default(uuid())
+  appointmentId   String
+  petId           String
+  tutorId         String
+  userId          String               // Veterinário que gerou
+  recordingId     String?              // Gravação de origem (opcional)
+  type            ClinicalDocumentType @default(GENERAL)
+  title           String
+  content         String               @db.Text // Conteúdo em texto
+  htmlContent     String?              @db.Text // Conteúdo formatado HTML
+  pdfUrl          String?              // URL do PDF gerado
+  status          DocumentStatus       @default(DRAFT)
+  isAiGenerated   Boolean              @default(false) // Se foi gerado por IA
+  aiModel         String?              // Modelo de IA usado
+  aiPromptUsed    String?              @db.Text // Prompt utilizado
+
+  // Compartilhamento
+  sharedVia       String[]             @default([]) // ["whatsapp", "email"]
+  sharedAt        DateTime?
+  sharedTo        String?              // Telefone ou email do destinatário
+
+  // Metadados
+  metadata        Json?                // Dados extras (ex: medicamentos, dosagens)
+  version         Int                  @default(1) // Versão do documento
+  signedBy        String?              // Nome do veterinário que assinou
+  crmv            String?              // CRMV do veterinário
+
+  // Relacionamentos
+  appointment     Appointment          @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  pet             Pet                  @relation(fields: [petId], references: [id], onDelete: Cascade)
+  tutor           Tutor                @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+  user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recording       ConsultationRecording? @relation(fields: [recordingId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([appointmentId])
+  @@index([petId])
+  @@index([tutorId])
+  @@index([userId])
+  @@index([type])
+  @@index([status])
+  @@map("clinical_documents")
 }
 
 // Kanban Models
 model Board {
-  id          String        @id @default(uuid())
-  name        String
-  type        BoardType     @default(APPOINTMENT)
-  description String?
-  color       String        @default("bg-blue-500")
-  progress    Int           @default(0)
-  totalDeals  Int           @default(0)
-  favorite    Boolean       @default(false)
-  userId      String
-  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  columns     KanbanColumn[]
+  id           String         @id @default(uuid())
+  name         String
+  type         BoardType      @default(APPOINTMENT)
+  description  String?
+  color        String         @default("bg-blue-500")
+  progress     Int            @default(0)
+  totalDeals   Int            @default(0)
+  favorite     Boolean        @default(false)
+  userId       String
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  columns      KanbanColumn[]
   appointments Appointment[]
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
   @@unique([userId, name])
 }
 
 model KanbanColumn {
-  id          String       @id @default(uuid())
-  name        String
-  position    Int
-  color       String?
-  boardId     String
-  board       Board        @relation(fields: [boardId], references: [id], onDelete: Cascade)
-  cards       KanbanCard[]
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  id        String       @id @default(uuid())
+  name      String
+  position  Int
+  color     String?
+  boardId   String
+  board     Board        @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  cards     KanbanCard[]
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
   @@unique([boardId, name])
   @@unique([boardId, position])
 }
@@ -400,23 +619,40 @@ model KanbanCard {
   position      Int
   columnId      String
   column        KanbanColumn @relation(fields: [columnId], references: [id], onDelete: Cascade)
+  
+  // Entity links - only one should be set per card
   appointmentId String?      @unique
   appointment   Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  leadId        String?      @unique
+  lead          Lead?        @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  clientId      String?      @unique
+  client        Client?      @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  
+  // Card metadata
   metadata      Json?
+  priority      String?      @default("medium") // low, medium, high, urgent
+  dueDate       DateTime?
+  assignedTo    String?      // User ID assigned to this card
+  tags          String[]     @default([])
+  
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
+
   @@unique([columnId, position])
+  @@index([leadId])
+  @@index([clientId])
+  @@map("kanban_cards")
 }
 
 // Financeiro (ERP) - Lançamentos
 model FinanceEntry {
-  id               String             @id @default(uuid())
-  userId           String
-  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  type             FinanceEntryType   @default(INCOME)
-  status           FinanceEntryStatus @default(PENDING)
-  method           FinancePaymentMethod? @default(OTHER)
+  type   FinanceEntryType      @default(INCOME)
+  status FinanceEntryStatus    @default(PENDING)
+  method FinancePaymentMethod? @default(OTHER)
 
   // Para manter a UI atual (Cliente / Serviço)
   counterpartyName String
@@ -424,14 +660,14 @@ model FinanceEntry {
   description      String?
 
   // Armazenar em centavos para evitar problemas de float
-  amountCents      Int
+  amountCents Int
 
-  date             DateTime           @default(now())
-  dueDate          DateTime?
-  paidAt           DateTime?
+  date    DateTime  @default(now())
+  dueDate DateTime?
+  paidAt  DateTime?
 
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([userId, date])
   @@index([userId, status])
@@ -440,40 +676,40 @@ model FinanceEntry {
 
 // Newsletter Models - ATUALIZADO com NewsletterTemplate
 model Newsletter {
-  id            String         @id @default(uuid())
-  title         String
-  subject       String
-  content       String
-  status        NewsletterStatus
-  scheduledFor  DateTime?
-  recipientType RecipientType
-  sentAt        DateTime?
-  userId        String
-  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  templateId    String?        // NOVO: Referência ao template usado
-  template      NewsletterTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
-  recipients    Recipient[]
+  id             String              @id @default(uuid())
+  title          String
+  subject        String
+  content        String
+  status         NewsletterStatus
+  scheduledFor   DateTime?
+  recipientType  RecipientType
+  sentAt         DateTime?
+  userId         String
+  user           User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  templateId     String? // NOVO: Referência ao template usado
+  template       NewsletterTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  recipients     Recipient[]
   newsletterLogs NewsletterLog[]
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
 }
 
 // NOVO MODEL: NewsletterTemplate
 model NewsletterTemplate {
-  id          String       @id @default(uuid())
-  name        String       @unique
+  id          String  @id @default(uuid())
+  name        String  @unique
   subject     String
-  content     String       @db.Text
+  content     String  @db.Text
   description String?
-  category    String       @default("Geral")
-  isActive    Boolean      @default(true)
-  
+  category    String  @default("Geral")
+  isActive    Boolean @default(true)
+
   // Relacionamentos
   newsletters Newsletter[]
-  
+
   // Timestamps
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("newsletter_templates")
 }
@@ -489,7 +725,7 @@ model Recipient {
   tutor        Tutor?     @relation(fields: [tutorId], references: [id], onDelete: SetNull)
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
-  
+
   @@unique([newsletterId, clientId])
   @@unique([newsletterId, leadEmail])
   @@unique([newsletterId, tutorId])
@@ -503,28 +739,579 @@ model NewsletterLog {
   newsletter   Newsletter @relation(fields: [newsletterId], references: [id], onDelete: Cascade)
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
+
   @@index([newsletterId])
   @@index([sentAt])
 }
 
 // Model para configurações de integrações
 model IntegrationSettings {
-  id              String   @id @default(uuid())
-  userId          String   @unique
-  
+  id     String @id @default(uuid())
+  userId String @unique
+
   // Configurações das integrações (armazenadas como JSON)
-  whatsappConfig  String?  @db.Text
-  openaiConfig    String?  @db.Text
-  geminiConfig    String?  @db.Text
-  deepseekConfig  String?  @db.Text
-  
+  whatsappConfig String? @db.Text
+  openaiConfig   String? @db.Text
+  geminiConfig   String? @db.Text
+  deepseekConfig String? @db.Text
+  emailConfig    String? @db.Text // SMTP config for sending emails
+
+  // AI Usage limits per user
+  aiMonthlyBudgetUsd   Float?  // Monthly budget limit in USD (null = unlimited)
+  aiCurrentMonthCostUsd Float  @default(0) // Current month's spending
+  aiLastResetAt        DateTime @default(now()) // Last budget reset date
+
+  // CRM/Automation settings
+  metadata Json?  // Additional settings (autoCreateLeadsFromWhatsApp, etc.)
+
   // Relacionamento com usuário
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@map("integration_settings")
+}
+
+// ============================================
+// AI Agents - Agentes, Templates e Automações
+// ============================================
+
+enum AIProvider {
+  OPENAI
+  GEMINI
+  DEEPSEEK
+}
+
+enum AgentType {
+  CHATBOT
+  AUTOMATION
+  ASSISTANT
+  SCHEDULER
+}
+
+enum AgentStatus {
+  ACTIVE
+  PAUSED
+  DRAFT
+  ERROR
+}
+
+enum TemplateCategory {
+  ATENDIMENTO
+  VENDAS
+  MARKETING
+  SUPORTE
+  AGENDAMENTO
+  PERSONALIZADO
+}
+
+enum TemplateStatus {
+  PUBLISHED
+  DRAFT
+  ARCHIVED
+}
+
+enum AutomationCategory {
+  ATENDIMENTO
+  MARKETING
+  NOTIFICACAO
+  INTEGRACAO
+  AGENDAMENTO
+}
+
+enum AutomationTrigger {
+  SCHEDULE
+  WEBHOOK
+  EVENT
+  MANUAL
+  // CRM Triggers
+  LEAD_CREATED
+  LEAD_SCORE_CHANGED
+  LEAD_STATUS_CHANGED
+  LEAD_QUALIFIED
+  LEAD_CONVERTED
+  CLIENT_CREATED
+  CLIENT_STATUS_CHANGED
+  // WhatsApp Triggers  
+  WHATSAPP_MESSAGE_RECEIVED
+  WHATSAPP_CONVERSATION_STARTED
+}
+
+enum ExecutionStatus {
+  SUCCESS
+  FAILED
+  PENDING
+  RUNNING
+}
+
+// ============================================
+// WhatsApp Business API - Mensagens e Conversas
+// ============================================
+
+enum WhatsAppMessageType {
+  TEXT
+  IMAGE
+  DOCUMENT
+  AUDIO
+  VIDEO
+  LOCATION
+  TEMPLATE
+  INTERACTIVE
+  BUTTON
+  STICKER
+  CONTACTS
+}
+
+enum WhatsAppMessageStatus {
+  PENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+enum WhatsAppMessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum WhatsAppConversationStatus {
+  OPEN
+  CLOSED
+  PENDING
+  ASSIGNED
+}
+
+enum WhatsAppCampaignStatus {
+  DRAFT
+  SCHEDULED
+  RUNNING
+  COMPLETED
+  FAILED
+  PAUSED
+}
+
+// AI Agent - Agentes de IA configuráveis
+model AIAgent {
+  id           String      @id @default(uuid())
+  userId       String
+  name         String
+  description  String?
+  type         AgentType   @default(CHATBOT)
+  status       AgentStatus @default(DRAFT)
+  provider     AIProvider  @default(OPENAI)
+  model        String      @default("gpt-4o-mini")
+  systemPrompt String      @db.Text
+  temperature  Float       @default(0.7)
+  maxTokens    Int         @default(4096)
+  templateId   String?
+
+  // Configurações de voz (Text-to-Speech)
+  voiceEnabled Boolean @default(false)
+  voiceId      String  @default("nova") // alloy, echo, fable, onyx, nova, shimmer
+  voiceSpeed   Float   @default(1.0)    // 0.25 to 4.0
+  voiceModel   String  @default("tts-1") // tts-1 or tts-1-hd
+
+  // Rate limiting
+  rateLimitRequests Int @default(100)  // Max requests per window
+  rateLimitWindow   Int @default(3600) // Window in seconds (1 hour default)
+
+  // Cost tracking (accumulated)
+  totalCostUsd Float @default(0)
+
+  // Métricas (desnormalizadas para performance)
+  totalInteractions Int       @default(0)
+  successRate       Float     @default(0)
+  avgResponseTime   Float     @default(0)
+  lastActiveAt      DateTime?
+
+  // Versionamento
+  version       Int      @default(1)
+  publishedAt   DateTime?
+
+  // Relacionamentos
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  template    AgentTemplate?   @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  executions  AgentExecution[]
+  automations Automation[]
+  versions    AgentVersion[]
+
+  // WhatsApp - conversas atribuídas a este agent
+  whatsappConversations WhatsAppConversation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, status])
+  @@index([type])
+  @@map("ai_agents")
+}
+
+// Versão de Agente - Histórico de versões para rollback
+model AgentVersion {
+  id           String      @id @default(uuid())
+  agentId      String
+  version      Int
+  name         String
+  description  String?
+  provider     AIProvider
+  model        String
+  systemPrompt String      @db.Text
+  temperature  Float
+  maxTokens    Int
+
+  // Voice config snapshot
+  voiceEnabled Boolean
+  voiceId      String
+  voiceSpeed   Float
+  voiceModel   String
+
+  // Metadata
+  publishedBy  String?     // User ID who published
+  changeNotes  String?     // Notes about this version
+
+  // Relacionamentos
+  agent AIAgent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([agentId, version])
+  @@index([agentId, createdAt])
+  @@map("agent_versions")
+}
+
+// Template de Agente - Prompts reutilizáveis
+model AgentTemplate {
+  id          String           @id @default(uuid())
+  userId      String
+  name        String
+  description String?
+  category    TemplateCategory @default(PERSONALIZADO)
+  status      TemplateStatus   @default(DRAFT)
+  content     String           @db.Text  // System prompt template
+  variables   String[]         @default([])
+  provider    AIProvider?
+  model       String?
+  isDefault   Boolean          @default(false)
+  usageCount  Int              @default(0)
+  rating      Float?
+
+  // WhatsApp template integration (for templates approved by Meta)
+  whatsappTemplateName     String?  // Nome do template no WhatsApp Business API
+  whatsappTemplateLanguage String?  @default("pt_BR")
+  whatsappTemplateId       String?  // ID do template na Meta
+  isWhatsAppLinked         Boolean  @default(false)
+
+  // Voice configuration defaults
+  defaultVoiceEnabled Boolean @default(false)
+  defaultVoiceId      String  @default("nova")
+  defaultVoiceSpeed   Float   @default(1.0)
+  defaultVoiceModel   String  @default("tts-1")
+
+  // Relacionamentos
+  user   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agents AIAgent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, name])
+  @@index([userId, category])
+  @@index([status])
+  @@index([whatsappTemplateName])
+  @@map("agent_templates")
+}
+
+// Execução de Agente - Log de execuções
+model AgentExecution {
+  id        String          @id @default(uuid())
+  agentId   String
+  status    ExecutionStatus @default(PENDING)
+  input     String?         @db.Text
+  output    String?         @db.Text
+  usage     Json? // {prompt_tokens, completion_tokens, total_tokens}
+  latencyMs Int?
+  error     String?         @db.Text
+  metadata  Json? // Dados extras (tutor, pet, etc.)
+
+  // Cost tracking
+  costUsd       Float?  // Custo em USD da execução
+  costBreakdown Json?   // {prompt_cost, completion_cost, total_cost, model, provider}
+
+  // Voice response info
+  voiceGenerated Boolean @default(false)
+  voiceCostUsd   Float?  // Custo do TTS se usado
+
+  // Relacionamentos
+  agent AIAgent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([agentId, createdAt])
+  @@index([status])
+  @@map("agent_executions")
+}
+
+// Automação - Fluxos automatizados
+model Automation {
+  id            String             @id @default(uuid())
+  userId        String
+  agentId       String?
+  name          String
+  description   String?
+  category      AutomationCategory @default(ATENDIMENTO)
+  status        AgentStatus        @default(DRAFT)
+  trigger       AutomationTrigger  @default(MANUAL)
+  triggerConfig Json? // Configuração do trigger (cron, evento, etc.)
+
+  // Métricas (desnormalizadas)
+  executions  Int       @default(0)
+  successRate Float     @default(0)
+  avgDuration Float     @default(0)
+  lastRunAt   DateTime?
+
+  // Relacionamentos
+  user  User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agent AIAgent?         @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  steps AutomationStep[]
+  logs  AutomationLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, status])
+  @@index([category])
+  @@map("automations")
+}
+
+// Step de Automação - Passos do fluxo
+model AutomationStep {
+  id           String @id @default(uuid())
+  automationId String
+  type         String // query, filter, message, email, delay, webhook, ai_chat
+  name         String
+  config       Json? // Configuração específica do step
+  position     Int
+
+  // Relacionamentos
+  automation Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([automationId, position])
+  @@map("automation_steps")
+}
+
+// Log de Automação - Histórico de execuções
+model AutomationLog {
+  id            String          @id @default(uuid())
+  automationId  String
+  status        ExecutionStatus @default(PENDING)
+  duration      Int? // ms
+  triggeredBy   String? // manual, schedule, event, webhook
+  stepsExecuted Int             @default(0)
+  error         String?         @db.Text
+  metadata      Json? // Dados extras da execução
+
+  // Relacionamentos
+  automation Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([automationId, createdAt])
+  @@index([status])
+  @@map("automation_logs")
+}
+
+// WhatsApp Message - Mensagens individuais
+model WhatsAppMessage {
+  id             String                   @id @default(uuid())
+  conversationId String
+  waMessageId    String?                  @unique // ID da mensagem no WhatsApp
+  direction      WhatsAppMessageDirection @default(INBOUND)
+  type           WhatsAppMessageType      @default(TEXT)
+  status         WhatsAppMessageStatus    @default(PENDING)
+  content        String                   @db.Text
+  mediaUrl       String? // URL temporária do WhatsApp ou permanente do storage
+  mediaType      String?
+  mediaCaption   String?
+  metadata       Json? // Dados extras (botões, template vars, etc)
+  sentAt         DateTime?
+  deliveredAt    DateTime?
+  readAt         DateTime?
+  failedReason   String?
+
+  // Cloud storage - mídia permanente
+  mediaCloudUrl     String? // URL permanente no cloud storage
+  mediaCloudId      String? // ID público no cloud provider
+  mediaStorageType  String? // local, s3, cloudinary, r2
+  mediaDownloadedAt DateTime? // Quando a mídia foi baixada/armazenada
+
+  // Relacionamentos
+  conversation WhatsAppConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([conversationId, createdAt])
+  @@index([waMessageId])
+  @@index([status])
+  @@index([direction])
+  @@map("whatsapp_messages")
+}
+
+// WhatsApp Conversation - Conversas com contatos
+model WhatsAppConversation {
+  id                 String                     @id @default(uuid())
+  userId             String
+  contactPhone       String
+  contactName        String?
+  contactPushName    String? // Nome do push notification do WhatsApp
+  status             WhatsAppConversationStatus @default(OPEN)
+  assignedAgentId    String? // AI Agent atribuído para responder
+  tutorId            String? // Tutor vinculado (se identificado)
+  lastMessageAt      DateTime                   @default(now())
+  lastMessagePreview String? // Preview da última mensagem
+  unreadCount        Int                        @default(0)
+  isAutoReplyEnabled Boolean                    @default(false)
+  metadata           Json?
+
+  // Relacionamentos
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignedAgent AIAgent?          @relation(fields: [assignedAgentId], references: [id], onDelete: SetNull)
+  tutor         Tutor?            @relation(fields: [tutorId], references: [id], onDelete: SetNull)
+  messages      WhatsAppMessage[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, contactPhone])
+  @@index([userId, status])
+  @@index([userId, lastMessageAt])
+  @@index([contactPhone])
+  @@map("whatsapp_conversations")
+}
+
+// WhatsApp Campaign - Campanhas de envio em massa
+model WhatsAppCampaign {
+  id          String                 @id @default(uuid())
+  userId      String
+  name        String
+  description String?
+  status      WhatsAppCampaignStatus @default(DRAFT)
+
+  // Template do WhatsApp Business API (se usar template aprovado)
+  templateName     String?
+  templateLanguage String? @default("pt_BR")
+
+  // Conteúdo da mensagem
+  messageContent String              @db.Text
+  messageType    WhatsAppMessageType @default(TEXT)
+  mediaUrl       String?
+
+  // Filtro de audiência (JSON com critérios)
+  audienceType   String @default("all") // all, tutors, leads, custom
+  audienceFilter Json? // { status: 'ACTIVE', tags: ['vip'], etc }
+
+  // Agendamento
+  scheduledFor DateTime?
+  startedAt    DateTime?
+  completedAt  DateTime?
+
+  // Métricas
+  totalRecipients Int @default(0)
+  sentCount       Int @default(0)
+  deliveredCount  Int @default(0)
+  readCount       Int @default(0)
+  failedCount     Int @default(0)
+
+  // Relacionamentos
+  user       User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recipients WhatsAppCampaignRecipient[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, status])
+  @@index([scheduledFor])
+  @@index([status])
+  @@map("whatsapp_campaigns")
+}
+
+// WhatsApp Campaign Recipient - Destinatários de campanha
+model WhatsAppCampaignRecipient {
+  id           String                @id @default(uuid())
+  campaignId   String
+  phone        String
+  name         String?
+  tutorId      String?
+  status       WhatsAppMessageStatus @default(PENDING)
+  waMessageId  String? // ID da mensagem enviada
+  sentAt       DateTime?
+  deliveredAt  DateTime?
+  readAt       DateTime?
+  failedReason String?
+  variables    Json? // Variáveis para template
+
+  // Relacionamentos
+  campaign WhatsAppCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([campaignId, phone])
+  @@index([campaignId, status])
+  @@index([phone])
+  @@map("whatsapp_campaign_recipients")
+}
+
+// ============================================
+// Notificações do Sistema (para step de automação)
+// ============================================
+
+enum NotificationType {
+  INFO
+  SUCCESS
+  WARNING
+  ERROR
+  ALERT
+  WHATSAPP_MESSAGE
+  APPOINTMENT_REMINDER
+  AUTOMATION_COMPLETE
+  CAMPAIGN_COMPLETE
+}
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+  WHATSAPP
+  PUSH
+}
+
+model Notification {
+  id       String              @id @default(uuid())
+  userId   String
+  type     NotificationType    @default(INFO)
+  channel  NotificationChannel @default(IN_APP)
+  title    String
+  message  String              @db.Text
+  link     String? // Link para ação
+  metadata Json? // Dados extras
+  isRead   Boolean             @default(false)
+  readAt   DateTime?
+
+  // Relacionamentos
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
+  @@index([type])
+  @@map("notifications")
 }
 
 // ============================================
@@ -582,89 +1369,95 @@ enum InsightPriority {
 }
 
 model Lead {
-  id               String       @id @default(uuid())
-  
+  id String @id @default(uuid())
+
   // Dados básicos
-  name             String?
-  email            String       @unique
-  phone            String?
-  
+  name  String?
+  email String  @unique
+  phone String?
+
   // Origem e tracking
-  source           LeadSource   @default(OTHER)
-  sourceDetail     String?      // Ex: "campanha_verao_2024"
-  utmSource        String?
-  utmMedium        String?
-  utmCampaign      String?
-  utmContent       String?
-  referrer         String?      // URL de referência
-  landingPage      String?      // Página de entrada
-  
+  source       LeadSource @default(OTHER)
+  sourceDetail String? // Ex: "campanha_verao_2024"
+  utmSource    String?
+  utmMedium    String?
+  utmCampaign  String?
+  utmContent   String?
+  referrer     String? // URL de referência
+  landingPage  String? // Página de entrada
+
   // Dispositivo e localização
-  device           DeviceType   @default(UNKNOWN)
-  userAgent        String?
-  ip               String?      // Para geolocalização aproximada (não sensível)
-  city             String?
-  state            String?
-  country          String       @default("BR")
-  
+  device    DeviceType @default(UNKNOWN)
+  userAgent String?
+  ip        String? // Para geolocalização aproximada (não sensível)
+  city      String?
+  state     String?
+  country   String     @default("BR")
+
   // Status e ciclo de vida
-  status           LeadStatus   @default(NEW)
-  firstSeenAt      DateTime     @default(now())
-  lastSeenAt       DateTime     @default(now())
-  lastActivityAt   DateTime?
-  convertedAt      DateTime?
-  
+  status         LeadStatus @default(NEW)
+  firstSeenAt    DateTime   @default(now())
+  lastSeenAt     DateTime   @default(now())
+  lastActivityAt DateTime?
+  convertedAt    DateTime?
+
   // Score atual (desnormalizado para queries rápidas)
-  currentScore     Int          @default(0)
-  scoreUpdatedAt   DateTime?
-  
+  currentScore   Int       @default(0)
+  scoreUpdatedAt DateTime?
+
   // Flags comportamentais (cache para queries)
-  visitedPricing   Boolean      @default(false)
-  abandonedCart    Boolean      @default(false)
-  returnedWithin24h Boolean     @default(false)
-  
+  visitedPricing    Boolean @default(false)
+  abandonedCart     Boolean @default(false)
+  returnedWithin24h Boolean @default(false)
+
   // Metadados extras
-  tags             String[]     @default([])
-  customFields     Json?        // Campos customizados
-  notes            String?
-  
+  tags         String[] @default([])
+  customFields Json? // Campos customizados
+  notes        String?
+
   // Relacionamentos
-  events           LeadEvent[]
-  enrichment       LeadEnrichment?
-  scores           LeadScore[]
-  insights         LeadInsight[]
-  history          LeadHistory[]
+  events     LeadEvent[]
+  enrichment LeadEnrichment?
+  scores     LeadScore[]
+  insights   LeadInsight[]
+  history    LeadHistory[]
   
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
-  
+  // CRM Integrations
+  kanbanCards           KanbanCard[]
+  convertedToClientId   String?       // ID do Client se convertido
+  whatsappConversationId String?      // Conversa que originou o lead
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([status])
   @@index([currentScore])
   @@index([source])
   @@index([lastSeenAt])
   @@index([email])
+  @@index([convertedToClientId])
   @@map("leads")
 }
 
 model LeadEvent {
-  id          String     @id @default(uuid())
-  leadId      String
-  lead        Lead       @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  
+  id     String @id @default(uuid())
+  leadId String
+  lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
   // Tipo e dados do evento
-  eventType   String     // page_view, pricing_view, checkout_start, checkout_abandon, form_submit, etc.
-  eventData   Json?      // Dados extras do evento
-  
+  eventType String // page_view, pricing_view, checkout_start, checkout_abandon, form_submit, etc.
+  eventData Json? // Dados extras do evento
+
   // Contexto
-  page        String?    // URL ou identificador da página
-  sessionId   String?    // Para agrupar eventos de uma sessão
-  duration    Int?       // Tempo na página em segundos
-  
+  page      String? // URL ou identificador da página
+  sessionId String? // Para agrupar eventos de uma sessão
+  duration  Int? // Tempo na página em segundos
+
   // Dispositivo (no momento do evento)
-  device      DeviceType @default(UNKNOWN)
-  
-  createdAt   DateTime   @default(now())
-  
+  device DeviceType @default(UNKNOWN)
+
+  createdAt DateTime @default(now())
+
   @@index([leadId, eventType])
   @@index([leadId, createdAt])
   @@index([sessionId])
@@ -673,108 +1466,108 @@ model LeadEvent {
 }
 
 model LeadEnrichment {
-  id              String   @id @default(uuid())
-  leadId          String   @unique
-  lead            Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  
+  id     String @id @default(uuid())
+  leadId String @unique
+  lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
   // Análise de email
-  emailProvider   String?  // gmail, hotmail, outlook, corporativo, etc.
-  emailValid      Boolean  @default(true)
-  emailDisposable Boolean  @default(false)
-  emailRisk       String?  // low, medium, high
-  
+  emailProvider   String? // gmail, hotmail, outlook, corporativo, etc.
+  emailValid      Boolean @default(true)
+  emailDisposable Boolean @default(false)
+  emailRisk       String? // low, medium, high
+
   // Dados comportamentais agregados
-  totalPageViews      Int     @default(0)
-  uniquePages         Int     @default(0)
-  pricingPageViews    Int     @default(0)
-  checkoutStarts      Int     @default(0)
-  checkoutAbandons    Int     @default(0)
-  formSubmissions     Int     @default(0)
-  totalSessions       Int     @default(0)
-  avgSessionDuration  Int     @default(0)  // segundos
-  totalTimeOnSite     Int     @default(0)  // segundos
-  
+  totalPageViews     Int @default(0)
+  uniquePages        Int @default(0)
+  pricingPageViews   Int @default(0)
+  checkoutStarts     Int @default(0)
+  checkoutAbandons   Int @default(0)
+  formSubmissions    Int @default(0)
+  totalSessions      Int @default(0)
+  avgSessionDuration Int @default(0) // segundos
+  totalTimeOnSite    Int @default(0) // segundos
+
   // Padrões temporais
-  preferredTimeSlot   String? // morning, afternoon, evening, night
-  preferredDayOfWeek  String? // monday, tuesday, etc.
-  mostActiveHour      Int?    // 0-23
-  
+  preferredTimeSlot  String? // morning, afternoon, evening, night
+  preferredDayOfWeek String? // monday, tuesday, etc.
+  mostActiveHour     Int? // 0-23
+
   // Engajamento
-  daysActive          Int     @default(0)
-  daysSinceFirstVisit Int     @default(0)
-  daysSinceLastVisit  Int     @default(0)
-  visitFrequency      Float   @default(0) // visitas por dia
-  
+  daysActive          Int   @default(0)
+  daysSinceFirstVisit Int   @default(0)
+  daysSinceLastVisit  Int   @default(0)
+  visitFrequency      Float @default(0) // visitas por dia
+
   // Canal preferido (inferido)
-  primaryChannel      String? // instagram, google, direto, etc.
-  
+  primaryChannel String? // instagram, google, direto, etc.
+
   // Intenção de compra inferida
-  purchaseIntent      String  @default("unknown") // low, medium, high, very_high
-  
+  purchaseIntent String @default("unknown") // low, medium, high, very_high
+
   // Raw data (para debug e reprocessamento)
-  rawData             Json?
-  
-  enrichedAt          DateTime @default(now())
-  version             Int      @default(1)
-  
+  rawData Json?
+
+  enrichedAt DateTime @default(now())
+  version    Int      @default(1)
+
   @@index([emailDisposable])
   @@index([purchaseIntent])
   @@map("lead_enrichments")
 }
 
 model LeadScore {
-  id          String   @id @default(uuid())
-  leadId      String
-  lead        Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  
+  id     String @id @default(uuid())
+  leadId String
+  lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
   // Score calculado
-  score       Int      // 0-100
-  
+  score Int // 0-100
+
   // Breakdown explicável (auditoria)
-  breakdown   Json     // { "pricing_view": 30, "email_valid": 10, "checkout_abandon": 20, ... }
-  
+  breakdown Json // { "pricing_view": 30, "email_valid": 10, "checkout_abandon": 20, ... }
+
   // Metadados
-  version     Int      @default(1)
-  algorithm   String   @default("rules_v1") // Para evolução futura para ML
-  
-  createdAt   DateTime @default(now())
-  
+  version   Int    @default(1)
+  algorithm String @default("rules_v1") // Para evolução futura para ML
+
+  createdAt DateTime @default(now())
+
   @@index([leadId, createdAt])
   @@index([score])
   @@map("lead_scores")
 }
 
 model LeadInsight {
-  id          String          @id @default(uuid())
-  leadId      String
-  lead        Lead            @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  
+  id     String @id @default(uuid())
+  leadId String
+  lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
   // Tipo e ação recomendada
   type        InsightType
-  action      String          // "Abordar agora via WhatsApp", "Enviar email com desconto", etc.
-  title       String          // Título curto para UI
-  description String?         // Descrição detalhada
-  
+  action      String // "Abordar agora via WhatsApp", "Enviar email com desconto", etc.
+  title       String // Título curto para UI
+  description String? // Descrição detalhada
+
   // Prioridade e ordenação
-  priority    InsightPriority @default(MEDIUM)
-  confidence  Float           @default(0.8) // 0-1, confiança na recomendação
-  
+  priority   InsightPriority @default(MEDIUM)
+  confidence Float           @default(0.8) // 0-1, confiança na recomendação
+
   // Rastreabilidade (quais regras/dados geraram)
-  rule        String          // Nome da regra que gerou
-  triggerData Json?           // Dados que triggaram o insight
-  
+  rule        String // Nome da regra que gerou
+  triggerData Json? // Dados que triggaram o insight
+
   // Status
-  dismissed   Boolean         @default(false)
+  dismissed   Boolean   @default(false)
   dismissedAt DateTime?
-  actedOn     Boolean         @default(false)
+  actedOn     Boolean   @default(false)
   actedOnAt   DateTime?
-  
+
   // Expiração (insights podem ficar obsoletos)
-  expiresAt   DateTime?
-  
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-  
+  expiresAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([leadId, dismissed])
   @@index([type])
   @@index([priority])
@@ -783,24 +1576,87 @@ model LeadInsight {
 }
 
 model LeadHistory {
-  id          String   @id @default(uuid())
-  leadId      String
-  lead        Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  
+  id     String @id @default(uuid())
+  leadId String
+  lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
   // O que mudou
-  action      String   // status_change, score_update, enrichment_complete, insight_generated, etc.
-  field       String?  // Campo que mudou (se aplicável)
-  oldValue    String?
-  newValue    String?
-  
+  action   String // status_change, score_update, enrichment_complete, insight_generated, etc.
+  field    String? // Campo que mudou (se aplicável)
+  oldValue String?
+  newValue String?
+
   // Contexto
-  metadata    Json?    // Dados extras sobre a mudança
-  triggeredBy String?  // system, user, worker, etc.
-  
-  createdAt   DateTime @default(now())
-  
+  metadata    Json? // Dados extras sobre a mudança
+  triggeredBy String? // system, user, worker, etc.
+
+  createdAt DateTime @default(now())
+
   @@index([leadId, createdAt])
   @@index([action])
   @@map("lead_history")
 }
 
+// ============================================
+// Webhook Events - Para replay de webhooks falhos
+// ============================================
+
+model WebhookEvent {
+  id        String  @id @default(uuid())
+  userId    String
+  eventType String // whatsapp_message, whatsapp_status, etc.
+  payload   Json // Payload completo do webhook
+  signature String? // Signature para validação
+
+  // Status do processamento
+  status       String    @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED, DEAD_LETTER
+  attempts     Int       @default(0)
+  lastError    String?   @db.Text
+  nextRetryAt  DateTime?
+  processedAt  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, status])
+  @@index([status, nextRetryAt])
+  @@index([eventType])
+  @@map("webhook_events")
+}
+
+// ============================================
+// Media Storage - Armazenamento permanente de mídia
+// ============================================
+
+model MediaFile {
+  id        String @id @default(uuid())
+  userId    String
+
+  // Informações do arquivo
+  originalFilename String
+  mimeType         String
+  size             Int // bytes
+  
+  // URLs
+  localPath String? // Caminho local (se armazenado localmente)
+  cloudUrl  String? // URL na nuvem (S3/Cloudinary)
+  publicId  String? // ID público no provedor de cloud
+
+  // Provedor
+  storageProvider String @default("local") // local, s3, cloudinary, r2
+
+  // Contexto de uso
+  source    String? // whatsapp, upload, ai_generated, etc.
+  sourceId  String? // ID da mensagem/entidade que originou
+
+  // Metadados
+  metadata Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([source, sourceId])
+  @@index([storageProvider])
+  @@map("media_files")
+}

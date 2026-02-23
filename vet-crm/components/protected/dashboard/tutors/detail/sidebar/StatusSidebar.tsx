@@ -16,21 +16,25 @@ export default function StatusSidebar({ tutor }: StatusSidebarProps) {
 }
 
 function StatusCard({ tutor }: { tutor: Tutor }) {
+  const petsCount = tutor?._count?.pets ?? 0;
+  const appointmentsCount = tutor?._count?.appointments ?? 0;
+  const contactsCount = tutor?._count?.contacts ?? 0;
+
   return (
     <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl sm:rounded-3xl shadow-xl sm:shadow-2xl shadow-blue-500/10 p-4 sm:p-6">
       <h2 className="text-lg font-semibold text-gray-900 mb-4">Status</h2>
       <div className="space-y-3 sm:space-y-4">
         <div className="flex justify-between items-center">
           <span className="text-gray-600 text-sm sm:text-base">Pets</span>
-          <span className="font-semibold text-gray-900 text-sm sm:text-base">{tutor._count.pets}</span>
+          <span className="font-semibold text-gray-900 text-sm sm:text-base">{petsCount}</span>
         </div>
         <div className="flex justify-between items-center">
           <span className="text-gray-600 text-sm sm:text-base">Consultas</span>
-          <span className="font-semibold text-gray-900 text-sm sm:text-base">{tutor._count.appointments}</span>
+          <span className="font-semibold text-gray-900 text-sm sm:text-base">{appointmentsCount}</span>
         </div>
         <div className="flex justify-between items-center">
           <span className="text-gray-600 text-sm sm:text-base">Contatos</span>
-          <span className="font-semibold text-gray-900 text-sm sm:text-base">{tutor._count.contacts}</span>
+          <span className="font-semibold text-gray-900 text-sm sm:text-base">{contactsCount}</span>
         </div>
       </div>
     </div>

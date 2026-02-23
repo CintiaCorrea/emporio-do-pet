@@ -19,5 +19,3 @@ export class UpdateCommissionDto {
   @Min(0)
   totalValue?: number;
 }
-
-

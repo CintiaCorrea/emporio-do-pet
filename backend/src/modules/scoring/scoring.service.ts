@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import { scoringRules, ScoringContext, ScoringResult } from './rules';
@@ -11,6 +12,7 @@ export class ScoringService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   /**
@@ -123,6 +125,8 @@ export class ScoringService {
     // 6. Persistir score
     await this.persistScore(leadId, result);
 
+    const previousScore = lead.currentScore;
+
     // 7. Atualizar score no lead (desnormalizado para queries rápidas)
     await this.prisma.lead.update({
       where: { id: leadId },
@@ -130,13 +134,30 @@ export class ScoringService {
         currentScore: finalScore,
         scoreUpdatedAt: new Date(),
         // Atualizar status se score alto e ainda não qualificado
-        ...(finalScore >= 70 &&
-          lead.status === 'ENRICHED' && { status: 'QUALIFIED' }),
+        ...(finalScore >= 70 && lead.status === 'ENRICHED' && { status: 'QUALIFIED' }),
       },
     });
 
     // 8. Invalidar cache
     await this.redis.del(`lead:${leadId}`);
+
+    // 9. Emit score change event for CRM integrations
+    if (previousScore !== finalScore) {
+      this.eventEmitter.emit('crm.lead.score_changed', {
+        leadId,
+        previousScore,
+        newScore: finalScore,
+        scoreDelta: finalScore - previousScore,
+      });
+    }
+
+    // Emit qualification event if lead became qualified
+    if (finalScore >= 70 && lead.status === 'ENRICHED') {
+      this.eventEmitter.emit('crm.lead.qualified', {
+        leadId,
+        score: finalScore,
+      });
+    }
 
     this.logger.log(
       `Lead ${leadId} score: ${finalScore} (${appliedRules.length} regras aplicadas)`,
@@ -180,17 +201,17 @@ export class ScoringService {
     if (!score) return null;
 
     // Adicionar descrições das regras
-    const breakdownWithDescriptions = Object.entries(
-      score.breakdown as Record<string, number>,
-    ).map(([ruleName, points]) => {
-      const rule = scoringRules.find((r) => r.name === ruleName);
-      return {
-        rule: ruleName,
-        description: rule?.description ?? 'Regra desconhecida',
-        category: rule?.category ?? 'unknown',
-        points,
-      };
-    });
+    const breakdownWithDescriptions = Object.entries(score.breakdown as Record<string, number>).map(
+      ([ruleName, points]) => {
+        const rule = scoringRules.find((r) => r.name === ruleName);
+        return {
+          rule: ruleName,
+          description: rule?.description ?? 'Regra desconhecida',
+          category: rule?.category ?? 'unknown',
+          points,
+        };
+      },
+    );
 
     return {
       score: score.score,
@@ -250,10 +271,7 @@ export class ScoringService {
   /**
    * Persiste score no banco
    */
-  private async persistScore(
-    leadId: string,
-    result: ScoringResult,
-  ): Promise<void> {
+  private async persistScore(leadId: string, result: ScoringResult): Promise<void> {
     // Buscar versão anterior
     const lastScore = await this.prisma.leadScore.findFirst({
       where: { leadId },
@@ -281,10 +299,12 @@ export class ScoringService {
           field: 'currentScore',
           oldValue: String(lastScore.score),
           newValue: String(result.score),
-          metadata: JSON.parse(JSON.stringify({
-            change: result.score - lastScore.score,
-            appliedRules: result.appliedRules,
-          })),
+          metadata: JSON.parse(
+            JSON.stringify({
+              change: result.score - lastScore.score,
+              appliedRules: result.appliedRules,
+            }),
+          ),
           triggeredBy: 'system',
         },
       });

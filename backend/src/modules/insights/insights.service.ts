@@ -84,7 +84,7 @@ export class InsightsService {
             primaryChannel: lead.enrichment.primaryChannel,
           }
         : null,
-      existingInsightTypes: lead.insights.map((i) => i.type),
+      existingInsightTypes: lead.insights.map((i: { type: string }) => i.type),
       currentScore: lead.currentScore,
       recentEvents: {
         pageViews: this.getEventCount(recentEvents, 'page_view'),
@@ -144,11 +144,13 @@ export class InsightsService {
             data: {
               leadId,
               action: 'insight_generated',
-              metadata: JSON.parse(JSON.stringify({
-                type: insight.type,
-                priority: insight.priority,
-                title: insight.title,
-              })),
+              metadata: JSON.parse(
+                JSON.stringify({
+                  type: insight.type,
+                  priority: insight.priority,
+                  title: insight.title,
+                }),
+              ),
               triggeredBy: 'system',
             },
           });
@@ -272,10 +274,12 @@ export class InsightsService {
       data: {
         leadId: insight.leadId,
         action: 'insight_acted',
-        metadata: JSON.parse(JSON.stringify({
-          insightId,
-          type: insight.type,
-        })),
+        metadata: JSON.parse(
+          JSON.stringify({
+            insightId,
+            type: insight.type,
+          }),
+        ),
         triggeredBy: 'user',
       },
     });
@@ -292,35 +296,34 @@ export class InsightsService {
     const cached = await this.redis.get<any>(cacheKey);
     if (cached) return cached;
 
-    const [total, byPriority, byType, pending, actedOn, dismissed] =
-      await Promise.all([
-        this.prisma.leadInsight.count(),
-        this.prisma.leadInsight.groupBy({
-          by: ['priority'],
-          where: {
-            dismissed: false,
-            OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
-          },
-          _count: { id: true },
-        }),
-        this.prisma.leadInsight.groupBy({
-          by: ['type'],
-          where: {
-            dismissed: false,
-            OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
-          },
-          _count: { id: true },
-        }),
-        this.prisma.leadInsight.count({
-          where: {
-            dismissed: false,
-            actedOn: false,
-            OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
-          },
-        }),
-        this.prisma.leadInsight.count({ where: { actedOn: true } }),
-        this.prisma.leadInsight.count({ where: { dismissed: true } }),
-      ]);
+    const [total, byPriority, byType, pending, actedOn, dismissed] = await Promise.all([
+      this.prisma.leadInsight.count(),
+      this.prisma.leadInsight.groupBy({
+        by: ['priority'],
+        where: {
+          dismissed: false,
+          OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+        },
+        _count: { id: true },
+      }),
+      this.prisma.leadInsight.groupBy({
+        by: ['type'],
+        where: {
+          dismissed: false,
+          OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+        },
+        _count: { id: true },
+      }),
+      this.prisma.leadInsight.count({
+        where: {
+          dismissed: false,
+          actedOn: false,
+          OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+        },
+      }),
+      this.prisma.leadInsight.count({ where: { actedOn: true } }),
+      this.prisma.leadInsight.count({ where: { dismissed: true } }),
+    ]);
 
     const stats = {
       total,
@@ -328,13 +331,10 @@ export class InsightsService {
       actedOn,
       dismissed,
       byPriority: byPriority.reduce(
-        (acc, curr) => ({ ...acc, [curr.priority]: curr._count.id }),
+        (acc: Record<string, number>, curr: { priority: string; _count: { id: number } }) => ({ ...acc, [curr.priority]: curr._count.id }),
         {},
       ),
-      byType: byType.reduce(
-        (acc, curr) => ({ ...acc, [curr.type]: curr._count.id }),
-        {},
-      ),
+      byType: byType.reduce((acc: Record<string, number>, curr: { type: string; _count: { id: number } }) => ({ ...acc, [curr.type]: curr._count.id }), {}),
     };
 
     await this.redis.set(cacheKey, stats, 60); // Cache 1 minuto

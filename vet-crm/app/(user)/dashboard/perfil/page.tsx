@@ -1,13 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, type ChangeEvent } from 'react';
 import { useSession } from 'next-auth/react';
 import Image from 'next/image';
+import toast from 'react-hot-toast';
 import { 
   LuUser, 
   LuMail, 
-  LuPhone, 
-  LuMapPin, 
   LuCalendar,
   LuPencil,
   LuCamera,
@@ -18,33 +17,114 @@ import {
   LuLoaderCircle
 } from 'react-icons/lu';
 
+type UserProfile = {
+  id: string;
+  name: string | null;
+  email: string;
+  role: string;
+  image?: string | null;
+  isApproved?: boolean;
+  isBlocked?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+type ProfileStats = {
+  tutorsTotal?: number;
+  petsTotal?: number;
+  appointmentsTotal?: number;
+};
+
 export default function PerfilPage() {
   const { data: session, update } = useSession();
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [stats, setStats] = useState<ProfileStats>({});
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | undefined>(undefined);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    phone: '',
-    address: '',
-    bio: '',
   });
 
   useEffect(() => {
-    if (session?.user) {
-      setFormData({
-        name: session.user.name || '',
-        email: session.user.email || '',
-        phone: '',
-        address: '',
-        bio: '',
-      });
-    }
+    const userId = session?.user?.id;
+    if (!userId) return;
+
+    const load = async () => {
+      setIsLoadingProfile(true);
+      try {
+        const res = await fetch(`/api/users/${encodeURIComponent(userId)}`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.error || 'Erro ao carregar perfil');
+
+        const p = data as UserProfile;
+        setProfile(p);
+        setFormData({
+          name: p.name || '',
+          email: p.email || '',
+        });
+        setAvatarUrl(p.image || undefined);
+
+        // Stats (real)
+        const [tutorsRes, petsRes, appointmentsRes] = await Promise.all([
+          fetch('/api/tutors?page=1&limit=1'),
+          fetch('/api/pets?page=1&limit=1'),
+          fetch('/api/appointments?page=1&limit=1'),
+        ]);
+
+        const [tutorsData, petsData, appointmentsData] = await Promise.all([
+          tutorsRes.json().catch(() => null),
+          petsRes.json().catch(() => null),
+          appointmentsRes.json().catch(() => null),
+        ]);
+
+        setStats({
+          tutorsTotal: tutorsRes.ok ? tutorsData?.pagination?.total : undefined,
+          petsTotal: petsRes.ok ? petsData?.pagination?.total : undefined,
+          appointmentsTotal: appointmentsRes.ok ? appointmentsData?.pagination?.total : undefined,
+        });
+      } catch (err) {
+        console.error(err);
+        toast.error(err instanceof Error ? err.message : 'Erro ao carregar perfil');
+      } finally {
+        setIsLoadingProfile(false);
+      }
+    };
+
+    load();
   }, [session]);
 
-  const userName = session?.user?.name || 'Usuário';
-  const userEmail = session?.user?.email || '';
-  const userImage = session?.user?.image;
+  const userName = profile?.name || formData.name || session?.user?.name || 'Usuário';
+  const userEmail = profile?.email || formData.email || session?.user?.email || '';
+  const userImage = avatarUrl || profile?.image || session?.user?.image;
+
+  const roleLabel = (() => {
+    const role = (profile?.role || session?.user?.role || '').toUpperCase();
+    if (role === 'ADMIN') return 'Administrador';
+    if (role === 'VETERINARIAN') return 'Veterinário';
+    if (role === 'RECEPTIONIST') return 'Recepcionista';
+    return role || '—';
+  })();
+
+  const statusLabel = (() => {
+    if (profile?.isBlocked) return { text: 'Bloqueado', className: 'bg-red-50 text-red-700' };
+    if (profile?.isApproved === false) return { text: 'Pendente', className: 'bg-amber-50 text-amber-700' };
+    return { text: 'Ativo', className: 'bg-emerald-50 text-emerald-700' };
+  })();
+
+  const memberSince = (() => {
+    const createdAt = profile?.createdAt;
+    if (!createdAt) return '—';
+    try {
+      return new Date(createdAt).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+    } catch {
+      return '—';
+    }
+  })();
 
   const getInitials = (name: string) => {
     return name
@@ -55,14 +135,121 @@ export default function PerfilPage() {
       .slice(0, 2);
   };
 
+  const openFilePicker = () => {
+    if (isUploadingAvatar) return;
+    fileInputRef.current?.click();
+  };
+
+  const uploadAvatar = async (file: File) => {
+    const userId = session?.user?.id;
+    if (!userId) {
+      toast.error('Sessão inválida. Faça login novamente.');
+      return;
+    }
+
+    // Basic validation
+    const maxBytes = 5 * 1024 * 1024; // 5MB
+    if (!file.type.startsWith('image/')) {
+      toast.error('Selecione um arquivo de imagem.');
+      return;
+    }
+    if (file.size > maxBytes) {
+      toast.error('A imagem deve ter no máximo 5MB.');
+      return;
+    }
+
+    setIsUploadingAvatar(true);
+    const toastId = toast.loading('Enviando avatar...');
+
+    try {
+      // 1) get signed params
+      const sigRes = await fetch('/api/cloudinary/signature', { method: 'POST' });
+      const sigData = await sigRes.json();
+      if (!sigRes.ok) throw new Error(sigData?.error || 'Erro ao preparar upload');
+
+      const { cloudName, apiKey, timestamp, signature, folder, publicId, overwrite, invalidate } = sigData;
+
+      // 2) upload to cloudinary
+      const form = new FormData();
+      form.append('file', file);
+      form.append('api_key', apiKey);
+      form.append('timestamp', String(timestamp));
+      form.append('signature', signature);
+      form.append('folder', folder);
+      form.append('public_id', publicId);
+      form.append('overwrite', String(Boolean(overwrite)));
+      form.append('invalidate', String(Boolean(invalidate)));
+
+      const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+        method: 'POST',
+        body: form,
+      });
+      const uploadData = await uploadRes.json();
+      if (!uploadRes.ok) {
+        const msg =
+          (uploadData && typeof uploadData === 'object' && 'error' in uploadData && (uploadData as any).error?.message) ||
+          `Falha no upload do Cloudinary (HTTP ${uploadRes.status})`;
+        throw new Error(msg);
+      }
+
+      const secureUrl: string | undefined = uploadData?.secure_url;
+      if (!secureUrl) throw new Error('Cloudinary não retornou a URL da imagem');
+
+      // Optimistic UI
+      setAvatarUrl(secureUrl);
+
+      // 3) persist to backend user.image via proxy
+      const patchRes = await fetch(`/api/users/${encodeURIComponent(userId)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: secureUrl }),
+      });
+      const patchData = await patchRes.json();
+      if (!patchRes.ok) throw new Error(patchData?.error || 'Erro ao salvar avatar no usuário');
+
+      // 4) update next-auth session (so Topbar updates immediately)
+      await update({ image: secureUrl } as any);
+
+      toast.success('Avatar atualizado!', { id: toastId });
+    } catch (err) {
+      console.error(err);
+      toast.error(err instanceof Error ? err.message : 'Erro ao enviar avatar', { id: toastId });
+      // rollback optimistic if needed
+      setAvatarUrl(session?.user?.image || undefined);
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+
+  const onAvatarFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    // allow re-select same file later
+    e.target.value = '';
+    if (!file) return;
+    await uploadAvatar(file);
+  };
+
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      // TODO: Implementar chamada à API para atualizar perfil
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simular delay
+      const userId = session?.user?.id;
+      if (!userId) throw new Error('Sessão inválida. Faça login novamente.');
+
+      const res = await fetch(`/api/users/${encodeURIComponent(userId)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: formData.name, email: formData.email }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || 'Erro ao salvar perfil');
+
+      setProfile((prev) => (prev ? { ...prev, name: data?.name ?? prev.name, email: data?.email ?? prev.email } : prev));
+      await update({ name: formData.name, email: formData.email } as any);
+      toast.success('Perfil atualizado!');
       setIsEditing(false);
     } catch (error) {
       console.error('Erro ao salvar perfil:', error);
+      toast.error(error instanceof Error ? error.message : 'Erro ao salvar perfil');
     } finally {
       setIsSaving(false);
     }
@@ -100,8 +287,25 @@ export default function PerfilPage() {
                         {getInitials(userName)}
                       </div>
                     )}
-                    <button className="absolute -bottom-2 -right-2 p-2 bg-white rounded-xl shadow-lg hover:shadow-xl transition-all border border-gray-100">
-                      <LuCamera className="w-4 h-4 text-gray-600" />
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={onAvatarFileChange}
+                    />
+                    <button
+                      type="button"
+                      onClick={openFilePicker}
+                      disabled={isUploadingAvatar}
+                      className="absolute -bottom-2 -right-2 p-2 bg-white rounded-xl shadow-lg hover:shadow-xl transition-all border border-gray-100 disabled:opacity-60 disabled:cursor-not-allowed"
+                      title="Alterar avatar"
+                    >
+                      {isUploadingAvatar ? (
+                        <LuLoaderCircle className="w-4 h-4 text-gray-600 animate-spin" />
+                      ) : (
+                        <LuCamera className="w-4 h-4 text-gray-600" />
+                      )}
                     </button>
                   </div>
                 </div>
@@ -111,13 +315,13 @@ export default function PerfilPage() {
                   <p className="text-gray-500 text-sm mt-1">{userEmail}</p>
                   
                   <div className="flex items-center justify-center gap-2 mt-3">
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-700 text-xs font-medium rounded-full">
-                      <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
-                      Ativo
+                    <span className={`inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-full ${statusLabel.className}`}>
+                      <span className="w-1.5 h-1.5 bg-current rounded-full opacity-70"></span>
+                      {statusLabel.text}
                     </span>
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-700 text-xs font-medium rounded-full">
                       <LuShield className="w-3 h-3" />
-                      Administrador
+                      {roleLabel}
                     </span>
                   </div>
                 </div>
@@ -125,11 +329,7 @@ export default function PerfilPage() {
                 <div className="mt-6 pt-6 border-t border-gray-100 space-y-3">
                   <div className="flex items-center gap-3 text-sm">
                     <LuCalendar className="w-4 h-4 text-gray-400" />
-                    <span className="text-gray-600">Membro desde Janeiro 2024</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-sm">
-                    <LuMapPin className="w-4 h-4 text-gray-400" />
-                    <span className="text-gray-600">São Paulo, Brasil</span>
+                    <span className="text-gray-600">Membro desde {memberSince}</span>
                   </div>
                 </div>
               </div>
@@ -230,84 +430,28 @@ export default function PerfilPage() {
                     <p className="py-3 px-4 bg-gray-50 rounded-xl text-gray-900">{formData.email || '—'}</p>
                   )}
                 </div>
-
-                {/* Telefone */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Telefone
-                  </label>
-                  {isEditing ? (
-                    <div className="relative">
-                      <LuPhone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                      <input
-                        type="tel"
-                        value={formData.phone}
-                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                        className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
-                        placeholder="(11) 99999-9999"
-                      />
-                    </div>
-                  ) : (
-                    <p className="py-3 px-4 bg-gray-50 rounded-xl text-gray-900">{formData.phone || '—'}</p>
-                  )}
-                </div>
-
-                {/* Endereço */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Endereço
-                  </label>
-                  {isEditing ? (
-                    <div className="relative">
-                      <LuMapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                      <input
-                        type="text"
-                        value={formData.address}
-                        onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                        className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
-                        placeholder="Sua cidade, estado"
-                      />
-                    </div>
-                  ) : (
-                    <p className="py-3 px-4 bg-gray-50 rounded-xl text-gray-900">{formData.address || '—'}</p>
-                  )}
-                </div>
-
-                {/* Bio */}
-                <div className="sm:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Sobre você
-                  </label>
-                  {isEditing ? (
-                    <textarea
-                      value={formData.bio}
-                      onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-                      rows={4}
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all resize-none"
-                      placeholder="Conte um pouco sobre você..."
-                    />
-                  ) : (
-                    <p className="py-3 px-4 bg-gray-50 rounded-xl text-gray-900 min-h-[100px]">
-                      {formData.bio || '—'}
-                    </p>
-                  )}
-                </div>
               </div>
             </div>
 
             {/* Estatísticas */}
             <div className="mt-6 grid sm:grid-cols-3 gap-4">
               <div className="bg-white rounded-2xl shadow-sm shadow-gray-200/50 border border-gray-100 p-5">
-                <p className="text-3xl font-bold text-gray-900">127</p>
-                <p className="text-sm text-gray-500 mt-1">Atendimentos</p>
+                <p className="text-3xl font-bold text-gray-900">
+                  {typeof stats.appointmentsTotal === 'number' ? stats.appointmentsTotal.toLocaleString('pt-BR') : '—'}
+                </p>
+                <p className="text-sm text-gray-500 mt-1">Agendamentos</p>
               </div>
               <div className="bg-white rounded-2xl shadow-sm shadow-gray-200/50 border border-gray-100 p-5">
-                <p className="text-3xl font-bold text-gray-900">48</p>
+                <p className="text-3xl font-bold text-gray-900">
+                  {typeof stats.tutorsTotal === 'number' ? stats.tutorsTotal.toLocaleString('pt-BR') : '—'}
+                </p>
                 <p className="text-sm text-gray-500 mt-1">Tutores cadastrados</p>
               </div>
               <div className="bg-white rounded-2xl shadow-sm shadow-gray-200/50 border border-gray-100 p-5">
-                <p className="text-3xl font-bold text-gray-900">95%</p>
-                <p className="text-sm text-gray-500 mt-1">Avaliação positiva</p>
+                <p className="text-3xl font-bold text-gray-900">
+                  {typeof stats.petsTotal === 'number' ? stats.petsTotal.toLocaleString('pt-BR') : '—'}
+                </p>
+                <p className="text-sm text-gray-500 mt-1">Pets cadastrados</p>
               </div>
             </div>
           </div>

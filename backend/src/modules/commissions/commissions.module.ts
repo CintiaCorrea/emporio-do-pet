@@ -9,5 +9,3 @@ import { CommissionsService } from './commissions.service';
   providers: [CommissionsService],
 })
 export class CommissionsModule {}
-
-

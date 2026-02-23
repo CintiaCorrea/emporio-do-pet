@@ -27,5 +27,3 @@ export class CreateProductDto {
   @Min(0)
   stock?: number;
 }
-
-

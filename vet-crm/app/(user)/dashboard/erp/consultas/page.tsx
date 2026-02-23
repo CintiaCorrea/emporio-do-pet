@@ -24,9 +24,11 @@ import {
   LuSyringe,
   LuHeart,
   LuActivity,
-  LuSave
+  LuSave,
+  LuMic
 } from 'react-icons/lu';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
+import ConfirmDeleteModal from '@/components/common/ConfirmDeleteModal';
 
 // Tipos para Consulta (UI)
 type ConsultationStatus = 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED' | 'NO_SHOW' | 'CONFIRMED';
@@ -224,6 +226,7 @@ export default function ConsultationsPage() {
   const [typeFilter, setTypeFilter] = useState<ConsultationType | 'all'>('all');
   const [dateFilter, setDateFilter] = useState<string>('');
   const [selectedConsultation, setSelectedConsultation] = useState<Consultation | null>(null);
+  const [consultationToDelete, setConsultationToDelete] = useState<Consultation | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -598,15 +601,19 @@ export default function ConsultationsPage() {
         body: JSON.stringify({ status: 'IN_PROGRESS' }),
       });
 
-      if (response.ok) {
-        toast.success('Consulta iniciada!');
-        fetchConsultations();
-      } else {
-        throw new Error('Erro ao iniciar consulta');
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        const message =
+          (data && (data.error || (Array.isArray(data.message) ? data.message.join(', ') : data.message))) ||
+          'Erro ao iniciar consulta';
+        throw new Error(String(message));
       }
+
+      toast.success('Consulta iniciada com sucesso!');
+      fetchConsultations();
     } catch (err) {
       console.error('Erro ao iniciar consulta:', err);
-      toast.error('Erro ao iniciar consulta');
+      toast.error(err instanceof Error ? err.message : 'Erro ao iniciar consulta');
     }
   };
 
@@ -620,16 +627,20 @@ export default function ConsultationsPage() {
         body: JSON.stringify({ status: 'COMPLETED' }),
       });
 
-      if (response.ok) {
-        toast.success('Consulta finalizada!');
-        setIsModalOpen(false);
-        fetchConsultations();
-      } else {
-        throw new Error('Erro ao finalizar consulta');
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        const message =
+          (data && (data.error || (Array.isArray(data.message) ? data.message.join(', ') : data.message))) ||
+          'Erro ao finalizar consulta';
+        throw new Error(String(message));
       }
+
+      toast.success('Consulta finalizada com sucesso!');
+      setIsModalOpen(false);
+      fetchConsultations();
     } catch (err) {
       console.error('Erro ao finalizar consulta:', err);
-      toast.error('Erro ao finalizar consulta');
+      toast.error(err instanceof Error ? err.message : 'Erro ao finalizar consulta');
     }
   };
 
@@ -645,39 +656,46 @@ export default function ConsultationsPage() {
         body: JSON.stringify({ status: 'CANCELED' }),
       });
 
-      if (response.ok) {
-        toast.success('Consulta cancelada!');
-        fetchConsultations();
-      } else {
-        throw new Error('Erro ao cancelar consulta');
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        const message =
+          (data && (data.error || (Array.isArray(data.message) ? data.message.join(', ') : data.message))) ||
+          'Erro ao cancelar consulta';
+        throw new Error(String(message));
       }
+
+      toast.success('Consulta cancelada com sucesso!');
+      fetchConsultations();
     } catch (err) {
       console.error('Erro ao cancelar consulta:', err);
-      toast.error('Erro ao cancelar consulta');
+      toast.error(err instanceof Error ? err.message : 'Erro ao cancelar consulta');
     }
   };
 
-  const handleDeleteConsultation = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir esta consulta? Esta ação não pode ser desfeita.')) return;
+  const requestDeleteConsultation = (consultation: Consultation) => {
+    setConsultationToDelete(consultation);
+  };
 
-    try {
-      const response = await fetch(`/api/appointments/${id}`, {
-        method: 'DELETE',
-      });
+  const confirmDeleteConsultation = async () => {
+    if (!consultationToDelete) return;
 
-      if (response.ok) {
-        toast.success('Consulta excluída com sucesso!');
-        setIsModalOpen(false);
-        fetchConsultations();
-      } else {
-        const data = await response.json();
-        throw new Error(data.error || 'Erro ao excluir consulta');
-      }
-    } catch (err) {
-      console.error('Erro ao excluir consulta:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido ao excluir consulta';
-      toast.error(errorMessage);
+    const response = await fetch(`/api/appointments/${consultationToDelete.id}`, {
+      method: 'DELETE',
+    });
+
+    if (response.ok) {
+      toast.success('Consulta excluída com sucesso!');
+      setIsModalOpen(false);
+      await fetchConsultations();
+      setConsultationToDelete(null);
+      return;
     }
+
+    const data = await response.json().catch(() => null);
+    const message =
+      (data && (data.error || (Array.isArray(data.message) ? data.message.join(', ') : data.message))) ||
+      'Erro ao excluir consulta';
+    throw new Error(message);
   };
 
   // Recarregar quando filtros mudarem
@@ -702,7 +720,18 @@ export default function ConsultationsPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/10 w-full overflow-hidden">
-      <Toaster position="top-right" />
+      <ConfirmDeleteModal
+        isOpen={Boolean(consultationToDelete)}
+        entityLabel="Consulta"
+        itemName={
+          consultationToDelete
+            ? `${consultationToDelete.pet?.name || 'Pet'} • ${consultationToDelete.tutor?.name || 'Tutor'}`
+            : '—'
+        }
+        consequenceText="Esta ação não pode ser desfeita. A consulta será removida."
+        onClose={() => setConsultationToDelete(null)}
+        onConfirm={confirmDeleteConsultation}
+      />
       {/* Main Content */}
       <div className="p-6">
         <div className="max-w-7xl mx-auto">
@@ -987,6 +1016,20 @@ export default function ConsultationsPage() {
                                   <LuX className="w-4 h-4" />
                                 </button>
                               )}
+                              <Link
+                                href={`/dashboard/erp/consultas/${cons.id}/gravar`}
+                                className="p-2 text-violet-600 hover:bg-violet-50 rounded-2xl transition-colors"
+                                title="Gravar consulta & Gerar documentos"
+                              >
+                                <LuMic className="w-4 h-4" />
+                              </Link>
+                              <Link
+                                href={`/dashboard/erp/consultas/${cons.id}/documentos`}
+                                className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-2xl transition-colors"
+                                title="Ver documentos clínicos"
+                              >
+                                <LuFileText className="w-4 h-4" />
+                              </Link>
                               <button
                                 onClick={() => openEditModal(cons)}
                                 className="p-2 text-blue-600 hover:bg-blue-50 rounded-2xl transition-colors"
@@ -995,7 +1038,7 @@ export default function ConsultationsPage() {
                                 <LuPencil className="w-4 h-4" />
                               </button>
                               <button
-                                onClick={() => handleDeleteConsultation(cons.id)}
+                                onClick={() => requestDeleteConsultation(cons)}
                                 className="p-2 text-gray-400 hover:bg-gray-50 hover:text-red-600 rounded-2xl transition-colors"
                                 title="Excluir"
                               >
@@ -1170,6 +1213,20 @@ export default function ConsultationsPage() {
               >
                 Fechar
               </button>
+              <Link
+                href={`/dashboard/erp/consultas/${selectedConsultation.id}/gravar`}
+                className="px-6 py-3 text-white bg-violet-600 rounded-2xl hover:bg-violet-700 transition-colors flex items-center gap-2"
+              >
+                <LuMic className="w-4 h-4" />
+                Gravar & Documentos
+              </Link>
+              <Link
+                href={`/dashboard/erp/consultas/${selectedConsultation.id}/documentos`}
+                className="px-6 py-3 text-white bg-emerald-600 rounded-2xl hover:bg-emerald-700 transition-colors flex items-center gap-2"
+              >
+                <LuFileText className="w-4 h-4" />
+                Documentos
+              </Link>
               <button
                 onClick={() => openEditModal(selectedConsultation)}
                 className="px-6 py-3 text-white bg-teal-600 rounded-2xl hover:bg-teal-700 transition-colors flex items-center gap-2"

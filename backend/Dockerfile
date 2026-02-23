@@ -11,7 +11,7 @@ COPY pnpm-lock.yaml ./
 COPY prisma ./prisma/
 
 # Instalar pnpm e dependências
-RUN npm install -g pnpm && pnpm install --frozen-lockfile
+RUN npm install -g pnpm && pnpm install
 
 # Copiar código fonte
 COPY . .

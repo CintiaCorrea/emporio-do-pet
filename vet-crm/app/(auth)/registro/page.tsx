@@ -388,15 +388,17 @@ export default function RegisterPage() {
             <label htmlFor="acceptTerms" className="ml-2 block text-sm text-gray-900">
               Eu concordo com os{" "}
               <Link 
-                href="/terms" 
+                href="/termos-de-servico" 
                 className="font-medium text-blue-600 hover:text-blue-500 transition-colors duration-200"
+                target="_blank"
               >
-                termos de uso
+                termos de serviço
               </Link>{" "}
               e{" "}
               <Link 
-                href="/privacy" 
+                href="/politica-de-privacidade" 
                 className="font-medium text-blue-600 hover:text-blue-500 transition-colors duration-200"
+                target="_blank"
               >
                 política de privacidade
               </Link>

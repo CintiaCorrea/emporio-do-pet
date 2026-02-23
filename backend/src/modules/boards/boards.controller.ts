@@ -1,13 +1,4 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Patch,
-  Param,
-  Delete,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { BoardsService } from './boards.service';
 import { CreateBoardDto } from './dto/create-board.dto';
@@ -24,10 +15,7 @@ export class BoardsController {
 
   @Post()
   @ApiOperation({ summary: 'Criar novo board' })
-  create(
-    @CurrentUser('id') userId: string,
-    @Body() createBoardDto: CreateBoardDto,
-  ) {
+  create(@CurrentUser('id') userId: string, @Body() createBoardDto: CreateBoardDto) {
     return this.boardsService.create(userId, createBoardDto);
   }
 
@@ -35,6 +23,24 @@ export class BoardsController {
   @ApiOperation({ summary: 'Listar boards do usuário' })
   findAll(@CurrentUser('id') userId: string) {
     return this.boardsService.findAll(userId);
+  }
+
+  @Get('default/consultation')
+  @ApiOperation({ summary: 'Obter board de Consultas (cria se não existir)' })
+  getConsultationBoard(@CurrentUser('id') userId: string) {
+    return this.boardsService.getConsultationBoard(userId);
+  }
+
+  @Get('default/hospitalization')
+  @ApiOperation({ summary: 'Obter board de Internações (cria se não existir)' })
+  getHospitalizationBoard(@CurrentUser('id') userId: string) {
+    return this.boardsService.getHospitalizationBoard(userId);
+  }
+
+  @Post('default/ensure')
+  @ApiOperation({ summary: 'Garantir que boards padrão existam para o usuário' })
+  ensureDefaultBoards(@CurrentUser('id') userId: string) {
+    return this.boardsService.ensureDefaultBoards(userId);
   }
 
   @Get(':id')
@@ -65,4 +71,3 @@ export class BoardsController {
     return this.boardsService.remove(id, userId);
   }
 }
-

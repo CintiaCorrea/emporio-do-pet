@@ -24,5 +24,3 @@ export class CreateTreatmentDto {
   @IsUUID()
   productId?: string | null;
 }
-
-

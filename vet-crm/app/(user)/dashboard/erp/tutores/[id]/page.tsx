@@ -13,11 +13,14 @@ import ContactsSection from '@/components/protected/dashboard/tutors/detail/sect
 import AddressSection from '@/components/protected/dashboard/tutors/detail/sections/AdditionalSections';
 import StatusSidebar from '@/components/protected/dashboard/tutors/detail/sidebar/StatusSidebar';
 import AdditionalSections from '@/components/protected/dashboard/tutors/detail/sections/AdditionalSections';
+import ConfirmDeleteModal from '@/components/common/ConfirmDeleteModal';
+import toast from 'react-hot-toast';
 
 export default function TutorDetailPage() {
   const params = useParams();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
   const tutorId = params.id as string;
   const { tutor, loading, error, refetch } = useTutorDetail(tutorId);
@@ -28,24 +31,23 @@ export default function TutorDetailPage() {
 
   const handleDeleteTutor = async () => {
     if (!tutor) return;
+    setIsDeleteOpen(true);
+  };
 
-    if (confirm(`Tem certeza que deseja excluir o tutor "${tutor.name}"?`)) {
-      try {
-        const response = await fetch(`/api/tutors/${tutor.id}`, {
-          method: 'DELETE',
-        });
+  const confirmDeleteTutor = async () => {
+    if (!tutor) return;
 
-        if (response.ok) {
-          router.push('/dashboard/erp/tutores');
-        } else {
-          const errorData = await response.json();
-          alert(errorData.error || 'Erro ao excluir tutor');
-        }
-      } catch (error) {
-        console.error('Erro ao excluir tutor:', error);
-        alert('Erro ao excluir tutor');
-      }
+    const res = await fetch(`/api/tutors/${tutor.id}`, { method: 'DELETE' });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      const message =
+        (data && (data.error || (Array.isArray(data.message) ? data.message.join(', ') : data.message))) ||
+        'Erro ao excluir tutor';
+      throw new Error(message);
     }
+
+    toast.success('Tutor excluído com sucesso!');
+    router.push('/dashboard/erp/tutores');
   };
 
   if (loading) {
@@ -84,6 +86,16 @@ export default function TutorDetailPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/20 overflow-hidden">
+      {tutor && (
+        <ConfirmDeleteModal
+          isOpen={isDeleteOpen}
+          entityLabel="Tutor"
+          itemName={tutor.name || '—'}
+          consequenceText="Esta ação não pode ser desfeita. Os dados do tutor serão removidos."
+          onClose={() => setIsDeleteOpen(false)}
+          onConfirm={confirmDeleteTutor}
+        />
+      )}
       <Sidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
       
       <div className={`min-h-screen transition-all duration-500 ${

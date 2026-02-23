@@ -102,7 +102,9 @@ export class CreateAppointmentDto {
   @Type(() => CreateAppointmentTreatmentDto)
   treatments?: CreateAppointmentTreatmentDto[];
 
-  @ApiPropertyOptional({ description: 'Criar pet junto do appointment (quando petId não for enviado)' })
+  @ApiPropertyOptional({
+    description: 'Criar pet junto do appointment (quando petId não for enviado)',
+  })
   @IsOptional()
   @ValidateNested()
   @Type(() => CreateAppointmentPetDto)
@@ -123,4 +125,3 @@ export class CreateAppointmentTreatmentDto {
   @IsUUID()
   productId?: string;
 }
-

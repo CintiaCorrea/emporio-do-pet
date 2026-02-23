@@ -1,11 +1,4 @@
-import {
-  IsEmail,
-  IsEnum,
-  IsOptional,
-  IsString,
-  IsArray,
-  IsObject,
-} from 'class-validator';
+import { IsEmail, IsEnum, IsOptional, IsString, IsArray, IsObject } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export enum LeadSourceDto {

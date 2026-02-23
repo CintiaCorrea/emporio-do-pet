@@ -1,5 +1,5 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService, PrismaTransactionClient } from '../prisma/prisma.service';
 import { CreateColumnDto } from './dto/create-column.dto';
 import { UpdateColumnDto } from './dto/update-column.dto';
 import { CreateCardDto } from './dto/create-card.dto';
@@ -50,6 +50,29 @@ export class ColumnsService {
                 pet: { select: { id: true, name: true, species: true } },
               },
             },
+            lead: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                phone: true,
+                status: true,
+                currentScore: true,
+                source: true,
+                tags: true,
+              },
+            },
+            client: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                phone: true,
+                status: true,
+                type: true,
+                totalRevenue: true,
+              },
+            },
           },
         },
       },
@@ -59,7 +82,7 @@ export class ColumnsService {
   async createBoardColumn(boardId: string, userId: string, dto: CreateColumnDto) {
     await this.assertBoardOwnership(boardId, userId);
 
-    return this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx: PrismaTransactionClient) => {
       const existingCount = await tx.kanbanColumn.count({ where: { boardId } });
       const desiredIndex = dto.position ?? existingCount; // 0-based
       const desiredDbPosition = desiredIndex + 1; // 1-based
@@ -82,10 +105,14 @@ export class ColumnsService {
     });
   }
 
-  async batchUpdateBoardColumns(boardId: string, userId: string, updates: { id: string; position: number }[]) {
+  async batchUpdateBoardColumns(
+    boardId: string,
+    userId: string,
+    updates: { id: string; position: number }[],
+  ) {
     await this.assertBoardOwnership(boardId, userId);
 
-    return this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx: PrismaTransactionClient) => {
       const columnIds = updates.map((u) => u.id);
 
       const existing = await tx.kanbanColumn.findMany({
@@ -143,10 +170,15 @@ export class ColumnsService {
     });
   }
 
-  private async moveColumn(columnId: string, userId: string, newIndex: number, dto?: UpdateColumnDto) {
+  private async moveColumn(
+    columnId: string,
+    userId: string,
+    newIndex: number,
+    dto?: UpdateColumnDto,
+  ) {
     const column = await this.findColumnForUser(columnId, userId);
 
-    return this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx: PrismaTransactionClient) => {
       const boardId = column.boardId;
 
       // Estratégia "2 fases" para evitar P2002 (boardId, position):
@@ -160,7 +192,7 @@ export class ColumnsService {
         select: { id: true },
       });
 
-      const fromIndex = columns.findIndex((c) => c.id === columnId);
+      const fromIndex = columns.findIndex((c: { id: string }) => c.id === columnId);
       if (fromIndex === -1) throw new NotFoundException('Coluna não encontrada');
 
       const clampedToIndex = Math.max(0, Math.min(newIndex, columns.length - 1));
@@ -216,7 +248,7 @@ export class ColumnsService {
   async deleteColumn(columnId: string, userId: string) {
     const column = await this.findColumnForUser(columnId, userId);
 
-    return this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx: PrismaTransactionClient) => {
       const boardId = column.boardId;
 
       await tx.kanbanCard.deleteMany({ where: { columnId } });
@@ -230,7 +262,7 @@ export class ColumnsService {
       });
 
       await Promise.all(
-        remaining.map((c, idx) =>
+        remaining.map((c: { id: string }, idx: number) =>
           tx.kanbanColumn.update({
             where: { id: c.id },
             data: { position: idx + 1 },
@@ -248,35 +280,106 @@ export class ColumnsService {
   async createCard(columnId: string, userId: string, dto: CreateCardDto) {
     const column = await this.findColumnForUser(columnId, userId);
 
-    return this.prisma.$transaction(async (tx) => {
+    // Validate that only one entity is linked
+    const entityLinks = [dto.appointmentId, dto.leadId, dto.clientId].filter(Boolean);
+    if (entityLinks.length > 1) {
+      throw new BadRequestException('Card can only be linked to one entity (appointment, lead, or client)');
+    }
+
+    return this.prisma.$transaction(async (tx: PrismaTransactionClient) => {
+      // Validate entity references
       if (dto.appointmentId) {
         const appt = await tx.appointment.findFirst({
-          where: { id: dto.appointmentId, userId },
+          where: { id: dto.appointmentId },
           select: { id: true },
         });
-        if (!appt) throw new ForbiddenException('Agendamento não pertence ao usuário');
+        if (!appt) throw new NotFoundException('Agendamento não encontrado');
       }
 
-      const existingCount = await tx.kanbanCard.count({ where: { columnId } });
-      const desiredIndex = dto.position ?? existingCount; // 0-based
-      const desiredDbPosition = desiredIndex + 1; // 1-based
+      if (dto.leadId) {
+        const lead = await tx.lead.findFirst({
+          where: { id: dto.leadId },
+          select: { id: true },
+        });
+        if (!lead) throw new NotFoundException('Lead não encontrado');
+      }
 
-      await tx.kanbanCard.updateMany({
-        where: { columnId, position: { gte: desiredDbPosition } },
-        data: { position: { increment: 1 } },
+      if (dto.clientId) {
+        const client = await tx.client.findFirst({
+          where: { id: dto.clientId },
+          select: { id: true },
+        });
+        if (!client) throw new NotFoundException('Cliente não encontrado');
+      }
+
+      const existingCards = await tx.kanbanCard.findMany({
+        where: { columnId },
+        orderBy: { position: 'asc' },
+        select: { id: true, position: true },
       });
 
-      return tx.kanbanCard.create({
+      const desiredIndex = dto.position ?? existingCards.length;
+      const clampedIndex = Math.max(0, Math.min(desiredIndex, existingCards.length));
+
+      // 1) First, move all cards to temporary negative positions to avoid unique constraint conflicts
+      await Promise.all(
+        existingCards.map((card, idx) =>
+          tx.kanbanCard.update({
+            where: { id: card.id },
+            data: { position: -(idx + 1) },
+          }),
+        ),
+      );
+
+      // 2) Create the new card at a temporary position
+      const newCard = await tx.kanbanCard.create({
         data: {
           title: dto.title,
           description: dto.description,
           appointmentId: dto.appointmentId,
-          position: desiredDbPosition,
+          leadId: dto.leadId,
+          clientId: dto.clientId,
+          position: -(existingCards.length + 1),
           columnId,
+          priority: dto.priority || 'medium',
+          dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
+          assignedTo: dto.assignedTo,
+          tags: dto.tags || [],
+          metadata: dto.metadata as any,
+        },
+      });
+
+      // 3) Build final positions array with new card inserted
+      const cardIds = existingCards.map((c) => c.id);
+      cardIds.splice(clampedIndex, 0, newCard.id);
+
+      // 4) Assign final 1-based positions
+      await Promise.all(
+        cardIds.map((cardId, idx) =>
+          tx.kanbanCard.update({
+            where: { id: cardId },
+            data: { position: idx + 1 },
+          }),
+        ),
+      );
+
+      return tx.kanbanCard.findUnique({
+        where: { id: newCard.id },
+        include: {
+          appointment: dto.appointmentId ? {
+            include: {
+              tutor: { select: { id: true, name: true } },
+              pet: { select: { id: true, name: true, species: true } },
+            },
+          } : false,
+          lead: dto.leadId ? {
+            select: { id: true, name: true, email: true, phone: true, status: true, currentScore: true },
+          } : false,
+          client: dto.clientId ? {
+            select: { id: true, name: true, email: true, phone: true, status: true },
+          } : false,
         },
       });
     });
   }
 }
-
-

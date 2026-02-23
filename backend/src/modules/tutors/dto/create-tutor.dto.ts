@@ -59,6 +59,11 @@ export class CreateTutorDto {
   @IsString()
   name: string;
 
+  @ApiPropertyOptional({ example: true, default: true, description: 'Status do tutor' })
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+
   @ApiPropertyOptional({ example: 'maria@email.com' })
   @IsOptional()
   @Transform(({ value }) => (value === '' ? undefined : value))
@@ -214,4 +219,3 @@ export class CreateTutorDto {
   @ArrayMinSize(1)
   contacts?: CreateTutorContactDto[];
 }
-

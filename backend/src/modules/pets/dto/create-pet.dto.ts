@@ -129,5 +129,14 @@ export class CreatePetDto {
   @IsOptional()
   @IsString()
   medicalNotes?: string;
-}
 
+  @ApiPropertyOptional({
+    description: 'Lista de documentos do pet (ex.: URLs ou nomes)',
+    type: [String],
+    example: ['https://.../arquivo.pdf', 'Carteira de vacinação - Jan/2026'],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  documents?: string[];
+}

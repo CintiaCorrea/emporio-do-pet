@@ -80,6 +80,17 @@ export default function GeneralTab({
             <option value="OTHER">Outro</option>
           </select>
         </FormField>
+
+        <FormField label="Status" icon={<LuUser className="w-4 h-4 mr-2 text-blue-500" />}>
+          <select
+            value={tutor.isActive ? 'true' : 'false'}
+            onChange={(e) => onTutorChange('isActive', e.target.value === 'true')}
+            className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm"
+          >
+            <option value="true">Ativo</option>
+            <option value="false">Inativo</option>
+          </select>
+        </FormField>
       </div>
 
       {/* Email */}

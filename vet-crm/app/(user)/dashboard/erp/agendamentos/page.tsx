@@ -20,6 +20,8 @@ import {
   LuMail,
   LuMapPin
 } from 'react-icons/lu';
+import ConfirmDeleteModal from '@/components/common/ConfirmDeleteModal';
+import toast from 'react-hot-toast';
 
 // Tipos baseados no schema Prisma
 type AppointmentStatus = 'SCHEDULED' | 'CONFIRMED' | 'COMPLETED' | 'CANCELED' | 'IN_PROGRESS';
@@ -97,6 +99,7 @@ export default function AppointmentsPage() {
   const [tutorFilter, setTutorFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState('all');
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+  const [appointmentToDelete, setAppointmentToDelete] = useState<Appointment | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Buscar appointments da API
@@ -178,12 +181,15 @@ export default function AppointmentsPage() {
 
       if (response.ok) {
         fetchAppointments(); // Recarregar lista
+        toast.success('Agendamento confirmado com sucesso!');
       } else {
         throw new Error('Erro ao confirmar agendamento');
       }
     } catch (err) {
       console.error('Erro ao confirmar appointment:', err);
-      setError('Erro ao confirmar agendamento');
+      const message = err instanceof Error ? err.message : 'Erro ao confirmar agendamento';
+      setError(message);
+      toast.error(message);
     }
   };
 
@@ -201,12 +207,15 @@ export default function AppointmentsPage() {
 
       if (response.ok) {
         fetchAppointments(); // Recarregar lista
+        toast.success('Agendamento cancelado com sucesso!');
       } else {
         throw new Error('Erro ao cancelar agendamento');
       }
     } catch (err) {
       console.error('Erro ao cancelar appointment:', err);
-      setError('Erro ao cancelar agendamento');
+      const message = err instanceof Error ? err.message : 'Erro ao cancelar agendamento';
+      setError(message);
+      toast.error(message);
     }
   };
 
@@ -224,34 +233,41 @@ export default function AppointmentsPage() {
 
       if (response.ok) {
         fetchAppointments(); // Recarregar lista
+        toast.success('Agendamento concluído com sucesso!');
       } else {
         throw new Error('Erro ao completar agendamento');
       }
     } catch (err) {
       console.error('Erro ao completar appointment:', err);
-      setError('Erro ao completar agendamento');
+      const message = err instanceof Error ? err.message : 'Erro ao completar agendamento';
+      setError(message);
+      toast.error(message);
     }
   };
 
-  const handleDeleteAppointment = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir este agendamento?')) {
+  const requestDeleteAppointment = (appointment: Appointment) => {
+    setAppointmentToDelete(appointment);
+  };
+
+  const confirmDeleteAppointment = async () => {
+    if (!appointmentToDelete) return;
+
+    const response = await fetch(`/api/appointments/${appointmentToDelete.id}`, {
+      method: 'DELETE',
+    });
+
+    if (response.ok) {
+      await fetchAppointments(); // Recarregar lista
+      toast.success('Agendamento excluído com sucesso!');
+      setAppointmentToDelete(null);
       return;
     }
 
-    try {
-      const response = await fetch(`/api/appointments/${id}`, {
-        method: 'DELETE',
-      });
-
-      if (response.ok) {
-        fetchAppointments(); // Recarregar lista
-      } else {
-        throw new Error('Erro ao excluir agendamento');
-      }
-    } catch (err) {
-      console.error('Erro ao excluir appointment:', err);
-      setError('Erro ao excluir agendamento');
-    }
+    const data = await response.json().catch(() => null);
+    const message =
+      (data && (data.error || (Array.isArray(data.message) ? data.message.join(', ') : data.message))) ||
+      'Erro ao excluir agendamento';
+    throw new Error(message);
   };
 
   const openAppointmentDetails = (appointment: Appointment) => {
@@ -328,6 +344,18 @@ export default function AppointmentsPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/10 w-full overflow-hidden">
+      <ConfirmDeleteModal
+        isOpen={Boolean(appointmentToDelete)}
+        entityLabel="Agendamento"
+        itemName={
+          appointmentToDelete
+            ? `${appointmentToDelete.pet?.name || 'Pet'} • ${appointmentToDelete.tutor?.name || 'Tutor'}`
+            : '—'
+        }
+        consequenceText="Esta ação não pode ser desfeita. O agendamento será removido."
+        onClose={() => setAppointmentToDelete(null)}
+        onConfirm={confirmDeleteAppointment}
+      />
       <div className="p-6">
         <div className="max-w-7xl mx-auto">
             {/* Header */}
@@ -619,7 +647,7 @@ export default function AppointmentsPage() {
                                 </button>
                               )}
                               <button
-                                onClick={() => handleDeleteAppointment(appointment.id)}
+                                onClick={() => requestDeleteAppointment(appointment)}
                                 className="p-2 text-gray-400 hover:bg-gray-50 hover:text-red-600 rounded-2xl transition-colors"
                                 title="Excluir consulta"
                               >

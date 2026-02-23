@@ -17,11 +17,32 @@ export function useTutorDetail(tutorId: string) {
         if (response.status === 404) {
           throw new Error('Tutor não encontrado');
         }
-        throw new Error(`Erro ${response.status}: ${response.statusText}`);
+        const raw = await response.text();
+        let message = response.statusText;
+        try {
+          const parsed = raw ? (JSON.parse(raw) as any) : null;
+          const fromApi =
+            parsed?.error ||
+            (Array.isArray(parsed?.message) ? parsed.message.join(', ') : parsed?.message);
+          if (typeof fromApi === 'string' && fromApi.trim().length > 0) {
+            message = fromApi;
+          } else if (raw && raw.trim().length > 0) {
+            message = raw;
+          }
+        } catch {
+          if (raw && raw.trim().length > 0) message = raw;
+        }
+
+        throw new Error(`Erro ${response.status}: ${message}`);
       }
       
       const data: Tutor = await response.json();
-      setTutor(data);
+      // Backward compatible: se o backend ainda não retornar isActive, assume Ativo
+      const normalized = {
+        ...data,
+        isActive: (data as any)?.isActive !== false,
+      } as Tutor;
+      setTutor(normalized);
     } catch (error) {
       console.error('Erro ao buscar tutor:', error);
       setError(error instanceof Error ? error.message : 'Erro desconhecido');

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { 
+import {
   LuUsers,
   LuPawPrint,
   LuCalendar,
@@ -104,33 +104,34 @@ export default function DashboardPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
       const [summaryRes, activitiesRes, appointmentsRes] = await Promise.all([
-        fetch('/api/dashboard/summary'),
-        fetch('/api/dashboard/recent-activities?limit=6'),
-        fetch('/api/dashboard/upcoming-appointments?limit=5'),
+        fetch('/api/dashboard/summary').catch(() => null),
+        fetch('/api/dashboard/recent-activities?limit=6').catch(() => null),
+        fetch('/api/dashboard/upcoming-appointments?limit=5').catch(() => null),
       ]);
 
-      if (!summaryRes.ok) {
-        throw new Error('Erro ao carregar resumo do dashboard');
+      if (summaryRes?.ok) {
+        const summaryData = await summaryRes.json();
+        setData(summaryData);
+      } else {
+        // Fallback to defaults when backend is unavailable or user is not authenticated
+        setData(defaultData);
       }
 
-      const summaryData = await summaryRes.json();
-      setData(summaryData);
-
-      if (activitiesRes.ok) {
+      if (activitiesRes?.ok) {
         const activitiesData = await activitiesRes.json();
         setAtividades(activitiesData);
       }
 
-      if (appointmentsRes.ok) {
+      if (appointmentsRes?.ok) {
         const appointmentsData = await appointmentsRes.json();
         setAgendamentos(appointmentsData);
       }
     } catch (err) {
       console.error('Erro ao carregar dashboard:', err);
-      setError(err instanceof Error ? err.message : 'Erro ao carregar dados');
+      setData(defaultData);
     } finally {
       setLoading(false);
     }
@@ -166,9 +167,9 @@ export default function DashboardPage() {
     }
   };
 
-  const hoje = new Date().toLocaleDateString('pt-BR', { 
-    weekday: 'long', 
-    day: 'numeric', 
+  const hoje = new Date().toLocaleDateString('pt-BR', {
+    weekday: 'long',
+    day: 'numeric',
     month: 'long',
     year: 'numeric'
   });
@@ -187,7 +188,7 @@ export default function DashboardPage() {
   return (
     <div className="p-6 lg:p-8">
       <div className="max-w-[1600px] mx-auto">
-        
+
         {/* Header */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-8">
           <div>
@@ -202,17 +203,16 @@ export default function DashboardPage() {
                 <button
                   key={filter}
                   onClick={() => setTimeFilter(filter as 'hoje' | 'semana' | 'mes')}
-                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-                    timeFilter === filter
+                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${timeFilter === filter
                       ? 'bg-blue-600 text-white shadow-sm'
                       : 'text-gray-600 hover:bg-gray-100'
-                  }`}
+                    }`}
                 >
                   {filter === 'hoje' ? 'Hoje' : filter === 'semana' ? 'Semana' : 'Mês'}
                 </button>
               ))}
             </div>
-            <button 
+            <button
               onClick={fetchData}
               disabled={loading}
               className="p-2.5 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50"
@@ -227,7 +227,7 @@ export default function DashboardPage() {
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3">
             <LuCircleAlert className="w-5 h-5 text-red-500 flex-shrink-0" />
             <p className="text-red-700 text-sm">{error}</p>
-            <button 
+            <button
               onClick={fetchData}
               className="ml-auto text-sm font-medium text-red-600 hover:text-red-700"
             >
@@ -334,7 +334,7 @@ export default function DashboardPage() {
 
         {/* Grid Principal de Conteúdo */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          
+
           {/* Coluna 1 - Agendamentos do Dia */}
           <div className="lg:col-span-1">
             <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
@@ -349,7 +349,7 @@ export default function DashboardPage() {
                       <p className="text-sm text-gray-500">{data.agendamentosHoje} agendamentos</p>
                     </div>
                   </div>
-                  <Link 
+                  <Link
                     href="/dashboard/erp/agendamentos"
                     className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
                   >
@@ -383,7 +383,7 @@ export default function DashboardPage() {
                 )}
               </div>
               <div className="p-4 bg-gray-50/50 border-t border-gray-100">
-                <Link 
+                <Link
                   href="/dashboard/erp/agendamentos"
                   className="flex items-center justify-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
                 >
@@ -527,7 +527,7 @@ export default function DashboardPage() {
                 <span className="font-semibold text-amber-600">{formatCurrency(data.comissoesPendentes)}</span>
               </div>
             </div>
-            <Link 
+            <Link
               href="/dashboard/erp/financeiro"
               className="flex items-center justify-center gap-2 mt-4 pt-4 border-t border-gray-100 text-sm font-medium text-emerald-600 hover:text-emerald-700 transition-colors"
             >
@@ -557,7 +557,7 @@ export default function DashboardPage() {
                 <span className="font-semibold text-rose-600">{data.alertasEstoque}</span>
               </div>
             </div>
-            <Link 
+            <Link
               href="/dashboard/erp/estoque"
               className="flex items-center justify-center gap-2 mt-4 pt-4 border-t border-gray-100 text-sm font-medium text-amber-600 hover:text-amber-700 transition-colors"
             >
@@ -606,7 +606,7 @@ export default function DashboardPage() {
                 </div>
               </div>
             </div>
-            <Link 
+            <Link
               href="/dashboard/erp/servicos"
               className="flex items-center justify-center gap-2 mt-4 pt-4 border-t border-gray-100 text-sm font-medium text-indigo-600 hover:text-indigo-700 transition-colors"
             >
@@ -649,7 +649,7 @@ export default function DashboardPage() {
                 <span className="text-xs font-medium text-emerald-600">Online</span>
               </div>
             </div>
-            <Link 
+            <Link
               href="/dashboard/ai-agents/conexoes"
               className="flex items-center justify-center gap-2 mt-4 pt-4 border-t border-gray-100 text-sm font-medium text-violet-600 hover:text-violet-700 transition-colors"
             >
@@ -663,7 +663,7 @@ export default function DashboardPage() {
         <div className="bg-white rounded-2xl border border-gray-100 p-6">
           <h2 className="font-semibold text-gray-900 mb-4">Ações Rápidas</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-            <Link 
+            <Link
               href="/dashboard/erp/agendamentos"
               className="flex flex-col items-center gap-2 p-4 rounded-xl bg-gray-50 hover:bg-blue-50 hover:text-blue-600 transition-all group"
             >
@@ -673,7 +673,7 @@ export default function DashboardPage() {
               <span className="text-sm font-medium text-gray-700 group-hover:text-blue-600 transition-colors">Agendar</span>
             </Link>
 
-            <Link 
+            <Link
               href="/dashboard/erp/tutores/novo"
               className="flex flex-col items-center gap-2 p-4 rounded-xl bg-gray-50 hover:bg-purple-50 hover:text-purple-600 transition-all group"
             >
@@ -683,7 +683,7 @@ export default function DashboardPage() {
               <span className="text-sm font-medium text-gray-700 group-hover:text-purple-600 transition-colors">Novo Tutor</span>
             </Link>
 
-            <Link 
+            <Link
               href="/dashboard/erp/pets/novo"
               className="flex flex-col items-center gap-2 p-4 rounded-xl bg-gray-50 hover:bg-amber-50 hover:text-amber-600 transition-all group"
             >
@@ -693,7 +693,7 @@ export default function DashboardPage() {
               <span className="text-sm font-medium text-gray-700 group-hover:text-amber-600 transition-colors">Novo Pet</span>
             </Link>
 
-            <Link 
+            <Link
               href="/dashboard/erp/consultas"
               className="flex flex-col items-center gap-2 p-4 rounded-xl bg-gray-50 hover:bg-teal-50 hover:text-teal-600 transition-all group"
             >
@@ -703,7 +703,7 @@ export default function DashboardPage() {
               <span className="text-sm font-medium text-gray-700 group-hover:text-teal-600 transition-colors">Consultas</span>
             </Link>
 
-            <Link 
+            <Link
               href="/dashboard/campanhas/newsletter/novo"
               className="flex flex-col items-center gap-2 p-4 rounded-xl bg-gray-50 hover:bg-cyan-50 hover:text-cyan-600 transition-all group"
             >
@@ -713,7 +713,7 @@ export default function DashboardPage() {
               <span className="text-sm font-medium text-gray-700 group-hover:text-cyan-600 transition-colors">Newsletter</span>
             </Link>
 
-            <Link 
+            <Link
               href="/dashboard/ai-agents"
               className="flex flex-col items-center gap-2 p-4 rounded-xl bg-gray-50 hover:bg-violet-50 hover:text-violet-600 transition-all group"
             >

@@ -70,6 +70,6 @@ export default function BoardPage() {
   }
 
   return (
-    <KanbanBoard boardId={boardId} boardName={board.name} />
+    <KanbanBoard boardId={boardId} boardName={board.name} boardType={board.type} />
   );
 }

@@ -159,6 +159,8 @@ model User {
   password      String?
   role          Role         @default(VETERINARIAN)
   permissions   String[]     @default([])
+  isApproved    Boolean      @default(true)
+  isBlocked     Boolean      @default(false)
   
   // Relacionamentos
   accounts      Account[]
@@ -167,6 +169,20 @@ model User {
   newsletters   Newsletter[]
   appointments  Appointment[] // NOVO: Relacionamento com agendamentos
   integrationSettings IntegrationSettings?
+  documents     Document[]
+  
+  // AI Agents
+  aiAgents        AIAgent[]
+  agentTemplates  AgentTemplate[]
+  automations     Automation[]
+  
+  // WhatsApp
+  whatsappConversations WhatsAppConversation[]
+  whatsappCampaigns     WhatsAppCampaign[]
+  notifications         Notification[]
+
+  // Documentos Clínicos
+  clinicalDocuments ClinicalDocument[]
   
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
@@ -178,6 +194,7 @@ model Tutor {
   // Informações Básicas
   type             PersonType   @default(INDIVIDUAL)
   name             String
+  isActive         Boolean      @default(true) @map("isactive")
   email            String?      @unique
   nationality      String       @default("Brasileira")
   gender           Gender?
@@ -213,6 +230,9 @@ model Tutor {
   recipients       Recipient[]
   pets             Pet[]
   appointments     Appointment[]
+  clinicalDocuments ClinicalDocument[]
+  // WhatsApp
+  whatsappConversations WhatsAppConversation[]
   // Timestamps
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
@@ -267,16 +287,32 @@ model Pet {
   observations    String?           // Observações gerais
   allergies       String[]          // Lista de alergias
   medicalNotes    String?           // Notas médicas importantes
+  documents       String[]          @default([]) // Lista de documentos (URLs/nomes)
   // Relacionamentos
   tutorId         String
   tutor           Tutor             @relation(fields: [tutorId], references: [id], onDelete: Cascade)
   appointments    Appointment[]
   treatments      Treatment[]
+  clinicalDocuments ClinicalDocument[]
   // Timestamps
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
   @@map("pets")
+}
+
+// Raças de pet (por espécie) para autocomplete/criação dinâmica
+model PetBreed {
+  id        String     @id @default(uuid())
+  species   PetSpecies
+  name      String
+  nameKey   String     @map("name_key") // lowercase/trim para unicidade
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@unique([species, nameKey])
+  @@index([species])
+  @@map("pet_breeds")
 }
 
 // ATUALIZADO: Appointment com campos para a UI
@@ -301,6 +337,10 @@ model Appointment {
   kanbanCard   KanbanCard?
   boardId      String?
   board        Board?   @relation(fields: [boardId], references: [id], onDelete: SetNull)
+
+  // Gravação e documentos clínicos
+  recording         ConsultationRecording?
+  clinicalDocuments ClinicalDocument[]
   
   // Timestamps
   createdAt    DateTime          @default(now())
@@ -463,6 +503,7 @@ model IntegrationSettings {
   openaiConfig    String?  @db.Text
   geminiConfig    String?  @db.Text
   deepseekConfig  String?  @db.Text
+  emailConfig     String?  @db.Text
   
   // Relacionamento com usuário
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -471,4 +512,577 @@ model IntegrationSettings {
   updatedAt       DateTime @updatedAt
   
   @@map("integration_settings")
+}
+
+// ============================================
+// AI Agents - Agentes, Templates e Automações
+// ============================================
+
+enum AIProvider {
+  OPENAI
+  GEMINI
+  DEEPSEEK
+}
+
+enum AgentType {
+  CHATBOT
+  AUTOMATION
+  ASSISTANT
+  SCHEDULER
+}
+
+enum AgentStatus {
+  ACTIVE
+  PAUSED
+  DRAFT
+  ERROR
+}
+
+enum TemplateCategory {
+  ATENDIMENTO
+  VENDAS
+  MARKETING
+  SUPORTE
+  AGENDAMENTO
+  PERSONALIZADO
+}
+
+enum TemplateStatus {
+  PUBLISHED
+  DRAFT
+  ARCHIVED
+}
+
+enum AutomationCategory {
+  ATENDIMENTO
+  MARKETING
+  NOTIFICACAO
+  INTEGRACAO
+  AGENDAMENTO
+}
+
+enum AutomationTrigger {
+  SCHEDULE
+  WEBHOOK
+  EVENT
+  MANUAL
+}
+
+enum ExecutionStatus {
+  SUCCESS
+  FAILED
+  PENDING
+  RUNNING
+}
+
+// AI Agent - Agentes de IA configuráveis
+model AIAgent {
+  id              String        @id @default(uuid())
+  userId          String
+  name            String
+  description     String?
+  type            AgentType     @default(CHATBOT)
+  status          AgentStatus   @default(DRAFT)
+  provider        AIProvider    @default(OPENAI)
+  model           String        @default("gpt-4o-mini")
+  systemPrompt    String        @db.Text
+  temperature     Float         @default(0.7)
+  maxTokens       Int           @default(4096)
+  templateId      String?
+  
+  // Métricas (desnormalizadas para performance)
+  totalInteractions Int         @default(0)
+  successRate       Float       @default(0)
+  avgResponseTime   Float       @default(0)
+  lastActiveAt      DateTime?
+  
+  // Voice settings (WhatsApp)
+  voiceEnabled    Boolean       @default(false)
+  voiceId         String        @default("nova")
+  voiceSpeed      Float         @default(1.0)
+  voiceModel      String        @default("tts-1")
+  
+  // Relacionamentos
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  template        AgentTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  executions      AgentExecution[]
+  automations     Automation[]
+  whatsappConversations WhatsAppConversation[]
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  @@index([userId, status])
+  @@index([type])
+  @@map("ai_agents")
+}
+
+// Template de Agente - Prompts reutilizáveis
+model AgentTemplate {
+  id            String           @id @default(uuid())
+  userId        String
+  name          String
+  description   String?
+  category      TemplateCategory @default(PERSONALIZADO)
+  status        TemplateStatus   @default(DRAFT)
+  content       String           @db.Text
+  variables     String[]         @default([])
+  provider      AIProvider?
+  model         String?
+  isDefault     Boolean          @default(false)
+  usageCount    Int              @default(0)
+  rating        Float?
+  
+  // Relacionamentos
+  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agents        AIAgent[]
+  
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  
+  @@index([userId, category])
+  @@index([status])
+  @@map("agent_templates")
+}
+
+// Execução de Agente - Log de execuções
+model AgentExecution {
+  id          String          @id @default(uuid())
+  agentId     String
+  status      ExecutionStatus @default(PENDING)
+  input       String?         @db.Text
+  output      String?         @db.Text
+  usage       Json?           // {prompt_tokens, completion_tokens, total_tokens}
+  latencyMs   Int?
+  error       String?         @db.Text
+  metadata    Json?           // Dados extras (tutor, pet, etc.)
+  
+  // Relacionamentos
+  agent       AIAgent         @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime        @default(now())
+  
+  @@index([agentId, createdAt])
+  @@index([status])
+  @@map("agent_executions")
+}
+
+// Automação - Fluxos automatizados
+model Automation {
+  id            String             @id @default(uuid())
+  userId        String
+  agentId       String?
+  name          String
+  description   String?
+  category      AutomationCategory @default(ATENDIMENTO)
+  status        AgentStatus        @default(DRAFT)
+  trigger       AutomationTrigger  @default(MANUAL)
+  triggerConfig Json?              // Configuração do trigger (cron, evento, etc.)
+  
+  // Métricas (desnormalizadas)
+  executions    Int                @default(0)
+  successRate   Float              @default(0)
+  avgDuration   Float              @default(0)
+  lastRunAt     DateTime?
+  
+  // Relacionamentos
+  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agent         AIAgent?           @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  steps         AutomationStep[]
+  logs          AutomationLog[]
+  
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  
+  @@index([userId, status])
+  @@index([category])
+  @@map("automations")
+}
+
+// Step de Automação - Passos do fluxo
+model AutomationStep {
+  id            String     @id @default(uuid())
+  automationId  String
+  type          String     // query, filter, message, email, delay, webhook, ai_chat
+  name          String
+  config        Json?      // Configuração específica do step
+  position      Int
+  
+  // Relacionamentos
+  automation    Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  
+  @@unique([automationId, position])
+  @@map("automation_steps")
+}
+
+// Log de Automação - Histórico de execuções
+model AutomationLog {
+  id            String          @id @default(uuid())
+  automationId  String
+  status        ExecutionStatus @default(PENDING)
+  duration      Int?            // ms
+  triggeredBy   String?         // manual, schedule, event, webhook
+  stepsExecuted Int             @default(0)
+  error         String?         @db.Text
+  metadata      Json?           // Dados extras da execução
+  
+  // Relacionamentos
+  automation    Automation      @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  
+  createdAt     DateTime        @default(now())
+  
+  @@index([automationId, createdAt])
+  @@index([status])
+  @@map("automation_logs")
+}
+
+// ============================================
+// Documentos - Templates de documentos
+// ============================================
+
+enum DocumentStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+// Documentos Clínicos
+enum ClinicalDocumentType {
+  ANAMNESIS
+  PRESCRIPTION
+  DIAGNOSIS
+  TUTOR_REPORT
+  MEDICAL_CERTIFICATE
+  EXAM_REQUEST
+  SURGICAL_REPORT
+  DISCHARGE_SUMMARY
+  VACCINATION_CARD
+  GENERAL
+}
+
+enum RecordingStatus {
+  RECORDING
+  PROCESSING
+  TRANSCRIBED
+  ANALYZED
+  COMPLETED
+  FAILED
+}
+
+model Document {
+  id          String         @id @default(uuid())
+  userId      String
+  title       String
+  content     String         @db.Text  // HTML do TipTap
+  status      DocumentStatus @default(DRAFT)
+  category    String?
+  tags        String[]       @default([])
+  
+  // Relacionamentos
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  
+  @@index([userId, status])
+  @@index([category])
+  @@map("documents")
+}
+
+// ============================================
+// Documentos Clínicos - Gravação e Geração por IA
+// ============================================
+
+// Gravação de Consulta - Áudio e transcrição
+model ConsultationRecording {
+  id              String          @id @default(uuid())
+  appointmentId   String          @unique
+  userId          String
+  audioUrl        String?
+  audioFileName   String?
+  audioDuration   Int?
+  transcription   String?         @db.Text
+  aiAnalysis      String?         @db.Text
+  aiSummary       String?         @db.Text
+  status          RecordingStatus @default(RECORDING)
+  language        String          @default("pt-BR")
+  errorMessage    String?
+
+  appointment     Appointment     @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  clinicalDocuments ClinicalDocument[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@map("consultation_recordings")
+}
+
+// Documento Clínico - Gerado por IA ou manualmente
+model ClinicalDocument {
+  id              String               @id @default(uuid())
+  appointmentId   String
+  petId           String
+  tutorId         String
+  userId          String
+  recordingId     String?
+  type            ClinicalDocumentType @default(GENERAL)
+  title           String
+  content         String               @db.Text
+  htmlContent     String?              @db.Text
+  pdfUrl          String?
+  status          DocumentStatus       @default(DRAFT)
+  isAiGenerated   Boolean              @default(false)
+  aiModel         String?
+  aiPromptUsed    String?              @db.Text
+
+  sharedVia       String[]             @default([])
+  sharedAt        DateTime?
+  sharedTo        String?
+
+  metadata        Json?
+  version         Int                  @default(1)
+  signedBy        String?
+  crmv            String?
+
+  appointment     Appointment          @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  pet             Pet                  @relation(fields: [petId], references: [id], onDelete: Cascade)
+  tutor           Tutor                @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+  user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recording       ConsultationRecording? @relation(fields: [recordingId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([appointmentId])
+  @@index([petId])
+  @@index([tutorId])
+  @@index([userId])
+  @@index([type])
+  @@index([status])
+  @@map("clinical_documents")
+}
+
+// ============================================
+// WhatsApp Business API - Mensagens e Conversas
+// ============================================
+
+enum WhatsAppMessageType {
+  TEXT
+  IMAGE
+  DOCUMENT
+  AUDIO
+  VIDEO
+  LOCATION
+  TEMPLATE
+  INTERACTIVE
+  BUTTON
+  STICKER
+  CONTACTS
+}
+
+enum WhatsAppMessageStatus {
+  PENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+enum WhatsAppMessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum WhatsAppConversationStatus {
+  OPEN
+  CLOSED
+  PENDING
+  ASSIGNED
+}
+
+enum WhatsAppCampaignStatus {
+  DRAFT
+  SCHEDULED
+  RUNNING
+  COMPLETED
+  FAILED
+  PAUSED
+}
+
+// WhatsApp Message - Mensagens individuais
+model WhatsAppMessage {
+  id             String                   @id @default(uuid())
+  conversationId String
+  waMessageId    String?                  @unique
+  direction      WhatsAppMessageDirection @default(INBOUND)
+  type           WhatsAppMessageType      @default(TEXT)
+  status         WhatsAppMessageStatus    @default(PENDING)
+  content        String                   @db.Text
+  mediaUrl       String?
+  mediaType      String?
+  mediaCaption   String?
+  metadata       Json?
+  sentAt         DateTime?
+  deliveredAt    DateTime?
+  readAt         DateTime?
+  failedReason   String?
+
+  conversation WhatsAppConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([conversationId, createdAt])
+  @@index([waMessageId])
+  @@index([status])
+  @@index([direction])
+  @@map("whatsapp_messages")
+}
+
+// WhatsApp Conversation - Conversas com contatos
+model WhatsAppConversation {
+  id                 String                     @id @default(uuid())
+  userId             String
+  contactPhone       String
+  contactName        String?
+  contactPushName    String?
+  status             WhatsAppConversationStatus @default(OPEN)
+  assignedAgentId    String?
+  tutorId            String?
+  lastMessageAt      DateTime                   @default(now())
+  lastMessagePreview String?
+  unreadCount        Int                        @default(0)
+  isAutoReplyEnabled Boolean                    @default(false)
+  metadata           Json?
+
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignedAgent AIAgent?          @relation(fields: [assignedAgentId], references: [id], onDelete: SetNull)
+  tutor         Tutor?            @relation(fields: [tutorId], references: [id], onDelete: SetNull)
+  messages      WhatsAppMessage[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, contactPhone])
+  @@index([userId, status])
+  @@index([userId, lastMessageAt])
+  @@index([contactPhone])
+  @@map("whatsapp_conversations")
+}
+
+// WhatsApp Campaign - Campanhas de envio em massa
+model WhatsAppCampaign {
+  id          String                 @id @default(uuid())
+  userId      String
+  name        String
+  description String?
+  status      WhatsAppCampaignStatus @default(DRAFT)
+
+  templateName     String?
+  templateLanguage String? @default("pt_BR")
+
+  messageContent String              @db.Text
+  messageType    WhatsAppMessageType @default(TEXT)
+  mediaUrl       String?
+
+  audienceType   String @default("all")
+  audienceFilter Json?
+
+  scheduledFor DateTime?
+  startedAt    DateTime?
+  completedAt  DateTime?
+
+  totalRecipients Int @default(0)
+  sentCount       Int @default(0)
+  deliveredCount  Int @default(0)
+  readCount       Int @default(0)
+  failedCount     Int @default(0)
+
+  user       User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recipients WhatsAppCampaignRecipient[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, status])
+  @@index([scheduledFor])
+  @@index([status])
+  @@map("whatsapp_campaigns")
+}
+
+// WhatsApp Campaign Recipient - Destinatários de campanha
+model WhatsAppCampaignRecipient {
+  id           String                @id @default(uuid())
+  campaignId   String
+  phone        String
+  name         String?
+  tutorId      String?
+  status       WhatsAppMessageStatus @default(PENDING)
+  waMessageId  String?
+  sentAt       DateTime?
+  deliveredAt  DateTime?
+  readAt       DateTime?
+  failedReason String?
+  variables    Json?
+
+  campaign WhatsAppCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([campaignId, phone])
+  @@index([campaignId, status])
+  @@index([phone])
+  @@map("whatsapp_campaign_recipients")
+}
+
+// ============================================
+// Notificações do Sistema
+// ============================================
+
+enum NotificationType {
+  INFO
+  SUCCESS
+  WARNING
+  ERROR
+  ALERT
+  WHATSAPP_MESSAGE
+  APPOINTMENT_REMINDER
+  AUTOMATION_COMPLETE
+  CAMPAIGN_COMPLETE
+}
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+  WHATSAPP
+  PUSH
+}
+
+model Notification {
+  id       String              @id @default(uuid())
+  userId   String
+  type     NotificationType    @default(INFO)
+  channel  NotificationChannel @default(IN_APP)
+  title    String
+  message  String              @db.Text
+  link     String?
+  metadata Json?
+  isRead   Boolean             @default(false)
+  readAt   DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
+  @@index([type])
+  @@map("notifications")
 }

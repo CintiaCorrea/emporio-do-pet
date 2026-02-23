@@ -22,7 +22,7 @@ import {
   LuPieChart,
   LuFileText
 } from 'react-icons/lu';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 
 // Tipos
 interface Consultation {
@@ -330,7 +330,6 @@ export default function ConsultationsReportPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/10 w-full overflow-hidden">
-      <Toaster position="top-right" />
       <Sidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
       
       {/* Main Content */}

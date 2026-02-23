@@ -1,15 +1,25 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaService, PrismaTransactionClient } from '../prisma/prisma.service';
+import { EventsService } from '../events/events.service';
+import { BoardsService } from '../boards/boards.service';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { UpdateAppointmentDto } from './dto/update-appointment.dto';
 
 @Injectable()
 export class AppointmentsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly eventsService: EventsService,
+    private readonly boardsService: BoardsService,
+  ) {}
 
   async create(createAppointmentDto: CreateAppointmentDto) {
     // Validações mínimas (compatível com o antigo /api/appointments do Next)
-    if (!createAppointmentDto.tutorId || !createAppointmentDto.userId || !createAppointmentDto.date) {
+    if (
+      !createAppointmentDto.tutorId ||
+      !createAppointmentDto.userId ||
+      !createAppointmentDto.date
+    ) {
       throw new BadRequestException('Tutor, veterinário (userId) e data são obrigatórios');
     }
 
@@ -39,7 +49,9 @@ export class AppointmentsService {
     }
 
     if (!finalPetId) {
-      throw new BadRequestException('Pet é obrigatório. Selecione um pet existente ou crie um novo.');
+      throw new BadRequestException(
+        'Pet é obrigatório. Selecione um pet existente ou crie um novo.',
+      );
     }
 
     const existingPet = await this.prisma.pet.findFirst({
@@ -66,7 +78,7 @@ export class AppointmentsService {
       ...(createAppointmentDto.boardId && { boardId: createAppointmentDto.boardId }),
     };
 
-    const result = await this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx: PrismaTransactionClient) => {
       const appointment = await tx.appointment.create({ data: appointmentData });
 
       if (createAppointmentDto.treatments && createAppointmentDto.treatments.length > 0) {
@@ -93,7 +105,7 @@ export class AppointmentsService {
       return tx.appointment.findUnique({
         where: { id: appointment.id },
         include: {
-          tutor: { select: { id: true, name: true } },
+          tutor: { select: { id: true, name: true, email: true, contacts: true } },
           pet: { select: { id: true, name: true, species: true } },
           user: { select: { id: true, name: true, email: true } },
           treatments: { include: { product: true } },
@@ -101,6 +113,34 @@ export class AppointmentsService {
         },
       });
     });
+
+    // Emit appointment created event for automations
+    if (result) {
+      const primaryContact = (result.tutor as any)?.contacts?.find((c: any) => c.isPrimary);
+      this.eventsService.emitAppointmentCreated(createAppointmentDto.userId, {
+        appointmentId: result.id,
+        date: result.date,
+        status: result.status,
+        petId: result.pet?.id,
+        petName: result.pet?.name,
+        tutorId: result.tutor?.id,
+        tutorName: result.tutor?.name,
+        tutorPhone: primaryContact?.number,
+        tutorEmail: (result.tutor as any)?.email,
+      });
+
+      // Create card in Consultation board (async, don't block the response)
+      const cardTitle = `${result.pet?.name || 'Pet'} - ${result.tutor?.name || 'Tutor'}`;
+      this.boardsService
+        .createCardForAppointment(
+          createAppointmentDto.userId,
+          result.id,
+          'CONSULTATION',
+          cardTitle,
+          'Agendada',
+        )
+        .catch((err) => console.error('Error creating consultation card:', err));
+    }
 
     return result;
   }
@@ -135,8 +175,9 @@ export class AppointmentsService {
     } = params || {};
 
     const resolvedTake = Number.isFinite(take as any) ? (take as number) : limit;
-    const resolvedSkip =
-      Number.isFinite(skip as any) ? (skip as number) : Math.max(0, (page - 1) * resolvedTake);
+    const resolvedSkip = Number.isFinite(skip as any)
+      ? (skip as number)
+      : Math.max(0, (page - 1) * resolvedTake);
 
     const where: any = {
       ...(userId && { userId }),
@@ -244,7 +285,29 @@ export class AppointmentsService {
             column: { select: { id: true, name: true, color: true } },
           },
         },
-        _count: { select: { treatments: true } },
+        recording: {
+          select: {
+            id: true,
+            status: true,
+            transcription: true,
+            aiAnalysis: true,
+            aiSummary: true,
+            audioDuration: true,
+            createdAt: true,
+          },
+        },
+        clinicalDocuments: {
+          select: {
+            id: true,
+            type: true,
+            title: true,
+            status: true,
+            isAiGenerated: true,
+            createdAt: true,
+          },
+          orderBy: { createdAt: 'desc' as const },
+        },
+        _count: { select: { treatments: true, clinicalDocuments: true } },
       },
     });
 
@@ -256,16 +319,21 @@ export class AppointmentsService {
   }
 
   async update(id: string, updateAppointmentDto: UpdateAppointmentDto) {
-    await this.findById(id);
+    const existingAppointment = await this.findById(id);
+    const previousStatus = existingAppointment.status;
 
     // Validações de relacionamentos (compatível com o Next)
     if (updateAppointmentDto.tutorId) {
-      const tutor = await this.prisma.tutor.findUnique({ where: { id: updateAppointmentDto.tutorId } });
+      const tutor = await this.prisma.tutor.findUnique({
+        where: { id: updateAppointmentDto.tutorId },
+      });
       if (!tutor) throw new NotFoundException('Tutor não encontrado');
     }
 
     if (updateAppointmentDto.userId) {
-      const user = await this.prisma.user.findUnique({ where: { id: updateAppointmentDto.userId } });
+      const user = await this.prisma.user.findUnique({
+        where: { id: updateAppointmentDto.userId },
+      });
       if (!user) throw new NotFoundException('Veterinário não encontrado');
     }
 
@@ -273,23 +341,30 @@ export class AppointmentsService {
       const pet = await this.prisma.pet.findFirst({
         where: { id: updateAppointmentDto.petId, tutorId: updateAppointmentDto.tutorId },
       });
-      if (!pet) throw new NotFoundException('Pet não encontrado ou não pertence ao tutor informado');
+      if (!pet)
+        throw new NotFoundException('Pet não encontrado ou não pertence ao tutor informado');
     }
 
     const updateData: any = {};
-    if (updateAppointmentDto.tutorId !== undefined) updateData.tutorId = updateAppointmentDto.tutorId;
+    if (updateAppointmentDto.tutorId !== undefined)
+      updateData.tutorId = updateAppointmentDto.tutorId;
     if (updateAppointmentDto.petId !== undefined) updateData.petId = updateAppointmentDto.petId;
     if (updateAppointmentDto.userId !== undefined) updateData.userId = updateAppointmentDto.userId;
-    if (updateAppointmentDto.date !== undefined) updateData.date = new Date(updateAppointmentDto.date);
-    if (updateAppointmentDto.description !== undefined) updateData.description = updateAppointmentDto.description;
+    if (updateAppointmentDto.date !== undefined)
+      updateData.date = new Date(updateAppointmentDto.date);
+    if (updateAppointmentDto.description !== undefined)
+      updateData.description = updateAppointmentDto.description;
     if (updateAppointmentDto.notes !== undefined) updateData.notes = updateAppointmentDto.notes;
     if (updateAppointmentDto.value !== undefined) updateData.value = updateAppointmentDto.value;
-    if (updateAppointmentDto.duration !== undefined) updateData.duration = updateAppointmentDto.duration;
+    if (updateAppointmentDto.duration !== undefined)
+      updateData.duration = updateAppointmentDto.duration;
     if (updateAppointmentDto.status !== undefined) updateData.status = updateAppointmentDto.status;
-    if (updateAppointmentDto.paymentStatus !== undefined) updateData.paymentStatus = updateAppointmentDto.paymentStatus;
-    if (updateAppointmentDto.boardId !== undefined) updateData.boardId = updateAppointmentDto.boardId;
+    if (updateAppointmentDto.paymentStatus !== undefined)
+      updateData.paymentStatus = updateAppointmentDto.paymentStatus;
+    if (updateAppointmentDto.boardId !== undefined)
+      updateData.boardId = updateAppointmentDto.boardId;
 
-    const result = await this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx: PrismaTransactionClient) => {
       const updatedAppointment = await tx.appointment.update({ where: { id }, data: updateData });
 
       if (updateAppointmentDto.treatments !== undefined) {
@@ -318,7 +393,7 @@ export class AppointmentsService {
       return tx.appointment.findUnique({
         where: { id },
         include: {
-          tutor: { select: { id: true, name: true } },
+          tutor: { select: { id: true, name: true, email: true, contacts: true } },
           pet: { select: { id: true, name: true, species: true } },
           user: { select: { id: true, name: true, email: true } },
           treatments: { include: { product: true } },
@@ -326,6 +401,47 @@ export class AppointmentsService {
         },
       });
     });
+
+    // Emit events based on status change
+    if (result && updateAppointmentDto.status && updateAppointmentDto.status !== previousStatus) {
+      const primaryContact = (result.tutor as any)?.contacts?.find((c: any) => c.isPrimary);
+      const eventData = {
+        appointmentId: result.id,
+        date: result.date,
+        status: result.status,
+        petId: result.pet?.id,
+        petName: result.pet?.name,
+        tutorId: result.tutor?.id,
+        tutorName: result.tutor?.name,
+        tutorPhone: primaryContact?.number,
+        tutorEmail: (result.tutor as any)?.email,
+      };
+
+      const newStatus = updateAppointmentDto.status;
+      if (newStatus === 'CONFIRMED') {
+        this.eventsService.emitAppointmentConfirmed(result.user?.id || 'system', eventData);
+      } else if (newStatus === 'CANCELLED') {
+        this.eventsService.emitAppointmentCancelled(result.user?.id || 'system', eventData);
+      } else if (newStatus === 'COMPLETED') {
+        this.eventsService.emitAppointmentCompleted(result.user?.id || 'system', eventData);
+      }
+
+      // Move card in Consultation board based on status
+      const statusToColumnMap: Record<string, string> = {
+        SCHEDULED: 'Agendada',
+        CONFIRMED: 'Aguardando',
+        IN_PROGRESS: 'Em Atendimento',
+        COMPLETED: 'Finalizada',
+        CANCELLED: 'Cancelada',
+      };
+
+      const targetColumn = statusToColumnMap[newStatus];
+      if (targetColumn) {
+        this.boardsService
+          .moveCardToColumn(result.id, targetColumn)
+          .catch((err) => console.error('Error moving card:', err));
+      }
+    }
 
     return result;
   }
@@ -351,4 +467,3 @@ export class AppointmentsService {
     });
   }
 }
-

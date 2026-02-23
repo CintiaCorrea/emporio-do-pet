@@ -44,5 +44,3 @@ export class StockController {
     return this.stockService.createMovement(dto, user);
   }
 }
-
-

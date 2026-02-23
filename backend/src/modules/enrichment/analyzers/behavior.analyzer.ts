@@ -87,8 +87,7 @@ export class BehaviorAnalyzer {
     const totalPageViews = eventsByType['page_view']?.length || 0;
     const uniquePages = this.countUniquePages(events);
     const pricingPageViews =
-      (eventsByType['pricing_view']?.length || 0) +
-      this.countHighIntentPageViews(events);
+      (eventsByType['pricing_view']?.length || 0) + this.countHighIntentPageViews(events);
     const checkoutStarts = eventsByType['checkout_start']?.length || 0;
     const checkoutAbandons = eventsByType['checkout_abandon']?.length || 0;
     const formSubmissions = eventsByType['form_submit']?.length || 0;
@@ -107,8 +106,7 @@ export class BehaviorAnalyzer {
     const daysSinceLastVisit = Math.floor(
       (now.getTime() - lastSeenAt.getTime()) / (1000 * 60 * 60 * 24),
     );
-    const visitFrequency =
-      daysSinceFirstVisit > 0 ? totalSessions / daysSinceFirstVisit : 1;
+    const visitFrequency = daysSinceFirstVisit > 0 ? totalSessions / daysSinceFirstVisit : 1;
 
     // Canal primário
     const primaryChannel = this.inferPrimaryChannel(leadSource, events);
@@ -229,9 +227,7 @@ export class BehaviorAnalyzer {
    * Calcula duração média de sessão
    */
   private calculateAvgSessionDuration(events: LeadEvent[]): number {
-    const durations = events
-      .filter((e) => e.duration && e.duration > 0)
-      .map((e) => e.duration!);
+    const durations = events.filter((e) => e.duration && e.duration > 0).map((e) => e.duration!);
 
     if (durations.length === 0) return 0;
 
@@ -309,15 +305,7 @@ export class BehaviorAnalyzer {
     ).slot;
 
     // Encontrar dia da semana preferido
-    const dayNames = [
-      'sunday',
-      'monday',
-      'tuesday',
-      'wednesday',
-      'thursday',
-      'friday',
-      'saturday',
-    ];
+    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
     const preferredDayIndex = Object.entries(dayOfWeekCounts).reduce(
       (max, [day, count]) => (count > max.count ? { day: Number(day), count } : max),
       { day: 0, count: 0 },
@@ -334,19 +322,14 @@ export class BehaviorAnalyzer {
    * Conta dias ativos (dias com pelo menos um evento)
    */
   private countDaysActive(events: LeadEvent[]): number {
-    const days = new Set(
-      events.map((e) => new Date(e.createdAt).toISOString().split('T')[0]),
-    );
+    const days = new Set(events.map((e) => new Date(e.createdAt).toISOString().split('T')[0]));
     return days.size;
   }
 
   /**
    * Infere canal primário baseado na origem e comportamento
    */
-  private inferPrimaryChannel(
-    leadSource: string,
-    events: LeadEvent[],
-  ): string | null {
+  private inferPrimaryChannel(leadSource: string, events: LeadEvent[]): string | null {
     // Mapear source para canal
     const sourceToChannel: Record<string, string> = {
       GOOGLE_ADS: 'google',

@@ -8,4 +8,3 @@ import { NewslettersController } from './newsletters.controller';
   exports: [NewslettersService],
 })
 export class NewslettersModule {}
-
