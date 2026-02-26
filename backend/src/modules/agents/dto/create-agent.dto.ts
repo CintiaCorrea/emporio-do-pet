@@ -84,6 +84,62 @@ export class CreateAgentDto {
   @IsOptional()
   templateId?: string;
 
+  // WhatsApp Template ID (from Meta API - numeric string)
+  @IsString()
+  @IsOptional()
+  whatsappTemplateId?: string;
+
+  // WhatsApp Template Name (for reference)
+  @IsString()
+  @IsOptional()
+  whatsappTemplateName?: string;
+
+  // WhatsApp Configuration
+  @IsBoolean()
+  @IsOptional()
+  whatsappEnabled?: boolean = false;
+
+  @IsBoolean()
+  @IsOptional()
+  whatsappAutoReply?: boolean = true;
+
+  @IsString()
+  @IsOptional()
+  whatsappGreeting?: string;
+
+  @IsString()
+  @IsOptional()
+  whatsappOfflineMessage?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  whatsappBusinessHoursOnly?: boolean = false;
+
+  // CRM Configuration
+  @IsBoolean()
+  @IsOptional()
+  crmEnabled?: boolean = false;
+
+  @IsBoolean()
+  @IsOptional()
+  crmAutoCreateLead?: boolean = true;
+
+  @IsBoolean()
+  @IsOptional()
+  crmAutoUpdateLead?: boolean = true;
+
+  @IsBoolean()
+  @IsOptional()
+  crmLeadScoring?: boolean = false;
+
+  @IsBoolean()
+  @IsOptional()
+  crmNotifyOnHighScore?: boolean = false;
+
+  @IsUUID()
+  @IsOptional()
+  crmAssignToBoard?: string;
+
   // Voice configuration
   @IsBoolean()
   @IsOptional()

@@ -6,6 +6,7 @@ import { WhatsAppController } from './whatsapp.controller';
 import { WhatsAppConversationsController } from './whatsapp-conversations.controller';
 import { WhatsAppAnalyticsController } from './whatsapp-analytics.controller';
 import { WhatsAppWebhooksController } from './whatsapp-webhooks.controller';
+import { WhatsAppAIConfigController } from './whatsapp-ai-config.controller';
 import { WhatsAppAgentListener } from './whatsapp-agent.listener';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AgentsModule } from '../agents/agents.module';
@@ -32,6 +33,7 @@ import {
     WhatsAppConversationsController,
     WhatsAppAnalyticsController,
     WhatsAppWebhooksController,
+    WhatsAppAIConfigController,
   ],
   providers: [
     WhatsAppService,

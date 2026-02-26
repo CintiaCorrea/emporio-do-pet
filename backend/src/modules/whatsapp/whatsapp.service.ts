@@ -195,6 +195,20 @@ export class WhatsAppService {
     }
   }
 
+  /**
+   * Get WhatsApp config from environment variables (single-tenant mode)
+   * This is the preferred method for single-tenant deployments
+   */
+  getConfig(): WhatsAppConfig {
+    return {
+      accessToken: this.accessToken,
+      phoneNumberId: this.phoneNumberId,
+      businessAccountId: this.configService.get<string>('WHATSAPP_BUSINESS_ACCOUNT_ID'),
+      webhookVerifyToken: this.webhookVerifyToken,
+      apiVersion: this.apiVersion,
+    };
+  }
+
   // Send a text message
   async sendMessage(
     message: SendWhatsAppMessagePayload,
@@ -616,6 +630,7 @@ export class WhatsAppService {
     contactPhone: string,
     contactName?: string,
     contactPushName?: string,
+    firstMessage?: string,
   ) {
     const formattedPhone = this.formatPhoneNumber(contactPhone);
 
@@ -652,13 +667,60 @@ export class WhatsAppService {
     }
 
     // Try to find tutor by phone
-    const tutor = await this.prisma.contact.findFirst({
+    let contact = await this.prisma.contact.findFirst({
       where: {
-        number: { contains: formattedPhone.slice(-8) }, // Last 8 digits
+        number: { contains: formattedPhone.slice(-8) },
         isWhatsApp: true,
       },
       include: { tutor: true },
     });
+
+    let tutorId = contact?.tutorId || null;
+
+    // Auto-create Tutor + Contact if not found
+    if (!tutorId) {
+      try {
+        const newTutor = await this.prisma.tutor.create({
+          data: {
+            name: contactName || contactPushName || `WhatsApp ${formattedPhone}`,
+            phone: formattedPhone,
+            contacts: {
+              create: {
+                number: formattedPhone,
+                isWhatsApp: true,
+                isPrimary: true,
+              },
+            },
+          },
+        });
+        tutorId = newTutor.id;
+        this.logger.log(`Auto-created tutor ${newTutor.id} from WhatsApp contact ${formattedPhone}`);
+      } catch (error) {
+        this.logger.warn(`Failed to auto-create tutor: ${error instanceof Error ? error.message : 'Unknown'}`);
+      }
+    }
+
+    // Check for default AI agent for auto-reply
+    const defaultAgentId = this.configService.get<string>('whatsapp.defaultAgentId');
+    let assignedAgentId: string | null = null;
+    let isAutoReplyEnabled = false;
+
+    if (defaultAgentId) {
+      const agent = await this.prisma.aIAgent.findFirst({
+        where: { 
+          id: defaultAgentId,
+          status: 'ACTIVE',
+        },
+      });
+
+      if (agent) {
+        assignedAgentId = agent.id;
+        isAutoReplyEnabled = true;
+        this.logger.log(`Auto-assigning agent ${agent.name} (${agent.id}) to new conversation`);
+      } else {
+        this.logger.warn(`Default agent ${defaultAgentId} not found or not active`);
+      }
+    }
 
     const newConversation = await this.prisma.whatsAppConversation.create({
       data: {
@@ -667,7 +729,9 @@ export class WhatsAppService {
         contactName: contactName || contactPushName,
         contactPushName,
         status: 'OPEN',
-        tutorId: tutor?.tutorId,
+        tutorId,
+        assignedAgentId,
+        isAutoReplyEnabled,
       },
       include: {
         assignedAgent: true,
@@ -681,6 +745,7 @@ export class WhatsAppService {
       userId,
       contactPhone: formattedPhone,
       contactName: contactName || contactPushName,
+      firstMessage,
     });
 
     return newConversation;

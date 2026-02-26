@@ -230,6 +230,8 @@ export class WhatsAppCampaignsService {
 
     let recipients: Array<{ phone: string; name?: string; tutorId?: string }> = [];
 
+    const filter = campaign.audienceFilter as Record<string, unknown> | null;
+
     switch (campaign.audienceType) {
       case 'tutors':
         const tutors = await this.prisma.tutor.findMany({
@@ -254,9 +256,44 @@ export class WhatsAppCampaignsService {
           }));
         break;
 
+      case 'leads':
+        const leadWhere: Record<string, unknown> = {};
+        if (filter?.status) leadWhere.status = filter.status;
+        if (filter?.source) leadWhere.source = filter.source;
+        if (filter?.minScore) leadWhere.currentScore = { gte: Number(filter.minScore) };
+
+        const leads = await this.prisma.lead.findMany({
+          where: { phone: { not: null }, ...leadWhere },
+        });
+
+        recipients = leads
+          .filter(l => l.phone)
+          .map(l => ({
+            phone: l.phone!,
+            name: l.name || undefined,
+          }));
+        break;
+
+      case 'clients':
+        const clientWhere: Record<string, unknown> = { status: 'ACTIVE' };
+        if (filter?.tags && Array.isArray(filter.tags)) {
+          clientWhere.tags = { hasSome: filter.tags };
+        }
+
+        const clients = await this.prisma.client.findMany({
+          where: clientWhere as any,
+        });
+
+        recipients = clients
+          .filter(c => c.phone)
+          .map(c => ({
+            phone: c.phone!,
+            name: c.name,
+          }));
+        break;
+
       case 'all':
       default:
-        // Get all tutors with WhatsApp
         const allTutors = await this.prisma.tutor.findMany({
           where: {
             isActive: true,

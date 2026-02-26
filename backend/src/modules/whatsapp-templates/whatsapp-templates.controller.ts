@@ -10,11 +10,15 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  UploadedFile,
+  UseInterceptors,
+  BadRequestException,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { WhatsAppTemplatesService } from './whatsapp-templates.service';
-import { CreateSimpleTemplateDto } from './dto/create-whatsapp-template.dto';
+import { CreateSimpleTemplateDto, CreateWhatsAppTemplateDto } from './dto/create-whatsapp-template.dto';
 
 interface JwtUser {
   id: string;
@@ -66,23 +70,28 @@ export class WhatsAppTemplatesController {
   }
 
   /**
-   * Get template by ID
+   * Get template by name
    */
-  @Get(':id')
-  async getTemplate(@CurrentUser() user: JwtUser, @Param('id') id: string) {
-    const template = await this.templatesService.getTemplate(user.id, id);
+  @Get('by-name/:name')
+  async getTemplateByName(@CurrentUser() user: JwtUser, @Param('name') name: string) {
+    const template = await this.templatesService.getTemplateByName(user.id, name);
     if (!template) {
       return { error: 'Template not found' };
     }
     return template;
   }
 
+  @Get('flows')
+  async listFlows(@CurrentUser() user: JwtUser) {
+    return this.templatesService.listFlows(user.id);
+  }
+
   /**
-   * Get template by name
+   * Get template by ID
    */
-  @Get('by-name/:name')
-  async getTemplateByName(@CurrentUser() user: JwtUser, @Param('name') name: string) {
-    const template = await this.templatesService.getTemplateByName(user.id, name);
+  @Get(':id')
+  async getTemplate(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    const template = await this.templatesService.getTemplate(user.id, id);
     if (!template) {
       return { error: 'Template not found' };
     }
@@ -96,9 +105,26 @@ export class WhatsAppTemplatesController {
   @HttpCode(HttpStatus.CREATED)
   async createTemplate(
     @CurrentUser() user: JwtUser,
-    @Body() dto: CreateSimpleTemplateDto,
+    @Body() dto: CreateWhatsAppTemplateDto,
   ) {
     return this.templatesService.createTemplate(user.id, dto);
+  }
+
+  @Post('upload-media')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: 100 * 1024 * 1024 },
+    }),
+  )
+  async uploadMedia(@UploadedFile() file?: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('Arquivo não enviado.');
+    }
+    const result = await this.templatesService.uploadTemplateMedia(file.buffer, file.mimetype, file.originalname);
+    if (!result.handle) {
+      throw new BadRequestException(result.error || 'Não foi possível fazer upload da mídia.');
+    }
+    return { handle: result.handle };
   }
 
   /**

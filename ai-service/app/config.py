@@ -16,6 +16,7 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
+        extra="ignore",
     )
 
     # Application
@@ -26,10 +27,21 @@ class Settings(BaseSettings):
 
     # Server
     host: str = "0.0.0.0"
-    port: int = 8080
+    port: int = 8000
 
     # CORS
     cors_origins: str = "http://localhost:3000,http://localhost:3001"
+
+    # Model Defaults
+    default_chat_model: str = "gpt-4o-mini"
+    default_tts_model: str = "tts-1"
+    default_tts_voice: str = "alloy"
+    default_stt_model: str = "whisper-1"
+
+    # Timeouts (in seconds)
+    llm_timeout: int = 60
+    tts_timeout: int = 30
+    stt_timeout: int = 60
 
     @property
     def cors_origins_list(self) -> List[str]:

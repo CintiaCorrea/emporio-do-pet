@@ -1,5 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { ConfigService } from '@nestjs/config';
 import { WhatsAppService } from './whatsapp.service';
 import { AgentsService } from '../agents/agents.service';
 import { AudioService } from '../audio/audio.service';
@@ -24,18 +26,30 @@ export class WhatsAppAgentListener {
     private agentsService: AgentsService,
     private audioService: AudioService,
     private prisma: PrismaService,
+    private configService: ConfigService,
+    private eventEmitter: EventEmitter2,
   ) {}
 
   /**
-   * Get user's OpenAI API key from integration settings
+   * Get OpenAI API key - now uses environment variables for single-tenant mode
    */
-  private async getOpenAiKey(userId: string): Promise<string | null> {
-    const settings = await this.prisma.integrationSettings.findUnique({
-      where: { userId },
-    });
+  private getOpenAiKey(): string | null {
+    return this.configService.get<string>('integrations.openai.apiKey') || null;
+  }
 
-    const openAiConfig = settings?.openaiConfig as { apiKey?: string } | null;
-    return openAiConfig?.apiKey || null;
+  private isWithinBusinessHours(): boolean {
+    const now = new Date();
+    const brasiliaOffset = -3 * 60;
+    const utcMs = now.getTime() + now.getTimezoneOffset() * 60000;
+    const brasiliaTime = new Date(utcMs + brasiliaOffset * 60000);
+
+    const hour = brasiliaTime.getHours();
+    const dayOfWeek = brasiliaTime.getDay();
+
+    // Mon-Fri 8:00-18:00, Sat 8:00-13:00
+    if (dayOfWeek === 0) return false; // Sunday
+    if (dayOfWeek === 6) return hour >= 8 && hour < 13; // Saturday
+    return hour >= 8 && hour < 18; // Weekdays
   }
 
   @OnEvent('whatsapp.message.process_with_agent')
@@ -47,12 +61,39 @@ export class WhatsAppAgentListener {
     );
 
     try {
-      // Get agent with voice settings
       const agent = await this.agentsService.getAgentById(agentId);
 
       if (!agent || agent.status !== 'ACTIVE') {
         this.logger.warn(`Agent ${agentId} is not active or not found`);
         return;
+      }
+
+      const agentConfig = agent as {
+        voiceEnabled?: boolean; voiceId?: string; voiceSpeed?: number; voiceModel?: string;
+        whatsappBusinessHoursOnly?: boolean; whatsappOfflineMessage?: string;
+        whatsappGreeting?: string;
+      };
+
+      // Business hours check
+      if (agentConfig.whatsappBusinessHoursOnly && !this.isWithinBusinessHours()) {
+        const offlineMessage = agentConfig.whatsappOfflineMessage
+          || 'Obrigado por entrar em contato! Nosso horário de atendimento é de segunda a sexta, das 8h às 18h, e sábado das 8h às 13h. Responderemos assim que possível!';
+
+        await this.whatsAppService.sendAndSaveMessage(userId, conversationId, offlineMessage, 'TEXT');
+        this.logger.log(`Offline message sent for conversation ${conversationId} (outside business hours)`);
+        return;
+      }
+
+      // Greeting for first interaction: check if this is the first message in the conversation
+      if (agentConfig.whatsappGreeting) {
+        const messageCount = await this.prisma.whatsAppMessage.count({
+          where: { conversationId, direction: 'INBOUND' },
+        });
+
+        if (messageCount <= 1) {
+          await this.whatsAppService.sendAndSaveMessage(userId, conversationId, agentConfig.whatsappGreeting, 'TEXT');
+          this.logger.log(`Greeting sent for conversation ${conversationId}`);
+        }
       }
 
       let processedMessage = userMessage;
@@ -61,7 +102,7 @@ export class WhatsAppAgentListener {
       if (messageType === 'audio' && mediaId) {
         this.logger.log(`Transcribing audio message ${messageId}`);
         
-        const transcription = await this.transcribeAudioMessage(userId, mediaId);
+        const transcription = await this.transcribeAudioMessage(mediaId);
         
         if (transcription) {
           processedMessage = transcription;
@@ -84,18 +125,15 @@ export class WhatsAppAgentListener {
         return;
       }
 
-      // Check if agent should respond with voice
-      const agentData = agent as { voiceEnabled?: boolean; voiceId?: string; voiceSpeed?: number; voiceModel?: string };
-      
-      if (agentData.voiceEnabled) {
+      if (agentConfig.voiceEnabled) {
         // Send response as audio
         await this.sendVoiceResponse(
           userId,
           conversationId,
           result.response,
-          agentData.voiceId || 'nova',
-          agentData.voiceSpeed || 1.0,
-          agentData.voiceModel || 'tts-1',
+          agentConfig.voiceId || 'nova',
+          agentConfig.voiceSpeed || 1.0,
+          agentConfig.voiceModel || 'tts-1',
         );
       } else {
         // Send response as text
@@ -117,6 +155,9 @@ export class WhatsAppAgentListener {
         }
       }
 
+      // Update CRM: track agent interaction on linked lead
+      await this.updateCrmAfterAgentResponse(conversationId, agentId, result.response);
+
     } catch (error) {
       this.logger.error(
         `Error processing message with agent: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -128,23 +169,18 @@ export class WhatsAppAgentListener {
    * Transcribe audio message using OpenAI Whisper
    */
   private async transcribeAudioMessage(
-    userId: string,
     mediaId: string,
   ): Promise<string | null> {
     try {
-      // Get OpenAI key
-      const openAiKey = await this.getOpenAiKey(userId);
+      // Get OpenAI key from environment
+      const openAiKey = this.getOpenAiKey();
       if (!openAiKey) {
-        this.logger.warn('No OpenAI API key configured for transcription');
+        this.logger.warn('No OpenAI API key configured for transcription (OPENAI_API_KEY)');
         return null;
       }
 
-      // Get WhatsApp config
-      const config = await this.whatsAppService.getUserWhatsAppConfig(userId);
-      if (!config) {
-        this.logger.warn('No WhatsApp config found');
-        return null;
-      }
+      // Get WhatsApp config from environment
+      const config = this.whatsAppService.getConfig();
 
       // Download audio from WhatsApp
       const downloadResult = await this.whatsAppService.downloadMedia(mediaId, config);
@@ -183,10 +219,10 @@ export class WhatsAppAgentListener {
     voiceModel: string,
   ): Promise<void> {
     try {
-      // Get OpenAI key
-      const openAiKey = await this.getOpenAiKey(userId);
+      // Get OpenAI key from environment
+      const openAiKey = this.getOpenAiKey();
       if (!openAiKey) {
-        this.logger.warn('No OpenAI API key for TTS, falling back to text');
+        this.logger.warn('No OpenAI API key for TTS (OPENAI_API_KEY), falling back to text');
         await this.whatsAppService.sendAndSaveMessage(
           userId,
           conversationId,
@@ -196,18 +232,8 @@ export class WhatsAppAgentListener {
         return;
       }
 
-      // Get WhatsApp config
-      const config = await this.whatsAppService.getUserWhatsAppConfig(userId);
-      if (!config) {
-        this.logger.warn('No WhatsApp config, falling back to text');
-        await this.whatsAppService.sendAndSaveMessage(
-          userId,
-          conversationId,
-          text,
-          'TEXT',
-        );
-        return;
-      }
+      // Get WhatsApp config from environment
+      const config = this.whatsAppService.getConfig();
 
       // Synthesize audio
       this.logger.log(`Synthesizing voice response with voice: ${voiceId}`);
@@ -320,6 +346,94 @@ export class WhatsAppAgentListener {
     }
   }
 
+  /**
+   * Track AI agent interaction in CRM (LeadEvent, activity, score update)
+   */
+  private async updateCrmAfterAgentResponse(
+    conversationId: string,
+    agentId: string,
+    responseText: string,
+  ): Promise<void> {
+    try {
+      const lead = await this.prisma.lead.findFirst({
+        where: { whatsappConversationId: conversationId },
+      });
+
+      if (!lead) return;
+
+      // Create LeadEvent for the AI interaction
+      await this.prisma.leadEvent.create({
+        data: {
+          leadId: lead.id,
+          eventType: 'ai_agent_response',
+          eventData: {
+            name: 'Resposta do agente IA',
+            agentId,
+            conversationId,
+            responseLength: responseText.length,
+            timestamp: new Date().toISOString(),
+          },
+        },
+      });
+
+      // Update lead activity timestamp
+      await this.prisma.lead.update({
+        where: { id: lead.id },
+        data: {
+          lastActivityAt: new Date(),
+          lastSeenAt: new Date(),
+        },
+      });
+
+      // If CRM lead scoring is enabled on the agent, bump engagement score
+      const agent = await this.prisma.aIAgent.findUnique({
+        where: { id: agentId },
+        select: { crmLeadScoring: true, crmNotifyOnHighScore: true },
+      });
+
+      if (agent?.crmLeadScoring) {
+        const previousScore = lead.currentScore;
+        const newScore = Math.min(previousScore + 2, 100);
+
+        if (newScore !== previousScore) {
+          await this.prisma.lead.update({
+            where: { id: lead.id },
+            data: {
+              currentScore: newScore,
+              scoreUpdatedAt: new Date(),
+            },
+          });
+
+          await this.prisma.leadScore.create({
+            data: {
+              leadId: lead.id,
+              score: newScore,
+              breakdown: {
+                reason: 'ai_agent_engagement',
+                delta: newScore - previousScore,
+                agentId,
+              },
+            },
+          });
+
+          this.eventEmitter.emit('crm.lead.score_changed', {
+            leadId: lead.id,
+            previousScore,
+            newScore,
+            scoreDelta: newScore - previousScore,
+            reason: 'ai_agent_engagement',
+          });
+        }
+      }
+
+      this.logger.debug(`CRM updated for lead ${lead.id} after agent response`);
+    } catch (error) {
+      this.logger.warn(
+        `Failed to update CRM after agent response: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+    }
+  }
+
   @OnEvent('whatsapp.message.received')
   async handleMessageReceived(event: {
     message: unknown;
@@ -327,10 +441,8 @@ export class WhatsAppAgentListener {
     userId: string;
     content: string;
   }) {
-    // Log for debugging
     this.logger.debug(`Message received in conversation ${event.conversation.id}`);
 
-    // Check if auto-reply is enabled and agent is assigned
     if (event.conversation.assignedAgentId && event.conversation.isAutoReplyEnabled) {
       this.logger.log(
         `Auto-reply enabled for conversation ${event.conversation.id}, processing with agent ${event.conversation.assignedAgentId}`,

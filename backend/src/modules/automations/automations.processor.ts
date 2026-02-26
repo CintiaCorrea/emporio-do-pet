@@ -787,6 +787,21 @@ export class AutomationsProcessor extends WorkerHost {
     userId: string,
     provider: string,
   ): Promise<{ apiKey: string; baseUrl?: string } | null> {
+    const providerLower = provider.toLowerCase();
+
+    // First try environment variables (single-tenant mode)
+    const envKeyMap: Record<string, string> = {
+      openai: 'integrations.openai.apiKey',
+      gemini: 'integrations.gemini.apiKey',
+      deepseek: 'integrations.deepseek.apiKey',
+    };
+
+    const envApiKey = this.configService.get<string>(envKeyMap[providerLower]);
+    if (envApiKey) {
+      return { apiKey: envApiKey };
+    }
+
+    // Fallback to user's integration settings (multi-tenant mode)
     try {
       const settings = await this.prisma.integrationSettings.findFirst({
         where: { userId },
@@ -794,7 +809,6 @@ export class AutomationsProcessor extends WorkerHost {
 
       if (!settings) return null;
 
-      const providerLower = provider.toLowerCase();
       let configField: string | null = null;
 
       switch (providerLower) {

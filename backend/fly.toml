@@ -39,7 +39,7 @@ primary_region = "gru"  # São Paulo, Brasil
 # Release command - sync schema to database
 # Usando db push para criar/sincronizar schema (ideal para banco novo ou sem histórico de migrations)
 [deploy]
-  release_command = "npx prisma db push"
+  release_command = "npx prisma db push --accept-data-loss"
 
 # Machine configuration
 [[vm]]

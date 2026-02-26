@@ -8,6 +8,11 @@ import {
   IsBoolean,
   MaxLength,
   MinLength,
+  IsNumber,
+  IsObject,
+  ValidateIf,
+  ArrayMaxSize,
+  ArrayMinSize,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -17,17 +22,14 @@ export enum TemplateCategory {
   UTILITY = 'UTILITY',
 }
 
-export enum TemplateLanguage {
-  PT_BR = 'pt_BR',
-  EN_US = 'en_US',
-  ES = 'es',
-}
-
 export enum ComponentType {
   HEADER = 'HEADER',
   BODY = 'BODY',
   FOOTER = 'FOOTER',
   BUTTONS = 'BUTTONS',
+  CAROUSEL = 'CAROUSEL',
+  LIMITED_TIME_OFFER = 'LIMITED_TIME_OFFER',
+  ORDER_DETAILS = 'ORDER_DETAILS',
 }
 
 export enum HeaderFormat {
@@ -35,6 +37,7 @@ export enum HeaderFormat {
   IMAGE = 'IMAGE',
   VIDEO = 'VIDEO',
   DOCUMENT = 'DOCUMENT',
+  LOCATION = 'LOCATION',
 }
 
 export enum ButtonType {
@@ -42,53 +45,91 @@ export enum ButtonType {
   URL = 'URL',
   PHONE_NUMBER = 'PHONE_NUMBER',
   COPY_CODE = 'COPY_CODE',
+  FLOW = 'FLOW',
+  OTP = 'OTP',
+  MPM = 'MPM',
+}
+
+export enum OtpType {
+  COPY_CODE = 'COPY_CODE',
+  ONE_TAP = 'ONE_TAP',
+  ZERO_TAP = 'ZERO_TAP',
+}
+
+export class HeaderLocationExampleDto {
+  @IsNumber()
+  latitude: number;
+
+  @IsNumber()
+  longitude: number;
+
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  address?: string;
 }
 
 // Button DTOs
-export class QuickReplyButtonDto {
+export class TemplateButtonDto {
   @IsEnum(ButtonType)
-  type: ButtonType = ButtonType.QUICK_REPLY;
+  type: ButtonType;
 
+  @ValidateIf((o) => ![ButtonType.OTP, ButtonType.MPM].includes(o.type))
   @IsString()
   @MaxLength(25)
-  text: string;
-}
+  text?: string;
 
-export class UrlButtonDto {
-  @IsEnum(ButtonType)
-  type: ButtonType = ButtonType.URL;
-
+  @ValidateIf((o) => o.type === ButtonType.URL)
   @IsString()
-  @MaxLength(25)
-  text: string;
+  url?: string;
 
+  @ValidateIf((o) => o.type === ButtonType.PHONE_NUMBER)
   @IsString()
-  url: string;
+  phone_number?: string;
 
+  @ValidateIf((o) => o.type === ButtonType.COPY_CODE || o.type === ButtonType.URL)
+  @IsString()
+  example?: string;
+
+  @ValidateIf((o) => o.type === ButtonType.FLOW)
+  @IsString()
+  flow_id?: string;
+
+  @ValidateIf((o) => o.type === ButtonType.FLOW)
+  @IsString()
+  flow_name?: string;
+
+  @ValidateIf((o) => o.type === ButtonType.FLOW)
+  @IsString()
+  flow_json?: string;
+
+  @ValidateIf((o) => o.type === ButtonType.FLOW)
+  @IsString()
+  navigate_screen?: string;
+
+  @ValidateIf((o) => o.type === ButtonType.FLOW)
+  @IsString()
+  flow_action?: 'navigate' | 'data_exchange';
+
+  @ValidateIf((o) => o.type === ButtonType.OTP)
+  @IsEnum(OtpType)
+  otp_type?: OtpType;
+
+  @ValidateIf((o) => o.type === ButtonType.OTP)
+  @IsString()
+  package_name?: string;
+
+  @ValidateIf((o) => o.type === ButtonType.OTP)
+  @IsString()
+  signature_hash?: string;
+
+  @ValidateIf((o) => o.type === ButtonType.MPM)
   @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  example?: string[];
-}
-
-export class PhoneButtonDto {
-  @IsEnum(ButtonType)
-  type: ButtonType = ButtonType.PHONE_NUMBER;
-
   @IsString()
-  @MaxLength(25)
-  text: string;
-
-  @IsString()
-  phone_number: string;
-}
-
-export class CopyCodeButtonDto {
-  @IsEnum(ButtonType)
-  type: ButtonType = ButtonType.COPY_CODE;
-
-  @IsString()
-  example: string;
+  mpm_button_text?: string;
 }
 
 // Header component
@@ -105,9 +146,12 @@ export class HeaderComponentDto {
   text?: string;
 
   @IsOptional()
+  @ValidateNested()
+  @Type(() => Object)
   example?: {
     header_text?: string[];
     header_handle?: string[];
+    header_location?: HeaderLocationExampleDto[];
   };
 }
 
@@ -122,6 +166,7 @@ export class BodyComponentDto {
   text: string;
 
   @IsOptional()
+  @IsObject()
   example?: {
     body_text?: string[][];
   };
@@ -143,7 +188,47 @@ export class ButtonsComponentDto {
   type: ComponentType = ComponentType.BUTTONS;
 
   @IsArray()
-  buttons: Array<QuickReplyButtonDto | UrlButtonDto | PhoneButtonDto | CopyCodeButtonDto>;
+  @ValidateNested({ each: true })
+  @Type(() => TemplateButtonDto)
+  buttons: TemplateButtonDto[];
+}
+
+export class CarouselCardDto {
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => Object)
+  components: Array<HeaderComponentDto | BodyComponentDto | ButtonsComponentDto>;
+}
+
+export class CarouselComponentDto {
+  @IsEnum(ComponentType)
+  type: ComponentType = ComponentType.CAROUSEL;
+
+  @IsArray()
+  @ArrayMinSize(2)
+  @ArrayMaxSize(10)
+  @ValidateNested({ each: true })
+  @Type(() => CarouselCardDto)
+  cards: CarouselCardDto[];
+}
+
+export class LimitedTimeOfferComponentDto {
+  @IsEnum(ComponentType)
+  type: ComponentType = ComponentType.LIMITED_TIME_OFFER;
+
+  @IsObject()
+  limited_time_offer: {
+    text: string;
+    has_expiration: boolean;
+  };
+}
+
+export class OrderDetailsComponentDto {
+  @IsEnum(ComponentType)
+  type: ComponentType = ComponentType.ORDER_DETAILS;
+
+  @IsObject()
+  order: Record<string, unknown>;
 }
 
 // Main DTO
@@ -157,18 +242,34 @@ export class CreateWhatsAppTemplateDto {
   @IsEnum(TemplateCategory)
   category: TemplateCategory;
 
-  @IsEnum(TemplateLanguage)
+  @IsString()
   @IsOptional()
-  language?: TemplateLanguage = TemplateLanguage.PT_BR;
+  language?: string = 'pt_BR';
 
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => Object)
-  components: Array<HeaderComponentDto | BodyComponentDto | FooterComponentDto | ButtonsComponentDto>;
+  components: Array<
+    | HeaderComponentDto
+    | BodyComponentDto
+    | FooterComponentDto
+    | ButtonsComponentDto
+    | CarouselComponentDto
+    | LimitedTimeOfferComponentDto
+    | OrderDetailsComponentDto
+  >;
 
   @IsBoolean()
   @IsOptional()
-  allowCategoryChange?: boolean = true;
+  allow_category_change?: boolean = true;
+
+  @IsOptional()
+  @IsBoolean()
+  add_security_recommendation?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  code_expiration_minutes?: number;
 }
 
 // Simplified DTO for easier frontend usage
@@ -181,9 +282,9 @@ export class CreateSimpleTemplateDto {
   @IsEnum(TemplateCategory)
   category: TemplateCategory;
 
-  @IsEnum(TemplateLanguage)
+  @IsString()
   @IsOptional()
-  language?: TemplateLanguage = TemplateLanguage.PT_BR;
+  language?: string = 'pt_BR';
 
   @IsOptional()
   @IsString()
@@ -208,10 +309,18 @@ export class CreateSimpleTemplateDto {
   @IsArray()
   buttons?: Array<{
     type: ButtonType;
-    text: string;
+    text?: string;
     url?: string;
     phone_number?: string;
     example?: string;
+    flow_id?: string;
+    flow_name?: string;
+    flow_json?: string;
+    navigate_screen?: string;
+    flow_action?: 'navigate' | 'data_exchange';
+    otp_type?: OtpType;
+    package_name?: string;
+    signature_hash?: string;
   }>;
 
   @IsOptional()

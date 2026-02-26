@@ -907,6 +907,25 @@ model AIAgent {
   maxTokens    Int         @default(4096)
   templateId   String?
 
+  // WhatsApp Template (from Meta API)
+  whatsappTemplateId   String?  // Meta template ID (numeric string)
+  whatsappTemplateName String?  // Template name for reference
+
+  // WhatsApp Configuration
+  whatsappEnabled          Boolean @default(false)
+  whatsappAutoReply        Boolean @default(true)
+  whatsappGreeting         String? @db.Text
+  whatsappOfflineMessage   String? @db.Text
+  whatsappBusinessHoursOnly Boolean @default(false)
+
+  // CRM Configuration
+  crmEnabled           Boolean @default(false)
+  crmAutoCreateLead    Boolean @default(true)
+  crmAutoUpdateLead    Boolean @default(true)
+  crmLeadScoring       Boolean @default(false)
+  crmNotifyOnHighScore Boolean @default(false)
+  crmAssignToBoard     String? // Board ID for auto-assignment
+
   // Configurações de voz (Text-to-Speech)
   voiceEnabled Boolean @default(false)
   voiceId      String  @default("nova") // alloy, echo, fable, onyx, nova, shimmer

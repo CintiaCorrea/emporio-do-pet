@@ -99,6 +99,22 @@ export class AgentsService {
         temperature: dto.temperature || 0.7,
         maxTokens: dto.maxTokens || 4096,
         templateId: dto.templateId,
+        // WhatsApp
+        whatsappTemplateId: dto.whatsappTemplateId,
+        whatsappTemplateName: dto.whatsappTemplateName,
+        whatsappEnabled: dto.whatsappEnabled ?? false,
+        whatsappAutoReply: dto.whatsappAutoReply ?? true,
+        whatsappGreeting: dto.whatsappGreeting,
+        whatsappOfflineMessage: dto.whatsappOfflineMessage,
+        whatsappBusinessHoursOnly: dto.whatsappBusinessHoursOnly ?? false,
+        // CRM
+        crmEnabled: dto.crmEnabled ?? false,
+        crmAutoCreateLead: dto.crmAutoCreateLead ?? true,
+        crmAutoUpdateLead: dto.crmAutoUpdateLead ?? true,
+        crmLeadScoring: dto.crmLeadScoring ?? false,
+        crmNotifyOnHighScore: dto.crmNotifyOnHighScore ?? false,
+        crmAssignToBoard: dto.crmAssignToBoard,
+        // Voice
         voiceEnabled: dto.voiceEnabled ?? false,
         voiceId: dto.voiceId ?? 'nova',
         voiceSpeed: dto.voiceSpeed ?? 1.0,
@@ -626,14 +642,31 @@ export class AgentsService {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-    const dailyExecutions = await this.prisma.agentExecution.groupBy({
-      by: ['createdAt'],
+    const recentExecutions = await this.prisma.agentExecution.findMany({
       where: {
         agentId: id,
         createdAt: { gte: sevenDaysAgo },
       },
-      _count: true,
+      select: { createdAt: true, status: true },
     });
+
+    const dailyMap: Record<string, { total: number; success: number; failed: number }> = {};
+    for (const exec of recentExecutions) {
+      const date = exec.createdAt.toISOString().split('T')[0];
+      if (!dailyMap[date]) {
+        dailyMap[date] = { total: 0, success: 0, failed: 0 };
+      }
+      dailyMap[date].total++;
+      if (exec.status === 'SUCCESS') {
+        dailyMap[date].success++;
+      } else {
+        dailyMap[date].failed++;
+      }
+    }
+
+    const dailyExecutions = Object.entries(dailyMap)
+      .map(([date, stats]) => ({ date, ...stats }))
+      .sort((a, b) => a.date.localeCompare(b.date));
 
     return {
       totalInteractions: agent.totalInteractions,
@@ -654,6 +687,20 @@ export class AgentsService {
     userId: string,
     provider: 'OPENAI' | 'GEMINI' | 'DEEPSEEK',
   ): Promise<{ apiKey: string; baseUrl?: string } | null> {
+    // First, try to get from environment variables (single-tenant mode)
+    const envKeyMap: Record<string, string> = {
+      OPENAI: 'integrations.openai.apiKey',
+      GEMINI: 'integrations.gemini.apiKey',
+      DEEPSEEK: 'integrations.deepseek.apiKey',
+    };
+
+    const envApiKey = this.configService.get<string>(envKeyMap[provider]);
+    if (envApiKey) {
+      this.logger.debug(`Using ${provider} API key from environment`);
+      return { apiKey: envApiKey };
+    }
+
+    // Fallback: try to get from user's integration settings (multi-tenant mode)
     const settings = await this.prisma.integrationSettings.findUnique({
       where: { userId },
     });

@@ -43,10 +43,16 @@ export default () => ({
     from: process.env.EMAIL_FROM || 'noreply@emporiodopet.com',
   },
 
-  // Integrações
+  // Integrações AI
   integrations: {
     openai: {
       apiKey: process.env.OPENAI_API_KEY,
+    },
+    gemini: {
+      apiKey: process.env.GEMINI_API_KEY,
+    },
+    deepseek: {
+      apiKey: process.env.DEEPSEEK_API_KEY,
     },
   },
 
@@ -58,6 +64,7 @@ export default () => ({
     appSecret: process.env.WHATSAPP_APP_SECRET,
     webhookVerifyToken: process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN,
     apiVersion: process.env.WHATSAPP_API_VERSION || 'v21.0',
+    defaultAgentId: process.env.WHATSAPP_DEFAULT_AGENT_ID || null,
   },
 
   // AI Service (FastAPI)

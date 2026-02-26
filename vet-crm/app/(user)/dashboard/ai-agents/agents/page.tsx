@@ -15,12 +15,10 @@ import {
   LuTrendingUp,
   LuClock,
   LuCircleCheck,
-  LuCircleAlert,
   LuActivity,
   LuX,
   LuPencil,
   LuTrash2,
-  LuRefreshCw,
   LuFileText,
   LuChevronRight,
   LuLoader
@@ -30,7 +28,6 @@ import { toast } from 'sonner';
 // Tipos para AI Agents
 type AgentStatus = 'ACTIVE' | 'PAUSED' | 'DRAFT' | 'ERROR';
 type AgentType = 'CHATBOT' | 'AUTOMATION' | 'ASSISTANT' | 'SCHEDULER';
-type AIProvider = 'OPENAI' | 'GEMINI' | 'DEEPSEEK';
 
 interface AIAgent {
   id: string;
@@ -61,16 +58,6 @@ interface AIAgent {
   };
 }
 
-interface NewAgentForm {
-  name: string;
-  description: string;
-  type: AgentType;
-  provider: AIProvider;
-  model: string;
-  systemPrompt: string;
-  templateId?: string;
-}
-
 export default function AgentsPage() {
   const [agents, setAgents] = useState<AIAgent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -80,16 +67,6 @@ export default function AgentsPage() {
   const [typeFilter, setTypeFilter] = useState<AgentType | 'all'>('all');
   const [selectedAgent, setSelectedAgent] = useState<AIAgent | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isNewAgentModalOpen, setIsNewAgentModalOpen] = useState(false);
-  const [newAgentForm, setNewAgentForm] = useState<NewAgentForm>({
-    name: '',
-    description: '',
-    type: 'CHATBOT',
-    provider: 'OPENAI',
-    model: 'gpt-4o-mini',
-    systemPrompt: 'Você é um assistente útil.',
-  });
-  const [templates, setTemplates] = useState<{id: string; name: string; category: string}[]>([]);
 
   const loadAgents = useCallback(async () => {
     setLoading(true);
@@ -116,68 +93,9 @@ export default function AgentsPage() {
     }
   }, [statusFilter, typeFilter]);
 
-  const loadTemplates = async () => {
-    try {
-      const response = await fetch('/api/templates?status=PUBLISHED&limit=50');
-      const data = await response.json();
-      if (response.ok) {
-        setTemplates(data.data || []);
-      }
-    } catch (error) {
-      console.error('Erro ao carregar templates:', error);
-    }
-  };
-
   useEffect(() => {
     loadAgents();
   }, [loadAgents]);
-
-  useEffect(() => {
-    loadTemplates();
-  }, []);
-
-  const handleCreateAgent = async () => {
-    if (!newAgentForm.name.trim()) {
-      toast.error('Nome do agente é obrigatório');
-      return;
-    }
-    if (!newAgentForm.systemPrompt.trim()) {
-      toast.error('System Prompt é obrigatório');
-      return;
-    }
-
-    setActionLoading('create');
-    try {
-      const response = await fetch('/api/agents', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newAgentForm),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Erro ao criar agente');
-      }
-
-      toast.success('Agente criado com sucesso!');
-      setIsNewAgentModalOpen(false);
-      setNewAgentForm({
-        name: '',
-        description: '',
-        type: 'CHATBOT',
-        provider: 'OPENAI',
-        model: 'gpt-4o-mini',
-        systemPrompt: 'Você é um assistente útil.',
-      });
-      loadAgents();
-    } catch (error) {
-      console.error('Erro ao criar agente:', error);
-      toast.error(error instanceof Error ? error.message : 'Erro ao criar agente');
-    } finally {
-      setActionLoading(null);
-    }
-  };
 
   const handleUpdateStatus = async (agentId: string, newStatus: AgentStatus) => {
     setActionLoading(agentId);
@@ -340,13 +258,13 @@ export default function AgentsPage() {
                     Gerencie seus agentes inteligentes de automação
                   </p>
                 </div>
-                <button
-                  onClick={() => setIsNewAgentModalOpen(true)}
+                <Link
+                  href="/dashboard/ai-agents/agents/novo"
                   className="flex items-center gap-2 px-6 py-3 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-semibold shadow-lg shadow-violet-500/20 transition-all duration-200 hover:shadow-xl"
                 >
                   <LuPlus className="w-5 h-5" />
                   Novo Agente
-                </button>
+                </Link>
               </div>
             </div>
 
@@ -717,157 +635,6 @@ export default function AgentsPage() {
         </div>
       )}
 
-      {/* Modal de Novo Agente */}
-      {isNewAgentModalOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl">
-            <div className="p-6 border-b border-gray-100">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold text-gray-900">Criar Novo Agente</h2>
-                <button
-                  onClick={() => setIsNewAgentModalOpen(false)}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  <LuX className="w-5 h-5 text-gray-500" />
-                </button>
-              </div>
-            </div>
-
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Nome do Agente *</label>
-                <input
-                  type="text"
-                  placeholder="Ex: Assistente de Vendas"
-                  value={newAgentForm.name}
-                  onChange={(e) => setNewAgentForm({ ...newAgentForm, name: e.target.value })}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Descrição</label>
-                <textarea
-                  placeholder="Descreva a função do agente..."
-                  rows={2}
-                  value={newAgentForm.description}
-                  onChange={(e) => setNewAgentForm({ ...newAgentForm, description: e.target.value })}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 resize-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de Agente</label>
-                  <select 
-                    value={newAgentForm.type}
-                    onChange={(e) => setNewAgentForm({ ...newAgentForm, type: e.target.value as AgentType })}
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 cursor-pointer"
-                  >
-                    <option value="CHATBOT">Chatbot</option>
-                    <option value="AUTOMATION">Automação</option>
-                    <option value="ASSISTANT">Assistente</option>
-                    <option value="SCHEDULER">Agendador</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Provider</label>
-                  <select 
-                    value={newAgentForm.provider}
-                    onChange={(e) => setNewAgentForm({ ...newAgentForm, provider: e.target.value as AIProvider })}
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 cursor-pointer"
-                  >
-                    <option value="OPENAI">OpenAI</option>
-                    <option value="GEMINI">Google Gemini</option>
-                    <option value="DEEPSEEK">DeepSeek</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Modelo</label>
-                <select 
-                  value={newAgentForm.model}
-                  onChange={(e) => setNewAgentForm({ ...newAgentForm, model: e.target.value })}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 cursor-pointer"
-                >
-                  {newAgentForm.provider === 'OPENAI' && (
-                    <>
-                      <option value="gpt-4o-mini">GPT-4o Mini</option>
-                      <option value="gpt-4o">GPT-4o</option>
-                      <option value="gpt-4-turbo">GPT-4 Turbo</option>
-                    </>
-                  )}
-                  {newAgentForm.provider === 'GEMINI' && (
-                    <>
-                      <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
-                      <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
-                    </>
-                  )}
-                  {newAgentForm.provider === 'DEEPSEEK' && (
-                    <>
-                      <option value="deepseek-chat">DeepSeek Chat</option>
-                      <option value="deepseek-coder">DeepSeek Coder</option>
-                    </>
-                  )}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Template (opcional)</label>
-                <select 
-                  value={newAgentForm.templateId || ''}
-                  onChange={(e) => setNewAgentForm({ ...newAgentForm, templateId: e.target.value || undefined })}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 cursor-pointer"
-                >
-                  <option value="">Sem template</option>
-                  {templates.map((template) => (
-                    <option key={template.id} value={template.id}>
-                      {template.name} ({template.category})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">System Prompt *</label>
-                <textarea
-                  placeholder="Defina o comportamento do agente..."
-                  rows={4}
-                  value={newAgentForm.systemPrompt}
-                  onChange={(e) => setNewAgentForm({ ...newAgentForm, systemPrompt: e.target.value })}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 resize-none"
-                />
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <button
-                  onClick={() => setIsNewAgentModalOpen(false)}
-                  disabled={actionLoading === 'create'}
-                  className="flex-1 px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-colors disabled:opacity-50"
-                >
-                  Cancelar
-                </button>
-                <button 
-                  onClick={handleCreateAgent}
-                  disabled={actionLoading === 'create'}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-semibold transition-all disabled:opacity-50"
-                >
-                  {actionLoading === 'create' ? (
-                    <>
-                      <LuLoader className="w-5 h-5 animate-spin" />
-                      Criando...
-                    </>
-                  ) : (
-                    'Criar Agente'
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

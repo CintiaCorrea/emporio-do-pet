@@ -15,13 +15,13 @@ import {
   LuCheckCheck,
   LuCheck,
   LuClock,
-  LuXCircle,
+  LuCircleX,
   LuImage,
   LuPaperclip,
   LuSmile,
   LuMoreVertical,
-  LuUserCircle,
-  LuPaw,
+  LuCircleUser,
+  LuPawPrint,
   LuSettings,
   LuPower,
 } from 'react-icons/lu';
@@ -274,7 +274,7 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
       case 'SENT': return <LuCheck className="w-3.5 h-3.5 text-gray-400" />;
       case 'DELIVERED': return <LuCheckCheck className="w-3.5 h-3.5 text-gray-400" />;
       case 'READ': return <LuCheckCheck className="w-3.5 h-3.5 text-blue-500" />;
-      case 'FAILED': return <LuXCircle className="w-3.5 h-3.5 text-red-500" />;
+      case 'FAILED': return <LuCircleX className="w-3.5 h-3.5 text-red-500" />;
     }
   };
 
@@ -361,7 +361,7 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
               </Link>
               
               <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center">
-                <LuUserCircle className="w-6 h-6 text-emerald-600" />
+                <LuCircleUser className="w-6 h-6 text-emerald-600" />
               </div>
               
               <div>
@@ -521,7 +521,7 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
             {/* Contact Info */}
             <div className="text-center">
               <div className="w-20 h-20 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-4">
-                <LuUserCircle className="w-10 h-10 text-emerald-600" />
+                <LuCircleUser className="w-10 h-10 text-emerald-600" />
               </div>
               <h3 className="font-semibold text-gray-900">{contactName}</h3>
               <p className="text-sm text-gray-500">{conversation.contactPhone}</p>
@@ -631,7 +631,7 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
                         href={`/dashboard/erp/pets/${pet.id}`}
                         className="flex items-center gap-2 p-2 bg-amber-50 rounded-lg hover:bg-amber-100 transition-colors"
                       >
-                        <LuPaw className="w-4 h-4 text-amber-600" />
+                        <LuPawPrint className="w-4 h-4 text-amber-600" />
                         <span className="text-sm text-amber-700">{pet.name}</span>
                         <span className="text-xs text-amber-500">({pet.species})</span>
                       </Link>

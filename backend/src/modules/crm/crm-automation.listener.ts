@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
+import { WhatsAppService } from '../whatsapp/whatsapp.service';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { AutomationTrigger } from '@prisma/client';
@@ -11,6 +12,7 @@ export class CrmAutomationListener {
 
   constructor(
     private prisma: PrismaService,
+    private whatsAppService: WhatsAppService,
     @InjectQueue('automations') private automationsQueue: Queue,
   ) {}
 
@@ -184,6 +186,12 @@ export class CrmAutomationListener {
       leadPhone: lead.phone,
       score: data.score,
     });
+
+    // CRM → WhatsApp: notify qualified lead
+    await this.sendCrmWhatsAppNotification(
+      data.leadId,
+      'Olá{name}! Temos novidades especiais para você. Como podemos ajudar? 🐾',
+    );
   }
 
   @OnEvent('crm.lead.converted')
@@ -206,6 +214,12 @@ export class CrmAutomationListener {
       clientEmail: client.email,
       clientName: client.name,
     });
+
+    // CRM → WhatsApp: welcome new client
+    await this.sendCrmWhatsAppNotification(
+      data.leadId,
+      'Olá{name}! Seja muito bem-vindo(a) como cliente do Empório do Pet! 🎉 Estamos à disposição para qualquer necessidade.',
+    );
   }
 
   // ============================================
@@ -252,6 +266,43 @@ export class CrmAutomationListener {
       previousStatus: data.previousStatus,
       newStatus: data.newStatus,
     });
+  }
+
+  // ============================================
+  // CRM → WhatsApp Sync (helper)
+  // ============================================
+
+  private async sendCrmWhatsAppNotification(
+    leadId: string,
+    messageTemplate: string,
+  ): Promise<void> {
+    try {
+      const lead = await this.prisma.lead.findUnique({
+        where: { id: leadId },
+      });
+
+      if (!lead?.whatsappConversationId) return;
+
+      const conversation = await this.prisma.whatsAppConversation.findUnique({
+        where: { id: lead.whatsappConversationId },
+      });
+
+      if (!conversation) return;
+
+      const name = lead.name ? ` ${lead.name}` : '';
+      const message = messageTemplate.replace('{name}', name);
+
+      await this.whatsAppService.sendAndSaveMessage(
+        conversation.userId,
+        conversation.id,
+        message,
+        'TEXT',
+      );
+
+      this.logger.log(`CRM→WhatsApp notification sent for lead ${leadId}`);
+    } catch (error) {
+      this.logger.warn(`Failed to send CRM→WhatsApp notification: ${error instanceof Error ? error.message : 'Unknown'}`);
+    }
   }
 
   // ============================================

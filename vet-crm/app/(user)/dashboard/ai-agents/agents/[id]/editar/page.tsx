@@ -13,9 +13,8 @@ import {
   LuPlay,
   LuPause,
   LuMessageSquare,
-  LuFileText,
   LuSettings2,
-  LuSliders,
+  LuSlidersHorizontal,
   LuMic,
   LuVolume2,
 } from 'react-icons/lu';
@@ -553,7 +552,7 @@ export default function EditAgentPage({ params }: { params: Promise<{ id: string
               className="w-full p-6 flex items-center justify-between hover:bg-gray-50 transition-colors"
             >
               <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <LuSliders className="w-5 h-5 text-violet-600" />
+                <LuSlidersHorizontal className="w-5 h-5 text-violet-600" />
                 Configurações Avançadas
               </h2>
               <LuChevronRight className={`w-5 h-5 text-gray-400 transition-transform ${showAdvanced ? 'rotate-90' : ''}`} />

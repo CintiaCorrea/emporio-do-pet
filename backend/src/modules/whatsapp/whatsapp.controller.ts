@@ -89,6 +89,9 @@ export class WhatsAppController {
   
   // Cache of valid webhook verify tokens (from all users' configurations)
   private validVerifyTokens: Set<string> = new Set();
+  
+  // Cached default user ID for single-tenant mode
+  private defaultUserId: string | null = null;
 
   constructor(
     private readonly whatsAppService: WhatsAppService,
@@ -141,7 +144,48 @@ export class WhatsAppController {
     }
   }
 
-  // Get user ID from phone number ID
+  /**
+   * Get default user ID for single-tenant mode
+   * Returns the first admin user or the first user in the system
+   */
+  private async getDefaultUserId(): Promise<string | null> {
+    if (this.defaultUserId) {
+      return this.defaultUserId;
+    }
+
+    try {
+      // Try to find an admin user first
+      const adminUser = await this.prisma.user.findFirst({
+        where: { role: 'ADMIN' },
+        select: { id: true },
+      });
+
+      if (adminUser) {
+        this.defaultUserId = adminUser.id;
+        this.logger.log(`Single-tenant mode: Using admin user ${adminUser.id}`);
+        return this.defaultUserId;
+      }
+
+      // Fallback to any user
+      const anyUser = await this.prisma.user.findFirst({
+        select: { id: true },
+      });
+
+      if (anyUser) {
+        this.defaultUserId = anyUser.id;
+        this.logger.log(`Single-tenant mode: Using user ${anyUser.id}`);
+        return this.defaultUserId;
+      }
+
+      this.logger.warn('No users found in database for single-tenant mode');
+      return null;
+    } catch (error) {
+      this.logger.error('Error getting default user ID:', error);
+      return null;
+    }
+  }
+
+  // Get user ID from phone number ID (with single-tenant fallback)
   private async getUserIdFromPhoneNumberId(phoneNumberId: string): Promise<string | null> {
     // Check cache first
     if (this.phoneToUserMap.has(phoneNumberId)) {
@@ -150,7 +194,14 @@ export class WhatsAppController {
 
     // Reload mapping and try again
     await this.loadPhoneUserMapping();
-    return this.phoneToUserMap.get(phoneNumberId) || null;
+    
+    if (this.phoneToUserMap.has(phoneNumberId)) {
+      return this.phoneToUserMap.get(phoneNumberId)!;
+    }
+
+    // Single-tenant fallback: use default user
+    this.logger.log(`No user mapping found for phone ${phoneNumberId}, using single-tenant fallback`);
+    return this.getDefaultUserId();
   }
 
   // Check if a verify token is valid (from env OR from any user's configuration)
@@ -326,6 +377,7 @@ export class WhatsAppController {
       message.from,
       contactName,
       contact?.profile?.name,
+      content,
     );
 
     // Prepare message data

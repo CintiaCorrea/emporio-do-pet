@@ -13,7 +13,7 @@ import {
   LuMessageSquare,
   LuCheckCheck,
   LuEye,
-  LuXCircle,
+  LuCircleX,
   LuClock,
   LuCalendar,
   LuRefreshCw,
@@ -441,7 +441,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
 
           <div className="bg-white rounded-xl border border-gray-100 p-4">
             <div className="flex items-center gap-2 text-red-600 mb-1">
-              <LuXCircle className="w-4 h-4" />
+              <LuCircleX className="w-4 h-4" />
               <span className="text-sm">Falhas</span>
             </div>
             <p className="text-2xl font-bold text-red-600">{stats?.failedCount || campaign.failedCount}</p>
