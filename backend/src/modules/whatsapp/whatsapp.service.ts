@@ -215,8 +215,8 @@ export class WhatsAppService {
     config?: WhatsAppConfig,
     enableRetry: boolean = true,
   ): Promise<WhatsAppResponse> {
-    const token = config?.accessToken || this.accessToken;
-    const phoneId = config?.phoneNumberId || this.phoneNumberId;
+    const token = this.accessToken || config?.accessToken;
+    const phoneId = this.phoneNumberId || config?.phoneNumberId;
 
     if (!token || !phoneId) {
       return {
@@ -297,8 +297,8 @@ export class WhatsAppService {
     language: string = 'pt_BR',
     config?: WhatsAppConfig,
   ): Promise<WhatsAppResponse> {
-    const token = config?.accessToken || this.accessToken;
-    const phoneId = config?.phoneNumberId || this.phoneNumberId;
+    const token = this.accessToken || config?.accessToken;
+    const phoneId = this.phoneNumberId || config?.phoneNumberId;
 
     if (!token || !phoneId) {
       return {
@@ -411,8 +411,8 @@ export class WhatsAppService {
 
   // Mark message as read
   async markAsRead(messageId: string, config?: WhatsAppConfig): Promise<boolean> {
-    const token = config?.accessToken || this.accessToken;
-    const phoneId = config?.phoneNumberId || this.phoneNumberId;
+    const token = this.accessToken || config?.accessToken;
+    const phoneId = this.phoneNumberId || config?.phoneNumberId;
 
     if (!token || !phoneId) return false;
 
@@ -584,8 +584,8 @@ export class WhatsAppService {
 
   // Test connection to WhatsApp API
   async testConnection(config?: WhatsAppConfig): Promise<{ connected: boolean; error?: string; phoneNumber?: string }> {
-    const token = config?.accessToken || this.accessToken;
-    const phoneId = config?.phoneNumberId || this.phoneNumberId;
+    const token = this.accessToken || config?.accessToken;
+    const phoneId = this.phoneNumberId || config?.phoneNumberId;
 
     if (!token || !phoneId) {
       return { connected: false, error: 'Access token or Phone Number ID not configured' };
@@ -1088,7 +1088,7 @@ export class WhatsAppService {
 
   // Get message templates
   async getTemplates(config?: WhatsAppConfig): Promise<{ templates: unknown[]; error?: string }> {
-    const token = config?.accessToken || this.accessToken;
+    const token = this.accessToken || config?.accessToken;
     const businessId = config?.businessAccountId || this.configService.get<string>('whatsapp.businessAccountId');
 
     if (!token || !businessId) {
@@ -1136,7 +1136,7 @@ export class WhatsAppService {
     mediaId: string,
     config?: WhatsAppConfig,
   ): Promise<{ url?: string; mimeType?: string; sha256?: string; fileSize?: number; error?: string }> {
-    const token = config?.accessToken || this.accessToken;
+    const token = this.accessToken || config?.accessToken;
 
     if (!token) {
       return { error: 'WhatsApp access token not configured' };
@@ -1179,7 +1179,7 @@ export class WhatsAppService {
     mediaId: string,
     config?: WhatsAppConfig,
   ): Promise<{ buffer?: Buffer; mimeType?: string; error?: string }> {
-    const token = config?.accessToken || this.accessToken;
+    const token = this.accessToken || config?.accessToken;
 
     if (!token) {
       return { error: 'WhatsApp access token not configured' };
@@ -1380,8 +1380,8 @@ export class WhatsAppService {
     filename: string,
     config?: WhatsAppConfig,
   ): Promise<{ mediaId?: string; error?: string }> {
-    const token = config?.accessToken || this.accessToken;
-    const phoneId = config?.phoneNumberId || this.phoneNumberId;
+    const token = this.accessToken || config?.accessToken;
+    const phoneId = this.phoneNumberId || config?.phoneNumberId;
 
     if (!token || !phoneId) {
       return { error: 'WhatsApp API not configured' };
@@ -1434,8 +1434,8 @@ export class WhatsAppService {
     filename?: string,
     config?: WhatsAppConfig,
   ): Promise<WhatsAppResponse> {
-    const token = config?.accessToken || this.accessToken;
-    const phoneId = config?.phoneNumberId || this.phoneNumberId;
+    const token = this.accessToken || config?.accessToken;
+    const phoneId = this.phoneNumberId || config?.phoneNumberId;
 
     if (!token || !phoneId) {
       return {
