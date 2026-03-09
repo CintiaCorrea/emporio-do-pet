@@ -339,6 +339,7 @@ export class CrmIntegrationService {
       lastMonth: number;
     };
   }> {
+    const now = new Date();
     const [
       totalLeads,
       newLeads,
@@ -364,15 +365,15 @@ export class CrmIntegrationService {
       this.prisma.lead.count({
         where: {
           status: LeadStatus.CONVERTED,
-          convertedAt: { gte: new Date(new Date().setDate(1)) },
+          convertedAt: { gte: new Date(now.getFullYear(), now.getMonth(), 1) },
         },
       }),
       this.prisma.lead.count({
         where: {
           status: LeadStatus.CONVERTED,
           convertedAt: {
-            gte: new Date(new Date().setMonth(new Date().getMonth() - 1, 1)),
-            lt: new Date(new Date().setDate(1)),
+            gte: new Date(now.getFullYear(), now.getMonth() - 1, 1),
+            lt: new Date(now.getFullYear(), now.getMonth(), 1),
           },
         },
       }),

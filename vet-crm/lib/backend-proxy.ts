@@ -11,7 +11,7 @@ export function getBackendBaseUrl() {
     process.env.BACKEND_URL ||
     process.env.NEXT_PUBLIC_BACKEND_URL ||
     process.env.NEXT_PUBLIC_API_URL ||
-    (process.env.NODE_ENV !== 'production' ? 'http://localhost:3001' : undefined)
+    (process.env.NODE_ENV !== 'production' ? 'http://localhost:3333' : undefined)
   );
 }
 

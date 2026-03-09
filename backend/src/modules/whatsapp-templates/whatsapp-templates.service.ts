@@ -79,16 +79,16 @@ export class WhatsAppTemplatesService {
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
   ) {
-    this.apiVersion = this.configService.get<string>('WHATSAPP_API_VERSION') || 'v21.0';
+    this.apiVersion = this.configService.get<string>('whatsapp.apiVersion') || 'v21.0';
   }
 
   /**
    * Get WhatsApp config - uses environment variables (single-tenant)
    */
   getConfig(): WhatsAppConfig | null {
-    const accessToken = this.configService.get<string>('WHATSAPP_ACCESS_TOKEN');
-    const phoneNumberId = this.configService.get<string>('WHATSAPP_PHONE_NUMBER_ID');
-    const businessAccountId = this.configService.get<string>('WHATSAPP_BUSINESS_ACCOUNT_ID');
+    const accessToken = this.configService.get<string>('whatsapp.accessToken');
+    const phoneNumberId = this.configService.get<string>('whatsapp.phoneNumberId');
+    const businessAccountId = this.configService.get<string>('whatsapp.businessAccountId');
 
     if (!accessToken || !businessAccountId) {
       this.logger.warn('WhatsApp credentials not configured in environment variables');
@@ -550,9 +550,9 @@ export class WhatsAppTemplatesService {
       return { error: mediaRuleError };
     }
     try {
-      const appId = this.configService.get<string>('META_APP_ID');
+      const appId = this.configService.get<string>('whatsapp.appId');
       if (!appId) {
-        return { error: 'META_APP_ID not configured in environment variables.' };
+        return { error: 'WHATSAPP_APP_ID not configured in environment variables.' };
       }
 
       const initResponse = await fetch(`${this.baseUrl}/${this.apiVersion}/${appId}/uploads`, {

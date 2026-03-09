@@ -128,10 +128,10 @@ export class WhatsAppService {
     @Inject(forwardRef(() => CloudStorageService))
     private cloudStorageService: CloudStorageService,
   ) {
-    this.accessToken = this.configService.get<string>('WHATSAPP_ACCESS_TOKEN') || '';
-    this.phoneNumberId = this.configService.get<string>('WHATSAPP_PHONE_NUMBER_ID') || '';
-    this.webhookVerifyToken = this.configService.get<string>('WHATSAPP_WEBHOOK_VERIFY_TOKEN') || '';
-    this.apiVersion = this.configService.get<string>('WHATSAPP_API_VERSION') || 'v21.0';
+    this.accessToken = this.configService.get<string>('whatsapp.accessToken') || '';
+    this.phoneNumberId = this.configService.get<string>('whatsapp.phoneNumberId') || '';
+    this.webhookVerifyToken = this.configService.get<string>('whatsapp.webhookVerifyToken') || '';
+    this.apiVersion = this.configService.get<string>('whatsapp.apiVersion') || 'v21.0';
     this.baseUrl = `https://graph.facebook.com/${this.apiVersion}`;
     this.rateLimiter = new RateLimiter(60, 60); // 60 messages per second
     this.defaultCountry = this.configService.get<string>('DEFAULT_COUNTRY') || 'BR';
@@ -203,7 +203,7 @@ export class WhatsAppService {
     return {
       accessToken: this.accessToken,
       phoneNumberId: this.phoneNumberId,
-      businessAccountId: this.configService.get<string>('WHATSAPP_BUSINESS_ACCOUNT_ID'),
+      businessAccountId: this.configService.get<string>('whatsapp.businessAccountId'),
       webhookVerifyToken: this.webhookVerifyToken,
       apiVersion: this.apiVersion,
     };
@@ -261,7 +261,7 @@ export class WhatsAppService {
           throw new Error(`Rate limited: ${errorMsg}`);
         }
 
-        throw { message: errorMsg, code: errorCode };
+        throw new Error(`${errorMsg}${errorCode ? ` (code: ${errorCode})` : ''}`);
       }
 
       const messageId = data.messages?.[0]?.id;
@@ -279,15 +279,12 @@ export class WhatsAppService {
       }
       return await sendOperation();
     } catch (error: unknown) {
-      const err = error as { message?: string; code?: string };
-      const errorMessage = err.message || 'Unknown error';
-      const errorCode = err.code;
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       this.logger.error(`Error sending WhatsApp message to ${phone}: ${errorMessage}`);
 
       return {
         success: false,
         error: errorMessage,
-        errorCode,
       };
     }
   }
@@ -382,8 +379,8 @@ export class WhatsAppService {
     let sent = 0;
     let failed = 0;
 
-    for (const message of messages) {
-      // Use template if specified, otherwise send text
+    for (let i = 0; i < messages.length; i++) {
+      const message = messages[i];
       const result = message.templateName
         ? await this.sendTemplateMessage(
             message.to,
@@ -402,8 +399,7 @@ export class WhatsAppService {
         failed++;
       }
 
-      // Rate limiting delay (WhatsApp has limits per second)
-      if (delayMs > 0 && messages.indexOf(message) < messages.length - 1) {
+      if (delayMs > 0 && i < messages.length - 1) {
         await new Promise(resolve => setTimeout(resolve, delayMs));
       }
     }
@@ -442,7 +438,7 @@ export class WhatsAppService {
 
   // Validate webhook signature from Meta
   validateWebhookSignature(payload: string, signature: string): boolean {
-    const appSecret = this.configService.get<string>('WHATSAPP_APP_SECRET');
+    const appSecret = this.configService.get<string>('whatsapp.appSecret');
     
     if (!appSecret) {
       this.logger.error(
@@ -576,6 +572,11 @@ export class WhatsAppService {
     return this.webhookVerifyToken;
   }
 
+  // Get app secret (for signature validation checks in controller)
+  getAppSecret(): string | undefined {
+    return this.configService.get<string>('whatsapp.appSecret');
+  }
+
   // Check if WhatsApp is configured
   isConfigured(): boolean {
     return !!(this.accessToken && this.phoneNumberId);
@@ -683,7 +684,6 @@ export class WhatsAppService {
         const newTutor = await this.prisma.tutor.create({
           data: {
             name: contactName || contactPushName || `WhatsApp ${formattedPhone}`,
-            phone: formattedPhone,
             contacts: {
               create: {
                 number: formattedPhone,
@@ -1022,7 +1022,7 @@ export class WhatsAppService {
     conversationId: string,
     content: string,
     type: WhatsAppMessageType = 'TEXT',
-  ): Promise<{ message: unknown; response: WhatsAppResponse }> {
+  ): Promise<{ message: { id: string } | null; response: WhatsAppResponse }> {
     // Get conversation
     const conversation = await this.prisma.whatsAppConversation.findUnique({
       where: { id: conversationId },
@@ -1057,7 +1057,7 @@ export class WhatsAppService {
       this.eventEmitter.emit('whatsapp.message.sent', {
         userId,
         conversationId,
-        messageId: (message as any)?.id,
+        messageId: message?.id,
       });
     }
 
@@ -1089,7 +1089,7 @@ export class WhatsAppService {
   // Get message templates
   async getTemplates(config?: WhatsAppConfig): Promise<{ templates: unknown[]; error?: string }> {
     const token = config?.accessToken || this.accessToken;
-    const businessId = config?.businessAccountId || this.configService.get<string>('WHATSAPP_BUSINESS_ACCOUNT_ID');
+    const businessId = config?.businessAccountId || this.configService.get<string>('whatsapp.businessAccountId');
 
     if (!token || !businessId) {
       return { templates: [], error: 'Business Account ID not configured' };
@@ -1349,7 +1349,7 @@ export class WhatsAppService {
   /**
    * Get file extension from MIME type
    */
-  private getExtensionFromMimeType(mimeType: string): string {
+  getExtensionFromMimeType(mimeType: string): string {
     const mimeMap: Record<string, string> = {
       'image/jpeg': '.jpg',
       'image/png': '.png',

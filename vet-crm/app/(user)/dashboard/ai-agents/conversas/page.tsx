@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { 
   MessageCircle, 
   Search, 
@@ -75,8 +75,24 @@ interface Pet {
   breed: string | null;
 }
 
-export default function AIAgentsConversationsPage() {
+export default function AIAgentsConversationsPageWrapper() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="flex items-center gap-3 text-gray-500">
+          <RefreshCw className="w-5 h-5 animate-spin" />
+          <span>Carregando conversas...</span>
+        </div>
+      </div>
+    }>
+      <AIAgentsConversationsPage />
+    </Suspense>
+  );
+}
+
+function AIAgentsConversationsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
@@ -91,6 +107,7 @@ export default function AIAgentsConversationsPage() {
   const [sendingMessage, setSendingMessage] = useState(false);
   const [showMobileChat, setShowMobileChat] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
+  const [initialConversationHandled, setInitialConversationHandled] = useState(false);
 
   useNotifications({
     onWhatsAppMessage: (event: WhatsAppMessageEvent) => {
@@ -105,6 +122,17 @@ export default function AIAgentsConversationsPage() {
     fetchConversations();
     fetchAgents();
   }, [searchTerm, statusFilter]);
+
+  const autoSelectConversation = useCallback((convList: Conversation[]) => {
+    if (initialConversationHandled) return;
+    const targetId = searchParams.get('conversation');
+    if (!targetId) return;
+    const found = convList.find(c => c.id === targetId);
+    if (found) {
+      setSelectedConversation(found);
+      setInitialConversationHandled(true);
+    }
+  }, [searchParams, initialConversationHandled]);
 
   useEffect(() => {
     if (selectedConversation) {
@@ -129,7 +157,9 @@ export default function AIAgentsConversationsPage() {
 
       const response = await fetch(`/api/whatsapp/conversations?${params.toString()}`);
       const data = await response.json();
-      setConversations(data.data || []);
+      const convList = data.data || [];
+      setConversations(convList);
+      autoSelectConversation(convList);
     } catch (error) {
       console.error('Error fetching conversations:', error);
     } finally {
@@ -204,10 +234,10 @@ export default function AIAgentsConversationsPage() {
     if (!selectedConversation) return;
 
     try {
-      const response = await fetch(`/api/whatsapp/conversations/${selectedConversation.id}/auto-reply`, {
+      const response = await fetch(`/api/whatsapp/conversations/${selectedConversation.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ enabled: !selectedConversation.isAutoReplyEnabled }),
+        body: JSON.stringify({ isAutoReplyEnabled: !selectedConversation.isAutoReplyEnabled }),
       });
 
       if (response.ok) {

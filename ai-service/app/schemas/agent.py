@@ -17,6 +17,7 @@ class AgentContext(BaseModel):
     tutor_name: Optional[str] = Field(None, description="Name of the pet owner/tutor")
     pet_name: Optional[str] = Field(None, description="Name of the pet")
     pet_species: Optional[str] = Field(None, description="Species of the pet")
+    current_date: Optional[str] = Field(None, description="Current date string for prompt substitution")
     custom_data: Optional[Dict[str, Any]] = Field(
         None, description="Additional custom data for context"
     )

@@ -28,8 +28,11 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const body = await request.text();
   return backendProxy(request, `/whatsapp-campaigns/${id}/recipients`, {
     method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body,
   });
 }
 
@@ -39,7 +42,10 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const body = await request.text();
   return backendProxy(request, `/whatsapp-campaigns/${id}/recipients`, {
     method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body,
   });
 }

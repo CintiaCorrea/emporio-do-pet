@@ -415,11 +415,12 @@ export class LeadsService {
   /**
    * Busca eventos de um lead
    */
-  async getEvents(leadId: string, limit = 100) {
+  async getEvents(leadId: string, limit?: number) {
+    const take = limit && Number.isFinite(limit) ? limit : 100;
     return this.prisma.leadEvent.findMany({
       where: { leadId },
       orderBy: { createdAt: 'desc' },
-      take: limit,
+      take,
     });
   }
 
@@ -466,11 +467,12 @@ export class LeadsService {
   /**
    * Busca histórico de score
    */
-  async getScoreHistory(leadId: string, limit = 30) {
+  async getScoreHistory(leadId: string, limit?: number) {
+    const take = limit && Number.isFinite(limit) ? limit : 30;
     return this.prisma.leadScore.findMany({
       where: { leadId },
       orderBy: { createdAt: 'desc' },
-      take: limit,
+      take,
     });
   }
 

@@ -43,6 +43,8 @@ class AgentService:
             substitutions["pet_name"] = context.pet_name
         if context.pet_species:
             substitutions["pet_species"] = context.pet_species
+        if context.current_date:
+            substitutions["current_date"] = context.current_date
 
         # Add custom data
         if context.custom_data:

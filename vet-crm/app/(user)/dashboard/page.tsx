@@ -458,7 +458,7 @@ export default function DashboardPage() {
             </Link>
 
             {/* CRM */}
-            <Link href="/dashboard/crm/pipelines" className="block">
+            <Link href="/dashboard/crm" className="block">
               <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl p-5 text-white hover:shadow-xl hover:shadow-blue-500/20 transition-all">
                 <div className="flex items-center justify-between mb-4">
                   <div className="p-2.5 bg-white/20 rounded-xl">

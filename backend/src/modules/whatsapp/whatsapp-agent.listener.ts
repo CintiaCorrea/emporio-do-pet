@@ -93,6 +93,8 @@ export class WhatsAppAgentListener {
         if (messageCount <= 1) {
           await this.whatsAppService.sendAndSaveMessage(userId, conversationId, agentConfig.whatsappGreeting, 'TEXT');
           this.logger.log(`Greeting sent for conversation ${conversationId}`);
+          // Small delay for better UX so greeting arrives before AI response
+          await new Promise(resolve => setTimeout(resolve, 1500));
         }
       }
 

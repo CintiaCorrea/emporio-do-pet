@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { 
   LuBot,
   LuSearch,
@@ -28,6 +29,7 @@ import { toast } from 'sonner';
 // Tipos para AI Agents
 type AgentStatus = 'ACTIVE' | 'PAUSED' | 'DRAFT' | 'ERROR';
 type AgentType = 'CHATBOT' | 'AUTOMATION' | 'ASSISTANT' | 'SCHEDULER';
+type AIProvider = 'OPENAI' | 'GEMINI' | 'DEEPSEEK';
 
 interface AIAgent {
   id: string;
@@ -59,6 +61,7 @@ interface AIAgent {
 }
 
 export default function AgentsPage() {
+  const router = useRouter();
   const [agents, setAgents] = useState<AIAgent[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -167,7 +170,7 @@ export default function AgentsPage() {
     paused: agents.filter(a => a.status === 'PAUSED').length,
     totalInteractions: agents.reduce((sum, a) => sum + (a.totalInteractions || 0), 0),
     avgSuccessRate: agents.length > 0 
-      ? (agents.reduce((sum, a) => sum + (a.successRate || 0), 0) / agents.filter(a => (a.successRate || 0) > 0).length || 0).toFixed(1)
+      ? (agents.reduce((sum, a) => sum + (a.successRate || 0), 0) / (agents.filter(a => (a.successRate || 0) > 0).length || 1)).toFixed(1)
       : '0'
   };
 
@@ -625,7 +628,10 @@ export default function AgentsPage() {
                   <LuMessageSquare className="w-5 h-5" />
                   Testar Agente
                 </Link>
-                <button className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-all">
+                <button
+                  onClick={() => router.push(`/dashboard/ai-agents/agents/${selectedAgent.id}/editar`)}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-all"
+                >
                   <LuSettings className="w-5 h-5" />
                   Configurações Avançadas
                 </button>

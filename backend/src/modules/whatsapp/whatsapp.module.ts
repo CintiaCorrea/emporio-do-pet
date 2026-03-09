@@ -1,6 +1,6 @@
-import { Module, Global, forwardRef } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { ScheduleModule } from '@nestjs/schedule';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { WhatsAppService } from './whatsapp.service';
 import { WhatsAppController } from './whatsapp.controller';
 import { WhatsAppConversationsController } from './whatsapp-conversations.controller';
@@ -18,11 +18,10 @@ import {
   PhoneFormatterService,
 } from './services';
 
-@Global()
 @Module({
   imports: [
     ConfigModule,
-    ScheduleModule.forRoot(),
+    EventEmitterModule,
     PrismaModule,
     forwardRef(() => AgentsModule),
     AudioModule,

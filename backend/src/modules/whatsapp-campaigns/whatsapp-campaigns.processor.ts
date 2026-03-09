@@ -52,10 +52,11 @@ export class WhatsAppCampaignsProcessor extends WorkerHost {
         return { success: false, sent, failed };
       }
 
-      // Get WhatsApp config for user
-      const config = await this.whatsAppService.getUserWhatsAppConfig(userId);
+      // Get WhatsApp config for user (falls back to env config for single-tenant)
+      const userConfig = await this.whatsAppService.getUserWhatsAppConfig(userId);
+      const config = userConfig || this.whatsAppService.getConfig();
 
-      if (!config) {
+      if (!config?.accessToken) {
         this.logger.error(`No WhatsApp config found for user ${userId}`);
         await this.campaignsService.failCampaign(campaignId);
         return { success: false, sent, failed };
@@ -127,11 +128,11 @@ export class WhatsAppCampaignsProcessor extends WorkerHost {
             let result;
             
             if (campaign.templateName) {
-              // Send template message
+              const recipientVars = recipient.variables as Record<string, string> | undefined;
               result = await this.whatsAppService.sendTemplateMessage(
                 recipient.phone,
                 campaign.templateName,
-                this.extractTemplateParams(message),
+                this.extractTemplateParams(message, recipientVars || undefined),
                 campaign.templateLanguage || 'pt_BR',
                 config,
               );
@@ -240,35 +241,42 @@ export class WhatsAppCampaignsProcessor extends WorkerHost {
    * If the message still contains numbered placeholders like {{1}}, they're extracted
    * as parameter positions. Otherwise, the whole message is sent as a single parameter.
    */
-  private extractTemplateParams(message: string): Array<{ type: 'text'; text: string }> {
-    // Check if message contains numbered template placeholders like {{1}}, {{2}}
+  private extractTemplateParams(
+    message: string,
+    recipientVariables?: Record<string, string>,
+  ): Array<{ type: 'text'; text: string }> {
     const placeholderRegex = /\{\{(\d+)\}\}/g;
     const matches = [...message.matchAll(placeholderRegex)];
     
     if (matches.length > 0) {
-      // Message contains template placeholders - this means interpolation failed or
-      // the original template had {{N}} style vars that should map to parameters
-      // Return the interpolated values based on the template structure
+      // Numbered placeholders remain — try to resolve from recipient variables
       const maxIndex = Math.max(...matches.map(m => parseInt(m[1], 10)));
       const params: Array<{ type: 'text'; text: string }> = [];
       
       for (let i = 1; i <= maxIndex; i++) {
-        params.push({ type: 'text', text: `{{${i}}}` });
+        const varValue = recipientVariables?.[String(i)]
+          || recipientVariables?.[`param${i}`];
+
+        if (varValue) {
+          params.push({ type: 'text', text: varValue });
+        } else {
+          this.logger.warn(
+            `Template placeholder {{${i}}} has no value — using fallback`,
+          );
+          params.push({ type: 'text', text: i === 1 ? 'Cliente' : '' });
+        }
       }
       
       return params;
     }
 
-    // Check for named placeholders that were already interpolated
-    // Split message by line breaks or sentences for multi-parameter templates
+    // Message already interpolated — split by line breaks for multi-parameter templates
     const parts = message.split(/\n+/).filter(p => p.trim());
     
     if (parts.length > 1) {
-      // Multiple lines - each line could be a parameter
       return parts.map(part => ({ type: 'text', text: part.trim() }));
     }
 
-    // Single message - return as single parameter
     return [{ type: 'text', text: message }];
   }
 

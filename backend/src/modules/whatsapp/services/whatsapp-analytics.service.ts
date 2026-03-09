@@ -160,18 +160,18 @@ export class WhatsAppAnalyticsService {
     >`
       SELECT AVG(
         EXTRACT(EPOCH FROM (
-          SELECT MIN(om.created_at) - im.created_at
+          SELECT MIN(om."createdAt") - im."createdAt"
           FROM whatsapp_messages om
-          WHERE om.conversation_id = im.conversation_id
+          WHERE om."conversationId" = im."conversationId"
             AND om.direction = 'OUTBOUND'
-            AND om.created_at > im.created_at
+            AND om."createdAt" > im."createdAt"
         ))
       ) as avg_response_time
       FROM whatsapp_messages im
-      JOIN whatsapp_conversations c ON c.id = im.conversation_id
+      JOIN whatsapp_conversations c ON c.id = im."conversationId"
       WHERE im.direction = 'INBOUND'
-        AND c.user_id = ${userId}
-        ${dateRange ? Prisma.sql`AND im.created_at >= ${dateRange.startDate} AND im.created_at <= ${dateRange.endDate}` : Prisma.sql``}
+        AND c."userId" = ${userId}
+        ${dateRange ? Prisma.sql`AND im."createdAt" >= ${dateRange.startDate} AND im."createdAt" <= ${dateRange.endDate}` : Prisma.sql``}
     `;
 
     const avgResponseTime = responseTimeResult[0]?.avg_response_time || 0;
@@ -180,7 +180,7 @@ export class WhatsAppAnalyticsService {
       totalConversations,
       activeConversations: (statusMap['OPEN'] || 0) + (statusMap['ASSIGNED'] || 0),
       newConversations,
-      resolvedConversations: statusMap['RESOLVED'] || 0,
+      resolvedConversations: statusMap['CLOSED'] || 0,
       averageResponseTime: Math.round(avgResponseTime),
       averageMessagesPerConversation:
         averageMessages.length > 0
@@ -233,23 +233,23 @@ export class WhatsAppAnalyticsService {
         _count: true,
       }),
       this.prisma.$queryRaw<Array<{ hour: number; count: bigint }>>`
-        SELECT EXTRACT(HOUR FROM created_at) as hour, COUNT(*) as count
+        SELECT EXTRACT(HOUR FROM m."createdAt") as hour, COUNT(*) as count
         FROM whatsapp_messages m
-        JOIN whatsapp_conversations c ON c.id = m.conversation_id
-        WHERE c.user_id = ${userId}
-          AND m.created_at >= ${startDate}
-          AND m.created_at <= ${endDate}
-        GROUP BY EXTRACT(HOUR FROM created_at)
+        JOIN whatsapp_conversations c ON c.id = m."conversationId"
+        WHERE c."userId" = ${userId}
+          AND m."createdAt" >= ${startDate}
+          AND m."createdAt" <= ${endDate}
+        GROUP BY EXTRACT(HOUR FROM m."createdAt")
         ORDER BY hour
       `,
       this.prisma.$queryRaw<Array<{ date: string; direction: string; count: bigint }>>`
-        SELECT DATE(created_at) as date, direction, COUNT(*) as count
+        SELECT DATE(m."createdAt") as date, m.direction, COUNT(*) as count
         FROM whatsapp_messages m
-        JOIN whatsapp_conversations c ON c.id = m.conversation_id
-        WHERE c.user_id = ${userId}
-          AND m.created_at >= ${startDate}
-          AND m.created_at <= ${endDate}
-        GROUP BY DATE(created_at), direction
+        JOIN whatsapp_conversations c ON c.id = m."conversationId"
+        WHERE c."userId" = ${userId}
+          AND m."createdAt" >= ${startDate}
+          AND m."createdAt" <= ${endDate}
+        GROUP BY DATE(m."createdAt"), m.direction
         ORDER BY date
       `,
     ]);
@@ -531,20 +531,20 @@ export class WhatsAppAnalyticsService {
         _count: true,
       }),
       this.prisma.$queryRaw<Array<{ date: string; count: bigint }>>`
-        SELECT DATE(created_at) as date, COUNT(*) as count
+        SELECT DATE("createdAt") as date, COUNT(*) as count
         FROM whatsapp_conversations
-        WHERE user_id = ${userId}
-          AND created_at >= ${weekAgo}
-        GROUP BY DATE(created_at)
+        WHERE "userId" = ${userId}
+          AND "createdAt" >= ${weekAgo}
+        GROUP BY DATE("createdAt")
         ORDER BY date
       `,
       this.prisma.$queryRaw<Array<{ date: string; direction: string; count: bigint }>>`
-        SELECT DATE(m.created_at) as date, m.direction, COUNT(*) as count
+        SELECT DATE(m."createdAt") as date, m.direction, COUNT(*) as count
         FROM whatsapp_messages m
-        JOIN whatsapp_conversations c ON c.id = m.conversation_id
-        WHERE c.user_id = ${userId}
-          AND m.created_at >= ${weekAgo}
-        GROUP BY DATE(m.created_at), m.direction
+        JOIN whatsapp_conversations c ON c.id = m."conversationId"
+        WHERE c."userId" = ${userId}
+          AND m."createdAt" >= ${weekAgo}
+        GROUP BY DATE(m."createdAt"), m.direction
         ORDER BY date
       `,
       this.prisma.whatsAppConversation.findMany({
@@ -649,13 +649,13 @@ export class WhatsAppAnalyticsService {
     const result = await this.prisma.$queryRaw<
       Array<{ hour: number; direction: string; count: bigint }>
     >`
-      SELECT EXTRACT(HOUR FROM m.created_at) as hour, m.direction, COUNT(*) as count
+      SELECT EXTRACT(HOUR FROM m."createdAt") as hour, m.direction, COUNT(*) as count
       FROM whatsapp_messages m
-      JOIN whatsapp_conversations c ON c.id = m.conversation_id
-      WHERE c.user_id = ${userId}
-        AND m.created_at >= ${startOfDay}
-        AND m.created_at <= ${endOfDay}
-      GROUP BY EXTRACT(HOUR FROM m.created_at), m.direction
+      JOIN whatsapp_conversations c ON c.id = m."conversationId"
+      WHERE c."userId" = ${userId}
+        AND m."createdAt" >= ${startOfDay}
+        AND m."createdAt" <= ${endOfDay}
+      GROUP BY EXTRACT(HOUR FROM m."createdAt"), m.direction
       ORDER BY hour
     `;
 

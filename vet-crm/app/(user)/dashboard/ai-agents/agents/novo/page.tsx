@@ -104,10 +104,24 @@ Cliente: {tutor_name}
 Pet: {pet_name}`,
 };
 
+interface AgentTemplate {
+  id: string;
+  name: string;
+  description?: string;
+  category: string;
+  systemPrompt: string;
+  provider?: string;
+  model?: string;
+  temperature?: number;
+  maxTokens?: number;
+}
+
 export default function NovoAgentePage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [templates, setTemplates] = useState<WhatsAppTemplate[]>([]);
+  const [agentTemplates, setAgentTemplates] = useState<AgentTemplate[]>([]);
+  const [loadingAgentTemplates, setLoadingAgentTemplates] = useState(false);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
   const [boards, setBoards] = useState<{id: string; name: string; type: string}[]>([]);
   
@@ -142,7 +156,41 @@ export default function NovoAgentePage() {
   useEffect(() => {
     loadTemplates();
     loadBoards();
+    loadAgentTemplates();
   }, []);
+
+  const loadAgentTemplates = async () => {
+    setLoadingAgentTemplates(true);
+    try {
+      const response = await fetch('/api/agent-templates?limit=20');
+      const data = await response.json();
+      if (response.ok && data.data) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        setAgentTemplates(data.data.map((t: any) => ({
+          ...t,
+          systemPrompt: t.content || t.systemPrompt || '',
+        })));
+      }
+    } catch (error) {
+      console.error('Erro ao carregar agent templates:', error);
+    } finally {
+      setLoadingAgentTemplates(false);
+    }
+  };
+
+  const handleSelectAgentTemplate = (template: AgentTemplate) => {
+    setForm(prev => ({
+      ...prev,
+      name: template.name,
+      description: template.description || '',
+      systemPrompt: template.systemPrompt,
+      provider: (template.provider as AIProvider) || prev.provider,
+      model: template.model || prev.model,
+      temperature: template.temperature ?? prev.temperature,
+      maxTokens: template.maxTokens ?? prev.maxTokens,
+    }));
+    toast.success(`Template "${template.name}" aplicado`);
+  };
 
   const loadTemplates = async () => {
     setLoadingTemplates(true);
@@ -170,11 +218,12 @@ export default function NovoAgentePage() {
 
   const loadBoards = async () => {
     try {
-      const response = await fetch('/api/boards?type=LEADS');
+      const response = await fetch('/api/boards');
       const data = await response.json();
       
-      if (response.ok && data.data) {
-        setBoards(data.data.map((b: { id: string; name: string; type: string }) => ({
+      if (response.ok && Array.isArray(data)) {
+        const leadBoards = data.filter((b: { type: string }) => b.type === 'LEAD' || b.type === 'SALES');
+        setBoards(leadBoards.map((b: { id: string; name: string; type: string }) => ({
           id: b.id,
           name: b.name,
           type: b.type,
@@ -281,6 +330,46 @@ export default function NovoAgentePage() {
             </p>
           </div>
         </div>
+
+        {/* Agent Templates Gallery */}
+        {agentTemplates.length > 0 && (
+          <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-8">
+            <h2 className="text-lg font-semibold text-gray-900 mb-2 flex items-center gap-2">
+              <LuSparkles className="w-5 h-5 text-violet-600" />
+              Começar com um Template
+            </h2>
+            <p className="text-sm text-gray-500 mb-4">
+              Selecione um template pré-configurado para começar rapidamente ou crie do zero abaixo.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {agentTemplates.map(tmpl => (
+                <button
+                  key={tmpl.id}
+                  type="button"
+                  onClick={() => handleSelectAgentTemplate(tmpl)}
+                  className="text-left p-4 border border-gray-200 hover:border-violet-300 hover:bg-violet-50 rounded-xl transition-all group"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 bg-violet-50 rounded-lg group-hover:bg-violet-100">
+                      <LuBot className="w-4 h-4 text-violet-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-gray-900 text-sm truncate">{tmpl.name}</p>
+                      <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{tmpl.description || tmpl.category}</p>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {loadingAgentTemplates && (
+          <div className="text-center py-4 mb-8">
+            <LuLoader className="w-5 h-5 animate-spin text-violet-600 mx-auto" />
+            <p className="text-sm text-gray-500 mt-1">Carregando templates...</p>
+          </div>
+        )}
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-8">

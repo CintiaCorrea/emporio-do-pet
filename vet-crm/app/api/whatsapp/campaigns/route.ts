@@ -19,7 +19,10 @@ export async function GET(request: NextRequest) {
 
 // POST /api/whatsapp/campaigns - Create campaign
 export async function POST(request: NextRequest) {
+  const body = await request.text();
   return backendProxy(request, '/whatsapp-campaigns', {
     method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body,
   });
 }

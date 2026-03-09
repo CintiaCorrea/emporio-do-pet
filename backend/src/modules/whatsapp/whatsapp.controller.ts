@@ -258,10 +258,17 @@ export class WhatsAppController {
   ): Promise<string> {
     // Validate signature
     const rawBody = req.rawBody?.toString() || JSON.stringify(payload);
-    
-    if (signature && !this.whatsAppService.validateWebhookSignature(rawBody, signature)) {
-      this.logger.warn('Invalid webhook signature');
-      return 'Invalid signature';
+    const appSecret = this.whatsAppService.getAppSecret();
+
+    if (appSecret) {
+      if (!signature) {
+        this.logger.warn('Missing webhook signature header');
+        return 'Missing signature';
+      }
+      if (!this.whatsAppService.validateWebhookSignature(rawBody, signature)) {
+        this.logger.warn('Invalid webhook signature');
+        return 'Invalid signature';
+      }
     }
 
     // Process webhook
@@ -551,8 +558,10 @@ export class WhatsAppController {
     mimeType: string,
   ): Promise<void> {
     try {
-      const config = await this.whatsAppService.getUserWhatsAppConfig(userId);
-      if (!config) {
+      const userConfig = await this.whatsAppService.getUserWhatsAppConfig(userId);
+      const config = userConfig || this.whatsAppService.getConfig();
+
+      if (!config?.accessToken) {
         this.logger.warn('No WhatsApp config for media download');
         return;
       }
@@ -567,7 +576,7 @@ export class WhatsAppController {
 
       const actualMimeType = downloadResult.mimeType || mimeType;
       const filename = this.cloudStorageService.generateFilename(
-        `wa_${mediaId}${this.getExtensionFromMime(actualMimeType)}`,
+        `wa_${mediaId}${this.whatsAppService.getExtensionFromMimeType(actualMimeType)}`,
         'whatsapp',
       );
 
@@ -656,23 +665,6 @@ export class WhatsAppController {
         `Error downloading/storing media: ${error instanceof Error ? error.message : 'Unknown'}`,
       );
     }
-  }
-
-  private getExtensionFromMime(mimeType: string): string {
-    const mimeMap: Record<string, string> = {
-      'image/jpeg': '.jpg',
-      'image/png': '.png',
-      'image/gif': '.gif',
-      'image/webp': '.webp',
-      'audio/ogg': '.ogg',
-      'audio/mpeg': '.mp3',
-      'audio/mp4': '.m4a',
-      'audio/opus': '.opus',
-      'video/mp4': '.mp4',
-      'video/3gpp': '.3gp',
-      'application/pdf': '.pdf',
-    };
-    return mimeMap[mimeType] || '.bin';
   }
 
   private async handleStatusUpdate(

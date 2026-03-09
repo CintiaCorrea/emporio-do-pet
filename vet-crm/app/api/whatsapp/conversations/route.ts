@@ -21,7 +21,10 @@ export async function GET(request: NextRequest) {
 
 // POST /api/whatsapp/conversations - Create or get conversation (for direct send)
 export async function POST(request: NextRequest) {
+  const body = await request.text();
   return backendProxy(request, '/whatsapp/send', {
     method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body,
   });
 }

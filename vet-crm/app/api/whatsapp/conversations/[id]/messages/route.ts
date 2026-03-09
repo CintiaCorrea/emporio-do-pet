@@ -27,7 +27,10 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const body = await request.text();
   return backendProxy(request, `/whatsapp/conversations/${id}/messages`, {
     method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body,
   });
 }

@@ -748,16 +748,17 @@ export class AutomationsProcessor extends WorkerHost {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          agentId,
           provider: agent.provider.toLowerCase(),
           model: agent.model,
-          systemPrompt: agent.systemPrompt,
-          userMessage: prompt,
-          conversationHistory: [],
+          system_prompt: agent.systemPrompt,
+          user_message: prompt,
+          conversation_history: [],
           temperature: agent.temperature,
-          maxTokens: agent.maxTokens,
-          apiKey: credentials.apiKey,
-          baseUrl: credentials.baseUrl,
+          max_tokens: agent.maxTokens,
+          credentials: {
+            api_key: credentials.apiKey,
+            base_url: credentials.baseUrl,
+          },
         }),
       });
 

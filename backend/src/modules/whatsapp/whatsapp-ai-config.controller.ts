@@ -45,7 +45,7 @@ export class WhatsAppAIConfigController {
   ) {}
 
   @Get('status')
-  @Roles('ADMIN', 'STAFF')
+  @Roles('ADMIN', 'VETERINARIAN', 'RECEPTIONIST')
   async getStatus(): Promise<WhatsAppAIStatus> {
     const defaultAgentId = this.configService.get<string>('whatsapp.defaultAgentId');
     
@@ -84,7 +84,7 @@ export class WhatsAppAIConfigController {
   }
 
   @Get('active-agents')
-  @Roles('ADMIN', 'STAFF')
+  @Roles('ADMIN', 'VETERINARIAN', 'RECEPTIONIST')
   async getActiveAgents() {
     const agents = await this.prisma.aIAgent.findMany({
       where: { status: 'ACTIVE' },
@@ -106,7 +106,7 @@ export class WhatsAppAIConfigController {
   }
 
   @Get('conversations-with-ai')
-  @Roles('ADMIN', 'STAFF')
+  @Roles('ADMIN', 'VETERINARIAN', 'RECEPTIONIST')
   async getConversationsWithAI() {
     const conversations = await this.prisma.whatsAppConversation.findMany({
       where: {

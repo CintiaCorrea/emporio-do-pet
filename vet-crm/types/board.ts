@@ -1,7 +1,7 @@
 // types/board.ts
 
 // Tipos base
-export type BoardType = 'APPOINTMENT' | 'CONSULTATION' | 'HOSPITALIZATION' | 'TASK' | 'PROJECT';
+export type BoardType = 'APPOINTMENT' | 'CONSULTATION' | 'HOSPITALIZATION' | 'TASK' | 'PROJECT' | 'LEAD' | 'CLIENT' | 'SALES';
 
 export interface Board {
   id: string;
@@ -47,7 +47,14 @@ export interface KanbanCard {
   description?: string | null;
   position: number;
   columnId: string;
-  appointment?: Appointment | null; // CORRIGIDO - usando o tipo Appointment
+  appointment?: Appointment | null;
+  leadId?: string | null;
+  clientId?: string | null;
+  metadata?: Record<string, unknown> | null;
+  priority?: string | null;
+  dueDate?: string | null;
+  assignedTo?: string | null;
+  tags?: string[];
   createdAt: string;
   updatedAt: string;
 }

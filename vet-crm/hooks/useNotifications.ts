@@ -88,7 +88,7 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
     const accessToken = session?.accessToken;
     if (!accessToken || socketRef.current?.connected) return;
 
-    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3333';
 
     const socket = io(`${backendUrl}/notifications`, {
       auth: {

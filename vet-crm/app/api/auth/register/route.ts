@@ -7,12 +7,12 @@ export async function POST(request: NextRequest) {
     const { name, email, password, role } = await request.json();
 
     // Se houver backend NestJS configurado, usar ele (evita Prisma no frontend e resolve conflitos de rota)
-    // Esperado: BACKEND_URL=http://localhost:3001  (ou http://localhost:3001/api)
+    // Esperado: BACKEND_URL=http://localhost:3333  (ou http://localhost:3333/api)
     const backendBaseUrl =
       process.env.BACKEND_URL ||
       process.env.NEXT_PUBLIC_BACKEND_URL ||
       process.env.NEXT_PUBLIC_API_URL ||
-      (process.env.NODE_ENV !== 'production' ? 'http://localhost:3001' : undefined);
+      (process.env.NODE_ENV !== 'production' ? 'http://localhost:3333' : undefined);
 
     if (backendBaseUrl) {
       const normalized = backendBaseUrl.replace(/\/$/, '');

@@ -18,7 +18,7 @@ import {
   LuPawPrint,
   LuDownload,
   LuFilter,
-  LuBarChart3,
+  LuChartBar,
   LuPieChart,
   LuFileText
 } from 'react-icons/lu';

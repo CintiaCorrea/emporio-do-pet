@@ -17,6 +17,7 @@ import {
   LuVolume2,
   LuPause,
   LuMessageSquare,
+  LuZap,
 } from 'react-icons/lu';
 import { toast } from 'sonner';
 
@@ -87,6 +88,10 @@ export default function AgentChatTest({
     petSpecies: 'cachorro',
     currentDate: new Date().toLocaleDateString('pt-BR'),
   });
+
+  // Streaming state
+  const [streamingEnabled, setStreamingEnabled] = useState(false);
+  const [streamingContent, setStreamingContent] = useState('');
 
   // Voice/Audio state
   const [voiceMode, setVoiceMode] = useState(voiceEnabled);
@@ -345,27 +350,35 @@ export default function AgentChatTest({
   // Send to Agent (shared logic)
   // ============================
   const sendToAgent = async (messageText: string, userMsgId: string) => {
-    try {
-      const conversationHistory = messages.map(m => ({
+    const payload = {
+      userMessage: messageText,
+      conversationHistory: messages.map(m => ({
         role: m.role,
-        content: m.content.replace(/^🎤 /, ''), // Remove mic emoji prefix
-      }));
+        content: m.content.replace(/^🎤 /, ''),
+      })),
+      context: {
+        clinicName: context.clinicName,
+        tutorName: context.tutorName,
+        petName: context.petName,
+        petSpecies: context.petSpecies,
+        currentDate: context.currentDate,
+        customVariable: context.customVariable,
+      },
+    };
 
+    if (streamingEnabled) {
+      await sendToAgentStreaming(payload, userMsgId);
+    } else {
+      await sendToAgentNormal(payload, userMsgId);
+    }
+  };
+
+  const sendToAgentNormal = async (payload: Record<string, unknown>, userMsgId: string) => {
+    try {
       const response = await fetch(`/api/agents/${agentId}/execute`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userMessage: messageText,
-          conversationHistory,
-          context: {
-            clinicName: context.clinicName,
-            tutorName: context.tutorName,
-            petName: context.petName,
-            petSpecies: context.petSpecies,
-            currentDate: context.currentDate,
-            customVariable: context.customVariable,
-          },
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await response.json();
@@ -385,7 +398,6 @@ export default function AgentChatTest({
 
       setMessages(prev => [...prev, assistantMessage]);
 
-      // Auto-play TTS if voice mode is active
       if (voiceMode && data.response) {
         setTimeout(() => {
           synthesizeAndPlay(data.response, assistantMessage.id);
@@ -397,6 +409,86 @@ export default function AgentChatTest({
       setMessages(prev => prev.filter(m => m.id !== userMsgId));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const sendToAgentStreaming = async (payload: Record<string, unknown>, userMsgId: string) => {
+    const assistantMsgId = `assistant-${Date.now()}`;
+    let fullContent = '';
+    let finalUsage: Message['usage'] | undefined;
+
+    try {
+      // Add placeholder message
+      setMessages(prev => [...prev, {
+        id: assistantMsgId,
+        role: 'assistant',
+        content: '',
+        timestamp: new Date(),
+      }]);
+
+      const response = await fetch(`/api/agents/${agentId}/execute/stream`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Erro ao executar agente em streaming');
+      }
+
+      if (!response.body) throw new Error('Stream não disponível');
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          try {
+            const data = JSON.parse(line.slice(6));
+
+            if (data.type === 'content' && data.content) {
+              fullContent += data.content;
+              setMessages(prev => prev.map(m =>
+                m.id === assistantMsgId ? { ...m, content: fullContent } : m
+              ));
+            } else if (data.type === 'usage') {
+              finalUsage = data.usage;
+            } else if (data.type === 'done') {
+              setMessages(prev => prev.map(m =>
+                m.id === assistantMsgId ? { ...m, usage: finalUsage, latencyMs: data.latencyMs } : m
+              ));
+            } else if (data.type === 'error') {
+              throw new Error(data.error);
+            }
+          } catch (parseErr) {
+            if (parseErr instanceof SyntaxError) continue;
+            throw parseErr;
+          }
+        }
+      }
+
+      if (voiceMode && fullContent) {
+        setTimeout(() => synthesizeAndPlay(fullContent, assistantMsgId), 300);
+      }
+    } catch (error) {
+      console.error('Streaming error:', error);
+      toast.error(error instanceof Error ? error.message : 'Erro no streaming');
+      if (!fullContent) {
+        setMessages(prev => prev.filter(m => m.id !== assistantMsgId));
+      }
+    } finally {
+      setLoading(false);
+      setStreamingContent('');
     }
   };
 
@@ -425,6 +517,19 @@ export default function AgentChatTest({
               <span>{avgLatency}ms avg</span>
             </div>
           )}
+          {/* Streaming toggle */}
+          <button
+            onClick={() => setStreamingEnabled(!streamingEnabled)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+              streamingEnabled
+                ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+            }`}
+            title={streamingEnabled ? 'Desativar streaming' : 'Ativar streaming'}
+          >
+            <LuZap className="w-3.5 h-3.5" />
+            {streamingEnabled ? 'Stream' : 'Normal'}
+          </button>
           {/* Voice mode toggle */}
           <button
             onClick={() => setVoiceMode(!voiceMode)}

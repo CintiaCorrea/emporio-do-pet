@@ -21,8 +21,8 @@ export class WhatsAppAnalyticsController {
   @Get('dashboard')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get WhatsApp dashboard with overview metrics' })
-  async getDashboard(@CurrentUser() user: { userId: string }) {
-    return this.analyticsService.getDashboard(user.userId);
+  async getDashboard(@CurrentUser() user: { id: string }) {
+    return this.analyticsService.getDashboard(user.id);
   }
 
   @Get('conversations')
@@ -31,12 +31,12 @@ export class WhatsAppAnalyticsController {
   @ApiQuery({ name: 'startDate', required: false, type: String, description: 'ISO date string' })
   @ApiQuery({ name: 'endDate', required: false, type: String, description: 'ISO date string' })
   async getConversationMetrics(
-    @CurrentUser() user: { userId: string },
+    @CurrentUser() user: { id: string },
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ) {
     const dateRange = this.parseDateRange(startDate, endDate);
-    return this.analyticsService.getConversationMetrics(user.userId, dateRange);
+    return this.analyticsService.getConversationMetrics(user.id, dateRange);
   }
 
   @Get('messages')
@@ -45,12 +45,12 @@ export class WhatsAppAnalyticsController {
   @ApiQuery({ name: 'startDate', required: false, type: String, description: 'ISO date string' })
   @ApiQuery({ name: 'endDate', required: false, type: String, description: 'ISO date string' })
   async getMessageMetrics(
-    @CurrentUser() user: { userId: string },
+    @CurrentUser() user: { id: string },
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ) {
     const dateRange = this.parseDateRange(startDate, endDate);
-    return this.analyticsService.getMessageMetrics(user.userId, dateRange);
+    return this.analyticsService.getMessageMetrics(user.id, dateRange);
   }
 
   @Get('campaigns')
@@ -59,12 +59,12 @@ export class WhatsAppAnalyticsController {
   @ApiQuery({ name: 'startDate', required: false, type: String, description: 'ISO date string' })
   @ApiQuery({ name: 'endDate', required: false, type: String, description: 'ISO date string' })
   async getCampaignMetrics(
-    @CurrentUser() user: { userId: string },
+    @CurrentUser() user: { id: string },
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ) {
     const dateRange = this.parseDateRange(startDate, endDate);
-    return this.analyticsService.getCampaignMetrics(user.userId, dateRange);
+    return this.analyticsService.getCampaignMetrics(user.id, dateRange);
   }
 
   @Get('agents')
@@ -73,12 +73,12 @@ export class WhatsAppAnalyticsController {
   @ApiQuery({ name: 'startDate', required: false, type: String, description: 'ISO date string' })
   @ApiQuery({ name: 'endDate', required: false, type: String, description: 'ISO date string' })
   async getAgentMetrics(
-    @CurrentUser() user: { userId: string },
+    @CurrentUser() user: { id: string },
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ) {
     const dateRange = this.parseDateRange(startDate, endDate);
-    return this.analyticsService.getAgentMetrics(user.userId, dateRange);
+    return this.analyticsService.getAgentMetrics(user.id, dateRange);
   }
 
   @Get('hourly')
@@ -86,11 +86,11 @@ export class WhatsAppAnalyticsController {
   @ApiOperation({ summary: 'Get hourly message distribution for a specific day' })
   @ApiQuery({ name: 'date', required: false, type: String, description: 'ISO date string (defaults to today)' })
   async getHourlyDistribution(
-    @CurrentUser() user: { userId: string },
+    @CurrentUser() user: { id: string },
     @Query('date') date?: string,
   ) {
     const targetDate = date ? new Date(date) : new Date();
-    return this.analyticsService.getHourlyDistribution(user.userId, targetDate);
+    return this.analyticsService.getHourlyDistribution(user.id, targetDate);
   }
 
   @Get('export')
@@ -100,7 +100,7 @@ export class WhatsAppAnalyticsController {
   @ApiQuery({ name: 'endDate', required: true, type: String, description: 'ISO date string' })
   @ApiQuery({ name: 'format', required: false, enum: ['json', 'csv'], description: 'Export format' })
   async exportAnalytics(
-    @CurrentUser() user: { userId: string },
+    @CurrentUser() user: { id: string },
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
     @Query('format') format?: 'json' | 'csv',
@@ -109,7 +109,7 @@ export class WhatsAppAnalyticsController {
       startDate: new Date(startDate),
       endDate: new Date(endDate),
     };
-    return this.analyticsService.exportAnalytics(user.userId, dateRange, format || 'json');
+    return this.analyticsService.exportAnalytics(user.id, dateRange, format || 'json');
   }
 
   private parseDateRange(startDate?: string, endDate?: string): DateRange | undefined {

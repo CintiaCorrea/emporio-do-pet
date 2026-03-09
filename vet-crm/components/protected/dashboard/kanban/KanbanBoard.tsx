@@ -7,7 +7,8 @@ import { Appointment, KanbanColumn, KanbanCard } from "@/types";
 import { BoardType } from "@/types/board";
 import KanbanColumnComponent from "./KanbanColumn";
 import NewColumnModal from "./modals/NewColumnModal";
-import { LuLoader } from "react-icons/lu";
+import NewLeadCardModal from "./modals/NewLeadCardModal";
+import { LuLoader, LuPlus } from "react-icons/lu";
 
 function detectBoardTypeFromName(name: string): BoardType {
   const normalizedName = name.toLowerCase().trim();
@@ -17,6 +18,9 @@ function detectBoardTypeFromName(name: string): BoardType {
   if (normalizedName === 'internações' || normalizedName === 'internacoes' || 
       normalizedName === 'internação' || normalizedName === 'internacao') {
     return 'HOSPITALIZATION';
+  }
+  if (normalizedName.includes('lead') || normalizedName.includes('vendas') || normalizedName.includes('sales')) {
+    return 'LEAD';
   }
   return 'APPOINTMENT';
 }
@@ -35,9 +39,12 @@ const KanbanBoard = ({ boardId, boardName = "CRM", boardType: propBoardType = "A
     }
     return propBoardType;
   }, [boardName, propBoardType]);
+  const isLeadBoard = effectiveBoardType === 'LEAD' || effectiveBoardType === 'SALES' || effectiveBoardType === 'CLIENT';
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [leadCards, setLeadCards] = useState<{ id: string; title: string; columnId: string; position: number; leadId?: string; metadata?: Record<string, unknown> }[]>([]);
   const [statuses, setStatuses] = useState<KanbanColumn[]>([]);
   const [isColumnModalOpen, setIsColumnModalOpen] = useState(false);
+  const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -62,17 +69,29 @@ const KanbanBoard = ({ boardId, boardName = "CRM", boardType: propBoardType = "A
         // Extrair colunas do board
         setStatuses(board.columns || []);
         
-        // Extrair appointments dos cards
+        // Extrair appointments e lead cards
         const allAppointments: Appointment[] = [];
+        const allLeadCards: typeof leadCards = [];
         board.columns?.forEach((column: KanbanColumn) => {
           column.cards?.forEach((card: KanbanCard) => {
             if (card.appointment) {
               allAppointments.push(card.appointment);
             }
+            if ((card as any).leadId || (card as any).metadata?.leadId) {
+              allLeadCards.push({
+                id: card.id,
+                title: card.title,
+                columnId: card.columnId,
+                position: card.position,
+                leadId: (card as any).leadId,
+                metadata: (card as any).metadata,
+              });
+            }
           });
         });
         
         setAppointments(allAppointments);
+        setLeadCards(allLeadCards);
         
       } catch (error) {
         console.error("Erro ao carregar dados:", error);
@@ -315,6 +334,46 @@ const KanbanBoard = ({ boardId, boardName = "CRM", boardType: propBoardType = "A
     }
   };
 
+  const handleAddLeadCard = async (leadId: string, leadName: string) => {
+    try {
+      const firstColumn = statuses[0];
+      if (!firstColumn) {
+        alert("Crie uma coluna primeiro.");
+        return;
+      }
+
+      const cardResponse = await fetch(`/api/columns/${firstColumn.id}/cards`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: leadName,
+          leadId: leadId,
+          position: firstColumn.cards?.length || 0,
+          metadata: { leadId },
+        }),
+      });
+
+      if (!cardResponse.ok) {
+        const errorData = await cardResponse.json().catch(() => ({ error: "Erro desconhecido" }));
+        throw new Error(errorData.error || "Falha ao criar card");
+      }
+
+      const newCard = await cardResponse.json();
+      setLeadCards((prev) => [...prev, { id: newCard.id, title: leadName, columnId: firstColumn.id, position: newCard.position, leadId, metadata: { leadId } }]);
+      setIsLeadModalOpen(false);
+
+      // Reload board to sync
+      const boardResponse = await fetch(`/api/boards/${boardId}`);
+      if (boardResponse.ok) {
+        const board = await boardResponse.json();
+        setStatuses(board.columns || []);
+      }
+    } catch (error) {
+      console.error("Erro ao adicionar lead:", error);
+      alert(error instanceof Error ? error.message : "Erro ao adicionar lead");
+    }
+  };
+
   const handleMoveColumn = async (fromIndex: number, toIndex: number) => {
     try {
       const column = statuses[fromIndex];
@@ -346,11 +405,16 @@ const KanbanBoard = ({ boardId, boardName = "CRM", boardType: propBoardType = "A
     .reduce((sum, app) => sum + app.value, 0);
 
   const getEntityLabel = (count: number) => {
+    if (isLeadBoard) {
+      return count === 1 ? 'lead' : 'leads';
+    }
     if (effectiveBoardType === 'HOSPITALIZATION') {
       return count === 1 ? 'internação' : 'internações';
     }
     return count === 1 ? 'consulta' : 'consultas';
   };
+
+  const entityCount = isLeadBoard ? leadCards.length : appointments.length;
 
   if (loading) {
     return (
@@ -394,22 +458,36 @@ const KanbanBoard = ({ boardId, boardName = "CRM", boardType: propBoardType = "A
             <div className="text-left">
               <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{boardName}</h1>
               <p className="text-sm text-gray-600 mt-1">
-                Receita Total:{" "}
-                <span className="font-bold text-green-600">
-                  {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(totalRevenue)}
-                </span>
-                {" • "}
+                {!isLeadBoard && (
+                  <>
+                    Receita Total:{" "}
+                    <span className="font-bold text-green-600">
+                      {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(totalRevenue)}
+                    </span>
+                    {" • "}
+                  </>
+                )}
                 <span className="text-gray-500">
-                  {appointments.length} {getEntityLabel(appointments.length)}
+                  {entityCount} {getEntityLabel(entityCount)}
                 </span>
               </p>
             </div>
-            <button
-              onClick={() => setIsColumnModalOpen(true)}
-              className="bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-md hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base self-start sm:self-auto"
-            >
-              + Nova Coluna
-            </button>
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              {isLeadBoard && (
+                <button
+                  onClick={() => setIsLeadModalOpen(true)}
+                  className="bg-gradient-to-r from-green-600 to-emerald-600 text-white px-3 sm:px-4 py-2 rounded-md hover:scale-105 transition-all focus:outline-none focus:ring-2 focus:ring-green-500 text-sm sm:text-base flex items-center gap-1.5"
+                >
+                  <LuPlus className="w-4 h-4" /> Adicionar Lead
+                </button>
+              )}
+              <button
+                onClick={() => setIsColumnModalOpen(true)}
+                className="bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-md hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base"
+              >
+                + Nova Coluna
+              </button>
+            </div>
           </div>
           <div className="flex flex-col md:flex-row md:space-x-4 space-y-4 md:space-y-0 overflow-x-auto snap-x snap-mandatory w-full pb-4">
             {statuses.length === 0 ? (
@@ -438,6 +516,13 @@ const KanbanBoard = ({ boardId, boardName = "CRM", boardType: propBoardType = "A
             onClose={() => setIsColumnModalOpen(false)}
             onSubmit={handleAddColumn}
           />
+          {isLeadBoard && (
+            <NewLeadCardModal
+              isOpen={isLeadModalOpen}
+              onClose={() => setIsLeadModalOpen(false)}
+              onSubmit={handleAddLeadCard}
+            />
+          )}
         </div>
       </div>
     </DndProvider>

@@ -7,7 +7,7 @@ function getBackendUrl(): string | undefined {
     process.env.BACKEND_URL ||
     process.env.NEXT_PUBLIC_BACKEND_URL ||
     process.env.NEXT_PUBLIC_API_URL ||
-    (process.env.NODE_ENV !== 'production' ? 'http://localhost:3001' : undefined)
+    (process.env.NODE_ENV !== 'production' ? 'http://localhost:3333' : undefined)
   );
 }
 
@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
   const backendUrl = getBackendUrl();
   if (backendUrl) {
     try {
-      const backendVerifyUrl = new URL('/webhook/whatsapp', backendUrl);
+      const backendVerifyUrl = new URL('/api/webhook/whatsapp', backendUrl);
       backendVerifyUrl.searchParams.set('hub.mode', mode);
       backendVerifyUrl.searchParams.set('hub.verify_token', token);
       backendVerifyUrl.searchParams.set('hub.challenge', challenge);
@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
     // Extrair o header de assinatura do Meta
     const signature = request.headers.get('x-hub-signature-256') || '';
 
-    const upstreamUrl = `${backendUrl.replace(/\/$/, '')}/webhook/whatsapp`;
+    const upstreamUrl = `${backendUrl.replace(/\/$/, '')}/api/webhook/whatsapp`;
 
     const backendRes = await fetch(upstreamUrl, {
       method: 'POST',

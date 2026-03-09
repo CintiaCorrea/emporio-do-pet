@@ -1036,6 +1036,149 @@ export default function IntegracoesPage() {
               )}
             </div>
           </div>
+
+          {/* Pricing & Usage Section */}
+          <AiUsageSection />
         </div>
+  );
+}
+
+function AiUsageSection() {
+  const [usage, setUsage] = useState<{
+    monthlyBudget: number | null;
+    currentMonthCost: number;
+    budgetUsedPercent: string | null;
+    totalCostAllTime: number;
+    totalInteractions: number;
+    agentBreakdown: Array<{ id: string; name: string; cost: number; interactions: number }>;
+  } | null>(null);
+  const [pricing, setPricing] = useState<{
+    models: Record<string, unknown>;
+    tts: Record<string, unknown>;
+  } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [usageRes, pricingRes] = await Promise.all([
+          fetch('/api/agents/usage'),
+          fetch('/api/agents/pricing'),
+        ]);
+        if (usageRes.ok) setUsage(await usageRes.json());
+        if (pricingRes.ok) setPricing(await pricingRes.json());
+      } catch (err) {
+        console.error('Error loading usage/pricing:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center">
+        <LuRefreshCw className="w-6 h-6 animate-spin text-violet-600 mx-auto mb-2" />
+        <p className="text-gray-500 text-sm">Carregando dados de uso...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+        <LuInfo className="w-5 h-5 text-violet-600" />
+        Uso de IA e Custos
+      </h2>
+
+      {usage && (
+        <>
+          {/* Usage Overview */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-white rounded-2xl border border-gray-100 p-5">
+              <p className="text-sm text-gray-500">Custo este Mês</p>
+              <p className="text-2xl font-bold text-gray-900">${usage.currentMonthCost.toFixed(4)}</p>
+              {usage.monthlyBudget && (
+                <div className="mt-2">
+                  <div className="w-full bg-gray-100 rounded-full h-2">
+                    <div
+                      className={`h-2 rounded-full transition-all ${
+                        Number(usage.budgetUsedPercent) > 80 ? 'bg-red-500' :
+                        Number(usage.budgetUsedPercent) > 50 ? 'bg-amber-500' : 'bg-emerald-500'
+                      }`}
+                      style={{ width: `${Math.min(Number(usage.budgetUsedPercent), 100)}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">{usage.budgetUsedPercent}% de ${usage.monthlyBudget.toFixed(2)}</p>
+                </div>
+              )}
+            </div>
+            <div className="bg-white rounded-2xl border border-gray-100 p-5">
+              <p className="text-sm text-gray-500">Custo Total (All-Time)</p>
+              <p className="text-2xl font-bold text-gray-900">${usage.totalCostAllTime.toFixed(4)}</p>
+            </div>
+            <div className="bg-white rounded-2xl border border-gray-100 p-5">
+              <p className="text-sm text-gray-500">Total Interações</p>
+              <p className="text-2xl font-bold text-gray-900">{new Intl.NumberFormat('pt-BR').format(usage.totalInteractions)}</p>
+            </div>
+            <div className="bg-white rounded-2xl border border-gray-100 p-5">
+              <p className="text-sm text-gray-500">Orçamento Mensal</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {usage.monthlyBudget ? `$${usage.monthlyBudget.toFixed(2)}` : 'Sem limite'}
+              </p>
+            </div>
+          </div>
+
+          {/* Agent Breakdown */}
+          {usage.agentBreakdown.length > 0 && (
+            <div className="bg-white rounded-2xl border border-gray-100 p-6">
+              <h3 className="text-sm font-semibold text-gray-500 uppercase mb-4">Custo por Agente</h3>
+              <div className="space-y-3">
+                {usage.agentBreakdown.map(agent => (
+                  <div key={agent.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
+                    <div>
+                      <p className="font-medium text-gray-900">{agent.name}</p>
+                      <p className="text-xs text-gray-500">{agent.interactions} interações</p>
+                    </div>
+                    <span className="font-semibold text-gray-900">${agent.cost.toFixed(4)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Pricing Table */}
+      {pricing?.models && (
+        <div className="bg-white rounded-2xl border border-gray-100 p-6">
+          <h3 className="text-sm font-semibold text-gray-500 uppercase mb-4">Tabela de Preços por Modelo</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="text-left px-4 py-3 font-medium text-gray-500">Modelo</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-500">Prompt ($/1K tokens)</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-500">Completion ($/1K tokens)</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {Object.entries(pricing.models).map(([model, info]) => {
+                  const p = info as { promptCostPer1K?: number; completionCostPer1K?: number };
+                  return (
+                    <tr key={model} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 font-medium text-gray-900">{model}</td>
+                      <td className="px-4 py-3 text-gray-600">${p.promptCostPer1K?.toFixed(6) ?? '-'}</td>
+                      <td className="px-4 py-3 text-gray-600">${p.completionCostPer1K?.toFixed(6) ?? '-'}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

@@ -310,7 +310,14 @@ export class AgentsService {
               system_prompt: agent.systemPrompt,
               conversation_history: dto.conversationHistory || [],
               user_message: dto.userMessage,
-              context: dto.context || {},
+              context: dto.context ? {
+                clinic_name: dto.context.clinicName,
+                tutor_name: dto.context.tutorName,
+                pet_name: dto.context.petName,
+                pet_species: dto.context.petSpecies,
+                current_date: dto.context.currentDate,
+                custom_data: dto.context.customVariable,
+              } : {},
               credentials: {
                 api_key: credentials.apiKey,
                 base_url: credentials.baseUrl,
@@ -334,7 +341,6 @@ export class AgentsService {
           retryDelay: 1000,
           backoffMultiplier: 2,
           retryOn: (error) => {
-            // Only retry on transient errors
             const message = error.message.toLowerCase();
             return message.includes('timeout') ||
                    message.includes('network') ||
@@ -505,7 +511,14 @@ export class AgentsService {
           system_prompt: agent.systemPrompt,
           conversation_history: dto.conversationHistory || [],
           user_message: dto.userMessage,
-          context: dto.context || {},
+          context: dto.context ? {
+            clinic_name: dto.context.clinicName,
+            tutor_name: dto.context.tutorName,
+            pet_name: dto.context.petName,
+            pet_species: dto.context.petSpecies,
+            current_date: dto.context.currentDate,
+            custom_data: dto.context.customVariable,
+          } : {},
           credentials: {
             api_key: credentials.apiKey,
             base_url: credentials.baseUrl,
@@ -962,6 +975,22 @@ export class AgentsService {
       return { success: false, error: 'Agent is not active' };
     }
 
+    // Check rate limit
+    const rateLimitResult = await this.rateLimiter.checkAndConsume(agentId, agent.userId, {
+      maxRequests: agent.rateLimitRequests,
+      windowSeconds: agent.rateLimitWindow,
+    });
+
+    if (!rateLimitResult.allowed) {
+      return { success: false, error: `Rate limit excedido. Tente novamente em ${rateLimitResult.retryAfterSeconds} segundos.` };
+    }
+
+    // Check user budget
+    const budgetCheck = await this.checkUserBudget(agent.userId);
+    if (!budgetCheck.allowed) {
+      return { success: false, error: `Orçamento mensal de AI excedido. Limite: $${budgetCheck.limit?.toFixed(2)}, Usado: $${budgetCheck.used?.toFixed(2)}` };
+    }
+
     // Get credentials
     const credentials = await this.getProviderCredentials(
       agent.userId,
@@ -998,13 +1027,11 @@ export class AgentsService {
       const contactName = conversation?.contactName || conversation?.contactPushName;
 
       const enrichedContext = {
-        // Standard fields expected by Python AgentContext (snake_case)
         clinic_name: context?.clinicName || context?.clinic_name || 'Empório do Pet',
         tutor_name: tutorData?.name || contactName || context?.tutorName || context?.tutor_name,
         pet_name: firstPet?.name || context?.petName || context?.pet_name,
         pet_species: firstPet?.species || context?.petSpecies || context?.pet_species,
         current_date: new Date().toLocaleDateString('pt-BR'),
-        // Additional data in custom_data for advanced prompt templates
         custom_data: {
           conversationId,
           contactPhone: conversation?.contactPhone,
@@ -1020,59 +1047,93 @@ export class AgentsService {
               breed: p.breed,
             })),
           } : undefined,
-          // Merge any extra context passed by the caller
           ...context,
         },
       };
 
-      // Build conversation history from messages if not provided
+      // Build conversation history from messages if not provided.
+      // Skip the most recent inbound message since it's the current user_message
+      // (already saved to DB before this method is called).
       const history = conversationHistory.length > 0
         ? conversationHistory
         : (conversation?.messages || [])
             .reverse()
-            .slice(-10) // Last 10 messages for context
+            .filter((m, idx, arr) => {
+              if (idx === arr.length - 1 && m.direction === 'INBOUND' && m.content === userMessage) {
+                return false;
+              }
+              return true;
+            })
+            .slice(-10)
             .map(m => ({
               role: m.direction === 'INBOUND' ? 'user' as const : 'assistant' as const,
               content: m.content,
             }));
 
-      // Call AI service (with 90s timeout)
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 90_000);
+      // Execute with circuit breaker and retry
+      const result = await this.circuitBreaker.executeWithRetry(
+        'ai-service',
+        async () => {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 90_000);
 
-      const response = await fetch(`${this.aiServiceUrl}/v1/agents/execute`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+          const response = await fetch(`${this.aiServiceUrl}/v1/agents/execute`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            signal: controller.signal,
+            body: JSON.stringify({
+              provider: agent.provider.toLowerCase(),
+              model: agent.model,
+              system_prompt: agent.systemPrompt,
+              conversation_history: history,
+              user_message: userMessage,
+              context: enrichedContext,
+              credentials: {
+                api_key: credentials.apiKey,
+                base_url: credentials.baseUrl,
+              },
+              temperature: agent.temperature,
+              max_tokens: agent.maxTokens,
+            }),
+          });
+
+          clearTimeout(timeoutId);
+
+          if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.detail?.message || error.message || 'AI service error');
+          }
+
+          return response.json();
         },
-        signal: controller.signal,
-        body: JSON.stringify({
-          provider: agent.provider.toLowerCase(),
-          model: agent.model,
-          system_prompt: agent.systemPrompt,
-          conversation_history: history,
-          user_message: userMessage,
-          context: enrichedContext,
-          credentials: {
-            api_key: credentials.apiKey,
-            base_url: credentials.baseUrl,
+        {
+          maxRetries: 2,
+          retryDelay: 1000,
+          backoffMultiplier: 2,
+          retryOn: (error) => {
+            const message = error.message.toLowerCase();
+            return message.includes('timeout') ||
+                   message.includes('network') ||
+                   message.includes('503') ||
+                   message.includes('502');
           },
-          temperature: agent.temperature,
-          max_tokens: agent.maxTokens,
-        }),
-      });
+        },
+      );
 
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'AI service error');
-      }
-
-      const result = await response.json();
       const latencyMs = Date.now() - startTime;
 
-      // Record execution
+      // Calculate costs
+      const usage = result.usage as TokenUsage;
+      const costBreakdown = this.costCalculator.calculateTextCost(
+        usage,
+        agent.model,
+        agent.provider,
+      );
+      const totalCostUsd = costBreakdown.totalCost;
+
+      // Record execution with costs
       const execution = await this.prisma.agentExecution.create({
         data: {
           agentId,
@@ -1081,6 +1142,15 @@ export class AgentsService {
           output: result.response,
           usage: result.usage,
           latencyMs,
+          costUsd: totalCostUsd,
+          costBreakdown: {
+            promptCost: costBreakdown.promptCost,
+            completionCost: costBreakdown.completionCost,
+            textCost: costBreakdown.totalCost,
+            totalCost: totalCostUsd,
+            model: agent.model,
+            provider: agent.provider,
+          },
           metadata: {
             source: 'whatsapp',
             conversationId,
@@ -1089,8 +1159,11 @@ export class AgentsService {
         },
       });
 
-      // Update agent metrics
-      await this.updateAgentMetrics(agentId, latencyMs, true);
+      // Update agent metrics with cost
+      await this.updateAgentMetrics(agentId, latencyMs, true, totalCostUsd);
+
+      // Update user's monthly cost
+      await this.updateUserMonthlyCost(agent.userId, totalCostUsd);
 
       return {
         success: true,
@@ -1117,7 +1190,6 @@ export class AgentsService {
         },
       });
 
-      // Update agent metrics
       await this.updateAgentMetrics(agentId, latencyMs, false);
 
       return { success: false, error: errorMessage };

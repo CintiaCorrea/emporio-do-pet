@@ -26,7 +26,8 @@
     "prisma:migrate:prod": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "docker:dev": "docker-compose up -d",
-    "docker:down": "docker-compose down"
+    "docker:down": "docker-compose down",
+    "seed:whatsapp-agent": "ts-node prisma/seed-whatsapp-agent.ts"
   },
   "dependencies": {
     "openai": "^4.77.0",

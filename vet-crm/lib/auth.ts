@@ -8,7 +8,7 @@ function getBackendUrl() {
     process.env.BACKEND_URL ||
     process.env.NEXT_PUBLIC_BACKEND_URL ||
     process.env.NEXT_PUBLIC_API_URL ||
-    "http://localhost:3001";
+    "http://localhost:3333";
   const normalized = backendBaseUrl.replace(/\/$/, "");
   return normalized.endsWith("/api") ? normalized : `${normalized}/api`;
 }
@@ -58,18 +58,8 @@ export const authOptions: NextAuthOptions = {
             return null;
           }
 
-          // Autenticação delegada ao backend NestJS (evita Prisma no frontend)
-          // Esperado: BACKEND_URL=http://localhost:3001  (ou http://localhost:3001/api)
-          const backendBaseUrl =
-            process.env.BACKEND_URL ||
-            process.env.NEXT_PUBLIC_BACKEND_URL ||
-            process.env.NEXT_PUBLIC_API_URL ||
-            "http://localhost:3001";
-
-          const normalized = backendBaseUrl.replace(/\/$/, "");
-          const endpoint = normalized.endsWith("/api")
-            ? `${normalized}/auth/login`
-            : `${normalized}/api/auth/login`;
+          const backendApiUrl = getBackendUrl();
+          const endpoint = `${backendApiUrl}/auth/login`;
 
           const response = await fetch(endpoint, {
             method: "POST",

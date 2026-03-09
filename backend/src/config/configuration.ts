@@ -1,6 +1,6 @@
 export default () => ({
   // Servidor
-  port: parseInt(process.env.PORT ?? '3001', 10),
+  port: parseInt(process.env.PORT ?? '3333', 10),
   nodeEnv: process.env.NODE_ENV || 'development',
 
   // Database
@@ -61,6 +61,7 @@ export default () => ({
     accessToken: process.env.WHATSAPP_ACCESS_TOKEN,
     phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID,
     businessAccountId: process.env.WHATSAPP_BUSINESS_ACCOUNT_ID,
+    appId: process.env.WHATSAPP_APP_ID || null,
     appSecret: process.env.WHATSAPP_APP_SECRET,
     webhookVerifyToken: process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN,
     apiVersion: process.env.WHATSAPP_API_VERSION || 'v21.0',

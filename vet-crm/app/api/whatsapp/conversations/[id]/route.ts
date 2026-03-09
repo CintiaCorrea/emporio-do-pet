@@ -16,7 +16,10 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const body = await request.text();
   return backendProxy(request, `/whatsapp/conversations/${id}`, {
     method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body,
   });
 }

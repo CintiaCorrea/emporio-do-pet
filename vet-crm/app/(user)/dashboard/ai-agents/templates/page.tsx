@@ -27,6 +27,7 @@ import {
 } from 'react-icons/lu';
 import { AiOutlineWarning } from 'react-icons/ai';
 import { toast } from 'sonner';
+import TemplateImportExport from '@/components/protected/ai-agents/TemplateImportExport';
 
 // Tipos para WhatsApp Templates da Meta API
 type WhatsAppTemplateStatus = 'APPROVED' | 'PENDING' | 'REJECTED' | 'PAUSED' | 'DISABLED' | 'IN_APPEAL';
@@ -324,6 +325,7 @@ export default function TemplatesPage() {
                 <LuRefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
                 Atualizar
               </button>
+              <TemplateImportExport onImportComplete={() => loadTemplates()} />
               <Link
                 href="/dashboard/ai-agents/templates/novo"
                 className="flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold shadow-lg shadow-indigo-500/20 transition-all duration-200 hover:shadow-xl"
@@ -586,7 +588,7 @@ export default function TemplatesPage() {
               </div>
 
               {/* Motivo da rejeição */}
-              {selectedTemplate.rejected_reason && (
+              {selectedTemplate.rejected_reason && selectedTemplate.rejected_reason !== 'NONE' && (
                 <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4">
                   <div className="flex items-start gap-3">
                     <AiOutlineWarning className="w-5 h-5 text-red-600 dark:text-red-400 mt-0.5" />

@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
-import { ScheduleModule } from '@nestjs/schedule';
 import { ConfigModule } from '@nestjs/config';
 import { AutomationsController } from './automations.controller';
 import { AutomationsWebhookController } from './automations-webhook.controller';
@@ -29,7 +28,6 @@ import { EmailModule } from '../email/email.module';
         removeOnFail: 50,
       },
     }),
-    ScheduleModule.forRoot(),
   ],
   controllers: [AutomationsController, AutomationsWebhookController],
   providers: [AutomationsService, AutomationsProcessor, AutomationsScheduler],

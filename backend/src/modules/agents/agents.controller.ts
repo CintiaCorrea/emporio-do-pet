@@ -7,27 +7,23 @@ import {
   Body,
   Param,
   Query,
+  Res,
   UseGuards,
   ParseUUIDPipe,
   ParseIntPipe,
-  Sse,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { AgentsService } from './agents.service';
 import { CreateAgentDto, AgentStatus } from './dto/create-agent.dto';
 import { UpdateAgentDto } from './dto/update-agent.dto';
 import { ExecuteAgentDto } from './dto/execute-agent.dto';
-import { Observable, Subject } from 'rxjs';
 
 interface JwtUser {
   id: string;
   email: string;
   role: string;
-}
-
-interface MessageEvent {
-  data: string;
 }
 
 @Controller('agents')
@@ -108,50 +104,36 @@ export class AgentsController {
     return this.agentsService.execute(user.id, id, dto);
   }
 
-  @Sse(':id/execute/stream')
-  executeStream(
+  @Post(':id/execute/stream')
+  async executeStream(
     @CurrentUser() user: JwtUser,
     @Param('id', ParseUUIDPipe) id: string,
-    @Query('message') message: string,
-    @Query('context') contextStr?: string,
-  ): Observable<MessageEvent> {
-    const subject = new Subject<MessageEvent>();
+    @Body() dto: ExecuteAgentDto,
+    @Res() res: Response,
+  ) {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
 
-    // Parse context if provided
-    let context: Record<string, unknown> | undefined;
-    if (contextStr) {
-      try {
-        context = JSON.parse(contextStr);
-      } catch {
-        // Ignore invalid context
+    try {
+      const stream = this.agentsService.executeStream(user.id, id, {
+        userMessage: dto.userMessage,
+        context: dto.context as Record<string, unknown> | undefined,
+        stream: true,
+      });
+
+      for await (const chunk of stream) {
+        res.write(`data: ${JSON.stringify(chunk)}\n\n`);
       }
+    } catch (error) {
+      res.write(`data: ${JSON.stringify({
+        type: 'error',
+        error: error instanceof Error ? error.message : 'Erro desconhecido',
+      })}\n\n`);
+    } finally {
+      res.end();
     }
-
-    // Execute agent with real streaming
-    (async () => {
-      try {
-        const stream = this.agentsService.executeStream(user.id, id, {
-          userMessage: message,
-          context,
-          stream: true,
-        });
-
-        for await (const chunk of stream) {
-          subject.next({ data: JSON.stringify(chunk) });
-        }
-        subject.complete();
-      } catch (error) {
-        subject.next({
-          data: JSON.stringify({
-            type: 'error',
-            error: error instanceof Error ? error.message : 'Erro desconhecido',
-          }),
-        });
-        subject.complete();
-      }
-    })();
-
-    return subject.asObservable();
   }
 
   @Get(':id/metrics')

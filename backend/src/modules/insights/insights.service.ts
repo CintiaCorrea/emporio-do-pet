@@ -186,7 +186,8 @@ export class InsightsService {
   /**
    * Busca todos os insights pendentes de ação
    */
-  async getPendingInsights(limit = 50) {
+  async getPendingInsights(limit?: number) {
+    const take = limit && Number.isFinite(limit) ? limit : 50;
     return this.prisma.leadInsight.findMany({
       where: {
         dismissed: false,
@@ -206,14 +207,15 @@ export class InsightsService {
         },
       },
       orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
-      take: limit,
+      take,
     });
   }
 
   /**
    * Busca insights por prioridade
    */
-  async getInsightsByPriority(priority: InsightPriorityEnum, limit = 50) {
+  async getInsightsByPriority(priority: InsightPriorityEnum, limit?: number) {
+    const take = limit && Number.isFinite(limit) ? limit : 50;
     return this.prisma.leadInsight.findMany({
       where: {
         priority,
@@ -233,15 +235,16 @@ export class InsightsService {
         },
       },
       orderBy: { createdAt: 'desc' },
-      take: limit,
+      take,
     });
   }
 
   /**
    * Busca insights urgentes
    */
-  async getUrgentInsights(limit = 20) {
-    return this.getInsightsByPriority(InsightPriorityEnum.URGENT, limit);
+  async getUrgentInsights(limit?: number) {
+    const take = limit && Number.isFinite(limit) ? limit : 20;
+    return this.getInsightsByPriority(InsightPriorityEnum.URGENT, take);
   }
 
   /**
