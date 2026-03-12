@@ -41,10 +41,10 @@ export class WhatsAppConversationsController {
     @CurrentUser() user: JwtUser,
     @Query() query: ListConversationsQuery,
   ) {
-    this.logger.log(`Listing conversations for user ${user.id}`);
+    this.logger.log(`Listing all conversations (shared inbox) for user ${user.id}`);
     
     return this.whatsAppService.getConversations(
-      user.id,
+      null,
       {
         status: query.status,
         search: query.search,
@@ -66,8 +66,7 @@ export class WhatsAppConversationsController {
   ) {
     const conversation = await this.whatsAppService.getConversation(id);
     
-    // Verify ownership
-    if (!conversation || conversation.userId !== user.id) {
+    if (!conversation) {
       return { error: 'Conversation not found' };
     }
     
@@ -80,9 +79,8 @@ export class WhatsAppConversationsController {
     @Param('id') id: string,
     @Body() dto: UpdateConversationDto,
   ) {
-    // Verify ownership first
     const existing = await this.whatsAppService.getConversation(id);
-    if (!existing || existing.userId !== user.id) {
+    if (!existing) {
       return { error: 'Conversation not found' };
     }
 
@@ -95,9 +93,8 @@ export class WhatsAppConversationsController {
     @Param('id') id: string,
     @Body() dto: AssignAgentDto,
   ) {
-    // Verify ownership first
     const existing = await this.whatsAppService.getConversation(id);
-    if (!existing || existing.userId !== user.id) {
+    if (!existing) {
       return { error: 'Conversation not found' };
     }
 
@@ -109,9 +106,8 @@ export class WhatsAppConversationsController {
     @CurrentUser() user: JwtUser,
     @Param('id') id: string,
   ) {
-    // Verify ownership first
     const existing = await this.whatsAppService.getConversation(id);
-    if (!existing || existing.userId !== user.id) {
+    if (!existing) {
       return { error: 'Conversation not found' };
     }
 
@@ -123,9 +119,8 @@ export class WhatsAppConversationsController {
     @CurrentUser() user: JwtUser,
     @Param('id') id: string,
   ) {
-    // Verify ownership first
     const existing = await this.whatsAppService.getConversation(id);
-    if (!existing || existing.userId !== user.id) {
+    if (!existing) {
       return { error: 'Conversation not found' };
     }
 
@@ -143,9 +138,8 @@ export class WhatsAppConversationsController {
     @Query('page') page?: number,
     @Query('limit') limit?: number,
   ) {
-    // Verify ownership first
     const conversation = await this.whatsAppService.getConversation(conversationId);
-    if (!conversation || conversation.userId !== user.id) {
+    if (!conversation) {
       return { error: 'Conversation not found' };
     }
 
@@ -161,16 +155,15 @@ export class WhatsAppConversationsController {
     @Param('id') conversationId: string,
     @Body() dto: SendMessageDto,
   ) {
-    // Verify ownership first
     const conversation = await this.whatsAppService.getConversation(conversationId);
-    if (!conversation || conversation.userId !== user.id) {
+    if (!conversation) {
       return { error: 'Conversation not found' };
     }
 
-    this.logger.log(`Sending message to conversation ${conversationId}`);
+    this.logger.log(`Sending message to conversation ${conversationId} by user ${user.id}`);
 
     const result = await this.whatsAppService.sendAndSaveMessage(
-      user.id,
+      conversation.userId,
       conversationId,
       dto.content,
       dto.type,
@@ -215,7 +208,7 @@ export class WhatsAppConversationsController {
 
   @Get('stats')
   async getStats(@CurrentUser() user: JwtUser) {
-    const conversations = await this.whatsAppService.getConversations(user.id);
+    const conversations = await this.whatsAppService.getConversations(null, undefined, { limit: 1000 });
     
     const stats = {
       totalConversations: conversations.pagination.total,

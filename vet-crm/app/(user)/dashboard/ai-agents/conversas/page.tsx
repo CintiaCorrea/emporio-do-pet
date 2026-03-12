@@ -22,7 +22,11 @@ import {
   UserCircle,
   PawPrint,
   AlertCircle,
-  Power
+  Power,
+  Wifi,
+  WifiOff,
+  ChevronDown,
+  Loader2
 } from 'lucide-react';
 import { useNotifications, WhatsAppMessageEvent } from '@/hooks/useNotifications';
 
@@ -104,14 +108,20 @@ function AIAgentsConversationsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [sendingMessage, setSendingMessage] = useState(false);
   const [showMobileChat, setShowMobileChat] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
   const [initialConversationHandled, setInitialConversationHandled] = useState(false);
+  const [whatsappConnected, setWhatsappConnected] = useState<boolean | null>(null);
+  const [whatsappPhone, setWhatsappPhone] = useState<string | null>(null);
+  const [totalConversations, setTotalConversations] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
 
   useNotifications({
     onWhatsAppMessage: (event: WhatsAppMessageEvent) => {
-      fetchConversations();
+      fetchConversations(true);
       if (selectedConversation && event.conversationId === selectedConversation.id) {
         fetchMessages(selectedConversation.id);
       }
@@ -119,9 +129,14 @@ function AIAgentsConversationsPage() {
   });
 
   useEffect(() => {
-    fetchConversations();
+    setCurrentPage(1);
+    fetchConversations(true);
     fetchAgents();
   }, [searchTerm, statusFilter]);
+
+  useEffect(() => {
+    checkWhatsAppConnection();
+  }, []);
 
   const autoSelectConversation = useCallback((convList: Conversation[]) => {
     if (initialConversationHandled) return;
@@ -149,21 +164,76 @@ function AIAgentsConversationsPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const fetchConversations = async () => {
+  const checkWhatsAppConnection = async () => {
     try {
+      const response = await fetch('/api/whatsapp/test-connection');
+      if (response.ok) {
+        const data = await response.json();
+        setWhatsappConnected(data.connected === true);
+        setWhatsappPhone(data.phoneNumber || null);
+      } else {
+        setWhatsappConnected(false);
+      }
+    } catch {
+      setWhatsappConnected(false);
+    }
+  };
+
+  const fetchConversations = async (reset = false) => {
+    try {
+      const page = reset ? 1 : currentPage;
       const params = new URLSearchParams();
       if (searchTerm) params.set('search', searchTerm);
       if (statusFilter) params.set('status', statusFilter);
+      params.set('page', String(page));
+      params.set('limit', '50');
 
       const response = await fetch(`/api/whatsapp/conversations?${params.toString()}`);
       const data = await response.json();
       const convList = data.data || [];
-      setConversations(convList);
+      const pagination = data.pagination || {};
+
+      if (reset) {
+        setConversations(convList);
+      } else {
+        setConversations(prev => [...prev, ...convList]);
+      }
+
+      setTotalConversations(pagination.total || 0);
+      setHasMore(page < (pagination.totalPages || 1));
       autoSelectConversation(convList);
     } catch (error) {
       console.error('Error fetching conversations:', error);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
+    }
+  };
+
+  const loadMoreConversations = async () => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    const nextPage = currentPage + 1;
+    setCurrentPage(nextPage);
+
+    const params = new URLSearchParams();
+    if (searchTerm) params.set('search', searchTerm);
+    if (statusFilter) params.set('status', statusFilter);
+    params.set('page', String(nextPage));
+    params.set('limit', '50');
+
+    try {
+      const response = await fetch(`/api/whatsapp/conversations?${params.toString()}`);
+      const data = await response.json();
+      const convList = data.data || [];
+      const pagination = data.pagination || {};
+
+      setConversations(prev => [...prev, ...convList]);
+      setHasMore(nextPage < (pagination.totalPages || 1));
+    } catch (error) {
+      console.error('Error loading more conversations:', error);
+    } finally {
+      setLoadingMore(false);
     }
   };
 
@@ -343,17 +413,42 @@ function AIAgentsConversationsPage() {
       <div className={`${showMobileChat ? 'hidden md:flex' : 'flex'} w-full md:w-96 lg:w-[420px] flex-col bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700`}>
         {/* Header */}
         <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-green-600 to-green-700">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-3">
             <h1 className="text-xl font-bold text-white flex items-center gap-2">
               <MessageCircle className="h-6 w-6" />
               Conversas
+              {totalConversations > 0 && (
+                <span className="text-sm font-normal bg-white/20 px-2 py-0.5 rounded-full">
+                  {totalConversations}
+                </span>
+              )}
             </h1>
             <button
-              onClick={fetchConversations}
+              onClick={() => { setCurrentPage(1); fetchConversations(true); checkWhatsAppConnection(); }}
               className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
             >
               <RefreshCw className="h-4 w-4 text-white" />
             </button>
+          </div>
+
+          {/* WhatsApp Connection Status */}
+          <div className="flex items-center gap-2 mb-3 text-sm">
+            {whatsappConnected === null ? (
+              <span className="flex items-center gap-1.5 text-white/60">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Verificando conexão...
+              </span>
+            ) : whatsappConnected ? (
+              <span className="flex items-center gap-1.5 text-green-200">
+                <Wifi className="h-3.5 w-3.5" />
+                Conectado{whatsappPhone ? ` • ${whatsappPhone}` : ''}
+              </span>
+            ) : (
+              <span className="flex items-center gap-1.5 text-red-200">
+                <WifiOff className="h-3.5 w-3.5" />
+                WhatsApp desconectado
+              </span>
+            )}
           </div>
           
           {/* Search */}
@@ -394,61 +489,101 @@ function AIAgentsConversationsPage() {
           ) : conversations.length === 0 ? (
             <div className="p-8 text-center">
               <MessageCircle className="h-12 w-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
-              <p className="text-gray-500 dark:text-gray-400">Nenhuma conversa encontrada</p>
+              <p className="font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Nenhuma conversa encontrada
+              </p>
+              {whatsappConnected === false ? (
+                <div className="text-sm text-gray-500 dark:text-gray-400 space-y-2">
+                  <p className="flex items-center justify-center gap-1.5 text-amber-600 dark:text-amber-400">
+                    <AlertCircle className="h-4 w-4" />
+                    WhatsApp não conectado
+                  </p>
+                  <p>Configure o WhatsApp Business API nas integrações para receber conversas automaticamente.</p>
+                </div>
+              ) : whatsappConnected === true ? (
+                <div className="text-sm text-gray-500 dark:text-gray-400 space-y-2">
+                  <p>O WhatsApp está conectado e aguardando novas mensagens.</p>
+                  <p>Quando alguém enviar uma mensagem para o seu número, a conversa aparecerá aqui automaticamente.</p>
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Aguardando mensagens do WhatsApp Business API...
+                </p>
+              )}
             </div>
           ) : (
-            conversations.map((conversation) => (
-              <div
-                key={conversation.id}
-                onClick={() => setSelectedConversation(conversation)}
-                className={`p-4 border-b border-gray-100 dark:border-gray-700 cursor-pointer transition-all hover:bg-gray-50 dark:hover:bg-gray-700/50 ${
-                  selectedConversation?.id === conversation.id
-                    ? 'bg-green-50 dark:bg-green-900/20 border-l-4 border-l-green-500'
-                    : ''
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  <div className="relative">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center text-white font-semibold text-lg">
-                      {(conversation.contactName || conversation.contactPushName || conversation.contactPhone)?.[0]?.toUpperCase() || '?'}
+            <>
+              {conversations.map((conversation) => (
+                <div
+                  key={conversation.id}
+                  onClick={() => setSelectedConversation(conversation)}
+                  className={`p-4 border-b border-gray-100 dark:border-gray-700 cursor-pointer transition-all hover:bg-gray-50 dark:hover:bg-gray-700/50 ${
+                    selectedConversation?.id === conversation.id
+                      ? 'bg-green-50 dark:bg-green-900/20 border-l-4 border-l-green-500'
+                      : ''
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="relative">
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center text-white font-semibold text-lg">
+                        {(conversation.contactName || conversation.contactPushName || conversation.contactPhone)?.[0]?.toUpperCase() || '?'}
+                      </div>
+                      {conversation.unreadCount > 0 && (
+                        <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold">
+                          {conversation.unreadCount > 9 ? '9+' : conversation.unreadCount}
+                        </span>
+                      )}
                     </div>
-                    {conversation.unreadCount > 0 && (
-                      <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold">
-                        {conversation.unreadCount > 9 ? '9+' : conversation.unreadCount}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-1">
-                      <p className="font-semibold text-gray-900 dark:text-white truncate">
-                        {conversation.contactName || conversation.contactPushName || conversation.contactPhone}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="font-semibold text-gray-900 dark:text-white truncate">
+                          {conversation.contactName || conversation.contactPushName || conversation.contactPhone}
+                        </p>
+                        <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap ml-2">
+                          {formatDate(conversation.lastMessageAt)}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
+                        {conversation.lastMessagePreview || 'Sem mensagens'}
                       </p>
-                      <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap ml-2">
-                        {formatDate(conversation.lastMessageAt)}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
-                      {conversation.lastMessagePreview || 'Sem mensagens'}
-                    </p>
-                    <div className="flex items-center gap-2 mt-2 flex-wrap">
-                      {getStatusBadge(conversation.status)}
-                      {conversation.assignedAgent && (
-                        <span className="flex items-center gap-1 text-xs text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 px-2 py-0.5 rounded-full">
-                          <Bot className="h-3 w-3" />
-                          {conversation.assignedAgent.name}
-                        </span>
-                      )}
-                      {conversation.isAutoReplyEnabled && (
-                        <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded-full">
-                          <Power className="h-3 w-3" />
-                          Auto
-                        </span>
-                      )}
+                      <div className="flex items-center gap-2 mt-2 flex-wrap">
+                        {getStatusBadge(conversation.status)}
+                        {conversation.assignedAgent && (
+                          <span className="flex items-center gap-1 text-xs text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 px-2 py-0.5 rounded-full">
+                            <Bot className="h-3 w-3" />
+                            {conversation.assignedAgent.name}
+                          </span>
+                        )}
+                        {conversation.isAutoReplyEnabled && (
+                          <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded-full">
+                            <Power className="h-3 w-3" />
+                            Auto
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))
+              ))}
+
+              {/* Load More */}
+              {hasMore && (
+                <div className="p-4 text-center">
+                  <button
+                    onClick={loadMoreConversations}
+                    disabled={loadingMore}
+                    className="flex items-center gap-2 mx-auto px-4 py-2 text-sm font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/40 transition-colors disabled:opacity-50"
+                  >
+                    {loadingMore ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <ChevronDown className="h-4 w-4" />
+                    )}
+                    {loadingMore ? 'Carregando...' : 'Carregar mais conversas'}
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

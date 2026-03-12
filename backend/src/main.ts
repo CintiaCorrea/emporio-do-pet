@@ -20,7 +20,7 @@ async function bootstrap() {
   app.setGlobalPrefix('api');
 
   // Configuração de CORS - aceita frontend em produção e desenvolvimento
-  const allowedOrigins = [frontendUrl, 'http://localhost:3000', 'http://localhost:3001'].filter(
+  const allowedOrigins = [frontendUrl, 'http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002'].filter(
     Boolean,
   );
 

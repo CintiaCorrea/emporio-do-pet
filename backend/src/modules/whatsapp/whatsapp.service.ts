@@ -860,13 +860,17 @@ export class WhatsAppService {
     }
   }
 
-  // Get conversations for a user
+  // Get conversations (shared inbox - all authenticated users see all conversations)
   async getConversations(
-    userId: string,
+    userId?: string | null,
     filters?: ConversationFilters,
     pagination?: PaginationParams,
   ) {
-    const where: Prisma.WhatsAppConversationWhereInput = { userId };
+    const where: Prisma.WhatsAppConversationWhereInput = {};
+
+    if (userId) {
+      where.userId = userId;
+    }
 
     if (filters?.status) {
       where.status = filters.status;
