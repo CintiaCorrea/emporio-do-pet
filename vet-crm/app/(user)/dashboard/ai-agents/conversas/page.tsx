@@ -27,9 +27,10 @@ import {
   WifiOff,
   ChevronDown,
   Loader2,
-  ArrowRightLeft
+  ArrowRightLeft,
+  AlertTriangle
 } from 'lucide-react';
-import { useNotifications, WhatsAppMessageEvent } from '@/hooks/useNotifications';
+import { useNotifications, WhatsAppMessageEvent, WhatsAppStatusEvent } from '@/hooks/useNotifications';
 
 interface Conversation {
   id: string;
@@ -51,6 +52,7 @@ interface Conversation {
 
 interface Message {
   id: string;
+  waMessageId?: string | null;
   direction: 'INBOUND' | 'OUTBOUND';
   type: string;
   content: string;
@@ -59,6 +61,7 @@ interface Message {
   sentAt: string | null;
   deliveredAt: string | null;
   readAt: string | null;
+  failedReason?: string | null;
   senderType?: 'AI' | 'HUMAN' | 'CUSTOMER' | 'SYSTEM';
   agentName?: string;
   metadata?: Record<string, unknown>;
@@ -129,6 +132,22 @@ function AIAgentsConversationsPage() {
       fetchConversations(true);
       if (selectedConversation && event.conversationId === selectedConversation.id) {
         fetchMessages(selectedConversation.id);
+      }
+    },
+    onWhatsAppStatus: (event: WhatsAppStatusEvent) => {
+      const statusMap: Record<string, string> = {
+        sent: 'SENT', delivered: 'DELIVERED', read: 'READ', failed: 'FAILED',
+      };
+      const mappedStatus = statusMap[event.status];
+      if (mappedStatus) {
+        setMessages(prev => prev.map(m =>
+          m.waMessageId === event.waMessageId
+            ? { ...m, status: mappedStatus }
+            : m
+        ));
+      }
+      if (event.status === 'failed') {
+        fetchConversations(true);
       }
     },
   });
@@ -459,6 +478,14 @@ function AIAgentsConversationsPage() {
 
   const messageGroups = groupMessagesByDate(messages);
 
+  const is24hWindowOpen = (() => {
+    const lastInbound = [...messages].reverse().find(m => m.direction === 'INBOUND');
+    if (!lastInbound) return false;
+    return (Date.now() - new Date(lastInbound.createdAt).getTime()) < 24 * 60 * 60 * 1000;
+  })();
+
+  const hasFailedMessages = messages.some(m => m.status === 'FAILED');
+
   return (
     <div className="h-[calc(100vh-80px)] flex bg-gray-100 dark:bg-gray-900">
       {/* Sidebar - Conversation List */}
@@ -771,10 +798,24 @@ function AIAgentsConversationsPage() {
                   {dateMessages.map((message) => (
                     message.senderType === 'SYSTEM' ? (
                       <div key={message.id} className="flex justify-center mb-3">
-                        <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 rounded-xl max-w-[90%] md:max-w-[70%]">
-                          <ArrowRightLeft className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
-                          <p className="text-xs text-amber-700 dark:text-amber-300 text-center">{message.content}</p>
-                          <span className="text-[10px] text-amber-500 dark:text-amber-500 whitespace-nowrap">{formatTime(message.createdAt)}</span>
+                        <div className={`flex items-center gap-2 px-4 py-2 rounded-xl max-w-[90%] md:max-w-[70%] ${
+                          message.status === 'FAILED'
+                            ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/40'
+                            : 'bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40'
+                        }`}>
+                          {message.status === 'FAILED' ? (
+                            <AlertTriangle className="h-4 w-4 text-red-500 dark:text-red-400 flex-shrink-0" />
+                          ) : (
+                            <ArrowRightLeft className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                          )}
+                          <p className={`text-xs text-center ${
+                            message.status === 'FAILED'
+                              ? 'text-red-700 dark:text-red-300'
+                              : 'text-amber-700 dark:text-amber-300'
+                          }`}>{message.content}{message.status === 'FAILED' ? ' (nao entregue)' : ''}</p>
+                          <span className={`text-[10px] whitespace-nowrap ${
+                            message.status === 'FAILED' ? 'text-red-500' : 'text-amber-500'
+                          }`}>{formatTime(message.createdAt)}</span>
                         </div>
                       </div>
                     ) : (
@@ -785,9 +826,11 @@ function AIAgentsConversationsPage() {
                         <div
                           className={`max-w-[85%] md:max-w-[70%] rounded-2xl px-4 py-2 shadow-sm ${
                             message.direction === 'OUTBOUND'
-                              ? message.senderType === 'AI' 
-                                ? 'bg-purple-500 text-white rounded-br-md'
-                                : 'bg-green-500 text-white rounded-br-md'
+                              ? message.status === 'FAILED'
+                                ? 'bg-red-500/80 text-white rounded-br-md ring-2 ring-red-300 dark:ring-red-700'
+                                : message.senderType === 'AI' 
+                                  ? 'bg-purple-500 text-white rounded-br-md'
+                                  : 'bg-green-500 text-white rounded-br-md'
                               : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-bl-md'
                           }`}
                         >
@@ -812,6 +855,22 @@ function AIAgentsConversationsPage() {
 
             {/* Message Input */}
             <div className="p-4 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+              {!is24hWindowOpen && messages.length > 0 && (
+                <div className="flex items-center gap-2 mb-3 px-3 py-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 rounded-xl">
+                  <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                  <p className="text-xs text-amber-700 dark:text-amber-300">
+                    A janela de 24h do WhatsApp expirou. Mensagens podem nao ser entregues ao cliente. O cliente precisa enviar uma mensagem primeiro para reabrir a janela.
+                  </p>
+                </div>
+              )}
+              {hasFailedMessages && (
+                <div className="flex items-center gap-2 mb-3 px-3 py-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/40 rounded-xl">
+                  <X className="h-4 w-4 text-red-600 dark:text-red-400 flex-shrink-0" />
+                  <p className="text-xs text-red-700 dark:text-red-300">
+                    Algumas mensagens nao foram entregues. Verifique as mensagens com o icone <span className="font-semibold text-red-500">X</span> vermelho.
+                  </p>
+                </div>
+              )}
               <div className="flex items-end gap-3">
                 <div className="flex-1 relative">
                   <textarea

@@ -988,7 +988,7 @@ export class WhatsAppService {
 
   // Get single conversation
   async getConversation(conversationId: string) {
-    return this.prisma.whatsAppConversation.findUnique({
+    const conversation = await this.prisma.whatsAppConversation.findUnique({
       where: { id: conversationId },
       include: {
         assignedAgent: true,
@@ -1001,6 +1001,22 @@ export class WhatsAppService {
         },
       },
     });
+
+    if (!conversation) return null;
+
+    // Calculate 24h window: find the last inbound message timestamp
+    const lastInbound = await this.prisma.whatsAppMessage.findFirst({
+      where: { conversationId, direction: 'INBOUND' },
+      orderBy: { createdAt: 'desc' },
+      select: { createdAt: true },
+    });
+
+    const lastInboundAt = lastInbound?.createdAt || null;
+    const is24hWindowOpen = lastInboundAt
+      ? (Date.now() - lastInboundAt.getTime()) < 24 * 60 * 60 * 1000
+      : false;
+
+    return { ...conversation, lastInboundAt, is24hWindowOpen };
   }
 
   // Update conversation
@@ -1051,14 +1067,19 @@ export class WhatsAppService {
     });
 
     // Send handoff message visible to both client and dashboard
-    const takeoverMessage = `Olá! A partir de agora, ${userName} vai continuar seu atendimento. Como posso ajudar?`;
-    await this.sendAndSaveMessage(
-      updated.userId,
-      conversationId,
-      takeoverMessage,
-      'TEXT',
-      { senderType: 'SYSTEM', senderName: userName, senderId: userId },
-    );
+    // Wrapped in try/catch: takeover must succeed even if message delivery fails (e.g. 24h window expired)
+    try {
+      const takeoverMessage = `Olá! A partir de agora, ${userName} vai continuar seu atendimento. Como posso ajudar?`;
+      await this.sendAndSaveMessage(
+        updated.userId,
+        conversationId,
+        takeoverMessage,
+        'TEXT',
+        { senderType: 'SYSTEM', senderName: userName, senderId: userId },
+      );
+    } catch (error) {
+      this.logger.warn(`Failed to send takeover message for conversation ${conversationId}: ${error instanceof Error ? error.message : 'Unknown'}`);
+    }
 
     this.eventEmitter.emit('whatsapp.conversation.takeover', {
       conversationId,
@@ -1096,15 +1117,20 @@ export class WhatsAppService {
     });
 
     // Send release message visible to both client and dashboard
+    // Wrapped in try/catch: release must succeed even if message delivery fails (e.g. 24h window expired)
     if (hasAgent && conversation?.userId) {
-      const releaseMessage = `Você está novamente sendo atendido pelo nosso ${agentName}. Se precisar falar com um atendente, é só pedir!`;
-      await this.sendAndSaveMessage(
-        conversation.userId,
-        conversationId,
-        releaseMessage,
-        'TEXT',
-        { senderType: 'SYSTEM', senderName: agentName, senderId: conversation.assignedAgentId! },
-      );
+      try {
+        const releaseMessage = `Você está novamente sendo atendido pelo nosso ${agentName}. Se precisar falar com um atendente, é só pedir!`;
+        await this.sendAndSaveMessage(
+          conversation.userId,
+          conversationId,
+          releaseMessage,
+          'TEXT',
+          { senderType: 'SYSTEM', senderName: agentName, senderId: conversation.assignedAgentId! },
+        );
+      } catch (error) {
+        this.logger.warn(`Failed to send release message for conversation ${conversationId}: ${error instanceof Error ? error.message : 'Unknown'}`);
+      }
     }
 
     this.eventEmitter.emit('whatsapp.conversation.released', {
