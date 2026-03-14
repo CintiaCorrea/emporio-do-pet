@@ -128,11 +128,18 @@ function AIAgentsConversationsPage() {
   const [hasMore, setHasMore] = useState(false);
   const [dismissedFailedBannerSignature, setDismissedFailedBannerSignature] = useState<string | null>(null);
 
-  useNotifications({
+  // Refs to avoid stale closures in WebSocket callbacks
+  const selectedConversationRef = useRef<Conversation | null>(null);
+  const messagesRef = useRef<Message[]>([]);
+  selectedConversationRef.current = selectedConversation;
+  messagesRef.current = messages;
+
+  const { connected: wsConnected } = useNotifications({
     onWhatsAppMessage: (event: WhatsAppMessageEvent) => {
       fetchConversations(true);
-      if (selectedConversation && event.conversationId === selectedConversation.id) {
-        fetchMessages(selectedConversation.id);
+      const current = selectedConversationRef.current;
+      if (current && event.conversationId === current.id) {
+        fetchMessages(current.id);
       }
     },
     onWhatsAppStatus: (event: WhatsAppStatusEvent) => {
@@ -162,6 +169,19 @@ function AIAgentsConversationsPage() {
   useEffect(() => {
     checkWhatsAppConnection();
   }, []);
+
+  // Polling fallback: refresh messages every 8s when a conversation is open
+  useEffect(() => {
+    if (!selectedConversation) return;
+    const interval = setInterval(() => {
+      const current = selectedConversationRef.current;
+      if (current) {
+        fetchMessages(current.id);
+        fetchConversations(true);
+      }
+    }, 8000);
+    return () => clearInterval(interval);
+  }, [selectedConversation?.id]);
 
   const autoSelectConversation = useCallback((convList: Conversation[]) => {
     if (initialConversationHandled) return;
@@ -277,7 +297,16 @@ function AIAgentsConversationsPage() {
         senderType: msg.senderType || (msg.metadata?.senderType as Message['senderType']) || undefined,
         agentName: msg.agentName || (msg.metadata?.senderName as string) || undefined,
       }));
-      setMessages(enrichedMessages);
+
+      // Only update state if messages actually changed (avoids scroll jumps from polling)
+      const prev = messagesRef.current;
+      const changed =
+        prev.length !== enrichedMessages.length ||
+        prev[prev.length - 1]?.id !== enrichedMessages[enrichedMessages.length - 1]?.id ||
+        prev.some((m, i) => m.status !== enrichedMessages[i]?.status);
+      if (changed) {
+        setMessages(enrichedMessages);
+      }
     } catch (error) {
       console.error('Error fetching messages:', error);
     }
