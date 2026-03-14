@@ -126,6 +126,7 @@ function AIAgentsConversationsPage() {
   const [totalConversations, setTotalConversations] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
+  const [dismissedFailedBannerSignature, setDismissedFailedBannerSignature] = useState<string | null>(null);
 
   useNotifications({
     onWhatsAppMessage: (event: WhatsAppMessageEvent) => {
@@ -484,7 +485,15 @@ function AIAgentsConversationsPage() {
     return (Date.now() - new Date(lastInbound.createdAt).getTime()) < 24 * 60 * 60 * 1000;
   })();
 
-  const hasFailedMessages = messages.some(m => m.status === 'FAILED');
+  const failedMessages = messages.filter(m => m.status === 'FAILED');
+  const hasFailedMessages = failedMessages.length > 0;
+  const failedBannerSignature = failedMessages.map(m => m.id).join('|');
+  const showFailedMessagesBanner =
+    hasFailedMessages && dismissedFailedBannerSignature !== failedBannerSignature;
+
+  useEffect(() => {
+    setDismissedFailedBannerSignature(null);
+  }, [selectedConversation?.id]);
 
   return (
     <div className="h-[calc(100vh-80px)] flex bg-gray-100 dark:bg-gray-900">
@@ -863,9 +872,17 @@ function AIAgentsConversationsPage() {
                   </p>
                 </div>
               )}
-              {hasFailedMessages && (
+              {showFailedMessagesBanner && (
                 <div className="flex items-center gap-2 mb-3 px-3 py-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/40 rounded-xl">
-                  <X className="h-4 w-4 text-red-600 dark:text-red-400 flex-shrink-0" />
+                  <button
+                    type="button"
+                    onClick={() => setDismissedFailedBannerSignature(failedBannerSignature)}
+                    className="flex-shrink-0 rounded-full p-1 text-red-600 transition-colors hover:bg-red-100 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-900/40 dark:hover:text-red-300"
+                    title="Fechar aviso"
+                    aria-label="Fechar aviso de mensagens nao entregues"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
                   <p className="text-xs text-red-700 dark:text-red-300">
                     Algumas mensagens nao foram entregues. Verifique as mensagens com o icone <span className="font-semibold text-red-500">X</span> vermelho.
                   </p>
