@@ -69,17 +69,20 @@ export class WhatsAppAgentListener {
       }
 
       const agentConfig = agent as {
+        name: string;
         voiceEnabled?: boolean; voiceId?: string; voiceSpeed?: number; voiceModel?: string;
         whatsappBusinessHoursOnly?: boolean; whatsappOfflineMessage?: string;
         whatsappGreeting?: string;
       };
+
+      const aiSenderInfo = { senderType: 'AI' as const, senderName: agentConfig.name || 'AI Agent', senderId: agentId };
 
       // Business hours check
       if (agentConfig.whatsappBusinessHoursOnly && !this.isWithinBusinessHours()) {
         const offlineMessage = agentConfig.whatsappOfflineMessage
           || 'Obrigado por entrar em contato! Nosso horário de atendimento é de segunda a sexta, das 8h às 18h, e sábado das 8h às 13h. Responderemos assim que possível!';
 
-        await this.whatsAppService.sendAndSaveMessage(userId, conversationId, offlineMessage, 'TEXT');
+        await this.whatsAppService.sendAndSaveMessage(userId, conversationId, offlineMessage, 'TEXT', aiSenderInfo);
         this.logger.log(`Offline message sent for conversation ${conversationId} (outside business hours)`);
         return;
       }
@@ -91,7 +94,7 @@ export class WhatsAppAgentListener {
         });
 
         if (messageCount <= 1) {
-          await this.whatsAppService.sendAndSaveMessage(userId, conversationId, agentConfig.whatsappGreeting, 'TEXT');
+          await this.whatsAppService.sendAndSaveMessage(userId, conversationId, agentConfig.whatsappGreeting, 'TEXT', aiSenderInfo);
           this.logger.log(`Greeting sent for conversation ${conversationId}`);
           // Small delay for better UX so greeting arrives before AI response
           await new Promise(resolve => setTimeout(resolve, 1500));
@@ -136,6 +139,7 @@ export class WhatsAppAgentListener {
           agentConfig.voiceId || 'nova',
           agentConfig.voiceSpeed || 1.0,
           agentConfig.voiceModel || 'tts-1',
+          aiSenderInfo,
         );
       } else {
         // Send response as text
@@ -144,6 +148,7 @@ export class WhatsAppAgentListener {
           conversationId,
           result.response,
           'TEXT',
+          aiSenderInfo,
         );
 
         if (sendResult.response.success) {
@@ -219,6 +224,7 @@ export class WhatsAppAgentListener {
     voiceId: string,
     voiceSpeed: number,
     voiceModel: string,
+    senderInfo?: { senderType: 'AI' | 'HUMAN' | 'SYSTEM'; senderName?: string; senderId?: string },
   ): Promise<void> {
     try {
       // Get OpenAI key from environment
@@ -230,6 +236,7 @@ export class WhatsAppAgentListener {
           conversationId,
           text,
           'TEXT',
+          senderInfo,
         );
         return;
       }
@@ -266,6 +273,7 @@ export class WhatsAppAgentListener {
           conversationId,
           text,
           'TEXT',
+          senderInfo,
         );
         return;
       }
@@ -306,6 +314,11 @@ export class WhatsAppAgentListener {
               voiceModel,
               originalText: text,
               audioSize: audioBuffer.length,
+              ...(senderInfo && {
+                senderType: senderInfo.senderType,
+                senderName: senderInfo.senderName,
+                senderAgentId: senderInfo.senderId,
+              }),
             },
           },
         });
@@ -330,6 +343,7 @@ export class WhatsAppAgentListener {
           conversationId,
           text,
           'TEXT',
+          senderInfo,
         );
       }
 
@@ -344,6 +358,7 @@ export class WhatsAppAgentListener {
         conversationId,
         text,
         'TEXT',
+        senderInfo,
       );
     }
   }

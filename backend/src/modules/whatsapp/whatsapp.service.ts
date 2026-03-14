@@ -795,7 +795,21 @@ export class WhatsAppService {
     type: WhatsAppMessageType = 'TEXT',
     waMessageId?: string,
     metadata?: Record<string, unknown>,
+    senderInfo?: { senderType: 'AI' | 'HUMAN' | 'SYSTEM'; senderName?: string; senderId?: string },
   ) {
+    const mergedMetadata: Record<string, unknown> = { ...metadata };
+    if (senderInfo) {
+      mergedMetadata.senderType = senderInfo.senderType;
+      if (senderInfo.senderName) mergedMetadata.senderName = senderInfo.senderName;
+      if (senderInfo.senderId) {
+        if (senderInfo.senderType === 'AI') {
+          mergedMetadata.senderAgentId = senderInfo.senderId;
+        } else {
+          mergedMetadata.senderUserId = senderInfo.senderId;
+        }
+      }
+    }
+
     const message = await this.prisma.whatsAppMessage.create({
       data: {
         conversationId,
@@ -805,7 +819,7 @@ export class WhatsAppService {
         status: waMessageId ? 'SENT' : 'PENDING',
         content,
         sentAt: waMessageId ? new Date() : undefined,
-        metadata: metadata ? (metadata as Prisma.JsonObject) : undefined,
+        metadata: Object.keys(mergedMetadata).length > 0 ? (mergedMetadata as Prisma.JsonObject) : undefined,
       },
     });
 
@@ -907,6 +921,9 @@ export class WhatsAppService {
           assignedAgent: {
             select: { id: true, name: true },
           },
+          assignedUser: {
+            select: { id: true, name: true },
+          },
           tutor: {
             select: { id: true, name: true },
           },
@@ -975,6 +992,7 @@ export class WhatsAppService {
       where: { id: conversationId },
       include: {
         assignedAgent: true,
+        assignedUser: { select: { id: true, name: true } },
         tutor: {
           include: {
             contacts: true,
@@ -991,6 +1009,8 @@ export class WhatsAppService {
     data: {
       status?: WhatsAppConversationStatus;
       assignedAgentId?: string | null;
+      assignedUserId?: string | null;
+      humanTakeoverAt?: Date | null;
       tutorId?: string | null;
       isAutoReplyEnabled?: boolean;
     },
@@ -1000,9 +1020,99 @@ export class WhatsAppService {
       data,
       include: {
         assignedAgent: true,
+        assignedUser: { select: { id: true, name: true } },
         tutor: true,
       },
     });
+  }
+
+  // Human takeover: disable AI auto-reply and assign a human user
+  async takeoverConversation(conversationId: string, userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, name: true },
+    });
+
+    const userName = user?.name || 'Atendente';
+
+    const updated = await this.prisma.whatsAppConversation.update({
+      where: { id: conversationId },
+      data: {
+        isAutoReplyEnabled: false,
+        assignedUserId: userId,
+        humanTakeoverAt: new Date(),
+        status: 'ASSIGNED',
+      },
+      include: {
+        assignedAgent: true,
+        assignedUser: { select: { id: true, name: true } },
+        tutor: true,
+      },
+    });
+
+    // Send handoff message visible to both client and dashboard
+    const takeoverMessage = `Olá! A partir de agora, ${userName} vai continuar seu atendimento. Como posso ajudar?`;
+    await this.sendAndSaveMessage(
+      updated.userId,
+      conversationId,
+      takeoverMessage,
+      'TEXT',
+      { senderType: 'SYSTEM', senderName: userName, senderId: userId },
+    );
+
+    this.eventEmitter.emit('whatsapp.conversation.takeover', {
+      conversationId,
+      userId: updated.userId,
+      assignedUserId: userId,
+      assignedUserName: userName,
+    });
+
+    return updated;
+  }
+
+  // Release conversation back to AI agent
+  async releaseConversation(conversationId: string) {
+    const conversation = await this.prisma.whatsAppConversation.findUnique({
+      where: { id: conversationId },
+      select: { assignedAgentId: true, userId: true, assignedAgent: { select: { name: true } } },
+    });
+
+    const hasAgent = !!conversation?.assignedAgentId;
+    const agentName = conversation?.assignedAgent?.name || 'assistente virtual';
+
+    const updated = await this.prisma.whatsAppConversation.update({
+      where: { id: conversationId },
+      data: {
+        isAutoReplyEnabled: hasAgent,
+        assignedUserId: null,
+        humanTakeoverAt: null,
+        status: hasAgent ? 'ASSIGNED' : 'OPEN',
+      },
+      include: {
+        assignedAgent: true,
+        assignedUser: { select: { id: true, name: true } },
+        tutor: true,
+      },
+    });
+
+    // Send release message visible to both client and dashboard
+    if (hasAgent && conversation?.userId) {
+      const releaseMessage = `Você está novamente sendo atendido pelo nosso ${agentName}. Se precisar falar com um atendente, é só pedir!`;
+      await this.sendAndSaveMessage(
+        conversation.userId,
+        conversationId,
+        releaseMessage,
+        'TEXT',
+        { senderType: 'SYSTEM', senderName: agentName, senderId: conversation.assignedAgentId! },
+      );
+    }
+
+    this.eventEmitter.emit('whatsapp.conversation.released', {
+      conversationId,
+      userId: updated.userId,
+    });
+
+    return updated;
   }
 
   // Assign AI agent to conversation
@@ -1013,9 +1123,13 @@ export class WhatsAppService {
         assignedAgentId: agentId,
         isAutoReplyEnabled: !!agentId,
         status: agentId ? 'ASSIGNED' : 'OPEN',
+        assignedUserId: null,
+        humanTakeoverAt: null,
       },
       include: {
         assignedAgent: true,
+        assignedUser: { select: { id: true, name: true } },
+        tutor: true,
       },
     });
   }
@@ -1026,6 +1140,7 @@ export class WhatsAppService {
     conversationId: string,
     content: string,
     type: WhatsAppMessageType = 'TEXT',
+    senderInfo?: { senderType: 'AI' | 'HUMAN' | 'SYSTEM'; senderName?: string; senderId?: string },
   ): Promise<{ message: { id: string } | null; response: WhatsAppResponse }> {
     // Get conversation
     const conversation = await this.prisma.whatsAppConversation.findUnique({
@@ -1054,6 +1169,8 @@ export class WhatsAppService {
       content,
       type,
       response.messageId,
+      undefined,
+      senderInfo,
     );
 
     // Emit event for WebSocket real-time updates

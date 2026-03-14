@@ -235,8 +235,9 @@ model User {
   automations    Automation[]
 
   // WhatsApp
-  whatsappConversations WhatsAppConversation[]
-  whatsappCampaigns     WhatsAppCampaign[]
+  whatsappConversations         WhatsAppConversation[]
+  whatsappConversationsTakeover WhatsAppConversation[] @relation("whatsapp_assigned_user")
+  whatsappCampaigns             WhatsAppCampaign[]
 
   // Notificações
   notifications Notification[]
@@ -246,6 +247,9 @@ model User {
 
   // Documentos Clínicos
   clinicalDocuments ClinicalDocument[]
+
+  // Knowledge Bases (RAG)
+  knowledgeBases KnowledgeBase[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -926,6 +930,13 @@ model AIAgent {
   crmNotifyOnHighScore Boolean @default(false)
   crmAssignToBoard     String? // Board ID for auto-assignment
 
+  // RAG (Retrieval-Augmented Generation)
+  knowledgeBaseId String?
+  knowledgeBase   KnowledgeBase? @relation(fields: [knowledgeBaseId], references: [id], onDelete: SetNull)
+  ragEnabled      Boolean        @default(false)
+  ragTopK         Int            @default(5)
+  ragThreshold    Float          @default(0.7)
+
   // Configurações de voz (Text-to-Speech)
   voiceEnabled Boolean @default(false)
   voiceId      String  @default("nova") // alloy, echo, fable, onyx, nova, shimmer
@@ -1195,11 +1206,14 @@ model WhatsAppConversation {
   lastMessagePreview String? // Preview da última mensagem
   unreadCount        Int                        @default(0)
   isAutoReplyEnabled Boolean                    @default(false)
+  assignedUserId     String?
+  humanTakeoverAt    DateTime?
   metadata           Json?
 
   // Relacionamentos
   user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   assignedAgent AIAgent?          @relation(fields: [assignedAgentId], references: [id], onDelete: SetNull)
+  assignedUser  User?             @relation("whatsapp_assigned_user", fields: [assignedUserId], references: [id], onDelete: SetNull)
   tutor         Tutor?            @relation(fields: [tutorId], references: [id], onDelete: SetNull)
   messages      WhatsAppMessage[]
 
@@ -1641,6 +1655,66 @@ model WebhookEvent {
   @@index([status, nextRetryAt])
   @@index([eventType])
   @@map("webhook_events")
+}
+
+// ============================================
+// Knowledge Base - RAG (Retrieval-Augmented Generation)
+// ============================================
+
+model KnowledgeBase {
+  id             String              @id @default(uuid())
+  userId         String
+  name           String
+  description    String?
+  status         String              @default("PROCESSING")
+  totalDocuments Int                 @default(0)
+  totalChunks    Int                 @default(0)
+  totalSizeBytes Int                 @default(0)
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documents KnowledgeDocument[]
+  agents    AIAgent[]
+
+  @@index([userId])
+  @@map("knowledge_bases")
+}
+
+model KnowledgeDocument {
+  id              String @id @default(uuid())
+  knowledgeBaseId String
+  fileName        String
+  fileType        String
+  fileSize        Int
+  filePath        String
+  status          String @default("PENDING")
+  chunkCount      Int    @default(0)
+  errorMessage    String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  knowledgeBase KnowledgeBase @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+  chunks        DocumentChunk[]
+
+  @@index([knowledgeBaseId])
+  @@index([status])
+  @@map("knowledge_documents")
+}
+
+model DocumentChunk {
+  id         String @id @default(uuid())
+  documentId String
+  content    String @db.Text
+  metadata   Json?
+  chunkIndex Int
+  tokenCount Int    @default(0)
+  createdAt  DateTime @default(now())
+
+  document KnowledgeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
+  @@map("document_chunks")
 }
 
 // ============================================

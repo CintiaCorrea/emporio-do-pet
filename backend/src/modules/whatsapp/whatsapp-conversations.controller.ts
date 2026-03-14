@@ -22,6 +22,7 @@ import {
 interface JwtUser {
   id: string;
   email: string;
+  name?: string;
   role: string;
 }
 
@@ -101,6 +102,34 @@ export class WhatsAppConversationsController {
     return this.whatsAppService.assignAgentToConversation(id, dto.agentId || null);
   }
 
+  @Post('conversations/:id/takeover')
+  async takeoverConversation(
+    @CurrentUser() user: JwtUser,
+    @Param('id') id: string,
+  ) {
+    const existing = await this.whatsAppService.getConversation(id);
+    if (!existing) {
+      return { error: 'Conversation not found' };
+    }
+
+    this.logger.log(`User ${user.id} (${user.name}) taking over conversation ${id}`);
+    return this.whatsAppService.takeoverConversation(id, user.id);
+  }
+
+  @Post('conversations/:id/release')
+  async releaseConversation(
+    @CurrentUser() user: JwtUser,
+    @Param('id') id: string,
+  ) {
+    const existing = await this.whatsAppService.getConversation(id);
+    if (!existing) {
+      return { error: 'Conversation not found' };
+    }
+
+    this.logger.log(`User ${user.id} releasing conversation ${id} back to AI agent`);
+    return this.whatsAppService.releaseConversation(id);
+  }
+
   @Post('conversations/:id/close')
   async closeConversation(
     @CurrentUser() user: JwtUser,
@@ -167,6 +196,7 @@ export class WhatsAppConversationsController {
       conversationId,
       dto.content,
       dto.type,
+      { senderType: 'HUMAN', senderName: user.name || 'Atendente', senderId: user.id },
     );
 
     return result;
@@ -194,6 +224,8 @@ export class WhatsAppConversationsController {
       user.id,
       conversation.id,
       dto.message,
+      'TEXT',
+      { senderType: 'HUMAN', senderName: user.name || 'Atendente', senderId: user.id },
     );
 
     return {

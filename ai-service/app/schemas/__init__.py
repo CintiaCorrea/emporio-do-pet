@@ -10,6 +10,14 @@ from .audio import (
     VoiceInfo,
     AVAILABLE_VOICES,
 )
+from .rag import (
+    IngestRequest,
+    IngestResponse,
+    RetrieveRequest,
+    RetrieveResponse,
+    RetrievedChunk,
+    DeleteResponse,
+)
 
 __all__ = [
     "Message",
@@ -28,4 +36,10 @@ __all__ = [
     "SynthesisResponse",
     "VoiceInfo",
     "AVAILABLE_VOICES",
+    "IngestRequest",
+    "IngestResponse",
+    "RetrieveRequest",
+    "RetrieveResponse",
+    "RetrievedChunk",
+    "DeleteResponse",
 ]

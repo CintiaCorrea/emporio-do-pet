@@ -26,7 +26,8 @@ import {
   Wifi,
   WifiOff,
   ChevronDown,
-  Loader2
+  Loader2,
+  ArrowRightLeft
 } from 'lucide-react';
 import { useNotifications, WhatsAppMessageEvent } from '@/hooks/useNotifications';
 
@@ -38,11 +39,14 @@ interface Conversation {
   status: string;
   assignedAgentId: string | null;
   assignedAgent: { id: string; name: string } | null;
+  assignedUserId: string | null;
+  assignedUser: { id: string; name: string } | null;
   tutor: { id: string; name: string } | null;
   lastMessageAt: string;
   lastMessagePreview: string | null;
   unreadCount: number;
   isAutoReplyEnabled: boolean;
+  humanTakeoverAt: string | null;
 }
 
 interface Message {
@@ -55,8 +59,9 @@ interface Message {
   sentAt: string | null;
   deliveredAt: string | null;
   readAt: string | null;
-  senderType?: 'AI' | 'HUMAN' | 'CUSTOMER';
+  senderType?: 'AI' | 'HUMAN' | 'CUSTOMER' | 'SYSTEM';
   agentName?: string;
+  metadata?: Record<string, unknown>;
 }
 
 interface Agent {
@@ -196,7 +201,10 @@ function AIAgentsConversationsPage() {
       if (reset) {
         setConversations(convList);
       } else {
-        setConversations(prev => [...prev, ...convList]);
+        setConversations(prev => {
+          const ids = new Set(prev.map(c => c.id));
+          return [...prev, ...convList.filter((c: Conversation) => !ids.has(c.id))];
+        });
       }
 
       setTotalConversations(pagination.total || 0);
@@ -228,7 +236,10 @@ function AIAgentsConversationsPage() {
       const convList = data.data || [];
       const pagination = data.pagination || {};
 
-      setConversations(prev => [...prev, ...convList]);
+      setConversations(prev => {
+        const ids = new Set(prev.map(c => c.id));
+        return [...prev, ...convList.filter((c: Conversation) => !ids.has(c.id))];
+      });
       setHasMore(nextPage < (pagination.totalPages || 1));
     } catch (error) {
       console.error('Error loading more conversations:', error);
@@ -241,7 +252,12 @@ function AIAgentsConversationsPage() {
     try {
       const response = await fetch(`/api/whatsapp/conversations/${conversationId}/messages`);
       const data = await response.json();
-      setMessages(data.data || []);
+      const enrichedMessages = (data.data || []).map((msg: Message) => ({
+        ...msg,
+        senderType: msg.senderType || (msg.metadata?.senderType as Message['senderType']) || undefined,
+        agentName: msg.agentName || (msg.metadata?.senderName as string) || undefined,
+      }));
+      setMessages(enrichedMessages);
     } catch (error) {
       console.error('Error fetching messages:', error);
     }
@@ -317,6 +333,42 @@ function AIAgentsConversationsPage() {
       }
     } catch (error) {
       console.error('Error toggling auto-reply:', error);
+    }
+  };
+
+  const takeoverConversation = async () => {
+    if (!selectedConversation) return;
+
+    try {
+      const response = await fetch(`/api/whatsapp/conversations/${selectedConversation.id}/takeover`, {
+        method: 'POST',
+      });
+
+      if (response.ok) {
+        const updated = await response.json();
+        setSelectedConversation(updated);
+        fetchConversations();
+      }
+    } catch (error) {
+      console.error('Error taking over conversation:', error);
+    }
+  };
+
+  const releaseConversation = async () => {
+    if (!selectedConversation) return;
+
+    try {
+      const response = await fetch(`/api/whatsapp/conversations/${selectedConversation.id}/release`, {
+        method: 'POST',
+      });
+
+      if (response.ok) {
+        const updated = await response.json();
+        setSelectedConversation(updated);
+        fetchConversations();
+      }
+    } catch (error) {
+      console.error('Error releasing conversation:', error);
     }
   };
 
@@ -554,12 +606,17 @@ function AIAgentsConversationsPage() {
                             {conversation.assignedAgent.name}
                           </span>
                         )}
-                        {conversation.isAutoReplyEnabled && (
+                        {conversation.assignedUserId ? (
+                          <span className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-0.5 rounded-full">
+                            <User className="h-3 w-3" />
+                            {conversation.assignedUser?.name || 'Humano'}
+                          </span>
+                        ) : conversation.isAutoReplyEnabled ? (
                           <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded-full">
                             <Power className="h-3 w-3" />
                             Auto
                           </span>
-                        )}
+                        ) : null}
                       </div>
                     </div>
                   </div>
@@ -616,6 +673,47 @@ function AIAgentsConversationsPage() {
               </div>
 
               <div className="flex items-center gap-2">
+                {/* Status Badge */}
+                {selectedConversation.assignedUserId ? (
+                  <span className="hidden md:flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                    <User className="h-3 w-3" />
+                    {selectedConversation.assignedUser?.name || 'Humano'}
+                  </span>
+                ) : selectedConversation.isAutoReplyEnabled ? (
+                  <span className="hidden md:flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                    <Bot className="h-3 w-3" />
+                    IA Ativa
+                  </span>
+                ) : selectedConversation.assignedAgentId ? (
+                  <span className="hidden md:flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
+                    <Bot className="h-3 w-3" />
+                    IA Pausada
+                  </span>
+                ) : null}
+
+                {/* Takeover / Release Button */}
+                {selectedConversation.assignedUserId ? (
+                  <button
+                    type="button"
+                    onClick={releaseConversation}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-900/50"
+                    title="Devolver conversa ao agente IA"
+                  >
+                    <Bot className="h-4 w-4" />
+                    <span className="hidden sm:inline">Devolver</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={takeoverConversation}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50"
+                    title="Assumir conversa manualmente"
+                  >
+                    <User className="h-4 w-4" />
+                    <span className="hidden sm:inline">Assumir</span>
+                  </button>
+                )}
+
                 {/* Auto Reply Toggle */}
                 <button
                   onClick={toggleAutoReply}
@@ -671,31 +769,41 @@ function AIAgentsConversationsPage() {
 
                   {/* Messages for this date */}
                   {dateMessages.map((message) => (
-                    <div
-                      key={message.id}
-                      className={`flex ${message.direction === 'OUTBOUND' ? 'justify-end' : 'justify-start'} mb-2`}
-                    >
-                      <div
-                        className={`max-w-[85%] md:max-w-[70%] rounded-2xl px-4 py-2 shadow-sm ${
-                          message.direction === 'OUTBOUND'
-                            ? message.senderType === 'AI' 
-                              ? 'bg-purple-500 text-white rounded-br-md'
-                              : 'bg-green-500 text-white rounded-br-md'
-                            : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-bl-md'
-                        }`}
-                      >
-                        {getSenderLabel(message)}
-                        <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
-                        <div className={`flex items-center justify-end gap-1 mt-1 text-xs ${
-                          message.direction === 'OUTBOUND' 
-                            ? 'text-white/70' 
-                            : 'text-gray-500 dark:text-gray-400'
-                        }`}>
-                          <span>{formatTime(message.createdAt)}</span>
-                          {message.direction === 'OUTBOUND' && getStatusIcon(message.status)}
+                    message.senderType === 'SYSTEM' ? (
+                      <div key={message.id} className="flex justify-center mb-3">
+                        <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 rounded-xl max-w-[90%] md:max-w-[70%]">
+                          <ArrowRightLeft className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                          <p className="text-xs text-amber-700 dark:text-amber-300 text-center">{message.content}</p>
+                          <span className="text-[10px] text-amber-500 dark:text-amber-500 whitespace-nowrap">{formatTime(message.createdAt)}</span>
                         </div>
                       </div>
-                    </div>
+                    ) : (
+                      <div
+                        key={message.id}
+                        className={`flex ${message.direction === 'OUTBOUND' ? 'justify-end' : 'justify-start'} mb-2`}
+                      >
+                        <div
+                          className={`max-w-[85%] md:max-w-[70%] rounded-2xl px-4 py-2 shadow-sm ${
+                            message.direction === 'OUTBOUND'
+                              ? message.senderType === 'AI' 
+                                ? 'bg-purple-500 text-white rounded-br-md'
+                                : 'bg-green-500 text-white rounded-br-md'
+                              : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-bl-md'
+                          }`}
+                        >
+                          {getSenderLabel(message)}
+                          <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
+                          <div className={`flex items-center justify-end gap-1 mt-1 text-xs ${
+                            message.direction === 'OUTBOUND' 
+                              ? 'text-white/70' 
+                              : 'text-gray-500 dark:text-gray-400'
+                          }`}>
+                            <span>{formatTime(message.createdAt)}</span>
+                            {message.direction === 'OUTBOUND' && getStatusIcon(message.status)}
+                          </div>
+                        </div>
+                      </div>
+                    )
                   ))}
                 </div>
               ))}

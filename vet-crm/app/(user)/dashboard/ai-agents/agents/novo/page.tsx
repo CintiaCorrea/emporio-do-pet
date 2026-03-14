@@ -21,6 +21,7 @@ import {
   LuTrendingUp,
   LuBell,
   LuCalendar,
+  LuDatabase,
 } from 'react-icons/lu';
 import { SiWhatsapp } from 'react-icons/si';
 import { toast } from 'sonner';
@@ -124,6 +125,12 @@ export default function NovoAgentePage() {
   const [loadingAgentTemplates, setLoadingAgentTemplates] = useState(false);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
   const [boards, setBoards] = useState<{id: string; name: string; type: string}[]>([]);
+  const [ragEnabled, setRagEnabled] = useState(false);
+  const [knowledgeBaseId, setKnowledgeBaseId] = useState('');
+  const [ragTopK, setRagTopK] = useState(5);
+  const [ragThreshold, setRagThreshold] = useState(0.7);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [knowledgeBases, setKnowledgeBases] = useState<any[]>([]);
   
   const [form, setForm] = useState<NewAgentForm>({
     name: '',
@@ -157,7 +164,22 @@ export default function NovoAgentePage() {
     loadTemplates();
     loadBoards();
     loadAgentTemplates();
+    loadKnowledgeBases();
   }, []);
+
+  const loadKnowledgeBases = async () => {
+    try {
+      const response = await fetch('/api/knowledge-bases');
+      const data = await response.json();
+      if (response.ok && Array.isArray(data)) {
+        setKnowledgeBases(data);
+      } else if (response.ok && data.data) {
+        setKnowledgeBases(data.data);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar bases de conhecimento:', error);
+    }
+  };
 
   const loadAgentTemplates = async () => {
     setLoadingAgentTemplates(true);
@@ -273,7 +295,13 @@ export default function NovoAgentePage() {
       const response = await fetch('/api/agents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          knowledgeBaseId: knowledgeBaseId || undefined,
+          ragEnabled,
+          ragTopK,
+          ragThreshold,
+        }),
       });
 
       const data = await response.json();
@@ -897,6 +925,98 @@ export default function NovoAgentePage() {
                 Habilite para que o agente responda com mensagens de voz no WhatsApp.
               </p>
             )}
+          </div>
+
+          {/* Base de Conhecimento (RAG) */}
+          <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+              <LuDatabase className="w-5 h-5 text-indigo-600" />
+              Base de Conhecimento (RAG)
+            </h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+              Conecte uma base de conhecimento para o agente consultar documentos antes de responder.
+            </p>
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Habilitar RAG
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setRagEnabled(!ragEnabled)}
+                  className={`relative w-11 h-6 rounded-full transition-colors ${ragEnabled ? 'bg-indigo-600' : 'bg-gray-300 dark:bg-gray-600'}`}
+                >
+                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${ragEnabled ? 'translate-x-5' : ''}`} />
+                </button>
+              </div>
+
+              {ragEnabled && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Base de Conhecimento
+                    </label>
+                    <select
+                      value={knowledgeBaseId}
+                      onChange={(e) => setKnowledgeBaseId(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm"
+                    >
+                      <option value="">Selecione uma base...</option>
+                      {knowledgeBases.map((kb: any) => (
+                        <option key={kb.id} value={kb.id}>
+                          {kb.name} ({kb.totalDocuments} docs, {kb.totalChunks} chunks)
+                        </option>
+                      ))}
+                    </select>
+                    {knowledgeBases.length === 0 && (
+                      <p className="text-xs text-gray-400 mt-1">
+                        Nenhuma base encontrada.{' '}
+                        <a href="/dashboard/ai-agents/conhecimento" className="text-indigo-600 hover:underline">
+                          Criar uma base
+                        </a>
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Chunks recuperados (Top K): {ragTopK}
+                    </label>
+                    <input
+                      type="range"
+                      min={1}
+                      max={20}
+                      value={ragTopK}
+                      onChange={(e) => setRagTopK(Number(e.target.value))}
+                      className="w-full accent-indigo-600"
+                    />
+                    <div className="flex justify-between text-xs text-gray-400">
+                      <span>1</span>
+                      <span>20</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Threshold de similaridade: {ragThreshold.toFixed(2)}
+                    </label>
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      value={ragThreshold * 100}
+                      onChange={(e) => setRagThreshold(Number(e.target.value) / 100)}
+                      className="w-full accent-indigo-600"
+                    />
+                    <div className="flex justify-between text-xs text-gray-400">
+                      <span>0.00</span>
+                      <span>1.00</span>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
 
           {/* Botões de Ação */}

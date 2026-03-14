@@ -140,6 +140,27 @@ export class CreateAgentDto {
   @IsOptional()
   crmAssignToBoard?: string;
 
+  // RAG Configuration
+  @IsUUID()
+  @IsOptional()
+  knowledgeBaseId?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  ragEnabled?: boolean = false;
+
+  @IsNumber()
+  @Min(1)
+  @Max(20)
+  @IsOptional()
+  ragTopK?: number = 5;
+
+  @IsNumber()
+  @Min(0)
+  @Max(1)
+  @IsOptional()
+  ragThreshold?: number = 0.7;
+
   // Voice configuration
   @IsBoolean()
   @IsOptional()

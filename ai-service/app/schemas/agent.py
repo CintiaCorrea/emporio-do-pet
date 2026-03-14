@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Literal, Optional
 from pydantic import BaseModel, Field
 
 from .common import Credentials, Message, Usage
+from .rag import RetrievedChunk
 
 
 class AgentContext(BaseModel):
@@ -58,6 +59,12 @@ class AgentRequest(BaseModel):
     max_tokens: int = Field(4096, ge=1, le=128000, description="Maximum tokens")
     credentials: Credentials = Field(..., description="API credentials")
 
+    # RAG Configuration
+    rag_enabled: bool = Field(False, description="Whether RAG is enabled for this agent")
+    rag_knowledge_base_id: Optional[str] = Field(None, description="Knowledge base ID to retrieve from")
+    rag_top_k: int = Field(5, ge=1, le=20, description="Number of chunks to retrieve")
+    rag_threshold: float = Field(0.7, ge=0.0, le=1.0, description="Minimum similarity threshold")
+
     model_config = {
         "json_schema_extra": {
             "examples": [
@@ -88,6 +95,11 @@ class AgentResponse(BaseModel):
     latency_ms: int = Field(..., description="Response latency in milliseconds")
     model: str = Field(..., description="Model used")
     provider: str = Field(..., description="Provider used")
+
+    # RAG metadata
+    rag_chunks_used: Optional[int] = Field(None, description="Number of RAG chunks injected")
+    rag_sources: Optional[List[str]] = Field(None, description="Source file names used")
+    rag_embedding_tokens: Optional[int] = Field(None, description="Tokens used for query embedding")
 
     model_config = {
         "json_schema_extra": {

@@ -12,6 +12,7 @@ from fastapi.responses import JSONResponse
 
 from app.config import get_settings
 from app.api.v1.router import api_router
+from app.core.database import init_db_pool, close_db_pool
 
 # Configure logging
 settings = get_settings()
@@ -29,8 +30,17 @@ async def lifespan(app: FastAPI):
     logger.info(f"Starting {settings.app_name} v{settings.app_version}")
     logger.info(f"Environment: {settings.environment}")
     logger.info(f"Log level: {settings.log_level}")
+
+    try:
+        await init_db_pool()
+        logger.info("Database pool ready for RAG operations")
+    except Exception as e:
+        logger.warning(f"Failed to initialize database pool (RAG disabled): {e}")
+
     yield
+
     # Shutdown
+    await close_db_pool()
     logger.info("Shutting down AI Service")
 
 

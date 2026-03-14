@@ -5,10 +5,11 @@ Business logic for AI agent execution.
 
 import logging
 import re
-from typing import AsyncIterator, List
+from typing import AsyncIterator, List, Optional, Tuple
 
 from app.core.providers import get_provider
 from app.schemas import AgentContext, AgentRequest, AgentResponse, Message, StreamChunk
+from app.schemas.rag import RetrievedChunk
 
 logger = logging.getLogger(__name__)
 
@@ -61,12 +62,66 @@ class AgentService:
 
         return result
 
+    async def _retrieve_rag_context(
+        self,
+        request: AgentRequest,
+    ) -> Tuple[List[RetrievedChunk], int]:
+        """Retrieve RAG context if enabled. Returns (chunks, query_tokens)."""
+        if not request.rag_enabled or not request.rag_knowledge_base_id:
+            return [], 0
+
+        try:
+            from app.services.rag_service import RAGService
+
+            rag_service = RAGService()
+            chunks, query_tokens = await rag_service.retrieve(
+                query=request.user_message,
+                knowledge_base_id=request.rag_knowledge_base_id,
+                credentials=request.credentials,
+                top_k=request.rag_top_k,
+                threshold=request.rag_threshold,
+            )
+            return chunks, query_tokens
+        except Exception as e:
+            logger.warning(f"RAG retrieval failed, proceeding without context: {e}")
+            return [], 0
+
+    def _format_rag_context(self, chunks: List[RetrievedChunk]) -> str:
+        """Format retrieved chunks into a context block for the system prompt."""
+        if not chunks:
+            return ""
+
+        lines = [
+            "\n\n---",
+            "INFORMAÇÕES DA BASE DE CONHECIMENTO:",
+            "Use as informações abaixo para responder com precisão.",
+            "Se a resposta não estiver nas informações fornecidas, informe que não possui essa informação.",
+            "",
+        ]
+
+        for i, chunk in enumerate(chunks, 1):
+            source_parts = []
+            if chunk.metadata:
+                if "file_name" in chunk.metadata:
+                    source_parts.append(f"fonte: {chunk.metadata['file_name']}")
+                if "page" in chunk.metadata:
+                    source_parts.append(f"página: {chunk.metadata['page']}")
+
+            source_info = f" ({', '.join(source_parts)})" if source_parts else ""
+            lines.append(f"[{i}]{source_info}")
+            lines.append(chunk.content)
+            lines.append("")
+
+        lines.append("---")
+        return "\n".join(lines)
+
     def _build_messages(
         self,
         system_prompt: str,
         conversation_history: List[Message],
         user_message: str,
         context: AgentContext | None,
+        rag_chunks: Optional[List[RetrievedChunk]] = None,
     ) -> List[Message]:
         """
         Build the full message list for the AI request.
@@ -76,21 +131,24 @@ class AgentService:
             conversation_history: Previous messages in the conversation
             user_message: The current user message
             context: Context for variable substitution
+            rag_chunks: Retrieved RAG chunks to inject into the system prompt
 
         Returns:
             Complete list of messages for the API call
         """
         messages = []
 
-        # Add system message with context substitution
         processed_system_prompt = self._substitute_context(system_prompt, context)
+
+        if rag_chunks:
+            rag_context = self._format_rag_context(rag_chunks)
+            processed_system_prompt += rag_context
+
         messages.append(Message(role="system", content=processed_system_prompt))
 
-        # Add conversation history
         for msg in conversation_history:
             messages.append(msg)
 
-        # Add current user message
         messages.append(Message(role="user", content=user_message))
 
         return messages
@@ -111,21 +169,22 @@ class AgentService:
         """
         logger.info(
             f"Executing agent: provider={request.provider}, "
-            f"model={request.model}, history={len(request.conversation_history)}"
+            f"model={request.model}, history={len(request.conversation_history)}, "
+            f"rag={request.rag_enabled}"
         )
 
-        # Build messages with context substitution
+        rag_chunks, rag_query_tokens = await self._retrieve_rag_context(request)
+
         messages = self._build_messages(
             system_prompt=request.system_prompt,
             conversation_history=request.conversation_history,
             user_message=request.user_message,
             context=request.context,
+            rag_chunks=rag_chunks,
         )
 
-        # Get the appropriate provider
         provider = get_provider(request.provider, request.credentials)
 
-        # Execute the chat completion
         chat_response = await provider.chat(
             messages=messages,
             model=request.model,
@@ -133,9 +192,17 @@ class AgentService:
             max_tokens=request.max_tokens,
         )
 
+        rag_sources = None
+        if rag_chunks:
+            sources = set()
+            for chunk in rag_chunks:
+                if chunk.metadata and "file_name" in chunk.metadata:
+                    sources.add(chunk.metadata["file_name"])
+            rag_sources = list(sources) if sources else None
+
         logger.info(
             f"Agent execution successful: tokens={chat_response.usage.total_tokens}, "
-            f"latency={chat_response.latency_ms}ms"
+            f"latency={chat_response.latency_ms}ms, rag_chunks={len(rag_chunks)}"
         )
 
         return AgentResponse(
@@ -144,6 +211,9 @@ class AgentService:
             latency_ms=chat_response.latency_ms,
             model=chat_response.model,
             provider=chat_response.provider,
+            rag_chunks_used=len(rag_chunks) if rag_chunks else None,
+            rag_sources=rag_sources,
+            rag_embedding_tokens=rag_query_tokens if rag_query_tokens > 0 else None,
         )
 
     async def execute_stream(self, request: AgentRequest) -> AsyncIterator[StreamChunk]:
@@ -162,21 +232,22 @@ class AgentService:
         """
         logger.info(
             f"Executing agent (stream): provider={request.provider}, "
-            f"model={request.model}, history={len(request.conversation_history)}"
+            f"model={request.model}, history={len(request.conversation_history)}, "
+            f"rag={request.rag_enabled}"
         )
 
-        # Build messages with context substitution
+        rag_chunks, _ = await self._retrieve_rag_context(request)
+
         messages = self._build_messages(
             system_prompt=request.system_prompt,
             conversation_history=request.conversation_history,
             user_message=request.user_message,
             context=request.context,
+            rag_chunks=rag_chunks,
         )
 
-        # Get the appropriate provider
         provider = get_provider(request.provider, request.credentials)
 
-        # Execute the streaming chat completion
         async for chunk in provider.chat_stream(
             messages=messages,
             model=request.model,

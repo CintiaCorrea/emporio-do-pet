@@ -11,13 +11,17 @@ export function getBackendBaseUrl() {
     process.env.BACKEND_URL ||
     process.env.NEXT_PUBLIC_BACKEND_URL ||
     process.env.NEXT_PUBLIC_API_URL ||
-    (process.env.NODE_ENV !== 'production' ? 'http://localhost:3333' : undefined)
+    (process.env.NODE_ENV !== 'production' ? 'http://127.0.0.1:3333' : undefined)
   );
 }
 
 export function buildApiBase(backendBaseUrl: string) {
   const normalized = backendBaseUrl.replace(/\/$/, '');
   return normalized.endsWith('/api') ? normalized : `${normalized}/api`;
+}
+
+function toIpv4Loopback(url: string) {
+  return url.replace('://localhost', '://127.0.0.1');
 }
 
 async function readAuthToken(request: NextRequest): Promise<JwtTokenLike | null> {
@@ -82,6 +86,9 @@ export async function proxyToBackend(
   const authHeader = await buildAuthHeader(request);
   const token = await readAuthToken(request);
   const upstreamUrl = `${buildApiBase(backendBaseUrl)}${upstreamPath}`;
+  const fallbackUpstreamUrl = upstreamUrl.includes('://localhost')
+    ? toIpv4Loopback(upstreamUrl)
+    : null;
 
   try {
     let upstreamResponse = await fetch(upstreamUrl, {
@@ -112,6 +119,16 @@ export async function proxyToBackend(
           },
         });
       }
+    }
+
+    if (!upstreamResponse.ok && upstreamResponse.status >= 500 && fallbackUpstreamUrl) {
+      upstreamResponse = await fetch(fallbackUpstreamUrl, {
+        ...init,
+        headers: {
+          ...(init?.headers || {}),
+          ...authHeader,
+        },
+      });
     }
 
     const contentType = upstreamResponse.headers.get('content-type') || '';
@@ -151,11 +168,57 @@ export async function proxyToBackend(
 
     return NextResponse.json(data, { status: upstreamResponse.status });
   } catch (error) {
+    if (fallbackUpstreamUrl) {
+      try {
+        const retryResponse = await fetch(fallbackUpstreamUrl, {
+          ...init,
+          headers: {
+            ...(init?.headers || {}),
+            ...authHeader,
+          },
+        });
+
+        const contentType = retryResponse.headers.get('content-type') || '';
+        const raw = await retryResponse.text();
+        const shouldTryJson =
+          contentType.includes('application/json') ||
+          contentType.includes('+json') ||
+          contentType.includes('text/json') ||
+          contentType === '';
+
+        let data: any = null;
+        if (!raw) {
+          data = null;
+        } else if (shouldTryJson) {
+          try {
+            data = JSON.parse(raw);
+          } catch {
+            data = raw;
+          }
+        } else {
+          data = raw;
+        }
+
+        if (!retryResponse.ok) {
+          const message =
+            (data &&
+              (data.error ||
+                (Array.isArray(data.message) ? data.message.join(', ') : data.message) ||
+                data.message)) ||
+            retryResponse.statusText ||
+            'Erro ao processar requisição';
+
+          return NextResponse.json({ error: message }, { status: retryResponse.status });
+        }
+
+        return NextResponse.json(data, { status: retryResponse.status });
+      } catch {
+        // fall through to generic 502 below
+      }
+    }
+
     // Se o fetch falhar (backend offline, connection refused, etc.), garanta resposta JSON
-    return NextResponse.json(
-      { error: 'Falha ao conectar ao backend' },
-      { status: 502 }
-    );
+    return NextResponse.json({ error: 'Falha ao conectar ao backend' }, { status: 502 });
   }
 }
 

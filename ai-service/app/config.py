@@ -38,6 +38,15 @@ class Settings(BaseSettings):
     default_tts_voice: str = "alloy"
     default_stt_model: str = "whisper-1"
 
+    # RAG Configuration
+    database_url: str = "postgresql://emporio:emporio_2024@localhost:15432/emporio_db"
+    embedding_model: str = "text-embedding-3-small"
+    embedding_dimensions: int = 1536
+    default_rag_top_k: int = 5
+    default_rag_threshold: float = 0.7
+    chunk_size: int = 600
+    chunk_overlap: int = 100
+
     # Timeouts (in seconds)
     llm_timeout: int = 60
     tts_timeout: int = 30

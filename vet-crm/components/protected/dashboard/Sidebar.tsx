@@ -31,7 +31,8 @@ import {
   LuFiles,
   LuZap,
   LuUserPlus,
-  LuLightbulb
+  LuLightbulb,
+  LuDatabase
 } from "react-icons/lu";
 
 interface SidebarProps {
@@ -227,6 +228,17 @@ const Sidebar = ({ isOpen, toggleSidebar }: SidebarProps) => {
                   >
                     <LuZap className="mr-3 w-4 h-4" />
                     Automações
+                  </Link>
+                  <Link
+                    href="/dashboard/ai-agents/conhecimento"
+                    className={`mx-2 my-1 flex items-center py-2 pl-10 pr-3 sm:pl-11 sm:pr-4 rounded-xl text-sm sm:text-base border-l-2 transition-all ${
+                      isActive("/dashboard/ai-agents/conhecimento")
+                        ? "bg-[color:var(--sidebar-active-bg)] text-[color:var(--sidebar-active-text)] border-[color:var(--sidebar-active-border)]"
+                        : "text-[color:var(--sidebar-muted)] border-transparent hover:bg-[color:var(--sidebar-hover)] hover:text-[color:var(--sidebar-text)] hover:border-[color:var(--sidebar-active-border)]"
+                    }`}
+                  >
+                    <LuDatabase className="mr-3 w-4 h-4" />
+                    Base de Conhecimento
                   </Link>
                 </div>
               </div>
@@ -639,6 +651,17 @@ const Sidebar = ({ isOpen, toggleSidebar }: SidebarProps) => {
                       title="Automações"
                     >
                       <LuZap className="w-4 h-4" />
+                    </Link>
+                    <Link
+                      href="/dashboard/ai-agents/conhecimento"
+                      className={`w-full p-3 sm:p-4 flex justify-center transition-colors ${
+                        isActive("/dashboard/ai-agents/conhecimento")
+                          ? "bg-[color:var(--sidebar-active-bg)] text-[color:var(--sidebar-active-text)]"
+                          : "hover:bg-[color:var(--sidebar-hover)] text-[color:var(--sidebar-muted)] hover:text-[color:var(--sidebar-text)]"
+                      }`}
+                      title="Base de Conhecimento"
+                    >
+                      <LuDatabase className="w-4 h-4" />
                     </Link>
                   </>
                 )}

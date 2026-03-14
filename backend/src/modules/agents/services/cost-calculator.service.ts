@@ -23,6 +23,13 @@ export interface TTSCostBreakdown {
   currency: 'USD';
 }
 
+export interface EmbeddingCostBreakdown {
+  tokens: number;
+  model: string;
+  totalCost: number;
+  currency: 'USD';
+}
+
 // Pricing per 1M tokens (as of Feb 2026)
 // Source: Official provider pricing pages
 const MODEL_PRICING: Record<string, { input: number; output: number }> = {
@@ -55,6 +62,13 @@ const MODEL_PRICING: Record<string, { input: number; output: number }> = {
 const TTS_PRICING: Record<string, number> = {
   'tts-1': 15,      // $15 per 1M characters
   'tts-1-hd': 30,   // $30 per 1M characters
+};
+
+// Embedding Pricing (per 1M tokens)
+const EMBEDDING_PRICING: Record<string, number> = {
+  'text-embedding-3-small': 0.02,
+  'text-embedding-3-large': 0.13,
+  'text-embedding-ada-002': 0.10,
 };
 
 @Injectable()
@@ -96,6 +110,21 @@ export class CostCalculatorService {
       model,
       costPerCharacter,
       totalCost: Math.round(totalCost * 1_000_000) / 1_000_000, // Round to 6 decimal places
+      currency: 'USD',
+    };
+  }
+
+  /**
+   * Calculate cost for embedding generation (RAG)
+   */
+  calculateEmbeddingCost(tokens: number, model: string = 'text-embedding-3-small'): EmbeddingCostBreakdown {
+    const pricePerMillion = EMBEDDING_PRICING[model] || EMBEDDING_PRICING['text-embedding-3-small'];
+    const totalCost = (tokens / 1_000_000) * pricePerMillion;
+
+    return {
+      tokens,
+      model,
+      totalCost: Math.round(totalCost * 1_000_000) / 1_000_000,
       currency: 'USD',
     };
   }

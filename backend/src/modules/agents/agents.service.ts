@@ -324,6 +324,10 @@ export class AgentsService {
               },
               temperature: agent.temperature,
               max_tokens: agent.maxTokens,
+              rag_enabled: agent.ragEnabled ?? false,
+              rag_knowledge_base_id: agent.knowledgeBaseId ?? null,
+              rag_top_k: agent.ragTopK ?? 5,
+              rag_threshold: agent.ragThreshold ?? 0.7,
             }),
           });
 
@@ -386,7 +390,25 @@ export class AgentsService {
         }
       }
 
-      const totalCostUsd = costBreakdown.totalCost + (voiceCostUsd || 0);
+      // Calculate embedding cost if RAG was used
+      let embeddingCostUsd = 0;
+      if (result.rag_embedding_tokens) {
+        const embCost = this.costCalculator.calculateEmbeddingCost(result.rag_embedding_tokens);
+        embeddingCostUsd = embCost.totalCost;
+      }
+
+      const totalCostUsd = costBreakdown.totalCost + (voiceCostUsd || 0) + embeddingCostUsd;
+
+      // Build metadata with RAG info
+      const executionMetadata: Record<string, any> = dto.context
+        ? JSON.parse(JSON.stringify(dto.context))
+        : {};
+
+      if (result.rag_chunks_used) {
+        executionMetadata.ragChunksUsed = result.rag_chunks_used;
+        executionMetadata.ragSources = result.rag_sources || [];
+        executionMetadata.ragEmbeddingTokens = result.rag_embedding_tokens || 0;
+      }
 
       // Record execution with costs
       const execution = await this.prisma.agentExecution.create({
@@ -397,13 +419,14 @@ export class AgentsService {
           output: result.response,
           usage: result.usage,
           latencyMs,
-          metadata: dto.context ? JSON.parse(JSON.stringify(dto.context)) : null,
+          metadata: Object.keys(executionMetadata).length > 0 ? executionMetadata : undefined,
           costUsd: totalCostUsd,
           costBreakdown: {
             promptCost: costBreakdown.promptCost,
             completionCost: costBreakdown.completionCost,
             textCost: costBreakdown.totalCost,
             voiceCost: voiceCostUsd || 0,
+            embeddingCost: embeddingCostUsd,
             totalCost: totalCostUsd,
             model: agent.model,
             provider: agent.provider,
@@ -525,6 +548,10 @@ export class AgentsService {
           },
           temperature: agent.temperature,
           max_tokens: agent.maxTokens,
+          rag_enabled: agent.ragEnabled ?? false,
+          rag_knowledge_base_id: agent.knowledgeBaseId ?? null,
+          rag_top_k: agent.ragTopK ?? 5,
+          rag_threshold: agent.ragThreshold ?? 0.7,
         }),
       });
 
@@ -1096,6 +1123,10 @@ export class AgentsService {
               },
               temperature: agent.temperature,
               max_tokens: agent.maxTokens,
+              rag_enabled: agent.ragEnabled ?? false,
+              rag_knowledge_base_id: agent.knowledgeBaseId ?? null,
+              rag_top_k: agent.ragTopK ?? 5,
+              rag_threshold: agent.ragThreshold ?? 0.7,
             }),
           });
 

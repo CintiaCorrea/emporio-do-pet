@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsBoolean, IsEnum } from 'class-validator';
+import { IsOptional, IsString, IsBoolean, IsEnum, IsDateString } from 'class-validator';
 import { WhatsAppConversationStatus } from '@prisma/client';
 
 export class UpdateConversationDto {
@@ -9,6 +9,14 @@ export class UpdateConversationDto {
   @IsOptional()
   @IsString()
   assignedAgentId?: string | null;
+
+  @IsOptional()
+  @IsString()
+  assignedUserId?: string | null;
+
+  @IsOptional()
+  @IsDateString()
+  humanTakeoverAt?: Date | null;
 
   @IsOptional()
   @IsString()

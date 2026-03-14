@@ -247,6 +247,30 @@ export class NotificationsGateway
     }
   }
 
+  @OnEvent('whatsapp.conversation.takeover')
+  handleWhatsAppTakeover(data: {
+    conversationId: string;
+    userId: string;
+    assignedUserId: string;
+    assignedUserName: string;
+  }) {
+    this.sendToUser(data.userId, 'whatsapp:takeover', {
+      conversationId: data.conversationId,
+      assignedUserId: data.assignedUserId,
+      assignedUserName: data.assignedUserName,
+    });
+  }
+
+  @OnEvent('whatsapp.conversation.released')
+  handleWhatsAppReleased(data: {
+    conversationId: string;
+    userId: string;
+  }) {
+    this.sendToUser(data.userId, 'whatsapp:released', {
+      conversationId: data.conversationId,
+    });
+  }
+
   @OnEvent('whatsapp.campaign.completed')
   handleCampaignCompleted(data: {
     campaignId: string;

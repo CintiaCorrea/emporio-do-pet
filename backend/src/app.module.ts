@@ -46,6 +46,7 @@ import { ConsultationRecordingsModule } from './modules/consultation-recordings/
 import { ClinicalDocumentsModule } from './modules/clinical-documents/clinical-documents.module';
 import { DocumentsModule } from './modules/documents/documents.module';
 import { CrmModule } from './modules/crm/crm.module';
+import { KnowledgeBaseModule } from './modules/knowledge-base/knowledge-base.module';
 import configuration from './config/configuration';
 
 @Module({
@@ -158,6 +159,9 @@ import configuration from './config/configuration';
     ConsultationRecordingsModule,
     ClinicalDocumentsModule,
     DocumentsModule,
+
+    // RAG - Knowledge Base
+    KnowledgeBaseModule,
 
     // Health check
     HealthModule,
