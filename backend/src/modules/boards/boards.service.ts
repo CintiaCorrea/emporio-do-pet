@@ -1,9 +1,15 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateBoardDto } from './dto/create-board.dto';
 import { UpdateBoardDto } from './dto/update-board.dto';
 
 type BoardTypeExtended = 'APPOINTMENT' | 'CONSULTATION' | 'HOSPITALIZATION' | 'TASK' | 'PROJECT' | 'LEAD' | 'CLIENT' | 'SALES';
+
+const SYSTEM_BOARD_TYPES: ReadonlySet<string> = new Set([
+  'APPOINTMENT',
+  'CONSULTATION',
+  'HOSPITALIZATION',
+]);
 
 const DEFAULT_BOARD_CONFIGS: Record<string, { 
   name: string; 
@@ -12,6 +18,19 @@ const DEFAULT_BOARD_CONFIGS: Record<string, {
   description: string;
   columns: { name: string; position: number; color: string }[];
 }> = {
+  APPOINTMENT: {
+    name: 'Agendamentos',
+    type: 'APPOINTMENT',
+    color: 'bg-green-500',
+    description: 'Pipeline de agendamentos',
+    columns: [
+      { name: 'Agendada', position: 1, color: '#3B82F6' },
+      { name: 'Confirmada', position: 2, color: '#F59E0B' },
+      { name: 'Em Andamento', position: 3, color: '#8B5CF6' },
+      { name: 'Concluída', position: 4, color: '#10B981' },
+      { name: 'Cancelada', position: 5, color: '#EF4444' },
+    ],
+  },
   CONSULTATION: {
     name: 'Consultas',
     type: 'CONSULTATION',
@@ -85,6 +104,10 @@ const DEFAULT_BOARD_CONFIGS: Record<string, {
 export class BoardsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  static isSystemBoard(type: string): boolean {
+    return SYSTEM_BOARD_TYPES.has(type);
+  }
+
   async create(userId: string, createBoardDto: CreateBoardDto) {
     const boardType = createBoardDto.type || 'APPOINTMENT';
     
@@ -94,10 +117,8 @@ export class BoardsService {
       { name: 'Concluído', position: 3, color: '#6BCB77' },
     ];
 
-    if (boardType === 'CONSULTATION' && DEFAULT_BOARD_CONFIGS.CONSULTATION) {
-      defaultColumns = DEFAULT_BOARD_CONFIGS.CONSULTATION.columns;
-    } else if (boardType === 'HOSPITALIZATION' && DEFAULT_BOARD_CONFIGS.HOSPITALIZATION) {
-      defaultColumns = DEFAULT_BOARD_CONFIGS.HOSPITALIZATION.columns;
+    if (DEFAULT_BOARD_CONFIGS[boardType]) {
+      defaultColumns = DEFAULT_BOARD_CONFIGS[boardType].columns;
     }
 
     return this.prisma.board.create({
@@ -189,7 +210,27 @@ export class BoardsService {
   }
 
   async update(id: string, userId: string, updateBoardDto: UpdateBoardDto) {
-    await this.findById(id, userId);
+    const board = await this.findById(id, userId);
+
+    if (BoardsService.isSystemBoard(board.type)) {
+      const { color, description, favorite, ...forbidden } = updateBoardDto as any;
+      if (forbidden.name || forbidden.type) {
+        throw new ForbiddenException(
+          'Boards de sistema não podem ter nome ou tipo alterados',
+        );
+      }
+      return this.prisma.board.update({
+        where: { id },
+        data: {
+          ...(color !== undefined ? { color } : {}),
+          ...(description !== undefined ? { description } : {}),
+          ...(favorite !== undefined ? { favorite } : {}),
+        },
+        include: {
+          columns: { orderBy: { position: 'asc' } },
+        },
+      });
+    }
 
     return this.prisma.board.update({
       where: { id },
@@ -206,7 +247,13 @@ export class BoardsService {
   }
 
   async remove(id: string, userId: string) {
-    await this.findById(id, userId);
+    const board = await this.findById(id, userId);
+
+    if (BoardsService.isSystemBoard(board.type)) {
+      throw new ForbiddenException(
+        'Boards de sistema (Agendamentos, Consultas, Internações) não podem ser excluídos',
+      );
+    }
 
     return this.prisma.board.delete({
       where: { id },
@@ -222,18 +269,123 @@ export class BoardsService {
     });
   }
 
-  async ensureDefaultBoards(userId: string) {
+  async resetAndRecreateBoards(userId: string): Promise<Record<string, any>> {
+    const userBoards = await this.prisma.board.findMany({
+      where: { userId },
+      select: { id: true },
+    });
+    const boardIds = userBoards.map((b) => b.id);
+
+    if (boardIds.length > 0) {
+      const columnIds = await this.prisma.kanbanColumn.findMany({
+        where: { boardId: { in: boardIds } },
+        select: { id: true },
+      });
+      await this.prisma.kanbanCard.deleteMany({
+        where: { columnId: { in: columnIds.map((c) => c.id) } },
+      });
+      await this.prisma.kanbanColumn.deleteMany({
+        where: { boardId: { in: boardIds } },
+      });
+      await this.prisma.board.deleteMany({
+        where: { id: { in: boardIds } },
+      });
+    }
+
+    return this.ensureDefaultBoards(userId);
+  }
+
+  async ensureDefaultBoards(userId: string): Promise<Record<string, any>> {
+    // Migration: if non-system boards exist but no system boards, clean up old boards
+    const allBoards = await this.prisma.board.findMany({ where: { userId }, select: { id: true, type: true } });
+    const hasSystemBoard = allBoards.some((b) => SYSTEM_BOARD_TYPES.has(b.type));
+    if (!hasSystemBoard && allBoards.length > 0) {
+      return this.resetAndRecreateBoards(userId);
+    }
+
     const results: Record<string, any> = {};
 
-    for (const [key, config] of Object.entries(DEFAULT_BOARD_CONFIGS)) {
+    const systemEntries = Object.entries(DEFAULT_BOARD_CONFIGS)
+      .filter(([, cfg]) => SYSTEM_BOARD_TYPES.has(cfg.type));
+
+    for (const [key, config] of systemEntries) {
       const existing = await this.prisma.board.findFirst({
         where: { userId, type: config.type as any },
         include: {
-          columns: { orderBy: { position: 'asc' } },
+          columns: { orderBy: { position: 'asc' }, include: { _count: { select: { cards: true } } } },
         },
       });
 
       if (existing) {
+        // For system boards, fix columns if they don't match the expected config
+        if (BoardsService.isSystemBoard(config.type)) {
+          const expectedNames = config.columns.map((c) => c.name);
+          const actualNames = existing.columns.map((c: any) => c.name);
+          const columnsMatch =
+            expectedNames.length === actualNames.length &&
+            expectedNames.every((n, i) => n === actualNames[i]);
+
+          if (!columnsMatch) {
+            const emptyOldColumns = existing.columns.filter(
+              (c: any) => !expectedNames.includes(c.name) && c._count.cards === 0,
+            );
+            for (const col of emptyOldColumns) {
+              await this.prisma.kanbanColumn.delete({ where: { id: col.id } });
+            }
+
+            // Move ALL remaining columns to very high temp positions to free up space
+            const remainingCols = await this.prisma.kanbanColumn.findMany({
+              where: { boardId: existing.id },
+            });
+            for (let i = 0; i < remainingCols.length; i++) {
+              await this.prisma.kanbanColumn.update({
+                where: { id: remainingCols[i].id },
+                data: { position: 10000 + i },
+              });
+            }
+
+            // Create missing columns at temp high positions
+            let tempPos = 20000;
+            for (const expectedCol of config.columns) {
+              const alreadyExists = remainingCols.some(
+                (c) => c.name === expectedCol.name,
+              );
+              if (!alreadyExists) {
+                tempPos++;
+                await this.prisma.kanbanColumn.create({
+                  data: {
+                    name: expectedCol.name,
+                    position: tempPos,
+                    color: expectedCol.color,
+                    boardId: existing.id,
+                  },
+                });
+              }
+            }
+
+            // Now set all expected columns to their final positions
+            const allCols = await this.prisma.kanbanColumn.findMany({
+              where: { boardId: existing.id },
+            });
+            for (const expectedCol of config.columns) {
+              const col = allCols.find((c) => c.name === expectedCol.name);
+              if (col) {
+                await this.prisma.kanbanColumn.update({
+                  where: { id: col.id },
+                  data: { position: expectedCol.position },
+                });
+              }
+            }
+
+            const fixed = await this.prisma.board.findFirst({
+              where: { id: existing.id },
+              include: { columns: { orderBy: { position: 'asc' } } },
+            });
+            results[key] = fixed;
+            continue;
+          }
+        }
+
         results[key] = existing;
       } else {
         const newBoard = await this.prisma.board.create({
@@ -336,6 +488,10 @@ export class BoardsService {
     return board;
   }
 
+  async getAppointmentBoard(userId: string) {
+    return this.findByType(userId, 'APPOINTMENT');
+  }
+
   async getConsultationBoard(userId: string) {
     return this.findByType(userId, 'CONSULTATION');
   }
@@ -421,6 +577,52 @@ export class BoardsService {
         column: { select: { id: true, name: true, color: true } },
       },
     });
+  }
+
+  async moveAllCardsForAppointment(
+    appointmentId: string,
+    consultationColumnName?: string,
+    appointmentColumnName?: string,
+  ) {
+    const cards = await this.prisma.kanbanCard.findMany({
+      where: { appointmentId },
+      include: {
+        column: {
+          include: { board: { select: { type: true, columns: true } } },
+        },
+      },
+    });
+
+    const results: any[] = [];
+    for (const card of cards) {
+      const boardType = card.column.board.type;
+      let targetColName: string | undefined;
+
+      if (boardType === 'CONSULTATION' && consultationColumnName) {
+        targetColName = consultationColumnName;
+      } else if (boardType === 'APPOINTMENT' && appointmentColumnName) {
+        targetColName = appointmentColumnName;
+      } else {
+        continue;
+      }
+
+      const targetColumn = (card.column.board as any).columns.find(
+        (c: any) => c.name === targetColName,
+      );
+      if (!targetColumn || targetColumn.id === card.columnId) continue;
+
+      const existingCount = await this.prisma.kanbanCard.count({
+        where: { columnId: targetColumn.id },
+      });
+
+      const updated = await this.prisma.kanbanCard.update({
+        where: { id: card.id },
+        data: { columnId: targetColumn.id, position: existingCount + 1 },
+      });
+      results.push(updated);
+    }
+
+    return results;
   }
 
   async createCardForLead(

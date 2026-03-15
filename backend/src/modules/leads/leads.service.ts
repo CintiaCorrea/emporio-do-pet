@@ -13,6 +13,7 @@ export class LeadsService {
   private readonly logger = new Logger(LeadsService.name);
   private readonly CACHE_TTL = 300; // 5 minutos
   private readonly ENRICHMENT_CACHE_TTL = 3600; // 1 hora
+  private readonly STATS_CACHE_KEY = 'leads:stats';
 
   constructor(
     private readonly prisma: PrismaService,
@@ -224,6 +225,7 @@ export class LeadsService {
 
     // Enfileirar enriquecimento
     await this.queueEnrichment(lead.id);
+    await this.invalidateStatsCache();
 
     // Emit lead created event for CRM integrations
     this.eventEmitter.emit('crm.lead.created', {
@@ -248,7 +250,7 @@ export class LeadsService {
 
     if (existing) {
       // Atualizar lastSeenAt e dados que podem ter mudado
-      return this.prisma.lead.update({
+      const updatedLead = await this.prisma.lead.update({
         where: { id: existing.id },
         data: {
           lastSeenAt: new Date(),
@@ -259,6 +261,8 @@ export class LeadsService {
           ...(dto.state && !existing.state && { state: dto.state }),
         },
       });
+      await this.invalidateStatsCache();
+      return updatedLead;
     }
 
     return this.create(dto);
@@ -292,6 +296,7 @@ export class LeadsService {
 
     // Invalidar cache
     await this.redis.del(`lead:${id}`);
+    await this.invalidateStatsCache();
 
     // Emit status change event for CRM integrations
     if (dto.status && dto.status !== previousStatus) {
@@ -325,6 +330,7 @@ export class LeadsService {
 
     await this.prisma.lead.delete({ where: { id } });
     await this.redis.del(`lead:${id}`);
+    await this.invalidateStatsCache();
 
     return { message: 'Lead removido com sucesso' };
   }
@@ -480,7 +486,7 @@ export class LeadsService {
    * Estatísticas gerais dos leads
    */
   async getStats() {
-    const cacheKey = 'leads:stats';
+    const cacheKey = this.STATS_CACHE_KEY;
 
     const cached = await this.redis.get<any>(cacheKey);
     if (cached) return cached;
@@ -605,5 +611,9 @@ export class LeadsService {
         triggeredBy: 'system',
       },
     });
+  }
+
+  private async invalidateStatsCache() {
+    await this.redis.del(this.STATS_CACHE_KEY);
   }
 }

@@ -43,6 +43,12 @@ export class BoardsController {
     return this.boardsService.ensureDefaultBoards(userId);
   }
 
+  @Post('default/reset')
+  @ApiOperation({ summary: 'Deletar todos boards e recriar os de sistema' })
+  resetAndRecreateBoards(@CurrentUser('id') userId: string) {
+    return this.boardsService.resetAndRecreateBoards(userId);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Buscar board por ID' })
   findOne(@Param('id') id: string, @CurrentUser('id') userId: string) {

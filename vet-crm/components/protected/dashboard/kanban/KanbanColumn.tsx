@@ -31,6 +31,7 @@ interface KanbanColumnExtendedProps extends KanbanColumnProps {
   columnId: string;
   onDeleteColumn: (columnId: string) => void;
   onRenameColumn: (columnId: string, newName: string) => void;
+  isSystemBoard?: boolean;
 }
 
 const KanbanColumn = ({ 
@@ -42,7 +43,8 @@ const KanbanColumn = ({
   onMoveColumn,
   columnId,
   onDeleteColumn,
-  onRenameColumn
+  onRenameColumn,
+  isSystemBoard = false
 }: KanbanColumnExtendedProps) => {
   const columnRef = useRef<HTMLDivElement>(null);
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
@@ -311,49 +313,48 @@ const KanbanColumn = ({
                 <LuPlus className="w-4 h-4" />
               </button>
               
-              {/* Menu de Opções */}
-              <div className="relative">
-                <button
-                  onClick={() => setIsMenuOpen(!isMenuOpen)}
-                  className="text-gray-400 hover:text-gray-600 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400 z-10 flex-shrink-0"
-                  aria-label={`Opções da coluna ${status}`}
-                >
-                  <LuEllipsisVertical className="w-4 h-4" />
-                </button>
-                
-                {/* Dropdown Menu */}
-                {isMenuOpen && (
-                  <>
-                    {/* Overlay para fechar o menu ao clicar fora */}
-                    <div 
-                      className="fixed inset-0 z-40" 
-                      onClick={() => setIsMenuOpen(false)}
-                    />
-                    
-                    <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
-                      <button
-                        onClick={handleStartEdit}
-                        className="w-full px-4 py-3 text-left text-gray-700 hover:bg-gray-50 flex items-center gap-3 transition-colors rounded-t-lg"
-                      >
-                        <LuPencil className="w-4 h-4" />
-                        <span className="font-medium">Renomear Coluna</span>
-                      </button>
+              {!isSystemBoard && (
+                <div className="relative">
+                  <button
+                    onClick={() => setIsMenuOpen(!isMenuOpen)}
+                    className="text-gray-400 hover:text-gray-600 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400 z-10 flex-shrink-0"
+                    aria-label={`Opções da coluna ${status}`}
+                  >
+                    <LuEllipsisVertical className="w-4 h-4" />
+                  </button>
+                  
+                  {isMenuOpen && (
+                    <>
+                      <div 
+                        className="fixed inset-0 z-40" 
+                        onClick={() => setIsMenuOpen(false)}
+                      />
                       
-                      <div className="border-t border-gray-200">
+                      <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
                         <button
-                          onClick={openDeleteModal}
-                          className="w-full px-4 py-3 text-left text-red-600 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-3 transition-colors rounded-b-lg"
+                          onClick={handleStartEdit}
+                          className="w-full px-4 py-3 text-left text-gray-700 hover:bg-gray-50 flex items-center gap-3 transition-colors rounded-t-lg"
                         >
-                          <LuTrash2 className="w-4 h-4" />
-                          <span className="font-medium">
-                            Excluir Coluna
-                          </span>
+                          <LuPencil className="w-4 h-4" />
+                          <span className="font-medium">Renomear Coluna</span>
                         </button>
+                        
+                        <div className="border-t border-gray-200">
+                          <button
+                            onClick={openDeleteModal}
+                            className="w-full px-4 py-3 text-left text-red-600 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-3 transition-colors rounded-b-lg"
+                          >
+                            <LuTrash2 className="w-4 h-4" />
+                            <span className="font-medium">
+                              Excluir Coluna
+                            </span>
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  </>
-                )}
-              </div>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>

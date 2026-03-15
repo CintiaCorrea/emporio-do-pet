@@ -82,6 +82,17 @@ export class ColumnsService {
   async createBoardColumn(boardId: string, userId: string, dto: CreateColumnDto) {
     await this.assertBoardOwnership(boardId, userId);
 
+    const board = await this.prisma.board.findFirst({
+      where: { id: boardId },
+      select: { type: true },
+    });
+    const systemTypes = new Set(['APPOINTMENT', 'CONSULTATION', 'HOSPITALIZATION']);
+    if (board && systemTypes.has(board.type)) {
+      throw new ForbiddenException(
+        'Não é possível adicionar colunas em boards de sistema',
+      );
+    }
+
     return this.prisma.$transaction(async (tx: PrismaTransactionClient) => {
       const existingCount = await tx.kanbanColumn.count({ where: { boardId } });
       const desiredIndex = dto.position ?? existingCount; // 0-based
@@ -152,10 +163,36 @@ export class ColumnsService {
     });
   }
 
+  private async assertNotSystemColumn(columnId: string) {
+    const column = await this.prisma.kanbanColumn.findFirst({
+      where: { id: columnId },
+      include: { board: { select: { type: true } } },
+    });
+    if (!column) return;
+    const systemTypes = new Set(['APPOINTMENT', 'CONSULTATION', 'HOSPITALIZATION']);
+    if (systemTypes.has(column.board.type)) {
+      throw new ForbiddenException(
+        'Colunas de boards de sistema não podem ser alteradas ou excluídas',
+      );
+    }
+  }
+
   async updateColumn(columnId: string, userId: string, dto: UpdateColumnDto) {
     const column = await this.findColumnForUser(columnId, userId);
 
-    // Position change requires shifting others.
+    const board = await this.prisma.board.findFirst({
+      where: { id: column.boardId },
+      select: { type: true },
+    });
+    const systemTypes = new Set(['APPOINTMENT', 'CONSULTATION', 'HOSPITALIZATION']);
+    if (board && systemTypes.has(board.type)) {
+      if (dto.name !== undefined) {
+        throw new ForbiddenException(
+          'Colunas de boards de sistema não podem ser renomeadas',
+        );
+      }
+    }
+
     if (dto.position !== undefined) {
       return this.moveColumn(columnId, userId, dto.position, dto);
     }
@@ -247,6 +284,8 @@ export class ColumnsService {
 
   async deleteColumn(columnId: string, userId: string) {
     const column = await this.findColumnForUser(columnId, userId);
+
+    await this.assertNotSystemColumn(columnId);
 
     return this.prisma.$transaction(async (tx: PrismaTransactionClient) => {
       const boardId = column.boardId;

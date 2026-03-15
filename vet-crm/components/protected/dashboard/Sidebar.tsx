@@ -32,7 +32,8 @@ import {
   LuZap,
   LuUserPlus,
   LuLightbulb,
-  LuDatabase
+  LuDatabase,
+  LuChartColumn
 } from "react-icons/lu";
 
 interface SidebarProps {
@@ -276,17 +277,6 @@ const Sidebar = ({ isOpen, toggleSidebar }: SidebarProps) => {
                   }`}
                 >
                   <Link
-                    href="/dashboard/crm"
-                    className={`mx-2 my-1 flex items-center py-2 pl-10 pr-3 sm:pl-11 sm:pr-4 rounded-xl text-sm sm:text-base border-l-2 transition-all ${
-                      pathname === "/dashboard/crm"
-                        ? "bg-[color:var(--sidebar-active-bg)] text-[color:var(--sidebar-active-text)] border-[color:var(--sidebar-active-border)]"
-                        : "text-[color:var(--sidebar-muted)] border-transparent hover:bg-[color:var(--sidebar-hover)] hover:text-[color:var(--sidebar-text)] hover:border-[color:var(--sidebar-active-border)]"
-                    }`}
-                  >
-                    <LuLayoutDashboard className="mr-3 w-4 h-4" />
-                    Dashboard
-                  </Link>
-                  <Link
                     href="/dashboard/crm/leads"
                     className={`mx-2 my-1 flex items-center py-2 pl-10 pr-3 sm:pl-11 sm:pr-4 rounded-xl text-sm sm:text-base border-l-2 transition-all ${
                       isActive("/dashboard/crm/leads")
@@ -298,17 +288,6 @@ const Sidebar = ({ isOpen, toggleSidebar }: SidebarProps) => {
                     Leads
                   </Link>
                   <Link
-                    href="/dashboard/crm/clientes"
-                    className={`mx-2 my-1 flex items-center py-2 pl-10 pr-3 sm:pl-11 sm:pr-4 rounded-xl text-sm sm:text-base border-l-2 transition-all ${
-                      isActive("/dashboard/crm/clientes")
-                        ? "bg-[color:var(--sidebar-active-bg)] text-[color:var(--sidebar-active-text)] border-[color:var(--sidebar-active-border)]"
-                        : "text-[color:var(--sidebar-muted)] border-transparent hover:bg-[color:var(--sidebar-hover)] hover:text-[color:var(--sidebar-text)] hover:border-[color:var(--sidebar-active-border)]"
-                    }`}
-                  >
-                    <LuUsers className="mr-3 w-4 h-4" />
-                    Clientes
-                  </Link>
-                  <Link
                     href="/dashboard/crm/pipelines"
                     className={`mx-2 my-1 flex items-center py-2 pl-10 pr-3 sm:pl-11 sm:pr-4 rounded-xl text-sm sm:text-base border-l-2 transition-all ${
                       isActive("/dashboard/crm/pipelines")
@@ -318,17 +297,6 @@ const Sidebar = ({ isOpen, toggleSidebar }: SidebarProps) => {
                   >
                     <LuWorkflow className="mr-3 w-4 h-4" />
                     Pipelines
-                  </Link>
-                  <Link
-                    href="/dashboard/crm/insights"
-                    className={`mx-2 my-1 flex items-center py-2 pl-10 pr-3 sm:pl-11 sm:pr-4 rounded-xl text-sm sm:text-base border-l-2 transition-all ${
-                      isActive("/dashboard/crm/insights")
-                        ? "bg-[color:var(--sidebar-active-bg)] text-[color:var(--sidebar-active-text)] border-[color:var(--sidebar-active-border)]"
-                        : "text-[color:var(--sidebar-muted)] border-transparent hover:bg-[color:var(--sidebar-hover)] hover:text-[color:var(--sidebar-text)] hover:border-[color:var(--sidebar-active-border)]"
-                    }`}
-                  >
-                    <LuLightbulb className="mr-3 w-4 h-4" />
-                    Insights
                   </Link>
                 </div>
               </div>
@@ -532,6 +500,17 @@ const Sidebar = ({ isOpen, toggleSidebar }: SidebarProps) => {
                     campanhasOpen ? "max-h-96" : "max-h-0"
                   }`}
                 >
+                  <Link
+                    href="/dashboard/campanhas/adsense"
+                    className={`mx-2 my-1 flex items-center py-2 pl-10 pr-3 sm:pl-11 sm:pr-4 rounded-xl text-sm sm:text-base border-l-2 transition-all ${
+                      isActive("/dashboard/campanhas/adsense")
+                        ? "bg-[color:var(--sidebar-active-bg)] text-[color:var(--sidebar-active-text)] border-[color:var(--sidebar-active-border)]"
+                        : "text-[color:var(--sidebar-muted)] border-transparent hover:bg-[color:var(--sidebar-hover)] hover:text-[color:var(--sidebar-text)] hover:border-[color:var(--sidebar-active-border)]"
+                    }`}
+                  >
+                    <LuChartColumn className="mr-3 w-4 h-4" />
+                    Adsense
+                  </Link>
                   <Link
                     href="/dashboard/campanhas/email"
                     className={`mx-2 my-1 flex items-center py-2 pl-10 pr-3 sm:pl-11 sm:pr-4 rounded-xl text-sm sm:text-base border-l-2 transition-all ${
@@ -801,6 +780,17 @@ const Sidebar = ({ isOpen, toggleSidebar }: SidebarProps) => {
                 {/* Subitens de Campanhas - mostrados apenas quando campanhasOpen é true */}
                 {campanhasOpen && (
                   <>
+                    <Link
+                      href="/dashboard/campanhas/adsense"
+                      className={`w-full p-3 sm:p-4 flex justify-center transition-colors ${
+                        isActive("/dashboard/campanhas/adsense")
+                          ? "bg-[color:var(--sidebar-active-bg)] text-[color:var(--sidebar-active-text)]"
+                          : "hover:bg-[color:var(--sidebar-hover)] text-[color:var(--sidebar-muted)] hover:text-[color:var(--sidebar-text)]"
+                      }`}
+                      title="Adsense"
+                    >
+                      <LuChartColumn className="w-4 h-4" />
+                    </Link>
                     <Link
                       href="/dashboard/campanhas/email"
                       className={`w-full p-3 sm:p-4 flex justify-center transition-colors ${

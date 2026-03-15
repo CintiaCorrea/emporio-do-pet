@@ -7,9 +7,10 @@ interface BoardListItemProps {
   onToggleFavorite: (id: string) => void;
   onDelete: (id: string) => void;
   isLast: boolean;
+  isSystemBoard?: boolean;
 }
 
-export default function BoardListItem({ board, onToggleFavorite, onDelete, isLast }: BoardListItemProps) {
+export default function BoardListItem({ board, onToggleFavorite, onDelete, isLast, isSystemBoard }: BoardListItemProps) {
   return (
     <div className={`group flex flex-col lg:flex-row lg:items-center p-6 hover:bg-gray-50/50 transition-all duration-300 gap-4 ${
       !isLast ? 'border-b border-white/20' : ''
@@ -70,12 +71,14 @@ export default function BoardListItem({ board, onToggleFavorite, onDelete, isLas
             <button className="text-gray-400 hover:text-blue-600 transition-colors duration-300 p-2 hover:scale-110">
               <LuPencil className="w-4 h-4" />
             </button>
-            <button 
-              onClick={() => onDelete(board.id)}
-              className="text-gray-400 hover:text-red-500 transition-colors duration-300 p-2 hover:scale-110"
-            >
-              <LuTrash2 className="w-4 h-4" />
-            </button>
+            {!isSystemBoard && (
+              <button 
+                onClick={() => onDelete(board.id)}
+                className="text-gray-400 hover:text-red-500 transition-colors duration-300 p-2 hover:scale-110"
+              >
+                <LuTrash2 className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
       </div>

@@ -5,7 +5,18 @@ import { buildApiBase, buildAuthHeader, getBackendBaseUrl } from '@/lib/backend-
 
 const createBoardSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
-  type: z.enum(['APPOINTMENT', 'TASK', 'PROJECT']).default('APPOINTMENT'),
+  type: z
+    .enum([
+      'APPOINTMENT',
+      'CONSULTATION',
+      'HOSPITALIZATION',
+      'TASK',
+      'PROJECT',
+      'LEAD',
+      'CLIENT',
+      'SALES',
+    ])
+    .default('APPOINTMENT'),
   description: z.string().optional().nullable(),
   color: z.string().default('bg-blue-500'),
 });

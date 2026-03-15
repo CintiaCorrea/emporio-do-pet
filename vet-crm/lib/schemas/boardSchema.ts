@@ -3,11 +3,25 @@ import { z } from 'zod';
 // Enums correspondentes ao Prisma
 export const BoardType = {
   APPOINTMENT: 'APPOINTMENT',
+  CONSULTATION: 'CONSULTATION',
+  HOSPITALIZATION: 'HOSPITALIZATION',
   TASK: 'TASK',
   PROJECT: 'PROJECT',
+  LEAD: 'LEAD',
+  CLIENT: 'CLIENT',
+  SALES: 'SALES',
 } as const;
 
-export const boardTypeSchema = z.enum(['APPOINTMENT', 'TASK', 'PROJECT']);
+export const boardTypeSchema = z.enum([
+  'APPOINTMENT',
+  'CONSULTATION',
+  'HOSPITALIZATION',
+  'TASK',
+  'PROJECT',
+  'LEAD',
+  'CLIENT',
+  'SALES',
+]);
 
 // Schema base para Board
 export const boardBaseSchema = z.object({
@@ -445,6 +459,20 @@ export const getDefaultColumns = (boardType: BoardType): Array<{ name: string; p
       { name: 'Concluídos', position: 3, color: '#6B7280' },
       { name: 'Cancelados', position: 4, color: '#EF4444' },
     ],
+    CONSULTATION: [
+      { name: 'Agendada', position: 0, color: '#3B82F6' },
+      { name: 'Aguardando', position: 1, color: '#F59E0B' },
+      { name: 'Em Atendimento', position: 2, color: '#8B5CF6' },
+      { name: 'Finalizada', position: 3, color: '#10B981' },
+      { name: 'Cancelada', position: 4, color: '#EF4444' },
+    ],
+    HOSPITALIZATION: [
+      { name: 'Admissão', position: 0, color: '#F59E0B' },
+      { name: 'Em Tratamento', position: 1, color: '#3B82F6' },
+      { name: 'Observação', position: 2, color: '#8B5CF6' },
+      { name: 'Alta Programada', position: 3, color: '#10B981' },
+      { name: 'Alta', position: 4, color: '#6B7280' },
+    ],
     TASK: [
       { name: 'A Fazer', position: 0, color: '#3B82F6' },
       { name: 'Em Progresso', position: 1, color: '#F59E0B' },
@@ -458,6 +486,29 @@ export const getDefaultColumns = (boardType: BoardType): Array<{ name: string; p
       { name: 'Testes', position: 3, color: '#8B5CF6' },
       { name: 'Concluído', position: 4, color: '#10B981' },
     ],
+    LEAD: [
+      { name: 'Novos', position: 0, color: '#8B5CF6' },
+      { name: 'Qualificando', position: 1, color: '#3B82F6' },
+      { name: 'Qualificados', position: 2, color: '#10B981' },
+      { name: 'Em Negociação', position: 3, color: '#F59E0B' },
+      { name: 'Convertidos', position: 4, color: '#059669' },
+      { name: 'Perdidos', position: 5, color: '#EF4444' },
+    ],
+    CLIENT: [
+      { name: 'Onboarding', position: 0, color: '#3B82F6' },
+      { name: 'Ativos', position: 1, color: '#10B981' },
+      { name: 'Em Risco', position: 2, color: '#F59E0B' },
+      { name: 'Reativação', position: 3, color: '#8B5CF6' },
+      { name: 'Inativos', position: 4, color: '#6B7280' },
+    ],
+    SALES: [
+      { name: 'Prospecção', position: 0, color: '#8B5CF6' },
+      { name: 'Contato Inicial', position: 1, color: '#3B82F6' },
+      { name: 'Proposta', position: 2, color: '#F59E0B' },
+      { name: 'Negociação', position: 3, color: '#EC4899' },
+      { name: 'Fechado Ganho', position: 4, color: '#10B981' },
+      { name: 'Fechado Perdido', position: 5, color: '#EF4444' },
+    ],
   };
 
   return defaultColumns[boardType] || defaultColumns.APPOINTMENT;
@@ -467,8 +518,13 @@ export const getDefaultColumns = (boardType: BoardType): Array<{ name: string; p
 export const getBoardTypeIcon = (boardType: BoardType): string => {
   const icons = {
     APPOINTMENT: '📅',
+    CONSULTATION: '🩺',
+    HOSPITALIZATION: '🏥',
     TASK: '✅',
     PROJECT: '📋',
+    LEAD: '🎯',
+    CLIENT: '👥',
+    SALES: '💰',
   };
   return icons[boardType];
 };
@@ -477,8 +533,13 @@ export const getBoardTypeIcon = (boardType: BoardType): string => {
 export const getBoardTypeColor = (boardType: BoardType): string => {
   const colors = {
     APPOINTMENT: 'blue',
+    CONSULTATION: 'sky',
+    HOSPITALIZATION: 'red',
     TASK: 'green',
     PROJECT: 'purple',
+    LEAD: 'violet',
+    CLIENT: 'emerald',
+    SALES: 'amber',
   };
   return colors[boardType];
 };

@@ -10,7 +10,8 @@ import {
   LuMegaphone,
   LuSave,
   LuSend,
-  LuUsers
+  LuUsers,
+  LuChartColumn
 } from 'react-icons/lu';
 
 type NewsletterLike = {
@@ -127,6 +128,15 @@ export default function CampanhasPage() {
       href: '/dashboard/campanhas/whatsapp',
       color: 'from-emerald-500 to-teal-600',
       badge: 'Disponível',
+      disabled: false
+    },
+    {
+      title: 'Adsense',
+      description: 'Exemplo visual para campanhas Google e Meta',
+      icon: LuChartColumn,
+      href: '/dashboard/campanhas/adsense',
+      color: 'from-violet-500 to-cyan-600',
+      badge: 'Preview',
       disabled: false
     },
     {

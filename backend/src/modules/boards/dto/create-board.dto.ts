@@ -7,6 +7,9 @@ enum BoardType {
   HOSPITALIZATION = 'HOSPITALIZATION',
   TASK = 'TASK',
   PROJECT = 'PROJECT',
+  LEAD = 'LEAD',
+  CLIENT = 'CLIENT',
+  SALES = 'SALES',
 }
 
 export class CreateBoardDto {

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import ConfirmDeleteModal from '@/components/common/ConfirmDeleteModal';
 import { 
   LuBot,
   LuSearch,
@@ -69,6 +70,7 @@ export default function AgentsPage() {
   const [statusFilter, setStatusFilter] = useState<AgentStatus | 'all'>('all');
   const [typeFilter, setTypeFilter] = useState<AgentType | 'all'>('all');
   const [selectedAgent, setSelectedAgent] = useState<AIAgent | null>(null);
+  const [agentToDelete, setAgentToDelete] = useState<AIAgent | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const loadAgents = useCallback(async () => {
@@ -129,12 +131,13 @@ export default function AgentsPage() {
     }
   };
 
-  const handleDeleteAgent = async (agentId: string) => {
-    if (!confirm('Tem certeza que deseja excluir este agente?')) return;
+  const handleDeleteAgent = async () => {
+    if (!agentToDelete) return;
 
-    setActionLoading(agentId);
+    const deletingAgent = agentToDelete;
+    setActionLoading(deletingAgent.id);
     try {
-      const response = await fetch(`/api/agents/${agentId}`, {
+      const response = await fetch(`/api/agents/${deletingAgent.id}`, {
         method: 'DELETE',
       });
 
@@ -147,10 +150,10 @@ export default function AgentsPage() {
       toast.success('Agente excluído com sucesso!');
       setIsModalOpen(false);
       setSelectedAgent(null);
-      loadAgents();
+      await loadAgents();
     } catch (error) {
       console.error('Erro ao excluir agente:', error);
-      toast.error(error instanceof Error ? error.message : 'Erro ao excluir agente');
+      throw error instanceof Error ? error : new Error('Erro ao excluir agente');
     } finally {
       setActionLoading(null);
     }
@@ -537,7 +540,7 @@ export default function AgentsPage() {
                     Editar
                   </Link>
                   <button 
-                    onClick={() => handleDeleteAgent(selectedAgent.id)}
+                    onClick={() => setAgentToDelete(selectedAgent)}
                     disabled={actionLoading === selectedAgent.id}
                     className="flex items-center gap-2 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-colors disabled:opacity-50"
                   >
@@ -640,6 +643,15 @@ export default function AgentsPage() {
           </div>
         </div>
       )}
+
+      <ConfirmDeleteModal
+        isOpen={!!agentToDelete}
+        entityLabel="Agente"
+        itemName={agentToDelete?.name ?? ''}
+        consequenceText="Esta ação não pode ser desfeita. Os dados do agente serão removidos."
+        onClose={() => setAgentToDelete(null)}
+        onConfirm={handleDeleteAgent}
+      />
 
     </div>
   );

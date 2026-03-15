@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import ConfirmDeleteModal from '@/components/common/ConfirmDeleteModal';
 import {
   LuDatabase,
   LuPlus,
@@ -32,6 +33,7 @@ export default function KnowledgeBasesPage() {
   const [bases, setBases] = useState<KnowledgeBase[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [baseToDelete, setBaseToDelete] = useState<KnowledgeBase | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newName, setNewName] = useState('');
   const [newDescription, setNewDescription] = useState('');
@@ -75,15 +77,16 @@ export default function KnowledgeBasesPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir esta base de conhecimento? Todos os documentos e chunks serão removidos.')) return;
+  const handleDelete = async () => {
+    if (!baseToDelete) return;
+
     try {
-      const res = await fetch(`/api/knowledge-bases/${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/knowledge-bases/${baseToDelete.id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error();
       toast.success('Base de conhecimento excluída');
-      fetchBases();
+      await fetchBases();
     } catch {
-      toast.error('Erro ao excluir');
+      throw new Error('Erro ao excluir base de conhecimento');
     }
   };
 
@@ -211,7 +214,7 @@ export default function KnowledgeBasesPage() {
                 </Link>
 
                 <button
-                  onClick={() => handleDelete(kb.id)}
+                  onClick={() => setBaseToDelete(kb)}
                   className="flex items-center justify-center self-end rounded-lg p-2 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 sm:self-start"
                   title="Excluir"
                 >
@@ -275,6 +278,15 @@ export default function KnowledgeBasesPage() {
           </div>
         </div>
       )}
+
+      <ConfirmDeleteModal
+        isOpen={!!baseToDelete}
+        entityLabel="Base de Conhecimento"
+        itemName={baseToDelete?.name ?? ''}
+        consequenceText="Esta ação não pode ser desfeita. Todos os documentos e chunks serão removidos."
+        onClose={() => setBaseToDelete(null)}
+        onConfirm={handleDelete}
+      />
     </div>
   );
 }

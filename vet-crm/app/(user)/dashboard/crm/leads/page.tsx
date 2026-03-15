@@ -65,8 +65,21 @@ export default function LeadsListPage() {
         setLeads(data);
         setTotal(data.length);
       } else {
-        setLeads(data.data || []);
-        setTotal(data.total || data.data?.length || 0);
+        const leadsList = Array.isArray(data.leads)
+          ? data.leads
+          : Array.isArray(data.data)
+            ? data.data
+            : [];
+
+        const totalCount =
+          typeof data.pagination?.total === 'number'
+            ? data.pagination.total
+            : typeof data.total === 'number'
+              ? data.total
+              : leadsList.length;
+
+        setLeads(leadsList);
+        setTotal(totalCount);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro desconhecido');

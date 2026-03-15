@@ -6,9 +6,10 @@ interface BoardCardProps {
   board: Board;
   onToggleFavorite: (id: string) => void;
   onDelete: (id: string) => void;
+  isSystemBoard?: boolean;
 }
 
-export default function BoardCard({ board, onToggleFavorite, onDelete }: BoardCardProps) {
+export default function BoardCard({ board, onToggleFavorite, onDelete, isSystemBoard }: BoardCardProps) {
   return (
     <div className="group bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-blue-500/5 hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-300 hover:scale-105 overflow-hidden">
       <div className={`h-2 ${board.color}`} />
@@ -69,12 +70,14 @@ export default function BoardCard({ board, onToggleFavorite, onDelete }: BoardCa
             >
               <LuPencil className="w-4 h-4" />
             </Link>
-            <button 
-              onClick={() => onDelete(board.id)}
-              className="text-gray-400 hover:text-red-500 transition-colors duration-300 p-1 hover:scale-110"
-            >
-              <LuTrash2 className="w-4 h-4" />
-            </button>
+            {!isSystemBoard && (
+              <button 
+                onClick={() => onDelete(board.id)}
+                className="text-gray-400 hover:text-red-500 transition-colors duration-300 p-1 hover:scale-110"
+              >
+                <LuTrash2 className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
       </div>

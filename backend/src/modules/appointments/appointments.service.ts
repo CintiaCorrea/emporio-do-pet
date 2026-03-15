@@ -426,20 +426,29 @@ export class AppointmentsService {
         this.eventsService.emitAppointmentCompleted(result.user?.id || 'system', eventData);
       }
 
-      // Move card in Consultation board based on status
-      const statusToColumnMap: Record<string, string> = {
+      // Move cards in both Consultation and Appointment boards
+      const consultationColumnMap: Record<string, string> = {
         SCHEDULED: 'Agendada',
         CONFIRMED: 'Aguardando',
         IN_PROGRESS: 'Em Atendimento',
         COMPLETED: 'Finalizada',
         CANCELLED: 'Cancelada',
       };
+      const appointmentColumnMap: Record<string, string> = {
+        SCHEDULED: 'Agendada',
+        CONFIRMED: 'Confirmada',
+        IN_PROGRESS: 'Em Andamento',
+        COMPLETED: 'Concluída',
+        CANCELLED: 'Cancelada',
+      };
 
-      const targetColumn = statusToColumnMap[newStatus];
-      if (targetColumn) {
+      const consultationCol = consultationColumnMap[newStatus];
+      const appointmentCol = appointmentColumnMap[newStatus];
+
+      if (consultationCol || appointmentCol) {
         this.boardsService
-          .moveCardToColumn(result.id, targetColumn)
-          .catch((err) => console.error('Error moving card:', err));
+          .moveAllCardsForAppointment(result.id, consultationCol, appointmentCol)
+          .catch((err) => console.error('Error moving cards:', err));
       }
     }
 

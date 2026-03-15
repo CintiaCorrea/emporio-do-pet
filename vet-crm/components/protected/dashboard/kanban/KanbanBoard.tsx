@@ -10,6 +10,36 @@ import NewColumnModal from "./modals/NewColumnModal";
 import NewLeadCardModal from "./modals/NewLeadCardModal";
 import { LuLoader, LuPlus } from "react-icons/lu";
 
+const SYSTEM_BOARD_TYPES = new Set<string>([
+  'APPOINTMENT',
+  'CONSULTATION',
+  'HOSPITALIZATION',
+]);
+
+const COLUMN_TO_STATUS_MAP: Record<string, Record<string, string>> = {
+  APPOINTMENT: {
+    'Agendada': 'SCHEDULED',
+    'Confirmada': 'CONFIRMED',
+    'Em Andamento': 'IN_PROGRESS',
+    'Concluída': 'COMPLETED',
+    'Cancelada': 'CANCELLED',
+  },
+  CONSULTATION: {
+    'Agendada': 'SCHEDULED',
+    'Aguardando': 'CONFIRMED',
+    'Em Atendimento': 'IN_PROGRESS',
+    'Finalizada': 'COMPLETED',
+    'Cancelada': 'CANCELLED',
+  },
+  HOSPITALIZATION: {
+    'Admissão': 'ADMITTED',
+    'Em Tratamento': 'IN_TREATMENT',
+    'Observação': 'OBSERVATION',
+    'Alta Programada': 'DISCHARGE_SCHEDULED',
+    'Alta': 'DISCHARGED',
+  },
+};
+
 function detectBoardTypeFromName(name: string): BoardType {
   const normalizedName = name.toLowerCase().trim();
   if (normalizedName === 'consultas' || normalizedName === 'consulta') {
@@ -21,6 +51,9 @@ function detectBoardTypeFromName(name: string): BoardType {
   }
   if (normalizedName.includes('lead') || normalizedName.includes('vendas') || normalizedName.includes('sales')) {
     return 'LEAD';
+  }
+  if (normalizedName === 'agendamentos' || normalizedName === 'agendamento') {
+    return 'APPOINTMENT';
   }
   return 'APPOINTMENT';
 }
@@ -39,7 +72,10 @@ const KanbanBoard = ({ boardId, boardName = "CRM", boardType: propBoardType = "A
     }
     return propBoardType;
   }, [boardName, propBoardType]);
+
   const isLeadBoard = effectiveBoardType === 'LEAD' || effectiveBoardType === 'SALES' || effectiveBoardType === 'CLIENT';
+  const isSystemBoard = SYSTEM_BOARD_TYPES.has(effectiveBoardType);
+
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [leadCards, setLeadCards] = useState<{ id: string; title: string; columnId: string; position: number; leadId?: string; metadata?: Record<string, unknown> }[]>([]);
   const [statuses, setStatuses] = useState<KanbanColumn[]>([]);
@@ -48,14 +84,12 @@ const KanbanBoard = ({ boardId, boardName = "CRM", boardType: propBoardType = "A
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Carregar colunas e cartões da API
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
         setError(null);
         
-        // Buscar board completo com colunas e cards
         const boardResponse = await fetch(`/api/boards/${boardId}`);
         if (!boardResponse.ok) {
           if (boardResponse.status === 404) {
@@ -65,17 +99,17 @@ const KanbanBoard = ({ boardId, boardName = "CRM", boardType: propBoardType = "A
         }
         
         const board = await boardResponse.json();
-        
-        // Extrair colunas do board
         setStatuses(board.columns || []);
         
-        // Extrair appointments e lead cards
         const allAppointments: Appointment[] = [];
         const allLeadCards: typeof leadCards = [];
         board.columns?.forEach((column: KanbanColumn) => {
           column.cards?.forEach((card: KanbanCard) => {
             if (card.appointment) {
-              allAppointments.push(card.appointment);
+              allAppointments.push({
+                ...card.appointment,
+                status: column.name,
+              });
             }
             if ((card as any).leadId || (card as any).metadata?.leadId) {
               allLeadCards.push({
@@ -106,14 +140,11 @@ const KanbanBoard = ({ boardId, boardName = "CRM", boardType: propBoardType = "A
     }
   }, [boardId]);
 
-  // Função para renomear coluna
   const handleRenameColumn = async (columnId: string, newName: string) => {
     try {
       const response = await fetch(`/api/columns/${columnId}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: newName }),
       });
 
@@ -121,16 +152,12 @@ const KanbanBoard = ({ boardId, boardName = "CRM", boardType: propBoardType = "A
         throw new Error('Erro ao renomear coluna');
       }
 
-      // Atualizar estado local
       setStatuses(prev => 
         prev.map(column => 
-          column.id === columnId 
-            ? { ...column, name: newName }
-            : column
+          column.id === columnId ? { ...column, name: newName } : column
         )
       );
 
-      // Atualizar appointments com o novo nome do status
       setAppointments(prev => 
         prev.map(appointment => 
           appointment.status === statuses.find(col => col.id === columnId)?.name
@@ -138,14 +165,12 @@ const KanbanBoard = ({ boardId, boardName = "CRM", boardType: propBoardType = "A
             : appointment
         )
       );
-
     } catch (error) {
       console.error('Erro ao renomear coluna:', error);
       throw error;
     }
   };
 
-  // Função para excluir coluna
   const handleDeleteColumn = async (columnId: string) => {
     try {
       const response = await fetch(`/api/columns/${columnId}`, {
@@ -163,36 +188,40 @@ const KanbanBoard = ({ boardId, boardName = "CRM", boardType: propBoardType = "A
         throw new Error(message);
       }
 
-      // Atualizar estado local removendo a coluna
       setStatuses(prev => prev.filter(col => col.id !== columnId));
-      
-      // Também remover os appointments associados a essa coluna
       setAppointments(prev => prev.filter(app => app.status !== 
         statuses.find(col => col.id === columnId)?.name
       ));
-
     } catch (error) {
       console.error('Erro ao excluir coluna:', error);
       throw error;
     }
   };
 
-  // ✅ CORRIGIDO: status como string
-  const handleStatusChange = async (id: string, newStatus: string) => {
+  const handleStatusChange = async (id: string, newColumnName: string) => {
     try {
-      const response = await fetch(`/api/appointments/${id}`, {
+      const statusMap = COLUMN_TO_STATUS_MAP[effectiveBoardType];
+      const isHospitalization = effectiveBoardType === 'HOSPITALIZATION';
+
+      const endpoint = isHospitalization
+        ? `/api/hospitalizations/${id}`
+        : `/api/appointments/${id}`;
+
+      const erpStatus = statusMap?.[newColumnName] || newColumnName;
+
+      const response = await fetch(endpoint, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify({ status: erpStatus }),
       });
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Erro desconhecido' }));
-        throw new Error(errorData.error || "Failed to update appointment status");
+        throw new Error(errorData.error || "Failed to update status");
       }
       
       setAppointments((prev) =>
-        prev.map((app) => (app.id === id ? { ...app, status: newStatus } : app))
+        prev.map((app) => (app.id === id ? { ...app, status: newColumnName } : app))
       );
     } catch (error) {
       console.error("Erro ao atualizar status:", error);
@@ -231,7 +260,6 @@ const KanbanBoard = ({ boardId, boardName = "CRM", boardType: propBoardType = "A
     }
   };
 
-  // Função para criar consulta (appointment)
   const createConsultation = async (taskData: Omit<Appointment, "id">) => {
     const response = await fetch("/api/appointments", {
       method: "POST",
@@ -258,7 +286,6 @@ const KanbanBoard = ({ boardId, boardName = "CRM", boardType: propBoardType = "A
     return response.json();
   };
 
-  // Função para criar internação (hospitalization)
   const createHospitalization = async (taskData: Omit<Appointment, "id">) => {
     const response = await fetch("/api/hospitalizations", {
       method: "POST",
@@ -267,11 +294,10 @@ const KanbanBoard = ({ boardId, boardName = "CRM", boardType: propBoardType = "A
         tutorId: taskData.tutorId,
         petId: taskData.petId || undefined,
         userId: taskData.userId,
-        admissionDate: taskData.date.toISOString(),
         reason: taskData.description || 'Internação',
         dailyRate: taskData.value || 0,
         notes: taskData.notes,
-        status: 'ADMITTED',
+        priority: 'MEDIUM',
       }),
     });
     
@@ -283,49 +309,61 @@ const KanbanBoard = ({ boardId, boardName = "CRM", boardType: propBoardType = "A
     return response.json();
   };
 
-  // ✅ Função para adicionar tarefa - agora detecta o tipo do board
   const handleAddTask = async (taskData: Omit<Appointment, "id">) => {
     try {
       let newRecord: Appointment;
       let cardTitle: string;
 
-      console.log(`Criando registro no board tipo: ${effectiveBoardType}`);
-
       if (effectiveBoardType === 'HOSPITALIZATION') {
-        console.log('Criando internação...');
         newRecord = await createHospitalization(taskData);
         cardTitle = `Internação - ${newRecord.pet?.name || 'Pet'}`;
       } else {
-        console.log('Criando consulta...');
         newRecord = await createConsultation(taskData);
         cardTitle = `Consulta de ${newRecord.pet?.name || 'Pet'}`;
       }
-
-      console.log('Registro criado com sucesso:', newRecord);
       
-      // Encontrar a primeira coluna para adicionar o card
-      const firstColumn = statuses[0];
-      if (firstColumn) {
-        const cardResponse = await fetch(`/api/columns/${firstColumn.id}/cards`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            title: cardTitle,
-            appointmentId: newRecord.id,
-            position: appointments.length,
-          }),
-        });
-        
-        if (!cardResponse.ok) {
-          const errorData = await cardResponse.json().catch(() => ({ error: 'Erro desconhecido' }));
-          throw new Error(errorData.error || "Failed to create card");
+      if (!isSystemBoard) {
+        const firstColumn = statuses[0];
+        if (firstColumn) {
+          const cardResponse = await fetch(`/api/columns/${firstColumn.id}/cards`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              title: cardTitle,
+              appointmentId: newRecord.id,
+              position: appointments.length,
+            }),
+          });
+          
+          if (!cardResponse.ok) {
+            const errorData = await cardResponse.json().catch(() => ({ error: 'Erro desconhecido' }));
+            throw new Error(errorData.error || "Failed to create card");
+          }
         }
-        
-        console.log('Card criado com sucesso na coluna:', firstColumn.name);
       }
       
-      // Atualizar a lista de appointments
       setAppointments((prev) => [...prev, newRecord]);
+
+      // Reload board to see the card created by backend
+      if (isSystemBoard) {
+        const boardResponse = await fetch(`/api/boards/${boardId}`);
+        if (boardResponse.ok) {
+          const board = await boardResponse.json();
+          setStatuses(board.columns || []);
+          const allAppointments: Appointment[] = [];
+          board.columns?.forEach((column: KanbanColumn) => {
+            column.cards?.forEach((card: KanbanCard) => {
+              if (card.appointment) {
+                allAppointments.push({
+                  ...card.appointment,
+                  status: column.name,
+                });
+              }
+            });
+          });
+          setAppointments(allAppointments);
+        }
+      }
       
     } catch (error) {
       console.error("Erro ao adicionar tarefa:", error);
@@ -362,7 +400,6 @@ const KanbanBoard = ({ boardId, boardName = "CRM", boardType: propBoardType = "A
       setLeadCards((prev) => [...prev, { id: newCard.id, title: leadName, columnId: firstColumn.id, position: newCard.position, leadId, metadata: { leadId } }]);
       setIsLeadModalOpen(false);
 
-      // Reload board to sync
       const boardResponse = await fetch(`/api/boards/${boardId}`);
       if (boardResponse.ok) {
         const board = await boardResponse.json();
@@ -450,9 +487,7 @@ const KanbanBoard = ({ boardId, boardName = "CRM", boardType: propBoardType = "A
 
   return (
     <DndProvider backend={HTML5Backend}>
-      <div
-        className="min-h-[calc(100vh-4rem)] w-full"
-      >
+      <div className="min-h-[calc(100vh-4rem)] w-full">
         <div className="w-full py-4 sm:py-6 px-4 sm:px-6">
           <div className="flex flex-col items-start sm:flex-row sm:justify-between sm:items-center mb-4 sm:mb-6 gap-4">
             <div className="text-left">
@@ -481,12 +516,14 @@ const KanbanBoard = ({ boardId, boardName = "CRM", boardType: propBoardType = "A
                   <LuPlus className="w-4 h-4" /> Adicionar Lead
                 </button>
               )}
-              <button
-                onClick={() => setIsColumnModalOpen(true)}
-                className="bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-md hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base"
-              >
-                + Nova Coluna
-              </button>
+              {!isSystemBoard && (
+                <button
+                  onClick={() => setIsColumnModalOpen(true)}
+                  className="bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-md hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base"
+                >
+                  + Nova Coluna
+                </button>
+              )}
             </div>
           </div>
           <div className="flex flex-col md:flex-row md:space-x-4 space-y-4 md:space-y-0 overflow-x-auto snap-x snap-mandatory w-full pb-4">
@@ -506,16 +543,19 @@ const KanbanBoard = ({ boardId, boardName = "CRM", boardType: propBoardType = "A
                   onAddTask={handleAddTask}
                   onMoveColumn={handleMoveColumn}
                   onDeleteColumn={handleDeleteColumn}
-                  onRenameColumn={handleRenameColumn} // ✅ AGORA ESTÁ SENDO PASSADA
+                  onRenameColumn={handleRenameColumn}
+                  isSystemBoard={isSystemBoard}
                 />
               ))
             )}
           </div>
-          <NewColumnModal
-            isOpen={isColumnModalOpen}
-            onClose={() => setIsColumnModalOpen(false)}
-            onSubmit={handleAddColumn}
-          />
+          {!isSystemBoard && (
+            <NewColumnModal
+              isOpen={isColumnModalOpen}
+              onClose={() => setIsColumnModalOpen(false)}
+              onSubmit={handleAddColumn}
+            />
+          )}
           {isLeadBoard && (
             <NewLeadCardModal
               isOpen={isLeadModalOpen}

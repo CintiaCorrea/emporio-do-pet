@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import ConfirmDeleteModal from '@/components/common/ConfirmDeleteModal';
 import LoadingState from '@/components/protected/pipeline/LoadingState';
 import ErrorState from '@/components/protected/pipeline/ErrorState';
 import PipelineHeader from '@/components/protected/pipeline/PipelineHeader';
@@ -9,7 +10,17 @@ import SearchAndFilters from '@/components/protected/pipeline/SearchAndFilters';
 import BoardCard from '@/components/protected/pipeline/BoardCard';
 import BoardListItem from '@/components/protected/pipeline/BoardListItem';
 import EmptyState from '@/components/protected/pipeline/EmptyState';
-import { Board } from '@/types/board';
+import { Board, BoardType } from '@/types/board';
+
+const SYSTEM_BOARD_TYPES: ReadonlySet<string> = new Set<BoardType>([
+  'APPOINTMENT',
+  'CONSULTATION',
+  'HOSPITALIZATION',
+]);
+
+function isSystemBoard(type: string): boolean {
+  return SYSTEM_BOARD_TYPES.has(type);
+}
 
 export default function PipelinePage() {
   const [boards, setBoards] = useState<Board[]>([]);
@@ -17,12 +28,16 @@ export default function PipelinePage() {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [boardToDelete, setBoardToDelete] = useState<Board | null>(null);
 
   // Buscar boards da API
   useEffect(() => {
     const fetchBoards = async () => {
       try {
         setLoading(true);
+
+        await fetch('/api/boards/default/ensure', { method: 'POST' }).catch(() => {});
+
         const response = await fetch('/api/boards');
         
         if (!response.ok) {
@@ -83,24 +98,22 @@ export default function PipelinePage() {
   };
 
   // Função para deletar board
-  const deleteBoard = async (boardId: string) => {
-    if (!confirm('Tem certeza que deseja excluir este board?')) {
-      return;
-    }
+  const deleteBoard = async () => {
+    if (!boardToDelete) return;
 
     try {
-      const response = await fetch(`/api/boards/${boardId}`, {
+      const response = await fetch(`/api/boards/${boardToDelete.id}`, {
         method: 'DELETE',
       });
 
       if (response.ok) {
-        setBoards(boards.filter(board => board.id !== boardId));
+        setBoards(boards.filter(board => board.id !== boardToDelete.id));
       } else {
         throw new Error('Erro ao excluir board');
       }
     } catch (error) {
       console.error('Erro ao excluir board:', error);
-      alert('Erro ao excluir board');
+      throw error instanceof Error ? error : new Error('Erro ao excluir board');
     }
   };
 
@@ -139,7 +152,11 @@ export default function PipelinePage() {
                 key={board.id}
                 board={board}
                 onToggleFavorite={toggleFavorite}
-                onDelete={deleteBoard}
+                onDelete={(boardId) => {
+                  const selectedBoard = boards.find((b) => b.id === boardId);
+                  if (selectedBoard) setBoardToDelete(selectedBoard);
+                }}
+                isSystemBoard={isSystemBoard(board.type)}
               />
             ))}
           </div>
@@ -150,13 +167,26 @@ export default function PipelinePage() {
                 key={board.id}
                 board={board}
                 onToggleFavorite={toggleFavorite}
-                onDelete={deleteBoard}
+                onDelete={(boardId) => {
+                  const selectedBoard = boards.find((b) => b.id === boardId);
+                  if (selectedBoard) setBoardToDelete(selectedBoard);
+                }}
                 isLast={index === filteredBoards.length - 1}
+                isSystemBoard={isSystemBoard(board.type)}
               />
             ))}
           </div>
         )}
       </div>
+
+      <ConfirmDeleteModal
+        isOpen={!!boardToDelete}
+        entityLabel="Board"
+        itemName={boardToDelete?.name ?? ''}
+        consequenceText="Esta ação não pode ser desfeita. O board e suas colunas serão removidos."
+        onClose={() => setBoardToDelete(null)}
+        onConfirm={deleteBoard}
+      />
     </div>
   );
 }

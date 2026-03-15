@@ -211,14 +211,14 @@ export default function WhatsAppCampaignsPage() {
 
             <div className="flex gap-3">
               <Link
-                href="/dashboard/campanhas/whatsapp/templates"
+                href="/dashboard/ai-agents/templates"
                 className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/10 border border-white/20 text-white rounded-xl font-medium hover:bg-white/20 transition-all duration-200"
               >
                 <LuWandSparkles className="w-5 h-5" />
                 Templates
               </Link>
               <Link
-                href="/dashboard/campanhas/whatsapp/conversas"
+                href="/dashboard/ai-agents/conversas"
                 className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/10 border border-white/20 text-white rounded-xl font-medium hover:bg-white/20 transition-all duration-200"
               >
                 <LuMessageCircle className="w-5 h-5" />
