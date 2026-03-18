@@ -15,6 +15,7 @@ primary_region = "gru"  # São Paulo, Brasil
 [env]
   ENVIRONMENT = "production"
   LOG_LEVEL = "INFO"
+  CORS_ORIGINS = "https://emporiodopet.com.br,https://www.emporiodopet.com.br,https://emporio-pet-api.fly.dev"
 
 [http_service]
   internal_port = 8080

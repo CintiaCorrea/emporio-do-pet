@@ -1,6 +1,6 @@
 """
 Gemini Provider
-Implementation of the Google Gemini API provider.
+Implementation of the Google Gemini API provider using the new google-genai SDK.
 """
 
 import logging
@@ -8,7 +8,8 @@ import time
 import uuid
 from typing import AsyncIterator, List
 
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 
 from app.schemas import ChatResponse, Credentials, Message, StreamChunk, Usage
 
@@ -23,9 +24,7 @@ class GeminiProvider(BaseProvider):
     def __init__(self, credentials: Credentials):
         """Initialize Gemini client with credentials."""
         super().__init__(credentials)
-        # Configure per-request to avoid global state race conditions
-        # between concurrent users with different API keys.
-        self._api_key = self.api_key
+        self._client = genai.Client(api_key=self.api_key)
 
     @property
     def provider_name(self) -> str:
@@ -36,8 +35,8 @@ class GeminiProvider(BaseProvider):
         Convert messages to Gemini format.
 
         Gemini uses a different format:
-        - System prompt is set separately
-        - Messages are in a history format with 'user' and 'model' roles
+        - System prompt is set separately via config
+        - Messages use 'user' and 'model' roles
 
         Returns:
             Tuple of (system_instruction, history, last_user_message)
@@ -52,12 +51,21 @@ class GeminiProvider(BaseProvider):
             elif msg.role == "user":
                 last_user_message = msg.content
                 if len(history) > 0 or system_instruction:
-                    history.append({"role": "user", "parts": [msg.content]})
+                    history.append(
+                        types.Content(
+                            role="user",
+                            parts=[types.Part.from_text(text=msg.content)],
+                        )
+                    )
             elif msg.role == "assistant":
-                history.append({"role": "model", "parts": [msg.content]})
+                history.append(
+                    types.Content(
+                        role="model",
+                        parts=[types.Part.from_text(text=msg.content)],
+                    )
+                )
 
-        # Remove the last user message from history since we'll send it separately
-        if history and history[-1]["role"] == "user":
+        if history and history[-1].role == "user":
             history.pop()
 
         return system_instruction, history, last_user_message
@@ -74,7 +82,7 @@ class GeminiProvider(BaseProvider):
 
         Args:
             messages: List of conversation messages
-            model: Model identifier (e.g., gemini-pro, gemini-1.5-pro)
+            model: Model identifier (e.g., gemini-2.0-flash, gemini-2.5-pro)
             temperature: Sampling temperature
             max_tokens: Maximum tokens to generate
 
@@ -85,51 +93,52 @@ class GeminiProvider(BaseProvider):
         start_time = time.time()
 
         try:
-            # Configure API key per-request to handle concurrent users safely
-            genai.configure(api_key=self._api_key)
-
             system_instruction, history, last_user_message = (
                 self._convert_messages_to_gemini(messages)
             )
 
-            # Create model with configuration
-            generation_config = genai.GenerationConfig(
+            config = types.GenerateContentConfig(
                 temperature=temperature,
                 max_output_tokens=max_tokens,
-            )
-
-            gemini_model = genai.GenerativeModel(
-                model_name=model,
-                generation_config=generation_config,
                 system_instruction=system_instruction,
             )
 
-            # Start or continue chat
-            chat = gemini_model.start_chat(history=history if history else [])
-
-            # Send message
-            if last_user_message:
-                response = await chat.send_message_async(last_user_message)
-            else:
-                # If no user message, use the last message content
-                response = await chat.send_message_async(
-                    messages[-1].content if messages else "Hello"
+            contents = list(history)
+            user_text = last_user_message or (
+                messages[-1].content if messages else "Hello"
+            )
+            contents.append(
+                types.Content(
+                    role="user",
+                    parts=[types.Part.from_text(text=user_text)],
                 )
+            )
+
+            response = await self._client.aio.models.generate_content(
+                model=model,
+                contents=contents,
+                config=config,
+            )
 
             latency_ms = int((time.time() - start_time) * 1000)
 
-            # Extract content
-            content = response.text if response.text else ""
+            content = response.text or ""
 
-            # Try to get real token counts from Gemini's usage_metadata
-            usage_metadata = getattr(response, 'usage_metadata', None)
+            usage_metadata = getattr(response, "usage_metadata", None)
             if usage_metadata:
-                prompt_tokens = getattr(usage_metadata, 'prompt_token_count', 0)
-                completion_tokens = getattr(usage_metadata, 'candidates_token_count', 0)
-                total_tokens = getattr(usage_metadata, 'total_token_count', prompt_tokens + completion_tokens)
+                prompt_tokens = getattr(usage_metadata, "prompt_token_count", 0)
+                completion_tokens = getattr(
+                    usage_metadata, "candidates_token_count", 0
+                )
+                total_tokens = getattr(
+                    usage_metadata,
+                    "total_token_count",
+                    prompt_tokens + completion_tokens,
+                )
             else:
-                # Fallback: estimate based on word count
-                prompt_tokens = int(sum(len(m.content.split()) * 1.3 for m in messages))
+                prompt_tokens = int(
+                    sum(len(m.content.split()) * 1.3 for m in messages)
+                )
                 completion_tokens = int(len(content.split()) * 1.3)
                 total_tokens = prompt_tokens + completion_tokens
 
@@ -140,7 +149,7 @@ class GeminiProvider(BaseProvider):
             )
 
             logger.info(
-                f"Gemini response: estimated_tokens={usage.total_tokens}, latency={latency_ms}ms"
+                f"Gemini response: tokens={usage.total_tokens}, latency={latency_ms}ms"
             )
 
             return ChatResponse(
@@ -168,7 +177,7 @@ class GeminiProvider(BaseProvider):
 
         Args:
             messages: List of conversation messages
-            model: Model identifier (e.g., gemini-pro, gemini-1.5-pro)
+            model: Model identifier (e.g., gemini-2.0-flash, gemini-2.5-pro)
             temperature: Sampling temperature
             max_tokens: Maximum tokens to generate
 
@@ -181,37 +190,32 @@ class GeminiProvider(BaseProvider):
         full_content = ""
 
         try:
-            # Configure API key per-request
-            genai.configure(api_key=self._api_key)
-
             system_instruction, history, last_user_message = (
                 self._convert_messages_to_gemini(messages)
             )
 
-            # Create model with configuration
-            generation_config = genai.GenerationConfig(
+            config = types.GenerateContentConfig(
                 temperature=temperature,
                 max_output_tokens=max_tokens,
-            )
-
-            gemini_model = genai.GenerativeModel(
-                model_name=model,
-                generation_config=generation_config,
                 system_instruction=system_instruction,
             )
 
-            # Start or continue chat
-            chat = gemini_model.start_chat(history=history if history else [])
-
-            # Send message with streaming
-            message_to_send = last_user_message or (
+            contents = list(history)
+            user_text = last_user_message or (
                 messages[-1].content if messages else "Hello"
             )
+            contents.append(
+                types.Content(
+                    role="user",
+                    parts=[types.Part.from_text(text=user_text)],
+                )
+            )
 
-            # Use sync streaming and wrap it
-            response = chat.send_message(message_to_send, stream=True)
-
-            for chunk in response:
+            async for chunk in self._client.aio.models.generate_content_stream(
+                model=model,
+                contents=contents,
+                config=config,
+            ):
                 if chunk.text:
                     full_content += chunk.text
                     yield StreamChunk(
@@ -223,11 +227,11 @@ class GeminiProvider(BaseProvider):
 
             latency_ms = int((time.time() - start_time) * 1000)
 
-            # Estimate tokens
-            prompt_tokens = int(sum(len(m.content.split()) * 1.3 for m in messages))
+            prompt_tokens = int(
+                sum(len(m.content.split()) * 1.3 for m in messages)
+            )
             completion_tokens = int(len(full_content.split()) * 1.3)
 
-            # Send usage info
             yield StreamChunk(
                 type="usage",
                 usage=Usage(
@@ -240,7 +244,6 @@ class GeminiProvider(BaseProvider):
                 latency_ms=latency_ms,
             )
 
-            # Send done signal
             yield StreamChunk(
                 type="done",
                 id=response_id,
@@ -250,7 +253,7 @@ class GeminiProvider(BaseProvider):
             )
 
             logger.info(
-                f"Gemini stream complete: estimated_tokens={prompt_tokens + completion_tokens}, latency={latency_ms}ms"
+                f"Gemini stream complete: tokens={prompt_tokens + completion_tokens}, latency={latency_ms}ms"
             )
 
         except Exception as e:

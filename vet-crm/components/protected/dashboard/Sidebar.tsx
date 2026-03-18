@@ -33,7 +33,8 @@ import {
   LuUserPlus,
   LuLightbulb,
   LuDatabase,
-  LuChartColumn
+  LuChartColumn,
+  LuSparkles
 } from "react-icons/lu";
 
 interface SidebarProps {
@@ -549,6 +550,19 @@ const Sidebar = ({ isOpen, toggleSidebar }: SidebarProps) => {
                 Landing Pages
               </Link>
 
+              {/* Menu Global Agent */}
+              <Link
+                href="/dashboard/global-agent"
+                className={`mx-2 my-1 flex items-center gap-3 px-3 sm:px-4 py-2.5 rounded-xl text-sm sm:text-base transition-colors ${
+                  isActive("/dashboard/global-agent")
+                    ? "bg-[color:var(--sidebar-active-bg)] text-[color:var(--sidebar-active-text)]"
+                    : "text-[color:var(--sidebar-muted)] hover:bg-[color:var(--sidebar-hover)] hover:text-[color:var(--sidebar-text)]"
+                }`}
+              >
+                <LuSparkles className="w-5 h-5" />
+                Global Agent
+              </Link>
+
             </nav>
           )}
 
@@ -827,6 +841,19 @@ const Sidebar = ({ isOpen, toggleSidebar }: SidebarProps) => {
                   title="Landing Pages"
                 >
                   <LuFileText className="w-5 h-5" />
+                </Link>
+
+                {/* Global Agent */}
+                <Link
+                  href="/dashboard/global-agent"
+                  className={`w-full p-3 sm:p-4 flex justify-center transition-colors ${
+                    isActive("/dashboard/global-agent")
+                      ? "bg-[color:var(--sidebar-active-bg)] text-[color:var(--sidebar-active-text)]"
+                      : "hover:bg-[color:var(--sidebar-hover)] text-[color:var(--sidebar-muted)] hover:text-[color:var(--sidebar-text)]"
+                  }`}
+                  title="Global Agent"
+                >
+                  <LuSparkles className="w-5 h-5" />
                 </Link>
 
               </div>

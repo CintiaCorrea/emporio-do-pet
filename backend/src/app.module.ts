@@ -47,6 +47,7 @@ import { ClinicalDocumentsModule } from './modules/clinical-documents/clinical-d
 import { DocumentsModule } from './modules/documents/documents.module';
 import { CrmModule } from './modules/crm/crm.module';
 import { KnowledgeBaseModule } from './modules/knowledge-base/knowledge-base.module';
+import { LandingPagesModule } from './modules/landing-pages/landing-pages.module';
 import configuration from './config/configuration';
 
 @Module({
@@ -162,6 +163,9 @@ import configuration from './config/configuration';
 
     // RAG - Knowledge Base
     KnowledgeBaseModule,
+
+    // Landing Pages Builder
+    LandingPagesModule,
 
     // Health check
     HealthModule,

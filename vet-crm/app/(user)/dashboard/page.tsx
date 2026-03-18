@@ -20,10 +20,20 @@ import {
   LuSettings,
   LuRefreshCw,
   LuArrowUpRight,
-  LuCircleAlert
+  LuCircleAlert,
+  LuMessageSquare,
+  LuFileText,
+  LuZap,
+  LuDatabase,
+  LuWorkflow,
+  LuUserPlus,
+  LuPackage,
+  LuWrench,
+  LuPercent,
+  LuChartColumn,
+  LuLayoutGrid,
 } from 'react-icons/lu';
 
-// Tipos
 interface DashboardData {
   totalTutores: number;
   totalPets: number;
@@ -90,8 +100,15 @@ const defaultData: DashboardData = {
   interacoesHoje: 0,
   taxaSucessoAgentes: 0,
   produtosBaixoEstoque: 0,
-  alertasEstoque: 0
+  alertasEstoque: 0,
 };
+
+function getGreeting() {
+  const h = new Date().getHours();
+  if (h < 12) return { text: 'Bom dia', emoji: '☀️' };
+  if (h < 18) return { text: 'Boa tarde', emoji: '🌤️' };
+  return { text: 'Boa noite', emoji: '🌙' };
+}
 
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData>(defaultData);
@@ -104,27 +121,20 @@ export default function DashboardPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
-
     try {
       const [summaryRes, activitiesRes, appointmentsRes] = await Promise.all([
         fetch('/api/dashboard/summary').catch(() => null),
         fetch('/api/dashboard/recent-activities?limit=6').catch(() => null),
         fetch('/api/dashboard/upcoming-appointments?limit=5').catch(() => null),
       ]);
-
       if (summaryRes?.ok) {
         const summaryData = await summaryRes.json();
         setData(summaryData);
-      } else {
-        // Fallback to defaults when backend is unavailable or user is not authenticated
-        setData(defaultData);
-      }
-
+      } else setData(defaultData);
       if (activitiesRes?.ok) {
         const activitiesData = await activitiesRes.json();
         setAtividades(activitiesData);
       }
-
       if (appointmentsRes?.ok) {
         const appointmentsData = await appointmentsRes.json();
         setAgendamentos(appointmentsData);
@@ -141,20 +151,15 @@ export default function DashboardPage() {
     fetchData();
   }, [fetchData, timeFilter]);
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-      minimumFractionDigits: 0
-    }).format(value);
-  };
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0 }).format(value);
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'confirmado': return 'bg-emerald-100 text-emerald-700';
-      case 'pendente': return 'bg-amber-100 text-amber-700';
-      case 'em_atendimento': return 'bg-blue-100 text-blue-700';
-      default: return 'bg-gray-100 text-gray-700';
+      case 'confirmado': return 'bg-emerald-500/15 text-emerald-600 border border-emerald-500/30';
+      case 'pendente': return 'bg-amber-500/15 text-amber-600 border border-amber-500/30';
+      case 'em_atendimento': return 'bg-blue-500/15 text-blue-600 border border-blue-500/30';
+      default: return 'bg-gray-500/10 text-gray-600 border border-gray-500/20';
     }
   };
 
@@ -171,42 +176,91 @@ export default function DashboardPage() {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
-    year: 'numeric'
+    year: 'numeric',
   });
+  const greeting = getGreeting();
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[calc(100vh-4rem)]">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-16 h-16 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin"></div>
-          <p className="text-gray-500 font-medium">Carregando dashboard...</p>
+      <div className="flex items-center justify-center min-h-[calc(100vh-5rem)]">
+        <div className="flex flex-col items-center gap-6">
+          <div className="relative">
+            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-500/20 to-violet-500/20 border border-blue-500/20 animate-pulse" />
+            <div className="absolute inset-0 w-20 h-20 border-2 border-transparent border-t-blue-500 rounded-2xl animate-spin" />
+          </div>
+          <p className="text-gray-500 font-medium">Carregando seu dashboard...</p>
         </div>
       </div>
     );
   }
 
-  return (
-    <div className="p-6 lg:p-8">
-      <div className="max-w-[1600px] mx-auto">
+  const quickModules = [
+    { href: '/dashboard/ai-agents/agents', label: 'Agents', icon: LuBot, color: 'violet' },
+    { href: '/dashboard/ai-agents/conversas', label: 'Conversas', icon: LuMessageSquare, color: 'violet' },
+    { href: '/dashboard/ai-agents/templates', label: 'Templates', icon: LuFileText, color: 'violet' },
+    { href: '/dashboard/ai-agents/conexoes', label: 'Conexões', icon: LuSettings, color: 'violet' },
+    { href: '/dashboard/ai-agents/automacoes', label: 'Automações', icon: LuZap, color: 'violet' },
+    { href: '/dashboard/ai-agents/conhecimento', label: 'Base de Conhecimento', icon: LuDatabase, color: 'violet' },
+    { href: '/dashboard/crm/leads', label: 'Leads', icon: LuUserPlus, color: 'blue' },
+    { href: '/dashboard/crm/pipelines', label: 'Pipelines', icon: LuWorkflow, color: 'blue' },
+    { href: '/dashboard/erp/tutores', label: 'Tutores', icon: LuUsers, color: 'indigo' },
+    { href: '/dashboard/erp/pets', label: 'Pets', icon: LuPawPrint, color: 'amber' },
+    { href: '/dashboard/erp/clientes', label: 'Clientes', icon: LuUsers, color: 'indigo' },
+    { href: '/dashboard/erp/agendamentos', label: 'Agendamentos', icon: LuCalendar, color: 'amber' },
+    { href: '/dashboard/erp/consultas', label: 'Consultas', icon: LuStethoscope, color: 'teal' },
+    { href: '/dashboard/erp/internacoes', label: 'Internações', icon: LuBedDouble, color: 'rose' },
+    { href: '/dashboard/erp/servicos', label: 'Serviços', icon: LuWrench, color: 'indigo' },
+    { href: '/dashboard/erp/produtos', label: 'Produtos', icon: LuPackage, color: 'emerald' },
+    { href: '/dashboard/erp/estoque', label: 'Estoque', icon: LuWarehouse, color: 'amber' },
+    { href: '/dashboard/erp/comissoes', label: 'Comissões', icon: LuPercent, color: 'emerald' },
+    { href: '/dashboard/erp/financeiro', label: 'Financeiro', icon: LuDollarSign, color: 'emerald' },
+    { href: '/dashboard/erp/documentos', label: 'Documentos', icon: LuFileText, color: 'slate' },
+    { href: '/dashboard/campanhas/adsense', label: 'AdSense', icon: LuChartColumn, color: 'cyan' },
+    { href: '/dashboard/campanhas/email', label: 'Email', icon: LuMail, color: 'cyan' },
+    { href: '/dashboard/campanhas/whatsapp', label: 'WhatsApp', icon: LuMessageSquare, color: 'emerald' },
+    { href: '/dashboard/landing-pages', label: 'Landing Pages', icon: LuLayoutGrid, color: 'purple' },
+  ];
 
+  const colorClasses: Record<string, string> = {
+    violet: 'bg-violet-500/10 text-violet-600 border-violet-500/20 hover:bg-violet-500/15 hover:border-violet-500/30',
+    blue: 'bg-blue-500/10 text-blue-600 border-blue-500/20 hover:bg-blue-500/15 hover:border-blue-500/30',
+    indigo: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20 hover:bg-indigo-500/15 hover:border-indigo-500/30',
+    amber: 'bg-amber-500/10 text-amber-600 border-amber-500/20 hover:bg-amber-500/15 hover:border-amber-500/30',
+    teal: 'bg-teal-500/10 text-teal-600 border-teal-500/20 hover:bg-teal-500/15 hover:border-teal-500/30',
+    rose: 'bg-rose-500/10 text-rose-600 border-rose-500/20 hover:bg-rose-500/15 hover:border-rose-500/30',
+    emerald: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20 hover:bg-emerald-500/15 hover:border-emerald-500/30',
+    cyan: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/20 hover:bg-cyan-500/15 hover:border-cyan-500/30',
+    purple: 'bg-purple-500/10 text-purple-600 border-purple-500/20 hover:bg-purple-500/15 hover:border-purple-500/30',
+    slate: 'bg-slate-500/10 text-slate-600 border-slate-500/20 hover:bg-slate-500/15 hover:border-slate-500/30',
+  };
+
+  return (
+    <div className="min-h-screen">
+      {/* Hero gradient strip */}
+      <div className="absolute top-0 left-0 right-0 h-[420px] bg-gradient-to-br from-blue-500/8 via-violet-500/5 to-cyan-500/8 pointer-events-none" aria-hidden />
+      <div className="absolute top-0 left-1/4 w-96 h-96 bg-violet-400/10 rounded-full blur-3xl pointer-events-none" aria-hidden />
+      <div className="absolute top-20 right-1/4 w-80 h-80 bg-blue-400/10 rounded-full blur-3xl pointer-events-none" aria-hidden />
+
+      <div className="relative p-6 lg:p-8 max-w-[1600px] mx-auto">
         {/* Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-8">
+        <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 mb-8">
           <div>
-            <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">
-              Bom dia! 👋
+            <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 tracking-tight">
+              {greeting.text} {greeting.emoji}
             </h1>
-            <p className="text-gray-500 mt-1 capitalize">{hoje}</p>
+            <p className="text-gray-500 mt-1.5 capitalize text-lg">{hoje}</p>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="flex bg-white rounded-xl border border-gray-200 p-1">
-              {['hoje', 'semana', 'mes'].map((filter) => (
+          <div className="flex items-center gap-2">
+            <div className="flex bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200/80 p-1 shadow-sm">
+              {(['hoje', 'semana', 'mes'] as const).map((filter) => (
                 <button
                   key={filter}
-                  onClick={() => setTimeFilter(filter as 'hoje' | 'semana' | 'mes')}
-                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${timeFilter === filter
-                      ? 'bg-blue-600 text-white shadow-sm'
+                  onClick={() => setTimeFilter(filter)}
+                  className={`px-4 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 ${
+                    timeFilter === filter
+                      ? 'bg-gray-900 text-white shadow-sm'
                       : 'text-gray-600 hover:bg-gray-100'
-                    }`}
+                  }`}
                 >
                   {filter === 'hoje' ? 'Hoje' : filter === 'semana' ? 'Semana' : 'Mês'}
                 </button>
@@ -215,167 +269,83 @@ export default function DashboardPage() {
             <button
               onClick={fetchData}
               disabled={loading}
-              className="p-2.5 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50"
+              className="p-2.5 bg-white/80 backdrop-blur-sm border border-gray-200/80 rounded-2xl hover:bg-gray-50 transition-all disabled:opacity-50 shadow-sm"
             >
               <LuRefreshCw className={`w-5 h-5 text-gray-600 ${loading ? 'animate-spin' : ''}`} />
             </button>
           </div>
         </div>
 
-        {/* Error Alert */}
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3">
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-2xl flex items-center gap-3">
             <LuCircleAlert className="w-5 h-5 text-red-500 flex-shrink-0" />
             <p className="text-red-700 text-sm">{error}</p>
-            <button
-              onClick={fetchData}
-              className="ml-auto text-sm font-medium text-red-600 hover:text-red-700"
-            >
+            <button onClick={fetchData} className="ml-auto text-sm font-medium text-red-600 hover:text-red-700">
               Tentar novamente
             </button>
           </div>
         )}
 
-        {/* Stats Grid Principal */}
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-8">
-          {/* Tutores */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-lg hover:shadow-blue-500/5 transition-all group">
-            <div className="flex items-center justify-between mb-3">
-              <div className="p-2.5 bg-blue-50 rounded-xl group-hover:bg-blue-100 transition-colors">
-                <LuUsers className="w-5 h-5 text-blue-600" />
+        {/* KPI Cards - glass style */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+          {[
+            { label: 'Tutores', value: data.totalTutores, icon: LuUsers, bg: 'bg-blue-500/10', iconColor: 'text-blue-600' },
+            { label: 'Pets', value: data.totalPets, icon: LuPawPrint, bg: 'bg-purple-500/10', iconColor: 'text-purple-600' },
+            { label: 'Agendamentos hoje', value: data.agendamentosHoje, icon: LuCalendar, bg: 'bg-amber-500/10', iconColor: 'text-amber-600' },
+            { label: 'Consultas hoje', value: data.consultasHoje, sub: data.consultasPendentes ? `${data.consultasPendentes} pendentes` : null, icon: LuStethoscope, bg: 'bg-teal-500/10', iconColor: 'text-teal-600' },
+            { label: 'Internações', value: data.internacoesAtivas, icon: LuBedDouble, bg: 'bg-rose-500/10', iconColor: 'text-rose-600' },
+            { label: 'Faturamento hoje', value: formatCurrency(data.faturamentoHoje), icon: LuDollarSign, bg: 'bg-emerald-500/10', iconColor: 'text-emerald-600' },
+          ].map(({ label, value, sub, icon: Icon, bg, iconColor }) => (
+            <div
+              key={label}
+              className="group relative bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200/80 p-5 shadow-sm hover:shadow-lg hover:shadow-gray-200/50 hover:border-gray-300/80 transition-all duration-300 hover:-translate-y-0.5"
+            >
+              <div className={`inline-flex p-2.5 rounded-xl ${bg} ${iconColor} mb-3`}>
+                <Icon className="w-5 h-5" />
               </div>
-              {data.totalTutores > 0 && (
-                <span className="flex items-center text-xs font-medium text-emerald-600">
-                  <LuArrowUpRight className="w-3 h-3 mr-0.5" />
-                  ativo
-                </span>
-              )}
+              <p className="text-2xl font-bold text-gray-900 tabular-nums">{typeof value === 'number' ? value.toLocaleString() : value}</p>
+              <p className="text-sm text-gray-500 mt-0.5">{label}</p>
+              {sub && <p className="text-xs text-amber-600 font-medium mt-1">{sub}</p>}
             </div>
-            <p className="text-2xl font-bold text-gray-900">{data.totalTutores.toLocaleString()}</p>
-            <p className="text-sm text-gray-500 mt-1">Tutores</p>
-          </div>
-
-          {/* Pets */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-lg hover:shadow-purple-500/5 transition-all group">
-            <div className="flex items-center justify-between mb-3">
-              <div className="p-2.5 bg-purple-50 rounded-xl group-hover:bg-purple-100 transition-colors">
-                <LuPawPrint className="w-5 h-5 text-purple-600" />
-              </div>
-              {data.totalPets > 0 && (
-                <span className="flex items-center text-xs font-medium text-emerald-600">
-                  <LuArrowUpRight className="w-3 h-3 mr-0.5" />
-                  ativo
-                </span>
-              )}
-            </div>
-            <p className="text-2xl font-bold text-gray-900">{data.totalPets.toLocaleString()}</p>
-            <p className="text-sm text-gray-500 mt-1">Pets</p>
-          </div>
-
-          {/* Agendamentos Hoje */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-lg hover:shadow-amber-500/5 transition-all group">
-            <div className="flex items-center justify-between mb-3">
-              <div className="p-2.5 bg-amber-50 rounded-xl group-hover:bg-amber-100 transition-colors">
-                <LuCalendar className="w-5 h-5 text-amber-600" />
-              </div>
-              <span className="text-xs font-medium text-gray-500">hoje</span>
-            </div>
-            <p className="text-2xl font-bold text-gray-900">{data.agendamentosHoje}</p>
-            <p className="text-sm text-gray-500 mt-1">Agendamentos</p>
-          </div>
-
-          {/* Consultas */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-lg hover:shadow-teal-500/5 transition-all group">
-            <div className="flex items-center justify-between mb-3">
-              <div className="p-2.5 bg-teal-50 rounded-xl group-hover:bg-teal-100 transition-colors">
-                <LuStethoscope className="w-5 h-5 text-teal-600" />
-              </div>
-              {data.consultasPendentes > 0 && (
-                <span className="px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-700 rounded-full">
-                  {data.consultasPendentes} pendentes
-                </span>
-              )}
-            </div>
-            <p className="text-2xl font-bold text-gray-900">{data.consultasHoje}</p>
-            <p className="text-sm text-gray-500 mt-1">Consultas hoje</p>
-          </div>
-
-          {/* Internações */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-lg hover:shadow-rose-500/5 transition-all group">
-            <div className="flex items-center justify-between mb-3">
-              <div className="p-2.5 bg-rose-50 rounded-xl group-hover:bg-rose-100 transition-colors">
-                <LuBedDouble className="w-5 h-5 text-rose-600" />
-              </div>
-              {data.internacoesAtivas > 0 && (
-                <span className="flex items-center w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-              )}
-            </div>
-            <p className="text-2xl font-bold text-gray-900">{data.internacoesAtivas}</p>
-            <p className="text-sm text-gray-500 mt-1">Internações ativas</p>
-          </div>
-
-          {/* Faturamento Hoje */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-lg hover:shadow-emerald-500/5 transition-all group">
-            <div className="flex items-center justify-between mb-3">
-              <div className="p-2.5 bg-emerald-50 rounded-xl group-hover:bg-emerald-100 transition-colors">
-                <LuDollarSign className="w-5 h-5 text-emerald-600" />
-              </div>
-              {data.faturamentoHoje > 0 && (
-                <span className="flex items-center text-xs font-medium text-emerald-600">
-                  <LuArrowUpRight className="w-3 h-3 mr-0.5" />
-                  hoje
-                </span>
-              )}
-            </div>
-            <p className="text-2xl font-bold text-gray-900">{formatCurrency(data.faturamentoHoje)}</p>
-            <p className="text-sm text-gray-500 mt-1">Faturamento hoje</p>
-          </div>
+          ))}
         </div>
 
-        {/* Grid Principal de Conteúdo */}
+        {/* Main 3 columns */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-
-          {/* Coluna 1 - Agendamentos do Dia */}
+          {/* Agenda do dia */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-              <div className="p-5 border-b border-gray-100">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-blue-50 rounded-xl">
-                      <LuCalendar className="w-5 h-5 text-blue-600" />
-                    </div>
-                    <div>
-                      <h2 className="font-semibold text-gray-900">Agenda do Dia</h2>
-                      <p className="text-sm text-gray-500">{data.agendamentosHoje} agendamentos</p>
-                    </div>
+            <div className="h-full bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200/80 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+              <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-500/10 rounded-xl">
+                    <LuCalendar className="w-5 h-5 text-blue-600" />
                   </div>
-                  <Link
-                    href="/dashboard/erp/agendamentos"
-                    className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
-                  >
-                    <LuChevronRight className="w-5 h-5 text-gray-400" />
-                  </Link>
+                  <div>
+                    <h2 className="font-semibold text-gray-900">Agenda do Dia</h2>
+                    <p className="text-sm text-gray-500">{data.agendamentosHoje} agendamentos</p>
+                  </div>
                 </div>
+                <Link href="/dashboard/erp/agendamentos" className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
+                  <LuChevronRight className="w-5 h-5 text-gray-400" />
+                </Link>
               </div>
-              <div className="divide-y divide-gray-50">
+              <div className="divide-y divide-gray-100 max-h-[320px] overflow-y-auto">
                 {agendamentos.length === 0 ? (
                   <div className="p-8 text-center">
                     <LuCalendar className="w-10 h-10 text-gray-300 mx-auto mb-3" />
                     <p className="text-gray-500 text-sm">Nenhum agendamento para hoje</p>
                   </div>
                 ) : (
-                  agendamentos.map((agendamento) => (
-                    <div key={agendamento.id} className="p-4 hover:bg-gray-50/50 transition-colors">
+                  agendamentos.map((ag) => (
+                    <div key={ag.id} className="p-4 hover:bg-gray-50/50 transition-colors">
                       <div className="flex items-center gap-4">
-                        <div className="text-center min-w-[50px]">
-                          <p className="text-lg font-bold text-gray-900">{agendamento.horario}</p>
-                        </div>
+                        <div className="text-center min-w-[52px] font-semibold text-gray-900">{ag.horario}</div>
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium text-gray-900 truncate">{agendamento.tutor}</p>
-                          <p className="text-sm text-gray-500">{agendamento.pet} • {agendamento.servico}</p>
+                          <p className="font-medium text-gray-900 truncate">{ag.tutor}</p>
+                          <p className="text-sm text-gray-500">{ag.pet} • {ag.servico}</p>
                         </div>
-                        <span className={`px-2.5 py-1 text-xs font-medium rounded-full whitespace-nowrap ${getStatusColor(agendamento.status)}`}>
-                          {getStatusText(agendamento.status)}
+                        <span className={`px-2.5 py-1 text-xs font-medium rounded-lg whitespace-nowrap ${getStatusColor(ag.status)}`}>
+                          {getStatusText(ag.status)}
                         </span>
                       </div>
                     </div>
@@ -383,49 +353,43 @@ export default function DashboardPage() {
                 )}
               </div>
               <div className="p-4 bg-gray-50/50 border-t border-gray-100">
-                <Link
-                  href="/dashboard/erp/agendamentos"
-                  className="flex items-center justify-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
-                >
-                  Ver agenda completa
-                  <LuChevronRight className="w-4 h-4" />
+                <Link href="/dashboard/erp/agendamentos" className="flex items-center justify-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700">
+                  Ver agenda completa <LuChevronRight className="w-4 h-4" />
                 </Link>
               </div>
             </div>
           </div>
 
-          {/* Coluna 2 - Atividades Recentes */}
+          {/* Atividades recentes */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden h-full">
+            <div className="h-full bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200/80 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
               <div className="p-5 border-b border-gray-100">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-purple-50 rounded-xl">
-                      <LuActivity className="w-5 h-5 text-purple-600" />
-                    </div>
-                    <div>
-                      <h2 className="font-semibold text-gray-900">Atividades Recentes</h2>
-                      <p className="text-sm text-gray-500">Últimas atualizações</p>
-                    </div>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-purple-500/10 rounded-xl">
+                    <LuActivity className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <div>
+                    <h2 className="font-semibold text-gray-900">Atividades Recentes</h2>
+                    <p className="text-sm text-gray-500">Últimas atualizações</p>
                   </div>
                 </div>
               </div>
-              <div className="divide-y divide-gray-50">
+              <div className="divide-y divide-gray-100 max-h-[320px] overflow-y-auto">
                 {atividades.length === 0 ? (
                   <div className="p-8 text-center">
                     <LuActivity className="w-10 h-10 text-gray-300 mx-auto mb-3" />
                     <p className="text-gray-500 text-sm">Nenhuma atividade recente</p>
                   </div>
                 ) : (
-                  atividades.map((atividade) => (
-                    <div key={atividade.id} className="p-4 hover:bg-gray-50/50 transition-colors">
+                  atividades.map((a) => (
+                    <div key={a.id} className="p-4 hover:bg-gray-50/50 transition-colors">
                       <div className="flex items-start gap-3">
-                        <span className="text-xl">{atividade.icone}</span>
+                        <span className="text-xl">{a.icone}</span>
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium text-gray-900 text-sm">{atividade.titulo}</p>
-                          <p className="text-sm text-gray-500 truncate">{atividade.descricao}</p>
+                          <p className="font-medium text-gray-900 text-sm">{a.titulo}</p>
+                          <p className="text-sm text-gray-500 truncate">{a.descricao}</p>
                         </div>
-                        <span className="text-xs text-gray-400 whitespace-nowrap">{atividade.tempo}</span>
+                        <span className="text-xs text-gray-400 whitespace-nowrap">{a.tempo}</span>
                       </div>
                     </div>
                   ))
@@ -434,17 +398,16 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Coluna 3 - Módulos Rápidos */}
+          {/* Módulos em destaque */}
           <div className="lg:col-span-1 space-y-4">
-            {/* AI Agents */}
-            <Link href="/dashboard/ai-agents" className="block">
-              <div className="bg-gradient-to-br from-violet-500 to-purple-600 rounded-2xl p-5 text-white hover:shadow-xl hover:shadow-purple-500/20 transition-all">
+            <Link href="/dashboard/ai-agents/agents" className="block group">
+              <div className="bg-gradient-to-br from-violet-500 to-purple-600 rounded-2xl p-5 text-white shadow-lg shadow-purple-500/20 hover:shadow-xl hover:shadow-purple-500/25 hover:scale-[1.02] transition-all duration-300">
                 <div className="flex items-center justify-between mb-4">
                   <div className="p-2.5 bg-white/20 rounded-xl">
                     <LuBot className="w-6 h-6" />
                   </div>
                   <span className="flex items-center gap-1.5 text-sm font-medium bg-white/20 px-3 py-1 rounded-full">
-                    <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span>
+                    <span className="w-2 h-2 bg-emerald-300 rounded-full animate-pulse" />
                     {data.agentesAtivos} ativos
                   </span>
                 </div>
@@ -456,18 +419,13 @@ export default function DashboardPage() {
                 </div>
               </div>
             </Link>
-
-            {/* CRM */}
-            <Link href="/dashboard/crm" className="block">
-              <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl p-5 text-white hover:shadow-xl hover:shadow-blue-500/20 transition-all">
+            <Link href="/dashboard/crm/leads" className="block group">
+              <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl p-5 text-white shadow-lg shadow-blue-500/20 hover:shadow-xl hover:shadow-blue-500/25 hover:scale-[1.02] transition-all duration-300">
                 <div className="flex items-center justify-between mb-4">
                   <div className="p-2.5 bg-white/20 rounded-xl">
                     <LuTarget className="w-6 h-6" />
                   </div>
-                  <span className="flex items-center text-sm font-medium">
-                    <LuArrowUpRight className="w-4 h-4 mr-1" />
-                    {data.taxaConversao}%
-                  </span>
+                  <span className="text-sm font-medium">{data.taxaConversao}% conversão</span>
                 </div>
                 <h3 className="text-lg font-semibold mb-1">CRM</h3>
                 <p className="text-white/80 text-sm mb-3">{data.leadsNovos} novos leads</p>
@@ -477,10 +435,8 @@ export default function DashboardPage() {
                 </div>
               </div>
             </Link>
-
-            {/* Campanhas */}
-            <Link href="/dashboard/campanhas" className="block">
-              <div className="bg-gradient-to-br from-cyan-500 to-teal-600 rounded-2xl p-5 text-white hover:shadow-xl hover:shadow-cyan-500/20 transition-all">
+            <Link href="/dashboard/campanhas/email" className="block group">
+              <div className="bg-gradient-to-br from-cyan-500 to-teal-600 rounded-2xl p-5 text-white shadow-lg shadow-cyan-500/20 hover:shadow-xl hover:shadow-cyan-500/25 hover:scale-[1.02] transition-all duration-300">
                 <div className="flex items-center justify-between mb-4">
                   <div className="p-2.5 bg-white/20 rounded-xl">
                     <LuMegaphone className="w-6 h-6" />
@@ -500,12 +456,38 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Grid de Resumos */}
+        {/* Hub de Módulos - todas as features */}
+        <section className="mb-8">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 bg-gray-900 rounded-xl">
+              <LuLayoutGrid className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">Acesso rápido</h2>
+              <p className="text-sm text-gray-500">Todos os módulos do sistema</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+            {quickModules.map(({ href, label, icon: Icon, color }) => (
+              <Link
+                key={href}
+                href={href}
+                className={`flex items-center gap-3 p-3 rounded-xl border bg-white/80 backdrop-blur-sm shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${colorClasses[color]}`}
+              >
+                <div className="flex-shrink-0 p-1.5 rounded-lg bg-white/80 border border-current/20">
+                  <Icon className="w-4 h-4" />
+                </div>
+                <span className="text-sm font-medium truncate">{label}</span>
+              </Link>
+            ))}
+          </div>
+        </section>
+
+        {/* Resumos: Financeiro, Estoque, Serviços, Integrações */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          {/* Financeiro */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-5">
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200/80 p-5 shadow-sm hover:shadow-md transition-all">
             <div className="flex items-center gap-3 mb-4">
-              <div className="p-2.5 bg-emerald-50 rounded-xl">
+              <div className="p-2.5 bg-emerald-500/10 rounded-xl">
                 <LuDollarSign className="w-5 h-5 text-emerald-600" />
               </div>
               <div>
@@ -514,32 +496,18 @@ export default function DashboardPage() {
               </div>
             </div>
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-500">Faturamento</span>
-                <span className="font-semibold text-gray-900">{formatCurrency(data.faturamentoMes)}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-500">Ticket médio</span>
-                <span className="font-semibold text-gray-900">{formatCurrency(data.ticketMedio)}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-500">Comissões pendentes</span>
-                <span className="font-semibold text-amber-600">{formatCurrency(data.comissoesPendentes)}</span>
-              </div>
+              <div className="flex justify-between"><span className="text-sm text-gray-500">Faturamento</span><span className="font-semibold text-gray-900">{formatCurrency(data.faturamentoMes)}</span></div>
+              <div className="flex justify-between"><span className="text-sm text-gray-500">Ticket médio</span><span className="font-semibold text-gray-900">{formatCurrency(data.ticketMedio)}</span></div>
+              <div className="flex justify-between"><span className="text-sm text-gray-500">Comissões pend.</span><span className="font-semibold text-amber-600">{formatCurrency(data.comissoesPendentes)}</span></div>
             </div>
-            <Link
-              href="/dashboard/erp/financeiro"
-              className="flex items-center justify-center gap-2 mt-4 pt-4 border-t border-gray-100 text-sm font-medium text-emerald-600 hover:text-emerald-700 transition-colors"
-            >
-              Ver detalhes
-              <LuChevronRight className="w-4 h-4" />
+            <Link href="/dashboard/erp/financeiro" className="flex items-center justify-center gap-2 mt-4 pt-4 border-t border-gray-100 text-sm font-medium text-emerald-600 hover:text-emerald-700">
+              Ver detalhes <LuChevronRight className="w-4 h-4" />
             </Link>
           </div>
 
-          {/* Estoque */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-5">
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200/80 p-5 shadow-sm hover:shadow-md transition-all">
             <div className="flex items-center gap-3 mb-4">
-              <div className="p-2.5 bg-amber-50 rounded-xl">
+              <div className="p-2.5 bg-amber-500/10 rounded-xl">
                 <LuWarehouse className="w-5 h-5 text-amber-600" />
               </div>
               <div>
@@ -548,28 +516,17 @@ export default function DashboardPage() {
               </div>
             </div>
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-500">Produtos baixo estoque</span>
-                <span className="font-semibold text-amber-600">{data.produtosBaixoEstoque}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-500">Alertas ativos</span>
-                <span className="font-semibold text-rose-600">{data.alertasEstoque}</span>
-              </div>
+              <div className="flex justify-between"><span className="text-sm text-gray-500">Baixo estoque</span><span className="font-semibold text-amber-600">{data.produtosBaixoEstoque}</span></div>
+              <div className="flex justify-between"><span className="text-sm text-gray-500">Alertas</span><span className="font-semibold text-rose-600">{data.alertasEstoque}</span></div>
             </div>
-            <Link
-              href="/dashboard/erp/estoque"
-              className="flex items-center justify-center gap-2 mt-4 pt-4 border-t border-gray-100 text-sm font-medium text-amber-600 hover:text-amber-700 transition-colors"
-            >
-              Gerenciar estoque
-              <LuChevronRight className="w-4 h-4" />
+            <Link href="/dashboard/erp/estoque" className="flex items-center justify-center gap-2 mt-4 pt-4 border-t border-gray-100 text-sm font-medium text-amber-600 hover:text-amber-700">
+              Gerenciar <LuChevronRight className="w-4 h-4" />
             </Link>
           </div>
 
-          {/* Serviços */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-5">
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200/80 p-5 shadow-sm hover:shadow-md transition-all">
             <div className="flex items-center gap-3 mb-4">
-              <div className="p-2.5 bg-indigo-50 rounded-xl">
+              <div className="p-2.5 bg-indigo-500/10 rounded-xl">
                 <LuSparkles className="w-5 h-5 text-indigo-600" />
               </div>
               <div>
@@ -578,149 +535,46 @@ export default function DashboardPage() {
               </div>
             </div>
             <div className="space-y-2">
-              <div className="flex items-center justify-between py-1">
-                <span className="text-sm text-gray-600">Consultas</span>
-                <div className="flex items-center gap-2">
-                  <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                    <div className="w-[70%] h-full bg-indigo-500 rounded-full"></div>
+              {['Consultas', 'Vacinação', 'Banho e Tosa'].map((s, i) => (
+                <div key={s} className="flex justify-between items-center py-1">
+                  <span className="text-sm text-gray-600">{s}</span>
+                  <div className="flex items-center gap-2">
+                    <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${[70, 45, 35][i]}%` }} />
+                    </div>
+                    <span className="text-xs text-gray-500">{[70, 45, 35][i]}%</span>
                   </div>
-                  <span className="text-xs text-gray-500">70%</span>
                 </div>
-              </div>
-              <div className="flex items-center justify-between py-1">
-                <span className="text-sm text-gray-600">Vacinação</span>
-                <div className="flex items-center gap-2">
-                  <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                    <div className="w-[45%] h-full bg-indigo-500 rounded-full"></div>
-                  </div>
-                  <span className="text-xs text-gray-500">45%</span>
-                </div>
-              </div>
-              <div className="flex items-center justify-between py-1">
-                <span className="text-sm text-gray-600">Banho e Tosa</span>
-                <div className="flex items-center gap-2">
-                  <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                    <div className="w-[35%] h-full bg-indigo-500 rounded-full"></div>
-                  </div>
-                  <span className="text-xs text-gray-500">35%</span>
-                </div>
-              </div>
+              ))}
             </div>
-            <Link
-              href="/dashboard/erp/servicos"
-              className="flex items-center justify-center gap-2 mt-4 pt-4 border-t border-gray-100 text-sm font-medium text-indigo-600 hover:text-indigo-700 transition-colors"
-            >
-              Ver serviços
-              <LuChevronRight className="w-4 h-4" />
+            <Link href="/dashboard/erp/servicos" className="flex items-center justify-center gap-2 mt-4 pt-4 border-t border-gray-100 text-sm font-medium text-indigo-600 hover:text-indigo-700">
+              Ver serviços <LuChevronRight className="w-4 h-4" />
             </Link>
           </div>
 
-          {/* Integrações */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-5">
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200/80 p-5 shadow-sm hover:shadow-md transition-all">
             <div className="flex items-center gap-3 mb-4">
-              <div className="p-2.5 bg-violet-50 rounded-xl">
+              <div className="p-2.5 bg-violet-500/10 rounded-xl">
                 <LuSettings className="w-5 h-5 text-violet-600" />
               </div>
               <div>
                 <h3 className="font-semibold text-gray-900">Integrações</h3>
-                <p className="text-xs text-gray-500">Status dos serviços</p>
+                <p className="text-xs text-gray-500">Status</p>
               </div>
             </div>
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 bg-emerald-500 rounded-full"></span>
-                  <span className="text-sm text-gray-600">WhatsApp Bot</span>
+              {['WhatsApp Bot', 'N8N Automações', 'AI Agents'].map((name) => (
+                <div key={name} className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 bg-emerald-500 rounded-full" />
+                    <span className="text-sm text-gray-600">{name}</span>
+                  </div>
+                  <span className="text-xs font-medium text-emerald-600">Online</span>
                 </div>
-                <span className="text-xs font-medium text-emerald-600">Online</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 bg-emerald-500 rounded-full"></span>
-                  <span className="text-sm text-gray-600">N8N Automações</span>
-                </div>
-                <span className="text-xs font-medium text-emerald-600">Online</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 bg-emerald-500 rounded-full"></span>
-                  <span className="text-sm text-gray-600">AI Agents</span>
-                </div>
-                <span className="text-xs font-medium text-emerald-600">Online</span>
-              </div>
+              ))}
             </div>
-            <Link
-              href="/dashboard/ai-agents/conexoes"
-              className="flex items-center justify-center gap-2 mt-4 pt-4 border-t border-gray-100 text-sm font-medium text-violet-600 hover:text-violet-700 transition-colors"
-            >
-              Configurar
-              <LuChevronRight className="w-4 h-4" />
-            </Link>
-          </div>
-        </div>
-
-        {/* Ações Rápidas */}
-        <div className="bg-white rounded-2xl border border-gray-100 p-6">
-          <h2 className="font-semibold text-gray-900 mb-4">Ações Rápidas</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-            <Link
-              href="/dashboard/erp/agendamentos"
-              className="flex flex-col items-center gap-2 p-4 rounded-xl bg-gray-50 hover:bg-blue-50 hover:text-blue-600 transition-all group"
-            >
-              <div className="p-3 bg-white rounded-xl shadow-sm group-hover:shadow-md transition-shadow">
-                <LuCalendar className="w-5 h-5 text-gray-600 group-hover:text-blue-600 transition-colors" />
-              </div>
-              <span className="text-sm font-medium text-gray-700 group-hover:text-blue-600 transition-colors">Agendar</span>
-            </Link>
-
-            <Link
-              href="/dashboard/erp/tutores/novo"
-              className="flex flex-col items-center gap-2 p-4 rounded-xl bg-gray-50 hover:bg-purple-50 hover:text-purple-600 transition-all group"
-            >
-              <div className="p-3 bg-white rounded-xl shadow-sm group-hover:shadow-md transition-shadow">
-                <LuUsers className="w-5 h-5 text-gray-600 group-hover:text-purple-600 transition-colors" />
-              </div>
-              <span className="text-sm font-medium text-gray-700 group-hover:text-purple-600 transition-colors">Novo Tutor</span>
-            </Link>
-
-            <Link
-              href="/dashboard/erp/pets/novo"
-              className="flex flex-col items-center gap-2 p-4 rounded-xl bg-gray-50 hover:bg-amber-50 hover:text-amber-600 transition-all group"
-            >
-              <div className="p-3 bg-white rounded-xl shadow-sm group-hover:shadow-md transition-shadow">
-                <LuPawPrint className="w-5 h-5 text-gray-600 group-hover:text-amber-600 transition-colors" />
-              </div>
-              <span className="text-sm font-medium text-gray-700 group-hover:text-amber-600 transition-colors">Novo Pet</span>
-            </Link>
-
-            <Link
-              href="/dashboard/erp/consultas"
-              className="flex flex-col items-center gap-2 p-4 rounded-xl bg-gray-50 hover:bg-teal-50 hover:text-teal-600 transition-all group"
-            >
-              <div className="p-3 bg-white rounded-xl shadow-sm group-hover:shadow-md transition-shadow">
-                <LuStethoscope className="w-5 h-5 text-gray-600 group-hover:text-teal-600 transition-colors" />
-              </div>
-              <span className="text-sm font-medium text-gray-700 group-hover:text-teal-600 transition-colors">Consultas</span>
-            </Link>
-
-            <Link
-              href="/dashboard/campanhas/newsletter/novo"
-              className="flex flex-col items-center gap-2 p-4 rounded-xl bg-gray-50 hover:bg-cyan-50 hover:text-cyan-600 transition-all group"
-            >
-              <div className="p-3 bg-white rounded-xl shadow-sm group-hover:shadow-md transition-shadow">
-                <LuMail className="w-5 h-5 text-gray-600 group-hover:text-cyan-600 transition-colors" />
-              </div>
-              <span className="text-sm font-medium text-gray-700 group-hover:text-cyan-600 transition-colors">Newsletter</span>
-            </Link>
-
-            <Link
-              href="/dashboard/ai-agents"
-              className="flex flex-col items-center gap-2 p-4 rounded-xl bg-gray-50 hover:bg-violet-50 hover:text-violet-600 transition-all group"
-            >
-              <div className="p-3 bg-white rounded-xl shadow-sm group-hover:shadow-md transition-shadow">
-                <LuBot className="w-5 h-5 text-gray-600 group-hover:text-violet-600 transition-colors" />
-              </div>
-              <span className="text-sm font-medium text-gray-700 group-hover:text-violet-600 transition-colors">AI Agents</span>
+            <Link href="/dashboard/ai-agents/conexoes" className="flex items-center justify-center gap-2 mt-4 pt-4 border-t border-gray-100 text-sm font-medium text-violet-600 hover:text-violet-700">
+              Configurar <LuChevronRight className="w-4 h-4" />
             </Link>
           </div>
         </div>

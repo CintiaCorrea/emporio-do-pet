@@ -68,6 +68,9 @@ services:
       dockerfile: Dockerfile
     container_name: emporio-ai-service
     restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
     ports:
       - "127.0.0.1:${AI_SERVICE_PORT:-8000}:8080"
     networks:
@@ -76,6 +79,7 @@ services:
       ENVIRONMENT: development
       LOG_LEVEL: DEBUG
       PORT: "8080"
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-emporio}:${POSTGRES_PASSWORD:-emporio_2024}@postgres:5432/${POSTGRES_DB:-emporio_db}"
       CORS_ORIGINS: "http://localhost:3000,http://localhost:3001,http://localhost:3333"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]

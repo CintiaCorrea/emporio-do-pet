@@ -15,6 +15,7 @@
     "postinstall": "prisma generate"
   },
   "dependencies": {
+    "@grapesjs/react": "^2.0.0",
     "@prisma/client": "^6.16.3",
     "@tiptap/extension-color": "^3.18.0",
     "@tiptap/extension-highlight": "^3.18.0",
@@ -28,6 +29,9 @@
     "@tiptap/react": "^3.18.0",
     "@tiptap/starter-kit": "^3.18.0",
     "bcryptjs": "^3.0.2",
+    "grapesjs": "^0.22.14",
+    "grapesjs-blocks-basic": "^1.0.2",
+    "grapesjs-preset-webpage": "^1.0.3",
     "lucide-react": "^0.563.0",
     "next": "15.5.7",
     "next-auth": "^4.24.11",
