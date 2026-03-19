@@ -146,19 +146,19 @@ export default function WhatsAppCampaignsPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'DRAFT':
-        return 'bg-gray-500/20 text-gray-300';
+        return 'bg-gray-100 dark:bg-gray-500/20 text-gray-600 dark:text-gray-300';
       case 'SCHEDULED':
-        return 'bg-blue-500/20 text-blue-300';
+        return 'bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300';
       case 'RUNNING':
-        return 'bg-yellow-500/20 text-yellow-300';
+        return 'bg-yellow-100 dark:bg-yellow-500/20 text-yellow-700 dark:text-yellow-300';
       case 'COMPLETED':
-        return 'bg-emerald-500/20 text-emerald-300';
+        return 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300';
       case 'FAILED':
-        return 'bg-red-500/20 text-red-300';
+        return 'bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-300';
       case 'PAUSED':
-        return 'bg-orange-500/20 text-orange-300';
+        return 'bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-300';
       default:
-        return 'bg-gray-500/20 text-gray-300';
+        return 'bg-gray-100 dark:bg-gray-500/20 text-gray-600 dark:text-gray-300';
     }
   };
 
@@ -186,25 +186,25 @@ export default function WhatsAppCampaignsPage() {
   const totalDelivered = campaigns.reduce((sum, c) => sum + c.deliveredCount, 0);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-emerald-950 to-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/20">
       {/* Header */}
       <div className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-emerald-600/20 via-teal-600/20 to-cyan-600/20" />
-        <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-teal-500/10 rounded-full blur-3xl" />
+        <div className="absolute inset-0 bg-gradient-to-r from-emerald-600/5 via-teal-600/5 to-cyan-600/5 dark:from-emerald-600/20 dark:via-teal-600/20 dark:to-cyan-600/20" />
+        <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/5 dark:bg-emerald-500/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 left-0 w-64 h-64 bg-teal-500/5 dark:bg-teal-500/10 rounded-full blur-3xl" />
 
         <div className="relative px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-2xl bg-emerald-500/20 border border-emerald-500/20">
-                  <LuMessageSquare className="w-5 h-5 text-emerald-300" />
+                <div className="p-2.5 rounded-2xl bg-emerald-100 dark:bg-emerald-500/20 border border-emerald-200 dark:border-emerald-500/20">
+                  <LuMessageSquare className="w-5 h-5 text-emerald-600 dark:text-emerald-300" />
                 </div>
-                <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 bg-clip-text text-transparent">
+                <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
                   Campanhas WhatsApp
                 </h1>
               </div>
-              <p className="mt-2 text-gray-400">
+              <p className="mt-2 text-gray-500">
                 Crie campanhas via WhatsApp para seus clientes e tutores.
               </p>
             </div>
@@ -212,14 +212,14 @@ export default function WhatsAppCampaignsPage() {
             <div className="flex gap-3">
               <Link
                 href="/dashboard/ai-agents/templates"
-                className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/10 border border-white/20 text-white rounded-xl font-medium hover:bg-white/20 transition-all duration-200"
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/80 dark:bg-white/10 border border-gray-200/80 dark:border-white/20 text-gray-700 dark:text-white rounded-xl font-medium hover:bg-white dark:hover:bg-white/20 transition-all duration-200"
               >
                 <LuWandSparkles className="w-5 h-5" />
                 Templates
               </Link>
               <Link
                 href="/dashboard/ai-agents/conversas"
-                className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/10 border border-white/20 text-white rounded-xl font-medium hover:bg-white/20 transition-all duration-200"
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/80 dark:bg-white/10 border border-gray-200/80 dark:border-white/20 text-gray-700 dark:text-white rounded-xl font-medium hover:bg-white dark:hover:bg-white/20 transition-all duration-200"
               >
                 <LuMessageCircle className="w-5 h-5" />
                 Conversas
@@ -236,47 +236,47 @@ export default function WhatsAppCampaignsPage() {
 
           {/* Quick stats */}
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mt-8">
-            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-5">
+            <div className="bg-white/95 dark:bg-white/5 backdrop-blur-xl border border-gray-200/80 dark:border-white/10 rounded-2xl p-5 shadow-sm dark:shadow-none">
               <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-emerald-500/20">
-                  <LuSend className="w-5 h-5 text-emerald-300" />
+                <div className="p-2.5 rounded-xl bg-emerald-100 dark:bg-emerald-500/20">
+                  <LuSend className="w-5 h-5 text-emerald-600 dark:text-emerald-300" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-400">Campanhas</p>
-                  <p className="text-2xl font-bold text-white">{totalCampaigns}</p>
+                  <p className="text-sm text-gray-500">Campanhas</p>
+                  <p className="text-2xl font-bold text-gray-900">{totalCampaigns}</p>
                 </div>
               </div>
             </div>
-            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-5">
+            <div className="bg-white/95 dark:bg-white/5 backdrop-blur-xl border border-gray-200/80 dark:border-white/10 rounded-2xl p-5 shadow-sm dark:shadow-none">
               <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-teal-500/20">
-                  <LuCheck className="w-5 h-5 text-teal-300" />
+                <div className="p-2.5 rounded-xl bg-teal-100 dark:bg-teal-500/20">
+                  <LuCheck className="w-5 h-5 text-teal-600 dark:text-teal-300" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-400">Enviadas</p>
-                  <p className="text-2xl font-bold text-white">{totalSent}</p>
+                  <p className="text-sm text-gray-500">Enviadas</p>
+                  <p className="text-2xl font-bold text-gray-900">{totalSent}</p>
                 </div>
               </div>
             </div>
-            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-5">
+            <div className="bg-white/95 dark:bg-white/5 backdrop-blur-xl border border-gray-200/80 dark:border-white/10 rounded-2xl p-5 shadow-sm dark:shadow-none">
               <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-blue-500/20">
-                  <LuCheckCheck className="w-5 h-5 text-blue-300" />
+                <div className="p-2.5 rounded-xl bg-blue-100 dark:bg-blue-500/20">
+                  <LuCheckCheck className="w-5 h-5 text-blue-600 dark:text-blue-300" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-400">Entregues</p>
-                  <p className="text-2xl font-bold text-white">{totalDelivered}</p>
+                  <p className="text-sm text-gray-500">Entregues</p>
+                  <p className="text-2xl font-bold text-gray-900">{totalDelivered}</p>
                 </div>
               </div>
             </div>
-            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-5">
+            <div className="bg-white/95 dark:bg-white/5 backdrop-blur-xl border border-gray-200/80 dark:border-white/10 rounded-2xl p-5 shadow-sm dark:shadow-none">
               <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-cyan-500/20">
-                  <LuUsers className="w-5 h-5 text-cyan-300" />
+                <div className="p-2.5 rounded-xl bg-cyan-100 dark:bg-cyan-500/20">
+                  <LuUsers className="w-5 h-5 text-cyan-600 dark:text-cyan-300" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-400">Taxa Entrega</p>
-                  <p className="text-2xl font-bold text-white">
+                  <p className="text-sm text-gray-500">Taxa Entrega</p>
+                  <p className="text-2xl font-bold text-gray-900">
                     {totalSent > 0 ? Math.round((totalDelivered / totalSent) * 100) : 0}%
                   </p>
                 </div>
@@ -288,12 +288,12 @@ export default function WhatsAppCampaignsPage() {
 
       {/* Content */}
       <div className="px-4 sm:px-6 lg:px-8 py-6">
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden">
-          <div className="p-5 border-b border-white/10 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-white">Campanhas</h2>
+        <div className="bg-white/95 dark:bg-white/5 backdrop-blur-xl border border-gray-200/80 dark:border-white/10 rounded-2xl overflow-hidden shadow-sm dark:shadow-none">
+          <div className="p-5 border-b border-gray-200/80 dark:border-white/10 flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-gray-900">Campanhas</h2>
             <button
               onClick={fetchCampaigns}
-              className="text-sm text-emerald-300 hover:text-emerald-200 transition-colors inline-flex items-center gap-1"
+              className="text-sm text-emerald-600 dark:text-emerald-300 hover:text-emerald-500 dark:hover:text-emerald-200 transition-colors inline-flex items-center gap-1"
             >
               <LuRefreshCw className="w-4 h-4" /> Atualizar
             </button>
@@ -302,15 +302,15 @@ export default function WhatsAppCampaignsPage() {
           {loading ? (
             <div className="p-8 text-center">
               <div className="animate-spin w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full mx-auto"></div>
-              <p className="mt-4 text-gray-400">Carregando campanhas...</p>
+              <p className="mt-4 text-gray-500">Carregando campanhas...</p>
             </div>
           ) : campaigns.length === 0 ? (
             <div className="p-8 sm:p-10 text-center">
-              <div className="mx-auto w-14 h-14 rounded-2xl bg-white/10 border border-white/10 flex items-center justify-center">
-                <LuMessageSquare className="w-7 h-7 text-emerald-300" />
+              <div className="mx-auto w-14 h-14 rounded-2xl bg-gray-100 dark:bg-white/10 border border-gray-200 dark:border-white/10 flex items-center justify-center">
+                <LuMessageSquare className="w-7 h-7 text-emerald-500 dark:text-emerald-300" />
               </div>
-              <h3 className="mt-4 text-lg font-semibold text-white">Nenhuma campanha ainda</h3>
-              <p className="mt-2 text-sm text-gray-400 max-w-xl mx-auto">
+              <h3 className="mt-4 text-lg font-semibold text-gray-900">Nenhuma campanha ainda</h3>
+              <p className="mt-2 text-sm text-gray-500 max-w-xl mx-auto">
                 Crie sua primeira campanha de WhatsApp para enviar mensagens em massa para seus tutores.
               </p>
               <button
@@ -321,18 +321,18 @@ export default function WhatsAppCampaignsPage() {
               </button>
             </div>
           ) : (
-            <div className="divide-y divide-white/10">
+            <div className="divide-y divide-gray-200/80 dark:divide-white/10">
               {campaigns.map((campaign) => (
-                <div key={campaign.id} className="p-5 hover:bg-white/5 transition-colors">
+                <div key={campaign.id} className="p-5 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-3">
-                        <p className="text-white font-medium">{campaign.name}</p>
+                        <p className="text-gray-900 font-medium">{campaign.name}</p>
                         <span className={`px-2 py-0.5 text-xs rounded-full ${getStatusColor(campaign.status)}`}>
                           {getStatusLabel(campaign.status)}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-400 mt-1 line-clamp-1">
+                      <p className="text-sm text-gray-500 mt-1 line-clamp-1">
                         {campaign.messageContent}
                       </p>
                       <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
@@ -360,7 +360,7 @@ export default function WhatsAppCampaignsPage() {
                       {(campaign.status === 'DRAFT' || campaign.status === 'SCHEDULED' || campaign.status === 'PAUSED') && (
                         <button
                           onClick={() => startCampaign(campaign.id)}
-                          className="p-2 text-emerald-400 hover:bg-emerald-500/20 rounded-lg transition-colors"
+                          className="p-2 text-emerald-500 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/20 rounded-lg transition-colors"
                           title="Iniciar campanha"
                         >
                           <LuPlay className="w-4 h-4" />
@@ -369,7 +369,7 @@ export default function WhatsAppCampaignsPage() {
                       {campaign.status === 'RUNNING' && (
                         <button
                           onClick={() => pauseCampaign(campaign.id)}
-                          className="p-2 text-yellow-400 hover:bg-yellow-500/20 rounded-lg transition-colors"
+                          className="p-2 text-yellow-500 dark:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-500/20 rounded-lg transition-colors"
                           title="Pausar campanha"
                         >
                           <LuPause className="w-4 h-4" />
@@ -380,7 +380,7 @@ export default function WhatsAppCampaignsPage() {
                           setSelectedCampaign(campaign);
                           setShowStatsModal(true);
                         }}
-                        className="p-2 text-blue-400 hover:bg-blue-500/20 rounded-lg transition-colors"
+                        className="p-2 text-blue-500 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/20 rounded-lg transition-colors"
                         title="Ver estatísticas"
                       >
                         <LuChartColumn className="w-4 h-4" />
@@ -388,7 +388,7 @@ export default function WhatsAppCampaignsPage() {
                       {campaign.status !== 'RUNNING' && (
                         <button
                           onClick={() => deleteCampaign(campaign.id)}
-                          className="p-2 text-red-400 hover:bg-red-500/20 rounded-lg transition-colors"
+                          className="p-2 text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/20 rounded-lg transition-colors"
                           title="Excluir campanha"
                         >
                           <LuTrash2 className="w-4 h-4" />
@@ -406,50 +406,50 @@ export default function WhatsAppCampaignsPage() {
       {/* Create Campaign Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-900 border border-white/10 rounded-2xl w-full max-w-lg">
-            <div className="p-6 border-b border-white/10 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-white">Nova Campanha</h3>
+          <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-white/10 rounded-2xl w-full max-w-lg">
+            <div className="p-6 border-b border-gray-200 dark:border-white/10 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900">Nova Campanha</h3>
               <button
                 onClick={() => setShowCreateModal(false)}
-                className="p-2 text-gray-400 hover:text-white transition-colors"
+                className="p-2 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
               >
                 <LuX className="w-5 h-5" />
               </button>
             </div>
             <div className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Nome da campanha
                 </label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                  className="w-full px-4 py-2 bg-white/80 dark:bg-white/5 border border-gray-200/80 dark:border-white/10 rounded-lg text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                   placeholder="Ex: Lembrete de vacinas"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Descrição (opcional)
                 </label>
                 <input
                   type="text"
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                  className="w-full px-4 py-2 bg-white/80 dark:bg-white/5 border border-gray-200/80 dark:border-white/10 rounded-lg text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                   placeholder="Descrição da campanha"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Mensagem
                 </label>
                 <textarea
                   value={formData.messageContent}
                   onChange={(e) => setFormData({ ...formData, messageContent: e.target.value })}
                   rows={4}
-                  className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                  className="w-full px-4 py-2 bg-white/80 dark:bg-white/5 border border-gray-200/80 dark:border-white/10 rounded-lg text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                   placeholder="Olá {nome}, tudo bem? ..."
                 />
                 <p className="text-xs text-gray-500 mt-1">
@@ -457,34 +457,34 @@ export default function WhatsAppCampaignsPage() {
                 </p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Audiência
                 </label>
                 <select
                   value={formData.audienceType}
                   onChange={(e) => setFormData({ ...formData, audienceType: e.target.value })}
-                  className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                  className="w-full px-4 py-2 bg-white/80 dark:bg-white/5 border border-gray-200/80 dark:border-white/10 rounded-lg text-gray-900 dark:text-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                 >
                   <option value="tutors">Todos os tutores com WhatsApp</option>
                   <option value="all">Todos os contatos</option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Agendar para (opcional)
                 </label>
                 <input
                   type="datetime-local"
                   value={formData.scheduledFor}
                   onChange={(e) => setFormData({ ...formData, scheduledFor: e.target.value })}
-                  className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                  className="w-full px-4 py-2 bg-white/80 dark:bg-white/5 border border-gray-200/80 dark:border-white/10 rounded-lg text-gray-900 dark:text-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                 />
               </div>
             </div>
-            <div className="p-6 border-t border-white/10 flex justify-end gap-3">
+            <div className="p-6 border-t border-gray-200 dark:border-white/10 flex justify-end gap-3">
               <button
                 onClick={() => setShowCreateModal(false)}
-                className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+                className="px-4 py-2 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
               >
                 Cancelar
               </button>
@@ -503,45 +503,45 @@ export default function WhatsAppCampaignsPage() {
       {/* Stats Modal */}
       {showStatsModal && selectedCampaign && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-900 border border-white/10 rounded-2xl w-full max-w-md">
-            <div className="p-6 border-b border-white/10 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-white">Estatísticas</h3>
+          <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-white/10 rounded-2xl w-full max-w-md">
+            <div className="p-6 border-b border-gray-200 dark:border-white/10 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900">Estatísticas</h3>
               <button
                 onClick={() => {
                   setShowStatsModal(false);
                   setSelectedCampaign(null);
                 }}
-                className="p-2 text-gray-400 hover:text-white transition-colors"
+                className="p-2 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
               >
                 <LuX className="w-5 h-5" />
               </button>
             </div>
             <div className="p-6">
-              <h4 className="font-medium text-white mb-4">{selectedCampaign.name}</h4>
+              <h4 className="font-medium text-gray-900 mb-4">{selectedCampaign.name}</h4>
               <div className="grid grid-cols-2 gap-4">
-                <div className="bg-white/5 rounded-lg p-4">
-                  <p className="text-sm text-gray-400">Total</p>
-                  <p className="text-2xl font-bold text-white">{selectedCampaign.totalRecipients}</p>
+                <div className="bg-gray-50 dark:bg-white/5 rounded-lg p-4">
+                  <p className="text-sm text-gray-500">Total</p>
+                  <p className="text-2xl font-bold text-gray-900">{selectedCampaign.totalRecipients}</p>
                 </div>
-                <div className="bg-white/5 rounded-lg p-4">
-                  <p className="text-sm text-gray-400">Enviadas</p>
-                  <p className="text-2xl font-bold text-emerald-400">{selectedCampaign.sentCount}</p>
+                <div className="bg-gray-50 dark:bg-white/5 rounded-lg p-4">
+                  <p className="text-sm text-gray-500">Enviadas</p>
+                  <p className="text-2xl font-bold text-emerald-500 dark:text-emerald-400">{selectedCampaign.sentCount}</p>
                 </div>
-                <div className="bg-white/5 rounded-lg p-4">
-                  <p className="text-sm text-gray-400">Entregues</p>
-                  <p className="text-2xl font-bold text-blue-400">{selectedCampaign.deliveredCount}</p>
+                <div className="bg-gray-50 dark:bg-white/5 rounded-lg p-4">
+                  <p className="text-sm text-gray-500">Entregues</p>
+                  <p className="text-2xl font-bold text-blue-500 dark:text-blue-400">{selectedCampaign.deliveredCount}</p>
                 </div>
-                <div className="bg-white/5 rounded-lg p-4">
-                  <p className="text-sm text-gray-400">Lidas</p>
-                  <p className="text-2xl font-bold text-cyan-400">{selectedCampaign.readCount}</p>
+                <div className="bg-gray-50 dark:bg-white/5 rounded-lg p-4">
+                  <p className="text-sm text-gray-500">Lidas</p>
+                  <p className="text-2xl font-bold text-cyan-500 dark:text-cyan-400">{selectedCampaign.readCount}</p>
                 </div>
-                <div className="bg-white/5 rounded-lg p-4">
-                  <p className="text-sm text-gray-400">Falhas</p>
-                  <p className="text-2xl font-bold text-red-400">{selectedCampaign.failedCount}</p>
+                <div className="bg-gray-50 dark:bg-white/5 rounded-lg p-4">
+                  <p className="text-sm text-gray-500">Falhas</p>
+                  <p className="text-2xl font-bold text-red-500 dark:text-red-400">{selectedCampaign.failedCount}</p>
                 </div>
-                <div className="bg-white/5 rounded-lg p-4">
-                  <p className="text-sm text-gray-400">Taxa Entrega</p>
-                  <p className="text-2xl font-bold text-white">
+                <div className="bg-gray-50 dark:bg-white/5 rounded-lg p-4">
+                  <p className="text-sm text-gray-500">Taxa Entrega</p>
+                  <p className="text-2xl font-bold text-gray-900">
                     {selectedCampaign.sentCount > 0
                       ? Math.round((selectedCampaign.deliveredCount / selectedCampaign.sentCount) * 100)
                       : 0}%

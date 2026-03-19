@@ -17,7 +17,7 @@ export default function NewBoardPage() {
     name: '',
     description: '',
     color: 'bg-blue-500',
-    type: 'APPOINTMENT',
+    type: 'TASK',
   });
 
   useEffect(() => {

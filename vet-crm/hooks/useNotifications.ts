@@ -94,50 +94,50 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
       auth: {
         token: accessToken,
       },
-      transports: ['websocket', 'polling'],
+      transports: ['polling', 'websocket'],
+      upgrade: true,
       reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 2000,
+      reconnectionDelayMax: 30000,
+      timeout: 10000,
     });
 
     socket.on('connect', () => {
-      console.log('Connected to notifications WebSocket');
       setConnected(true);
     });
 
-    socket.on('disconnect', () => {
-      console.log('Disconnected from notifications WebSocket');
+    socket.on('disconnect', (reason) => {
       setConnected(false);
+      if (reason === 'io server disconnect') {
+        socket.connect();
+      }
     });
 
-    socket.on('connected', (data) => {
-      console.log('WebSocket welcome:', data);
+    socket.on('connected', () => {
+      // Server acknowledged the connection
     });
 
-    // Handle new notifications — use ref to always get latest callback
     socket.on('notification', (notification: Notification) => {
       setNotifications(prev => [notification, ...prev].slice(0, 50));
       setUnreadCount(prev => prev + 1);
       callbacksRef.current.onNotification?.(notification);
     });
 
-    // Handle WhatsApp message events
     socket.on('whatsapp:message', (event: WhatsAppMessageEvent) => {
       callbacksRef.current.onWhatsAppMessage?.(event);
     });
 
-    // Handle WhatsApp status updates
     socket.on('whatsapp:status', (event: WhatsAppStatusEvent) => {
       callbacksRef.current.onWhatsAppStatus?.(event);
     });
 
-    // Handle campaign completion
     socket.on('campaign:completed', (event: CampaignCompletedEvent) => {
       callbacksRef.current.onCampaignCompleted?.(event);
     });
 
-    socket.on('connect_error', (error) => {
-      console.error('WebSocket connection error:', error);
+    socket.on('connect_error', () => {
+      // Socket.io handles reconnection automatically
     });
 
     socketRef.current = socket;

@@ -103,23 +103,23 @@ export default function LandingPagesPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-cyan-950 to-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/20">
       <div className="relative overflow-x-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-cyan-600/20 via-teal-600/20 to-emerald-600/20" />
-        <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-teal-500/10 rounded-full blur-3xl" />
+        <div className="absolute inset-0 bg-gradient-to-r from-cyan-600/5 via-teal-600/5 to-emerald-600/5 dark:from-cyan-600/20 dark:via-teal-600/20 dark:to-emerald-600/20" />
+        <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-500/5 dark:bg-cyan-500/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 left-0 w-64 h-64 bg-teal-500/5 dark:bg-teal-500/10 rounded-full blur-3xl" />
 
         <div className="relative px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
             <div className="flex items-start gap-3">
-              <div className="mt-1 p-2.5 rounded-2xl bg-cyan-500/20 border border-cyan-500/20">
-                <LuLayoutTemplate className="w-5 h-5 text-cyan-300" />
+              <div className="mt-1 p-2.5 rounded-2xl bg-cyan-100 dark:bg-cyan-500/20 border border-cyan-200 dark:border-cyan-500/20">
+                <LuLayoutTemplate className="w-5 h-5 text-cyan-600 dark:text-cyan-300" />
               </div>
               <div>
-                <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-cyan-400 via-teal-400 to-emerald-400 bg-clip-text text-transparent">
+                <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
                   Landing Pages
                 </h1>
-                <p className="mt-2 text-gray-400 max-w-2xl">
+                <p className="mt-2 text-gray-500 max-w-2xl">
                   Construa landing pages avançadas e exporte o JSON para o
                   Elementor.
                 </p>
@@ -143,7 +143,7 @@ export default function LandingPagesPage() {
                 placeholder="Buscar landing pages..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/40 focus:border-cyan-500/40 text-sm"
+                className="w-full pl-10 pr-4 py-2.5 bg-white/80 dark:bg-white/5 border border-gray-200/80 dark:border-white/10 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/40 focus:border-cyan-500/40 text-sm"
               />
             </div>
             <div className="flex gap-1.5">
@@ -153,8 +153,8 @@ export default function LandingPagesPage() {
                   onClick={() => setStatusFilter(f.value)}
                   className={`px-3 py-2 text-sm rounded-lg transition-colors ${
                     statusFilter === f.value
-                      ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
-                      : 'text-gray-400 hover:text-white hover:bg-white/5 border border-transparent'
+                      ? 'bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 border border-cyan-500/30'
+                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 border border-transparent'
                   }`}
                 >
                   {f.label}
@@ -165,18 +165,18 @@ export default function LandingPagesPage() {
 
           {loading ? (
             <div className="mt-16 flex justify-center">
-              <LuLoaderCircle className="w-8 h-8 text-cyan-400 animate-spin" />
+              <LuLoaderCircle className="w-8 h-8 text-cyan-500 dark:text-cyan-400 animate-spin" />
             </div>
           ) : pages.length === 0 ? (
             <div className="mt-16 flex flex-col items-center gap-4 text-center">
-              <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
-                <LuFileText className="w-10 h-10 text-gray-500" />
+              <div className="p-4 rounded-2xl bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
+                <LuFileText className="w-10 h-10 text-gray-400 dark:text-gray-500" />
               </div>
               <div>
-                <p className="text-white font-semibold">
+                <p className="text-gray-900 font-semibold">
                   Nenhuma landing page encontrada
                 </p>
-                <p className="text-gray-400 text-sm mt-1">
+                <p className="text-gray-500 text-sm mt-1">
                   {search || statusFilter
                     ? 'Tente ajustar seus filtros de busca.'
                     : 'Crie sua primeira landing page para começar.'}

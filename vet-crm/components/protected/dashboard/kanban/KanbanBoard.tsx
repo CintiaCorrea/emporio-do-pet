@@ -10,10 +10,10 @@ import NewColumnModal from "./modals/NewColumnModal";
 import NewLeadCardModal from "./modals/NewLeadCardModal";
 import { LuLoader, LuPlus } from "react-icons/lu";
 
-const SYSTEM_BOARD_TYPES = new Set<string>([
-  'APPOINTMENT',
-  'CONSULTATION',
-  'HOSPITALIZATION',
+const SYSTEM_BOARD_NAMES = new Set<string>([
+  'Agendamentos',
+  'Consultas',
+  'Internações',
 ]);
 
 const COLUMN_TO_STATUS_MAP: Record<string, Record<string, string>> = {
@@ -55,7 +55,7 @@ function detectBoardTypeFromName(name: string): BoardType {
   if (normalizedName === 'agendamentos' || normalizedName === 'agendamento') {
     return 'APPOINTMENT';
   }
-  return 'APPOINTMENT';
+  return 'TASK';
 }
 
 interface KanbanBoardProps {
@@ -74,7 +74,7 @@ const KanbanBoard = ({ boardId, boardName = "CRM", boardType: propBoardType = "A
   }, [boardName, propBoardType]);
 
   const isLeadBoard = effectiveBoardType === 'LEAD' || effectiveBoardType === 'SALES' || effectiveBoardType === 'CLIENT';
-  const isSystemBoard = SYSTEM_BOARD_TYPES.has(effectiveBoardType);
+  const isSystemBoard = SYSTEM_BOARD_NAMES.has(boardName);
 
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [leadCards, setLeadCards] = useState<{ id: string; title: string; columnId: string; position: number; leadId?: string; metadata?: Record<string, unknown> }[]>([]);

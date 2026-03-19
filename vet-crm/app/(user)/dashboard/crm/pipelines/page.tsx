@@ -10,16 +10,16 @@ import SearchAndFilters from '@/components/protected/pipeline/SearchAndFilters';
 import BoardCard from '@/components/protected/pipeline/BoardCard';
 import BoardListItem from '@/components/protected/pipeline/BoardListItem';
 import EmptyState from '@/components/protected/pipeline/EmptyState';
-import { Board, BoardType } from '@/types/board';
+import { Board } from '@/types/board';
 
-const SYSTEM_BOARD_TYPES: ReadonlySet<string> = new Set<BoardType>([
-  'APPOINTMENT',
-  'CONSULTATION',
-  'HOSPITALIZATION',
+const SYSTEM_BOARD_NAMES: ReadonlySet<string> = new Set([
+  'Agendamentos',
+  'Consultas',
+  'Internações',
 ]);
 
-function isSystemBoard(type: string): boolean {
-  return SYSTEM_BOARD_TYPES.has(type);
+function isSystemBoard(name: string): boolean {
+  return SYSTEM_BOARD_NAMES.has(name);
 }
 
 export default function PipelinePage() {
@@ -156,7 +156,7 @@ export default function PipelinePage() {
                   const selectedBoard = boards.find((b) => b.id === boardId);
                   if (selectedBoard) setBoardToDelete(selectedBoard);
                 }}
-                isSystemBoard={isSystemBoard(board.type)}
+                isSystemBoard={isSystemBoard(board.name)}
               />
             ))}
           </div>
@@ -172,7 +172,7 @@ export default function PipelinePage() {
                   if (selectedBoard) setBoardToDelete(selectedBoard);
                 }}
                 isLast={index === filteredBoards.length - 1}
-                isSystemBoard={isSystemBoard(board.type)}
+                isSystemBoard={isSystemBoard(board.name)}
               />
             ))}
           </div>

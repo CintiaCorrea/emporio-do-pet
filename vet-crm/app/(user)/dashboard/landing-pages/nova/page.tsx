@@ -129,37 +129,37 @@ export default function NovaLandingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-cyan-950 to-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/20">
       <div className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-cyan-600/20 via-teal-600/20 to-emerald-600/20" />
+        <div className="absolute inset-0 bg-gradient-to-r from-cyan-600/5 via-teal-600/5 to-emerald-600/5 dark:from-cyan-600/20 dark:via-teal-600/20 dark:to-emerald-600/20" />
 
         <div className="relative px-4 sm:px-6 lg:px-8 py-8 max-w-4xl mx-auto">
           <button
             onClick={() => router.push('/dashboard/landing-pages')}
-            className="flex items-center gap-1.5 text-gray-400 hover:text-white transition-colors text-sm mb-6"
+            className="flex items-center gap-1.5 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors text-sm mb-6"
           >
             <LuArrowLeft className="w-4 h-4" />
             Voltar para Landing Pages
           </button>
 
           <div className="flex items-start gap-3 mb-8">
-            <div className="mt-1 p-2.5 rounded-2xl bg-cyan-500/20 border border-cyan-500/20">
-              <LuLayoutTemplate className="w-5 h-5 text-cyan-300" />
+            <div className="mt-1 p-2.5 rounded-2xl bg-cyan-100 dark:bg-cyan-500/20 border border-cyan-200 dark:border-cyan-500/20">
+              <LuLayoutTemplate className="w-5 h-5 text-cyan-600 dark:text-cyan-300" />
             </div>
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-white">
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
                 Nova Landing Page
               </h1>
-              <p className="mt-1 text-gray-400">
+              <p className="mt-1 text-gray-500">
                 Defina o nome e escolha um template para começar.
               </p>
             </div>
           </div>
 
           <div className="space-y-6">
-            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 space-y-4">
+            <div className="bg-white/95 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-2xl p-6 space-y-4 shadow-sm dark:shadow-none">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1.5">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                   Nome da Landing Page
                 </label>
                 <input
@@ -167,11 +167,11 @@ export default function NovaLandingPage() {
                   value={name}
                   onChange={(e) => handleNameChange(e.target.value)}
                   placeholder="Ex: Promoção de Verão"
-                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/40 focus:border-cyan-500/40 text-sm"
+                  className="w-full px-4 py-2.5 bg-white/80 dark:bg-white/5 border border-gray-200/80 dark:border-white/10 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/40 focus:border-cyan-500/40 text-sm"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1.5">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                   Slug (URL)
                 </label>
                 <div className="flex items-center gap-2">
@@ -184,14 +184,14 @@ export default function NovaLandingPage() {
                       setSlug(slugify(e.target.value));
                     }}
                     placeholder="promocao-de-verao"
-                    className="flex-1 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/40 focus:border-cyan-500/40 text-sm font-mono"
+                    className="flex-1 px-4 py-2.5 bg-white/80 dark:bg-white/5 border border-gray-200/80 dark:border-white/10 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/40 focus:border-cyan-500/40 text-sm font-mono"
                   />
                 </div>
               </div>
             </div>
 
             <div>
-              <h2 className="text-lg font-semibold text-white mb-4">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">
                 Escolha um Template
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -205,8 +205,8 @@ export default function NovaLandingPage() {
                       onClick={() => setSelectedTemplate(template.id)}
                       className={`text-left p-4 rounded-xl border transition-all ${
                         isSelected
-                          ? 'bg-cyan-500/10 border-cyan-500/50 ring-1 ring-cyan-500/30'
-                          : 'bg-white/5 border-white/10 hover:border-white/20 hover:bg-white/[0.07]'
+                          ? 'bg-cyan-50 dark:bg-cyan-500/10 border-cyan-400 dark:border-cyan-500/50 ring-1 ring-cyan-400/30 dark:ring-cyan-500/30'
+                          : 'bg-white/80 dark:bg-white/5 border-gray-200/80 dark:border-white/10 hover:border-gray-300 dark:hover:border-white/20 hover:bg-white dark:hover:bg-white/[0.07]'
                       }`}
                     >
                       <div
@@ -214,10 +214,10 @@ export default function NovaLandingPage() {
                       >
                         <Icon className="w-5 h-5 text-white" />
                       </div>
-                      <h3 className="text-white font-medium text-sm">
+                      <h3 className="text-gray-900 font-medium text-sm">
                         {template.name}
                       </h3>
-                      <p className="text-gray-400 text-xs mt-1">
+                      <p className="text-gray-500 text-xs mt-1">
                         {template.description}
                       </p>
                     </button>
@@ -229,7 +229,7 @@ export default function NovaLandingPage() {
             <div className="flex justify-end gap-3 pt-4">
               <button
                 onClick={() => router.push('/dashboard/landing-pages')}
-                className="px-5 py-2.5 text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-sm font-medium transition-colors"
+                className="px-5 py-2.5 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white bg-white/80 dark:bg-white/5 hover:bg-white dark:hover:bg-white/10 border border-gray-200/80 dark:border-white/10 rounded-xl text-sm font-medium transition-colors"
               >
                 Cancelar
               </button>

@@ -49,14 +49,24 @@ type PermissionMatrix = Record<string, Record<PermissionAction, boolean>>;
 const MODULES = [
   { id: 'tutores', name: 'Tutores' },
   { id: 'pets', name: 'Pets' },
+  { id: 'clientes', name: 'Clientes' },
   { id: 'agendamentos', name: 'Agendamentos' },
   { id: 'consultas', name: 'Consultas' },
   { id: 'internacoes', name: 'Internações' },
-  { id: 'financeiro', name: 'Financeiro' },
+  { id: 'servicos', name: 'Serviços' },
   { id: 'produtos', name: 'Produtos' },
+  { id: 'estoque', name: 'Estoque' },
+  { id: 'financeiro', name: 'Financeiro' },
+  { id: 'comissoes', name: 'Comissões' },
+  { id: 'documentos', name: 'Documentos' },
   { id: 'campanhas', name: 'Campanhas' },
+  { id: 'newsletter', name: 'Newsletter' },
   { id: 'crm', name: 'CRM / Pipelines' },
   { id: 'ai_agents', name: 'AI Agents' },
+  { id: 'automacoes', name: 'Automações' },
+  { id: 'landing_pages', name: 'Landing Pages' },
+  { id: 'global_agent', name: 'Global Agent' },
+  { id: 'integracoes', name: 'Integrações' },
 ];
 
 // Labels para roles

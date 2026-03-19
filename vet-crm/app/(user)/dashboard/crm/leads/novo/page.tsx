@@ -36,7 +36,7 @@ export default function NewLeadPage() {
 
   const validate = (): boolean => {
     const errs: Record<string, string> = {};
-    if (!form.email || !form.email.includes('@')) errs.email = 'Email válido é obrigatório';
+    if (form.email && !form.email.includes('@')) errs.email = 'Email inválido';
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -123,7 +123,7 @@ export default function NewLeadPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Email <span className="text-red-500">*</span>
+                  Email
                 </label>
                 <div className="relative">
                   <LuMail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />

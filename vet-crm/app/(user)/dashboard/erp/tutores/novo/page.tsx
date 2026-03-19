@@ -282,7 +282,12 @@ export default function TutorRegistrationPage() {
         ? `Tutor e ${validPets.length} pet(s) cadastrados com sucesso!`
         : 'Tutor cadastrado com sucesso!'
       );
-      router.push('/dashboard/erp/tutores');
+
+      if (validPets.length > 0) {
+        router.push('/dashboard/erp/tutores');
+      } else {
+        router.push(`/dashboard/erp/pets/novo?tutorId=${tutorId}`);
+      }
 
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro desconhecido';

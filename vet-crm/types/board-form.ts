@@ -19,7 +19,13 @@ export function detectBoardTypeFromName(name: string): BoardType {
   if (normalizedName.includes('lead') || normalizedName.includes('vendas') || normalizedName.includes('sales')) {
     return 'LEAD';
   }
-  return 'APPOINTMENT';
+  if (normalizedName.includes('client') || normalizedName.includes('cliente')) {
+    return 'CLIENT';
+  }
+  if (normalizedName.includes('projeto') || normalizedName.includes('project')) {
+    return 'PROJECT';
+  }
+  return 'TASK';
 }
 
 export interface ColorOption {

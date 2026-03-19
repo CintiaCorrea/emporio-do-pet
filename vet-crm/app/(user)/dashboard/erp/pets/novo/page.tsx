@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { LuArrowLeft, LuPawPrint, LuVenetianMask, LuCalendar, LuUser, LuSave, LuX, LuCamera, LuLoaderCircle, LuTrash2, LuFiles } from "react-icons/lu";
@@ -144,9 +144,14 @@ interface ApiResponse {
   };
 }
 
-export default function NewPetPage() {
+function NewPetPageContent() {
   const router = useRouter();
-  const [pet, setPet] = useState<Pet>(emptyPet);
+  const searchParams = useSearchParams();
+  const preselectedTutorId = searchParams.get('tutorId');
+  const [pet, setPet] = useState<Pet>(() => ({
+    ...emptyPet,
+    ...(preselectedTutorId ? { tutorId: preselectedTutorId } : {}),
+  }));
   const [breedOptions, setBreedOptions] = useState<string[]>([]);
   const [newBreed, setNewBreed] = useState<string>("");
   const [breedsLoading, setBreedsLoading] = useState(false);
@@ -266,7 +271,12 @@ export default function NewPetPage() {
         
         setTutors(tutorsArray);
 
-        console.log('Tutores carregados:', tutorsArray); // Para debug
+        if (preselectedTutorId) {
+          const matched = tutorsArray.find((t: Tutor) => t.id === preselectedTutorId);
+          if (matched) {
+            setPet(prev => ({ ...prev, tutorId: preselectedTutorId, owner: matched.name }));
+          }
+        }
       } catch (error) {
         console.error('Erro ao carregar tutores:', error);
         setError(error instanceof Error ? error.message : 'Erro desconhecido');
@@ -1139,5 +1149,13 @@ export default function NewPetPage() {
           </div>
         </div>
     </div>
+  );
+}
+
+export default function NewPetPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" /></div>}>
+      <NewPetPageContent />
+    </Suspense>
   );
 }

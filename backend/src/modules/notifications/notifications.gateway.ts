@@ -21,10 +21,24 @@ interface AuthenticatedSocket extends Socket {
 
 @WebSocketGateway({
   cors: {
-    origin: '*',
+    origin: (origin: string, callback: (err: Error | null, allow?: boolean) => void) => {
+      if (
+        !origin ||
+        origin.includes('localhost') ||
+        origin.endsWith('.vercel.app') ||
+        origin.endsWith('.fly.dev') ||
+        origin.endsWith('.emporiodopet.com.br') ||
+        origin === 'https://emporiodopet.com.br'
+      ) {
+        callback(null, true);
+      } else {
+        callback(null, true);
+      }
+    },
     credentials: true,
   },
   namespace: '/notifications',
+  transports: ['polling', 'websocket'],
 })
 export class NotificationsGateway
   implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect

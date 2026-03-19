@@ -5,10 +5,10 @@ import { UpdateBoardDto } from './dto/update-board.dto';
 
 type BoardTypeExtended = 'APPOINTMENT' | 'CONSULTATION' | 'HOSPITALIZATION' | 'TASK' | 'PROJECT' | 'LEAD' | 'CLIENT' | 'SALES';
 
-const SYSTEM_BOARD_TYPES: ReadonlySet<string> = new Set([
-  'APPOINTMENT',
-  'CONSULTATION',
-  'HOSPITALIZATION',
+const SYSTEM_BOARD_NAMES: ReadonlySet<string> = new Set([
+  'Agendamentos',
+  'Consultas',
+  'Internações',
 ]);
 
 const DEFAULT_BOARD_CONFIGS: Record<string, { 
@@ -104,12 +104,12 @@ const DEFAULT_BOARD_CONFIGS: Record<string, {
 export class BoardsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  static isSystemBoard(type: string): boolean {
-    return SYSTEM_BOARD_TYPES.has(type);
+  static isSystemBoard(name: string): boolean {
+    return SYSTEM_BOARD_NAMES.has(name);
   }
 
   async create(userId: string, createBoardDto: CreateBoardDto) {
-    const boardType = createBoardDto.type || 'APPOINTMENT';
+    const boardType = createBoardDto.type || 'TASK';
     
     let defaultColumns = [
       { name: 'A Fazer', position: 1, color: '#FF6B6B' },
@@ -212,7 +212,7 @@ export class BoardsService {
   async update(id: string, userId: string, updateBoardDto: UpdateBoardDto) {
     const board = await this.findById(id, userId);
 
-    if (BoardsService.isSystemBoard(board.type)) {
+    if (BoardsService.isSystemBoard(board.name)) {
       const { color, description, favorite, ...forbidden } = updateBoardDto as any;
       if (forbidden.name || forbidden.type) {
         throw new ForbiddenException(
@@ -249,7 +249,7 @@ export class BoardsService {
   async remove(id: string, userId: string) {
     const board = await this.findById(id, userId);
 
-    if (BoardsService.isSystemBoard(board.type)) {
+    if (BoardsService.isSystemBoard(board.name)) {
       throw new ForbiddenException(
         'Boards de sistema (Agendamentos, Consultas, Internações) não podem ser excluídos',
       );
@@ -297,8 +297,8 @@ export class BoardsService {
 
   async ensureDefaultBoards(userId: string): Promise<Record<string, any>> {
     // Migration: if non-system boards exist but no system boards, clean up old boards
-    const allBoards = await this.prisma.board.findMany({ where: { userId }, select: { id: true, type: true } });
-    const hasSystemBoard = allBoards.some((b) => SYSTEM_BOARD_TYPES.has(b.type));
+    const allBoards = await this.prisma.board.findMany({ where: { userId }, select: { id: true, type: true, name: true } });
+    const hasSystemBoard = allBoards.some((b) => SYSTEM_BOARD_NAMES.has(b.name));
     if (!hasSystemBoard && allBoards.length > 0) {
       return this.resetAndRecreateBoards(userId);
     }
@@ -306,7 +306,7 @@ export class BoardsService {
     const results: Record<string, any> = {};
 
     const systemEntries = Object.entries(DEFAULT_BOARD_CONFIGS)
-      .filter(([, cfg]) => SYSTEM_BOARD_TYPES.has(cfg.type));
+      .filter(([, cfg]) => SYSTEM_BOARD_NAMES.has(cfg.name));
 
     for (const [key, config] of systemEntries) {
       const existing = await this.prisma.board.findFirst({
@@ -318,7 +318,7 @@ export class BoardsService {
 
       if (existing) {
         // For system boards, fix columns if they don't match the expected config
-        if (BoardsService.isSystemBoard(config.type)) {
+        if (BoardsService.isSystemBoard(config.name)) {
           const expectedNames = config.columns.map((c) => c.name);
           const actualNames = existing.columns.map((c: any) => c.name);
           const columnsMatch =

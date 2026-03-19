@@ -37,17 +37,17 @@ export default function EditorToolbar({
   };
 
   return (
-    <div className="h-12 bg-slate-900 border-b border-slate-700 flex items-center justify-between px-4 shrink-0">
+    <div className="h-12 bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between px-4 shrink-0">
       <div className="flex items-center gap-3">
         <button
           onClick={() => router.push('/dashboard/landing-pages')}
-          className="flex items-center gap-1.5 text-gray-400 hover:text-white transition-colors text-sm"
+          className="flex items-center gap-1.5 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors text-sm"
         >
           <LuArrowLeft className="w-4 h-4" />
           Voltar
         </button>
-        <div className="w-px h-5 bg-slate-700" />
-        <span className="text-white font-medium text-sm truncate max-w-[200px]">
+        <div className="w-px h-5 bg-gray-200 dark:bg-slate-700" />
+        <span className="text-gray-900 dark:text-white font-medium text-sm truncate max-w-[200px]">
           {pageName}
         </span>
       </div>
@@ -55,21 +55,21 @@ export default function EditorToolbar({
       <div className="flex items-center gap-1">
         <button
           onClick={() => setDevice('Desktop')}
-          className="p-2 text-gray-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
+          className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
           title="Desktop"
         >
           <LuMonitor className="w-4 h-4" />
         </button>
         <button
           onClick={() => setDevice('Tablet')}
-          className="p-2 text-gray-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
+          className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
           title="Tablet"
         >
           <LuTablet className="w-4 h-4" />
         </button>
         <button
           onClick={() => setDevice('Mobile portrait')}
-          className="p-2 text-gray-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
+          className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
           title="Mobile"
         >
           <LuSmartphone className="w-4 h-4" />
@@ -79,7 +79,7 @@ export default function EditorToolbar({
       <div className="flex items-center gap-2">
         <button
           onClick={onExport}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-lg transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-lg transition-colors"
         >
           <LuDownload className="w-3.5 h-3.5" />
           Elementor

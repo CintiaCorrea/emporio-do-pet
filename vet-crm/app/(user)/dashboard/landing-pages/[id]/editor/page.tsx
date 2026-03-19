@@ -54,10 +54,10 @@ export default function EditorPage() {
 
   if (loading) {
     return (
-      <div className="h-screen flex items-center justify-center bg-slate-900">
+      <div className="h-screen flex items-center justify-center bg-gray-50 dark:bg-slate-900">
         <div className="flex flex-col items-center gap-3">
-          <LuLoaderCircle className="w-8 h-8 text-cyan-400 animate-spin" />
-          <span className="text-gray-400 text-sm">Carregando editor...</span>
+          <LuLoaderCircle className="w-8 h-8 text-cyan-500 dark:text-cyan-400 animate-spin" />
+          <span className="text-gray-500 dark:text-gray-400 text-sm">Carregando editor...</span>
         </div>
       </div>
     );
@@ -65,12 +65,12 @@ export default function EditorPage() {
 
   if (error || !pageData) {
     return (
-      <div className="h-screen flex items-center justify-center bg-slate-900">
+      <div className="h-screen flex items-center justify-center bg-gray-50 dark:bg-slate-900">
         <div className="flex flex-col items-center gap-4 text-center">
-          <p className="text-gray-400">{error || 'Página não encontrada'}</p>
+          <p className="text-gray-500 dark:text-gray-400">{error || 'Página não encontrada'}</p>
           <button
             onClick={() => router.push('/dashboard/landing-pages')}
-            className="text-cyan-400 hover:text-cyan-300 text-sm"
+            className="text-cyan-600 dark:text-cyan-400 hover:text-cyan-500 dark:hover:text-cyan-300 text-sm"
           >
             Voltar para Landing Pages
           </button>

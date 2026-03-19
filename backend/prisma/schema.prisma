@@ -619,7 +619,7 @@ model ClinicalDocument {
 model Board {
   id           String         @id @default(uuid())
   name         String
-  type         BoardType      @default(APPOINTMENT)
+  type         BoardType      @default(TASK)
   description  String?
   color        String         @default("bg-blue-500")
   progress     Int            @default(0)
