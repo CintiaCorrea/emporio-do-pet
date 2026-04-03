@@ -3,8 +3,10 @@ RAG Service
 Handles document ingestion (parse, chunk, embed, store) and retrieval.
 """
 
+import base64
 import logging
 import re
+import tempfile
 from pathlib import Path
 from typing import List, Optional, Tuple
 
@@ -161,16 +163,44 @@ class RAGService:
 
     # ── Ingestion ─────────────────────────────────────────────────────
 
+    def _resolve_file(
+        self,
+        file_path: Optional[str],
+        file_content: Optional[str],
+        file_name: Optional[str],
+        file_type: str,
+    ) -> Tuple[str, Optional[str]]:
+        """Resolve file source to a local path.
+        
+        Returns (resolved_path, temp_path_to_cleanup).
+        If file_content is provided, decodes base64 to a temp file.
+        """
+        if file_content:
+            decoded = base64.b64decode(file_content)
+            ext = f".{file_type}" if file_type else ".tmp"
+            tmp = tempfile.NamedTemporaryFile(delete=False, suffix=ext, prefix="rag_")
+            tmp.write(decoded)
+            tmp.close()
+            return tmp.name, tmp.name
+
+        if file_path:
+            return file_path, None
+
+        raise ValueError("Either file_path or file_content must be provided")
+
     async def ingest_document(
         self,
         document_id: str,
-        file_path: str,
         file_type: str,
         knowledge_base_id: str,
         credentials: Credentials,
+        file_path: Optional[str] = None,
+        file_content: Optional[str] = None,
+        file_name: Optional[str] = None,
     ) -> IngestResponse:
         """Ingest a document: parse, chunk, embed, and store."""
         pool = get_db_pool()
+        temp_path: Optional[str] = None
 
         await pool.execute(
             'UPDATE "knowledge_documents" SET status = $1 WHERE id = $2',
@@ -179,7 +209,11 @@ class RAGService:
         )
 
         try:
-            pages = self._parse_document(file_path, file_type)
+            resolved_path, temp_path = self._resolve_file(
+                file_path, file_content, file_name, file_type,
+            )
+
+            pages = self._parse_document(resolved_path, file_type)
             if not pages:
                 await pool.execute(
                     'UPDATE "knowledge_documents" SET status = $1, "errorMessage" = $2 WHERE id = $3',
@@ -192,10 +226,10 @@ class RAGService:
                     status="ERROR",
                 )
 
-            file_name = Path(file_path).name
+            display_name = file_name or Path(resolved_path).name
             all_chunks: List[Tuple[str, dict, int]] = []
             for text, meta in pages:
-                meta["file_name"] = file_name
+                meta["file_name"] = display_name
                 chunks = self._chunk_text(text, meta)
                 all_chunks.extend(chunks)
 
@@ -287,6 +321,12 @@ class RAGService:
                 document_id,
             )
             raise
+        finally:
+            if temp_path:
+                try:
+                    Path(temp_path).unlink(missing_ok=True)
+                except Exception:
+                    pass
 
     # ── Retrieval ─────────────────────────────────────────────────────
 
@@ -331,9 +371,15 @@ class RAGService:
 
         chunks = []
         for row in rows:
-            import json
+            raw_meta = row["metadata"]
+            if raw_meta is None:
+                metadata = None
+            elif isinstance(raw_meta, str):
+                import json
+                metadata = json.loads(raw_meta)
+            else:
+                metadata = raw_meta
 
-            metadata = json.loads(row["metadata"]) if row["metadata"] else None
             chunks.append(
                 RetrievedChunk(
                     content=row["content"],

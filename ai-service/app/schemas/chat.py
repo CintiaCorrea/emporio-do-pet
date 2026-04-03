@@ -13,7 +13,7 @@ from .common import Credentials, Message, Usage
 class StreamChunk(BaseModel):
     """A single chunk in a streaming response."""
 
-    type: Literal["content", "usage", "done", "error"] = Field(
+    type: Literal["content", "usage", "done", "error", "rag_metadata"] = Field(
         ..., description="Type of the chunk"
     )
     content: Optional[str] = Field(None, description="Content delta for 'content' type")
@@ -23,6 +23,12 @@ class StreamChunk(BaseModel):
     model: Optional[str] = Field(None, description="Model used")
     provider: Optional[str] = Field(None, description="Provider name")
     latency_ms: Optional[int] = Field(None, description="Total latency in ms")
+
+    # RAG metadata (emitted as type="rag_metadata" before content)
+    rag_chunks_used: Optional[int] = Field(None, description="Number of RAG chunks injected")
+    rag_sources: Optional[List[str]] = Field(None, description="Source file names used")
+    rag_embedding_tokens: Optional[int] = Field(None, description="Tokens used for query embedding")
+    rag_error: Optional[str] = Field(None, description="RAG retrieval error, if any")
 
 
 class ChatRequest(BaseModel):

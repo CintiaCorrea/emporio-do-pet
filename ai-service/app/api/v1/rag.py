@@ -3,10 +3,12 @@ RAG Endpoints
 Handles document ingestion, retrieval, and deletion for RAG.
 """
 
+import base64
 import logging
 
 from fastapi import APIRouter, HTTPException
 
+from app.config import get_settings
 from app.schemas import (
     DeleteResponse,
     ErrorResponse,
@@ -19,6 +21,7 @@ from app.services.rag_service import RAGService
 
 router = APIRouter(tags=["RAG"])
 logger = logging.getLogger(__name__)
+settings = get_settings()
 
 
 @router.post(
@@ -31,14 +34,27 @@ logger = logging.getLogger(__name__)
 )
 async def ingest_document(request: IngestRequest) -> IngestResponse:
     """Ingest a document: parse, chunk, generate embeddings, and store."""
+    if request.file_content:
+        max_bytes = settings.max_upload_size_mb * 1024 * 1024
+        decoded_size = len(base64.b64decode(request.file_content))
+        if decoded_size > max_bytes:
+            raise HTTPException(
+                status_code=413,
+                detail={
+                    "error": "file_too_large",
+                    "message": f"File exceeds {settings.max_upload_size_mb}MB limit ({decoded_size / 1024 / 1024:.1f}MB)",
+                },
+            )
     try:
         service = RAGService()
         return await service.ingest_document(
             document_id=request.document_id,
-            file_path=request.file_path,
             file_type=request.file_type,
             knowledge_base_id=request.knowledge_base_id,
             credentials=request.credentials,
+            file_path=request.file_path,
+            file_content=request.file_content,
+            file_name=request.file_name,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail={"error": "invalid_request", "message": str(e)})

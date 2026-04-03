@@ -100,6 +100,7 @@ class AgentResponse(BaseModel):
     rag_chunks_used: Optional[int] = Field(None, description="Number of RAG chunks injected")
     rag_sources: Optional[List[str]] = Field(None, description="Source file names used")
     rag_embedding_tokens: Optional[int] = Field(None, description="Tokens used for query embedding")
+    rag_error: Optional[str] = Field(None, description="RAG retrieval error message, if any")
 
     model_config = {
         "json_schema_extra": {

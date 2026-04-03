@@ -50,6 +50,7 @@ export interface StreamChunk {
   id?: string;
   cost?: {
     textCostUsd: number;
+    embeddingCostUsd?: number;
     totalCostUsd: number;
   };
   rateLimit?: {
@@ -410,6 +411,11 @@ export class AgentsService {
         executionMetadata.ragEmbeddingTokens = result.rag_embedding_tokens || 0;
       }
 
+      if (result.rag_error) {
+        executionMetadata.ragError = result.rag_error;
+        this.logger.warn(`RAG retrieval error for agent ${id}: ${result.rag_error}`);
+      }
+
       // Record execution with costs
       const execution = await this.prisma.agentExecution.create({
         data: {
@@ -516,6 +522,7 @@ export class AgentsService {
     const startTime = Date.now();
     let fullContent = '';
     let usage = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
+    let ragMeta: { chunksUsed?: number; sources?: string[]; embeddingTokens?: number; error?: string } = {};
 
     try {
       const controller = new AbortController();
@@ -588,20 +595,48 @@ export class AgentsService {
               if (data.type === 'content' && data.content) {
                 fullContent += data.content;
                 yield { type: 'content', content: data.content };
+              } else if (data.type === 'rag_metadata') {
+                ragMeta = {
+                  chunksUsed: data.rag_chunks_used,
+                  sources: data.rag_sources,
+                  embeddingTokens: data.rag_embedding_tokens,
+                  error: data.rag_error,
+                };
+                if (ragMeta.error) {
+                  this.logger.warn(`RAG error during stream for agent ${id}: ${ragMeta.error}`);
+                }
               } else if (data.type === 'usage') {
                 usage = data.usage;
                 yield { type: 'usage', usage: data.usage };
               } else if (data.type === 'done') {
-                // Calculate costs
                 const costBreakdown = this.costCalculator.calculateTextCost(
                   usage as TokenUsage,
                   agent.model,
                   agent.provider,
                 );
 
+                let embeddingCostUsd = 0;
+                if (ragMeta.embeddingTokens) {
+                  const embCost = this.costCalculator.calculateEmbeddingCost(ragMeta.embeddingTokens);
+                  embeddingCostUsd = embCost.totalCost;
+                }
+
+                const totalCostUsd = costBreakdown.totalCost + embeddingCostUsd;
                 const latencyMs = Date.now() - startTime;
 
-                // Record execution
+                const executionMetadata: Record<string, any> = dto.context
+                  ? JSON.parse(JSON.stringify(dto.context))
+                  : {};
+
+                if (ragMeta.chunksUsed) {
+                  executionMetadata.ragChunksUsed = ragMeta.chunksUsed;
+                  executionMetadata.ragSources = ragMeta.sources || [];
+                  executionMetadata.ragEmbeddingTokens = ragMeta.embeddingTokens || 0;
+                }
+                if (ragMeta.error) {
+                  executionMetadata.ragError = ragMeta.error;
+                }
+
                 const execution = await this.prisma.agentExecution.create({
                   data: {
                     agentId: id,
@@ -609,22 +644,31 @@ export class AgentsService {
                     input: dto.userMessage,
                     output: fullContent,
                     usage: usage,
-                    costUsd: costBreakdown.totalCost,
+                    costUsd: totalCostUsd,
                     latencyMs,
-                    metadata: dto.context ? JSON.parse(JSON.stringify(dto.context)) : null,
+                    costBreakdown: {
+                      promptCost: costBreakdown.promptCost,
+                      completionCost: costBreakdown.completionCost,
+                      embeddingCost: embeddingCostUsd,
+                      textCost: costBreakdown.totalCost,
+                      totalCost: totalCostUsd,
+                      model: agent.model,
+                      provider: agent.provider,
+                    },
+                    metadata: Object.keys(executionMetadata).length > 0 ? executionMetadata : undefined,
                   },
                 });
 
-                // Update agent metrics
-                await this.updateAgentMetrics(id, latencyMs, true, costBreakdown.totalCost);
-                await this.updateUserMonthlyCost(userId, costBreakdown.totalCost);
+                await this.updateAgentMetrics(id, latencyMs, true, totalCostUsd);
+                await this.updateUserMonthlyCost(userId, totalCostUsd);
 
                 yield {
                   type: 'done',
                   id: execution.id,
                   cost: {
                     textCostUsd: costBreakdown.totalCost,
-                    totalCostUsd: costBreakdown.totalCost,
+                    embeddingCostUsd,
+                    totalCostUsd,
                   },
                   rateLimit: {
                     remaining: rateLimitResult.remaining,
@@ -1162,7 +1206,31 @@ export class AgentsService {
         agent.model,
         agent.provider,
       );
-      const totalCostUsd = costBreakdown.totalCost;
+
+      let embeddingCostUsd = 0;
+      if (result.rag_embedding_tokens) {
+        const embCost = this.costCalculator.calculateEmbeddingCost(result.rag_embedding_tokens);
+        embeddingCostUsd = embCost.totalCost;
+      }
+
+      const totalCostUsd = costBreakdown.totalCost + embeddingCostUsd;
+
+      const executionMetadata: Record<string, any> = {
+        source: 'whatsapp',
+        conversationId,
+        contactPhone: conversation?.contactPhone,
+      };
+
+      if (result.rag_chunks_used) {
+        executionMetadata.ragChunksUsed = result.rag_chunks_used;
+        executionMetadata.ragSources = result.rag_sources || [];
+        executionMetadata.ragEmbeddingTokens = result.rag_embedding_tokens || 0;
+      }
+
+      if (result.rag_error) {
+        executionMetadata.ragError = result.rag_error;
+        this.logger.warn(`RAG retrieval error for WhatsApp agent ${agentId}: ${result.rag_error}`);
+      }
 
       // Record execution with costs
       const execution = await this.prisma.agentExecution.create({
@@ -1177,16 +1245,13 @@ export class AgentsService {
           costBreakdown: {
             promptCost: costBreakdown.promptCost,
             completionCost: costBreakdown.completionCost,
+            embeddingCost: embeddingCostUsd,
             textCost: costBreakdown.totalCost,
             totalCost: totalCostUsd,
             model: agent.model,
             provider: agent.provider,
           },
-          metadata: {
-            source: 'whatsapp',
-            conversationId,
-            contactPhone: conversation?.contactPhone,
-          },
+          metadata: executionMetadata,
         },
       });
 

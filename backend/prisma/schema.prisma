@@ -1737,13 +1737,14 @@ model KnowledgeDocument {
 }
 
 model DocumentChunk {
-  id         String @id @default(uuid())
+  id         String                         @id @default(uuid())
   documentId String
-  content    String @db.Text
+  content    String                         @db.Text
   metadata   Json?
   chunkIndex Int
-  tokenCount Int    @default(0)
-  createdAt  DateTime @default(now())
+  tokenCount Int                            @default(0)
+  embedding  Unsupported("vector(1536)")?
+  createdAt  DateTime                       @default(now())
 
   document KnowledgeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
 

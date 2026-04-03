@@ -38,10 +38,11 @@ primary_region = "gru"  # São Paulo, Brasil
   timeout = "10s"
   path = "/api/health"
 
-# Release command - sync schema to database
-# Usando db push para criar/sincronizar schema (ideal para banco novo ou sem histórico de migrations)
+# Release command - sync schema + pgvector setup
+# 1. prisma db push: cria/sincroniza tabelas (ignora campos Unsupported como embedding)
+# 2. prisma db execute: aplica extensão pgvector, coluna embedding e índice HNSW
 [deploy]
-  release_command = "npx prisma db push --accept-data-loss"
+  release_command = "sh -c 'npx prisma db execute --file prisma/pgvector_extension.sql --schema prisma/schema.prisma && npx prisma db push --accept-data-loss && npx prisma db execute --file prisma/pgvector_setup.sql --schema prisma/schema.prisma'"
 
 # Machine configuration
 [[vm]]

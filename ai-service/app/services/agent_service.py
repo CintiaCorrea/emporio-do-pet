@@ -65,10 +65,10 @@ class AgentService:
     async def _retrieve_rag_context(
         self,
         request: AgentRequest,
-    ) -> Tuple[List[RetrievedChunk], int]:
-        """Retrieve RAG context if enabled. Returns (chunks, query_tokens)."""
+    ) -> Tuple[List[RetrievedChunk], int, Optional[str]]:
+        """Retrieve RAG context if enabled. Returns (chunks, query_tokens, error_message)."""
         if not request.rag_enabled or not request.rag_knowledge_base_id:
-            return [], 0
+            return [], 0, None
 
         try:
             from app.services.rag_service import RAGService
@@ -81,10 +81,11 @@ class AgentService:
                 top_k=request.rag_top_k,
                 threshold=request.rag_threshold,
             )
-            return chunks, query_tokens
+            return chunks, query_tokens, None
         except Exception as e:
-            logger.warning(f"RAG retrieval failed, proceeding without context: {e}")
-            return [], 0
+            error_msg = f"RAG retrieval failed: {e}"
+            logger.error(error_msg, exc_info=True)
+            return [], 0, str(e)
 
     def _format_rag_context(self, chunks: List[RetrievedChunk]) -> str:
         """Format retrieved chunks into a context block for the system prompt."""
@@ -173,7 +174,7 @@ class AgentService:
             f"rag={request.rag_enabled}"
         )
 
-        rag_chunks, rag_query_tokens = await self._retrieve_rag_context(request)
+        rag_chunks, rag_query_tokens, rag_error = await self._retrieve_rag_context(request)
 
         messages = self._build_messages(
             system_prompt=request.system_prompt,
@@ -214,6 +215,7 @@ class AgentService:
             rag_chunks_used=len(rag_chunks) if rag_chunks else None,
             rag_sources=rag_sources,
             rag_embedding_tokens=rag_query_tokens if rag_query_tokens > 0 else None,
+            rag_error=rag_error,
         )
 
     async def execute_stream(self, request: AgentRequest) -> AsyncIterator[StreamChunk]:
@@ -236,7 +238,26 @@ class AgentService:
             f"rag={request.rag_enabled}"
         )
 
-        rag_chunks, _ = await self._retrieve_rag_context(request)
+        rag_chunks, rag_query_tokens, rag_error = await self._retrieve_rag_context(request)
+        if rag_error:
+            logger.warning(f"RAG failed during stream, continuing without context: {rag_error}")
+
+        if request.rag_enabled:
+            rag_sources = None
+            if rag_chunks:
+                sources = set()
+                for chunk in rag_chunks:
+                    if chunk.metadata and "file_name" in chunk.metadata:
+                        sources.add(chunk.metadata["file_name"])
+                rag_sources = list(sources) if sources else None
+
+            yield StreamChunk(
+                type="rag_metadata",
+                rag_chunks_used=len(rag_chunks) if rag_chunks else 0,
+                rag_sources=rag_sources,
+                rag_embedding_tokens=rag_query_tokens if rag_query_tokens > 0 else None,
+                rag_error=rag_error,
+            )
 
         messages = self._build_messages(
             system_prompt=request.system_prompt,

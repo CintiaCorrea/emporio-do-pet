@@ -103,12 +103,21 @@ export class KnowledgeBaseService {
     return this.prisma.knowledgeBase.delete({ where: { id } });
   }
 
+  private readonly maxUploadSizeMb = 10;
+
   async uploadDocument(
     userId: string,
     knowledgeBaseId: string,
     file: Express.Multer.File,
   ) {
     await this.findOne(userId, knowledgeBaseId);
+
+    const maxBytes = this.maxUploadSizeMb * 1024 * 1024;
+    if (file.size > maxBytes) {
+      throw new BadRequestException(
+        `Arquivo muito grande (${(file.size / 1024 / 1024).toFixed(1)}MB). Limite: ${this.maxUploadSizeMb}MB.`,
+      );
+    }
 
     const allowedTypes = [
       'application/pdf',
@@ -155,8 +164,14 @@ export class KnowledgeBaseService {
       },
     });
 
-    // Trigger async ingestion in AI Service
-    this.triggerIngestion(document.id, filePath, fileType, knowledgeBaseId, userId);
+    this.triggerIngestion(
+      document.id,
+      filePath,
+      file.originalname,
+      fileType,
+      knowledgeBaseId,
+      userId,
+    );
 
     return document;
   }
@@ -164,6 +179,7 @@ export class KnowledgeBaseService {
   private async triggerIngestion(
     documentId: string,
     filePath: string,
+    originalFileName: string,
     fileType: string,
     knowledgeBaseId: string,
     userId: string,
@@ -181,12 +197,16 @@ export class KnowledgeBaseService {
         return;
       }
 
+      const fileBuffer = fs.readFileSync(filePath);
+      const fileContentBase64 = fileBuffer.toString('base64');
+
       const response = await fetch(`${this.aiServiceUrl}/v1/rag/ingest`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           document_id: documentId,
-          file_path: filePath,
+          file_content: fileContentBase64,
+          file_name: originalFileName,
           file_type: fileType,
           knowledge_base_id: knowledgeBaseId,
           credentials: {
@@ -233,9 +253,16 @@ export class KnowledgeBaseService {
       } catch {}
     }
 
-    const envKey = this.configService.get<string>('integrations.openai');
-    if (envKey) {
-      return { apiKey: envKey, baseUrl: undefined };
+    const openaiConfig = this.configService.get('integrations.openai') as
+      | string
+      | { apiKey?: string }
+      | undefined;
+
+    if (openaiConfig) {
+      const key = typeof openaiConfig === 'string' ? openaiConfig : openaiConfig.apiKey;
+      if (key) {
+        return { apiKey: key, baseUrl: undefined };
+      }
     }
 
     return null;

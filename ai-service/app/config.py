@@ -46,6 +46,7 @@ class Settings(BaseSettings):
     default_rag_threshold: float = 0.7
     chunk_size: int = 600
     chunk_overlap: int = 100
+    max_upload_size_mb: int = 10
 
     # Timeouts (in seconds)
     llm_timeout: int = 60

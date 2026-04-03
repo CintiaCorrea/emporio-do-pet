@@ -31,11 +31,23 @@ async def lifespan(app: FastAPI):
     logger.info(f"Environment: {settings.environment}")
     logger.info(f"Log level: {settings.log_level}")
 
+    db_url = settings.database_url
+    has_db_config = db_url and "localhost" not in db_url if settings.is_production else bool(db_url)
+
+    if settings.is_production and not has_db_config:
+        logger.error(
+            "DATABASE_URL not configured! RAG will be disabled. "
+            "Set it via: fly secrets set DATABASE_URL='postgres://...'"
+        )
+
     try:
         await init_db_pool()
+        app.state.rag_available = True
         logger.info("Database pool ready for RAG operations")
     except Exception as e:
-        logger.warning(f"Failed to initialize database pool (RAG disabled): {e}")
+        app.state.rag_available = False
+        level = logging.ERROR if settings.is_production else logging.WARNING
+        logger.log(level, f"Failed to initialize database pool (RAG disabled): {e}")
 
     yield
 
@@ -84,10 +96,12 @@ async def global_exception_handler(request: Request, exc: Exception):
 @app.get("/health", tags=["Health"])
 async def health_check():
     """Health check endpoint for load balancers and monitoring."""
+    rag_available = getattr(app.state, "rag_available", False)
     return {
         "status": "healthy",
         "version": settings.app_version,
         "environment": settings.environment,
+        "rag_available": rag_available,
     }
 
 

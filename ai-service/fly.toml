@@ -4,6 +4,11 @@
 # Deploy: fly deploy
 # Logs: fly logs
 # SSH: fly ssh console
+#
+# SECRETS OBRIGATÓRIOS (configurar via fly secrets set):
+#   DATABASE_URL  - URL do Postgres (mesmo banco do backend)
+#                   Ex: postgres://user:pass@app-db.flycast:5432/db
+#                   Fly internal: fly secrets set DATABASE_URL="postgres://..."
 # =====================================================
 
 app = "emporio-pet-ai"
@@ -16,6 +21,7 @@ primary_region = "gru"  # São Paulo, Brasil
   ENVIRONMENT = "production"
   LOG_LEVEL = "INFO"
   CORS_ORIGINS = "https://emporiodopet.com.br,https://www.emporiodopet.com.br,https://emporio-pet-api.fly.dev"
+  # DATABASE_URL é definido via fly secrets (não colocar aqui)
 
 [http_service]
   internal_port = 8080
@@ -39,6 +45,6 @@ primary_region = "gru"  # São Paulo, Brasil
 
 # Machine configuration
 [[vm]]
-  memory = "512mb"
+  memory = "1gb"
   cpu_kind = "shared"
   cpus = 1
