@@ -1,4 +1,4 @@
-export type BoardType = 'APPOINTMENT' | 'CONSULTATION' | 'HOSPITALIZATION' | 'TASK' | 'PROJECT' | 'LEAD' | 'CLIENT' | 'SALES';
+export type BoardType = 'APPOINTMENT' | 'CONSULTATION' | 'HOSPITALIZATION' | 'TREATMENT' | 'TASK' | 'PROJECT' | 'LEAD' | 'CLIENT' | 'SALES';
 
 export interface BoardFormData {
   name: string;
@@ -11,6 +11,9 @@ export function detectBoardTypeFromName(name: string): BoardType {
   const normalizedName = name.toLowerCase().trim();
   if (normalizedName === 'consultas' || normalizedName === 'consulta') {
     return 'CONSULTATION';
+  }
+  if (normalizedName === 'tratamentos' || normalizedName === 'tratamento') {
+    return 'TREATMENT';
   }
   if (normalizedName === 'internações' || normalizedName === 'internacoes' || 
       normalizedName === 'internação' || normalizedName === 'internacao') {

@@ -1,7 +1,7 @@
 // types/board.ts
 
 // Tipos base
-export type BoardType = 'APPOINTMENT' | 'CONSULTATION' | 'HOSPITALIZATION' | 'TASK' | 'PROJECT' | 'LEAD' | 'CLIENT' | 'SALES';
+export type BoardType = 'APPOINTMENT' | 'CONSULTATION' | 'HOSPITALIZATION' | 'TREATMENT' | 'TASK' | 'PROJECT' | 'LEAD' | 'CLIENT' | 'SALES';
 
 export interface Board {
   id: string;

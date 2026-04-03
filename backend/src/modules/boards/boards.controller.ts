@@ -37,6 +37,12 @@ export class BoardsController {
     return this.boardsService.getHospitalizationBoard(userId);
   }
 
+  @Get('default/treatment')
+  @ApiOperation({ summary: 'Obter board de Tratamentos (cria se não existir)' })
+  getTreatmentBoard(@CurrentUser('id') userId: string) {
+    return this.boardsService.getTreatmentBoard(userId);
+  }
+
   @Post('default/ensure')
   @ApiOperation({ summary: 'Garantir que boards padrão existam para o usuário' })
   ensureDefaultBoards(@CurrentUser('id') userId: string) {

@@ -13,6 +13,7 @@ import { LuLoader, LuPlus } from "react-icons/lu";
 const SYSTEM_BOARD_NAMES = new Set<string>([
   'Agendamentos',
   'Consultas',
+  'Tratamentos',
   'Internações',
 ]);
 
@@ -38,12 +39,22 @@ const COLUMN_TO_STATUS_MAP: Record<string, Record<string, string>> = {
     'Alta Programada': 'DISCHARGE_SCHEDULED',
     'Alta': 'DISCHARGED',
   },
+  TREATMENT: {
+    'Pendente': 'PENDING',
+    'Em Andamento': 'IN_PROGRESS',
+    'Aplicado': 'APPLIED',
+    'Concluído': 'COMPLETED',
+    'Cancelado': 'CANCELLED',
+  },
 };
 
 function detectBoardTypeFromName(name: string): BoardType {
   const normalizedName = name.toLowerCase().trim();
   if (normalizedName === 'consultas' || normalizedName === 'consulta') {
     return 'CONSULTATION';
+  }
+  if (normalizedName === 'tratamentos' || normalizedName === 'tratamento') {
+    return 'TREATMENT';
   }
   if (normalizedName === 'internações' || normalizedName === 'internacoes' || 
       normalizedName === 'internação' || normalizedName === 'internacao') {
@@ -200,6 +211,13 @@ const KanbanBoard = ({ boardId, boardName = "CRM", boardType: propBoardType = "A
 
   const handleStatusChange = async (id: string, newColumnName: string) => {
     try {
+      if (effectiveBoardType === 'TREATMENT') {
+        setAppointments((prev) =>
+          prev.map((app) => (app.id === id ? { ...app, status: newColumnName } : app))
+        );
+        return;
+      }
+
       const statusMap = COLUMN_TO_STATUS_MAP[effectiveBoardType];
       const isHospitalization = effectiveBoardType === 'HOSPITALIZATION';
 
@@ -309,12 +327,59 @@ const KanbanBoard = ({ boardId, boardName = "CRM", boardType: propBoardType = "A
     return response.json();
   };
 
+  const createTreatment = async (taskData: Omit<Appointment, "id">) => {
+    const appointmentResponse = await fetch("/api/appointments", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tutorId: taskData.tutorId,
+        petId: taskData.petId || undefined,
+        userId: taskData.userId,
+        date: taskData.date.toISOString(),
+        duration: taskData.duration || 30,
+        description: `Consulta para tratamento: ${taskData.description || ''}`,
+        notes: taskData.notes,
+        value: taskData.value,
+        status: 'IN_PROGRESS',
+        paymentStatus: 'PENDING',
+      }),
+    });
+
+    if (!appointmentResponse.ok) {
+      const errorData = await appointmentResponse.json().catch(() => ({ error: 'Erro desconhecido' }));
+      throw new Error(errorData.error || "Falha ao criar consulta para tratamento");
+    }
+
+    const appointment = await appointmentResponse.json();
+
+    const treatmentResponse = await fetch("/api/treatments", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        appointmentId: appointment.id,
+        petId: appointment.pet?.id || taskData.petId,
+        description: taskData.description || 'Tratamento',
+        cost: taskData.value || 0,
+      }),
+    });
+
+    if (!treatmentResponse.ok) {
+      const errorData = await treatmentResponse.json().catch(() => ({ error: 'Erro desconhecido' }));
+      throw new Error(errorData.error || "Falha ao criar tratamento");
+    }
+
+    return appointment;
+  };
+
   const handleAddTask = async (taskData: Omit<Appointment, "id">) => {
     try {
       let newRecord: Appointment;
       let cardTitle: string;
 
-      if (effectiveBoardType === 'HOSPITALIZATION') {
+      if (effectiveBoardType === 'TREATMENT') {
+        newRecord = await createTreatment(taskData);
+        cardTitle = `Tratamento - ${newRecord.pet?.name || 'Pet'}`;
+      } else if (effectiveBoardType === 'HOSPITALIZATION') {
         newRecord = await createHospitalization(taskData);
         cardTitle = `Internação - ${newRecord.pet?.name || 'Pet'}`;
       } else {
@@ -344,7 +409,6 @@ const KanbanBoard = ({ boardId, boardName = "CRM", boardType: propBoardType = "A
       
       setAppointments((prev) => [...prev, newRecord]);
 
-      // Reload board to see the card created by backend
       if (isSystemBoard) {
         const boardResponse = await fetch(`/api/boards/${boardId}`);
         if (boardResponse.ok) {
@@ -367,7 +431,7 @@ const KanbanBoard = ({ boardId, boardName = "CRM", boardType: propBoardType = "A
       
     } catch (error) {
       console.error("Erro ao adicionar tarefa:", error);
-      const entityName = effectiveBoardType === 'HOSPITALIZATION' ? 'internação' : 'consulta';
+      const entityName = effectiveBoardType === 'TREATMENT' ? 'tratamento' : effectiveBoardType === 'HOSPITALIZATION' ? 'internação' : 'consulta';
       alert(error instanceof Error ? error.message : `Erro ao criar ${entityName}. Tente novamente.`);
     }
   };

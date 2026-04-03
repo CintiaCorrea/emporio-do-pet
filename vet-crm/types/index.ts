@@ -3,7 +3,7 @@ export type Role = 'ADMIN' | 'VETERINARIAN' | 'RECEPTIONIST';
 export type AppointmentStatus = 'SCHEDULED' | 'COMPLETED' | 'CANCELED' | 'CONFIRMED' | 'IN_PROGRESS';
 export type PaymentStatus = 'PAID' | 'PENDING' | 'OVERDUE' | 'CANCELLED';
 export type ProductType = 'MEDICINE' | 'VACCINE' | 'SERVICE';
-export type BoardType = 'APPOINTMENT' | 'CONSULTATION' | 'HOSPITALIZATION' | 'TASK' | 'PROJECT' | 'LEAD' | 'CLIENT' | 'SALES';
+export type BoardType = 'APPOINTMENT' | 'CONSULTATION' | 'HOSPITALIZATION' | 'TREATMENT' | 'TASK' | 'PROJECT' | 'LEAD' | 'CLIENT' | 'SALES';
 
 // Novos Enums para Tutor, Contact e Pet
 export type PersonType = 'INDIVIDUAL' | 'LEGAL_ENTITY';

@@ -15,6 +15,7 @@ import { Board } from '@/types/board';
 const SYSTEM_BOARD_NAMES: ReadonlySet<string> = new Set([
   'Agendamentos',
   'Consultas',
+  'Tratamentos',
   'Internações',
 ]);
 

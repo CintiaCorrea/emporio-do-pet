@@ -34,7 +34,8 @@ import {
   LuLightbulb,
   LuDatabase,
   LuChartColumn,
-  LuSparkles
+  LuSparkles,
+  LuSyringe
 } from "react-icons/lu";
 
 interface SidebarProps {
@@ -390,6 +391,17 @@ const Sidebar = ({ isOpen, toggleSidebar }: SidebarProps) => {
                     Consultas
                   </Link>
                   <Link
+                    href="/dashboard/erp/tratamentos"
+                    className={`mx-2 my-1 flex items-center py-2 pl-10 pr-3 sm:pl-11 sm:pr-4 rounded-xl text-sm sm:text-base border-l-2 transition-all ${
+                      isActive("/dashboard/erp/tratamentos")
+                        ? "bg-[color:var(--sidebar-active-bg)] text-[color:var(--sidebar-active-text)] border-[color:var(--sidebar-active-border)]"
+                        : "text-[color:var(--sidebar-muted)] border-transparent hover:bg-[color:var(--sidebar-hover)] hover:text-[color:var(--sidebar-text)] hover:border-[color:var(--sidebar-active-border)]"
+                    }`}
+                  >
+                    <LuSyringe className="mr-3 w-4 h-4" /> 
+                    Tratamentos
+                  </Link>
+                  <Link
                     href="/dashboard/erp/internacoes"
                     className={`mx-2 my-1 flex items-center py-2 pl-10 pr-3 sm:pl-11 sm:pr-4 rounded-xl text-sm sm:text-base border-l-2 transition-all ${
                       isActive("/dashboard/erp/internacoes")
@@ -729,6 +741,13 @@ const Sidebar = ({ isOpen, toggleSidebar }: SidebarProps) => {
                       title="Consultas"
                     >
                       <LuStethoscope className="w-4 h-4" />
+                    </Link>
+                    <Link
+                      href="/dashboard/erp/tratamentos"
+                      className="w-full p-3 sm:p-4 hover:bg-[color:var(--sidebar-hover)] flex justify-center transition-colors"
+                      title="Tratamentos"
+                    >
+                      <LuSyringe className="w-4 h-4" />
                     </Link>
                     <Link
                       href="/dashboard/erp/internacoes"

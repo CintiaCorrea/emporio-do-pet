@@ -52,6 +52,7 @@ const MODULES = [
   { id: 'clientes', name: 'Clientes' },
   { id: 'agendamentos', name: 'Agendamentos' },
   { id: 'consultas', name: 'Consultas' },
+  { id: 'tratamentos', name: 'Tratamentos' },
   { id: 'internacoes', name: 'Internações' },
   { id: 'servicos', name: 'Serviços' },
   { id: 'produtos', name: 'Produtos' },

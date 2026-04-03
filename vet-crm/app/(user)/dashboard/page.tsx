@@ -32,6 +32,7 @@ import {
   LuPercent,
   LuChartColumn,
   LuLayoutGrid,
+  LuSyringe,
 } from 'react-icons/lu';
 
 interface DashboardData {
@@ -208,6 +209,7 @@ export default function DashboardPage() {
     { href: '/dashboard/erp/clientes', label: 'Clientes', icon: LuUsers, color: 'indigo' },
     { href: '/dashboard/erp/agendamentos', label: 'Agendamentos', icon: LuCalendar, color: 'amber' },
     { href: '/dashboard/erp/consultas', label: 'Consultas', icon: LuStethoscope, color: 'teal' },
+    { href: '/dashboard/erp/tratamentos', label: 'Tratamentos', icon: LuSyringe, color: 'teal' },
     { href: '/dashboard/erp/internacoes', label: 'Internações', icon: LuBedDouble, color: 'rose' },
     { href: '/dashboard/erp/servicos', label: 'Serviços', icon: LuWrench, color: 'indigo' },
     { href: '/dashboard/erp/produtos', label: 'Produtos', icon: LuPackage, color: 'emerald' },

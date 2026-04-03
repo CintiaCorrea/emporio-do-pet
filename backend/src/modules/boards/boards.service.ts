@@ -3,11 +3,12 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateBoardDto } from './dto/create-board.dto';
 import { UpdateBoardDto } from './dto/update-board.dto';
 
-type BoardTypeExtended = 'APPOINTMENT' | 'CONSULTATION' | 'HOSPITALIZATION' | 'TASK' | 'PROJECT' | 'LEAD' | 'CLIENT' | 'SALES';
+type BoardTypeExtended = 'APPOINTMENT' | 'CONSULTATION' | 'HOSPITALIZATION' | 'TREATMENT' | 'TASK' | 'PROJECT' | 'LEAD' | 'CLIENT' | 'SALES';
 
 const SYSTEM_BOARD_NAMES: ReadonlySet<string> = new Set([
   'Agendamentos',
   'Consultas',
+  'Tratamentos',
   'Internações',
 ]);
 
@@ -55,6 +56,19 @@ const DEFAULT_BOARD_CONFIGS: Record<string, {
       { name: 'Observação', position: 3, color: '#8B5CF6' },
       { name: 'Alta Programada', position: 4, color: '#10B981' },
       { name: 'Alta', position: 5, color: '#6B7280' },
+    ],
+  },
+  TREATMENT: {
+    name: 'Tratamentos',
+    type: 'TREATMENT',
+    color: 'bg-teal-500',
+    description: 'Pipeline de tratamentos veterinários',
+    columns: [
+      { name: 'Pendente', position: 1, color: '#F59E0B' },
+      { name: 'Em Andamento', position: 2, color: '#3B82F6' },
+      { name: 'Aplicado', position: 3, color: '#8B5CF6' },
+      { name: 'Concluído', position: 4, color: '#10B981' },
+      { name: 'Cancelado', position: 5, color: '#EF4444' },
     ],
   },
   LEAD: {
@@ -251,7 +265,7 @@ export class BoardsService {
 
     if (BoardsService.isSystemBoard(board.name)) {
       throw new ForbiddenException(
-        'Boards de sistema (Agendamentos, Consultas, Internações) não podem ser excluídos',
+        'Boards de sistema (Agendamentos, Consultas, Tratamentos, Internações) não podem ser excluídos',
       );
     }
 
@@ -498,6 +512,10 @@ export class BoardsService {
 
   async getHospitalizationBoard(userId: string) {
     return this.findByType(userId, 'HOSPITALIZATION');
+  }
+
+  async getTreatmentBoard(userId: string) {
+    return this.findByType(userId, 'TREATMENT');
   }
 
   async getLeadBoard(userId: string) {

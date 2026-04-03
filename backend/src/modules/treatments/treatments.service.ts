@@ -1,11 +1,15 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService, PrismaTransactionClient } from '../prisma/prisma.service';
+import { BoardsService } from '../boards/boards.service';
 import { CreateTreatmentDto } from './dto/create-treatment.dto';
 import { UpdateTreatmentDto } from './dto/update-treatment.dto';
 
 @Injectable()
 export class TreatmentsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly boardsService: BoardsService,
+  ) {}
 
   async findAll(params?: {
     page?: number;
@@ -149,6 +153,7 @@ export class TreatmentsService {
               date: true,
               description: true,
               tutor: { select: { id: true, name: true } },
+              userId: true,
             },
           },
           pet: { select: { id: true, name: true, species: true } },
@@ -156,6 +161,22 @@ export class TreatmentsService {
         },
       });
     });
+
+    try {
+      const userId = result?.appointment?.userId;
+      if (userId) {
+        const petName = result?.pet?.name || 'Pet';
+        await this.boardsService.createCardForAppointment(
+          userId,
+          dto.appointmentId,
+          'TREATMENT',
+          `Tratamento - ${petName}: ${dto.description.substring(0, 50)}`,
+          'Pendente',
+        );
+      }
+    } catch (err) {
+      console.error('Erro ao criar card no board de Tratamentos:', err);
+    }
 
     return result;
   }
