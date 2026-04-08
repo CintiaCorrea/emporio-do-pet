@@ -126,7 +126,7 @@ export default function NovoAgentePage() {
   const [loadingTemplates, setLoadingTemplates] = useState(false);
   const [boards, setBoards] = useState<{id: string; name: string; type: string}[]>([]);
   const [ragEnabled, setRagEnabled] = useState(false);
-  const [knowledgeBaseId, setKnowledgeBaseId] = useState('');
+  const [knowledgeBaseIds, setKnowledgeBaseIds] = useState<string[]>([]);
   const [ragTopK, setRagTopK] = useState(5);
   const [ragThreshold, setRagThreshold] = useState(0.7);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -297,7 +297,7 @@ export default function NovoAgentePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...form,
-          knowledgeBaseId: knowledgeBaseId || undefined,
+          knowledgeBaseIds,
           ragEnabled,
           ragTopK,
           ragThreshold,
@@ -955,26 +955,59 @@ export default function NovoAgentePage() {
                 <>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Base de Conhecimento
+                      Bases de Conhecimento
                     </label>
-                    <select
-                      value={knowledgeBaseId}
-                      onChange={(e) => setKnowledgeBaseId(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm"
-                    >
-                      <option value="">Selecione uma base...</option>
-                      {knowledgeBases.map((kb: any) => (
-                        <option key={kb.id} value={kb.id}>
-                          {kb.name} ({kb.totalDocuments} docs, {kb.totalChunks} chunks)
-                        </option>
-                      ))}
-                    </select>
-                    {knowledgeBases.length === 0 && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                      Selecione uma ou mais bases para o agente consultar.
+                    </p>
+                    {knowledgeBases.length > 0 ? (
+                      <div className="space-y-2 max-h-60 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-xl p-3 bg-white dark:bg-gray-900">
+                        {knowledgeBases.map((kb: any) => {
+                          const isSelected = knowledgeBaseIds.includes(kb.id);
+                          return (
+                            <label
+                              key={kb.id}
+                              className={`flex items-center gap-3 p-2.5 rounded-lg cursor-pointer transition-colors ${
+                                isSelected
+                                  ? 'bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-700'
+                                  : 'hover:bg-gray-50 dark:hover:bg-gray-800 border border-transparent'
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => {
+                                  setKnowledgeBaseIds(prev =>
+                                    isSelected
+                                      ? prev.filter(id => id !== kb.id)
+                                      : [...prev, kb.id]
+                                  );
+                                }}
+                                className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <span className="text-sm font-medium text-gray-900 dark:text-white block truncate">
+                                  {kb.name}
+                                </span>
+                                <span className="text-xs text-gray-500 dark:text-gray-400">
+                                  {kb.totalDocuments || kb._count?.documents || 0} docs, {kb.totalChunks || 0} chunks
+                                </span>
+                              </div>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    ) : (
                       <p className="text-xs text-gray-400 mt-1">
                         Nenhuma base encontrada.{' '}
                         <a href="/dashboard/ai-agents/conhecimento" className="text-indigo-600 hover:underline">
                           Criar uma base
                         </a>
+                      </p>
+                    )}
+                    {knowledgeBaseIds.length > 0 && (
+                      <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-2">
+                        {knowledgeBaseIds.length} base{knowledgeBaseIds.length > 1 ? 's' : ''} selecionada{knowledgeBaseIds.length > 1 ? 's' : ''}
                       </p>
                     )}
                   </div>

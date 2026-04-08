@@ -966,11 +966,12 @@ model AIAgent {
   crmAssignToBoard     String? // Board ID for auto-assignment
 
   // RAG (Retrieval-Augmented Generation)
-  knowledgeBaseId String?
-  knowledgeBase   KnowledgeBase? @relation(fields: [knowledgeBaseId], references: [id], onDelete: SetNull)
-  ragEnabled      Boolean        @default(false)
-  ragTopK         Int            @default(5)
-  ragThreshold    Float          @default(0.7)
+  knowledgeBaseId  String?
+  knowledgeBase    KnowledgeBase? @relation(fields: [knowledgeBaseId], references: [id], onDelete: SetNull)
+  knowledgeBaseIds String[]       @default([])
+  ragEnabled       Boolean        @default(false)
+  ragTopK          Int            @default(5)
+  ragThreshold     Float          @default(0.7)
 
   // Configurações de voz (Text-to-Speech)
   voiceEnabled Boolean @default(false)

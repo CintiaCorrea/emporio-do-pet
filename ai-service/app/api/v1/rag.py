@@ -80,7 +80,7 @@ async def retrieve_chunks(request: RetrieveRequest) -> RetrieveResponse:
         service = RAGService()
         chunks, query_tokens = await service.retrieve(
             query=request.query,
-            knowledge_base_id=request.knowledge_base_id,
+            knowledge_base_ids=request.knowledge_base_id,
             credentials=request.credentials,
             top_k=request.top_k,
             threshold=request.threshold,

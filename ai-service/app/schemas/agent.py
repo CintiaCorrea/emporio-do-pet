@@ -61,9 +61,19 @@ class AgentRequest(BaseModel):
 
     # RAG Configuration
     rag_enabled: bool = Field(False, description="Whether RAG is enabled for this agent")
-    rag_knowledge_base_id: Optional[str] = Field(None, description="Knowledge base ID to retrieve from")
+    rag_knowledge_base_ids: Optional[List[str]] = Field(None, description="Knowledge base IDs to retrieve from")
+    rag_knowledge_base_id: Optional[str] = Field(None, description="Deprecated: single knowledge base ID (backward compat)")
     rag_top_k: int = Field(5, ge=1, le=20, description="Number of chunks to retrieve")
     rag_threshold: float = Field(0.7, ge=0.0, le=1.0, description="Minimum similarity threshold")
+
+    @property
+    def effective_knowledge_base_ids(self) -> List[str]:
+        """Resolve KB IDs from either the list or the legacy single field."""
+        if self.rag_knowledge_base_ids:
+            return self.rag_knowledge_base_ids
+        if self.rag_knowledge_base_id:
+            return [self.rag_knowledge_base_id]
+        return []
 
     model_config = {
         "json_schema_extra": {

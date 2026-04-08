@@ -333,15 +333,18 @@ class RAGService:
     async def retrieve(
         self,
         query: str,
-        knowledge_base_id: str,
+        knowledge_base_ids: list[str] | str,
         credentials: Credentials,
         top_k: int = 5,
         threshold: float = 0.7,
     ) -> Tuple[List[RetrievedChunk], int]:
-        """Retrieve relevant chunks for a query.
+        """Retrieve relevant chunks for a query across one or more knowledge bases.
         
         Returns (chunks, query_token_count).
         """
+        if isinstance(knowledge_base_ids, str):
+            knowledge_base_ids = [knowledge_base_ids]
+
         pool = get_db_pool()
 
         query_embedding = await self.embedding_service.generate_embedding(query, credentials)
@@ -357,14 +360,14 @@ class RAGService:
                 1 - (dc.embedding <=> $1) AS similarity
             FROM "document_chunks" dc
             JOIN "knowledge_documents" kd ON dc."documentId" = kd.id
-            WHERE kd."knowledgeBaseId" = $2
+            WHERE kd."knowledgeBaseId" = ANY($2::text[])
               AND kd.status = 'READY'
               AND 1 - (dc.embedding <=> $1) >= $3
             ORDER BY dc.embedding <=> $1
             LIMIT $4
             """,
             embedding_array,
-            knowledge_base_id,
+            knowledge_base_ids,
             threshold,
             top_k,
         )
@@ -390,7 +393,7 @@ class RAGService:
 
         logger.info(
             f"Retrieved {len(chunks)} chunks for query "
-            f"(kb={knowledge_base_id}, top_k={top_k}, threshold={threshold})"
+            f"(kbs={knowledge_base_ids}, top_k={top_k}, threshold={threshold})"
         )
 
         return chunks, query_tokens

@@ -5,6 +5,7 @@ import {
   IsEnum,
   IsNumber,
   IsBoolean,
+  IsArray,
   Min,
   Max,
   IsUUID,
@@ -144,6 +145,11 @@ export class CreateAgentDto {
   @IsUUID()
   @IsOptional()
   knowledgeBaseId?: string;
+
+  @IsArray()
+  @IsUUID('4', { each: true })
+  @IsOptional()
+  knowledgeBaseIds?: string[];
 
   @IsBoolean()
   @IsOptional()

@@ -67,7 +67,8 @@ class AgentService:
         request: AgentRequest,
     ) -> Tuple[List[RetrievedChunk], int, Optional[str]]:
         """Retrieve RAG context if enabled. Returns (chunks, query_tokens, error_message)."""
-        if not request.rag_enabled or not request.rag_knowledge_base_id:
+        kb_ids = request.effective_knowledge_base_ids
+        if not request.rag_enabled or not kb_ids:
             return [], 0, None
 
         try:
@@ -76,7 +77,7 @@ class AgentService:
             rag_service = RAGService()
             chunks, query_tokens = await rag_service.retrieve(
                 query=request.user_message,
-                knowledge_base_id=request.rag_knowledge_base_id,
+                knowledge_base_ids=kb_ids,
                 credentials=request.credentials,
                 top_k=request.rag_top_k,
                 threshold=request.rag_threshold,

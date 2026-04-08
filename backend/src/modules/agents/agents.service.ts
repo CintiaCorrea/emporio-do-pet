@@ -87,6 +87,8 @@ export class AgentsService {
   }
 
   async create(userId: string, dto: CreateAgentDto) {
+    const knowledgeBaseIds = dto.knowledgeBaseIds ?? (dto.knowledgeBaseId ? [dto.knowledgeBaseId] : []);
+
     return this.prisma.aIAgent.create({
       data: {
         userId,
@@ -115,6 +117,12 @@ export class AgentsService {
         crmLeadScoring: dto.crmLeadScoring ?? false,
         crmNotifyOnHighScore: dto.crmNotifyOnHighScore ?? false,
         crmAssignToBoard: dto.crmAssignToBoard,
+        // RAG
+        knowledgeBaseId: knowledgeBaseIds[0] ?? null,
+        knowledgeBaseIds,
+        ragEnabled: dto.ragEnabled ?? false,
+        ragTopK: dto.ragTopK ?? 5,
+        ragThreshold: dto.ragThreshold ?? 0.7,
         // Voice
         voiceEnabled: dto.voiceEnabled ?? false,
         voiceId: dto.voiceId ?? 'nova',
@@ -213,12 +221,20 @@ export class AgentsService {
   async update(userId: string, id: string, dto: UpdateAgentDto) {
     await this.findOne(userId, id);
 
+    const data: Record<string, unknown> = {
+      ...dto,
+      updatedAt: new Date(),
+    };
+
+    if (dto.knowledgeBaseIds !== undefined) {
+      data.knowledgeBaseId = dto.knowledgeBaseIds[0] ?? null;
+    } else if (dto.knowledgeBaseId !== undefined) {
+      data.knowledgeBaseIds = dto.knowledgeBaseId ? [dto.knowledgeBaseId] : [];
+    }
+
     return this.prisma.aIAgent.update({
       where: { id },
-      data: {
-        ...dto,
-        updatedAt: new Date(),
-      },
+      data,
       include: {
         template: true,
       },
@@ -326,7 +342,9 @@ export class AgentsService {
               temperature: agent.temperature,
               max_tokens: agent.maxTokens,
               rag_enabled: agent.ragEnabled ?? false,
-              rag_knowledge_base_id: agent.knowledgeBaseId ?? null,
+              rag_knowledge_base_ids: (agent.knowledgeBaseIds?.length > 0)
+                ? agent.knowledgeBaseIds
+                : (agent.knowledgeBaseId ? [agent.knowledgeBaseId] : []),
               rag_top_k: agent.ragTopK ?? 5,
               rag_threshold: agent.ragThreshold ?? 0.7,
             }),
@@ -556,7 +574,9 @@ export class AgentsService {
           temperature: agent.temperature,
           max_tokens: agent.maxTokens,
           rag_enabled: agent.ragEnabled ?? false,
-          rag_knowledge_base_id: agent.knowledgeBaseId ?? null,
+          rag_knowledge_base_ids: (agent.knowledgeBaseIds?.length > 0)
+            ? agent.knowledgeBaseIds
+            : (agent.knowledgeBaseId ? [agent.knowledgeBaseId] : []),
           rag_top_k: agent.ragTopK ?? 5,
           rag_threshold: agent.ragThreshold ?? 0.7,
         }),
@@ -1168,7 +1188,9 @@ export class AgentsService {
               temperature: agent.temperature,
               max_tokens: agent.maxTokens,
               rag_enabled: agent.ragEnabled ?? false,
-              rag_knowledge_base_id: agent.knowledgeBaseId ?? null,
+              rag_knowledge_base_ids: (agent.knowledgeBaseIds?.length > 0)
+                ? agent.knowledgeBaseIds
+                : (agent.knowledgeBaseId ? [agent.knowledgeBaseId] : []),
               rag_top_k: agent.ragTopK ?? 5,
               rag_threshold: agent.ragThreshold ?? 0.7,
             }),
