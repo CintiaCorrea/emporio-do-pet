@@ -68,7 +68,6 @@ export class ColumnsService {
                 email: true,
                 status: true,
                 type: true,
-                totalRevenue: true,
               },
             },
           },
