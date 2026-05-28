@@ -1,0 +1,24 @@
+name: Deploy Backend to Fly.io
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/deploy-backend.yml'
+  workflow_dispatch:  # Permite disparar manualmente pela UI do GitHub
+
+jobs:
+  deploy:
+    name: Deploy emporio-pet-api
+    runs-on: ubuntu-latest
+    concurrency: deploy-backend-${{ github.ref }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Deploy to Fly.io
+        run: flyctl deploy --remote-only --config backend/fly.toml --dockerfile backend/Dockerfile ./backend
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
