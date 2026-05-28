@@ -1,0 +1,25 @@
+name: Deploy Vet-CRM (Frontend) to Fly.io
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'vet-crm/**'
+      - '.github/workflows/deploy-vet-crm.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy emporio-pet-web
+    runs-on: ubuntu-latest
+    concurrency: deploy-vet-crm-${{ github.ref }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Deploy to Fly.io
+        working-directory: vet-crm
+        run: flyctl deploy --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN_WEB }}
