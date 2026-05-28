@@ -2,7 +2,7 @@
 # Deploy via GitHub Actions (.github/workflows/deploy-vet-crm.yml)
 # Cintia: precisa gerar app primeiro via `fly apps create emporio-pet-web -o emporio-do-pet-administracao`
 
-app = "emporio-pet-web"
+app = "emporio-do-web"
 primary_region = "gru"
 
 [build]
