@@ -16,6 +16,15 @@ import { UpdateTutorDto } from './dto/update-tutor.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @ApiTags('tutors')
+
+// TODO (próxima sessão — porta dos endpoints do antigo módulo clients):
+//   GET    /tutors/stats              — estatísticas do CRM (total, ACTIVE, by classificacao)
+//   PATCH  /tutors/:id/status         — atualizar status (TutorStatus)
+//   POST   /tutors/:id/tags           — adicionar tags
+//   DELETE /tutors/:id/tags           — remover tags
+//   POST   /tutors/:id/purchase       — registrar atendimento (substitui /clients/:id/purchase;
+//                                       a soma virá de Appointments dinamicamente, não de campo cacheado)
+// Lógica original em git history: commit a672640^ (clients.service.ts deletado).
 @Controller('tutors')
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
