@@ -241,6 +241,7 @@ model User {
   agentTemplates AgentTemplate[]
   automations    Automation[]
 
+  kanbanCards           KanbanCard[]
   // WhatsApp
   whatsappConversations         WhatsAppConversation[]
   whatsappConversationsTakeover WhatsAppConversation[] @relation("whatsapp_assigned_user")
@@ -345,6 +346,12 @@ model Tutor {
   tags                  String[] // Para marcações
   formDate              DateTime? // Ficha
   inclusionDate         DateTime? // Inclusão
+  // Status comercial (unificado de Client)
+  status                TutorStatus            @default(ACTIVE)
+  classificacao         TutorClassificacao     @default(Cliente)
+  companyName           String?
+  cnpj                  String?                @unique
+  convertedFromLeadId   String?
   // Contatos
   contacts              Contact[]
   // Relacionamentos
@@ -352,6 +359,7 @@ model Tutor {
   pets                  Pet[]
   appointments          Appointment[]
   clinicalDocuments     ClinicalDocument[]
+  kanbanCards           KanbanCard[]
   // WhatsApp
   whatsappConversations WhatsAppConversation[]
   // Timestamps
@@ -377,58 +385,25 @@ model Contact {
   @@map("contacts")
 }
 
-// CRM Models
-model Client {
-  id         String      @id @default(uuid())
-  name       String
-  email      String      @unique
-  phone      String?
-  address    String?
-  
-  // Client status and lifecycle
-  status     ClientStatus @default(ACTIVE)
-  type       ClientType   @default(INDIVIDUAL)
-  
-  // Business info (for companies)
-  companyName   String?
-  taxId         String?    // CNPJ/CPF
-  
-  // Additional contact
-  website       String?
-  notes         String?
-  tags          String[]   @default([])
-  
-  // CRM Integrations
-  convertedFromLeadId String?  // Lead que originou este cliente
-  kanbanCards         KanbanCard[]
-  
-  // Financial
-  totalRevenue  Int        @default(0) // Em centavos
-  totalOrders   Int        @default(0)
-  lastOrderAt   DateTime?
-  
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
-  
-  // Relacionamentos comerciais
-  recipients Recipient[]
-  
-  @@index([status])
-  @@index([convertedFromLeadId])
-  @@map("clients")
-}
+// (Client model removido — unificado em Tutor via classificacao)
 
-enum ClientStatus {
+enum TutorStatus {
   ACTIVE
   INACTIVE
   SUSPENDED
   CHURNED
 }
 
-enum ClientType {
-  INDIVIDUAL
-  COMPANY
+enum TutorClassificacao {
+  Cliente
+  Fornecedor
+  Parceiro
+  Candidato_a_vaga
+  Engano
+  Indicacao_nao_cliente
+  Ex_cliente
 }
+
 
 // ATUALIZADO: Pet agora relaciona com Tutor e tem campos expandidos
 model Pet {
@@ -664,8 +639,8 @@ model KanbanCard {
   appointment   Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
   leadId        String?      @unique
   lead          Lead?        @relation(fields: [leadId], references: [id], onDelete: SetNull)
-  clientId      String?      @unique
-  client        Client?      @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  tutorId       String?      @unique
+  tutor         Tutor?       @relation(fields: [tutorId], references: [id], onDelete: SetNull)
   
   // Card metadata
   metadata      Json?
@@ -679,7 +654,7 @@ model KanbanCard {
 
   @@unique([columnId, position])
   @@index([leadId])
-  @@index([clientId])
+  @@index([tutorId])
   @@map("kanban_cards")
 }
 
@@ -756,16 +731,13 @@ model NewsletterTemplate {
 model Recipient {
   id           String     @id @default(uuid())
   newsletterId String
-  clientId     String?
   tutorId      String?
   leadEmail    String?
   newsletter   Newsletter @relation(fields: [newsletterId], references: [id], onDelete: Cascade)
-  client       Client?    @relation(fields: [clientId], references: [id], onDelete: SetNull)
   tutor        Tutor?     @relation(fields: [tutorId], references: [id], onDelete: SetNull)
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
-  @@unique([newsletterId, clientId])
   @@unique([newsletterId, leadEmail])
   @@unique([newsletterId, tutorId])
 }
@@ -1493,7 +1465,7 @@ model Lead {
   
   // CRM Integrations
   kanbanCards           KanbanCard[]
-  convertedToClientId   String?       // ID do Client se convertido
+  convertedToTutorId    String?       // ID do Tutor se convertido
   whatsappConversationId String?      // Conversa que originou o lead
 
   createdAt DateTime @default(now())
@@ -1504,7 +1476,7 @@ model Lead {
   @@index([source])
   @@index([lastSeenAt])
   @@index([email])
-  @@index([convertedToClientId])
+  @@index([convertedToTutorId])
   @@map("leads")
 }
 
