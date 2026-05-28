@@ -176,7 +176,6 @@ model User {
   agentTemplates  AgentTemplate[]
   automations     Automation[]
   
-  kanbanCards           KanbanCard[]
   // WhatsApp
   whatsappConversations WhatsAppConversation[]
   whatsappCampaigns     WhatsAppCampaign[]

@@ -241,7 +241,6 @@ model User {
   agentTemplates AgentTemplate[]
   automations    Automation[]
 
-  kanbanCards           KanbanCard[]
   // WhatsApp
   whatsappConversations         WhatsAppConversation[]
   whatsappConversationsTakeover WhatsAppConversation[] @relation("whatsapp_assigned_user")
