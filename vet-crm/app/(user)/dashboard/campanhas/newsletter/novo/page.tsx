@@ -1,5 +1,11 @@
 'use client';
 
+// ⚠️  REFACTOR EM PROGRESSO:
+// Cliente unificado no Tutor (Tutor.classificacao = 'Cliente') em a672640.
+// URL /api/clients/* mantida temporariamente como compat layer apontando pra /tutors no backend.
+// Alguns campos podem não bater 100% com o backend até validação contra dados reais.
+
+
 import { useState, useRef, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { 
@@ -28,7 +34,7 @@ const NewsletterPage = () => {
     recipients: []
   });
 
-  const [clients, setClients] = useState<Client[]>([]);
+  const [clients, setClients] = useState<Tutor[]>([]);
   const [tutors, setTutors] = useState<Tutor[]>([]);
   const [templates, setTemplates] = useState<NewsletterTemplate[]>([]);
   const [selectedClients, setSelectedClients] = useState<string[]>([]);

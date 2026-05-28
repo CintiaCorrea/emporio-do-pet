@@ -1,3 +1,8 @@
+// ⚠️  REFACTOR EM PROGRESSO:
+// Cliente unificado no Tutor (Tutor.classificacao = 'Cliente') em a672640.
+// URL /api/clients/* mantida temporariamente como compat layer apontando pra /tutors no backend.
+// Alguns campos podem não bater 100% com o backend até validação contra dados reais.
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -17,7 +22,7 @@ interface Tutor {
   cpf: string;
 }
 
-interface ClientFormData {
+interface ContactFormData {
   type: 'MOBILE' | 'PHONE' | 'BUSINESS';
   number: string;
   isWhatsApp: boolean;
@@ -33,7 +38,7 @@ export default function NewClientPage() {
   const [tutors, setTutors] = useState<Tutor[]>([]);
   const [loadingTutors, setLoadingTutors] = useState(true);
 
-  const [formData, setFormData] = useState<ClientFormData>({
+  const [formData, setFormData] = useState<ContactFormData>({
     type: 'MOBILE',
     number: '',
     isWhatsApp: false,
@@ -120,7 +125,7 @@ export default function NewClientPage() {
     }
   };
 
-  const handleInputChange = (field: keyof ClientFormData, value: string | boolean) => {
+  const handleInputChange = (field: keyof ContactFormData, value: string | boolean) => {
     setFormData(prev => ({
       ...prev,
       [field]: value

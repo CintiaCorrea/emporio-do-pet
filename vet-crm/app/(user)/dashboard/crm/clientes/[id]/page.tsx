@@ -1,5 +1,11 @@
 'use client';
 
+// ⚠️  REFACTOR EM PROGRESSO:
+// Cliente unificado no Tutor (Tutor.classificacao = 'Cliente') em a672640.
+// URL /api/clients/* mantida temporariamente como compat layer apontando pra /tutors no backend.
+// Alguns campos podem não bater 100% com o backend até validação contra dados reais.
+
+
 import { useState, useEffect, use, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -11,7 +17,7 @@ import {
 } from 'react-icons/lu';
 import toast from 'react-hot-toast';
 
-interface Client {
+interface Tutor {
   id: string;
   name: string;
   email: string;
@@ -20,9 +26,9 @@ interface Client {
   status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'CHURNED';
   type: 'INDIVIDUAL' | 'COMPANY';
   companyName: string | null;
-  taxId: string | null;
+  cnpj: string | null;
   website: string | null;
-  notes: string | null;
+  observations: string | null;
   tags: string[];
   convertedFromLeadId: string | null;
   totalRevenue: number;
@@ -49,7 +55,7 @@ const STATUS_COLORS: Record<string, string> = {
 export default function ClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
-  const [client, setClient] = useState<Client | null>(null);
+  const [client, setClient] = useState<Tutor | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -272,11 +278,11 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
               {client.type === 'COMPANY' && (
                 <>
                   <InfoRow icon={<LuBuilding className="w-4 h-4" />} label="Empresa" value={client.companyName || 'N/A'} />
-                  <InfoRow icon={<LuBuilding className="w-4 h-4" />} label="CNPJ/CPF" value={client.taxId || 'N/A'} />
+                  <InfoRow icon={<LuBuilding className="w-4 h-4" />} label="CNPJ/CPF" value={client.cnpj || 'N/A'} />
                 </>
               )}
-              {client.type === 'INDIVIDUAL' && client.taxId && (
-                <InfoRow icon={<LuUser className="w-4 h-4" />} label="CPF" value={client.taxId} />
+              {client.type === 'INDIVIDUAL' && client.cnpj && (
+                <InfoRow icon={<LuUser className="w-4 h-4" />} label="CPF" value={client.cnpj} />
               )}
               {client.website && (
                 <InfoRow icon={<LuMapPin className="w-4 h-4" />} label="Website" value={client.website} />
@@ -308,10 +314,10 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
             </div>
 
             {/* Notes */}
-            {client.notes && (
+            {client.observations && (
               <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-3xl p-6 shadow-lg">
                 <h3 className="text-lg font-bold text-gray-900 mb-4">Notas</h3>
-                <p className="text-gray-600 text-sm bg-gray-50 rounded-xl p-3">{client.notes}</p>
+                <p className="text-gray-600 text-sm bg-gray-50 rounded-xl p-3">{client.observations}</p>
               </div>
             )}
 

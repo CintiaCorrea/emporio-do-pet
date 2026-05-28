@@ -11,16 +11,7 @@ export interface Pet {
   birthDate?: Date;
 }
 
-export interface Client {
-  id: string;
-  name: string;
-  email: string;
-  phone?: string;
-  address?: string;
-  pets: Pet[];
-}
-
-// NOVO: Interface Tutor
+// NOVO: Interface Tutor (unificada — antes era Client + Tutor separados)
 export interface Tutor {
   id: string;
   name: string;
@@ -32,6 +23,10 @@ export interface Tutor {
   // Outros campos que podem ser úteis
   pets?: Pet[];
 }
+
+// @deprecated use Tutor — Client foi unificado em Tutor com classificacao='Cliente'.
+// Alias mantido para compat enquanto components/newsletter migram.
+export type Client = Tutor;
 
 export interface Newsletter {
   id?: string;

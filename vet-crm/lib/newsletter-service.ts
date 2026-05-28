@@ -197,8 +197,8 @@ export async function sendNewsletterToRecipients(
 export async function getRecipientsByType(recipientType: RecipientType) {
   switch (recipientType) {
     case RecipientType.CLIENT:
-      return await // Client unificado em Tutor com classificacao=Cliente
-      prisma.tutor.findMany({
+      // Client unificado em Tutor com classificacao=Cliente
+      return await prisma.tutor.findMany({
         select: {
           id: true,
           name: true,
@@ -231,7 +231,7 @@ export async function getRecipientsByType(recipientType: RecipientType) {
 
     case RecipientType.ALL:
       const [clients, tutors] = await Promise.all([
-        // Client unificado em Tutor com classificacao=Cliente
+        // Cliente unificado em Tutor (classificacao=Cliente)
       prisma.tutor.findMany({
           select: {
             id: true,
@@ -278,8 +278,8 @@ export async function getRecipientsByType(recipientType: RecipientType) {
  * Função auxiliar para buscar emails válidos de clients
  */
 export async function getValidClientEmails() {
-  const allClients = await // Client unificado em Tutor com classificacao=Cliente
-      prisma.tutor.findMany({
+  const allClients // Client unificado em Tutor com classificacao=Cliente
+      = await prisma.tutor.findMany({
     select: {
       id: true,
       name: true,
@@ -321,8 +321,8 @@ export async function getValidTutorEmails() {
 export async function getRecipientsByTypePrisma(recipientType: RecipientType) {
   switch (recipientType) {
     case RecipientType.CLIENT:
-      return await // Client unificado em Tutor com classificacao=Cliente
-      prisma.tutor.findMany({
+      // Client unificado em Tutor com classificacao=Cliente
+      return await prisma.tutor.findMany({
         select: {
           id: true,
           name: true,
@@ -355,7 +355,7 @@ export async function getRecipientsByTypePrisma(recipientType: RecipientType) {
 
     case RecipientType.ALL:
       const [clients, tutors] = await Promise.all([
-        // Client unificado em Tutor com classificacao=Cliente
+        // Cliente unificado em Tutor (classificacao=Cliente)
       prisma.tutor.findMany({
           select: {
             id: true,
