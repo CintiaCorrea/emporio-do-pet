@@ -8,23 +8,35 @@ import {
   Delete,
   Query,
   UseGuards,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import { IsArray, IsEnum, IsInt, IsString } from 'class-validator';
+import { TutorStatus } from '@prisma/client';
 import { TutorsService } from './tutors.service';
 import { CreateTutorDto } from './dto/create-tutor.dto';
 import { UpdateTutorDto } from './dto/update-tutor.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
+class UpdateStatusDto {
+  @IsEnum(TutorStatus)
+  status: TutorStatus;
+}
+
+class ManageTagsDto {
+  @IsArray()
+  @IsString({ each: true })
+  tags: string[];
+}
+
+class RecordPurchaseDto {
+  @IsInt()
+  amountCents: number;
+}
+
 @ApiTags('tutors')
 
-// TODO (próxima sessão — porta dos endpoints do antigo módulo clients):
-//   GET    /tutors/stats              — estatísticas do CRM (total, ACTIVE, by classificacao)
-//   PATCH  /tutors/:id/status         — atualizar status (TutorStatus)
-//   POST   /tutors/:id/tags           — adicionar tags
-//   DELETE /tutors/:id/tags           — remover tags
-//   POST   /tutors/:id/purchase       — registrar atendimento (substitui /clients/:id/purchase;
-//                                       a soma virá de Appointments dinamicamente, não de campo cacheado)
-// Lógica original em git history: commit a672640^ (clients.service.ts deletado).
 @Controller('tutors')
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
@@ -50,6 +62,12 @@ export class TutorsController {
     return this.tutorsService.findAll({ search, skip, take });
   }
 
+  @Get('stats')
+  @ApiOperation({ summary: 'Estatísticas do CRM (tutores com classificacao=Cliente)' })
+  getStats() {
+    return this.tutorsService.getStats();
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Buscar tutor por ID' })
   findOne(@Param('id') id: string) {
@@ -60,6 +78,34 @@ export class TutorsController {
   @ApiOperation({ summary: 'Atualizar tutor' })
   update(@Param('id') id: string, @Body() updateTutorDto: UpdateTutorDto) {
     return this.tutorsService.update(id, updateTutorDto);
+  }
+
+  @Patch(':id/status')
+  @ApiOperation({ summary: 'Atualizar status do tutor' })
+  @HttpCode(HttpStatus.OK)
+  updateStatus(@Param('id') id: string, @Body() dto: UpdateStatusDto) {
+    return this.tutorsService.updateStatus(id, dto.status);
+  }
+
+  @Post(':id/tags')
+  @ApiOperation({ summary: 'Adicionar tags ao tutor' })
+  @HttpCode(HttpStatus.OK)
+  addTags(@Param('id') id: string, @Body() dto: ManageTagsDto) {
+    return this.tutorsService.addTags(id, dto.tags);
+  }
+
+  @Delete(':id/tags')
+  @ApiOperation({ summary: 'Remover tags do tutor' })
+  @HttpCode(HttpStatus.OK)
+  removeTags(@Param('id') id: string, @Body() dto: ManageTagsDto) {
+    return this.tutorsService.removeTags(id, dto.tags);
+  }
+
+  @Post(':id/purchase')
+  @ApiOperation({ summary: 'Registrar compra (deprecated — use Appointment)' })
+  @HttpCode(HttpStatus.OK)
+  recordPurchase(@Param('id') id: string, @Body() dto: RecordPurchaseDto) {
+    return this.tutorsService.recordPurchase(id, dto.amountCents);
   }
 
   @Delete(':id')

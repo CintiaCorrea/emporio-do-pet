@@ -1,6 +1,8 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
+import { TutorStatus } from '@prisma/client';
 import { CreateTutorDto } from './dto/create-tutor.dto';
 import { UpdateTutorDto } from './dto/update-tutor.dto';
 
@@ -9,6 +11,7 @@ export class TutorsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventsService: EventsService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async create(createTutorDto: CreateTutorDto) {
@@ -158,5 +161,93 @@ export class TutorsService {
     return this.prisma.tutor.delete({
       where: { id },
     });
+  }
+
+  // ============================================
+  // Endpoints comerciais (portados de clients.service.ts)
+  // Tutor.classificacao = 'Cliente' representa o antigo Client.
+  // ============================================
+
+  async getStats() {
+    const [
+      total,
+      active,
+      inactive,
+      companies,
+      individuals,
+      fromLeads,
+    ] = await Promise.all([
+      this.prisma.tutor.count({ where: { classificacao: 'Cliente' } }),
+      this.prisma.tutor.count({ where: { classificacao: 'Cliente', status: 'ACTIVE' } }),
+      this.prisma.tutor.count({
+        where: { classificacao: 'Cliente', status: { in: ['INACTIVE', 'CHURNED'] } },
+      }),
+      this.prisma.tutor.count({ where: { classificacao: 'Cliente', type: 'LEGAL_ENTITY' } }),
+      this.prisma.tutor.count({ where: { classificacao: 'Cliente', type: 'INDIVIDUAL' } }),
+      this.prisma.tutor.count({
+        where: { classificacao: 'Cliente', convertedFromLeadId: { not: null } },
+      }),
+    ]);
+
+    // TODO: totalRevenue/averageRevenue agora calculados via Appointments (sum por tutorId
+    //       quando paymentStatus=PAID). Aggregate inline pesado — adicionar quando UI usar.
+    return {
+      total,
+      active,
+      inactive,
+      companies,
+      individuals,
+      fromLeads,
+      conversionRate: total > 0 ? ((fromLeads / total) * 100).toFixed(1) : '0',
+      totalRevenue: 0,
+      averageRevenue: 0,
+    };
+  }
+
+  async updateStatus(id: string, status: TutorStatus) {
+    const existing = await this.findById(id);
+    const previousStatus = existing.status;
+
+    const tutor = await this.prisma.tutor.update({
+      where: { id },
+      data: { status },
+    });
+
+    if (status !== previousStatus) {
+      this.eventEmitter.emit('crm.tutor.status_changed', {
+        tutorId: tutor.id,
+        previousStatus,
+        newStatus: status,
+      });
+    }
+
+    return tutor;
+  }
+
+  async addTags(id: string, tags: string[]) {
+    const existing = await this.findById(id);
+    const newTags = [...new Set([...(existing.tags || []), ...tags])];
+
+    return this.prisma.tutor.update({
+      where: { id },
+      data: { tags: newTags },
+    });
+  }
+
+  async removeTags(id: string, tags: string[]) {
+    const existing = await this.findById(id);
+    const newTags = (existing.tags || []).filter((t) => !tags.includes(t));
+
+    return this.prisma.tutor.update({
+      where: { id },
+      data: { tags: newTags },
+    });
+  }
+
+  async recordPurchase(id: string, _amountCents: number) {
+    // DEPRECATED: totalRevenue/totalOrders/lastOrderAt agora derivam de Appointments,
+    // não de campos cacheados no Tutor. Este endpoint é um no-op kept for compat
+    // até a UI migrar pra registrar Appointment diretamente.
+    return this.findById(id);
   }
 }
