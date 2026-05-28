@@ -176,6 +176,7 @@ model User {
   agentTemplates  AgentTemplate[]
   automations     Automation[]
   
+  kanbanCards           KanbanCard[]
   // WhatsApp
   whatsappConversations WhatsAppConversation[]
   whatsappCampaigns     WhatsAppCampaign[]
@@ -189,6 +190,24 @@ model User {
 }
 
 // NOVOS MODELS: Tutor e Contact
+
+enum TutorStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  CHURNED
+}
+
+enum TutorClassificacao {
+  Cliente
+  Fornecedor
+  Parceiro
+  Candidato_a_vaga
+  Engano
+  Indicacao_nao_cliente
+  Ex_cliente
+}
+
 model Tutor {
   id               String       @id @default(uuid())
   // Informações Básicas
@@ -224,6 +243,12 @@ model Tutor {
   tags             String[]     // Para marcações
   formDate         DateTime?    // Ficha
   inclusionDate    DateTime?    // Inclusão
+  // Status comercial (unificado de Client)
+  status                TutorStatus            @default(ACTIVE)
+  classificacao         TutorClassificacao     @default(Cliente)
+  companyName           String?
+  cnpj                  String?                @unique
+  convertedFromLeadId   String?
   // Contatos
   contacts         Contact[]
   // Relacionamentos
@@ -256,18 +281,7 @@ model Contact {
   @@map("contacts")
 }
 
-// CRM Models
-model Client {
-  id          String       @id @default(uuid())
-  name        String
-  email       String       @unique
-  phone       String?
-  address     String?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  // Manter apenas relacionamentos comerciais (vendas, newsletter)
-  recipients  Recipient[]
-}
+// (Client model removido — unificado em Tutor via classificacao)
 
 // ATUALIZADO: Pet agora relaciona com Tutor e tem campos expandidos
 model Pet {
@@ -467,16 +481,13 @@ model NewsletterTemplate {
 model Recipient {
   id           String     @id @default(uuid())
   newsletterId String
-  clientId     String?
   tutorId      String?
   leadEmail    String?
   newsletter   Newsletter @relation(fields: [newsletterId], references: [id], onDelete: Cascade)
-  client       Client?    @relation(fields: [clientId], references: [id], onDelete: SetNull)
   tutor        Tutor?     @relation(fields: [tutorId], references: [id], onDelete: SetNull)
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
   
-  @@unique([newsletterId, clientId])
   @@unique([newsletterId, leadEmail])
   @@unique([newsletterId, tutorId])
 }
