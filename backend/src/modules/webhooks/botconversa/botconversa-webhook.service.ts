@@ -7,14 +7,11 @@ import { BotconversaPayloadDto } from './dto/botconversa-payload.dto';
  * Processa eventos do BotConversa.
  *
  * Regras (espelham botconversaLeadCapture do Base44):
- *  - Idempotência por telefone (last 8 dígitos) — evita duplicar
- *    Lead/Tutor a cada interação.
- *  - Se já existe Tutor com esse telefone → upsert nele
- *    (BotConversa indica cliente existente via tag FU-cliente).
- *  - Senão, busca/atualiza Lead. Se não existe Lead, cria com
- *    source=BOTCONVERSA.
- *  - Tags do BotConversa são preservadas no array de tags.
- *  - LeadEvent registra o resumo IA como rastro.
+ *  - Idempotência por telefone (last 8 dígitos).
+ *  - Tag FU-cliente → upsert em Tutor com classificacao=Cliente.
+ *  - Caso contrário, upsert em Lead.
+ *  - Tags do BotConversa preservadas.
+ *  - LeadEvent registra rastro.
  */
 @Injectable()
 export class BotconversaWebhookService {
@@ -22,20 +19,58 @@ export class BotconversaWebhookService {
 
   constructor(private readonly prisma: PrismaService) {}
 
+  private resolvePhone(payload: BotconversaPayloadDto): string | null {
+    return (
+      payload.full_phone ||
+      payload.phone ||
+      payload['Telefone'] ||
+      payload['telefone'] ||
+      null
+    );
+  }
+
+  private resolveName(payload: BotconversaPayloadDto): string | undefined {
+    return (
+      payload.nome_completo ||
+      payload['name'] ||
+      payload['Nome'] ||
+      payload['nome'] ||
+      undefined
+    );
+  }
+
+  private resolveTags(payload: BotconversaPayloadDto): string[] {
+    const raw = payload['tags'] || payload['Tags'] || [];
+    if (Array.isArray(raw)) return raw.filter((t) => typeof t === 'string');
+    if (typeof raw === 'string') {
+      return raw.split(',').map((s) => s.trim()).filter(Boolean);
+    }
+    return [];
+  }
+
   private last8(phone: string): string {
     return (phone || '').replace(/\D/g, '').slice(-8);
   }
 
   async handle(payload: BotconversaPayloadDto) {
-    const last8 = this.last8(payload.phone);
+    const phoneRaw = this.resolvePhone(payload);
+    const last8 = this.last8(phoneRaw || '');
     if (!last8) {
-      this.logger.warn('BotConversa webhook: phone ausente ou inválido');
-      return { ok: false, reason: 'invalid_phone' };
+      this.logger.warn(
+        `BotConversa webhook: phone ausente. trigger=${payload.trigger} keys=${Object.keys(
+          payload,
+        ).join(',')}`,
+      );
+      return { ok: false, reason: 'invalid_phone', received: Object.keys(payload) };
     }
 
-    const isClient = (payload.tags || []).includes('FU-cliente');
+    const name = this.resolveName(payload);
+    const email = payload.email || payload['Email'];
+    const tags = this.resolveTags(payload);
+    const isClient = tags.includes('FU-cliente');
+    const resumoIA = payload.ResumoIA || payload['resumoIA'] || payload['resumo_ia'];
 
-    // 1) Buscar Tutor existente via Contact (tutor já cadastrado)
+    // 1) Tutor existente via Contact
     const existingContact = await this.prisma.contact.findFirst({
       where: { number: { endsWith: last8 } },
       include: { tutor: true },
@@ -43,66 +78,54 @@ export class BotconversaWebhookService {
 
     if (existingContact?.tutor) {
       const tutor = existingContact.tutor;
-      const mergedTags = Array.from(
-        new Set([...(tutor.tags || []), ...(payload.tags || [])]),
-      );
+      const mergedTags = Array.from(new Set([...(tutor.tags || []), ...tags]));
       const updated = await this.prisma.tutor.update({
         where: { id: tutor.id },
         data: {
           tags: mergedTags,
-          ...(payload.email && !tutor.email ? { email: payload.email } : {}),
-          ...(payload.name && !tutor.name ? { name: payload.name } : {}),
+          ...(email && !tutor.email ? { email } : {}),
+          ...(name && !tutor.name ? { name } : {}),
         },
       });
-
-      this.logger.log(
-        `BotConversa: Tutor existente atualizado ${updated.id} (${updated.name})`,
-      );
+      this.logger.log(`BotConversa: Tutor existente atualizado ${updated.id}`);
       return { ok: true, kind: 'tutor', id: updated.id, created: false };
     }
 
-    // 2) Buscar Lead existente por telefone
+    // 2) Lead existente por phone
     const existingLead = await this.prisma.lead.findFirst({
       where: { phone: { endsWith: last8 } },
     });
 
     if (existingLead) {
-      const mergedTags = Array.from(
-        new Set([...(existingLead.tags || []), ...(payload.tags || [])]),
-      );
+      const mergedTags = Array.from(new Set([...(existingLead.tags || []), ...tags]));
       const updated = await this.prisma.lead.update({
         where: { id: existingLead.id },
         data: {
           tags: mergedTags,
           lastSeenAt: new Date(),
           lastActivityAt: new Date(),
-          ...(payload.name && !existingLead.name ? { name: payload.name } : {}),
+          ...(name && !existingLead.name ? { name } : {}),
         },
       });
-
-      // Registrar evento da interação
-      await this.recordEvent(updated.id, payload);
-
-      this.logger.log(
-        `BotConversa: Lead existente atualizado ${updated.id}`,
-      );
+      await this.recordEvent(updated.id, payload, resumoIA, tags);
+      this.logger.log(`BotConversa: Lead existente atualizado ${updated.id}`);
       return { ok: true, kind: 'lead', id: updated.id, created: false };
     }
 
-    // 3) Criar Lead novo (ou Tutor direto se for cliente)
+    // 3) Criar Tutor ou Lead novo
     if (isClient) {
       const tutor = await this.prisma.tutor.create({
         data: {
-          name: payload.name || 'Cliente BotConversa',
-          email: payload.email,
+          name: name || 'Cliente BotConversa',
+          email,
           classificacao: 'Cliente',
           status: 'ACTIVE',
-          tags: payload.tags || [],
-          observations: payload.resumoIA,
+          tags,
+          observations: resumoIA,
           contacts: {
             create: [
               {
-                number: payload.phone,
+                number: phoneRaw!,
                 type: 'MOBILE',
                 isWhatsApp: true,
                 isPrimary: true,
@@ -111,31 +134,33 @@ export class BotconversaWebhookService {
           },
         },
       });
-
       this.logger.log(`BotConversa: Tutor novo criado ${tutor.id}`);
       return { ok: true, kind: 'tutor', id: tutor.id, created: true };
     }
 
     const lead = await this.prisma.lead.create({
       data: {
-        name: payload.name,
-        email: payload.email || `${last8}@botconversa.unknown`,
-        phone: payload.phone,
+        name,
+        email: email || `${last8}@botconversa.unknown`,
+        phone: phoneRaw,
         source: LeadSource.OTHER,
         sourceDetail: 'botconversa',
         status: LeadStatus.NEW,
-        tags: payload.tags || [],
-        notes: payload.resumoIA,
+        tags,
+        notes: resumoIA,
       },
     });
-
-    await this.recordEvent(lead.id, payload);
-
+    await this.recordEvent(lead.id, payload, resumoIA, tags);
     this.logger.log(`BotConversa: Lead novo criado ${lead.id}`);
     return { ok: true, kind: 'lead', id: lead.id, created: true };
   }
 
-  private async recordEvent(leadId: string, payload: BotconversaPayloadDto) {
+  private async recordEvent(
+    leadId: string,
+    payload: BotconversaPayloadDto,
+    resumoIA: string | undefined,
+    tags: string[],
+  ) {
     try {
       await this.prisma.leadEvent.create({
         data: {
@@ -143,11 +168,12 @@ export class BotconversaWebhookService {
           eventType: 'whatsapp_message',
           eventData: {
             source: 'botconversa',
-            resumoIA: payload.resumoIA || null,
-            tags: payload.tags || [],
-            petNome: payload.petNome || null,
-            petEspecie: payload.petEspecie || null,
-            servicoInteresse: payload.servicoInteresse || null,
+            trigger: payload.trigger || null,
+            resumoIA: resumoIA || null,
+            tags,
+            pet: payload.Pet || null,
+            especie: payload.Especie || null,
+            servico: payload.NomeServicoEscolhido || null,
           },
         },
       });
