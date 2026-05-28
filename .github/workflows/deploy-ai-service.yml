@@ -19,6 +19,7 @@ jobs:
       - uses: superfly/flyctl-actions/setup-flyctl@master
 
       - name: Deploy to Fly.io
-        run: flyctl deploy --remote-only --config ai-service/fly.toml --dockerfile ai-service/Dockerfile ./ai-service
+        working-directory: ai-service
+        run: flyctl deploy --remote-only
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
