@@ -152,17 +152,9 @@ export interface Contact {
   updatedAt: Date;
 }
 
-export interface Client {
-  id: string;
-  name: string;
-  email: string;
-  phone?: string | null;
-  address?: string | null;
-  pets: Pet[];
-  appointments: Appointment[];
-  createdAt: Date;
-  updatedAt: Date;
-}
+// @deprecated use Tutor — Client foi unificado em Tutor com classificacao='Cliente'.
+// Alias mantido para compat enquanto código antigo migra.
+export type Client = Tutor;
 
 // ATUALIZADO: Pet agora relaciona com Tutor
 export interface Pet {

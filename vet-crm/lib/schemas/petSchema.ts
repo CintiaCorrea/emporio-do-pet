@@ -7,7 +7,7 @@ export const petBaseSchema = z.object({
   species: z.string().min(1, "Espécie é obrigatória"),
   breed: z.string().optional().nullable(),
   birthDate: z.date().optional().nullable(),
-  clientId: z.string().uuid(),
+  tutorId: z.string().uuid(),
   createdAt: z.date(),
   updatedAt: z.date(),
 });
@@ -43,7 +43,7 @@ export const createPetSchema = z.object({
       message: "Data de nascimento não pode ser no futuro"
     }),
   
-  clientId: z.string().uuid("ID do cliente inválido"),
+  tutorId: z.string().uuid("ID do cliente inválido"),
 });
 
 // Schema para atualização de Pet
@@ -99,10 +99,10 @@ export const petQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(10),
   search: z.string().max(100).optional().default(''),
   species: z.string().max(50).optional(),
-  clientId: z.string().uuid().optional(),
+  tutorId: z.string().uuid().optional(),
   sortBy: z.enum(["name", "species", "birthDate", "createdAt"]).default("name"),
   sortOrder: z.enum(["asc", "desc"]).default("asc"),
-  includeClient: z.coerce.boolean().default(false),
+  includeTutor: z.coerce.boolean().default(false),
   includeAppointments: z.coerce.boolean().default(false),
 });
 
@@ -121,7 +121,7 @@ export const petErrorSchema = z.object({
   code: z.string().optional(),
 });
 
-// Schema para relacionamento com Client (para uso em outros schemas)
+// Schema para relacionamento com Tutor (para uso em outros schemas)
 export const petWithClientSchema = petBaseSchema.extend({
   client: z.object({
     id: z.string().uuid(),
@@ -130,7 +130,7 @@ export const petWithClientSchema = petBaseSchema.extend({
   }),
 });
 
-// Schema para criação de Pet com Client (para formulários)
+// Schema para criação de Pet com Tutor (para formulários)
 export const createPetWithClientSchema = createPetSchema.extend({
   client: z.object({
     name: z.string().min(1, "Nome do tutor é obrigatório"),
@@ -148,7 +148,7 @@ export type PetListResponse = z.infer<typeof petListResponseSchema>;
 export type PetQuery = z.infer<typeof petQuerySchema>;
 export type PetParams = z.infer<typeof petParamsSchema>;
 export type PetError = z.infer<typeof petErrorSchema>;
-export type PetWithClient = z.infer<typeof petWithClientSchema>;
+export type PetWithTutor = z.infer<typeof petWithClientSchema>;
 export type CreatePetWithClientInput = z.infer<typeof createPetWithClientSchema>;
 
 // Utilitários para validação
@@ -168,7 +168,7 @@ export const validatePetParams = (data: unknown): PetParams => {
   return petParamsSchema.parse(data);
 };
 
-export const validateCreatePetWithClient = (data: unknown): CreatePetWithClientInput => {
+export const validateCreatePetWithTutor = (data: unknown): CreatePetWithClientInput => {
   return createPetWithClientSchema.parse(data);
 };
 
@@ -384,7 +384,7 @@ export const createPetQuery = (params: Partial<PetQuery> = {}): PetQuery => {
     search: '',
     sortBy: 'name',
     sortOrder: 'asc',
-    includeClient: false,
+    includeTutor: false,
     includeAppointments: false,
   };
 
@@ -449,7 +449,7 @@ export const createPetInclude = (query: PetQuery): PetIncludeOptions => {
     },
   };
 
-  if (query.includeClient) {
+  if (query.includeTutor) {
     include.client = {
       select: {
         id: true,

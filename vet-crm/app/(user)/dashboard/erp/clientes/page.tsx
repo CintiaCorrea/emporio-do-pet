@@ -1,12 +1,18 @@
 'use client';
 
+// ⚠️  REFACTOR EM PROGRESSO:
+// Cliente unificado no Tutor (Tutor.classificacao = 'Cliente') em a672640.
+// URL /api/clients/* mantida temporariamente como compat layer apontando pra /tutors no backend.
+// Alguns campos podem não bater 100% com o backend até validação contra dados reais.
+
+
 import { useState, useEffect } from 'react';
 import { LuPlus, LuSearch, LuPencil, LuTrash2, LuUsers, LuFilter, LuDownload, LuEye, LuMail, LuPhone, LuUser } from 'react-icons/lu';
 import Link from 'next/link';
 import ConfirmDeleteModal from '@/components/common/ConfirmDeleteModal';
 import toast from 'react-hot-toast';
 
-interface Client {
+interface Tutor {
   id: string;
   contactName: string;
   email: string;
@@ -19,13 +25,13 @@ interface Client {
 }
 
 export default function ClientsListPage() {
-  const [clients, setClients] = useState<Client[]>([]);
+  const [clients, setClients] = useState<Tutor[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive' | 'lead' | 'customer'>('all');
   const [filterSource, setFilterSource] = useState<'all' | 'website' | 'referral' | 'social' | 'event' | 'other'>('all');
-  const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
+  const [clientToDelete, setClientToDelete] = useState<Tutor | null>(null);
 
   // Buscar clientes da API
   useEffect(() => {
@@ -89,7 +95,7 @@ export default function ClientsListPage() {
     return matchesSearch && matchesStatus && matchesSource;
   }) : [];
 
-  const requestDeleteClient = (client: Client) => {
+  const requestDeleteClient = (client: Tutor) => {
     setClientToDelete(client);
   };
 
