@@ -85,8 +85,8 @@ export class DashboardService {
       // Total pets
       this.prisma.pet.count(),
 
-      // Total clientes
-      this.prisma.client.count(),
+      // Total clientes (Tutor com classificacao=Cliente)
+      this.prisma.tutor.count({ where: { classificacao: 'Cliente' } }),
 
       // Agendamentos hoje
       this.prisma.appointment.count({

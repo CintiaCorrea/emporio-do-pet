@@ -147,7 +147,7 @@ export class CrmIntegrationService {
   /**
    * Convert a Lead to a Client
    */
-  async convertLeadToClient(data: LeadConversionData): Promise<string | null> {
+  async convertLeadToTutor(data: LeadConversionData): Promise<string | null> {
     try {
       const lead = await this.prisma.lead.findUnique({
         where: { id: data.leadId },
@@ -160,42 +160,46 @@ export class CrmIntegrationService {
       }
 
       // Check if already converted
-      if (lead.convertedToClientId) {
-        this.logger.warn(`Lead ${data.leadId} already converted to client ${lead.convertedToClientId}`);
-        return lead.convertedToClientId;
+      if (lead.convertedToTutorId) {
+        this.logger.warn(`Lead ${data.leadId} already converted to tutor ${lead.convertedToTutorId}`);
+        return lead.convertedToTutorId;
       }
 
-      // Check if client with same email exists
-      const existingClient = await this.prisma.client.findUnique({
-        where: { email: lead.email },
-      });
+      // Check if tutor with same email exists (tutor = cliente unificado)
+      const existingTutor = lead.email
+        ? await this.prisma.tutor.findUnique({ where: { email: lead.email } })
+        : null;
 
-      if (existingClient) {
-        // Link to existing client
+      if (existingTutor) {
+        // Link to existing tutor and ensure classificacao=Cliente
+        await this.prisma.tutor.update({
+          where: { id: existingTutor.id },
+          data: { classificacao: 'Cliente' },
+        });
         await this.prisma.lead.update({
           where: { id: lead.id },
           data: {
             status: LeadStatus.CONVERTED,
             convertedAt: new Date(),
-            convertedToClientId: existingClient.id,
+            convertedToTutorId: existingTutor.id,
           },
         });
 
-        this.logger.log(`Lead ${lead.id} linked to existing client ${existingClient.id}`);
-        return existingClient.id;
+        this.logger.log(`Lead ${lead.id} linked to existing tutor ${existingTutor.id}`);
+        return existingTutor.id;
       }
 
-      // Create new client
-      const client = await this.prisma.client.create({
+      // Create new tutor (cliente unificado)
+      const tutor = await this.prisma.tutor.create({
         data: {
           name: data.clientData?.name || lead.name || 'Cliente sem nome',
           email: lead.email,
-          phone: lead.phone,
-          address: data.clientData?.address,
           companyName: data.clientData?.companyName,
-          taxId: data.clientData?.taxId,
-          notes: data.clientData?.notes,
+          cnpj: data.clientData?.taxId,
+          observations: data.clientData?.notes,
           tags: data.clientData?.tags || lead.tags,
+          classificacao: 'Cliente',
+          status: 'ACTIVE',
           convertedFromLeadId: lead.id,
         },
       });
@@ -206,7 +210,7 @@ export class CrmIntegrationService {
         data: {
           status: LeadStatus.CONVERTED,
           convertedAt: new Date(),
-          convertedToClientId: client.id,
+          convertedToTutorId: tutor.id,
         },
       });
 
@@ -219,25 +223,25 @@ export class CrmIntegrationService {
           oldValue: lead.status,
           newValue: LeadStatus.CONVERTED,
           triggeredBy: data.userId || 'system',
-          metadata: { clientId: client.id },
+          metadata: { tutorId: tutor.id },
         },
       });
 
       // Emit events
       this.eventEmitter.emit('crm.lead.converted', {
         leadId: lead.id,
-        clientId: client.id,
+        tutorId: tutor.id,
       });
 
-      this.eventEmitter.emit('crm.client.created', {
-        clientId: client.id,
+      this.eventEmitter.emit('crm.tutor.created', {
+        tutorId: tutor.id,
         convertedFromLeadId: lead.id,
       });
 
-      this.logger.log(`Lead ${lead.id} converted to client ${client.id}`);
-      return client.id;
+      this.logger.log(`Lead ${lead.id} converted to tutor ${tutor.id}`);
+      return tutor.id;
     } catch (error) {
-      this.logger.error(`Error converting lead to client: ${error}`);
+      this.logger.error(`Error converting lead to tutor: ${error}`);
       return null;
     }
   }
@@ -358,10 +362,11 @@ export class CrmIntegrationService {
       this.prisma.lead.count({ where: { status: LeadStatus.QUALIFIED } }),
       this.prisma.lead.count({ where: { status: LeadStatus.CONVERTED } }),
       this.prisma.lead.aggregate({ _avg: { currentScore: true } }),
-      this.prisma.client.count(),
-      this.prisma.client.count({ where: { status: 'ACTIVE' } }),
-      this.prisma.client.count({ where: { convertedFromLeadId: { not: null } } }),
-      this.prisma.client.aggregate({ _sum: { totalRevenue: true } }),
+      this.prisma.tutor.count({ where: { classificacao: 'Cliente' } }),
+      this.prisma.tutor.count({ where: { classificacao: 'Cliente', status: 'ACTIVE' } }),
+      this.prisma.tutor.count({ where: { classificacao: 'Cliente', convertedFromLeadId: { not: null } } }),
+      // TODO: totalRevenue agora calculado dinamicamente via Appointments (sum por tutorId quando status=PAID)
+      { _sum: { totalRevenue: 0 } },
       this.prisma.lead.count({
         where: {
           status: LeadStatus.CONVERTED,

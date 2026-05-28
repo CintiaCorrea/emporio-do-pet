@@ -197,22 +197,22 @@ export class CrmAutomationListener {
   @OnEvent('crm.lead.converted')
   async onLeadConverted(data: {
     leadId: string;
-    clientId: string;
+    tutorId: string;
   }): Promise<void> {
-    const [lead, client] = await Promise.all([
+    const [lead, tutor] = await Promise.all([
       this.prisma.lead.findUnique({ where: { id: data.leadId } }),
-      this.prisma.client.findUnique({ where: { id: data.clientId } }),
+      this.prisma.tutor.findUnique({ where: { id: data.tutorId } }),
     ]);
 
-    if (!lead || !client) return;
+    if (!lead || !tutor) return;
 
     await this.triggerAutomations(AutomationTrigger.LEAD_CONVERTED, {
       leadId: lead.id,
       leadEmail: lead.email,
       leadName: lead.name,
-      clientId: client.id,
-      clientEmail: client.email,
-      clientName: client.name,
+      tutorId: tutor.id,
+      tutorEmail: tutor.email,
+      tutorName: tutor.name,
     });
 
     // CRM → WhatsApp: welcome new client
@@ -223,46 +223,47 @@ export class CrmAutomationListener {
   }
 
   // ============================================
-  // Client Events
+  // Tutor Events (cliente unificado)
   // ============================================
 
-  @OnEvent('crm.client.created')
-  async onClientCreated(data: {
-    clientId: string;
+  @OnEvent('crm.tutor.created')
+  async onTutorCreated(data: {
+    tutorId: string;
     convertedFromLeadId?: string;
   }): Promise<void> {
-    const client = await this.prisma.client.findUnique({
-      where: { id: data.clientId },
+    const tutor = await this.prisma.tutor.findUnique({
+      where: { id: data.tutorId },
+      include: { contacts: { where: { isPrimary: true }, take: 1 } },
     });
 
-    if (!client) return;
+    if (!tutor) return;
 
     await this.triggerAutomations(AutomationTrigger.CLIENT_CREATED, {
-      clientId: client.id,
-      clientEmail: client.email,
-      clientName: client.name,
-      clientPhone: client.phone,
+      tutorId: tutor.id,
+      tutorEmail: tutor.email,
+      tutorName: tutor.name,
+      tutorPhone: tutor.contacts[0]?.number,
       convertedFromLeadId: data.convertedFromLeadId,
-      clientType: client.type,
+      tutorType: tutor.type,
     });
   }
 
-  @OnEvent('crm.client.status_changed')
-  async onClientStatusChanged(data: {
-    clientId: string;
+  @OnEvent('crm.tutor.status_changed')
+  async onTutorStatusChanged(data: {
+    tutorId: string;
     previousStatus: string;
     newStatus: string;
   }): Promise<void> {
-    const client = await this.prisma.client.findUnique({
-      where: { id: data.clientId },
+    const tutor = await this.prisma.tutor.findUnique({
+      where: { id: data.tutorId },
     });
 
-    if (!client) return;
+    if (!tutor) return;
 
     await this.triggerAutomations(AutomationTrigger.CLIENT_STATUS_CHANGED, {
-      clientId: client.id,
-      clientEmail: client.email,
-      clientName: client.name,
+      tutorId: tutor.id,
+      tutorEmail: tutor.email,
+      tutorName: tutor.name,
       previousStatus: data.previousStatus,
       newStatus: data.newStatus,
     });

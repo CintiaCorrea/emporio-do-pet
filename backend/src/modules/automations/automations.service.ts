@@ -614,9 +614,10 @@ export class AutomationsService {
               orderBy: { lastSeenAt: 'desc' },
             });
           case 'clients':
-            return this.prisma.client.findMany({
+            // Client unificado em Tutor com classificacao=Cliente
+            return this.prisma.tutor.findMany({
               take: queryLimit,
-              where: queryWhere as any,
+              where: { ...(queryWhere as any), classificacao: 'Cliente' },
               orderBy: { createdAt: 'desc' },
             });
           case 'whatsapp_conversations':

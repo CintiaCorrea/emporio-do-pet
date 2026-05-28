@@ -275,20 +275,25 @@ export class WhatsAppCampaignsService {
         break;
 
       case 'clients':
-        const clientWhere: Record<string, unknown> = { status: 'ACTIVE' };
+        // Client unificado em Tutor com classificacao=Cliente
+        const clientWhere: Record<string, unknown> = {
+          status: 'ACTIVE',
+          classificacao: 'Cliente',
+        };
         if (filter?.tags && Array.isArray(filter.tags)) {
           clientWhere.tags = { hasSome: filter.tags };
         }
 
-        const clients = await this.prisma.client.findMany({
+        const clientTutors = await this.prisma.tutor.findMany({
           where: clientWhere as any,
+          include: { contacts: { where: { isWhatsApp: true, isPrimary: true }, take: 1 } },
         });
 
-        recipients = clients
-          .filter(c => c.phone)
-          .map(c => ({
-            phone: c.phone!,
-            name: c.name,
+        recipients = clientTutors
+          .filter(t => t.contacts.length > 0)
+          .map(t => ({
+            phone: t.contacts[0].number,
+            name: t.name,
           }));
         break;
 
