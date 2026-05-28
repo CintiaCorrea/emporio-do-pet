@@ -75,7 +75,6 @@ export class NewslettersService {
         recipients: {
           include: {
             tutor: { select: { id: true, name: true, email: true } },
-            tutor: { select: { id: true, name: true, email: true } },
           },
         },
         newsletterLogs: {

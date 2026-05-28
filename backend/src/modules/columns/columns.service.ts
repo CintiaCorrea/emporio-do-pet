@@ -55,7 +55,6 @@ export class ColumnsService {
                 id: true,
                 name: true,
                 email: true,
-                phone: true,
                 status: true,
                 currentScore: true,
                 source: true,
@@ -67,7 +66,6 @@ export class ColumnsService {
                 id: true,
                 name: true,
                 email: true,
-                phone: true,
                 status: true,
                 type: true,
                 totalRevenue: true,
@@ -412,10 +410,10 @@ export class ColumnsService {
             },
           } : false,
           lead: dto.leadId ? {
-            select: { id: true, name: true, email: true, phone: true, status: true, currentScore: true },
+            select: { id: true, name: true, email: true, status: true, currentScore: true },
           } : false,
           tutor: dto.tutorId ? {
-            select: { id: true, name: true, email: true, phone: true, status: true },
+            select: { id: true, name: true, email: true, status: true },
           } : false,
         },
       });
