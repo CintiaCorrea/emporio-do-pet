@@ -204,7 +204,6 @@ export class BoardsService {
                     email: true,
                     status: true,
                     type: true,
-                    totalRevenue: true,
                   },
                 },
               },
@@ -448,7 +447,6 @@ export class BoardsService {
           email: true,
           status: true,
           type: true,
-          totalRevenue: true,
         },
       },
     };
