@@ -1,3 +1,6 @@
+// Compat layer: rota /api/clients/* mantida temporariamente — proxy aponta pra
+// /tutors no backend (Client foi unificado em Tutor com classificacao='Cliente').
+// TODO: migrar UIs pra /api/tutors/* e deletar este arquivo.
 import { NextRequest } from 'next/server';
 import { proxyToBackend } from '@/lib/backend-proxy';
 
@@ -6,7 +9,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  return proxyToBackend(request, `/clients/${id}`, { method: 'GET' });
+  return proxyToBackend(request, `/tutors/${id}`, { method: 'GET' });
 }
 
 export async function PATCH(
@@ -15,7 +18,7 @@ export async function PATCH(
 ) {
   const { id } = await params;
   const body = await request.text();
-  return proxyToBackend(request, `/clients/${id}`, {
+  return proxyToBackend(request, `/tutors/${id}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body,
@@ -27,5 +30,5 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  return proxyToBackend(request, `/clients/${id}`, { method: 'DELETE' });
+  return proxyToBackend(request, `/tutors/${id}`, { method: 'DELETE' });
 }
