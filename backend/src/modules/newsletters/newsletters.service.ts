@@ -74,7 +74,7 @@ export class NewslettersService {
         template: true,
         recipients: {
           include: {
-            client: { select: { id: true, name: true, email: true } },
+            tutor: { select: { id: true, name: true, email: true } },
             tutor: { select: { id: true, name: true, email: true } },
           },
         },

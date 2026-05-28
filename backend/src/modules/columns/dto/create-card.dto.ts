@@ -25,7 +25,7 @@ export class CreateCardDto {
   @ApiPropertyOptional({ example: 'c5a0a0b4-1e65-4d4f-9db2-8a3f0c2fb8d0', description: 'Link to client' })
   @IsOptional()
   @IsUUID()
-  clientId?: string;
+  tutorId?: string;
 
   @ApiPropertyOptional({ example: 0, description: '0-based position index in column' })
   @IsOptional()

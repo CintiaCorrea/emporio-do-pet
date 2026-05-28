@@ -310,7 +310,7 @@ export class LeadsService {
       if (dto.status === 'CONVERTED') {
         this.eventEmitter.emit('crm.lead.converted', {
           leadId: id,
-          clientId: existing.convertedToClientId,
+          tutorId: existing.convertedToTutorId,
         });
       }
     }
