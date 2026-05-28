@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { LeadSource, LeadStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
-import { BotconversaPayloadDto } from './dto/botconversa-payload.dto';
+import { BotconversaPayload } from './dto/botconversa-payload.dto';
 
 /**
  * Processa eventos do BotConversa.
@@ -19,7 +19,7 @@ export class BotconversaWebhookService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  private resolvePhone(payload: BotconversaPayloadDto): string | null {
+  private resolvePhone(payload: BotconversaPayload): string | null {
     return (
       payload.full_phone ||
       payload.phone ||
@@ -29,7 +29,7 @@ export class BotconversaWebhookService {
     );
   }
 
-  private resolveName(payload: BotconversaPayloadDto): string | undefined {
+  private resolveName(payload: BotconversaPayload): string | undefined {
     return (
       payload.nome_completo ||
       payload['name'] ||
@@ -39,7 +39,7 @@ export class BotconversaWebhookService {
     );
   }
 
-  private resolveTags(payload: BotconversaPayloadDto): string[] {
+  private resolveTags(payload: BotconversaPayload): string[] {
     const raw = payload['tags'] || payload['Tags'] || [];
     if (Array.isArray(raw)) return raw.filter((t) => typeof t === 'string');
     if (typeof raw === 'string') {
@@ -52,7 +52,7 @@ export class BotconversaWebhookService {
     return (phone || '').replace(/\D/g, '').slice(-8);
   }
 
-  async handle(payload: BotconversaPayloadDto) {
+  async handle(payload: BotconversaPayload) {
     const phoneRaw = this.resolvePhone(payload);
     const last8 = this.last8(phoneRaw || '');
     if (!last8) {
@@ -157,7 +157,7 @@ export class BotconversaWebhookService {
 
   private async recordEvent(
     leadId: string,
-    payload: BotconversaPayloadDto,
+    payload: BotconversaPayload,
     resumoIA: string | undefined,
     tags: string[],
   ) {

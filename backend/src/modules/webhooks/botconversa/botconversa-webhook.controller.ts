@@ -9,7 +9,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { BotconversaPayloadDto } from './dto/botconversa-payload.dto';
+import { BotconversaPayload } from './dto/botconversa-payload.dto';
 import { BotconversaWebhookService } from './botconversa-webhook.service';
 
 @ApiTags('webhooks')
@@ -25,7 +25,7 @@ export class BotconversaWebhookController {
   })
   async handle(
     @Headers('x-botconversa-secret') secret: string | undefined,
-    @Body() payload: BotconversaPayloadDto,
+    @Body() payload: BotconversaPayload,
   ) {
     const expected = process.env.BOTCONVERSA_WEBHOOK_SECRET;
     if (!expected) {
@@ -36,6 +36,6 @@ export class BotconversaWebhookController {
     if (secret !== expected) {
       throw new UnauthorizedException('Invalid X-Botconversa-Secret');
     }
-    return this.service.handle(payload);
+    return this.service.handle(payload || {});
   }
 }
