@@ -1,51 +1,64 @@
-import { IsArray, IsEmail, IsOptional, IsString } from 'class-validator';
+import { Allow, IsOptional, IsString } from 'class-validator';
 
 /**
  * Payload do webhook BotConversa.
  *
- * Espelha o que a recepção do Empório do Pet já valida no Base44 via
- * função botconversaLeadCapture. Campos opcionais porque o BotConversa
- * envia subsets diferentes conforme o flow.
+ * O BotConversa envia campos em snake_case + outros campos
+ * customizados que variam por flow. Esse DTO é intencionalmente
+ * permissivo:
+ *  - declara os campos conhecidos (vindo do mapeamento Base44)
+ *  - aceita qualquer campo extra via @Allow() — não rejeita
+ *
+ * Validação real (telefone obrigatório, etc) acontece no service.
  */
 export class BotconversaPayloadDto {
+  // Telefone — BotConversa manda em full_phone (DDI+DDD+número) e/ou phone
+  @IsOptional()
   @IsString()
-  phone: string;
+  full_phone?: string;
 
   @IsOptional()
   @IsString()
-  name?: string;
+  phone?: string;
 
   @IsOptional()
-  @IsEmail()
+  @IsString()
+  nome_completo?: string;
+
+  @IsOptional()
+  @IsString()
   email?: string;
 
   @IsOptional()
   @IsString()
-  resumoIA?: string;
-
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  tags?: string[];
-
-  // Pet info (quando o flow do bot já capturou)
-  @IsOptional()
-  @IsString()
-  petNome?: string;
+  trigger?: string;
 
   @IsOptional()
   @IsString()
-  petEspecie?: string;
+  tipo_contato?: string;
+
+  // Pet info (BotConversa)
+  @IsOptional()
+  @IsString()
+  Pet?: string;
 
   @IsOptional()
   @IsString()
-  petIdade?: string;
+  Especie?: string;
 
   @IsOptional()
   @IsString()
-  servicoInteresse?: string;
+  IdadePet?: string;
 
   @IsOptional()
   @IsString()
-  origemCampanha?: string;
+  NomeServicoEscolhido?: string;
+
+  @IsOptional()
+  @IsString()
+  ResumoIA?: string;
+
+  // Permite qualquer outro campo que o BotConversa enviar
+  @Allow()
+  [key: string]: any;
 }
