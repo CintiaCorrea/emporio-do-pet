@@ -69,9 +69,9 @@ export class CrmController {
       clientData: dto,
     };
 
-    const clientId = await this.crmService.convertLeadToClient(data);
+    const tutorId = await this.crmService.convertLeadToTutor(data);
 
-    if (!clientId) {
+    if (!tutorId) {
       return {
         success: false,
         error: 'Failed to convert lead',
@@ -80,7 +80,7 @@ export class CrmController {
 
     return {
       success: true,
-      clientId,
+      tutorId,
     };
   }
 

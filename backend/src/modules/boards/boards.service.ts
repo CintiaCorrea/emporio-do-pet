@@ -198,7 +198,7 @@ export class BoardsService {
                     tags: true,
                   },
                 },
-                client: {
+                tutor: {
                   select: {
                     id: true,
                     name: true,
@@ -444,7 +444,7 @@ export class BoardsService {
           tags: true,
         },
       },
-      client: {
+      tutor: {
         select: {
           id: true,
           name: true,
@@ -692,7 +692,7 @@ export class BoardsService {
 
   async createCardForClient(
     userId: string,
-    clientId: string,
+    tutorId: string,
     title: string,
     columnName?: string,
     priority?: string,
@@ -705,7 +705,7 @@ export class BoardsService {
     if (!column) return null;
 
     const existingCard = await this.prisma.kanbanCard.findFirst({
-      where: { clientId },
+      where: { tutorId },
     });
     if (existingCard) return existingCard;
 
@@ -716,14 +716,14 @@ export class BoardsService {
     return this.prisma.kanbanCard.create({
       data: {
         title,
-        clientId,
+        tutorId,
         columnId: column.id,
         position: existingCount + 1,
         priority: priority || 'medium',
       },
       include: {
         column: { select: { id: true, name: true, color: true } },
-        client: {
+        tutor: {
           select: {
             id: true,
             name: true,
@@ -768,9 +768,9 @@ export class BoardsService {
     });
   }
 
-  async moveClientCard(clientId: string, columnName: string) {
+  async moveTutorCard(tutorId: string, columnName: string) {
     const card = await this.prisma.kanbanCard.findFirst({
-      where: { clientId },
+      where: { tutorId },
       include: {
         column: {
           include: { board: { include: { columns: true } } },

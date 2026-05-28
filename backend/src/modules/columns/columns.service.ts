@@ -62,7 +62,7 @@ export class ColumnsService {
                 tags: true,
               },
             },
-            client: {
+            tutor: {
               select: {
                 id: true,
                 name: true,
@@ -320,7 +320,7 @@ export class ColumnsService {
     const column = await this.findColumnForUser(columnId, userId);
 
     // Validate that only one entity is linked
-    const entityLinks = [dto.appointmentId, dto.leadId, dto.clientId].filter(Boolean);
+    const entityLinks = [dto.appointmentId, dto.leadId, dto.tutorId].filter(Boolean);
     if (entityLinks.length > 1) {
       throw new BadRequestException('Card can only be linked to one entity (appointment, lead, or client)');
     }
@@ -343,12 +343,12 @@ export class ColumnsService {
         if (!lead) throw new NotFoundException('Lead não encontrado');
       }
 
-      if (dto.clientId) {
-        const client = await tx.client.findFirst({
-          where: { id: dto.clientId },
+      if (dto.tutorId) {
+        const tutor = await tx.tutor.findFirst({
+          where: { id: dto.tutorId },
           select: { id: true },
         });
-        if (!client) throw new NotFoundException('Cliente não encontrado');
+        if (!tutor) throw new NotFoundException('Cliente não encontrado');
       }
 
       const existingCards = await tx.kanbanCard.findMany({
@@ -377,7 +377,7 @@ export class ColumnsService {
           description: dto.description,
           appointmentId: dto.appointmentId,
           leadId: dto.leadId,
-          clientId: dto.clientId,
+          tutorId: dto.tutorId,
           position: -(existingCards.length + 1),
           columnId,
           priority: dto.priority || 'medium',
@@ -414,7 +414,7 @@ export class ColumnsService {
           lead: dto.leadId ? {
             select: { id: true, name: true, email: true, phone: true, status: true, currentScore: true },
           } : false,
-          client: dto.clientId ? {
+          tutor: dto.tutorId ? {
             select: { id: true, name: true, email: true, phone: true, status: true },
           } : false,
         },
