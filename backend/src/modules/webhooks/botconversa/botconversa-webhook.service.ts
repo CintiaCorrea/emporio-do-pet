@@ -145,7 +145,7 @@ export class BotconversaWebhookService {
         phone: phoneRaw,
         source: LeadSource.OTHER,
         sourceDetail: 'botconversa',
-        status: LeadStatus.NEW,
+        status: LeadStatus.AGUARDANDO_TRIAGEM,
         tags,
         notes: resumoIA,
       },

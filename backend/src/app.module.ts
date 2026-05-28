@@ -8,6 +8,7 @@ import { RedisModule } from './modules/redis/redis.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { TutorsModule } from './modules/tutors/tutors.module';
+import { InboxModule } from './modules/inbox/inbox.module';
 import { BotconversaWebhookModule } from './modules/webhooks/botconversa/botconversa-webhook.module';
 import { PetsModule } from './modules/pets/pets.module';
 import { BreedsModule } from './modules/breeds/breeds.module';
@@ -113,6 +114,7 @@ import configuration from './config/configuration';
     AuthModule,
     UsersModule,
     TutorsModule,
+    InboxModule,
     BotconversaWebhookModule,
     PetsModule,
     BreedsModule,

@@ -1359,6 +1359,7 @@ model Notification {
 // ============================================
 
 enum LeadStatus {
+  AGUARDANDO_TRIAGEM
   NEW
   ENRICHING
   ENRICHED
