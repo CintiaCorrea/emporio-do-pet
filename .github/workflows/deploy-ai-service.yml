@@ -1,0 +1,24 @@
+name: Deploy AI Service to Fly.io
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'ai-service/**'
+      - '.github/workflows/deploy-ai-service.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy emporio-pet-ai
+    runs-on: ubuntu-latest
+    concurrency: deploy-ai-service-${{ github.ref }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Deploy to Fly.io
+        run: flyctl deploy --remote-only --config ai-service/fly.toml --dockerfile ai-service/Dockerfile ./ai-service
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
