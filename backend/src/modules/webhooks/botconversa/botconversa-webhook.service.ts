@@ -140,15 +140,15 @@ export class BotconversaWebhookService {
       await this.prisma.leadEvent.create({
         data: {
           leadId,
-          type: 'whatsapp_message' as any,
-          metadata: {
+          eventType: 'whatsapp_message',
+          eventData: {
             source: 'botconversa',
             resumoIA: payload.resumoIA || null,
             tags: payload.tags || [],
             petNome: payload.petNome || null,
             petEspecie: payload.petEspecie || null,
             servicoInteresse: payload.servicoInteresse || null,
-          } as any,
+          },
         },
       });
     } catch (e) {
