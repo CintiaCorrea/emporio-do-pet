@@ -17,7 +17,6 @@ import { NewslettersModule } from './modules/newsletters/newsletters.module';
 import { HealthModule } from './modules/health/health.module';
 import { ProductsModule } from './modules/products/products.module';
 import { TreatmentsModule } from './modules/treatments/treatments.module';
-import { ClientsModule } from './modules/clients/clients.module';
 import { ContactsModule } from './modules/contacts/contacts.module';
 import { StockModule } from './modules/stock/stock.module';
 import { CommissionsModule } from './modules/commissions/commissions.module';
@@ -121,7 +120,6 @@ import configuration from './config/configuration';
     NewslettersModule,
     ProductsModule,
     TreatmentsModule,
-    ClientsModule,
     ContactsModule,
     StockModule,
     CommissionsModule,

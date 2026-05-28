@@ -267,8 +267,9 @@ export class AutomationsProcessor extends WorkerHost {
         });
       
       case 'clients':
-        return this.prisma.client.findMany({
-          where,
+        // Client unificado em Tutor com classificacao=Cliente
+        return this.prisma.tutor.findMany({
+          where: { ...where, classificacao: 'Cliente' },
           take: limit,
           orderBy: { createdAt: 'desc' },
         });

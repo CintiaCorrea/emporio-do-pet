@@ -197,7 +197,8 @@ export async function sendNewsletterToRecipients(
 export async function getRecipientsByType(recipientType: RecipientType) {
   switch (recipientType) {
     case RecipientType.CLIENT:
-      return await prisma.client.findMany({
+      return await // Client unificado em Tutor com classificacao=Cliente
+      prisma.tutor.findMany({
         select: {
           id: true,
           name: true,
@@ -230,7 +231,8 @@ export async function getRecipientsByType(recipientType: RecipientType) {
 
     case RecipientType.ALL:
       const [clients, tutors] = await Promise.all([
-        prisma.client.findMany({
+        // Client unificado em Tutor com classificacao=Cliente
+      prisma.tutor.findMany({
           select: {
             id: true,
             name: true,
@@ -276,7 +278,8 @@ export async function getRecipientsByType(recipientType: RecipientType) {
  * Função auxiliar para buscar emails válidos de clients
  */
 export async function getValidClientEmails() {
-  const allClients = await prisma.client.findMany({
+  const allClients = await // Client unificado em Tutor com classificacao=Cliente
+      prisma.tutor.findMany({
     select: {
       id: true,
       name: true,
@@ -318,7 +321,8 @@ export async function getValidTutorEmails() {
 export async function getRecipientsByTypePrisma(recipientType: RecipientType) {
   switch (recipientType) {
     case RecipientType.CLIENT:
-      return await prisma.client.findMany({
+      return await // Client unificado em Tutor com classificacao=Cliente
+      prisma.tutor.findMany({
         select: {
           id: true,
           name: true,
@@ -351,7 +355,8 @@ export async function getRecipientsByTypePrisma(recipientType: RecipientType) {
 
     case RecipientType.ALL:
       const [clients, tutors] = await Promise.all([
-        prisma.client.findMany({
+        // Client unificado em Tutor com classificacao=Cliente
+      prisma.tutor.findMany({
           select: {
             id: true,
             name: true,
