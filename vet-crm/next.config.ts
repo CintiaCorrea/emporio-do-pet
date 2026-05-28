@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: 'standalone',
+  serverExternalPackages: ['@prisma/client', 'prisma'],
   /* config options here */
   // Evita que o Next tente inferir a raiz do workspace a partir de lockfiles fora do projeto
   // (ex.: C:\\Users\\claud\\package-lock.json) e gere warning/trace incorreto.
