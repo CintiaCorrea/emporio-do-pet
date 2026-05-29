@@ -260,7 +260,7 @@ export default function InboxUnificadoPage() {
       const r = await fetch(`/api/whatsapp/conversations/${selectedId}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: text, type: "text" }),
+        body: JSON.stringify({ content: text, type: "TEXT" }),
       });
       if (!r.ok) {
         const body = await r.text().catch(() => "");
@@ -321,7 +321,7 @@ export default function InboxUnificadoPage() {
         await fetch("/api/whatsapp/send", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ to: phone, content: novaMsgText.trim(), type: "text" }),
+          body: JSON.stringify({ to: phone, content: novaMsgText.trim(), type: "TEXT" }),
         });
       }
       setNovaMsgOpen(false);
