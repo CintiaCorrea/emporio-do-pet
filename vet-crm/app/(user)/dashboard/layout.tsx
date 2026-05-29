@@ -25,9 +25,9 @@ export default function DashboardLayout({
       {/* Topbar */}
       <Topbar sidebarOpen={sidebarOpen} />
       
-      {/* Main Content - com padding-top para a topbar */}
+      {/* Main Content - com padding-bottom para a topbar inferior estilo Base44 */}
       <main className={`
-        pt-16 min-h-screen transition-all duration-300
+        pb-14 min-h-screen transition-all duration-300
         ${sidebarOpen ? 'ml-56 sm:ml-64' : 'ml-12 sm:ml-16'}
       `}>
         {children}
