@@ -1358,6 +1358,15 @@ model Notification {
 // CRM B2C - Leads com Insights Preditivos
 // ============================================
 
+
+enum CommunicationChannel {
+  WHATSAPP
+  LIGACAO
+  WALK_IN
+  EMAIL
+  OUTRO
+}
+
 enum LeadStatus {
   AGUARDANDO_TRIAGEM
   NEW
@@ -1455,6 +1464,16 @@ model Lead {
   tags         String[] @default([])
   customFields Json? // Campos customizados
   notes        String?
+
+  // Canal de comunicação preferencial
+  channel      CommunicationChannel?
+
+  // Qualificação (5 perguntas validadas no Base44)
+  qualSituacaoPet      String?
+  qualQueMaisIncomoda  String?
+  qualTentouOutroVet   String?
+  qualOQueMudaResolver String?
+  qualQuemDecide       String?
 
   // Relacionamentos
   events     LeadEvent[]

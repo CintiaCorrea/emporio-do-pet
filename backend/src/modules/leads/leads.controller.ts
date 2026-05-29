@@ -1,4 +1,4 @@
-import {
+import { 
   Controller,
   Get,
   Post,
@@ -9,8 +9,7 @@ import {
   Query,
   HttpCode,
   HttpStatus,
-  UseGuards,
-} from '@nestjs/common';
+  UseGuards,, Patch } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { LeadsService } from './leads.service';
@@ -231,4 +230,35 @@ export class LeadsController {
     await this.leadsService.queueScoring(id);
     return { message: 'Scoring enfileirado' };
   }
+
+  @Patch(':id/qualification')
+  @ApiOperation({ summary: 'Atualizar respostas de qualificação (5 perguntas)' })
+  async updateQualification(
+    @Param('id') id: string,
+    @Body() body: {
+      qualSituacaoPet?: string;
+      qualQueMaisIncomoda?: string;
+      qualTentouOutroVet?: string;
+      qualOQueMudaResolver?: string;
+      qualQuemDecide?: string;
+    },
+  ) {
+    return this.leadsService.updateQualification(id, body);
+  }
+
+  @Patch(':id/pipeline-stage')
+  @ApiOperation({ summary: 'Mudar etapa do pipeline (com automações: Compareceu→Cliente)' })
+  async updatePipelineStage(
+    @Param('id') id: string,
+    @Body() body: { stage: string },
+  ) {
+    return this.leadsService.updatePipelineStage(id, body.stage);
+  }
+
+  @Post(':id/convert')
+  @ApiOperation({ summary: 'Converter Lead em Tutor (Cliente)' })
+  async convertToTutor(@Param('id') id: string) {
+    return this.leadsService.convertToTutor(id);
+  }
+
 }
