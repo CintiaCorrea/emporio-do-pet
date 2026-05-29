@@ -2,10 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import {
-  LuChevronDown, LuChevronRight, LuFlask, LuPackage, LuHeart,
-  LuCalendarX, LuPhoneCall, LuMessageCircle,
-} from "react-icons/lu";
+
 
 interface RetornoVencido {
   id: string; nome: string | null; petNome: string | null; telefone: string | null;
@@ -30,7 +27,7 @@ function SectionHeader({ icon: Icon, title, count, color, open, onToggle, emptyO
   return (
     <button onClick={onToggle} className="w-full flex items-center justify-between py-3 px-4 bg-white rounded-xl border border-[#d8d0bc] hover:bg-[#fdfaee] transition">
       <div className="flex items-center gap-3">
-        {open ? <LuChevronDown className="w-4 h-4 text-[#5b6470]" /> : <LuChevronRight className="w-4 h-4 text-[#5b6470]" />}
+        {open ? <span style={{fontSize:"12px"}}>▼</span> : <span style={{fontSize:"12px"}}>▶</span>}
         <Icon className="w-5 h-5" style={{ color }} />
         <span className="text-sm text-[#0E2244] font-medium">{title}</span>
         <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${count === 0 ? "bg-[#E1F5EE] text-[#0F6E56]" : "bg-[#FCE5C8] text-[#8A5A0F]"}`}>
@@ -93,7 +90,7 @@ export default function HojePage() {
       ) : (
         <div className="flex flex-col gap-2.5">
           <div>
-            <SectionHeader icon={LuCalendarX} title="Retornos vencidos" count={data?.retornosVencidos?.length || 0}
+            <SectionHeader icon={() => <span style={{fontSize:"14px"}}>📅</span>} title="Retornos vencidos" count={data?.retornosVencidos?.length || 0}
               color="#C2410C" open={open.retornos} onToggle={() => toggle("retornos")}
               emptyOk="Nenhum retorno vencido!" />
             {open.retornos && (data?.retornosVencidos?.length || 0) > 0 && (
@@ -111,7 +108,7 @@ export default function HojePage() {
                       </div>
                       {r.telefone && (
                         <a href={`https://wa.me/${r.telefone.replace(/\D/g, "")}`} target="_blank" rel="noreferrer" className="bg-[#E0F4F6] text-[#00798A] text-[11px] px-2.5 py-1 rounded-full inline-flex items-center gap-1.5 border border-[#b5dde2]">
-                          <LuMessageCircle className="w-3 h-3" />{r.telefone}
+                          <span style={{fontSize:"14px"}}>💬</span>{r.telefone}
                         </a>
                       )}
                     </div>
@@ -130,7 +127,7 @@ export default function HojePage() {
           </div>
 
           <div>
-            <SectionHeader icon={LuPhoneCall} title="Próximos toques de cadência" count={data?.toques?.length || 0}
+            <SectionHeader icon={() => <span style={{fontSize:"14px"}}>📞</span>} title="Próximos toques de cadência" count={data?.toques?.length || 0}
               color="#00798A" open={open.toques} onToggle={() => toggle("toques")}
               emptyOk="Sem toques agendados" />
             {open.toques && (data?.toques?.length || 0) > 0 && (
@@ -146,7 +143,7 @@ export default function HojePage() {
                       </div>
                       {t.telefone && (
                         <a href={`https://wa.me/${t.telefone.replace(/\D/g, "")}`} target="_blank" rel="noreferrer" className="bg-[#E0F4F6] text-[#00798A] text-[11px] px-2.5 py-1 rounded-full inline-flex items-center gap-1.5 border border-[#b5dde2]">
-                          <LuMessageCircle className="w-3 h-3" />{t.telefone}
+                          <span style={{fontSize:"14px"}}>💬</span>{t.telefone}
                         </a>
                       )}
                     </div>
@@ -157,7 +154,7 @@ export default function HojePage() {
           </div>
 
           <div>
-            <SectionHeader icon={LuHeart} title="Tutores a acompanhar" count={data?.tutoresAcompanhar || 0}
+            <SectionHeader icon={() => <span style={{fontSize:"14px"}}>💗</span>} title="Tutores a acompanhar" count={data?.tutoresAcompanhar || 0}
               color="#993556" open={open.tutores} onToggle={() => toggle("tutores")} />
             {open.tutores && (
               <div className="mt-2 bg-white border border-[#d8d0bc] rounded-lg p-4 text-center text-xs text-gray-400">
@@ -167,7 +164,7 @@ export default function HojePage() {
           </div>
 
           <div>
-            <SectionHeader icon={LuFlask} title="Exames a entregar" count={data?.examesAEntregar || 0}
+            <SectionHeader icon={() => <span style={{fontSize:"14px"}}>🧪</span>} title="Exames a entregar" count={data?.examesAEntregar || 0}
               color="#3C3489" open={open.exames} onToggle={() => toggle("exames")}
               emptyOk="Tudo em dia por aqui" />
             {open.exames && (
@@ -178,7 +175,7 @@ export default function HojePage() {
           </div>
 
           <div>
-            <SectionHeader icon={LuPackage} title="Pacotes em risco" count={data?.pacotesEmRisco || 0}
+            <SectionHeader icon={() => <span style={{fontSize:"14px"}}>📦</span>} title="Pacotes em risco" count={data?.pacotesEmRisco || 0}
               color="#BA7517" open={open.pacotes} onToggle={() => toggle("pacotes")}
               emptyOk="Tudo em dia por aqui" />
             {open.pacotes && (
