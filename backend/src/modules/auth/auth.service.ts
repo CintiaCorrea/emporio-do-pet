@@ -22,7 +22,7 @@ export class AuthService {
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
-    private readonly redisService: RedisService,,
+    private readonly redisService: RedisService,
     private readonly prisma: PrismaService,
   ) {}
 
