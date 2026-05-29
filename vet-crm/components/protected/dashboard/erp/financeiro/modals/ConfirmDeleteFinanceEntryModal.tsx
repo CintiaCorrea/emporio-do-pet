@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { LuX, LuTrash2, LuTriangleAlert, LuLoader } from "react-icons/lu";
+import {  LuTrash2, LuTriangleAlert, LuLoader } from "react-icons/lu";
 
 interface Props {
   isOpen: boolean;
@@ -83,7 +83,7 @@ const ConfirmDeleteFinanceEntryModal = ({ isOpen, title, subtitle, onClose, onCo
               disabled={isSubmitting}
               className="group flex items-center justify-center w-10 h-10 text-gray-400 hover:text-gray-600 hover:bg-white/50 rounded-xl transition-all duration-300 hover:scale-110 border border-transparent hover:border-gray-200/50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <LuX className="w-5 h-5 transition-transform duration-300 group-hover:rotate-90" />
+              <span style={{fontSize:"14px"}}>✕</span>
             </button>
           </div>
         </div>

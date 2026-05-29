@@ -13,7 +13,6 @@ import {
   LuPencil,
   LuTrash2,
   LuCheck,
-  LuX,
   LuTriangle,
   LuStethoscope,
   LuPhone,
@@ -172,12 +171,10 @@ export default function AppointmentsPage() {
       const response = await fetch(`/api/appointments/${id}`, {
         method: 'PATCH',
         headers: {
-          'Content-Type': 'application/json',
-        },
+          'Content-Type': 'application/json'},
         body: JSON.stringify({
           status: 'CONFIRMED'
-        }),
-      });
+        })});
 
       if (response.ok) {
         fetchAppointments(); // Recarregar lista
@@ -198,12 +195,10 @@ export default function AppointmentsPage() {
       const response = await fetch(`/api/appointments/${id}`, {
         method: 'PATCH',
         headers: {
-          'Content-Type': 'application/json',
-        },
+          'Content-Type': 'application/json'},
         body: JSON.stringify({
           status: 'CANCELED'
-        }),
-      });
+        })});
 
       if (response.ok) {
         fetchAppointments(); // Recarregar lista
@@ -224,12 +219,10 @@ export default function AppointmentsPage() {
       const response = await fetch(`/api/appointments/${id}`, {
         method: 'PATCH',
         headers: {
-          'Content-Type': 'application/json',
-        },
+          'Content-Type': 'application/json'},
         body: JSON.stringify({
           status: 'COMPLETED'
-        }),
-      });
+        })});
 
       if (response.ok) {
         fetchAppointments(); // Recarregar lista
@@ -253,8 +246,7 @@ export default function AppointmentsPage() {
     if (!appointmentToDelete) return;
 
     const response = await fetch(`/api/appointments/${appointmentToDelete.id}`, {
-      method: 'DELETE',
-    });
+      method: 'DELETE'});
 
     if (response.ok) {
       await fetchAppointments(); // Recarregar lista
@@ -292,7 +284,7 @@ export default function AppointmentsPage() {
       case 'SCHEDULED': return LuClock;
       case 'CONFIRMED': return LuCheck;
       case 'COMPLETED': return LuCheck;
-      case 'CANCELED': return LuX;
+      case 'CANCELED': return ;
       case 'IN_PROGRESS': return LuTriangle;
       default: return LuClock;
     }
@@ -397,7 +389,7 @@ export default function AppointmentsPage() {
                   onClick={() => setError(null)}
                   className="float-right text-red-500 hover:text-red-700"
                 >
-                  <LuX className="w-4 h-4" />
+                  <span style={{fontSize:"14px"}}>✕</span>
                 </button>
               </div>
             )}
@@ -439,8 +431,7 @@ export default function AppointmentsPage() {
                   label: "Canceladas", 
                   value: stats.cancelled, 
                   color: "red", 
-                  icon: LuX
-                }
+                  icon: }
               ].map((stat, index) => (
                 <div key={index} className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-blue-500/5 p-6 hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-300 hover:scale-105">
                   <div className="flex items-center justify-between mb-4">
@@ -633,7 +624,7 @@ export default function AppointmentsPage() {
                                     className="p-2 text-red-600 hover:bg-red-50 rounded-2xl transition-colors"
                                     title="Cancelar consulta"
                                   >
-                                    <LuX className="w-4 h-4" />
+                                    <span style={{fontSize:"14px"}}>✕</span>
                                   </button>
                                 </>
                               )}
@@ -705,7 +696,7 @@ export default function AppointmentsPage() {
                   onClick={() => setIsModalOpen(false)}
                   className="p-2 hover:bg-gray-100 rounded-2xl transition-colors"
                 >
-                  <LuX className="w-5 h-5 text-gray-500" />
+                  <span style={{fontSize:"14px"}}>✕</span>
                 </button>
               </div>
             </div>

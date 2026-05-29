@@ -8,7 +8,7 @@ import { formatCurrency } from "@/utils/formatters";
 import KanbanCard from "./KanbanCard";
 import NewTaskModal from "./modals/NewTaskModal";
 import ConfirmDeleteColumnModal from "./modals/ConfirmDeleteColumnModal";
-import { LuTrash2, LuEllipsisVertical, LuPlus, LuPencil, LuCheck, LuX } from "react-icons/lu";
+import { LuTrash2, LuEllipsisVertical, LuPlus, LuPencil, LuCheck } from "react-icons/lu";
 
 // Função para atribuir cores dinamicamente com base no nome do status
 const getColorForStatus = (status: string, colors: { [key: string]: string }) => {
@@ -57,9 +57,7 @@ const KanbanColumn = ({
     type: "COLUMN",
     item: { index, status },
     collect: (monitor) => ({
-      isColumnDragging: monitor.isDragging(),
-    }),
-  });
+      isColumnDragging: monitor.isDragging()})});
 
   const [{ isColumnOver }, columnDrop] = useDrop({
     accept: "COLUMN",
@@ -70,15 +68,12 @@ const KanbanColumn = ({
       }
     },
     collect: (monitor) => ({
-      isColumnOver: monitor.isOver(),
-    }),
-  });
+      isColumnOver: monitor.isOver()})});
 
   const [{ isAppointmentOver }, appointmentDrop] = useDrop({
     accept: "APPOINTMENT",
     drop: (item: { id: string }) => onStatusChange(item.id, status),
-    collect: (monitor) => ({ isAppointmentOver: monitor.isOver() }),
-  });
+    collect: (monitor) => ({ isAppointmentOver: monitor.isOver() })});
 
   columnDrag(columnDrop(appointmentDrop(columnRef)));
 
@@ -166,8 +161,7 @@ const KanbanColumn = ({
       pets: [],
       appointments: [],
       createdAt: now,
-      updatedAt: now,
-    };
+      updatedAt: now};
 
     // ✅ CRIAR PET (mínimo)
     const completePet: Pet = {
@@ -182,8 +176,7 @@ const KanbanColumn = ({
       appointments: [],
       treatments: [],
       createdAt: now,
-      updatedAt: now,
-    };
+      updatedAt: now};
 
     // ✅ CRIAR TRATAMENTOS (se houver)
     const completeTreatments: Treatment[] = (taskData.treatments || []).map((treatment: TreatmentInput) => ({
@@ -197,8 +190,7 @@ const KanbanColumn = ({
       pet: completePet,
       product: undefined,
       createdAt: now,
-      updatedAt: now,
-    }));
+      updatedAt: now}));
 
     // ✅ RETORNAR APPOINTMENT COMPLETO
     return {
@@ -225,12 +217,10 @@ const KanbanColumn = ({
         boards: [],
         appointments: [],
         createdAt: now,
-        updatedAt: now,
-      },
+        updatedAt: now},
       treatments: completeTreatments,
       createdAt: now,
-      updatedAt: now,
-    };
+      updatedAt: now};
   };
 
   return (
@@ -288,7 +278,7 @@ const KanbanColumn = ({
                   className="text-red-600 hover:text-red-800 transition-colors p-1"
                   aria-label="Cancelar edição"
                 >
-                  <LuX className="w-4 h-4" />
+                  <span style={{fontSize:"14px"}}>✕</span>
                 </button>
               </div>
             ) : (

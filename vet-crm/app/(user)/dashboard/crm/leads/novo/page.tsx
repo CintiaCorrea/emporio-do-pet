@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   LuArrowLeft, LuLoader, LuSave, LuUser, LuMail,
-  LuPhone, LuGlobe, LuTag, LuFileText, LuChevronDown, LuChevronUp, LuPlus, LuX
+  LuPhone, LuGlobe, LuTag, LuFileText, LuChevronDown, LuChevronUp, LuPlus
 } from 'react-icons/lu';
 import toast from 'react-hot-toast';
 import type { LeadSource, CreateLeadData } from '@/types/crm';
@@ -29,8 +29,7 @@ export default function NewLeadPage() {
     utmCampaign: '',
     utmContent: '',
     referrer: '',
-    landingPage: '',
-  });
+    landingPage: ''});
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -56,8 +55,7 @@ export default function NewLeadPage() {
       const response = await fetch('/api/leads', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
+        body: JSON.stringify(payload)});
 
       if (!response.ok) {
         const data = await response.json();
@@ -194,7 +192,7 @@ export default function NewLeadPage() {
                     <span key={tag} className="inline-flex items-center gap-1 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm">
                       {tag}
                       <button type="button" onClick={() => removeTag(tag)} className="hover:text-red-600 transition-colors">
-                        <LuX className="w-3 h-3" />
+                        <span style={{fontSize:"14px"}}>✕</span>
                       </button>
                     </span>
                   ))}

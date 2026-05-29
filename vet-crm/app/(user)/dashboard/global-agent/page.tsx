@@ -19,9 +19,7 @@ import {
   LuMessageSquare,
   LuLoaderCircle,
   LuCornerDownLeft,
-  LuUser,
-  LuX,
-} from 'react-icons/lu';
+  LuUser} from 'react-icons/lu';
 
 type MessageRole = 'user' | 'assistant';
 
@@ -108,8 +106,7 @@ export default function GlobalAgentPage() {
       id: generateId(),
       title: 'Nova conversa',
       messages: [],
-      createdAt: new Date(),
-    };
+      createdAt: new Date()};
     setConversations((prev) => [newConv, ...prev]);
     setActiveConversationId(newConv.id);
     setInput('');
@@ -126,8 +123,7 @@ export default function GlobalAgentPage() {
           id: generateId(),
           role: 'assistant',
           content: FAKE_RESPONSE,
-          timestamp: new Date(),
-        };
+          timestamp: new Date()};
         setConversations((prev) =>
           prev.map((c) => (c.id === convId ? { ...c, messages: [...c.messages, assistantMsg] } : c))
         );
@@ -151,8 +147,7 @@ export default function GlobalAgentPage() {
         id: generateId(),
         role: 'user',
         content,
-        timestamp: new Date(),
-      };
+        timestamp: new Date()};
 
       setConversations((prev) =>
         prev.map((c) => {
@@ -224,7 +219,7 @@ export default function GlobalAgentPage() {
               onClick={() => setShowHistory(false)}
               className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 hover:text-white transition-all md:hidden"
             >
-              <LuX className="w-4 h-4" />
+              <span style={{fontSize:"14px"}}>✕</span>
             </button>
           </div>
         </div>

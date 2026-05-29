@@ -4,7 +4,6 @@ import { useState, useRef } from 'react';
 import { 
   LuDownload, 
   LuUpload, 
-  LuX, 
   LuLoader,
   LuFileJson,
   LuCheck,
@@ -42,8 +41,7 @@ export default function TemplateImportExport({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           templateIds: selectedTemplateIds.length > 0 ? selectedTemplateIds : undefined 
-        }),
-      });
+        })});
 
       const data = await response.json();
 
@@ -113,8 +111,7 @@ export default function TemplateImportExport({
       const response = await fetch('/api/templates/import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ templates }),
-      });
+        body: JSON.stringify({ templates })});
 
       const data = await response.json();
 
@@ -207,7 +204,7 @@ export default function TemplateImportExport({
                   onClick={closeModal}
                   className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                 >
-                  <LuX className="w-5 h-5 text-gray-500" />
+                  <span style={{fontSize:"14px"}}>✕</span>
                 </button>
               </div>
             </div>

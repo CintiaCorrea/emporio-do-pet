@@ -7,7 +7,6 @@ import {
   LuSearch,
   LuPlus,
   LuMinus,
-  LuX,
   LuPackage,
   LuPill,
   LuSyringe,
@@ -256,8 +255,7 @@ export default function StockPage() {
       const response = await fetch('/api/stock/movements', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-        },
+          'Content-Type': 'application/json'},
         body: JSON.stringify({
           productId: selectedProduct.id,
           type: movementType,
@@ -396,7 +394,7 @@ export default function StockPage() {
                   onClick={() => setError(null)}
                   className="float-right text-red-500 hover:text-red-700"
                 >
-                  <LuX className="w-4 h-4" />
+                  <span style={{fontSize:"14px"}}>✕</span>
                 </button>
               </div>
             )}
@@ -709,7 +707,7 @@ export default function StockPage() {
                   onClick={() => setIsMovementModalOpen(false)}
                   className="p-2 hover:bg-gray-100 rounded-2xl transition-colors"
                 >
-                  <LuX className="w-5 h-5 text-gray-500" />
+                  <span style={{fontSize:"14px"}}>✕</span>
                 </button>
               </div>
             </div>
@@ -797,7 +795,7 @@ export default function StockPage() {
                   }}
                   className="p-2 hover:bg-gray-100 rounded-2xl transition-colors"
                 >
-                  <LuX className="w-5 h-5 text-gray-500" />
+                  <span style={{fontSize:"14px"}}>✕</span>
                 </button>
               </div>
             </div>

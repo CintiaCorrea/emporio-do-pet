@@ -11,7 +11,6 @@ import {
   LuDollarSign,
   LuTrendingUp,
   LuCircleCheck,
-  LuX,
   LuActivity,
   LuUser,
   LuPawPrint,
@@ -373,7 +372,7 @@ export default function HospitalizationsReportPage() {
                   onClick={() => setError(null)}
                   className="float-right text-red-500 hover:text-red-700"
                 >
-                  <LuX className="w-4 h-4" />
+                  <span style={{fontSize:"14px"}}>✕</span>
                 </button>
               </div>
             )}

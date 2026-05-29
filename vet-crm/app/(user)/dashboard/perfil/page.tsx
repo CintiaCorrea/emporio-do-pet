@@ -12,7 +12,6 @@ import {
   LuPencil,
   LuCamera,
   LuSave,
-  LuX,
   LuLoaderCircle
 } from 'react-icons/lu';
 
@@ -362,7 +361,7 @@ export default function PerfilPage() {
                       onClick={() => setIsEditing(false)}
                       className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-xl transition-colors"
                     >
-                      <LuX className="w-4 h-4" />
+                      <span style={{fontSize:"14px"}}>✕</span>
                       Cancelar
                     </button>
                     <button

@@ -13,7 +13,6 @@ import {
   LuDollarSign,
   LuTrendingUp,
   LuCircleCheck,
-  LuX,
   LuActivity,
   LuDownload,
   LuFilter,
@@ -418,7 +417,7 @@ export default function ProductsReportPage() {
                   onClick={() => setError(null)}
                   className="float-right text-red-500 hover:text-red-700"
                 >
-                  <LuX className="w-4 h-4" />
+                  <span style={{fontSize:"14px"}}>✕</span>
                 </button>
               </div>
             )}
@@ -518,7 +517,7 @@ export default function ProductsReportPage() {
                   label: "Sem Estoque", 
                   value: stats.outOfStock, 
                   color: "red", 
-                  icon: LuX,
+                  icon: 
                   trend: stats.totalProducts > 0 ? ((stats.outOfStock / stats.totalProducts) * 100).toFixed(1) + '%' : '0%'
                 },
                 { 

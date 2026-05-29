@@ -11,14 +11,12 @@ import {
   LuPrinter,
   LuPencil,
   LuCheck,
-  LuX,
   LuLoader,
   LuChevronLeft,
   LuSparkles,
   LuCalendar,
   LuUser,
-  LuPawPrint,
-} from 'react-icons/lu';
+  LuPawPrint} from 'react-icons/lu';
 import toast from 'react-hot-toast';
 
 interface ClinicalDocument {
@@ -73,8 +71,7 @@ const TYPE_LABELS: Record<string, string> = {
   SURGICAL_REPORT: 'Relatório Cirúrgico',
   DISCHARGE_SUMMARY: 'Sumário de Alta',
   VACCINATION_CARD: 'Carteira de Vacinação',
-  GENERAL: 'Documento Geral',
-};
+  GENERAL: 'Documento Geral'};
 
 export default function DocumentViewer({ document: doc, onBack, onUpdate }: DocumentViewerProps) {
   const [isSharing, setIsSharing] = useState(false);
@@ -158,9 +155,7 @@ export default function DocumentViewer({ document: doc, onBack, onUpdate }: Docu
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             method: 'email',
-            recipient: shareRecipient,
-          }),
-        });
+            recipient: shareRecipient})});
 
         if (res.ok) {
           toast.success('Documento enviado por email!');
@@ -311,7 +306,7 @@ export default function DocumentViewer({ document: doc, onBack, onUpdate }: Docu
                 onClick={() => setShowShareModal(false)}
                 className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
               >
-                <LuX className="w-5 h-5" />
+                <span style={{fontSize:"14px"}}>✕</span>
               </button>
             </div>
 

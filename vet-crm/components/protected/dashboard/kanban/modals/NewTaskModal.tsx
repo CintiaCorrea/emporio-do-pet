@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { NewTaskData, Tutor, Pet, User } from "@/types";
-import { LuX, LuPawPrint, LuUser, LuCalendar, LuDollarSign, LuStickyNote, LuLoader } from "react-icons/lu";
+import {  LuPawPrint, LuUser, LuCalendar, LuDollarSign, LuStickyNote, LuLoader } from "react-icons/lu";
 
 // Definir tipos locais para espécies de pet
 type PetSpecies = "CANINE" | "FELINE" | "BIRD" | "RODENT" | "REPTILE" | "OTHER";
@@ -204,8 +204,7 @@ const NewTaskModal = ({ isOpen, onClose, onSubmit, columnId }: NewTaskModalProps
           name: petName.trim(),
           species: species,
           breed: breed.trim() || undefined,
-          tutorId: tutorId,
-        }
+          tutorId: tutorId}
       })
     };
 
@@ -249,7 +248,7 @@ const NewTaskModal = ({ isOpen, onClose, onSubmit, columnId }: NewTaskModalProps
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors duration-200 group"
             disabled={loading}
           >
-            <LuX className="w-5 h-5 text-gray-500 group-hover:text-gray-700" />
+            <span style={{fontSize:"14px"}}>✕</span>
           </button>
         </div>
 

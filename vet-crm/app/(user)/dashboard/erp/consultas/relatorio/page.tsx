@@ -12,7 +12,6 @@ import {
   LuTrendingUp,
   LuTrendingDown,
   LuCircleCheck,
-  LuX,
   LuActivity,
   LuUser,
   LuPawPrint,
@@ -377,7 +376,7 @@ export default function ConsultationsReportPage() {
                   onClick={() => setError(null)}
                   className="float-right text-red-500 hover:text-red-700"
                 >
-                  <LuX className="w-4 h-4" />
+                  <span style={{fontSize:"14px"}}>✕</span>
                 </button>
               </div>
             )}
@@ -460,7 +459,7 @@ export default function ConsultationsReportPage() {
                   label: "Canceladas", 
                   value: stats.canceled, 
                   color: "red", 
-                  icon: LuX,
+                  icon: 
                   trend: stats.total > 0 ? ((stats.canceled / stats.total) * 100).toFixed(1) + '%' : '0%'
                 },
                 { 

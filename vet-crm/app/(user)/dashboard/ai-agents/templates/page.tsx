@@ -10,7 +10,6 @@ import {
   LuMessageSquare,
   LuBot,
   LuClock,
-  LuX,
   LuTrash2,
   LuCheck,
   LuSparkles,
@@ -158,8 +157,7 @@ export default function TemplatesPage() {
     setActionLoading(templateName);
     try {
       const response = await fetch(`/api/whatsapp-templates/${templateName}`, {
-        method: 'DELETE',
-      });
+        method: 'DELETE'});
 
       const data = await readJsonSafe(response);
 
@@ -191,8 +189,7 @@ export default function TemplatesPage() {
     approved: templates.filter(t => t.status === 'APPROVED').length,
     pending: templates.filter(t => t.status === 'PENDING').length,
     rejected: templates.filter(t => t.status === 'REJECTED').length,
-    greenQuality: templates.filter(t => t.quality_score?.score === 'GREEN').length,
-  };
+    greenQuality: templates.filter(t => t.quality_score?.score === 'GREEN').length};
 
   const getCategoryColor = (category: WhatsAppTemplateCategory) => {
     switch (category) {
@@ -255,8 +252,7 @@ export default function TemplatesPage() {
       'en': 'English',
       'en_US': 'English (US)',
       'es': 'Español',
-      'es_ES': 'Español (ES)',
-    };
+      'es_ES': 'Español (ES)'};
     return languages[code] || code;
   };
 
@@ -378,7 +374,7 @@ export default function TemplatesPage() {
           <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-5 hover:shadow-lg transition-all">
             <div className="flex items-center gap-3">
               <div className="p-2.5 rounded-xl bg-red-50 dark:bg-red-900/30">
-                <LuX className="w-5 h-5 text-red-600 dark:text-red-400" />
+                <span style={{fontSize:"14px"}}>✕</span>
               </div>
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Rejeitados</p>
@@ -554,7 +550,7 @@ export default function TemplatesPage() {
                   onClick={() => setIsModalOpen(false)}
                   className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
                 >
-                  <LuX className="w-5 h-5 text-gray-500" />
+                  <span style={{fontSize:"14px"}}>✕</span>
                 </button>
               </div>
             </div>

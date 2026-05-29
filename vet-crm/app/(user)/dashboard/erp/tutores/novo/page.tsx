@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { LuPlus, LuStar, LuTrash2, LuUser, LuMapPin, LuFolder, LuSave, LuX, LuArrowLeft, LuMail, LuPawPrint } from 'react-icons/lu';
+import { LuPlus, LuStar, LuTrash2, LuUser, LuMapPin, LuFolder, LuSave, LuArrowLeft, LuMail, LuPawPrint } from 'react-icons/lu';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
@@ -203,8 +203,7 @@ export default function TutorRegistrationPage() {
         contacts: validContacts.map(({ id, ...rest }) => ({
           ...rest,
           number: rest.number.trim(),
-          observations: sanitize(rest.observations),
-        })),
+          observations: sanitize(rest.observations)})),
         // Garantir que arrays vazios sejam enviados
         tags: formData.tags || [],
         // Converter datas para o formato ISO
@@ -216,16 +215,13 @@ export default function TutorRegistrationPage() {
           : undefined,
         inclusionDate: sanitize(formData.inclusionDate)
           ? new Date(formData.inclusionDate as string).toISOString()
-          : undefined,
-      };
+          : undefined};
 
       const response = await fetch('/api/tutors', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
+          'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)});
 
       const data = await response.json();
 
@@ -259,14 +255,12 @@ export default function TutorRegistrationPage() {
             observations: sanitize(pet.observations),
             documents: pet.documents,
             avatar: sanitize(pet.avatar),
-            tutorId: tutorId,
-          };
+            tutorId: tutorId};
 
           const petResponse = await fetch('/api/pets', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(petPayload),
-          });
+            body: JSON.stringify(petPayload)});
 
           if (!petResponse.ok) {
             const petError = await petResponse.json();
@@ -336,7 +330,7 @@ export default function TutorRegistrationPage() {
                   onClick={() => setError(null)}
                   className="text-red-500 hover:text-red-700 p-1 rounded-lg"
                 >
-                  <LuX className="w-4 h-4" />
+                  <span style={{fontSize:"14px"}}>✕</span>
                 </button>
               </div>
             )}

@@ -11,7 +11,6 @@ import {
   LuDollarSign,
   LuTrendingUp,
   LuCircleCheck,
-  LuX,
   LuActivity,
   LuDownload,
   LuFilter,
@@ -380,7 +379,7 @@ export default function ServicesReportPage() {
                   onClick={() => setError(null)}
                   className="float-right text-red-500 hover:text-red-700"
                 >
-                  <LuX className="w-4 h-4" />
+                  <span style={{fontSize:"14px"}}>✕</span>
                 </button>
               </div>
             )}
@@ -474,7 +473,7 @@ export default function ServicesReportPage() {
                   label: "Sem Uso", 
                   value: stats.servicesWithNoUsage, 
                   color: "red", 
-                  icon: LuX,
+                  icon: 
                   trend: stats.totalServices > 0 ? ((stats.servicesWithNoUsage / stats.totalServices) * 100).toFixed(1) + '%' : '0%'
                 }
               ].map((stat, index) => (

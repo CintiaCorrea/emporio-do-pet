@@ -8,7 +8,6 @@ import {
   LuPlus,
   LuPencil,
   LuTrash2,
-  LuX,
   LuUser,
   LuPawPrint,
   LuCalendar,
@@ -384,8 +383,7 @@ export default function HospitalizationsPage() {
       const response = await fetch('/api/hospitalizations', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-        },
+          'Content-Type': 'application/json'},
         body: JSON.stringify({
           tutorId: formData.tutorId,
           petId: formData.petId,
@@ -398,8 +396,7 @@ export default function HospitalizationsPage() {
           diagnosis: formData.diagnosis || undefined,
           notes: formData.notes || undefined,
           vitalSigns: Object.values(formData.vitalSigns).some(v => v !== undefined) ? formData.vitalSigns : undefined
-        }),
-      });
+        })});
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => null);
@@ -448,8 +445,7 @@ export default function HospitalizationsPage() {
       const response = await fetch(`/api/hospitalizations/${selectedHospitalization.id}`, {
         method: 'PATCH',
         headers: {
-          'Content-Type': 'application/json',
-        },
+          'Content-Type': 'application/json'},
         body: JSON.stringify({
           reason: editFormData.reason,
           roomNumber: editFormData.roomNumber || undefined,
@@ -461,8 +457,7 @@ export default function HospitalizationsPage() {
           diagnosis: editFormData.diagnosis || undefined,
           notes: editFormData.notes || undefined,
           vitalSigns: Object.values(editFormData.vitalSigns).some(v => v !== undefined) ? editFormData.vitalSigns : undefined
-        }),
-      });
+        })});
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => null);
@@ -493,13 +488,11 @@ export default function HospitalizationsPage() {
       const response = await fetch(`/api/hospitalizations/${id}`, {
         method: 'PATCH',
         headers: {
-          'Content-Type': 'application/json',
-        },
+          'Content-Type': 'application/json'},
         body: JSON.stringify({
           status: 'DISCHARGED',
           actualDischargeDate: new Date().toISOString()
-        }),
-      });
+        })});
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => null);
@@ -528,8 +521,7 @@ export default function HospitalizationsPage() {
     if (!hospitalizationToDelete) return;
 
     const response = await fetch(`/api/hospitalizations/${hospitalizationToDelete.id}`, {
-      method: 'DELETE',
-    });
+      method: 'DELETE'});
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => null);
@@ -614,7 +606,7 @@ export default function HospitalizationsPage() {
                   onClick={() => setError(null)}
                   className="float-right text-red-500 hover:text-red-700"
                 >
-                  <LuX className="w-4 h-4" />
+                  <span style={{fontSize:"14px"}}>✕</span>
                 </button>
               </div>
             )}
@@ -927,7 +919,7 @@ export default function HospitalizationsPage() {
                   onClick={() => setIsModalOpen(false)}
                   className="p-2 hover:bg-gray-100 rounded-2xl transition-colors"
                 >
-                  <LuX className="w-5 h-5 text-gray-500" />
+                  <span style={{fontSize:"14px"}}>✕</span>
                 </button>
               </div>
             </div>
@@ -1142,7 +1134,7 @@ export default function HospitalizationsPage() {
                   onClick={() => setIsEditModalOpen(false)}
                   className="p-2 hover:bg-gray-100 rounded-2xl transition-colors"
                 >
-                  <LuX className="w-5 h-5 text-gray-500" />
+                  <span style={{fontSize:"14px"}}>✕</span>
                 </button>
               </div>
             </div>
@@ -1335,7 +1327,7 @@ export default function HospitalizationsPage() {
                   onClick={() => setIsCreateModalOpen(false)}
                   className="p-2 hover:bg-gray-100 rounded-2xl transition-colors"
                 >
-                  <LuX className="w-5 h-5 text-gray-500" />
+                  <span style={{fontSize:"14px"}}>✕</span>
                 </button>
               </div>
             </div>

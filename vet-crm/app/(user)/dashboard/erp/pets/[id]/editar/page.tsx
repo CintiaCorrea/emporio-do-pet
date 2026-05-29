@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent 
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { LuArrowLeft, LuPawPrint, LuVenetianMask, LuCalendar, LuUser, LuSave, LuX, LuCamera, LuLoaderCircle, LuTrash2, LuFiles } from "react-icons/lu";
+import { LuArrowLeft, LuPawPrint, LuVenetianMask, LuCalendar, LuUser, LuSave, LuCamera, LuLoaderCircle, LuTrash2, LuFiles } from "react-icons/lu";
 import toast from "react-hot-toast";
 
 interface Tutor {
@@ -248,8 +248,7 @@ const emptyPet: Pet = {
   observations: "",
   documents: [],
   owner: "",
-  avatar: "",
-};
+  avatar: ""};
 
 interface DocumentTemplate {
   id: string;
@@ -379,8 +378,7 @@ export default function EditPetPage() {
           documents: Array.isArray(petData.documents) ? petData.documents : [],
           owner: petData.tutor?.name || "",
           tutorId: petData.tutorId || "",
-          avatar: petData.avatar || "",
-        };
+          avatar: petData.avatar || ""};
         
         setPet(mappedPetData);
 
@@ -527,18 +525,15 @@ export default function EditPetPage() {
         medicalNotes: sanitize(pet.medicalNotes),
         observations: sanitize(pet.observations),
         documents: pet.documents,
-        avatar: sanitize(pet.avatar),
-      };
+        avatar: sanitize(pet.avatar)};
 
       console.log('Dados enviados para backend:', petToSubmit);
 
       const response = await fetch(`/api/pets/${petId}`, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(petToSubmit),
-      });
+          'Content-Type': 'application/json'},
+        body: JSON.stringify(petToSubmit)});
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -578,8 +573,7 @@ export default function EditPetPage() {
         const res = await fetch("/api/breeds", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ species: pet.species, name: normalized }),
-        });
+          body: JSON.stringify({ species: pet.species, name: normalized })});
 
         const data = await res.json().catch(() => null);
         if (!res.ok) {
@@ -627,8 +621,7 @@ export default function EditPetPage() {
       const sigRes = await fetch("/api/cloudinary/signature", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kind: "petAvatar", petKey: petId }),
-      });
+        body: JSON.stringify({ kind: "petAvatar", petKey: petId })});
       const sigData = await sigRes.json().catch(() => null);
       if (!sigRes.ok) throw new Error(sigData?.error || "Erro ao preparar upload");
 
@@ -646,8 +639,7 @@ export default function EditPetPage() {
 
       const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
         method: "POST",
-        body: form,
-      });
+        body: form});
       const uploadData = await uploadRes.json().catch(() => null);
       if (!uploadRes.ok) {
         const msg =

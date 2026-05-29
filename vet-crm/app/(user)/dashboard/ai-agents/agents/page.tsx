@@ -18,7 +18,6 @@ import {
   LuClock,
   LuCircleCheck,
   LuActivity,
-  LuX,
   LuPencil,
   LuTrash2,
   LuFileText,
@@ -108,8 +107,7 @@ export default function AgentsPage() {
       const response = await fetch(`/api/agents/${agentId}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus }),
-      });
+        body: JSON.stringify({ status: newStatus })});
 
       const data = await response.json();
 
@@ -138,8 +136,7 @@ export default function AgentsPage() {
     setActionLoading(deletingAgent.id);
     try {
       const response = await fetch(`/api/agents/${deletingAgent.id}`, {
-        method: 'DELETE',
-      });
+        method: 'DELETE'});
 
       const data = await response.json();
 
@@ -493,7 +490,7 @@ export default function AgentsPage() {
                   onClick={() => setIsModalOpen(false)}
                   className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                 >
-                  <LuX className="w-5 h-5 text-gray-500" />
+                  <span style={{fontSize:"14px"}}>✕</span>
                 </button>
               </div>
             </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { LuX, LuPlus, LuHash, LuSparkles } from "react-icons/lu";
+import {  LuPlus, LuHash, LuSparkles } from "react-icons/lu";
 
 interface NewColumnModalProps {
   isOpen: boolean;
@@ -95,7 +95,7 @@ const NewColumnModal = ({ isOpen, onClose, onSubmit }: NewColumnModalProps) => {
               onClick={handleClose}
               className="group flex items-center justify-center w-10 h-10 text-gray-400 hover:text-gray-600 hover:bg-white/50 rounded-xl transition-all duration-300 hover:scale-110 border border-transparent hover:border-gray-200/50"
             >
-              <LuX className="w-5 h-5 transition-transform duration-300 group-hover:rotate-90" />
+              <span style={{fontSize:"14px"}}>✕</span>
             </button>
           </div>
         </div>
