@@ -222,19 +222,6 @@ export class WhatsAppController {
     return this.validVerifyTokens.has(token);
   }
 
-  // TEMPORÁRIO: diagnóstico do verify token (remover depois)
-  @Get('debug-token')
-  async debugVerifyToken(): Promise<any> {
-    const envToken = this.whatsAppService.getWebhookVerifyToken();
-    return {
-      hasEnvToken: !!envToken,
-      envTokenLength: envToken?.length || 0,
-      envTokenFirst5: envToken ? envToken.substring(0, 5) : null,
-      envTokenLast3: envToken ? envToken.substring(envToken.length - 3) : null,
-      dbTokensCount: this.validVerifyTokens.size,
-    };
-  }
-
   // Webhook verification (GET) - Meta sends this to verify webhook URL
   @Get()
   async verifyWebhook(

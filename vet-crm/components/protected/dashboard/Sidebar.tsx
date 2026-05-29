@@ -19,6 +19,7 @@ import {
   LuChevronDown,
   LuChevronRight,
   LuLogOut,
+  LuMessageSquare,
 } from "react-icons/lu";
 
 interface SidebarProps {
@@ -190,6 +191,12 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
           href="/dashboard/inbox-recepcao"
           icon={LuInbox}
           label="Inbox Recepção"
+          collapsed={collapsed}
+        />
+        <NavItem
+          href="/dashboard/ai-agents/conversas"
+          icon={LuMessageSquare}
+          label="Conversas"
           collapsed={collapsed}
         />
         <NavItem href="/dashboard/crm/leads" icon={LuList} label="Leads" collapsed={collapsed} />
