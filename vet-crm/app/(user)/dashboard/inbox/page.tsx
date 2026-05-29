@@ -220,7 +220,7 @@ export default function InboxUnificadoPage() {
       </div>
 
       {tab === "conversas" && (
-        <div className="grid grid-cols-[260px_1fr_290px] min-h-[600px]">
+        <div className="grid grid-cols-[310px_1fr_340px] min-h-[640px]">
           {/* LEFT - Lista */}
           <div className="border-r border-[#e8e1d2] bg-[#fafafa] flex flex-col">
             <div className="p-2.5 flex gap-1.5 flex-wrap border-b border-[#e8e1d2]">
@@ -347,9 +347,32 @@ export default function InboxUnificadoPage() {
           </div>
 
           {/* RIGHT - Tutor + Pet selector + Actions */}
-          <div className="border-l border-[#e8e1d2] bg-[#fbfaf6] p-3 flex flex-col gap-3">
+          <div className="border-l border-[#e8e1d2] bg-[#fbfaf6] p-4 flex flex-col gap-3">
             {!selectedId ? (
-              <p className="text-center text-[11px] text-[#888780] mt-12">Selecione uma conversa pra ver os detalhes</p>
+              <div className="flex flex-col gap-3 opacity-50 pointer-events-none">
+                <div className="bg-white border border-dashed border-[#e8e1d2] rounded-xl p-3">
+                  <div className="text-[10px] text-[#888780] font-medium mb-2">CLIENTE</div>
+                  <div className="h-4 bg-[#f0e8d4] rounded w-3/4 mb-1.5"></div>
+                  <div className="h-2.5 bg-[#f0e8d4] rounded w-1/2"></div>
+                </div>
+                <div className="bg-white border border-dashed border-[#e8e1d2] rounded-xl p-3">
+                  <div className="text-[10px] text-[#888780] font-medium mb-2">🐾 PACIENTE EM ATENDIMENTO</div>
+                  <div className="flex gap-1.5 mb-2">
+                    <div className="flex-1 h-9 bg-[#f0e8d4] rounded-lg"></div>
+                    <div className="flex-1 h-9 bg-[#f0e8d4] rounded-lg"></div>
+                  </div>
+                </div>
+                <div className="bg-white border border-dashed border-[#e8e1d2] rounded-xl p-3">
+                  <div className="text-[10px] text-[#888780] font-medium mb-2">⚡ AÇÕES NO PET</div>
+                  <div className="flex gap-1.5 flex-wrap">
+                    <div className="bg-[#f0e8d4] rounded px-3 py-1 text-[10px] text-[#888780]">Nota clínica</div>
+                    <div className="bg-[#f0e8d4] rounded px-3 py-1 text-[10px] text-[#888780]">Agendar</div>
+                    <div className="bg-[#f0e8d4] rounded px-3 py-1 text-[10px] text-[#888780]">Prontuário</div>
+                    <div className="bg-[#f0e8d4] rounded px-3 py-1 text-[10px] text-[#888780]">Exame</div>
+                  </div>
+                </div>
+                <p className="text-center text-[11px] text-[#888780] mt-2">Selecione uma conversa pra ver os detalhes do cliente e do pet em atendimento</p>
+              </div>
             ) : !tutor ? (
               <div className="bg-white border border-[#e8e1d2] rounded-xl p-3 text-center text-[11px] text-[#5F5E5A]">
                 <p>Lead ainda não convertido</p>
