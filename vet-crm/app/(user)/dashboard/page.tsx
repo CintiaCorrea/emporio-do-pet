@@ -159,7 +159,7 @@ export default function DashboardPage() {
     switch (status) {
       case 'confirmado': return 'bg-emerald-500/15 text-emerald-600 border border-emerald-500/30';
       case 'pendente': return 'bg-amber-500/15 text-amber-600 border border-amber-500/30';
-      case 'em_atendimento': return 'bg-blue-500/15 text-blue-600 border border-blue-500/30';
+      case 'em_atendimento': return 'bg-emerald-500/15 text-emerald-600 border border-emerald-500/30';
       default: return 'bg-gray-500/10 text-gray-600 border border-gray-500/20';
     }
   };
@@ -186,7 +186,7 @@ export default function DashboardPage() {
       <div className="flex items-center justify-center min-h-[calc(100vh-5rem)]">
         <div className="flex flex-col items-center gap-6">
           <div className="relative">
-            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-500/20 to-violet-500/20 border border-blue-500/20 animate-pulse" />
+            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-amber-500/20 border border-emerald-500/20 animate-pulse" />
             <div className="absolute inset-0 w-20 h-20 border-2 border-transparent border-t-blue-500 rounded-2xl animate-spin" />
           </div>
           <p className="text-gray-500 font-medium">Carregando seu dashboard...</p>
@@ -224,24 +224,24 @@ export default function DashboardPage() {
   ];
 
   const colorClasses: Record<string, string> = {
-    violet: 'bg-violet-500/10 text-violet-600 border-violet-500/20 hover:bg-violet-500/15 hover:border-violet-500/30',
-    blue: 'bg-blue-500/10 text-blue-600 border-blue-500/20 hover:bg-blue-500/15 hover:border-blue-500/30',
-    indigo: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20 hover:bg-indigo-500/15 hover:border-indigo-500/30',
+    violet: 'bg-amber-500/10 text-amber-600 border-amber-500/20 hover:bg-amber-500/15 hover:border-amber-500/30',
+    blue: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20 hover:bg-emerald-500/15 hover:border-emerald-500/30',
+    indigo: 'bg-amber-500/10 text-amber-600 border-amber-500/20 hover:bg-amber-500/15 hover:border-amber-500/30',
     amber: 'bg-amber-500/10 text-amber-600 border-amber-500/20 hover:bg-amber-500/15 hover:border-amber-500/30',
     teal: 'bg-teal-500/10 text-teal-600 border-teal-500/20 hover:bg-teal-500/15 hover:border-teal-500/30',
     rose: 'bg-rose-500/10 text-rose-600 border-rose-500/20 hover:bg-rose-500/15 hover:border-rose-500/30',
     emerald: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20 hover:bg-emerald-500/15 hover:border-emerald-500/30',
-    cyan: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/20 hover:bg-cyan-500/15 hover:border-cyan-500/30',
-    purple: 'bg-purple-500/10 text-purple-600 border-purple-500/20 hover:bg-purple-500/15 hover:border-purple-500/30',
+    cyan: 'bg-teal-500/10 text-teal-600 border-teal-500/20 hover:bg-teal-500/15 hover:border-teal-500/30',
+    purple: 'bg-amber-500/10 text-amber-600 border-amber-500/20 hover:bg-amber-500/15 hover:border-amber-500/30',
     slate: 'bg-slate-500/10 text-slate-600 border-slate-500/20 hover:bg-slate-500/15 hover:border-slate-500/30',
   };
 
   return (
     <div className="min-h-screen">
       {/* Hero gradient strip */}
-      <div className="absolute top-0 left-0 right-0 h-[420px] bg-gradient-to-br from-blue-500/8 via-violet-500/5 to-cyan-500/8 pointer-events-none" aria-hidden />
-      <div className="absolute top-0 left-1/4 w-96 h-96 bg-violet-400/10 rounded-full blur-3xl pointer-events-none" aria-hidden />
-      <div className="absolute top-20 right-1/4 w-80 h-80 bg-blue-400/10 rounded-full blur-3xl pointer-events-none" aria-hidden />
+      <div className="absolute top-0 left-0 right-0 h-[420px] bg-gradient-to-br from-emerald-500/8 via-amber-500/5 to-teal-500/8 pointer-events-none" aria-hidden />
+      <div className="absolute top-0 left-1/4 w-96 h-96 bg-amber-400/10 rounded-full blur-3xl pointer-events-none" aria-hidden />
+      <div className="absolute top-20 right-1/4 w-80 h-80 bg-emerald-400/10 rounded-full blur-3xl pointer-events-none" aria-hidden />
 
       <div className="relative p-6 lg:p-8 max-w-[1600px] mx-auto">
         {/* Header */}
@@ -291,8 +291,8 @@ export default function DashboardPage() {
         {/* KPI Cards - glass style */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
           {[
-            { label: 'Tutores', value: data.totalTutores, icon: LuUsers, bg: 'bg-blue-500/10', iconColor: 'text-blue-600' },
-            { label: 'Pets', value: data.totalPets, icon: LuPawPrint, bg: 'bg-purple-500/10', iconColor: 'text-purple-600' },
+            { label: 'Tutores', value: data.totalTutores, icon: LuUsers, bg: 'bg-emerald-500/10', iconColor: 'text-emerald-600' },
+            { label: 'Pets', value: data.totalPets, icon: LuPawPrint, bg: 'bg-amber-500/10', iconColor: 'text-amber-600' },
             { label: 'Agendamentos hoje', value: data.agendamentosHoje, icon: LuCalendar, bg: 'bg-amber-500/10', iconColor: 'text-amber-600' },
             { label: 'Consultas hoje', value: data.consultasHoje, sub: data.consultasPendentes ? `${data.consultasPendentes} pendentes` : null, icon: LuStethoscope, bg: 'bg-teal-500/10', iconColor: 'text-teal-600' },
             { label: 'Internações', value: data.internacoesAtivas, icon: LuBedDouble, bg: 'bg-rose-500/10', iconColor: 'text-rose-600' },
@@ -319,8 +319,8 @@ export default function DashboardPage() {
             <div className="h-full bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200/80 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
               <div className="p-5 border-b border-gray-100 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-blue-500/10 rounded-xl">
-                    <LuCalendar className="w-5 h-5 text-blue-600" />
+                  <div className="p-2 bg-emerald-500/10 rounded-xl">
+                    <LuCalendar className="w-5 h-5 text-emerald-600" />
                   </div>
                   <div>
                     <h2 className="font-semibold text-gray-900">Agenda do Dia</h2>
@@ -355,7 +355,7 @@ export default function DashboardPage() {
                 )}
               </div>
               <div className="p-4 bg-gray-50/50 border-t border-gray-100">
-                <Link href="/dashboard/erp/agendamentos" className="flex items-center justify-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700">
+                <Link href="/dashboard/erp/agendamentos" className="flex items-center justify-center gap-2 text-sm font-medium text-emerald-600 hover:text-emerald-700">
                   Ver agenda completa <LuChevronRight className="w-4 h-4" />
                 </Link>
               </div>
@@ -367,8 +367,8 @@ export default function DashboardPage() {
             <div className="h-full bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200/80 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
               <div className="p-5 border-b border-gray-100">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-purple-500/10 rounded-xl">
-                    <LuActivity className="w-5 h-5 text-purple-600" />
+                  <div className="p-2 bg-amber-500/10 rounded-xl">
+                    <LuActivity className="w-5 h-5 text-amber-600" />
                   </div>
                   <div>
                     <h2 className="font-semibold text-gray-900">Atividades Recentes</h2>
@@ -403,7 +403,7 @@ export default function DashboardPage() {
           {/* Módulos em destaque */}
           <div className="lg:col-span-1 space-y-4">
             <Link href="/dashboard/ai-agents/agents" className="block group">
-              <div className="bg-gradient-to-br from-violet-500 to-purple-600 rounded-2xl p-5 text-white shadow-lg shadow-purple-500/20 hover:shadow-xl hover:shadow-purple-500/25 hover:scale-[1.02] transition-all duration-300">
+              <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-2xl p-5 text-white shadow-lg shadow-amber-500/20 hover:shadow-xl hover:shadow-amber-500/25 hover:scale-[1.02] transition-all duration-300">
                 <div className="flex items-center justify-between mb-4">
                   <div className="p-2.5 bg-white/20 rounded-xl">
                     <LuBot className="w-6 h-6" />
@@ -422,7 +422,7 @@ export default function DashboardPage() {
               </div>
             </Link>
             <Link href="/dashboard/crm/leads" className="block group">
-              <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl p-5 text-white shadow-lg shadow-blue-500/20 hover:shadow-xl hover:shadow-blue-500/25 hover:scale-[1.02] transition-all duration-300">
+              <div className="bg-gradient-to-br from-emerald-500 to-amber-600 rounded-2xl p-5 text-white shadow-lg shadow-emerald-500/20 hover:shadow-xl hover:shadow-emerald-500/25 hover:scale-[1.02] transition-all duration-300">
                 <div className="flex items-center justify-between mb-4">
                   <div className="p-2.5 bg-white/20 rounded-xl">
                     <LuTarget className="w-6 h-6" />
@@ -438,7 +438,7 @@ export default function DashboardPage() {
               </div>
             </Link>
             <Link href="/dashboard/campanhas/email" className="block group">
-              <div className="bg-gradient-to-br from-cyan-500 to-teal-600 rounded-2xl p-5 text-white shadow-lg shadow-cyan-500/20 hover:shadow-xl hover:shadow-cyan-500/25 hover:scale-[1.02] transition-all duration-300">
+              <div className="bg-gradient-to-br from-teal-500 to-teal-600 rounded-2xl p-5 text-white shadow-lg shadow-teal-500/20 hover:shadow-xl hover:shadow-teal-500/25 hover:scale-[1.02] transition-all duration-300">
                 <div className="flex items-center justify-between mb-4">
                   <div className="p-2.5 bg-white/20 rounded-xl">
                     <LuMegaphone className="w-6 h-6" />
@@ -528,8 +528,8 @@ export default function DashboardPage() {
 
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200/80 p-5 shadow-sm hover:shadow-md transition-all">
             <div className="flex items-center gap-3 mb-4">
-              <div className="p-2.5 bg-indigo-500/10 rounded-xl">
-                <LuSparkles className="w-5 h-5 text-indigo-600" />
+              <div className="p-2.5 bg-amber-500/10 rounded-xl">
+                <LuSparkles className="w-5 h-5 text-amber-600" />
               </div>
               <div>
                 <h3 className="font-semibold text-gray-900">Serviços</h3>
@@ -542,22 +542,22 @@ export default function DashboardPage() {
                   <span className="text-sm text-gray-600">{s}</span>
                   <div className="flex items-center gap-2">
                     <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                      <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${[70, 45, 35][i]}%` }} />
+                      <div className="h-full bg-amber-500 rounded-full" style={{ width: `${[70, 45, 35][i]}%` }} />
                     </div>
                     <span className="text-xs text-gray-500">{[70, 45, 35][i]}%</span>
                   </div>
                 </div>
               ))}
             </div>
-            <Link href="/dashboard/erp/servicos" className="flex items-center justify-center gap-2 mt-4 pt-4 border-t border-gray-100 text-sm font-medium text-indigo-600 hover:text-indigo-700">
+            <Link href="/dashboard/erp/servicos" className="flex items-center justify-center gap-2 mt-4 pt-4 border-t border-gray-100 text-sm font-medium text-amber-600 hover:text-amber-700">
               Ver serviços <LuChevronRight className="w-4 h-4" />
             </Link>
           </div>
 
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200/80 p-5 shadow-sm hover:shadow-md transition-all">
             <div className="flex items-center gap-3 mb-4">
-              <div className="p-2.5 bg-violet-500/10 rounded-xl">
-                <LuSettings className="w-5 h-5 text-violet-600" />
+              <div className="p-2.5 bg-amber-500/10 rounded-xl">
+                <LuSettings className="w-5 h-5 text-amber-600" />
               </div>
               <div>
                 <h3 className="font-semibold text-gray-900">Integrações</h3>
@@ -575,7 +575,7 @@ export default function DashboardPage() {
                 </div>
               ))}
             </div>
-            <Link href="/dashboard/ai-agents/conexoes" className="flex items-center justify-center gap-2 mt-4 pt-4 border-t border-gray-100 text-sm font-medium text-violet-600 hover:text-violet-700">
+            <Link href="/dashboard/ai-agents/conexoes" className="flex items-center justify-center gap-2 mt-4 pt-4 border-t border-gray-100 text-sm font-medium text-amber-600 hover:text-amber-700">
               Configurar <LuChevronRight className="w-4 h-4" />
             </Link>
           </div>
