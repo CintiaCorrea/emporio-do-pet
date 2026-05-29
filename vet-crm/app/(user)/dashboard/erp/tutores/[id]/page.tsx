@@ -180,7 +180,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
         {pets.length} {pets.length === 1 ? "pet" : "pets"} · <strong className="text-[#0E2244] font-medium">R$ {ltv} LTV</strong> · cliente desde {new Date(tutor.createdAt).toLocaleDateString("pt-BR", { month: "short", year: "numeric" })}
       </p>
 
-      <div className="grid grid-cols-[280px_1fr] gap-3 mb-3">
+      <div className="grid grid-cols-[280px_1fr_320px] gap-3 mb-3">
 
         {/* Coluna esquerda */}
         <div className="flex flex-col gap-2.5">
@@ -275,70 +275,78 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
           </div>
         </div>
 
-        {/* Coluna direita — Pets */}
-        <div className="bg-white border border-[#d8d0bc] rounded-xl p-3.5">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <h3 className="text-sm text-[#0E2244] font-medium">Pets</h3>
-              <span className="bg-[#E0F4F6] text-[#00798A] text-[10px] font-medium px-1.5 py-0.5 rounded-full">{pets.length}</span>
+        {/* Coluna meio — Pets (compacto) + Histórico de Interações (grande, cresce com uso) */}
+        <div className="flex flex-col gap-2.5">
+          <div className="bg-white border border-[#d8d0bc] rounded-xl p-3">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <h3 className="text-[13px] text-[#0E2244] font-medium">Pets</h3>
+                <span className="bg-[#E0F4F6] text-[#00798A] text-[10px] font-medium px-1.5 py-0.5 rounded-full">{pets.length}</span>
+              </div>
+              <Link href={`/dashboard/erp/pets/novo?tutorId=${tutor.id}`}
+                className="bg-white border border-[#cfd8e0] text-[#4d5a66] px-2.5 py-1 rounded text-[11px]">
+                <LuPlus className="inline w-3 h-3" /> Adicionar Pet
+              </Link>
             </div>
-            <button className="bg-white border border-[#cfd8e0] text-[#4d5a66] px-2.5 py-1 rounded text-[11px]"><LuPlus className="inline w-3 h-3" /> Adicionar Pet</button>
-          </div>
-          {pets.length === 0 ? (
-            <p className="text-center text-[11px] text-gray-400 py-6">Nenhum pet cadastrado</p>
-          ) : (
-            <div className="grid grid-cols-2 gap-2">
-              {pets.map((pet) => (
-                <Link key={pet.id} href={`/dashboard/erp/pets/${pet.id}`} className="bg-[#fbf6ea] rounded-lg p-2.5 hover:bg-[#FBEED8] transition">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-[#FBEED8] flex items-center justify-center text-base">{PET_EMOJI(pet.species)}</div>
-                    <div className="flex-1">
-                      <div className="text-[#0E2244] font-medium text-xs">{pet.name}</div>
-                      <div className="text-[10px] text-[#5b6470]">{pet.species}{pet.breed ? ` · ${pet.breed}` : ""}</div>
+            {pets.length === 0 ? (
+              <p className="text-center text-[11px] text-gray-400 py-3">Nenhum pet cadastrado</p>
+            ) : (
+              <div className="flex flex-col gap-1">
+                {pets.map((pet) => (
+                  <div key={pet.id} className="flex items-center justify-between bg-[#fbfaf6] rounded-lg px-2.5 py-2 hover:bg-[#FBEED8] transition">
+                    <Link href={`/dashboard/erp/pets/${pet.id}`} className="flex items-center gap-2 flex-1">
+                      <span className="text-base">{PET_EMOJI(pet.species)}</span>
+                      <div className="flex-1">
+                        <span className="text-[#0E2244] font-medium text-xs">{pet.name}</span>
+                        <span className="text-[10px] text-[#5b6470] ml-1">{pet.species}{pet.breed ? ` · ${pet.breed}` : ""}</span>
+                      </div>
+                    </Link>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[9px] bg-[#f0e8d4] text-[#5b6470] px-1.5 py-0.5 rounded">Sem trat. ativo</span>
+                      <Link href={`/dashboard/erp/pets/${pet.id}`} title="Abrir ficha" className="text-[#5F5E5A] hover:text-[#009AAC] text-[12px]">↗</Link>
                     </div>
                   </div>
-                  <div className="mt-1.5 text-[9px] bg-[#f0e8d4] text-[#5b6470] px-1.5 py-0.5 rounded inline-block">Sem trat. ativo</div>
-                </Link>
-              ))}
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Histórico de Interações grande (cresce com uso) */}
+          <AccordionCard icon={() => <span style={{fontSize:"14px"}}>💬</span>} title="Histórico de interações" count={0}
+            action={<button className="bg-[#009AAC] text-white px-2.5 py-1 rounded text-[11px] font-medium"><LuPlus className="inline w-3 h-3" /> Nota</button>}>
+            <div className="flex gap-2 mb-2">
+              <select className="border border-[#d8d0bc] rounded px-2 py-1 text-[11px]"><option>Nota</option><option>WhatsApp</option><option>Email</option></select>
+              <input placeholder="Registrar..." className="flex-1 border border-[#d8d0bc] rounded px-2 py-1 text-[11px]" />
             </div>
-          )}
+            <p className="text-center text-[11px] text-gray-400 py-4">Nenhuma interação ainda</p>
+          </AccordionCard>
         </div>
-      </div>
 
-      {/* 2x2 accordion: Atendimentos+Interações em cima, Sequências+Emails embaixo */}
-      <div className="grid grid-cols-2 gap-2.5">
-        <AccordionCard icon={() => <span style={{fontSize:"14px"}}>🩺</span>} title="Histórico de atendimentos" count={0}
-          action={<button className="bg-[#0F6E56] text-white px-2.5 py-1 rounded text-[11px] font-medium"><LuPlus className="inline w-3 h-3" /> Novo</button>}>
-          <p className="text-center text-[11px] text-gray-400 py-3">Nenhum atendimento registrado</p>
-        </AccordionCard>
+        {/* Coluna direita — Atendimentos + Sequências + Emails (compactos) */}
+        <div className="flex flex-col gap-2.5">
+          <AccordionCard icon={() => <span style={{fontSize:"14px"}}>🩺</span>} title="Atendimentos" count={0}
+            action={<button className="bg-[#0F6E56] text-white px-2 py-0.5 rounded text-[10px] font-medium"><LuPlus className="inline w-2.5 h-2.5" /> Novo</button>}>
+            <p className="text-center text-[11px] text-gray-400 py-2">Nenhum registrado</p>
+          </AccordionCard>
 
-        <AccordionCard icon={() => <span style={{fontSize:"14px"}}>💬</span>} title="Histórico de interações" count={0}
-          action={<button className="bg-[#009AAC] text-white px-2.5 py-1 rounded text-[11px] font-medium"><LuPlus className="inline w-3 h-3" /> Nota</button>}>
-          <div className="flex gap-2 mb-2">
-            <select className="border border-[#d8d0bc] rounded px-2 py-1 text-[11px]"><option>Nota</option><option>WhatsApp</option><option>Email</option></select>
-            <input placeholder="Registrar..." className="flex-1 border border-[#d8d0bc] rounded px-2 py-1 text-[11px]" />
-          </div>
-          <p className="text-center text-[11px] text-gray-400 py-2">Nenhuma interação ainda</p>
-        </AccordionCard>
-
-        <AccordionCard icon={() => <span style={{fontSize:"14px"}}>⚡</span>} title="Sequências automáticas" badge={{ label: "Em breve", color: "#3C3489", bg: "#EEEDFE" }}>
-          <p className="text-[11px] text-[#5b6470] mb-2">Automações de email/WhatsApp programadas pra este tutor.</p>
-          <div className="flex flex-col gap-1.5">
-            <div className="bg-[#fbf6ea] rounded px-2.5 py-1.5 flex items-center justify-between text-[11px]">
-              <span className="text-[#0E2244] font-medium">📧 Boas-vindas Empório</span>
-              <span className="bg-[#FCE5C8] text-[#8A5A0F] text-[9px] px-1.5 py-0.5 rounded-full">pendente</span>
+          <AccordionCard icon={() => <span style={{fontSize:"14px"}}>⚡</span>} title="Sequências" badge={{ label: "Em breve", color: "#3C3489", bg: "#EEEDFE" }}>
+            <div className="flex flex-col gap-1">
+              <div className="bg-[#fbfaf6] rounded px-2 py-1.5 flex items-center justify-between text-[11px]">
+                <span className="text-[#0E2244] truncate">📧 Boas-vindas</span>
+                <span className="bg-[#FCE5C8] text-[#8A5A0F] text-[9px] px-1.5 py-0.5 rounded-full ml-1">pendente</span>
+              </div>
+              <div className="bg-[#fbfaf6] rounded px-2 py-1.5 flex items-center justify-between text-[11px]">
+                <span className="text-[#0E2244] truncate">🗒️ Retorno 30d</span>
+                <span className="bg-[#E0F4F6] text-[#00798A] text-[9px] px-1.5 py-0.5 rounded-full ml-1">aguardando</span>
+              </div>
             </div>
-            <div className="bg-[#fbf6ea] rounded px-2.5 py-1.5 flex items-center justify-between text-[11px]">
-              <span className="text-[#0E2244] font-medium">🗒️ Lembrete retorno 30d</span>
-              <span className="bg-[#E0F4F6] text-[#00798A] text-[9px] px-1.5 py-0.5 rounded-full">aguardando</span>
-            </div>
-          </div>
-        </AccordionCard>
+          </AccordionCard>
 
-        <AccordionCard icon={() => <span style={{fontSize:"14px"}}>✉️</span>} title="Emails" count={0}
-          action={<button className="bg-white border border-[#cfd8e0] text-[#4d5a66] px-2.5 py-1 rounded text-[11px]"><LuPlus className="inline w-3 h-3" /> Enviar</button>}>
-          <p className="text-center text-[11px] text-gray-400 py-3">Nenhum email registrado</p>
-        </AccordionCard>
+          <AccordionCard icon={() => <span style={{fontSize:"14px"}}>✉️</span>} title="Emails" count={0}
+            action={<button className="bg-white border border-[#cfd8e0] text-[#4d5a66] px-2 py-0.5 rounded text-[10px]"><LuPlus className="inline w-2.5 h-2.5" /> Enviar</button>}>
+            <p className="text-center text-[11px] text-gray-400 py-2">Nenhum email</p>
+          </AccordionCard>
+        </div>
       </div>
     </div>
   );

@@ -259,38 +259,55 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
         </div>
       </div>
 
-      {/* Score + Pipeline lado a lado */}
-      <div className="grid grid-cols-2 gap-2.5 mb-3">
-        <div className="bg-white rounded-xl border border-[#d8d0bc] p-4">
-          <div className="flex items-center gap-2 mb-3"><span style={{fontSize:"14px"}}>🔥</span><h3 className="text-sm text-[#0E2244] font-medium">Score de Qualificação</h3></div>
-          <div className="flex items-baseline justify-between mb-2">
-            <div className="flex items-baseline gap-1.5">
-              <span style={{ color: temp.color }} className="text-4xl font-medium">{lead.currentScore || 0}</span>
-              <span className="text-sm text-gray-400">/ 100</span>
-            </div>
-            <span style={{ color: temp.color }} className="text-xs font-medium inline-flex items-center gap-1">{temp.icon}{temp.label}</span>
+      {/* Score + Pipeline + Follow-up + Etiquetas (4 col) — sobe FU e Etiquetas do final */}
+      <div className="grid grid-cols-4 gap-2.5 mb-3">
+        <div className="bg-white rounded-xl border border-[#d8d0bc] p-3">
+          <div className="flex items-center gap-2 mb-2"><span style={{fontSize:"14px"}}>🔥</span><h3 className="text-[12px] text-[#0E2244] font-medium">Score</h3></div>
+          <div className="flex items-baseline gap-1 mb-1">
+            <span style={{ color: temp.color }} className="text-3xl font-medium">{lead.currentScore || 0}</span>
+            <span className="text-[10px] text-gray-400">/100</span>
           </div>
-          <div className="relative h-2 bg-[#f0e8d4] rounded-full mb-1.5">
+          <span style={{ color: temp.color }} className="text-[10px] font-medium inline-flex items-center gap-1">{temp.icon}{temp.label}</span>
+          <div className="relative h-1.5 bg-[#f0e8d4] rounded-full mt-2 mb-1">
             <div style={{ width: `${lead.currentScore || 0}%`, background: temp.color }} className="absolute left-0 top-0 bottom-0 rounded-full" />
-            <div style={{ left: `${lead.currentScore || 0}%` }} className="absolute -top-0.5 w-0.5 h-3 bg-[#0E2244]" />
           </div>
-          <div className="flex justify-between text-[10px] text-gray-400">
-            <span>🧊 0</span><span>☕ 40</span><span>🔥 70</span><span>100</span>
+          <div className="flex justify-between text-[9px] text-gray-400">
+            <span>🧊</span><span>☕</span><span>🔥</span>
           </div>
         </div>
-        <div className="bg-white rounded-xl border border-[#d8d0bc] p-4">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2"><span style={{fontSize:"14px"}}>🌿</span><h3 className="text-sm text-[#0E2244] font-medium">Pipeline Comercial</h3></div>
-          </div>
-          <select onChange={(e) => changeStage(e.target.value)} defaultValue="Em qualificação" className="w-full border border-[#009AAC] rounded px-2.5 py-1.5 text-xs text-[#0E2244] bg-white focus:outline-none mb-2.5">
+
+        <div className="bg-white rounded-xl border border-[#d8d0bc] p-3">
+          <div className="flex items-center gap-2 mb-2"><span style={{fontSize:"14px"}}>🌿</span><h3 className="text-[12px] text-[#0E2244] font-medium">Pipeline</h3></div>
+          <select onChange={(e) => changeStage(e.target.value)} defaultValue="Em qualificação"
+            className="w-full border border-[#009AAC] rounded px-2 py-1 text-[11px] text-[#0E2244] bg-white focus:outline-none mb-1">
             {PIPELINE_STAGES.map((s) => <option key={s}>{s}</option>)}
           </select>
-          <p className="text-[10px] text-gray-400 text-center">10 etapas · Compareceu vira cliente automaticamente</p>
+          <p className="text-[9px] text-gray-400">Compareceu vira cliente</p>
+        </div>
+
+        <div className="bg-white rounded-xl border border-[#d8d0bc] p-3">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-[12px] text-[#0E2244] font-medium">📅 Follow-up</h3>
+            <button className="text-[10px] text-[#009AAC] hover:underline">+ Agendar</button>
+          </div>
+          <p className="text-[11px] text-gray-400">Sem follow-up agendado</p>
+        </div>
+
+        <div className="bg-white rounded-xl border border-[#d8d0bc] p-3">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-[12px] text-[#0E2244] font-medium">🏷 Etiquetas</h3>
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {(lead.tags || []).map((t: string) => (
+              <span key={t} className="bg-[#EEEDFE] text-[#3C3489] text-[10px] px-2 py-0.5 rounded-full">{t}</span>
+            ))}
+            <button className="border border-dashed border-[#cfd8e0] text-gray-400 text-[10px] px-2 py-0.5 rounded-full">+ tag</button>
+          </div>
         </div>
       </div>
 
-      {/* 4 cards inferiores */}
-      <div className="grid grid-cols-4 gap-2.5 mb-3">
+      {/* 2 cards inferiores: Dados do Lead + Conquistas (FU e Etiquetas subiram pro topo) */}
+      <div className="grid grid-cols-2 gap-2.5 mb-3">
         <div className="bg-white rounded-xl border border-[#d8d0bc] p-3">
           <h3 className="text-[11px] text-[#5b6470] tracking-wide font-medium mb-2">DADOS DO LEAD</h3>
           <div className="text-[11px] text-[#4d5a66] leading-loose">
@@ -301,24 +318,8 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
           </div>
         </div>
         <div className="bg-white rounded-xl border border-[#d8d0bc] p-3">
-          <div className="flex justify-between items-center mb-2">
-            <h3 className="text-[11px] text-[#5b6470] tracking-wide font-medium">FOLLOW-UP</h3>
-            <button className="border border-[#009AAC] text-[#00798A] text-[10px] px-2 py-0.5 rounded flex items-center gap-1"><LuPlus className="w-2.5 h-2.5" />Agendar</button>
-          </div>
-          <p className="text-xs text-gray-400">Sem follow-up agendado</p>
-        </div>
-        <div className="bg-white rounded-xl border border-[#d8d0bc] p-3">
-          <h3 className="text-[11px] text-[#5b6470] tracking-wide font-medium mb-2">ETIQUETAS</h3>
-          <div className="flex flex-wrap gap-1">
-            {(lead.tags || []).map((t: string) => (
-              <span key={t} className="bg-[#EEEDFE] text-[#3C3489] text-[10px] px-2 py-0.5 rounded-full">{t}</span>
-            ))}
-            <button className="border border-dashed border-[#cfd8e0] text-gray-400 text-[10px] px-2 py-0.5 rounded-full">+ tag</button>
-          </div>
-        </div>
-        <div className="bg-white rounded-xl border border-[#d8d0bc] p-3">
           <h3 className="text-[11px] text-[#5b6470] tracking-wide font-medium mb-2">CONQUISTAS · 3/8</h3>
-          <div className="grid grid-cols-4 gap-1">
+          <div className="grid grid-cols-8 gap-1">
             <div className="aspect-square bg-[#E0F4F6] rounded flex items-center justify-center" title="Primeiro contato"><span style={{fontSize:"14px"}}>💬</span></div>
             <div className="aspect-square bg-[#E1F5EE] rounded flex items-center justify-center" title="WhatsApp ativo"><LuStickyNote className="w-3 h-3 text-[#0F6E56]" /></div>
             <div className="aspect-square bg-[#FFE2D2] rounded flex items-center justify-center text-xs" title="Quente">🔥</div>
