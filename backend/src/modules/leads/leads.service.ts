@@ -616,4 +616,132 @@ export class LeadsService {
   private async invalidateStatsCache() {
     await this.redis.del(this.STATS_CACHE_KEY);
   }
+
+  // === Qualificação (5 perguntas) ===
+  async updateQualification(id: string, dto: any) {
+    const updated = await this.prisma.lead.update({
+      where: { id },
+      data: { ...dto, lastActivityAt: new Date() },
+    });
+
+    // Recalcular score baseado em quantas respostas foram dadas
+    const answered = [
+      updated.qualSituacaoPet,
+      updated.qualQueMaisIncomoda,
+      updated.qualTentouOutroVet,
+      updated.qualOQueMudaResolver,
+      updated.qualQuemDecide,
+    ].filter((v) => v && v.trim().length > 0).length;
+
+    const newScore = Math.min(100, (updated.currentScore || 0) + answered * 10);
+
+    if (newScore !== updated.currentScore) {
+      await this.prisma.lead.update({
+        where: { id },
+        data: { currentScore: newScore, scoreUpdatedAt: new Date() },
+      });
+    }
+
+    return { ...updated, currentScore: newScore };
+  }
+
+  // === Pipeline stage com automações ===
+  // Aceita string e mapeia pro enum LeadStatus.
+  // Automações:
+  //   - Compareceu → vira Cliente (Tutor.classificacao=Cliente, status=CONVERTED)
+  //   - Agendado → marca proximo follow-up
+  async updatePipelineStage(id: string, stage: string) {
+    const normalized = stage.toUpperCase().replace(/ /g, '_');
+
+    const lead = await this.prisma.lead.findUnique({ where: { id } });
+    if (!lead) throw new Error('Lead not found');
+
+    // Compareceu → convert
+    if (normalized === 'COMPARECEU') {
+      return this.convertToTutor(id);
+    }
+
+    // Agendado → marca FU em 2 dias
+    if (normalized === 'AGENDADO') {
+      const fu = new Date();
+      fu.setDate(fu.getDate() + 2);
+      return this.prisma.lead.update({
+        where: { id },
+        data: {
+          status: 'AGUARDANDO_TRIAGEM' as any, // placeholder até definirmos todos
+          lastActivityAt: new Date(),
+        },
+      });
+    }
+
+    return this.prisma.lead.update({
+      where: { id },
+      data: { lastActivityAt: new Date() },
+    });
+  }
+
+  // === Conversão Lead → Tutor (Cliente) ===
+  async convertToTutor(id: string) {
+    const lead = await this.prisma.lead.findUnique({ where: { id } });
+    if (!lead) throw new Error('Lead not found');
+
+    // Buscar Tutor existente por email/phone
+    let tutor = lead.email
+      ? await this.prisma.tutor.findUnique({ where: { email: lead.email } })
+      : null;
+
+    if (!tutor && lead.phone) {
+      const last8 = lead.phone.replace(/\D/g, '').slice(-8);
+      const contact = await this.prisma.contact.findFirst({
+        where: { number: { endsWith: last8 } },
+        include: { tutor: true },
+      });
+      tutor = contact?.tutor || null;
+    }
+
+    if (tutor) {
+      await this.prisma.tutor.update({
+        where: { id: tutor.id },
+        data: { classificacao: 'Cliente', status: 'ACTIVE' },
+      });
+    } else {
+      tutor = await this.prisma.tutor.create({
+        data: {
+          name: lead.name || 'Lead convertido',
+          email: lead.email,
+          classificacao: 'Cliente',
+          status: 'ACTIVE',
+          tags: lead.tags || [],
+          observations: lead.notes,
+          convertedFromLeadId: lead.id,
+          ...(lead.phone
+            ? {
+                contacts: {
+                  create: [
+                    {
+                      number: lead.phone,
+                      type: 'MOBILE',
+                      isWhatsApp: true,
+                      isPrimary: true,
+                    },
+                  ],
+                },
+              }
+            : {}),
+        },
+      });
+    }
+
+    await this.prisma.lead.update({
+      where: { id: lead.id },
+      data: {
+        status: 'CONVERTED' as any,
+        convertedAt: new Date(),
+        convertedToTutorId: tutor.id,
+      },
+    });
+
+    return { ok: true, tutorId: tutor.id, leadId: lead.id };
+  }
+
 }
