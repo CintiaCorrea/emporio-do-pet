@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import Sidebar from '@/components/protected/dashboard/Sidebar';
-import Topbar from '@/components/protected/dashboard/Topbar';
 import HotToaster from '@/components/common/HotToaster';
 
 export default function DashboardLayout({
@@ -22,12 +21,9 @@ export default function DashboardLayout({
       {/* Sidebar */}
       <Sidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
       
-      {/* Topbar */}
-      <Topbar sidebarOpen={sidebarOpen} />
-      
-      {/* Main Content - com padding-bottom para a topbar inferior estilo Base44 */}
+{/* Main Content - com padding-bottom para a topbar inferior estilo Base44 */}
       <main className={`
-        pb-14 min-h-screen transition-all duration-300
+        min-h-screen transition-all duration-300
         ${sidebarOpen ? 'ml-56 sm:ml-64' : 'ml-12 sm:ml-16'}
       `}>
         {children}

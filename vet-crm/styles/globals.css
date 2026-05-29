@@ -5,7 +5,7 @@
 
 :root {
   /* Brand + core surfaces (default = light) */
-  --background: #FBF6EA; /* warm off-white */
+  --background: #FFFFFF; /* branco puro estilo Base44 */
   --foreground: #0E2244;
   --brand: #009AAC; /* emerald-700 — Empório */ /* blue-600 */
 
@@ -57,7 +57,7 @@ html[data-theme='light'],
 html.light,
 body[data-theme='light'],
 body.light {
-  --background: #FBF6EA; /* warm off-white */
+  --background: #FFFFFF; /* branco puro estilo Base44 */
   --foreground: #0E2244;
   --brand: #009AAC; /* emerald-700 — Empório */
 
