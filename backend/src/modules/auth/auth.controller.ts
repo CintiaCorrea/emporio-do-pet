@@ -5,6 +5,7 @@ import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { CurrentUser } from './decorators/current-user.decorator';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 
 @ApiTags('auth')
@@ -60,35 +61,6 @@ export class AuthController {
   async me(@Request() req: { user: unknown }) {
     return { user: req.user };
   }
-
-  @Post('admin/bootstrap-reset')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'TEMPORÁRIO: reset de senha via secret header' })
-  async bootstrapReset(
-    @Headers('x-bootstrap-secret') secret: string | undefined,
-    @Body() body: { email: string },
-  ) {
-    const expected = process.env.BOTCONVERSA_WEBHOOK_SECRET;
-    if (!expected || secret !== expected) {
-      throw new UnauthorizedException();
-    }
-    if (!body?.email) {
-      throw new BadRequestException('email required');
-    }
-    // Gera senha aleatória 12 chars
-    const newPassword = Array.from(
-      { length: 12 },
-      () => 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$'[
-        Math.floor(Math.random() * 67)
-      ],
-    ).join('');
-    const bcrypt = await import('bcryptjs');
-    const hash = await bcrypt.hash(newPassword, 10);
-    await this.authService.adminSetPassword(body.email, hash);
-    return { newPassword };
-  }
-
-
   @UseGuards(JwtAuthGuard)
   @Post('change-password')
   @HttpCode(HttpStatus.OK)
