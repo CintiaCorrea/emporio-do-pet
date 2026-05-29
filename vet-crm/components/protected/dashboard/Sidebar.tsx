@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { signOut } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 import { useState } from "react";
 import {
   LuHouse,
@@ -148,6 +148,13 @@ const SubMenu = ({ icon: Icon, label, children, collapsed }: SubMenuProps) => {
 
 export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
   const collapsed = !isOpen;
+  const { data: session } = useSession();
+  const userName = session?.user?.name || "Usuário";
+  const userEmail = session?.user?.email || "";
+  const getInitials = (name: string) => {
+    const p = name.trim().split(/\s+/);
+    return ((p[0]?.[0] || "") + (p[1]?.[0] || "")).toUpperCase() || "??";
+  };
 
   return (
     <aside
@@ -261,13 +268,31 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
         />
       </nav>
 
-      <div className="px-2 pb-3 border-t border-[#e8dfc8] pt-3">
+      <div className="px-2 pb-2 border-t border-[#e8dfc8] pt-2">
+        {!collapsed && (
+          <div className="flex items-center gap-2 px-2 py-2 mb-1">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#009AAC] to-[#0E2244] text-white flex items-center justify-center text-[11px] font-medium flex-shrink-0">
+              {getInitials(userName)}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-xs text-[#0E2244] font-medium truncate">{userName}</div>
+              <div className="text-[10px] text-[#888780] truncate">Admin</div>
+            </div>
+          </div>
+        )}
+        {collapsed && (
+          <div className="flex justify-center mb-1">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#009AAC] to-[#0E2244] text-white flex items-center justify-center text-[11px] font-medium" title={userName}>
+              {getInitials(userName)}
+            </div>
+          </div>
+        )}
         <button
           onClick={() => signOut({ callbackUrl: "/" })}
-          className={`w-full flex items-center ${collapsed ? "justify-center" : ""} gap-2.5 px-3 py-2.5 rounded-lg text-sm text-[#4d5a66] hover:bg-[#FBF0DD]`}
+          className={`w-full flex items-center ${collapsed ? "justify-center" : ""} gap-2.5 px-3 py-2 rounded-lg text-xs text-[#4d5a66] hover:bg-[#FBF0DD]`}
           title={collapsed ? "Sair" : undefined}
         >
-          <LuLogOut className="w-[18px] h-[18px]" />
+          <LuLogOut className="w-[16px] h-[16px]" />
           {!collapsed && <span>Sair</span>}
         </button>
       </div>

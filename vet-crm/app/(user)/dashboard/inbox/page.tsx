@@ -125,6 +125,17 @@ export default function InboxUnificadoPage() {
   const [atendDate, setAtendDate] = useState(() => new Date().toISOString().substring(0, 16));
   const [atendSaving, setAtendSaving] = useState(false);
 
+  // Modal Nota clínica no pet
+  const [notaPetOpen, setNotaPetOpen] = useState(false);
+  const [notaPetText, setNotaPetText] = useState("");
+  const [notaPetSaving, setNotaPetSaving] = useState(false);
+
+  // Modal Agendamento clínico (no pet selecionado)
+  const [agendaPetOpen, setAgendaPetOpen] = useState(false);
+  const [agendaPetDate, setAgendaPetDate] = useState(() => new Date(Date.now() + 86400000).toISOString().substring(0, 16));
+  const [agendaPetDesc, setAgendaPetDesc] = useState("");
+  const [agendaPetSaving, setAgendaPetSaving] = useState(false);
+
   // Carregar usuários internos
   useEffect(() => {
     (async () => {
@@ -246,11 +257,17 @@ export default function InboxUnificadoPage() {
     if (!text || !selectedId) return;
     if (!textOverride) setMessageInput("");
     try {
-      await fetch(`/api/whatsapp/conversations/${selectedId}/messages`, {
+      const r = await fetch(`/api/whatsapp/conversations/${selectedId}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content: text, type: "text" }),
       });
+      if (!r.ok) {
+        const body = await r.text().catch(() => "");
+        console.error("Send message failed:", r.status, body);
+        alert(`Erro ao enviar (HTTP ${r.status}). Tenta de novo ou recarrega.`);
+        return;
+      }
       const res = await fetch(`/api/whatsapp/conversations/${selectedId}/messages?limit=30`);
       const data = await res.json().catch(() => ({}));
       const list = Array.isArray(data?.data) ? data.data
@@ -270,10 +287,13 @@ export default function InboxUnificadoPage() {
     if (!selectedId || resolvendo) return;
     if (!confirm("Marcar conversa como resolvida?")) return;
     setResolvendo(true);
+    const idResolvido = selectedId;
     try {
-      await fetch(`/api/whatsapp/conversations/${selectedId}/close`, { method: "POST" });
-      setRefreshTick((t) => t + 1);
+      await fetch(`/api/whatsapp/conversations/${idResolvido}/close`, { method: "POST" });
+      // tira da lista imediatamente (otimista)
+      setConversations((prev) => prev.filter((c) => c.id !== idResolvido));
       setSelectedId(null);
+      setRefreshTick((t) => t + 1);
     } catch (e) { console.error(e); alert("Erro ao resolver. Tente novamente."); }
     finally { setResolvendo(false); }
   };
@@ -333,6 +353,57 @@ export default function InboxUnificadoPage() {
       setInternalSelected(null);
       alert("Nota enviada!");
     } catch (e) { console.error(e); alert("Erro ao enviar. Tente novamente."); }
+  };
+
+  // Salvar nota clínica no Pet (atualiza medicalNotes)
+  const salvarNotaPet = async () => {
+    if (!selectedPetId || !notaPetText.trim()) {
+      alert("Escreva a nota.");
+      return;
+    }
+    setNotaPetSaving(true);
+    try {
+      const r = await fetch(`/api/pets/${selectedPetId}`);
+      const cur = await r.json().catch(() => ({}));
+      const prev = (cur?.medicalNotes || "").toString();
+      const stamp = new Date().toLocaleString("pt-BR");
+      const newNote = `[${stamp}] ${notaPetText.trim()}\n${prev}`.trim();
+      await fetch(`/api/pets/${selectedPetId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ medicalNotes: newNote }),
+      });
+      setNotaPetOpen(false);
+      setNotaPetText("");
+      alert("Nota clínica salva!");
+    } catch (e) { console.error(e); alert("Erro ao salvar nota."); }
+    finally { setNotaPetSaving(false); }
+  };
+
+  // Agendar atendimento futuro pro pet
+  const agendarPet = async () => {
+    if (!selectedPetId || !tutor?.id || !agendaPetDesc.trim()) {
+      alert("Descreva o agendamento.");
+      return;
+    }
+    setAgendaPetSaving(true);
+    try {
+      await fetch("/api/appointments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tutorId: tutor.id,
+          petId: selectedPetId,
+          date: new Date(agendaPetDate).toISOString(),
+          description: agendaPetDesc.trim(),
+          status: "SCHEDULED",
+        }),
+      });
+      setAgendaPetOpen(false);
+      setAgendaPetDesc("");
+      alert("Agendamento criado!");
+    } catch (e) { console.error(e); alert("Erro ao agendar."); }
+    finally { setAgendaPetSaving(false); }
   };
 
   // Adicionar atendimento ao pet selecionado
@@ -559,6 +630,17 @@ export default function InboxUnificadoPage() {
                       className={`px-2.5 py-1.5 border rounded-lg text-xs flex items-center gap-1 ${scriptsOpen ? "bg-[#FBF0DD] border-[#8a6313] text-[#8a6313]" : "bg-white border-[#e8e1d2] text-[#5F5E5A]"}`}>
                       <span style={{fontSize:"12px"}}>📝</span>Scripts
                     </button>
+                    <button
+                      onClick={() => {
+                        if (!selectedConv?.contactNumber) return;
+                        setNovaMsgPhone(selectedConv.contactNumber);
+                        setNovaMsgText(messageInput);
+                        setNovaMsgOpen(true);
+                      }}
+                      title="Agendar essa mensagem pra horário futuro"
+                      className="px-2.5 py-1.5 border border-[#e8e1d2] rounded-lg text-xs text-[#5F5E5A] hover:bg-[#f9f9f9] flex items-center gap-1">
+                      <span style={{fontSize:"12px"}}>📅</span>Agendar
+                    </button>
                     <input value={messageInput} onChange={(e) => setMessageInput(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendMessage()}
                       placeholder="Digite uma mensagem..."
@@ -689,18 +771,22 @@ export default function InboxUnificadoPage() {
                   <div className="bg-white border border-[#e8e1d2] rounded-xl p-3">
                     <div className="text-[10px] text-[#888780] font-medium mb-2">⚡ AÇÕES NO {selectedPet.name.toUpperCase()}</div>
                     <div className="flex flex-wrap gap-1.5">
-                      <button className="bg-white border border-[#e8e1d2] px-2.5 py-1 rounded text-[10px] text-[#0E2244] flex items-center gap-1 hover:bg-[#f9f9f9]">
+                      <button onClick={() => setNotaPetOpen(true)}
+                        className="bg-white border border-[#e8e1d2] px-2.5 py-1 rounded text-[10px] text-[#0E2244] flex items-center gap-1 hover:bg-[#f9f9f9]">
                         <LuPencil className="w-2.5 h-2.5" />Nota
                       </button>
-                      <button className="bg-white border border-[#e8e1d2] px-2.5 py-1 rounded text-[10px] text-[#0E2244] flex items-center gap-1 hover:bg-[#f9f9f9]">
+                      <button onClick={() => setAgendaPetOpen(true)}
+                        className="bg-white border border-[#e8e1d2] px-2.5 py-1 rounded text-[10px] text-[#0E2244] flex items-center gap-1 hover:bg-[#f9f9f9]">
                         <LuCalendar className="w-2.5 h-2.5" />Agendar
                       </button>
-                      <button className="bg-white border border-[#e8e1d2] px-2.5 py-1 rounded text-[10px] text-[#0E2244] flex items-center gap-1 hover:bg-[#f9f9f9]">
+                      <Link href={`/dashboard/erp/pets/${selectedPet.id}`}
+                        className="bg-white border border-[#e8e1d2] px-2.5 py-1 rounded text-[10px] text-[#0E2244] flex items-center gap-1 hover:bg-[#f9f9f9]">
                         🩺 Prontuário
-                      </button>
-                      <button className="bg-white border border-[#e8e1d2] px-2.5 py-1 rounded text-[10px] text-[#0E2244] flex items-center gap-1 hover:bg-[#f9f9f9]">
+                      </Link>
+                      <Link href={`/dashboard/erp/pets/${selectedPet.id}?tab=exames`}
+                        className="bg-white border border-[#e8e1d2] px-2.5 py-1 rounded text-[10px] text-[#0E2244] flex items-center gap-1 hover:bg-[#f9f9f9]">
                         🧪 Exame
-                      </button>
+                      </Link>
                     </div>
                   </div>
                 )}
@@ -839,6 +925,52 @@ export default function InboxUnificadoPage() {
               <button onClick={() => setNovaMsgOpen(false)} className="px-3 py-1.5 text-xs text-[#5F5E5A]">Cancelar</button>
               <button onClick={enviarNovaMensagem} disabled={novaMsgSending} className="bg-[#009AAC] text-white px-4 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50">
                 {novaMsgSending ? (novaMsgScheduledAt ? "Agendando..." : "Enviando...") : (novaMsgScheduledAt ? "Agendar" : "Enviar agora")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL Nota clínica no Pet */}
+      {notaPetOpen && selectedPet && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setNotaPetOpen(false)}>
+          <div className="bg-white rounded-xl p-5 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-base text-[#0E2244] font-medium">Nota clínica — {selectedPet.name}</h3>
+              <button onClick={() => setNotaPetOpen(false)} className="text-[#5F5E5A] text-xl">×</button>
+            </div>
+            <textarea value={notaPetText} onChange={(e) => setNotaPetText(e.target.value)}
+              rows={5} placeholder="Observação clínica sobre o pet (vai pro prontuário)..."
+              className="w-full px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm mb-3 focus:outline-none focus:border-[#009AAC] resize-none" />
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setNotaPetOpen(false)} className="px-3 py-1.5 text-xs text-[#5F5E5A]">Cancelar</button>
+              <button onClick={salvarNotaPet} disabled={notaPetSaving} className="bg-[#009AAC] text-white px-4 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50">
+                {notaPetSaving ? "Salvando..." : "Salvar nota"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL Agendar atendimento no Pet */}
+      {agendaPetOpen && selectedPet && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setAgendaPetOpen(false)}>
+          <div className="bg-white rounded-xl p-5 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-base text-[#0E2244] font-medium">Agendar — {selectedPet.name}</h3>
+              <button onClick={() => setAgendaPetOpen(false)} className="text-[#5F5E5A] text-xl">×</button>
+            </div>
+            <label className="block text-[11px] text-[#5F5E5A] mb-1 font-medium">Data/hora</label>
+            <input type="datetime-local" value={agendaPetDate} onChange={(e) => setAgendaPetDate(e.target.value)}
+              className="w-full px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm mb-3 focus:outline-none focus:border-[#009AAC]" />
+            <label className="block text-[11px] text-[#5F5E5A] mb-1 font-medium">Motivo</label>
+            <textarea value={agendaPetDesc} onChange={(e) => setAgendaPetDesc(e.target.value)}
+              rows={3} placeholder="Ex: Consulta de rotina, vacina V10..."
+              className="w-full px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm mb-3 focus:outline-none focus:border-[#009AAC] resize-none" />
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setAgendaPetOpen(false)} className="px-3 py-1.5 text-xs text-[#5F5E5A]">Cancelar</button>
+              <button onClick={agendarPet} disabled={agendaPetSaving} className="bg-[#009AAC] text-white px-4 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50">
+                {agendaPetSaving ? "Agendando..." : "Agendar"}
               </button>
             </div>
           </div>
