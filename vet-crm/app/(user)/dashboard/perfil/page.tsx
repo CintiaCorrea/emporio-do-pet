@@ -8,12 +8,9 @@ import Image from 'next/image';
 import toast from 'react-hot-toast';
 import { 
   LuUser, 
-  LuMail, 
   LuCalendar,
   LuPencil,
   LuCamera,
-  LuShield,
-  LuKey,
   LuSave,
   LuX,
   LuLoaderCircle
@@ -49,8 +46,7 @@ export default function PerfilPage() {
   const [avatarUrl, setAvatarUrl] = useState<string | undefined>(undefined);
   const [formData, setFormData] = useState({
     name: '',
-    email: '',
-  });
+    email: ''});
 
   useEffect(() => {
     const userId = session?.user?.id;
@@ -67,8 +63,7 @@ export default function PerfilPage() {
         setProfile(p);
         setFormData({
           name: p.name || '',
-          email: p.email || '',
-        });
+          email: p.email || ''});
         setAvatarUrl(p.image || undefined);
 
         // Stats (real)
@@ -87,8 +82,7 @@ export default function PerfilPage() {
         setStats({
           tutorsTotal: tutorsRes.ok ? tutorsData?.pagination?.total : undefined,
           petsTotal: petsRes.ok ? petsData?.pagination?.total : undefined,
-          appointmentsTotal: appointmentsRes.ok ? appointmentsData?.pagination?.total : undefined,
-        });
+          appointmentsTotal: appointmentsRes.ok ? appointmentsData?.pagination?.total : undefined});
       } catch (err) {
         console.error(err);
         toast.error(err instanceof Error ? err.message : 'Erro ao carregar perfil');
@@ -184,8 +178,7 @@ export default function PerfilPage() {
 
       const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
         method: 'POST',
-        body: form,
-      });
+        body: form});
       const uploadData = await uploadRes.json();
       if (!uploadRes.ok) {
         const msg =
@@ -204,8 +197,7 @@ export default function PerfilPage() {
       const patchRes = await fetch(`/api/users/${encodeURIComponent(userId)}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: secureUrl }),
-      });
+        body: JSON.stringify({ image: secureUrl })});
       const patchData = await patchRes.json();
       if (!patchRes.ok) throw new Error(patchData?.error || 'Erro ao salvar avatar no usuário');
 
@@ -240,8 +232,7 @@ export default function PerfilPage() {
       const res = await fetch(`/api/users/${encodeURIComponent(userId)}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: formData.name, email: formData.email }),
-      });
+        body: JSON.stringify({ name: formData.name, email: formData.email })});
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || 'Erro ao salvar perfil');
 
@@ -322,7 +313,7 @@ export default function PerfilPage() {
                       {statusLabel.text}
                     </span>
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-cyan-50 text-cyan-700 text-xs font-medium rounded-full">
-                      <LuShield className="w-3 h-3" />
+                      <span style={{fontSize:"14px"}}>🛡</span>
                       {roleLabel}
                     </span>
                   </div>
@@ -340,7 +331,7 @@ export default function PerfilPage() {
             {/* Card de segurança */}
             <div className="mt-6 bg-white rounded-3xl shadow-sm shadow-gray-200/50 border border-gray-100 p-6">
               <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <LuKey className="w-5 h-5 text-gray-400" />
+                <span style={{fontSize:"14px"}}>🔑</span>
                 Segurança
               </h3>
               <Link href="/change-password" className="block w-full py-3 px-4 bg-gray-50 hover:bg-cyan-50 hover:text-cyan-700 rounded-xl text-sm font-medium text-gray-700 transition-colors text-left">
@@ -419,7 +410,7 @@ export default function PerfilPage() {
                   </label>
                   {isEditing ? (
                     <div className="relative">
-                      <LuMail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                      <className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                       <input
                         type="email"
                         value={formData.email}

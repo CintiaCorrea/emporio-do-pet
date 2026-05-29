@@ -91,8 +91,7 @@ export default function ClientesPage() {
     return {
       total: c.length,
       aniversariantes: c.filter((t) => isAniversariante(t.birthDate)).length,
-      aRecuperar: c.filter((t) => t.status === "SUSPENDED").length,
-    };
+      aRecuperar: c.filter((t) => t.status === "SUSPENDED").length};
   }, [tutores]);
 
   return (

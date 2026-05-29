@@ -122,8 +122,7 @@ export default function LeadsPage() {
       total: leads.length,
       quentes: ativos.filter((l) => l.currentScore > 70).length,
       mornos: ativos.filter((l) => l.currentScore > 40 && l.currentScore <= 70).length,
-      frios: ativos.filter((l) => l.currentScore <= 40).length,
-    };
+      frios: ativos.filter((l) => l.currentScore <= 40).length};
   }, [leads]);
 
   return (

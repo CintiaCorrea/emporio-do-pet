@@ -5,10 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import toast, { Toaster } from "react-hot-toast";
 import {
-  LuArrowLeft, LuUserCheck, LuStickyNote, LuMail, LuStethoscope, LuBriefcase,
-  LuCircleCheck, LuBookOpen, LuTrash2, LuPlus, LuSparkles, LuClipboardList,
-  LuFlame, LuGitBranch, LuMessageCircle, LuPhone, LuLock,
-} from "react-icons/lu";
+  LuArrowLeft, LuStickyNote, LuTrash2, LuPlus, LuSparkles, LuPhone} from "react-icons/lu";
 
 const PIPELINE_STAGES = [
   "Aguardando triagem",
@@ -43,8 +40,7 @@ const SCRIPTS = {
   "Fechamento": [
     "Posso agendar pra você ainda hoje?",
     "Tenho horário disponível amanhã. Posso reservar?",
-  ],
-};
+  ]};
 
 function getTemp(score: number) {
   if (score <= 40) return { label: "Frio", icon: "🧊", color: "#4d72a0", bg: "#E6F1FB" };
@@ -65,8 +61,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
     qualQueMaisIncomoda: "",
     qualTentouOutroVet: "",
     qualOQueMudaResolver: "",
-    qualQuemDecide: "",
-  });
+    qualQuemDecide: ""});
 
   const load = async () => {
     setLoading(true);
@@ -79,8 +74,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
         qualQueMaisIncomoda: data.qualQueMaisIncomoda || "",
         qualTentouOutroVet: data.qualTentouOutroVet || "",
         qualOQueMudaResolver: data.qualOQueMudaResolver || "",
-        qualQuemDecide: data.qualQuemDecide || "",
-      });
+        qualQuemDecide: data.qualQuemDecide || ""});
     } catch (e: any) {
       toast.error("Erro: " + e.message);
     } finally { setLoading(false); }
@@ -93,8 +87,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
       const res = await fetch(`/api/leads/${id}/qualification`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(qual),
-      });
+        body: JSON.stringify(qual)});
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setLead(data);
@@ -107,8 +100,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
       const res = await fetch(`/api/leads/${id}/pipeline-stage`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ stage }),
-      });
+        body: JSON.stringify({ stage })});
       const data = await res.json();
       if (stage === "Compareceu" && data.tutorId) {
         toast.success("Lead convertido em cliente!");
@@ -161,25 +153,25 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
         </div>
         <div className="flex gap-1.5 flex-wrap relative">
           <button onClick={convertNow} className="bg-[#0F6E56] text-white px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5">
-            <LuUserCheck className="w-3.5 h-3.5" />Converter pra cliente
+            <span style={{fontSize:"14px"}}>✓</span>Converter pra cliente
           </button>
           <a href={lead.phone ? `https://wa.me/${lead.phone.replace(/\D/g, "")}` : "#"} target="_blank" rel="noreferrer" className="bg-white border border-[#009AAC] text-[#00798A] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5">
             <LuStickyNote className="w-3.5 h-3.5" />WhatsApp
           </a>
           <a href={lead.email ? `mailto:${lead.email}` : "#"} className="bg-white border border-[#cfd8e0] text-[#4d5a66] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5">
-            <LuMail className="w-3.5 h-3.5" />Email
+            <span style={{fontSize:"14px"}}>✉️</span>Email
           </a>
           <button className="bg-white border border-[#cfd8e0] text-[#0C447C] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5" onClick={() => toast("Encaminhado pro vet")}>
-            <LuStethoscope className="w-3.5 h-3.5" />Com o vet
+            <span style={{fontSize:"14px"}}>🩺</span>Com o vet
           </button>
           <button className="bg-white border border-[#cfd8e0] text-[#993556] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5" onClick={() => toast("Encaminhado pra adm")}>
-            <LuBriefcase className="w-3.5 h-3.5" />Com a adm
+            <span style={{fontSize:"14px"}}>💼</span>Com a adm
           </button>
           <button onClick={() => changeStage("Resolver")} className="bg-white border border-[#cfd8e0] text-[#0F6E56] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5">
-            <LuCircleCheck className="w-3.5 h-3.5" />Resolver
+            <span style={{fontSize:"14px"}}>✓</span>Resolver
           </button>
           <button onClick={() => setShowScripts(!showScripts)} className="bg-white border border-[#cfd8e0] text-[#4d5a66] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5">
-            <LuBookOpen className="w-3.5 h-3.5" />Scripts
+            <span style={{fontSize:"14px"}}>📖</span>Scripts
           </button>
           <button className="bg-white border border-[#cfd8e0] text-[#4d5a66] px-3 py-1.5 rounded-lg text-xs">Não é lead</button>
           <button className="bg-[#fbe6e6] border border-[#f4baba] text-[#A32D2D] px-2.5 py-1.5 rounded-lg text-xs"><LuTrash2 className="w-3.5 h-3.5" /></button>
@@ -232,7 +224,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
       <div className="bg-[#FFF8E1] border border-[#FCD194] border-l-[3px] border-l-[#BA7517] rounded-xl p-4 mb-3">
         <div className="flex justify-between items-center mb-3">
           <div className="flex items-center gap-2">
-            <LuClipboardList className="w-4 h-4 text-[#BA7517]" />
+            <span style={{fontSize:"14px"}}>📋</span>
             <h3 className="text-sm text-[#0E2244] font-medium">Qualificação — preencha agora</h3>
             <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${answered === 5 ? "bg-[#E1F5EE] text-[#0F6E56]" : "bg-[#FCE5C8] text-[#8A5A0F]"}`}>
               {answered === 5 ? "✓ Completa" : `⚠ ${answered}/5 respondidas`}
@@ -270,7 +262,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
       {/* Score + Pipeline lado a lado */}
       <div className="grid grid-cols-2 gap-2.5 mb-3">
         <div className="bg-white rounded-xl border border-[#d8d0bc] p-4">
-          <div className="flex items-center gap-2 mb-3"><LuFlame className="w-4 h-4 text-[#C2410C]" /><h3 className="text-sm text-[#0E2244] font-medium">Score de Qualificação</h3></div>
+          <div className="flex items-center gap-2 mb-3"><span style={{fontSize:"14px"}}>🔥</span><h3 className="text-sm text-[#0E2244] font-medium">Score de Qualificação</h3></div>
           <div className="flex items-baseline justify-between mb-2">
             <div className="flex items-baseline gap-1.5">
               <span style={{ color: temp.color }} className="text-4xl font-medium">{lead.currentScore || 0}</span>
@@ -288,7 +280,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
         </div>
         <div className="bg-white rounded-xl border border-[#d8d0bc] p-4">
           <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2"><LuGitBranch className="w-4 h-4 text-[#00798A]" /><h3 className="text-sm text-[#0E2244] font-medium">Pipeline Comercial</h3></div>
+            <div className="flex items-center gap-2"><span style={{fontSize:"14px"}}>🌿</span><h3 className="text-sm text-[#0E2244] font-medium">Pipeline Comercial</h3></div>
           </div>
           <select onChange={(e) => changeStage(e.target.value)} defaultValue="Em qualificação" className="w-full border border-[#009AAC] rounded px-2.5 py-1.5 text-xs text-[#0E2244] bg-white focus:outline-none mb-2.5">
             {PIPELINE_STAGES.map((s) => <option key={s}>{s}</option>)}
@@ -327,11 +319,11 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
         <div className="bg-white rounded-xl border border-[#d8d0bc] p-3">
           <h3 className="text-[11px] text-[#5b6470] tracking-wide font-medium mb-2">CONQUISTAS · 3/8</h3>
           <div className="grid grid-cols-4 gap-1">
-            <div className="aspect-square bg-[#E0F4F6] rounded flex items-center justify-center" title="Primeiro contato"><LuMessageCircle className="w-3 h-3 text-[#00798A]" /></div>
+            <div className="aspect-square bg-[#E0F4F6] rounded flex items-center justify-center" title="Primeiro contato"><span style={{fontSize:"14px"}}>💬</span></div>
             <div className="aspect-square bg-[#E1F5EE] rounded flex items-center justify-center" title="WhatsApp ativo"><LuStickyNote className="w-3 h-3 text-[#0F6E56]" /></div>
             <div className="aspect-square bg-[#FFE2D2] rounded flex items-center justify-center text-xs" title="Quente">🔥</div>
             {[0, 1, 2, 3, 4].map((i) => (
-              <div key={i} className="aspect-square bg-[#f0e8d4] rounded flex items-center justify-center opacity-40"><LuLock className="w-2.5 h-2.5 text-gray-400" /></div>
+              <div key={i} className="aspect-square bg-[#f0e8d4] rounded flex items-center justify-center opacity-40"><span style={{fontSize:"14px"}}>🔒</span></div>
             ))}
           </div>
         </div>

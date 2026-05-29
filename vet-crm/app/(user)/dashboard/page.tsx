@@ -3,37 +3,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
-  LuUsers,
+  
   LuPawPrint,
   LuCalendar,
-  LuStethoscope,
-  LuBedDouble,
   LuDollarSign,
-  LuBot,
-  LuMegaphone,
-  LuMail,
-  LuWarehouse,
-  LuChevronRight,
-  LuActivity,
   LuTarget,
   LuSparkles,
-  LuSettings,
-  LuRefreshCw,
-  LuArrowUpRight,
-  LuCircleAlert,
-  LuMessageSquare,
   LuFileText,
-  LuZap,
-  LuDatabase,
-  LuWorkflow,
-  LuUserPlus,
-  LuPackage,
-  LuWrench,
-  LuPercent,
-  LuChartColumn,
-  LuLayoutGrid,
-  LuSyringe,
-} from 'react-icons/lu';
+  LuUserPlus} from 'react-icons/lu';
 
 interface DashboardData {
   totalTutores: number;
@@ -101,8 +78,7 @@ const defaultData: DashboardData = {
   interacoesHoje: 0,
   taxaSucessoAgentes: 0,
   produtosBaixoEstoque: 0,
-  alertasEstoque: 0,
-};
+  alertasEstoque: 0};
 
 function getGreeting() {
   const h = new Date().getHours();
@@ -177,8 +153,7 @@ export default function DashboardPage() {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
-    year: 'numeric',
-  });
+    year: 'numeric'});
   const greeting = getGreeting();
 
   if (loading) {
@@ -196,31 +171,31 @@ export default function DashboardPage() {
   }
 
   const quickModules = [
-    { href: '/dashboard/ai-agents/agents', label: 'Agents', icon: LuBot, color: 'violet' },
-    { href: '/dashboard/ai-agents/conversas', label: 'Conversas', icon: LuMessageSquare, color: 'violet' },
+    { href: '/dashboard/ai-agents/agents', label: 'Agents', icon: () => <span style={{fontSize:"14px"}}>🤖</span>, color: 'violet' },
+    { href: '/dashboard/ai-agents/conversas', label: 'Conversas', icon: () => <span style={{fontSize:"14px"}}>💬</span>, color: 'violet' },
     { href: '/dashboard/ai-agents/templates', label: 'Templates', icon: LuFileText, color: 'violet' },
-    { href: '/dashboard/ai-agents/conexoes', label: 'Conexões', icon: LuSettings, color: 'violet' },
-    { href: '/dashboard/ai-agents/automacoes', label: 'Automações', icon: LuZap, color: 'violet' },
-    { href: '/dashboard/ai-agents/conhecimento', label: 'Base de Conhecimento', icon: LuDatabase, color: 'violet' },
+    { href: '/dashboard/ai-agents/conexoes', label: 'Conexões', icon: () => <span style={{fontSize:"14px"}}>⚙</span>, color: 'violet' },
+    { href: '/dashboard/ai-agents/automacoes', label: 'Automações', icon: () => <span style={{fontSize:"14px"}}>⚡</span>, color: 'violet' },
+    { href: '/dashboard/ai-agents/conhecimento', label: 'Base de Conhecimento', icon: () => <span style={{fontSize:"14px"}}>🗄</span>, color: 'violet' },
     { href: '/dashboard/crm/leads', label: 'Leads', icon: LuUserPlus, color: 'blue' },
-    { href: '/dashboard/crm/pipelines', label: 'Pipelines', icon: LuWorkflow, color: 'blue' },
-    { href: '/dashboard/erp/tutores', label: 'Tutores', icon: LuUsers, color: 'indigo' },
+    { href: '/dashboard/crm/pipelines', label: 'Pipelines', icon: () => <span style={{fontSize:"14px"}}>🔀</span>, color: 'blue' },
+    { href: '/dashboard/erp/tutores', label: 'Tutores', icon: () => <span style={{fontSize:"14px"}}>👥</span>, color: 'indigo' },
     { href: '/dashboard/erp/pets', label: 'Pets', icon: LuPawPrint, color: 'amber' },
-    { href: '/dashboard/erp/clientes', label: 'Clientes', icon: LuUsers, color: 'indigo' },
+    { href: '/dashboard/erp/clientes', label: 'Clientes', icon: () => <span style={{fontSize:"14px"}}>👥</span>, color: 'indigo' },
     { href: '/dashboard/erp/agendamentos', label: 'Agendamentos', icon: LuCalendar, color: 'amber' },
-    { href: '/dashboard/erp/consultas', label: 'Consultas', icon: LuStethoscope, color: 'teal' },
-    { href: '/dashboard/erp/tratamentos', label: 'Tratamentos', icon: LuSyringe, color: 'teal' },
-    { href: '/dashboard/erp/internacoes', label: 'Internações', icon: LuBedDouble, color: 'rose' },
-    { href: '/dashboard/erp/servicos', label: 'Serviços', icon: LuWrench, color: 'indigo' },
-    { href: '/dashboard/erp/produtos', label: 'Produtos', icon: LuPackage, color: 'emerald' },
-    { href: '/dashboard/erp/estoque', label: 'Estoque', icon: LuWarehouse, color: 'amber' },
-    { href: '/dashboard/erp/comissoes', label: 'Comissões', icon: LuPercent, color: 'emerald' },
+    { href: '/dashboard/erp/consultas', label: 'Consultas', icon: () => <span style={{fontSize:"14px"}}>🩺</span>, color: 'teal' },
+    { href: '/dashboard/erp/tratamentos', label: 'Tratamentos', icon: () => <span style={{fontSize:"14px"}}>💉</span>, color: 'teal' },
+    { href: '/dashboard/erp/internacoes', label: 'Internações', icon: () => <span style={{fontSize:"14px"}}>🛏</span>, color: 'rose' },
+    { href: '/dashboard/erp/servicos', label: 'Serviços', icon: () => <span style={{fontSize:"14px"}}>🔧</span>, color: 'indigo' },
+    { href: '/dashboard/erp/produtos', label: 'Produtos', icon: () => <span style={{fontSize:"14px"}}>📦</span>, color: 'emerald' },
+    { href: '/dashboard/erp/estoque', label: 'Estoque', icon: () => <span style={{fontSize:"14px"}}>🏬</span>, color: 'amber' },
+    { href: '/dashboard/erp/comissoes', label: 'Comissões', icon: () => <span style={{fontSize:"14px"}}>•</span>, color: 'emerald' },
     { href: '/dashboard/erp/financeiro', label: 'Financeiro', icon: LuDollarSign, color: 'emerald' },
     { href: '/dashboard/erp/documentos', label: 'Documentos', icon: LuFileText, color: 'slate' },
-    { href: '/dashboard/campanhas/adsense', label: 'AdSense', icon: LuChartColumn, color: 'cyan' },
-    { href: '/dashboard/campanhas/email', label: 'Email', icon: LuMail, color: 'cyan' },
-    { href: '/dashboard/campanhas/whatsapp', label: 'WhatsApp', icon: LuMessageSquare, color: 'emerald' },
-    { href: '/dashboard/landing-pages', label: 'Landing Pages', icon: LuLayoutGrid, color: 'purple' },
+    { href: '/dashboard/campanhas/adsense', label: 'AdSense', icon: () => <span style={{fontSize:"14px"}}>📊</span>, color: 'cyan' },
+    { href: '/dashboard/campanhas/email', label: 'Email', icon: () => <span style={{fontSize:"14px"}}>✉️</span>, color: 'cyan' },
+    { href: '/dashboard/campanhas/whatsapp', label: 'WhatsApp', icon: () => <span style={{fontSize:"14px"}}>💬</span>, color: 'emerald' },
+    { href: '/dashboard/landing-pages', label: 'Landing Pages', icon: () => <span style={{fontSize:"14px"}}>⊞</span>, color: 'purple' },
   ];
 
   const colorClasses: Record<string, string> = {
@@ -233,8 +208,7 @@ export default function DashboardPage() {
     emerald: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/20 hover:bg-cyan-500/15 hover:border-cyan-500/30',
     cyan: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/20 hover:bg-cyan-500/15 hover:border-cyan-500/30',
     purple: 'bg-orange-500/10 text-orange-600 border-orange-500/20 hover:bg-orange-500/15 hover:border-orange-500/30',
-    slate: 'bg-slate-500/10 text-slate-600 border-slate-500/20 hover:bg-slate-500/15 hover:border-slate-500/30',
-  };
+    slate: 'bg-slate-500/10 text-slate-600 border-slate-500/20 hover:bg-slate-500/15 hover:border-slate-500/30'};
 
   return (
     <div className="min-h-screen">
@@ -273,14 +247,14 @@ export default function DashboardPage() {
               disabled={loading}
               className="p-2.5 bg-white/80 backdrop-blur-sm border border-gray-200/80 rounded-2xl hover:bg-gray-50 transition-all disabled:opacity-50 shadow-sm"
             >
-              <LuRefreshCw className={`w-5 h-5 text-gray-600 ${loading ? 'animate-spin' : ''}`} />
+              <span style={{fontSize:"14px"}}>↻</span>
             </button>
           </div>
         </div>
 
         {error && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-2xl flex items-center gap-3">
-            <LuCircleAlert className="w-5 h-5 text-red-500 flex-shrink-0" />
+            <span style={{fontSize:"14px"}}>⚠️</span>
             <p className="text-red-700 text-sm">{error}</p>
             <button onClick={fetchData} className="ml-auto text-sm font-medium text-red-600 hover:text-red-700">
               Tentar novamente
@@ -291,11 +265,11 @@ export default function DashboardPage() {
         {/* KPI Cards - glass style */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
           {[
-            { label: 'Tutores', value: data.totalTutores, icon: LuUsers, bg: 'bg-cyan-500/10', iconColor: 'text-cyan-600' },
+            { label: 'Tutores', value: data.totalTutores, icon: () => <span style={{fontSize:"14px"}}>👥</span>, bg: 'bg-cyan-500/10', iconColor: 'text-cyan-600' },
             { label: 'Pets', value: data.totalPets, icon: LuPawPrint, bg: 'bg-orange-500/10', iconColor: 'text-orange-600' },
             { label: 'Agendamentos hoje', value: data.agendamentosHoje, icon: LuCalendar, bg: 'bg-orange-500/10', iconColor: 'text-orange-600' },
-            { label: 'Consultas hoje', value: data.consultasHoje, sub: data.consultasPendentes ? `${data.consultasPendentes} pendentes` : null, icon: LuStethoscope, bg: 'bg-cyan-500/10', iconColor: 'text-cyan-600' },
-            { label: 'Internações', value: data.internacoesAtivas, icon: LuBedDouble, bg: 'bg-rose-500/10', iconColor: 'text-rose-600' },
+            { label: 'Consultas hoje', value: data.consultasHoje, sub: data.consultasPendentes ? `${data.consultasPendentes} pendentes` : null, icon: () => <span style={{fontSize:"14px"}}>🩺</span>, bg: 'bg-cyan-500/10', iconColor: 'text-cyan-600' },
+            { label: 'Internações', value: data.internacoesAtivas, icon: () => <span style={{fontSize:"14px"}}>🛏</span>, bg: 'bg-rose-500/10', iconColor: 'text-rose-600' },
             { label: 'Faturamento hoje', value: formatCurrency(data.faturamentoHoje), icon: LuDollarSign, bg: 'bg-cyan-500/10', iconColor: 'text-cyan-600' },
           ].map(({ label, value, sub, icon: Icon, bg, iconColor }) => (
             <div
@@ -328,7 +302,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
                 <Link href="/dashboard/erp/agendamentos" className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
-                  <LuChevronRight className="w-5 h-5 text-gray-400" />
+                  <span style={{fontSize:"14px"}}>▶</span>
                 </Link>
               </div>
               <div className="divide-y divide-gray-100 max-h-[320px] overflow-y-auto">
@@ -356,7 +330,7 @@ export default function DashboardPage() {
               </div>
               <div className="p-4 bg-gray-50/50 border-t border-gray-100">
                 <Link href="/dashboard/erp/agendamentos" className="flex items-center justify-center gap-2 text-sm font-medium text-cyan-600 hover:text-cyan-700">
-                  Ver agenda completa <LuChevronRight className="w-4 h-4" />
+                  Ver agenda completa <span style={{fontSize:"14px"}}>▶</span>
                 </Link>
               </div>
             </div>
@@ -368,7 +342,7 @@ export default function DashboardPage() {
               <div className="p-5 border-b border-gray-100">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-orange-500/10 rounded-xl">
-                    <LuActivity className="w-5 h-5 text-orange-600" />
+                    <span style={{fontSize:"14px"}}>⚡</span>
                   </div>
                   <div>
                     <h2 className="font-semibold text-gray-900">Atividades Recentes</h2>
@@ -379,7 +353,7 @@ export default function DashboardPage() {
               <div className="divide-y divide-gray-100 max-h-[320px] overflow-y-auto">
                 {atividades.length === 0 ? (
                   <div className="p-8 text-center">
-                    <LuActivity className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+                    <span style={{fontSize:"14px"}}>⚡</span>
                     <p className="text-gray-500 text-sm">Nenhuma atividade recente</p>
                   </div>
                 ) : (
@@ -406,7 +380,7 @@ export default function DashboardPage() {
               <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl p-5 text-white shadow-lg shadow-orange-500/20 hover:shadow-xl hover:shadow-orange-500/25 hover:scale-[1.02] transition-all duration-300">
                 <div className="flex items-center justify-between mb-4">
                   <div className="p-2.5 bg-white/20 rounded-xl">
-                    <LuBot className="w-6 h-6" />
+                    <span style={{fontSize:"14px"}}>🤖</span>
                   </div>
                   <span className="flex items-center gap-1.5 text-sm font-medium bg-white/20 px-3 py-1 rounded-full">
                     <span className="w-2 h-2 bg-cyan-300 rounded-full animate-pulse" />
@@ -441,7 +415,7 @@ export default function DashboardPage() {
               <div className="bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-2xl p-5 text-white shadow-lg shadow-cyan-500/20 hover:shadow-xl hover:shadow-cyan-500/25 hover:scale-[1.02] transition-all duration-300">
                 <div className="flex items-center justify-between mb-4">
                   <div className="p-2.5 bg-white/20 rounded-xl">
-                    <LuMegaphone className="w-6 h-6" />
+                    <span style={{fontSize:"14px"}}>📣</span>
                   </div>
                   <span className="flex items-center gap-1.5 text-sm font-medium bg-white/20 px-3 py-1 rounded-full">
                     {data.campanhasAtivas} ativas
@@ -462,7 +436,7 @@ export default function DashboardPage() {
         <section className="mb-8">
           <div className="flex items-center gap-3 mb-4">
             <div className="p-2 bg-gray-900 rounded-xl">
-              <LuLayoutGrid className="w-5 h-5 text-white" />
+              <span style={{fontSize:"14px"}}>⊞</span>
             </div>
             <div>
               <h2 className="text-xl font-bold text-gray-900">Acesso rápido</h2>
@@ -503,14 +477,14 @@ export default function DashboardPage() {
               <div className="flex justify-between"><span className="text-sm text-gray-500">Comissões pend.</span><span className="font-semibold text-orange-600">{formatCurrency(data.comissoesPendentes)}</span></div>
             </div>
             <Link href="/dashboard/erp/financeiro" className="flex items-center justify-center gap-2 mt-4 pt-4 border-t border-gray-100 text-sm font-medium text-cyan-600 hover:text-cyan-700">
-              Ver detalhes <LuChevronRight className="w-4 h-4" />
+              Ver detalhes <span style={{fontSize:"14px"}}>▶</span>
             </Link>
           </div>
 
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200/80 p-5 shadow-sm hover:shadow-md transition-all">
             <div className="flex items-center gap-3 mb-4">
               <div className="p-2.5 bg-orange-500/10 rounded-xl">
-                <LuWarehouse className="w-5 h-5 text-orange-600" />
+                <span style={{fontSize:"14px"}}>🏬</span>
               </div>
               <div>
                 <h3 className="font-semibold text-gray-900">Estoque</h3>
@@ -522,7 +496,7 @@ export default function DashboardPage() {
               <div className="flex justify-between"><span className="text-sm text-gray-500">Alertas</span><span className="font-semibold text-rose-600">{data.alertasEstoque}</span></div>
             </div>
             <Link href="/dashboard/erp/estoque" className="flex items-center justify-center gap-2 mt-4 pt-4 border-t border-gray-100 text-sm font-medium text-orange-600 hover:text-orange-700">
-              Gerenciar <LuChevronRight className="w-4 h-4" />
+              Gerenciar <span style={{fontSize:"14px"}}>▶</span>
             </Link>
           </div>
 
@@ -550,14 +524,14 @@ export default function DashboardPage() {
               ))}
             </div>
             <Link href="/dashboard/erp/servicos" className="flex items-center justify-center gap-2 mt-4 pt-4 border-t border-gray-100 text-sm font-medium text-orange-600 hover:text-orange-700">
-              Ver serviços <LuChevronRight className="w-4 h-4" />
+              Ver serviços <span style={{fontSize:"14px"}}>▶</span>
             </Link>
           </div>
 
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200/80 p-5 shadow-sm hover:shadow-md transition-all">
             <div className="flex items-center gap-3 mb-4">
               <div className="p-2.5 bg-orange-500/10 rounded-xl">
-                <LuSettings className="w-5 h-5 text-orange-600" />
+                <span style={{fontSize:"14px"}}>⚙</span>
               </div>
               <div>
                 <h3 className="font-semibold text-gray-900">Integrações</h3>
@@ -576,7 +550,7 @@ export default function DashboardPage() {
               ))}
             </div>
             <Link href="/dashboard/ai-agents/conexoes" className="flex items-center justify-center gap-2 mt-4 pt-4 border-t border-gray-100 text-sm font-medium text-orange-600 hover:text-orange-700">
-              Configurar <LuChevronRight className="w-4 h-4" />
+              Configurar <span style={{fontSize:"14px"}}>▶</span>
             </Link>
           </div>
         </div>
