@@ -61,12 +61,6 @@ export class AuthController {
     return { user: req.user };
   }
 
-  // ===========================================================================
-  // BOOTSTRAP TEMPORÁRIO — REMOVER após reset de senha inicial
-  // Protegido pelo mesmo BOTCONVERSA_WEBHOOK_SECRET já configurado no Fly.
-  // Reseta a senha do email passado pra uma string aleatória e retorna a
-  // senha em texto plano UMA vez (Cintia loga com ela e troca pela UI).
-  // ===========================================================================
   @Post('admin/bootstrap-reset')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'TEMPORÁRIO: reset de senha via secret header' })
