@@ -152,7 +152,7 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
     <aside
       className={`${
         collapsed ? "w-16" : "w-56"
-      } shrink-0 transition-all duration-200 bg-[#FFFEF8] border-r border-[#e8dfc8] flex flex-col`}
+      } fixed top-0 left-0 h-screen z-50 shrink-0 transition-all duration-200 bg-[#FFFEF8] border-r border-[#e8dfc8] flex flex-col`}
     >
       <div className="px-3 py-4 flex items-center justify-between">
         <EmporioLogo collapsed={collapsed} />
