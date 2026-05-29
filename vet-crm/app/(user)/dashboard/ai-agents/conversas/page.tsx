@@ -144,8 +144,7 @@ function AIAgentsConversationsPage() {
     },
     onWhatsAppStatus: (event: WhatsAppStatusEvent) => {
       const statusMap: Record<string, string> = {
-        sent: 'SENT', delivered: 'DELIVERED', read: 'READ', failed: 'FAILED',
-      };
+        sent: 'SENT', delivered: 'DELIVERED', read: 'READ', failed: 'FAILED'};
       const mappedStatus = statusMap[event.status];
       if (mappedStatus) {
         setMessages(prev => prev.map(m =>
@@ -157,8 +156,7 @@ function AIAgentsConversationsPage() {
       if (event.status === 'failed') {
         fetchConversations(true);
       }
-    },
-  });
+    }});
 
   useEffect(() => {
     setCurrentPage(1);
@@ -295,8 +293,7 @@ function AIAgentsConversationsPage() {
       const enrichedMessages = (data.data || []).map((msg: Message) => ({
         ...msg,
         senderType: msg.senderType || (msg.metadata?.senderType as Message['senderType']) || undefined,
-        agentName: msg.agentName || (msg.metadata?.senderName as string) || undefined,
-      }));
+        agentName: msg.agentName || (msg.metadata?.senderName as string) || undefined}));
 
       // Only update state if messages actually changed (avoids scroll jumps from polling)
       const prev = messagesRef.current;
@@ -330,8 +327,7 @@ function AIAgentsConversationsPage() {
       const response = await fetch(`/api/whatsapp/conversations/${selectedConversation.id}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: newMessage }),
-      });
+        body: JSON.stringify({ content: newMessage })});
 
       if (response.ok) {
         setNewMessage('');
@@ -352,8 +348,7 @@ function AIAgentsConversationsPage() {
       const response = await fetch(`/api/whatsapp/conversations/${selectedConversation.id}/assign-agent`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ agentId }),
-      });
+        body: JSON.stringify({ agentId })});
 
       if (response.ok) {
         fetchConversations();
@@ -372,8 +367,7 @@ function AIAgentsConversationsPage() {
       const response = await fetch(`/api/whatsapp/conversations/${selectedConversation.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isAutoReplyEnabled: !selectedConversation.isAutoReplyEnabled }),
-      });
+        body: JSON.stringify({ isAutoReplyEnabled: !selectedConversation.isAutoReplyEnabled })});
 
       if (response.ok) {
         const updated = await response.json();
@@ -390,8 +384,7 @@ function AIAgentsConversationsPage() {
 
     try {
       const response = await fetch(`/api/whatsapp/conversations/${selectedConversation.id}/takeover`, {
-        method: 'POST',
-      });
+        method: 'POST'});
 
       if (response.ok) {
         const updated = await response.json();
@@ -408,8 +401,7 @@ function AIAgentsConversationsPage() {
 
     try {
       const response = await fetch(`/api/whatsapp/conversations/${selectedConversation.id}/release`, {
-        method: 'POST',
-      });
+        method: 'POST'});
 
       if (response.ok) {
         const updated = await response.json();
@@ -496,8 +488,7 @@ function AIAgentsConversationsPage() {
       OPEN: { label: 'Aberta', color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
       CLOSED: { label: 'Fechada', color: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400' },
       ASSIGNED: { label: 'Atribuída', color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' },
-      PENDING: { label: 'Pendente', color: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' },
-    };
+      PENDING: { label: 'Pendente', color: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' }};
     const config = statusConfig[status] || statusConfig.OPEN;
     return (
       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${config.color}`}>

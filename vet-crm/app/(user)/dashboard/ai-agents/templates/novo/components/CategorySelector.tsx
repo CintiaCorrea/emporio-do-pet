@@ -14,8 +14,7 @@ export function CategorySelector({
   category,
   templateType,
   onCategoryChange,
-  onTemplateTypeChange,
-}: CategorySelectorProps) {
+  onTemplateTypeChange}: CategorySelectorProps) {
   return (
     <div className="space-y-6">
       <div>

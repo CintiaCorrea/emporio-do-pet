@@ -15,8 +15,7 @@ export default function HotToaster() {
       ? "0 10px 35px rgba(0,0,0,0.45)"
       : "0 10px 35px rgba(17,24,39,0.12)",
     backdropFilter: "blur(14px)",
-    WebkitBackdropFilter: "blur(14px)",
-  };
+    WebkitBackdropFilter: "blur(14px)"};
 
   return (
     <Toaster
@@ -28,16 +27,11 @@ export default function HotToaster() {
         success: {
           iconTheme: {
             primary: "#10B981",
-            secondary: isDark ? "#0B1220" : "#FFFFFF",
-          },
-        },
+            secondary: isDark ? "#0B1220" : "#FFFFFF"}},
         error: {
           iconTheme: {
             primary: "#EF4444",
-            secondary: isDark ? "#0B1220" : "#FFFFFF",
-          },
-        },
-      }}
+            secondary: isDark ? "#0B1220" : "#FFFFFF"}}}}
     />
   );
 }

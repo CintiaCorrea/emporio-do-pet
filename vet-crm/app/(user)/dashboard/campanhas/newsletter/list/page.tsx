@@ -36,8 +36,7 @@ const NewsletterListPage = () => {
       ],
       content: 'Conteúdo da newsletter...',
       createdAt: new Date('2024-01-15'),
-      scheduledFor: new Date('2024-01-15'),
-    }
+      scheduledFor: new Date('2024-01-15')}
   ]);
 
   return (

@@ -6,11 +6,8 @@ import Link from 'next/link';
 import {
   LuArrowLeft,
   LuPencil,
-  LuFileText,
-  LuClock,
-  LuCheck,
-  LuArchive,
-  LuPrinter,
+  LuFileText
+  LuCheck
 } from 'react-icons/lu';
 import toast from 'react-hot-toast';
 
@@ -49,19 +46,15 @@ const statusConfig = {
   DRAFT: {
     label: 'Rascunho',
     color: 'bg-yellow-100 text-yellow-700',
-    icon: LuClock,
-  },
+    icon: () => <span style={{fontSize:"14px"}}>⏱</span>},
   PUBLISHED: {
     label: 'Publicado',
     color: 'bg-green-100 text-green-700',
-    icon: LuCheck,
-  },
+    icon: LuCheck},
   ARCHIVED: {
     label: 'Arquivado',
     color: 'bg-gray-100 text-gray-700',
-    icon: LuArchive,
-  },
-};
+    icon: () => <span style={{fontSize:"14px"}}>📦</span>}};
 
 function formatDate(dateString: string): string {
   return new Date(dateString).toLocaleDateString('pt-BR', {
@@ -69,13 +62,11 @@ function formatDate(dateString: string): string {
     month: 'long',
     year: 'numeric',
     hour: '2-digit',
-    minute: '2-digit',
-  });
+    minute: '2-digit'});
 }
 
 export default function DocumentDetailPage({
-  params,
-}: {
+  params}: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
@@ -131,7 +122,7 @@ export default function DocumentDetailPage({
   }
 
   const status = statusConfig[document.status] || statusConfig.DRAFT;
-  const StatusIcon = status?.icon || LuClock;
+  const StatusIcon = status?.icon ||;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/20 w-full">
@@ -161,7 +152,7 @@ export default function DocumentDetailPage({
                 onClick={handlePrint}
                 className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors"
               >
-                <LuPrinter className="w-5 h-5" />
+                <span style={{fontSize:"14px"}}>🖨</span>
                 Imprimir
               </button>
               <Link

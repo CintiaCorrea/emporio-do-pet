@@ -10,8 +10,7 @@ import { LuEye, LuEyeOff } from "react-icons/lu";
 export default function ChangePasswordPage() {
   const [formData, setFormData] = useState({
     password: "",
-    confirmPassword: "",
-  });
+    confirmPassword: ""});
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -43,8 +42,7 @@ export default function ChangePasswordPage() {
       const res = await fetch("/api/auth/change-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ newPassword: formData.password }),
-      });
+        body: JSON.stringify({ newPassword: formData.password })});
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));

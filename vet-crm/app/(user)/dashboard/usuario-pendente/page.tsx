@@ -76,13 +76,11 @@ export default function UsuarioPendentePage() {
       const response = await fetch('/api/admin/users', {
         method: 'PATCH',
         headers: {
-          'Content-Type': 'application/json',
-        },
+          'Content-Type': 'application/json'},
         body: JSON.stringify({
           userId,
           action: 'APPROVE'
-        }),
-      });
+        })});
 
       if (response.ok) {
         const data = await response.json();
@@ -110,14 +108,12 @@ export default function UsuarioPendentePage() {
       const response = await fetch('/api/admin/users', {
         method: 'PATCH',
         headers: {
-          'Content-Type': 'application/json',
-        },
+          'Content-Type': 'application/json'},
         body: JSON.stringify({
           userId,
           action: 'REJECT',
           rejectionReason: reason
-        }),
-      });
+        })});
 
       if (response.ok) {
         const data = await response.json();

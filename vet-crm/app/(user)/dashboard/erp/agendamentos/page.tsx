@@ -4,20 +4,14 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
-  LuCalendar,
-  LuClock,
+  LuCalendar
   LuUser,
-  LuSearch,
-  LuFilter,
+  LuSearch
   LuPlus,
   LuPencil,
-  LuTrash2,
-  LuCheck,
-  LuTriangle,
-  LuStethoscope,
-  LuPhone,
-  LuMail,
-  LuMapPin
+  LuTrash,
+  LuCheck
+  LuPhone
 } from 'react-icons/lu';
 import ConfirmDeleteModal from '@/components/common/ConfirmDeleteModal';
 import toast from 'react-hot-toast';
@@ -281,12 +275,12 @@ export default function AppointmentsPage() {
 
   const getStatusIcon = (status: AppointmentStatus) => {
     switch (status) {
-      case 'SCHEDULED': return LuClock;
+      case 'SCHEDULED': return;
       case 'CONFIRMED': return LuCheck;
       case 'COMPLETED': return LuCheck;
       case 'CANCELED': return ;
-      case 'IN_PROGRESS': return LuTriangle;
-      default: return LuClock;
+      case 'IN_PROGRESS': return;
+      default: return;
     }
   };
 
@@ -407,7 +401,7 @@ export default function AppointmentsPage() {
                   label: "Agendadas", 
                   value: stats.scheduled, 
                   color: "blue", 
-                  icon: LuClock
+                  icon: () => <span style={{fontSize:"14px"}}>⏱</span>
                 },
                 { 
                   label: "Confirmadas", 
@@ -419,7 +413,7 @@ export default function AppointmentsPage() {
                   label: "Em Andamento", 
                   value: stats.inProgress, 
                   color: "orange", 
-                  icon: LuTriangle
+                  icon: () => <span style={{fontSize:"14px"}}>△</span>
                 },
                 { 
                   label: "Concluídas", 
@@ -564,7 +558,7 @@ export default function AppointmentsPage() {
                           </td>
                           <td className="p-6">
                             <div className="flex items-center gap-2">
-                              <LuStethoscope className="w-4 h-4 text-blue-600" />
+                              <span style={{fontSize:"14px"}}>🩺</span>
                               <span className="text-gray-700">
                                 {appointment.user?.name || 'Não atribuído'}
                               </span>
@@ -583,7 +577,7 @@ export default function AppointmentsPage() {
                               {formatDate(appointment.date)}
                             </div>
                             <div className="text-sm text-gray-500 flex items-center gap-1 mt-1">
-                              <LuClock className="w-3 h-3" />
+                              <span style={{fontSize:"14px"}}>⏱</span>
                               {formatTime(appointment.date)} • {appointment.duration} min
                             </div>
                           </td>
@@ -642,7 +636,7 @@ export default function AppointmentsPage() {
                                 className="p-2 text-gray-400 hover:bg-gray-50 hover:text-red-600 rounded-2xl transition-colors"
                                 title="Excluir consulta"
                               >
-                                <LuTrash2 className="w-4 h-4" />
+                                <LuTrash className="w-4 h-4" />
                               </button>
                             </div>
                           </td>
@@ -740,7 +734,7 @@ export default function AppointmentsPage() {
                   <div>
                     <label className="text-sm font-medium text-gray-700">Veterinário</label>
                     <p className="text-gray-900 flex items-center gap-2">
-                      <LuStethoscope className="w-4 h-4" />
+                      <span style={{fontSize:"14px"}}>🩺</span>
                       {selectedAppointment.user?.name || 'Não atribuído'}
                     </p>
                   </div>

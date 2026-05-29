@@ -1,4 +1,4 @@
-import { LuUser, LuMapPin, LuFolder, LuPawPrint } from 'react-icons/lu';
+import { LuUser LuPawPrint } from 'react-icons/lu';
 
 export type TutorTabType = 'geral' | 'endereco' | 'extras' | 'pets';
 
@@ -14,8 +14,8 @@ export default function TutorTabs({ activeTab, onTabChange, showPetsTab = true }
   const tabs = [
     { id: 'geral' as const, label: 'Geral', icon: LuUser, color: 'blue' },
     ...(showPetsTab ? [petsTab] : []),
-    { id: 'endereco' as const, label: 'Endereço', icon: LuMapPin, color: 'green' },
-    { id: 'extras' as const, label: 'Extras', icon: LuFolder, color: 'purple' },
+    { id: 'endereco' as const, label: 'Endereço', icon: () => <span style={{fontSize:"14px"}}>📍</span>, color: 'green' },
+    { id: 'extras' as const, label: 'Extras', icon: () => <span style={{fontSize:"14px"}}>📁</span>, color: 'purple' },
   ];
 
   return (

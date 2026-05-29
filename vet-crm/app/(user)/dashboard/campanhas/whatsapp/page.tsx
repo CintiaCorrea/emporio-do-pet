@@ -3,21 +3,9 @@
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import {
-  LuArrowUpRight,
-  LuMessageSquare,
-  LuPlus,
-  LuSend,
-  LuUsers,
-  LuWandSparkles,
-  LuPlay,
-  LuPause,
-  LuTrash2,
-  LuChartColumn,
-  LuMessageCircle,
-  LuCheck,
-  LuCheckCheck,
-  LuClock,
-  LuRefreshCw} from 'react-icons/lu';
+  LuPlus
+  LuTrash
+  LuCheck} from 'react-icons/lu';
 
 type WhatsAppCampaign = {
   id: string;
@@ -189,7 +177,7 @@ export default function WhatsAppCampaignsPage() {
             <div>
               <div className="flex items-center gap-3">
                 <div className="p-2.5 rounded-2xl bg-cyan-100 dark:bg-cyan-500/20 border border-cyan-200 dark:border-cyan-500/20">
-                  <LuMessageSquare className="w-5 h-5 text-cyan-600 dark:text-cyan-300" />
+                  <span style={{fontSize:"14px"}}>💬</span>
                 </div>
                 <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
                   Campanhas WhatsApp
@@ -205,14 +193,14 @@ export default function WhatsAppCampaignsPage() {
                 href="/dashboard/ai-agents/templates"
                 className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/80 dark:bg-white/10 border border-gray-200/80 dark:border-white/20 text-gray-700 dark:text-white rounded-xl font-medium hover:bg-white dark:hover:bg-white/20 transition-all duration-200"
               >
-                <LuWandSparkles className="w-5 h-5" />
+                <span style={{fontSize:"14px"}}>✨</span>
                 Templates
               </Link>
               <Link
                 href="/dashboard/ai-agents/conversas"
                 className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/80 dark:bg-white/10 border border-gray-200/80 dark:border-white/20 text-gray-700 dark:text-white rounded-xl font-medium hover:bg-white dark:hover:bg-white/20 transition-all duration-200"
               >
-                <LuMessageCircle className="w-5 h-5" />
+                <span style={{fontSize:"14px"}}>💬</span>
                 Conversas
               </Link>
               <button
@@ -230,7 +218,7 @@ export default function WhatsAppCampaignsPage() {
             <div className="bg-white/95 dark:bg-white/5 backdrop-blur-xl border border-gray-200/80 dark:border-white/10 rounded-2xl p-5 shadow-sm dark:shadow-none">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 rounded-xl bg-cyan-100 dark:bg-cyan-500/20">
-                  <LuSend className="w-5 h-5 text-cyan-600 dark:text-cyan-300" />
+                  <span style={{fontSize:"14px"}}>➤</span>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Campanhas</p>
@@ -252,7 +240,7 @@ export default function WhatsAppCampaignsPage() {
             <div className="bg-white/95 dark:bg-white/5 backdrop-blur-xl border border-gray-200/80 dark:border-white/10 rounded-2xl p-5 shadow-sm dark:shadow-none">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 rounded-xl bg-blue-100 dark:bg-blue-500/20">
-                  <LuCheckCheck className="w-5 h-5 text-blue-600 dark:text-blue-300" />
+                  <span style={{fontSize:"14px"}}>✓✓</span>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Entregues</p>
@@ -263,7 +251,7 @@ export default function WhatsAppCampaignsPage() {
             <div className="bg-white/95 dark:bg-white/5 backdrop-blur-xl border border-gray-200/80 dark:border-white/10 rounded-2xl p-5 shadow-sm dark:shadow-none">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 rounded-xl bg-cyan-100 dark:bg-cyan-500/20">
-                  <LuUsers className="w-5 h-5 text-cyan-600 dark:text-cyan-300" />
+                  <span style={{fontSize:"14px"}}>👥</span>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Taxa Entrega</p>
@@ -286,7 +274,7 @@ export default function WhatsAppCampaignsPage() {
               onClick={fetchCampaigns}
               className="text-sm text-cyan-600 dark:text-cyan-300 hover:text-cyan-500 dark:hover:text-cyan-200 transition-colors inline-flex items-center gap-1"
             >
-              <LuRefreshCw className="w-4 h-4" /> Atualizar
+              <span style={{fontSize:"14px"}}>↻</span> Atualizar
             </button>
           </div>
 
@@ -298,7 +286,7 @@ export default function WhatsAppCampaignsPage() {
           ) : campaigns.length === 0 ? (
             <div className="p-8 sm:p-10 text-center">
               <div className="mx-auto w-14 h-14 rounded-2xl bg-gray-100 dark:bg-white/10 border border-gray-200 dark:border-white/10 flex items-center justify-center">
-                <LuMessageSquare className="w-7 h-7 text-cyan-500 dark:text-cyan-300" />
+                <span style={{fontSize:"14px"}}>💬</span>
               </div>
               <h3 className="mt-4 text-lg font-semibold text-gray-900">Nenhuma campanha ainda</h3>
               <p className="mt-2 text-sm text-gray-500 max-w-xl mx-auto">
@@ -328,7 +316,7 @@ export default function WhatsAppCampaignsPage() {
                       </p>
                       <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
                         <span className="flex items-center gap-1">
-                          <LuUsers className="w-3 h-3" />
+                          <span style={{fontSize:"14px"}}>👥</span>
                           {campaign.totalRecipients} destinatários
                         </span>
                         <span className="flex items-center gap-1">
@@ -336,12 +324,12 @@ export default function WhatsAppCampaignsPage() {
                           {campaign.sentCount} enviadas
                         </span>
                         <span className="flex items-center gap-1">
-                          <LuCheckCheck className="w-3 h-3" />
+                          <span style={{fontSize:"14px"}}>✓✓</span>
                           {campaign.deliveredCount} entregues
                         </span>
                         {campaign.scheduledFor && (
                           <span className="flex items-center gap-1">
-                            <LuClock className="w-3 h-3" />
+                            <span style={{fontSize:"14px"}}>⏱</span>
                             Agendada: {new Date(campaign.scheduledFor).toLocaleString('pt-BR')}
                           </span>
                         )}
@@ -354,7 +342,7 @@ export default function WhatsAppCampaignsPage() {
                           className="p-2 text-cyan-500 dark:text-cyan-400 hover:bg-cyan-50 dark:hover:bg-cyan-500/20 rounded-lg transition-colors"
                           title="Iniciar campanha"
                         >
-                          <LuPlay className="w-4 h-4" />
+                          <span style={{fontSize:"14px"}}>▶</span>
                         </button>
                       )}
                       {campaign.status === 'RUNNING' && (
@@ -363,7 +351,7 @@ export default function WhatsAppCampaignsPage() {
                           className="p-2 text-yellow-500 dark:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-500/20 rounded-lg transition-colors"
                           title="Pausar campanha"
                         >
-                          <LuPause className="w-4 h-4" />
+                          <span style={{fontSize:"14px"}}>⏸</span>
                         </button>
                       )}
                       <button
@@ -374,7 +362,7 @@ export default function WhatsAppCampaignsPage() {
                         className="p-2 text-blue-500 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/20 rounded-lg transition-colors"
                         title="Ver estatísticas"
                       >
-                        <LuChartColumn className="w-4 h-4" />
+                        <span style={{fontSize:"14px"}}>📊</span>
                       </button>
                       {campaign.status !== 'RUNNING' && (
                         <button
@@ -382,7 +370,7 @@ export default function WhatsAppCampaignsPage() {
                           className="p-2 text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/20 rounded-lg transition-colors"
                           title="Excluir campanha"
                         >
-                          <LuTrash2 className="w-4 h-4" />
+                          <LuTrash className="w-4 h-4" />
                         </button>
                       )}
                     </div>

@@ -4,21 +4,12 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Sidebar from '@/components/protected/dashboard/Sidebar';
 import { 
-  LuArrowLeft,
-  LuPackage,
-  LuPill,
-  LuSyringe,
-  LuCalendar,
-  LuClock,
-  LuDollarSign,
-  LuTrendingUp,
-  LuCircleCheck,
-  LuActivity,
-  LuDownload,
-  LuFilter,
+  LuArrowLeft
+  LuCalendar
+  LuDollarSign
+  LuDownload
   LuFileText,
-  LuTriangleAlert,
-  LuBox
+  LuTriangleAlert
 } from 'react-icons/lu';
 import toast from 'react-hot-toast';
 
@@ -307,7 +298,7 @@ export default function ProductsReportPage() {
   };
 
   const getTypeIcon = (type: ProductType) => {
-    return type === 'MEDICINE' ? LuPill : LuSyringe;
+    return type === 'MEDICINE' ? :;
   };
 
   const getStockColor = (stock: number) => {
@@ -425,7 +416,7 @@ export default function ProductsReportPage() {
             {/* Filtros */}
             <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-blue-500/5 p-6 mb-6">
               <div className="flex items-center gap-2 mb-4">
-                <LuFilter className="w-5 h-5 text-blue-600" />
+                <span style={{fontSize:"14px"}}>⌕</span>
                 <h3 className="text-lg font-semibold text-gray-900">Filtros</h3>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -482,28 +473,28 @@ export default function ProductsReportPage() {
                   label: "Total de Produtos", 
                   value: stats.totalProducts, 
                   color: "gray", 
-                  icon: LuPackage,
+                  icon: () => <span style={{fontSize:"14px"}}>📦</span>,
                   trend: null
                 },
                 { 
                   label: "Medicamentos", 
                   value: stats.medicines, 
                   color: "blue", 
-                  icon: LuPill,
+                  icon: () => <span style={{fontSize:"14px"}}>💊</span>,
                   trend: stats.totalProducts > 0 ? ((stats.medicines / stats.totalProducts) * 100).toFixed(1) + '%' : '0%'
                 },
                 { 
                   label: "Vacinas", 
                   value: stats.vaccines, 
                   color: "green", 
-                  icon: LuSyringe,
+                  icon: () => <span style={{fontSize:"14px"}}>💉</span>,
                   trend: stats.totalProducts > 0 ? ((stats.vaccines / stats.totalProducts) * 100).toFixed(1) + '%' : '0%'
                 },
                 { 
                   label: "Total em Estoque", 
                   value: stats.totalStock, 
                   color: "teal", 
-                  icon: LuBox,
+                  icon: () => <span style={{fontSize:"14px"}}>📦</span>,
                   trend: null
                 },
                 { 
@@ -532,7 +523,7 @@ export default function ProductsReportPage() {
                   label: "Receita Total", 
                   value: formatCurrency(stats.totalRevenue), 
                   color: "green", 
-                  icon: LuTrendingUp,
+                  icon: () => <span style={{fontSize:"14px"}}>📈</span>,
                   trend: null,
                   isFormatted: true
                 },
@@ -548,21 +539,21 @@ export default function ProductsReportPage() {
                   label: "Estoque Médio", 
                   value: `${Math.round(stats.averageStock)} unidades`, 
                   color: "indigo", 
-                  icon: LuBox,
+                  icon: () => <span style={{fontSize:"14px"}}>📦</span>,
                   trend: null
                 },
                 { 
                   label: "Total de Usos", 
                   value: stats.totalTreatments, 
                   color: "cyan", 
-                  icon: LuActivity,
+                  icon: () => <span style={{fontSize:"14px"}}>⚡</span>,
                   trend: null
                 },
                 { 
                   label: "Produto Mais Usado", 
                   value: stats.mostUsedProduct.name || 'N/A', 
                   color: "blue", 
-                  icon: LuCircleCheck,
+                  icon: () => <span style={{fontSize:"14px"}}>✓</span>,
                   trend: stats.mostUsedProduct.count > 0 ? `${stats.mostUsedProduct.count} usos` : null,
                   isText: true
                 },
@@ -570,7 +561,7 @@ export default function ProductsReportPage() {
                   label: "Maior Receita", 
                   value: stats.highestRevenueProduct.name || 'N/A', 
                   color: "green", 
-                  icon: LuTrendingUp,
+                  icon: () => <span style={{fontSize:"14px"}}>📈</span>,
                   trend: stats.highestRevenueProduct.revenue > 0 ? formatCurrency(stats.highestRevenueProduct.revenue) : null,
                   isText: true
                 }
@@ -668,7 +659,7 @@ export default function ProductsReportPage() {
                           </td>
                           <td className="p-6">
                             <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStockColor(product.stock)}`}>
-                              <LuBox className="w-3 h-3 mr-1" />
+                              <span style={{fontSize:"14px"}}>📦</span>
                               {product.stock} unidades
                             </span>
                             {product.stock < 10 && product.stock > 0 && (
@@ -696,7 +687,7 @@ export default function ProductsReportPage() {
                                   ? 'bg-blue-100 text-blue-800' 
                                   : 'bg-gray-100 text-gray-600'
                               }`}>
-                                <LuActivity className="w-3 h-3 mr-1" />
+                                <span style={{fontSize:"14px"}}>⚡</span>
                                 {productTreatments.length} {productTreatments.length === 1 ? 'uso' : 'usos'}
                               </span>
                             </div>
@@ -708,7 +699,7 @@ export default function ProductsReportPage() {
                           </td>
                           <td className="p-6">
                             <div className="flex items-center gap-1 text-gray-600">
-                              <LuClock className="w-4 h-4" />
+                              <span style={{fontSize:"14px"}}>⏱</span>
                               {formatDate(product.updatedAt)}
                             </div>
                           </td>
@@ -720,7 +711,7 @@ export default function ProductsReportPage() {
 
                 {products.length === 0 && !loading && (
                   <div className="text-center py-12">
-                    <LuPackage className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <span style={{fontSize:"14px"}}>📦</span>
                     <p className="text-gray-500 text-lg">Nenhum produto encontrado</p>
                     <p className="text-gray-400 mt-2">
                       Tente ajustar os filtros de busca

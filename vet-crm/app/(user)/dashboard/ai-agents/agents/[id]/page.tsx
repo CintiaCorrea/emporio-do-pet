@@ -4,29 +4,10 @@ import { useState, useEffect, useCallback, use } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-  LuChevronRight,
-  LuArrowLeft,
-  LuBot,
-  LuActivity,
-  LuChartBar,
-  LuHistory,
-  LuSettings,
-  LuPlay,
-  LuPause,
-  LuPencil,
-  LuMessageSquare,
-  LuLoader,
-  LuCircleCheck,
-  LuCircleX,
-  LuClock,
-  LuDollarSign,
-  LuTrendingUp,
-  LuRefreshCw,
-  LuGitBranch,
-  LuArrowDownLeft,
-  LuChevronLeft,
-  LuChevronDown,
-  LuZap
+  LuArrowLeft
+  LuPencil
+  LuLoader
+  LuDollarSign
 } from 'react-icons/lu';
 import { toast } from 'sonner';
 
@@ -199,8 +180,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
       const res = await fetch(`/api/agents/${id}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus }),
-      });
+        body: JSON.stringify({ status: newStatus })});
       if (res.ok) {
         toast.success(`Agente ${newStatus === 'ACTIVE' ? 'ativado' : 'pausado'}`);
         loadAgent();
@@ -214,8 +194,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
       const res = await fetch(`/api/agents/${id}/versions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ changeNotes: notes || undefined }),
-      });
+        body: JSON.stringify({ changeNotes: notes || undefined })});
       if (res.ok) {
         toast.success('Versão criada com sucesso');
         loadVersions();
@@ -227,8 +206,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
     if (!confirm(`Reverter para versão ${version}?`)) return;
     try {
       const res = await fetch(`/api/agents/${id}/versions/${version}/rollback`, {
-        method: 'POST',
-      });
+        method: 'POST'});
       if (res.ok) {
         toast.success(`Revertido para versão ${version}`);
         loadAgent();
@@ -248,8 +226,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   };
 
   const formatDate = (d: string) => new Date(d).toLocaleDateString('pt-BR', {
-    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
-  });
+    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'});
 
   const formatNum = (n: number) => new Intl.NumberFormat('pt-BR').format(n);
 
@@ -264,11 +241,11 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   if (!agent) return null;
 
   const tabs: { id: TabId; label: string; icon: React.ReactNode }[] = [
-    { id: 'overview', label: 'Visão Geral', icon: <LuActivity className="w-4 h-4" /> },
-    { id: 'executions', label: 'Execuções', icon: <LuHistory className="w-4 h-4" /> },
-    { id: 'analytics', label: 'Analytics', icon: <LuChartBar className="w-4 h-4" /> },
-    { id: 'versions', label: 'Versões', icon: <LuGitBranch className="w-4 h-4" /> },
-    { id: 'settings', label: 'Configurações', icon: <LuSettings className="w-4 h-4" /> },
+    { id: 'overview', label: 'Visão Geral', icon: <span style={{fontSize:"14px"}}>⚡</span> },
+    { id: 'executions', label: 'Execuções', icon: <span style={{fontSize:"14px"}}>⏳</span> },
+    { id: 'analytics', label: 'Analytics', icon: <span style={{fontSize:"14px"}}>📊</span> },
+    { id: 'versions', label: 'Versões', icon: <span style={{fontSize:"14px"}}>🌿</span> },
+    { id: 'settings', label: 'Configurações', icon: <span style={{fontSize:"14px"}}>⚙</span> },
   ];
 
   return (
@@ -277,9 +254,9 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
           <Link href="/dashboard/ai-agents/agents" className="hover:text-violet-600">AI Agents</Link>
-          <LuChevronRight className="w-4 h-4" />
+          <span style={{fontSize:"14px"}}>▶</span>
           <Link href="/dashboard/ai-agents/agents" className="hover:text-violet-600">Agents</Link>
-          <LuChevronRight className="w-4 h-4" />
+          <span style={{fontSize:"14px"}}>▶</span>
           <span className="text-gray-900 font-medium">{agent.name}</span>
         </div>
 
@@ -290,7 +267,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
               <LuArrowLeft className="w-5 h-5 text-gray-500" />
             </button>
             <div className="p-3 rounded-xl bg-violet-50">
-              <LuBot className="w-6 h-6 text-violet-600" />
+              <span style={{fontSize:"14px"}}>🤖</span>
             </div>
             <div>
               <div className="flex items-center gap-3">
@@ -310,13 +287,13 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
             <button onClick={handleStatusToggle} className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
               agent.status === 'ACTIVE' ? 'bg-orange-50 hover:bg-orange-100 text-orange-700' : 'bg-cyan-50 hover:bg-cyan-100 text-cyan-700'
             }`}>
-              {agent.status === 'ACTIVE' ? <><LuPause className="w-4 h-4" />Pausar</> : <><LuPlay className="w-4 h-4" />Ativar</>}
+              {agent.status === 'ACTIVE' ? <><span style={{fontSize:"14px"}}>⏸</span>Pausar</> : <><span style={{fontSize:"14px"}}>▶</span>Ativar</>}
             </button>
             <Link href={`/dashboard/ai-agents/agents/${id}/editar`} className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg">
               <LuPencil className="w-4 h-4" />Editar
             </Link>
             <Link href={`/dashboard/ai-agents/agents/${id}/testar`} className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-lg">
-              <LuMessageSquare className="w-4 h-4" />Testar
+              <span style={{fontSize:"14px"}}>💬</span>Testar
             </Link>
           </div>
         </div>
@@ -346,11 +323,11 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
           <div className="space-y-6">
             {/* Metrics Cards */}
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-              <MetricCard icon={<LuActivity className="w-5 h-5 text-blue-600" />} label="Interações" value={formatNum(agent.totalInteractions)} bg="bg-blue-50" />
-              <MetricCard icon={<LuCircleCheck className="w-5 h-5 text-cyan-600" />} label="Taxa Sucesso" value={`${agent.successRate.toFixed(1)}%`} bg="bg-cyan-50" />
-              <MetricCard icon={<LuClock className="w-5 h-5 text-orange-600" />} label="Latência Média" value={`${(agent.avgResponseTime / 1000).toFixed(1)}s`} bg="bg-orange-50" />
+              <MetricCard icon={<span style={{fontSize:"14px"}}>⚡</span>} label="Interações" value={formatNum(agent.totalInteractions)} bg="bg-blue-50" />
+              <MetricCard icon={<span style={{fontSize:"14px"}}>✓</span>} label="Taxa Sucesso" value={`${agent.successRate.toFixed(1)}%`} bg="bg-cyan-50" />
+              <MetricCard icon={<span style={{fontSize:"14px"}}>⏱</span>} label="Latência Média" value={`${(agent.avgResponseTime / 1000).toFixed(1)}s`} bg="bg-orange-50" />
               <MetricCard icon={<LuDollarSign className="w-5 h-5 text-violet-600" />} label="Custo Total" value={`$${agent.totalCostUsd.toFixed(4)}`} bg="bg-violet-50" />
-              <MetricCard icon={<LuTrendingUp className="w-5 h-5 text-fuchsia-600" />} label="Última Atividade" value={agent.lastActiveAt ? new Date(agent.lastActiveAt).toLocaleDateString('pt-BR') : '-'} bg="bg-fuchsia-50" />
+              <MetricCard icon={<span style={{fontSize:"14px"}}>📈</span>} label="Última Atividade" value={agent.lastActiveAt ? new Date(agent.lastActiveAt).toLocaleDateString('pt-BR') : '-'} bg="bg-fuchsia-50" />
             </div>
 
             {/* Description & Config */}
@@ -387,7 +364,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-900">Histórico de Execuções ({execTotal})</h3>
               <button onClick={() => loadExecutions(execPage)} className="flex items-center gap-2 px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg">
-                <LuRefreshCw className="w-4 h-4" />Atualizar
+                <span style={{fontSize:"14px"}}>↻</span>Atualizar
               </button>
             </div>
 
@@ -395,7 +372,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
               <div className="flex justify-center py-12"><LuLoader className="w-8 h-8 animate-spin text-violet-600" /></div>
             ) : executions.length === 0 ? (
               <div className="text-center py-12 bg-white rounded-2xl border border-gray-100">
-                <LuHistory className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                <span style={{fontSize:"14px"}}>⏳</span>
                 <p className="text-gray-500">Nenhuma execução encontrada</p>
               </div>
             ) : (
@@ -417,9 +394,9 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                         <tr key={exec.id} className="hover:bg-gray-50">
                           <td className="px-4 py-3">
                             {exec.status === 'SUCCESS' ? (
-                              <span className="flex items-center gap-1.5 text-cyan-600"><LuCircleCheck className="w-4 h-4" />OK</span>
+                              <span className="flex items-center gap-1.5 text-cyan-600"><span style={{fontSize:"14px"}}>✓</span>OK</span>
                             ) : (
-                              <span className="flex items-center gap-1.5 text-red-600"><LuCircleX className="w-4 h-4" />Erro</span>
+                              <span className="flex items-center gap-1.5 text-red-600"><span style={{fontSize:"14px"}}>✗</span>Erro</span>
                             )}
                           </td>
                           <td className="px-4 py-3 max-w-[200px] truncate text-gray-700">{exec.input}</td>
@@ -437,11 +414,11 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                 {execTotal > 15 && (
                   <div className="flex items-center justify-center gap-2">
                     <button onClick={() => loadExecutions(execPage - 1)} disabled={execPage <= 1} className="px-3 py-2 bg-white border rounded-lg disabled:opacity-50">
-                      <LuChevronLeft className="w-4 h-4" />
+                      <span style={{fontSize:"12px"}}>◀</span>
                     </button>
                     <span className="text-sm text-gray-500">Página {execPage} de {Math.ceil(execTotal / 15)}</span>
                     <button onClick={() => loadExecutions(execPage + 1)} disabled={execPage >= Math.ceil(execTotal / 15)} className="px-3 py-2 bg-white border rounded-lg disabled:opacity-50">
-                      <LuChevronRight className="w-4 h-4" />
+                      <span style={{fontSize:"14px"}}>▶</span>
                     </button>
                   </div>
                 )}
@@ -470,18 +447,18 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
               <div className="flex justify-center py-12"><LuLoader className="w-8 h-8 animate-spin text-violet-600" /></div>
             ) : !analytics ? (
               <div className="text-center py-12 bg-white rounded-2xl border border-gray-100">
-                <LuChartBar className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                <span style={{fontSize:"14px"}}>📊</span>
                 <p className="text-gray-500">Sem dados de analytics disponíveis</p>
               </div>
             ) : (
               <>
                 {/* Summary Cards */}
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                  <MetricCard icon={<LuZap className="w-5 h-5 text-blue-600" />} label="Execuções" value={formatNum(analytics.summary.totalExecutions)} bg="bg-blue-50" />
-                  <MetricCard icon={<LuCircleCheck className="w-5 h-5 text-cyan-600" />} label="Sucesso" value={formatNum(analytics.summary.successCount)} bg="bg-cyan-50" />
-                  <MetricCard icon={<LuCircleX className="w-5 h-5 text-red-600" />} label="Falhas" value={formatNum(analytics.summary.failedCount)} bg="bg-red-50" />
-                  <MetricCard icon={<LuTrendingUp className="w-5 h-5 text-violet-600" />} label="Taxa Sucesso" value={`${analytics.summary.successRate}%`} bg="bg-violet-50" />
-                  <MetricCard icon={<LuClock className="w-5 h-5 text-orange-600" />} label="Latência Média" value={`${(analytics.summary.avgLatencyMs / 1000).toFixed(1)}s`} bg="bg-orange-50" />
+                  <MetricCard icon={<span style={{fontSize:"14px"}}>⚡</span>} label="Execuções" value={formatNum(analytics.summary.totalExecutions)} bg="bg-blue-50" />
+                  <MetricCard icon={<span style={{fontSize:"14px"}}>✓</span>} label="Sucesso" value={formatNum(analytics.summary.successCount)} bg="bg-cyan-50" />
+                  <MetricCard icon={<span style={{fontSize:"14px"}}>✗</span>} label="Falhas" value={formatNum(analytics.summary.failedCount)} bg="bg-red-50" />
+                  <MetricCard icon={<span style={{fontSize:"14px"}}>📈</span>} label="Taxa Sucesso" value={`${analytics.summary.successRate}%`} bg="bg-violet-50" />
+                  <MetricCard icon={<span style={{fontSize:"14px"}}>⏱</span>} label="Latência Média" value={`${(analytics.summary.avgLatencyMs / 1000).toFixed(1)}s`} bg="bg-orange-50" />
                 </div>
 
                 {/* Token Usage */}
@@ -574,7 +551,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-900">Versões do Agente</h3>
               <button onClick={handleCreateVersion} className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-sm">
-                <LuGitBranch className="w-4 h-4" />Criar Versão
+                <span style={{fontSize:"14px"}}>🌿</span>Criar Versão
               </button>
             </div>
 
@@ -582,7 +559,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
               <div className="flex justify-center py-12"><LuLoader className="w-8 h-8 animate-spin text-violet-600" /></div>
             ) : versions.length === 0 ? (
               <div className="text-center py-12 bg-white rounded-2xl border border-gray-100">
-                <LuGitBranch className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                <span style={{fontSize:"14px"}}>🌿</span>
                 <p className="text-gray-500">Nenhuma versão salva</p>
                 <p className="text-gray-400 text-sm mt-1">Crie uma versão para salvar o estado atual do agente</p>
               </div>
@@ -592,7 +569,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                   <div key={v.id} className="bg-white rounded-2xl border border-gray-100 p-5 flex items-center justify-between">
                     <div className="flex items-center gap-4">
                       <div className={`p-2.5 rounded-xl ${idx === 0 ? 'bg-violet-50' : 'bg-gray-50'}`}>
-                        <LuGitBranch className={`w-5 h-5 ${idx === 0 ? 'text-violet-600' : 'text-gray-400'}`} />
+                        <span style={{fontSize:"14px"}}>🌿</span>
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
@@ -605,7 +582,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                     </div>
                     {idx > 0 && (
                       <button onClick={() => handleRollback(v.version)} className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-orange-50 hover:bg-orange-100 text-orange-700 rounded-lg">
-                        <LuArrowDownLeft className="w-4 h-4" />Rollback
+                        <span style={{fontSize:"14px"}}>↙</span>Rollback
                       </button>
                     )}
                   </div>
@@ -622,7 +599,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
               <div className="flex items-center justify-between mb-4">
                 <h4 className="text-sm font-semibold text-gray-500 uppercase">Rate Limit</h4>
                 <button onClick={handleResetRateLimit} className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg">
-                  <LuRefreshCw className="w-4 h-4" />Resetar
+                  <span style={{fontSize:"14px"}}>↻</span>Resetar
                 </button>
               </div>
               {rateLimit ? (
@@ -686,10 +663,10 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                   <LuPencil className="w-4 h-4" />Editar Agente
                 </Link>
                 <Link href={`/dashboard/ai-agents/agents/${id}/testar`} className="flex items-center gap-2 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium text-gray-700">
-                  <LuMessageSquare className="w-4 h-4" />Testar Agente
+                  <span style={{fontSize:"14px"}}>💬</span>Testar Agente
                 </Link>
                 <button onClick={handleCreateVersion} className="flex items-center gap-2 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium text-gray-700">
-                  <LuGitBranch className="w-4 h-4" />Salvar Versão
+                  <span style={{fontSize:"14px"}}>🌿</span>Salvar Versão
                 </button>
               </div>
             </div>

@@ -31,9 +31,7 @@ const KanbanCard = ({ appointment }: KanbanCardProps) => {
     type: "APPOINTMENT",
     item: { id: appointment.id },
     collect: (monitor) => ({
-      isDragging: monitor.isDragging(),
-    }),
-  });
+      isDragging: monitor.isDragging()})});
 
   drag(ref);
 

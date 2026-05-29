@@ -2,23 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { 
-  LuWarehouse,
+import {
   LuSearch,
-  LuPlus,
-  LuMinus,
-  LuPackage,
-  LuPill,
-  LuSyringe,
-  LuTriangleAlert,
-  LuTrendingDown,
-  LuBox,
-  LuClipboardList,
-  LuCalendar,
-  LuArrowUpRight,
-  LuArrowDownRight,
-  LuRefreshCw,
-  LuHistory
+  LuPlus
+  LuTriangleAlert
+  LuCalendar
 } from 'react-icons/lu';
 
 // Tipos
@@ -190,9 +178,9 @@ export default function StockPage() {
 
   const getTypeIcon = (type: ProductType) => {
     switch (type) {
-      case 'MEDICINE': return LuPill;
-      case 'VACCINE': return LuSyringe;
-      default: return LuPackage;
+      case 'MEDICINE': return;
+      case 'VACCINE': return;
+      default: return;
     }
   };
 
@@ -379,7 +367,7 @@ export default function StockPage() {
                     }}
                     className="group px-6 py-3 text-sm font-semibold text-gray-700 bg-white/80 border border-gray-200/80 rounded-2xl hover:bg-white hover:border-gray-300 hover:shadow-lg transition-all duration-300 hover:scale-105 flex items-center space-x-2"
                   >
-                    <LuRefreshCw className="w-4 h-4" />
+                    <span style={{fontSize:"14px"}}>↻</span>
                     <span>Atualizar</span>
                   </button>
                 </div>
@@ -406,13 +394,13 @@ export default function StockPage() {
                   label: "Produtos", 
                   value: stats.totalProducts, 
                   color: "gray", 
-                  icon: LuPackage
+                  icon: () => <span style={{fontSize:"14px"}}>📦</span>
                 },
                 { 
                   label: "Itens em Estoque", 
                   value: stats.totalItems, 
                   color: "blue", 
-                  icon: LuBox
+                  icon: () => <span style={{fontSize:"14px"}}>📦</span>
                 },
                 { 
                   label: "Estoque Baixo", 
@@ -424,13 +412,13 @@ export default function StockPage() {
                   label: "Sem Estoque", 
                   value: stats.outOfStock, 
                   color: "red", 
-                  icon: LuTrendingDown
+                  icon: () => <span style={{fontSize:"14px"}}>📉</span>
                 },
                 { 
                   label: "Valor Total", 
                   value: formatCurrency(stats.totalValue), 
                   color: "green", 
-                  icon: LuWarehouse,
+                  icon: () => <span style={{fontSize:"14px"}}>🏬</span>,
                   isFormatted: true
                 }
               ].map((stat, index) => (
@@ -618,14 +606,14 @@ export default function StockPage() {
                                 title="Saída"
                                 disabled={product.stock === 0}
                               >
-                                <LuMinus className="w-4 h-4" />
+                                <span style={{fontSize:"14px"}}>−</span>
                               </button>
                               <button
                                 onClick={() => openHistory(product)}
                                 className="p-2 text-blue-600 hover:bg-blue-50 rounded-xl transition-colors"
                                 title="Histórico"
                               >
-                                <LuHistory className="w-4 h-4" />
+                                <span style={{fontSize:"14px"}}>⏳</span>
                               </button>
                             </div>
                           </td>
@@ -637,7 +625,7 @@ export default function StockPage() {
 
                 {filteredProducts.length === 0 && !loading && (
                   <div className="text-center py-12">
-                    <LuWarehouse className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <span style={{fontSize:"14px"}}>🏬</span>
                     <p className="text-gray-500 text-lg">Nenhum produto encontrado</p>
                     <p className="text-gray-400 mt-2">Tente ajustar os filtros de busca</p>
                   </div>
@@ -655,7 +643,7 @@ export default function StockPage() {
             <div className="mt-6 bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-orange-500/5 overflow-hidden">
               <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-100/50 border-b border-white/20">
                 <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                  <LuHistory className="w-5 h-5" />
+                  <span style={{fontSize:"14px"}}>⏳</span>
                   Últimas Movimentações
                 </h3>
               </div>
@@ -667,7 +655,7 @@ export default function StockPage() {
                         <div className={`p-2 rounded-xl ${
                           movement.type === 'IN' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
                         }`}>
-                          {movement.type === 'IN' ? <LuArrowDownRight className="w-4 h-4" /> : <LuArrowUpRight className="w-4 h-4" />}
+                          {movement.type === 'IN' ? <span style={{fontSize:"14px"}}>↘</span> : <span style={{fontSize:"14px"}}>↗</span>}
                         </div>
                         <div>
                           <div className="font-medium text-gray-900">
@@ -685,7 +673,7 @@ export default function StockPage() {
                 ))}
                 {movements.length === 0 && (
                   <div className="p-12 text-center">
-                    <LuHistory className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <span style={{fontSize:"14px"}}>⏳</span>
                     <p className="text-gray-500">Nenhuma movimentação registrada</p>
                   </div>
                 )}
@@ -770,7 +758,7 @@ export default function StockPage() {
                     : 'bg-red-600 hover:bg-red-700'
                 }`}
               >
-                {movementType === 'IN' ? <LuPlus className="w-4 h-4" /> : <LuMinus className="w-4 h-4" />}
+                {movementType === 'IN' ? <LuPlus className="w-4 h-4" /> : <span style={{fontSize:"14px"}}>−</span>}
                 Confirmar {movementType === 'IN' ? 'Entrada' : 'Saída'}
               </button>
             </div>
@@ -810,7 +798,7 @@ export default function StockPage() {
                           <div className={`p-2 rounded-xl ${
                             movement.type === 'IN' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
                           }`}>
-                            {movement.type === 'IN' ? <LuArrowDownRight className="w-4 h-4" /> : <LuArrowUpRight className="w-4 h-4" />}
+                            {movement.type === 'IN' ? <span style={{fontSize:"14px"}}>↘</span> : <span style={{fontSize:"14px"}}>↗</span>}
                           </div>
                           <div>
                             <div className="font-medium text-gray-900">
@@ -832,7 +820,7 @@ export default function StockPage() {
                 </div>
               ) : (
                 <div className="p-12 text-center">
-                  <LuHistory className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <span style={{fontSize:"14px"}}>⏳</span>
                   <p className="text-gray-500">Nenhuma movimentação registrada</p>
                 </div>
               )}

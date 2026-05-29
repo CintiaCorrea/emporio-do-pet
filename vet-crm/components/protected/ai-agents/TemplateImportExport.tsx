@@ -4,10 +4,8 @@ import { useState, useRef } from 'react';
 import { 
   LuDownload, 
   LuUpload, 
-  LuLoader,
-  LuFileJson,
-  LuCheck,
-  LuCircleAlert
+  LuLoader
+  LuCheck
 } from 'react-icons/lu';
 import { toast } from 'sonner';
 
@@ -193,7 +191,7 @@ export default function TemplateImportExport({
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-indigo-100 rounded-xl">
-                    <LuFileJson className="w-5 h-5 text-indigo-600" />
+                    <span style={{fontSize:"14px"}}>{}</span>
                   </div>
                   <div>
                     <h2 className="text-lg font-bold text-gray-900">Importar Templates</h2>
@@ -262,7 +260,7 @@ export default function TemplateImportExport({
 
                     {importResult.skipped > 0 && (
                       <div className="flex items-center gap-3 p-3 bg-orange-50 rounded-xl">
-                        <LuCircleAlert className="w-5 h-5 text-orange-600" />
+                        <span style={{fontSize:"14px"}}>⚠</span>
                         <span className="text-orange-700">
                           {importResult.skipped} template(s) pulado(s) (já existiam)
                         </span>

@@ -30,8 +30,7 @@ export function AuthenticationTemplateEditor({ formData, flows, languages, onCha
           onChange={(e) =>
             onChange((prev) => ({
               ...prev,
-              name: e.target.value.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, ''),
-            }))
+              name: e.target.value.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')}))
           }
           className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl"
         />
@@ -67,8 +66,7 @@ export function AuthenticationTemplateEditor({ formData, flows, languages, onCha
           onChange={(e) =>
             onChange((prev) => ({
               ...prev,
-              codeExpirationMinutes: e.target.value ? Number(e.target.value) : undefined,
-            }))
+              codeExpirationMinutes: e.target.value ? Number(e.target.value) : undefined}))
           }
           className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl"
         />

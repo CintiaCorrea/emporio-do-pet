@@ -5,22 +5,7 @@ import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { useState } from "react";
 import {
-  LuHouse,
-  LuLayoutDashboard,
-  LuInbox,
-  LuList,
-  LuUsers,
-  LuCalendar,
-  LuBedDouble,
-  LuSettings,
-  LuMegaphone,
-  LuTruck,
-  LuShieldCheck,
-  LuChevronDown,
-  LuChevronRight,
-  LuLogOut,
-  LuMessageSquare,
-} from "react-icons/lu";
+  LuCalendar} from "react-icons/lu";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -117,9 +102,9 @@ const SubMenu = ({ icon: Icon, label, children, collapsed }: SubMenuProps) => {
           {label}
         </span>
         {open ? (
-          <LuChevronDown className="w-4 h-4" />
+          <span style={{fontSize:"14px"}}>▼</span>
         ) : (
-          <LuChevronRight className="w-4 h-4" />
+          <span style={{fontSize:"14px"}}>▶</span>
         )}
       </button>
       {open && (
@@ -186,24 +171,24 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
       )}
 
       <nav className="flex-1 px-2 pb-3 overflow-y-auto">
-        <NavItem href="/dashboard/hoje" icon={LuHouse} label="Hoje" collapsed={collapsed} />
+        <NavItem href="/dashboard/hoje" icon={() => <span style={{fontSize:"14px"}}>🏠</span>} label="Hoje" collapsed={collapsed} />
         <NavItem
           href="/dashboard"
-          icon={LuLayoutDashboard}
+          icon={() => <span style={{fontSize:"14px"}}>▦</span>}
           label="Dashboard"
           exact
           collapsed={collapsed}
         />
         <NavItem
           href="/dashboard/inbox"
-          icon={LuInbox}
+          icon={() => <span style={{fontSize:"14px"}}>📥</span>}
           label="Inbox"
           collapsed={collapsed}
         />
-        <NavItem href="/dashboard/crm/leads" icon={LuList} label="Leads" collapsed={collapsed} />
+        <NavItem href="/dashboard/crm/leads" icon={() => <span style={{fontSize:"14px"}}>≡</span>} label="Leads" collapsed={collapsed} />
         <NavItem
           href="/dashboard/erp/tutores"
-          icon={LuUsers}
+          icon={() => <span style={{fontSize:"14px"}}>👥</span>}
           label="Clientes"
           collapsed={collapsed}
         />
@@ -215,13 +200,13 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
         />
         <NavItem
           href="/dashboard/erp/internacoes"
-          icon={LuBedDouble}
+          icon={() => <span style={{fontSize:"14px"}}>🛏</span>}
           label="Internações"
           collapsed={collapsed}
         />
         <NavItem
           href="/dashboard/configuracoes"
-          icon={LuSettings}
+          icon={() => <span style={{fontSize:"14px"}}>⚙</span>}
           label="Configurações"
           collapsed={collapsed}
         />
@@ -233,7 +218,7 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
         </div>
 
         <SubMenu
-          icon={LuMegaphone}
+          icon={() => <span style={{fontSize:"14px"}}>📣</span>}
           label="Marketing"
           collapsed={collapsed}
           children={[
@@ -247,7 +232,7 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
         />
 
         <SubMenu
-          icon={LuTruck}
+          icon={() => <span style={{fontSize:"14px"}}>🚚</span>}
           label="Op. Terceiros"
           collapsed={collapsed}
           children={[
@@ -258,7 +243,7 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
         />
 
         <SubMenu
-          icon={LuShieldCheck}
+          icon={() => <span style={{fontSize:"14px"}}>🛡</span>}
           label="Equipe"
           collapsed={collapsed}
           children={[
@@ -292,7 +277,7 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
           className={`w-full flex items-center ${collapsed ? "justify-center" : ""} gap-2.5 px-3 py-2 rounded-lg text-xs text-[#4d5a66] hover:bg-[#FBF0DD]`}
           title={collapsed ? "Sair" : undefined}
         >
-          <LuLogOut className="w-[16px] h-[16px]" />
+          <span style={{fontSize:"14px"}}>⤴</span>
           {!collapsed && <span>Sair</span>}
         </button>
       </div>

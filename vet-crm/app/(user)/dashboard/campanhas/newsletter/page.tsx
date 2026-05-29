@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { LuPlus, LuSearch, LuPencil, LuTrash2, LuMail, LuFilter, LuDownload, LuEye, LuSend, LuClock, LuSave, LuUsers, LuCalendar, LuTriangle, LuCircleCheck, LuCopy } from 'react-icons/lu';
+import { LuPlus, LuSearch, LuPencil, LuTrash LuDownload, LuEye LuSave LuCalendar } from 'react-icons/lu';
 import Link from 'next/link';
 
 interface Newsletter {
@@ -149,8 +149,7 @@ export default function NewslettersListPage() {
 
     try {
       const response = await fetch(`/api/newsletters/${selectedNewsletter.id}`, {
-        method: 'DELETE',
-      });
+        method: 'DELETE'});
 
       // Verificar se a resposta é JSON válida
       const contentType = response.headers.get('content-type');
@@ -190,9 +189,7 @@ export default function NewslettersListPage() {
       const response = await fetch(`/api/newsletters/${id}/duplicate`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+          'Content-Type': 'application/json'}});
 
       // Verificar se a resposta é JSON válida
       const contentType = response.headers.get('content-type');
@@ -213,8 +210,7 @@ export default function NewslettersListPage() {
           recipientCount: 0,
           sentCount: 0,
           openCount: 0,
-          clickCount: 0,
-        };
+          clickCount: 0};
         setNewsletters(prev => [duplicatedWithMetrics, ...prev]);
         setModalType('success');
         setModalMessage('Email duplicado com sucesso! Uma nova cópia foi adicionada à lista.');
@@ -240,7 +236,7 @@ export default function NewslettersListPage() {
       switch (modalType) {
         case 'delete':
           return {
-            icon: LuTriangle,
+            icon: () => <span style={{fontSize:"14px"}}>△</span>,
             iconColor: 'text-red-500',
             bgColor: 'bg-red-50',
             title: 'Confirmar Exclusão',
@@ -263,7 +259,7 @@ export default function NewslettersListPage() {
           };
         case 'success':
           return {
-            icon: LuCircleCheck,
+            icon: () => <span style={{fontSize:"14px"}}>✓</span>,
             iconColor: 'text-green-500',
             bgColor: 'bg-green-50',
             title: 'Sucesso!',
@@ -278,7 +274,7 @@ export default function NewslettersListPage() {
           };
         case 'error':
           return {
-            icon: LuTriangle,
+            icon: () => <span style={{fontSize:"14px"}}>△</span>,
             iconColor: 'text-red-500',
             bgColor: 'bg-red-50',
             title: 'Ops! Algo deu errado',
@@ -293,7 +289,7 @@ export default function NewslettersListPage() {
           };
         default:
           return {
-            icon: LuCircleCheck,
+            icon: () => <span style={{fontSize:"14px"}}>✓</span>,
             iconColor: 'text-gray-500',
             bgColor: 'bg-gray-50',
             title: 'Atenção',
@@ -389,13 +385,13 @@ export default function NewslettersListPage() {
       case 'draft':
         return LuSave;
       case 'scheduled':
-        return LuClock;
+        return;
       case 'sent':
-        return LuSend;
+        return;
       case 'failed':
-        return LuTrash2;
+        return LuTrash;
       default:
-        return LuMail;
+        return;
     }
   };
 
@@ -419,15 +415,15 @@ export default function NewslettersListPage() {
     const typeLower = type.toLowerCase();
     switch (typeLower) {
       case 'all':
-        return LuUsers;
+        return;
       case 'client':
-        return LuUsers;
+        return;
       case 'lead':
-        return LuMail;
+        return;
       case 'tutor':
-        return LuUsers;
+        return;
       default:
-        return LuUsers;
+        return;
     }
   };
 
@@ -486,7 +482,7 @@ export default function NewslettersListPage() {
     if (!Array.isArray(newsletters) || newsletters.length === 0) {
       return (
         <div className="p-12 text-center">
-          <LuMail className="mx-auto h-12 w-12 text-gray-400" />
+          <span style={{fontSize:"14px"}}>✉</span>
           <h3 className="mt-4 text-lg font-semibold text-gray-900">
             Nenhuma newsletter criada
           </h3>
@@ -507,7 +503,7 @@ export default function NewslettersListPage() {
     if (filteredNewsletters.length === 0) {
       return (
         <div className="p-12 text-center">
-          <LuMail className="mx-auto h-12 w-12 text-gray-400" />
+          <span style={{fontSize:"14px"}}>✉</span>
           <h3 className="mt-4 text-lg font-semibold text-gray-900">
             Nenhuma newsletter encontrada
           </h3>
@@ -548,7 +544,7 @@ export default function NewslettersListPage() {
                   <td className="px-6 py-4">
                     <div className="flex items-center">
                       <div className="flex-shrink-0 h-10 w-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center">
-                        <LuMail className="h-6 w-6 text-white" />
+                        <span style={{fontSize:"14px"}}>✉</span>
                       </div>
                       <div className="ml-4">
                         <div className="text-sm font-semibold text-gray-900">{newsletter.title || 'Sem título'}</div>
@@ -632,7 +628,7 @@ export default function NewslettersListPage() {
                           className="p-2 text-purple-600 hover:text-purple-700 hover:bg-purple-50 rounded-xl transition-all duration-300 hover:scale-110"
                           title="Duplicar"
                         >
-                          <LuCopy className="w-4 h-4" />
+                          <span style={{fontSize:"14px"}}>⎘</span>
                         </button>
                       )}
                       <button
@@ -640,7 +636,7 @@ export default function NewslettersListPage() {
                         className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl transition-all duration-300 hover:scale-110"
                         title="Excluir"
                       >
-                        <LuTrash2 className="w-4 h-4" />
+                        <LuTrash className="w-4 h-4" />
                       </button>
                     </div>
                   </td>
@@ -685,11 +681,11 @@ export default function NewslettersListPage() {
             {/* Cards de Estatísticas */}
             <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
               {[
-                { label: "Total", value: stats.total, color: "blue", icon: LuMail },
+                { label: "Total", value: stats.total, color: "blue", icon: () => <span style={{fontSize:"14px"}}>✉</span> },
                 { label: "Rascunhos", value: stats.drafts, color: "gray", icon: LuSave },
-                { label: "Agendadas", value: stats.scheduled, color: "purple", icon: LuClock },
-                { label: "Enviadas", value: stats.sent, color: "green", icon: LuSend },
-                { label: "Com Falha", value: stats.failed, color: "red", icon: LuTrash2 }
+                { label: "Agendadas", value: stats.scheduled, color: "purple", icon: () => <span style={{fontSize:"14px"}}>⏱</span> },
+                { label: "Enviadas", value: stats.sent, color: "green", icon: () => <span style={{fontSize:"14px"}}>➤</span> },
+                { label: "Com Falha", value: stats.failed, color: "red", icon: LuTrash }
               ].map((stat, index) => (
                 <div key={index} className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-3xl shadow-2xl shadow-blue-500/10 p-6 hover:shadow-2xl hover:shadow-blue-500/20 transition-all duration-300 hover:scale-105">
                   <div className="flex items-center justify-between">
@@ -720,10 +716,10 @@ export default function NewslettersListPage() {
             {/* Métricas de Engajamento */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
               {[
-                { label: "Total de Destinatários", value: engagementMetrics.totalRecipients.toLocaleString(), color: "blue", icon: LuUsers },
+                { label: "Total de Destinatários", value: engagementMetrics.totalRecipients.toLocaleString(), color: "blue", icon: () => <span style={{fontSize:"14px"}}>👥</span> },
                 { label: "Taxa de Abertura", value: `${openRate}%`, color: "green", icon: LuEye },
-                { label: "Taxa de Clique", value: `${clickRate}%`, color: "purple", icon: LuSend },
-                { label: "Emails Enviados", value: engagementMetrics.totalSent.toLocaleString(), color: "orange", icon: LuMail }
+                { label: "Taxa de Clique", value: `${clickRate}%`, color: "purple", icon: () => <span style={{fontSize:"14px"}}>➤</span> },
+                { label: "Emails Enviados", value: engagementMetrics.totalSent.toLocaleString(), color: "orange", icon: () => <span style={{fontSize:"14px"}}>✉</span> }
               ].map((metric, index) => (
                 <div key={index} className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-3xl shadow-2xl shadow-blue-500/10 p-6">
                   <div className="flex items-center justify-between">
@@ -770,7 +766,7 @@ export default function NewslettersListPage() {
                   {/* Filtro de Status */}
                   <div className="md:col-span-3">
                     <div className="flex items-center space-x-2">
-                      <LuFilter className="h-5 w-5 text-gray-400" />
+                      <span style={{fontSize:"14px"}}>⌕</span>
                       <select
                         value={filterStatus}
                         onChange={(e) => setFilterStatus(e.target.value as any)}
@@ -788,7 +784,7 @@ export default function NewslettersListPage() {
                   {/* Filtro de Tipo */}
                   <div className="md:col-span-3">
                     <div className="flex items-center space-x-2">
-                      <LuUsers className="h-5 w-5 text-gray-400" />
+                      <span style={{fontSize:"14px"}}>👥</span>
                       <select
                         value={filterType}
                         onChange={(e) => setFilterType(e.target.value as any)}

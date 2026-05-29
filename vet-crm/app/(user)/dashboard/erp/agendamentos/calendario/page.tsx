@@ -5,15 +5,10 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
   LuArrowLeft, 
-  LuCalendar,
-  LuClock,
+  LuCalendar
   LuUser,
-  LuPawPrint,
-  LuStethoscope,
-  LuChevronLeft,
-  LuChevronRight,
-  LuCheck,
-  LuTriangle
+  LuPawPrint
+  LuCheck
 } from 'react-icons/lu';
 import toast from 'react-hot-toast';
 
@@ -273,7 +268,7 @@ export default function CalendarPage() {
                     onClick={goToPreviousMonth}
                     className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
                   >
-                    <LuChevronLeft className="w-5 h-5 text-gray-600" />
+                    <span style={{fontSize:"12px"}}>◀</span>
                   </button>
                   <h2 className="text-2xl font-bold text-gray-900">
                     {monthNames[currentMonth]} {currentYear}
@@ -282,7 +277,7 @@ export default function CalendarPage() {
                     onClick={goToNextMonth}
                     className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
                   >
-                    <LuChevronRight className="w-5 h-5 text-gray-600" />
+                    <span style={{fontSize:"14px"}}>▶</span>
                   </button>
                 </div>
                 <button
@@ -440,7 +435,7 @@ export default function CalendarPage() {
                   <div>
                     <label className="text-sm font-medium text-gray-700">Veterinário</label>
                     <p className="text-gray-900 flex items-center gap-2">
-                      <LuStethoscope className="w-4 h-4" />
+                      <span style={{fontSize:"14px"}}>🩺</span>
                       {selectedAppointment.user?.name || 'Não atribuído'}
                     </p>
                   </div>
@@ -451,7 +446,7 @@ export default function CalendarPage() {
                   <div>
                     <label className="text-sm font-medium text-gray-700">Horário</label>
                     <p className="text-gray-900 flex items-center gap-2">
-                      <LuClock className="w-4 h-4" />
+                      <span style={{fontSize:"14px"}}>⏱</span>
                       {formatTime(selectedAppointment.date)}
                     </p>
                   </div>

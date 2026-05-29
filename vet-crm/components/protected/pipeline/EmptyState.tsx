@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { LuPlus, LuInbox } from 'react-icons/lu';
+import { LuPlus } from 'react-icons/lu';
 
 interface EmptyStateProps {
   boardsCount: number;
@@ -8,7 +8,7 @@ interface EmptyStateProps {
 export default function EmptyState({ boardsCount }: EmptyStateProps) {
   return (
     <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-blue-500/5 p-12 text-center">
-      <LuInbox className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+      <span style={{fontSize:"14px"}}>📥</span>
       <h3 className="text-xl font-semibold text-gray-800 mb-3">
         {boardsCount === 0 ? 'Nenhum board criado ainda' : 'Nenhum board encontrado'}
       </h3>

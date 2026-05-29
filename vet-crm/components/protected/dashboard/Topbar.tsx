@@ -5,11 +5,7 @@ import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { 
-  LuUser, 
-  LuSettings, 
-  LuLogOut, 
-  LuChevronDown,
-} from 'react-icons/lu';
+  LuUser} from 'react-icons/lu';
 import NotificationBell from './NotificationBell';
 
 interface TopbarProps {
@@ -107,7 +103,7 @@ export default function Topbar({ sidebarOpen = false }: TopbarProps) {
               </div>
 
               {/* Seta */}
-              <LuChevronDown className={`w-4 h-4 text-[color:var(--topbar-muted)] transition-transform duration-200 ${dropdownOpen ? 'rotate-180' : ''}`} />
+              <span style={{fontSize:"14px"}}>▼</span>
             </button>
 
             {/* Dropdown Menu */}
@@ -136,7 +132,7 @@ export default function Topbar({ sidebarOpen = false }: TopbarProps) {
                     onClick={() => setDropdownOpen(false)}
                     className="flex items-center gap-3 px-4 py-2.5 text-sm text-[color:var(--dropdown-item-text)] hover:bg-[color:var(--dropdown-hover)] hover:text-[color:var(--dropdown-item-text-hover)] transition-colors"
                   >
-                    <LuSettings className="w-4 h-4" />
+                    <span style={{fontSize:"14px"}}>⚙</span>
                     <span>Configurações</span>
                   </Link>
                 </div>
@@ -150,7 +146,7 @@ export default function Topbar({ sidebarOpen = false }: TopbarProps) {
                     onClick={handleLogout}
                     className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-red-500 hover:bg-red-500/10 transition-colors"
                   >
-                    <LuLogOut className="w-4 h-4" />
+                    <span style={{fontSize:"14px"}}>⤴</span>
                     <span>Sair</span>
                   </button>
                 </div>

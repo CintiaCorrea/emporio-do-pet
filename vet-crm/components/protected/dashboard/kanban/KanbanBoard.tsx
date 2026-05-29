@@ -23,30 +23,25 @@ const COLUMN_TO_STATUS_MAP: Record<string, Record<string, string>> = {
     'Confirmada': 'CONFIRMED',
     'Em Andamento': 'IN_PROGRESS',
     'Concluída': 'COMPLETED',
-    'Cancelada': 'CANCELLED',
-  },
+    'Cancelada': 'CANCELLED'},
   CONSULTATION: {
     'Agendada': 'SCHEDULED',
     'Aguardando': 'CONFIRMED',
     'Em Atendimento': 'IN_PROGRESS',
     'Finalizada': 'COMPLETED',
-    'Cancelada': 'CANCELLED',
-  },
+    'Cancelada': 'CANCELLED'},
   HOSPITALIZATION: {
     'Admissão': 'ADMITTED',
     'Em Tratamento': 'IN_TREATMENT',
     'Observação': 'OBSERVATION',
     'Alta Programada': 'DISCHARGE_SCHEDULED',
-    'Alta': 'DISCHARGED',
-  },
+    'Alta': 'DISCHARGED'},
   TREATMENT: {
     'Pendente': 'PENDING',
     'Em Andamento': 'IN_PROGRESS',
     'Aplicado': 'APPLIED',
     'Concluído': 'COMPLETED',
-    'Cancelado': 'CANCELLED',
-  },
-};
+    'Cancelado': 'CANCELLED'}};
 
 function detectBoardTypeFromName(name: string): BoardType {
   const normalizedName = name.toLowerCase().trim();
@@ -119,8 +114,7 @@ const KanbanBoard = ({ boardId, boardName = "CRM", boardType: propBoardType = "A
             if (card.appointment) {
               allAppointments.push({
                 ...card.appointment,
-                status: column.name,
-              });
+                status: column.name});
             }
             if ((card as any).leadId || (card as any).metadata?.leadId) {
               allLeadCards.push({
@@ -129,8 +123,7 @@ const KanbanBoard = ({ boardId, boardName = "CRM", boardType: propBoardType = "A
                 columnId: card.columnId,
                 position: card.position,
                 leadId: (card as any).leadId,
-                metadata: (card as any).metadata,
-              });
+                metadata: (card as any).metadata});
             }
           });
         });
@@ -156,8 +149,7 @@ const KanbanBoard = ({ boardId, boardName = "CRM", boardType: propBoardType = "A
       const response = await fetch(`/api/columns/${columnId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newName }),
-      });
+        body: JSON.stringify({ name: newName })});
 
       if (!response.ok) {
         throw new Error('Erro ao renomear coluna');
@@ -185,8 +177,7 @@ const KanbanBoard = ({ boardId, boardName = "CRM", boardType: propBoardType = "A
   const handleDeleteColumn = async (columnId: string) => {
     try {
       const response = await fetch(`/api/columns/${columnId}`, {
-        method: 'DELETE',
-      });
+        method: 'DELETE'});
 
       if (!response.ok) {
         const errData = await response.json().catch(() => null);
@@ -230,8 +221,7 @@ const KanbanBoard = ({ boardId, boardName = "CRM", boardType: propBoardType = "A
       const response = await fetch(endpoint, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: erpStatus }),
-      });
+        body: JSON.stringify({ status: erpStatus })});
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Erro desconhecido' }));
@@ -261,8 +251,7 @@ const KanbanBoard = ({ boardId, boardName = "CRM", boardType: propBoardType = "A
           name: trimmedName, 
           position: statuses.length,
           color: '#6B7280'
-        }),
-      });
+        })});
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Erro desconhecido' }));
@@ -292,9 +281,7 @@ const KanbanBoard = ({ boardId, boardName = "CRM", boardType: propBoardType = "A
         notes: taskData.notes,
         value: taskData.value,
         status: taskData.status || statuses[0]?.name || 'SCHEDULED',
-        paymentStatus: taskData.paymentStatus || 'PENDING',
-      }),
-    });
+        paymentStatus: taskData.paymentStatus || 'PENDING'})});
     
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: 'Erro desconhecido' }));
@@ -315,9 +302,7 @@ const KanbanBoard = ({ boardId, boardName = "CRM", boardType: propBoardType = "A
         reason: taskData.description || 'Internação',
         dailyRate: taskData.value || 0,
         notes: taskData.notes,
-        priority: 'MEDIUM',
-      }),
-    });
+        priority: 'MEDIUM'})});
     
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: 'Erro desconhecido' }));
@@ -341,9 +326,7 @@ const KanbanBoard = ({ boardId, boardName = "CRM", boardType: propBoardType = "A
         notes: taskData.notes,
         value: taskData.value,
         status: 'IN_PROGRESS',
-        paymentStatus: 'PENDING',
-      }),
-    });
+        paymentStatus: 'PENDING'})});
 
     if (!appointmentResponse.ok) {
       const errorData = await appointmentResponse.json().catch(() => ({ error: 'Erro desconhecido' }));
@@ -359,9 +342,7 @@ const KanbanBoard = ({ boardId, boardName = "CRM", boardType: propBoardType = "A
         appointmentId: appointment.id,
         petId: appointment.pet?.id || taskData.petId,
         description: taskData.description || 'Tratamento',
-        cost: taskData.value || 0,
-      }),
-    });
+        cost: taskData.value || 0})});
 
     if (!treatmentResponse.ok) {
       const errorData = await treatmentResponse.json().catch(() => ({ error: 'Erro desconhecido' }));
@@ -396,9 +377,7 @@ const KanbanBoard = ({ boardId, boardName = "CRM", boardType: propBoardType = "A
             body: JSON.stringify({
               title: cardTitle,
               appointmentId: newRecord.id,
-              position: appointments.length,
-            }),
-          });
+              position: appointments.length})});
           
           if (!cardResponse.ok) {
             const errorData = await cardResponse.json().catch(() => ({ error: 'Erro desconhecido' }));
@@ -420,8 +399,7 @@ const KanbanBoard = ({ boardId, boardName = "CRM", boardType: propBoardType = "A
               if (card.appointment) {
                 allAppointments.push({
                   ...card.appointment,
-                  status: column.name,
-                });
+                  status: column.name});
               }
             });
           });
@@ -451,9 +429,7 @@ const KanbanBoard = ({ boardId, boardName = "CRM", boardType: propBoardType = "A
           title: leadName,
           leadId: leadId,
           position: firstColumn.cards?.length || 0,
-          metadata: { leadId },
-        }),
-      });
+          metadata: { leadId }})});
 
       if (!cardResponse.ok) {
         const errorData = await cardResponse.json().catch(() => ({ error: "Erro desconhecido" }));
@@ -481,8 +457,7 @@ const KanbanBoard = ({ boardId, boardName = "CRM", boardType: propBoardType = "A
       const response = await fetch(`/api/columns/${column.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ position: toIndex }),
-      });
+        body: JSON.stringify({ position: toIndex })});
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Erro desconhecido' }));

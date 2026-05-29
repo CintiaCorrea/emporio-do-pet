@@ -10,10 +10,9 @@ import { useState, useEffect, use, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
-  LuArrowLeft, LuLoader, LuRefreshCw, LuUser, LuMail,
-  LuPhone, LuMapPin, LuTag, LuCalendar, LuClock,
-  LuDollarSign, LuShoppingCart, LuBuilding, LuPenLine,
-  LuArrowRightLeft, LuCheck, LuPlus, LuTrash2} from 'react-icons/lu';
+  LuArrowLeft, LuLoader LuUser
+  LuPhone LuCalendar
+  LuDollarSign LuCheck, LuPlus, LuTrash} from 'react-icons/lu';
 import toast from 'react-hot-toast';
 
 interface Tutor {
@@ -212,16 +211,16 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
         {/* Actions */}
         <div className="flex flex-wrap gap-2">
           <button onClick={fetchClient} className="flex items-center gap-2 px-4 py-2 bg-white/80 border border-gray-200/80 rounded-2xl hover:bg-white transition-all text-sm">
-            <LuRefreshCw className="w-4 h-4" /> Atualizar
+            <span style={{fontSize:"14px"}}>↻</span> Atualizar
           </button>
           <button onClick={() => { setSelectedStatus(client.status); setStatusModal(true); }} className="flex items-center gap-2 px-4 py-2 bg-orange-50 border border-orange-200 rounded-2xl hover:bg-orange-100 transition-all text-sm text-orange-700">
-            <LuPenLine className="w-4 h-4" /> Alterar Status
+            <span style={{fontSize:"14px"}}>✏</span> Alterar Status
           </button>
           <button onClick={() => setTagModal(true)} className="flex items-center gap-2 px-4 py-2 bg-purple-50 border border-purple-200 rounded-2xl hover:bg-purple-100 transition-all text-sm text-purple-700">
-            <LuTag className="w-4 h-4" /> Adicionar Tag
+            <span style={{fontSize:"14px"}}>🏷</span> Adicionar Tag
           </button>
           <button onClick={() => setPurchaseModal(true)} className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-600 to-cyan-600 text-white rounded-2xl hover:scale-105 transition-all text-sm shadow-lg shadow-green-500/25">
-            <LuShoppingCart className="w-4 h-4" /> Registrar Compra
+            <span style={{fontSize:"14px"}}>🛒</span> Registrar Compra
           </button>
         </div>
 
@@ -238,7 +237,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
           </div>
           <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl p-5 shadow-md">
             <div className="flex items-center gap-3">
-              <div className="p-3 bg-blue-100 rounded-xl"><LuShoppingCart className="w-6 h-6 text-blue-600" /></div>
+              <div className="p-3 bg-blue-100 rounded-xl"><span style={{fontSize:"14px"}}>🛒</span></div>
               <div>
                 <p className="text-xs text-gray-500">Total de Pedidos</p>
                 <p className="text-2xl font-bold text-gray-900">{client.totalOrders}</p>
@@ -265,23 +264,23 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
             <h3 className="text-lg font-bold text-gray-900 mb-4">Informações</h3>
             <div className="space-y-3">
               <InfoRow icon={<LuUser className="w-4 h-4" />} label="Nome" value={client.name} />
-              <InfoRow icon={<LuMail className="w-4 h-4" />} label="Email" value={client.email} />
+              <InfoRow icon={<span style={{fontSize:"14px"}}>✉</span>} label="Email" value={client.email} />
               <InfoRow icon={<LuPhone className="w-4 h-4" />} label="Telefone" value={client.phone || 'N/A'} />
-              <InfoRow icon={<LuMapPin className="w-4 h-4" />} label="Endereço" value={client.address || 'N/A'} />
+              <InfoRow icon={<span style={{fontSize:"14px"}}>📍</span>} label="Endereço" value={client.address || 'N/A'} />
               {client.type === 'COMPANY' && (
                 <>
-                  <InfoRow icon={<LuBuilding className="w-4 h-4" />} label="Empresa" value={client.companyName || 'N/A'} />
-                  <InfoRow icon={<LuBuilding className="w-4 h-4" />} label="CNPJ/CPF" value={client.cnpj || 'N/A'} />
+                  <InfoRow icon={<span style={{fontSize:"14px"}}>🏢</span>} label="Empresa" value={client.companyName || 'N/A'} />
+                  <InfoRow icon={<span style={{fontSize:"14px"}}>🏢</span>} label="CNPJ/CPF" value={client.cnpj || 'N/A'} />
                 </>
               )}
               {client.type === 'INDIVIDUAL' && client.cnpj && (
                 <InfoRow icon={<LuUser className="w-4 h-4" />} label="CPF" value={client.cnpj} />
               )}
               {client.website && (
-                <InfoRow icon={<LuMapPin className="w-4 h-4" />} label="Website" value={client.website} />
+                <InfoRow icon={<span style={{fontSize:"14px"}}>📍</span>} label="Website" value={client.website} />
               )}
               <InfoRow icon={<LuCalendar className="w-4 h-4" />} label="Cliente desde" value={new Date(client.createdAt).toLocaleDateString('pt-BR')} />
-              <InfoRow icon={<LuClock className="w-4 h-4" />} label="Atualizado em" value={new Date(client.updatedAt).toLocaleString('pt-BR')} />
+              <InfoRow icon={<span style={{fontSize:"14px"}}>⏱</span>} label="Atualizado em" value={new Date(client.updatedAt).toLocaleString('pt-BR')} />
             </div>
           </div>
 
@@ -319,7 +318,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
               <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-3xl p-6 shadow-lg">
                 <h3 className="text-lg font-bold text-gray-900 mb-4">Origem</h3>
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-purple-100 rounded-xl"><LuArrowRightLeft className="w-5 h-5 text-purple-600" /></div>
+                  <div className="p-2 bg-purple-100 rounded-xl"><span style={{fontSize:"14px"}}>↔</span></div>
                   <div className="flex-1">
                     <p className="text-sm text-gray-600">Convertido a partir de um Lead</p>
                   </div>
@@ -436,7 +435,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                 disabled={saving || !purchaseAmount}
                 className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-600 to-cyan-600 text-white rounded-xl hover:scale-105 transition-all disabled:opacity-50"
               >
-                {saving ? <LuLoader className="w-4 h-4 animate-spin" /> : <LuShoppingCart className="w-4 h-4" />}
+                {saving ? <LuLoader className="w-4 h-4 animate-spin" /> : <span style={{fontSize:"14px"}}>🛒</span>}
                 Registrar
               </button>
             </div>

@@ -5,8 +5,7 @@ import Sidebar from '@/components/protected/dashboard/Sidebar';
 import HotToaster from '@/components/common/HotToaster';
 
 export default function DashboardLayout({
-  children,
-}: {
+  children}: {
   children: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);

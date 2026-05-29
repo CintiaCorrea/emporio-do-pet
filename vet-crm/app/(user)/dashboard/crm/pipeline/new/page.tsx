@@ -17,8 +17,7 @@ export default function NewBoardPage() {
     name: '',
     description: '',
     color: 'bg-blue-500',
-    type: 'TASK',
-  });
+    type: 'TASK'});
 
   useEffect(() => {
     const detectedType = detectBoardTypeFromName(formData.name);
@@ -38,16 +37,13 @@ export default function NewBoardPage() {
       const response = await fetch('/api/boards', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-        },
+          'Content-Type': 'application/json'},
         credentials: 'include',
         body: JSON.stringify({
           name: formData.name,
           description: formData.description,
           color: formData.color,
-          type: boardType,
-        }),
-      });
+          type: boardType})});
 
       const data = await response.json();
 

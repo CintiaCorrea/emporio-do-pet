@@ -1,6 +1,6 @@
 'use client';
 
-import { LuSave, LuClock, LuSend } from 'react-icons/lu';
+import { LuSave } from 'react-icons/lu';
 
 interface ActionButtonsProps {
   onSaveDraft: () => Promise<void>;
@@ -23,7 +23,7 @@ export const ActionButtons = ({
     <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-blue-500/5 p-6">
       <div className="flex items-center gap-3 mb-4">
         <div className="p-2 bg-green-50 rounded-xl">
-          <LuSend className="w-5 h-5 text-green-600" />
+          <span style={{fontSize:"14px"}}>➤</span>
         </div>
         <h3 className="text-lg font-semibold text-gray-900">Ações</h3>
       </div>
@@ -44,7 +44,7 @@ export const ActionButtons = ({
           className="w-full px-6 py-4 text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-blue-500/25 flex items-center justify-center space-x-2 group relative overflow-hidden"
         >
           <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent transform -skew-x-12 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
-          <LuClock className="w-4 h-4 relative z-10" />
+          <span style={{fontSize:"14px"}}>⏱</span>
           <span className="relative z-10">{isSending ? 'Agendando...' : 'Agendar Envio'}</span>
         </button>
 
@@ -54,7 +54,7 @@ export const ActionButtons = ({
           className="w-full px-6 py-4 text-sm font-semibold text-white bg-gradient-to-r from-green-600 to-cyan-600 rounded-2xl hover:from-green-700 hover:to-cyan-700 focus:outline-none focus:ring-2 focus:ring-green-500/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-green-500/25 flex items-center justify-center space-x-2 group relative overflow-hidden"
         >
           <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent transform -skew-x-12 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
-          <LuSend className="w-4 h-4 relative z-10" />
+          <span style={{fontSize:"14px"}}>➤</span>
           <span className="relative z-10">{isSending ? 'Enviando...' : 'Enviar Agora'}</span>
         </button>
       </div>

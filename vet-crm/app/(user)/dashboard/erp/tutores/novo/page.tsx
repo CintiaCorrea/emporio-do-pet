@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { LuPlus, LuStar, LuTrash2, LuUser, LuMapPin, LuFolder, LuSave, LuArrowLeft, LuMail, LuPawPrint } from 'react-icons/lu';
+import { LuPlus LuTrash, LuUser LuSave, LuArrowLeft LuPawPrint } from 'react-icons/lu';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
@@ -386,9 +386,7 @@ export default function TutorRegistrationPage() {
                         : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50/50'
                     }`}
                   >
-                    <LuMapPin className={`w-4 h-4 transition-transform duration-300 ${
-                      activeTab === 'endereco' ? 'scale-110' : 'group-hover:scale-110'
-                    }`} />
+                    <span style={{fontSize:"14px"}}>📍</span>
                     <span>Endereço</span>
                   </button>
                   <button
@@ -399,9 +397,7 @@ export default function TutorRegistrationPage() {
                         : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50/50'
                     }`}
                   >
-                    <LuFolder className={`w-4 h-4 transition-transform duration-300 ${
-                      activeTab === 'extras' ? 'scale-110' : 'group-hover:scale-110'
-                    }`} />
+                    <span style={{fontSize:"14px"}}>📁</span>
                     <span>Extras</span>
                   </button>
                   </div>
@@ -496,7 +492,7 @@ export default function TutorRegistrationPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-2">
                         <label className="flex items-center text-sm font-semibold text-gray-700">
-                          <LuMail className="w-4 h-4 mr-2 text-blue-500" />
+                          <span style={{fontSize:"14px"}}>✉</span>
                           E-mail
                         </label>
                         <input
@@ -674,7 +670,7 @@ export default function TutorRegistrationPage() {
                                   : 'text-gray-400 hover:text-orange-500 hover:bg-orange-50'
                               }`}
                             >
-                              <LuStar className="w-4 h-4" />
+                              <span style={{fontSize:"14px"}}>⭐</span>
                             </button>
                             <button
                               type="button"
@@ -682,7 +678,7 @@ export default function TutorRegistrationPage() {
                               className="p-2 text-red-500 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all duration-300 hover:scale-110"
                               disabled={contacts.length === 1}
                             >
-                              <LuTrash2 className="w-4 h-4" />
+                              <LuTrash className="w-4 h-4" />
                             </button>
                           </div>
                         </div>
@@ -697,7 +693,7 @@ export default function TutorRegistrationPage() {
                     <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
                       <div className="md:col-span-2 space-y-2">
                         <label className="flex items-center text-sm font-semibold text-gray-700">
-                          <LuMapPin className="w-4 h-4 mr-2 text-blue-500" />
+                          <span style={{fontSize:"14px"}}>📍</span>
                           CEP
                         </label>
                         <input

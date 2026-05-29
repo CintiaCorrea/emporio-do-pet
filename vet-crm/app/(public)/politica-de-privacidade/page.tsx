@@ -2,8 +2,7 @@ import Link from "next/link";
 
 export const metadata = {
   title: "Política de Privacidade | Empório do Pet",
-  description: "Política de Privacidade da plataforma Empório do Pet - Sistema de gestão veterinária.",
-};
+  description: "Política de Privacidade da plataforma Empório do Pet - Sistema de gestão veterinária."};
 
 export default function PoliticaDePrivacidade() {
   return (

@@ -1,4 +1,4 @@
-import { LuPhone, LuStar } from 'react-icons/lu';
+import { LuPhone } from 'react-icons/lu';
 import { FaWhatsapp } from 'react-icons/fa';
 import { Contact } from '@/types/tutor-detail';
 import { formatPhone } from '@/utils/tutor-detail-formatters';
@@ -45,7 +45,7 @@ function ContactCard({ contact }: { contact: Contact }) {
               {contact.type.toLowerCase()} 
               {contact.isPrimary && (
                 <span className="ml-2 inline-flex items-center text-blue-600">
-                  <LuStar className="w-3 h-3 fill-current" />
+                  <span style={{fontSize:"14px"}}>⭐</span>
                   <span className="ml-1 hidden xs:inline">Principal</span>
                 </span>
               )}

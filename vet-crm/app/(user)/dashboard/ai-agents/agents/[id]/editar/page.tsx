@@ -3,22 +3,11 @@
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { 
-  LuBot,
-  LuChevronRight,
+import {
   LuArrowLeft,
   LuSave,
   LuLoader,
-  LuTrash2,
-  LuPlay,
-  LuPause,
-  LuMessageSquare,
-  LuSettings2,
-  LuSlidersHorizontal,
-  LuMic,
-  LuVolume2,
-  LuDatabase,
-} from 'react-icons/lu';
+  LuTrash} from 'react-icons/lu';
 import { toast } from 'sonner';
 
 type AgentStatus = 'ACTIVE' | 'PAUSED' | 'DRAFT' | 'ERROR';
@@ -90,8 +79,7 @@ const MODELS: Record<AIProvider, { value: string; label: string }[]> = {
   DEEPSEEK: [
     { value: 'deepseek-chat', label: 'DeepSeek Chat' },
     { value: 'deepseek-coder', label: 'DeepSeek Coder' },
-  ],
-};
+  ]};
 
 export default function EditAgentPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -117,8 +105,7 @@ export default function EditAgentPage({ params }: { params: Promise<{ id: string
     voiceEnabled: false,
     voiceId: 'nova' as TTSVoice,
     voiceSpeed: 1.0,
-    voiceModel: 'tts-1' as TTSModel,
-  });
+    voiceModel: 'tts-1' as TTSModel});
 
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showVoiceSettings, setShowVoiceSettings] = useState(false);
@@ -156,8 +143,7 @@ export default function EditAgentPage({ params }: { params: Promise<{ id: string
           voiceEnabled: data.voiceEnabled || false,
           voiceId: data.voiceId || 'nova',
           voiceSpeed: data.voiceSpeed || 1.0,
-          voiceModel: data.voiceModel || 'tts-1',
-        });
+          voiceModel: data.voiceModel || 'tts-1'});
         // Show voice settings if voice is enabled
         if (data.voiceEnabled) {
           setShowVoiceSettings(true);
@@ -215,8 +201,7 @@ export default function EditAgentPage({ params }: { params: Promise<{ id: string
     setFormData(prev => ({
       ...prev,
       provider,
-      model: defaultModel,
-    }));
+      model: defaultModel}));
   };
 
   // Handle template selection
@@ -228,8 +213,7 @@ export default function EditAgentPage({ params }: { params: Promise<{ id: string
       if (template && template.content) {
         setFormData(prev => ({
           ...prev,
-          systemPrompt: template.content,
-        }));
+          systemPrompt: template.content}));
       }
     }
   };
@@ -269,9 +253,7 @@ export default function EditAgentPage({ params }: { params: Promise<{ id: string
           knowledgeBaseIds,
           ragEnabled,
           ragTopK,
-          ragThreshold,
-        }),
-      });
+          ragThreshold})});
 
       const data = await response.json();
 
@@ -295,8 +277,7 @@ export default function EditAgentPage({ params }: { params: Promise<{ id: string
       const response = await fetch(`/api/agents/${id}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus }),
-      });
+        body: JSON.stringify({ status: newStatus })});
 
       const data = await response.json();
 
@@ -320,8 +301,7 @@ export default function EditAgentPage({ params }: { params: Promise<{ id: string
 
     try {
       const response = await fetch(`/api/agents/${id}`, {
-        method: 'DELETE',
-      });
+        method: 'DELETE'});
 
       if (!response.ok) {
         const data = await response.json();
@@ -369,7 +349,7 @@ export default function EditAgentPage({ params }: { params: Promise<{ id: string
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-8rem)]">
         <div className="text-center">
-          <LuBot className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+          <span style={{fontSize:"14px"}}>🤖</span>
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Agente não encontrado</h2>
           <Link
             href="/dashboard/ai-agents/agents"
@@ -390,11 +370,11 @@ export default function EditAgentPage({ params }: { params: Promise<{ id: string
           <Link href="/dashboard/ai-agents/agents" className="hover:text-violet-600">
             AI Agents
           </Link>
-          <LuChevronRight className="w-4 h-4" />
+          <span style={{fontSize:"14px"}}>▶</span>
           <Link href="/dashboard/ai-agents/agents" className="hover:text-violet-600">
             Agents
           </Link>
-          <LuChevronRight className="w-4 h-4" />
+          <span style={{fontSize:"14px"}}>▶</span>
           <span className="text-gray-900 font-medium">Editar</span>
         </div>
 
@@ -423,7 +403,7 @@ export default function EditAgentPage({ params }: { params: Promise<{ id: string
                 onClick={() => handleStatusChange('PAUSED')}
                 className="flex items-center gap-2 px-4 py-2 bg-orange-50 hover:bg-orange-100 text-orange-700 rounded-lg transition-colors"
               >
-                <LuPause className="w-4 h-4" />
+                <span style={{fontSize:"14px"}}>⏸</span>
                 Pausar
               </button>
             ) : agent.status !== 'ERROR' && (
@@ -431,7 +411,7 @@ export default function EditAgentPage({ params }: { params: Promise<{ id: string
                 onClick={() => handleStatusChange('ACTIVE')}
                 className="flex items-center gap-2 px-4 py-2 bg-cyan-50 hover:bg-cyan-100 text-cyan-700 rounded-lg transition-colors"
               >
-                <LuPlay className="w-4 h-4" />
+                <span style={{fontSize:"14px"}}>▶</span>
                 Ativar
               </button>
             )}
@@ -440,7 +420,7 @@ export default function EditAgentPage({ params }: { params: Promise<{ id: string
               href={`/dashboard/ai-agents/agents/${id}/testar`}
               className="flex items-center gap-2 px-4 py-2 bg-violet-50 hover:bg-violet-100 text-violet-700 rounded-lg transition-colors"
             >
-              <LuMessageSquare className="w-4 h-4" />
+              <span style={{fontSize:"14px"}}>💬</span>
               Testar
             </Link>
           </div>
@@ -451,7 +431,7 @@ export default function EditAgentPage({ params }: { params: Promise<{ id: string
           {/* Basic Info */}
           <div className="bg-white rounded-2xl border border-gray-100 p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <LuBot className="w-5 h-5 text-violet-600" />
+              <span style={{fontSize:"14px"}}>🤖</span>
               Informações Básicas
             </h2>
 
@@ -523,7 +503,7 @@ export default function EditAgentPage({ params }: { params: Promise<{ id: string
           {/* AI Configuration */}
           <div className="bg-white rounded-2xl border border-gray-100 p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <LuSettings2 className="w-5 h-5 text-violet-600" />
+              <span style={{fontSize:"14px"}}>⚙</span>
               Configuração de IA
             </h2>
 
@@ -587,10 +567,10 @@ export default function EditAgentPage({ params }: { params: Promise<{ id: string
               className="w-full p-6 flex items-center justify-between hover:bg-gray-50 transition-colors"
             >
               <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <LuSlidersHorizontal className="w-5 h-5 text-violet-600" />
+                <span style={{fontSize:"14px"}}>⬌</span>
                 Configurações Avançadas
               </h2>
-              <LuChevronRight className={`w-5 h-5 text-gray-400 transition-transform ${showAdvanced ? 'rotate-90' : ''}`} />
+              <span style={{fontSize:"14px"}}>▶</span>
             </button>
 
             {showAdvanced && (
@@ -643,7 +623,7 @@ export default function EditAgentPage({ params }: { params: Promise<{ id: string
               className="w-full p-6 flex items-center justify-between hover:bg-gray-50 transition-colors"
             >
               <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <LuMic className="w-5 h-5 text-violet-600" />
+                <span style={{fontSize:"14px"}}>🎤</span>
                 Configurações de Voz
                 {formData.voiceEnabled && (
                   <span className="ml-2 px-2 py-0.5 text-xs font-medium bg-cyan-100 text-cyan-700 rounded-full">
@@ -651,7 +631,7 @@ export default function EditAgentPage({ params }: { params: Promise<{ id: string
                   </span>
                 )}
               </h2>
-              <LuChevronRight className={`w-5 h-5 text-gray-400 transition-transform ${showVoiceSettings ? 'rotate-90' : ''}`} />
+              <span style={{fontSize:"14px"}}>▶</span>
             </button>
 
             {showVoiceSettings && (
@@ -695,7 +675,7 @@ export default function EditAgentPage({ params }: { params: Promise<{ id: string
                             }`}
                           >
                             <div className="flex items-center gap-2 mb-1">
-                              <LuVolume2 className={`w-4 h-4 ${formData.voiceId === voice.value ? 'text-violet-600' : 'text-gray-400'}`} />
+                              <span style={{fontSize:"14px"}}>🔊</span>
                               <span className="font-medium text-gray-900">{voice.label}</span>
                             </div>
                             <p className="text-xs text-gray-500">{voice.description}</p>
@@ -779,7 +759,7 @@ export default function EditAgentPage({ params }: { params: Promise<{ id: string
           {/* Base de Conhecimento (RAG) */}
           <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-              <LuDatabase className="w-5 h-5 text-indigo-600" />
+              <span style={{fontSize:"14px"}}>🗄</span>
               Base de Conhecimento (RAG)
             </h3>
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
@@ -907,7 +887,7 @@ export default function EditAgentPage({ params }: { params: Promise<{ id: string
               onClick={handleDelete}
               className="flex items-center justify-center gap-2 px-6 py-3 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl font-medium transition-colors"
             >
-              <LuTrash2 className="w-5 h-5" />
+              <LuTrash className="w-5 h-5" />
               Excluir Agente
             </button>
 

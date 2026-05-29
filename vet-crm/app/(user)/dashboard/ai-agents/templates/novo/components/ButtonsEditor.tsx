@@ -17,8 +17,7 @@ const LABELS: Record<ButtonType, string> = {
   COPY_CODE: 'Copiar codigo',
   FLOW: 'Flow',
   OTP: 'OTP',
-  MPM: 'MPM',
-};
+  MPM: 'MPM'};
 
 export function ButtonsEditor({ category, buttons, flows, onChange }: ButtonsEditorProps) {
   const allowedTypes = getAllowedButtonTypes(buttons, category);
@@ -33,8 +32,7 @@ export function ButtonsEditor({ category, buttons, flows, onChange }: ButtonsEdi
       {
         id: crypto.randomUUID(),
         type: defaultType,
-        text: '',
-      },
+        text: ''},
     ]);
   };
 
@@ -88,8 +86,7 @@ export function ButtonsEditor({ category, buttons, flows, onChange }: ButtonsEdi
                         url: '',
                         phone_number: '',
                         example: '',
-                        flow_id: '',
-                      })
+                        flow_id: ''})
                     }
                     className="px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-600 rounded-lg text-sm"
                   >

@@ -6,14 +6,11 @@ import { useRouter } from 'next/navigation';
 import {
   LuFileText,
   LuPlus,
-  LuSearch,
-  LuFilter,
+  LuSearch
   LuPencil,
-  LuTrash2,
-  LuEye,
-  LuClock,
-  LuCheck,
-  LuArchive,
+  LuTrash,
+  LuEye
+  LuCheck
 } from 'react-icons/lu';
 import toast from 'react-hot-toast';
 import ConfirmDeleteModal from '@/components/common/ConfirmDeleteModal';
@@ -53,19 +50,15 @@ const statusConfig = {
   DRAFT: {
     label: 'Rascunho',
     color: 'bg-yellow-100 text-yellow-700',
-    icon: LuClock,
-  },
+    icon: () => <span style={{fontSize:"14px"}}>⏱</span>},
   PUBLISHED: {
     label: 'Publicado',
     color: 'bg-green-100 text-green-700',
-    icon: LuCheck,
-  },
+    icon: LuCheck},
   ARCHIVED: {
     label: 'Arquivado',
     color: 'bg-gray-100 text-gray-700',
-    icon: LuArchive,
-  },
-};
+    icon: () => <span style={{fontSize:"14px"}}>📦</span>}};
 
 function stripHtml(html: string): string {
   if (!html) return '';
@@ -78,8 +71,7 @@ function formatDate(dateString: string): string {
     month: '2-digit',
     year: 'numeric',
     hour: '2-digit',
-    minute: '2-digit',
-  });
+    minute: '2-digit'});
 }
 
 export default function DocumentsPage() {
@@ -124,8 +116,7 @@ export default function DocumentsPage() {
 
     try {
       const res = await fetch(`/api/documents/${documentToDelete.id}`, {
-        method: 'DELETE',
-      });
+        method: 'DELETE'});
 
       if (!res.ok) {
         const data = await readResponseBody(res);
@@ -195,7 +186,7 @@ export default function DocumentsPage() {
 
               {/* Status filter */}
               <div className="relative">
-                <LuFilter className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
@@ -251,7 +242,7 @@ export default function DocumentsPage() {
               <div className="divide-y divide-gray-100">
                 {documents.map((doc) => {
                   const status = statusConfig[doc.status] || statusConfig.DRAFT;
-                  const StatusIcon = status?.icon || LuClock;
+                  const StatusIcon = status?.icon ||;
 
                   return (
                     <div
@@ -329,7 +320,7 @@ export default function DocumentsPage() {
                             className="p-2 hover:bg-red-50 rounded-lg text-red-600 transition-colors"
                             title="Excluir"
                           >
-                            <LuTrash2 className="w-4 h-4" />
+                            <LuTrash className="w-4 h-4" />
                           </button>
                         </div>
                       </div>

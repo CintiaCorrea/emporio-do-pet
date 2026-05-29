@@ -3,28 +3,18 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { 
-  LuStethoscope,
+import {
   LuSearch,
   LuPlus,
   LuPencil,
-  LuTrash2,
+  LuTrash,
   LuUser,
   LuPawPrint,
-  LuCalendar,
-  LuClock,
-  LuDollarSign,
-  LuTrendingUp,
-  LuClipboardList,
-  LuCircleCheck,
+  LuCalendar
+  LuDollarSign
   LuPhone,
-  LuFileText,
-  LuPill,
-  LuSyringe,
-  LuHeart,
-  LuActivity,
-  LuSave,
-  LuMic
+  LuFileText
+  LuSave
 } from 'react-icons/lu';
 import toast from 'react-hot-toast';
 import ConfirmDeleteModal from '@/components/common/ConfirmDeleteModal';
@@ -419,15 +409,15 @@ export default function ConsultationsPage() {
   };
 
   const getTypeIcon = (type?: ConsultationType) => {
-    if (!type) return LuStethoscope;
+    if (!type) return;
     switch (type) {
-      case 'ROUTINE': return LuStethoscope;
-      case 'EMERGENCY': return LuHeart;
-      case 'FOLLOW_UP': return LuClipboardList;
-      case 'VACCINATION': return LuSyringe;
-      case 'SURGERY_PREP': return LuActivity;
+      case 'ROUTINE': return;
+      case 'EMERGENCY': return;
+      case 'FOLLOW_UP': return;
+      case 'VACCINATION': return;
+      case 'SURGERY_PREP': return;
       case 'SPECIALIST': return LuFileText;
-      default: return LuStethoscope;
+      default: return;
     }
   };
 
@@ -739,7 +729,7 @@ export default function ConsultationsPage() {
                     href="/dashboard/erp/consultas/relatorio"
                     className="group px-6 py-3 text-sm font-semibold text-gray-700 bg-white/80 border border-gray-200/80 rounded-2xl hover:bg-white hover:border-gray-300 hover:shadow-lg transition-all duration-300 hover:scale-105 flex items-center space-x-2"
                   >
-                    <LuTrendingUp className="w-4 h-4" />
+                    <span style={{fontSize:"14px"}}>📈</span>
                     <span>Relatório</span>
                   </Link>
                   <button 
@@ -777,7 +767,7 @@ export default function ConsultationsPage() {
                   label: "Total", 
                   value: stats.total, 
                   color: "gray", 
-                  icon: LuStethoscope
+                  icon: () => <span style={{fontSize:"14px"}}>🩺</span>
                 },
                 { 
                   label: "Hoje", 
@@ -789,19 +779,19 @@ export default function ConsultationsPage() {
                   label: "Agendadas", 
                   value: stats.scheduled, 
                   color: "purple", 
-                  icon: LuClock
+                  icon: () => <span style={{fontSize:"14px"}}>⏱</span>
                 },
                 { 
                   label: "Em Andamento", 
                   value: stats.inProgress, 
                   color: "yellow", 
-                  icon: LuActivity
+                  icon: () => <span style={{fontSize:"14px"}}>⚡</span>
                 },
                 { 
                   label: "Concluídas", 
                   value: stats.completed, 
                   color: "green", 
-                  icon: LuCircleCheck
+                  icon: () => <span style={{fontSize:"14px"}}>✓</span>
                 },
                 { 
                   label: "Receita", 
@@ -948,7 +938,7 @@ export default function ConsultationsPage() {
                           </td>
                           <td className="p-6">
                             <div className="flex items-center gap-2">
-                              <LuStethoscope className="w-4 h-4 text-cyan-600" />
+                              <span style={{fontSize:"14px"}}>🩺</span>
                               <span className="text-gray-700">{cons.veterinarian.name}</span>
                             </div>
                           </td>
@@ -958,7 +948,7 @@ export default function ConsultationsPage() {
                               {formatDate(cons.date)}
                             </div>
                             <div className="text-sm text-gray-500 flex items-center gap-1 mt-1">
-                              <LuClock className="w-3 h-3" />
+                              <span style={{fontSize:"14px"}}>⏱</span>
                               {cons.time} • {cons.duration}min
                             </div>
                           </td>
@@ -983,7 +973,7 @@ export default function ConsultationsPage() {
                                   className="p-2 text-cyan-600 hover:bg-cyan-50 rounded-2xl transition-colors"
                                   title="Iniciar consulta"
                                 >
-                                  <LuActivity className="w-4 h-4" />
+                                  <span style={{fontSize:"14px"}}>⚡</span>
                                 </button>
                               ) : null}
                               {cons.status === 'IN_PROGRESS' && (
@@ -992,7 +982,7 @@ export default function ConsultationsPage() {
                                   className="p-2 text-green-600 hover:bg-green-50 rounded-2xl transition-colors"
                                   title="Finalizar consulta"
                                 >
-                                  <LuCircleCheck className="w-4 h-4" />
+                                  <span style={{fontSize:"14px"}}>✓</span>
                                 </button>
                               )}
                               {(cons.status === 'SCHEDULED' || cons.status === 'CONFIRMED' || cons.status === 'IN_PROGRESS') && (
@@ -1009,7 +999,7 @@ export default function ConsultationsPage() {
                                 className="p-2 text-violet-600 hover:bg-violet-50 rounded-2xl transition-colors"
                                 title="Gravar consulta & Gerar documentos"
                               >
-                                <LuMic className="w-4 h-4" />
+                                <span style={{fontSize:"14px"}}>🎤</span>
                               </Link>
                               <Link
                                 href={`/dashboard/erp/consultas/${cons.id}/documentos`}
@@ -1030,7 +1020,7 @@ export default function ConsultationsPage() {
                                 className="p-2 text-gray-400 hover:bg-gray-50 hover:text-red-600 rounded-2xl transition-colors"
                                 title="Excluir"
                               >
-                                <LuTrash2 className="w-4 h-4" />
+                                <LuTrash className="w-4 h-4" />
                               </button>
                             </div>
                           </td>
@@ -1042,7 +1032,7 @@ export default function ConsultationsPage() {
 
                 {filteredConsultations.length === 0 && !loading && (
                   <div className="text-center py-12">
-                    <LuStethoscope className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <span style={{fontSize:"14px"}}>🩺</span>
                     <p className="text-gray-500 text-lg">Nenhuma consulta encontrada</p>
                     <p className="text-gray-400 mt-2">
                       {consultations.length === 0 
@@ -1129,7 +1119,7 @@ export default function ConsultationsPage() {
                   <div>
                     <label className="text-sm font-medium text-gray-700">Veterinário</label>
                     <p className="text-gray-900 flex items-center gap-1">
-                      <LuStethoscope className="w-4 h-4" />
+                      <span style={{fontSize:"14px"}}>🩺</span>
                       {selectedConsultation.veterinarian.name}
                     </p>
                   </div>
@@ -1143,7 +1133,7 @@ export default function ConsultationsPage() {
               {/* Motivo e Diagnóstico */}
               <div>
                 <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <LuClipboardList className="w-5 h-5 text-cyan-600" />
+                  <span style={{fontSize:"14px"}}>📋</span>
                   Informações Clínicas
                 </h4>
                 <div className="space-y-4">
@@ -1160,7 +1150,7 @@ export default function ConsultationsPage() {
                   {selectedConsultation.prescription && (
                     <div>
                       <label className="text-sm font-medium text-gray-700 flex items-center gap-1">
-                        <LuPill className="w-4 h-4" />
+                        <span style={{fontSize:"14px"}}>💊</span>
                         Prescrição
                       </label>
                       <p className="text-gray-900 bg-gray-50 p-3 rounded-xl">{selectedConsultation.prescription}</p>
@@ -1205,7 +1195,7 @@ export default function ConsultationsPage() {
                 href={`/dashboard/erp/consultas/${selectedConsultation.id}/gravar`}
                 className="px-6 py-3 text-white bg-violet-600 rounded-2xl hover:bg-violet-700 transition-colors flex items-center gap-2"
               >
-                <LuMic className="w-4 h-4" />
+                <span style={{fontSize:"14px"}}>🎤</span>
                 Gravar & Documentos
               </Link>
               <Link
@@ -1227,7 +1217,7 @@ export default function ConsultationsPage() {
                   onClick={() => handleStartConsultation(selectedConsultation.id)}
                   className="px-6 py-3 text-white bg-cyan-600 rounded-2xl hover:bg-cyan-700 transition-colors flex items-center gap-2"
                 >
-                  <LuActivity className="w-4 h-4" />
+                  <span style={{fontSize:"14px"}}>⚡</span>
                   Iniciar Consulta
                 </button>
               ) : null}
@@ -1236,7 +1226,7 @@ export default function ConsultationsPage() {
                   onClick={() => handleCompleteConsultation(selectedConsultation.id)}
                   className="px-6 py-3 text-white bg-green-600 rounded-2xl hover:bg-green-700 transition-colors flex items-center gap-2"
                 >
-                  <LuCircleCheck className="w-4 h-4" />
+                  <span style={{fontSize:"14px"}}>✓</span>
                   Finalizar Consulta
                 </button>
               )}

@@ -3,21 +3,14 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import {
-  LuArrowDownRight,
-  LuArrowUpRight,
-  LuChartPie,
   LuDownload,
-  LuFileText,
-  LuFilter,
+  LuFileText
   LuLoader,
   LuPencil,
   LuPlus,
   LuSearch,
-  LuTrash2,
-  LuTrendingUp,
-  LuUsers,
-  LuDollarSign,
-} from 'react-icons/lu';
+  LuTrash
+  LuDollarSign} from 'react-icons/lu';
 import FinanceEntryModal, { FinanceEntryFormValues } from '@/components/protected/dashboard/erp/financeiro/modals/FinanceEntryModal';
 import ConfirmDeleteFinanceEntryModal from '@/components/protected/dashboard/erp/financeiro/modals/ConfirmDeleteFinanceEntryModal';
 import toast from 'react-hot-toast';
@@ -53,8 +46,7 @@ interface FinanceSummary {
 function formatCurrency(valueCents: number) {
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
-    currency: 'BRL',
-  }).format((valueCents || 0) / 100);
+    currency: 'BRL'}).format((valueCents || 0) / 100);
 }
 
 function formatDate(dateString: string) {
@@ -218,8 +210,7 @@ export default function FinanceiroPage() {
         amountCents: parseBrlToCents(values.amountBRL),
         date: toDateISO(values.date),
         dueDate: values.dueDate ? toDateISO(values.dueDate) : null,
-        paidAt: values.status === 'PAID' ? toDateISO(values.date) : null,
-      };
+        paidAt: values.status === 'PAID' ? toDateISO(values.date) : null};
 
       const url = editingEntry ? `/api/finance/entries/${editingEntry.id}` : '/api/finance/entries';
       const method = editingEntry ? 'PATCH' : 'POST';
@@ -227,8 +218,7 @@ export default function FinanceiroPage() {
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
+        body: JSON.stringify(payload)});
 
       if (!res.ok) {
         const err = await res.json().catch(() => null);
@@ -279,32 +269,28 @@ export default function FinanceiroPage() {
       icon: LuDollarSign,
       color: 'green' as const,
       trend: 'up' as const,
-      change: `${summary?.paidCount ?? 0} pagos`,
-    },
+      change: `${summary?.paidCount ?? 0} pagos`},
     {
       label: 'Pendentes (Receitas)',
       value: formatCurrency(summary?.pendingIncomeCents ?? 0),
-      icon: LuUsers,
+      icon: () => <span style={{fontSize:"14px"}}>👥</span>,
       color: 'yellow' as const,
       trend: 'neutral' as const,
-      change: `${(summary?.totalCount ?? 0) - (summary?.paidCount ?? 0)} em aberto`,
-    },
+      change: `${(summary?.totalCount ?? 0) - (summary?.paidCount ?? 0)} em aberto`},
     {
       label: 'Ticket Médio',
       value: formatCurrency(summary?.averageTicketCents ?? 0),
-      icon: LuTrendingUp,
+      icon: () => <span style={{fontSize:"14px"}}>📈</span>,
       color: 'blue' as const,
       trend: 'up' as const,
-      change: `${summary?.totalCount ?? 0} lançamentos`,
-    },
+      change: `${summary?.totalCount ?? 0} lançamentos`},
     {
       label: 'Taxa de Pagos',
       value: `${summary?.paidPercentage ?? 0}%`,
-      icon: LuChartPie,
+      icon: () => <span style={{fontSize:"14px"}}>🥧</span>,
       color: 'purple' as const,
       trend: 'up' as const,
-      change: 'no período',
-    },
+      change: 'no período'},
   ];
 
   return (
@@ -355,8 +341,7 @@ export default function FinanceiroPage() {
                       description: editingEntry.description || '',
                       amountBRL: ((editingEntry.amountCents || 0) / 100).toFixed(2).replace('.', ','),
                       date: editingEntry.date.slice(0, 10),
-                      dueDate: editingEntry.dueDate ? editingEntry.dueDate.slice(0, 10) : '',
-                    }
+                      dueDate: editingEntry.dueDate ? editingEntry.dueDate.slice(0, 10) : ''}
                   : undefined
               }
               onClose={() => setIsEntryModalOpen(false)}
@@ -409,8 +394,8 @@ export default function FinanceiroPage() {
                         stat.trend === 'up' ? 'text-green-600' : stat.trend === 'down' ? 'text-red-600' : 'text-yellow-600'
                       }`}
                     >
-                      {stat.trend === 'up' && <LuArrowUpRight className="w-4 h-4" />}
-                      {stat.trend === 'down' && <LuArrowDownRight className="w-4 h-4" />}
+                      {stat.trend === 'up' && <span style={{fontSize:"14px"}}>↗</span>}
+                      {stat.trend === 'down' && <span style={{fontSize:"14px"}}>↘</span>}
                       <span>{stat.change}</span>
                     </div>
                   </div>
@@ -472,7 +457,7 @@ export default function FinanceiroPage() {
                     onClick={fetchData}
                     className="flex items-center gap-2 px-4 py-3 text-sm font-semibold text-gray-600 bg-white/50 border border-gray-300/50 rounded-2xl hover:bg-white hover:border-gray-400 hover:shadow-lg transition-all duration-300 hover:scale-105 backdrop-blur-sm"
                   >
-                    <LuFilter className="w-4 h-4" />
+                    <span style={{fontSize:"14px"}}>⌕</span>
                     <span>Aplicar</span>
                   </button>
                 </div>
@@ -579,7 +564,7 @@ export default function FinanceiroPage() {
                                 className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl transition-all duration-300 hover:scale-110"
                                 title="Excluir"
                               >
-                                <LuTrash2 className="w-4 h-4" />
+                                <LuTrash className="w-4 h-4" />
                               </button>
                             </div>
                           </td>

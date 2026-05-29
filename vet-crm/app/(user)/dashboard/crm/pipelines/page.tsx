@@ -79,12 +79,10 @@ export default function PipelinePage() {
       const response = await fetch(`/api/boards/${boardId}`, {
         method: 'PATCH',
         headers: {
-          'Content-Type': 'application/json',
-        },
+          'Content-Type': 'application/json'},
         body: JSON.stringify({
           favorite: !boardToUpdate.favorite
-        }),
-      });
+        })});
 
       if (response.ok) {
         setBoards(boards.map(board =>
@@ -104,8 +102,7 @@ export default function PipelinePage() {
 
     try {
       const response = await fetch(`/api/boards/${boardToDelete.id}`, {
-        method: 'DELETE',
-      });
+        method: 'DELETE'});
 
       if (response.ok) {
         setBoards(boards.filter(board => board.id !== boardToDelete.id));

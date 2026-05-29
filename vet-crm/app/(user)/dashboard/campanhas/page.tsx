@@ -2,16 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { 
-  LuClock,
-  LuMail,
-  LuMessageSquare,
-  LuArrowUpRight,
-  LuMegaphone,
-  LuSave,
-  LuSend,
-  LuUsers,
-  LuChartColumn
+import {
+  LuSave
 } from 'react-icons/lu';
 
 type NewsletterLike = {
@@ -107,15 +99,14 @@ export default function CampanhasPage() {
       email: calc(emailCampaigns),
       whatsapp: calc(whatsAppCampaigns),
       sms: calc(smsCampaigns),
-      all: calc([...emailCampaigns, ...whatsAppCampaigns, ...smsCampaigns]),
-    };
+      all: calc([...emailCampaigns, ...whatsAppCampaigns, ...smsCampaigns])};
   }, [emailCampaigns, whatsAppCampaigns, smsCampaigns]);
 
   const campaignModules = [
     {
       title: 'Email',
       description: 'Campanhas de email para seus clientes',
-      icon: LuMail,
+      icon: () => <span style={{fontSize:"14px"}}>✉</span>,
       href: '/dashboard/campanhas/email',
       color: 'from-blue-500 to-indigo-600',
       badge: 'Disponível',
@@ -124,7 +115,7 @@ export default function CampanhasPage() {
     {
       title: 'WhatsApp',
       description: 'Campanhas via WhatsApp',
-      icon: LuMessageSquare,
+      icon: () => <span style={{fontSize:"14px"}}>💬</span>,
       href: '/dashboard/campanhas/whatsapp',
       color: 'from-cyan-500 to-cyan-600',
       badge: 'Disponível',
@@ -133,7 +124,7 @@ export default function CampanhasPage() {
     {
       title: 'Adsense',
       description: 'Exemplo visual para campanhas Google e Meta',
-      icon: LuChartColumn,
+      icon: () => <span style={{fontSize:"14px"}}>📊</span>,
       href: '/dashboard/campanhas/adsense',
       color: 'from-violet-500 to-cyan-600',
       badge: 'Preview',
@@ -142,7 +133,7 @@ export default function CampanhasPage() {
     {
       title: 'SMS',
       description: 'Mensagens de texto diretas',
-      icon: LuMessageSquare,
+      icon: () => <span style={{fontSize:"14px"}}>💬</span>,
       href: '/dashboard/campanhas/sms',
       color: 'from-green-500 to-cyan-600',
       badge: 'Em breve',
@@ -162,7 +153,7 @@ export default function CampanhasPage() {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div className="flex items-start gap-3">
                 <div className="mt-1 p-2.5 rounded-2xl bg-cyan-500/20 border border-cyan-500/20">
-                  <LuMegaphone className="w-5 h-5 text-cyan-300" />
+                  <span style={{fontSize:"14px"}}>📣</span>
                 </div>
                 <div>
                   <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-cyan-400 via-cyan-400 to-cyan-400 bg-clip-text text-transparent">
@@ -191,33 +182,30 @@ export default function CampanhasPage() {
                 {
                   key: 'email',
                   title: 'Email',
-                  icon: LuMail,
+                  icon: () => <span style={{fontSize:"14px"}}>✉</span>,
                   href: '/dashboard/campanhas/email',
                   tint: 'bg-blue-500/20',
                   iconColor: 'text-blue-300',
                   showEngagement: emailHasEngagementMetrics,
-                  data: computeResults.email,
-                },
+                  data: computeResults.email},
                 {
                   key: 'whatsapp',
                   title: 'WhatsApp',
-                  icon: LuMessageSquare,
+                  icon: () => <span style={{fontSize:"14px"}}>💬</span>,
                   href: '/dashboard/campanhas/whatsapp',
                   tint: 'bg-cyan-500/20',
                   iconColor: 'text-cyan-300',
                   showEngagement: false,
-                  data: computeResults.whatsapp,
-                },
+                  data: computeResults.whatsapp},
                 {
                   key: 'sms',
                   title: 'SMS',
-                  icon: LuMessageSquare,
+                  icon: () => <span style={{fontSize:"14px"}}>💬</span>,
                   href: '/dashboard/campanhas/sms',
                   tint: 'bg-green-500/20',
                   iconColor: 'text-green-300',
                   showEngagement: false,
-                  data: computeResults.sms,
-                },
+                  data: computeResults.sms},
               ].map((section) => (
                 <div key={section.key} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-5">
                   <div className="flex items-start justify-between gap-3">
@@ -234,15 +222,15 @@ export default function CampanhasPage() {
                       href={section.href}
                       className="text-sm text-cyan-300 hover:text-cyan-200 transition-colors inline-flex items-center gap-1 whitespace-nowrap"
                     >
-                      Ver <LuArrowUpRight className="w-4 h-4" />
+                      Ver <span style={{fontSize:"14px"}}>↗</span>
                     </Link>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3 mt-4">
                     {[
-                      { label: 'Total', value: section.data.total, icon: LuMail },
-                      { label: 'Enviados', value: section.data.sent, icon: LuSend },
-                      { label: 'Agendados', value: section.data.scheduled, icon: LuClock },
+                      { label: 'Total', value: section.data.total, icon: () => <span style={{fontSize:"14px"}}>✉</span> },
+                      { label: 'Enviados', value: section.data.sent, icon: () => <span style={{fontSize:"14px"}}>➤</span> },
+                      { label: 'Agendados', value: section.data.scheduled, icon: () => <span style={{fontSize:"14px"}}>⏱</span> },
                       { label: 'Rascunhos', value: section.data.drafts, icon: LuSave },
                     ].map((kpi) => (
                       <div key={kpi.label} className="rounded-xl border border-white/10 bg-white/5 p-3">
@@ -322,7 +310,7 @@ export default function CampanhasPage() {
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-gray-400">{module.badge}</span>
                       {!module.disabled && (
-                        <LuArrowUpRight className="w-4 h-4 text-gray-500 group-hover:text-cyan-400 transition-colors" />
+                        <span style={{fontSize:"14px"}}>↗</span>
                       )}
                     </div>
                   </div>

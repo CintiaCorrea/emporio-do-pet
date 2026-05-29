@@ -4,14 +4,9 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
-  LuChevronRight, 
   LuArrowLeft, 
   LuSave,
-  LuLoader,
-  LuClock,
-  LuZap,
-  LuGlobe,
-  LuHand
+  LuLoader
 } from 'react-icons/lu';
 import { toast } from 'sonner';
 import AutomationStepEditor, { AutomationStep } from '@/components/protected/ai-agents/AutomationStepEditor';
@@ -43,10 +38,10 @@ const CATEGORIES = [
 ];
 
 const TRIGGERS = [
-  { value: 'MANUAL', label: 'Manual', description: 'Executar manualmente', icon: <LuHand className="w-5 h-5" /> },
-  { value: 'SCHEDULE', label: 'Agendado', description: 'Executar em horários específicos', icon: <LuClock className="w-5 h-5" /> },
-  { value: 'EVENT', label: 'Evento', description: 'Executar quando um evento ocorrer', icon: <LuZap className="w-5 h-5" /> },
-  { value: 'WEBHOOK', label: 'Webhook', description: 'Executar via chamada HTTP', icon: <LuGlobe className="w-5 h-5" /> },
+  { value: 'MANUAL', label: 'Manual', description: 'Executar manualmente', icon: <span style={{fontSize:"14px"}}>✋</span> },
+  { value: 'SCHEDULE', label: 'Agendado', description: 'Executar em horários específicos', icon: <span style={{fontSize:"14px"}}>⏱</span> },
+  { value: 'EVENT', label: 'Evento', description: 'Executar quando um evento ocorrer', icon: <span style={{fontSize:"14px"}}>⚡</span> },
+  { value: 'WEBHOOK', label: 'Webhook', description: 'Executar via chamada HTTP', icon: <span style={{fontSize:"14px"}}>🌐</span> },
 ];
 
 export default function NovaAutomacaoPage() {
@@ -60,8 +55,7 @@ export default function NovaAutomacaoPage() {
     category: 'ATENDIMENTO',
     trigger: 'MANUAL',
     triggerConfig: {},
-    steps: [],
-  });
+    steps: []});
 
   useEffect(() => {
     loadAgents();
@@ -118,10 +112,7 @@ export default function NovaAutomacaoPage() {
           steps: form.steps.map(s => ({
             type: s.type,
             name: s.name,
-            config: s.config,
-          })),
-        }),
-      });
+            config: s.config}))})});
 
       const data = await response.json();
 
@@ -147,11 +138,11 @@ export default function NovaAutomacaoPage() {
           <Link href="/dashboard/ai-agents/automacoes" className="hover:text-violet-600">
             AI Agents
           </Link>
-          <LuChevronRight className="w-4 h-4" />
+          <span style={{fontSize:"14px"}}>▶</span>
           <Link href="/dashboard/ai-agents/automacoes" className="hover:text-violet-600">
             Automações
           </Link>
-          <LuChevronRight className="w-4 h-4" />
+          <span style={{fontSize:"14px"}}>▶</span>
           <span className="text-gray-900 font-medium">Nova Automação</span>
         </div>
 

@@ -17,10 +17,8 @@ export function OrderDetailsEditor({ formData, onChange }: OrderDetailsEditorPro
           id: crypto.randomUUID(),
           name: '',
           amount: 0,
-          quantity: 1,
-        },
-      ],
-    }));
+          quantity: 1},
+      ]}));
   };
 
   return (
@@ -48,8 +46,7 @@ export function OrderDetailsEditor({ formData, onChange }: OrderDetailsEditorPro
                   ...prev,
                   orderItems: prev.orderItems.map((entry) =>
                     entry.id === item.id ? { ...entry, name: e.target.value } : entry,
-                  ),
-                }))
+                  )}))
               }
               className="px-2 py-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-600 rounded text-sm"
             />
@@ -62,8 +59,7 @@ export function OrderDetailsEditor({ formData, onChange }: OrderDetailsEditorPro
                   ...prev,
                   orderItems: prev.orderItems.map((entry) =>
                     entry.id === item.id ? { ...entry, quantity: Number(e.target.value) } : entry,
-                  ),
-                }))
+                  )}))
               }
               className="px-2 py-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-600 rounded text-sm"
             />
@@ -76,8 +72,7 @@ export function OrderDetailsEditor({ formData, onChange }: OrderDetailsEditorPro
                   ...prev,
                   orderItems: prev.orderItems.map((entry) =>
                     entry.id === item.id ? { ...entry, amount: Number(e.target.value) } : entry,
-                  ),
-                }))
+                  )}))
               }
               className="px-2 py-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-600 rounded text-sm"
             />
@@ -86,8 +81,7 @@ export function OrderDetailsEditor({ formData, onChange }: OrderDetailsEditorPro
               onClick={() =>
                 onChange((prev) => ({
                   ...prev,
-                  orderItems: prev.orderItems.filter((entry) => entry.id !== item.id),
-                }))
+                  orderItems: prev.orderItems.filter((entry) => entry.id !== item.id)}))
               }
             >
               Remover
@@ -102,8 +96,7 @@ export function OrderDetailsEditor({ formData, onChange }: OrderDetailsEditorPro
           <strong>
             {formData.orderItems.reduce((sum, item) => sum + item.amount * item.quantity, 0).toLocaleString('pt-BR', {
               style: 'currency',
-              currency: 'BRL',
-            })}
+              currency: 'BRL'})}
           </strong>
         </div>
       )}

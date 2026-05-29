@@ -3,13 +3,9 @@
 import { useRouter } from 'next/navigation';
 import {
   LuArrowLeft,
-  LuSave,
-  LuMonitor,
-  LuTablet,
-  LuSmartphone,
+  LuSave
   LuDownload,
-  LuLoaderCircle,
-} from 'react-icons/lu';
+  LuLoaderCircle} from 'react-icons/lu';
 import type { Editor } from 'grapesjs';
 
 interface EditorToolbarProps {
@@ -27,8 +23,7 @@ export default function EditorToolbar({
   pageName,
   isSaving,
   onSave,
-  onExport,
-}: EditorToolbarProps) {
+  onExport}: EditorToolbarProps) {
   const router = useRouter();
 
   const setDevice = (device: string) => {
@@ -58,21 +53,21 @@ export default function EditorToolbar({
           className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
           title="Desktop"
         >
-          <LuMonitor className="w-4 h-4" />
+          <span style={{fontSize:"14px"}}>🖥</span>
         </button>
         <button
           onClick={() => setDevice('Tablet')}
           className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
           title="Tablet"
         >
-          <LuTablet className="w-4 h-4" />
+          <span style={{fontSize:"14px"}}>📱</span>
         </button>
         <button
           onClick={() => setDevice('Mobile portrait')}
           className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
           title="Mobile"
         >
-          <LuSmartphone className="w-4 h-4" />
+          <span style={{fontSize:"14px"}}>📱</span>
         </button>
       </div>
 

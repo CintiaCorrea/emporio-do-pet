@@ -4,9 +4,7 @@ import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
-  LuChevronRight, 
-  LuArrowLeft, 
-  LuSettings,
+  LuArrowLeft
   LuLoader
 } from 'react-icons/lu';
 import { toast } from 'sonner';
@@ -97,11 +95,11 @@ export default function AgentTestPage({ params }: { params: Promise<{ id: string
           <Link href="/dashboard/ai-agents/agents" className="hover:text-violet-600">
             AI Agents
           </Link>
-          <LuChevronRight className="w-4 h-4" />
+          <span style={{fontSize:"14px"}}>▶</span>
           <Link href="/dashboard/ai-agents/agents" className="hover:text-violet-600">
             Agents
           </Link>
-          <LuChevronRight className="w-4 h-4" />
+          <span style={{fontSize:"14px"}}>▶</span>
           <span className="text-gray-900 font-medium">Testar</span>
         </div>
 
@@ -133,7 +131,7 @@ export default function AgentTestPage({ params }: { params: Promise<{ id: string
               href={`/dashboard/ai-agents/agents`}
               className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
             >
-              <LuSettings className="w-4 h-4" />
+              <span style={{fontSize:"14px"}}>⚙</span>
               Configurações
             </Link>
           </div>

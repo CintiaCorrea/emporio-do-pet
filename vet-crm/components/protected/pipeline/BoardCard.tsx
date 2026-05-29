@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { LuStar, LuArrowRight, LuPencil, LuTrash2 } from 'react-icons/lu';
+import { LuPencil, LuTrash } from 'react-icons/lu';
 import { Board } from '@/types/board';
 
 interface BoardCardProps {
@@ -22,7 +22,7 @@ export default function BoardCard({ board, onToggleFavorite, onDelete, isSystemB
             onClick={() => onToggleFavorite(board.id)}
             className="text-gray-400 hover:text-yellow-500 transition-all duration-300 hover:scale-110 flex-shrink-0"
           >
-            <LuStar className={`w-5 h-5 ${board.favorite ? 'fill-yellow-400 text-yellow-400' : ''}`} />
+            <span style={{fontSize:"14px"}}>⭐</span>
           </button>
         </div>
         
@@ -61,7 +61,7 @@ export default function BoardCard({ board, onToggleFavorite, onDelete, isSystemB
             className="group/link text-blue-600 hover:text-blue-800 font-semibold text-sm flex items-center gap-2 transition-all duration-300 hover:gap-3"
           >
             <span>Abrir Board</span>
-            <LuArrowRight className="w-4 h-4 transition-transform duration-300 group-hover/link:translate-x-1" />
+            
           </Link>
           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
             <Link
@@ -75,7 +75,7 @@ export default function BoardCard({ board, onToggleFavorite, onDelete, isSystemB
                 onClick={() => onDelete(board.id)}
                 className="text-gray-400 hover:text-red-500 transition-colors duration-300 p-1 hover:scale-110"
               >
-                <LuTrash2 className="w-4 h-4" />
+                <LuTrash className="w-4 h-4" />
               </button>
             )}
           </div>

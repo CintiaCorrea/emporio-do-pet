@@ -18,8 +18,7 @@ import {
   FileSignature,
   ScrollText,
   Receipt,
-  ChevronLeft,
-} from 'lucide-react';
+  ChevronLeft} from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const DOCUMENT_TYPES = [
@@ -50,8 +49,7 @@ interface StandaloneDocumentGeneratorProps {
 export default function StandaloneDocumentGenerator({
   transcription,
   onDocumentsGenerated,
-  onBack,
-}: StandaloneDocumentGeneratorProps) {
+  onBack}: StandaloneDocumentGeneratorProps) {
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedDocs, setGeneratedDocs] = useState<GeneratedDocument[]>([]);
@@ -107,9 +105,7 @@ export default function StandaloneDocumentGenerator({
             crmv: crmv || undefined,
             petName: petName || undefined,
             tutorName: tutorName || undefined,
-            additionalContext: additionalContext || undefined,
-          }),
-        });
+            additionalContext: additionalContext || undefined})});
 
         if (res.ok) {
           const data = await res.json();
@@ -118,20 +114,17 @@ export default function StandaloneDocumentGenerator({
             title: data.title || DOCUMENT_TYPES.find((d) => d.value === docType)?.label || 'Documento',
             type: docType,
             content: data.content || '',
-            htmlContent: data.htmlContent || '',
-          });
+            htmlContent: data.htmlContent || ''});
         } else {
           const error = await res.json().catch(() => ({}));
           errorList.push({
             type: docType,
-            error: error.error || 'Erro na geração',
-          });
+            error: error.error || 'Erro na geração'});
         }
       } catch (err) {
         errorList.push({
           type: docType,
-          error: 'Erro de conexão',
-        });
+          error: 'Erro de conexão'});
       }
     }
 
@@ -157,8 +150,7 @@ export default function StandaloneDocumentGenerator({
     yellow: 'border-yellow-300 bg-yellow-50 dark:border-yellow-700 dark:bg-yellow-900/20',
     orange: 'border-orange-300 bg-orange-50 dark:border-orange-700 dark:bg-orange-900/20',
     red: 'border-red-300 bg-red-50 dark:border-red-700 dark:bg-red-900/20',
-    teal: 'border-cyan-300 bg-cyan-50 dark:border-cyan-700 dark:bg-cyan-900/20',
-  };
+    teal: 'border-cyan-300 bg-cyan-50 dark:border-cyan-700 dark:bg-cyan-900/20'};
 
   const selectedColorClasses: Record<string, string> = {
     blue: 'border-blue-500 bg-blue-100 ring-2 ring-blue-500/30 dark:border-blue-500 dark:bg-blue-900/40',
@@ -168,8 +160,7 @@ export default function StandaloneDocumentGenerator({
     yellow: 'border-yellow-500 bg-yellow-100 ring-2 ring-yellow-500/30 dark:border-yellow-500 dark:bg-yellow-900/40',
     orange: 'border-orange-500 bg-orange-100 ring-2 ring-orange-500/30 dark:border-orange-500 dark:bg-orange-900/40',
     red: 'border-red-500 bg-red-100 ring-2 ring-red-500/30 dark:border-red-500 dark:bg-red-900/40',
-    teal: 'border-cyan-500 bg-cyan-100 ring-2 ring-cyan-500/30 dark:border-cyan-500 dark:bg-cyan-900/40',
-  };
+    teal: 'border-cyan-500 bg-cyan-100 ring-2 ring-cyan-500/30 dark:border-cyan-500 dark:bg-cyan-900/40'};
 
   return (
     <div className="space-y-6">

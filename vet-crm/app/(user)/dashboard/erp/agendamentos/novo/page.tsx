@@ -5,11 +5,9 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
   LuArrowLeft, 
-  LuCalendar, 
-  LuClock, 
+  LuCalendar 
   LuUser, 
-  LuPawPrint, 
-  LuStethoscope,
+  LuPawPrint
   LuDollarSign,
   LuFileText,
   LuSave,
@@ -366,7 +364,7 @@ export default function NewAppointmentPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <label className="flex items-center text-sm font-semibold text-gray-700">
-                        <LuStethoscope className="w-4 h-4 mr-2 text-purple-500" />
+                        <span style={{fontSize:"14px"}}>🩺</span>
                         Veterinário *
                       </label>
                       <select
@@ -387,7 +385,7 @@ export default function NewAppointmentPage() {
 
                     <div className="space-y-2">
                       <label className="flex items-center text-sm font-semibold text-gray-700">
-                        <LuClock className="w-4 h-4 mr-2 text-orange-500" />
+                        <span style={{fontSize:"14px"}}>⏱</span>
                         Duração (minutos) *
                       </label>
                       <input
@@ -423,7 +421,7 @@ export default function NewAppointmentPage() {
 
                     <div className="space-y-2">
                       <label className="flex items-center text-sm font-semibold text-gray-700">
-                        <LuClock className="w-4 h-4 mr-2 text-blue-500" />
+                        <span style={{fontSize:"14px"}}>⏱</span>
                         Horário *
                       </label>
                       <input

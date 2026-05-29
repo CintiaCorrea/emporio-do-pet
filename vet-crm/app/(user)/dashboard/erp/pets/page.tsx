@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { LuPlus, LuSearch, LuPencil, LuTrash2, LuPawPrint, LuFilter, LuDownload, LuEye, LuUser } from 'react-icons/lu';
+import { LuPlus, LuSearch, LuPencil, LuTrash, LuPawPrint LuDownload, LuEye, LuUser } from 'react-icons/lu';
 import Link from 'next/link';
 import ConfirmDeleteModal from '@/components/common/ConfirmDeleteModal';
 import toast from 'react-hot-toast';
@@ -346,7 +346,7 @@ export default function PetsListPage() {
                       className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl transition-all duration-300 hover:scale-110"
                       title="Excluir"
                     >
-                      <LuTrash2 className="w-4 h-4" />
+                      <LuTrash className="w-4 h-4" />
                     </button>
                   </div>
                 </td>
@@ -413,7 +413,7 @@ export default function PetsListPage() {
                   {/* Filtro de Status */}
                   <div className="md:col-span-3">
                     <div className="flex items-center space-x-2">
-                      <LuFilter className="h-5 w-5 text-gray-400" />
+                      <span style={{fontSize:"14px"}}>⌕</span>
                       <select
                         value={filterStatus}
                         onChange={(e) => setFilterStatus(e.target.value as any)}

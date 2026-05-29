@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { LuArrowLeft, LuPencil, LuTrash2 } from 'react-icons/lu';
+import { LuArrowLeft, LuPencil, LuTrash } from 'react-icons/lu';
 import { Tutor } from '@/types/tutor-detail';
 import { getPersonTypeText, formatDate } from '@/utils/tutor-detail-formatters';
 
@@ -42,7 +42,7 @@ export default function TutorDetailHeader({ tutor, onDelete }: TutorDetailHeader
               onClick={onDelete}
               className="shrink-0 flex items-center gap-2 px-3 sm:px-4 py-2 text-red-600 bg-red-50 border border-red-200 rounded-xl hover:bg-red-100 transition-all duration-300 text-sm sm:text-base"
             >
-              <LuTrash2 className="w-4 h-4" />
+              <LuTrash className="w-4 h-4" />
               <span className="hidden sm:inline">Excluir</span>
               <span className="sm:hidden">Excluir</span>
             </button>

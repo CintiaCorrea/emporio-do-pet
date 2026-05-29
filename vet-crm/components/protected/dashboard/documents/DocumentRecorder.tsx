@@ -2,19 +2,9 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import {
-  LuMic,
-  LuCircleStop,
-  LuPlay,
-  LuPause,
-  LuBrain,
   LuLoader,
-  LuCheck,
-  LuClock,
-  LuWaves,
-  LuVolume2,
-  LuFileText,
-  LuPenLine,
-  LuArrowRight,
+  LuCheck
+  LuFileText
 } from 'react-icons/lu';
 import toast from 'react-hot-toast';
 
@@ -26,8 +16,7 @@ interface DocumentRecorderProps {
 }
 
 export default function DocumentRecorder({
-  onTranscriptionComplete,
-}: DocumentRecorderProps) {
+  onTranscriptionComplete}: DocumentRecorderProps) {
   const [inputMode, setInputMode] = useState<InputMode>('select');
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
@@ -56,16 +45,13 @@ export default function DocumentRecorder({
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
-          sampleRate: 44100,
-        },
-      });
+          sampleRate: 44100}});
       streamRef.current = stream;
 
       const mediaRecorder = new MediaRecorder(stream, {
         mimeType: MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
           ? 'audio/webm;codecs=opus'
-          : 'audio/webm',
-      });
+          : 'audio/webm'});
       mediaRecorderRef.current = mediaRecorder;
       chunksRef.current = [];
 
@@ -146,8 +132,7 @@ export default function DocumentRecorder({
 
       const res = await fetch('/api/audio/transcribe', {
         method: 'POST',
-        body: formData,
-      });
+        body: formData});
 
       setUploadProgress(80);
 
@@ -228,7 +213,7 @@ export default function DocumentRecorder({
             className="group p-6 rounded-2xl border-2 border-gray-200 dark:border-gray-700 hover:border-red-400 dark:hover:border-red-500 bg-gradient-to-br from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 transition-all hover:shadow-lg"
           >
             <div className="w-16 h-16 rounded-2xl bg-red-100 dark:bg-red-900/30 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
-              <LuMic className="w-8 h-8 text-red-600 dark:text-red-400" />
+              <span style={{fontSize:"14px"}}>🎤</span>
             </div>
             <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
               Gravar Áudio
@@ -238,7 +223,7 @@ export default function DocumentRecorder({
             </p>
             <div className="flex items-center justify-center gap-2 text-red-600 dark:text-red-400 text-sm font-medium">
               Começar gravação
-              <LuArrowRight className="w-4 h-4" />
+              <span style={{fontSize:"14px"}}>→</span>
             </div>
           </button>
 
@@ -248,7 +233,7 @@ export default function DocumentRecorder({
             className="group p-6 rounded-2xl border-2 border-gray-200 dark:border-gray-700 hover:border-blue-400 dark:hover:border-blue-500 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 transition-all hover:shadow-lg"
           >
             <div className="w-16 h-16 rounded-2xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
-              <LuPenLine className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+              <span style={{fontSize:"14px"}}>✏</span>
             </div>
             <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
               Digitar Texto
@@ -258,7 +243,7 @@ export default function DocumentRecorder({
             </p>
             <div className="flex items-center justify-center gap-2 text-blue-600 dark:text-blue-400 text-sm font-medium">
               Começar a digitar
-              <LuArrowRight className="w-4 h-4" />
+              <span style={{fontSize:"14px"}}>→</span>
             </div>
           </button>
         </div>
@@ -273,7 +258,7 @@ export default function DocumentRecorder({
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-red-100 dark:bg-red-900/30">
-              <LuMic className="w-5 h-5 text-red-600 dark:text-red-400" />
+              <span style={{fontSize:"14px"}}>🎤</span>
             </div>
             <div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -332,7 +317,7 @@ export default function DocumentRecorder({
               </div>
               {isRecording && !isPaused && (
                 <div className="flex items-center justify-center gap-1 mt-2">
-                  <LuWaves className="w-4 h-4 text-red-500 animate-pulse" />
+                  <span style={{fontSize:"14px"}}>〰</span>
                   <span className="text-sm text-red-500">Capturando áudio...</span>
                 </div>
               )}
@@ -364,7 +349,7 @@ export default function DocumentRecorder({
               onClick={startRecording}
               className="flex items-center gap-2 px-8 py-4 bg-red-500 hover:bg-red-600 text-white rounded-2xl font-medium transition-all shadow-lg hover:shadow-xl text-lg"
             >
-              <LuMic className="w-6 h-6" />
+              <span style={{fontSize:"14px"}}>🎤</span>
               Iniciar Gravação
             </button>
           )}
@@ -380,14 +365,14 @@ export default function DocumentRecorder({
                     : 'bg-yellow-500 hover:bg-yellow-600 text-white'
                 }`}
               >
-                {isPaused ? <LuPlay className="w-5 h-5" /> : <LuPause className="w-5 h-5" />}
+                {isPaused ? <span style={{fontSize:"14px"}}>▶</span> : <span style={{fontSize:"14px"}}>⏸</span>}
                 {isPaused ? 'Continuar' : 'Pausar'}
               </button>
               <button
                 onClick={stopRecording}
                 className="flex items-center gap-2 px-6 py-3 bg-gray-700 hover:bg-gray-800 text-white rounded-xl font-medium transition-all"
               >
-                <LuCircleStop className="w-5 h-5" />
+                <span style={{fontSize:"14px"}}>◼</span>
                 Finalizar
               </button>
             </>
@@ -398,7 +383,7 @@ export default function DocumentRecorder({
             <div className="flex flex-col items-center gap-4 w-full">
               {audioUrl && (
                 <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg w-full max-w-md">
-                  <LuVolume2 className="w-5 h-5 text-gray-500 flex-shrink-0" />
+                  <span style={{fontSize:"14px"}}>🔊</span>
                   <audio controls src={audioUrl} className="w-full h-8" />
                 </div>
               )}
@@ -410,7 +395,7 @@ export default function DocumentRecorder({
                 {isTranscribing ? (
                   <LuLoader className="w-6 h-6 animate-spin" />
                 ) : (
-                  <LuBrain className="w-6 h-6" />
+                  <span style={{fontSize:"14px"}}>🧠</span>
                 )}
                 {isTranscribing ? 'Transcrevendo...' : 'Transcrever com IA (Whisper)'}
               </button>
@@ -437,7 +422,7 @@ export default function DocumentRecorder({
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30">
-              <LuPenLine className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              <span style={{fontSize:"14px"}}>✏</span>
             </div>
             <div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -484,7 +469,7 @@ Exemplo:
               disabled={!textContent.trim()}
               className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 text-white rounded-xl font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
             >
-              <LuArrowRight className="w-5 h-5" />
+              <span style={{fontSize:"14px"}}>→</span>
               Continuar para Geração
             </button>
           </div>

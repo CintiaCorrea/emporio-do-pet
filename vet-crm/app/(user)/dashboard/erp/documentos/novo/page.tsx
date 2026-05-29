@@ -5,18 +5,13 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   LuArrowLeft,
-  LuFileText,
-  LuMic,
-  LuBrain,
-  LuArrowRight,
-  LuHistory,
+  LuFileText
   LuCheck,
   LuDownload,
   LuEye,
   LuPlus,
   LuSave,
-  LuLoader,
-} from 'react-icons/lu';
+  LuLoader} from 'react-icons/lu';
 import toast from 'react-hot-toast';
 import DocumentRecorder from '@/components/protected/dashboard/documents/DocumentRecorder';
 import StandaloneDocumentGenerator from '@/components/protected/dashboard/documents/StandaloneDocumentGenerator';
@@ -42,8 +37,7 @@ export default function NewDocumentPage() {
     setTranscription(text);
     addToRecordingHistory({
       transcription: text,
-      audioDuration,
-    });
+      audioDuration});
     setStep('generate');
   };
 
@@ -69,9 +63,7 @@ export default function NewDocumentPage() {
           content: doc.htmlContent || doc.content,
           status: 'PUBLISHED',
           category: doc.type,
-          tags: ['gerado-ia'],
-        }),
-      });
+          tags: ['gerado-ia']})});
 
       if (res.ok) {
         toast.success(`"${doc.title}" salvo com sucesso!`);
@@ -98,9 +90,7 @@ export default function NewDocumentPage() {
             content: doc.htmlContent || doc.content,
             status: 'PUBLISHED',
             category: doc.type,
-            tags: ['gerado-ia'],
-          }),
-        });
+            tags: ['gerado-ia']})});
         if (res.ok) saved++;
       } catch {
         // continue
@@ -136,7 +126,7 @@ export default function NewDocumentPage() {
           </Link>
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-              <LuMic className="w-6 h-6 text-violet-600" />
+              <span style={{fontSize:"14px"}}>🎤</span>
               Novo Documento
             </h1>
             <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -154,7 +144,7 @@ export default function NewDocumentPage() {
                 : 'bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-300'
             }`}
           >
-            <LuHistory className="w-4 h-4" />
+            <span style={{fontSize:"14px"}}>⏳</span>
             Histórico
           </button>
 
@@ -182,10 +172,10 @@ export default function NewDocumentPage() {
               : 'bg-gray-100 text-gray-500 dark:bg-gray-700'
           }`}
         >
-          <LuMic className="w-4 h-4" />
+          <span style={{fontSize:"14px"}}>🎤</span>
           1. Gravar & Transcrever
         </button>
-        <LuArrowRight className="w-4 h-4 text-gray-400" />
+        <span style={{fontSize:"14px"}}>→</span>
         <button
           onClick={() => transcription && setStep('generate')}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
@@ -197,10 +187,10 @@ export default function NewDocumentPage() {
           }`}
           disabled={!transcription}
         >
-          <LuBrain className="w-4 h-4" />
+          <span style={{fontSize:"14px"}}>🧠</span>
           2. Gerar Documentos
         </button>
-        <LuArrowRight className="w-4 h-4 text-gray-400" />
+        <span style={{fontSize:"14px"}}>→</span>
         <button
           onClick={() => generatedDocs.length > 0 && setStep('done')}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${

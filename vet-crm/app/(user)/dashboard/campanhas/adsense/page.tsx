@@ -1,14 +1,6 @@
 import Link from 'next/link';
 import {
-  LuArrowUpRight,
-  LuBot,
-  LuChartColumn,
-  LuCheckCheck,
-  LuClock,
-  LuMegaphone,
-  LuSearch,
-  LuUsers,
-} from 'react-icons/lu';
+  LuSearch} from 'react-icons/lu';
 
 const channels = [
   {
@@ -26,11 +18,10 @@ const channels = [
       'Palavras-chave separadas por serviço',
       'Campanhas locais com extensão de chamada',
       'Landing pages por intenção de busca',
-    ],
-  },
+    ]},
   {
     name: 'Meta Ads',
-    icon: LuUsers,
+    icon: () => <span style={{fontSize:"14px"}}>👥</span>,
     color: 'from-fuchsia-500 to-violet-500',
     accent: 'text-fuchsia-600 dark:text-fuchsia-300',
     badge: 'Feed + Stories + Remarketing',
@@ -43,26 +34,22 @@ const channels = [
       'Criativos com pets e provas sociais',
       'Campanhas de tráfego e geração de cadastro',
       'Remarketing para carrinho e páginas de serviço',
-    ],
-  },
+    ]},
 ];
 
 const funnelStages = [
   {
     title: 'Topo',
     description: 'Alcance e reconhecimento para serviços e diferenciais da clínica.',
-    metric: 'CPM médio R$ 11,20',
-  },
+    metric: 'CPM médio R$ 11,20'},
   {
     title: 'Meio',
     description: 'Campanhas com prova social, depoimentos e ofertas sazonais.',
-    metric: 'CTR médio 4,7%',
-  },
+    metric: 'CTR médio 4,7%'},
   {
     title: 'Fundo',
     description: 'Remarketing com CTA direto para WhatsApp, formulário e agendamento.',
-    metric: 'Conversão estimada 12,6%',
-  },
+    metric: 'Conversão estimada 12,6%'},
 ];
 
 const audiences = [
@@ -76,18 +63,15 @@ const creatives = [
   {
     title: 'Vacinação em dia',
     format: 'Imagem estática + CTA para WhatsApp',
-    copy: 'Proteja seu pet com lembretes automáticos e agendamento rápido.',
-  },
+    copy: 'Proteja seu pet com lembretes automáticos e agendamento rápido.'},
   {
     title: 'Banho e tosa recorrente',
     format: 'Carrossel com benefícios e combo mensal',
-    copy: 'Mostre antes/depois, benefícios e incentive recorrência.',
-  },
+    copy: 'Mostre antes/depois, benefícios e incentive recorrência.'},
   {
     title: 'Consulta preventiva',
     format: 'Vídeo curto com veterinário',
-    copy: 'Explique sintomas, check-up e urgência de prevenção.',
-  },
+    copy: 'Explique sintomas, check-up e urgência de prevenção.'},
 ];
 
 export default function AdsenseCampaignsPage() {
@@ -102,7 +86,7 @@ export default function AdsenseCampaignsPage() {
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-start gap-3">
               <div className="mt-1 rounded-2xl border border-violet-200 dark:border-violet-500/20 bg-violet-100 dark:bg-violet-500/20 p-2.5">
-                <LuMegaphone className="h-5 w-5 text-violet-600 dark:text-violet-300" />
+                <span style={{fontSize:"14px"}}>📣</span>
               </div>
               <div>
                 <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -131,7 +115,7 @@ export default function AdsenseCampaignsPage() {
                 Voltar para Campanhas
               </Link>
               <div className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-cyan-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-violet-500/20">
-                <LuBot className="h-4 w-4" />
+                <span style={{fontSize:"14px"}}>🤖</span>
                 Conceito com IA + mídia paga
               </div>
             </div>
@@ -139,10 +123,10 @@ export default function AdsenseCampaignsPage() {
 
           <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {[
-              { label: 'Investimento mensal', value: 'R$ 5.700', icon: LuChartColumn, tint: 'bg-violet-100 dark:bg-violet-500/20 text-violet-600 dark:text-violet-300' },
-              { label: 'Leads estimados', value: '312', icon: LuUsers, tint: 'bg-cyan-100 dark:bg-cyan-500/20 text-cyan-600 dark:text-cyan-300' },
-              { label: 'ROAS projetado', value: '4.8x', icon: LuArrowUpRight, tint: 'bg-cyan-100 dark:bg-cyan-500/20 text-cyan-600 dark:text-cyan-300' },
-              { label: 'Tempo de otimização', value: '7 dias', icon: LuClock, tint: 'bg-orange-100 dark:bg-orange-500/20 text-orange-600 dark:text-orange-300' },
+              { label: 'Investimento mensal', value: 'R$ 5.700', icon: () => <span style={{fontSize:"14px"}}>📊</span>, tint: 'bg-violet-100 dark:bg-violet-500/20 text-violet-600 dark:text-violet-300' },
+              { label: 'Leads estimados', value: '312', icon: () => <span style={{fontSize:"14px"}}>👥</span>, tint: 'bg-cyan-100 dark:bg-cyan-500/20 text-cyan-600 dark:text-cyan-300' },
+              { label: 'ROAS projetado', value: '4.8x', icon: () => <span style={{fontSize:"14px"}}>↗</span>, tint: 'bg-cyan-100 dark:bg-cyan-500/20 text-cyan-600 dark:text-cyan-300' },
+              { label: 'Tempo de otimização', value: '7 dias', icon: () => <span style={{fontSize:"14px"}}>⏱</span>, tint: 'bg-orange-100 dark:bg-orange-500/20 text-orange-600 dark:text-orange-300' },
             ].map((item) => (
               <div key={item.label} className="rounded-2xl border border-gray-200/80 dark:border-white/10 bg-white/95 dark:bg-white/5 p-5 backdrop-blur-xl shadow-sm dark:shadow-none">
                 <div className="flex items-center gap-3">
@@ -215,7 +199,7 @@ export default function AdsenseCampaignsPage() {
                     <div className="mt-4 space-y-2">
                       {channel.highlights.map((item) => (
                         <div key={item} className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-300">
-                          <LuCheckCheck className="mt-0.5 h-4 w-4 shrink-0 text-cyan-500 dark:text-cyan-300" />
+                          <span style={{fontSize:"14px"}}>✓✓</span>
                           <span>{item}</span>
                         </div>
                       ))}
@@ -310,7 +294,7 @@ export default function AdsenseCampaignsPage() {
             <section className="rounded-2xl border border-violet-200 dark:border-violet-500/20 bg-gradient-to-br from-violet-50 dark:from-violet-500/10 to-cyan-50 dark:to-cyan-500/10 p-5 backdrop-blur-xl">
               <div className="flex items-start gap-3">
                 <div className="rounded-2xl bg-violet-100 dark:bg-white/10 p-2.5">
-                  <LuBot className="h-5 w-5 text-violet-600 dark:text-white" />
+                  <span style={{fontSize:"14px"}}>🤖</span>
                 </div>
                 <div>
                   <h2 className="text-xl font-semibold text-gray-900">Como esse exemplo pode virar produto</h2>

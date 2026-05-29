@@ -6,32 +6,21 @@ import {
   LuFileText,
   LuLoader,
   LuSparkles,
-  LuCalendar,
-  LuStethoscope,
-  LuClipboardList,
-  LuPill,
-  LuHeart,
-  LuShield,
-  LuFlask,
-  LuSyringe,
-  LuDownload,
-  LuCopy,
-  LuShare2,
-} from 'react-icons/lu';
+  LuCalendar
+  LuDownload} from 'react-icons/lu';
 import toast from 'react-hot-toast';
 
 const TYPE_ICONS: Record<string, any> = {
-  ANAMNESIS: LuClipboardList,
-  PRESCRIPTION: LuPill,
-  DIAGNOSIS: LuStethoscope,
-  TUTOR_REPORT: LuHeart,
-  MEDICAL_CERTIFICATE: LuShield,
-  EXAM_REQUEST: LuFlask,
-  SURGICAL_REPORT: LuSyringe,
+  ANAMNESIS:
+  PRESCRIPTION:
+  DIAGNOSIS:
+  TUTOR_REPORT:
+  MEDICAL_CERTIFICATE:
+  EXAM_REQUEST:
+  SURGICAL_REPORT:
   DISCHARGE_SUMMARY: LuFileText,
   VACCINATION_CARD: LuFileText,
-  GENERAL: LuFileText,
-};
+  GENERAL: LuFileText};
 
 const TYPE_LABELS: Record<string, string> = {
   ANAMNESIS: 'Anamnese',
@@ -43,8 +32,7 @@ const TYPE_LABELS: Record<string, string> = {
   SURGICAL_REPORT: 'Relatório Cirúrgico',
   DISCHARGE_SUMMARY: 'Sumário de Alta',
   VACCINATION_CARD: 'Carteira de Vacinação',
-  GENERAL: 'Documento Geral',
-};
+  GENERAL: 'Documento Geral'};
 
 const TYPE_COLORS: Record<string, string> = {
   ANAMNESIS: 'text-blue-600 bg-blue-100 dark:bg-blue-900/30',
@@ -54,8 +42,7 @@ const TYPE_COLORS: Record<string, string> = {
   MEDICAL_CERTIFICATE: 'text-yellow-600 bg-yellow-100 dark:bg-yellow-900/30',
   EXAM_REQUEST: 'text-orange-600 bg-orange-100 dark:bg-orange-900/30',
   SURGICAL_REPORT: 'text-red-600 bg-red-100 dark:bg-red-900/30',
-  DISCHARGE_SUMMARY: 'text-cyan-600 bg-cyan-100 dark:bg-cyan-900/30',
-};
+  DISCHARGE_SUMMARY: 'text-cyan-600 bg-cyan-100 dark:bg-cyan-900/30'};
 
 interface DocumentTimelineProps {
   petId?: string;
@@ -193,7 +180,7 @@ export default function DocumentTimeline({ petId, tutorId, limit = 10 }: Documen
                           className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600"
                           title="Copiar"
                         >
-                          <LuCopy className="w-3.5 h-3.5" />
+                          <span style={{fontSize:"14px"}}>⎘</span>
                         </button>
                         {doc.appointment?.id && (
                           <Link

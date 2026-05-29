@@ -2,23 +2,11 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import {
-  LuSparkles,
-  LuSend,
+  LuSparkles
   LuPlus,
-  LuTrash2,
-  LuCopy,
-  LuCheck,
-  LuChevronDown,
-  LuPaperclip,
-  LuImage,
-  LuMic,
-  LuPenLine,
-  LuCode,
-  LuGlobe,
-  LuBrainCircuit,
-  LuMessageSquare,
-  LuLoaderCircle,
-  LuCornerDownLeft,
+  LuTrash
+  LuCheck
+  LuLoaderCircle
   LuUser} from 'react-icons/lu';
 
 type MessageRole = 'user' | 'assistant';
@@ -38,10 +26,10 @@ interface Conversation {
 }
 
 const SUGGESTIONS = [
-  { icon: LuPenLine, label: 'Criar conteúdo', prompt: 'Crie um post para redes sociais sobre cuidados com pets no verão' },
-  { icon: LuCode, label: 'Gerar código', prompt: 'Gere um código de desconto automático para clientes VIP do pet shop' },
-  { icon: LuGlobe, label: 'Estratégia digital', prompt: 'Crie uma estratégia de marketing digital para meu pet shop' },
-  { icon: LuBrainCircuit, label: 'Análise de dados', prompt: 'Analise os principais KPIs que um pet shop deve acompanhar' },
+  { icon: () => <span style={{fontSize:"14px"}}>✏</span>, label: 'Criar conteúdo', prompt: 'Crie um post para redes sociais sobre cuidados com pets no verão' },
+  { icon: () => <span style={{fontSize:"14px"}}>{}</span>, label: 'Gerar código', prompt: 'Gere um código de desconto automático para clientes VIP do pet shop' },
+  { icon: () => <span style={{fontSize:"14px"}}>🌐</span>, label: 'Estratégia digital', prompt: 'Crie uma estratégia de marketing digital para meu pet shop' },
+  { icon: () => <span style={{fontSize:"14px"}}>🧠</span>, label: 'Análise de dados', prompt: 'Analise os principais KPIs que um pet shop deve acompanhar' },
 ];
 
 const FAKE_RESPONSE = `Claro! Aqui está uma sugestão completa para você:
@@ -227,7 +215,7 @@ export default function GlobalAgentPage() {
         <div className="flex-1 overflow-y-auto p-2 space-y-1 min-w-[18rem]">
           {conversations.length === 0 ? (
             <div className="px-3 py-8 text-center">
-              <LuMessageSquare className="w-8 h-8 text-white/10 mx-auto mb-2" />
+              
               <p className="text-xs text-white/30">Nenhuma conversa ainda</p>
             </div>
           ) : (
@@ -244,7 +232,7 @@ export default function GlobalAgentPage() {
                   if (window.innerWidth < 768) setShowHistory(false);
                 }}
               >
-                <LuMessageSquare className="w-4 h-4 shrink-0" />
+                <span style={{fontSize:"14px"}}>💬</span>
                 <span className="flex-1 text-sm truncate">{conv.title}</span>
                 <button
                   onClick={(e) => {
@@ -253,7 +241,7 @@ export default function GlobalAgentPage() {
                   }}
                   className="opacity-0 group-hover:opacity-100 p-1 rounded-lg hover:bg-red-500/20 hover:text-red-400 transition-all"
                 >
-                  <LuTrash2 className="w-3.5 h-3.5" />
+                  <LuTrash className="w-3.5 h-3.5" />
                 </button>
               </div>
             ))
@@ -271,7 +259,7 @@ export default function GlobalAgentPage() {
               className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-white/5 hover:bg-white/10 text-white/60 hover:text-white transition-all"
               title={showHistory ? 'Recolher histórico' : 'Expandir histórico'}
             >
-              <LuMessageSquare className="w-4 h-4" />
+              <span style={{fontSize:"14px"}}>💬</span>
             </button>
             <div className="flex items-center gap-2 sm:gap-2.5">
               <div className="relative">
@@ -373,7 +361,7 @@ export default function GlobalAgentPage() {
                           {copiedId === msg.id ? (
                             <LuCheck className="w-3.5 h-3.5 text-cyan-400" />
                           ) : (
-                            <LuCopy className="w-3.5 h-3.5" />
+                            <span style={{fontSize:"14px"}}>⎘</span>
                           )}
                         </button>
                         <span className="text-[10px] text-white/15">
@@ -420,13 +408,13 @@ export default function GlobalAgentPage() {
                   className="p-2 rounded-xl text-white/25 hover:text-white/60 hover:bg-white/5 transition-all"
                   title="Anexar arquivo"
                 >
-                  <LuPaperclip className="w-4.5 h-4.5" />
+                  <span style={{fontSize:"14px"}}>📎</span>
                 </button>
                 <button
                   className="p-2 rounded-xl text-white/25 hover:text-white/60 hover:bg-white/5 transition-all"
                   title="Enviar imagem"
                 >
-                  <LuImage className="w-4.5 h-4.5" />
+                  <span style={{fontSize:"14px"}}>🖼</span>
                 </button>
               </div>
 
@@ -445,7 +433,7 @@ export default function GlobalAgentPage() {
                   className="hidden sm:flex p-2 rounded-xl text-white/25 hover:text-white/60 hover:bg-white/5 transition-all"
                   title="Mensagem de voz"
                 >
-                  <LuMic className="w-4.5 h-4.5" />
+                  <span style={{fontSize:"14px"}}>🎤</span>
                 </button>
 
                 <button
@@ -457,7 +445,7 @@ export default function GlobalAgentPage() {
                   {isTyping ? (
                     <LuLoaderCircle className="w-4 h-4 sm:w-4.5 sm:h-4.5 animate-spin" />
                   ) : (
-                    <LuSend className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
+                    <span style={{fontSize:"14px"}}>➤</span>
                   )}
                 </button>
               </div>
@@ -465,7 +453,7 @@ export default function GlobalAgentPage() {
 
             <div className="hidden sm:flex items-center justify-center gap-2 mt-2.5">
               <span className="text-[10px] text-white/20 flex items-center gap-1">
-                <LuCornerDownLeft className="w-3 h-3" />
+                <span style={{fontSize:"14px"}}>↩</span>
                 Enter para enviar · Shift+Enter para nova linha
               </span>
             </div>

@@ -8,7 +8,7 @@ import { formatCurrency } from "@/utils/formatters";
 import KanbanCard from "./KanbanCard";
 import NewTaskModal from "./modals/NewTaskModal";
 import ConfirmDeleteColumnModal from "./modals/ConfirmDeleteColumnModal";
-import { LuTrash2, LuEllipsisVertical, LuPlus, LuPencil, LuCheck } from "react-icons/lu";
+import { LuTrash, LuEllipsisVertical, LuPlus, LuPencil, LuCheck } from "react-icons/lu";
 
 // Função para atribuir cores dinamicamente com base no nome do status
 const getColorForStatus = (status: string, colors: { [key: string]: string }) => {
@@ -334,7 +334,7 @@ const KanbanColumn = ({
                             onClick={openDeleteModal}
                             className="w-full px-4 py-3 text-left text-red-600 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-3 transition-colors rounded-b-lg"
                           >
-                            <LuTrash2 className="w-4 h-4" />
+                            <LuTrash className="w-4 h-4" />
                             <span className="font-medium">
                               Excluir Coluna
                             </span>

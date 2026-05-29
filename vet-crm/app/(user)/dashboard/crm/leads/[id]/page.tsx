@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import toast, { Toaster } from "react-hot-toast";
 import {
-  LuArrowLeft, LuStickyNote, LuTrash2, LuPlus, LuSparkles, LuPhone} from "react-icons/lu";
+  LuArrowLeft, LuStickyNote, LuTrash, LuPlus, LuSparkles, LuPhone} from "react-icons/lu";
 
 const PIPELINE_STAGES = [
   "Aguardando triagem",
@@ -174,7 +174,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
             <span style={{fontSize:"14px"}}>📖</span>Scripts
           </button>
           <button className="bg-white border border-[#cfd8e0] text-[#4d5a66] px-3 py-1.5 rounded-lg text-xs">Não é lead</button>
-          <button className="bg-[#fbe6e6] border border-[#f4baba] text-[#A32D2D] px-2.5 py-1.5 rounded-lg text-xs"><LuTrash2 className="w-3.5 h-3.5" /></button>
+          <button className="bg-[#fbe6e6] border border-[#f4baba] text-[#A32D2D] px-2.5 py-1.5 rounded-lg text-xs"><LuTrash className="w-3.5 h-3.5" /></button>
 
           {showScripts && (
             <div className="absolute right-0 top-12 z-50 w-80 bg-white border border-[#d8d0bc] rounded-xl shadow-lg p-3">

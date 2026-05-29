@@ -14,8 +14,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
           richColors
           closeButton
           toastOptions={{
-            duration: 4000,
-          }}
+            duration: 4000}}
         />
       </SessionProvider>
     </ThemeProvider>

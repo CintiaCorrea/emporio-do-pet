@@ -3,26 +3,14 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { 
-  LuChevronRight,
-  LuBot,
+import {
   LuArrowLeft,
   LuLoader,
-  LuSave,
-  LuMessageSquare,
-  LuZap,
-  LuClock,
-  LuSparkles,
-  LuVolume2,
-  LuInfo,
-  LuUsers,
+  LuSave
+  LuSparkles
   LuUserPlus,
-  LuTarget,
-  LuTrendingUp,
-  LuBell,
-  LuCalendar,
-  LuDatabase,
-} from 'react-icons/lu';
+  LuTarget
+  LuCalendar} from 'react-icons/lu';
 import { SiWhatsapp } from 'react-icons/si';
 import { toast } from 'sonner';
 
@@ -102,8 +90,7 @@ Seja proativo e útil em suas respostas.`,
 
 Sempre confirme os detalhes: data, horário, serviço e pet.
 Cliente: {tutor_name}
-Pet: {pet_name}`,
-};
+Pet: {pet_name}`};
 
 interface AgentTemplate {
   id: string;
@@ -157,8 +144,7 @@ export default function NovoAgentePage() {
     voiceEnabled: false,
     voiceId: 'nova',
     voiceSpeed: 1.0,
-    voiceModel: 'tts-1',
-  });
+    voiceModel: 'tts-1'});
 
   useEffect(() => {
     loadTemplates();
@@ -190,8 +176,7 @@ export default function NovoAgentePage() {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         setAgentTemplates(data.data.map((t: any) => ({
           ...t,
-          systemPrompt: t.content || t.systemPrompt || '',
-        })));
+          systemPrompt: t.content || t.systemPrompt || ''})));
       }
     } catch (error) {
       console.error('Erro ao carregar agent templates:', error);
@@ -209,8 +194,7 @@ export default function NovoAgentePage() {
       provider: (template.provider as AIProvider) || prev.provider,
       model: template.model || prev.model,
       temperature: template.temperature ?? prev.temperature,
-      maxTokens: template.maxTokens ?? prev.maxTokens,
-    }));
+      maxTokens: template.maxTokens ?? prev.maxTokens}));
     toast.success(`Template "${template.name}" aplicado`);
   };
 
@@ -227,8 +211,7 @@ export default function NovoAgentePage() {
             id: t.id,
             name: t.name,
             category: t.category,
-            status: t.status,
-          }));
+            status: t.status}));
         setTemplates(approvedTemplates);
       }
     } catch (error) {
@@ -248,8 +231,7 @@ export default function NovoAgentePage() {
         setBoards(leadBoards.map((b: { id: string; name: string; type: string }) => ({
           id: b.id,
           name: b.name,
-          type: b.type,
-        })));
+          type: b.type})));
       }
     } catch (error) {
       console.error('Erro ao carregar boards:', error);
@@ -260,8 +242,7 @@ export default function NovoAgentePage() {
     setForm({
       ...form,
       type,
-      systemPrompt: defaultSystemPrompts[type],
-    });
+      systemPrompt: defaultSystemPrompts[type]});
   };
 
   const handleProviderChange = (provider: AIProvider) => {
@@ -300,9 +281,7 @@ export default function NovoAgentePage() {
           knowledgeBaseIds,
           ragEnabled,
           ragTopK,
-          ragThreshold,
-        }),
-      });
+          ragThreshold})});
 
       const data = await response.json();
 
@@ -322,10 +301,10 @@ export default function NovoAgentePage() {
 
   const getTypeIcon = (type: AgentType) => {
     switch (type) {
-      case 'CHATBOT': return <LuMessageSquare className="w-5 h-5" />;
-      case 'AUTOMATION': return <LuZap className="w-5 h-5" />;
-      case 'ASSISTANT': return <LuBot className="w-5 h-5" />;
-      case 'SCHEDULER': return <LuClock className="w-5 h-5" />;
+      case 'CHATBOT': return <span style={{fontSize:"14px"}}>💬</span>;
+      case 'AUTOMATION': return <span style={{fontSize:"14px"}}>⚡</span>;
+      case 'ASSISTANT': return <span style={{fontSize:"14px"}}>🤖</span>;
+      case 'SCHEDULER': return <span style={{fontSize:"14px"}}>⏱</span>;
     }
   };
 
@@ -335,9 +314,9 @@ export default function NovoAgentePage() {
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-gray-500 mb-6">
           <Link href="/dashboard/ai-agents" className="hover:text-gray-700">AI Agents</Link>
-          <LuChevronRight className="w-4 h-4" />
+          <span style={{fontSize:"14px"}}>▶</span>
           <Link href="/dashboard/ai-agents/agents" className="hover:text-gray-700">Agents</Link>
-          <LuChevronRight className="w-4 h-4" />
+          <span style={{fontSize:"14px"}}>▶</span>
           <span className="text-gray-900 font-medium">Novo Agente</span>
         </div>
 
@@ -379,7 +358,7 @@ export default function NovoAgentePage() {
                 >
                   <div className="flex items-start gap-3">
                     <div className="p-2 bg-violet-50 rounded-lg group-hover:bg-violet-100">
-                      <LuBot className="w-4 h-4 text-violet-600" />
+                      <span style={{fontSize:"14px"}}>🤖</span>
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-gray-900 text-sm truncate">{tmpl.name}</p>
@@ -404,7 +383,7 @@ export default function NovoAgentePage() {
           {/* Informações Básicas */}
           <div className="bg-white rounded-2xl border border-gray-100 p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-6 flex items-center gap-2">
-              <LuBot className="w-5 h-5 text-violet-600" />
+              <span style={{fontSize:"14px"}}>🤖</span>
               Informações Básicas
             </h2>
             
@@ -585,7 +564,7 @@ export default function NovoAgentePage() {
                   />
                 </div>
                 <div className="mt-2 p-3 bg-blue-50 rounded-lg flex gap-2">
-                  <LuInfo className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <span style={{fontSize:"14px"}}>ⓘ</span>
                   <p className="text-xs text-blue-700">
                     <strong>Variáveis disponíveis:</strong> {'{clinic_name}'}, {'{tutor_name}'}, {'{pet_name}'}, {'{pet_species}'}, {'{current_date}'}
                     - Serão substituídas automaticamente durante a execução.
@@ -663,8 +642,7 @@ export default function NovoAgentePage() {
                       setForm({
                         ...form,
                         whatsappTemplateId: selectedId,
-                        whatsappTemplateName: selectedTemplate?.name,
-                      });
+                        whatsappTemplateName: selectedTemplate?.name});
                     }}
                     disabled={loadingTemplates}
                     className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500 cursor-pointer disabled:opacity-50"
@@ -714,7 +692,7 @@ export default function NovoAgentePage() {
                 </div>
 
                 <div className="p-3 bg-green-50 rounded-lg flex gap-2">
-                  <LuInfo className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
+                  <span style={{fontSize:"14px"}}>ⓘ</span>
                   <p className="text-xs text-green-700">
                     O agente será automaticamente atribuído a novas conversas do WhatsApp quando habilitado.
                   </p>
@@ -731,7 +709,7 @@ export default function NovoAgentePage() {
           <div className="bg-white rounded-2xl border border-gray-100 p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <LuUsers className="w-5 h-5 text-blue-600" />
+                <span style={{fontSize:"14px"}}>👥</span>
                 Configurações CRM
               </h2>
               <label className="relative inline-flex items-center cursor-pointer">
@@ -806,7 +784,7 @@ export default function NovoAgentePage() {
                         <p className="font-medium text-gray-900">Notificar Lead Quente</p>
                         <p className="text-xs text-gray-500">Alertar equipe quando lead atingir score alto</p>
                       </div>
-                      <LuBell className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                      <span style={{fontSize:"14px"}}>🔔</span>
                     </div>
                   </label>
                 </div>
@@ -834,7 +812,7 @@ export default function NovoAgentePage() {
                 </div>
 
                 <div className="p-3 bg-blue-50 rounded-lg flex gap-2">
-                  <LuTrendingUp className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <span style={{fontSize:"14px"}}>📈</span>
                   <p className="text-xs text-blue-700">
                     A integração com CRM permite rastrear conversões e medir o ROI das automações de IA.
                   </p>
@@ -851,7 +829,7 @@ export default function NovoAgentePage() {
           <div className="bg-white rounded-2xl border border-gray-100 p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <LuVolume2 className="w-5 h-5 text-violet-600" />
+                <span style={{fontSize:"14px"}}>🔊</span>
                 Resposta por Voz (TTS)
               </h2>
               <label className="relative inline-flex items-center cursor-pointer">
@@ -930,7 +908,7 @@ export default function NovoAgentePage() {
           {/* Base de Conhecimento (RAG) */}
           <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-              <LuDatabase className="w-5 h-5 text-indigo-600" />
+              <span style={{fontSize:"14px"}}>🗄</span>
               Base de Conhecimento (RAG)
             </h3>
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">

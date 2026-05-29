@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { LuUser, LuPhone, LuMapPin, LuEye, LuPencil, LuTrash2 } from 'react-icons/lu';
+import { LuUser, LuPhone LuEye, LuPencil, LuTrash } from 'react-icons/lu';
 import { Tutor } from '@/types/tutor';
 import { formatDate, formatCPF, formatPhone, getPrimaryPhone, getGenderDisplay } from '@/utils/formatters-tutors';
 
@@ -33,7 +33,7 @@ export default function TutorsTable({ tutors, onDeleteTutor }: TutorsTableProps)
                   <div className="ml-4">
                     <div className="text-sm font-semibold text-gray-900">{tutor.name}</div>
                     <div className="text-sm text-gray-500 flex items-center gap-1">
-                      <LuMapPin className="w-3 h-3" />
+                      <span style={{fontSize:"14px"}}>📍</span>
                       {tutor.nationality}
                     </div>
                   </div>
@@ -91,7 +91,7 @@ export default function TutorsTable({ tutors, onDeleteTutor }: TutorsTableProps)
                     className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl transition-all duration-300 hover:scale-110"
                     title="Excluir"
                   >
-                    <LuTrash2 className="w-4 h-4" />
+                    <LuTrash className="w-4 h-4" />
                   </button>
                 </div>
               </td>
