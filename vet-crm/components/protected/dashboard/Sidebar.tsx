@@ -5,7 +5,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { 
+import {  
   LuLayoutDashboard, 
   LuUsers, 
   LuUser, 
@@ -35,8 +35,9 @@ import {
   LuDatabase,
   LuChartColumn,
   LuSparkles,
-  LuSyringe
-} from "react-icons/lu";
+  LuSyringe,
+  LuInbox,
+  LuUsers } from 'react-icons/lu';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -143,6 +144,32 @@ const Sidebar = ({ isOpen, toggleSidebar }: SidebarProps) => {
               >
                 <LuLayoutDashboard className="w-5 h-5" />
                 Dashboard
+              </Link>
+
+              {/* Inbox Recepção */}
+              <Link
+                href="/dashboard/inbox-recepcao"
+                className={`mx-2 my-1 flex items-center gap-3 px-3 sm:px-4 py-2.5 rounded-xl text-sm sm:text-base transition-colors ${
+                  isActive("/dashboard/inbox-recepcao")
+                    ? "bg-[color:var(--sidebar-active-bg)] text-[color:var(--sidebar-active-text)]"
+                    : "text-[color:var(--sidebar-muted)] hover:bg-[color:var(--sidebar-hover)] hover:text-[color:var(--sidebar-text)]"
+                }`}
+              >
+                <LuInbox className="w-5 h-5" />
+                Inbox Recepção
+              </Link>
+
+              {/* Equipe */}
+              <Link
+                href="/dashboard/usuarios"
+                className={`mx-2 my-1 flex items-center gap-3 px-3 sm:px-4 py-2.5 rounded-xl text-sm sm:text-base transition-colors ${
+                  isActive("/dashboard/usuarios")
+                    ? "bg-[color:var(--sidebar-active-bg)] text-[color:var(--sidebar-active-text)]"
+                    : "text-[color:var(--sidebar-muted)] hover:bg-[color:var(--sidebar-hover)] hover:text-[color:var(--sidebar-text)]"
+                }`}
+              >
+                <LuUsers className="w-5 h-5" />
+                Equipe
               </Link>
 
               {/* Menu AI Agents com sub-navegação */}

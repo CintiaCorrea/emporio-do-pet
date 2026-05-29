@@ -5,9 +5,9 @@
 
 :root {
   /* Brand + core surfaces (default = light) */
-  --background: #f7f9fc;
+  --background: #fafaf6; /* warm off-white */
   --foreground: #0b1220;
-  --brand: #2563eb; /* blue-600 */
+  --brand: #15803d; /* emerald-700 — Empório */ /* blue-600 */
 
   /* Navigation theming (Topbar / Sidebar) */
   --topbar-bg: rgba(255, 255, 255, 0.72);
@@ -17,7 +17,7 @@
   --topbar-hover: rgba(241, 245, 249, 1); /* slate-100 */
   --topbar-separator: #e2e8f0; /* slate-200 */
   --topbar-ring: rgba(148, 163, 184, 0.35); /* slate-400 */
-  --topbar-ring-hover: rgba(37, 99, 235, 0.35); /* brand */
+  --topbar-ring-hover: rgba(21, 128, 61, 0.35); /* brand */
   --topbar-avatar-border: #ffffff;
 
   --dropdown-bg: #ffffff;
@@ -32,9 +32,9 @@
   --sidebar-hover: rgba(241, 245, 249, 1);
   --sidebar-text: #0f172a;
   --sidebar-muted: #64748b;
-  --sidebar-active-bg: rgba(37, 99, 235, 0.12);
-  --sidebar-active-border: rgba(37, 99, 235, 0.55);
-  --sidebar-active-text: #1d4ed8; /* blue-700 */
+  --sidebar-active-bg: rgba(21, 128, 61, 0.10);
+  --sidebar-active-border: rgba(21, 128, 61, 0.55);
+  --sidebar-active-text: #14532d; /* emerald-900 */ /* blue-700 */
 
   /* Scrollbars (default = light) */
   --scrollbar-size: 10px;
@@ -57,9 +57,9 @@ html[data-theme='light'],
 html.light,
 body[data-theme='light'],
 body.light {
-  --background: #f7f9fc;
+  --background: #fafaf6; /* warm off-white */
   --foreground: #0b1220;
-  --brand: #2563eb;
+  --brand: #15803d; /* emerald-700 — Empório */
 
   --topbar-bg: rgba(255, 255, 255, 0.72);
   --topbar-border: rgba(226, 232, 240, 0.85);
@@ -68,7 +68,7 @@ body.light {
   --topbar-hover: rgba(241, 245, 249, 1);
   --topbar-separator: #e2e8f0;
   --topbar-ring: rgba(148, 163, 184, 0.35);
-  --topbar-ring-hover: rgba(37, 99, 235, 0.35);
+  --topbar-ring-hover: rgba(21, 128, 61, 0.35);
   --topbar-avatar-border: #ffffff;
 
   --dropdown-bg: #ffffff;
@@ -83,9 +83,9 @@ body.light {
   --sidebar-hover: rgba(241, 245, 249, 1);
   --sidebar-text: #0f172a;
   --sidebar-muted: #64748b;
-  --sidebar-active-bg: rgba(37, 99, 235, 0.12);
-  --sidebar-active-border: rgba(37, 99, 235, 0.55);
-  --sidebar-active-text: #1d4ed8;
+  --sidebar-active-bg: rgba(21, 128, 61, 0.10);
+  --sidebar-active-border: rgba(21, 128, 61, 0.55);
+  --sidebar-active-text: #14532d; /* emerald-900 */
 
   /* Scrollbars (light) */
   --scrollbar-size: 10px;
