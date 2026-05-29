@@ -5,8 +5,7 @@ import Link from "next/link";
 import toast, { Toaster } from "react-hot-toast";
 import {
   LuArrowLeft, LuStickyNote, LuPencil, LuTriangleAlert,
-  LuTrash, LuPhone, LuCalendar, LuUser, LuPlus,
-} from "react-icons/lu";
+  LuTrash, LuPhone, LuCalendar, LuUser, LuPlus} from "react-icons/lu";
 
 interface TutorDetail {
   id: string;
@@ -119,8 +118,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
       const res = await fetch(`/api/tutors/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ notaCliente: nota }),
-      });
+        body: JSON.stringify({ notaCliente: nota })});
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       toast.success("Nota salva!");
     } catch (e: any) { toast.error("Erro: " + e.message); }

@@ -4,24 +4,12 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTheme } from '@/components/common/ThemeProvider';
 import type { ThemeOption } from '@/lib/theme';
 import { 
-  LuSettings,
-  LuBell,
-  LuPalette,
-  LuGlobe,
-  LuShield,
-  LuDatabase,
-  LuMoon,
-  LuSun,
-  LuMonitor,
+  
+  
   LuCheck,
-  LuChevronRight,
   LuSave,
   LuLoaderCircle,
-  LuUsers,
-  LuLock,
-  LuUserPlus,
-  LuRefreshCw,
-  LuCircleAlert
+  LuUserPlus
 } from 'react-icons/lu';
 
 // Tipos
@@ -74,14 +62,12 @@ const MODULES = [
 const ROLE_LABELS: Record<UserRole, string> = {
   ADMIN: 'Administrador',
   VETERINARIAN: 'Veterinário',
-  RECEPTIONIST: 'Recepcionista',
-};
+  RECEPTIONIST: 'Recepcionista'};
 
 const ROLE_COLORS: Record<UserRole, string> = {
   ADMIN: 'bg-purple-100 text-purple-700',
   VETERINARIAN: 'bg-blue-100 text-blue-700',
-  RECEPTIONIST: 'bg-orange-100 text-orange-700',
-};
+  RECEPTIONIST: 'bg-orange-100 text-orange-700'};
 
 // Back-compat (versões antigas armazenavam flags em permissions)
 const TEAM_APPROVED = 'team:approved';
@@ -124,13 +110,11 @@ export default function ConfiguracoesPage() {
     push: true,
     appointments: true,
     marketing: false,
-    updates: true,
-  });
+    updates: true});
   const [privacy, setPrivacy] = useState({
     showProfile: true,
     showActivity: false,
-    dataCollection: true,
-  });
+    dataCollection: true});
 
   // Estado para Equipe / Permissões (API)
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
@@ -212,8 +196,7 @@ export default function ConfiguracoesPage() {
           isApproved: typeof u.isApproved === 'boolean' ? u.isApproved : undefined,
           isBlocked: typeof u.isBlocked === 'boolean' ? u.isBlocked : undefined,
           status: deriveStatus(u),
-          createdAt: u.createdAt ? String(u.createdAt) : '',
-        };
+          createdAt: u.createdAt ? String(u.createdAt) : ''};
       });
 
       setTeamMembers(members);
@@ -252,8 +235,7 @@ export default function ConfiguracoesPage() {
     const res = await fetch(`/api/users/${encodeURIComponent(userId)}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
+      body: JSON.stringify(body)});
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err?.error || 'Erro ao atualizar usuário');
@@ -293,9 +275,7 @@ export default function ConfiguracoesPage() {
       ...prev,
       [moduleId]: {
         ...(prev[moduleId] || { create: false, read: false, update: false, delete: false }),
-        [action]: !(prev[moduleId]?.[action] ?? false),
-      },
-    }));
+        [action]: !(prev[moduleId]?.[action] ?? false)}}));
   };
 
   const handleSavePermissions = useCallback(async () => {
@@ -315,15 +295,15 @@ export default function ConfiguracoesPage() {
   }, [selectedUser, encodePermissions, permissionDraft, patchUser, fetchTeam]);
 
   const themeOptions: { value: ThemeOption; label: string; icon: React.ReactNode }[] = [
-    { value: 'light', label: 'Claro', icon: <LuSun className="w-5 h-5" /> },
-    { value: 'dark', label: 'Escuro', icon: <LuMoon className="w-5 h-5" /> },
-    { value: 'system', label: 'Sistema', icon: <LuMonitor className="w-5 h-5" /> },
+    { value: 'light', label: 'Claro', icon: <span style={{fontSize:"14px"}}>•</span> },
+    { value: 'dark', label: 'Escuro', icon: <span style={{fontSize:"14px"}}>•</span> },
+    { value: 'system', label: 'Sistema', icon: <span style={{fontSize:"14px"}}>•</span> },
   ];
 
   const tabs: { id: TabType; label: string; icon: React.ReactNode }[] = [
-    { id: 'geral', label: 'Geral', icon: <LuSettings className="w-4 h-4" /> },
-    { id: 'equipe', label: 'Equipe', icon: <LuUsers className="w-4 h-4" /> },
-    { id: 'permissao', label: 'Permissão', icon: <LuLock className="w-4 h-4" /> },
+    { id: 'geral', label: 'Geral', icon: <span style={{fontSize:"14px"}}>⚙</span> },
+    { id: 'equipe', label: 'Equipe', icon: <span style={{fontSize:"14px"}}>👥</span> },
+    { id: 'permissao', label: 'Permissão', icon: <span style={{fontSize:"14px"}}>🔒</span> },
   ];
 
   const getStatusBadge = (status: UserStatus) => {
@@ -381,7 +361,7 @@ export default function ConfiguracoesPage() {
             <div className="bg-white rounded-3xl shadow-sm shadow-gray-200/50 border border-gray-100 p-6">
               <div className="flex items-center gap-3 mb-6">
                 <div className="p-2 bg-purple-100 rounded-xl">
-                  <LuPalette className="w-5 h-5 text-purple-600" />
+                  <span style={{fontSize:"14px"}}>•</span>
                 </div>
                 <div>
                   <h2 className="text-lg font-semibold text-gray-900">Aparência</h2>
@@ -425,7 +405,7 @@ export default function ConfiguracoesPage() {
             <div className="bg-white rounded-3xl shadow-sm shadow-gray-200/50 border border-gray-100 p-6">
               <div className="flex items-center gap-3 mb-6">
                 <div className="p-2 bg-green-100 rounded-xl">
-                  <LuGlobe className="w-5 h-5 text-green-600" />
+                  <span style={{fontSize:"14px"}}>🌐</span>
                 </div>
                 <div>
                   <h2 className="text-lg font-semibold text-gray-900">Idioma e Região</h2>
@@ -463,7 +443,7 @@ export default function ConfiguracoesPage() {
             <div className="bg-white rounded-3xl shadow-sm shadow-gray-200/50 border border-gray-100 p-6">
               <div className="flex items-center gap-3 mb-6">
                 <div className="p-2 bg-orange-100 rounded-xl">
-                  <LuBell className="w-5 h-5 text-orange-600" />
+                  <span style={{fontSize:"14px"}}>•</span>
                 </div>
                 <div>
                   <h2 className="text-lg font-semibold text-gray-900">Notificações</h2>
@@ -509,7 +489,7 @@ export default function ConfiguracoesPage() {
             <div className="bg-white rounded-3xl shadow-sm shadow-gray-200/50 border border-gray-100 p-6">
               <div className="flex items-center gap-3 mb-6">
                 <div className="p-2 bg-red-100 rounded-xl">
-                  <LuShield className="w-5 h-5 text-red-600" />
+                  <span style={{fontSize:"14px"}}>🛡</span>
                 </div>
                 <div>
                   <h2 className="text-lg font-semibold text-gray-900">Privacidade</h2>
@@ -543,7 +523,7 @@ export default function ConfiguracoesPage() {
             <div className="bg-white rounded-3xl shadow-sm shadow-gray-200/50 border border-gray-100 p-6">
               <div className="flex items-center gap-3 mb-6">
                 <div className="p-2 bg-blue-100 rounded-xl">
-                  <LuDatabase className="w-5 h-5 text-blue-600" />
+                  <span style={{fontSize:"14px"}}>🗄</span>
                 </div>
                 <div>
                   <h2 className="text-lg font-semibold text-gray-900">Seus Dados</h2>
@@ -554,17 +534,17 @@ export default function ConfiguracoesPage() {
               <div className="space-y-3">
                 <button className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 rounded-xl transition-colors group">
                   <div className="flex items-center gap-3">
-                    <LuDatabase className="w-5 h-5 text-gray-400" />
+                    <span style={{fontSize:"14px"}}>🗄</span>
                     <span className="text-sm font-medium text-gray-700">Exportar meus dados</span>
                   </div>
-                  <LuChevronRight className="w-5 h-5 text-gray-400 group-hover:translate-x-1 transition-transform" />
+                  <span style={{fontSize:"14px"}}>▶</span>
                 </button>
                 <button className="w-full flex items-center justify-between p-4 bg-red-50 hover:bg-red-100 rounded-xl transition-colors group">
                   <div className="flex items-center gap-3">
-                    <LuShield className="w-5 h-5 text-red-400" />
+                    <span style={{fontSize:"14px"}}>🛡</span>
                     <span className="text-sm font-medium text-red-700">Excluir minha conta</span>
                   </div>
-                  <LuChevronRight className="w-5 h-5 text-red-400 group-hover:translate-x-1 transition-transform" />
+                  <span style={{fontSize:"14px"}}>▶</span>
                 </button>
               </div>
             </div>
@@ -592,14 +572,14 @@ export default function ConfiguracoesPage() {
                 onClick={fetchTeam}
                 className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-xl border border-gray-200"
               >
-                <LuRefreshCw className={`w-4 h-4 ${teamLoading ? 'animate-spin' : ''}`} />
+                <span style={{fontSize:"14px"}}>↻</span>
                 Atualizar
               </button>
             </div>
 
             {teamError && (
               <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3">
-                <LuCircleAlert className="w-5 h-5 text-red-500" />
+                <span style={{fontSize:"14px"}}>⚠️</span>
                 <p className="text-red-700 text-sm">{teamError}</p>
               </div>
             )}
@@ -681,7 +661,7 @@ export default function ConfiguracoesPage() {
 
             {teamMembers.length === 0 && (
               <div className="text-center py-12">
-                <LuUsers className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                <span style={{fontSize:"14px"}}>👥</span>
                 <p className="text-gray-500">Nenhum membro na equipe</p>
               </div>
             )}
@@ -699,7 +679,7 @@ export default function ConfiguracoesPage() {
 
             {teamError && (
               <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3">
-                <LuCircleAlert className="w-5 h-5 text-red-500" />
+                <span style={{fontSize:"14px"}}>⚠️</span>
                 <p className="text-red-700 text-sm">{teamError}</p>
               </div>
             )}
@@ -745,7 +725,7 @@ export default function ConfiguracoesPage() {
                         onClick={fetchTeam}
                         className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-xl border border-gray-200"
                       >
-                        <LuRefreshCw className={`w-4 h-4 ${teamLoading ? 'animate-spin' : ''}`} />
+                        <span style={{fontSize:"14px"}}>↻</span>
                         Atualizar
                       </button>
                     </div>
@@ -797,7 +777,7 @@ export default function ConfiguracoesPage() {
                 ) : (
                   <div className="flex items-center justify-center h-64 bg-gray-50 rounded-2xl border border-gray-200">
                     <div className="text-center">
-                      <LuShield className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                      <span style={{fontSize:"14px"}}>🛡</span>
                       <p className="text-gray-600">Selecione um usuário para editar permissões</p>
                     </div>
                   </div>

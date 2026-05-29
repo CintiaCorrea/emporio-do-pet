@@ -45,8 +45,7 @@ export default function HojePage() {
   const [data, setData] = useState<HojeData | null>(null);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState({
-    retornos: true, toques: true, tutores: false, exames: false, pacotes: false,
-  });
+    retornos: true, toques: true, tutores: false, exames: false, pacotes: false});
   const toggle = (k: keyof typeof open) => setOpen({ ...open, [k]: !open[k] });
 
   useEffect(() => {
@@ -59,8 +58,7 @@ export default function HojePage() {
           toques: Array.isArray(d?.toques) ? d.toques : [],
           tutoresAcompanhar: typeof d?.tutoresAcompanhar === "number" ? d.tutoresAcompanhar : 0,
           examesAEntregar: typeof d?.examesAEntregar === "number" ? d.examesAEntregar : 0,
-          pacotesEmRisco: typeof d?.pacotesEmRisco === "number" ? d.pacotesEmRisco : 0,
-        });
+          pacotesEmRisco: typeof d?.pacotesEmRisco === "number" ? d.pacotesEmRisco : 0});
       } catch (e) {
         console.error(e);
         setData({ retornosVencidos: [], toques: [], tutoresAcompanhar: 0, examesAEntregar: 0, pacotesEmRisco: 0 });
@@ -71,8 +69,7 @@ export default function HojePage() {
   }, []);
 
   const dataHoje = new Date().toLocaleDateString("pt-BR", {
-    weekday: "long", day: "numeric", month: "long",
-  });
+    weekday: "long", day: "numeric", month: "long"});
 
   const tutoresAtencao = (data?.retornosVencidos?.length || 0) + (data?.tutoresAcompanhar || 0);
 
