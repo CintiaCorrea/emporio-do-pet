@@ -56,9 +56,18 @@ export default function HojePage() {
     const load = async () => {
       try {
         const res = await fetch("/api/hoje");
-        const d = await res.json();
-        setData(d);
-      } catch (e) { console.error(e); }
+        const d = await res.json().catch(() => ({}));
+        setData({
+          retornosVencidos: Array.isArray(d?.retornosVencidos) ? d.retornosVencidos : [],
+          toques: Array.isArray(d?.toques) ? d.toques : [],
+          tutoresAcompanhar: typeof d?.tutoresAcompanhar === "number" ? d.tutoresAcompanhar : 0,
+          examesAEntregar: typeof d?.examesAEntregar === "number" ? d.examesAEntregar : 0,
+          pacotesEmRisco: typeof d?.pacotesEmRisco === "number" ? d.pacotesEmRisco : 0,
+        });
+      } catch (e) {
+        console.error(e);
+        setData({ retornosVencidos: [], toques: [], tutoresAcompanhar: 0, examesAEntregar: 0, pacotesEmRisco: 0 });
+      }
       finally { setLoading(false); }
     };
     load();
@@ -75,7 +84,7 @@ export default function HojePage() {
       <header className="mb-6">
         <h1 className="text-2xl text-[#0E2244] font-medium capitalize">Hoje — {dataHoje}</h1>
         <p className="text-sm text-[#009AAC] mt-1">
-          {data?.retornosVencidos.length || 0} retornos vencidos · {data?.toques.length || 0} toques hoje · {tutoresAtencao} tutores precisando atenção
+          {data?.retornosVencidos?.length || 0} retornos vencidos · {data?.toques?.length || 0} toques hoje · {tutoresAtencao} tutores precisando atenção
         </p>
       </header>
 
@@ -84,10 +93,10 @@ export default function HojePage() {
       ) : (
         <div className="flex flex-col gap-2.5">
           <div>
-            <SectionHeader icon={LuCalendarX} title="Retornos vencidos" count={data?.retornosVencidos.length || 0}
+            <SectionHeader icon={LuCalendarX} title="Retornos vencidos" count={data?.retornosVencidos?.length || 0}
               color="#C2410C" open={open.retornos} onToggle={() => toggle("retornos")}
               emptyOk="Nenhum retorno vencido!" />
-            {open.retornos && (data?.retornosVencidos.length || 0) > 0 && (
+            {open.retornos && (data?.retornosVencidos?.length || 0) > 0 && (
               <div className="mt-2 flex flex-col gap-2">
                 {data?.retornosVencidos.map((r) => (
                   <Link key={r.id} href={`/dashboard/crm/leads/${r.id}`} className="block bg-white border border-[#d8d0bc] rounded-lg p-3 hover:border-[#009AAC] transition">
@@ -121,10 +130,10 @@ export default function HojePage() {
           </div>
 
           <div>
-            <SectionHeader icon={LuPhoneCall} title="Próximos toques de cadência" count={data?.toques.length || 0}
+            <SectionHeader icon={LuPhoneCall} title="Próximos toques de cadência" count={data?.toques?.length || 0}
               color="#00798A" open={open.toques} onToggle={() => toggle("toques")}
               emptyOk="Sem toques agendados" />
-            {open.toques && (data?.toques.length || 0) > 0 && (
+            {open.toques && (data?.toques?.length || 0) > 0 && (
               <div className="mt-2 flex flex-col gap-2">
                 {data?.toques.map((t) => (
                   <Link key={t.id} href={`/dashboard/crm/leads/${t.id}`} className="block bg-white border border-[#d8d0bc] rounded-lg p-3 hover:border-[#009AAC] transition">

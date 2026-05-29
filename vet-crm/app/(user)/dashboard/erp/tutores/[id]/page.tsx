@@ -99,10 +99,17 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
     setLoading(true);
     try {
       const res = await fetch(`/api/tutors/${id}`);
-      const data = await res.json();
-      setTutor(data);
-      setNota(data.notaCliente || "");
-    } catch (e) { console.error(e); }
+      const data = await res.json().catch(() => null);
+      if (data && typeof data === "object" && data.id) {
+        setTutor(data);
+        setNota(data.notaCliente || "");
+      } else {
+        setTutor(null);
+      }
+    } catch (e) {
+      console.error(e);
+      setTutor(null);
+    }
     finally { setLoading(false); }
   };
 
@@ -127,8 +134,8 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
 
   const status = STATUS_BADGE(tutor.status);
   const phone = tutor.contacts?.find((c) => c.isPrimary)?.number;
-  const ltv = tutor.score?.dimensions.ltv.value || 0;
-  const visitas = tutor.score?.dimensions.visitas.value || 0;
+  const ltv = tutor.score?.dimensions?.ltv?.value || 0;
+  const visitas = tutor.score?.dimensions?.visitas?.value || 0;
   const pets = tutor.pets || [];
 
   return (
