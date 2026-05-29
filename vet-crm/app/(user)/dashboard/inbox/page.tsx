@@ -3,9 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  LuInbox, LuRefreshCw, LuPlus, LuSearch, LuRobot, LuUserPlus, LuArrowLeftRight,
-  LuSend, LuPencil, LuCalendarPlus, LuStethoscope, LuFlask, LuExternalLink,
-  LuPhone, LuTrophy, LuClock, LuFlame, LuMessageCircle, LuInfo,
+  LuPlus, LuSearch, LuUserPlus, LuPencil, LuPhone, LuCalendar,
 } from "react-icons/lu";
 
 type Tab = "conversas" | "internas" | "encaminhadas";
@@ -96,10 +94,21 @@ export default function InboxUnificadoPage() {
       try {
         const res = await fetch("/api/whatsapp/conversations?limit=50");
         const data = await res.json().catch(() => ({}));
-        const list = Array.isArray(data?.conversations) ? data.conversations
-                    : Array.isArray(data) ? data
-                    : Array.isArray(data?.data) ? data.data : [];
-        setConversations(list);
+        const raw = Array.isArray(data?.conversations) ? data.conversations
+                  : Array.isArray(data?.data) ? data.data
+                  : Array.isArray(data) ? data : [];
+        const safe = raw.map((c: any) => ({
+          id: c?.id || Math.random().toString(),
+          contactName: c?.contactName || null,
+          contactNumber: c?.contactPhone || c?.contactNumber || "",
+          lastMessageAt: c?.lastMessageAt || c?.createdAt || new Date().toISOString(),
+          unreadCount: typeof c?.unreadCount === "number" ? c.unreadCount : 0,
+          status: c?.status || "OPEN",
+          tutor: c?.tutor ? { id: c.tutor.id, name: c.tutor.name } : null,
+          source: c?.metadata?.source || c?.source || null,
+          metadata: c?.metadata || null,
+        }));
+        setConversations(safe);
       } catch (e) { console.error(e); setConversations([]); }
       finally { setLoading(false); }
     })();
@@ -112,10 +121,18 @@ export default function InboxUnificadoPage() {
       try {
         const res = await fetch(`/api/whatsapp/conversations/${selectedId}/messages?limit=30`);
         const data = await res.json().catch(() => ({}));
-        const list = Array.isArray(data?.messages) ? data.messages
+        const list = Array.isArray(data?.data) ? data.data
+                    : Array.isArray(data?.messages) ? data.messages
                     : Array.isArray(data) ? data : [];
-        setMessages(list);
-      } catch { setMessages([]); }
+        setMessages(list.map((m: any) => ({
+          id: m?.id || Math.random().toString(),
+          direction: m?.direction === "OUTBOUND" ? "OUTBOUND" : "INBOUND",
+          content: typeof m?.content === "string" ? m.content : null,
+          type: m?.type || "TEXT",
+          createdAt: m?.createdAt || new Date().toISOString(),
+          fromAgent: !!m?.metadata?.fromAgent || !!m?.fromAgent,
+        })));
+      } catch (e) { console.error("Messages load failed", e); setMessages([]); }
 
       // Find tutor of selected conversation, then load full tutor with pets
       const conv = conversations.find((c) => c.id === selectedId);
@@ -171,8 +188,16 @@ export default function InboxUnificadoPage() {
       // Refresh messages
       const res = await fetch(`/api/whatsapp/conversations/${selectedId}/messages?limit=30`);
       const data = await res.json().catch(() => ({}));
-      const list = Array.isArray(data?.messages) ? data.messages : [];
-      setMessages(list);
+      const list = Array.isArray(data?.data) ? data.data
+                  : Array.isArray(data?.messages) ? data.messages : [];
+      setMessages(list.map((m: any) => ({
+        id: m?.id || Math.random().toString(),
+        direction: m?.direction === "OUTBOUND" ? "OUTBOUND" : "INBOUND",
+        content: typeof m?.content === "string" ? m.content : null,
+        type: m?.type || "TEXT",
+        createdAt: m?.createdAt || new Date().toISOString(),
+        fromAgent: !!m?.metadata?.fromAgent || !!m?.fromAgent,
+      })));
     } catch (e) { console.error(e); }
   };
 
@@ -181,7 +206,7 @@ export default function InboxUnificadoPage() {
       {/* Header */}
       <div className="px-4 py-3 border-b border-[#e8e1d2] flex items-center justify-between bg-white">
         <div className="flex items-center gap-2.5">
-          <LuInbox className="w-5 h-5 text-[#0E2244]" />
+          <span style={{fontSize:"18px"}}>📥</span>
           <span className="text-lg text-[#0E2244] font-medium">Inbox</span>
           {counts.unread > 0 && (
             <span className="bg-[#E24B4A] text-white text-[11px] px-2 py-0.5 rounded-full font-medium">
@@ -192,11 +217,11 @@ export default function InboxUnificadoPage() {
         </div>
         <div className="flex items-center gap-3">
           <span className="text-[11px] text-[#5F5E5A] hidden md:flex items-center gap-1.5">
-            <LuTrophy className="w-3.5 h-3.5 text-[#BA7517]" />
+            <span style={{fontSize:"13px"}}>🏆</span>
             Hoje: <b className="text-[#0F6E56]">— resolvidas</b>
           </span>
           <button onClick={() => setRefreshTick((t) => t + 1)} className="bg-white border border-[#cfd8e0] px-3 py-1.5 rounded-lg text-xs text-[#5F5E5A] flex items-center gap-1.5 hover:bg-[#fdfaee]">
-            <LuRefreshCw className="w-3.5 h-3.5" />Atualizar
+            <span style={{fontSize:"12px"}}>↻</span>Atualizar
           </button>
           <button className="bg-[#009AAC] text-white px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5">
             <LuPlus className="w-3.5 h-3.5" />Nova mensagem
@@ -279,7 +304,7 @@ export default function InboxUnificadoPage() {
             {!selectedId ? (
               <div className="flex-1 flex items-center justify-center text-center p-8">
                 <div>
-                  <LuMessageCircle className="w-10 h-10 text-[#cfd8e0] mx-auto mb-3" />
+                  <span style={{fontSize:"36px",color:"#cfd8e0",display:"block",marginBottom:"12px"}}>💬</span>
                   <p className="text-sm text-[#5F5E5A]">Selecione uma conversa pra começar</p>
                 </div>
               </div>
@@ -292,20 +317,20 @@ export default function InboxUnificadoPage() {
                     </div>
                     <div>
                       <div className="text-xs text-[#0E2244] font-medium">
-                        {selectedConv?.contactName || selectedConv?.tutor?.name || "Sem nome"}
+                        {selectedConv?.contactName || selectedConv?.tutor?.name || selectedConv?.contactNumber || "Sem nome"}
                       </div>
-                      <div className="text-[10px] text-[#888780]">📞 {selectedConv?.contactNumber}</div>
+                      <div className="text-[10px] text-[#888780]">📞 {selectedConv?.contactNumber || "—"}</div>
                     </div>
                   </div>
                   <div className="flex gap-1.5">
                     <span className="bg-[#E1F5EE] text-[#0F6E56] text-[10px] px-2 py-1 rounded-full inline-flex items-center gap-1">
-                      <LuRobot className="w-2.5 h-2.5" />IA Ativa
+                      <span style={{fontSize:"10px"}}>🤖</span>IA Ativa
                     </span>
                     <button className="bg-[#FBF0DD] text-[#8a6313] text-[10px] px-2 py-1 rounded-full inline-flex items-center gap-1">
                       <LuUserPlus className="w-2.5 h-2.5" />Assumir
                     </button>
                     <button className="bg-[#E0F4F6] text-[#00798A] text-[10px] px-2 py-1 rounded-full inline-flex items-center gap-1">
-                      <LuArrowLeftRight className="w-2.5 h-2.5" />Encaminhar
+                      <span style={{fontSize:"10px"}}>↔</span>Encaminhar
                     </button>
                   </div>
                 </div>
@@ -320,7 +345,7 @@ export default function InboxUnificadoPage() {
                         <div className={`px-3 py-2 rounded-xl text-[13px] ${outbound ? "bg-[#009AAC] text-white rounded-br-sm" : "bg-white border border-[#e8e1d2] text-[#0E2244] rounded-bl-sm"}`}>
                           {m.fromAgent && (
                             <div className={`text-[9px] mb-1 ${outbound ? "opacity-85" : "text-[#888780]"} flex items-center gap-1`}>
-                              <LuRobot className="w-2.5 h-2.5" />Atendente IA
+                              <span style={{fontSize:"10px"}}>🤖</span>Atendente IA
                             </div>
                           )}
                           {m.content || "(mídia)"}
@@ -339,7 +364,7 @@ export default function InboxUnificadoPage() {
                     placeholder="Digite uma mensagem..."
                     className="flex-1 px-3 py-1.5 border border-[#e8e1d2] rounded-lg text-xs focus:outline-none focus:border-[#009AAC]" />
                   <button onClick={sendMessage} className="bg-[#009AAC] text-white w-8 h-8 rounded-lg flex items-center justify-center">
-                    <LuSend className="w-3.5 h-3.5" />
+                    <span style={{fontSize:"13px"}}>➤</span>
                   </button>
                 </div>
               </>
@@ -389,7 +414,7 @@ export default function InboxUnificadoPage() {
                     <div className="flex-1">
                       <div className="text-xs text-[#0E2244] font-medium">{tutor.name || "Sem nome"}</div>
                       <div className="text-[9px] text-[#888780]">
-                        Cliente desde {new Date(tutor.createdAt).toLocaleDateString("pt-BR", { month: "short", year: "numeric" })}
+                        Cliente desde {(() => { try { return new Date(tutor.createdAt).toLocaleDateString("pt-BR", { month: "short", year: "numeric" }); } catch { return "—"; } })()}
                       </div>
                     </div>
                   </div>
@@ -406,7 +431,7 @@ export default function InboxUnificadoPage() {
                 <div className="bg-white border border-[#e8e1d2] rounded-xl p-3">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-[10px] text-[#888780] font-medium">🐾 PACIENTE EM ATENDIMENTO</span>
-                    <LuInfo className="w-3 h-3 text-[#888780]" />
+                    <span style={{fontSize:"11px",color:"#888780"}}>ⓘ</span>
                   </div>
                   {(tutor.pets?.length || 0) === 0 ? (
                     <div className="text-[11px] text-[#888780] text-center py-3">
@@ -453,13 +478,13 @@ export default function InboxUnificadoPage() {
                         <LuPencil className="w-2.5 h-2.5" />Nota clínica
                       </button>
                       <button className="bg-[#fafafa] border border-[#e8e1d2] px-2 py-1 rounded text-[10px] text-[#0E2244] flex items-center gap-1 hover:bg-[#fdfaee]">
-                        <LuCalendarPlus className="w-2.5 h-2.5" />Agendar
+                        <LuCalendar className="w-2.5 h-2.5" />Agendar
                       </button>
                       <button className="bg-[#fafafa] border border-[#e8e1d2] px-2 py-1 rounded text-[10px] text-[#0E2244] flex items-center gap-1 hover:bg-[#fdfaee]">
-                        <LuStethoscope className="w-2.5 h-2.5" />Prontuário
+                        <span style={{fontSize:"10px"}}>🩺</span>Prontuário
                       </button>
                       <button className="bg-[#fafafa] border border-[#e8e1d2] px-2 py-1 rounded text-[10px] text-[#0E2244] flex items-center gap-1 hover:bg-[#fdfaee]">
-                        <LuFlask className="w-2.5 h-2.5" />Exame
+                        <span style={{fontSize:"10px"}}>🧪</span>Exame
                       </button>
                     </div>
                   </div>
@@ -467,7 +492,7 @@ export default function InboxUnificadoPage() {
 
                 <Link href={`/dashboard/erp/tutores/${tutor.id}`}
                   className="bg-white border border-[#e8e1d2] py-1.5 rounded-lg text-[11px] text-[#0E2244] flex items-center justify-center gap-1.5 hover:bg-[#fdfaee]">
-                  <LuExternalLink className="w-3 h-3" />Abrir perfil completo
+                  <span style={{fontSize:"11px"}}>↗</span>Abrir perfil completo
                 </Link>
               </>
             )}
@@ -490,10 +515,10 @@ export default function InboxUnificadoPage() {
 
       {/* Bottom gamification bar */}
       <div className="px-4 py-2.5 border-t border-[#e8e1d2] bg-[#fafafa] flex items-center gap-4 text-[11px] text-[#5F5E5A] flex-wrap">
-        <span className="inline-flex items-center gap-1"><LuFlame className="w-3 h-3 text-[#C2410C]" /><b className="text-[#C2410C]">—</b> leads quentes</span>
-        <span className="inline-flex items-center gap-1"><LuClock className="w-3 h-3 text-[#BA7517]" /><b className="text-[#BA7517]">—</b> esperando +1h</span>
-        <span className="inline-flex items-center gap-1"><LuMessageCircle className="w-3 h-3 text-[#0F6E56]" />Tempo médio: <b>—</b></span>
-        <span className="ml-auto inline-flex items-center gap-1"><LuTrophy className="w-3 h-3 text-[#BA7517]" />Streak: <b>—</b></span>
+        <span className="inline-flex items-center gap-1"><span style={{fontSize:"12px"}}>🔥</span><b className="text-[#C2410C]">—</b> leads quentes</span>
+        <span className="inline-flex items-center gap-1"><span style={{fontSize:"12px"}}>⏱</span><b className="text-[#BA7517]">—</b> esperando +1h</span>
+        <span className="inline-flex items-center gap-1"><span style={{fontSize:"12px"}}>💬</span>Tempo médio: <b>—</b></span>
+        <span className="ml-auto inline-flex items-center gap-1"><span style={{fontSize:"12px"}}>🏆</span>Streak: <b>—</b></span>
       </div>
     </div>
   );

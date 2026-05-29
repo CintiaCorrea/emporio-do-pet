@@ -18,6 +18,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm install -g pnpm@9
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV NEXT_PUBLIC_BACKEND_URL=https://emporio-pet-api.fly.dev
 RUN pnpm prisma generate
 RUN pnpm build
 
