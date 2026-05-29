@@ -105,6 +105,25 @@ export default function InboxUnificadoPage() {
   const [encaminharOpen, setEncaminharOpen] = useState(false);
   const [resolvendo, setResolvendo] = useState(false);
 
+  // Controles IA / Agentes
+  const [agentes, setAgentes] = useState<Array<{id: string; name: string}>>([]);
+  const [autoReply, setAutoReply] = useState(true);
+  const [assumida, setAssumida] = useState(false);
+
+  // Carregar lista de agentes uma vez
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/ai-agents");
+        const data = await res.json().catch(() => ({}));
+        const list = Array.isArray(data?.data) ? data.data
+                  : Array.isArray(data?.agents) ? data.agents
+                  : Array.isArray(data) ? data : [];
+        setAgentes(list.map((a: any) => ({ id: a?.id || "", name: a?.name || "Agente" })).filter((a: any) => a.id));
+      } catch { setAgentes([]); }
+    })();
+  }, []);
+
   useEffect(() => {
     (async () => {
       setLoading(true);
@@ -371,13 +390,32 @@ export default function InboxUnificadoPage() {
                       <div className="text-[10px] text-[#888780]">📞 {selectedConv?.contactNumber || "—"}</div>
                     </div>
                   </div>
-                  <div className="flex gap-1.5">
-                    <span className="bg-[#E1F5EE] text-[#0F6E56] text-[10px] px-2 py-1 rounded-full inline-flex items-center gap-1">
-                      <span style={{fontSize:"10px"}}>🤖</span>IA Ativa
-                    </span>
-                    <button className="bg-[#FBF0DD] text-[#8a6313] text-[10px] px-2 py-1 rounded-full inline-flex items-center gap-1 hover:bg-[#f5e3c6]">
-                      <LuUserPlus className="w-2.5 h-2.5" />Assumir
+                  <div className="flex gap-1.5 items-center flex-wrap">
+                    <button
+                      onClick={() => setAutoReply(!autoReply)}
+                      title={autoReply ? "Desativar IA pra essa conversa" : "Ativar IA"}
+                      className={`text-[10px] px-2 py-1 rounded-full inline-flex items-center gap-1 ${autoReply ? "bg-[#E1F5EE] text-[#0F6E56]" : "bg-[#fafafa] border border-[#e8e1d2] text-[#888780]"}`}>
+                      <span style={{fontSize:"10px"}}>🤖</span>IA {autoReply ? "Ativa" : "Pausada"}
                     </button>
+                    <button
+                      onClick={() => setAssumida(!assumida)}
+                      title={assumida ? "Devolver pra IA" : "Assumir conversa (humano)"}
+                      className={`text-[10px] px-2 py-1 rounded-full inline-flex items-center gap-1 ${assumida ? "bg-[#185FA5] text-white" : "bg-[#E6F1FB] text-[#185FA5] hover:bg-[#cce0f5]"}`}>
+                      <LuUserPlus className="w-2.5 h-2.5" />{assumida ? "Assumida" : "Assumir"}
+                    </button>
+                    <button
+                      title="Auto-resposta"
+                      className="bg-[#fafafa] border border-[#e8e1d2] text-[#5F5E5A] text-[10px] px-2 py-1 rounded-full inline-flex items-center gap-1 hover:bg-white">
+                      <span style={{fontSize:"10px"}}>⚡</span>Auto
+                    </button>
+                    <select
+                      title="Agente IA atribuído"
+                      className="bg-white border border-[#e8e1d2] text-[#5F5E5A] text-[10px] px-2 py-1 rounded-full focus:outline-none focus:border-[#009AAC]">
+                      <option value="">Sem agente</option>
+                      {agentes.map((a) => (
+                        <option key={a.id} value={a.id}>{a.name}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 
@@ -521,7 +559,7 @@ export default function InboxUnificadoPage() {
                 <div className="bg-white border border-[#e8e1d2] rounded-xl p-3">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-[10px] text-[#888780] font-medium">🐾 PETS ({tutor.pets?.length || 0})</span>
-                    <Link href={`/dashboard/erp/tutores/${tutor.id}`} className="text-[10px] text-[#009AAC] font-medium">+ Cadastrar</Link>
+                    <Link href={`/dashboard/erp/pets/novo?tutorId=${tutor.id}`} className="text-[10px] text-[#009AAC] font-medium">+ Cadastrar</Link>
                   </div>
                   {(tutor.pets?.length || 0) === 0 ? (
                     <div className="text-[11px] text-[#888780] text-center py-3">

@@ -53,7 +53,7 @@ export default function Topbar({ sidebarOpen = false }: TopbarProps) {
 
   return (
     <header className={`
-      fixed top-0 right-0 z-40 h-16 bg-[color:var(--topbar-bg)] backdrop-blur-xl border-b border-[color:var(--topbar-border)]
+      fixed bottom-0 right-0 z-40 h-14 bg-[color:var(--topbar-bg)] backdrop-blur-xl border-t border-[color:var(--topbar-border)]
       transition-all duration-300
       ${sidebarOpen ? 'left-56 sm:left-64' : 'left-12 sm:left-16'}
     `}>
