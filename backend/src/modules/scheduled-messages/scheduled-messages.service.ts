@@ -51,11 +51,10 @@ export class ScheduledMessagesService {
     });
     for (const msg of due) {
       try {
-        await this.whatsapp.sendMessage(msg.userId, {
+        await this.whatsapp.sendMessage({
           to: msg.phone,
-          content: msg.content,
-          type: 'text' as any,
-        } as any);
+          message: msg.content,
+        });
         await this.prisma.whatsAppScheduledMessage.update({
           where: { id: msg.id },
           data: { status: 'SENT', sentAt: new Date() },
