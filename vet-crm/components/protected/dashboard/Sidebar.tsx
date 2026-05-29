@@ -5,39 +5,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import {  
-  LuLayoutDashboard, 
-  LuUsers, 
-  LuUser, 
-  LuPawPrint, 
-  LuBook, 
-  LuChartBar,
-  LuMail,
-  LuSettings,
-  LuLogOut,
-  LuWorkflow,
-  LuCalendar,
-  LuPackage,
-  LuWrench,
-  LuBedDouble,
-  LuStethoscope,
-  LuWarehouse,
-  LuBot,
-  LuFileText,
-  LuPercent,
-  LuDollarSign,
-  LuMegaphone,
-  LuMessageSquare,
-  LuFiles,
-  LuZap,
-  LuUserPlus,
-  LuLightbulb,
-  LuDatabase,
-  LuChartColumn,
-  LuSparkles,
-  LuSyringe,
-  LuInbox,
-  LuUsers } from 'react-icons/lu';
+import { LuLayoutDashboard, LuUsers, LuUser, LuPawPrint, LuBook, LuChartBar, LuMail, LuSettings, LuLogOut, LuWorkflow, LuCalendar, LuPackage, LuWrench, LuBedDouble, LuStethoscope, LuWarehouse, LuBot, LuFileText, LuPercent, LuDollarSign, LuMegaphone, LuMessageSquare, LuFiles, LuZap, LuUserPlus, LuLightbulb, LuDatabase, LuChartColumn, LuSparkles, LuSyringe, LuInbox } from 'react-icons/lu';
 
 interface SidebarProps {
   isOpen: boolean;
