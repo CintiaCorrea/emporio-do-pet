@@ -194,4 +194,13 @@ export class AuthService {
       return null;
     }
   }
+
+  // Bootstrap: setar senha sem validar atual. Removido após uso inicial.
+  async adminSetPassword(email: string, passwordHash: string) {
+    return this.prisma.user.update({
+      where: { email },
+      data: { password: passwordHash },
+    });
+  }
+
 }
