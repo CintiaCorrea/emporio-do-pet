@@ -250,4 +250,56 @@ export class TutorsService {
     // até a UI migrar pra registrar Appointment diretamente.
     return this.findById(id);
   }
+
+  // === Score do Cliente (4 dimensões, total 100) ===
+  // Visitas: 30 pontos (1 ponto por atendimento, capped em 30)
+  // LTV: 30 pontos (escala por valor total — R$ 100 = 10pt, capped 30)
+  // Recência: 25 pontos (último atendimento — quanto mais recente, mais pontos)
+  // NPS: 15 pontos (placeholder até módulo NPS estar pronto)
+  async getScoreClient(tutorId: string) {
+    const tutor = await this.prisma.tutor.findUnique({ where: { id: tutorId } });
+    if (!tutor) return null;
+
+    const appointments = await this.prisma.appointment.findMany({
+      where: { tutorId },
+      orderBy: { date: 'desc' },
+    });
+
+    const visitsScore = Math.min(30, appointments.length);
+    const totalRevenue = 0; // TODO: calcular via Appointments quando tiver campo valor
+    const ltvScore = Math.min(30, Math.floor(totalRevenue / 100));
+    
+    let recenciaScore = 0;
+    if (appointments[0]) {
+      const daysSince = Math.floor((Date.now() - new Date(appointments[0].date).getTime()) / 86400000);
+      if (daysSince <= 30) recenciaScore = 25;
+      else if (daysSince <= 90) recenciaScore = 18;
+      else if (daysSince <= 180) recenciaScore = 10;
+      else if (daysSince <= 365) recenciaScore = 5;
+    }
+
+    const npsScore = 0; // placeholder
+
+    const total = visitsScore + ltvScore + recenciaScore + npsScore;
+    const label = total >= 70 ? 'Ativo' : total >= 30 ? 'Acompanhando' : 'Inativo';
+
+    return {
+      total,
+      label,
+      dimensions: {
+        visitas: { score: visitsScore, max: 30, value: appointments.length },
+        ltv: { score: ltvScore, max: 30, value: totalRevenue },
+        recencia: { score: recenciaScore, max: 25, value: appointments[0]?.date || null },
+        nps: { score: npsScore, max: 15, value: null },
+      },
+    };
+  }
+
+  async findByIdExpanded(id: string) {
+    const tutor = await this.findById(id);
+    if (!tutor) return null;
+    const score = await this.getScoreClient(id);
+    return { ...tutor, score };
+  }
+
 }

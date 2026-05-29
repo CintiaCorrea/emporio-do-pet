@@ -71,7 +71,7 @@ export class TutorsController {
   @Get(':id')
   @ApiOperation({ summary: 'Buscar tutor por ID' })
   findOne(@Param('id') id: string) {
-    return this.tutorsService.findById(id);
+    return this.tutorsService.findByIdExpanded(id);
   }
 
   @Patch(':id')

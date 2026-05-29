@@ -342,6 +342,7 @@ model Tutor {
   state                 String?
   // Extras
   observations          String?
+  notaCliente           String? // 'Caixinha lembrar' — Cintia
   tags                  String[] // Para marcações
   formDate              DateTime? // Ficha
   inclusionDate         DateTime? // Inclusão
