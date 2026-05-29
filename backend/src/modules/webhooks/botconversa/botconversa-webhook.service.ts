@@ -52,6 +52,107 @@ export class BotconversaWebhookService {
     return (phone || '').replace(/\D/g, '').slice(-8);
   }
 
+  /**
+   * Detecta se o payload representa uma mensagem do BotConversa (espelhamento).
+   * Aceita várias chaves possíveis (BotConversa varia por flow).
+   */
+  private extractMessageContent(payload: BotconversaPayload): { content: string; direction: 'INBOUND' | 'OUTBOUND' } | null {
+    const content =
+      payload.message ||
+      payload.Message ||
+      payload.mensagem ||
+      payload.Mensagem ||
+      payload.Conteudo ||
+      payload.conteudo ||
+      payload.text ||
+      payload.body ||
+      null;
+    if (!content || typeof content !== 'string' || !content.trim()) return null;
+    const dirRaw = (payload.direction || payload.Direcao || payload.tipo || '').toString().toUpperCase();
+    const direction: 'INBOUND' | 'OUTBOUND' =
+      dirRaw === 'OUTBOUND' || dirRaw === 'OUT' || dirRaw === 'SENT' || dirRaw === 'SAIDA' ? 'OUTBOUND' : 'INBOUND';
+    return { content: content.trim(), direction };
+  }
+
+  /**
+   * Cria/atualiza WhatsAppConversation e grava WhatsAppMessage refletindo o BotConversa.
+   * Usado quando o BotConversa dispara webhook a cada mensagem (não só lead).
+   */
+  private async mirrorMessage(
+    payload: BotconversaPayload,
+    phoneRaw: string,
+    last8: string,
+    msg: { content: string; direction: 'INBOUND' | 'OUTBOUND' },
+  ): Promise<{ ok: boolean; kind: 'message'; conversationId: string; created: boolean }> {
+    // Acha o user "dono" da clínica (primeiro admin, fallback primeiro user)
+    const owner =
+      (await this.prisma.user.findFirst({ where: { role: 'ADMIN' }, orderBy: { createdAt: 'asc' } })) ||
+      (await this.prisma.user.findFirst({ orderBy: { createdAt: 'asc' } }));
+    if (!owner) {
+      this.logger.error('BotConversa mirror: nenhum user encontrado pra atribuir a conversa');
+      return { ok: false as any, kind: 'message', conversationId: '', created: false };
+    }
+
+    // Acha tutor existente
+    const existingContact = await this.prisma.contact.findFirst({
+      where: { number: { endsWith: last8 } },
+      include: { tutor: true },
+    });
+    const tutorId = existingContact?.tutor?.id || null;
+    const contactName = this.resolveName(payload) || null;
+
+    // Upsert da conversa pelo (userId, contactPhone)
+    let conversation = await this.prisma.whatsAppConversation.findFirst({
+      where: { userId: owner.id, contactPhone: { endsWith: last8 } },
+    });
+    let createdConv = false;
+    if (!conversation) {
+      conversation = await this.prisma.whatsAppConversation.create({
+        data: {
+          userId: owner.id,
+          contactPhone: phoneRaw,
+          contactName: contactName,
+          tutorId,
+          metadata: { source: 'BOTCONVERSA' } as any,
+          lastMessageAt: new Date(),
+          lastMessagePreview: msg.content.substring(0, 100),
+          unreadCount: msg.direction === 'INBOUND' ? 1 : 0,
+        },
+      });
+      createdConv = true;
+    } else {
+      await this.prisma.whatsAppConversation.update({
+        where: { id: conversation.id },
+        data: {
+          lastMessageAt: new Date(),
+          lastMessagePreview: msg.content.substring(0, 100),
+          unreadCount: msg.direction === 'INBOUND' ? { increment: 1 } : conversation.unreadCount,
+          ...(tutorId && !conversation.tutorId ? { tutorId } : {}),
+          ...(contactName && !conversation.contactName ? { contactName } : {}),
+        },
+      });
+    }
+
+    // Cria a mensagem
+    await this.prisma.whatsAppMessage.create({
+      data: {
+        conversationId: conversation.id,
+        direction: msg.direction as any,
+        type: 'TEXT' as any,
+        status: 'DELIVERED' as any,
+        content: msg.content,
+        metadata: { source: 'BOTCONVERSA', raw_trigger: payload.trigger || null } as any,
+        sentAt: msg.direction === 'OUTBOUND' ? new Date() : null,
+        deliveredAt: new Date(),
+      },
+    });
+
+    this.logger.log(
+      `BotConversa mirror: ${msg.direction} message in conversation ${conversation.id} (created=${createdConv})`,
+    );
+    return { ok: true, kind: 'message', conversationId: conversation.id, created: createdConv };
+  }
+
   async handle(payload: BotconversaPayload) {
     const phoneRaw = this.resolvePhone(payload);
     const last8 = this.last8(phoneRaw || '');
@@ -62,6 +163,12 @@ export class BotconversaWebhookService {
         ).join(',')}`,
       );
       return { ok: false, reason: 'invalid_phone', received: Object.keys(payload) };
+    }
+
+    // === Espelhamento de mensagem (se o payload trouxer conteúdo) ===
+    const msg = this.extractMessageContent(payload);
+    if (msg && phoneRaw) {
+      return this.mirrorMessage(payload, phoneRaw, last8, msg) as any;
     }
 
     const name = this.resolveName(payload);
