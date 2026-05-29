@@ -96,10 +96,21 @@ export default function InboxUnificadoPage() {
       try {
         const res = await fetch("/api/whatsapp/conversations?limit=50");
         const data = await res.json().catch(() => ({}));
-        const list = Array.isArray(data?.conversations) ? data.conversations
-                    : Array.isArray(data) ? data
-                    : Array.isArray(data?.data) ? data.data : [];
-        setConversations(list);
+        const raw = Array.isArray(data?.conversations) ? data.conversations
+                  : Array.isArray(data?.data) ? data.data
+                  : Array.isArray(data) ? data : [];
+        const safe = raw.map((c: any) => ({
+          id: c?.id || Math.random().toString(),
+          contactName: c?.contactName || null,
+          contactNumber: c?.contactPhone || c?.contactNumber || "",
+          lastMessageAt: c?.lastMessageAt || c?.createdAt || new Date().toISOString(),
+          unreadCount: typeof c?.unreadCount === "number" ? c.unreadCount : 0,
+          status: c?.status || "OPEN",
+          tutor: c?.tutor ? { id: c.tutor.id, name: c.tutor.name } : null,
+          source: c?.metadata?.source || c?.source || null,
+          metadata: c?.metadata || null,
+        }));
+        setConversations(safe);
       } catch (e) { console.error(e); setConversations([]); }
       finally { setLoading(false); }
     })();
@@ -112,10 +123,18 @@ export default function InboxUnificadoPage() {
       try {
         const res = await fetch(`/api/whatsapp/conversations/${selectedId}/messages?limit=30`);
         const data = await res.json().catch(() => ({}));
-        const list = Array.isArray(data?.messages) ? data.messages
+        const list = Array.isArray(data?.data) ? data.data
+                    : Array.isArray(data?.messages) ? data.messages
                     : Array.isArray(data) ? data : [];
-        setMessages(list);
-      } catch { setMessages([]); }
+        setMessages(list.map((m: any) => ({
+          id: m?.id || Math.random().toString(),
+          direction: m?.direction === "OUTBOUND" ? "OUTBOUND" : "INBOUND",
+          content: typeof m?.content === "string" ? m.content : null,
+          type: m?.type || "TEXT",
+          createdAt: m?.createdAt || new Date().toISOString(),
+          fromAgent: !!m?.metadata?.fromAgent || !!m?.fromAgent,
+        })));
+      } catch (e) { console.error("Messages load failed", e); setMessages([]); }
 
       // Find tutor of selected conversation, then load full tutor with pets
       const conv = conversations.find((c) => c.id === selectedId);
@@ -171,8 +190,16 @@ export default function InboxUnificadoPage() {
       // Refresh messages
       const res = await fetch(`/api/whatsapp/conversations/${selectedId}/messages?limit=30`);
       const data = await res.json().catch(() => ({}));
-      const list = Array.isArray(data?.messages) ? data.messages : [];
-      setMessages(list);
+      const list = Array.isArray(data?.data) ? data.data
+                  : Array.isArray(data?.messages) ? data.messages : [];
+      setMessages(list.map((m: any) => ({
+        id: m?.id || Math.random().toString(),
+        direction: m?.direction === "OUTBOUND" ? "OUTBOUND" : "INBOUND",
+        content: typeof m?.content === "string" ? m.content : null,
+        type: m?.type || "TEXT",
+        createdAt: m?.createdAt || new Date().toISOString(),
+        fromAgent: !!m?.metadata?.fromAgent || !!m?.fromAgent,
+      })));
     } catch (e) { console.error(e); }
   };
 
@@ -292,9 +319,9 @@ export default function InboxUnificadoPage() {
                     </div>
                     <div>
                       <div className="text-xs text-[#0E2244] font-medium">
-                        {selectedConv?.contactName || selectedConv?.tutor?.name || "Sem nome"}
+                        {selectedConv?.contactName || selectedConv?.tutor?.name || selectedConv?.contactNumber || "Sem nome"}
                       </div>
-                      <div className="text-[10px] text-[#888780]">📞 {selectedConv?.contactNumber}</div>
+                      <div className="text-[10px] text-[#888780]">📞 {selectedConv?.contactNumber || "—"}</div>
                     </div>
                   </div>
                   <div className="flex gap-1.5">
@@ -389,7 +416,7 @@ export default function InboxUnificadoPage() {
                     <div className="flex-1">
                       <div className="text-xs text-[#0E2244] font-medium">{tutor.name || "Sem nome"}</div>
                       <div className="text-[9px] text-[#888780]">
-                        Cliente desde {new Date(tutor.createdAt).toLocaleDateString("pt-BR", { month: "short", year: "numeric" })}
+                        Cliente desde {(() => { try { return new Date(tutor.createdAt).toLocaleDateString("pt-BR", { month: "short", year: "numeric" }); } catch { return "—"; } })()}
                       </div>
                     </div>
                   </div>
