@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+
 import { useState, useEffect, useRef, type ChangeEvent } from 'react';
 import { useSession } from 'next-auth/react';
 import Image from 'next/image';
@@ -256,7 +258,7 @@ export default function PerfilPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-emerald-50/30">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
         {/* Header */}
         <div className="mb-8">
@@ -269,7 +271,7 @@ export default function PerfilPage() {
           <div className="lg:col-span-1">
             <div className="bg-white rounded-3xl shadow-sm shadow-gray-200/50 border border-gray-100 overflow-hidden">
               {/* Banner */}
-              <div className="h-24 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500"></div>
+              <div className="h-24 bg-gradient-to-br from-emerald-500 via-amber-500 to-rose-500"></div>
               
               {/* Avatar e info */}
               <div className="px-6 pb-6">
@@ -283,7 +285,7 @@ export default function PerfilPage() {
                         className="rounded-2xl object-cover ring-4 ring-white shadow-lg"
                       />
                     ) : (
-                      <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-2xl font-bold ring-4 ring-white shadow-lg">
+                      <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-emerald-500 to-amber-600 flex items-center justify-center text-white text-2xl font-bold ring-4 ring-white shadow-lg">
                         {getInitials(userName)}
                       </div>
                     )}
@@ -319,7 +321,7 @@ export default function PerfilPage() {
                       <span className="w-1.5 h-1.5 bg-current rounded-full opacity-70"></span>
                       {statusLabel.text}
                     </span>
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-700 text-xs font-medium rounded-full">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-700 text-xs font-medium rounded-full">
                       <LuShield className="w-3 h-3" />
                       {roleLabel}
                     </span>
@@ -341,9 +343,9 @@ export default function PerfilPage() {
                 <LuKey className="w-5 h-5 text-gray-400" />
                 Segurança
               </h3>
-              <button className="w-full py-3 px-4 bg-gray-50 hover:bg-gray-100 rounded-xl text-sm font-medium text-gray-700 transition-colors text-left">
+              <Link href="/change-password" className="block w-full py-3 px-4 bg-gray-50 hover:bg-emerald-50 hover:text-emerald-700 rounded-xl text-sm font-medium text-gray-700 transition-colors text-left">
                 Alterar senha
-              </button>
+              </Link>
               <button className="w-full mt-2 py-3 px-4 bg-gray-50 hover:bg-gray-100 rounded-xl text-sm font-medium text-gray-700 transition-colors text-left">
                 Autenticação de dois fatores
               </button>
@@ -358,7 +360,7 @@ export default function PerfilPage() {
                 {!isEditing ? (
                   <button
                     onClick={() => setIsEditing(true)}
-                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-xl transition-colors"
+                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors"
                   >
                     <LuPencil className="w-4 h-4" />
                     Editar
@@ -375,7 +377,7 @@ export default function PerfilPage() {
                     <button
                       onClick={handleSave}
                       disabled={isSaving}
-                      className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-colors disabled:opacity-50"
+                      className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-colors disabled:opacity-50"
                     >
                       {isSaving ? (
                         <LuLoaderCircle className="w-4 h-4 animate-spin" />
@@ -401,7 +403,7 @@ export default function PerfilPage() {
                         type="text"
                         value={formData.name}
                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                        className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
                         placeholder="Seu nome"
                       />
                     </div>
@@ -422,7 +424,7 @@ export default function PerfilPage() {
                         type="email"
                         value={formData.email}
                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                        className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                        className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
                         placeholder="seu@email.com"
                       />
                     </div>

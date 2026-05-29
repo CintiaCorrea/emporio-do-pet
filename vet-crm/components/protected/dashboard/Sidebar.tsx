@@ -120,7 +120,7 @@ const Sidebar = ({ isOpen, toggleSidebar }: SidebarProps) => {
           )}
           <button
             onClick={toggleSidebar}
-            className={`h-full px-3 sm:px-4 hover:bg-[color:var(--sidebar-hover)] text-[color:var(--sidebar-muted)] hover:text-[color:var(--sidebar-text)] focus:outline-none focus:ring-2 focus:ring-blue-500/30 ${
+            className={`h-full px-3 sm:px-4 hover:bg-[color:var(--sidebar-hover)] text-[color:var(--sidebar-muted)] hover:text-[color:var(--sidebar-text)] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 ${
               isOpen ? "" : "w-full"
             }`}
             aria-label={isOpen ? "Fechar sidebar" : "Abrir sidebar"}
@@ -176,7 +176,7 @@ const Sidebar = ({ isOpen, toggleSidebar }: SidebarProps) => {
               <div className="mb-2">
                 <button
                   onClick={toggleAiAgentsSubmenu}
-                  className={`mx-2 my-1 w-[calc(100%-1rem)] flex justify-between items-center px-3 sm:px-4 py-2.5 rounded-xl text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition-colors ${
+                  className={`mx-2 my-1 w-[calc(100%-1rem)] flex justify-between items-center px-3 sm:px-4 py-2.5 rounded-xl text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-emerald-500/30 transition-colors ${
                     isActive("/dashboard/ai-agents")
                       ? "bg-[color:var(--sidebar-active-bg)] text-[color:var(--sidebar-text)]"
                       : "text-[color:var(--sidebar-muted)] hover:bg-[color:var(--sidebar-hover)] hover:text-[color:var(--sidebar-text)]"
@@ -277,7 +277,7 @@ const Sidebar = ({ isOpen, toggleSidebar }: SidebarProps) => {
               <div className="mb-2">
                 <button
                   onClick={toggleCrmSubmenu}
-                  className={`mx-2 my-1 w-[calc(100%-1rem)] flex justify-between items-center px-3 sm:px-4 py-2.5 rounded-xl text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition-colors ${
+                  className={`mx-2 my-1 w-[calc(100%-1rem)] flex justify-between items-center px-3 sm:px-4 py-2.5 rounded-xl text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-emerald-500/30 transition-colors ${
                     isActive("/dashboard/crm")
                       ? "bg-[color:var(--sidebar-active-bg)] text-[color:var(--sidebar-text)]"
                       : "text-[color:var(--sidebar-muted)] hover:bg-[color:var(--sidebar-hover)] hover:text-[color:var(--sidebar-text)]"
@@ -334,7 +334,7 @@ const Sidebar = ({ isOpen, toggleSidebar }: SidebarProps) => {
               <div className="mb-2">
                 <button
                   onClick={toggleErpSubmenu}
-                  className={`mx-2 my-1 w-[calc(100%-1rem)] flex justify-between items-center px-3 sm:px-4 py-2.5 rounded-xl text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition-colors ${
+                  className={`mx-2 my-1 w-[calc(100%-1rem)] flex justify-between items-center px-3 sm:px-4 py-2.5 rounded-xl text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-emerald-500/30 transition-colors ${
                     isActive("/dashboard/erp")
                       ? "bg-[color:var(--sidebar-active-bg)] text-[color:var(--sidebar-text)]"
                       : "text-[color:var(--sidebar-muted)] hover:bg-[color:var(--sidebar-hover)] hover:text-[color:var(--sidebar-text)]"
@@ -512,7 +512,7 @@ const Sidebar = ({ isOpen, toggleSidebar }: SidebarProps) => {
               <div className="mb-2">
                 <button
                   onClick={toggleCampanhasSubmenu}
-                  className={`mx-2 my-1 w-[calc(100%-1rem)] flex justify-between items-center px-3 sm:px-4 py-2.5 rounded-xl text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition-colors ${
+                  className={`mx-2 my-1 w-[calc(100%-1rem)] flex justify-between items-center px-3 sm:px-4 py-2.5 rounded-xl text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-emerald-500/30 transition-colors ${
                     isActive("/dashboard/campanhas")
                       ? "bg-[color:var(--sidebar-active-bg)] text-[color:var(--sidebar-text)]"
                       : "text-[color:var(--sidebar-muted)] hover:bg-[color:var(--sidebar-hover)] hover:text-[color:var(--sidebar-text)]"
@@ -615,6 +615,30 @@ const Sidebar = ({ isOpen, toggleSidebar }: SidebarProps) => {
                   title="Dashboard"
                 >
                   <LuLayoutDashboard className="w-5 h-5" />
+                </Link>
+
+                <Link
+                  href="/dashboard/inbox-recepcao"
+                  className={`w-full p-3 sm:p-4 flex justify-center transition-colors ${
+                    isActive("/dashboard/inbox-recepcao")
+                      ? "bg-[color:var(--sidebar-active-bg)] text-[color:var(--sidebar-active-text)]"
+                      : "hover:bg-[color:var(--sidebar-hover)]"
+                  }`}
+                  title="Inbox Recepção"
+                >
+                  <LuInbox className="w-5 h-5" />
+                </Link>
+
+                <Link
+                  href="/dashboard/usuarios"
+                  className={`w-full p-3 sm:p-4 flex justify-center transition-colors ${
+                    isActive("/dashboard/usuarios")
+                      ? "bg-[color:var(--sidebar-active-bg)] text-[color:var(--sidebar-active-text)]"
+                      : "hover:bg-[color:var(--sidebar-hover)]"
+                  }`}
+                  title="Equipe"
+                >
+                  <LuUsers className="w-5 h-5" />
                 </Link>
                 
                 {/* AI Agents - Ícone principal */}

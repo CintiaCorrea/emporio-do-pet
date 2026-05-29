@@ -88,7 +88,7 @@ export default function Topbar({ sidebarOpen = false }: TopbarProps) {
                     className="rounded-full object-cover ring-2 ring-[color:var(--topbar-ring)] group-hover:ring-[color:var(--topbar-ring-hover)] transition-all"
                   />
                 ) : (
-                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-sm font-semibold ring-2 ring-[color:var(--topbar-ring)] group-hover:ring-[color:var(--topbar-ring-hover)] transition-all">
+                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-500 to-amber-600 flex items-center justify-center text-white text-sm font-semibold ring-2 ring-[color:var(--topbar-ring)] group-hover:ring-[color:var(--topbar-ring-hover)] transition-all">
                     {getInitials(userName)}
                   </div>
                 )}
