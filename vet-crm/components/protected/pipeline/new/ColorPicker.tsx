@@ -1,4 +1,3 @@
-import { LuPalette } from 'react-icons/lu';
 import { ColorOption } from '@/types/board-form';
 
 interface ColorPickerProps {
@@ -20,7 +19,7 @@ export default function ColorPicker({ selectedColor, onColorChange, isLoading }:
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
-        <LuPalette className="w-6 h-6 text-gray-600" />
+        <span style={{fontSize:"14px"}}>🎨</span>
         <label className="block text-lg font-semibold text-gray-900">
           Cor do Board
         </label>

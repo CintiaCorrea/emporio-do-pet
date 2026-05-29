@@ -40,16 +40,14 @@ export default function LandingPageEditor({ pageData }: LandingPageEditorProps) 
       const content = {
         ...projectData,
         _html: html,
-        _css: css,
-      };
+        _css: css};
 
       const styles = projectData.styles || [];
 
       const res = await fetch(`/api/landing-pages/${pageData.id}/content`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content, styles }),
-      });
+        body: JSON.stringify({ content, styles })});
 
       if (!res.ok) throw new Error('Falha ao salvar');
       toast.success('Salvo com sucesso');
@@ -141,14 +139,11 @@ export default function LandingPageEditor({ pageData }: LandingPageEditorProps) 
                 { name: 'Desktop', width: '' },
                 { name: 'Tablet', width: '768px', widthMedia: '992px' },
                 { name: 'Mobile portrait', width: '320px', widthMedia: '480px' },
-              ],
-            },
+              ]},
             canvas: {
               styles: [
                 'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap',
-              ],
-            },
-          }}
+              ]}}}
           onEditor={onEditor}
         />
       </div>

@@ -17,14 +17,12 @@ interface User {
 const ROLE_LABELS: Record<Role, string> = {
   ADMIN: 'Administrador',
   VETERINARIAN: 'Veterinário(a)',
-  RECEPTIONIST: 'Recepção',
-};
+  RECEPTIONIST: 'Recepção'};
 
 const ROLE_BADGE: Record<Role, string> = {
   ADMIN: 'bg-cyan-100 text-cyan-800',
   VETERINARIAN: 'bg-blue-100 text-blue-800',
-  RECEPTIONIST: 'bg-orange-100 text-orange-800',
-};
+  RECEPTIONIST: 'bg-orange-100 text-orange-800'};
 
 export default function UsuariosPage() {
   const [users, setUsers] = useState<User[]>([]);
@@ -65,8 +63,7 @@ export default function UsuariosPage() {
       const res = await fetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password, role }),
-      });
+        body: JSON.stringify({ name, email, password, role })});
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.message || `HTTP ${res.status}`);

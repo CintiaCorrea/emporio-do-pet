@@ -3,8 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  LuPlus, LuSearch, LuUserPlus, LuPencil, LuPhone, LuCalendar,
-} from "react-icons/lu";
+  LuPlus, LuSearch, LuUserPlus, LuPencil, LuPhone, LuCalendar} from "react-icons/lu";
 
 type Tab = "conversas" | "internas" | "encaminhadas";
 type ListFilter = "todos" | "leads" | "clientes";
@@ -184,8 +183,7 @@ export default function InboxUnificadoPage() {
           status: c?.status || "OPEN",
           tutor: c?.tutor ? { id: c.tutor.id, name: c.tutor.name } : null,
           source: c?.metadata?.source || c?.source || null,
-          metadata: c?.metadata || null,
-        }));
+          metadata: c?.metadata || null}));
         setConversations(safe);
       } catch (e) { console.error(e); setConversations([]); }
       finally { setLoading(false); }
@@ -207,8 +205,7 @@ export default function InboxUnificadoPage() {
           content: typeof m?.content === "string" ? m.content : null,
           type: m?.type || "TEXT",
           createdAt: m?.createdAt || new Date().toISOString(),
-          fromAgent: !!m?.metadata?.fromAgent || !!m?.fromAgent,
-        })));
+          fromAgent: !!m?.metadata?.fromAgent || !!m?.fromAgent})));
       } catch (e) { console.error("Messages load failed", e); setMessages([]); }
 
       const conv = conversations.find((c) => c.id === selectedId);
@@ -245,8 +242,7 @@ export default function InboxUnificadoPage() {
     total: conversations.length,
     leads: conversations.filter((c) => !c.tutor?.id).length,
     clientes: conversations.filter((c) => c.tutor?.id).length,
-    unread: conversations.reduce((s, c) => s + (c.unreadCount || 0), 0),
-  }), [conversations]);
+    unread: conversations.reduce((s, c) => s + (c.unreadCount || 0), 0)}), [conversations]);
 
   const selectedConv = conversations.find((c) => c.id === selectedId);
   const selectedPet = tutor?.pets?.find((p) => p.id === selectedPetId);
@@ -260,8 +256,7 @@ export default function InboxUnificadoPage() {
       const r = await fetch(`/api/whatsapp/conversations/${selectedId}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: text, type: "TEXT" }),
-      });
+        body: JSON.stringify({ content: text, type: "TEXT" })});
       if (!r.ok) {
         const body = await r.text().catch(() => "");
         console.error("Send message failed:", r.status, body);
@@ -278,8 +273,7 @@ export default function InboxUnificadoPage() {
         content: typeof m?.content === "string" ? m.content : null,
         type: m?.type || "TEXT",
         createdAt: m?.createdAt || new Date().toISOString(),
-        fromAgent: !!m?.metadata?.fromAgent || !!m?.fromAgent,
-      })));
+        fromAgent: !!m?.metadata?.fromAgent || !!m?.fromAgent})));
     } catch (e) { console.error(e); }
   };
 
@@ -314,15 +308,12 @@ export default function InboxUnificadoPage() {
           body: JSON.stringify({
             to: phone,
             content: novaMsgText.trim(),
-            scheduledFor: new Date(novaMsgScheduledAt).toISOString(),
-          }),
-        });
+            scheduledFor: new Date(novaMsgScheduledAt).toISOString()})});
       } else {
         await fetch("/api/whatsapp/send", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ to: phone, content: novaMsgText.trim(), type: "TEXT" }),
-        });
+          body: JSON.stringify({ to: phone, content: novaMsgText.trim(), type: "TEXT" })});
       }
       setNovaMsgOpen(false);
       setNovaMsgPhone("");
@@ -346,9 +337,7 @@ export default function InboxUnificadoPage() {
         body: JSON.stringify({
           toUserId: internalSelected,
           content: internalNote.trim(),
-          conversationId: selectedId || null,
-        }),
-      });
+          conversationId: selectedId || null})});
       setInternalNote("");
       setInternalSelected(null);
       alert("Nota enviada!");
@@ -371,8 +360,7 @@ export default function InboxUnificadoPage() {
       await fetch(`/api/pets/${selectedPetId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ medicalNotes: newNote }),
-      });
+        body: JSON.stringify({ medicalNotes: newNote })});
       setNotaPetOpen(false);
       setNotaPetText("");
       alert("Nota clínica salva!");
@@ -396,9 +384,7 @@ export default function InboxUnificadoPage() {
           petId: selectedPetId,
           date: new Date(agendaPetDate).toISOString(),
           description: agendaPetDesc.trim(),
-          status: "SCHEDULED",
-        }),
-      });
+          status: "SCHEDULED"})});
       setAgendaPetOpen(false);
       setAgendaPetDesc("");
       alert("Agendamento criado!");
@@ -422,9 +408,7 @@ export default function InboxUnificadoPage() {
           petId: selectedPetId,
           date: new Date(atendDate).toISOString(),
           description: atendDescricao.trim(),
-          status: "COMPLETED",
-        }),
-      });
+          status: "COMPLETED"})});
       setAtendModalOpen(false);
       setAtendDescricao("");
       alert("Atendimento registrado!");

@@ -4,21 +4,12 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Sidebar from '@/components/protected/dashboard/Sidebar';
 import { 
-  LuArrowLeft,
-  LuStethoscope,
-  LuCalendar,
-  LuClock,
-  LuDollarSign,
-  LuTrendingUp,
-  LuTrendingDown,
-  LuCircleCheck,
-  LuActivity,
+  LuArrowLeft
+  LuCalendar
+  LuDollarSign
   LuUser,
   LuPawPrint,
-  LuDownload,
-  LuFilter,
-  LuChartBar,
-  LuPieChart,
+  LuDownload
   LuFileText
 } from 'react-icons/lu';
 import toast from 'react-hot-toast';
@@ -384,7 +375,7 @@ export default function ConsultationsReportPage() {
             {/* Filtros */}
             <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-cyan-500/5 p-6 mb-6">
               <div className="flex items-center gap-2 mb-4">
-                <LuFilter className="w-5 h-5 text-cyan-600" />
+                <span style={{fontSize:"14px"}}>⌕</span>
                 <h3 className="text-lg font-semibold text-gray-900">Filtros</h3>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -445,14 +436,14 @@ export default function ConsultationsReportPage() {
                   label: "Total de Consultas", 
                   value: stats.total, 
                   color: "gray", 
-                  icon: LuStethoscope,
+                  icon: () => <span style={{fontSize:"14px"}}>🩺</span>,
                   trend: null
                 },
                 { 
                   label: "Concluídas", 
                   value: stats.completed, 
                   color: "green", 
-                  icon: LuCircleCheck,
+                  icon: () => <span style={{fontSize:"14px"}}>✓</span>,
                   trend: stats.total > 0 ? ((stats.completed / stats.total) * 100).toFixed(1) + '%' : '0%'
                 },
                 { 
@@ -474,7 +465,7 @@ export default function ConsultationsReportPage() {
                   label: "Receita Paga", 
                   value: formatCurrency(stats.paidRevenue), 
                   color: "green", 
-                  icon: LuCircleCheck,
+                  icon: () => <span style={{fontSize:"14px"}}>✓</span>,
                   trend: stats.totalRevenue > 0 ? ((stats.paidRevenue / stats.totalRevenue) * 100).toFixed(1) + '%' : '0%',
                   isFormatted: true
                 },
@@ -482,7 +473,7 @@ export default function ConsultationsReportPage() {
                   label: "Receita Pendente", 
                   value: formatCurrency(stats.pendingRevenue), 
                   color: "yellow", 
-                  icon: LuClock,
+                  icon: () => <span style={{fontSize:"14px"}}>⏱</span>,
                   trend: stats.totalRevenue > 0 ? ((stats.pendingRevenue / stats.totalRevenue) * 100).toFixed(1) + '%' : '0%',
                   isFormatted: true
                 },
@@ -490,7 +481,7 @@ export default function ConsultationsReportPage() {
                   label: "Ticket Médio", 
                   value: formatCurrency(stats.averageValue), 
                   color: "blue", 
-                  icon: LuTrendingUp,
+                  icon: () => <span style={{fontSize:"14px"}}>📈</span>,
                   trend: null,
                   isFormatted: true
                 },
@@ -498,7 +489,7 @@ export default function ConsultationsReportPage() {
                   label: "Duração Média", 
                   value: `${Math.round(stats.averageDuration)} min`, 
                   color: "purple", 
-                  icon: LuClock,
+                  icon: () => <span style={{fontSize:"14px"}}>⏱</span>,
                   trend: null
                 }
               ].map((stat, index) => (
@@ -592,7 +583,7 @@ export default function ConsultationsReportPage() {
                         </td>
                         <td className="p-6">
                           <div className="flex items-center gap-1 text-gray-700">
-                            <LuClock className="w-4 h-4" />
+                            <span style={{fontSize:"14px"}}>⏱</span>
                             {cons.duration} min
                           </div>
                         </td>
@@ -603,7 +594,7 @@ export default function ConsultationsReportPage() {
 
                 {consultations.length === 0 && !loading && (
                   <div className="text-center py-12">
-                    <LuStethoscope className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <span style={{fontSize:"14px"}}>🩺</span>
                     <p className="text-gray-500 text-lg">Nenhuma consulta encontrada</p>
                     <p className="text-gray-400 mt-2">
                       Tente ajustar os filtros de busca

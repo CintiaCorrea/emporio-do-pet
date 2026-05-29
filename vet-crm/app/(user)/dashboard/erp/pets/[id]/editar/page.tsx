@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent 
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { LuArrowLeft, LuPawPrint, LuVenetianMask, LuCalendar, LuUser, LuSave, LuCamera, LuLoaderCircle, LuTrash2, LuFiles } from "react-icons/lu";
+import { LuArrowLeft, LuPawPrint, LuVenetianMask, LuCalendar, LuUser, LuSave, LuCamera, LuLoaderCircle, LuTrash, LuFiles } from "react-icons/lu";
 import toast from "react-hot-toast";
 
 interface Tutor {
@@ -1120,7 +1120,7 @@ export default function EditPetPage() {
                           disabled={isUploadingAvatar}
                           className="inline-flex items-center gap-2 px-6 py-3 bg-white/80 border border-gray-200/80 text-gray-700 rounded-2xl hover:bg-white transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed"
                         >
-                          <LuTrash2 className="w-5 h-5" />
+                          <LuTrash className="w-5 h-5" />
                           Remover
                         </button>
                       ) : null}

@@ -2,21 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import {
-  LuSyringe,
   LuSearch,
   LuPlus,
   LuPencil,
-  LuTrash2,
+  LuTrash,
   LuUser,
   LuPawPrint,
   LuCalendar,
-  LuDollarSign,
-  LuTrendingUp,
-  LuPackage,
-  LuStethoscope,
-  LuSave,
-  LuChevronLeft,
-  LuChevronRight,
+  LuDollarSign
+  LuSave
   LuEye
 } from 'react-icons/lu';
 import toast from 'react-hot-toast';
@@ -459,7 +453,7 @@ export default function TratamentosPage() {
                 label: 'Total de Tratamentos',
                 value: stats.total,
                 color: 'gray',
-                icon: LuSyringe},
+                icon: () => <span style={{fontSize:"14px"}}>💉</span>},
               {
                 label: 'Custo Total',
                 value: formatCurrency(stats.totalCost),
@@ -469,7 +463,7 @@ export default function TratamentosPage() {
                 label: 'Custo Médio',
                 value: formatCurrency(stats.avgCost),
                 color: 'blue',
-                icon: LuTrendingUp},
+                icon: () => <span style={{fontSize:"14px"}}>📈</span>},
             ].map((stat) => {
               const colorMap: Record<string, string> = {
                 gray: 'from-gray-500/10 to-gray-500/5 border-gray-200/80',
@@ -522,7 +516,7 @@ export default function TratamentosPage() {
           )}
           {treatments.length === 0 && !loading ? (
             <div className="text-center py-20">
-              <LuSyringe className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <span style={{fontSize:"14px"}}>💉</span>
               <h3 className="text-xl font-semibold text-gray-600 mb-2">
                 Nenhum tratamento encontrado
               </h3>
@@ -553,7 +547,7 @@ export default function TratamentosPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start gap-3">
                           <div className="p-2 bg-cyan-50 rounded-xl flex-shrink-0">
-                            <LuSyringe className="w-5 h-5 text-cyan-600" />
+                            <span style={{fontSize:"14px"}}>💉</span>
                           </div>
                           <div className="min-w-0 flex-1">
                             <h3 className="font-semibold text-gray-900 truncate">
@@ -584,7 +578,7 @@ export default function TratamentosPage() {
                                 <span
                                   className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${getProductTypeBadge(treatment.product.type)}`}
                                 >
-                                  <LuPackage className="w-3 h-3" />
+                                  <span style={{fontSize:"14px"}}>📦</span>
                                   {treatment.product.name}
                                 </span>
                               )}
@@ -624,7 +618,7 @@ export default function TratamentosPage() {
                             className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors"
                             title="Excluir"
                           >
-                            <LuTrash2 className="w-4 h-4" />
+                            <LuTrash className="w-4 h-4" />
                           </button>
                         </div>
                       </div>
@@ -645,7 +639,7 @@ export default function TratamentosPage() {
                       disabled={page <= 1}
                       className="p-2 rounded-xl border border-gray-200 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
-                      <LuChevronLeft className="w-4 h-4" />
+                      <span style={{fontSize:"12px"}}>◀</span>
                     </button>
                     <span className="text-sm text-gray-600 px-3">
                       {page} / {totalPages}
@@ -655,7 +649,7 @@ export default function TratamentosPage() {
                       disabled={page >= totalPages}
                       className="p-2 rounded-xl border border-gray-200 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
-                      <LuChevronRight className="w-4 h-4" />
+                      <span style={{fontSize:"14px"}}>▶</span>
                     </button>
                   </div>
                 </div>
@@ -714,7 +708,7 @@ export default function TratamentosPage() {
 
               <div className="bg-gray-50 rounded-2xl p-4">
                 <h3 className="text-sm font-medium text-gray-500 mb-3 flex items-center gap-2">
-                  <LuStethoscope className="w-4 h-4" /> Consulta
+                  <span style={{fontSize:"14px"}}>🩺</span> Consulta
                 </h3>
                 <p className="text-gray-900 font-medium">
                   {selectedTreatment.appointment.description || 'Sem descrição'}
@@ -738,7 +732,7 @@ export default function TratamentosPage() {
               {selectedTreatment.product && (
                 <div className="bg-gray-50 rounded-2xl p-4">
                   <h3 className="text-sm font-medium text-gray-500 mb-3 flex items-center gap-2">
-                    <LuPackage className="w-4 h-4" /> Produto Utilizado
+                    <span style={{fontSize:"14px"}}>📦</span> Produto Utilizado
                   </h3>
                   <div className="flex items-center justify-between">
                     <div>
@@ -770,7 +764,7 @@ export default function TratamentosPage() {
                 }}
                 className="px-5 py-2.5 text-sm font-medium text-red-700 bg-red-50 rounded-xl hover:bg-red-100 transition-colors flex items-center gap-2"
               >
-                <LuTrash2 className="w-4 h-4" /> Excluir
+                <LuTrash className="w-4 h-4" /> Excluir
               </button>
             </div>
           </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import { RecipientType, Client, Tutor } from '@/types/newsletter';
-import { LuUsers, LuCheck, LuUpload } from 'react-icons/lu';
+import { LuCheck, LuUpload } from 'react-icons/lu';
 import { useState, useRef } from 'react';
 
 interface RecipientSelectorProps {
@@ -52,7 +52,7 @@ export const RecipientSelector = ({
     <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-blue-500/5 p-6">
       <div className="flex items-center gap-3 mb-4">
         <div className="p-2 bg-purple-50 rounded-xl">
-          <LuUsers className="w-5 h-5 text-purple-600" />
+          <span style={{fontSize:"14px"}}>👥</span>
         </div>
         <h3 className="text-lg font-semibold text-gray-900">Destinatários</h3>
       </div>

@@ -1,4 +1,4 @@
-import { LuUser, LuMail } from 'react-icons/lu';
+import { LuUser } from 'react-icons/lu';
 import { Tutor, ContactInput } from '@/types/tutor-edit';
 import FormField from '../FormField';
 import ContactsSection from '../ContactsSection';
@@ -97,7 +97,7 @@ export default function GeneralTab({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <FormField 
           label="E-mail" 
-          icon={<LuMail className="w-4 h-4 mr-2 text-blue-500" />}
+          icon={<span style={{fontSize:"14px"}}>✉</span>}
           description="E-mail principal para comunicação"
         >
           <input

@@ -1,6 +1,5 @@
 'use client';
 
-import { LuRefreshCw } from 'react-icons/lu';
 
 interface ErrorAlertProps {
   error: string | null;
@@ -17,7 +16,7 @@ export const ErrorAlert = ({ error, onDismiss }: ErrorAlertProps) => {
         onClick={onDismiss}
         className="text-red-500 hover:text-red-700 p-1 rounded-lg"
       >
-        <LuRefreshCw className="w-4 h-4" />
+        <span style={{fontSize:"14px"}}>↻</span>
       </button>
     </div>
   );

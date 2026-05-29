@@ -2,27 +2,17 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { 
-  LuBedDouble,
+import {
   LuSearch,
   LuPlus,
   LuPencil,
-  LuTrash2,
+  LuTrash,
   LuUser,
   LuPawPrint,
-  LuCalendar,
-  LuClock,
+  LuCalendar
   LuTriangleAlert,
-  LuDollarSign,
-  LuTrendingUp,
-  LuHeart,
-  LuActivity,
-  LuThermometer,
-  LuClipboardList,
-  LuCircleCheck,
-  LuArrowUpRight,
-  LuPhone,
-  LuStethoscope,
+  LuDollarSign
+  LuPhone
   LuSave
 } from 'react-icons/lu';
 import toast from 'react-hot-toast';
@@ -583,7 +573,7 @@ export default function HospitalizationsPage() {
                     href="/dashboard/erp/internacoes/relatorio"
                     className="group px-6 py-3 text-sm font-semibold text-gray-700 bg-white/80 border border-gray-200/80 rounded-2xl hover:bg-white hover:border-gray-300 hover:shadow-lg transition-all duration-300 hover:scale-105 flex items-center space-x-2"
                   >
-                    <LuTrendingUp className="w-4 h-4" />
+                    <span style={{fontSize:"14px"}}>📈</span>
                     <span>Relatório</span>
                   </Link>
                   <button 
@@ -618,13 +608,13 @@ export default function HospitalizationsPage() {
                   label: "Total", 
                   value: stats.total, 
                   color: "gray", 
-                  icon: LuBedDouble
+                  icon: () => <span style={{fontSize:"14px"}}>🛏</span>
                 },
                 { 
                   label: "Ativos", 
                   value: stats.active, 
                   color: "blue", 
-                  icon: LuActivity
+                  icon: () => <span style={{fontSize:"14px"}}>⚡</span>
                 },
                 { 
                   label: "Críticos", 
@@ -636,13 +626,13 @@ export default function HospitalizationsPage() {
                   label: "Alta Pendente", 
                   value: stats.dischargePending, 
                   color: "purple", 
-                  icon: LuArrowUpRight
+                  icon: () => <span style={{fontSize:"14px"}}>↗</span>
                 },
                 { 
                   label: "Altas", 
                   value: stats.discharged, 
                   color: "green", 
-                  icon: LuCircleCheck
+                  icon: () => <span style={{fontSize:"14px"}}>✓</span>
                 },
                 { 
                   label: "Receita Total", 
@@ -795,7 +785,7 @@ export default function HospitalizationsPage() {
                         </td>
                         <td className="p-6">
                           <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                            <LuBedDouble className="w-3 h-3 mr-1" />
+                            <span style={{fontSize:"14px"}}>🛏</span>
                             {hosp.roomNumber || 'N/A'}
                           </span>
                         </td>
@@ -805,7 +795,7 @@ export default function HospitalizationsPage() {
                           </div>
                           {hosp.veterinarian && (
                             <div className="text-xs text-gray-500 flex items-center gap-1 mt-1">
-                              <LuStethoscope className="w-3 h-3" />
+                              <span style={{fontSize:"14px"}}>🩺</span>
                               {hosp.veterinarian.name}
                             </div>
                           )}
@@ -824,7 +814,7 @@ export default function HospitalizationsPage() {
                         <td className="p-6">
                           <div className="flex items-center gap-1">
                             <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                              <LuClock className="w-3 h-3 mr-1" />
+                              <span style={{fontSize:"14px"}}>⏱</span>
                               {calculateDaysHospitalized(hosp.admissionDate)} dias
                             </span>
                           </div>
@@ -855,7 +845,7 @@ export default function HospitalizationsPage() {
                                 className="p-2 text-green-600 hover:bg-green-50 rounded-2xl transition-colors"
                                 title="Dar alta"
                               >
-                                <LuArrowUpRight className="w-4 h-4" />
+                                <span style={{fontSize:"14px"}}>↗</span>
                               </button>
                             )}
                             <button
@@ -870,7 +860,7 @@ export default function HospitalizationsPage() {
                               className="p-2 text-gray-400 hover:bg-gray-50 hover:text-red-600 rounded-2xl transition-colors"
                               title="Excluir"
                             >
-                              <LuTrash2 className="w-4 h-4" />
+                              <LuTrash className="w-4 h-4" />
                             </button>
                           </div>
                         </td>
@@ -881,7 +871,7 @@ export default function HospitalizationsPage() {
 
                 {filteredHospitalizations.length === 0 && !loading && (
                   <div className="text-center py-12">
-                    <LuBedDouble className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <span style={{fontSize:"14px"}}>🛏</span>
                     <p className="text-gray-500 text-lg">Nenhuma internação encontrada</p>
                     <p className="text-gray-400 mt-2">
                       {hospitalizations.length === 0 
@@ -964,7 +954,7 @@ export default function HospitalizationsPage() {
                     <div>
                       <label className="text-sm font-medium text-gray-700">Veterinário</label>
                       <p className="text-gray-900 flex items-center gap-1">
-                        <LuStethoscope className="w-4 h-4" />
+                        <span style={{fontSize:"14px"}}>🩺</span>
                         {selectedHospitalization.veterinarian.name}
                       </p>
                     </div>
@@ -975,7 +965,7 @@ export default function HospitalizationsPage() {
               {/* Informações da Internação */}
               <div>
                 <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <LuClipboardList className="w-5 h-5 text-red-600" />
+                  <span style={{fontSize:"14px"}}>📋</span>
                   Informações da Internação
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1006,27 +996,27 @@ export default function HospitalizationsPage() {
               {selectedHospitalization.vitalSigns && (
                 <div>
                   <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                    <LuHeart className="w-5 h-5 text-red-600" />
+                    <span style={{fontSize:"14px"}}>💗</span>
                     Sinais Vitais
                   </h4>
                   <div className="grid grid-cols-3 gap-4">
                     {selectedHospitalization.vitalSigns.temperature && (
                       <div className="bg-gray-50 p-4 rounded-2xl text-center">
-                        <LuThermometer className="w-6 h-6 text-orange-500 mx-auto mb-2" />
+                        <span style={{fontSize:"14px"}}>🌡</span>
                         <p className="text-2xl font-bold text-gray-900">{selectedHospitalization.vitalSigns.temperature}°C</p>
                         <p className="text-xs text-gray-500">Temperatura</p>
                       </div>
                     )}
                     {selectedHospitalization.vitalSigns.heartRate && (
                       <div className="bg-gray-50 p-4 rounded-2xl text-center">
-                        <LuHeart className="w-6 h-6 text-red-500 mx-auto mb-2" />
+                        <span style={{fontSize:"14px"}}>💗</span>
                         <p className="text-2xl font-bold text-gray-900">{selectedHospitalization.vitalSigns.heartRate}</p>
                         <p className="text-xs text-gray-500">Freq. Cardíaca (bpm)</p>
                       </div>
                     )}
                     {selectedHospitalization.vitalSigns.weight && (
                       <div className="bg-gray-50 p-4 rounded-2xl text-center">
-                        <LuActivity className="w-6 h-6 text-blue-500 mx-auto mb-2" />
+                        <span style={{fontSize:"14px"}}>⚡</span>
                         <p className="text-2xl font-bold text-gray-900">{selectedHospitalization.vitalSigns.weight}kg</p>
                         <p className="text-xs text-gray-500">Peso</p>
                       </div>
@@ -1114,7 +1104,7 @@ export default function HospitalizationsPage() {
                   onClick={() => handleDischarge(selectedHospitalization.id)}
                   className="px-6 py-3 text-white bg-green-600 rounded-2xl hover:bg-green-700 transition-colors flex items-center gap-2"
                 >
-                  <LuArrowUpRight className="w-4 h-4" />
+                  <span style={{fontSize:"14px"}}>↗</span>
                   Dar Alta
                 </button>
               )}

@@ -1,4 +1,4 @@
-import { LuSearch, LuFilter, LuDownload } from 'react-icons/lu';
+import { LuSearch LuDownload } from 'react-icons/lu';
 
 interface SearchAndFiltersProps {
   searchTerm: string;
@@ -33,7 +33,7 @@ export default function SearchAndFilters({
         {/* Filtro de Status */}
         <div className="md:col-span-3">
           <div className="flex items-center space-x-2">
-            <LuFilter className="h-5 w-5 text-gray-400" />
+            <span style={{fontSize:"14px"}}>⌕</span>
             <select
               value={filterStatus}
               onChange={(e) => onFilterChange(e.target.value as 'all' | 'active' | 'inactive')}

@@ -15,8 +15,7 @@ import {
   CheckCircle,
   AlertCircle,
   History,
-  Volume2,
-} from 'lucide-react';
+  Volume2} from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface Recording {
@@ -40,8 +39,7 @@ interface RecordingHistoryProps {
 export default function RecordingHistory({
   appointmentId,
   onSelectRecording,
-  currentRecordingId,
-}: RecordingHistoryProps) {
+  currentRecordingId}: RecordingHistoryProps) {
   const [recordings, setRecordings] = useState<Recording[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -89,8 +87,7 @@ export default function RecordingHistory({
       month: '2-digit',
       year: 'numeric',
       hour: '2-digit',
-      minute: '2-digit',
-    });
+      minute: '2-digit'});
   };
 
   const getStatusInfo = (status: string) => {

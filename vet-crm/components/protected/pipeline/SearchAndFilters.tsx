@@ -1,4 +1,4 @@
-import { LuSearch, LuFilter } from 'react-icons/lu';
+import { LuSearch } from 'react-icons/lu';
 
 interface SearchAndFiltersProps {
   searchTerm: string;
@@ -30,7 +30,7 @@ export default function SearchAndFilters({
         </div>
         <div className="flex gap-3">
           <button className="flex items-center gap-2 px-4 py-3 text-sm font-semibold text-gray-600 bg-white/50 border border-gray-300/50 rounded-2xl hover:bg-white hover:border-gray-400 hover:shadow-lg transition-all duration-300 hover:scale-105 backdrop-blur-sm">
-            <LuFilter className="w-4 h-4" />
+            <span style={{fontSize:"14px"}}>⌕</span>
             <span>Filtrar</span>
           </button>
           <div className="flex gap-1 bg-white/50 border border-gray-300/50 rounded-2xl p-1 backdrop-blur-sm">

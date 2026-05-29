@@ -2,8 +2,7 @@ import Link from "next/link";
 
 export const metadata = {
   title: "Seus Dados | Empório do Pet",
-  description: "Gerencie seus dados pessoais na plataforma Empório do Pet - Direitos LGPD.",
-};
+  description: "Gerencie seus dados pessoais na plataforma Empório do Pet - Direitos LGPD."};
 
 export default function DadosPage() {
   return (
@@ -82,8 +81,7 @@ export default function DadosPage() {
                     ),
                     title: "Acesso aos Dados",
                     desc: "Você pode solicitar uma cópia completa de todos os dados pessoais que mantemos sobre você.",
-                    color: "blue",
-                  },
+                    color: "blue"},
                   {
                     icon: (
                       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -92,8 +90,7 @@ export default function DadosPage() {
                     ),
                     title: "Correção de Dados",
                     desc: "Solicite a correção de dados pessoais incompletos, inexatos ou desatualizados.",
-                    color: "green",
-                  },
+                    color: "green"},
                   {
                     icon: (
                       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -102,8 +99,7 @@ export default function DadosPage() {
                     ),
                     title: "Exclusão de Dados",
                     desc: "Solicite a eliminação dos seus dados pessoais tratados com base no seu consentimento.",
-                    color: "red",
-                  },
+                    color: "red"},
                   {
                     icon: (
                       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -112,8 +108,7 @@ export default function DadosPage() {
                     ),
                     title: "Portabilidade",
                     desc: "Solicite a transferência dos seus dados pessoais para outro fornecedor de serviço.",
-                    color: "purple",
-                  },
+                    color: "purple"},
                   {
                     icon: (
                       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -122,8 +117,7 @@ export default function DadosPage() {
                     ),
                     title: "Revogação do Consentimento",
                     desc: "Revogue o consentimento dado anteriormente para o tratamento dos seus dados.",
-                    color: "orange",
-                  },
+                    color: "orange"},
                   {
                     icon: (
                       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -132,8 +126,7 @@ export default function DadosPage() {
                     ),
                     title: "Informações sobre Compartilhamento",
                     desc: "Saiba com quem seus dados pessoais foram compartilhados e para quais finalidades.",
-                    color: "teal",
-                  },
+                    color: "teal"},
                 ].map((item, i) => {
                   const colorMap: Record<string, { bg: string; iconBg: string; iconColor: string }> = {
                     blue: { bg: "bg-blue-50", iconBg: "bg-blue-100", iconColor: "text-blue-600" },
@@ -141,8 +134,7 @@ export default function DadosPage() {
                     red: { bg: "bg-red-50", iconBg: "bg-red-100", iconColor: "text-red-600" },
                     purple: { bg: "bg-purple-50", iconBg: "bg-purple-100", iconColor: "text-purple-600" },
                     orange: { bg: "bg-orange-50", iconBg: "bg-orange-100", iconColor: "text-orange-600" },
-                    teal: { bg: "bg-cyan-50", iconBg: "bg-cyan-100", iconColor: "text-cyan-600" },
-                  };
+                    teal: { bg: "bg-cyan-50", iconBg: "bg-cyan-100", iconColor: "text-cyan-600" }};
                   const colors = colorMap[item.color];
                   return (
                     <div key={i} className={`${colors.bg} rounded-xl p-5 border border-gray-100 hover:shadow-md transition-shadow`}>

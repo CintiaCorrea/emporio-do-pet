@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {  LuTrash2, LuTriangleAlert, LuLoader } from "react-icons/lu";
+import {  LuTrash, LuTriangleAlert, LuLoader } from "react-icons/lu";
 
 interface ConfirmDeleteColumnModalProps {
   isOpen: boolean;
@@ -92,7 +92,7 @@ const ConfirmDeleteColumnModal = ({
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <div className="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-red-600 to-orange-600 rounded-2xl shadow-lg shadow-red-500/25">
-                <LuTrash2 className="w-6 h-6 text-white" />
+                <LuTrash className="w-6 h-6 text-white" />
               </div>
               <div>
                 <h3 className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
@@ -158,7 +158,7 @@ const ConfirmDeleteColumnModal = ({
                 </>
               ) : (
                 <>
-                  <LuTrash2 className="w-4 h-4 relative z-10" />
+                  <LuTrash className="w-4 h-4 relative z-10" />
                   <span className="relative z-10">Excluir</span>
                 </>
               )}

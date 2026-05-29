@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { LuArrowLeft, LuArrowRight, LuCheck, LuLoader, LuSmartphone } from 'react-icons/lu';
+import { LuArrowLeft LuCheck, LuLoader } from 'react-icons/lu';
 import { CategorySelector } from './components/CategorySelector';
 import { StepIndicator } from './components/StepIndicator';
 import { StandardTemplateEditor } from './components/StandardTemplateEditor';
@@ -54,8 +54,7 @@ export default function NovoTemplatePage() {
       if (otpButtonExists) return prev;
       return {
         ...prev,
-        buttons: [{ id: crypto.randomUUID(), type: 'OTP', text: 'Copiar codigo', otp_type: 'COPY_CODE' }],
-      };
+        buttons: [{ id: crypto.randomUUID(), type: 'OTP', text: 'Copiar codigo', otp_type: 'COPY_CODE' }]};
     });
   }, [formData.category]);
 
@@ -67,8 +66,7 @@ export default function NovoTemplatePage() {
       if (hasFlowButton) return prev;
       return {
         ...prev,
-        buttons: [...prev.buttons, { id: crypto.randomUUID(), type: 'FLOW', text: 'Abrir flow' }],
-      };
+        buttons: [...prev.buttons, { id: crypto.randomUUID(), type: 'FLOW', text: 'Abrir flow' }]};
     });
   }, [formData.templateType]);
 
@@ -102,8 +100,7 @@ export default function NovoTemplatePage() {
               })
               .map((language: Record<string, string>) => ({
                 value: language.value,
-                label: language.label,
-              })),
+                label: language.label})),
           );
         }
       } catch {
@@ -156,8 +153,7 @@ export default function NovoTemplatePage() {
       const response = await fetch('/api/whatsapp-templates', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
+        body: JSON.stringify(payload)});
       const data = await readJsonSafe(response);
       if (!response.ok) {
         throw new Error(getApiErrorMessage(data, 'Erro ao criar template.'));
@@ -207,8 +203,7 @@ export default function NovoTemplatePage() {
                     setFormData((prev) => ({
                       ...prev,
                       category,
-                      templateType: 'STANDARD',
-                    }))
+                      templateType: 'STANDARD'}))
                   }
                   onTemplateTypeChange={(templateType) => setFormData((prev) => ({ ...prev, templateType }))}
                 />
@@ -268,7 +263,7 @@ export default function NovoTemplatePage() {
                     className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold flex items-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Avancar
-                    <LuArrowRight className="w-4 h-4" />
+                    <span style={{fontSize:"14px"}}>→</span>
                   </button>
                 ) : (
                   <button
@@ -297,7 +292,7 @@ export default function NovoTemplatePage() {
             <div className="sticky top-6">
               <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-6">
                 <div className="flex items-center gap-2 mb-4">
-                  <LuSmartphone className="w-5 h-5 text-gray-500" />
+                  <span style={{fontSize:"14px"}}>📱</span>
                   <h3 className="font-semibold text-gray-900 dark:text-white">Previa do modelo</h3>
                 </div>
                 <PhonePreview formData={formData} />

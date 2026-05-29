@@ -4,18 +4,11 @@ import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-  LuChevronLeft,
-  LuStethoscope,
   LuPawPrint,
   LuUser,
-  LuCalendar,
-  LuClock,
+  LuCalendar
   LuLoader,
-  LuFileText,
-  LuMic,
-  LuBrain,
-  LuArrowRight,
-  LuHistory,
+  LuFileText
 } from 'react-icons/lu';
 import toast from 'react-hot-toast';
 import ConsultationRecorder from '@/components/protected/dashboard/clinical-documents/ConsultationRecorder';
@@ -106,11 +99,11 @@ export default function GravarConsultaPage({ params }: { params: Promise<{ id: s
             href="/dashboard/erp/consultas"
             className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
           >
-            <LuChevronLeft className="w-5 h-5 text-gray-500" />
+            <span style={{fontSize:"12px"}}>◀</span>
           </Link>
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-              <LuMic className="w-6 h-6 text-violet-600" />
+              <span style={{fontSize:"14px"}}>🎤</span>
               Gravação & Documentos
             </h1>
             <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -128,7 +121,7 @@ export default function GravarConsultaPage({ params }: { params: Promise<{ id: s
                 : 'bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-300'
             }`}
           >
-            <LuHistory className="w-4 h-4" />
+            <span style={{fontSize:"14px"}}>⏳</span>
             Histórico
           </button>
           
@@ -163,7 +156,7 @@ export default function GravarConsultaPage({ params }: { params: Promise<{ id: s
             </span>
           </div>
           <div className="flex items-center gap-2">
-            <LuStethoscope className="w-4 h-4 text-gray-500" />
+            <span style={{fontSize:"14px"}}>🩺</span>
             <span className="text-gray-700 dark:text-gray-300">{appointment.user.name}</span>
           </div>
         </div>
@@ -186,10 +179,10 @@ export default function GravarConsultaPage({ params }: { params: Promise<{ id: s
               : 'bg-gray-100 text-gray-500 dark:bg-gray-700'
           }`}
         >
-          <LuMic className="w-4 h-4" />
+          <span style={{fontSize:"14px"}}>🎤</span>
           1. Gravar & Transcrever
         </button>
-        <LuArrowRight className="w-4 h-4 text-gray-400" />
+        <span style={{fontSize:"14px"}}>→</span>
         <button
           onClick={() => (hasTranscription || hasAnalysis) && setStep('generate')}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
@@ -201,10 +194,10 @@ export default function GravarConsultaPage({ params }: { params: Promise<{ id: s
           }`}
           disabled={!hasTranscription && !hasAnalysis}
         >
-          <LuBrain className="w-4 h-4" />
+          <span style={{fontSize:"14px"}}>🧠</span>
           2. Gerar Documentos
         </button>
-        <LuArrowRight className="w-4 h-4 text-gray-400" />
+        <span style={{fontSize:"14px"}}>→</span>
         <button
           onClick={() => generatedDocs.length > 0 && setStep('done')}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
@@ -311,7 +304,7 @@ export default function GravarConsultaPage({ params }: { params: Promise<{ id: s
               onClick={() => setStep('generate')}
               className="flex items-center gap-2 px-6 py-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-medium transition-all"
             >
-              <LuBrain className="w-5 h-5" />
+              <span style={{fontSize:"14px"}}>🧠</span>
               Gerar Mais Documentos
             </button>
           </div>

@@ -7,7 +7,7 @@
 
 
 import { useState, useEffect } from 'react';
-import { LuPlus, LuSearch, LuPencil, LuTrash2, LuUsers, LuFilter, LuDownload, LuEye, LuMail, LuPhone, LuUser } from 'react-icons/lu';
+import { LuPlus, LuSearch, LuPencil, LuTrash LuDownload, LuEye LuPhone, LuUser } from 'react-icons/lu';
 import Link from 'next/link';
 import ConfirmDeleteModal from '@/components/common/ConfirmDeleteModal';
 import toast from 'react-hot-toast';
@@ -206,7 +206,7 @@ export default function ClientsListPage() {
     if (!Array.isArray(clients) || clients.length === 0) {
       return (
         <div className="p-12 text-center">
-          <LuUsers className="mx-auto h-12 w-12 text-gray-400" />
+          <span style={{fontSize:"14px"}}>👥</span>
           <h3 className="mt-4 text-lg font-semibold text-gray-900">
             Nenhum cliente cadastrado
           </h3>
@@ -220,7 +220,7 @@ export default function ClientsListPage() {
     if (filteredClients.length === 0) {
       return (
         <div className="p-12 text-center">
-          <LuUsers className="mx-auto h-12 w-12 text-gray-400" />
+          <span style={{fontSize:"14px"}}>👥</span>
           <h3 className="mt-4 text-lg font-semibold text-gray-900">
             Nenhum cliente encontrado
           </h3>
@@ -263,7 +263,7 @@ export default function ClientsListPage() {
                   <div className="space-y-1">
                     {client.email && (
                       <div className="flex items-center text-sm text-gray-600">
-                        <LuMail className="w-4 h-4 mr-2 text-gray-400" />
+                        <span style={{fontSize:"14px"}}>✉</span>
                         {client.email}
                       </div>
                     )}
@@ -312,7 +312,7 @@ export default function ClientsListPage() {
                       className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl transition-all duration-300 hover:scale-110"
                       title="Excluir"
                     >
-                      <LuTrash2 className="w-4 h-4" />
+                      <LuTrash className="w-4 h-4" />
                     </button>
                   </div>
                 </td>
@@ -361,9 +361,9 @@ export default function ClientsListPage() {
             {/* Cards de Estatísticas */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
               {[
-                { label: "Total de Clientes", value: stats.total, color: "blue", icon: LuUsers },
+                { label: "Total de Clientes", value: stats.total, color: "blue", icon: () => <span style={{fontSize:"14px"}}>👥</span> },
                 { label: "Clientes Ativos", value: stats.active, color: "green", icon: LuUser },
-                { label: "Leads", value: stats.leads, color: "purple", icon: LuUsers },
+                { label: "Leads", value: stats.leads, color: "purple", icon: () => <span style={{fontSize:"14px"}}>👥</span> },
                 { label: "Clientes Convertidos", value: stats.customers, color: "orange", icon: LuUser }
               ].map((stat, index) => (
                 <div key={index} className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-3xl shadow-2xl shadow-blue-500/10 p-6 hover:shadow-2xl hover:shadow-blue-500/20 transition-all duration-300 hover:scale-105">
@@ -411,7 +411,7 @@ export default function ClientsListPage() {
                   {/* Filtro de Status */}
                   <div className="md:col-span-3">
                     <div className="flex items-center space-x-2">
-                      <LuFilter className="h-5 w-5 text-gray-400" />
+                      <span style={{fontSize:"14px"}}>⌕</span>
                       <select
                         value={filterStatus}
                         onChange={(e) => setFilterStatus(e.target.value as typeof filterStatus)}
@@ -429,7 +429,7 @@ export default function ClientsListPage() {
                   {/* Filtro de Fonte */}
                   <div className="md:col-span-3">
                     <div className="flex items-center space-x-2">
-                      <LuUsers className="h-5 w-5 text-gray-400" />
+                      <span style={{fontSize:"14px"}}>👥</span>
                       <select
                         value={filterSource}
                         onChange={(e) => setFilterSource(e.target.value as typeof filterSource)}

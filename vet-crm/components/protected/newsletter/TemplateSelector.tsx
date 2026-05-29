@@ -1,7 +1,7 @@
 'use client';
 
 import { NewsletterTemplate } from '@/types/newsletter';
-import { LuLayoutTemplate, LuFileText } from 'react-icons/lu';
+import { LuFileText } from 'react-icons/lu';
 
 interface TemplateSelectorProps {
   templates: NewsletterTemplate[];
@@ -19,7 +19,7 @@ export const TemplateSelector = ({
       <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-blue-500/5 p-6">
         <div className="flex items-center gap-3 mb-4">
           <div className="p-2 bg-blue-50 rounded-xl">
-            <LuLayoutTemplate className="w-5 h-5 text-blue-600" />
+            <span style={{fontSize:"14px"}}>📐</span>
           </div>
           <h3 className="text-lg font-semibold text-gray-900">Escolha um Template</h3>
         </div>
@@ -35,7 +35,7 @@ export const TemplateSelector = ({
     <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-blue-500/5 p-6">
       <div className="flex items-center gap-3 mb-4">
         <div className="p-2 bg-blue-50 rounded-xl">
-          <LuLayoutTemplate className="w-5 h-5 text-blue-600" />
+          <span style={{fontSize:"14px"}}>📐</span>
         </div>
         <h3 className="text-lg font-semibold text-gray-900">Escolha um Template</h3>
       </div>

@@ -19,10 +19,8 @@ export function CarouselTemplateEditor({ formData, onChange }: CarouselTemplateE
           id: crypto.randomUUID(),
           mediaFormat: 'IMAGE',
           bodyText: '',
-          buttons: [],
-        },
-      ],
-    }));
+          buttons: []},
+      ]}));
   };
 
   return (
@@ -40,8 +38,7 @@ export function CarouselTemplateEditor({ formData, onChange }: CarouselTemplateE
           onChange={(e) =>
             onChange((prev) => ({
               ...prev,
-              name: e.target.value.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, ''),
-            }))
+              name: e.target.value.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')}))
           }
           className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl"
         />
@@ -63,8 +60,7 @@ export function CarouselTemplateEditor({ formData, onChange }: CarouselTemplateE
                 onClick={() =>
                   onChange((prev) => ({
                     ...prev,
-                    carouselCards: prev.carouselCards.filter((item) => item.id !== card.id),
-                  }))
+                    carouselCards: prev.carouselCards.filter((item) => item.id !== card.id)}))
                 }
               >
                 Remover
@@ -77,8 +73,7 @@ export function CarouselTemplateEditor({ formData, onChange }: CarouselTemplateE
                   ...prev,
                   carouselCards: prev.carouselCards.map((item) =>
                     item.id === card.id ? { ...item, mediaFormat: e.target.value as 'IMAGE' | 'VIDEO' } : item,
-                  ),
-                }))
+                  )}))
               }
               className="w-full px-3 py-2 mb-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-600 rounded-lg text-sm"
             >
@@ -94,8 +89,7 @@ export function CarouselTemplateEditor({ formData, onChange }: CarouselTemplateE
                   ...prev,
                   carouselCards: prev.carouselCards.map((item) =>
                     item.id === card.id ? { ...item, mediaHandle: handle } : item,
-                  ),
-                }))
+                  )}))
               }
             />
             <textarea
@@ -108,8 +102,7 @@ export function CarouselTemplateEditor({ formData, onChange }: CarouselTemplateE
                   ...prev,
                   carouselCards: prev.carouselCards.map((item) =>
                     item.id === card.id ? { ...item, bodyText: e.target.value } : item,
-                  ),
-                }))
+                  )}))
               }
               className="w-full mt-2 px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-600 rounded-lg text-sm"
             />

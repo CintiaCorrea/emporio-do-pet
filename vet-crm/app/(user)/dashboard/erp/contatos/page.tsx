@@ -5,17 +5,12 @@ import Link from 'next/link';
 import toast from 'react-hot-toast';
 import {
   LuArrowLeft,
-  LuDownload,
-  LuFilter,
-  LuMail,
+  LuDownload
   LuPhone,
   LuPlus,
-  LuSearch,
-  LuStar,
-  LuTrash2,
-  LuUser,
-  LuUsers,
-} from 'react-icons/lu';
+  LuSearch
+  LuTrash,
+  LuUser} from 'react-icons/lu';
 
 type ContactType = 'MOBILE' | 'PHONE' | 'BUSINESS';
 
@@ -188,7 +183,7 @@ export default function ContactsPage() {
     if (visibleContacts.length === 0) {
       return (
         <div className="p-12 text-center">
-          <LuUsers className="mx-auto h-12 w-12 text-gray-400" />
+          <span style={{fontSize:"14px"}}>👥</span>
           <h3 className="mt-4 text-lg font-semibold text-gray-900">Nenhum contato encontrado</h3>
           <p className="mt-2 text-gray-600">Tente ajustar os filtros ou cadastre um novo contato.</p>
         </div>
@@ -232,7 +227,7 @@ export default function ContactsPage() {
                     </div>
                     {c.isWhatsApp && (
                       <div className="flex items-center text-sm text-gray-600">
-                        <LuMail className="w-4 h-4 mr-2 text-gray-400" />
+                        <span style={{fontSize:"14px"}}>✉</span>
                         WhatsApp
                       </div>
                     )}
@@ -247,7 +242,7 @@ export default function ContactsPage() {
                   <div className="flex items-center gap-2">
                     {c.isPrimary && (
                       <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-yellow-100 text-yellow-800">
-                        <LuStar className="w-4 h-4 mr-1" />
+                        <span style={{fontSize:"14px"}}>⭐</span>
                         Principal
                       </span>
                     )}
@@ -268,7 +263,7 @@ export default function ContactsPage() {
                       className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl transition-all duration-300 hover:scale-110"
                       title="Excluir"
                     >
-                      <LuTrash2 className="w-4 h-4" />
+                      <LuTrash className="w-4 h-4" />
                     </button>
                   </div>
                 </td>
@@ -324,9 +319,9 @@ export default function ContactsPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             {[
-              { label: 'Contatos (página)', value: stats.totalLocal, color: 'blue', icon: LuUsers },
-              { label: 'Com WhatsApp', value: stats.whats, color: 'green', icon: LuMail },
-              { label: 'Principais', value: stats.primary, color: 'yellow', icon: LuStar },
+              { label: 'Contatos (página)', value: stats.totalLocal, color: 'blue', icon: () => <span style={{fontSize:"14px"}}>👥</span> },
+              { label: 'Com WhatsApp', value: stats.whats, color: 'green', icon: () => <span style={{fontSize:"14px"}}>✉</span> },
+              { label: 'Principais', value: stats.primary, color: 'yellow', icon: () => <span style={{fontSize:"14px"}}>⭐</span> },
             ].map((stat, idx) => (
               <div
                 key={idx}
@@ -381,7 +376,7 @@ export default function ContactsPage() {
 
                 <div className="md:col-span-4">
                   <div className="flex items-center space-x-2">
-                    <LuFilter className="h-5 w-5 text-gray-400" />
+                    <span style={{fontSize:"14px"}}>⌕</span>
                     <select
                       value={filterType}
                       onChange={(e) => setFilterType(e.target.value as any)}
@@ -405,7 +400,7 @@ export default function ContactsPage() {
                     }`}
                     title="Mostrar apenas principais"
                   >
-                    <LuStar className="w-5 h-5" />
+                    <span style={{fontSize:"14px"}}>⭐</span>
                     <span className="font-semibold">{onlyPrimary ? 'Principais' : 'Todos'}</span>
                   </button>
                 </div>

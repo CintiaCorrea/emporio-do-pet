@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { LuStar, LuPencil, LuTrash2 } from 'react-icons/lu';
+import { LuPencil, LuTrash } from 'react-icons/lu';
 import { Board } from '@/types/board';
 
 interface BoardListItemProps {
@@ -26,7 +26,7 @@ export default function BoardListItem({ board, onToggleFavorite, onDelete, isLas
               onClick={() => onToggleFavorite(board.id)}
               className="text-gray-400 hover:text-yellow-500 transition-all duration-300 hover:scale-110 flex-shrink-0"
             >
-              <LuStar className={`w-4 h-4 ${board.favorite ? 'fill-yellow-400 text-yellow-400' : ''}`} />
+              <span style={{fontSize:"14px"}}>⭐</span>
             </button>
           </div>
           <p className="text-gray-600 text-sm truncate">
@@ -76,7 +76,7 @@ export default function BoardListItem({ board, onToggleFavorite, onDelete, isLas
                 onClick={() => onDelete(board.id)}
                 className="text-gray-400 hover:text-red-500 transition-colors duration-300 p-2 hover:scale-110"
               >
-                <LuTrash2 className="w-4 h-4" />
+                <LuTrash className="w-4 h-4" />
               </button>
             )}
           </div>

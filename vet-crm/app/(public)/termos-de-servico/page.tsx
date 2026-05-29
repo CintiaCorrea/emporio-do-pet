@@ -2,8 +2,7 @@ import Link from "next/link";
 
 export const metadata = {
   title: "Termos de Serviço | Empório do Pet",
-  description: "Termos de Serviço da plataforma Empório do Pet - Sistema de gestão veterinária.",
-};
+  description: "Termos de Serviço da plataforma Empório do Pet - Sistema de gestão veterinária."};
 
 export default function TermosDeServico() {
   return (

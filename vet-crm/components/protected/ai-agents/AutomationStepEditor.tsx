@@ -1,21 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { 
-  LuGripVertical,
-  LuTrash2,
-  LuPlus,
-  LuDatabase,
-  LuFilter,
-  LuMessageSquare,
-  LuMail,
-  LuClock,
-  LuGlobe,
-  LuBot,
-  LuBell,
-  LuChevronDown,
-  LuChevronUp,
-  LuSettings
+import {
+  LuTrash,
+  LuPlus
 } from 'react-icons/lu';
 
 export interface AutomationStep {
@@ -47,7 +35,7 @@ const STEP_TYPES: StepType[] = [
     value: 'query',
     label: 'Consulta',
     description: 'Buscar dados no banco',
-    icon: <LuDatabase className="w-4 h-4" />,
+    icon: <span style={{fontSize:"14px"}}>🗄</span>,
     configFields: [
       { key: 'entity', label: 'Entidade', type: 'select', options: [
         { value: 'tutors', label: 'Tutores' },
@@ -56,43 +44,39 @@ const STEP_TYPES: StepType[] = [
         { value: 'products', label: 'Produtos' },
       ]},
       { key: 'filter', label: 'Filtro', type: 'textarea', placeholder: 'Ex: status = "SCHEDULED"' },
-    ],
-  },
+    ]},
   {
     value: 'filter',
     label: 'Filtro',
     description: 'Filtrar resultados anteriores',
-    icon: <LuFilter className="w-4 h-4" />,
+    icon: <span style={{fontSize:"14px"}}>⌕</span>,
     configFields: [
       { key: 'condition', label: 'Condição', type: 'textarea', placeholder: 'Ex: data >= hoje AND confirmado = false' },
-    ],
-  },
+    ]},
   {
     value: 'message',
     label: 'Mensagem WhatsApp',
     description: 'Enviar mensagem via WhatsApp',
-    icon: <LuMessageSquare className="w-4 h-4" />,
+    icon: <span style={{fontSize:"14px"}}>💬</span>,
     configFields: [
       { key: 'template', label: 'Template', type: 'textarea', placeholder: 'Olá {nome}! Sua consulta é amanhã.' },
       { key: 'phoneField', label: 'Campo do telefone', type: 'text', placeholder: 'telefone' },
-    ],
-  },
+    ]},
   {
     value: 'email',
     label: 'E-mail',
     description: 'Enviar e-mail',
-    icon: <LuMail className="w-4 h-4" />,
+    icon: <span style={{fontSize:"14px"}}>✉</span>,
     configFields: [
       { key: 'subject', label: 'Assunto', type: 'text', placeholder: 'Lembrete de consulta' },
       { key: 'template', label: 'Corpo do e-mail', type: 'textarea', placeholder: 'Olá {nome}...' },
       { key: 'emailField', label: 'Campo do email', type: 'text', placeholder: 'email' },
-    ],
-  },
+    ]},
   {
     value: 'delay',
     label: 'Aguardar',
     description: 'Pausar execução',
-    icon: <LuClock className="w-4 h-4" />,
+    icon: <span style={{fontSize:"14px"}}>⏱</span>,
     configFields: [
       { key: 'duration', label: 'Duração (ms)', type: 'number', placeholder: '3600000' },
       { key: 'unit', label: 'Unidade', type: 'select', options: [
@@ -101,13 +85,12 @@ const STEP_TYPES: StepType[] = [
         { value: 'm', label: 'Minutos' },
         { value: 'h', label: 'Horas' },
       ]},
-    ],
-  },
+    ]},
   {
     value: 'webhook',
     label: 'Webhook',
     description: 'Chamar URL externa',
-    icon: <LuGlobe className="w-4 h-4" />,
+    icon: <span style={{fontSize:"14px"}}>🌐</span>,
     configFields: [
       { key: 'url', label: 'URL', type: 'text', placeholder: 'https://api.example.com/webhook' },
       { key: 'method', label: 'Método', type: 'select', options: [
@@ -116,23 +99,21 @@ const STEP_TYPES: StepType[] = [
         { value: 'PUT', label: 'PUT' },
       ]},
       { key: 'headers', label: 'Headers (JSON)', type: 'textarea', placeholder: '{"Authorization": "Bearer token"}' },
-    ],
-  },
+    ]},
   {
     value: 'ai_chat',
     label: 'IA Chat',
     description: 'Gerar texto com IA',
-    icon: <LuBot className="w-4 h-4" />,
+    icon: <span style={{fontSize:"14px"}}>🤖</span>,
     configFields: [
       { key: 'agentId', label: 'ID do Agente', type: 'text', placeholder: 'UUID do agente' },
       { key: 'prompt', label: 'Prompt', type: 'textarea', placeholder: 'Gere uma mensagem personalizada para {nome}' },
-    ],
-  },
+    ]},
   {
     value: 'notification',
     label: 'Notificação',
     description: 'Enviar notificação no sistema',
-    icon: <LuBell className="w-4 h-4" />,
+    icon: <span style={{fontSize:"14px"}}>🔔</span>,
     configFields: [
       { key: 'title', label: 'Título', type: 'text', placeholder: 'Nova ação necessária' },
       { key: 'message', label: 'Mensagem', type: 'textarea', placeholder: 'Detalhes da notificação...' },
@@ -142,8 +123,7 @@ const STEP_TYPES: StepType[] = [
         { value: 'success', label: 'Sucesso' },
         { value: 'error', label: 'Erro' },
       ]},
-    ],
-  },
+    ]},
 ];
 
 interface AutomationStepEditorProps {
@@ -166,8 +146,7 @@ export default function AutomationStepEditor({ steps, onChange }: AutomationStep
       type,
       name: stepType?.label || type,
       config: {},
-      position: steps.length,
-    };
+      position: steps.length};
     const newSteps = [...steps, newStep];
     onChange(newSteps);
     setExpandedSteps(prev => new Set([...prev, newStep.id]));
@@ -233,7 +212,7 @@ export default function AutomationStepEditor({ steps, onChange }: AutomationStep
       <div className="space-y-2">
         {steps.length === 0 ? (
           <div className="text-center py-8 border-2 border-dashed border-gray-200 rounded-xl">
-            <LuSettings className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+            <span style={{fontSize:"14px"}}>⚙</span>
             <p className="text-gray-500 text-sm">Nenhum passo adicionado</p>
             <p className="text-gray-400 text-xs">Adicione passos abaixo para criar o fluxo</p>
           </div>
@@ -258,12 +237,12 @@ export default function AutomationStepEditor({ steps, onChange }: AutomationStep
                 {/* Step Header */}
                 <div className="flex items-center gap-3 p-3">
                   <div className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600">
-                    <LuGripVertical className="w-4 h-4" />
+                    <span style={{fontSize:"14px"}}>⋮</span>
                   </div>
                   
                   <div className="flex items-center gap-2 flex-1">
                     <div className="p-1.5 bg-gray-100 rounded-lg">
-                      {stepType?.icon || <LuSettings className="w-4 h-4" />}
+                      {stepType?.icon || <span style={{fontSize:"14px"}}>⚙</span>}
                     </div>
                     <div className="flex-1">
                       <input
@@ -284,14 +263,14 @@ export default function AutomationStepEditor({ steps, onChange }: AutomationStep
                     onClick={() => toggleExpanded(step.id)}
                     className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                   >
-                    {isExpanded ? <LuChevronUp className="w-4 h-4" /> : <LuChevronDown className="w-4 h-4" />}
+                    {isExpanded ? <span style={{fontSize:"14px"}}>▲</span> : <span style={{fontSize:"14px"}}>▼</span>}
                   </button>
 
                   <button
                     onClick={() => removeStep(index)}
                     className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                   >
-                    <LuTrash2 className="w-4 h-4" />
+                    <LuTrash className="w-4 h-4" />
                   </button>
                 </div>
 

@@ -2,23 +2,10 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { 
-  LuSend, 
-  LuBot, 
   LuUser, 
   LuLoader, 
-  LuTrash2,
-  LuCopy,
-  LuCheck,
-  LuInfo,
-  LuChevronDown,
-  LuChevronUp,
-  LuMic,
-  LuMicOff,
-  LuVolume2,
-  LuPause,
-  LuMessageSquare,
-  LuZap,
-} from 'react-icons/lu';
+  LuTrash
+  LuCheck} from 'react-icons/lu';
 import { toast } from 'sonner';
 
 interface Message {
@@ -86,8 +73,7 @@ export default function AgentChatTest({
     tutorName: '',
     petName: '',
     petSpecies: 'cachorro',
-    currentDate: new Date().toLocaleDateString('pt-BR'),
-  });
+    currentDate: new Date().toLocaleDateString('pt-BR')});
 
   // Streaming state
   const [streamingEnabled, setStreamingEnabled] = useState(false);
@@ -99,8 +85,7 @@ export default function AgentChatTest({
     enabled: voiceEnabled,
     voiceId,
     speed: voiceSpeed,
-    model: voiceModel,
-  });
+    model: voiceModel});
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [playingId, setPlayingId] = useState<string | null>(null);
@@ -128,8 +113,7 @@ export default function AgentChatTest({
       id: `user-${Date.now()}`,
       role: 'user',
       content: input.trim(),
-      timestamp: new Date(),
-    };
+      timestamp: new Date()};
 
     setMessages(prev => [...prev, userMessage]);
     const messageText = input.trim();
@@ -220,8 +204,7 @@ export default function AgentChatTest({
 
       const response = await fetch('/api/audio/transcribe', {
         method: 'POST',
-        body: formData,
-      });
+        body: formData});
 
       const data = await response.json();
 
@@ -241,8 +224,7 @@ export default function AgentChatTest({
         id: `user-${Date.now()}`,
         role: 'user',
         content: `🎤 ${transcribedText}`,
-        timestamp: new Date(),
-      };
+        timestamp: new Date()};
 
       setMessages(prev => [...prev, userMessage]);
       await sendToAgent(transcribedText, userMessage.id);
@@ -278,9 +260,7 @@ export default function AgentChatTest({
             text: text.substring(0, 4096),
             voice: voice.voiceId,
             model: voice.model,
-            speed: voice.speed,
-          }),
-        });
+            speed: voice.speed})});
 
         const data = await response.json();
 
@@ -354,17 +334,14 @@ export default function AgentChatTest({
       userMessage: messageText,
       conversationHistory: messages.map(m => ({
         role: m.role,
-        content: m.content.replace(/^🎤 /, ''),
-      })),
+        content: m.content.replace(/^🎤 /, '')})),
       context: {
         clinicName: context.clinicName,
         tutorName: context.tutorName,
         petName: context.petName,
         petSpecies: context.petSpecies,
         currentDate: context.currentDate,
-        customVariable: context.customVariable,
-      },
-    };
+        customVariable: context.customVariable}};
 
     if (streamingEnabled) {
       await sendToAgentStreaming(payload, userMsgId);
@@ -378,8 +355,7 @@ export default function AgentChatTest({
       const response = await fetch(`/api/agents/${agentId}/execute`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
+        body: JSON.stringify(payload)});
 
       const data = await response.json();
 
@@ -393,8 +369,7 @@ export default function AgentChatTest({
         content: data.response,
         timestamp: new Date(),
         usage: data.usage,
-        latencyMs: data.latencyMs,
-      };
+        latencyMs: data.latencyMs};
 
       setMessages(prev => [...prev, assistantMessage]);
 
@@ -423,14 +398,12 @@ export default function AgentChatTest({
         id: assistantMsgId,
         role: 'assistant',
         content: '',
-        timestamp: new Date(),
-      }]);
+        timestamp: new Date()}]);
 
       const response = await fetch(`/api/agents/${agentId}/execute/stream`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
+        body: JSON.stringify(payload)});
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -503,7 +476,7 @@ export default function AgentChatTest({
       <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-violet-50 to-indigo-50">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-violet-100 rounded-xl">
-            <LuBot className="w-5 h-5 text-violet-600" />
+            <span style={{fontSize:"14px"}}>🤖</span>
           </div>
           <div>
             <h3 className="font-semibold text-gray-900">{agentName}</h3>
@@ -527,7 +500,7 @@ export default function AgentChatTest({
             }`}
             title={streamingEnabled ? 'Desativar streaming' : 'Ativar streaming'}
           >
-            <LuZap className="w-3.5 h-3.5" />
+            <span style={{fontSize:"14px"}}>⚡</span>
             {streamingEnabled ? 'Stream' : 'Normal'}
           </button>
           {/* Voice mode toggle */}
@@ -540,7 +513,7 @@ export default function AgentChatTest({
             }`}
             title={voiceMode ? 'Desativar modo voz' : 'Ativar modo voz'}
           >
-            {voiceMode ? <LuVolume2 className="w-3.5 h-3.5" /> : <LuMessageSquare className="w-3.5 h-3.5" />}
+            {voiceMode ? <span style={{fontSize:"14px"}}>🔊</span> : <span style={{fontSize:"14px"}}>💬</span>}
             {voiceMode ? 'Voz' : 'Texto'}
           </button>
           <button
@@ -548,7 +521,7 @@ export default function AgentChatTest({
             className="p-2 text-gray-500 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
             title="Limpar conversa"
           >
-            <LuTrash2 className="w-4 h-4" />
+            <LuTrash className="w-4 h-4" />
           </button>
         </div>
       </div>
@@ -560,10 +533,10 @@ export default function AgentChatTest({
           className="w-full flex items-center justify-between px-6 py-3 text-sm text-gray-600 hover:bg-gray-50 transition-colors"
         >
           <div className="flex items-center gap-2">
-            <LuInfo className="w-4 h-4" />
+            <span style={{fontSize:"14px"}}>ⓘ</span>
             <span>Variáveis de contexto</span>
           </div>
-          {showContext ? <LuChevronUp className="w-4 h-4" /> : <LuChevronDown className="w-4 h-4" />}
+          {showContext ? <span style={{fontSize:"14px"}}>▲</span> : <span style={{fontSize:"14px"}}>▼</span>}
         </button>
         
         {showContext && (
@@ -641,7 +614,7 @@ export default function AgentChatTest({
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-center">
             <div className="p-4 bg-gray-50 rounded-full mb-4">
-              <LuBot className="w-8 h-8 text-gray-400" />
+              <span style={{fontSize:"14px"}}>🤖</span>
             </div>
             <h3 className="font-medium text-gray-900 mb-2">Teste seu agente</h3>
             <p className="text-sm text-gray-500 max-w-sm">
@@ -668,7 +641,7 @@ export default function AgentChatTest({
               {message.role === 'user' ? (
                 <LuUser className="w-4 h-4 text-violet-600" />
               ) : (
-                <LuBot className="w-4 h-4 text-gray-600" />
+                <span style={{fontSize:"14px"}}>🤖</span>
               )}
             </div>
             
@@ -712,9 +685,9 @@ export default function AgentChatTest({
                       {synthesizing === message.id ? (
                         <LuLoader className="w-3 h-3 animate-spin" />
                       ) : playingId === message.id ? (
-                        <LuPause className="w-3 h-3" />
+                        <span style={{fontSize:"14px"}}>⏸</span>
                       ) : (
-                        <LuVolume2 className="w-3 h-3" />
+                        <span style={{fontSize:"14px"}}>🔊</span>
                       )}
                     </button>
                     <button
@@ -724,7 +697,7 @@ export default function AgentChatTest({
                       {copiedId === message.id ? (
                         <LuCheck className="w-3 h-3 text-green-500" />
                       ) : (
-                        <LuCopy className="w-3 h-3" />
+                        <span style={{fontSize:"14px"}}>⎘</span>
                       )}
                     </button>
                   </>
@@ -737,7 +710,7 @@ export default function AgentChatTest({
         {loading && (
           <div className="flex gap-3">
             <div className="flex-shrink-0 p-2 rounded-xl bg-gray-100">
-              <LuBot className="w-4 h-4 text-gray-600" />
+              <span style={{fontSize:"14px"}}>🤖</span>
             </div>
             <div className="flex items-center gap-2 p-4 bg-gray-100 rounded-2xl">
               <LuLoader className="w-4 h-4 animate-spin text-gray-500" />
@@ -779,7 +752,7 @@ export default function AgentChatTest({
             } disabled:opacity-50 disabled:cursor-not-allowed`}
             title={isRecording ? 'Parar gravação' : 'Gravar áudio'}
           >
-            {isRecording ? <LuMicOff className="w-5 h-5" /> : <LuMic className="w-5 h-5" />}
+            {isRecording ? <span style={{fontSize:"14px"}}>🎤</span> : <span style={{fontSize:"14px"}}>🎤</span>}
           </button>
 
           <textarea
@@ -800,7 +773,7 @@ export default function AgentChatTest({
             {loading ? (
               <LuLoader className="w-5 h-5 animate-spin" />
             ) : (
-              <LuSend className="w-5 h-5" />
+              <span style={{fontSize:"14px"}}>➤</span>
             )}
           </button>
         </div>

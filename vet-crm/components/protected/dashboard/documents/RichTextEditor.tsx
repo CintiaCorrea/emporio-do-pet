@@ -11,29 +11,6 @@ import { TextStyle } from '@tiptap/extension-text-style';
 import Color from '@tiptap/extension-color';
 import Highlight from '@tiptap/extension-highlight';
 import { useCallback, useEffect, useState } from 'react';
-import {
-  LuBold,
-  LuItalic,
-  LuUnderline,
-  LuStrikethrough,
-  LuCode,
-  LuHeading1,
-  LuHeading2,
-  LuHeading3,
-  LuList,
-  LuListOrdered,
-  LuQuote,
-  LuAlignLeft,
-  LuAlignCenter,
-  LuAlignRight,
-  LuAlignJustify,
-  LuLink,
-  LuImage,
-  LuHighlighter,
-  LuUndo,
-  LuRedo,
-  LuMinus,
-} from 'react-icons/lu';
 
 interface RichTextEditorProps {
   content: string;
@@ -47,8 +24,7 @@ const MenuButton = ({
   isActive,
   disabled,
   children,
-  title,
-}: {
+  title}: {
   onClick: () => void;
   isActive?: boolean;
   disabled?: boolean;
@@ -76,8 +52,7 @@ export default function RichTextEditor({
   content,
   onChange,
   placeholder = 'Comece a escrever...',
-  editable = true,
-}: RichTextEditorProps) {
+  editable = true}: RichTextEditorProps) {
   const [linkUrl, setLinkUrl] = useState('');
   const [showLinkInput, setShowLinkInput] = useState(false);
   const [imageUrl, setImageUrl] = useState('');
@@ -87,32 +62,23 @@ export default function RichTextEditor({
     extensions: [
       StarterKit.configure({
         heading: {
-          levels: [1, 2, 3],
-        },
-      }),
+          levels: [1, 2, 3]}}),
       Link.configure({
         openOnClick: false,
         HTMLAttributes: {
-          class: 'text-blue-600 underline hover:text-blue-800',
-        },
-      }),
+          class: 'text-blue-600 underline hover:text-blue-800'}}),
       Image.configure({
         HTMLAttributes: {
-          class: 'max-w-full h-auto rounded-lg my-4',
-        },
-      }),
+          class: 'max-w-full h-auto rounded-lg my-4'}}),
       Placeholder.configure({
-        placeholder,
-      }),
+        placeholder}),
       TextAlign.configure({
-        types: ['heading', 'paragraph'],
-      }),
+        types: ['heading', 'paragraph']}),
       Underline,
       TextStyle,
       Color,
       Highlight.configure({
-        multicolor: true,
-      }),
+        multicolor: true}),
     ],
     content,
     editable,
@@ -122,10 +88,7 @@ export default function RichTextEditor({
     },
     editorProps: {
       attributes: {
-        class: 'prose prose-lg max-w-none focus:outline-none min-h-[400px] p-4',
-      },
-    },
-  });
+        class: 'prose prose-lg max-w-none focus:outline-none min-h-[400px] p-4'}}});
 
   useEffect(() => {
     if (editor && content !== editor.getHTML()) {
@@ -181,14 +144,14 @@ export default function RichTextEditor({
             disabled={!editor.can().undo()}
             title="Desfazer (Ctrl+Z)"
           >
-            <LuUndo className="w-4 h-4" />
+            <span style={{fontSize:"14px"}}>↶</span>
           </MenuButton>
           <MenuButton
             onClick={() => editor.chain().focus().redo().run()}
             disabled={!editor.can().redo()}
             title="Refazer (Ctrl+Y)"
           >
-            <LuRedo className="w-4 h-4" />
+            <span style={{fontSize:"14px"}}>↷</span>
           </MenuButton>
 
           <Divider />
@@ -199,42 +162,42 @@ export default function RichTextEditor({
             isActive={editor.isActive('bold')}
             title="Negrito (Ctrl+B)"
           >
-            <LuBold className="w-4 h-4" />
+            <span style={{fontSize:"14px"}}>B</span>
           </MenuButton>
           <MenuButton
             onClick={() => editor.chain().focus().toggleItalic().run()}
             isActive={editor.isActive('italic')}
             title="Itálico (Ctrl+I)"
           >
-            <LuItalic className="w-4 h-4" />
+            <span style={{fontSize:"14px"}}>i</span>
           </MenuButton>
           <MenuButton
             onClick={() => editor.chain().focus().toggleUnderline().run()}
             isActive={editor.isActive('underline')}
             title="Sublinhado (Ctrl+U)"
           >
-            <LuUnderline className="w-4 h-4" />
+            <span style={{fontSize:"14px"}}>U</span>
           </MenuButton>
           <MenuButton
             onClick={() => editor.chain().focus().toggleStrike().run()}
             isActive={editor.isActive('strike')}
             title="Tachado"
           >
-            <LuStrikethrough className="w-4 h-4" />
+            <span style={{fontSize:"14px"}}>S̶</span>
           </MenuButton>
           <MenuButton
             onClick={() => editor.chain().focus().toggleHighlight({ color: '#fef08a' }).run()}
             isActive={editor.isActive('highlight')}
             title="Destacar"
           >
-            <LuHighlighter className="w-4 h-4" />
+            <span style={{fontSize:"14px"}}>🖍</span>
           </MenuButton>
           <MenuButton
             onClick={() => editor.chain().focus().toggleCode().run()}
             isActive={editor.isActive('code')}
             title="Código"
           >
-            <LuCode className="w-4 h-4" />
+            <span style={{fontSize:"14px"}}>{}</span>
           </MenuButton>
 
           <Divider />
@@ -245,21 +208,21 @@ export default function RichTextEditor({
             isActive={editor.isActive('heading', { level: 1 })}
             title="Título 1"
           >
-            <LuHeading1 className="w-4 h-4" />
+            <span style={{fontSize:"12px",fontWeight:"600"}}>H1</span>
           </MenuButton>
           <MenuButton
             onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
             isActive={editor.isActive('heading', { level: 2 })}
             title="Título 2"
           >
-            <LuHeading2 className="w-4 h-4" />
+            <span style={{fontSize:"12px",fontWeight:"600"}}>H2</span>
           </MenuButton>
           <MenuButton
             onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
             isActive={editor.isActive('heading', { level: 3 })}
             title="Título 3"
           >
-            <LuHeading3 className="w-4 h-4" />
+            <span style={{fontSize:"12px",fontWeight:"600"}}>H3</span>
           </MenuButton>
 
           <Divider />
@@ -270,27 +233,27 @@ export default function RichTextEditor({
             isActive={editor.isActive('bulletList')}
             title="Lista com marcadores"
           >
-            <LuList className="w-4 h-4" />
+            <span style={{fontSize:"14px"}}>≡</span>
           </MenuButton>
           <MenuButton
             onClick={() => editor.chain().focus().toggleOrderedList().run()}
             isActive={editor.isActive('orderedList')}
             title="Lista numerada"
           >
-            <LuListOrdered className="w-4 h-4" />
+            <span style={{fontSize:"14px"}}>≡</span>
           </MenuButton>
           <MenuButton
             onClick={() => editor.chain().focus().toggleBlockquote().run()}
             isActive={editor.isActive('blockquote')}
             title="Citação"
           >
-            <LuQuote className="w-4 h-4" />
+            <span style={{fontSize:"14px"}}>❝</span>
           </MenuButton>
           <MenuButton
             onClick={() => editor.chain().focus().setHorizontalRule().run()}
             title="Linha horizontal"
           >
-            <LuMinus className="w-4 h-4" />
+            <span style={{fontSize:"14px"}}>−</span>
           </MenuButton>
 
           <Divider />
@@ -301,28 +264,28 @@ export default function RichTextEditor({
             isActive={editor.isActive({ textAlign: 'left' })}
             title="Alinhar à esquerda"
           >
-            <LuAlignLeft className="w-4 h-4" />
+            <span style={{fontSize:"14px"}}>≡</span>
           </MenuButton>
           <MenuButton
             onClick={() => editor.chain().focus().setTextAlign('center').run()}
             isActive={editor.isActive({ textAlign: 'center' })}
             title="Centralizar"
           >
-            <LuAlignCenter className="w-4 h-4" />
+            <span style={{fontSize:"14px"}}>≡</span>
           </MenuButton>
           <MenuButton
             onClick={() => editor.chain().focus().setTextAlign('right').run()}
             isActive={editor.isActive({ textAlign: 'right' })}
             title="Alinhar à direita"
           >
-            <LuAlignRight className="w-4 h-4" />
+            <span style={{fontSize:"14px"}}>≡</span>
           </MenuButton>
           <MenuButton
             onClick={() => editor.chain().focus().setTextAlign('justify').run()}
             isActive={editor.isActive({ textAlign: 'justify' })}
             title="Justificar"
           >
-            <LuAlignJustify className="w-4 h-4" />
+            <span style={{fontSize:"14px"}}>≡</span>
           </MenuButton>
 
           <Divider />
@@ -334,7 +297,7 @@ export default function RichTextEditor({
               isActive={editor.isActive('link')}
               title="Inserir link"
             >
-              <LuLink className="w-4 h-4" />
+              <span style={{fontSize:"14px"}}>🔗</span>
             </MenuButton>
             {showLinkInput && (
               <div className="absolute top-full left-0 mt-1 p-2 bg-white border border-gray-200 rounded-lg shadow-lg z-10 flex gap-2">
@@ -362,7 +325,7 @@ export default function RichTextEditor({
               onClick={() => setShowImageInput(!showImageInput)}
               title="Inserir imagem"
             >
-              <LuImage className="w-4 h-4" />
+              <span style={{fontSize:"14px"}}>🖼</span>
             </MenuButton>
             {showImageInput && (
               <div className="absolute top-full left-0 mt-1 p-2 bg-white border border-gray-200 rounded-lg shadow-lg z-10 flex gap-2">

@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
-import { LuBell, LuCheck, LuCheckCheck, LuMessageSquare, LuCalendar, LuZap, LuMegaphone } from 'react-icons/lu';
+import { LuCheck LuCalendar } from 'react-icons/lu';
 import { useNotifications, Notification } from '@/hooks/useNotifications';
 import { toast } from 'sonner';
 
@@ -36,15 +36,15 @@ export default function NotificationBell() {
   const getNotificationIcon = (type: string) => {
     switch (type) {
       case 'WHATSAPP_MESSAGE':
-        return <LuMessageSquare className="w-4 h-4 text-cyan-600" />;
+        return <span style={{fontSize:"14px"}}>💬</span>;
       case 'APPOINTMENT_REMINDER':
         return <LuCalendar className="w-4 h-4 text-blue-600" />;
       case 'AUTOMATION_COMPLETE':
-        return <LuZap className="w-4 h-4 text-violet-600" />;
+        return <span style={{fontSize:"14px"}}>⚡</span>;
       case 'CAMPAIGN_COMPLETE':
-        return <LuMegaphone className="w-4 h-4 text-orange-600" />;
+        return <span style={{fontSize:"14px"}}>📣</span>;
       default:
-        return <LuBell className="w-4 h-4 text-gray-600" />;
+        return <span style={{fontSize:"14px"}}>🔔</span>;
     }
   };
 
@@ -70,7 +70,7 @@ export default function NotificationBell() {
         onClick={() => setIsOpen(!isOpen)}
         className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors"
       >
-        <LuBell className="w-5 h-5 text-gray-600" />
+        <span style={{fontSize:"14px"}}>🔔</span>
         
         {/* Unread Badge */}
         {unreadCount > 0 && (
@@ -98,7 +98,7 @@ export default function NotificationBell() {
                 onClick={() => markAllAsRead()}
                 className="text-xs text-violet-600 hover:text-violet-700 font-medium flex items-center gap-1"
               >
-                <LuCheckCheck className="w-3.5 h-3.5" />
+                <span style={{fontSize:"14px"}}>✓✓</span>
                 Marcar todas como lidas
               </button>
             )}
@@ -108,7 +108,7 @@ export default function NotificationBell() {
           <div className="max-h-96 overflow-y-auto">
             {notifications.length === 0 ? (
               <div className="py-8 text-center">
-                <LuBell className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+                <span style={{fontSize:"14px"}}>🔔</span>
                 <p className="text-sm text-gray-500">Nenhuma notificação</p>
               </div>
             ) : (

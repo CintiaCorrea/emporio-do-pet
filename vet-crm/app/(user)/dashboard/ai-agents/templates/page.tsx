@@ -4,25 +4,13 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { 
   LuFileText,
-  LuSearch,
-  LuFilter,
-  LuPlus,
-  LuMessageSquare,
-  LuBot,
-  LuClock,
-  LuTrash2,
+  LuSearch
+  LuPlus
+  LuTrash,
   LuCheck,
-  LuSparkles,
-  LuChevronRight,
-  LuLoader,
-  LuRefreshCw,
-  LuShieldCheck,
-  LuMessageCircle,
-  LuImage,
-  LuVideo,
-  LuFile,
-  LuPhone,
-  LuExternalLink
+  LuSparkles
+  LuLoader
+  LuPhone
 } from 'react-icons/lu';
 import { AiOutlineWarning } from 'react-icons/ai';
 import { toast } from 'sonner';
@@ -202,8 +190,8 @@ export default function TemplatesPage() {
   const getCategoryIcon = (category: WhatsAppTemplateCategory) => {
     switch (category) {
       case 'MARKETING': return <LuSparkles className="w-4 h-4" />;
-      case 'UTILITY': return <LuMessageSquare className="w-4 h-4" />;
-      case 'AUTHENTICATION': return <LuShieldCheck className="w-4 h-4" />;
+      case 'UTILITY': return <span style={{fontSize:"14px"}}>💬</span>;
+      case 'AUTHENTICATION': return <span style={{fontSize:"14px"}}>🛡</span>;
     }
   };
 
@@ -259,13 +247,13 @@ export default function TemplatesPage() {
   const getComponentIcon = (type: string, format?: string) => {
     if (type === 'HEADER') {
       switch (format) {
-        case 'IMAGE': return <LuImage className="w-4 h-4" />;
-        case 'VIDEO': return <LuVideo className="w-4 h-4" />;
-        case 'DOCUMENT': return <LuFile className="w-4 h-4" />;
+        case 'IMAGE': return <span style={{fontSize:"14px"}}>🖼</span>;
+        case 'VIDEO': return <span style={{fontSize:"14px"}}>🎥</span>;
+        case 'DOCUMENT': return <span style={{fontSize:"14px"}}>📄</span>;
         default: return <LuFileText className="w-4 h-4" />;
       }
     }
-    return <LuMessageCircle className="w-4 h-4" />;
+    return <span style={{fontSize:"14px"}}>💬</span>;
   };
 
   const extractTemplateText = (template: WhatsAppTemplate) => {
@@ -299,7 +287,7 @@ export default function TemplatesPage() {
             <Link href="/dashboard/ai-agents/agents" className="hover:text-indigo-600 transition-colors">
               AI Agents
             </Link>
-            <LuChevronRight className="w-4 h-4" />
+            <span style={{fontSize:"14px"}}>▶</span>
             <span className="text-gray-900 dark:text-white font-medium">Templates</span>
           </div>
           
@@ -318,7 +306,7 @@ export default function TemplatesPage() {
                 disabled={refreshing}
                 className="flex items-center gap-2 px-4 py-2.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-medium transition-all disabled:opacity-50"
               >
-                <LuRefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+                <span style={{fontSize:"14px"}}>↻</span>
                 Atualizar
               </button>
               <TemplateImportExport onImportComplete={() => loadTemplates()} />
@@ -362,7 +350,7 @@ export default function TemplatesPage() {
           <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-5 hover:shadow-lg transition-all">
             <div className="flex items-center gap-3">
               <div className="p-2.5 rounded-xl bg-orange-50 dark:bg-orange-900/30">
-                <LuClock className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+                <span style={{fontSize:"14px"}}>⏱</span>
               </div>
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Pendentes</p>
@@ -386,7 +374,7 @@ export default function TemplatesPage() {
           <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-5 hover:shadow-lg transition-all">
             <div className="flex items-center gap-3">
               <div className="p-2.5 rounded-xl bg-cyan-50 dark:bg-cyan-900/30">
-                <LuShieldCheck className="w-5 h-5 text-cyan-600 dark:text-cyan-400" />
+                <span style={{fontSize:"14px"}}>🛡</span>
               </div>
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Qualidade</p>
@@ -413,7 +401,7 @@ export default function TemplatesPage() {
 
             {/* Filtro Categoria */}
             <div className="flex items-center gap-2">
-              <LuFilter className="text-gray-400 w-5 h-5" />
+              <span style={{fontSize:"14px"}}>⌕</span>
               <select
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value as WhatsAppTemplateCategory | 'all')}
@@ -469,11 +457,7 @@ export default function TemplatesPage() {
                       template.status === 'PENDING' ? 'bg-orange-50 dark:bg-orange-900/30' : 
                       template.status === 'REJECTED' ? 'bg-red-50 dark:bg-red-900/30' : 'bg-gray-50 dark:bg-gray-800'
                     }`}>
-                      <LuMessageCircle className={`w-5 h-5 ${
-                        template.status === 'APPROVED' ? 'text-cyan-600 dark:text-cyan-400' :
-                        template.status === 'PENDING' ? 'text-orange-600 dark:text-orange-400' : 
-                        template.status === 'REJECTED' ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-gray-400'
-                      }`} />
+                      <span style={{fontSize:"14px"}}>💬</span>
                     </div>
                     <div>
                       <h3 className="font-semibold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
@@ -502,7 +486,7 @@ export default function TemplatesPage() {
                   </span>
                   {template.quality_score && (
                     <div className="flex items-center gap-1.5">
-                      <LuShieldCheck className={`w-4 h-4 ${getQualityColor(template.quality_score.score)}`} />
+                      <span style={{fontSize:"14px"}}>🛡</span>
                       <span className="text-xs text-gray-500 dark:text-gray-400">
                         {template.quality_score.score === 'UNKNOWN' ? '-' : template.quality_score.score}
                       </span>
@@ -527,11 +511,7 @@ export default function TemplatesPage() {
                     selectedTemplate.status === 'PENDING' ? 'bg-orange-50 dark:bg-orange-900/30' : 
                     selectedTemplate.status === 'REJECTED' ? 'bg-red-50 dark:bg-red-900/30' : 'bg-gray-50 dark:bg-gray-800'
                   }`}>
-                    <LuMessageCircle className={`w-6 h-6 ${
-                      selectedTemplate.status === 'APPROVED' ? 'text-cyan-600 dark:text-cyan-400' :
-                      selectedTemplate.status === 'PENDING' ? 'text-orange-600 dark:text-orange-400' : 
-                      selectedTemplate.status === 'REJECTED' ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-gray-400'
-                    }`} />
+                    <span style={{fontSize:"14px"}}>💬</span>
                   </div>
                   <div>
                     <h2 className="text-xl font-bold text-gray-900 dark:text-white">{selectedTemplate.name}</h2>
@@ -564,7 +544,7 @@ export default function TemplatesPage() {
                   </span>
                   {selectedTemplate.quality_score && selectedTemplate.quality_score.score !== 'UNKNOWN' && (
                     <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-gray-800 rounded-full">
-                      <LuShieldCheck className={`w-4 h-4 ${getQualityColor(selectedTemplate.quality_score.score)}`} />
+                      <span style={{fontSize:"14px"}}>🛡</span>
                       <span className="text-sm text-gray-600 dark:text-gray-300">
                         Qualidade: {selectedTemplate.quality_score.score}
                       </span>
@@ -577,7 +557,7 @@ export default function TemplatesPage() {
                     disabled={actionLoading === selectedTemplate.name}
                     className="flex items-center gap-2 px-4 py-2 bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/50 text-red-700 dark:text-red-400 rounded-lg transition-colors disabled:opacity-50"
                   >
-                    <LuTrash2 className="w-4 h-4" />
+                    <LuTrash className="w-4 h-4" />
                     Excluir
                   </button>
                 )}
@@ -624,8 +604,8 @@ export default function TemplatesPage() {
                               className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700"
                             >
                               {button.type === 'PHONE_NUMBER' && <LuPhone className="w-4 h-4 text-gray-500" />}
-                              {button.type === 'URL' && <LuExternalLink className="w-4 h-4 text-gray-500" />}
-                              {button.type === 'QUICK_REPLY' && <LuMessageSquare className="w-4 h-4 text-gray-500" />}
+                              {button.type === 'URL' && <span style={{fontSize:"14px"}}>↗</span>}
+                              {button.type === 'QUICK_REPLY' && <span style={{fontSize:"14px"}}>💬</span>}
                               <span className="text-sm text-gray-700 dark:text-gray-300">{button.text}</span>
                             </div>
                           ))}
@@ -655,7 +635,7 @@ export default function TemplatesPage() {
                     href={`/dashboard/ai-agents/agents?whatsappTemplate=${selectedTemplate.name}`}
                     className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold transition-all"
                   >
-                    <LuBot className="w-5 h-5" />
+                    <span style={{fontSize:"14px"}}>🤖</span>
                     Usar com Agente de IA
                   </Link>
                 </div>

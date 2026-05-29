@@ -4,22 +4,14 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Sidebar from '@/components/protected/dashboard/Sidebar';
 import { 
-  LuArrowLeft,
-  LuBedDouble,
-  LuCalendar,
-  LuClock,
-  LuDollarSign,
-  LuTrendingUp,
-  LuCircleCheck,
-  LuActivity,
+  LuArrowLeft
+  LuCalendar
+  LuDollarSign
   LuUser,
   LuPawPrint,
-  LuDownload,
-  LuFilter,
+  LuDownload
   LuFileText,
-  LuTriangleAlert,
-  LuArrowUpRight,
-  LuStethoscope,
+  LuTriangleAlert
   LuPhone
 } from 'react-icons/lu';
 import toast from 'react-hot-toast';
@@ -380,7 +372,7 @@ export default function HospitalizationsReportPage() {
             {/* Filtros */}
             <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-red-500/5 p-6 mb-6">
               <div className="flex items-center gap-2 mb-4">
-                <LuFilter className="w-5 h-5 text-red-600" />
+                <span style={{fontSize:"14px"}}>⌕</span>
                 <h3 className="text-lg font-semibold text-gray-900">Filtros</h3>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -443,14 +435,14 @@ export default function HospitalizationsReportPage() {
                   label: "Total de Internações", 
                   value: stats.total, 
                   color: "gray", 
-                  icon: LuBedDouble,
+                  icon: () => <span style={{fontSize:"14px"}}>🛏</span>,
                   trend: null
                 },
                 { 
                   label: "Ativas", 
                   value: stats.active, 
                   color: "blue", 
-                  icon: LuActivity,
+                  icon: () => <span style={{fontSize:"14px"}}>⚡</span>,
                   trend: stats.total > 0 ? ((stats.active / stats.total) * 100).toFixed(1) + '%' : '0%'
                 },
                 { 
@@ -464,14 +456,14 @@ export default function HospitalizationsReportPage() {
                   label: "Altas", 
                   value: stats.discharged, 
                   color: "green", 
-                  icon: LuCircleCheck,
+                  icon: () => <span style={{fontSize:"14px"}}>✓</span>,
                   trend: stats.total > 0 ? ((stats.discharged / stats.total) * 100).toFixed(1) + '%' : '0%'
                 },
                 { 
                   label: "Alta Pendente", 
                   value: stats.dischargePending, 
                   color: "purple", 
-                  icon: LuArrowUpRight,
+                  icon: () => <span style={{fontSize:"14px"}}>↗</span>,
                   trend: stats.total > 0 ? ((stats.dischargePending / stats.total) * 100).toFixed(1) + '%' : '0%'
                 },
                 { 
@@ -486,7 +478,7 @@ export default function HospitalizationsReportPage() {
                   label: "Diária Média", 
                   value: formatCurrency(stats.averageDailyRate), 
                   color: "blue", 
-                  icon: LuTrendingUp,
+                  icon: () => <span style={{fontSize:"14px"}}>📈</span>,
                   trend: null,
                   isFormatted: true
                 },
@@ -494,7 +486,7 @@ export default function HospitalizationsReportPage() {
                   label: "Dias Média", 
                   value: `${Math.round(stats.averageDaysHospitalized)} dias`, 
                   color: "purple", 
-                  icon: LuClock,
+                  icon: () => <span style={{fontSize:"14px"}}>⏱</span>,
                   trend: null
                 },
                 { 
@@ -601,7 +593,7 @@ export default function HospitalizationsReportPage() {
                           <td className="p-6">
                             {hosp.veterinarian ? (
                               <div className="flex items-center gap-2">
-                                <LuStethoscope className="w-4 h-4 text-red-600" />
+                                <span style={{fontSize:"14px"}}>🩺</span>
                                 <span className="text-gray-700">{hosp.veterinarian.name}</span>
                               </div>
                             ) : (
@@ -610,7 +602,7 @@ export default function HospitalizationsReportPage() {
                           </td>
                           <td className="p-6">
                             <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                              <LuBedDouble className="w-3 h-3 mr-1" />
+                              <span style={{fontSize:"14px"}}>🛏</span>
                               {hosp.roomNumber || 'N/A'}
                             </span>
                           </td>
@@ -636,7 +628,7 @@ export default function HospitalizationsReportPage() {
                           </td>
                           <td className="p-6">
                             <div className="flex items-center gap-1 text-gray-700">
-                              <LuClock className="w-4 h-4" />
+                              <span style={{fontSize:"14px"}}>⏱</span>
                               {days} dias
                             </div>
                           </td>
@@ -658,7 +650,7 @@ export default function HospitalizationsReportPage() {
 
                 {hospitalizations.length === 0 && !loading && (
                   <div className="text-center py-12">
-                    <LuBedDouble className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <span style={{fontSize:"14px"}}>🛏</span>
                     <p className="text-gray-500 text-lg">Nenhuma internação encontrada</p>
                     <p className="text-gray-400 mt-2">
                       Tente ajustar os filtros de busca

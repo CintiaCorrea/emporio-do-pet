@@ -18,8 +18,7 @@ export function StandardTemplateEditor({
   variablesInBody,
   flows,
   languages,
-  onChange,
-}: StandardTemplateEditorProps) {
+  onChange}: StandardTemplateEditorProps) {
   return (
     <div className="space-y-6">
       <div>
@@ -36,8 +35,7 @@ export function StandardTemplateEditor({
           onChange={(e) =>
             onChange((prev) => ({
               ...prev,
-              name: e.target.value.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, ''),
-            }))
+              name: e.target.value.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')}))
           }
           className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl"
         />
@@ -59,8 +57,7 @@ export function StandardTemplateEditor({
                 onChange((prev) => ({
                   ...prev,
                   headerFormat: format,
-                  headerText: '',
-                }))
+                  headerText: ''}))
               }
               className={`px-3 py-2 rounded-lg text-sm ${
                 formData.headerFormat === format
@@ -96,9 +93,7 @@ export function StandardTemplateEditor({
                   ...prev,
                   headerLocation: {
                     ...(prev.headerLocation || { latitude: 0, longitude: 0 }),
-                    latitude: Number(e.target.value),
-                  },
-                }))
+                    latitude: Number(e.target.value)}}))
               }
               className="px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg"
             />
@@ -112,9 +107,7 @@ export function StandardTemplateEditor({
                   ...prev,
                   headerLocation: {
                     ...(prev.headerLocation || { latitude: 0, longitude: 0 }),
-                    longitude: Number(e.target.value),
-                  },
-                }))
+                    longitude: Number(e.target.value)}}))
               }
               className="px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg"
             />
@@ -127,9 +120,7 @@ export function StandardTemplateEditor({
                   ...prev,
                   headerLocation: {
                     ...(prev.headerLocation || { latitude: 0, longitude: 0 }),
-                    name: e.target.value,
-                  },
-                }))
+                    name: e.target.value}}))
               }
               className="px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg"
             />
@@ -142,9 +133,7 @@ export function StandardTemplateEditor({
                   ...prev,
                   headerLocation: {
                     ...(prev.headerLocation || { latitude: 0, longitude: 0 }),
-                    address: e.target.value,
-                  },
-                }))
+                    address: e.target.value}}))
               }
               className="px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg"
             />

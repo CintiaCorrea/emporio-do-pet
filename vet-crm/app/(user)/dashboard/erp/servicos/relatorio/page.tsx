@@ -4,16 +4,10 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Sidebar from '@/components/protected/dashboard/Sidebar';
 import { 
-  LuArrowLeft,
-  LuWrench,
-  LuCalendar,
-  LuClock,
-  LuDollarSign,
-  LuTrendingUp,
-  LuCircleCheck,
-  LuActivity,
-  LuDownload,
-  LuFilter,
+  LuArrowLeft
+  LuCalendar
+  LuDollarSign
+  LuDownload
   LuFileText
 } from 'react-icons/lu';
 import toast from 'react-hot-toast';
@@ -387,7 +381,7 @@ export default function ServicesReportPage() {
             {/* Filtros */}
             <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-purple-500/5 p-6 mb-6">
               <div className="flex items-center gap-2 mb-4">
-                <LuFilter className="w-5 h-5 text-purple-600" />
+                <span style={{fontSize:"14px"}}>⌕</span>
                 <h3 className="text-lg font-semibold text-gray-900">Filtros</h3>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -419,14 +413,14 @@ export default function ServicesReportPage() {
                   label: "Total de Serviços", 
                   value: stats.totalServices, 
                   color: "purple", 
-                  icon: LuWrench,
+                  icon: () => <span style={{fontSize:"14px"}}>🔧</span>,
                   trend: null
                 },
                 { 
                   label: "Total de Usos", 
                   value: stats.totalTreatments, 
                   color: "blue", 
-                  icon: LuActivity,
+                  icon: () => <span style={{fontSize:"14px"}}>⚡</span>,
                   trend: null
                 },
                 { 
@@ -441,7 +435,7 @@ export default function ServicesReportPage() {
                   label: "Preço Médio", 
                   value: formatCurrency(stats.averagePrice), 
                   color: "green", 
-                  icon: LuTrendingUp,
+                  icon: () => <span style={{fontSize:"14px"}}>📈</span>,
                   trend: null,
                   isFormatted: true
                 },
@@ -449,7 +443,7 @@ export default function ServicesReportPage() {
                   label: "Receita Média/Serviço", 
                   value: formatCurrency(stats.averageRevenuePerService), 
                   color: "orange", 
-                  icon: LuActivity,
+                  icon: () => <span style={{fontSize:"14px"}}>⚡</span>,
                   trend: null,
                   isFormatted: true
                 },
@@ -457,7 +451,7 @@ export default function ServicesReportPage() {
                   label: "Serviço Mais Usado", 
                   value: stats.mostUsedService.name || 'N/A', 
                   color: "blue", 
-                  icon: LuCircleCheck,
+                  icon: () => <span style={{fontSize:"14px"}}>✓</span>,
                   trend: stats.mostUsedService.count > 0 ? `${stats.mostUsedService.count} usos` : null,
                   isText: true
                 },
@@ -465,7 +459,7 @@ export default function ServicesReportPage() {
                   label: "Maior Receita", 
                   value: stats.highestRevenueService.name || 'N/A', 
                   color: "green", 
-                  icon: LuTrendingUp,
+                  icon: () => <span style={{fontSize:"14px"}}>📈</span>,
                   trend: stats.highestRevenueService.revenue > 0 ? formatCurrency(stats.highestRevenueService.revenue) : null,
                   isText: true
                 },
@@ -540,7 +534,7 @@ export default function ServicesReportPage() {
                           <td className="p-6">
                             <div className="flex items-center gap-3">
                               <div className="p-2 rounded-xl bg-purple-100 text-purple-800">
-                                <LuWrench className="w-5 h-5" />
+                                <span style={{fontSize:"14px"}}>🔧</span>
                               </div>
                               <div>
                                 <div className="font-semibold text-gray-900">{service.name}</div>
@@ -563,7 +557,7 @@ export default function ServicesReportPage() {
                                   ? 'bg-blue-100 text-blue-800' 
                                   : 'bg-gray-100 text-gray-600'
                               }`}>
-                                <LuActivity className="w-3 h-3 mr-1" />
+                                <span style={{fontSize:"14px"}}>⚡</span>
                                 {serviceTreatments.length} {serviceTreatments.length === 1 ? 'uso' : 'usos'}
                               </span>
                             </div>
@@ -583,7 +577,7 @@ export default function ServicesReportPage() {
                           </td>
                           <td className="p-6">
                             <div className="flex items-center gap-1 text-gray-600">
-                              <LuClock className="w-4 h-4" />
+                              <span style={{fontSize:"14px"}}>⏱</span>
                               {formatDate(service.updatedAt)}
                             </div>
                           </td>
@@ -595,7 +589,7 @@ export default function ServicesReportPage() {
 
                 {services.length === 0 && !loading && (
                   <div className="text-center py-12">
-                    <LuWrench className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <span style={{fontSize:"14px"}}>🔧</span>
                     <p className="text-gray-500 text-lg">Nenhum serviço encontrado</p>
                     <p className="text-gray-400 mt-2">
                       Tente ajustar os filtros de busca

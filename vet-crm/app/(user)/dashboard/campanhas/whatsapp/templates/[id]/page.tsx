@@ -4,27 +4,14 @@ import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-  LuChevronRight,
   LuArrowLeft,
   LuSave,
-  LuLoader,
-  LuMessageSquare,
-  LuCheck,
-  LuClock,
-  LuPause,
-  LuCircleAlert,
-  LuTrash2,
-  LuCopy,
-  LuExternalLink,
-  LuRefreshCw,
+  LuLoader
+  LuCheck
+  LuTrash
   LuPencil,
-  LuEye,
-  LuImage,
-  LuVideo,
-  LuFile,
-  LuLink,
-  LuPhone,
-  LuCornerDownRight} from 'react-icons/lu';
+  LuEye
+  LuPhone} from 'react-icons/lu';
 import { toast } from 'sonner';
 
 interface TemplateComponent {
@@ -67,7 +54,7 @@ const STATUS_CONFIG: Record<string, { bg: string; text: string; icon: React.Reac
   PENDING: {
     bg: 'bg-orange-100',
     text: 'text-orange-700',
-    icon: <LuClock className="w-5 h-5" />,
+    icon: <span style={{fontSize:"14px"}}>⏱</span>,
     label: 'Pendente'},
   REJECTED: {
     bg: 'bg-red-100',
@@ -77,17 +64,17 @@ const STATUS_CONFIG: Record<string, { bg: string; text: string; icon: React.Reac
   PAUSED: {
     bg: 'bg-orange-100',
     text: 'text-orange-700',
-    icon: <LuPause className="w-5 h-5" />,
+    icon: <span style={{fontSize:"14px"}}>⏸</span>,
     label: 'Pausado'},
   DISABLED: {
     bg: 'bg-gray-100',
     text: 'text-gray-700',
-    icon: <LuCircleAlert className="w-5 h-5" />,
+    icon: <span style={{fontSize:"14px"}}>⚠</span>,
     label: 'Desativado'},
   IN_APPEAL: {
     bg: 'bg-blue-100',
     text: 'text-blue-700',
-    icon: <LuClock className="w-5 h-5" />,
+    icon: <span style={{fontSize:"14px"}}>⏱</span>,
     label: 'Em Recurso'}};
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -234,7 +221,7 @@ export default function TemplateDetailPage({ params }: { params: Promise<{ id: s
           <div className="bg-red-50 border border-red-100 rounded-2xl p-6">
             <div className="flex items-start gap-4">
               <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <LuCircleAlert className="w-5 h-5 text-red-600" />
+                    <span style={{fontSize:"14px"}}>⚠</span>
               </div>
               <div>
                 <h3 className="font-semibold text-red-900">Erro ao carregar template</h3>
@@ -268,14 +255,14 @@ export default function TemplateDetailPage({ params }: { params: Promise<{ id: s
           <Link href="/dashboard/campanhas/whatsapp" className="hover:text-cyan-600">
             WhatsApp
           </Link>
-          <LuChevronRight className="w-4 h-4" />
+          <span style={{fontSize:"14px"}}>▶</span>
           <Link
             href="/dashboard/campanhas/whatsapp/templates"
             className="hover:text-cyan-600"
           >
             Templates
           </Link>
-          <LuChevronRight className="w-4 h-4" />
+          <span style={{fontSize:"14px"}}>▶</span>
           <span className="text-gray-900 font-medium truncate max-w-[200px]">
             {template.name}
           </span>
@@ -298,7 +285,7 @@ export default function TemplateDetailPage({ params }: { params: Promise<{ id: s
                   className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
                   title="Copiar nome"
                 >
-                  <LuCopy className="w-4 h-4 text-gray-400" />
+                  <span style={{fontSize:"14px"}}>⎘</span>
                 </button>
               </div>
               <div className="flex items-center gap-3">
@@ -325,7 +312,7 @@ export default function TemplateDetailPage({ params }: { params: Promise<{ id: s
               onClick={loadTemplate}
               className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl transition-colors"
             >
-              <LuRefreshCw className="w-4 h-4" />
+              <span style={{fontSize:"14px"}}>↻</span>
               Atualizar
             </button>
 
@@ -343,7 +330,7 @@ export default function TemplateDetailPage({ params }: { params: Promise<{ id: s
               onClick={() => setShowDeleteModal(true)}
               className="flex items-center gap-2 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl transition-colors"
             >
-              <LuTrash2 className="w-4 h-4" />
+              <LuTrash className="w-4 h-4" />
               Excluir
             </button>
           </div>
@@ -353,7 +340,7 @@ export default function TemplateDetailPage({ params }: { params: Promise<{ id: s
         {template.status === 'REJECTED' && template.rejected_reason && (
           <div className="bg-red-50 border border-red-100 rounded-2xl p-4 mb-6">
             <div className="flex items-start gap-3">
-              <LuCircleAlert className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+              <span style={{fontSize:"14px"}}>⚠</span>
               <div>
                 <h3 className="font-semibold text-red-900">Motivo da Rejeição</h3>
                 <p className="text-red-700 mt-1">{template.rejected_reason}</p>
@@ -425,19 +412,19 @@ export default function TemplateDetailPage({ params }: { params: Promise<{ id: s
                       <div className="flex items-center gap-2 text-gray-500">
                         {headerComponent.format === 'IMAGE' && (
                           <>
-                            <LuImage className="w-5 h-5" />
+                            <span style={{fontSize:"14px"}}>🖼</span>
                             <span>Imagem</span>
                           </>
                         )}
                         {headerComponent.format === 'VIDEO' && (
                           <>
-                            <LuVideo className="w-5 h-5" />
+                            <span style={{fontSize:"14px"}}>🎥</span>
                             <span>Vídeo</span>
                           </>
                         )}
                         {headerComponent.format === 'DOCUMENT' && (
                           <>
-                            <LuFile className="w-5 h-5" />
+                            <span style={{fontSize:"14px"}}>📄</span>
                             <span>Documento</span>
                           </>
                         )}
@@ -483,16 +470,16 @@ export default function TemplateDetailPage({ params }: { params: Promise<{ id: s
                       className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl"
                     >
                       {button.type === 'QUICK_REPLY' && (
-                        <LuCornerDownRight className="w-5 h-5 text-gray-400" />
+                        <span style={{fontSize:"14px"}}>↪</span>
                       )}
                       {button.type === 'URL' && (
-                        <LuLink className="w-5 h-5 text-gray-400" />
+                        <span style={{fontSize:"14px"}}>🔗</span>
                       )}
                       {button.type === 'PHONE_NUMBER' && (
                         <LuPhone className="w-5 h-5 text-gray-400" />
                       )}
                       {button.type === 'COPY_CODE' && (
-                        <LuCopy className="w-5 h-5 text-gray-400" />
+                        <span style={{fontSize:"14px"}}>⎘</span>
                       )}
                       <div>
                         <p className="font-medium text-gray-900">{button.text}</p>
@@ -563,13 +550,13 @@ export default function TemplateDetailPage({ params }: { params: Promise<{ id: s
                       {headerComponent.format && headerComponent.format !== 'TEXT' && (
                         <div className="bg-gray-100 rounded-lg p-8 mb-2 flex items-center justify-center">
                           {headerComponent.format === 'IMAGE' && (
-                            <LuImage className="w-8 h-8 text-gray-400" />
+                            <span style={{fontSize:"14px"}}>🖼</span>
                           )}
                           {headerComponent.format === 'VIDEO' && (
-                            <LuVideo className="w-8 h-8 text-gray-400" />
+                            <span style={{fontSize:"14px"}}>🎥</span>
                           )}
                           {headerComponent.format === 'DOCUMENT' && (
-                            <LuFile className="w-8 h-8 text-gray-400" />
+                            <span style={{fontSize:"14px"}}>📄</span>
                           )}
                         </div>
                       )}

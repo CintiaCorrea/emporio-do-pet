@@ -91,8 +91,7 @@ export default function EditTutorPage() {
             documents: pet.documents || [],
             avatar: pet.avatar || '',
             isNew: false,
-            isDeleted: false,
-          }));
+            isDeleted: false}));
           
           setPets(mappedPets);
         }
@@ -152,16 +151,13 @@ export default function EditTutorPage() {
         observations: tutor.observations,
         tags: tutor.tags || [],
         formDate: tutor.formDate ? new Date(tutor.formDate).toISOString() : undefined,
-        inclusionDate: tutor.inclusionDate ? new Date(tutor.inclusionDate).toISOString() : undefined,
-      };
+        inclusionDate: tutor.inclusionDate ? new Date(tutor.inclusionDate).toISOString() : undefined};
 
       const response = await fetch(`/api/tutors/${tutor.id}`, {
         method: 'PATCH',
         headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
+          'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)});
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -205,15 +201,13 @@ export default function EditTutorPage() {
           observations: sanitize(pet.observations),
           documents: pet.documents,
           avatar: sanitize(pet.avatar),
-          tutorId: tutor.id,
-        };
+          tutorId: tutor.id};
 
         try {
           await fetch('/api/pets', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(petPayload),
-          });
+            body: JSON.stringify(petPayload)});
         } catch (err) {
           console.error(`Erro ao criar pet ${pet.name}:`, err);
         }
@@ -241,15 +235,13 @@ export default function EditTutorPage() {
           medicalNotes: sanitize(pet.medicalNotes),
           observations: sanitize(pet.observations),
           documents: pet.documents,
-          avatar: sanitize(pet.avatar),
-        };
+          avatar: sanitize(pet.avatar)};
 
         try {
           await fetch(`/api/pets/${pet.id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(petPayload),
-          });
+            body: JSON.stringify(petPayload)});
         } catch (err) {
           console.error(`Erro ao atualizar pet ${pet.id}:`, err);
         }

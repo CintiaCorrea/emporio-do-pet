@@ -2,13 +2,11 @@
 
 import { useRouter } from 'next/navigation';
 import {
-  LuPencil,
-  LuCopy,
+  LuPencil
   LuDownload,
-  LuTrash2,
+  LuTrash,
   LuFileText,
-  LuEllipsisVertical,
-} from 'react-icons/lu';
+  LuEllipsisVertical} from 'react-icons/lu';
 import { useState, useRef, useEffect } from 'react';
 
 interface LandingPageItem {
@@ -31,15 +29,13 @@ interface LandingPageCardProps {
 const STATUS_LABELS: Record<string, { label: string; className: string }> = {
   DRAFT: { label: 'Rascunho', className: 'bg-yellow-100 dark:bg-yellow-500/20 text-yellow-700 dark:text-yellow-300 border-yellow-300 dark:border-yellow-500/30' },
   PUBLISHED: { label: 'Publicado', className: 'bg-cyan-100 dark:bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 border-cyan-300 dark:border-cyan-500/30' },
-  ARCHIVED: { label: 'Arquivado', className: 'bg-gray-100 dark:bg-gray-500/20 text-gray-500 dark:text-gray-400 border-gray-300 dark:border-gray-500/30' },
-};
+  ARCHIVED: { label: 'Arquivado', className: 'bg-gray-100 dark:bg-gray-500/20 text-gray-500 dark:text-gray-400 border-gray-300 dark:border-gray-500/30' }};
 
 export default function LandingPageCard({
   page,
   onDuplicate,
   onDelete,
-  onExport,
-}: LandingPageCardProps) {
+  onExport}: LandingPageCardProps) {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -115,7 +111,7 @@ export default function LandingPageCard({
                   }}
                   className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white"
                 >
-                  <LuCopy className="w-3.5 h-3.5" />
+                  <span style={{fontSize:"14px"}}>⎘</span>
                   Duplicar
                 </button>
                 <button
@@ -136,7 +132,7 @@ export default function LandingPageCard({
                   }}
                   className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-300"
                 >
-                  <LuTrash2 className="w-3.5 h-3.5" />
+                  <LuTrash className="w-3.5 h-3.5" />
                   Excluir
                 </button>
               </div>

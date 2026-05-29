@@ -4,8 +4,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-  LuArrowLeft, LuLoader, LuSave, LuUser, LuMail,
-  LuPhone, LuGlobe, LuTag, LuFileText, LuChevronDown, LuChevronUp, LuPlus
+  LuArrowLeft, LuLoader, LuSave, LuUser
+  LuPhone LuFileText LuPlus
 } from 'react-icons/lu';
 import toast from 'react-hot-toast';
 import type { LeadSource, CreateLeadData } from '@/types/crm';
@@ -124,7 +124,7 @@ export default function NewLeadPage() {
                   Email
                 </label>
                 <div className="relative">
-                  <LuMail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  
                   <input
                     type="email"
                     value={form.email}
@@ -153,7 +153,7 @@ export default function NewLeadPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Origem</label>
                 <div className="relative">
-                  <LuGlobe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  
                   <select
                     value={form.source}
                     onChange={(e) => setForm(prev => ({ ...prev, source: e.target.value as LeadSource }))}
@@ -172,7 +172,7 @@ export default function NewLeadPage() {
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Tags</label>
               <div className="flex gap-2">
                 <div className="relative flex-1">
-                  <LuTag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  
                   <input
                     type="text"
                     value={tagInput}
@@ -224,7 +224,7 @@ export default function NewLeadPage() {
               className="w-full flex items-center justify-between p-6 hover:bg-gray-50/50 transition-colors"
             >
               <h2 className="text-lg font-bold text-gray-900">Campos Avançados</h2>
-              {showAdvanced ? <LuChevronUp className="w-5 h-5 text-gray-400" /> : <LuChevronDown className="w-5 h-5 text-gray-400" />}
+              {showAdvanced ? <span style={{fontSize:"14px"}}>▲</span> : <span style={{fontSize:"14px"}}>▼</span>}
             </button>
 
             {showAdvanced && (

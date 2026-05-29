@@ -1,4 +1,4 @@
-import { LuPlus, LuStar, LuTrash2 } from 'react-icons/lu';
+import { LuPlus LuTrash } from 'react-icons/lu';
 import { ContactInput } from '@/types/tutor-edit';
 import FormField from './FormField';
 
@@ -94,7 +94,7 @@ export default function ContactsSection({
                   : 'text-gray-400 hover:text-orange-500 hover:bg-orange-50'
               }`}
             >
-              <LuStar className="w-4 h-4" />
+              <span style={{fontSize:"14px"}}>⭐</span>
             </button>
             <button
               type="button"
@@ -102,7 +102,7 @@ export default function ContactsSection({
               className="p-2 text-red-500 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all duration-300 hover:scale-110"
               disabled={contacts.length === 1}
             >
-              <LuTrash2 className="w-4 h-4" />
+              <LuTrash className="w-4 h-4" />
             </button>
           </div>
         </div>

@@ -1,4 +1,3 @@
-import { LuMapPin } from 'react-icons/lu';
 import { Tutor } from '@/types/tutor-detail';
 
 interface AddressSectionProps {
@@ -11,7 +10,7 @@ export default function AddressSection({ tutor }: AddressSectionProps) {
   return (
     <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl sm:rounded-3xl shadow-xl sm:shadow-2xl shadow-blue-500/10 p-4 sm:p-6">
       <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-        <LuMapPin className="w-5 h-5 text-red-500" />
+        <span style={{fontSize:"14px"}}>📍</span>
         Endereço
       </h2>
       <div className="space-y-2">
@@ -40,7 +39,7 @@ export default function AddressSection({ tutor }: AddressSectionProps) {
           }}
           className="w-full sm:w-auto px-4 py-2 text-red-600 bg-red-50 border border-red-200 rounded-xl hover:bg-red-100 transition-all duration-300 flex items-center justify-center gap-2 text-sm"
         >
-          <LuMapPin className="w-4 h-4" />
+          <span style={{fontSize:"14px"}}>📍</span>
           Ver no Google Maps
         </button>
       </div>

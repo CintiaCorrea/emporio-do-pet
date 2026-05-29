@@ -20,8 +20,7 @@ export default function EditBoardPage() {
     name: '',
     description: '',
     color: 'bg-blue-500',
-    type: 'APPOINTMENT',
-  });
+    type: 'APPOINTMENT'});
 
   // Buscar dados do board
   const { board, loading: loadingBoard, error: loadError } = useBoard(boardId);
@@ -42,16 +41,13 @@ export default function EditBoardPage() {
       const response = await fetch(`/api/boards/${boardId}`, {
         method: 'PUT', // ou PATCH, dependendo da sua API
         headers: {
-          'Content-Type': 'application/json',
-        },
+          'Content-Type': 'application/json'},
         credentials: 'include',
         body: JSON.stringify({
           name: formData.name,
           description: formData.description,
           color: formData.color,
-          type: formData.type,
-        }),
-      });
+          type: formData.type})});
 
       const data = await response.json();
 

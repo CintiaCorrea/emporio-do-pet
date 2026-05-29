@@ -2,18 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { 
-  LuPackage,
+import {
   LuSearch,
   LuPlus,
   LuPencil,
-  LuTrash2,
-  LuPill,
-  LuSyringe,
+  LuTrash
   LuTriangleAlert,
-  LuDollarSign,
-  LuBox,
-  LuTrendingUp
+  LuDollarSign
 } from 'react-icons/lu';
 import ConfirmDeleteModal from '@/components/common/ConfirmDeleteModal';
 import toast from 'react-hot-toast';
@@ -271,9 +266,9 @@ export default function ProductsPage() {
 
   const getTypeIcon = (type: ProductType) => {
     switch (type) {
-      case 'MEDICINE': return LuPill;
-      case 'VACCINE': return LuSyringe;
-      default: return LuPackage;
+      case 'MEDICINE': return;
+      case 'VACCINE': return;
+      default: return;
     }
   };
 
@@ -342,7 +337,7 @@ export default function ProductsPage() {
                     href="/dashboard/erp/produtos/relatorio"
                     className="group px-6 py-3 text-sm font-semibold text-gray-700 bg-white/80 border border-gray-200/80 rounded-2xl hover:bg-white hover:border-gray-300 hover:shadow-lg transition-all duration-300 hover:scale-105 flex items-center space-x-2"
                   >
-                    <LuTrendingUp className="w-4 h-4" />
+                    <span style={{fontSize:"14px"}}>📈</span>
                     <span>Relatório</span>
                   </Link>
                   <button 
@@ -377,19 +372,19 @@ export default function ProductsPage() {
                   label: "Total", 
                   value: localStats.total, 
                   color: "gray", 
-                  icon: LuPackage
+                  icon: () => <span style={{fontSize:"14px"}}>📦</span>
                 },
                 { 
                   label: "Medicamentos", 
                   value: localStats.medicines, 
                   color: "blue", 
-                  icon: LuPill
+                  icon: () => <span style={{fontSize:"14px"}}>💊</span>
                 },
                 { 
                   label: "Vacinas", 
                   value: localStats.vaccines, 
                   color: "green", 
-                  icon: LuSyringe
+                  icon: () => <span style={{fontSize:"14px"}}>💉</span>
                 },
                 { 
                   label: "Estoque Baixo", 
@@ -401,7 +396,7 @@ export default function ProductsPage() {
                   label: "Itens em Estoque", 
                   value: localStats.totalStock, 
                   color: "teal", 
-                  icon: LuBox
+                  icon: () => <span style={{fontSize:"14px"}}>📦</span>
                 }
               ].map((stat, index) => (
                 <div key={index} className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-blue-500/5 p-6 hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-300 hover:scale-105">
@@ -536,7 +531,7 @@ export default function ProductsPage() {
                           </td>
                           <td className="p-6">
                             <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStockColor(product.stock)}`}>
-                              <LuBox className="w-3 h-3 mr-1" />
+                              <span style={{fontSize:"14px"}}>📦</span>
                               {product.stock} unidades
                             </span>
                             {product.stock < 10 && product.stock > 0 && (
@@ -581,7 +576,7 @@ export default function ProductsPage() {
                                 className="p-2 text-gray-400 hover:bg-gray-50 hover:text-red-600 rounded-2xl transition-colors"
                                 title="Excluir produto"
                               >
-                                <LuTrash2 className="w-4 h-4" />
+                                <LuTrash className="w-4 h-4" />
                               </button>
                             </div>
                           </td>
@@ -593,7 +588,7 @@ export default function ProductsPage() {
 
                 {filteredProducts.length === 0 && !loading && (
                   <div className="text-center py-12">
-                    <LuPackage className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <span style={{fontSize:"14px"}}>📦</span>
                     <p className="text-gray-500 text-lg">Nenhum produto encontrado</p>
                     <p className="text-gray-400 mt-2">
                       {products.length === 0 
@@ -699,7 +694,7 @@ export default function ProductsPage() {
                   {/* Informações do Produto */}
                   <div>
                     <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                      <LuPackage className="w-5 h-5 text-blue-600" />
+                      <span style={{fontSize:"14px"}}>📦</span>
                       Informações do Produto
                     </h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

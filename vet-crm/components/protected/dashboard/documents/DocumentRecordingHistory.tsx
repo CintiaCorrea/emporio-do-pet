@@ -14,8 +14,7 @@ import {
   CheckCircle,
   History,
   Volume2,
-  Trash2,
-} from 'lucide-react';
+  Trash2} from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface RecordingEntry {
@@ -34,8 +33,7 @@ const STORAGE_KEY = 'document_recording_history';
 const MAX_HISTORY_ITEMS = 20;
 
 export default function DocumentRecordingHistory({
-  onSelectRecording,
-}: DocumentRecordingHistoryProps) {
+  onSelectRecording}: DocumentRecordingHistoryProps) {
   const [recordings, setRecordings] = useState<RecordingEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -75,8 +73,7 @@ export default function DocumentRecordingHistory({
     const newEntry: RecordingEntry = {
       ...entry,
       id: crypto.randomUUID(),
-      createdAt: new Date().toISOString(),
-    };
+      createdAt: new Date().toISOString()};
 
     const updated = [newEntry, ...recordings].slice(0, MAX_HISTORY_ITEMS);
     setRecordings(updated);
@@ -113,8 +110,7 @@ export default function DocumentRecordingHistory({
       month: '2-digit',
       year: 'numeric',
       hour: '2-digit',
-      minute: '2-digit',
-    });
+      minute: '2-digit'});
   };
 
   const handlePlay = async (recording: RecordingEntry) => {
@@ -329,8 +325,7 @@ export function addToRecordingHistory(entry: Omit<RecordingEntry, 'id' | 'create
     const newEntry: RecordingEntry = {
       ...entry,
       id: crypto.randomUUID(),
-      createdAt: new Date().toISOString(),
-    };
+      createdAt: new Date().toISOString()};
 
     const updated = [newEntry, ...recordings].slice(0, MAX_HISTORY_ITEMS);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));

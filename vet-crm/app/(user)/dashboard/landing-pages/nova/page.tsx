@@ -4,16 +4,9 @@ import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   LuArrowLeft,
-  LuFileText,
-  LuStethoscope,
-  LuScissors,
-  LuShoppingBag,
-  LuHeart,
-  LuHotel,
-  LuLoaderCircle,
-  LuLayoutTemplate,
-  LuPlus,
-} from 'react-icons/lu';
+  LuFileText
+  LuLoaderCircle
+  LuPlus} from 'react-icons/lu';
 import { toast } from 'sonner';
 
 const TEMPLATES = [
@@ -22,43 +15,37 @@ const TEMPLATES = [
     name: 'Página em Branco',
     description: 'Comece do zero com um canvas vazio',
     icon: LuFileText,
-    color: 'from-slate-500 to-slate-600',
-  },
+    color: 'from-slate-500 to-slate-600'},
   {
     id: 'clinica-veterinaria',
     name: 'Clínica Veterinária',
     description: 'Hero, serviços, equipe, depoimentos e formulário',
-    icon: LuStethoscope,
-    color: 'from-blue-500 to-blue-600',
-  },
+    icon: () => <span style={{fontSize:"14px"}}>🩺</span>,
+    color: 'from-blue-500 to-blue-600'},
   {
     id: 'banho-e-tosa',
     name: 'Banho e Tosa',
     description: 'Pacotes, galeria antes/depois e agendamento',
-    icon: LuScissors,
-    color: 'from-purple-500 to-purple-600',
-  },
+    icon: () => <span style={{fontSize:"14px"}}>✂</span>,
+    color: 'from-purple-500 to-purple-600'},
   {
     id: 'pet-shop',
     name: 'Pet Shop',
     description: 'Produtos em destaque, promoções e categorias',
-    icon: LuShoppingBag,
-    color: 'from-orange-500 to-orange-600',
-  },
+    icon: () => <span style={{fontSize:"14px"}}>🛍</span>,
+    color: 'from-orange-500 to-orange-600'},
   {
     id: 'adocao',
     name: 'Adoção de Pets',
     description: 'Pets disponíveis, processo de adoção e FAQ',
-    icon: LuHeart,
-    color: 'from-pink-500 to-pink-600',
-  },
+    icon: () => <span style={{fontSize:"14px"}}>💗</span>,
+    color: 'from-pink-500 to-pink-600'},
   {
     id: 'hotel-pet',
     name: 'Hotel para Pets',
     description: 'Instalações, pacotes, depoimentos e reserva',
-    icon: LuHotel,
-    color: 'from-cyan-500 to-cyan-600',
-  },
+    icon: () => <span style={{fontSize:"14px"}}>🏨</span>,
+    color: 'from-cyan-500 to-cyan-600'},
 ];
 
 function slugify(text: string): string {
@@ -110,8 +97,7 @@ export default function NovaLandingPage() {
       const res = await fetch('/api/landing-pages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
+        body: JSON.stringify(body)});
 
       if (!res.ok) {
         const data = await res.json();
@@ -144,7 +130,7 @@ export default function NovaLandingPage() {
 
           <div className="flex items-start gap-3 mb-8">
             <div className="mt-1 p-2.5 rounded-2xl bg-cyan-100 dark:bg-cyan-500/20 border border-cyan-200 dark:border-cyan-500/20">
-              <LuLayoutTemplate className="w-5 h-5 text-cyan-600 dark:text-cyan-300" />
+              <span style={{fontSize:"14px"}}>📐</span>
             </div>
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">

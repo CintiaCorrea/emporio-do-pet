@@ -2,20 +2,9 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import {
-  LuMic,
-  LuMicOff,
-  LuCircleStop,
-  LuPlay,
-  LuPause,
-  LuUpload,
-  LuBrain,
+  LuUpload
   LuLoader,
-  LuCheck,
-  LuAlertCircle,
-  LuClock,
-  LuWaves,
-  LuVolume2,
-} from 'react-icons/lu';
+  LuCheck} from 'react-icons/lu';
 import toast from 'react-hot-toast';
 
 interface ConsultationRecorderProps {
@@ -31,8 +20,7 @@ export default function ConsultationRecorder({
   recordingId: existingRecordingId,
   onRecordingCreated,
   onTranscriptionComplete,
-  onAnalysisComplete,
-}: ConsultationRecorderProps) {
+  onAnalysisComplete}: ConsultationRecorderProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
@@ -66,16 +54,13 @@ export default function ConsultationRecorder({
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
-          sampleRate: 44100,
-        },
-      });
+          sampleRate: 44100}});
       streamRef.current = stream;
 
       const mediaRecorder = new MediaRecorder(stream, {
         mimeType: MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
           ? 'audio/webm;codecs=opus'
-          : 'audio/webm',
-      });
+          : 'audio/webm'});
       mediaRecorderRef.current = mediaRecorder;
       chunksRef.current = [];
 
@@ -168,8 +153,7 @@ export default function ConsultationRecorder({
 
       const res = await fetch(url, {
         method: 'POST',
-        body: formData,
-      });
+        body: formData});
 
       setUploadProgress(80);
 
@@ -217,8 +201,7 @@ export default function ConsultationRecorder({
           const createRes = await fetch('/api/consultation-recordings', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ appointmentId }),
-          });
+            body: JSON.stringify({ appointmentId })});
           if (createRes.ok) {
             const data = await createRes.json();
             currentRecordingId = data.id;
@@ -236,9 +219,7 @@ export default function ConsultationRecorder({
           body: JSON.stringify({
             action: 'transcription',
             transcription: text,
-            audioDuration: recordingTime || undefined,
-          }),
-        });
+            audioDuration: recordingTime || undefined})});
 
         if (res.ok) {
           setTranscription(text);
@@ -268,8 +249,7 @@ export default function ConsultationRecorder({
       const res = await fetch(`/api/consultation-recordings/${recordingId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'analyze' }),
-      });
+        body: JSON.stringify({ action: 'analyze' })});
 
       if (res.ok) {
         const data = await res.json();
@@ -311,7 +291,7 @@ export default function ConsultationRecorder({
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-            <LuMic className="w-5 h-5 text-violet-600" />
+            <span style={{fontSize:"14px"}}>🎤</span>
             Gravação da Consulta
           </h3>
           {status !== 'idle' && (
@@ -360,7 +340,7 @@ export default function ConsultationRecorder({
               </div>
               {isRecording && !isPaused && (
                 <div className="flex items-center justify-center gap-1 mt-2">
-                  <LuWaves className="w-4 h-4 text-red-500 animate-pulse" />
+                  <span style={{fontSize:"14px"}}>〰</span>
                   <span className="text-sm text-red-500">Capturando áudio...</span>
                 </div>
               )}
@@ -392,7 +372,7 @@ export default function ConsultationRecorder({
               onClick={startRecording}
               className="flex items-center gap-2 px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-medium transition-all shadow-lg hover:shadow-xl"
             >
-              <LuMic className="w-5 h-5" />
+              <span style={{fontSize:"14px"}}>🎤</span>
               Iniciar Gravação
             </button>
           )}
@@ -408,14 +388,14 @@ export default function ConsultationRecorder({
                     : 'bg-yellow-500 hover:bg-yellow-600 text-white'
                 }`}
               >
-                {isPaused ? <LuPlay className="w-5 h-5" /> : <LuPause className="w-5 h-5" />}
+                {isPaused ? <span style={{fontSize:"14px"}}>▶</span> : <span style={{fontSize:"14px"}}>⏸</span>}
                 {isPaused ? 'Continuar' : 'Pausar'}
               </button>
               <button
                 onClick={stopRecording}
                 className="flex items-center gap-2 px-5 py-3 bg-gray-700 hover:bg-gray-800 text-white rounded-xl font-medium transition-all"
               >
-                <LuCircleStop className="w-5 h-5" />
+                <span style={{fontSize:"14px"}}>◼</span>
                 Finalizar
               </button>
             </>
@@ -427,7 +407,7 @@ export default function ConsultationRecorder({
               {/* Audio playback */}
               {audioUrl && (
                 <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg w-full max-w-md">
-                  <LuVolume2 className="w-5 h-5 text-gray-500 flex-shrink-0" />
+                  <span style={{fontSize:"14px"}}>🔊</span>
                   <audio controls src={audioUrl} className="w-full h-8" />
                 </div>
               )}
@@ -441,7 +421,7 @@ export default function ConsultationRecorder({
                   {isTranscribing ? (
                     <LuLoader className="w-5 h-5 animate-spin" />
                   ) : (
-                    <LuBrain className="w-5 h-5" />
+                    <span style={{fontSize:"14px"}}>🧠</span>
                   )}
                   {isTranscribing ? 'Transcrevendo via Whisper...' : 'Transcrever via IA (Whisper)'}
                 </button>
@@ -520,7 +500,7 @@ export default function ConsultationRecorder({
               Transcrição da Consulta
             </h3>
             <div className="flex items-center gap-2 text-sm text-gray-500">
-              <LuClock className="w-4 h-4" />
+              <span style={{fontSize:"14px"}}>⏱</span>
               {recordingTime > 0 ? formatTime(recordingTime) : 'Manual'}
             </div>
           </div>
@@ -541,7 +521,7 @@ export default function ConsultationRecorder({
                 {isAnalyzing ? (
                   <LuLoader className="w-5 h-5 animate-spin" />
                 ) : (
-                  <LuBrain className="w-5 h-5" />
+                  <span style={{fontSize:"14px"}}>🧠</span>
                 )}
                 {isAnalyzing ? 'Analisando consulta...' : 'Analisar com IA'}
               </button>
@@ -554,7 +534,7 @@ export default function ConsultationRecorder({
       {analysis && (
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-violet-200 dark:border-violet-800 p-6">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-            <LuBrain className="w-5 h-5 text-violet-600" />
+            <span style={{fontSize:"14px"}}>🧠</span>
             Análise da IA
           </h3>
 

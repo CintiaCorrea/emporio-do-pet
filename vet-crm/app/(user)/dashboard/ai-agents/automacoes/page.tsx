@@ -2,26 +2,11 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { 
-  LuWorkflow,
-  LuSearch,
-  LuFilter,
-  LuPlus,
-  LuPlay,
-  LuPause,
-  LuZap,
-  LuClock,
-  LuCircleCheck,
-  LuActivity,
-  LuPencil,
-  LuCopy,
-  LuMail,
-  LuMessageSquare,
-  LuCalendar,
-  LuBell,
-  LuArrowRight,
-  LuGitBranch,
-  LuChevronRight,
+import {
+  LuSearch
+  LuPlus
+  LuPencil
+  LuCalendar
   LuLoader
 } from 'react-icons/lu';
 import { toast } from 'sonner';
@@ -227,10 +212,10 @@ export default function AutomacoesPage() {
 
   const getCategoryIcon = (category: AutomationCategory) => {
     switch (category) {
-      case 'ATENDIMENTO': return <LuMessageSquare className="w-4 h-4" />;
-      case 'MARKETING': return <LuMail className="w-4 h-4" />;
-      case 'NOTIFICACAO': return <LuBell className="w-4 h-4" />;
-      case 'INTEGRACAO': return <LuGitBranch className="w-4 h-4" />;
+      case 'ATENDIMENTO': return <span style={{fontSize:"14px"}}>💬</span>;
+      case 'MARKETING': return <span style={{fontSize:"14px"}}>✉</span>;
+      case 'NOTIFICACAO': return <span style={{fontSize:"14px"}}>🔔</span>;
+      case 'INTEGRACAO': return <span style={{fontSize:"14px"}}>🌿</span>;
       case 'AGENDAMENTO': return <LuCalendar className="w-4 h-4" />;
     }
   };
@@ -247,10 +232,10 @@ export default function AutomacoesPage() {
 
   const getTriggerIcon = (trigger: AutomationTrigger) => {
     switch (trigger) {
-      case 'SCHEDULE': return <LuClock className="w-4 h-4" />;
-      case 'WEBHOOK': return <LuZap className="w-4 h-4" />;
-      case 'EVENT': return <LuActivity className="w-4 h-4" />;
-      case 'MANUAL': return <LuPlay className="w-4 h-4" />;
+      case 'SCHEDULE': return <span style={{fontSize:"14px"}}>⏱</span>;
+      case 'WEBHOOK': return <span style={{fontSize:"14px"}}>⚡</span>;
+      case 'EVENT': return <span style={{fontSize:"14px"}}>⚡</span>;
+      case 'MANUAL': return <span style={{fontSize:"14px"}}>▶</span>;
     }
   };
 
@@ -300,7 +285,7 @@ export default function AutomacoesPage() {
             <div className="mb-8">
               <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
                 <Link href="/dashboard/ai-agents/agents" className="hover:text-cyan-600 transition-colors">AI Agents</Link>
-                <LuChevronRight className="w-4 h-4" />
+                <span style={{fontSize:"14px"}}>▶</span>
                 <span className="text-gray-900 font-medium">Automações</span>
               </div>
               
@@ -323,31 +308,31 @@ export default function AutomacoesPage() {
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
               <div className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-lg transition-all">
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-cyan-50"><LuWorkflow className="w-5 h-5 text-cyan-600" /></div>
+                  <div className="p-2.5 rounded-xl bg-cyan-50"><span style={{fontSize:"14px"}}>🔀</span></div>
                   <div><p className="text-sm text-gray-500">Total</p><p className="text-2xl font-bold text-gray-900">{stats.total}</p></div>
                 </div>
               </div>
               <div className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-lg transition-all">
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-cyan-50"><LuCircleCheck className="w-5 h-5 text-cyan-600" /></div>
+                  <div className="p-2.5 rounded-xl bg-cyan-50"><span style={{fontSize:"14px"}}>✓</span></div>
                   <div><p className="text-sm text-gray-500">Ativas</p><p className="text-2xl font-bold text-gray-900">{stats.active}</p></div>
                 </div>
               </div>
               <div className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-lg transition-all">
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-orange-50"><LuPause className="w-5 h-5 text-orange-600" /></div>
+                  <div className="p-2.5 rounded-xl bg-orange-50"><span style={{fontSize:"14px"}}>⏸</span></div>
                   <div><p className="text-sm text-gray-500">Pausadas</p><p className="text-2xl font-bold text-gray-900">{stats.paused}</p></div>
                 </div>
               </div>
               <div className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-lg transition-all">
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-blue-50"><LuZap className="w-5 h-5 text-blue-600" /></div>
+                  <div className="p-2.5 rounded-xl bg-blue-50"><span style={{fontSize:"14px"}}>⚡</span></div>
                   <div><p className="text-sm text-gray-500">Execuções</p><p className="text-2xl font-bold text-gray-900">{formatNumber(stats.totalExecutions)}</p></div>
                 </div>
               </div>
               <div className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-lg transition-all">
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-violet-50"><LuActivity className="w-5 h-5 text-violet-600" /></div>
+                  <div className="p-2.5 rounded-xl bg-violet-50"><span style={{fontSize:"14px"}}>⚡</span></div>
                   <div><p className="text-sm text-gray-500">Taxa Sucesso</p><p className="text-2xl font-bold text-gray-900">{stats.avgSuccessRate}%</p></div>
                 </div>
               </div>
@@ -362,7 +347,7 @@ export default function AutomacoesPage() {
                     className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 transition-all" />
                 </div>
                 <div className="flex items-center gap-2">
-                  <LuFilter className="text-gray-400 w-5 h-5" />
+                  <span style={{fontSize:"14px"}}>⌕</span>
                   <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as AutomationStatus | 'all')}
                     className="px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 transition-all cursor-pointer">
                     <option value="all">Todos os Status</option>
@@ -389,7 +374,7 @@ export default function AutomacoesPage() {
             {/* Lista de Automações */}
             {filteredAutomations.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-gray-100">
-                <LuWorkflow className="w-16 h-16 text-gray-300 mb-4" />
+                <span style={{fontSize:"14px"}}>🔀</span>
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">Nenhuma automação encontrada</h3>
                 <p className="text-gray-500 text-center max-w-md">
                   {searchTerm || statusFilter !== 'all' || categoryFilter !== 'all'
@@ -405,7 +390,7 @@ export default function AutomacoesPage() {
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center gap-3">
                         <div className={`p-2.5 rounded-xl ${automation.status === 'ACTIVE' ? 'bg-cyan-50' : automation.status === 'PAUSED' ? 'bg-orange-50' : automation.status === 'ERROR' ? 'bg-red-50' : 'bg-gray-50'}`}>
-                          <LuWorkflow className={`w-5 h-5 ${automation.status === 'ACTIVE' ? 'text-cyan-600' : automation.status === 'PAUSED' ? 'text-orange-600' : automation.status === 'ERROR' ? 'text-red-600' : 'text-gray-600'}`} />
+                          <span style={{fontSize:"14px"}}>🔀</span>
                         </div>
                         <div>
                           <h3 className="font-semibold text-gray-900 group-hover:text-cyan-600 transition-colors">{automation.name}</h3>
@@ -425,7 +410,7 @@ export default function AutomacoesPage() {
                       {automation.steps.slice(0, 3).map((step, idx) => (
                         <div key={step.id} className="flex items-center">
                           <div className="px-2 py-1 bg-gray-100 rounded text-xs text-gray-600 truncate max-w-[80px]">{step.name}</div>
-                          {idx < Math.min(automation.steps.length - 1, 2) && <LuArrowRight className="w-3 h-3 text-gray-400 mx-1 flex-shrink-0" />}
+                          {idx < Math.min(automation.steps.length - 1, 2) && <span style={{fontSize:"14px"}}>→</span>}
                         </div>
                       ))}
                       {automation.steps.length > 3 && <span className="text-xs text-gray-400 ml-1">+{automation.steps.length - 3}</span>}
@@ -449,7 +434,7 @@ export default function AutomacoesPage() {
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-4">
                   <div className={`p-3 rounded-xl ${selectedAutomation.status === 'ACTIVE' ? 'bg-cyan-50' : selectedAutomation.status === 'PAUSED' ? 'bg-orange-50' : selectedAutomation.status === 'ERROR' ? 'bg-red-50' : 'bg-gray-50'}`}>
-                    <LuWorkflow className={`w-6 h-6 ${selectedAutomation.status === 'ACTIVE' ? 'text-cyan-600' : selectedAutomation.status === 'PAUSED' ? 'text-orange-600' : selectedAutomation.status === 'ERROR' ? 'text-red-600' : 'text-gray-600'}`} />
+                    <span style={{fontSize:"14px"}}>🔀</span>
                   </div>
                   <div>
                     <h2 className="text-xl font-bold text-gray-900">{selectedAutomation.name}</h2>
@@ -473,7 +458,7 @@ export default function AutomacoesPage() {
                       disabled={actionLoading === selectedAutomation.id}
                       className="flex items-center gap-2 px-4 py-2 bg-orange-50 hover:bg-orange-100 text-orange-700 rounded-lg transition-colors disabled:opacity-50"
                     >
-                      {actionLoading === selectedAutomation.id ? <LuLoader className="w-4 h-4 animate-spin" /> : <LuPause className="w-4 h-4" />}
+                      {actionLoading === selectedAutomation.id ? <LuLoader className="w-4 h-4 animate-spin" /> : <span style={{fontSize:"14px"}}>⏸</span>}
                       Pausar
                     </button>
                   ) : selectedAutomation.status !== 'ERROR' && (
@@ -482,7 +467,7 @@ export default function AutomacoesPage() {
                       disabled={actionLoading === selectedAutomation.id}
                       className="flex items-center gap-2 px-4 py-2 bg-cyan-50 hover:bg-cyan-100 text-cyan-700 rounded-lg transition-colors disabled:opacity-50"
                     >
-                      {actionLoading === selectedAutomation.id ? <LuLoader className="w-4 h-4 animate-spin" /> : <LuPlay className="w-4 h-4" />}
+                      {actionLoading === selectedAutomation.id ? <LuLoader className="w-4 h-4 animate-spin" /> : <span style={{fontSize:"14px"}}>▶</span>}
                       Ativar
                     </button>
                   )}
@@ -498,7 +483,7 @@ export default function AutomacoesPage() {
                     disabled={actionLoading === selectedAutomation.id}
                     className="flex items-center gap-2 px-4 py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-lg transition-colors disabled:opacity-50"
                   >
-                    {actionLoading === selectedAutomation.id ? <LuLoader className="w-4 h-4 animate-spin" /> : <LuCopy className="w-4 h-4" />}
+                    {actionLoading === selectedAutomation.id ? <LuLoader className="w-4 h-4 animate-spin" /> : <span style={{fontSize:"14px"}}>⎘</span>}
                     Duplicar
                   </button>
                 </div>
@@ -548,7 +533,7 @@ export default function AutomacoesPage() {
                     </>
                   ) : (
                     <>
-                      <LuPlay className="w-5 h-5" />
+                      <span style={{fontSize:"14px"}}>▶</span>
                       Executar Agora
                     </>
                   )}

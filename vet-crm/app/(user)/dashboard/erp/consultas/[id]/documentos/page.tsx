@@ -4,21 +4,15 @@ import { useState, useEffect, use } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
-  LuChevronLeft,
   LuFileText,
   LuLoader,
-  LuPlus,
-  LuMic,
-  LuDownload,
-  LuCopy,
-  LuShare2,
-  LuPrinter,
+  LuPlus
+  LuDownload
   LuSparkles,
   LuCalendar,
   LuPawPrint,
   LuUser,
-  LuTrash2,
-} from 'react-icons/lu';
+  LuTrash} from 'react-icons/lu';
 import toast from 'react-hot-toast';
 import DocumentViewer from '@/components/protected/dashboard/clinical-documents/DocumentViewer';
 
@@ -32,8 +26,7 @@ const TYPE_LABELS: Record<string, string> = {
   SURGICAL_REPORT: 'Relatório Cirúrgico',
   DISCHARGE_SUMMARY: 'Sumário de Alta',
   VACCINATION_CARD: 'Carteira de Vacinação',
-  GENERAL: 'Documento Geral',
-};
+  GENERAL: 'Documento Geral'};
 
 const TYPE_COLORS: Record<string, string> = {
   ANAMNESIS: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
@@ -43,8 +36,7 @@ const TYPE_COLORS: Record<string, string> = {
   MEDICAL_CERTIFICATE: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
   EXAM_REQUEST: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
   SURGICAL_REPORT: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-  DISCHARGE_SUMMARY: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400',
-};
+  DISCHARGE_SUMMARY: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400'};
 
 export default function DocumentosConsultaPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -137,7 +129,7 @@ export default function DocumentosConsultaPage({ params }: { params: Promise<{ i
             href={`/dashboard/erp/consultas`}
             className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
           >
-            <LuChevronLeft className="w-5 h-5 text-gray-500" />
+            <span style={{fontSize:"12px"}}>◀</span>
           </Link>
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
@@ -190,7 +182,7 @@ export default function DocumentosConsultaPage({ params }: { params: Promise<{ i
             href={`/dashboard/erp/consultas/${id}/gravar`}
             className="inline-flex items-center gap-2 px-6 py-3 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-medium transition-all"
           >
-            <LuMic className="w-5 h-5" />
+            <span style={{fontSize:"14px"}}>🎤</span>
             Iniciar Gravação
           </Link>
         </div>
@@ -226,7 +218,7 @@ export default function DocumentosConsultaPage({ params }: { params: Promise<{ i
                   }}
                   className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-500 transition-all"
                 >
-                  <LuTrash2 className="w-4 h-4" />
+                  <LuTrash className="w-4 h-4" />
                 </button>
               </div>
 
@@ -243,7 +235,7 @@ export default function DocumentosConsultaPage({ params }: { params: Promise<{ i
                 <div className="flex items-center gap-2">
                   {doc.sharedVia?.length > 0 && (
                     <span className="flex items-center gap-1">
-                      <LuShare2 className="w-3 h-3" />
+                      <span style={{fontSize:"14px"}}>↗</span>
                       Compartilhado
                     </span>
                   )}

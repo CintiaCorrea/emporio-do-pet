@@ -8,12 +8,9 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { 
-  LuUsers, 
-  LuMail, 
   LuPhone, 
   LuUser, 
-  LuArrowLeft,
-  LuStar
+  LuArrowLeft
 } from "react-icons/lu";
 
 interface Tutor {
@@ -90,10 +87,8 @@ export default function NewClientPage() {
       const response = await fetch('/api/contacts', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
+          'Content-Type': 'application/json'},
+        body: JSON.stringify(formData)});
 
       const data = await response.json();
 
@@ -272,7 +267,7 @@ export default function NewClientPage() {
                       className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
                     />
                     <label htmlFor="isPrimary" className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                      <LuStar className="w-4 h-4 text-yellow-500" />
+                      <span style={{fontSize:"14px"}}>⭐</span>
                       Contato Principal
                     </label>
                   </div>

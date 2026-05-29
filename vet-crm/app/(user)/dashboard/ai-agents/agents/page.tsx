@@ -4,24 +4,12 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import ConfirmDeleteModal from '@/components/common/ConfirmDeleteModal';
-import { 
-  LuBot,
-  LuSearch,
-  LuFilter,
-  LuPlus,
-  LuPlay,
-  LuPause,
-  LuSettings,
-  LuZap,
-  LuMessageSquare,
-  LuTrendingUp,
-  LuClock,
-  LuCircleCheck,
-  LuActivity,
+import {
+  LuSearch
+  LuPlus
   LuPencil,
-  LuTrash2,
-  LuFileText,
-  LuChevronRight,
+  LuTrash,
+  LuFileText
   LuLoader
 } from 'react-icons/lu';
 import { toast } from 'sonner';
@@ -194,10 +182,10 @@ export default function AgentsPage() {
 
   const getTypeIcon = (type: AgentType) => {
     switch (type) {
-      case 'CHATBOT': return <LuMessageSquare className="w-4 h-4" />;
-      case 'AUTOMATION': return <LuZap className="w-4 h-4" />;
-      case 'ASSISTANT': return <LuBot className="w-4 h-4" />;
-      case 'SCHEDULER': return <LuClock className="w-4 h-4" />;
+      case 'CHATBOT': return <span style={{fontSize:"14px"}}>💬</span>;
+      case 'AUTOMATION': return <span style={{fontSize:"14px"}}>⚡</span>;
+      case 'ASSISTANT': return <span style={{fontSize:"14px"}}>🤖</span>;
+      case 'SCHEDULER': return <span style={{fontSize:"14px"}}>⏱</span>;
     }
   };
 
@@ -248,7 +236,7 @@ export default function AgentsPage() {
             <div className="mb-8">
               <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
                 <span className="text-gray-500">AI Agents</span>
-                <LuChevronRight className="w-4 h-4" />
+                <span style={{fontSize:"14px"}}>▶</span>
                 <span className="text-gray-900 font-medium">Agents</span>
               </div>
               
@@ -276,7 +264,7 @@ export default function AgentsPage() {
               <div className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-lg hover:shadow-violet-500/5 transition-all">
                 <div className="flex items-center gap-3">
                   <div className="p-2.5 rounded-xl bg-violet-50">
-                    <LuBot className="w-5 h-5 text-violet-600" />
+                    <span style={{fontSize:"14px"}}>🤖</span>
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">Total</p>
@@ -288,7 +276,7 @@ export default function AgentsPage() {
               <div className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-lg hover:shadow-cyan-500/5 transition-all">
                 <div className="flex items-center gap-3">
                   <div className="p-2.5 rounded-xl bg-cyan-50">
-                    <LuCircleCheck className="w-5 h-5 text-cyan-600" />
+                    <span style={{fontSize:"14px"}}>✓</span>
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">Ativos</p>
@@ -300,7 +288,7 @@ export default function AgentsPage() {
               <div className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-lg hover:shadow-orange-500/5 transition-all">
                 <div className="flex items-center gap-3">
                   <div className="p-2.5 rounded-xl bg-orange-50">
-                    <LuPause className="w-5 h-5 text-orange-600" />
+                    <span style={{fontSize:"14px"}}>⏸</span>
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">Pausados</p>
@@ -312,7 +300,7 @@ export default function AgentsPage() {
               <div className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-lg hover:shadow-blue-500/5 transition-all">
                 <div className="flex items-center gap-3">
                   <div className="p-2.5 rounded-xl bg-blue-50">
-                    <LuActivity className="w-5 h-5 text-blue-600" />
+                    <span style={{fontSize:"14px"}}>⚡</span>
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">Interações</p>
@@ -324,7 +312,7 @@ export default function AgentsPage() {
               <div className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-lg hover:shadow-fuchsia-500/5 transition-all">
                 <div className="flex items-center gap-3">
                   <div className="p-2.5 rounded-xl bg-fuchsia-50">
-                    <LuTrendingUp className="w-5 h-5 text-fuchsia-600" />
+                    <span style={{fontSize:"14px"}}>📈</span>
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">Taxa Sucesso</p>
@@ -351,7 +339,7 @@ export default function AgentsPage() {
 
                 {/* Filtro Status */}
                 <div className="flex items-center gap-2">
-                  <LuFilter className="text-gray-400 w-5 h-5" />
+                  <span style={{fontSize:"14px"}}>⌕</span>
                   <select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value as AgentStatus | 'all')}
@@ -385,7 +373,7 @@ export default function AgentsPage() {
             {/* Lista de Agentes */}
             {filteredAgents.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-gray-100">
-                <LuBot className="w-16 h-16 text-gray-300 mb-4" />
+                <span style={{fontSize:"14px"}}>🤖</span>
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">Nenhum agente encontrado</h3>
                 <p className="text-gray-500 text-center max-w-md">
                   {searchTerm || statusFilter !== 'all' || typeFilter !== 'all'
@@ -511,7 +499,7 @@ export default function AgentsPage() {
                       {actionLoading === selectedAgent.id ? (
                         <LuLoader className="w-4 h-4 animate-spin" />
                       ) : (
-                        <LuPause className="w-4 h-4" />
+                        <span style={{fontSize:"14px"}}>⏸</span>
                       )}
                       Pausar
                     </button>
@@ -524,7 +512,7 @@ export default function AgentsPage() {
                       {actionLoading === selectedAgent.id ? (
                         <LuLoader className="w-4 h-4 animate-spin" />
                       ) : (
-                        <LuPlay className="w-4 h-4" />
+                        <span style={{fontSize:"14px"}}>▶</span>
                       )}
                       Ativar
                     </button>
@@ -544,7 +532,7 @@ export default function AgentsPage() {
                     {actionLoading === selectedAgent.id ? (
                       <LuLoader className="w-4 h-4 animate-spin" />
                     ) : (
-                      <LuTrash2 className="w-4 h-4" />
+                      <LuTrash className="w-4 h-4" />
                     )}
                     Excluir
                   </button>
@@ -625,14 +613,14 @@ export default function AgentsPage() {
                   href={`/dashboard/ai-agents/agents/${selectedAgent.id}/testar`}
                   className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-semibold transition-all"
                 >
-                  <LuMessageSquare className="w-5 h-5" />
+                  <span style={{fontSize:"14px"}}>💬</span>
                   Testar Agente
                 </Link>
                 <button
                   onClick={() => router.push(`/dashboard/ai-agents/agents/${selectedAgent.id}/editar`)}
                   className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-all"
                 >
-                  <LuSettings className="w-5 h-5" />
+                  <span style={{fontSize:"14px"}}>⚙</span>
                   Configurações Avançadas
                 </button>
               </div>

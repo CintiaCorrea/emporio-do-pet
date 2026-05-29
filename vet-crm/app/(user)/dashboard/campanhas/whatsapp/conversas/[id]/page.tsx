@@ -4,27 +4,12 @@ import { useState, useEffect, useRef, use } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-  LuChevronRight,
-  LuArrowLeft,
-  LuSend,
-  LuLoader,
-  LuBot,
+  LuArrowLeft
+  LuLoader
   LuUser,
-  LuPhone,
-  LuMessageSquare,
-  LuCheckCheck,
-  LuCheck,
-  LuClock,
-  LuCircleX,
-  LuImage,
-  LuPaperclip,
-  LuSmile,
-  LuMoreVertical,
-  LuCircleUser,
-  LuPawPrint,
-  LuSettings,
-  LuPower,
-} from 'react-icons/lu';
+  LuPhone
+  LuCheck
+  LuPawPrint} from 'react-icons/lu';
 import { toast } from 'sonner';
 import { useNotifications, WhatsAppMessageEvent, WhatsAppStatusEvent } from '@/hooks/useNotifications';
 
@@ -164,8 +149,7 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
             : msg
         )
       );
-    },
-  });
+    }});
 
   // Fallback polling (longer interval) when WebSocket is not connected
   useEffect(() => {
@@ -186,8 +170,7 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
       const response = await fetch(`/api/whatsapp/conversations/${id}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: messageContent }),
-      });
+        body: JSON.stringify({ content: messageContent })});
 
       const data = await response.json();
 
@@ -210,8 +193,7 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
       const response = await fetch(`/api/whatsapp/conversations/${id}/assign-agent`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ agentId }),
-      });
+        body: JSON.stringify({ agentId })});
 
       const data = await response.json();
 
@@ -232,8 +214,7 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
       const response = await fetch(`/api/whatsapp/conversations/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isAutoReplyEnabled: !conversation.isAutoReplyEnabled }),
-      });
+        body: JSON.stringify({ isAutoReplyEnabled: !conversation.isAutoReplyEnabled })});
 
       const data = await response.json();
       if (!response.ok) {
@@ -252,8 +233,7 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
       const response = await fetch(`/api/whatsapp/conversations/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'CLOSED' }),
-      });
+        body: JSON.stringify({ status: 'CLOSED' })});
 
       const data = await response.json();
 
@@ -270,11 +250,11 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
 
   const getStatusIcon = (status: MessageStatus) => {
     switch (status) {
-      case 'PENDING': return <LuClock className="w-3.5 h-3.5 text-gray-400" />;
+      case 'PENDING': return <span style={{fontSize:"14px"}}>⏱</span>;
       case 'SENT': return <LuCheck className="w-3.5 h-3.5 text-gray-400" />;
-      case 'DELIVERED': return <LuCheckCheck className="w-3.5 h-3.5 text-gray-400" />;
-      case 'READ': return <LuCheckCheck className="w-3.5 h-3.5 text-blue-500" />;
-      case 'FAILED': return <LuCircleX className="w-3.5 h-3.5 text-red-500" />;
+      case 'DELIVERED': return <span style={{fontSize:"14px"}}>✓✓</span>;
+      case 'READ': return <span style={{fontSize:"14px"}}>✓✓</span>;
+      case 'FAILED': return <span style={{fontSize:"14px"}}>✗</span>;
     }
   };
 
@@ -330,7 +310,7 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-8rem)]">
         <div className="text-center">
-          <LuMessageSquare className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+          <span style={{fontSize:"14px"}}>💬</span>
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Conversa não encontrada</h2>
           <Link
             href="/dashboard/campanhas/whatsapp/conversas"
@@ -361,7 +341,7 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
               </Link>
               
               <div className="w-10 h-10 rounded-full bg-cyan-100 flex items-center justify-center">
-                <LuCircleUser className="w-6 h-6 text-cyan-600" />
+                <span style={{fontSize:"14px"}}>👤</span>
               </div>
               
               <div>
@@ -380,7 +360,7 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
               
               {conversation.assignedAgent && (
                 <div className="flex items-center gap-2 px-3 py-1 bg-violet-50 text-violet-700 rounded-full text-sm">
-                  <LuBot className="w-4 h-4" />
+                  <span style={{fontSize:"14px"}}>🤖</span>
                   {conversation.assignedAgent.name}
                 </div>
               )}
@@ -389,7 +369,7 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
                 onClick={() => setShowSidebar(!showSidebar)}
                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
               >
-                <LuSettings className="w-5 h-5 text-gray-500" />
+                <span style={{fontSize:"14px"}}>⚙</span>
               </button>
             </div>
           </div>
@@ -436,7 +416,7 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
                               />
                             ) : (
                               <div className="flex items-center gap-2 p-2 bg-white/10 rounded-lg">
-                                <LuPaperclip className="w-5 h-5" />
+                                <span style={{fontSize:"14px"}}>📎</span>
                                 <span className="text-sm">Arquivo anexado</span>
                               </div>
                             )}
@@ -460,7 +440,7 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
             
             {messages.length === 0 && (
               <div className="text-center py-12">
-                <LuMessageSquare className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                <span style={{fontSize:"14px"}}>💬</span>
                 <p className="text-gray-500">Nenhuma mensagem ainda</p>
                 <p className="text-sm text-gray-400">Envie a primeira mensagem para iniciar a conversa</p>
               </div>
@@ -475,10 +455,10 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
           <div className="max-w-3xl mx-auto">
             <div className="flex items-end gap-3">
               <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-500">
-                <LuSmile className="w-5 h-5" />
+                <span style={{fontSize:"14px"}}>🙂</span>
               </button>
               <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-500">
-                <LuPaperclip className="w-5 h-5" />
+                <span style={{fontSize:"14px"}}>📎</span>
               </button>
               
               <div className="flex-1 relative">
@@ -506,7 +486,7 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
                 {sending ? (
                   <LuLoader className="w-5 h-5 animate-spin" />
                 ) : (
-                  <LuSend className="w-5 h-5" />
+                  <span style={{fontSize:"14px"}}>➤</span>
                 )}
               </button>
             </div>
@@ -521,7 +501,7 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
             {/* Contact Info */}
             <div className="text-center">
               <div className="w-20 h-20 rounded-full bg-cyan-100 flex items-center justify-center mx-auto mb-4">
-                <LuCircleUser className="w-10 h-10 text-cyan-600" />
+                <span style={{fontSize:"14px"}}>👤</span>
               </div>
               <h3 className="font-semibold text-gray-900">{contactName}</h3>
               <p className="text-sm text-gray-500">{conversation.contactPhone}</p>
@@ -536,7 +516,7 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
                   onClick={handleCloseConversation}
                   className="w-full flex items-center gap-3 px-4 py-3 bg-gray-50 hover:bg-gray-100 rounded-xl transition-colors"
                 >
-                  <LuPower className="w-5 h-5 text-gray-500" />
+                  <span style={{fontSize:"14px"}}>⏻</span>
                   <span className="text-gray-700">Fechar Conversa</span>
                 </button>
               )}
@@ -562,7 +542,7 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
               {conversation.assignedAgent && (
                 <>
                   <div className="flex items-center gap-2 p-3 bg-violet-50 rounded-xl">
-                    <LuBot className="w-5 h-5 text-violet-600" />
+                    <span style={{fontSize:"14px"}}>🤖</span>
                     <div className="flex-1">
                       <p className="text-sm font-medium text-violet-700">
                         {conversation.assignedAgent.name}
@@ -580,9 +560,7 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
                     }`}
                   >
                     <div className="flex items-center gap-2">
-                      <LuPower className={`w-4 h-4 ${
-                        conversation.isAutoReplyEnabled ? 'text-cyan-600' : 'text-gray-400'
-                      }`} />
+                      <span style={{fontSize:"14px"}}>⏻</span>
                       <span className={`text-sm font-medium ${
                         conversation.isAutoReplyEnabled ? 'text-cyan-700' : 'text-gray-500'
                       }`}>
@@ -664,8 +642,7 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
                         day: '2-digit',
                         month: '2-digit',
                         hour: '2-digit',
-                        minute: '2-digit',
-                      })}
+                        minute: '2-digit'})}
                     </span>
                   </div>
                 )}

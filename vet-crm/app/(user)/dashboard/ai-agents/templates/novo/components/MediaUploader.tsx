@@ -38,8 +38,7 @@ export function MediaUploader({ accept, label, maxSizeBytes, onUploaded }: Media
       formData.append('file', file);
       const response = await fetch('/api/whatsapp-templates/upload-media', {
         method: 'POST',
-        body: formData,
-      });
+        body: formData});
       const data = await readJsonSafe(response);
       if (!response.ok || !data?.handle) {
         throw new Error(data?.error || 'Falha ao enviar arquivo.');

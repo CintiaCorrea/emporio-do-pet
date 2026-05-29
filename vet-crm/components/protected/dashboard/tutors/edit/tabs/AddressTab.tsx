@@ -1,4 +1,3 @@
-import { LuMapPin } from 'react-icons/lu';
 import { Tutor } from '@/types/tutor-edit';
 import FormField from '../FormField';
 
@@ -12,7 +11,7 @@ export default function AddressTab({ tutor, onTutorChange }: AddressTabProps) {
     <div className="space-y-8">
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
         <div className="md:col-span-2">
-          <FormField label="CEP" icon={<LuMapPin className="w-4 h-4 mr-2 text-blue-500" />}>
+          <FormField label="CEP" icon={<span style={{fontSize:"14px"}}>📍</span>}>
             <input
               type="text"
               placeholder="00000-000"

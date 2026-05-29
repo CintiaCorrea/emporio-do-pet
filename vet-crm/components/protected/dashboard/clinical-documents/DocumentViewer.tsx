@@ -3,16 +3,11 @@
 import { useState, useRef } from 'react';
 import {
   LuFileText,
-  LuDownload,
-  LuCopy,
-  LuShare2,
-  LuMail,
-  LuPhone,
-  LuPrinter,
+  LuDownload
+  LuPhone
   LuPencil,
   LuCheck,
-  LuLoader,
-  LuChevronLeft,
+  LuLoader
   LuSparkles,
   LuCalendar,
   LuUser,
@@ -184,7 +179,7 @@ export default function DocumentViewer({ document: doc, onBack, onUpdate }: Docu
                 onClick={onBack}
                 className="mt-1 p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
               >
-                <LuChevronLeft className="w-5 h-5 text-gray-500" />
+                <span style={{fontSize:"12px"}}>◀</span>
               </button>
             )}
             <div>
@@ -231,7 +226,7 @@ export default function DocumentViewer({ document: doc, onBack, onUpdate }: Docu
               className="flex items-center gap-1.5 px-3 py-2 text-sm bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition-colors"
               title="Copiar texto"
             >
-              <LuCopy className="w-4 h-4" />
+              <span style={{fontSize:"14px"}}>⎘</span>
               Copiar
             </button>
             <button
@@ -239,7 +234,7 @@ export default function DocumentViewer({ document: doc, onBack, onUpdate }: Docu
               className="flex items-center gap-1.5 px-3 py-2 text-sm bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition-colors"
               title="Imprimir"
             >
-              <LuPrinter className="w-4 h-4" />
+              <span style={{fontSize:"14px"}}>🖨</span>
               Imprimir
             </button>
             <button
@@ -255,7 +250,7 @@ export default function DocumentViewer({ document: doc, onBack, onUpdate }: Docu
               className="flex items-center gap-1.5 px-3 py-2 text-sm bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
               title="Compartilhar"
             >
-              <LuShare2 className="w-4 h-4" />
+              <span style={{fontSize:"14px"}}>↗</span>
               Enviar
             </button>
           </div>
@@ -339,7 +334,7 @@ export default function DocumentViewer({ document: doc, onBack, onUpdate }: Docu
                     : 'border-gray-200 dark:border-gray-700'
                 }`}
               >
-                <LuMail className="w-6 h-6 mx-auto mb-1 text-blue-600" />
+                <span style={{fontSize:"14px"}}>✉</span>
                 <p className="text-sm font-medium">Email</p>
               </button>
             </div>
@@ -373,7 +368,7 @@ export default function DocumentViewer({ document: doc, onBack, onUpdate }: Docu
                 {isSharing ? (
                   <LuLoader className="w-4 h-4 animate-spin" />
                 ) : (
-                  <LuShare2 className="w-4 h-4" />
+                  <span style={{fontSize:"14px"}}>↗</span>
                 )}
                 Enviar
               </button>

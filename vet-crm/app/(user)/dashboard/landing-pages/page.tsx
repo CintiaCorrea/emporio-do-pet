@@ -6,9 +6,7 @@ import {
   LuPlus,
   LuSearch,
   LuFileText,
-  LuLoaderCircle,
-  LuLayoutTemplate,
-} from 'react-icons/lu';
+  LuLoaderCircle} from 'react-icons/lu';
 import LandingPageCard from '@/components/protected/landing-pages/LandingPageCard';
 import ConfirmDeleteModal from '@/components/common/ConfirmDeleteModal';
 import { downloadElementorJson } from '@/lib/landing-pages/download-elementor';
@@ -65,8 +63,7 @@ export default function LandingPagesPage() {
   const handleDuplicate = async (id: string) => {
     try {
       const res = await fetch(`/api/landing-pages/${id}/duplicate`, {
-        method: 'POST',
-      });
+        method: 'POST'});
       if (res.ok) {
         toast.success('Landing page duplicada');
         loadPages();
@@ -86,8 +83,7 @@ export default function LandingPagesPage() {
   const handleConfirmDelete = async () => {
     if (!pageToDelete) return;
     const res = await fetch(`/api/landing-pages/${pageToDelete.id}`, {
-      method: 'DELETE',
-    });
+      method: 'DELETE'});
     if (!res.ok) throw new Error('Erro ao excluir landing page');
     toast.success('Landing page excluída');
     setPages((prev) => prev.filter((p) => p.id !== pageToDelete.id));
@@ -113,7 +109,7 @@ export default function LandingPagesPage() {
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
             <div className="flex items-start gap-3">
               <div className="mt-1 p-2.5 rounded-2xl bg-cyan-100 dark:bg-cyan-500/20 border border-cyan-200 dark:border-cyan-500/20">
-                <LuLayoutTemplate className="w-5 h-5 text-cyan-600 dark:text-cyan-300" />
+                <span style={{fontSize:"14px"}}>📐</span>
               </div>
               <div>
                 <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">

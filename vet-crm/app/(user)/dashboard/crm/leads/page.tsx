@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { LuSearch, LuPlus, LuUpload, LuDownload, LuTrash2, LuPhone, LuStickyNote, LuFootprints } from "react-icons/lu";
+import { LuSearch, LuPlus, LuUpload, LuDownload, LuTrash, LuPhone, LuStickyNote, LuFootprints } from "react-icons/lu";
 
 type Filter = "ativos" | "perdidos" | "outros" | "convertidos" | "todos";
 type Periodo = "7d" | "30d" | "tudo" | "custom";
@@ -298,7 +298,7 @@ export default function LeadsPage() {
                     <td className="py-2.5 px-3 text-right text-[#0E2244] font-medium">
                       {valor ? `R$ ${valor}` : "—"}
                     </td>
-                    <td className="py-2.5 px-3"><LuTrash2 className="w-3.5 h-3.5 text-[#cfd8e0] cursor-pointer hover:text-[#A32D2D]" /></td>
+                    <td className="py-2.5 px-3"><LuTrash className="w-3.5 h-3.5 text-[#cfd8e0] cursor-pointer hover:text-[#A32D2D]" /></td>
                   </tr>
                 );
               })

@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { LuArrowLeft, LuPawPrint, LuVenetianMask, LuCalendar, LuUser, LuPencil, LuTrash2, LuPhone, LuMail, LuMapPin, LuFiles } from 'react-icons/lu';
+import { LuArrowLeft, LuPawPrint, LuVenetianMask, LuCalendar, LuUser, LuPencil, LuTrash, LuPhone LuFiles } from 'react-icons/lu';
 import Sidebar from '@/components/protected/dashboard/Sidebar';
 import Link from 'next/link';
 import ConfirmDeleteModal from '@/components/common/ConfirmDeleteModal';
@@ -115,8 +115,7 @@ export default function PetDetailsPage() {
             id: String(d?.id || ''),
             title: String(d?.title || 'Sem título'),
             category: d?.category ?? null,
-            updatedAt: String(d?.updatedAt || ''),
-          }))
+            updatedAt: String(d?.updatedAt || '')}))
           .filter((d: any) => d.id);
 
         if (!cancelled) setDocTemplates(slim);
@@ -441,7 +440,7 @@ export default function PetDetailsPage() {
                     onClick={handleDeletePet}
                     className="group flex items-center gap-2 px-3 sm:px-4 py-2 text-red-600 hover:text-red-700 text-xs sm:text-sm font-semibold bg-white/80 border border-red-200 rounded-xl sm:rounded-2xl hover:bg-white hover:border-red-300 hover:shadow-lg transition-all duration-300 hover:scale-105 backdrop-blur-sm flex-1 sm:flex-none justify-center min-w-[80px]"
                   >
-                    <LuTrash2 className="w-3 h-3 sm:w-4 sm:h-4" />
+                    <LuTrash className="w-3 h-3 sm:w-4 sm:h-4" />
                     <span className="hidden xs:inline">Excluir</span>
                   </button>
                   <Link 

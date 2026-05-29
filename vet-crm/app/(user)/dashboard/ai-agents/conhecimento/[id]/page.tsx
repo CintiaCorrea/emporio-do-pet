@@ -4,18 +4,12 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-  LuDatabase,
   LuArrowLeft,
   LuUpload,
-  LuTrash2,
+  LuTrash,
   LuFileText,
-  LuLoader,
-  LuCircleCheck,
-  LuCircleX,
-  LuClock,
-  LuSettings,
-  LuPencil,
-  LuFile,
+  LuLoader
+  LuPencil
 } from 'react-icons/lu';
 import { toast } from 'sonner';
 
@@ -43,11 +37,10 @@ interface KnowledgeBaseDetail {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
-  READY: { label: 'Pronto', color: 'text-green-600 bg-green-50 dark:bg-green-900/20', icon: <LuCircleCheck className="w-3.5 h-3.5" /> },
+  READY: { label: 'Pronto', color: 'text-green-600 bg-green-50 dark:bg-green-900/20', icon: <span style={{fontSize:"14px"}}>✓</span> },
   PROCESSING: { label: 'Processando', color: 'text-orange-600 bg-orange-50 dark:bg-orange-900/20', icon: <LuLoader className="w-3.5 h-3.5 animate-spin" /> },
-  PENDING: { label: 'Pendente', color: 'text-gray-500 bg-gray-50 dark:bg-gray-700', icon: <LuClock className="w-3.5 h-3.5" /> },
-  ERROR: { label: 'Erro', color: 'text-red-600 bg-red-50 dark:bg-red-900/20', icon: <LuCircleX className="w-3.5 h-3.5" /> },
-};
+  PENDING: { label: 'Pendente', color: 'text-gray-500 bg-gray-50 dark:bg-gray-700', icon: <span style={{fontSize:"14px"}}>⏱</span> },
+  ERROR: { label: 'Erro', color: 'text-red-600 bg-red-50 dark:bg-red-900/20', icon: <span style={{fontSize:"14px"}}>✗</span> }};
 
 export default function KnowledgeBaseDetailPage() {
   const params = useParams();
@@ -124,8 +117,7 @@ export default function KnowledgeBaseDetailPage() {
 
       const res = await fetch(`/api/knowledge-bases/${id}/documents`, {
         method: 'POST',
-        body: formData,
-      });
+        body: formData});
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -146,8 +138,7 @@ export default function KnowledgeBaseDetailPage() {
     if (!confirm('Excluir este documento e todos os seus chunks?')) return;
     try {
       const res = await fetch(`/api/knowledge-bases/${id}/documents/${docId}`, {
-        method: 'DELETE',
-      });
+        method: 'DELETE'});
       if (!res.ok) throw new Error();
       toast.success('Documento excluído');
       fetchKb();
@@ -161,8 +152,7 @@ export default function KnowledgeBaseDetailPage() {
       const res = await fetch(`/api/knowledge-bases/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: editName, description: editDesc }),
-      });
+        body: JSON.stringify({ name: editName, description: editDesc })});
       if (!res.ok) throw new Error();
       toast.success('Atualizado com sucesso');
       setEditing(false);
@@ -186,16 +176,14 @@ export default function KnowledgeBaseDetailPage() {
       month: '2-digit',
       year: 'numeric',
       hour: '2-digit',
-      minute: '2-digit',
-    });
+      minute: '2-digit'});
 
   const fileTypeIcon = (type: string) => {
     const icons: Record<string, string> = {
       pdf: 'text-red-500',
       docx: 'text-blue-500',
       txt: 'text-gray-500',
-      csv: 'text-green-500',
-    };
+      csv: 'text-green-500'};
     return icons[type] || 'text-gray-500';
   };
 
@@ -262,7 +250,7 @@ export default function KnowledgeBaseDetailPage() {
           ) : (
             <div className="min-w-0">
               <h1 className="flex items-start gap-2 text-xl font-bold text-gray-900 dark:text-white sm:text-2xl">
-                <LuDatabase className="mt-0.5 shrink-0 text-indigo-600" />
+                <span style={{fontSize:"14px"}}>🗄</span>
                 <span className="min-w-0 break-words">{kb.name}</span>
                 <button
                   onClick={() => setEditing(true)}
@@ -283,9 +271,9 @@ export default function KnowledgeBaseDetailPage() {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {[
           { label: 'Documentos', value: kb.totalDocuments, icon: <LuFileText className="w-5 h-5 text-indigo-600" /> },
-          { label: 'Chunks', value: kb.totalChunks, icon: <LuDatabase className="w-5 h-5 text-purple-600" /> },
-          { label: 'Tamanho', value: formatBytes(kb.totalSizeBytes), icon: <LuFile className="w-5 h-5 text-blue-600" /> },
-          { label: 'Agentes', value: kb._count?.agents || 0, icon: <LuSettings className="w-5 h-5 text-green-600" /> },
+          { label: 'Chunks', value: kb.totalChunks, icon: <span style={{fontSize:"14px"}}>🗄</span> },
+          { label: 'Tamanho', value: formatBytes(kb.totalSizeBytes), icon: <span style={{fontSize:"14px"}}>📄</span> },
+          { label: 'Agentes', value: kb._count?.agents || 0, icon: <span style={{fontSize:"14px"}}>⚙</span> },
         ].map((stat) => (
           <div
             key={stat.label}
@@ -389,7 +377,7 @@ export default function KnowledgeBaseDetailPage() {
                       onClick={() => handleDeleteDoc(doc.id)}
                       className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                     >
-                      <LuTrash2 className="w-4 h-4" />
+                      <LuTrash className="w-4 h-4" />
                     </button>
                   </div>
                 </div>

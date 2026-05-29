@@ -18,8 +18,7 @@ import {
   FileSignature,
   ScrollText,
   Receipt,
-  Scale,
-} from 'lucide-react';
+  Scale} from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const DOCUMENT_TYPES = [
@@ -44,8 +43,7 @@ interface GeneralDocumentGeneratorProps {
 
 export default function GeneralDocumentGenerator({
   transcription,
-  onDocumentGenerated,
-}: GeneralDocumentGeneratorProps) {
+  onDocumentGenerated}: GeneralDocumentGeneratorProps) {
   const [selectedType, setSelectedType] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedContent, setGeneratedContent] = useState<string>('');
@@ -83,9 +81,7 @@ export default function GeneralDocumentGenerator({
           additionalContext: additionalContext || undefined,
           customTitle: customTitle || undefined,
           petName: petName || undefined,
-          tutorName: tutorName || undefined,
-        }),
-      });
+          tutorName: tutorName || undefined})});
 
       if (res.ok) {
         const data = await res.json();
@@ -121,8 +117,7 @@ export default function GeneralDocumentGenerator({
     slate: 'border-slate-300 bg-slate-50 dark:border-slate-700 dark:bg-slate-900/20',
     indigo: 'border-indigo-300 bg-indigo-50 dark:border-indigo-700 dark:bg-indigo-900/20',
     emerald: 'border-cyan-300 bg-cyan-50 dark:border-cyan-700 dark:bg-cyan-900/20',
-    cyan: 'border-cyan-300 bg-cyan-50 dark:border-cyan-700 dark:bg-cyan-900/20',
-  };
+    cyan: 'border-cyan-300 bg-cyan-50 dark:border-cyan-700 dark:bg-cyan-900/20'};
 
   const selectedColorClasses: Record<string, string> = {
     blue: 'border-blue-500 bg-blue-100 ring-2 ring-blue-500/30 dark:border-blue-500 dark:bg-blue-900/40',
@@ -136,8 +131,7 @@ export default function GeneralDocumentGenerator({
     slate: 'border-slate-500 bg-slate-100 ring-2 ring-slate-500/30 dark:border-slate-500 dark:bg-slate-900/40',
     indigo: 'border-indigo-500 bg-indigo-100 ring-2 ring-indigo-500/30 dark:border-indigo-500 dark:bg-indigo-900/40',
     emerald: 'border-cyan-500 bg-cyan-100 ring-2 ring-cyan-500/30 dark:border-cyan-500 dark:bg-cyan-900/40',
-    cyan: 'border-cyan-500 bg-cyan-100 ring-2 ring-cyan-500/30 dark:border-cyan-500 dark:bg-cyan-900/40',
-  };
+    cyan: 'border-cyan-500 bg-cyan-100 ring-2 ring-cyan-500/30 dark:border-cyan-500 dark:bg-cyan-900/40'};
 
   return (
     <div className="space-y-6">

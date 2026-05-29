@@ -4,18 +4,10 @@ import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
-  LuChevronRight, 
   LuArrowLeft, 
   LuSave,
-  LuLoader,
-  LuClock,
-  LuZap,
-  LuGlobe,
-  LuHand,
-  LuTrash2,
-  LuPlay,
-  LuPause,
-  LuHistory,
+  LuLoader
+  LuTrash
 } from 'react-icons/lu';
 import { toast } from 'sonner';
 import AutomationStepEditor, { AutomationStep } from '@/components/protected/ai-agents/AutomationStepEditor';
@@ -78,10 +70,10 @@ const CATEGORIES = [
 ];
 
 const TRIGGERS = [
-  { value: 'MANUAL', label: 'Manual', description: 'Executar manualmente', icon: <LuHand className="w-5 h-5" /> },
-  { value: 'SCHEDULE', label: 'Agendado', description: 'Executar em horários específicos', icon: <LuClock className="w-5 h-5" /> },
-  { value: 'EVENT', label: 'Evento', description: 'Executar quando um evento ocorrer', icon: <LuZap className="w-5 h-5" /> },
-  { value: 'WEBHOOK', label: 'Webhook', description: 'Executar via chamada HTTP', icon: <LuGlobe className="w-5 h-5" /> },
+  { value: 'MANUAL', label: 'Manual', description: 'Executar manualmente', icon: <span style={{fontSize:"14px"}}>✋</span> },
+  { value: 'SCHEDULE', label: 'Agendado', description: 'Executar em horários específicos', icon: <span style={{fontSize:"14px"}}>⏱</span> },
+  { value: 'EVENT', label: 'Evento', description: 'Executar quando um evento ocorrer', icon: <span style={{fontSize:"14px"}}>⚡</span> },
+  { value: 'WEBHOOK', label: 'Webhook', description: 'Executar via chamada HTTP', icon: <span style={{fontSize:"14px"}}>🌐</span> },
 ];
 
 export default function EditarAutomacaoPage({ params }: { params: Promise<{ id: string }> }) {
@@ -100,8 +92,7 @@ export default function EditarAutomacaoPage({ params }: { params: Promise<{ id: 
     category: 'ATENDIMENTO',
     trigger: 'MANUAL',
     triggerConfig: {},
-    steps: [],
-  });
+    steps: []});
 
   // Load automation
   useEffect(() => {
@@ -126,9 +117,7 @@ export default function EditarAutomacaoPage({ params }: { params: Promise<{ id: 
             id: s.id,
             type: s.type,
             name: s.name,
-            config: s.config || {},
-          })),
-        });
+            config: s.config || {}}))});
       } catch (error) {
         console.error('Erro ao carregar automação:', error);
         toast.error('Erro ao carregar automação');
@@ -198,10 +187,7 @@ export default function EditarAutomacaoPage({ params }: { params: Promise<{ id: 
             type: s.type,
             name: s.name,
             config: s.config,
-            position: index,
-          })),
-        }),
-      });
+            position: index}))})});
 
       const data = await response.json();
 
@@ -224,8 +210,7 @@ export default function EditarAutomacaoPage({ params }: { params: Promise<{ id: 
       const response = await fetch(`/api/automations/${id}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus }),
-      });
+        body: JSON.stringify({ status: newStatus })});
 
       const data = await response.json();
 
@@ -244,8 +229,7 @@ export default function EditarAutomacaoPage({ params }: { params: Promise<{ id: 
   const handleExecute = async () => {
     try {
       const response = await fetch(`/api/automations/${id}/execute`, {
-        method: 'POST',
-      });
+        method: 'POST'});
 
       const data = await response.json();
 
@@ -267,8 +251,7 @@ export default function EditarAutomacaoPage({ params }: { params: Promise<{ id: 
 
     try {
       const response = await fetch(`/api/automations/${id}`, {
-        method: 'DELETE',
-      });
+        method: 'DELETE'});
 
       if (!response.ok) {
         const data = await response.json();
@@ -316,7 +299,7 @@ export default function EditarAutomacaoPage({ params }: { params: Promise<{ id: 
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-8rem)]">
         <div className="text-center">
-          <LuZap className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+          <span style={{fontSize:"14px"}}>⚡</span>
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Automação não encontrada</h2>
           <Link
             href="/dashboard/ai-agents/automacoes"
@@ -337,11 +320,11 @@ export default function EditarAutomacaoPage({ params }: { params: Promise<{ id: 
           <Link href="/dashboard/ai-agents/automacoes" className="hover:text-violet-600">
             AI Agents
           </Link>
-          <LuChevronRight className="w-4 h-4" />
+          <span style={{fontSize:"14px"}}>▶</span>
           <Link href="/dashboard/ai-agents/automacoes" className="hover:text-violet-600">
             Automações
           </Link>
-          <LuChevronRight className="w-4 h-4" />
+          <span style={{fontSize:"14px"}}>▶</span>
           <span className="text-gray-900 font-medium">Editar</span>
         </div>
 
@@ -370,7 +353,7 @@ export default function EditarAutomacaoPage({ params }: { params: Promise<{ id: 
                 onClick={() => handleStatusChange('PAUSED')}
                 className="flex items-center gap-2 px-4 py-2 bg-orange-50 hover:bg-orange-100 text-orange-700 rounded-lg transition-colors"
               >
-                <LuPause className="w-4 h-4" />
+                <span style={{fontSize:"14px"}}>⏸</span>
                 Pausar
               </button>
             ) : automation.status !== 'ERROR' && (
@@ -378,7 +361,7 @@ export default function EditarAutomacaoPage({ params }: { params: Promise<{ id: 
                 onClick={() => handleStatusChange('ACTIVE')}
                 className="flex items-center gap-2 px-4 py-2 bg-cyan-50 hover:bg-cyan-100 text-cyan-700 rounded-lg transition-colors"
               >
-                <LuPlay className="w-4 h-4" />
+                <span style={{fontSize:"14px"}}>▶</span>
                 Ativar
               </button>
             )}
@@ -387,7 +370,7 @@ export default function EditarAutomacaoPage({ params }: { params: Promise<{ id: 
               onClick={handleExecute}
               className="flex items-center gap-2 px-4 py-2 bg-violet-50 hover:bg-violet-100 text-violet-700 rounded-lg transition-colors"
             >
-              <LuZap className="w-4 h-4" />
+              <span style={{fontSize:"14px"}}>⚡</span>
               Executar
             </button>
 
@@ -629,7 +612,7 @@ export default function EditarAutomacaoPage({ params }: { params: Promise<{ id: 
               onClick={handleDelete}
               className="flex items-center justify-center gap-2 px-6 py-3 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl font-medium transition-colors"
             >
-              <LuTrash2 className="w-5 h-5" />
+              <LuTrash className="w-5 h-5" />
               Excluir Automação
             </button>
 
@@ -637,7 +620,7 @@ export default function EditarAutomacaoPage({ params }: { params: Promise<{ id: 
               href={`/api/automations/${id}/logs`}
               className="flex items-center justify-center gap-2 px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-colors"
             >
-              <LuHistory className="w-5 h-5" />
+              <span style={{fontSize:"14px"}}>⏳</span>
               Ver Logs
             </Link>
 

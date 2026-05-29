@@ -17,10 +17,8 @@ export function MPMTemplateEditor({ formData, onChange }: MPMTemplateEditorProps
         {
           id: crypto.randomUUID(),
           title: '',
-          productRetailerIds: [''],
-        },
-      ],
-    }));
+          productRetailerIds: ['']},
+      ]}));
   };
 
   return (
@@ -44,8 +42,7 @@ export function MPMTemplateEditor({ formData, onChange }: MPMTemplateEditorProps
                 onClick={() =>
                   onChange((prev) => ({
                     ...prev,
-                    mpmSections: prev.mpmSections.filter((item) => item.id !== section.id),
-                  }))
+                    mpmSections: prev.mpmSections.filter((item) => item.id !== section.id)}))
                 }
               >
                 Remover
@@ -61,8 +58,7 @@ export function MPMTemplateEditor({ formData, onChange }: MPMTemplateEditorProps
                   ...prev,
                   mpmSections: prev.mpmSections.map((item) =>
                     item.id === section.id ? { ...item, title: e.target.value } : item,
-                  ),
-                }))
+                  )}))
               }
               className="w-full mt-2 px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-600 rounded-lg text-sm"
             />
@@ -83,11 +79,9 @@ export function MPMTemplateEditor({ formData, onChange }: MPMTemplateEditorProps
                               ...item,
                               productRetailerIds: item.productRetailerIds.map((entry, idx) =>
                                 idx === pIndex ? e.target.value : entry,
-                              ),
-                            }
+                              )}
                           : item,
-                      ),
-                    }))
+                      )}))
                   }
                   className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-600 rounded-lg text-sm"
                 />
@@ -102,11 +96,9 @@ export function MPMTemplateEditor({ formData, onChange }: MPMTemplateEditorProps
                     item.id === section.id
                       ? {
                           ...item,
-                          productRetailerIds: [...item.productRetailerIds, ''],
-                        }
+                          productRetailerIds: [...item.productRetailerIds, '']}
                       : item,
-                  ),
-                }))
+                  )}))
               }
               className="text-xs text-indigo-600 dark:text-indigo-400 mt-2"
             >

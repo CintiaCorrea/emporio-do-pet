@@ -4,24 +4,13 @@ import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-  LuChevronRight,
-  LuArrowLeft,
-  LuPlay,
-  LuPause,
-  LuLoader,
-  LuUsers,
-  LuMessageSquare,
-  LuCheckCheck,
-  LuEye,
-  LuCircleX,
-  LuClock,
-  LuCalendar,
-  LuRefreshCw,
+  LuArrowLeft
+  LuLoader
+  LuEye
+  LuCalendar
   LuDownload,
-  LuSearch,
-  LuFilter,
-  LuTrash2,
-} from 'react-icons/lu';
+  LuSearch
+  LuTrash} from 'react-icons/lu';
 import { toast } from 'sonner';
 
 type CampaignStatus = 'DRAFT' | 'SCHEDULED' | 'RUNNING' | 'PAUSED' | 'COMPLETED' | 'FAILED';
@@ -124,8 +113,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
     try {
       const params = new URLSearchParams({
         page: recipientPage.toString(),
-        limit: '20',
-      });
+        limit: '20'});
       if (recipientFilter !== 'all') {
         params.set('status', recipientFilter);
       }
@@ -170,8 +158,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
     setActionLoading('start');
     try {
       const response = await fetch(`/api/whatsapp/campaigns/${id}/start`, {
-        method: 'POST',
-      });
+        method: 'POST'});
       const data = await response.json();
 
       if (!response.ok) {
@@ -192,8 +179,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
     setActionLoading('pause');
     try {
       const response = await fetch(`/api/whatsapp/campaigns/${id}/pause`, {
-        method: 'POST',
-      });
+        method: 'POST'});
       const data = await response.json();
 
       if (!response.ok) {
@@ -215,8 +201,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
     setActionLoading('delete');
     try {
       const response = await fetch(`/api/whatsapp/campaigns/${id}`, {
-        method: 'DELETE',
-      });
+        method: 'DELETE'});
 
       if (!response.ok) {
         const data = await response.json();
@@ -300,7 +285,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-8rem)]">
         <div className="text-center">
-          <LuMessageSquare className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+          <span style={{fontSize:"14px"}}>💬</span>
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Campanha não encontrada</h2>
           <Link
             href="/dashboard/campanhas/whatsapp"
@@ -321,11 +306,11 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
           <Link href="/dashboard/campanhas" className="hover:text-cyan-600">
             Campanhas
           </Link>
-          <LuChevronRight className="w-4 h-4" />
+          <span style={{fontSize:"14px"}}>▶</span>
           <Link href="/dashboard/campanhas/whatsapp" className="hover:text-cyan-600">
             WhatsApp
           </Link>
-          <LuChevronRight className="w-4 h-4" />
+          <span style={{fontSize:"14px"}}>▶</span>
           <span className="text-gray-900 font-medium">{campaign.name}</span>
         </div>
 
@@ -361,7 +346,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                 {actionLoading === 'pause' ? (
                   <LuLoader className="w-4 h-4 animate-spin" />
                 ) : (
-                  <LuPause className="w-4 h-4" />
+                  <span style={{fontSize:"14px"}}>⏸</span>
                 )}
                 Pausar
               </button>
@@ -374,7 +359,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                 {actionLoading === 'start' ? (
                   <LuLoader className="w-4 h-4 animate-spin" />
                 ) : (
-                  <LuPlay className="w-4 h-4" />
+                  <span style={{fontSize:"14px"}}>▶</span>
                 )}
                 Iniciar
               </button>
@@ -385,7 +370,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
               title="Atualizar"
             >
-              <LuRefreshCw className="w-5 h-5 text-gray-500" />
+              <span style={{fontSize:"14px"}}>↻</span>
             </button>
 
             {campaign.status !== 'RUNNING' && (
@@ -398,7 +383,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                 {actionLoading === 'delete' ? (
                   <LuLoader className="w-5 h-5 animate-spin" />
                 ) : (
-                  <LuTrash2 className="w-5 h-5" />
+                  <LuTrash className="w-5 h-5" />
                 )}
               </button>
             )}
@@ -409,7 +394,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
           <div className="bg-white rounded-xl border border-gray-100 p-4">
             <div className="flex items-center gap-2 text-gray-500 mb-1">
-              <LuUsers className="w-4 h-4" />
+              <span style={{fontSize:"14px"}}>👥</span>
               <span className="text-sm">Total</span>
             </div>
             <p className="text-2xl font-bold text-gray-900">{stats?.totalRecipients || campaign.totalRecipients}</p>
@@ -417,7 +402,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
 
           <div className="bg-white rounded-xl border border-gray-100 p-4">
             <div className="flex items-center gap-2 text-blue-600 mb-1">
-              <LuMessageSquare className="w-4 h-4" />
+              <span style={{fontSize:"14px"}}>💬</span>
               <span className="text-sm">Enviadas</span>
             </div>
             <p className="text-2xl font-bold text-blue-600">{stats?.sentCount || campaign.sentCount}</p>
@@ -425,7 +410,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
 
           <div className="bg-white rounded-xl border border-gray-100 p-4">
             <div className="flex items-center gap-2 text-cyan-600 mb-1">
-              <LuCheckCheck className="w-4 h-4" />
+              <span style={{fontSize:"14px"}}>✓✓</span>
               <span className="text-sm">Entregues</span>
             </div>
             <p className="text-2xl font-bold text-cyan-600">{stats?.deliveredCount || campaign.deliveredCount}</p>
@@ -441,7 +426,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
 
           <div className="bg-white rounded-xl border border-gray-100 p-4">
             <div className="flex items-center gap-2 text-red-600 mb-1">
-              <LuCircleX className="w-4 h-4" />
+              <span style={{fontSize:"14px"}}>✗</span>
               <span className="text-sm">Falhas</span>
             </div>
             <p className="text-2xl font-bold text-red-600">{stats?.failedCount || campaign.failedCount}</p>
@@ -449,7 +434,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
 
           <div className="bg-white rounded-xl border border-gray-100 p-4">
             <div className="flex items-center gap-2 text-orange-600 mb-1">
-              <LuClock className="w-4 h-4" />
+              <span style={{fontSize:"14px"}}>⏱</span>
               <span className="text-sm">Pendentes</span>
             </div>
             <p className="text-2xl font-bold text-orange-600">{stats?.pending || 0}</p>

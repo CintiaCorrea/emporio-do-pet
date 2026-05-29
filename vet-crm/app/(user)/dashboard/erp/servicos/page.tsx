@@ -2,17 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { 
-  LuWrench,
+import {
   LuSearch,
   LuPlus,
   LuPencil,
-  LuTrash2,
-  LuDollarSign,
-  LuTrendingUp,
-  LuClock,
-  LuActivity,
-  LuClipboardList
+  LuTrash,
+  LuDollarSign
 } from 'react-icons/lu';
 import ConfirmDeleteModal from '@/components/common/ConfirmDeleteModal';
 import toast from 'react-hot-toast';
@@ -306,7 +301,7 @@ export default function ServicesPage() {
                     href="/dashboard/erp/servicos/relatorio"
                     className="group px-6 py-3 text-sm font-semibold text-gray-700 bg-white/80 border border-gray-200/80 rounded-2xl hover:bg-white hover:border-gray-300 hover:shadow-lg transition-all duration-300 hover:scale-105 flex items-center space-x-2"
                   >
-                    <LuTrendingUp className="w-4 h-4" />
+                    <span style={{fontSize:"14px"}}>📈</span>
                     <span>Relatório</span>
                   </Link>
                   <button 
@@ -341,7 +336,7 @@ export default function ServicesPage() {
                   label: "Total de Serviços", 
                   value: localStats.total, 
                   color: "purple", 
-                  icon: LuWrench
+                  icon: () => <span style={{fontSize:"14px"}}>🔧</span>
                 },
                 { 
                   label: "Preço Médio", 
@@ -354,13 +349,13 @@ export default function ServicesPage() {
                   label: "Atendimentos", 
                   value: localStats.totalTreatments, 
                   color: "green", 
-                  icon: LuActivity
+                  icon: () => <span style={{fontSize:"14px"}}>⚡</span>
                 },
                 { 
                   label: "Receita Estimada", 
                   value: formatCurrency(localStats.totalRevenue), 
                   color: "teal", 
-                  icon: LuTrendingUp,
+                  icon: () => <span style={{fontSize:"14px"}}>📈</span>,
                   isFormatted: true
                 }
               ].map((stat, index) => (
@@ -447,7 +442,7 @@ export default function ServicesPage() {
                         <td className="p-6">
                           <div className="flex items-center gap-3">
                             <div className="p-2 rounded-xl bg-purple-100 text-purple-800">
-                              <LuWrench className="w-5 h-5" />
+                              <span style={{fontSize:"14px"}}>🔧</span>
                             </div>
                             <div>
                               <div className="font-semibold text-gray-900">{service.name}</div>
@@ -466,7 +461,7 @@ export default function ServicesPage() {
                         <td className="p-6">
                           <div className="flex items-center gap-2">
                             <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                              <LuActivity className="w-3 h-3 mr-1" />
+                              <span style={{fontSize:"14px"}}>⚡</span>
                               {service._count.treatments} atendimentos
                             </span>
                           </div>
@@ -481,7 +476,7 @@ export default function ServicesPage() {
                         </td>
                         <td className="p-6">
                           <div className="flex items-center gap-1 text-gray-600">
-                            <LuClock className="w-4 h-4" />
+                            <span style={{fontSize:"14px"}}>⏱</span>
                             {formatDate(service.updatedAt)}
                           </div>
                         </td>
@@ -509,7 +504,7 @@ export default function ServicesPage() {
                               className="p-2 text-gray-400 hover:bg-gray-50 hover:text-red-600 rounded-2xl transition-colors"
                               title="Excluir serviço"
                             >
-                              <LuTrash2 className="w-4 h-4" />
+                              <LuTrash className="w-4 h-4" />
                             </button>
                           </div>
                         </td>
@@ -520,7 +515,7 @@ export default function ServicesPage() {
 
                 {filteredServices.length === 0 && !loading && (
                   <div className="text-center py-12">
-                    <LuWrench className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <span style={{fontSize:"14px"}}>🔧</span>
                     <p className="text-gray-500 text-lg">Nenhum serviço encontrado</p>
                     <p className="text-gray-400 mt-2">
                       {services.length === 0 
@@ -605,7 +600,7 @@ export default function ServicesPage() {
                   {/* Informações do Serviço */}
                   <div>
                     <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                      <LuWrench className="w-5 h-5 text-purple-600" />
+                      <span style={{fontSize:"14px"}}>🔧</span>
                       Informações do Serviço
                     </h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -646,7 +641,7 @@ export default function ServicesPage() {
                   {selectedService.treatments.length > 0 && (
                     <div>
                       <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                        <LuClipboardList className="w-5 h-5 text-purple-600" />
+                        <span style={{fontSize:"14px"}}>📋</span>
                         Atendimentos Recentes
                       </h4>
                       <div className="space-y-3">

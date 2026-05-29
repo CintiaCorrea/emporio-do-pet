@@ -50,8 +50,7 @@ export default function LoginPage() {
       const result = await signIn("credentials", {
         email,
         password,
-        redirect: false,
-      });
+        redirect: false});
 
       console.log("Login result:", result); // Debug
 
@@ -65,19 +64,15 @@ export default function LoginPage() {
             style: {
               background: '#fef2f2',
               color: '#dc2626',
-              border: '1px solid #fecaca',
-            },
-          });
+              border: '1px solid #fecaca'}});
         } else if (errorMessage.includes("obrigatório")) {
           toast.error("Email e senha são obrigatórios.", {
             duration: 4000,
-            position: "top-center",
-          });
+            position: "top-center"});
         } else {
           toast.error(`Erro ao fazer login: ${result.error}`, {
             duration: 5000,
-            position: "top-center",
-          });
+            position: "top-center"});
         }
         return;
       }
@@ -90,9 +85,7 @@ export default function LoginPage() {
           style: {
             background: '#f0fdf4',
             color: '#16a34a',
-            border: '1px solid #bbf7d0',
-          },
-        });
+            border: '1px solid #bbf7d0'}});
 
         console.log("Login successful, waiting for session...");
         
@@ -114,16 +107,14 @@ export default function LoginPage() {
       } else {
         toast.error("Erro desconhecido no login. Tente novamente.", {
           duration: 4000,
-          position: "top-right",
-        });
+          position: "top-right"});
       }
       
     } catch (error) {
       console.error("Login error:", error);
       toast.error("Erro inesperado ao fazer login. Tente novamente.", {
         duration: 5000,
-        position: "top-right",
-      });
+        position: "top-right"});
     } finally {
       setIsLoading(false);
     }
@@ -171,31 +162,23 @@ export default function LoginPage() {
             borderRadius: '8px',
             padding: '12px 16px',
             fontSize: '14px',
-            fontWeight: '500',
-          },
+            fontWeight: '500'},
           success: {
             style: {
               background: '#f0fdf4',
               color: '#16a34a',
-              border: '1px solid #bbf7d0',
-            },
+              border: '1px solid #bbf7d0'},
             iconTheme: {
               primary: '#16a34a',
-              secondary: '#f0fdf4',
-            },
-          },
+              secondary: '#f0fdf4'}},
           error: {
             style: {
               background: '#fef2f2',
               color: '#dc2626',
-              border: '1px solid #fecaca',
-            },
+              border: '1px solid #fecaca'},
             iconTheme: {
               primary: '#dc2626',
-              secondary: '#fef2f2',
-            },
-          },
-        }}
+              secondary: '#fef2f2'}}}}
       />
 
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">

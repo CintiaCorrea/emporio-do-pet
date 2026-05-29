@@ -2,26 +2,13 @@
 
 // Página de Integrações - AI Agents
 import { useState, useEffect } from 'react';
-import { 
-  LuSettings,
-  LuCheck,
-  LuRefreshCw,
+import {
+  LuCheck
   LuEye,
-  LuEyeOff,
-  LuCopy,
-  LuExternalLink,
-  LuCircleCheck,
-  LuCircleAlert,
-  LuCircle,
-  LuMessageSquare,
-  LuBrain,
-  LuSparkles,
-  LuZap,
-  LuSave,
-  LuTestTube,
-  LuTrash2,
-  LuInfo,
-  LuChevronRight
+  LuEyeOff
+  LuSparkles
+  LuSave
+  LuTrash
 } from 'react-icons/lu';
 import Link from 'next/link';
 
@@ -107,7 +94,7 @@ export default function IntegracoesPage() {
       id: 'whatsapp',
       name: 'WhatsApp Business API',
       description: 'API oficial do WhatsApp para envio de mensagens, notificações e atendimento automatizado',
-      icon: <LuMessageSquare className="w-6 h-6" />,
+      icon: <span style={{fontSize:"14px"}}>💬</span>,
       color: 'text-green-600',
       bgColor: 'bg-green-50',
       status: 'disconnected',
@@ -117,7 +104,7 @@ export default function IntegracoesPage() {
       id: 'openai',
       name: 'OpenAI',
       description: 'GPT-4, GPT-3.5 Turbo e outros modelos para geração de texto e análise',
-      icon: <LuBrain className="w-6 h-6" />,
+      icon: <span style={{fontSize:"14px"}}>🧠</span>,
       color: 'text-cyan-600',
       bgColor: 'bg-cyan-50',
       status: 'disconnected',
@@ -137,7 +124,7 @@ export default function IntegracoesPage() {
       id: 'deepseek',
       name: 'DeepSeek',
       description: 'Modelo de IA avançado com excelente custo-benefício para chat e código',
-      icon: <LuZap className="w-6 h-6" />,
+      icon: <span style={{fontSize:"14px"}}>⚡</span>,
       color: 'text-violet-600',
       bgColor: 'bg-violet-50',
       status: 'disconnected',
@@ -307,10 +294,10 @@ export default function IntegracoesPage() {
 
   const getStatusIcon = (status: IntegrationStatus) => {
     switch (status) {
-      case 'connected': return <LuCircleCheck className="w-5 h-5 text-green-500" />;
-      case 'error': return <LuCircleAlert className="w-5 h-5 text-red-500" />;
-      case 'testing': return <LuRefreshCw className="w-5 h-5 text-blue-500 animate-spin" />;
-      default: return <LuCircle className="w-5 h-5 text-gray-400" />;
+      case 'connected': return <span style={{fontSize:"14px"}}>✓</span>;
+      case 'error': return <span style={{fontSize:"14px"}}>⚠</span>;
+      case 'testing': return <span style={{fontSize:"14px"}}>↻</span>;
+      default: return <span style={{fontSize:"14px"}}>○</span>;
     }
   };
 
@@ -359,7 +346,7 @@ export default function IntegracoesPage() {
                 <Link href="/dashboard/ai-agents/agents" className="hover:text-blue-600 transition-colors">
                   AI Agents
                 </Link>
-                <LuChevronRight className="w-4 h-4" />
+                <span style={{fontSize:"14px"}}>▶</span>
                 <span className="text-gray-900 font-medium">Integrações</span>
               </div>
               
@@ -376,7 +363,7 @@ export default function IntegracoesPage() {
                   onClick={loadConfig}
                   className="flex w-full sm:w-auto justify-center sm:justify-start items-center gap-2 px-4 py-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl font-medium transition-colors"
                 >
-                  <LuRefreshCw className="w-5 h-5" />
+                  <span style={{fontSize:"14px"}}>↻</span>
                   Atualizar
                 </button>
               </div>
@@ -415,7 +402,7 @@ export default function IntegracoesPage() {
                 <div className="p-4 sm:p-6">
                   <div className="flex flex-col md:flex-row md:items-center gap-4 mb-6">
                     <div className="p-3 rounded-xl bg-green-50">
-                      <LuMessageSquare className="w-6 h-6 text-green-600" />
+                      <span style={{fontSize:"14px"}}>💬</span>
                     </div>
                     <div className="flex-1">
                       <h2 className="text-xl font-bold text-gray-900">WhatsApp Business API</h2>
@@ -427,7 +414,7 @@ export default function IntegracoesPage() {
                       rel="noopener noreferrer"
                       className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 md:self-auto self-start"
                     >
-                      <LuExternalLink className="w-4 h-4" />
+                      <span style={{fontSize:"14px"}}>↗</span>
                       Documentação
                     </a>
                   </div>
@@ -436,7 +423,7 @@ export default function IntegracoesPage() {
                     {/* Webhook URL */}
                     <div className="p-4 bg-blue-50 rounded-xl border border-blue-100">
                       <div className="flex items-start gap-3">
-                        <LuInfo className="w-5 h-5 text-blue-600 mt-0.5" />
+                        <span style={{fontSize:"14px"}}>ⓘ</span>
                         <div className="flex-1 min-w-0">
                           <h4 className="font-medium text-blue-900 mb-1">Configuração do Webhook</h4>
                           <p className="text-sm text-blue-700 mb-3">Configure estas informações no painel Meta Business → WhatsApp → Configuração</p>
@@ -453,7 +440,7 @@ export default function IntegracoesPage() {
                                   className="w-full md:w-auto inline-flex justify-center p-2 hover:bg-blue-100 rounded-lg transition-colors"
                                   title="Copiar"
                                 >
-                                  <LuCopy className="w-4 h-4 text-blue-600" />
+                                  <span style={{fontSize:"14px"}}>⎘</span>
                                 </button>
                               </div>
                             </div>
@@ -558,7 +545,7 @@ export default function IntegracoesPage() {
                           className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-200 rounded disabled:opacity-50"
                           title="Copiar para usar no Meta"
                         >
-                          <LuCopy className="w-4 h-4 text-gray-500" />
+                          <span style={{fontSize:"14px"}}>⎘</span>
                         </button>
                       </div>
                       <p className="mt-1 text-xs text-gray-500">
@@ -571,9 +558,9 @@ export default function IntegracoesPage() {
                       <div className={`p-4 rounded-xl ${testResults['whatsapp'].success ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
                         <div className="flex items-center gap-2">
                           {testResults['whatsapp'].success ? (
-                            <LuCircleCheck className="w-5 h-5 text-green-600" />
+                            <span style={{fontSize:"14px"}}>✓</span>
                           ) : (
-                            <LuCircleAlert className="w-5 h-5 text-red-600" />
+                            <span style={{fontSize:"14px"}}>⚠</span>
                           )}
                           <span className={testResults['whatsapp'].success ? 'text-green-700' : 'text-red-700'}>
                             {testResults['whatsapp'].message}
@@ -590,9 +577,9 @@ export default function IntegracoesPage() {
                         className="flex w-full md:w-auto justify-center md:justify-start items-center gap-2 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {testing === 'whatsapp' ? (
-                          <LuRefreshCw className="w-4 h-4 animate-spin" />
+                          <span style={{fontSize:"14px"}}>↻</span>
                         ) : (
-                          <LuTestTube className="w-4 h-4" />
+                          <span style={{fontSize:"14px"}}>🧪</span>
                         )}
                         Testar Conexão
                       </button>
@@ -602,7 +589,7 @@ export default function IntegracoesPage() {
                         className="flex w-full md:w-auto justify-center md:justify-start items-center gap-2 px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl font-semibold transition-colors disabled:opacity-50"
                       >
                         {saving === 'whatsapp' ? (
-                          <LuRefreshCw className="w-4 h-4 animate-spin" />
+                          <span style={{fontSize:"14px"}}>↻</span>
                         ) : (
                           <LuSave className="w-4 h-4" />
                         )}
@@ -613,7 +600,7 @@ export default function IntegracoesPage() {
                           onClick={() => handleDisconnect('whatsapp')}
                           className="flex w-full md:w-auto justify-center md:justify-start items-center gap-2 px-4 py-2.5 text-red-600 hover:bg-red-50 rounded-xl font-medium transition-colors md:ml-auto"
                         >
-                          <LuTrash2 className="w-4 h-4" />
+                          <LuTrash className="w-4 h-4" />
                           Desconectar
                         </button>
                       )}
@@ -627,7 +614,7 @@ export default function IntegracoesPage() {
                 <div className="p-4 sm:p-6">
                   <div className="flex flex-col md:flex-row md:items-center gap-4 mb-6">
                     <div className="p-3 rounded-xl bg-cyan-50">
-                      <LuBrain className="w-6 h-6 text-cyan-600" />
+                      <span style={{fontSize:"14px"}}>🧠</span>
                     </div>
                     <div className="flex-1">
                       <h2 className="text-xl font-bold text-gray-900">OpenAI</h2>
@@ -639,7 +626,7 @@ export default function IntegracoesPage() {
                       rel="noopener noreferrer"
                       className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 md:self-auto self-start"
                     >
-                      <LuExternalLink className="w-4 h-4" />
+                      <span style={{fontSize:"14px"}}>↗</span>
                       Documentação
                     </a>
                   </div>
@@ -716,9 +703,9 @@ export default function IntegracoesPage() {
                       <div className={`p-4 rounded-xl ${testResults['openai'].success ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
                         <div className="flex items-center gap-2">
                           {testResults['openai'].success ? (
-                            <LuCircleCheck className="w-5 h-5 text-green-600" />
+                            <span style={{fontSize:"14px"}}>✓</span>
                           ) : (
-                            <LuCircleAlert className="w-5 h-5 text-red-600" />
+                            <span style={{fontSize:"14px"}}>⚠</span>
                           )}
                           <span className={testResults['openai'].success ? 'text-green-700' : 'text-red-700'}>
                             {testResults['openai'].message}
@@ -735,9 +722,9 @@ export default function IntegracoesPage() {
                         className="flex w-full md:w-auto justify-center md:justify-start items-center gap-2 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {testing === 'openai' ? (
-                          <LuRefreshCw className="w-4 h-4 animate-spin" />
+                          <span style={{fontSize:"14px"}}>↻</span>
                         ) : (
-                          <LuTestTube className="w-4 h-4" />
+                          <span style={{fontSize:"14px"}}>🧪</span>
                         )}
                         Testar Conexão
                       </button>
@@ -747,7 +734,7 @@ export default function IntegracoesPage() {
                         className="flex w-full md:w-auto justify-center md:justify-start items-center gap-2 px-6 py-2.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl font-semibold transition-colors disabled:opacity-50"
                       >
                         {saving === 'openai' ? (
-                          <LuRefreshCw className="w-4 h-4 animate-spin" />
+                          <span style={{fontSize:"14px"}}>↻</span>
                         ) : (
                           <LuSave className="w-4 h-4" />
                         )}
@@ -758,7 +745,7 @@ export default function IntegracoesPage() {
                           onClick={() => handleDisconnect('openai')}
                           className="flex w-full md:w-auto justify-center md:justify-start items-center gap-2 px-4 py-2.5 text-red-600 hover:bg-red-50 rounded-xl font-medium transition-colors md:ml-auto"
                         >
-                          <LuTrash2 className="w-4 h-4" />
+                          <LuTrash className="w-4 h-4" />
                           Desconectar
                         </button>
                       )}
@@ -784,7 +771,7 @@ export default function IntegracoesPage() {
                       rel="noopener noreferrer"
                       className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 md:self-auto self-start"
                     >
-                      <LuExternalLink className="w-4 h-4" />
+                      <span style={{fontSize:"14px"}}>↗</span>
                       Documentação
                     </a>
                   </div>
@@ -842,9 +829,9 @@ export default function IntegracoesPage() {
                       <div className={`p-4 rounded-xl ${testResults['gemini'].success ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
                         <div className="flex items-center gap-2">
                           {testResults['gemini'].success ? (
-                            <LuCircleCheck className="w-5 h-5 text-green-600" />
+                            <span style={{fontSize:"14px"}}>✓</span>
                           ) : (
-                            <LuCircleAlert className="w-5 h-5 text-red-600" />
+                            <span style={{fontSize:"14px"}}>⚠</span>
                           )}
                           <span className={testResults['gemini'].success ? 'text-green-700' : 'text-red-700'}>
                             {testResults['gemini'].message}
@@ -861,9 +848,9 @@ export default function IntegracoesPage() {
                         className="flex w-full md:w-auto justify-center md:justify-start items-center gap-2 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {testing === 'gemini' ? (
-                          <LuRefreshCw className="w-4 h-4 animate-spin" />
+                          <span style={{fontSize:"14px"}}>↻</span>
                         ) : (
-                          <LuTestTube className="w-4 h-4" />
+                          <span style={{fontSize:"14px"}}>🧪</span>
                         )}
                         Testar Conexão
                       </button>
@@ -873,7 +860,7 @@ export default function IntegracoesPage() {
                         className="flex w-full md:w-auto justify-center md:justify-start items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition-colors disabled:opacity-50"
                       >
                         {saving === 'gemini' ? (
-                          <LuRefreshCw className="w-4 h-4 animate-spin" />
+                          <span style={{fontSize:"14px"}}>↻</span>
                         ) : (
                           <LuSave className="w-4 h-4" />
                         )}
@@ -884,7 +871,7 @@ export default function IntegracoesPage() {
                           onClick={() => handleDisconnect('gemini')}
                           className="flex w-full md:w-auto justify-center md:justify-start items-center gap-2 px-4 py-2.5 text-red-600 hover:bg-red-50 rounded-xl font-medium transition-colors md:ml-auto"
                         >
-                          <LuTrash2 className="w-4 h-4" />
+                          <LuTrash className="w-4 h-4" />
                           Desconectar
                         </button>
                       )}
@@ -898,7 +885,7 @@ export default function IntegracoesPage() {
                 <div className="p-4 sm:p-6">
                   <div className="flex flex-col md:flex-row md:items-center gap-4 mb-6">
                     <div className="p-3 rounded-xl bg-violet-50">
-                      <LuZap className="w-6 h-6 text-violet-600" />
+                      <span style={{fontSize:"14px"}}>⚡</span>
                     </div>
                     <div className="flex-1">
                       <h2 className="text-xl font-bold text-gray-900">DeepSeek</h2>
@@ -910,7 +897,7 @@ export default function IntegracoesPage() {
                       rel="noopener noreferrer"
                       className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 md:self-auto self-start"
                     >
-                      <LuExternalLink className="w-4 h-4" />
+                      <span style={{fontSize:"14px"}}>↗</span>
                       Documentação
                     </a>
                   </div>
@@ -983,9 +970,9 @@ export default function IntegracoesPage() {
                       <div className={`p-4 rounded-xl ${testResults['deepseek'].success ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
                         <div className="flex items-center gap-2">
                           {testResults['deepseek'].success ? (
-                            <LuCircleCheck className="w-5 h-5 text-green-600" />
+                            <span style={{fontSize:"14px"}}>✓</span>
                           ) : (
-                            <LuCircleAlert className="w-5 h-5 text-red-600" />
+                            <span style={{fontSize:"14px"}}>⚠</span>
                           )}
                           <span className={testResults['deepseek'].success ? 'text-green-700' : 'text-red-700'}>
                             {testResults['deepseek'].message}
@@ -1002,9 +989,9 @@ export default function IntegracoesPage() {
                         className="flex w-full md:w-auto justify-center md:justify-start items-center gap-2 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {testing === 'deepseek' ? (
-                          <LuRefreshCw className="w-4 h-4 animate-spin" />
+                          <span style={{fontSize:"14px"}}>↻</span>
                         ) : (
-                          <LuTestTube className="w-4 h-4" />
+                          <span style={{fontSize:"14px"}}>🧪</span>
                         )}
                         Testar Conexão
                       </button>
@@ -1014,7 +1001,7 @@ export default function IntegracoesPage() {
                         className="flex w-full md:w-auto justify-center md:justify-start items-center gap-2 px-6 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-semibold transition-colors disabled:opacity-50"
                       >
                         {saving === 'deepseek' ? (
-                          <LuRefreshCw className="w-4 h-4 animate-spin" />
+                          <span style={{fontSize:"14px"}}>↻</span>
                         ) : (
                           <LuSave className="w-4 h-4" />
                         )}
@@ -1025,7 +1012,7 @@ export default function IntegracoesPage() {
                           onClick={() => handleDisconnect('deepseek')}
                           className="flex w-full md:w-auto justify-center md:justify-start items-center gap-2 px-4 py-2.5 text-red-600 hover:bg-red-50 rounded-xl font-medium transition-colors md:ml-auto"
                         >
-                          <LuTrash2 className="w-4 h-4" />
+                          <LuTrash className="w-4 h-4" />
                           Desconectar
                         </button>
                       )}
@@ -1078,7 +1065,7 @@ function AiUsageSection() {
   if (loading) {
     return (
       <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center">
-        <LuRefreshCw className="w-6 h-6 animate-spin text-violet-600 mx-auto mb-2" />
+        <span style={{fontSize:"14px"}}>↻</span>
         <p className="text-gray-500 text-sm">Carregando dados de uso...</p>
       </div>
     );
@@ -1087,7 +1074,7 @@ function AiUsageSection() {
   return (
     <div className="space-y-6">
       <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-        <LuInfo className="w-5 h-5 text-violet-600" />
+        <span style={{fontSize:"14px"}}>ⓘ</span>
         Uso de IA e Custos
       </h2>
 

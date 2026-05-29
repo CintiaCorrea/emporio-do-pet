@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { LuPlus, LuTrash2, LuPawPrint, LuCalendar } from 'react-icons/lu';
+import { LuPlus, LuTrash, LuPawPrint, LuCalendar } from 'react-icons/lu';
 import { PetInline, emptyPetInline, normalizeBreed, formatDateMask } from '@/types/pet-inline';
 
 interface PetsTabProps {
@@ -103,8 +103,7 @@ export default function PetsTab({ pets, onPetsChange, tutorId }: PetsTabProps) {
       const res = await fetch('/api/breeds', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ species: pet.species, name: normalized }),
-      });
+        body: JSON.stringify({ species: pet.species, name: normalized })});
 
       const data = await res.json().catch(() => null);
       if (res.ok) {
@@ -189,7 +188,7 @@ export default function PetsTab({ pets, onPetsChange, tutorId }: PetsTabProps) {
                     className="p-2 text-red-500 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all duration-300"
                     title="Remover pet"
                   >
-                    <LuTrash2 className="w-4 h-4" />
+                    <LuTrash className="w-4 h-4" />
                   </button>
                 </div>
 

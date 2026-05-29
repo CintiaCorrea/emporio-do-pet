@@ -2,22 +2,16 @@
 
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { 
-  LuPercent,
-  LuSearch,
-  LuFilter,
+import {
+  LuSearch
   LuPlus,
   LuDownload,
   LuUser,
   LuCalendar,
-  LuDollarSign,
-  LuTrendingUp,
-  LuCircleCheck,
-  LuClock,
+  LuDollarSign
   LuPencil,
   LuEye,
-  LuTrash2,
-  LuRefreshCw
+  LuTrash
 } from 'react-icons/lu';
 
 // Tipos para Comissões
@@ -310,7 +304,7 @@ export default function ComissoesPage() {
                     onClick={fetchCommissions}
                     className="group px-6 py-3 text-sm font-semibold text-gray-700 bg-white/80 border border-gray-200/80 rounded-2xl hover:bg-white hover:border-gray-300 hover:shadow-lg transition-all duration-300 hover:scale-105 flex items-center space-x-2"
                   >
-                    <LuRefreshCw className="w-4 h-4" />
+                    <span style={{fontSize:"14px"}}>↻</span>
                     <span>Atualizar</span>
                   </button>
                 </div>
@@ -347,7 +341,7 @@ export default function ComissoesPage() {
               <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-blue-500/5 p-6 hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-300 hover:scale-105">
                 <div className="flex items-center gap-3">
                   <div className="p-3 rounded-xl bg-cyan-50">
-                    <LuCircleCheck className="w-6 h-6 text-cyan-600" />
+                    <span style={{fontSize:"14px"}}>✓</span>
                   </div>
                   <div>
                     <p className="text-sm font-semibold text-gray-600">Pagas</p>
@@ -359,7 +353,7 @@ export default function ComissoesPage() {
               <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-blue-500/5 p-6 hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-300 hover:scale-105">
                 <div className="flex items-center gap-3">
                   <div className="p-3 rounded-xl bg-orange-50">
-                    <LuClock className="w-6 h-6 text-orange-600" />
+                    <span style={{fontSize:"14px"}}>⏱</span>
                   </div>
                   <div>
                     <p className="text-sm font-semibold text-gray-600">Pendentes</p>
@@ -383,7 +377,7 @@ export default function ComissoesPage() {
               <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-blue-500/5 p-6 hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-300 hover:scale-105">
                 <div className="flex items-center gap-3">
                   <div className="p-3 rounded-xl bg-purple-50">
-                    <LuPercent className="w-6 h-6 text-purple-600" />
+                    <span style={{fontSize:"14px"}}>%</span>
                   </div>
                   <div>
                     <p className="text-sm font-semibold text-gray-600">Taxa Média</p>
@@ -425,7 +419,7 @@ export default function ComissoesPage() {
 
                 {/* Filtro Status */}
                 <div className="flex items-center gap-2">
-                  <LuFilter className="text-gray-400 w-5 h-5" />
+                  <span style={{fontSize:"14px"}}>⌕</span>
                   <select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value as CommissionStatus | 'all')}
@@ -461,7 +455,7 @@ export default function ComissoesPage() {
             {/* Tabela de Comissões */}
             {filteredCommissions.length === 0 && !loading ? (
               <div className="flex flex-col items-center justify-center py-20 bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl">
-                <LuPercent className="w-16 h-16 text-gray-400 mb-4" />
+                <span style={{fontSize:"14px"}}>%</span>
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">Nenhuma comissão encontrada</h3>
                 <p className="text-gray-500 text-center max-w-md">
                   {searchTerm || statusFilter !== 'all' || professionalFilter !== 'all'
@@ -652,7 +646,7 @@ export default function ComissoesPage() {
                     onClick={() => handleMarkAsPaid(selectedCommission)}
                     className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-cyan-600 to-green-600 hover:from-cyan-500 hover:to-green-500 text-white rounded-xl font-semibold transition-all"
                   >
-                    <LuCircleCheck className="w-5 h-5" />
+                    <span style={{fontSize:"14px"}}>✓</span>
                     Marcar como Pago
                   </button>
                 )}
@@ -661,7 +655,7 @@ export default function ComissoesPage() {
                     onClick={() => handleDeleteCommission(selectedCommission)}
                     className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold transition-all"
                   >
-                    <LuTrash2 className="w-5 h-5" />
+                    <LuTrash className="w-5 h-5" />
                     Cancelar Comissão
                   </button>
                 )}
