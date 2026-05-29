@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
-import { LuBell, LuCheck, LuCheckCheck, LuX, LuMessageSquare, LuCalendar, LuZap, LuMegaphone } from 'react-icons/lu';
+import { LuBell, LuCheck, LuCheckCheck, LuMessageSquare, LuCalendar, LuZap, LuMegaphone } from 'react-icons/lu';
 import { useNotifications, Notification } from '@/hooks/useNotifications';
 import { toast } from 'sonner';
 
@@ -15,14 +15,11 @@ export default function NotificationBell() {
     unreadCount,
     connected,
     markAsRead,
-    markAllAsRead,
-  } = useNotifications({
+    markAllAsRead} = useNotifications({
     onNotification: (notification) => {
       toast(notification.title, {
-        description: notification.message,
-      });
-    },
-  });
+        description: notification.message});
+    }});
 
   // Close dropdown when clicking outside
   useEffect(() => {

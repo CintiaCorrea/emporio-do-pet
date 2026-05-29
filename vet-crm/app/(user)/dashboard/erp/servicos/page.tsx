@@ -8,7 +8,6 @@ import {
   LuPlus,
   LuPencil,
   LuTrash2,
-  LuX,
   LuDollarSign,
   LuTrendingUp,
   LuClock,
@@ -146,14 +145,12 @@ export default function ServicesPage() {
       const response = await fetch('/api/products', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-        },
+          'Content-Type': 'application/json'},
         body: JSON.stringify({
           ...formData,
           type: 'SERVICE',
           stock: 0
-        }),
-      });
+        })});
 
       if (!response.ok) {
         const data = await response.json().catch(() => null);
@@ -182,14 +179,12 @@ export default function ServicesPage() {
       const response = await fetch(`/api/products/${selectedService.id}`, {
         method: 'PATCH',
         headers: {
-          'Content-Type': 'application/json',
-        },
+          'Content-Type': 'application/json'},
         body: JSON.stringify({
           name: formData.name,
           price: formData.price,
           type: 'SERVICE'
-        }),
-      });
+        })});
 
       if (!response.ok) {
         const data = await response.json().catch(() => null);
@@ -334,7 +329,7 @@ export default function ServicesPage() {
                   onClick={() => setError(null)}
                   className="float-right text-red-500 hover:text-red-700"
                 >
-                  <LuX className="w-4 h-4" />
+                  <span style={{fontSize:"14px"}}>✕</span>
                 </button>
               </div>
             )}
@@ -573,7 +568,7 @@ export default function ServicesPage() {
                   }}
                   className="p-2 hover:bg-gray-100 rounded-2xl transition-colors"
                 >
-                  <LuX className="w-5 h-5 text-gray-500" />
+                  <span style={{fontSize:"14px"}}>✕</span>
                 </button>
               </div>
             </div>
@@ -726,7 +721,7 @@ export default function ServicesPage() {
                   onClick={() => setIsCreateModalOpen(false)}
                   className="p-2 hover:bg-gray-100 rounded-2xl transition-colors"
                 >
-                  <LuX className="w-5 h-5 text-gray-500" />
+                  <span style={{fontSize:"14px"}}>✕</span>
                 </button>
               </div>
             </div>

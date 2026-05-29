@@ -13,7 +13,6 @@ import {
   LuClock,
   LuCircleCheck,
   LuActivity,
-  LuX,
   LuPencil,
   LuCopy,
   LuMail,
@@ -112,8 +111,7 @@ export default function AutomacoesPage() {
       const response = await fetch(`/api/automations/${automationId}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus }),
-      });
+        body: JSON.stringify({ status: newStatus })});
 
       const data = await response.json();
 
@@ -141,8 +139,7 @@ export default function AutomacoesPage() {
       const response = await fetch(`/api/automations/${automationId}/duplicate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
-      });
+        body: JSON.stringify({})});
 
       const data = await response.json();
 
@@ -164,8 +161,7 @@ export default function AutomacoesPage() {
     setActionLoading(automationId);
     try {
       const response = await fetch(`/api/automations/${automationId}/execute`, {
-        method: 'POST',
-      });
+        method: 'POST'});
 
       const data = await response.json();
 
@@ -463,7 +459,7 @@ export default function AutomacoesPage() {
                   </div>
                 </div>
                 <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                  <LuX className="w-5 h-5 text-gray-500" />
+                  <span style={{fontSize:"14px"}}>✕</span>
                 </button>
               </div>
             </div>

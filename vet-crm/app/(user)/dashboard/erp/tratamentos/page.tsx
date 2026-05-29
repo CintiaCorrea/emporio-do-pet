@@ -7,7 +7,6 @@ import {
   LuPlus,
   LuPencil,
   LuTrash2,
-  LuX,
   LuUser,
   LuPawPrint,
   LuCalendar,
@@ -99,14 +98,12 @@ export default function TratamentosPage() {
     petId: '',
     description: '',
     cost: 0,
-    productId: '' as string | null,
-  });
+    productId: '' as string | null});
 
   const [editFormData, setEditFormData] = useState({
     description: '',
     cost: 0,
-    productId: '' as string | null,
-  });
+    productId: '' as string | null});
 
   useEffect(() => {
     fetchTreatments();
@@ -173,8 +170,7 @@ export default function TratamentosPage() {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
-      currency: 'BRL',
-    }).format(value);
+      currency: 'BRL'}).format(value);
   };
 
   const formatDate = (dateString: string) => {
@@ -187,8 +183,7 @@ export default function TratamentosPage() {
       month: '2-digit',
       year: 'numeric',
       hour: '2-digit',
-      minute: '2-digit',
-    });
+      minute: '2-digit'});
   };
 
   const getProductTypeBadge = (type: string) => {
@@ -261,8 +256,7 @@ export default function TratamentosPage() {
     setEditFormData({
       description: treatment.description,
       cost: treatment.cost,
-      productId: treatment.productId || '',
-    });
+      productId: treatment.productId || ''});
     setIsEditModalOpen(true);
   };
 
@@ -271,8 +265,7 @@ export default function TratamentosPage() {
     setFormData((prev) => ({
       ...prev,
       appointmentId,
-      petId: appointment?.pet?.id || '',
-    }));
+      petId: appointment?.pet?.id || ''}));
   };
 
   const handleCreateTreatment = async () => {
@@ -292,9 +285,7 @@ export default function TratamentosPage() {
           petId: formData.petId,
           description: formData.description,
           cost: formData.cost,
-          productId: formData.productId || null,
-        }),
-      });
+          productId: formData.productId || null})});
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => null);
@@ -315,8 +306,7 @@ export default function TratamentosPage() {
         petId: '',
         description: '',
         cost: 0,
-        productId: '',
-      });
+        productId: ''});
       fetchTreatments();
     } catch (err) {
       console.error('Erro ao criar tratamento:', err);
@@ -338,9 +328,7 @@ export default function TratamentosPage() {
         body: JSON.stringify({
           description: editFormData.description,
           cost: editFormData.cost,
-          productId: editFormData.productId || null,
-        }),
-      });
+          productId: editFormData.productId || null})});
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => null);
@@ -374,8 +362,7 @@ export default function TratamentosPage() {
     if (!treatmentToDelete) return;
 
     const response = await fetch(`/api/treatments/${treatmentToDelete.id}`, {
-      method: 'DELETE',
-    });
+      method: 'DELETE'});
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => null);
@@ -398,8 +385,7 @@ export default function TratamentosPage() {
   const stats = {
     total: totalItems,
     totalCost,
-    avgCost: totalItems > 0 ? totalCost / totalItems : 0,
-  };
+    avgCost: totalItems > 0 ? totalCost / totalItems : 0};
 
   if (loading && treatments.length === 0) {
     return (
@@ -461,7 +447,7 @@ export default function TratamentosPage() {
                 onClick={() => setError(null)}
                 className="float-right text-red-500 hover:text-red-700"
               >
-                <LuX className="w-4 h-4" />
+                <span style={{fontSize:"14px"}}>✕</span>
               </button>
             </div>
           )}
@@ -473,31 +459,26 @@ export default function TratamentosPage() {
                 label: 'Total de Tratamentos',
                 value: stats.total,
                 color: 'gray',
-                icon: LuSyringe,
-              },
+                icon: LuSyringe},
               {
                 label: 'Custo Total',
                 value: formatCurrency(stats.totalCost),
                 color: 'green',
-                icon: LuDollarSign,
-              },
+                icon: LuDollarSign},
               {
                 label: 'Custo Médio',
                 value: formatCurrency(stats.avgCost),
                 color: 'blue',
-                icon: LuTrendingUp,
-              },
+                icon: LuTrendingUp},
             ].map((stat) => {
               const colorMap: Record<string, string> = {
                 gray: 'from-gray-500/10 to-gray-500/5 border-gray-200/80',
                 green: 'from-green-500/10 to-green-500/5 border-green-200/80',
-                blue: 'from-blue-500/10 to-blue-500/5 border-blue-200/80',
-              };
+                blue: 'from-blue-500/10 to-blue-500/5 border-blue-200/80'};
               const iconColorMap: Record<string, string> = {
                 gray: 'text-gray-600',
                 green: 'text-green-600',
-                blue: 'text-blue-600',
-              };
+                blue: 'text-blue-600'};
               return (
                 <div
                   key={stat.label}
@@ -695,7 +676,7 @@ export default function TratamentosPage() {
                   onClick={() => setIsModalOpen(false)}
                   className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
                 >
-                  <LuX className="w-5 h-5" />
+                  <span style={{fontSize:"14px"}}>✕</span>
                 </button>
               </div>
             </div>
@@ -807,7 +788,7 @@ export default function TratamentosPage() {
                   onClick={() => setIsCreateModalOpen(false)}
                   className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
                 >
-                  <LuX className="w-5 h-5" />
+                  <span style={{fontSize:"14px"}}>✕</span>
                 </button>
               </div>
             </div>
@@ -921,7 +902,7 @@ export default function TratamentosPage() {
                   onClick={() => setIsEditModalOpen(false)}
                   className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
                 >
-                  <LuX className="w-5 h-5" />
+                  <span style={{fontSize:"14px"}}>✕</span>
                 </button>
               </div>
             </div>
@@ -966,8 +947,7 @@ export default function TratamentosPage() {
                   onChange={(e) =>
                     setEditFormData((prev) => ({
                       ...prev,
-                      cost: parseFloat(e.target.value) || 0,
-                    }))
+                      cost: parseFloat(e.target.value) || 0}))
                   }
                   className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-cyan-500/30 focus:border-cyan-300"
                 />

@@ -9,7 +9,6 @@ import {
   LuPlus,
   LuPencil,
   LuTrash2,
-  LuX,
   LuUser,
   LuPawPrint,
   LuCalendar,
@@ -513,10 +512,8 @@ export default function ConsultationsPage() {
       const response = await fetch('/api/appointments', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(appointmentData),
-      });
+          'Content-Type': 'application/json'},
+        body: JSON.stringify(appointmentData)});
 
       const data = await response.json();
 
@@ -566,10 +563,8 @@ export default function ConsultationsPage() {
       const response = await fetch(`/api/appointments/${selectedConsultation.id}`, {
         method: 'PATCH',
         headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(appointmentData),
-      });
+          'Content-Type': 'application/json'},
+        body: JSON.stringify(appointmentData)});
 
       const data = await response.json();
 
@@ -596,10 +591,8 @@ export default function ConsultationsPage() {
       const response = await fetch(`/api/appointments/${id}`, {
         method: 'PATCH',
         headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ status: 'IN_PROGRESS' }),
-      });
+          'Content-Type': 'application/json'},
+        body: JSON.stringify({ status: 'IN_PROGRESS' })});
 
       if (!response.ok) {
         const data = await response.json().catch(() => null);
@@ -622,10 +615,8 @@ export default function ConsultationsPage() {
       const response = await fetch(`/api/appointments/${id}`, {
         method: 'PATCH',
         headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ status: 'COMPLETED' }),
-      });
+          'Content-Type': 'application/json'},
+        body: JSON.stringify({ status: 'COMPLETED' })});
 
       if (!response.ok) {
         const data = await response.json().catch(() => null);
@@ -651,10 +642,8 @@ export default function ConsultationsPage() {
       const response = await fetch(`/api/appointments/${id}`, {
         method: 'PATCH',
         headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ status: 'CANCELED' }),
-      });
+          'Content-Type': 'application/json'},
+        body: JSON.stringify({ status: 'CANCELED' })});
 
       if (!response.ok) {
         const data = await response.json().catch(() => null);
@@ -680,8 +669,7 @@ export default function ConsultationsPage() {
     if (!consultationToDelete) return;
 
     const response = await fetch(`/api/appointments/${consultationToDelete.id}`, {
-      method: 'DELETE',
-    });
+      method: 'DELETE'});
 
     if (response.ok) {
       toast.success('Consulta excluída com sucesso!');
@@ -777,7 +765,7 @@ export default function ConsultationsPage() {
                   onClick={() => setError(null)}
                   className="float-right text-red-500 hover:text-red-700"
                 >
-                  <LuX className="w-4 h-4" />
+                  <span style={{fontSize:"14px"}}>✕</span>
                 </button>
               </div>
             )}
@@ -1013,7 +1001,7 @@ export default function ConsultationsPage() {
                                   className="p-2 text-orange-600 hover:bg-orange-50 rounded-2xl transition-colors"
                                   title="Cancelar consulta"
                                 >
-                                  <LuX className="w-4 h-4" />
+                                  <span style={{fontSize:"14px"}}>✕</span>
                                 </button>
                               )}
                               <Link
@@ -1092,7 +1080,7 @@ export default function ConsultationsPage() {
                   onClick={() => setIsModalOpen(false)}
                   className="p-2 hover:bg-gray-100 rounded-2xl transition-colors"
                 >
-                  <LuX className="w-5 h-5 text-gray-500" />
+                  <span style={{fontSize:"14px"}}>✕</span>
                 </button>
               </div>
             </div>
@@ -1274,7 +1262,7 @@ export default function ConsultationsPage() {
                   }}
                   className="p-2 hover:bg-gray-100 rounded-2xl transition-colors"
                 >
-                  <LuX className="w-5 h-5 text-gray-500" />
+                  <span style={{fontSize:"14px"}}>✕</span>
                 </button>
               </div>
             </div>

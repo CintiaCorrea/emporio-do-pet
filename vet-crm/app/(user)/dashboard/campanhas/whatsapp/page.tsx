@@ -14,12 +14,10 @@ import {
   LuTrash2,
   LuChartColumn,
   LuMessageCircle,
-  LuX,
   LuCheck,
   LuCheckCheck,
   LuClock,
-  LuRefreshCw,
-} from 'react-icons/lu';
+  LuRefreshCw} from 'react-icons/lu';
 
 type WhatsAppCampaign = {
   id: string;
@@ -50,8 +48,7 @@ export default function WhatsAppCampaignsPage() {
     description: '',
     messageContent: '',
     audienceType: 'tutors',
-    scheduledFor: '',
-  });
+    scheduledFor: ''});
 
   useEffect(() => {
     fetchCampaigns();
@@ -74,8 +71,7 @@ export default function WhatsAppCampaignsPage() {
       const response = await fetch('/api/whatsapp/campaigns', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
+        body: JSON.stringify(formData)});
 
       if (response.ok) {
         setShowCreateModal(false);
@@ -84,8 +80,7 @@ export default function WhatsAppCampaignsPage() {
           description: '',
           messageContent: '',
           audienceType: 'tutors',
-          scheduledFor: '',
-        });
+          scheduledFor: ''});
         fetchCampaigns();
       }
     } catch (error) {
@@ -97,13 +92,11 @@ export default function WhatsAppCampaignsPage() {
     try {
       // First build audience
       await fetch(`/api/whatsapp/campaigns/${id}/build-audience`, {
-        method: 'POST',
-      });
+        method: 'POST'});
 
       // Then start
       const response = await fetch(`/api/whatsapp/campaigns/${id}/start`, {
-        method: 'POST',
-      });
+        method: 'POST'});
 
       if (response.ok) {
         fetchCampaigns();
@@ -116,8 +109,7 @@ export default function WhatsAppCampaignsPage() {
   const pauseCampaign = async (id: string) => {
     try {
       const response = await fetch(`/api/whatsapp/campaigns/${id}/pause`, {
-        method: 'POST',
-      });
+        method: 'POST'});
 
       if (response.ok) {
         fetchCampaigns();
@@ -132,8 +124,7 @@ export default function WhatsAppCampaignsPage() {
 
     try {
       const response = await fetch(`/api/whatsapp/campaigns/${id}`, {
-        method: 'DELETE',
-      });
+        method: 'DELETE'});
 
       if (response.ok) {
         fetchCampaigns();
@@ -413,7 +404,7 @@ export default function WhatsAppCampaignsPage() {
                 onClick={() => setShowCreateModal(false)}
                 className="p-2 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
               >
-                <LuX className="w-5 h-5" />
+                <span style={{fontSize:"14px"}}>✕</span>
               </button>
             </div>
             <div className="p-6 space-y-4">
@@ -513,7 +504,7 @@ export default function WhatsAppCampaignsPage() {
                 }}
                 className="p-2 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
               >
-                <LuX className="w-5 h-5" />
+                <span style={{fontSize:"14px"}}>✕</span>
               </button>
             </div>
             <div className="p-6">

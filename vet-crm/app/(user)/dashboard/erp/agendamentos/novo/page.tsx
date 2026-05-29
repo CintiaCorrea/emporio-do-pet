@@ -13,7 +13,6 @@ import {
   LuDollarSign,
   LuFileText,
   LuSave,
-  LuX,
   LuPlus
 } from 'react-icons/lu';
 import toast from 'react-hot-toast';
@@ -72,8 +71,7 @@ export default function NewAppointmentPage() {
     notes: '',
     value: 0,
     status: 'SCHEDULED',
-    paymentStatus: 'PENDING',
-  });
+    paymentStatus: 'PENDING'});
 
   // Carregar dados iniciais
   useEffect(() => {
@@ -202,17 +200,14 @@ export default function NewAppointmentPage() {
         notes: formData.notes || null,
         value: formData.value || 0,
         status: formData.status,
-        paymentStatus: formData.paymentStatus,
-      };
+        paymentStatus: formData.paymentStatus};
 
       // Enviar para API
       const response = await fetch('/api/appointments', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(appointmentData),
-      });
+          'Content-Type': 'application/json'},
+        body: JSON.stringify(appointmentData)});
 
       const data = await response.json();
 
@@ -277,14 +272,14 @@ export default function NewAppointmentPage() {
               <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-2xl">
                 <div className="flex items-center justify-between">
                   <p className="text-red-600 text-sm font-medium flex items-center gap-2">
-                    <LuX className="w-4 h-4" />
+                    <span style={{fontSize:"14px"}}>✕</span>
                     {error}
                   </p>
                   <button 
                     onClick={() => setError(null)}
                     className="text-red-500 hover:text-red-700"
                   >
-                    <LuX className="w-4 h-4" />
+                    <span style={{fontSize:"14px"}}>✕</span>
                   </button>
                 </div>
               </div>
@@ -548,7 +543,7 @@ export default function NewAppointmentPage() {
                     href="/dashboard/erp/agendamentos"
                     className="px-6 py-3 text-gray-700 bg-gray-100 rounded-2xl hover:bg-gray-200 transition-colors flex items-center gap-2"
                   >
-                    <LuX className="w-4 h-4" />
+                    <span style={{fontSize:"14px"}}>✕</span>
                     Cancelar
                   </Link>
                   <button

@@ -4,7 +4,7 @@ import { Suspense, useEffect, useMemo, useRef, useState, type ChangeEvent, type 
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { LuArrowLeft, LuPawPrint, LuVenetianMask, LuCalendar, LuUser, LuSave, LuX, LuCamera, LuLoaderCircle, LuTrash2, LuFiles } from "react-icons/lu";
+import { LuArrowLeft, LuPawPrint, LuVenetianMask, LuCalendar, LuUser, LuSave, LuCamera, LuLoaderCircle, LuTrash2, LuFiles } from "react-icons/lu";
 import toast from "react-hot-toast";
 
 interface Tutor {
@@ -123,8 +123,7 @@ const emptyPet: Pet = {
   observations: "",
   documents: [],
   owner: "",
-  avatar: "",
-};
+  avatar: ""};
 
 interface DocumentTemplate {
   id: string;
@@ -150,8 +149,7 @@ function NewPetPageContent() {
   const preselectedTutorId = searchParams.get('tutorId');
   const [pet, setPet] = useState<Pet>(() => ({
     ...emptyPet,
-    ...(preselectedTutorId ? { tutorId: preselectedTutorId } : {}),
-  }));
+    ...(preselectedTutorId ? { tutorId: preselectedTutorId } : {})}));
   const [breedOptions, setBreedOptions] = useState<string[]>([]);
   const [newBreed, setNewBreed] = useState<string>("");
   const [breedsLoading, setBreedsLoading] = useState(false);
@@ -399,17 +397,14 @@ function NewPetPageContent() {
         allergies: parseAllergies(pet.allergies),
         medicalNotes: sanitize(pet.medicalNotes),
         documents: pet.documents,
-        birthDate: birthDateIso,
-      };
+        birthDate: birthDateIso};
 
       // Enviar dados do novo pet para a API
       const response = await fetch('/api/pets', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(petToSubmit),
-      });
+          'Content-Type': 'application/json'},
+        body: JSON.stringify(petToSubmit)});
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -452,8 +447,7 @@ function NewPetPageContent() {
         const res = await fetch("/api/breeds", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ species: pet.species, name: normalized }),
-        });
+          body: JSON.stringify({ species: pet.species, name: normalized })});
 
         const data = await res.json().catch(() => null);
         if (!res.ok) {
@@ -504,8 +498,7 @@ function NewPetPageContent() {
       const sigRes = await fetch("/api/cloudinary/signature", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kind: "petAvatar", petKey: petKeyRef.current }),
-      });
+        body: JSON.stringify({ kind: "petAvatar", petKey: petKeyRef.current })});
       const sigData = await sigRes.json().catch(() => null);
       if (!sigRes.ok) throw new Error(sigData?.error || "Erro ao preparar upload");
 
@@ -524,8 +517,7 @@ function NewPetPageContent() {
 
       const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
         method: "POST",
-        body: form,
-      });
+        body: form});
       const uploadData = await uploadRes.json().catch(() => null);
       if (!uploadRes.ok) {
         const msg =

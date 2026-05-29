@@ -8,7 +8,6 @@ import {
   LuPlus,
   LuPencil,
   LuTrash2,
-  LuX,
   LuPill,
   LuSyringe,
   LuTriangleAlert,
@@ -159,10 +158,8 @@ export default function ProductsPage() {
       const response = await fetch('/api/products', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
+          'Content-Type': 'application/json'},
+        body: JSON.stringify(formData)});
 
       if (!response.ok) {
         const data = await response.json().catch(() => null);
@@ -191,10 +188,8 @@ export default function ProductsPage() {
       const response = await fetch(`/api/products/${selectedProduct.id}`, {
         method: 'PATCH',
         headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
+          'Content-Type': 'application/json'},
+        body: JSON.stringify(formData)});
 
       if (!response.ok) {
         const data = await response.json().catch(() => null);
@@ -370,7 +365,7 @@ export default function ProductsPage() {
                   onClick={() => setError(null)}
                   className="float-right text-red-500 hover:text-red-700"
                 >
-                  <LuX className="w-4 h-4" />
+                  <span style={{fontSize:"14px"}}>✕</span>
                 </button>
               </div>
             )}
@@ -646,7 +641,7 @@ export default function ProductsPage() {
                   }}
                   className="p-2 hover:bg-gray-100 rounded-2xl transition-colors"
                 >
-                  <LuX className="w-5 h-5 text-gray-500" />
+                  <span style={{fontSize:"14px"}}>✕</span>
                 </button>
               </div>
             </div>
@@ -815,7 +810,7 @@ export default function ProductsPage() {
                   onClick={() => setIsCreateModalOpen(false)}
                   className="p-2 hover:bg-gray-100 rounded-2xl transition-colors"
                 >
-                  <LuX className="w-5 h-5 text-gray-500" />
+                  <span style={{fontSize:"14px"}}>✕</span>
                 </button>
               </div>
             </div>

@@ -11,7 +11,6 @@ import {
   LuMessageSquare,
   LuCheck,
   LuClock,
-  LuX,
   LuPause,
   LuCircleAlert,
   LuTrash2,
@@ -25,8 +24,7 @@ import {
   LuFile,
   LuLink,
   LuPhone,
-  LuCornerDownRight,
-} from 'react-icons/lu';
+  LuCornerDownRight} from 'react-icons/lu';
 import { toast } from 'sonner';
 
 interface TemplateComponent {
@@ -65,51 +63,42 @@ const STATUS_CONFIG: Record<string, { bg: string; text: string; icon: React.Reac
     bg: 'bg-cyan-100',
     text: 'text-cyan-700',
     icon: <LuCheck className="w-5 h-5" />,
-    label: 'Aprovado',
-  },
+    label: 'Aprovado'},
   PENDING: {
     bg: 'bg-orange-100',
     text: 'text-orange-700',
     icon: <LuClock className="w-5 h-5" />,
-    label: 'Pendente',
-  },
+    label: 'Pendente'},
   REJECTED: {
     bg: 'bg-red-100',
     text: 'text-red-700',
-    icon: <LuX className="w-5 h-5" />,
-    label: 'Rejeitado',
-  },
+    icon: <span style={{fontSize:"14px"}}>✕</span>,
+    label: 'Rejeitado'},
   PAUSED: {
     bg: 'bg-orange-100',
     text: 'text-orange-700',
     icon: <LuPause className="w-5 h-5" />,
-    label: 'Pausado',
-  },
+    label: 'Pausado'},
   DISABLED: {
     bg: 'bg-gray-100',
     text: 'text-gray-700',
     icon: <LuCircleAlert className="w-5 h-5" />,
-    label: 'Desativado',
-  },
+    label: 'Desativado'},
   IN_APPEAL: {
     bg: 'bg-blue-100',
     text: 'text-blue-700',
     icon: <LuClock className="w-5 h-5" />,
-    label: 'Em Recurso',
-  },
-};
+    label: 'Em Recurso'}};
 
 const CATEGORY_LABELS: Record<string, string> = {
   MARKETING: 'Marketing',
   UTILITY: 'Utilidade',
-  AUTHENTICATION: 'Autenticação',
-};
+  AUTHENTICATION: 'Autenticação'};
 
 const LANGUAGE_LABELS: Record<string, string> = {
   pt_BR: 'Português (Brasil)',
   en_US: 'English (US)',
-  es: 'Español',
-};
+  es: 'Español'};
 
 export default function TemplateDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -165,8 +154,7 @@ export default function TemplateDetailPage({ params }: { params: Promise<{ id: s
 
     try {
       const response = await fetch(`/api/whatsapp-templates/${template.name}`, {
-        method: 'DELETE',
-      });
+        method: 'DELETE'});
 
       const data = await response.json();
 
@@ -196,9 +184,7 @@ export default function TemplateDetailPage({ params }: { params: Promise<{ id: s
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           bodyText: editBodyText,
-          headerText: editHeaderText || undefined,
-        }),
-      });
+          headerText: editHeaderText || undefined})});
 
       const data = await response.json();
 

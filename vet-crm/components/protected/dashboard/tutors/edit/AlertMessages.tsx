@@ -1,4 +1,3 @@
-import { LuX } from 'react-icons/lu';
 
 interface AlertMessagesProps {
   error: string | null;
@@ -16,7 +15,7 @@ export default function AlertMessages({ error, success, onDismissError }: AlertM
             onClick={onDismissError}
             className="text-red-500 hover:text-red-700 p-1 rounded-lg"
           >
-            <LuX className="w-4 h-4" />
+            <span style={{fontSize:"14px"}}>✕</span>
           </button>
         </div>
       )}

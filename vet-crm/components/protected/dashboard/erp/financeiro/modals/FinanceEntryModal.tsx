@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { LuX, LuFileText, LuUser, LuDollarSign, LuCalendar, LuLoader } from "react-icons/lu";
+import {  LuFileText, LuUser, LuDollarSign, LuCalendar, LuLoader } from "react-icons/lu";
 
 export type FinanceEntryType = "INCOME" | "EXPENSE";
 export type FinanceEntryStatus = "PAID" | "PENDING" | "OVERDUE" | "CANCELED";
@@ -43,8 +43,7 @@ const defaultValues: FinanceEntryFormValues = {
   description: "",
   amountBRL: "",
   date: new Date().toISOString().slice(0, 10),
-  dueDate: "",
-};
+  dueDate: ""};
 
 const FinanceEntryModal = ({ isOpen, title, initialValues, onClose, onSubmit }: Props) => {
   const [isMounted, setIsMounted] = useState(false);
@@ -127,7 +126,7 @@ const FinanceEntryModal = ({ isOpen, title, initialValues, onClose, onSubmit }: 
               disabled={loading}
               className="group flex items-center justify-center w-10 h-10 text-gray-400 hover:text-gray-600 hover:bg-white/50 rounded-xl transition-all duration-300 hover:scale-110 border border-transparent hover:border-gray-200/50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <LuX className="w-5 h-5 transition-transform duration-300 group-hover:rotate-90" />
+              <span style={{fontSize:"14px"}}>✕</span>
             </button>
           </div>
         </div>

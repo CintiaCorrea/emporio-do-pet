@@ -13,8 +13,7 @@ import {
   LuArrowLeft, LuLoader, LuRefreshCw, LuUser, LuMail,
   LuPhone, LuMapPin, LuTag, LuCalendar, LuClock,
   LuDollarSign, LuShoppingCart, LuBuilding, LuPenLine,
-  LuArrowRightLeft, LuX, LuCheck, LuPlus, LuTrash2,
-} from 'react-icons/lu';
+  LuArrowRightLeft, LuCheck, LuPlus, LuTrash2} from 'react-icons/lu';
 import toast from 'react-hot-toast';
 
 interface Tutor {
@@ -42,15 +41,13 @@ const STATUS_LABELS: Record<string, string> = {
   ACTIVE: 'Ativo',
   INACTIVE: 'Inativo',
   SUSPENDED: 'Suspenso',
-  CHURNED: 'Perdido',
-};
+  CHURNED: 'Perdido'};
 
 const STATUS_COLORS: Record<string, string> = {
   ACTIVE: 'bg-green-100 text-green-700 border-green-200',
   INACTIVE: 'bg-gray-100 text-gray-700 border-gray-200',
   SUSPENDED: 'bg-orange-100 text-orange-700 border-orange-200',
-  CHURNED: 'bg-red-100 text-red-700 border-red-200',
-};
+  CHURNED: 'bg-red-100 text-red-700 border-red-200'};
 
 export default function ClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -94,8 +91,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
       const response = await fetch(`/api/clients/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: selectedStatus }),
-      });
+        body: JSON.stringify({ status: selectedStatus })});
       if (!response.ok) throw new Error('Erro ao atualizar status');
       toast.success('Status atualizado!');
       setStatusModal(false);
@@ -115,8 +111,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
       const response = await fetch(`/api/clients/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tags: [...new Set([...currentTags, newTag.trim()])] }),
-      });
+        body: JSON.stringify({ tags: [...new Set([...currentTags, newTag.trim()])] })});
       if (!response.ok) throw new Error('Erro ao adicionar tag');
       toast.success('Tag adicionada!');
       setNewTag('');
@@ -135,8 +130,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
       const response = await fetch(`/api/clients/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tags: currentTags.filter(t => t !== tag) }),
-      });
+        body: JSON.stringify({ tags: currentTags.filter(t => t !== tag) })});
       if (!response.ok) throw new Error('Erro ao remover tag');
       toast.success('Tag removida!');
       fetchClient();
@@ -153,8 +147,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
       const response = await fetch(`/api/clients/${id}/purchase`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amountCents }),
-      });
+        body: JSON.stringify({ amountCents })});
       if (!response.ok) throw new Error('Erro ao registrar compra');
       toast.success('Compra registrada!');
       setPurchaseModal(false);
@@ -303,7 +296,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                     <span key={tag} className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full text-sm font-medium">
                       {tag}
                       <button onClick={() => handleRemoveTag(tag)} className="ml-1 hover:text-red-600 transition-colors">
-                        <LuX className="w-3 h-3" />
+                        <span style={{fontSize:"14px"}}>✕</span>
                       </button>
                     </span>
                   ))}

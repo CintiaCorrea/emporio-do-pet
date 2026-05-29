@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { LuX, LuSearch, LuLoader, LuUserPlus, LuTarget } from "react-icons/lu";
+import {  LuSearch, LuLoader, LuUserPlus, LuTarget } from "react-icons/lu";
 
 interface LeadOption {
   id: string;
@@ -23,8 +23,7 @@ const SCORE_COLORS: Record<string, string> = {
   hot: "bg-red-100 text-red-700",
   warm: "bg-orange-100 text-orange-700",
   cool: "bg-yellow-100 text-yellow-700",
-  cold: "bg-blue-100 text-blue-700",
-};
+  cold: "bg-blue-100 text-blue-700"};
 
 function getScoreTier(score: number) {
   if (score >= 71) return "hot";
@@ -82,7 +81,7 @@ const NewLeadCardModal = ({ isOpen, onClose, onSubmit }: NewLeadCardModalProps) 
             <p className="text-sm text-gray-500 mt-0.5">Selecione um lead existente</p>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-            <LuX className="w-5 h-5 text-gray-500" />
+            <span style={{fontSize:"14px"}}>✕</span>
           </button>
         </div>
 

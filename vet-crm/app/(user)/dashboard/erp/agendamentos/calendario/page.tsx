@@ -12,7 +12,6 @@ import {
   LuStethoscope,
   LuChevronLeft,
   LuChevronRight,
-  LuX,
   LuCheck,
   LuTriangle
 } from 'react-icons/lu';
@@ -404,7 +403,7 @@ export default function CalendarPage() {
                   onClick={() => setIsModalOpen(false)}
                   className="p-2 hover:bg-gray-100 rounded-2xl transition-colors"
                 >
-                  <LuX className="w-5 h-5 text-gray-500" />
+                  <span style={{fontSize:"14px"}}>✕</span>
                 </button>
               </div>
             </div>
