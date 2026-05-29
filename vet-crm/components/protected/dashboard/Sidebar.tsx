@@ -188,15 +188,9 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
           collapsed={collapsed}
         />
         <NavItem
-          href="/dashboard/inbox-recepcao"
+          href="/dashboard/inbox"
           icon={LuInbox}
-          label="Inbox Recepção"
-          collapsed={collapsed}
-        />
-        <NavItem
-          href="/dashboard/ai-agents/conversas"
-          icon={LuMessageSquare}
-          label="Conversas"
+          label="Inbox"
           collapsed={collapsed}
         />
         <NavItem href="/dashboard/crm/leads" icon={LuList} label="Leads" collapsed={collapsed} />
