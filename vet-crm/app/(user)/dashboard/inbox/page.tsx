@@ -110,6 +110,37 @@ export default function InboxUnificadoPage() {
   const [autoReply, setAutoReply] = useState(true);
   const [assumida, setAssumida] = useState(false);
 
+  // Agendamento de mensagem
+  const [novaMsgScheduledAt, setNovaMsgScheduledAt] = useState("");
+  const [novaMsgScriptOpen, setNovaMsgScriptOpen] = useState(false);
+
+  // Internas — usuários da clínica
+  const [internalUsers, setInternalUsers] = useState<Array<{id: string; name: string; email: string; role: string}>>([]);
+  const [internalSelected, setInternalSelected] = useState<string | null>(null);
+  const [internalNote, setInternalNote] = useState("");
+
+  // Adicionar atendimento
+  const [atendModalOpen, setAtendModalOpen] = useState(false);
+  const [atendDescricao, setAtendDescricao] = useState("");
+  const [atendDate, setAtendDate] = useState(() => new Date().toISOString().substring(0, 16));
+  const [atendSaving, setAtendSaving] = useState(false);
+
+  // Carregar usuários internos
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/users");
+        const data = await res.json().catch(() => ({}));
+        const list = Array.isArray(data?.data) ? data.data
+                  : Array.isArray(data?.users) ? data.users
+                  : Array.isArray(data) ? data : [];
+        setInternalUsers(list.map((u: any) => ({
+          id: u?.id || "", name: u?.name || "—", email: u?.email || "", role: u?.role || ""
+        })).filter((u: any) => u.id));
+      } catch { setInternalUsers([]); }
+    })();
+  }, []);
+
   // Carregar lista de agentes uma vez
   useEffect(() => {
     (async () => {
@@ -255,21 +286,83 @@ export default function InboxUnificadoPage() {
     }
     setNovaMsgSending(true);
     try {
-      await fetch("/api/whatsapp/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ to: phone, content: novaMsgText.trim(), type: "text" }),
-      });
+      if (novaMsgScheduledAt) {
+        // Agendamento via /api/whatsapp/schedule
+        await fetch("/api/whatsapp/schedule", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            to: phone,
+            content: novaMsgText.trim(),
+            scheduledFor: new Date(novaMsgScheduledAt).toISOString(),
+          }),
+        });
+      } else {
+        await fetch("/api/whatsapp/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ to: phone, content: novaMsgText.trim(), type: "text" }),
+        });
+      }
       setNovaMsgOpen(false);
       setNovaMsgPhone("");
       setNovaMsgText("");
+      setNovaMsgScheduledAt("");
       setRefreshTick((t) => t + 1);
     } catch (e) { console.error(e); alert("Erro ao enviar. Tente novamente."); }
     finally { setNovaMsgSending(false); }
   };
 
+  // Salvar nota interna
+  const salvarNotaInterna = async () => {
+    if (!internalSelected || !internalNote.trim()) {
+      alert("Selecione uma pessoa e digite a mensagem.");
+      return;
+    }
+    try {
+      await fetch("/api/internal-notes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          toUserId: internalSelected,
+          content: internalNote.trim(),
+          conversationId: selectedId || null,
+        }),
+      });
+      setInternalNote("");
+      setInternalSelected(null);
+      alert("Nota enviada!");
+    } catch (e) { console.error(e); alert("Erro ao enviar. Tente novamente."); }
+  };
+
+  // Adicionar atendimento ao pet selecionado
+  const adicionarAtendimento = async () => {
+    if (!selectedPetId || !tutor?.id || !atendDescricao.trim()) {
+      alert("Selecione um pet e descreva o atendimento.");
+      return;
+    }
+    setAtendSaving(true);
+    try {
+      await fetch("/api/appointments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tutorId: tutor.id,
+          petId: selectedPetId,
+          date: new Date(atendDate).toISOString(),
+          description: atendDescricao.trim(),
+          status: "COMPLETED",
+        }),
+      });
+      setAtendModalOpen(false);
+      setAtendDescricao("");
+      alert("Atendimento registrado!");
+    } catch (e) { console.error(e); alert("Erro ao registrar. Tente novamente."); }
+    finally { setAtendSaving(false); }
+  };
+
   return (
-    <div className="bg-white border border-[#e8e1d2] rounded-xl overflow-hidden m-4 max-w-[1400px] mx-auto">
+    <div className="bg-white border border-[#e8e1d2] rounded-xl overflow-hidden m-4 max-w-[1400px] mx-auto" style={{background:"#ffffff"}}>
       {/* Header */}
       <div className="px-4 py-3 border-b border-[#e8e1d2] flex items-center justify-between bg-white">
         <div className="flex items-center gap-2.5">
@@ -287,7 +380,7 @@ export default function InboxUnificadoPage() {
             <span style={{fontSize:"13px"}}>🏆</span>
             Hoje: <b className="text-[#0F6E56]">— resolvidas</b>
           </span>
-          <button onClick={() => setRefreshTick((t) => t + 1)} className="bg-white border border-[#cfd8e0] px-3 py-1.5 rounded-lg text-xs text-[#5F5E5A] flex items-center gap-1.5 hover:bg-[#fdfaee]">
+          <button onClick={() => setRefreshTick((t) => t + 1)} className="bg-white border border-[#cfd8e0] px-3 py-1.5 rounded-lg text-xs text-[#5F5E5A] flex items-center gap-1.5 hover:bg-[#f9f9f9]">
             <span style={{fontSize:"12px"}}>↻</span>Atualizar
           </button>
           <button onClick={() => setNovaMsgOpen(true)} className="bg-[#009AAC] text-white px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5">
@@ -314,7 +407,7 @@ export default function InboxUnificadoPage() {
       {tab === "conversas" && (
         <div className="grid grid-cols-[310px_1fr_340px] min-h-[640px]">
           {/* LEFT - Lista */}
-          <div className="border-r border-[#e8e1d2] bg-[#fafafa] flex flex-col">
+          <div className="border-r border-[#e8e1d2] bg-white flex flex-col">
             <div className="p-2.5 flex gap-1.5 flex-wrap border-b border-[#e8e1d2]">
               {(["todos", "leads", "clientes"] as ListFilter[]).map((f) => (
                 <button key={f} onClick={() => setFilter(f)}
@@ -327,7 +420,7 @@ export default function InboxUnificadoPage() {
               <div className="relative">
                 <LuSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#B4B2A9]" />
                 <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar..."
-                  className="w-full pl-8 pr-2 py-1.5 border border-[#e8e1d2] rounded-lg text-xs bg-[#fafafa] focus:outline-none focus:border-[#009AAC]" />
+                  className="w-full pl-8 pr-2 py-1.5 border border-[#e8e1d2] rounded-lg text-xs bg-white focus:outline-none focus:border-[#009AAC]" />
               </div>
             </div>
 
@@ -342,7 +435,7 @@ export default function InboxUnificadoPage() {
                 const isBC = c.source === "BOTCONVERSA" || c.metadata?.source === "BOTCONVERSA";
                 return (
                   <button key={c.id} onClick={() => setSelectedId(c.id)}
-                    className={`w-full text-left p-2.5 border-b border-[#f0e8d4] ${isSel ? "bg-white border-l-[3px] border-l-[#009AAC]" : "bg-[#fafafa] hover:bg-white"}`}>
+                    className={`w-full text-left p-2.5 border-b border-[#f0e8d4] ${isSel ? "bg-white border-l-[3px] border-l-[#009AAC]" : "bg-white hover:bg-white"}`}>
                     <div className="flex justify-between items-center mb-1">
                       <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${isLead ? "bg-[#FCEBEB] text-[#A32D2D]" : "bg-[#E1F5EE] text-[#0F6E56]"}`}>
                         {isLead ? "LEAD" : "CLIENTE"}
@@ -394,7 +487,7 @@ export default function InboxUnificadoPage() {
                     <button
                       onClick={() => setAutoReply(!autoReply)}
                       title={autoReply ? "Desativar IA pra essa conversa" : "Ativar IA"}
-                      className={`text-[10px] px-2 py-1 rounded-full inline-flex items-center gap-1 ${autoReply ? "bg-[#E1F5EE] text-[#0F6E56]" : "bg-[#fafafa] border border-[#e8e1d2] text-[#888780]"}`}>
+                      className={`text-[10px] px-2 py-1 rounded-full inline-flex items-center gap-1 ${autoReply ? "bg-[#E1F5EE] text-[#0F6E56]" : "bg-white border border-[#e8e1d2] text-[#888780]"}`}>
                       <span style={{fontSize:"10px"}}>🤖</span>IA {autoReply ? "Ativa" : "Pausada"}
                     </button>
                     <button
@@ -405,7 +498,7 @@ export default function InboxUnificadoPage() {
                     </button>
                     <button
                       title="Auto-resposta"
-                      className="bg-[#fafafa] border border-[#e8e1d2] text-[#5F5E5A] text-[10px] px-2 py-1 rounded-full inline-flex items-center gap-1 hover:bg-white">
+                      className="bg-white border border-[#e8e1d2] text-[#5F5E5A] text-[10px] px-2 py-1 rounded-full inline-flex items-center gap-1 hover:bg-white">
                       <span style={{fontSize:"10px"}}>⚡</span>Auto
                     </button>
                     <select
@@ -419,7 +512,7 @@ export default function InboxUnificadoPage() {
                   </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-4 bg-[#fbfaf6] flex flex-col gap-2 max-h-[420px]">
+                <div className="flex-1 overflow-y-auto p-4 bg-white flex flex-col gap-2 max-h-[420px]">
                   {messages.length === 0 ? (
                     <p className="text-center text-[11px] text-[#888780]">Sem mensagens</p>
                   ) : messages.map((m) => {
@@ -445,7 +538,7 @@ export default function InboxUnificadoPage() {
                 {/* Input com Scripts dropdown */}
                 <div className="px-4 py-2.5 border-t border-[#e8e1d2]">
                   {scriptsOpen && (
-                    <div className="bg-[#fafafa] border border-[#e8e1d2] rounded-lg p-2 mb-2 max-h-[160px] overflow-y-auto">
+                    <div className="bg-white border border-[#e8e1d2] rounded-lg p-2 mb-2 max-h-[160px] overflow-y-auto">
                       <div className="flex items-center justify-between mb-1.5">
                         <span className="text-[10px] text-[#888780] font-medium">SCRIPTS · clique pra inserir</span>
                         <Link href="/dashboard/configuracoes/scripts" className="text-[10px] text-[#009AAC]">+ Gerenciar em Configurações</Link>
@@ -480,7 +573,7 @@ export default function InboxUnificadoPage() {
           </div>
 
           {/* RIGHT - Ficha estilo Base44 */}
-          <div className="border-l border-[#e8e1d2] bg-[#fbfaf6] p-3 flex flex-col gap-3 overflow-y-auto max-h-[700px]">
+          <div className="border-l border-[#e8e1d2] bg-white p-3 flex flex-col gap-3 overflow-y-auto max-h-[700px]">
             {!selectedId ? (
               <div className="flex flex-col gap-3 opacity-50 pointer-events-none">
                 <div className="bg-white border border-dashed border-[#e8e1d2] rounded-xl p-3">
@@ -571,7 +664,7 @@ export default function InboxUnificadoPage() {
                         const isSel = selectedPetId === p.id;
                         return (
                           <button key={p.id} onClick={() => setSelectedPetId(p.id)}
-                            className={`text-left px-2.5 py-2 rounded-lg flex items-center justify-between ${isSel ? "bg-[#fdfaee] border border-[#009AAC]" : "bg-[#fafafa] border border-transparent hover:bg-[#fdfaee]"}`}>
+                            className={`text-left px-2.5 py-2 rounded-lg flex items-center justify-between ${isSel ? "bg-[#f9f9f9] border border-[#009AAC]" : "bg-white border border-transparent hover:bg-[#f9f9f9]"}`}>
                             <div className="flex items-center gap-2">
                               <span className="text-base">{PET_EMOJI(p.species)}</span>
                               <div>
@@ -596,25 +689,30 @@ export default function InboxUnificadoPage() {
                   <div className="bg-white border border-[#e8e1d2] rounded-xl p-3">
                     <div className="text-[10px] text-[#888780] font-medium mb-2">⚡ AÇÕES NO {selectedPet.name.toUpperCase()}</div>
                     <div className="flex flex-wrap gap-1.5">
-                      <button className="bg-[#fafafa] border border-[#e8e1d2] px-2.5 py-1 rounded text-[10px] text-[#0E2244] flex items-center gap-1 hover:bg-[#fdfaee]">
+                      <button className="bg-white border border-[#e8e1d2] px-2.5 py-1 rounded text-[10px] text-[#0E2244] flex items-center gap-1 hover:bg-[#f9f9f9]">
                         <LuPencil className="w-2.5 h-2.5" />Nota
                       </button>
-                      <button className="bg-[#fafafa] border border-[#e8e1d2] px-2.5 py-1 rounded text-[10px] text-[#0E2244] flex items-center gap-1 hover:bg-[#fdfaee]">
+                      <button className="bg-white border border-[#e8e1d2] px-2.5 py-1 rounded text-[10px] text-[#0E2244] flex items-center gap-1 hover:bg-[#f9f9f9]">
                         <LuCalendar className="w-2.5 h-2.5" />Agendar
                       </button>
-                      <button className="bg-[#fafafa] border border-[#e8e1d2] px-2.5 py-1 rounded text-[10px] text-[#0E2244] flex items-center gap-1 hover:bg-[#fdfaee]">
+                      <button className="bg-white border border-[#e8e1d2] px-2.5 py-1 rounded text-[10px] text-[#0E2244] flex items-center gap-1 hover:bg-[#f9f9f9]">
                         🩺 Prontuário
                       </button>
-                      <button className="bg-[#fafafa] border border-[#e8e1d2] px-2.5 py-1 rounded text-[10px] text-[#0E2244] flex items-center gap-1 hover:bg-[#fdfaee]">
+                      <button className="bg-white border border-[#e8e1d2] px-2.5 py-1 rounded text-[10px] text-[#0E2244] flex items-center gap-1 hover:bg-[#f9f9f9]">
                         🧪 Exame
                       </button>
                     </div>
                   </div>
                 )}
 
-                {/* Últimos atendimentos placeholder */}
+                {/* Últimos atendimentos */}
                 <div className="bg-white border border-[#e8e1d2] rounded-xl p-3">
-                  <div className="text-[10px] text-[#888780] font-medium mb-2">⏱ ÚLTIMOS ATENDIMENTOS</div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] text-[#888780] font-medium">⏱ ÚLTIMOS ATENDIMENTOS</span>
+                    <button
+                      onClick={() => { if (!selectedPetId) { alert("Selecione um pet acima"); return; } setAtendModalOpen(true); }}
+                      className="text-[10px] text-[#009AAC] font-medium hover:underline">+ Adicionar</button>
+                  </div>
                   <p className="text-[11px] text-[#5F5E5A] text-center py-2">Nenhum atendimento registrado</p>
                 </div>
               </>
@@ -624,9 +722,53 @@ export default function InboxUnificadoPage() {
       )}
 
       {tab === "internas" && (
-        <div className="p-8 text-center text-[#5F5E5A] text-sm">
-          <p>Comunicação interna entre a equipe — em construção.</p>
-          <p className="text-[11px] text-[#888780] mt-1">Vai permitir mencionar colegas, anotar recados pra Vivian/Ellen/Isabela, etc.</p>
+        <div className="grid grid-cols-[280px_1fr] min-h-[500px]">
+          <div className="border-r border-[#e8e1d2] bg-white">
+            <div className="px-3 py-2.5 border-b border-[#e8e1d2] text-[11px] text-[#888780] font-medium">
+              EQUIPE ({internalUsers.length})
+            </div>
+            {internalUsers.length === 0 ? (
+              <p className="p-6 text-center text-[11px] text-[#888780]">
+                Cadastre usuários em<br/><Link href="/dashboard/configuracoes/usuarios" className="text-[#009AAC]">Configurações → Usuários</Link>
+              </p>
+            ) : internalUsers.map((u) => (
+              <button key={u.id} onClick={() => setInternalSelected(u.id)}
+                className={`w-full text-left p-3 border-b border-[#f0e8d4] ${internalSelected === u.id ? "bg-white border-l-[3px] border-l-[#009AAC]" : "bg-white hover:bg-[#f9f9f9]"}`}>
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-[#009AAC] text-white flex items-center justify-center text-[11px] font-medium">
+                    {getInitials(u.name)}
+                  </div>
+                  <div>
+                    <div className="text-xs text-[#0E2244] font-medium">{u.name}</div>
+                    <div className="text-[10px] text-[#888780]">{u.role}</div>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+          <div className="bg-white p-6 flex flex-col">
+            {!internalSelected ? (
+              <div className="flex-1 flex items-center justify-center text-center">
+                <div>
+                  <span style={{fontSize:"36px",color:"#cfd8e0",display:"block",marginBottom:"12px"}}>💌</span>
+                  <p className="text-sm text-[#5F5E5A]">Selecione um colega pra mandar uma nota interna</p>
+                </div>
+              </div>
+            ) : (
+              <>
+                <h3 className="text-sm text-[#0E2244] font-medium mb-3">
+                  Mandar nota para {internalUsers.find((u) => u.id === internalSelected)?.name}
+                </h3>
+                <textarea value={internalNote} onChange={(e) => setInternalNote(e.target.value)}
+                  rows={6} placeholder="Escreva a nota..."
+                  className="w-full px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm focus:outline-none focus:border-[#009AAC] resize-none mb-3" />
+                <div className="flex justify-end gap-2">
+                  <button onClick={() => { setInternalSelected(null); setInternalNote(""); }} className="px-3 py-1.5 text-xs text-[#5F5E5A]">Cancelar</button>
+                  <button onClick={salvarNotaInterna} className="bg-[#009AAC] text-white px-4 py-1.5 rounded-lg text-xs font-medium">Enviar</button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       )}
 
@@ -637,32 +779,91 @@ export default function InboxUnificadoPage() {
       )}
 
       {/* Rodapé gamificação */}
-      <div className="px-4 py-2.5 border-t border-[#e8e1d2] bg-[#fafafa] flex items-center gap-4 text-[11px] text-[#5F5E5A] flex-wrap">
+      <div className="px-4 py-2.5 border-t border-[#e8e1d2] bg-white flex items-center gap-4 text-[11px] text-[#5F5E5A] flex-wrap">
         <span className="inline-flex items-center gap-1">🔥 <b className="text-[#C2410C]">—</b> leads quentes</span>
         <span className="inline-flex items-center gap-1">⏱ <b className="text-[#BA7517]">—</b> esperando +1h</span>
         <span className="inline-flex items-center gap-1">💬 Tempo médio: <b>—</b></span>
         <span className="ml-auto inline-flex items-center gap-1">🏆 Streak: <b>—</b></span>
       </div>
 
-      {/* MODAL Nova mensagem */}
+      {/* MODAL Nova mensagem com agendamento + scripts */}
       {novaMsgOpen && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setNovaMsgOpen(false)}>
-          <div className="bg-white rounded-xl p-5 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-xl p-5 max-w-lg w-full" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-base text-[#0E2244] font-medium">Nova mensagem</h3>
               <button onClick={() => setNovaMsgOpen(false)} className="text-[#5F5E5A] text-xl">×</button>
             </div>
+
             <label className="block text-[11px] text-[#5F5E5A] mb-1 font-medium">Telefone (WhatsApp)</label>
             <input value={novaMsgPhone} onChange={(e) => setNovaMsgPhone(e.target.value)} placeholder="+55 85 99999-9999"
               className="w-full px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm mb-3 focus:outline-none focus:border-[#009AAC]" />
-            <label className="block text-[11px] text-[#5F5E5A] mb-1 font-medium">Mensagem</label>
+
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-[11px] text-[#5F5E5A] font-medium">Mensagem</label>
+              <button onClick={() => setNovaMsgScriptOpen(!novaMsgScriptOpen)}
+                className={`text-[10px] px-2 py-0.5 rounded ${novaMsgScriptOpen ? "bg-[#FBF0DD] text-[#8a6313]" : "text-[#009AAC] hover:underline"}`}>
+                📝 Usar script
+              </button>
+            </div>
+            {novaMsgScriptOpen && (
+              <div className="bg-[#f9f9f9] border border-[#e8e1d2] rounded-lg p-2 mb-2 max-h-[140px] overflow-y-auto">
+                {SCRIPTS_PLACEHOLDER.map((s) => (
+                  <button key={s.titulo} onClick={() => { setNovaMsgText(s.texto); setNovaMsgScriptOpen(false); }}
+                    className="text-left block w-full px-2 py-1.5 rounded hover:bg-white">
+                    <div className="text-[10px] text-[#5F5E5A]"><b className="text-[#0E2244]">{s.categoria}</b> · {s.titulo}</div>
+                    <div className="text-[11px] text-[#5F5E5A] truncate">{s.texto}</div>
+                  </button>
+                ))}
+                <Link href="/dashboard/configuracoes/scripts" className="block text-center text-[10px] text-[#009AAC] mt-1 hover:underline">
+                  + Gerenciar scripts em Configurações
+                </Link>
+              </div>
+            )}
             <textarea value={novaMsgText} onChange={(e) => setNovaMsgText(e.target.value)} placeholder="Digite a mensagem..."
               rows={4}
               className="w-full px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm mb-3 focus:outline-none focus:border-[#009AAC] resize-none" />
+
+            <label className="block text-[11px] text-[#5F5E5A] mb-1 font-medium">
+              📅 Agendar para (opcional)
+            </label>
+            <input type="datetime-local" value={novaMsgScheduledAt} onChange={(e) => setNovaMsgScheduledAt(e.target.value)}
+              className="w-full px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm mb-3 focus:outline-none focus:border-[#009AAC]" />
+            {novaMsgScheduledAt && (
+              <p className="text-[10px] text-[#0F6E56] mb-2">
+                ⏰ Vai enviar em {new Date(novaMsgScheduledAt).toLocaleString("pt-BR")}
+              </p>
+            )}
+
             <div className="flex justify-end gap-2">
               <button onClick={() => setNovaMsgOpen(false)} className="px-3 py-1.5 text-xs text-[#5F5E5A]">Cancelar</button>
               <button onClick={enviarNovaMensagem} disabled={novaMsgSending} className="bg-[#009AAC] text-white px-4 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50">
-                {novaMsgSending ? "Enviando..." : "Enviar"}
+                {novaMsgSending ? (novaMsgScheduledAt ? "Agendando..." : "Enviando...") : (novaMsgScheduledAt ? "Agendar" : "Enviar agora")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL Adicionar atendimento */}
+      {atendModalOpen && selectedPet && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setAtendModalOpen(false)}>
+          <div className="bg-white rounded-xl p-5 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-base text-[#0E2244] font-medium">Registrar atendimento — {selectedPet.name}</h3>
+              <button onClick={() => setAtendModalOpen(false)} className="text-[#5F5E5A] text-xl">×</button>
+            </div>
+            <label className="block text-[11px] text-[#5F5E5A] mb-1 font-medium">Data/hora do atendimento</label>
+            <input type="datetime-local" value={atendDate} onChange={(e) => setAtendDate(e.target.value)}
+              className="w-full px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm mb-3 focus:outline-none focus:border-[#009AAC]" />
+            <label className="block text-[11px] text-[#5F5E5A] mb-1 font-medium">Descrição / o que foi conversado</label>
+            <textarea value={atendDescricao} onChange={(e) => setAtendDescricao(e.target.value)}
+              rows={5} placeholder="Tutora informou que a Mel está com vômito desde ontem..."
+              className="w-full px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm mb-3 focus:outline-none focus:border-[#009AAC] resize-none" />
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setAtendModalOpen(false)} className="px-3 py-1.5 text-xs text-[#5F5E5A]">Cancelar</button>
+              <button onClick={adicionarAtendimento} disabled={atendSaving} className="bg-[#009AAC] text-white px-4 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50">
+                {atendSaving ? "Salvando..." : "Registrar atendimento"}
               </button>
             </div>
           </div>
@@ -679,9 +880,9 @@ export default function InboxUnificadoPage() {
             </div>
             <p className="text-xs text-[#5F5E5A] mb-3">Selecione pra quem encaminhar essa conversa. Funcionalidade completa em construção — por enquanto, registre como nota.</p>
             <div className="flex flex-col gap-1.5">
-              <button className="text-left px-3 py-2 border border-[#e8e1d2] rounded-lg hover:bg-[#fdfaee] text-sm">👩‍⚕️ Dra. Vivian (Vet)</button>
-              <button className="text-left px-3 py-2 border border-[#e8e1d2] rounded-lg hover:bg-[#fdfaee] text-sm">👩 Ellen (Recepção)</button>
-              <button className="text-left px-3 py-2 border border-[#e8e1d2] rounded-lg hover:bg-[#fdfaee] text-sm">👩 Isabela (Recepção)</button>
+              <button className="text-left px-3 py-2 border border-[#e8e1d2] rounded-lg hover:bg-[#f9f9f9] text-sm">👩‍⚕️ Dra. Vivian (Vet)</button>
+              <button className="text-left px-3 py-2 border border-[#e8e1d2] rounded-lg hover:bg-[#f9f9f9] text-sm">👩 Ellen (Recepção)</button>
+              <button className="text-left px-3 py-2 border border-[#e8e1d2] rounded-lg hover:bg-[#f9f9f9] text-sm">👩 Isabela (Recepção)</button>
             </div>
             <div className="flex justify-end mt-3">
               <button onClick={() => setEncaminharOpen(false)} className="px-3 py-1.5 text-xs text-[#5F5E5A]">Cancelar</button>

@@ -102,7 +102,16 @@ export class WhatsAppConversationsController {
     return this.whatsAppService.assignAgentToConversation(id, dto.agentId || null);
   }
 
-  @Post('conversations/:id/takeover')
+  @Post('conversations/:id/assign-user')
+  async assignToUser(
+    @CurrentUser() user: JwtUser,
+    @Param('id') id: string,
+    @Body() body: { userId: string },
+  ) {
+    return this.whatsAppService.updateConversation(id, { assignedUserId: body.userId } as any);
+  }
+
+    @Post('conversations/:id/takeover')
   async takeoverConversation(
     @CurrentUser() user: JwtUser,
     @Param('id') id: string,

@@ -4,10 +4,8 @@ import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import toast, { Toaster } from "react-hot-toast";
 import {
-  LuArrowLeft, LuUserCircle, LuStickyNote, LuMail, LuPencil, LuTriangleAlert,
-  LuArrowRightLeft, LuRotateCcw, LuTrash2, LuMessageCircleHeart, LuPhone,
-  LuMapPin, LuIdCard, LuCalendar, LuUser, LuCalendarPlus, LuStar, LuPlus,
-  LuChevronDown, LuChevronRight, LuStethoscope, LuZap, LuMessageCircle,
+  LuArrowLeft, LuStickyNote, LuPencil, LuTriangleAlert,
+  LuTrash, LuPhone, LuCalendar, LuUser, LuPlus,
 } from "react-icons/lu";
 
 interface TutorDetail {
@@ -71,7 +69,7 @@ function AccordionCard({
     <div className="bg-white border border-[#d8d0bc] rounded-xl overflow-hidden">
       <button onClick={() => setOpen(!open)} className="w-full flex items-center justify-between px-3.5 py-3 border-b border-[#f0e8d4] hover:bg-[#fdfaee]">
         <div className="flex items-center gap-2">
-          {open ? <LuChevronDown className="w-3.5 h-3.5 text-[#5b6470]" /> : <LuChevronRight className="w-3.5 h-3.5 text-[#5b6470]" />}
+          {open ? <span style={{fontSize:"11px"}}>▼</span> : <span style={{fontSize:"11px"}}>▶</span>}
           <Icon className="w-4 h-4 text-[#009AAC]" />
           <span className="text-sm text-[#0E2244] font-medium">{title}</span>
           {typeof count === "number" && (
@@ -147,25 +145,25 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
           <Link href="/dashboard/erp/tutores" className="bg-white border border-[#cfd8e0] rounded-lg p-1.5">
             <LuArrowLeft className="w-4 h-4 text-[#0E2244]" />
           </Link>
-          <LuUserCircle className="w-7 h-7 text-[#009AAC]" />
+          <span style={{fontSize:"18px"}}>👤</span>
           <h1 className="text-xl text-[#0E2244] font-medium">{tutor.name || "Sem nome"}</h1>
           <span style={{ background: status.bg, color: status.color }} className="text-[11px] font-medium px-2 py-0.5 rounded-full">{status.label}</span>
         </div>
         <div className="flex gap-1.5 flex-wrap">
           <a href={phone ? `https://wa.me/${phone.replace(/\D/g, "")}` : "#"} target="_blank" rel="noreferrer" className="bg-white border border-[#009AAC] text-[#00798A] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5"><LuStickyNote className="w-3.5 h-3.5" />WhatsApp</a>
-          <a href={tutor.email ? `mailto:${tutor.email}` : "#"} className="bg-white border border-[#cfd8e0] text-[#4d5a66] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5"><LuMail className="w-3.5 h-3.5" />Email</a>
+          <a href={tutor.email ? `mailto:${tutor.email}` : "#"} className="bg-white border border-[#cfd8e0] text-[#4d5a66] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5"><span style={{fontSize:"14px"}}>✉️</span>Email</a>
           <Link href={`/dashboard/erp/tutores/${id}/editar`} className="bg-white border border-[#cfd8e0] text-[#4d5a66] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5"><LuPencil className="w-3.5 h-3.5" />Editar</Link>
           <button className="bg-white border border-[#FCD194] text-[#BA7517] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5" onClick={() => toast("Marcado a recuperar")}><LuTriangleAlert className="w-3.5 h-3.5" />Marcar a recuperar</button>
-          <button className="bg-white border border-[#cfd8e0] text-[#0C447C] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5" onClick={() => toast("Encaminhado")}><LuArrowRightLeft className="w-3.5 h-3.5" />Encaminhar</button>
-          <button className="bg-white border border-[#cfd8e0] text-[#3C3489] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5" onClick={() => toast("Retomado como Lead")}><LuRotateCcw className="w-3.5 h-3.5" />Retomar como Lead</button>
-          <button className="bg-[#fbe6e6] border border-[#f4baba] text-[#A32D2D] px-2.5 py-1.5 rounded-lg text-xs"><LuTrash2 className="w-3.5 h-3.5" /></button>
+          <button className="bg-white border border-[#cfd8e0] text-[#0C447C] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5" onClick={() => toast("Encaminhado")}><span style={{fontSize:"13px"}}>↔</span>Encaminhar</button>
+          <button className="bg-white border border-[#cfd8e0] text-[#3C3489] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5" onClick={() => toast("Retomado como Lead")}><span style={{fontSize:"13px"}}>↺</span>Retomar como Lead</button>
+          <button className="bg-[#fbe6e6] border border-[#f4baba] text-[#A32D2D] px-2.5 py-1.5 rounded-lg text-xs"><LuTrash className="w-3.5 h-3.5" /></button>
         </div>
       </div>
 
       {/* Caixinha lembrar */}
       <div className="bg-[#FBF0DD] border border-dashed border-[#BA7517] rounded-xl px-3.5 py-2 mb-3">
         <div className="flex items-center gap-2">
-          <LuMessageCircleHeart className="w-4 h-4 text-[#BA7517]" />
+          <span style={{fontSize:"14px"}}>💗</span>
           <input
             value={nota}
             onChange={(e) => setNota(e.target.value)}
@@ -192,11 +190,11 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
             <h3 className="text-[13px] text-[#0E2244] font-medium mb-2">Dados pessoais</h3>
             <div className="text-[11px] text-[#4d5a66] leading-loose">
               {phone && <div><LuPhone className="inline w-3 h-3 text-[#0C447C]" /> <strong className="text-[#0E2244] font-medium">Telefone:</strong> <span className="text-[#00798A]">{phone}</span></div>}
-              {tutor.email && <div><LuMail className="inline w-3 h-3" /> <strong className="text-[#0E2244] font-medium">Email:</strong> <span className="text-[#00798A]">{tutor.email}</span></div>}
-              {tutor.address && <div><LuMapPin className="inline w-3 h-3" /> {tutor.address}</div>}
+              {tutor.email && <div><span style={{fontSize:"14px"}}>✉️</span> <strong className="text-[#0E2244] font-medium">Email:</strong> <span className="text-[#00798A]">{tutor.email}</span></div>}
+              {tutor.address && <div><span style={{fontSize:"13px"}}>📍</span> {tutor.address}</div>}
               {tutor.neighborhood && <div className="pl-4">Bairro: {tutor.neighborhood}</div>}
               {tutor.city && <div className="pl-4">Cidade: {tutor.city}</div>}
-              {tutor.cpf && <div><LuIdCard className="inline w-3 h-3" /> <strong className="text-[#0E2244] font-medium">CPF:</strong> {tutor.cpf}</div>}
+              {tutor.cpf && <div><span style={{fontSize:"13px"}}>🪪</span> <strong className="text-[#0E2244] font-medium">CPF:</strong> {tutor.cpf}</div>}
               <div><LuCalendar className="inline w-3 h-3" /> <strong className="text-[#0E2244] font-medium">Primeira visita:</strong> {new Date(tutor.createdAt).toLocaleDateString("pt-BR")}</div>
               <div><LuUser className="inline w-3 h-3" /> <strong className="text-[#0E2244] font-medium">Tipo:</strong> <span className="bg-[#E0F4F6] text-[#00798A] text-[10px] px-1.5 py-0.5 rounded">{tutor.classificacao}</span></div>
             </div>
@@ -209,7 +207,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
 
           <div className="bg-white border border-[#d8d0bc] rounded-xl p-3.5">
             <div className="flex items-center gap-2 mb-2">
-              <LuCalendarPlus className="w-4 h-4 text-[#009AAC]" />
+              <LuCalendar className="w-3.5 h-3.5" />
               <h3 className="text-[13px] text-[#0E2244] font-medium">Follow-up & Cadência</h3>
             </div>
             <p className="text-[10px] text-[#5b6470] mb-1.5">Acompanhando:</p>
@@ -270,7 +268,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
           <div className="bg-white border border-[#d8d0bc] rounded-xl p-3.5">
             <div className="flex items-center justify-between mb-1.5">
               <div className="flex items-center gap-2">
-                <LuStar className="w-3.5 h-3.5 text-[#BA7517]" />
+                <span style={{fontSize:"13px"}}>⭐</span>
                 <h3 className="text-[13px] text-[#0E2244] font-medium">Avaliações Google</h3>
               </div>
               <button className="border border-[#cfd8e0] text-[#4d5a66] px-2 py-0.5 rounded text-[10px]">+ Solicitar</button>
@@ -311,12 +309,12 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
 
       {/* 2x2 accordion: Atendimentos+Interações em cima, Sequências+Emails embaixo */}
       <div className="grid grid-cols-2 gap-2.5">
-        <AccordionCard icon={LuStethoscope} title="Histórico de atendimentos" count={0}
+        <AccordionCard icon={() => <span style={{fontSize:"14px"}}>🩺</span>} title="Histórico de atendimentos" count={0}
           action={<button className="bg-[#0F6E56] text-white px-2.5 py-1 rounded text-[11px] font-medium"><LuPlus className="inline w-3 h-3" /> Novo</button>}>
           <p className="text-center text-[11px] text-gray-400 py-3">Nenhum atendimento registrado</p>
         </AccordionCard>
 
-        <AccordionCard icon={LuMessageCircle} title="Histórico de interações" count={0}
+        <AccordionCard icon={() => <span style={{fontSize:"14px"}}>💬</span>} title="Histórico de interações" count={0}
           action={<button className="bg-[#009AAC] text-white px-2.5 py-1 rounded text-[11px] font-medium"><LuPlus className="inline w-3 h-3" /> Nota</button>}>
           <div className="flex gap-2 mb-2">
             <select className="border border-[#d8d0bc] rounded px-2 py-1 text-[11px]"><option>Nota</option><option>WhatsApp</option><option>Email</option></select>
@@ -325,7 +323,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
           <p className="text-center text-[11px] text-gray-400 py-2">Nenhuma interação ainda</p>
         </AccordionCard>
 
-        <AccordionCard icon={LuZap} title="Sequências automáticas" badge={{ label: "Em breve", color: "#3C3489", bg: "#EEEDFE" }}>
+        <AccordionCard icon={() => <span style={{fontSize:"14px"}}>⚡</span>} title="Sequências automáticas" badge={{ label: "Em breve", color: "#3C3489", bg: "#EEEDFE" }}>
           <p className="text-[11px] text-[#5b6470] mb-2">Automações de email/WhatsApp programadas pra este tutor.</p>
           <div className="flex flex-col gap-1.5">
             <div className="bg-[#fbf6ea] rounded px-2.5 py-1.5 flex items-center justify-between text-[11px]">
@@ -339,7 +337,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
           </div>
         </AccordionCard>
 
-        <AccordionCard icon={LuMail} title="Emails" count={0}
+        <AccordionCard icon={() => <span style={{fontSize:"14px"}}>✉️</span>} title="Emails" count={0}
           action={<button className="bg-white border border-[#cfd8e0] text-[#4d5a66] px-2.5 py-1 rounded text-[11px]"><LuPlus className="inline w-3 h-3" /> Enviar</button>}>
           <p className="text-center text-[11px] text-gray-400 py-3">Nenhum email registrado</p>
         </AccordionCard>
