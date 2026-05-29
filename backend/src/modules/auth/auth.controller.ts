@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UseGuards, Request, HttpCode, HttpStatus } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Headers, HttpCode, HttpStatus, Post, Request, UnauthorizedException, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
@@ -60,4 +60,38 @@ export class AuthController {
   async me(@Request() req: { user: unknown }) {
     return { user: req.user };
   }
+
+  // ===========================================================================
+  // BOOTSTRAP TEMPORÁRIO — REMOVER após reset de senha inicial
+  // Protegido pelo mesmo BOTCONVERSA_WEBHOOK_SECRET já configurado no Fly.
+  // Reseta a senha do email passado pra uma string aleatória e retorna a
+  // senha em texto plano UMA vez (Cintia loga com ela e troca pela UI).
+  // ===========================================================================
+  @Post('admin/bootstrap-reset')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'TEMPORÁRIO: reset de senha via secret header' })
+  async bootstrapReset(
+    @Headers('x-bootstrap-secret') secret: string | undefined,
+    @Body() body: { email: string },
+  ) {
+    const expected = process.env.BOTCONVERSA_WEBHOOK_SECRET;
+    if (!expected || secret !== expected) {
+      throw new UnauthorizedException();
+    }
+    if (!body?.email) {
+      throw new BadRequestException('email required');
+    }
+    // Gera senha aleatória 12 chars
+    const newPassword = Array.from(
+      { length: 12 },
+      () => 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$'[
+        Math.floor(Math.random() * 67)
+      ],
+    ).join('');
+    const bcrypt = await import('bcryptjs');
+    const hash = await bcrypt.hash(newPassword, 10);
+    await this.authService.adminSetPassword(body.email, hash);
+    return { newPassword };
+  }
+
 }
