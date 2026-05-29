@@ -5,6 +5,7 @@ import Link from "next/link";
 import { LuSearch, LuPlus, LuUpload, LuDownload, LuTrash2, LuPhone, LuStickyNote, LuFootprints } from "react-icons/lu";
 
 type Filter = "ativos" | "perdidos" | "outros" | "convertidos" | "todos";
+type Periodo = "7d" | "30d" | "tudo" | "custom";
 
 interface Lead {
   id: string;
@@ -58,6 +59,11 @@ export default function LeadsPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<Filter>("ativos");
   const [search, setSearch] = useState("");
+  const [periodo, setPeriodo] = useState<Periodo>("tudo");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [stageFilter, setStageFilter] = useState("");
+  const [channelFilter, setChannelFilter] = useState("");
 
   useEffect(() => {
     const load = async () => {
@@ -75,11 +81,29 @@ export default function LeadsPage() {
     load();
   }, []);
 
+  const periodLimits = useMemo(() => {
+    const now = Date.now();
+    if (periodo === "7d") return { from: now - 7 * 86400000, to: now };
+    if (periodo === "30d") return { from: now - 30 * 86400000, to: now };
+    if (periodo === "custom") {
+      const f = dateFrom ? new Date(dateFrom).getTime() : 0;
+      const t = dateTo ? new Date(dateTo).getTime() + 86400000 : Infinity;
+      return { from: f, to: t };
+    }
+    return { from: 0, to: Infinity };
+  }, [periodo, dateFrom, dateTo]);
+
   const filtered = useMemo(() => {
     let arr = [...leads];
     if (filter === "ativos") arr = arr.filter((l) => !["LOST", "CONVERTED"].includes(l.status));
     if (filter === "perdidos") arr = arr.filter((l) => l.status === "LOST");
     if (filter === "convertidos") arr = arr.filter((l) => l.status === "CONVERTED");
+    arr = arr.filter((l) => {
+      const t = new Date(l.createdAt).getTime();
+      return t >= periodLimits.from && t <= periodLimits.to;
+    });
+    if (stageFilter) arr = arr.filter((l) => l.status === stageFilter);
+    if (channelFilter) arr = arr.filter((l) => (l.channel || "").toUpperCase() === channelFilter);
     if (search.trim()) {
       const q = search.toLowerCase();
       arr = arr.filter(
@@ -90,7 +114,7 @@ export default function LeadsPage() {
       );
     }
     return arr;
-  }, [leads, filter, search]);
+  }, [leads, filter, search, periodLimits, stageFilter, channelFilter]);
 
   const counts = useMemo(() => {
     const ativos = leads.filter((l) => !["LOST", "CONVERTED"].includes(l.status));
@@ -104,7 +128,7 @@ export default function LeadsPage() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      <header className="flex justify-between items-start mb-4">
+      <header className="flex justify-between items-start mb-3">
         <div>
           <h1 className="text-2xl text-[#0E2244] font-medium">Leads</h1>
           <p className="text-sm text-[#5b6470] mt-0.5">
@@ -126,12 +150,13 @@ export default function LeadsPage() {
         </div>
       </header>
 
-      <div className="flex gap-2 mb-3 flex-wrap">
+      {/* Linha 1: chips de status */}
+      <div className="flex gap-1.5 mb-2 flex-wrap">
         {(["ativos", "perdidos", "outros", "convertidos", "todos"] as Filter[]).map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-medium ${
+            className={`px-3 py-1 rounded-full text-[11px] font-medium ${
               filter === f
                 ? "bg-[#009AAC] text-white"
                 : "bg-white text-[#4d5a66] border border-[#cfd8e0]"
@@ -142,14 +167,70 @@ export default function LeadsPage() {
         ))}
       </div>
 
-      <div className="relative mb-3">
-        <LuSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+      {/* Linha 2 ÚNICA: busca + período + datas + etapa + canal */}
+      <div className="flex gap-1.5 mb-3 items-center flex-wrap">
+        <div className="relative flex-1 min-w-[180px]">
+          <LuSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar tutor, pet, telefone..."
+            className="w-full bg-white border border-[#d8d0bc] rounded-lg pl-8 pr-2.5 py-1.5 text-xs focus:outline-none focus:border-[#009AAC]"
+          />
+        </div>
+
+        <div className="flex bg-white border border-[#d8d0bc] rounded-lg overflow-hidden">
+          {(["7d", "30d", "tudo"] as const).map((p) => (
+            <button
+              key={p}
+              onClick={() => setPeriodo(p)}
+              className={`px-2.5 py-1.5 text-[11px] font-medium border-r border-[#d8d0bc] last:border-r-0 ${
+                periodo === p ? "bg-[#009AAC] text-white" : "text-[#4d5a66] hover:bg-[#fdfaee]"
+              }`}
+            >
+              {p === "7d" ? "7d" : p === "30d" ? "30d" : "Tudo"}
+            </button>
+          ))}
+        </div>
+
         <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Buscar tutor, pet, telefone..."
-          className="w-full bg-white border border-[#d8d0bc] rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-[#009AAC]"
+          type="date"
+          value={dateFrom}
+          onChange={(e) => { setDateFrom(e.target.value); setPeriodo("custom"); }}
+          className="bg-white border border-[#d8d0bc] rounded-lg px-2 py-1.5 text-[11px] text-[#4d5a66] focus:outline-none focus:border-[#009AAC]"
         />
+        <span className="text-[11px] text-[#5b6470]">→</span>
+        <input
+          type="date"
+          value={dateTo}
+          onChange={(e) => { setDateTo(e.target.value); setPeriodo("custom"); }}
+          className="bg-white border border-[#d8d0bc] rounded-lg px-2 py-1.5 text-[11px] text-[#4d5a66] focus:outline-none focus:border-[#009AAC]"
+        />
+
+        <select
+          value={stageFilter}
+          onChange={(e) => setStageFilter(e.target.value)}
+          className="bg-white border border-[#d8d0bc] rounded-lg px-2 py-1.5 text-[11px] text-[#4d5a66] focus:outline-none focus:border-[#009AAC]"
+        >
+          <option value="">Etapa: todas</option>
+          <option value="AGUARDANDO_TRIAGEM">Aguardando triagem</option>
+          <option value="NEW">Lead novo</option>
+          <option value="ENRICHING">Em qualificação</option>
+          <option value="CONTACTED">Aguardando retorno</option>
+          <option value="CONVERTED">Convertido</option>
+          <option value="LOST">Perdido</option>
+        </select>
+
+        <select
+          value={channelFilter}
+          onChange={(e) => setChannelFilter(e.target.value)}
+          className="bg-white border border-[#d8d0bc] rounded-lg px-2 py-1.5 text-[11px] text-[#4d5a66] focus:outline-none focus:border-[#009AAC]"
+        >
+          <option value="">Canal: todos</option>
+          <option value="WHATSAPP">WhatsApp</option>
+          <option value="LIGACAO">Ligação</option>
+          <option value="WALK_IN">Walk-in</option>
+        </select>
       </div>
 
       <div className="bg-white rounded-xl border border-[#d8d0bc] overflow-hidden">
