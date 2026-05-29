@@ -575,7 +575,7 @@ const KanbanBoard = ({ boardId, boardName = "CRM", boardType: propBoardType = "A
               {isLeadBoard && (
                 <button
                   onClick={() => setIsLeadModalOpen(true)}
-                  className="bg-gradient-to-r from-green-600 to-emerald-600 text-white px-3 sm:px-4 py-2 rounded-md hover:scale-105 transition-all focus:outline-none focus:ring-2 focus:ring-green-500 text-sm sm:text-base flex items-center gap-1.5"
+                  className="bg-gradient-to-r from-green-600 to-cyan-600 text-white px-3 sm:px-4 py-2 rounded-md hover:scale-105 transition-all focus:outline-none focus:ring-2 focus:ring-green-500 text-sm sm:text-base flex items-center gap-1.5"
                 >
                   <LuPlus className="w-4 h-4" /> Adicionar Lead
                 </button>

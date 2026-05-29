@@ -105,9 +105,9 @@ export default function LandingPagesPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/20">
       <div className="relative overflow-x-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-cyan-600/5 via-teal-600/5 to-emerald-600/5 dark:from-cyan-600/20 dark:via-teal-600/20 dark:to-emerald-600/20" />
+        <div className="absolute inset-0 bg-gradient-to-r from-cyan-600/5 via-cyan-600/5 to-cyan-600/5 dark:from-cyan-600/20 dark:via-cyan-600/20 dark:to-cyan-600/20" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-500/5 dark:bg-cyan-500/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-teal-500/5 dark:bg-teal-500/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 left-0 w-64 h-64 bg-cyan-500/5 dark:bg-cyan-500/10 rounded-full blur-3xl" />
 
         <div className="relative px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
@@ -128,7 +128,7 @@ export default function LandingPagesPage() {
 
             <button
               onClick={() => router.push('/dashboard/landing-pages/nova')}
-              className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-white rounded-xl font-semibold transition-all duration-200 shadow-lg shadow-cyan-500/20"
+              className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-gradient-to-r from-cyan-500 to-cyan-500 hover:from-cyan-400 hover:to-cyan-400 text-white rounded-xl font-semibold transition-all duration-200 shadow-lg shadow-cyan-500/20"
             >
               <LuPlus className="w-4 h-4" />
               Nova Landing Page
@@ -187,7 +187,7 @@ export default function LandingPagesPage() {
                   onClick={() =>
                     router.push('/dashboard/landing-pages/nova')
                   }
-                  className="mt-2 inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-cyan-500 to-teal-500 text-white rounded-xl font-medium text-sm"
+                  className="mt-2 inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-cyan-500 to-cyan-500 text-white rounded-xl font-medium text-sm"
                 >
                   <LuPlus className="w-4 h-4" />
                   Criar Landing Page

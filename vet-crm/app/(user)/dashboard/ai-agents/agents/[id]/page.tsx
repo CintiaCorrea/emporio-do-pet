@@ -296,8 +296,8 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
               <div className="flex items-center gap-3">
                 <h1 className="text-2xl font-bold text-gray-900">{agent.name}</h1>
                 <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${
-                  agent.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700' :
-                  agent.status === 'PAUSED' ? 'bg-amber-100 text-amber-700' :
+                  agent.status === 'ACTIVE' ? 'bg-cyan-100 text-cyan-700' :
+                  agent.status === 'PAUSED' ? 'bg-orange-100 text-orange-700' :
                   'bg-gray-100 text-gray-700'
                 }`}>
                   {agent.status === 'ACTIVE' ? 'Ativo' : agent.status === 'PAUSED' ? 'Pausado' : agent.status}
@@ -308,7 +308,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
           </div>
           <div className="flex items-center gap-2">
             <button onClick={handleStatusToggle} className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-              agent.status === 'ACTIVE' ? 'bg-amber-50 hover:bg-amber-100 text-amber-700' : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700'
+              agent.status === 'ACTIVE' ? 'bg-orange-50 hover:bg-orange-100 text-orange-700' : 'bg-cyan-50 hover:bg-cyan-100 text-cyan-700'
             }`}>
               {agent.status === 'ACTIVE' ? <><LuPause className="w-4 h-4" />Pausar</> : <><LuPlay className="w-4 h-4" />Ativar</>}
             </button>
@@ -347,8 +347,8 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
             {/* Metrics Cards */}
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               <MetricCard icon={<LuActivity className="w-5 h-5 text-blue-600" />} label="Interações" value={formatNum(agent.totalInteractions)} bg="bg-blue-50" />
-              <MetricCard icon={<LuCircleCheck className="w-5 h-5 text-emerald-600" />} label="Taxa Sucesso" value={`${agent.successRate.toFixed(1)}%`} bg="bg-emerald-50" />
-              <MetricCard icon={<LuClock className="w-5 h-5 text-amber-600" />} label="Latência Média" value={`${(agent.avgResponseTime / 1000).toFixed(1)}s`} bg="bg-amber-50" />
+              <MetricCard icon={<LuCircleCheck className="w-5 h-5 text-cyan-600" />} label="Taxa Sucesso" value={`${agent.successRate.toFixed(1)}%`} bg="bg-cyan-50" />
+              <MetricCard icon={<LuClock className="w-5 h-5 text-orange-600" />} label="Latência Média" value={`${(agent.avgResponseTime / 1000).toFixed(1)}s`} bg="bg-orange-50" />
               <MetricCard icon={<LuDollarSign className="w-5 h-5 text-violet-600" />} label="Custo Total" value={`$${agent.totalCostUsd.toFixed(4)}`} bg="bg-violet-50" />
               <MetricCard icon={<LuTrendingUp className="w-5 h-5 text-fuchsia-600" />} label="Última Atividade" value={agent.lastActiveAt ? new Date(agent.lastActiveAt).toLocaleDateString('pt-BR') : '-'} bg="bg-fuchsia-50" />
             </div>
@@ -417,7 +417,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                         <tr key={exec.id} className="hover:bg-gray-50">
                           <td className="px-4 py-3">
                             {exec.status === 'SUCCESS' ? (
-                              <span className="flex items-center gap-1.5 text-emerald-600"><LuCircleCheck className="w-4 h-4" />OK</span>
+                              <span className="flex items-center gap-1.5 text-cyan-600"><LuCircleCheck className="w-4 h-4" />OK</span>
                             ) : (
                               <span className="flex items-center gap-1.5 text-red-600"><LuCircleX className="w-4 h-4" />Erro</span>
                             )}
@@ -478,10 +478,10 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                 {/* Summary Cards */}
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                   <MetricCard icon={<LuZap className="w-5 h-5 text-blue-600" />} label="Execuções" value={formatNum(analytics.summary.totalExecutions)} bg="bg-blue-50" />
-                  <MetricCard icon={<LuCircleCheck className="w-5 h-5 text-emerald-600" />} label="Sucesso" value={formatNum(analytics.summary.successCount)} bg="bg-emerald-50" />
+                  <MetricCard icon={<LuCircleCheck className="w-5 h-5 text-cyan-600" />} label="Sucesso" value={formatNum(analytics.summary.successCount)} bg="bg-cyan-50" />
                   <MetricCard icon={<LuCircleX className="w-5 h-5 text-red-600" />} label="Falhas" value={formatNum(analytics.summary.failedCount)} bg="bg-red-50" />
                   <MetricCard icon={<LuTrendingUp className="w-5 h-5 text-violet-600" />} label="Taxa Sucesso" value={`${analytics.summary.successRate}%`} bg="bg-violet-50" />
-                  <MetricCard icon={<LuClock className="w-5 h-5 text-amber-600" />} label="Latência Média" value={`${(analytics.summary.avgLatencyMs / 1000).toFixed(1)}s`} bg="bg-amber-50" />
+                  <MetricCard icon={<LuClock className="w-5 h-5 text-orange-600" />} label="Latência Média" value={`${(analytics.summary.avgLatencyMs / 1000).toFixed(1)}s`} bg="bg-orange-50" />
                 </div>
 
                 {/* Token Usage */}
@@ -515,7 +515,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                         return (
                           <div key={day.date} className="flex-1 flex flex-col items-center gap-1" title={`${day.date}: ${day.total} total, ${day.success} sucesso, ${day.failed} falha`}>
                             <div className="w-full relative rounded-t-md overflow-hidden" style={{ height: `${Math.max(height, 4)}%` }}>
-                              <div className="absolute bottom-0 w-full bg-emerald-400" style={{ height: `${successPct}%` }} />
+                              <div className="absolute bottom-0 w-full bg-cyan-400" style={{ height: `${successPct}%` }} />
                               <div className="absolute top-0 w-full bg-red-300" style={{ height: `${100 - successPct}%` }} />
                             </div>
                             <span className="text-[10px] text-gray-400 -rotate-45 origin-top-left whitespace-nowrap">{day.date.slice(5)}</span>
@@ -524,7 +524,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                       })}
                     </div>
                     <div className="flex items-center gap-4 mt-4 text-xs text-gray-500">
-                      <span className="flex items-center gap-1"><span className="w-3 h-3 bg-emerald-400 rounded-sm" />Sucesso</span>
+                      <span className="flex items-center gap-1"><span className="w-3 h-3 bg-cyan-400 rounded-sm" />Sucesso</span>
                       <span className="flex items-center gap-1"><span className="w-3 h-3 bg-red-300 rounded-sm" />Falha</span>
                     </div>
                   </div>
@@ -604,7 +604,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                       </div>
                     </div>
                     {idx > 0 && (
-                      <button onClick={() => handleRollback(v.version)} className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg">
+                      <button onClick={() => handleRollback(v.version)} className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-orange-50 hover:bg-orange-100 text-orange-700 rounded-lg">
                         <LuArrowDownLeft className="w-4 h-4" />Rollback
                       </button>
                     )}
@@ -657,8 +657,8 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
                   <div className="p-3 bg-gray-50 rounded-xl">
                     <p className="text-sm text-gray-500">Estado</p>
                     <p className={`text-xl font-bold ${
-                      (circuitStatus.state as string) === 'CLOSED' ? 'text-emerald-600' :
-                      (circuitStatus.state as string) === 'OPEN' ? 'text-red-600' : 'text-amber-600'
+                      (circuitStatus.state as string) === 'CLOSED' ? 'text-cyan-600' :
+                      (circuitStatus.state as string) === 'OPEN' ? 'text-red-600' : 'text-orange-600'
                     }`}>
                       {(circuitStatus.state as string) === 'CLOSED' ? 'Fechado (OK)' :
                        (circuitStatus.state as string) === 'OPEN' ? 'Aberto (Bloq.)' : 'Semi-Aberto'}

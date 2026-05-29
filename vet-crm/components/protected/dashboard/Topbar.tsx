@@ -88,12 +88,12 @@ export default function Topbar({ sidebarOpen = false }: TopbarProps) {
                     className="rounded-full object-cover ring-2 ring-[color:var(--topbar-ring)] group-hover:ring-[color:var(--topbar-ring-hover)] transition-all"
                   />
                 ) : (
-                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-500 to-amber-600 flex items-center justify-center text-white text-sm font-semibold ring-2 ring-[color:var(--topbar-ring)] group-hover:ring-[color:var(--topbar-ring-hover)] transition-all">
+                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-cyan-500 to-orange-600 flex items-center justify-center text-white text-sm font-semibold ring-2 ring-[color:var(--topbar-ring)] group-hover:ring-[color:var(--topbar-ring-hover)] transition-all">
                     {getInitials(userName)}
                   </div>
                 )}
                 {/* Indicador online */}
-                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-[color:var(--topbar-avatar-border)] rounded-full"></span>
+                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-cyan-500 border-2 border-[color:var(--topbar-avatar-border)] rounded-full"></span>
               </div>
 
               {/* Nome (oculto em telas pequenas) */}

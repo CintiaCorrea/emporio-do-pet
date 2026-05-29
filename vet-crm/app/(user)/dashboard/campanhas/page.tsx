@@ -126,7 +126,7 @@ export default function CampanhasPage() {
       description: 'Campanhas via WhatsApp',
       icon: LuMessageSquare,
       href: '/dashboard/campanhas/whatsapp',
-      color: 'from-emerald-500 to-teal-600',
+      color: 'from-cyan-500 to-cyan-600',
       badge: 'Disponível',
       disabled: false
     },
@@ -144,7 +144,7 @@ export default function CampanhasPage() {
       description: 'Mensagens de texto diretas',
       icon: LuMessageSquare,
       href: '/dashboard/campanhas/sms',
-      color: 'from-green-500 to-emerald-600',
+      color: 'from-green-500 to-cyan-600',
       badge: 'Em breve',
       disabled: true
     }
@@ -154,9 +154,9 @@ export default function CampanhasPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-cyan-950 to-slate-900">
         {/* Header com gradiente */}
         <div className="relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-r from-cyan-600/20 via-teal-600/20 to-emerald-600/20"></div>
+          <div className="absolute inset-0 bg-gradient-to-r from-cyan-600/20 via-cyan-600/20 to-cyan-600/20"></div>
           <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl"></div>
-          <div className="absolute bottom-0 left-0 w-64 h-64 bg-teal-500/10 rounded-full blur-3xl"></div>
+          <div className="absolute bottom-0 left-0 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl"></div>
           
           <div className="relative px-4 sm:px-6 lg:px-8 py-8">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -165,7 +165,7 @@ export default function CampanhasPage() {
                   <LuMegaphone className="w-5 h-5 text-cyan-300" />
                 </div>
                 <div>
-                  <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-cyan-400 via-teal-400 to-emerald-400 bg-clip-text text-transparent">
+                  <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-cyan-400 via-cyan-400 to-cyan-400 bg-clip-text text-transparent">
                     Campanhas
                   </h1>
                   <p className="mt-2 text-gray-400">
@@ -203,8 +203,8 @@ export default function CampanhasPage() {
                   title: 'WhatsApp',
                   icon: LuMessageSquare,
                   href: '/dashboard/campanhas/whatsapp',
-                  tint: 'bg-emerald-500/20',
-                  iconColor: 'text-emerald-300',
+                  tint: 'bg-cyan-500/20',
+                  iconColor: 'text-cyan-300',
                   showEngagement: false,
                   data: computeResults.whatsapp,
                 },

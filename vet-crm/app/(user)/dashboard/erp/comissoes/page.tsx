@@ -146,8 +146,8 @@ export default function ComissoesPage() {
 
   const getStatusColor = (status: CommissionStatus) => {
     switch (status) {
-      case 'PAID': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
-      case 'PENDING': return 'bg-amber-100 text-amber-700 border-amber-200';
+      case 'PAID': return 'bg-cyan-100 text-cyan-700 border-cyan-200';
+      case 'PENDING': return 'bg-orange-100 text-orange-700 border-orange-200';
       case 'CANCELLED': return 'bg-red-100 text-red-700 border-red-200';
     }
   };
@@ -165,7 +165,7 @@ export default function ComissoesPage() {
       case 'CONSULTATION': return 'bg-blue-100 text-blue-800';
       case 'SURGERY': return 'bg-red-100 text-red-800';
       case 'HOSPITALIZATION': return 'bg-purple-100 text-purple-800';
-      case 'SERVICE': return 'bg-teal-100 text-teal-800';
+      case 'SERVICE': return 'bg-cyan-100 text-cyan-800';
       case 'PRODUCT': return 'bg-orange-100 text-orange-800';
     }
   };
@@ -348,8 +348,8 @@ export default function ComissoesPage() {
 
               <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-blue-500/5 p-6 hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-300 hover:scale-105">
                 <div className="flex items-center gap-3">
-                  <div className="p-3 rounded-xl bg-emerald-50">
-                    <LuCircleCheck className="w-6 h-6 text-emerald-600" />
+                  <div className="p-3 rounded-xl bg-cyan-50">
+                    <LuCircleCheck className="w-6 h-6 text-cyan-600" />
                   </div>
                   <div>
                     <p className="text-sm font-semibold text-gray-600">Pagas</p>
@@ -360,8 +360,8 @@ export default function ComissoesPage() {
 
               <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-blue-500/5 p-6 hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-300 hover:scale-105">
                 <div className="flex items-center gap-3">
-                  <div className="p-3 rounded-xl bg-amber-50">
-                    <LuClock className="w-6 h-6 text-amber-600" />
+                  <div className="p-3 rounded-xl bg-orange-50">
+                    <LuClock className="w-6 h-6 text-orange-600" />
                   </div>
                   <div>
                     <p className="text-sm font-semibold text-gray-600">Pendentes</p>
@@ -521,7 +521,7 @@ export default function ComissoesPage() {
                             <p className="text-blue-600 font-medium">{commission.commissionRate}%</p>
                           </td>
                           <td className="p-6">
-                            <p className="text-emerald-600 font-bold">{formatCurrency(commission.commissionValue)}</p>
+                            <p className="text-cyan-600 font-bold">{formatCurrency(commission.commissionValue)}</p>
                           </td>
                           <td className="p-6">
                             <span className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full border ${getStatusColor(commission.status)}`}>
@@ -629,7 +629,7 @@ export default function ComissoesPage() {
                 </div>
                 <div className="flex justify-between pt-3 border-t border-gray-200">
                   <span className="text-gray-900 font-semibold">Valor da Comissão</span>
-                  <span className="text-emerald-600 font-bold text-lg">{formatCurrency(selectedCommission.commissionValue)}</span>
+                  <span className="text-cyan-600 font-bold text-lg">{formatCurrency(selectedCommission.commissionValue)}</span>
                 </div>
               </div>
 
@@ -652,7 +652,7 @@ export default function ComissoesPage() {
                 {selectedCommission.status === 'PENDING' && (
                   <button
                     onClick={() => handleMarkAsPaid(selectedCommission)}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white rounded-xl font-semibold transition-all"
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-cyan-600 to-green-600 hover:from-cyan-500 hover:to-green-500 text-white rounded-xl font-semibold transition-all"
                   >
                     <LuCircleCheck className="w-5 h-5" />
                     Marcar como Pago

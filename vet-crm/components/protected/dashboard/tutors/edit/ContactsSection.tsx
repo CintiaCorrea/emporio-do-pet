@@ -90,8 +90,8 @@ export default function ContactsSection({
               onClick={() => onSetPrimaryContact(index)}
               className={`p-2 rounded-xl transition-all duration-300 hover:scale-110 ${
                 contact.isPrimary 
-                  ? 'text-amber-500 bg-amber-50' 
-                  : 'text-gray-400 hover:text-amber-500 hover:bg-amber-50'
+                  ? 'text-orange-500 bg-orange-50' 
+                  : 'text-gray-400 hover:text-orange-500 hover:bg-orange-50'
               }`}
             >
               <LuStar className="w-4 h-4" />

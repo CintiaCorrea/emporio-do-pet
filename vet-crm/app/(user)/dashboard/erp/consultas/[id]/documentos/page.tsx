@@ -43,7 +43,7 @@ const TYPE_COLORS: Record<string, string> = {
   MEDICAL_CERTIFICATE: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
   EXAM_REQUEST: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
   SURGICAL_REPORT: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-  DISCHARGE_SUMMARY: 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400',
+  DISCHARGE_SUMMARY: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400',
 };
 
 export default function DocumentosConsultaPage({ params }: { params: Promise<{ id: string }> }) {

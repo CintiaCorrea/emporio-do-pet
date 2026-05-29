@@ -179,8 +179,8 @@ export default function AgentsPage() {
 
   const getStatusColor = (status: AgentStatus) => {
     switch (status) {
-      case 'ACTIVE': return 'bg-emerald-100 text-emerald-700';
-      case 'PAUSED': return 'bg-amber-100 text-amber-700';
+      case 'ACTIVE': return 'bg-cyan-100 text-cyan-700';
+      case 'PAUSED': return 'bg-orange-100 text-orange-700';
       case 'DRAFT': return 'bg-gray-100 text-gray-700';
       case 'ERROR': return 'bg-red-100 text-red-700';
     }
@@ -288,10 +288,10 @@ export default function AgentsPage() {
                 </div>
               </div>
 
-              <div className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-lg hover:shadow-emerald-500/5 transition-all">
+              <div className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-lg hover:shadow-cyan-500/5 transition-all">
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-emerald-50">
-                    <LuCircleCheck className="w-5 h-5 text-emerald-600" />
+                  <div className="p-2.5 rounded-xl bg-cyan-50">
+                    <LuCircleCheck className="w-5 h-5 text-cyan-600" />
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">Ativos</p>
@@ -300,10 +300,10 @@ export default function AgentsPage() {
                 </div>
               </div>
 
-              <div className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-lg hover:shadow-amber-500/5 transition-all">
+              <div className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-lg hover:shadow-orange-500/5 transition-all">
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-amber-50">
-                    <LuPause className="w-5 h-5 text-amber-600" />
+                  <div className="p-2.5 rounded-xl bg-orange-50">
+                    <LuPause className="w-5 h-5 text-orange-600" />
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">Pausados</p>
@@ -407,13 +407,13 @@ export default function AgentsPage() {
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center gap-3">
                         <div className={`p-2.5 rounded-xl ${
-                          agent.status === 'ACTIVE' ? 'bg-emerald-50' :
-                          agent.status === 'PAUSED' ? 'bg-amber-50' :
+                          agent.status === 'ACTIVE' ? 'bg-cyan-50' :
+                          agent.status === 'PAUSED' ? 'bg-orange-50' :
                           agent.status === 'ERROR' ? 'bg-red-50' : 'bg-gray-50'
                         }`}>
                           <span className={`${
-                            agent.status === 'ACTIVE' ? 'text-emerald-600' :
-                            agent.status === 'PAUSED' ? 'text-amber-600' :
+                            agent.status === 'ACTIVE' ? 'text-cyan-600' :
+                            agent.status === 'PAUSED' ? 'text-orange-600' :
                             agent.status === 'ERROR' ? 'text-red-600' : 'text-gray-600'
                           }`}>
                             {getTypeIcon(agent.type)}
@@ -472,13 +472,13 @@ export default function AgentsPage() {
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-4">
                   <div className={`p-3 rounded-xl ${
-                    selectedAgent.status === 'ACTIVE' ? 'bg-emerald-50' :
-                    selectedAgent.status === 'PAUSED' ? 'bg-amber-50' :
+                    selectedAgent.status === 'ACTIVE' ? 'bg-cyan-50' :
+                    selectedAgent.status === 'PAUSED' ? 'bg-orange-50' :
                     selectedAgent.status === 'ERROR' ? 'bg-red-50' : 'bg-gray-50'
                   }`}>
                     <span className={`${
-                      selectedAgent.status === 'ACTIVE' ? 'text-emerald-600' :
-                      selectedAgent.status === 'PAUSED' ? 'text-amber-600' :
+                      selectedAgent.status === 'ACTIVE' ? 'text-cyan-600' :
+                      selectedAgent.status === 'PAUSED' ? 'text-orange-600' :
                       selectedAgent.status === 'ERROR' ? 'text-red-600' : 'text-gray-600'
                     }`}>
                       {getTypeIcon(selectedAgent.type)}
@@ -509,7 +509,7 @@ export default function AgentsPage() {
                     <button 
                       onClick={() => handleUpdateStatus(selectedAgent.id, 'PAUSED')}
                       disabled={actionLoading === selectedAgent.id}
-                      className="flex items-center gap-2 px-4 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg transition-colors disabled:opacity-50"
+                      className="flex items-center gap-2 px-4 py-2 bg-orange-50 hover:bg-orange-100 text-orange-700 rounded-lg transition-colors disabled:opacity-50"
                     >
                       {actionLoading === selectedAgent.id ? (
                         <LuLoader className="w-4 h-4 animate-spin" />
@@ -522,7 +522,7 @@ export default function AgentsPage() {
                     <button 
                       onClick={() => handleUpdateStatus(selectedAgent.id, 'ACTIVE')}
                       disabled={actionLoading === selectedAgent.id}
-                      className="flex items-center gap-2 px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg transition-colors disabled:opacity-50"
+                      className="flex items-center gap-2 px-4 py-2 bg-cyan-50 hover:bg-cyan-100 text-cyan-700 rounded-lg transition-colors disabled:opacity-50"
                     >
                       {actionLoading === selectedAgent.id ? (
                         <LuLoader className="w-4 h-4 animate-spin" />

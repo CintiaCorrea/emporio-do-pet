@@ -57,7 +57,7 @@ const TEMPLATES = [
     name: 'Hotel para Pets',
     description: 'Instalações, pacotes, depoimentos e reserva',
     icon: LuHotel,
-    color: 'from-emerald-500 to-emerald-600',
+    color: 'from-cyan-500 to-cyan-600',
   },
 ];
 
@@ -131,7 +131,7 @@ export default function NovaLandingPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/20">
       <div className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-cyan-600/5 via-teal-600/5 to-emerald-600/5 dark:from-cyan-600/20 dark:via-teal-600/20 dark:to-emerald-600/20" />
+        <div className="absolute inset-0 bg-gradient-to-r from-cyan-600/5 via-cyan-600/5 to-cyan-600/5 dark:from-cyan-600/20 dark:via-cyan-600/20 dark:to-cyan-600/20" />
 
         <div className="relative px-4 sm:px-6 lg:px-8 py-8 max-w-4xl mx-auto">
           <button
@@ -236,7 +236,7 @@ export default function NovaLandingPage() {
               <button
                 onClick={handleCreate}
                 disabled={creating || !name.trim()}
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-white rounded-xl font-medium text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-cyan-500 to-cyan-500 hover:from-cyan-400 hover:to-cyan-400 text-white rounded-xl font-medium text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {creating ? (
                   <LuLoaderCircle className="w-4 h-4 animate-spin" />

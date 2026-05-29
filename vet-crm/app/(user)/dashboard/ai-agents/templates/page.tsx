@@ -220,8 +220,8 @@ export default function TemplatesPage() {
 
   const getStatusColor = (status: WhatsAppTemplateStatus) => {
     switch (status) {
-      case 'APPROVED': return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400';
-      case 'PENDING': return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
+      case 'APPROVED': return 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400';
+      case 'PENDING': return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400';
       case 'REJECTED': return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
       case 'PAUSED': return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400';
       case 'DISABLED': return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400';
@@ -242,8 +242,8 @@ export default function TemplatesPage() {
 
   const getQualityColor = (score?: string) => {
     switch (score) {
-      case 'GREEN': return 'text-emerald-500';
-      case 'YELLOW': return 'text-amber-500';
+      case 'GREEN': return 'text-cyan-500';
+      case 'YELLOW': return 'text-orange-500';
       case 'RED': return 'text-red-500';
       default: return 'text-gray-400';
     }
@@ -353,8 +353,8 @@ export default function TemplatesPage() {
 
           <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-5 hover:shadow-lg transition-all">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-900/30">
-                <LuCheck className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+              <div className="p-2.5 rounded-xl bg-cyan-50 dark:bg-cyan-900/30">
+                <LuCheck className="w-5 h-5 text-cyan-600 dark:text-cyan-400" />
               </div>
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Aprovados</p>
@@ -365,8 +365,8 @@ export default function TemplatesPage() {
 
           <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-5 hover:shadow-lg transition-all">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-900/30">
-                <LuClock className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+              <div className="p-2.5 rounded-xl bg-orange-50 dark:bg-orange-900/30">
+                <LuClock className="w-5 h-5 text-orange-600 dark:text-orange-400" />
               </div>
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Pendentes</p>
@@ -389,8 +389,8 @@ export default function TemplatesPage() {
 
           <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-5 hover:shadow-lg transition-all">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-900/30">
-                <LuShieldCheck className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+              <div className="p-2.5 rounded-xl bg-cyan-50 dark:bg-cyan-900/30">
+                <LuShieldCheck className="w-5 h-5 text-cyan-600 dark:text-cyan-400" />
               </div>
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Qualidade</p>
@@ -469,13 +469,13 @@ export default function TemplatesPage() {
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
                     <div className={`p-2.5 rounded-xl ${
-                      template.status === 'APPROVED' ? 'bg-emerald-50 dark:bg-emerald-900/30' :
-                      template.status === 'PENDING' ? 'bg-amber-50 dark:bg-amber-900/30' : 
+                      template.status === 'APPROVED' ? 'bg-cyan-50 dark:bg-cyan-900/30' :
+                      template.status === 'PENDING' ? 'bg-orange-50 dark:bg-orange-900/30' : 
                       template.status === 'REJECTED' ? 'bg-red-50 dark:bg-red-900/30' : 'bg-gray-50 dark:bg-gray-800'
                     }`}>
                       <LuMessageCircle className={`w-5 h-5 ${
-                        template.status === 'APPROVED' ? 'text-emerald-600 dark:text-emerald-400' :
-                        template.status === 'PENDING' ? 'text-amber-600 dark:text-amber-400' : 
+                        template.status === 'APPROVED' ? 'text-cyan-600 dark:text-cyan-400' :
+                        template.status === 'PENDING' ? 'text-orange-600 dark:text-orange-400' : 
                         template.status === 'REJECTED' ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-gray-400'
                       }`} />
                     </div>
@@ -527,13 +527,13 @@ export default function TemplatesPage() {
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-4">
                   <div className={`p-3 rounded-xl ${
-                    selectedTemplate.status === 'APPROVED' ? 'bg-emerald-50 dark:bg-emerald-900/30' :
-                    selectedTemplate.status === 'PENDING' ? 'bg-amber-50 dark:bg-amber-900/30' : 
+                    selectedTemplate.status === 'APPROVED' ? 'bg-cyan-50 dark:bg-cyan-900/30' :
+                    selectedTemplate.status === 'PENDING' ? 'bg-orange-50 dark:bg-orange-900/30' : 
                     selectedTemplate.status === 'REJECTED' ? 'bg-red-50 dark:bg-red-900/30' : 'bg-gray-50 dark:bg-gray-800'
                   }`}>
                     <LuMessageCircle className={`w-6 h-6 ${
-                      selectedTemplate.status === 'APPROVED' ? 'text-emerald-600 dark:text-emerald-400' :
-                      selectedTemplate.status === 'PENDING' ? 'text-amber-600 dark:text-amber-400' : 
+                      selectedTemplate.status === 'APPROVED' ? 'text-cyan-600 dark:text-cyan-400' :
+                      selectedTemplate.status === 'PENDING' ? 'text-orange-600 dark:text-orange-400' : 
                       selectedTemplate.status === 'REJECTED' ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-gray-400'
                     }`} />
                   </div>

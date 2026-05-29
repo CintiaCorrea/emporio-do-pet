@@ -141,7 +141,7 @@ export default function DadosPage() {
                     red: { bg: "bg-red-50", iconBg: "bg-red-100", iconColor: "text-red-600" },
                     purple: { bg: "bg-purple-50", iconBg: "bg-purple-100", iconColor: "text-purple-600" },
                     orange: { bg: "bg-orange-50", iconBg: "bg-orange-100", iconColor: "text-orange-600" },
-                    teal: { bg: "bg-teal-50", iconBg: "bg-teal-100", iconColor: "text-teal-600" },
+                    teal: { bg: "bg-cyan-50", iconBg: "bg-cyan-100", iconColor: "text-cyan-600" },
                   };
                   const colors = colorMap[item.color];
                   return (

@@ -203,8 +203,8 @@ export default function AutomacoesPage() {
 
   const getStatusColor = (status: AutomationStatus) => {
     switch (status) {
-      case 'ACTIVE': return 'bg-emerald-100 text-emerald-700';
-      case 'PAUSED': return 'bg-amber-100 text-amber-700';
+      case 'ACTIVE': return 'bg-cyan-100 text-cyan-700';
+      case 'PAUSED': return 'bg-orange-100 text-orange-700';
       case 'DRAFT': return 'bg-gray-100 text-gray-700';
       case 'ERROR': return 'bg-red-100 text-red-700';
     }
@@ -223,9 +223,9 @@ export default function AutomacoesPage() {
     switch (category) {
       case 'ATENDIMENTO': return 'bg-blue-50 text-blue-600';
       case 'MARKETING': return 'bg-pink-50 text-pink-600';
-      case 'NOTIFICACAO': return 'bg-amber-50 text-amber-600';
+      case 'NOTIFICACAO': return 'bg-orange-50 text-orange-600';
       case 'INTEGRACAO': return 'bg-violet-50 text-violet-600';
-      case 'AGENDAMENTO': return 'bg-teal-50 text-teal-600';
+      case 'AGENDAMENTO': return 'bg-cyan-50 text-cyan-600';
     }
   };
 
@@ -289,7 +289,7 @@ export default function AutomacoesPage() {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-8rem)]">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-emerald-100 border-t-emerald-600 rounded-full animate-spin"></div>
+          <div className="w-12 h-12 border-4 border-cyan-100 border-t-emerald-600 rounded-full animate-spin"></div>
           <p className="text-gray-500 font-medium">Carregando automações...</p>
         </div>
       </div>
@@ -303,7 +303,7 @@ export default function AutomacoesPage() {
             {/* Breadcrumb e Header */}
             <div className="mb-8">
               <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
-                <Link href="/dashboard/ai-agents/agents" className="hover:text-emerald-600 transition-colors">AI Agents</Link>
+                <Link href="/dashboard/ai-agents/agents" className="hover:text-cyan-600 transition-colors">AI Agents</Link>
                 <LuChevronRight className="w-4 h-4" />
                 <span className="text-gray-900 font-medium">Automações</span>
               </div>
@@ -315,7 +315,7 @@ export default function AutomacoesPage() {
                 </div>
                 <Link
                   href="/dashboard/ai-agents/automacoes/nova"
-                  className="flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold shadow-lg shadow-emerald-500/20 transition-all duration-200 hover:shadow-xl"
+                  className="flex items-center gap-2 px-6 py-3 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl font-semibold shadow-lg shadow-cyan-500/20 transition-all duration-200 hover:shadow-xl"
                 >
                   <LuPlus className="w-5 h-5" />
                   Nova Automação
@@ -327,19 +327,19 @@ export default function AutomacoesPage() {
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
               <div className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-lg transition-all">
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-emerald-50"><LuWorkflow className="w-5 h-5 text-emerald-600" /></div>
+                  <div className="p-2.5 rounded-xl bg-cyan-50"><LuWorkflow className="w-5 h-5 text-cyan-600" /></div>
                   <div><p className="text-sm text-gray-500">Total</p><p className="text-2xl font-bold text-gray-900">{stats.total}</p></div>
                 </div>
               </div>
               <div className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-lg transition-all">
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-teal-50"><LuCircleCheck className="w-5 h-5 text-teal-600" /></div>
+                  <div className="p-2.5 rounded-xl bg-cyan-50"><LuCircleCheck className="w-5 h-5 text-cyan-600" /></div>
                   <div><p className="text-sm text-gray-500">Ativas</p><p className="text-2xl font-bold text-gray-900">{stats.active}</p></div>
                 </div>
               </div>
               <div className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-lg transition-all">
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-amber-50"><LuPause className="w-5 h-5 text-amber-600" /></div>
+                  <div className="p-2.5 rounded-xl bg-orange-50"><LuPause className="w-5 h-5 text-orange-600" /></div>
                   <div><p className="text-sm text-gray-500">Pausadas</p><p className="text-2xl font-bold text-gray-900">{stats.paused}</p></div>
                 </div>
               </div>
@@ -363,12 +363,12 @@ export default function AutomacoesPage() {
                 <div className="flex-1 relative">
                   <LuSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                   <input type="text" placeholder="Buscar automações..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all" />
+                    className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 transition-all" />
                 </div>
                 <div className="flex items-center gap-2">
                   <LuFilter className="text-gray-400 w-5 h-5" />
                   <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as AutomationStatus | 'all')}
-                    className="px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all cursor-pointer">
+                    className="px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 transition-all cursor-pointer">
                     <option value="all">Todos os Status</option>
                     <option value="ACTIVE">Ativo</option>
                     <option value="PAUSED">Pausado</option>
@@ -378,7 +378,7 @@ export default function AutomacoesPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value as AutomationCategory | 'all')}
-                    className="px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all cursor-pointer">
+                    className="px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 transition-all cursor-pointer">
                     <option value="all">Todas Categorias</option>
                     <option value="ATENDIMENTO">Atendimento</option>
                     <option value="MARKETING">Marketing</option>
@@ -405,14 +405,14 @@ export default function AutomacoesPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {filteredAutomations.map((automation) => (
                   <div key={automation.id} onClick={() => { setSelectedAutomation(automation); setIsModalOpen(true); }}
-                    className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-lg hover:border-emerald-200 transition-all cursor-pointer group">
+                    className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-lg hover:border-cyan-200 transition-all cursor-pointer group">
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center gap-3">
-                        <div className={`p-2.5 rounded-xl ${automation.status === 'ACTIVE' ? 'bg-emerald-50' : automation.status === 'PAUSED' ? 'bg-amber-50' : automation.status === 'ERROR' ? 'bg-red-50' : 'bg-gray-50'}`}>
-                          <LuWorkflow className={`w-5 h-5 ${automation.status === 'ACTIVE' ? 'text-emerald-600' : automation.status === 'PAUSED' ? 'text-amber-600' : automation.status === 'ERROR' ? 'text-red-600' : 'text-gray-600'}`} />
+                        <div className={`p-2.5 rounded-xl ${automation.status === 'ACTIVE' ? 'bg-cyan-50' : automation.status === 'PAUSED' ? 'bg-orange-50' : automation.status === 'ERROR' ? 'bg-red-50' : 'bg-gray-50'}`}>
+                          <LuWorkflow className={`w-5 h-5 ${automation.status === 'ACTIVE' ? 'text-cyan-600' : automation.status === 'PAUSED' ? 'text-orange-600' : automation.status === 'ERROR' ? 'text-red-600' : 'text-gray-600'}`} />
                         </div>
                         <div>
-                          <h3 className="font-semibold text-gray-900 group-hover:text-emerald-600 transition-colors">{automation.name}</h3>
+                          <h3 className="font-semibold text-gray-900 group-hover:text-cyan-600 transition-colors">{automation.name}</h3>
                           <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full ${getCategoryColor(automation.category)}`}>
                             {getCategoryIcon(automation.category)} {getCategoryText(automation.category)}
                           </span>
@@ -452,8 +452,8 @@ export default function AutomacoesPage() {
             <div className="p-6 border-b border-gray-100">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-4">
-                  <div className={`p-3 rounded-xl ${selectedAutomation.status === 'ACTIVE' ? 'bg-emerald-50' : selectedAutomation.status === 'PAUSED' ? 'bg-amber-50' : selectedAutomation.status === 'ERROR' ? 'bg-red-50' : 'bg-gray-50'}`}>
-                    <LuWorkflow className={`w-6 h-6 ${selectedAutomation.status === 'ACTIVE' ? 'text-emerald-600' : selectedAutomation.status === 'PAUSED' ? 'text-amber-600' : selectedAutomation.status === 'ERROR' ? 'text-red-600' : 'text-gray-600'}`} />
+                  <div className={`p-3 rounded-xl ${selectedAutomation.status === 'ACTIVE' ? 'bg-cyan-50' : selectedAutomation.status === 'PAUSED' ? 'bg-orange-50' : selectedAutomation.status === 'ERROR' ? 'bg-red-50' : 'bg-gray-50'}`}>
+                    <LuWorkflow className={`w-6 h-6 ${selectedAutomation.status === 'ACTIVE' ? 'text-cyan-600' : selectedAutomation.status === 'PAUSED' ? 'text-orange-600' : selectedAutomation.status === 'ERROR' ? 'text-red-600' : 'text-gray-600'}`} />
                   </div>
                   <div>
                     <h2 className="text-xl font-bold text-gray-900">{selectedAutomation.name}</h2>
@@ -475,7 +475,7 @@ export default function AutomacoesPage() {
                     <button 
                       onClick={() => handleUpdateStatus(selectedAutomation.id, 'PAUSED')}
                       disabled={actionLoading === selectedAutomation.id}
-                      className="flex items-center gap-2 px-4 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg transition-colors disabled:opacity-50"
+                      className="flex items-center gap-2 px-4 py-2 bg-orange-50 hover:bg-orange-100 text-orange-700 rounded-lg transition-colors disabled:opacity-50"
                     >
                       {actionLoading === selectedAutomation.id ? <LuLoader className="w-4 h-4 animate-spin" /> : <LuPause className="w-4 h-4" />}
                       Pausar
@@ -484,7 +484,7 @@ export default function AutomacoesPage() {
                     <button 
                       onClick={() => handleUpdateStatus(selectedAutomation.id, 'ACTIVE')}
                       disabled={actionLoading === selectedAutomation.id}
-                      className="flex items-center gap-2 px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg transition-colors disabled:opacity-50"
+                      className="flex items-center gap-2 px-4 py-2 bg-cyan-50 hover:bg-cyan-100 text-cyan-700 rounded-lg transition-colors disabled:opacity-50"
                     >
                       {actionLoading === selectedAutomation.id ? <LuLoader className="w-4 h-4 animate-spin" /> : <LuPlay className="w-4 h-4" />}
                       Ativar
@@ -520,7 +520,7 @@ export default function AutomacoesPage() {
                 <div className="space-y-2">
                   {selectedAutomation.steps.map((step, idx) => (
                     <div key={step.id} className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 text-sm font-medium">{idx + 1}</div>
+                      <div className="w-8 h-8 rounded-full bg-cyan-100 flex items-center justify-center text-cyan-700 text-sm font-medium">{idx + 1}</div>
                       <div className="flex-1 p-3 bg-gray-50 rounded-xl"><p className="text-gray-900">{step.name}</p><p className="text-xs text-gray-500">{step.type}</p></div>
                     </div>
                   ))}
@@ -543,7 +543,7 @@ export default function AutomacoesPage() {
                 <button 
                   onClick={() => handleExecute(selectedAutomation.id)}
                   disabled={actionLoading === selectedAutomation.id}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold transition-all disabled:opacity-50"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl font-semibold transition-all disabled:opacity-50"
                 >
                   {actionLoading === selectedAutomation.id ? (
                     <>

@@ -48,7 +48,7 @@ const STATUS_LABELS: Record<string, string> = {
 const STATUS_COLORS: Record<string, string> = {
   ACTIVE: 'bg-green-100 text-green-700 border-green-200',
   INACTIVE: 'bg-gray-100 text-gray-700 border-gray-200',
-  SUSPENDED: 'bg-amber-100 text-amber-700 border-amber-200',
+  SUSPENDED: 'bg-orange-100 text-orange-700 border-orange-200',
   CHURNED: 'bg-red-100 text-red-700 border-red-200',
 };
 
@@ -221,13 +221,13 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
           <button onClick={fetchClient} className="flex items-center gap-2 px-4 py-2 bg-white/80 border border-gray-200/80 rounded-2xl hover:bg-white transition-all text-sm">
             <LuRefreshCw className="w-4 h-4" /> Atualizar
           </button>
-          <button onClick={() => { setSelectedStatus(client.status); setStatusModal(true); }} className="flex items-center gap-2 px-4 py-2 bg-amber-50 border border-amber-200 rounded-2xl hover:bg-amber-100 transition-all text-sm text-amber-700">
+          <button onClick={() => { setSelectedStatus(client.status); setStatusModal(true); }} className="flex items-center gap-2 px-4 py-2 bg-orange-50 border border-orange-200 rounded-2xl hover:bg-orange-100 transition-all text-sm text-orange-700">
             <LuPenLine className="w-4 h-4" /> Alterar Status
           </button>
           <button onClick={() => setTagModal(true)} className="flex items-center gap-2 px-4 py-2 bg-purple-50 border border-purple-200 rounded-2xl hover:bg-purple-100 transition-all text-sm text-purple-700">
             <LuTag className="w-4 h-4" /> Adicionar Tag
           </button>
-          <button onClick={() => setPurchaseModal(true)} className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-2xl hover:scale-105 transition-all text-sm shadow-lg shadow-green-500/25">
+          <button onClick={() => setPurchaseModal(true)} className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-600 to-cyan-600 text-white rounded-2xl hover:scale-105 transition-all text-sm shadow-lg shadow-green-500/25">
             <LuShoppingCart className="w-4 h-4" /> Registrar Compra
           </button>
         </div>
@@ -236,7 +236,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl p-5 shadow-md">
             <div className="flex items-center gap-3">
-              <div className="p-3 bg-emerald-100 rounded-xl"><LuDollarSign className="w-6 h-6 text-emerald-600" /></div>
+              <div className="p-3 bg-cyan-100 rounded-xl"><LuDollarSign className="w-6 h-6 text-cyan-600" /></div>
               <div>
                 <p className="text-xs text-gray-500">Receita Total</p>
                 <p className="text-2xl font-bold text-gray-900">{formatCurrency(client.totalRevenue)}</p>
@@ -441,7 +441,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
               <button
                 onClick={handleRecordPurchase}
                 disabled={saving || !purchaseAmount}
-                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl hover:scale-105 transition-all disabled:opacity-50"
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-600 to-cyan-600 text-white rounded-xl hover:scale-105 transition-all disabled:opacity-50"
               >
                 {saving ? <LuLoader className="w-4 h-4 animate-spin" /> : <LuShoppingCart className="w-4 h-4" />}
                 Registrar

@@ -141,8 +141,8 @@ export default function AdsenseCampaignsPage() {
             {[
               { label: 'Investimento mensal', value: 'R$ 5.700', icon: LuChartColumn, tint: 'bg-violet-100 dark:bg-violet-500/20 text-violet-600 dark:text-violet-300' },
               { label: 'Leads estimados', value: '312', icon: LuUsers, tint: 'bg-cyan-100 dark:bg-cyan-500/20 text-cyan-600 dark:text-cyan-300' },
-              { label: 'ROAS projetado', value: '4.8x', icon: LuArrowUpRight, tint: 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-300' },
-              { label: 'Tempo de otimização', value: '7 dias', icon: LuClock, tint: 'bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-300' },
+              { label: 'ROAS projetado', value: '4.8x', icon: LuArrowUpRight, tint: 'bg-cyan-100 dark:bg-cyan-500/20 text-cyan-600 dark:text-cyan-300' },
+              { label: 'Tempo de otimização', value: '7 dias', icon: LuClock, tint: 'bg-orange-100 dark:bg-orange-500/20 text-orange-600 dark:text-orange-300' },
             ].map((item) => (
               <div key={item.label} className="rounded-2xl border border-gray-200/80 dark:border-white/10 bg-white/95 dark:bg-white/5 p-5 backdrop-blur-xl shadow-sm dark:shadow-none">
                 <div className="flex items-center gap-3">
@@ -215,7 +215,7 @@ export default function AdsenseCampaignsPage() {
                     <div className="mt-4 space-y-2">
                       {channel.highlights.map((item) => (
                         <div key={item} className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-300">
-                          <LuCheckCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500 dark:text-emerald-300" />
+                          <LuCheckCheck className="mt-0.5 h-4 w-4 shrink-0 text-cyan-500 dark:text-cyan-300" />
                           <span>{item}</span>
                         </div>
                       ))}
@@ -300,7 +300,7 @@ export default function AdsenseCampaignsPage() {
                   'Painel com CAC, CPL, ROAS e receita atribuída',
                 ].map((item) => (
                   <div key={item} className="flex items-start gap-3">
-                    <div className="mt-1 h-2.5 w-2.5 rounded-full bg-emerald-500 dark:bg-emerald-400" />
+                    <div className="mt-1 h-2.5 w-2.5 rounded-full bg-cyan-500 dark:bg-cyan-400" />
                     <p className="text-sm text-gray-600 dark:text-gray-300">{item}</p>
                   </div>
                 ))}

@@ -236,9 +236,9 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
     switch (status) {
       case 'DRAFT': return 'bg-gray-100 text-gray-700';
       case 'SCHEDULED': return 'bg-blue-100 text-blue-700';
-      case 'RUNNING': return 'bg-amber-100 text-amber-700';
+      case 'RUNNING': return 'bg-orange-100 text-orange-700';
       case 'PAUSED': return 'bg-orange-100 text-orange-700';
-      case 'COMPLETED': return 'bg-emerald-100 text-emerald-700';
+      case 'COMPLETED': return 'bg-cyan-100 text-cyan-700';
       case 'FAILED': return 'bg-red-100 text-red-700';
     }
   };
@@ -258,7 +258,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
     switch (status) {
       case 'PENDING': return 'bg-gray-100 text-gray-700';
       case 'SENT': return 'bg-blue-100 text-blue-700';
-      case 'DELIVERED': return 'bg-emerald-100 text-emerald-700';
+      case 'DELIVERED': return 'bg-cyan-100 text-cyan-700';
       case 'READ': return 'bg-violet-100 text-violet-700';
       case 'FAILED': return 'bg-red-100 text-red-700';
     }
@@ -289,7 +289,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-8rem)]">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-emerald-100 border-t-emerald-600 rounded-full animate-spin"></div>
+          <div className="w-12 h-12 border-4 border-cyan-100 border-t-emerald-600 rounded-full animate-spin"></div>
           <p className="text-gray-500 font-medium">Carregando campanha...</p>
         </div>
       </div>
@@ -304,7 +304,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Campanha não encontrada</h2>
           <Link
             href="/dashboard/campanhas/whatsapp"
-            className="text-emerald-600 hover:text-emerald-700"
+            className="text-cyan-600 hover:text-cyan-700"
           >
             Voltar para campanhas
           </Link>
@@ -318,11 +318,11 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
       <div className="max-w-6xl mx-auto">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-gray-500 mb-6">
-          <Link href="/dashboard/campanhas" className="hover:text-emerald-600">
+          <Link href="/dashboard/campanhas" className="hover:text-cyan-600">
             Campanhas
           </Link>
           <LuChevronRight className="w-4 h-4" />
-          <Link href="/dashboard/campanhas/whatsapp" className="hover:text-emerald-600">
+          <Link href="/dashboard/campanhas/whatsapp" className="hover:text-cyan-600">
             WhatsApp
           </Link>
           <LuChevronRight className="w-4 h-4" />
@@ -356,7 +356,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
               <button
                 onClick={handlePause}
                 disabled={actionLoading === 'pause'}
-                className="flex items-center gap-2 px-4 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg transition-colors disabled:opacity-50"
+                className="flex items-center gap-2 px-4 py-2 bg-orange-50 hover:bg-orange-100 text-orange-700 rounded-lg transition-colors disabled:opacity-50"
               >
                 {actionLoading === 'pause' ? (
                   <LuLoader className="w-4 h-4 animate-spin" />
@@ -369,7 +369,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
               <button
                 onClick={handleStart}
                 disabled={actionLoading === 'start' || campaign.totalRecipients === 0}
-                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors disabled:opacity-50"
+                className="flex items-center gap-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg transition-colors disabled:opacity-50"
               >
                 {actionLoading === 'start' ? (
                   <LuLoader className="w-4 h-4 animate-spin" />
@@ -424,11 +424,11 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
           </div>
 
           <div className="bg-white rounded-xl border border-gray-100 p-4">
-            <div className="flex items-center gap-2 text-emerald-600 mb-1">
+            <div className="flex items-center gap-2 text-cyan-600 mb-1">
               <LuCheckCheck className="w-4 h-4" />
               <span className="text-sm">Entregues</span>
             </div>
-            <p className="text-2xl font-bold text-emerald-600">{stats?.deliveredCount || campaign.deliveredCount}</p>
+            <p className="text-2xl font-bold text-cyan-600">{stats?.deliveredCount || campaign.deliveredCount}</p>
           </div>
 
           <div className="bg-white rounded-xl border border-gray-100 p-4">
@@ -448,11 +448,11 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
           </div>
 
           <div className="bg-white rounded-xl border border-gray-100 p-4">
-            <div className="flex items-center gap-2 text-amber-600 mb-1">
+            <div className="flex items-center gap-2 text-orange-600 mb-1">
               <LuClock className="w-4 h-4" />
               <span className="text-sm">Pendentes</span>
             </div>
-            <p className="text-2xl font-bold text-amber-600">{stats?.pending || 0}</p>
+            <p className="text-2xl font-bold text-orange-600">{stats?.pending || 0}</p>
           </div>
         </div>
 
@@ -467,7 +467,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
             </div>
             <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
               <div
-                className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+                className="h-full bg-cyan-500 rounded-full transition-all duration-500"
                 style={{ 
                   width: stats ? `${((stats.sentCount + stats.failedCount) / stats.totalRecipients * 100)}%` : '0%' 
                 }}
@@ -509,7 +509,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-gray-500">Taxa de Entrega</span>
-                <span className="text-lg font-semibold text-emerald-600">{stats?.deliveryRate || 0}%</span>
+                <span className="text-lg font-semibold text-cyan-600">{stats?.deliveryRate || 0}%</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-gray-500">Taxa de Leitura</span>
@@ -556,13 +556,13 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                     placeholder="Buscar..."
                     value={recipientSearch}
                     onChange={(e) => setRecipientSearch(e.target.value)}
-                    className="pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                    className="pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
                   />
                 </div>
                 <select
                   value={recipientFilter}
                   onChange={(e) => setRecipientFilter(e.target.value as RecipientStatus | 'all')}
-                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
                 >
                   <option value="all">Todos</option>
                   <option value="PENDING">Pendentes</option>

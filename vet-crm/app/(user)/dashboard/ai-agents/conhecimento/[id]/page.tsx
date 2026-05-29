@@ -44,7 +44,7 @@ interface KnowledgeBaseDetail {
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   READY: { label: 'Pronto', color: 'text-green-600 bg-green-50 dark:bg-green-900/20', icon: <LuCircleCheck className="w-3.5 h-3.5" /> },
-  PROCESSING: { label: 'Processando', color: 'text-amber-600 bg-amber-50 dark:bg-amber-900/20', icon: <LuLoader className="w-3.5 h-3.5 animate-spin" /> },
+  PROCESSING: { label: 'Processando', color: 'text-orange-600 bg-orange-50 dark:bg-orange-900/20', icon: <LuLoader className="w-3.5 h-3.5 animate-spin" /> },
   PENDING: { label: 'Pendente', color: 'text-gray-500 bg-gray-50 dark:bg-gray-700', icon: <LuClock className="w-3.5 h-3.5" /> },
   ERROR: { label: 'Erro', color: 'text-red-600 bg-red-50 dark:bg-red-900/20', icon: <LuCircleX className="w-3.5 h-3.5" /> },
 };

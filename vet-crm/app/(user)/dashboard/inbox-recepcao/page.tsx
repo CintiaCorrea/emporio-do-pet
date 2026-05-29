@@ -42,7 +42,7 @@ const TAG_COLORS: Record<string, string> = {
   'FU': 'bg-indigo-100 text-indigo-800', // Status FU
   'MP': 'bg-orange-100 text-orange-800', // Motivo perda
   'P':  'bg-cyan-100 text-cyan-800',     // Perfil
-  'ST': 'bg-amber-100 text-amber-800',   // Status clínico
+  'ST': 'bg-orange-100 text-orange-800',   // Status clínico
 };
 
 function tagColor(tag: string): string {
@@ -111,7 +111,7 @@ export default function InboxRecepcaoPage() {
             onClick={() => setPeriod(p)}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
               period === p
-                ? 'bg-emerald-600 text-white'
+                ? 'bg-cyan-600 text-white'
                 : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
             }`}
           >
@@ -124,13 +124,13 @@ export default function InboxRecepcaoPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
         <div className="bg-white p-4 rounded-lg border border-gray-200">
           <p className="text-xs text-gray-500 uppercase">Em triagem</p>
-          <p className="text-3xl font-bold text-amber-600 mt-1">
+          <p className="text-3xl font-bold text-orange-600 mt-1">
             {data?.counts.triagem ?? '—'}
           </p>
         </div>
         <div className="bg-white p-4 rounded-lg border border-gray-200">
           <p className="text-xs text-gray-500 uppercase">Interações recentes</p>
-          <p className="text-3xl font-bold text-emerald-600 mt-1">
+          <p className="text-3xl font-bold text-cyan-600 mt-1">
             {data?.counts.recentes ?? '—'}
           </p>
         </div>
@@ -155,7 +155,7 @@ export default function InboxRecepcaoPage() {
         <>
           <section className="mb-8">
             <h2 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
-              <span className="w-2 h-2 bg-amber-500 rounded-full"></span>
+              <span className="w-2 h-2 bg-orange-500 rounded-full"></span>
               Aguardando triagem ({triagemLeads.length})
             </h2>
             {triagemLeads.length === 0 ? (
@@ -190,7 +190,7 @@ export default function InboxRecepcaoPage() {
           {data && data.recentInteractions.length > 0 && (
             <section>
               <h2 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                <span className="w-2 h-2 bg-emerald-500 rounded-full"></span>
+                <span className="w-2 h-2 bg-cyan-500 rounded-full"></span>
                 Interações nas últimas 48h ({data.recentInteractions.length})
               </h2>
               <div className="grid gap-3">
@@ -208,7 +208,7 @@ export default function InboxRecepcaoPage() {
 
 function LeadCard({ lead }: { lead: LeadItem }) {
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition">
+    <a href={`/dashboard/crm/leads/${lead.id}`} className="block bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md hover:border-cyan-500 transition cursor-pointer">
       <div className="flex justify-between items-start mb-2">
         <div>
           <p className="font-semibold text-gray-900">{lead.name}</p>
@@ -241,7 +241,7 @@ function LeadCard({ lead }: { lead: LeadItem }) {
       <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
         <a
           href={`/dashboard/crm/leads/${lead.id}`}
-          className="text-sm text-emerald-700 hover:text-emerald-800 font-medium"
+          className="text-sm text-cyan-700 hover:text-cyan-800 font-medium"
         >
           Abrir perfil →
         </a>
@@ -249,13 +249,13 @@ function LeadCard({ lead }: { lead: LeadItem }) {
           <span className="text-xs text-gray-500 ml-auto">via {lead.source}</span>
         )}
       </div>
-    </div>
+    </a>
   );
 }
 
 function InteractionCard({ interaction }: { interaction: InteractionItem }) {
   return (
-    <div className="bg-emerald-50/30 border border-emerald-100 rounded-lg p-3">
+    <a href={`/dashboard/crm/leads/${interaction.leadId}`} className="block bg-cyan-50/30 border border-cyan-100 rounded-lg p-3 hover:bg-cyan-50 hover:border-cyan-500 transition cursor-pointer">
       <div className="flex justify-between items-center mb-1">
         <p className="font-medium text-sm text-gray-900">
           {interaction.leadName || interaction.leadPhone || 'Anônimo'}
@@ -276,6 +276,6 @@ function InteractionCard({ interaction }: { interaction: InteractionItem }) {
           ))}
         </div>
       )}
-    </div>
+    </a>
   );
 }

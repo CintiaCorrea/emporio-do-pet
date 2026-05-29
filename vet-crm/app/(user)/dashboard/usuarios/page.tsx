@@ -21,9 +21,9 @@ const ROLE_LABELS: Record<Role, string> = {
 };
 
 const ROLE_BADGE: Record<Role, string> = {
-  ADMIN: 'bg-emerald-100 text-emerald-800',
+  ADMIN: 'bg-cyan-100 text-cyan-800',
   VETERINARIAN: 'bg-blue-100 text-blue-800',
-  RECEPTIONIST: 'bg-amber-100 text-amber-800',
+  RECEPTIONIST: 'bg-orange-100 text-orange-800',
 };
 
 export default function UsuariosPage() {
@@ -95,7 +95,7 @@ export default function UsuariosPage() {
         </div>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-medium shadow-sm transition"
+          className="bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded-lg font-medium shadow-sm transition"
         >
           {showForm ? 'Cancelar' : '+ Novo usuário'}
         </button>
@@ -116,7 +116,7 @@ export default function UsuariosPage() {
                 onChange={(e) => setName(e.target.value)}
                 required
                 minLength={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
               />
             </div>
             <div>
@@ -126,7 +126,7 @@ export default function UsuariosPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
               />
             </div>
             <div>
@@ -138,7 +138,7 @@ export default function UsuariosPage() {
                 required
                 minLength={6}
                 placeholder="Mínimo 6 caracteres"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
               />
               <p className="text-xs text-gray-500 mt-1">
                 A pessoa pode trocar depois em "Alterar senha".
@@ -149,7 +149,7 @@ export default function UsuariosPage() {
               <select
                 value={role}
                 onChange={(e) => setRole(e.target.value as Role)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
               >
                 <option value="RECEPTIONIST">Recepção</option>
                 <option value="VETERINARIAN">Veterinário(a)</option>
@@ -161,7 +161,7 @@ export default function UsuariosPage() {
             <button
               type="submit"
               disabled={submitting}
-              className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white px-5 py-2 rounded-lg font-medium"
+              className="bg-cyan-600 hover:bg-cyan-700 disabled:opacity-50 text-white px-5 py-2 rounded-lg font-medium"
             >
               {submitting ? 'Criando...' : 'Criar usuário'}
             </button>
@@ -205,9 +205,9 @@ export default function UsuariosPage() {
                     {u.isBlocked ? (
                       <span className="text-red-600 text-sm">Bloqueado</span>
                     ) : u.isApproved ? (
-                      <span className="text-emerald-600 text-sm">Ativo</span>
+                      <span className="text-cyan-600 text-sm">Ativo</span>
                     ) : (
-                      <span className="text-amber-600 text-sm">Pendente</span>
+                      <span className="text-orange-600 text-sm">Pendente</span>
                     )}
                   </td>
                 </tr>

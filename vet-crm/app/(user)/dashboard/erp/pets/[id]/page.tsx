@@ -351,7 +351,7 @@ export default function PetDetailsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-green-50/20 to-emerald-50/10 overflow-hidden">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-green-50/20 to-cyan-50/10 overflow-hidden">
         <Sidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
         <div className={`min-h-screen transition-all duration-500 ${
           sidebarOpen ? 'ml-48 sm:ml-64' : 'ml-12 sm:ml-16'
@@ -373,7 +373,7 @@ export default function PetDetailsPage() {
 
   if (error || !pet) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-green-50/20 to-emerald-50/10 overflow-hidden">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-green-50/20 to-cyan-50/10 overflow-hidden">
         <Sidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
         <div className={`min-h-screen transition-all duration-500 ${
           sidebarOpen ? 'ml-48 sm:ml-64' : 'ml-12 sm:ml-16'
@@ -400,7 +400,7 @@ export default function PetDetailsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-green-50/20 to-emerald-50/10 overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-green-50/20 to-cyan-50/10 overflow-hidden">
       {pet && (
         <ConfirmDeleteModal
           isOpen={isDeleteOpen}
@@ -458,7 +458,7 @@ export default function PetDetailsPage() {
             {/* Card principal com tabs (igual ao formulário) */}
             <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-3xl shadow-2xl shadow-green-500/10 overflow-hidden">
               {/* Header do Pet */}
-              <div className="bg-gradient-to-r from-green-600 to-emerald-600 p-6">
+              <div className="bg-gradient-to-r from-green-600 to-cyan-600 p-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-4">
                     <div className="flex items-center justify-center w-16 h-16 bg-white/20 rounded-2xl backdrop-blur-sm overflow-hidden">

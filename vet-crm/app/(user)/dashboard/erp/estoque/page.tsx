@@ -349,7 +349,7 @@ export default function StockPage() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/10 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Carregando estoque...</p>
         </div>
       </div>
@@ -436,7 +436,7 @@ export default function StockPage() {
                   isFormatted: true
                 }
               ].map((stat, index) => (
-                <div key={index} className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-amber-500/5 p-6 hover:shadow-2xl hover:shadow-amber-500/10 transition-all duration-300 hover:scale-105">
+                <div key={index} className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-orange-500/5 p-6 hover:shadow-2xl hover:shadow-orange-500/10 transition-all duration-300 hover:scale-105">
                   <div className="flex items-center justify-between mb-4">
                     <div className={`p-3 bg-${stat.color}-50 rounded-xl`}>
                       <stat.icon className={`w-6 h-6 text-${stat.color}-600`} />
@@ -453,7 +453,7 @@ export default function StockPage() {
             </div>
 
             {/* Filters */}
-            <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-amber-500/5 p-6 mb-6">
+            <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-orange-500/5 p-6 mb-6">
               <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
                 <div className="flex flex-col sm:flex-row gap-4 w-full lg:w-auto">
                   <div className="relative flex-1">
@@ -465,7 +465,7 @@ export default function StockPage() {
                       placeholder="Buscar produto..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full pl-10 pr-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                      className="w-full pl-10 pr-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500/50 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm"
                     />
                   </div>
                   
@@ -475,7 +475,7 @@ export default function StockPage() {
                       setTypeFilter(e.target.value as ProductType | 'all');
                       fetchProducts();
                     }}
-                    className="px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                    className="px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm"
                   >
                     <option value="all">Todos os Tipos</option>
                     <option value="MEDICINE">Medicamentos</option>
@@ -487,7 +487,7 @@ export default function StockPage() {
                     onChange={(e) => {
                       setStockFilter(e.target.value as 'all' | 'low' | 'out' | 'ok');
                     }}
-                    className="px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                    className="px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm"
                   >
                     <option value="all">Todos os Status</option>
                     <option value="ok">Estoque Normal</option>
@@ -513,7 +513,7 @@ export default function StockPage() {
             </div>
 
             {/* Products Table */}
-            <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-amber-500/5 overflow-hidden">
+            <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-orange-500/5 overflow-hidden">
               <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-100/50 border-b border-white/20">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-semibold text-gray-900">
@@ -654,7 +654,7 @@ export default function StockPage() {
             </div>
 
             {/* Últimas Movimentações */}
-            <div className="mt-6 bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-amber-500/5 overflow-hidden">
+            <div className="mt-6 bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-orange-500/5 overflow-hidden">
               <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-100/50 border-b border-white/20">
                 <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                   <LuHistory className="w-5 h-5" />
@@ -730,7 +730,7 @@ export default function StockPage() {
                   onChange={(e) => setMovementForm({...movementForm, quantity: parseInt(e.target.value) || 0})}
                   min="1"
                   max={movementType === 'OUT' ? selectedProduct.stock : undefined}
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all duration-300 text-gray-900"
+                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500/50 transition-all duration-300 text-gray-900"
                 />
               </div>
 
@@ -741,7 +741,7 @@ export default function StockPage() {
                   value={movementForm.reason}
                   onChange={(e) => setMovementForm({...movementForm, reason: e.target.value})}
                   placeholder={movementType === 'IN' ? 'Ex: Compra - NF 12345' : 'Ex: Consulta #456'}
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all duration-300 text-gray-900"
+                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500/50 transition-all duration-300 text-gray-900"
                 />
               </div>
 

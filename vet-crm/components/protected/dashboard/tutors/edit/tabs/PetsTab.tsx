@@ -166,7 +166,7 @@ export default function PetsTab({ pets, onPetsChange, tutorId }: PetsTabProps) {
                 key={pet.tempId} 
                 className="bg-white/80 border border-gray-200/80 rounded-2xl overflow-hidden shadow-sm"
               >
-                <div className="bg-gradient-to-r from-green-50 to-emerald-50/50 px-6 py-4 border-b border-gray-200/50 flex items-center justify-between">
+                <div className="bg-gradient-to-r from-green-50 to-cyan-50/50 px-6 py-4 border-b border-gray-200/50 flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 bg-green-100 rounded-xl flex items-center justify-center">
                       <LuPawPrint className="w-4 h-4 text-green-600" />

@@ -80,7 +80,7 @@ const ROLE_LABELS: Record<UserRole, string> = {
 const ROLE_COLORS: Record<UserRole, string> = {
   ADMIN: 'bg-purple-100 text-purple-700',
   VETERINARIAN: 'bg-blue-100 text-blue-700',
-  RECEPTIONIST: 'bg-amber-100 text-amber-700',
+  RECEPTIONIST: 'bg-orange-100 text-orange-700',
 };
 
 // Back-compat (versões antigas armazenavam flags em permissions)
@@ -329,9 +329,9 @@ export default function ConfiguracoesPage() {
   const getStatusBadge = (status: UserStatus) => {
     switch (status) {
       case 'approved':
-        return <span className="px-3 py-1 text-xs font-medium bg-emerald-100 text-emerald-700 rounded-full">Aprovado</span>;
+        return <span className="px-3 py-1 text-xs font-medium bg-cyan-100 text-cyan-700 rounded-full">Aprovado</span>;
       case 'pending':
-        return <span className="px-3 py-1 text-xs font-medium bg-amber-100 text-amber-700 rounded-full">Pendente</span>;
+        return <span className="px-3 py-1 text-xs font-medium bg-orange-100 text-orange-700 rounded-full">Pendente</span>;
       case 'blocked':
         return <span className="px-3 py-1 text-xs font-medium bg-red-100 text-red-700 rounded-full">Bloqueado</span>;
     }
@@ -462,8 +462,8 @@ export default function ConfiguracoesPage() {
             {/* Notificações */}
             <div className="bg-white rounded-3xl shadow-sm shadow-gray-200/50 border border-gray-100 p-6">
               <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 bg-amber-100 rounded-xl">
-                  <LuBell className="w-5 h-5 text-amber-600" />
+                <div className="p-2 bg-orange-100 rounded-xl">
+                  <LuBell className="w-5 h-5 text-orange-600" />
                 </div>
                 <div>
                   <h2 className="text-lg font-semibold text-gray-900">Notificações</h2>
@@ -644,7 +644,7 @@ export default function ConfiguracoesPage() {
                           {member.role !== 'ADMIN' && member.status === 'pending' && (
                             <button
                               onClick={() => handleApproveUser(member.id)}
-                              className="px-3 py-1.5 text-xs font-medium bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors"
+                              className="px-3 py-1.5 text-xs font-medium bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg transition-colors"
                             >
                               Aprovar
                             </button>
@@ -791,7 +791,7 @@ export default function ConfiguracoesPage() {
                     </div>
 
                     <p className="text-gray-500 text-sm mt-4">
-                      <span className="text-amber-700 font-medium">Dica:</span> se desmarcar &quot;Ver&quot;, o usuário não consegue nem listar o módulo no dashboard (backend bloqueia).
+                      <span className="text-orange-700 font-medium">Dica:</span> se desmarcar &quot;Ver&quot;, o usuário não consegue nem listar o módulo no dashboard (backend bloqueia).
                     </p>
                   </>
                 ) : (

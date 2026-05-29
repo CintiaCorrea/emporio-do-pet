@@ -522,7 +522,7 @@ export default function AgentChatTest({
             onClick={() => setStreamingEnabled(!streamingEnabled)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
               streamingEnabled
-                ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                ? 'bg-cyan-100 text-cyan-700 hover:bg-cyan-200'
                 : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
             }`}
             title={streamingEnabled ? 'Desativar streaming' : 'Ativar streaming'}

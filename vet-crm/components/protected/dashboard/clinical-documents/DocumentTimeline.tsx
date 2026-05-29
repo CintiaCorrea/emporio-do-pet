@@ -54,7 +54,7 @@ const TYPE_COLORS: Record<string, string> = {
   MEDICAL_CERTIFICATE: 'text-yellow-600 bg-yellow-100 dark:bg-yellow-900/30',
   EXAM_REQUEST: 'text-orange-600 bg-orange-100 dark:bg-orange-900/30',
   SURGICAL_REPORT: 'text-red-600 bg-red-100 dark:bg-red-900/30',
-  DISCHARGE_SUMMARY: 'text-teal-600 bg-teal-100 dark:bg-teal-900/30',
+  DISCHARGE_SUMMARY: 'text-cyan-600 bg-cyan-100 dark:bg-cyan-900/30',
 };
 
 interface DocumentTimelineProps {

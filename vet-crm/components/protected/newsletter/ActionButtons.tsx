@@ -51,7 +51,7 @@ export const ActionButtons = ({
         <button
           onClick={onSendNow}
           disabled={isSending || !isFormValid}
-          className="w-full px-6 py-4 text-sm font-semibold text-white bg-gradient-to-r from-green-600 to-emerald-600 rounded-2xl hover:from-green-700 hover:to-emerald-700 focus:outline-none focus:ring-2 focus:ring-green-500/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-green-500/25 flex items-center justify-center space-x-2 group relative overflow-hidden"
+          className="w-full px-6 py-4 text-sm font-semibold text-white bg-gradient-to-r from-green-600 to-cyan-600 rounded-2xl hover:from-green-700 hover:to-cyan-700 focus:outline-none focus:ring-2 focus:ring-green-500/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-green-500/25 flex items-center justify-center space-x-2 group relative overflow-hidden"
         >
           <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent transform -skew-x-12 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
           <LuSend className="w-4 h-4 relative z-10" />

@@ -39,13 +39,13 @@ export default function NotificationBell() {
   const getNotificationIcon = (type: string) => {
     switch (type) {
       case 'WHATSAPP_MESSAGE':
-        return <LuMessageSquare className="w-4 h-4 text-emerald-600" />;
+        return <LuMessageSquare className="w-4 h-4 text-cyan-600" />;
       case 'APPOINTMENT_REMINDER':
         return <LuCalendar className="w-4 h-4 text-blue-600" />;
       case 'AUTOMATION_COMPLETE':
         return <LuZap className="w-4 h-4 text-violet-600" />;
       case 'CAMPAIGN_COMPLETE':
-        return <LuMegaphone className="w-4 h-4 text-amber-600" />;
+        return <LuMegaphone className="w-4 h-4 text-orange-600" />;
       default:
         return <LuBell className="w-4 h-4 text-gray-600" />;
     }
@@ -85,7 +85,7 @@ export default function NotificationBell() {
         {/* Connection Indicator */}
         <span
           className={`absolute bottom-1 right-1 w-2 h-2 rounded-full ${
-            connected ? 'bg-emerald-500' : 'bg-gray-300'
+            connected ? 'bg-cyan-500' : 'bg-gray-300'
           }`}
         />
       </button>

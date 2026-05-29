@@ -370,7 +370,7 @@ export default function TutorRegistrationPage() {
                     onClick={() => setActiveTab('pets')}
                     className={`group shrink-0 px-8 py-4 text-sm font-semibold transition-all duration-300 flex items-center space-x-2 ${
                       activeTab === 'pets'
-                        ? 'border-b-2 border-emerald-500 text-emerald-600 bg-emerald-50/50'
+                        ? 'border-b-2 border-cyan-500 text-cyan-600 bg-cyan-50/50'
                         : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50/50'
                     }`}
                   >
@@ -379,7 +379,7 @@ export default function TutorRegistrationPage() {
                     }`} />
                     <span>Pets</span>
                     {pets.filter(p => !p.isDeleted).length > 0 && (
-                      <span className="ml-1 px-2 py-0.5 text-xs bg-emerald-100 text-emerald-700 rounded-full">
+                      <span className="ml-1 px-2 py-0.5 text-xs bg-cyan-100 text-cyan-700 rounded-full">
                         {pets.filter(p => !p.isDeleted).length}
                       </span>
                     )}
@@ -676,8 +676,8 @@ export default function TutorRegistrationPage() {
                               onClick={() => setPrimaryContact(contact.id)}
                               className={`p-2 rounded-xl transition-all duration-300 hover:scale-110 ${
                                 contact.isPrimary 
-                                  ? 'text-amber-500 bg-amber-50' 
-                                  : 'text-gray-400 hover:text-amber-500 hover:bg-amber-50'
+                                  ? 'text-orange-500 bg-orange-50' 
+                                  : 'text-gray-400 hover:text-orange-500 hover:bg-orange-50'
                               }`}
                             >
                               <LuStar className="w-4 h-4" />
@@ -881,7 +881,7 @@ export default function TutorRegistrationPage() {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="group px-8 py-3 text-sm font-semibold text-white bg-gradient-to-r from-green-600 to-emerald-600 rounded-2xl hover:from-green-700 hover:to-emerald-700 focus:outline-none focus:ring-2 focus:ring-green-500/50 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-green-500/25 flex items-center space-x-2 relative overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="group px-8 py-3 text-sm font-semibold text-white bg-gradient-to-r from-green-600 to-cyan-600 rounded-2xl hover:from-green-700 hover:to-cyan-700 focus:outline-none focus:ring-2 focus:ring-green-500/50 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-green-500/25 flex items-center space-x-2 relative overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent transform -skew-x-12 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
                     {loading ? (

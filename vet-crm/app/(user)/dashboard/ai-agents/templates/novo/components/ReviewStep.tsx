@@ -34,9 +34,9 @@ export function ReviewStep({ formData }: ReviewStepProps) {
         </div>
       </div>
 
-      <div className="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl">
-        <p className="font-medium text-amber-800 dark:text-amber-300">Importante</p>
-        <p className="text-sm text-amber-700 dark:text-amber-400 mt-1">
+      <div className="p-4 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-xl">
+        <p className="font-medium text-orange-800 dark:text-orange-300">Importante</p>
+        <p className="text-sm text-orange-700 dark:text-orange-400 mt-1">
           A Meta pode aprovar, recategorizar ou rejeitar seu template com base nas politicas oficiais.
         </p>
       </div>

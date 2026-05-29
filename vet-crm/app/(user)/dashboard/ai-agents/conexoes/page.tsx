@@ -119,8 +119,8 @@ export default function IntegracoesPage() {
       name: 'OpenAI',
       description: 'GPT-4, GPT-3.5 Turbo e outros modelos para geração de texto e análise',
       icon: <LuBrain className="w-6 h-6" />,
-      color: 'text-emerald-600',
-      bgColor: 'bg-emerald-50',
+      color: 'text-cyan-600',
+      bgColor: 'bg-cyan-50',
       status: 'disconnected',
       docsUrl: 'https://platform.openai.com/docs'
     },
@@ -627,8 +627,8 @@ export default function IntegracoesPage() {
               {activeTab === 'openai' && (
                 <div className="p-4 sm:p-6">
                   <div className="flex flex-col md:flex-row md:items-center gap-4 mb-6">
-                    <div className="p-3 rounded-xl bg-emerald-50">
-                      <LuBrain className="w-6 h-6 text-emerald-600" />
+                    <div className="p-3 rounded-xl bg-cyan-50">
+                      <LuBrain className="w-6 h-6 text-cyan-600" />
                     </div>
                     <div className="flex-1">
                       <h2 className="text-xl font-bold text-gray-900">OpenAI</h2>
@@ -660,7 +660,7 @@ export default function IntegracoesPage() {
                             openai: { ...prev.openai, apiKey: e.target.value }
                           }))}
                           placeholder="sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-                          className="w-full px-4 py-3 pr-12 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 font-mono text-sm"
+                          className="w-full px-4 py-3 pr-12 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 font-mono text-sm"
                         />
                         <button
                           type="button"
@@ -684,7 +684,7 @@ export default function IntegracoesPage() {
                           ...prev,
                           openai: { ...prev.openai, model: e.target.value }
                         }))}
-                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 cursor-pointer"
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 cursor-pointer"
                       >
                         <option value="gpt-4-turbo-preview">GPT-4 Turbo (Recomendado)</option>
                         <option value="gpt-4">GPT-4</option>
@@ -708,7 +708,7 @@ export default function IntegracoesPage() {
                         }))}
                         min="100"
                         max="128000"
-                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500"
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500"
                       />
                     </div>
 
@@ -745,7 +745,7 @@ export default function IntegracoesPage() {
                       <button
                         onClick={() => handleSave('openai')}
                         disabled={saving === 'openai'}
-                        className="flex w-full md:w-auto justify-center md:justify-start items-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold transition-colors disabled:opacity-50"
+                        className="flex w-full md:w-auto justify-center md:justify-start items-center gap-2 px-6 py-2.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl font-semibold transition-colors disabled:opacity-50"
                       >
                         {saving === 'openai' ? (
                           <LuRefreshCw className="w-4 h-4 animate-spin" />
@@ -1105,7 +1105,7 @@ function AiUsageSection() {
                     <div
                       className={`h-2 rounded-full transition-all ${
                         Number(usage.budgetUsedPercent) > 80 ? 'bg-red-500' :
-                        Number(usage.budgetUsedPercent) > 50 ? 'bg-amber-500' : 'bg-emerald-500'
+                        Number(usage.budgetUsedPercent) > 50 ? 'bg-orange-500' : 'bg-cyan-500'
                       }`}
                       style={{ width: `${Math.min(Number(usage.budgetUsedPercent), 100)}%` }}
                     />

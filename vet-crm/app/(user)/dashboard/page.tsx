@@ -157,9 +157,9 @@ export default function DashboardPage() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'confirmado': return 'bg-emerald-500/15 text-emerald-600 border border-emerald-500/30';
-      case 'pendente': return 'bg-amber-500/15 text-amber-600 border border-amber-500/30';
-      case 'em_atendimento': return 'bg-emerald-500/15 text-emerald-600 border border-emerald-500/30';
+      case 'confirmado': return 'bg-cyan-500/15 text-cyan-600 border border-cyan-500/30';
+      case 'pendente': return 'bg-orange-500/15 text-orange-600 border border-orange-500/30';
+      case 'em_atendimento': return 'bg-cyan-500/15 text-cyan-600 border border-cyan-500/30';
       default: return 'bg-gray-500/10 text-gray-600 border border-gray-500/20';
     }
   };
@@ -186,7 +186,7 @@ export default function DashboardPage() {
       <div className="flex items-center justify-center min-h-[calc(100vh-5rem)]">
         <div className="flex flex-col items-center gap-6">
           <div className="relative">
-            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-amber-500/20 border border-emerald-500/20 animate-pulse" />
+            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-orange-500/20 border border-cyan-500/20 animate-pulse" />
             <div className="absolute inset-0 w-20 h-20 border-2 border-transparent border-t-blue-500 rounded-2xl animate-spin" />
           </div>
           <p className="text-gray-500 font-medium">Carregando seu dashboard...</p>
@@ -224,24 +224,24 @@ export default function DashboardPage() {
   ];
 
   const colorClasses: Record<string, string> = {
-    violet: 'bg-amber-500/10 text-amber-600 border-amber-500/20 hover:bg-amber-500/15 hover:border-amber-500/30',
-    blue: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20 hover:bg-emerald-500/15 hover:border-emerald-500/30',
-    indigo: 'bg-amber-500/10 text-amber-600 border-amber-500/20 hover:bg-amber-500/15 hover:border-amber-500/30',
-    amber: 'bg-amber-500/10 text-amber-600 border-amber-500/20 hover:bg-amber-500/15 hover:border-amber-500/30',
-    teal: 'bg-teal-500/10 text-teal-600 border-teal-500/20 hover:bg-teal-500/15 hover:border-teal-500/30',
+    violet: 'bg-orange-500/10 text-orange-600 border-orange-500/20 hover:bg-orange-500/15 hover:border-orange-500/30',
+    blue: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/20 hover:bg-cyan-500/15 hover:border-cyan-500/30',
+    indigo: 'bg-orange-500/10 text-orange-600 border-orange-500/20 hover:bg-orange-500/15 hover:border-orange-500/30',
+    amber: 'bg-orange-500/10 text-orange-600 border-orange-500/20 hover:bg-orange-500/15 hover:border-orange-500/30',
+    teal: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/20 hover:bg-cyan-500/15 hover:border-cyan-500/30',
     rose: 'bg-rose-500/10 text-rose-600 border-rose-500/20 hover:bg-rose-500/15 hover:border-rose-500/30',
-    emerald: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20 hover:bg-emerald-500/15 hover:border-emerald-500/30',
-    cyan: 'bg-teal-500/10 text-teal-600 border-teal-500/20 hover:bg-teal-500/15 hover:border-teal-500/30',
-    purple: 'bg-amber-500/10 text-amber-600 border-amber-500/20 hover:bg-amber-500/15 hover:border-amber-500/30',
+    emerald: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/20 hover:bg-cyan-500/15 hover:border-cyan-500/30',
+    cyan: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/20 hover:bg-cyan-500/15 hover:border-cyan-500/30',
+    purple: 'bg-orange-500/10 text-orange-600 border-orange-500/20 hover:bg-orange-500/15 hover:border-orange-500/30',
     slate: 'bg-slate-500/10 text-slate-600 border-slate-500/20 hover:bg-slate-500/15 hover:border-slate-500/30',
   };
 
   return (
     <div className="min-h-screen">
       {/* Hero gradient strip */}
-      <div className="absolute top-0 left-0 right-0 h-[420px] bg-gradient-to-br from-emerald-500/8 via-amber-500/5 to-teal-500/8 pointer-events-none" aria-hidden />
-      <div className="absolute top-0 left-1/4 w-96 h-96 bg-amber-400/10 rounded-full blur-3xl pointer-events-none" aria-hidden />
-      <div className="absolute top-20 right-1/4 w-80 h-80 bg-emerald-400/10 rounded-full blur-3xl pointer-events-none" aria-hidden />
+      <div className="absolute top-0 left-0 right-0 h-[420px] bg-gradient-to-br from-cyan-500/8 via-orange-500/5 to-cyan-500/8 pointer-events-none" aria-hidden />
+      <div className="absolute top-0 left-1/4 w-96 h-96 bg-orange-400/10 rounded-full blur-3xl pointer-events-none" aria-hidden />
+      <div className="absolute top-20 right-1/4 w-80 h-80 bg-cyan-400/10 rounded-full blur-3xl pointer-events-none" aria-hidden />
 
       <div className="relative p-6 lg:p-8 max-w-[1600px] mx-auto">
         {/* Header */}
@@ -291,12 +291,12 @@ export default function DashboardPage() {
         {/* KPI Cards - glass style */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
           {[
-            { label: 'Tutores', value: data.totalTutores, icon: LuUsers, bg: 'bg-emerald-500/10', iconColor: 'text-emerald-600' },
-            { label: 'Pets', value: data.totalPets, icon: LuPawPrint, bg: 'bg-amber-500/10', iconColor: 'text-amber-600' },
-            { label: 'Agendamentos hoje', value: data.agendamentosHoje, icon: LuCalendar, bg: 'bg-amber-500/10', iconColor: 'text-amber-600' },
-            { label: 'Consultas hoje', value: data.consultasHoje, sub: data.consultasPendentes ? `${data.consultasPendentes} pendentes` : null, icon: LuStethoscope, bg: 'bg-teal-500/10', iconColor: 'text-teal-600' },
+            { label: 'Tutores', value: data.totalTutores, icon: LuUsers, bg: 'bg-cyan-500/10', iconColor: 'text-cyan-600' },
+            { label: 'Pets', value: data.totalPets, icon: LuPawPrint, bg: 'bg-orange-500/10', iconColor: 'text-orange-600' },
+            { label: 'Agendamentos hoje', value: data.agendamentosHoje, icon: LuCalendar, bg: 'bg-orange-500/10', iconColor: 'text-orange-600' },
+            { label: 'Consultas hoje', value: data.consultasHoje, sub: data.consultasPendentes ? `${data.consultasPendentes} pendentes` : null, icon: LuStethoscope, bg: 'bg-cyan-500/10', iconColor: 'text-cyan-600' },
             { label: 'Internações', value: data.internacoesAtivas, icon: LuBedDouble, bg: 'bg-rose-500/10', iconColor: 'text-rose-600' },
-            { label: 'Faturamento hoje', value: formatCurrency(data.faturamentoHoje), icon: LuDollarSign, bg: 'bg-emerald-500/10', iconColor: 'text-emerald-600' },
+            { label: 'Faturamento hoje', value: formatCurrency(data.faturamentoHoje), icon: LuDollarSign, bg: 'bg-cyan-500/10', iconColor: 'text-cyan-600' },
           ].map(({ label, value, sub, icon: Icon, bg, iconColor }) => (
             <div
               key={label}
@@ -307,7 +307,7 @@ export default function DashboardPage() {
               </div>
               <p className="text-2xl font-bold text-gray-900 tabular-nums">{typeof value === 'number' ? value.toLocaleString() : value}</p>
               <p className="text-sm text-gray-500 mt-0.5">{label}</p>
-              {sub && <p className="text-xs text-amber-600 font-medium mt-1">{sub}</p>}
+              {sub && <p className="text-xs text-orange-600 font-medium mt-1">{sub}</p>}
             </div>
           ))}
         </div>
@@ -319,8 +319,8 @@ export default function DashboardPage() {
             <div className="h-full bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200/80 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
               <div className="p-5 border-b border-gray-100 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-emerald-500/10 rounded-xl">
-                    <LuCalendar className="w-5 h-5 text-emerald-600" />
+                  <div className="p-2 bg-cyan-500/10 rounded-xl">
+                    <LuCalendar className="w-5 h-5 text-cyan-600" />
                   </div>
                   <div>
                     <h2 className="font-semibold text-gray-900">Agenda do Dia</h2>
@@ -355,7 +355,7 @@ export default function DashboardPage() {
                 )}
               </div>
               <div className="p-4 bg-gray-50/50 border-t border-gray-100">
-                <Link href="/dashboard/erp/agendamentos" className="flex items-center justify-center gap-2 text-sm font-medium text-emerald-600 hover:text-emerald-700">
+                <Link href="/dashboard/erp/agendamentos" className="flex items-center justify-center gap-2 text-sm font-medium text-cyan-600 hover:text-cyan-700">
                   Ver agenda completa <LuChevronRight className="w-4 h-4" />
                 </Link>
               </div>
@@ -367,8 +367,8 @@ export default function DashboardPage() {
             <div className="h-full bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200/80 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
               <div className="p-5 border-b border-gray-100">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-amber-500/10 rounded-xl">
-                    <LuActivity className="w-5 h-5 text-amber-600" />
+                  <div className="p-2 bg-orange-500/10 rounded-xl">
+                    <LuActivity className="w-5 h-5 text-orange-600" />
                   </div>
                   <div>
                     <h2 className="font-semibold text-gray-900">Atividades Recentes</h2>
@@ -403,13 +403,13 @@ export default function DashboardPage() {
           {/* Módulos em destaque */}
           <div className="lg:col-span-1 space-y-4">
             <Link href="/dashboard/ai-agents/agents" className="block group">
-              <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-2xl p-5 text-white shadow-lg shadow-amber-500/20 hover:shadow-xl hover:shadow-amber-500/25 hover:scale-[1.02] transition-all duration-300">
+              <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl p-5 text-white shadow-lg shadow-orange-500/20 hover:shadow-xl hover:shadow-orange-500/25 hover:scale-[1.02] transition-all duration-300">
                 <div className="flex items-center justify-between mb-4">
                   <div className="p-2.5 bg-white/20 rounded-xl">
                     <LuBot className="w-6 h-6" />
                   </div>
                   <span className="flex items-center gap-1.5 text-sm font-medium bg-white/20 px-3 py-1 rounded-full">
-                    <span className="w-2 h-2 bg-emerald-300 rounded-full animate-pulse" />
+                    <span className="w-2 h-2 bg-cyan-300 rounded-full animate-pulse" />
                     {data.agentesAtivos} ativos
                   </span>
                 </div>
@@ -422,7 +422,7 @@ export default function DashboardPage() {
               </div>
             </Link>
             <Link href="/dashboard/crm/leads" className="block group">
-              <div className="bg-gradient-to-br from-emerald-500 to-amber-600 rounded-2xl p-5 text-white shadow-lg shadow-emerald-500/20 hover:shadow-xl hover:shadow-emerald-500/25 hover:scale-[1.02] transition-all duration-300">
+              <div className="bg-gradient-to-br from-cyan-500 to-orange-600 rounded-2xl p-5 text-white shadow-lg shadow-cyan-500/20 hover:shadow-xl hover:shadow-cyan-500/25 hover:scale-[1.02] transition-all duration-300">
                 <div className="flex items-center justify-between mb-4">
                   <div className="p-2.5 bg-white/20 rounded-xl">
                     <LuTarget className="w-6 h-6" />
@@ -438,7 +438,7 @@ export default function DashboardPage() {
               </div>
             </Link>
             <Link href="/dashboard/campanhas/email" className="block group">
-              <div className="bg-gradient-to-br from-teal-500 to-teal-600 rounded-2xl p-5 text-white shadow-lg shadow-teal-500/20 hover:shadow-xl hover:shadow-teal-500/25 hover:scale-[1.02] transition-all duration-300">
+              <div className="bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-2xl p-5 text-white shadow-lg shadow-cyan-500/20 hover:shadow-xl hover:shadow-cyan-500/25 hover:scale-[1.02] transition-all duration-300">
                 <div className="flex items-center justify-between mb-4">
                   <div className="p-2.5 bg-white/20 rounded-xl">
                     <LuMegaphone className="w-6 h-6" />
@@ -489,8 +489,8 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200/80 p-5 shadow-sm hover:shadow-md transition-all">
             <div className="flex items-center gap-3 mb-4">
-              <div className="p-2.5 bg-emerald-500/10 rounded-xl">
-                <LuDollarSign className="w-5 h-5 text-emerald-600" />
+              <div className="p-2.5 bg-cyan-500/10 rounded-xl">
+                <LuDollarSign className="w-5 h-5 text-cyan-600" />
               </div>
               <div>
                 <h3 className="font-semibold text-gray-900">Financeiro</h3>
@@ -500,17 +500,17 @@ export default function DashboardPage() {
             <div className="space-y-3">
               <div className="flex justify-between"><span className="text-sm text-gray-500">Faturamento</span><span className="font-semibold text-gray-900">{formatCurrency(data.faturamentoMes)}</span></div>
               <div className="flex justify-between"><span className="text-sm text-gray-500">Ticket médio</span><span className="font-semibold text-gray-900">{formatCurrency(data.ticketMedio)}</span></div>
-              <div className="flex justify-between"><span className="text-sm text-gray-500">Comissões pend.</span><span className="font-semibold text-amber-600">{formatCurrency(data.comissoesPendentes)}</span></div>
+              <div className="flex justify-between"><span className="text-sm text-gray-500">Comissões pend.</span><span className="font-semibold text-orange-600">{formatCurrency(data.comissoesPendentes)}</span></div>
             </div>
-            <Link href="/dashboard/erp/financeiro" className="flex items-center justify-center gap-2 mt-4 pt-4 border-t border-gray-100 text-sm font-medium text-emerald-600 hover:text-emerald-700">
+            <Link href="/dashboard/erp/financeiro" className="flex items-center justify-center gap-2 mt-4 pt-4 border-t border-gray-100 text-sm font-medium text-cyan-600 hover:text-cyan-700">
               Ver detalhes <LuChevronRight className="w-4 h-4" />
             </Link>
           </div>
 
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200/80 p-5 shadow-sm hover:shadow-md transition-all">
             <div className="flex items-center gap-3 mb-4">
-              <div className="p-2.5 bg-amber-500/10 rounded-xl">
-                <LuWarehouse className="w-5 h-5 text-amber-600" />
+              <div className="p-2.5 bg-orange-500/10 rounded-xl">
+                <LuWarehouse className="w-5 h-5 text-orange-600" />
               </div>
               <div>
                 <h3 className="font-semibold text-gray-900">Estoque</h3>
@@ -518,18 +518,18 @@ export default function DashboardPage() {
               </div>
             </div>
             <div className="space-y-3">
-              <div className="flex justify-between"><span className="text-sm text-gray-500">Baixo estoque</span><span className="font-semibold text-amber-600">{data.produtosBaixoEstoque}</span></div>
+              <div className="flex justify-between"><span className="text-sm text-gray-500">Baixo estoque</span><span className="font-semibold text-orange-600">{data.produtosBaixoEstoque}</span></div>
               <div className="flex justify-between"><span className="text-sm text-gray-500">Alertas</span><span className="font-semibold text-rose-600">{data.alertasEstoque}</span></div>
             </div>
-            <Link href="/dashboard/erp/estoque" className="flex items-center justify-center gap-2 mt-4 pt-4 border-t border-gray-100 text-sm font-medium text-amber-600 hover:text-amber-700">
+            <Link href="/dashboard/erp/estoque" className="flex items-center justify-center gap-2 mt-4 pt-4 border-t border-gray-100 text-sm font-medium text-orange-600 hover:text-orange-700">
               Gerenciar <LuChevronRight className="w-4 h-4" />
             </Link>
           </div>
 
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200/80 p-5 shadow-sm hover:shadow-md transition-all">
             <div className="flex items-center gap-3 mb-4">
-              <div className="p-2.5 bg-amber-500/10 rounded-xl">
-                <LuSparkles className="w-5 h-5 text-amber-600" />
+              <div className="p-2.5 bg-orange-500/10 rounded-xl">
+                <LuSparkles className="w-5 h-5 text-orange-600" />
               </div>
               <div>
                 <h3 className="font-semibold text-gray-900">Serviços</h3>
@@ -542,22 +542,22 @@ export default function DashboardPage() {
                   <span className="text-sm text-gray-600">{s}</span>
                   <div className="flex items-center gap-2">
                     <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                      <div className="h-full bg-amber-500 rounded-full" style={{ width: `${[70, 45, 35][i]}%` }} />
+                      <div className="h-full bg-orange-500 rounded-full" style={{ width: `${[70, 45, 35][i]}%` }} />
                     </div>
                     <span className="text-xs text-gray-500">{[70, 45, 35][i]}%</span>
                   </div>
                 </div>
               ))}
             </div>
-            <Link href="/dashboard/erp/servicos" className="flex items-center justify-center gap-2 mt-4 pt-4 border-t border-gray-100 text-sm font-medium text-amber-600 hover:text-amber-700">
+            <Link href="/dashboard/erp/servicos" className="flex items-center justify-center gap-2 mt-4 pt-4 border-t border-gray-100 text-sm font-medium text-orange-600 hover:text-orange-700">
               Ver serviços <LuChevronRight className="w-4 h-4" />
             </Link>
           </div>
 
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200/80 p-5 shadow-sm hover:shadow-md transition-all">
             <div className="flex items-center gap-3 mb-4">
-              <div className="p-2.5 bg-amber-500/10 rounded-xl">
-                <LuSettings className="w-5 h-5 text-amber-600" />
+              <div className="p-2.5 bg-orange-500/10 rounded-xl">
+                <LuSettings className="w-5 h-5 text-orange-600" />
               </div>
               <div>
                 <h3 className="font-semibold text-gray-900">Integrações</h3>
@@ -568,14 +568,14 @@ export default function DashboardPage() {
               {['WhatsApp Bot', 'N8N Automações', 'AI Agents'].map((name) => (
                 <div key={name} className="flex justify-between items-center">
                   <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 bg-emerald-500 rounded-full" />
+                    <span className="w-2 h-2 bg-cyan-500 rounded-full" />
                     <span className="text-sm text-gray-600">{name}</span>
                   </div>
-                  <span className="text-xs font-medium text-emerald-600">Online</span>
+                  <span className="text-xs font-medium text-cyan-600">Online</span>
                 </div>
               ))}
             </div>
-            <Link href="/dashboard/ai-agents/conexoes" className="flex items-center justify-center gap-2 mt-4 pt-4 border-t border-gray-100 text-sm font-medium text-amber-600 hover:text-amber-700">
+            <Link href="/dashboard/ai-agents/conexoes" className="flex items-center justify-center gap-2 mt-4 pt-4 border-t border-gray-100 text-sm font-medium text-orange-600 hover:text-orange-700">
               Configurar <LuChevronRight className="w-4 h-4" />
             </Link>
           </div>

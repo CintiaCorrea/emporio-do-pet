@@ -127,7 +127,7 @@ export default function DocumentGenerator({
     yellow: 'border-yellow-300 bg-yellow-50 dark:border-yellow-700 dark:bg-yellow-900/20',
     orange: 'border-orange-300 bg-orange-50 dark:border-orange-700 dark:bg-orange-900/20',
     red: 'border-red-300 bg-red-50 dark:border-red-700 dark:bg-red-900/20',
-    teal: 'border-teal-300 bg-teal-50 dark:border-teal-700 dark:bg-teal-900/20',
+    teal: 'border-cyan-300 bg-cyan-50 dark:border-cyan-700 dark:bg-cyan-900/20',
   };
 
   const selectedColorClasses: Record<string, string> = {
@@ -138,7 +138,7 @@ export default function DocumentGenerator({
     yellow: 'border-yellow-500 bg-yellow-100 ring-2 ring-yellow-500/30 dark:border-yellow-500 dark:bg-yellow-900/40',
     orange: 'border-orange-500 bg-orange-100 ring-2 ring-orange-500/30 dark:border-orange-500 dark:bg-orange-900/40',
     red: 'border-red-500 bg-red-100 ring-2 ring-red-500/30 dark:border-red-500 dark:bg-red-900/40',
-    teal: 'border-teal-500 bg-teal-100 ring-2 ring-teal-500/30 dark:border-teal-500 dark:bg-teal-900/40',
+    teal: 'border-cyan-500 bg-cyan-100 ring-2 ring-cyan-500/30 dark:border-cyan-500 dark:bg-cyan-900/40',
   };
 
   return (

@@ -125,7 +125,7 @@ export default function AgentTestPage({ params }: { params: Promise<{ id: string
 
           <div className="flex items-center gap-2">
             {agent.status !== 'ACTIVE' && (
-              <span className="px-3 py-1.5 bg-amber-100 text-amber-700 text-sm font-medium rounded-full">
+              <span className="px-3 py-1.5 bg-orange-100 text-orange-700 text-sm font-medium rounded-full">
                 Agente não ativo
               </span>
             )}

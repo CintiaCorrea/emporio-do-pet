@@ -255,7 +255,7 @@ export default function PetsListPage() {
           </p>
           <Link
             href="/dashboard/erp/pets/novo"
-            className="mt-4 inline-flex items-center gap-2 px-6 py-2 text-white bg-gradient-to-r from-green-600 to-emerald-600 rounded-2xl hover:from-green-700 hover:to-emerald-700 transition-all duration-300"
+            className="mt-4 inline-flex items-center gap-2 px-6 py-2 text-white bg-gradient-to-r from-green-600 to-cyan-600 rounded-2xl hover:from-green-700 hover:to-cyan-700 transition-all duration-300"
           >
             <LuPlus className="w-4 h-4" />
             <span>Cadastrar Primeiro Pet</span>
@@ -296,7 +296,7 @@ export default function PetsListPage() {
               <tr key={pet.id} className="hover:bg-gray-50/50 transition-colors duration-200">
                 <td className="px-6 py-4">
                   <div className="flex items-center">
-                    <div className="flex-shrink-0 h-10 w-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center">
+                    <div className="flex-shrink-0 h-10 w-10 bg-gradient-to-br from-green-500 to-cyan-600 rounded-2xl flex items-center justify-center">
                       <LuPawPrint className="h-6 w-6 text-white" />
                     </div>
                     <div className="ml-4">
@@ -359,7 +359,7 @@ export default function PetsListPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-green-50/20 to-emerald-50/10 w-full overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-green-50/20 to-cyan-50/10 w-full overflow-hidden">
       <ConfirmDeleteModal
         isOpen={Boolean(petToDelete)}
         entityLabel="Pet"
@@ -384,7 +384,7 @@ export default function PetsListPage() {
                 </div>
                 <Link
                   href="/dashboard/erp/pets/novo"
-                  className="group mt-4 sm:mt-0 flex items-center gap-2 px-6 py-3 text-white bg-gradient-to-r from-green-600 to-emerald-600 rounded-2xl hover:from-green-700 hover:to-emerald-700 focus:outline-none focus:ring-2 focus:ring-green-500/50 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-green-500/25"
+                  className="group mt-4 sm:mt-0 flex items-center gap-2 px-6 py-3 text-white bg-gradient-to-r from-green-600 to-cyan-600 rounded-2xl hover:from-green-700 hover:to-cyan-700 focus:outline-none focus:ring-2 focus:ring-green-500/50 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-green-500/25"
                 >
                   <LuPlus className="w-5 h-5 transition-transform duration-300 group-hover:rotate-90" />
                   <span className="font-semibold">Novo Pet</span>
@@ -474,7 +474,7 @@ export default function PetsListPage() {
                       <button className="px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-2xl hover:bg-gray-50 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed">
                         Anterior
                       </button>
-                      <button className="px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-green-600 to-emerald-600 rounded-2xl hover:from-green-700 hover:to-emerald-700 transition-all duration-300">
+                      <button className="px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-green-600 to-cyan-600 rounded-2xl hover:from-green-700 hover:to-cyan-700 transition-all duration-300">
                         Próxima
                       </button>
                     </div>
