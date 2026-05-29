@@ -243,6 +243,8 @@ model User {
 
   // WhatsApp
   whatsappConversations         WhatsAppConversation[]
+  internalNotesSent             InternalNote[]         @relation("internal_notes_from")
+  internalNotesReceived         InternalNote[]         @relation("internal_notes_to")
   whatsappConversationsTakeover WhatsAppConversation[] @relation("whatsapp_assigned_user")
   whatsappCampaigns             WhatsAppCampaign[]
 
@@ -1353,6 +1355,47 @@ model Notification {
   @@index([userId, createdAt])
   @@index([type])
   @@map("notifications")
+}
+
+
+// ============================================
+// Mensagens agendadas (individuais — campanha existe à parte)
+// ============================================
+model WhatsAppScheduledMessage {
+  id           String   @id @default(uuid())
+  userId       String   // Quem agendou
+  phone        String   // Destinatário (sem caracteres especiais)
+  content      String   @db.Text
+  scheduledFor DateTime
+  status       String   @default("PENDING") // PENDING / SENT / FAILED / CANCELLED
+  sentAt       DateTime?
+  failedReason String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([status, scheduledFor])
+  @@index([userId])
+  @@map("whatsapp_scheduled_messages")
+}
+
+// ============================================
+// Notas internas entre membros da equipe
+// ============================================
+model InternalNote {
+  id             String    @id @default(uuid())
+  fromUserId     String
+  toUserId       String
+  content        String    @db.Text
+  conversationId String?   // Opcional — se a nota refere a uma conversa do WhatsApp
+  readAt         DateTime?
+  createdAt      DateTime  @default(now())
+
+  fromUser User @relation("internal_notes_from", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser   User @relation("internal_notes_to", fields: [toUserId], references: [id], onDelete: Cascade)
+
+  @@index([toUserId, readAt])
+  @@index([conversationId])
+  @@map("internal_notes")
 }
 
 // ============================================

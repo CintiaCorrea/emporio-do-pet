@@ -28,6 +28,8 @@ import { FinanceModule } from './modules/finance/finance.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 // CRM B2C Modules
 import { LeadsModule } from './modules/leads/leads.module';
+import { InternalNotesModule } from './modules/internal-notes/internal-notes.module';
+import { ScheduledMessagesModule } from './modules/scheduled-messages/scheduled-messages.module';
 import { EnrichmentModule } from './modules/enrichment/enrichment.module';
 import { ScoringModule } from './modules/scoring/scoring.module';
 import { InsightsModule } from './modules/insights/insights.module';
@@ -135,6 +137,8 @@ import configuration from './config/configuration';
 
     // CRM B2C - Leads com Insights Preditivos
     LeadsModule,
+    InternalNotesModule,
+    ScheduledMessagesModule,
     EnrichmentModule,
     ScoringModule,
     InsightsModule,
