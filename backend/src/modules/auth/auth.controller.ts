@@ -88,4 +88,19 @@ export class AuthController {
     return { newPassword };
   }
 
+
+  @UseGuards(JwtAuthGuard)
+  @Post('change-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Trocar a própria senha (autenticado)' })
+  async changePassword(
+    @CurrentUser() user: { sub: string; email: string },
+    @Body() body: { newPassword: string },
+  ) {
+    if (!body?.newPassword || body.newPassword.length < 6) {
+      throw new BadRequestException('Senha deve ter pelo menos 6 caracteres');
+    }
+    return this.authService.changeOwnPassword(user.email, body.newPassword);
+  }
+
 }

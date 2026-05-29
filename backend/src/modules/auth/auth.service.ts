@@ -195,4 +195,14 @@ export class AuthService {
     } catch {
       return null;
     }
+  
+  async changeOwnPassword(email: string, newPassword: string) {
+    const hash = await bcrypt.hash(newPassword, 10);
+    await this.prisma.user.update({
+      where: { email },
+      data: { password: hash },
+    });
+    return { ok: true };
   }
+
+}
