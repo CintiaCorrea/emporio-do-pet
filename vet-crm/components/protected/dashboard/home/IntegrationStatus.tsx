@@ -28,18 +28,18 @@ export default function IntegrationStatus({ integrations }: IntegrationStatusPro
 
   const getIntegrationStatusColor = (status: string) => {
     const cores = {
-      online: 'bg-emerald-50 border-emerald-200',
+      online: 'bg-cyan-50 border-cyan-200',
       offline: 'bg-red-50 border-red-200',
-      instavel: 'bg-amber-50 border-amber-200'
+      instavel: 'bg-orange-50 border-orange-200'
     };
     return cores[status as keyof typeof cores] || 'bg-gray-50 border-gray-200';
   };
 
   const getIntegrationStatusDot = (status: string) => {
     const dots = {
-      online: 'bg-emerald-500',
+      online: 'bg-cyan-500',
       offline: 'bg-red-500',
-      instavel: 'bg-amber-500'
+      instavel: 'bg-orange-500'
     };
     return dots[status as keyof typeof dots] || 'bg-gray-500';
   };

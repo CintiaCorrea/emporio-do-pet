@@ -30,7 +30,7 @@ interface LandingPageCardProps {
 
 const STATUS_LABELS: Record<string, { label: string; className: string }> = {
   DRAFT: { label: 'Rascunho', className: 'bg-yellow-100 dark:bg-yellow-500/20 text-yellow-700 dark:text-yellow-300 border-yellow-300 dark:border-yellow-500/30' },
-  PUBLISHED: { label: 'Publicado', className: 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-500/30' },
+  PUBLISHED: { label: 'Publicado', className: 'bg-cyan-100 dark:bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 border-cyan-300 dark:border-cyan-500/30' },
   ARCHIVED: { label: 'Arquivado', className: 'bg-gray-100 dark:bg-gray-500/20 text-gray-500 dark:text-gray-400 border-gray-300 dark:border-gray-500/30' },
 };
 

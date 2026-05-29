@@ -66,11 +66,11 @@ export default function ChangePasswordPage() {
 
   if (isSubmitted) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-white to-amber-50 p-4">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-cyan-50 via-white to-orange-50 p-4">
         <Toaster position="top-right" />
         <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center">
-          <div className="w-16 h-16 mx-auto bg-emerald-100 rounded-full flex items-center justify-center mb-4">
-            <svg className="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="w-16 h-16 mx-auto bg-cyan-100 rounded-full flex items-center justify-center mb-4">
+            <svg className="w-8 h-8 text-cyan-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
           </div>
@@ -82,7 +82,7 @@ export default function ChangePasswordPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-white to-amber-50 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-cyan-50 via-white to-orange-50 p-4">
       <Toaster position="top-right" />
       <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8">
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Nova senha</h1>
@@ -102,13 +102,13 @@ export default function ChangePasswordPage() {
                 minLength={6}
                 value={formData.password}
                 onChange={handleChange}
-                className="w-full pl-3 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                className="w-full pl-3 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
                 placeholder="Mínimo de 6 caracteres"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-400 hover:text-emerald-600 transition"
+                className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-400 hover:text-cyan-600 transition"
                 aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
               >
                 {showPassword ? <LuEyeOff className="w-5 h-5" /> : <LuEye className="w-5 h-5" />}
@@ -129,12 +129,12 @@ export default function ChangePasswordPage() {
                 minLength={6}
                 value={formData.confirmPassword}
                 onChange={handleChange}
-                className="w-full pl-3 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                className="w-full pl-3 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
               />
               <button
                 type="button"
                 onClick={() => setShowConfirm(!showConfirm)}
-                className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-400 hover:text-emerald-600 transition"
+                className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-400 hover:text-cyan-600 transition"
                 aria-label={showConfirm ? "Ocultar senha" : "Mostrar senha"}
               >
                 {showConfirm ? <LuEyeOff className="w-5 h-5" /> : <LuEye className="w-5 h-5" />}
@@ -145,12 +145,12 @@ export default function ChangePasswordPage() {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-medium py-2.5 rounded-lg transition shadow-sm"
+            className="w-full bg-cyan-600 hover:bg-cyan-700 disabled:opacity-50 text-white font-medium py-2.5 rounded-lg transition shadow-sm"
           >
             {isLoading ? "Salvando..." : "Redefinir senha"}
           </button>
 
-          <Link href="/" className="block text-center text-sm text-gray-600 hover:text-emerald-700 mt-4">
+          <Link href="/" className="block text-center text-sm text-gray-600 hover:text-cyan-700 mt-4">
             ← Voltar para o login
           </Link>
         </form>

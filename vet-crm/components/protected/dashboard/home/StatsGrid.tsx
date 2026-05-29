@@ -10,7 +10,7 @@ export default function StatsGrid({ stats }: StatsGridProps) {
       label: 'Total de Tutores', 
       value: stats.totalTutores, 
       change: '+0%', 
-      changeColor: 'text-emerald-600',
+      changeColor: 'text-cyan-600',
       icon: '👥',
       bgColor: 'bg-blue-50',
       gradient: 'from-blue-500 to-blue-600'
@@ -19,25 +19,25 @@ export default function StatsGrid({ stats }: StatsGridProps) {
       label: 'Pets Cadastrados', 
       value: stats.totalPets, 
       change: '+0%', 
-      changeColor: 'text-emerald-600',
+      changeColor: 'text-cyan-600',
       icon: '🐾',
-      bgColor: 'bg-emerald-50',
-      gradient: 'from-emerald-500 to-emerald-600'
+      bgColor: 'bg-cyan-50',
+      gradient: 'from-cyan-500 to-cyan-600'
     },
     { 
       label: 'Agendamentos Hoje', 
       value: stats.agendamentosHoje, 
       change: `${stats.consultasPendentes} pendentes`, 
-      changeColor: 'text-amber-600',
+      changeColor: 'text-orange-600',
       icon: '📅',
-      bgColor: 'bg-amber-50',
-      gradient: 'from-amber-500 to-amber-600'
+      bgColor: 'bg-orange-50',
+      gradient: 'from-orange-500 to-orange-600'
     },
     { 
       label: 'Taxa de Conversão', 
       value: `${stats.taxaConversao}%`, 
       change: '+0%', 
-      changeColor: 'text-emerald-600',
+      changeColor: 'text-cyan-600',
       icon: '📈',
       bgColor: 'bg-purple-50',
       gradient: 'from-purple-500 to-purple-600'

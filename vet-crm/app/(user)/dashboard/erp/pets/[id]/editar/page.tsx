@@ -682,7 +682,7 @@ export default function EditPetPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-green-50/20 to-emerald-50/10 w-full overflow-hidden">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-green-50/20 to-cyan-50/10 w-full overflow-hidden">
         <div className="p-6">
           <div className="max-w-4xl mx-auto">
             <div className="flex items-center justify-center h-64">
@@ -699,7 +699,7 @@ export default function EditPetPage() {
 
   if (error && !pet.name) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-green-50/20 to-emerald-50/10 w-full overflow-hidden">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-green-50/20 to-cyan-50/10 w-full overflow-hidden">
         <div className="p-6">
           <div className="max-w-4xl mx-auto">
             <div className="bg-white rounded-3xl p-8 text-center">
@@ -720,7 +720,7 @@ export default function EditPetPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-green-50/20 to-emerald-50/10 w-full overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-green-50/20 to-cyan-50/10 w-full overflow-hidden">
       <div className="p-6">
         <div className="max-w-4xl mx-auto">
             {/* Header */}
@@ -756,7 +756,7 @@ export default function EditPetPage() {
             {/* Main Card */}
             <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-3xl shadow-2xl shadow-green-500/10 overflow-hidden">
               {/* Pet Header */}
-              <div className="bg-gradient-to-r from-green-600 to-emerald-600 p-6">
+              <div className="bg-gradient-to-r from-green-600 to-cyan-600 p-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-4">
                     <div className="flex items-center justify-center w-16 h-16 bg-white/20 rounded-2xl backdrop-blur-sm">
@@ -1057,7 +1057,7 @@ export default function EditPetPage() {
                     <button
                       type="submit"
                       disabled={submitting}
-                      className="group px-8 py-3 text-sm font-semibold text-white bg-gradient-to-r from-green-600 to-emerald-600 rounded-2xl hover:from-green-700 hover:to-emerald-700 focus:outline-none focus:ring-2 focus:ring-green-500/50 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-green-500/25 flex items-center space-x-2 relative overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                      className="group px-8 py-3 text-sm font-semibold text-white bg-gradient-to-r from-green-600 to-cyan-600 rounded-2xl hover:from-green-700 hover:to-cyan-700 focus:outline-none focus:ring-2 focus:ring-green-500/50 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-green-500/25 flex items-center space-x-2 relative overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                     >
                       <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent transform -skew-x-12 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
                       {submitting ? (

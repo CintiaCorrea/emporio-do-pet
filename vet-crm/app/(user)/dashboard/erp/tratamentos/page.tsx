@@ -405,7 +405,7 @@ export default function TratamentosPage() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/10 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Carregando tratamentos...</p>
         </div>
       </div>
@@ -443,7 +443,7 @@ export default function TratamentosPage() {
               <div className="flex gap-3">
                 <button
                   onClick={() => setIsCreateModalOpen(true)}
-                  className="group px-6 py-3 text-sm font-semibold text-white bg-gradient-to-r from-teal-600 to-emerald-600 rounded-2xl hover:from-teal-700 hover:to-emerald-700 focus:outline-none focus:ring-2 focus:ring-teal-500/50 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-teal-500/25 flex items-center space-x-2 relative overflow-hidden"
+                  className="group px-6 py-3 text-sm font-semibold text-white bg-gradient-to-r from-cyan-600 to-cyan-600 rounded-2xl hover:from-cyan-700 hover:to-cyan-700 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-cyan-500/25 flex items-center space-x-2 relative overflow-hidden"
                 >
                   <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent transform -skew-x-12 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
                   <LuPlus className="w-4 h-4 relative z-10" />
@@ -527,7 +527,7 @@ export default function TratamentosPage() {
                   setSearchTerm(e.target.value);
                   setPage(1);
                 }}
-                className="w-full pl-12 pr-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-300 transition-all"
+                className="w-full pl-12 pr-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/30 focus:border-cyan-300 transition-all"
               />
             </div>
           </div>
@@ -535,7 +535,7 @@ export default function TratamentosPage() {
           {/* Treatments List */}
           {loading && treatments.length > 0 && (
             <div className="flex items-center justify-center py-4 mb-4">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-teal-600 mr-3"></div>
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-cyan-600 mr-3"></div>
               <span className="text-gray-500 text-sm">Atualizando...</span>
             </div>
           )}
@@ -553,7 +553,7 @@ export default function TratamentosPage() {
               {!searchTerm && (
                 <button
                   onClick={() => setIsCreateModalOpen(true)}
-                  className="px-6 py-3 bg-teal-600 text-white rounded-2xl hover:bg-teal-700 transition-colors"
+                  className="px-6 py-3 bg-cyan-600 text-white rounded-2xl hover:bg-cyan-700 transition-colors"
                 >
                   <LuPlus className="w-4 h-4 inline mr-2" />
                   Novo Tratamento
@@ -566,13 +566,13 @@ export default function TratamentosPage() {
                 {treatments.map((treatment) => (
                   <div
                     key={treatment.id}
-                    className="bg-white/80 backdrop-blur-sm border border-gray-200/80 rounded-2xl p-5 hover:shadow-lg transition-all duration-300 hover:border-teal-200/50"
+                    className="bg-white/80 backdrop-blur-sm border border-gray-200/80 rounded-2xl p-5 hover:shadow-lg transition-all duration-300 hover:border-cyan-200/50"
                   >
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start gap-3">
-                          <div className="p-2 bg-teal-50 rounded-xl flex-shrink-0">
-                            <LuSyringe className="w-5 h-5 text-teal-600" />
+                          <div className="p-2 bg-cyan-50 rounded-xl flex-shrink-0">
+                            <LuSyringe className="w-5 h-5 text-cyan-600" />
                           </div>
                           <div className="min-w-0 flex-1">
                             <h3 className="font-semibold text-gray-900 truncate">
@@ -626,7 +626,7 @@ export default function TratamentosPage() {
                         <div className="flex items-center gap-1">
                           <button
                             onClick={() => openDetails(treatment)}
-                            className="p-2 text-gray-400 hover:text-teal-600 hover:bg-teal-50 rounded-xl transition-colors"
+                            className="p-2 text-gray-400 hover:text-cyan-600 hover:bg-cyan-50 rounded-xl transition-colors"
                             title="Ver detalhes"
                           >
                             <LuEye className="w-4 h-4" />
@@ -708,7 +708,7 @@ export default function TratamentosPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <h3 className="text-sm font-medium text-gray-500 mb-1">Custo</h3>
-                  <p className="text-gray-900 font-bold text-xl text-teal-700">
+                  <p className="text-gray-900 font-bold text-xl text-cyan-700">
                     {formatCurrency(selectedTreatment.cost)}
                   </p>
                 </div>
@@ -819,7 +819,7 @@ export default function TratamentosPage() {
                 <select
                   value={formData.appointmentId}
                   onChange={(e) => handleSelectAppointment(e.target.value)}
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-300"
+                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-cyan-500/30 focus:border-cyan-300"
                 >
                   <option value="">Selecione uma consulta</option>
                   {appointments.map((apt) => (
@@ -832,7 +832,7 @@ export default function TratamentosPage() {
                   ))}
                 </select>
                 {appointments.length === 0 && (
-                  <p className="text-sm text-amber-600 mt-1">
+                  <p className="text-sm text-orange-600 mt-1">
                     Nenhuma consulta disponível. Crie uma consulta primeiro em Agendamentos.
                   </p>
                 )}
@@ -849,7 +849,7 @@ export default function TratamentosPage() {
                   }
                   placeholder="Descreva o tratamento realizado..."
                   rows={3}
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-300 resize-none"
+                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/30 focus:border-cyan-300 resize-none"
                 />
               </div>
 
@@ -865,7 +865,7 @@ export default function TratamentosPage() {
                   onChange={(e) =>
                     setFormData((prev) => ({ ...prev, cost: parseFloat(e.target.value) || 0 }))
                   }
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-300"
+                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-cyan-500/30 focus:border-cyan-300"
                 />
               </div>
 
@@ -878,7 +878,7 @@ export default function TratamentosPage() {
                   onChange={(e) =>
                     setFormData((prev) => ({ ...prev, productId: e.target.value || null }))
                   }
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-300"
+                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-cyan-500/30 focus:border-cyan-300"
                 >
                   <option value="">Nenhum produto</option>
                   {products.map((prod) => (
@@ -900,7 +900,7 @@ export default function TratamentosPage() {
               <button
                 onClick={handleCreateTreatment}
                 disabled={submitting}
-                className="px-5 py-2.5 text-sm font-medium text-white bg-teal-600 rounded-xl hover:bg-teal-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                className="px-5 py-2.5 text-sm font-medium text-white bg-cyan-600 rounded-xl hover:bg-cyan-700 transition-colors disabled:opacity-50 flex items-center gap-2"
               >
                 <LuSave className="w-4 h-4" />
                 {submitting ? 'Salvando...' : 'Salvar Tratamento'}
@@ -950,7 +950,7 @@ export default function TratamentosPage() {
                     setEditFormData((prev) => ({ ...prev, description: e.target.value }))
                   }
                   rows={3}
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-300 resize-none"
+                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-cyan-500/30 focus:border-cyan-300 resize-none"
                 />
               </div>
 
@@ -969,7 +969,7 @@ export default function TratamentosPage() {
                       cost: parseFloat(e.target.value) || 0,
                     }))
                   }
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-300"
+                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-cyan-500/30 focus:border-cyan-300"
                 />
               </div>
 
@@ -982,7 +982,7 @@ export default function TratamentosPage() {
                   onChange={(e) =>
                     setEditFormData((prev) => ({ ...prev, productId: e.target.value || null }))
                   }
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-300"
+                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-cyan-500/30 focus:border-cyan-300"
                 >
                   <option value="">Nenhum produto</option>
                   {products.map((prod) => (
@@ -1004,7 +1004,7 @@ export default function TratamentosPage() {
               <button
                 onClick={handleUpdateTreatment}
                 disabled={submitting}
-                className="px-5 py-2.5 text-sm font-medium text-white bg-teal-600 rounded-xl hover:bg-teal-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                className="px-5 py-2.5 text-sm font-medium text-white bg-cyan-600 rounded-xl hover:bg-cyan-700 transition-colors disabled:opacity-50 flex items-center gap-2"
               >
                 <LuSave className="w-4 h-4" />
                 {submitting ? 'Salvando...' : 'Salvar Alterações'}

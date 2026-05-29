@@ -199,7 +199,7 @@ export default function TermosDeServico() {
                 <span className="flex items-center justify-center w-8 h-8 bg-blue-50 text-blue-600 text-sm font-bold rounded-lg">7</span>
                 Limitação de Responsabilidade
               </h2>
-              <div className="bg-amber-50 rounded-xl p-6 border border-amber-100">
+              <div className="bg-orange-50 rounded-xl p-6 border border-orange-100">
                 <div className="space-y-3 text-sm">
                   <p className="leading-relaxed">
                     <strong>7.1.</strong> A Plataforma é uma ferramenta de gestão e não substitui o julgamento clínico do

@@ -321,7 +321,7 @@ export default function ConsultationsReportPage() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/10 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Carregando relatório...</p>
         </div>
       </div>
@@ -383,9 +383,9 @@ export default function ConsultationsReportPage() {
             )}
 
             {/* Filtros */}
-            <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-teal-500/5 p-6 mb-6">
+            <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-cyan-500/5 p-6 mb-6">
               <div className="flex items-center gap-2 mb-4">
-                <LuFilter className="w-5 h-5 text-teal-600" />
+                <LuFilter className="w-5 h-5 text-cyan-600" />
                 <h3 className="text-lg font-semibold text-gray-900">Filtros</h3>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -395,7 +395,7 @@ export default function ConsultationsReportPage() {
                     type="date"
                     value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500/50 transition-all duration-300 text-gray-900"
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-300 text-gray-900"
                   />
                 </div>
                 <div>
@@ -404,7 +404,7 @@ export default function ConsultationsReportPage() {
                     type="date"
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500/50 transition-all duration-300 text-gray-900"
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-300 text-gray-900"
                   />
                 </div>
                 <div>
@@ -412,7 +412,7 @@ export default function ConsultationsReportPage() {
                   <select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500/50 transition-all duration-300 text-gray-900"
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-300 text-gray-900"
                   >
                     <option value="all">Todos</option>
                     <option value="SCHEDULED">Agendadas</option>
@@ -427,7 +427,7 @@ export default function ConsultationsReportPage() {
                   <select
                     value={paymentFilter}
                     onChange={(e) => setPaymentFilter(e.target.value)}
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500/50 transition-all duration-300 text-gray-900"
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-300 text-gray-900"
                   >
                     <option value="all">Todos</option>
                     <option value="PAID">Pago</option>
@@ -503,7 +503,7 @@ export default function ConsultationsReportPage() {
                   trend: null
                 }
               ].map((stat, index) => (
-                <div key={index} className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-teal-500/5 p-6 hover:shadow-2xl hover:shadow-teal-500/10 transition-all duration-300 hover:scale-105">
+                <div key={index} className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-cyan-500/5 p-6 hover:shadow-2xl hover:shadow-cyan-500/10 transition-all duration-300 hover:scale-105">
                   <div className="flex items-center justify-between mb-4">
                     <div className={`p-3 bg-${stat.color}-50 rounded-xl`}>
                       <stat.icon className={`w-6 h-6 text-${stat.color}-600`} />
@@ -525,7 +525,7 @@ export default function ConsultationsReportPage() {
             </div>
 
             {/* Tabela de Consultas */}
-            <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-teal-500/5 overflow-hidden">
+            <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-cyan-500/5 overflow-hidden">
               <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-100/50 border-b border-white/20">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
@@ -572,7 +572,7 @@ export default function ConsultationsReportPage() {
                         </td>
                         <td className="p-6">
                           <div className="flex items-center gap-2">
-                            <LuUser className="w-4 h-4 text-teal-600" />
+                            <LuUser className="w-4 h-4 text-cyan-600" />
                             <span className="text-gray-700">{cons.veterinarian.name}</span>
                           </div>
                         </td>

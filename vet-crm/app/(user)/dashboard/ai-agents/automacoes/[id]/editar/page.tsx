@@ -285,8 +285,8 @@ export default function EditarAutomacaoPage({ params }: { params: Promise<{ id: 
 
   const getStatusColor = (status: AutomationStatus) => {
     switch (status) {
-      case 'ACTIVE': return 'bg-emerald-100 text-emerald-700';
-      case 'PAUSED': return 'bg-amber-100 text-amber-700';
+      case 'ACTIVE': return 'bg-cyan-100 text-cyan-700';
+      case 'PAUSED': return 'bg-orange-100 text-orange-700';
       case 'DRAFT': return 'bg-gray-100 text-gray-700';
       case 'ERROR': return 'bg-red-100 text-red-700';
     }
@@ -368,7 +368,7 @@ export default function EditarAutomacaoPage({ params }: { params: Promise<{ id: 
             {automation.status === 'ACTIVE' ? (
               <button
                 onClick={() => handleStatusChange('PAUSED')}
-                className="flex items-center gap-2 px-4 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg transition-colors"
+                className="flex items-center gap-2 px-4 py-2 bg-orange-50 hover:bg-orange-100 text-orange-700 rounded-lg transition-colors"
               >
                 <LuPause className="w-4 h-4" />
                 Pausar
@@ -376,7 +376,7 @@ export default function EditarAutomacaoPage({ params }: { params: Promise<{ id: 
             ) : automation.status !== 'ERROR' && (
               <button
                 onClick={() => handleStatusChange('ACTIVE')}
-                className="flex items-center gap-2 px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg transition-colors"
+                className="flex items-center gap-2 px-4 py-2 bg-cyan-50 hover:bg-cyan-100 text-cyan-700 rounded-lg transition-colors"
               >
                 <LuPlay className="w-4 h-4" />
                 Ativar

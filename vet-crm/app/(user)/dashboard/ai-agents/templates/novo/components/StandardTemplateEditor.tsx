@@ -190,14 +190,14 @@ export function StandardTemplateEditor({
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{formData.bodyText.length}/1024 caracteres</p>
 
         {variablesInBody.length > 0 && (
-          <div className="mt-4 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl">
-            <p className="text-sm font-medium text-amber-800 dark:text-amber-300 mb-3">
+          <div className="mt-4 p-4 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-xl">
+            <p className="text-sm font-medium text-orange-800 dark:text-orange-300 mb-3">
               Exemplos para as variaveis (obrigatorio)
             </p>
             <div className="space-y-2">
               {variablesInBody.map((variable, index) => (
                 <div key={variable} className="flex items-center gap-3">
-                  <span className="text-sm font-mono text-amber-700 dark:text-amber-400 w-20">{variable}</span>
+                  <span className="text-sm font-mono text-orange-700 dark:text-orange-400 w-20">{variable}</span>
                   <input
                     type="text"
                     placeholder={`Exemplo para ${variable}`}
@@ -209,7 +209,7 @@ export function StandardTemplateEditor({
                         return { ...prev, bodyExamples: nextExamples };
                       })
                     }
-                    className="flex-1 px-3 py-2 bg-white dark:bg-gray-800 border border-amber-200 dark:border-amber-700 rounded-lg text-sm"
+                    className="flex-1 px-3 py-2 bg-white dark:bg-gray-800 border border-orange-200 dark:border-orange-700 rounded-lg text-sm"
                   />
                 </div>
               ))}

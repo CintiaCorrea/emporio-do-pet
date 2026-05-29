@@ -280,7 +280,7 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
 
   const getConversationStatusColor = (status: ConversationStatus) => {
     switch (status) {
-      case 'OPEN': return 'bg-emerald-100 text-emerald-700';
+      case 'OPEN': return 'bg-cyan-100 text-cyan-700';
       case 'ASSIGNED': return 'bg-blue-100 text-blue-700';
       case 'CLOSED': return 'bg-gray-100 text-gray-700';
       case 'RESOLVED': return 'bg-violet-100 text-violet-700';
@@ -319,7 +319,7 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-8rem)]">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-emerald-100 border-t-emerald-600 rounded-full animate-spin"></div>
+          <div className="w-12 h-12 border-4 border-cyan-100 border-t-emerald-600 rounded-full animate-spin"></div>
           <p className="text-gray-500 font-medium">Carregando conversa...</p>
         </div>
       </div>
@@ -334,7 +334,7 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Conversa não encontrada</h2>
           <Link
             href="/dashboard/campanhas/whatsapp/conversas"
-            className="text-emerald-600 hover:text-emerald-700"
+            className="text-cyan-600 hover:text-cyan-700"
           >
             Voltar para conversas
           </Link>
@@ -360,8 +360,8 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
                 <LuArrowLeft className="w-5 h-5 text-gray-500" />
               </Link>
               
-              <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center">
-                <LuCircleUser className="w-6 h-6 text-emerald-600" />
+              <div className="w-10 h-10 rounded-full bg-cyan-100 flex items-center justify-center">
+                <LuCircleUser className="w-6 h-6 text-cyan-600" />
               </div>
               
               <div>
@@ -421,7 +421,7 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
                       <div
                         className={`max-w-[70%] rounded-2xl px-4 py-2 shadow-sm ${
                           message.direction === 'OUTBOUND'
-                            ? 'bg-emerald-500 text-white rounded-br-none'
+                            ? 'bg-cyan-500 text-white rounded-br-none'
                             : 'bg-white text-gray-900 rounded-bl-none'
                         }`}
                       >
@@ -446,7 +446,7 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
                         <p className="whitespace-pre-wrap break-words">{message.content}</p>
                         
                         <div className={`flex items-center justify-end gap-1 mt-1 ${
-                          message.direction === 'OUTBOUND' ? 'text-emerald-100' : 'text-gray-400'
+                          message.direction === 'OUTBOUND' ? 'text-cyan-100' : 'text-gray-400'
                         }`}>
                           <span className="text-xs">{formatTime(message.createdAt)}</span>
                           {message.direction === 'OUTBOUND' && getStatusIcon(message.status)}
@@ -493,7 +493,7 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
                   }}
                   placeholder="Digite sua mensagem..."
                   rows={1}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 max-h-32"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl resize-none focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 max-h-32"
                   style={{ minHeight: '44px' }}
                 />
               </div>
@@ -501,7 +501,7 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
               <button
                 onClick={handleSendMessage}
                 disabled={!newMessage.trim() || sending}
-                className="p-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="p-3 bg-cyan-500 hover:bg-cyan-600 text-white rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {sending ? (
                   <LuLoader className="w-5 h-5 animate-spin" />
@@ -520,8 +520,8 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
           <div className="p-6 space-y-6">
             {/* Contact Info */}
             <div className="text-center">
-              <div className="w-20 h-20 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-4">
-                <LuCircleUser className="w-10 h-10 text-emerald-600" />
+              <div className="w-20 h-20 rounded-full bg-cyan-100 flex items-center justify-center mx-auto mb-4">
+                <LuCircleUser className="w-10 h-10 text-cyan-600" />
               </div>
               <h3 className="font-semibold text-gray-900">{contactName}</h3>
               <p className="text-sm text-gray-500">{conversation.contactPhone}</p>
@@ -549,7 +549,7 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
               <select
                 value={conversation.assignedAgent?.id || ''}
                 onChange={(e) => handleAssignAgent(e.target.value || null)}
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
               >
                 <option value="">Sem agente</option>
                 {agents.map((agent) => (
@@ -575,22 +575,22 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
                     onClick={handleToggleAutoReply}
                     className={`w-full flex items-center justify-between p-3 rounded-xl transition-colors ${
                       conversation.isAutoReplyEnabled
-                        ? 'bg-emerald-50 border border-emerald-200'
+                        ? 'bg-cyan-50 border border-cyan-200'
                         : 'bg-gray-50 border border-gray-200'
                     }`}
                   >
                     <div className="flex items-center gap-2">
                       <LuPower className={`w-4 h-4 ${
-                        conversation.isAutoReplyEnabled ? 'text-emerald-600' : 'text-gray-400'
+                        conversation.isAutoReplyEnabled ? 'text-cyan-600' : 'text-gray-400'
                       }`} />
                       <span className={`text-sm font-medium ${
-                        conversation.isAutoReplyEnabled ? 'text-emerald-700' : 'text-gray-500'
+                        conversation.isAutoReplyEnabled ? 'text-cyan-700' : 'text-gray-500'
                       }`}>
                         Resposta automática
                       </span>
                     </div>
                     <div className={`w-10 h-6 rounded-full p-0.5 transition-colors ${
-                      conversation.isAutoReplyEnabled ? 'bg-emerald-500' : 'bg-gray-300'
+                      conversation.isAutoReplyEnabled ? 'bg-cyan-500' : 'bg-gray-300'
                     }`}>
                       <div className={`w-5 h-5 bg-white rounded-full shadow transition-transform ${
                         conversation.isAutoReplyEnabled ? 'translate-x-4' : 'translate-x-0'
@@ -629,11 +629,11 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
                       <Link
                         key={pet.id}
                         href={`/dashboard/erp/pets/${pet.id}`}
-                        className="flex items-center gap-2 p-2 bg-amber-50 rounded-lg hover:bg-amber-100 transition-colors"
+                        className="flex items-center gap-2 p-2 bg-orange-50 rounded-lg hover:bg-orange-100 transition-colors"
                       >
-                        <LuPawPrint className="w-4 h-4 text-amber-600" />
-                        <span className="text-sm text-amber-700">{pet.name}</span>
-                        <span className="text-xs text-amber-500">({pet.species})</span>
+                        <LuPawPrint className="w-4 h-4 text-orange-600" />
+                        <span className="text-sm text-orange-700">{pet.name}</span>
+                        <span className="text-xs text-orange-500">({pet.species})</span>
                       </Link>
                     ))}
                   </div>

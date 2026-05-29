@@ -401,7 +401,7 @@ export default function ConsultationsPage() {
       case 'FOLLOW_UP': return 'bg-purple-100 text-purple-800';
       case 'VACCINATION': return 'bg-green-100 text-green-800';
       case 'SURGERY_PREP': return 'bg-orange-100 text-orange-800';
-      case 'SPECIALIST': return 'bg-teal-100 text-teal-800';
+      case 'SPECIALIST': return 'bg-cyan-100 text-cyan-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -711,7 +711,7 @@ export default function ConsultationsPage() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/10 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Carregando consultas...</p>
         </div>
       </div>
@@ -759,7 +759,7 @@ export default function ConsultationsPage() {
                       resetForm();
                       setIsCreateModalOpen(true);
                     }}
-                    className="group px-6 py-3 text-sm font-semibold text-white bg-gradient-to-r from-teal-600 to-cyan-600 rounded-2xl hover:from-teal-700 hover:to-cyan-700 focus:outline-none focus:ring-2 focus:ring-teal-500/50 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-teal-500/25 flex items-center space-x-2 relative overflow-hidden"
+                    className="group px-6 py-3 text-sm font-semibold text-white bg-gradient-to-r from-cyan-600 to-cyan-600 rounded-2xl hover:from-cyan-700 hover:to-cyan-700 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-cyan-500/25 flex items-center space-x-2 relative overflow-hidden"
                   >
                     <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent transform -skew-x-12 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
                     <LuPlus className="w-4 h-4 relative z-10" />
@@ -823,7 +823,7 @@ export default function ConsultationsPage() {
                   isFormatted: true
                 }
               ].map((stat, index) => (
-                <div key={index} className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-teal-500/5 p-6 hover:shadow-2xl hover:shadow-teal-500/10 transition-all duration-300 hover:scale-105">
+                <div key={index} className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-cyan-500/5 p-6 hover:shadow-2xl hover:shadow-cyan-500/10 transition-all duration-300 hover:scale-105">
                   <div className="flex items-center justify-between mb-4">
                     <div className={`p-3 bg-${stat.color}-50 rounded-xl`}>
                       <stat.icon className={`w-6 h-6 text-${stat.color}-600`} />
@@ -840,7 +840,7 @@ export default function ConsultationsPage() {
             </div>
 
             {/* Filters and Search */}
-            <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-teal-500/5 p-6 mb-6">
+            <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-cyan-500/5 p-6 mb-6">
               <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
                 <div className="flex flex-col sm:flex-row gap-4 w-full lg:w-auto">
                   <div className="relative flex-1">
@@ -852,14 +852,14 @@ export default function ConsultationsPage() {
                       placeholder="Buscar por tutor, pet, veterinário..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full pl-10 pr-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500/50 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                      className="w-full pl-10 pr-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm"
                     />
                   </div>
                   
                   <select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value as ConsultationStatus | 'all')}
-                    className="px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                    className="px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm"
                   >
                     <option value="all">Todos os Status</option>
                     <option value="SCHEDULED">Agendadas</option>
@@ -876,13 +876,13 @@ export default function ConsultationsPage() {
                     type="date"
                     value={dateFilter}
                     onChange={(e) => setDateFilter(e.target.value)}
-                    className="px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                    className="px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm"
                   />
                   <button
                     onClick={() => setDateFilter(todayStr)}
                     className={`flex items-center gap-2 px-4 py-3 text-sm font-semibold rounded-2xl transition-all duration-300 hover:scale-105 ${
                       dateFilter === todayStr
-                        ? 'text-white bg-teal-500 hover:bg-teal-600' 
+                        ? 'text-white bg-cyan-500 hover:bg-cyan-600' 
                         : 'text-gray-600 bg-white/50 border border-gray-300/50 hover:bg-white hover:border-gray-400'
                     }`}
                   >
@@ -901,7 +901,7 @@ export default function ConsultationsPage() {
             </div>
 
             {/* Consultations Table */}
-            <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-teal-500/5 overflow-hidden">
+            <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-cyan-500/5 overflow-hidden">
               {/* Table Header */}
               <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-100/50 border-b border-white/20">
                 <div className="flex items-center justify-between">
@@ -960,7 +960,7 @@ export default function ConsultationsPage() {
                           </td>
                           <td className="p-6">
                             <div className="flex items-center gap-2">
-                              <LuStethoscope className="w-4 h-4 text-teal-600" />
+                              <LuStethoscope className="w-4 h-4 text-cyan-600" />
                               <span className="text-gray-700">{cons.veterinarian.name}</span>
                             </div>
                           </td>
@@ -992,7 +992,7 @@ export default function ConsultationsPage() {
                               {cons.status === 'SCHEDULED' || cons.status === 'CONFIRMED' ? (
                                 <button
                                   onClick={() => handleStartConsultation(cons.id)}
-                                  className="p-2 text-teal-600 hover:bg-teal-50 rounded-2xl transition-colors"
+                                  className="p-2 text-cyan-600 hover:bg-cyan-50 rounded-2xl transition-colors"
                                   title="Iniciar consulta"
                                 >
                                   <LuActivity className="w-4 h-4" />
@@ -1025,7 +1025,7 @@ export default function ConsultationsPage() {
                               </Link>
                               <Link
                                 href={`/dashboard/erp/consultas/${cons.id}/documentos`}
-                                className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-2xl transition-colors"
+                                className="p-2 text-cyan-600 hover:bg-cyan-50 rounded-2xl transition-colors"
                                 title="Ver documentos clínicos"
                               >
                                 <LuFileText className="w-4 h-4" />
@@ -1116,7 +1116,7 @@ export default function ConsultationsPage() {
               {/* Informações do Paciente */}
               <div>
                 <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <LuPawPrint className="w-5 h-5 text-teal-600" />
+                  <LuPawPrint className="w-5 h-5 text-cyan-600" />
                   Informações do Paciente
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1155,7 +1155,7 @@ export default function ConsultationsPage() {
               {/* Motivo e Diagnóstico */}
               <div>
                 <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <LuClipboardList className="w-5 h-5 text-teal-600" />
+                  <LuClipboardList className="w-5 h-5 text-cyan-600" />
                   Informações Clínicas
                 </h4>
                 <div className="space-y-4">
@@ -1222,14 +1222,14 @@ export default function ConsultationsPage() {
               </Link>
               <Link
                 href={`/dashboard/erp/consultas/${selectedConsultation.id}/documentos`}
-                className="px-6 py-3 text-white bg-emerald-600 rounded-2xl hover:bg-emerald-700 transition-colors flex items-center gap-2"
+                className="px-6 py-3 text-white bg-cyan-600 rounded-2xl hover:bg-cyan-700 transition-colors flex items-center gap-2"
               >
                 <LuFileText className="w-4 h-4" />
                 Documentos
               </Link>
               <button
                 onClick={() => openEditModal(selectedConsultation)}
-                className="px-6 py-3 text-white bg-teal-600 rounded-2xl hover:bg-teal-700 transition-colors flex items-center gap-2"
+                className="px-6 py-3 text-white bg-cyan-600 rounded-2xl hover:bg-cyan-700 transition-colors flex items-center gap-2"
               >
                 <LuPencil className="w-4 h-4" />
                 Editar
@@ -1237,7 +1237,7 @@ export default function ConsultationsPage() {
               {selectedConsultation.status === 'SCHEDULED' || selectedConsultation.status === 'CONFIRMED' ? (
                 <button
                   onClick={() => handleStartConsultation(selectedConsultation.id)}
-                  className="px-6 py-3 text-white bg-teal-600 rounded-2xl hover:bg-teal-700 transition-colors flex items-center gap-2"
+                  className="px-6 py-3 text-white bg-cyan-600 rounded-2xl hover:bg-cyan-700 transition-colors flex items-center gap-2"
                 >
                   <LuActivity className="w-4 h-4" />
                   Iniciar Consulta
@@ -1285,7 +1285,7 @@ export default function ConsultationsPage() {
                 <select
                   value={formData.tutorId}
                   onChange={(e) => setFormData({...formData, tutorId: e.target.value, petId: ''})}
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500/50 transition-all duration-300 text-gray-900"
+                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-300 text-gray-900"
                   required
                   disabled={loadingData}
                 >
@@ -1301,7 +1301,7 @@ export default function ConsultationsPage() {
                 <select
                   value={formData.petId}
                   onChange={(e) => setFormData({...formData, petId: e.target.value})}
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500/50 transition-all duration-300 text-gray-900"
+                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-300 text-gray-900"
                   required
                   disabled={!formData.tutorId || loadingData || pets.length === 0}
                 >
@@ -1325,7 +1325,7 @@ export default function ConsultationsPage() {
                 <select
                   value={formData.userId}
                   onChange={(e) => setFormData({...formData, userId: e.target.value})}
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500/50 transition-all duration-300 text-gray-900"
+                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-300 text-gray-900"
                   required
                   disabled={loadingData}
                 >
@@ -1345,7 +1345,7 @@ export default function ConsultationsPage() {
                     type="date"
                     value={formData.date}
                     onChange={(e) => setFormData({...formData, date: e.target.value})}
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500/50 transition-all duration-300 text-gray-900"
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-300 text-gray-900"
                     required
                   />
                 </div>
@@ -1355,7 +1355,7 @@ export default function ConsultationsPage() {
                     type="time"
                     value={formData.time}
                     onChange={(e) => setFormData({...formData, time: e.target.value})}
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500/50 transition-all duration-300 text-gray-900"
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-300 text-gray-900"
                     required
                   />
                 </div>
@@ -1367,7 +1367,7 @@ export default function ConsultationsPage() {
                   <select
                     value={formData.duration}
                     onChange={(e) => setFormData({...formData, duration: parseInt(e.target.value)})}
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500/50 transition-all duration-300 text-gray-900"
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-300 text-gray-900"
                   >
                     <option value={15}>15 min</option>
                     <option value={30}>30 min</option>
@@ -1381,7 +1381,7 @@ export default function ConsultationsPage() {
                   <select
                     value={formData.status}
                     onChange={(e) => setFormData({...formData, status: e.target.value as ConsultationStatus})}
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500/50 transition-all duration-300 text-gray-900"
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-300 text-gray-900"
                   >
                     <option value="SCHEDULED">Agendada</option>
                     <option value="CONFIRMED">Confirmada</option>
@@ -1397,7 +1397,7 @@ export default function ConsultationsPage() {
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData({...formData, description: e.target.value})}
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500/50 transition-all duration-300 text-gray-900 resize-none"
+                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-300 text-gray-900 resize-none"
                   rows={3}
                   placeholder="Descreva o motivo da consulta"
                   required
@@ -1409,7 +1409,7 @@ export default function ConsultationsPage() {
                 <textarea
                   value={formData.notes}
                   onChange={(e) => setFormData({...formData, notes: e.target.value})}
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500/50 transition-all duration-300 text-gray-900 resize-none"
+                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-300 text-gray-900 resize-none"
                   rows={3}
                   placeholder="Observações, diagnóstico, prescrição..."
                 />
@@ -1422,7 +1422,7 @@ export default function ConsultationsPage() {
                     type="number"
                     value={formData.value}
                     onChange={(e) => setFormData({...formData, value: parseFloat(e.target.value) || 0})}
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500/50 transition-all duration-300 text-gray-900"
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-300 text-gray-900"
                     min="0"
                     step="0.01"
                     required
@@ -1433,7 +1433,7 @@ export default function ConsultationsPage() {
                   <select
                     value={formData.paymentStatus}
                     onChange={(e) => setFormData({...formData, paymentStatus: e.target.value as 'PAID' | 'PENDING' | 'OVERDUE' | 'CANCELLED'})}
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500/50 transition-all duration-300 text-gray-900"
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-300 text-gray-900"
                   >
                     <option value="PENDING">Pendente</option>
                     <option value="PAID">Pago</option>
@@ -1458,7 +1458,7 @@ export default function ConsultationsPage() {
               <button
                 onClick={isEditModalOpen ? handleUpdateConsultation : handleCreateConsultation}
                 disabled={submitting || !formData.tutorId || !formData.petId || !formData.userId || !formData.description}
-                className="px-6 py-3 text-white bg-gradient-to-r from-teal-600 to-cyan-600 rounded-2xl hover:from-teal-700 hover:to-cyan-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-6 py-3 text-white bg-gradient-to-r from-cyan-600 to-cyan-600 rounded-2xl hover:from-cyan-700 hover:to-cyan-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {submitting ? (
                   <>

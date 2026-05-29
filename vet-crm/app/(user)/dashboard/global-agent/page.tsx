@@ -283,11 +283,11 @@ export default function GlobalAgentPage() {
                 <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl sm:rounded-2xl bg-gradient-to-br from-violet-500 via-purple-500 to-fuchsia-500 flex items-center justify-center shadow-lg shadow-purple-500/20">
                   <LuSparkles className="w-4 h-4 text-white" />
                 </div>
-                <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-emerald-400 border-2 border-slate-950" />
+                <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-cyan-400 border-2 border-slate-950" />
               </div>
               <div>
                 <h1 className="text-xs sm:text-sm font-semibold text-white">Global Agent</h1>
-                <p className="text-[10px] sm:text-xs text-emerald-400/80">Online</p>
+                <p className="text-[10px] sm:text-xs text-cyan-400/80">Online</p>
               </div>
             </div>
           </div>
@@ -376,7 +376,7 @@ export default function GlobalAgentPage() {
                           title="Copiar"
                         >
                           {copiedId === msg.id ? (
-                            <LuCheck className="w-3.5 h-3.5 text-emerald-400" />
+                            <LuCheck className="w-3.5 h-3.5 text-cyan-400" />
                           ) : (
                             <LuCopy className="w-3.5 h-3.5" />
                           )}

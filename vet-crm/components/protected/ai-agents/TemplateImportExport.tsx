@@ -255,18 +255,18 @@ export default function TemplateImportExport({
                   {/* Results */}
                   <div className="space-y-3">
                     {importResult.imported > 0 && (
-                      <div className="flex items-center gap-3 p-3 bg-emerald-50 rounded-xl">
-                        <LuCheck className="w-5 h-5 text-emerald-600" />
-                        <span className="text-emerald-700">
+                      <div className="flex items-center gap-3 p-3 bg-cyan-50 rounded-xl">
+                        <LuCheck className="w-5 h-5 text-cyan-600" />
+                        <span className="text-cyan-700">
                           {importResult.imported} template(s) importado(s)
                         </span>
                       </div>
                     )}
 
                     {importResult.skipped > 0 && (
-                      <div className="flex items-center gap-3 p-3 bg-amber-50 rounded-xl">
-                        <LuCircleAlert className="w-5 h-5 text-amber-600" />
-                        <span className="text-amber-700">
+                      <div className="flex items-center gap-3 p-3 bg-orange-50 rounded-xl">
+                        <LuCircleAlert className="w-5 h-5 text-orange-600" />
+                        <span className="text-orange-700">
                           {importResult.skipped} template(s) pulado(s) (já existiam)
                         </span>
                       </div>

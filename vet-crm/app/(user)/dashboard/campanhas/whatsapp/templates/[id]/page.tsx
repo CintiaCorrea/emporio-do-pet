@@ -62,14 +62,14 @@ interface WhatsAppTemplate {
 
 const STATUS_CONFIG: Record<string, { bg: string; text: string; icon: React.ReactNode; label: string }> = {
   APPROVED: {
-    bg: 'bg-emerald-100',
-    text: 'text-emerald-700',
+    bg: 'bg-cyan-100',
+    text: 'text-cyan-700',
     icon: <LuCheck className="w-5 h-5" />,
     label: 'Aprovado',
   },
   PENDING: {
-    bg: 'bg-amber-100',
-    text: 'text-amber-700',
+    bg: 'bg-orange-100',
+    text: 'text-orange-700',
     icon: <LuClock className="w-5 h-5" />,
     label: 'Pendente',
   },
@@ -234,7 +234,7 @@ export default function TemplateDetailPage({ params }: { params: Promise<{ id: s
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-8rem)]">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-emerald-100 border-t-emerald-600 rounded-full animate-spin"></div>
+          <div className="w-12 h-12 border-4 border-cyan-100 border-t-emerald-600 rounded-full animate-spin"></div>
           <p className="text-gray-500 font-medium">Carregando template...</p>
         </div>
       </div>
@@ -279,13 +279,13 @@ export default function TemplateDetailPage({ params }: { params: Promise<{ id: s
       <div className="max-w-4xl mx-auto">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-gray-500 mb-6">
-          <Link href="/dashboard/campanhas/whatsapp" className="hover:text-emerald-600">
+          <Link href="/dashboard/campanhas/whatsapp" className="hover:text-cyan-600">
             WhatsApp
           </Link>
           <LuChevronRight className="w-4 h-4" />
           <Link
             href="/dashboard/campanhas/whatsapp/templates"
-            className="hover:text-emerald-600"
+            className="hover:text-cyan-600"
           >
             Templates
           </Link>
@@ -346,7 +346,7 @@ export default function TemplateDetailPage({ params }: { params: Promise<{ id: s
             {canEdit && !editing && (
               <button
                 onClick={() => setEditing(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-medium transition-colors"
+                className="flex items-center gap-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl font-medium transition-colors"
               >
                 <LuPencil className="w-4 h-4" />
                 Editar
@@ -390,18 +390,18 @@ export default function TemplateDetailPage({ params }: { params: Promise<{ id: s
                 <div
                   className={`w-3 h-3 rounded-full ${
                     template.quality_score.score === 'GREEN'
-                      ? 'bg-emerald-500'
+                      ? 'bg-cyan-500'
                       : template.quality_score.score === 'YELLOW'
-                      ? 'bg-amber-500'
+                      ? 'bg-orange-500'
                       : 'bg-red-500'
                   }`}
                 />
                 <span
                   className={`font-medium ${
                     template.quality_score.score === 'GREEN'
-                      ? 'text-emerald-600'
+                      ? 'text-cyan-600'
                       : template.quality_score.score === 'YELLOW'
-                      ? 'text-amber-600'
+                      ? 'text-orange-600'
                       : 'text-red-600'
                   }`}
                 >
@@ -429,7 +429,7 @@ export default function TemplateDetailPage({ params }: { params: Promise<{ id: s
                     value={editHeaderText}
                     onChange={(e) => setEditHeaderText(e.target.value)}
                     maxLength={60}
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
                   />
                 ) : (
                   <div>
@@ -471,7 +471,7 @@ export default function TemplateDetailPage({ params }: { params: Promise<{ id: s
                   onChange={(e) => setEditBodyText(e.target.value)}
                   rows={6}
                   maxLength={1024}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 resize-none"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 resize-none"
                 />
               ) : (
                 <p className="text-gray-700 whitespace-pre-wrap">{bodyComponent?.text}</p>
@@ -539,7 +539,7 @@ export default function TemplateDetailPage({ params }: { params: Promise<{ id: s
                 <button
                   onClick={handleSaveEdit}
                   disabled={saving}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-medium transition-colors disabled:opacity-50"
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl font-medium transition-colors disabled:opacity-50"
                 >
                   {saving ? (
                     <>
@@ -561,7 +561,7 @@ export default function TemplateDetailPage({ params }: { params: Promise<{ id: s
           <div>
             <div className="bg-white rounded-2xl border border-gray-100 p-6 sticky top-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <LuEye className="w-5 h-5 text-emerald-600" />
+                <LuEye className="w-5 h-5 text-cyan-600" />
                 Pré-visualização
               </h2>
 
@@ -601,7 +601,7 @@ export default function TemplateDetailPage({ params }: { params: Promise<{ id: s
                     {buttonsComponent.buttons.map((button, index) => (
                       <div
                         key={index}
-                        className="bg-white rounded-lg p-2 text-center text-emerald-600 text-sm font-medium shadow-sm"
+                        className="bg-white rounded-lg p-2 text-center text-cyan-600 text-sm font-medium shadow-sm"
                       >
                         {button.text}
                       </div>

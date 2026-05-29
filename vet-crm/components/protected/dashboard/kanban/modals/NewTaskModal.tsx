@@ -322,7 +322,7 @@ const NewTaskModal = ({ isOpen, onClose, onSubmit, columnId }: NewTaskModalProps
           {/* Pet - Seleção ou Criação */}
           <div className="space-y-4 p-4 bg-gray-50 rounded-xl">
             <h4 className="font-medium text-gray-900 flex items-center">
-              <LuPawPrint className="w-4 h-4 mr-2 text-amber-500" />
+              <LuPawPrint className="w-4 h-4 mr-2 text-orange-500" />
               Informações do Pet
             </h4>
             
@@ -453,7 +453,7 @@ const NewTaskModal = ({ isOpen, onClose, onSubmit, columnId }: NewTaskModalProps
 
             <div className="space-y-2">
               <label className="flex items-center text-sm font-medium text-gray-700">
-                <LuDollarSign className="w-4 h-4 mr-2 text-amber-500" />
+                <LuDollarSign className="w-4 h-4 mr-2 text-orange-500" />
                 Valor (R$) *
               </label>
               <div className="relative">
@@ -465,7 +465,7 @@ const NewTaskModal = ({ isOpen, onClose, onSubmit, columnId }: NewTaskModalProps
                   step="0.01"
                   min="0"
                   className={`w-full pl-10 pr-4 py-3 border rounded-xl focus:outline-none focus:ring-2 transition-all duration-200 bg-gray-50/50 hover:bg-white text-sm text-black ${
-                    errors.value ? "border-red-500 focus:ring-red-500" : "border-gray-200 focus:ring-amber-500"
+                    errors.value ? "border-red-500 focus:ring-red-500" : "border-gray-200 focus:ring-orange-500"
                   }`}
                   required
                   disabled={loading}

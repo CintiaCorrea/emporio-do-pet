@@ -5,19 +5,19 @@
 
 :root {
   /* Brand + core surfaces (default = light) */
-  --background: #fafaf6; /* warm off-white */
-  --foreground: #0b1220;
-  --brand: #15803d; /* emerald-700 — Empório */ /* blue-600 */
+  --background: #FBF6EA; /* warm off-white */
+  --foreground: #0E2244;
+  --brand: #009AAC; /* emerald-700 — Empório */ /* blue-600 */
 
   /* Navigation theming (Topbar / Sidebar) */
-  --topbar-bg: rgba(255, 255, 255, 0.72);
-  --topbar-border: rgba(226, 232, 240, 0.85); /* slate-200 */
-  --topbar-text: #0f172a; /* slate-900 */
-  --topbar-muted: #64748b; /* slate-500 */
+  --topbar-bg: rgba(255, 254, 248, 0.95);
+  --topbar-border: #e8dfc8; /* slate-200 */
+  --topbar-text: #0E2244; /* slate-900 */
+  --topbar-muted: #4d5a66; /* slate-500 */
   --topbar-hover: rgba(241, 245, 249, 1); /* slate-100 */
   --topbar-separator: #e2e8f0; /* slate-200 */
   --topbar-ring: rgba(148, 163, 184, 0.35); /* slate-400 */
-  --topbar-ring-hover: rgba(21, 128, 61, 0.35); /* brand */
+  --topbar-ring-hover: rgba(0, 154, 172, 0.35); /* brand */
   --topbar-avatar-border: #ffffff;
 
   --dropdown-bg: #ffffff;
@@ -27,14 +27,14 @@
   --dropdown-item-text: #334155; /* slate-700 */
   --dropdown-item-text-hover: #0f172a; /* slate-900 */
 
-  --sidebar-bg: rgba(255, 255, 255, 0.92);
-  --sidebar-border: #e2e8f0;
-  --sidebar-hover: rgba(241, 245, 249, 1);
-  --sidebar-text: #0f172a;
-  --sidebar-muted: #64748b;
-  --sidebar-active-bg: rgba(21, 128, 61, 0.10);
-  --sidebar-active-border: rgba(21, 128, 61, 0.55);
-  --sidebar-active-text: #14532d; /* emerald-900 */ /* blue-700 */
+  --sidebar-bg: #FFFEF8;
+  --sidebar-border: #e8dfc8;
+  --sidebar-hover: #FBF0DD;
+  --sidebar-text: #0E2244;
+  --sidebar-muted: #4d5a66;
+  --sidebar-active-bg: #009AAC;
+  --sidebar-active-border: #009AAC;
+  --sidebar-active-text: #ffffff; /* emerald-900 */ /* blue-700 */
 
   /* Scrollbars (default = light) */
   --scrollbar-size: 10px;
@@ -57,18 +57,18 @@ html[data-theme='light'],
 html.light,
 body[data-theme='light'],
 body.light {
-  --background: #fafaf6; /* warm off-white */
-  --foreground: #0b1220;
-  --brand: #15803d; /* emerald-700 — Empório */
+  --background: #FBF6EA; /* warm off-white */
+  --foreground: #0E2244;
+  --brand: #009AAC; /* emerald-700 — Empório */
 
-  --topbar-bg: rgba(255, 255, 255, 0.72);
-  --topbar-border: rgba(226, 232, 240, 0.85);
-  --topbar-text: #0f172a;
-  --topbar-muted: #64748b;
+  --topbar-bg: rgba(255, 254, 248, 0.95);
+  --topbar-border: #e8dfc8;
+  --topbar-text: #0E2244;
+  --topbar-muted: #4d5a66;
   --topbar-hover: rgba(241, 245, 249, 1);
   --topbar-separator: #e2e8f0;
   --topbar-ring: rgba(148, 163, 184, 0.35);
-  --topbar-ring-hover: rgba(21, 128, 61, 0.35);
+  --topbar-ring-hover: rgba(0, 154, 172, 0.35);
   --topbar-avatar-border: #ffffff;
 
   --dropdown-bg: #ffffff;
@@ -78,14 +78,14 @@ body.light {
   --dropdown-item-text: #334155;
   --dropdown-item-text-hover: #0f172a;
 
-  --sidebar-bg: rgba(255, 255, 255, 0.92);
-  --sidebar-border: #e2e8f0;
-  --sidebar-hover: rgba(241, 245, 249, 1);
-  --sidebar-text: #0f172a;
-  --sidebar-muted: #64748b;
-  --sidebar-active-bg: rgba(21, 128, 61, 0.10);
-  --sidebar-active-border: rgba(21, 128, 61, 0.55);
-  --sidebar-active-text: #14532d; /* emerald-900 */
+  --sidebar-bg: #FFFEF8;
+  --sidebar-border: #e8dfc8;
+  --sidebar-hover: #FBF0DD;
+  --sidebar-text: #0E2244;
+  --sidebar-muted: #4d5a66;
+  --sidebar-active-bg: #009AAC;
+  --sidebar-active-border: #009AAC;
+  --sidebar-active-text: #ffffff; /* emerald-900 */
 
   /* Scrollbars (light) */
   --scrollbar-size: 10px;
@@ -782,3 +782,38 @@ body[data-theme='dark'] .rounded-2xl.shadow-xl,
 body[data-theme='dark'] .rounded-3xl.shadow-sm {
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.2);
 }
+
+/* ====================================================================== */
+/* EMPÓRIO DO PET — overrides Tailwind pra paleta REAL                    */
+/* turquesa Empório #009AAC > cyan-500 default                            */
+/* ====================================================================== */
+.bg-cyan-50 { background-color: #E0F4F6 !important; }
+.bg-cyan-100 { background-color: #B5DDE2 !important; }
+.bg-cyan-500 { background-color: #009AAC !important; }
+.bg-cyan-600 { background-color: #00798A !important; }
+.bg-cyan-700 { background-color: #006370 !important; }
+
+.text-cyan-50 { color: #E0F4F6 !important; }
+.text-cyan-100 { color: #B5DDE2 !important; }
+.text-cyan-600 { color: #00798A !important; }
+.text-cyan-700 { color: #006370 !important; }
+.text-cyan-800 { color: #004D5A !important; }
+
+.border-cyan-100 { border-color: #B5DDE2 !important; }
+.border-cyan-500 { border-color: #009AAC !important; }
+
+.hover\:bg-cyan-50:hover { background-color: #E0F4F6 !important; }
+.hover\:bg-cyan-600:hover { background-color: #00798A !important; }
+.hover\:bg-cyan-700:hover { background-color: #006370 !important; }
+.hover\:text-cyan-700:hover { color: #006370 !important; }
+
+.focus\:ring-cyan-500:focus { --tw-ring-color: #009AAC !important; }
+.focus\:border-cyan-500:focus { border-color: #009AAC !important; }
+
+/* amber/orange Empório: dourado quente */
+.bg-orange-50 { background-color: #FBF0DD !important; }
+.bg-orange-100 { background-color: #FCE5C8 !important; }
+.bg-orange-500 { background-color: #B25C0A !important; }
+.text-orange-600 { color: #8A5A0F !important; }
+.text-orange-700 { color: #B25C0A !important; }
+.text-orange-800 { color: #633806 !important; }

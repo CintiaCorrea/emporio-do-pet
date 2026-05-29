@@ -28,7 +28,7 @@ export default function PerformanceMetrics({ stats }: PerformanceMetricsProps) {
           </div>
           <div className="w-full bg-blue-500 rounded-full h-2">
             <div 
-              className="bg-amber-300 h-2 rounded-full transition-all duration-1000"
+              className="bg-orange-300 h-2 rounded-full transition-all duration-1000"
               style={{ width: `${Math.min(100, (stats.novosLeads / 50) * 100)}%` }}
             ></div>
           </div>

@@ -200,7 +200,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
             {actionLoading === 'score' ? <LuLoader className="w-4 h-4 animate-spin" /> : <LuTarget className="w-4 h-4" />} Recalcular Score
           </button>
           {lead.status !== 'CONVERTED' && lead.status !== 'LOST' && (
-            <button onClick={handleConvert} disabled={actionLoading === 'convert'} className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-2xl hover:scale-105 transition-all text-sm shadow-lg shadow-green-500/25 disabled:opacity-50">
+            <button onClick={handleConvert} disabled={actionLoading === 'convert'} className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-600 to-cyan-600 text-white rounded-2xl hover:scale-105 transition-all text-sm shadow-lg shadow-green-500/25 disabled:opacity-50">
               {actionLoading === 'convert' ? <LuLoader className="w-4 h-4 animate-spin" /> : <LuArrowRightLeft className="w-4 h-4" />} Converter para Cliente
             </button>
           )}
@@ -331,14 +331,14 @@ function ResumoTab({ lead }: { lead: Lead }) {
             {lead.convertedToClientId && (
               <Link
                 href={`/dashboard/crm/clientes/${lead.convertedToClientId}`}
-                className="flex items-center gap-2 px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-2xl hover:bg-emerald-100 transition-all"
+                className="flex items-center gap-2 px-4 py-3 bg-cyan-50 border border-cyan-200 rounded-2xl hover:bg-cyan-100 transition-all"
               >
-                <LuArrowRightLeft className="w-5 h-5 text-emerald-600" />
+                <LuArrowRightLeft className="w-5 h-5 text-cyan-600" />
                 <div>
-                  <p className="text-sm font-medium text-emerald-800">Cliente Convertido</p>
-                  <p className="text-xs text-emerald-600">Ver ficha do cliente</p>
+                  <p className="text-sm font-medium text-cyan-800">Cliente Convertido</p>
+                  <p className="text-xs text-cyan-600">Ver ficha do cliente</p>
                 </div>
-                <LuChevronRight className="w-4 h-4 text-emerald-400 ml-2" />
+                <LuChevronRight className="w-4 h-4 text-cyan-400 ml-2" />
               </Link>
             )}
           </div>

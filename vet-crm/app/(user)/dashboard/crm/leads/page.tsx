@@ -181,7 +181,7 @@ export default function LeadsListPage() {
             </div>
             <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl p-4 shadow-md">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-emerald-100 rounded-xl"><LuTarget className="w-5 h-5 text-emerald-600" /></div>
+                <div className="p-2 bg-cyan-100 rounded-xl"><LuTarget className="w-5 h-5 text-cyan-600" /></div>
                 <div>
                   <p className="text-xs text-gray-500">Qualificados</p>
                   <p className="text-xl font-bold text-gray-900">{stats.byStatus?.QUALIFIED || 0}</p>

@@ -611,7 +611,7 @@ function AIAgentsConversationsPage() {
               </p>
               {whatsappConnected === false ? (
                 <div className="text-sm text-gray-500 dark:text-gray-400 space-y-2">
-                  <p className="flex items-center justify-center gap-1.5 text-amber-600 dark:text-amber-400">
+                  <p className="flex items-center justify-center gap-1.5 text-orange-600 dark:text-orange-400">
                     <AlertCircle className="h-4 w-4" />
                     WhatsApp não conectado
                   </p>
@@ -839,20 +839,20 @@ function AIAgentsConversationsPage() {
                         <div className={`flex items-center gap-2 px-4 py-2 rounded-xl max-w-[90%] md:max-w-[70%] ${
                           message.status === 'FAILED'
                             ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/40'
-                            : 'bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40'
+                            : 'bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800/40'
                         }`}>
                           {message.status === 'FAILED' ? (
                             <AlertTriangle className="h-4 w-4 text-red-500 dark:text-red-400 flex-shrink-0" />
                           ) : (
-                            <ArrowRightLeft className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                            <ArrowRightLeft className="h-4 w-4 text-orange-600 dark:text-orange-400 flex-shrink-0" />
                           )}
                           <p className={`text-xs text-center ${
                             message.status === 'FAILED'
                               ? 'text-red-700 dark:text-red-300'
-                              : 'text-amber-700 dark:text-amber-300'
+                              : 'text-orange-700 dark:text-orange-300'
                           }`}>{message.content}{message.status === 'FAILED' ? ' (nao entregue)' : ''}</p>
                           <span className={`text-[10px] whitespace-nowrap ${
-                            message.status === 'FAILED' ? 'text-red-500' : 'text-amber-500'
+                            message.status === 'FAILED' ? 'text-red-500' : 'text-orange-500'
                           }`}>{formatTime(message.createdAt)}</span>
                         </div>
                       </div>
@@ -894,9 +894,9 @@ function AIAgentsConversationsPage() {
             {/* Message Input */}
             <div className="p-4 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
               {!is24hWindowOpen && messages.length > 0 && (
-                <div className="flex items-center gap-2 mb-3 px-3 py-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 rounded-xl">
-                  <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
-                  <p className="text-xs text-amber-700 dark:text-amber-300">
+                <div className="flex items-center gap-2 mb-3 px-3 py-2 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800/40 rounded-xl">
+                  <AlertTriangle className="h-4 w-4 text-orange-600 dark:text-orange-400 flex-shrink-0" />
+                  <p className="text-xs text-orange-700 dark:text-orange-300">
                     A janela de 24h do WhatsApp expirou. Mensagens podem nao ser entregues ao cliente. O cliente precisa enviar uma mensagem primeiro para reabrir a janela.
                   </p>
                 </div>
