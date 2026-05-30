@@ -1558,6 +1558,27 @@ model Raca {
 
 
 // ============================================
+// ListaTipo — registro de cada "lista" disponível no CRM
+// (canais, origens, motivos_perda, status_clinico, etc)
+// Permite admin criar listas novas além das padrão
+// ============================================
+model ListaTipo {
+  id        String  @id @default(uuid())
+  nome      String  @unique // identificador: "canais", "tipos_exame" etc
+  label     String  // visível pro usuário: "Canais de entrada"
+  emoji     String? // emoji decorativo
+  descricao String?
+  ordem     Int     @default(0)
+  ativo     Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ativo, ordem])
+  @@map("lista_tipos")
+}
+
+// ============================================
 // ListaItem — listas customizáveis (vocabulário do CRM)
 // Ex: canais, origens, motivos_perda, status_clinico, etc
 // ============================================
