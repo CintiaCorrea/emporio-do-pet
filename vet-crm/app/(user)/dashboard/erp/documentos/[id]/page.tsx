@@ -6,7 +6,7 @@ import Link from 'next/link';
 import {
   LuArrowLeft,
   LuPencil,
-  LuFileText
+  LuFileText,
   LuCheck
 } from 'react-icons/lu';
 import toast from 'react-hot-toast';

@@ -6,7 +6,7 @@ import Link from 'next/link';
 import {
   LuPawPrint,
   LuUser,
-  LuCalendar
+  LuCalendar,
   LuLoader,
   LuFileText
 } from 'react-icons/lu';

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import {
   LuSearch,
-  LuPlus
+  LuPlus,
   LuTriangleAlert
   LuCalendar
 } from 'react-icons/lu';

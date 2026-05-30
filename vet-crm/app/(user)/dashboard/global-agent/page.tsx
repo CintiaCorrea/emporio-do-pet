@@ -2,11 +2,11 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import {
-  LuSparkles
+  LuSparkles,
   LuPlus,
-  LuTrash
+  LuTrash,
   LuCheck
-  LuLoaderCircle
+  LuLoaderCircle,
   LuUser} from 'react-icons/lu';
 
 type MessageRole = 'user' | 'assistant';

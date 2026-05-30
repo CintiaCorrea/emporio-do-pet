@@ -6,11 +6,11 @@ import Link from 'next/link';
 import {
   LuArrowLeft,
   LuSave,
-  LuLoader
+  LuLoader,
   LuCheck
-  LuTrash
+  LuTrash,
   LuPencil,
-  LuEye
+  LuEye,
   LuPhone} from 'react-icons/lu';
 import { toast } from 'sonner';
 

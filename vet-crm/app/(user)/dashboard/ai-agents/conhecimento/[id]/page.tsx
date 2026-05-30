@@ -8,7 +8,7 @@ import {
   LuUpload,
   LuTrash,
   LuFileText,
-  LuLoader
+  LuLoader,
   LuPencil
 } from 'react-icons/lu';
 import { toast } from 'sonner';

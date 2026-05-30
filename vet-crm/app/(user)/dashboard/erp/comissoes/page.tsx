@@ -3,12 +3,12 @@
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import {
-  LuSearch
+  LuSearch,
   LuPlus,
   LuDownload,
   LuUser,
   LuCalendar,
-  LuDollarSign
+  LuDollarSign,
   LuPencil,
   LuEye,
   LuTrash

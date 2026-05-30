@@ -4,12 +4,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   LuDownload,
-  LuFileText
+  LuFileText,
   LuLoader,
   LuPencil,
   LuPlus,
   LuSearch,
-  LuTrash
+  LuTrash,
   LuDollarSign} from 'react-icons/lu';
 import FinanceEntryModal, { FinanceEntryFormValues } from '@/components/protected/dashboard/erp/financeiro/modals/FinanceEntryModal';
 import ConfirmDeleteFinanceEntryModal from '@/components/protected/dashboard/erp/financeiro/modals/ConfirmDeleteFinanceEntryModal';

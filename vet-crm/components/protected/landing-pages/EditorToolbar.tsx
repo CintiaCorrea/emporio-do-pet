@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import {
   LuArrowLeft,
-  LuSave
+  LuSave,
   LuDownload,
   LuLoaderCircle} from 'react-icons/lu';
 import type { Editor } from 'grapesjs';

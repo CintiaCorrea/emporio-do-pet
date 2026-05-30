@@ -10,10 +10,10 @@ import {
   LuTrash,
   LuUser,
   LuPawPrint,
-  LuCalendar
+  LuCalendar,
   LuDollarSign
   LuPhone,
-  LuFileText
+  LuFileText,
   LuSave
 } from 'react-icons/lu';
 import toast from 'react-hot-toast';

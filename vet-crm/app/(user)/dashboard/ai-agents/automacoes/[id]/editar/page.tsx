@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { 
   LuArrowLeft, 
   LuSave,
-  LuLoader
+  LuLoader,
   LuTrash
 } from 'react-icons/lu';
 import { toast } from 'sonner';

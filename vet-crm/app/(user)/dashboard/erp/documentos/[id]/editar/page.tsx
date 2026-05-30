@@ -6,7 +6,7 @@ import Link from 'next/link';
 import {
   LuArrowLeft,
   LuSave,
-  LuFileText
+  LuFileText,
   LuTrash} from 'react-icons/lu';
 import toast from 'react-hot-toast';
 import RichTextEditor from '@/components/protected/dashboard/documents/RichTextEditor';

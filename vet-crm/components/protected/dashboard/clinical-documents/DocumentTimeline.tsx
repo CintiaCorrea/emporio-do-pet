@@ -6,7 +6,7 @@ import {
   LuFileText,
   LuLoader,
   LuSparkles,
-  LuCalendar
+  LuCalendar,
   LuDownload} from 'react-icons/lu';
 import toast from 'react-hot-toast';
 

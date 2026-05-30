@@ -5,10 +5,10 @@ import Link from 'next/link';
 import toast from 'react-hot-toast';
 import {
   LuArrowLeft,
-  LuDownload
+  LuDownload,
   LuPhone,
   LuPlus,
-  LuSearch
+  LuSearch,
   LuTrash,
   LuUser} from 'react-icons/lu';
 

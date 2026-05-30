@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import {
-  LuUpload
+  LuUpload,
   LuLoader,
   LuCheck} from 'react-icons/lu';
 import toast from 'react-hot-toast';

@@ -4,7 +4,7 @@ import { useState, useRef } from 'react';
 import { 
   LuDownload, 
   LuUpload, 
-  LuLoader
+  LuLoader,
   LuCheck
 } from 'react-icons/lu';
 import { toast } from 'sonner';

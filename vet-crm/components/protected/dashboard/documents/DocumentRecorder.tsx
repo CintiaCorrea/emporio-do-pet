@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import {
   LuLoader,
-  LuCheck
+  LuCheck,
   LuFileText
 } from 'react-icons/lu';
 import toast from 'react-hot-toast';
