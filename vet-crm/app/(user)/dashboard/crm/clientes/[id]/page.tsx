@@ -7,6 +7,7 @@
 
 
 import { useState, useEffect, use, useCallback } from 'react';
+import TutorProfilePanel from '@/components/profile/TutorProfilePanel';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -207,6 +208,10 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
             </span>
           </div>
         </div>
+
+
+        {/* Painel de gamificação financeira */}
+        <TutorProfilePanel tutorId={client.id} />
 
         {/* Actions */}
         <div className="flex flex-wrap gap-2">

@@ -302,4 +302,47 @@ export class TutorsService {
     return { ...tutor, score };
   }
 
+
+  async profileStats(tutorId: string) {
+    const tutor = await this.prisma.tutor.findUnique({ where: { id: tutorId } });
+    if (!tutor) throw new NotFoundException('Tutor não encontrado');
+    const now = new Date();
+    const apps = await this.prisma.appointment.findMany({
+      where: { tutorId },
+      select: { id: true, date: true, value: true, status: true, paymentStatus: true, petId: true },
+      orderBy: { date: 'desc' },
+    });
+    const pets = await this.prisma.pet.findMany({ where: { tutorId }, select: { id: true, name: true, species: true, status: true } });
+    const realizadas = apps.filter(a => a.status === 'COMPLETED' || a.status === 'DONE' || a.date < now);
+    const ultima = realizadas[0];
+    const valorTotal = realizadas.reduce((s, a) => s + (a.value || 0), 0);
+    const valorPago = realizadas.filter(a => a.paymentStatus === 'PAID').reduce((s, a) => s + (a.value || 0), 0);
+    const valorAReceber = valorTotal - valorPago;
+
+    // Frequência últimos 12 meses
+    const freq: { mes: string; total: number; valor: number }[] = [];
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const next = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
+      const apsDoMes = realizadas.filter(a => { const ad = new Date(a.date); return ad >= d && ad < next; });
+      freq.push({ mes: d.toLocaleDateString('pt-BR', { month: 'short' }), total: apsDoMes.length, valor: +apsDoMes.reduce((s, a) => s + (a.value || 0), 0).toFixed(2) });
+    }
+
+    const diasDesdeUltima = ultima ? Math.floor((now.getTime() - new Date(ultima.date).getTime()) / 86400000) : null;
+    const futurasAgendadas = apps.filter(a => new Date(a.date) >= now && a.status !== 'CANCELLED').length;
+
+    return {
+      totalAppointments: realizadas.length,
+      futurasAgendadas,
+      diasDesdeUltima,
+      valorTotal: +valorTotal.toFixed(2),
+      valorPago: +valorPago.toFixed(2),
+      valorAReceber: +valorAReceber.toFixed(2),
+      ticketMedio: realizadas.length > 0 ? +(valorTotal / realizadas.length).toFixed(2) : 0,
+      totalPets: pets.length,
+      petsAtivos: pets.filter(p => p.status === 'ACTIVE').length,
+      pets,
+      frequenciaMensal: freq,
+    };
+  }
 }
