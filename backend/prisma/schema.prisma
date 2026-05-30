@@ -1441,6 +1441,50 @@ enum ProfissionalTipo {
   OUTRO
 }
 
+
+
+// ============================================
+// Etiquetas (tags) — categorias + templates aplicáveis a Lead/Cliente/Pet
+// ============================================
+model TagCategory {
+  id        String   @id @default(uuid())
+  nome      String
+  ordem     Int      @default(0)
+  ativo     Boolean  @default(true)
+  etiquetas EtiquetaTemplate[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ativo, ordem])
+  @@map("tag_categories")
+}
+
+enum TipoEtiqueta {
+  CLINICA
+  STATUS
+  CUSTOM
+}
+
+model EtiquetaTemplate {
+  id         String       @id @default(uuid())
+  texto      String       // Nome/texto da etiqueta
+  tipo       TipoEtiqueta @default(CUSTOM)
+  cor        String?      // Cor hex (#RRGGBB)
+  descricao  String?
+  aplicaEm   String[]     @default([]) // ["Lead","Cliente","Pet"]
+  categoryId String?
+  category   TagCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  ativo      Boolean      @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ativo, tipo])
+  @@index([categoryId])
+  @@map("etiqueta_templates")
+}
+
 // ============================================
 // CRM B2C - Leads com Insights Preditivos
 // ============================================
