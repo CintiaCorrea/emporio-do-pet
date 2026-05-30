@@ -34,6 +34,7 @@ import { ProfissionaisModule } from './modules/profissionais/profissionais.modul
 import { EtiquetasModule } from './modules/etiquetas/etiquetas.module';
 import { ServicosModule } from './modules/servicos/servicos.module';
 import { RacasModule } from './modules/racas/racas.module';
+import { ListasModule } from './modules/listas/listas.module';
 import { EnrichmentModule } from './modules/enrichment/enrichment.module';
 import { ScoringModule } from './modules/scoring/scoring.module';
 import { InsightsModule } from './modules/insights/insights.module';
@@ -147,6 +148,7 @@ import configuration from './config/configuration';
     EtiquetasModule,
     ServicosModule,
     RacasModule,
+    ListasModule,
     EnrichmentModule,
     ScoringModule,
     InsightsModule,

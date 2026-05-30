@@ -1555,6 +1555,27 @@ model Raca {
   @@map("racas")
 }
 
+
+
+// ============================================
+// ListaItem — listas customizáveis (vocabulário do CRM)
+// Ex: canais, origens, motivos_perda, status_clinico, etc
+// ============================================
+model ListaItem {
+  id    String  @id @default(uuid())
+  lista String  // identificador da lista (canais, origens, motivos_perda...)
+  valor String  // valor visível pro usuário
+  ordem Int     @default(0)
+  ativo Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([lista, valor])
+  @@index([lista, ativo, ordem])
+  @@map("lista_itens")
+}
+
 // ============================================
 // CRM B2C - Leads com Insights Preditivos
 // ============================================

@@ -17,7 +17,7 @@ const ITEMS: ConfigItem[] = [
   { href: "/dashboard/configuracoes/etiquetas", icon: "🏷", title: "Etiquetas", description: "Tags e categorias pra Lead, Cliente e Pet", status: "ready" },
   { href: "/dashboard/configuracoes/servicos", icon: "🛠", title: "Serviços e Produtos", description: "Catálogo com preço, custo e comissão", status: "ready" },
   { href: "/dashboard/configuracoes/racas", icon: "🐾", title: "Raças", description: "Lista de raças por espécie", status: "ready" },
-  { href: "/dashboard/configuracoes/listas", icon: "📋", title: "Listas customizáveis", description: "Canais, origens, motivos de perda, status clínicos", status: "soon" },
+  { href: "/dashboard/configuracoes/listas", icon: "📋", title: "Listas customizáveis", description: "Canais, origens, motivos de perda, status clínicos", status: "ready" },
   { href: "/dashboard/configuracoes/scripts", icon: "📝", title: "Scripts", description: "Roteiros de mensagem áudio/texto/email", status: "soon" },
   { href: "/dashboard/configuracoes/cadencias", icon: "⚡", title: "Cadências automáticas", description: "Sequências de comunicação (pós-cirurgia, etc)", status: "soon" },
   { href: "/dashboard/configuracoes/exames", icon: "🧪", title: "Exames e Fornecedores", description: "Catálogo de exames + laboratórios parceiros", status: "soon" },
@@ -60,7 +60,7 @@ export default function ConfiguracoesIndex() {
       </div>
 
       <p className="text-[11px] text-[#888780] text-center mt-6">
-        Configurações sendo portadas do Base44. 4 das 13 finalizadas.
+        Configurações sendo portadas do Base44. 5 das 13 finalizadas.
       </p>
     </div>
   );
