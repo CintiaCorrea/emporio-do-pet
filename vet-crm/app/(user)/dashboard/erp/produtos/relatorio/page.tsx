@@ -4,9 +4,9 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Sidebar from '@/components/protected/dashboard/Sidebar';
 import { 
-  LuArrowLeft
+  LuArrowLeft,
   LuCalendar
-  LuDollarSign
+  LuDollarSign,
   LuDownload
   LuFileText,
   LuTriangleAlert

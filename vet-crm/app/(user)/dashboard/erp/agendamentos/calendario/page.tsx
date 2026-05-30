@@ -5,9 +5,9 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
   LuArrowLeft, 
-  LuCalendar
+  LuCalendar,
   LuUser,
-  LuPawPrint
+  LuPawPrint,
   LuCheck
 } from 'react-icons/lu';
 import toast from 'react-hot-toast';

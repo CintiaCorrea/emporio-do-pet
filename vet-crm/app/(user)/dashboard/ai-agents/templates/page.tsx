@@ -4,11 +4,11 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { 
   LuFileText,
-  LuSearch
+  LuSearch,
   LuPlus
   LuTrash,
   LuCheck,
-  LuSparkles
+  LuSparkles,
   LuLoader
   LuPhone
 } from 'react-icons/lu';

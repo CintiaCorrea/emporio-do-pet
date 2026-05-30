@@ -6,10 +6,10 @@ import { useRouter } from 'next/navigation';
 import {
   LuFileText,
   LuPlus,
-  LuSearch
+  LuSearch,
   LuPencil,
   LuTrash,
-  LuEye
+  LuEye,
   LuCheck
 } from 'react-icons/lu';
 import toast from 'react-hot-toast';

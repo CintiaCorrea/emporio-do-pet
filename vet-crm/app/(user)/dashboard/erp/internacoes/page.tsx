@@ -9,9 +9,9 @@ import {
   LuTrash,
   LuUser,
   LuPawPrint,
-  LuCalendar
+  LuCalendar,
   LuTriangleAlert,
-  LuDollarSign
+  LuDollarSign,
   LuPhone
   LuSave
 } from 'react-icons/lu';

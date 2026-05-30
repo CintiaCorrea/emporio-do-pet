@@ -6,7 +6,7 @@ import {
   LuSearch,
   LuPlus,
   LuPencil,
-  LuTrash
+  LuTrash,
   LuTriangleAlert,
   LuDollarSign
 } from 'react-icons/lu';

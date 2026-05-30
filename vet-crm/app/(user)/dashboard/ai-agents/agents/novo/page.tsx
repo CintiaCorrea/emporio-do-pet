@@ -6,10 +6,10 @@ import Link from 'next/link';
 import {
   LuArrowLeft,
   LuLoader,
-  LuSave
+  LuSave,
   LuSparkles
   LuUserPlus,
-  LuTarget
+  LuTarget,
   LuCalendar} from 'react-icons/lu';
 import { SiWhatsapp } from 'react-icons/si';
 import { toast } from 'sonner';

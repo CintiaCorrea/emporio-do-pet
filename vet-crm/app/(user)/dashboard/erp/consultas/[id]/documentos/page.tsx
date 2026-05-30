@@ -6,7 +6,7 @@ import Link from 'next/link';
 import {
   LuFileText,
   LuLoader,
-  LuPlus
+  LuPlus,
   LuDownload
   LuSparkles,
   LuCalendar,

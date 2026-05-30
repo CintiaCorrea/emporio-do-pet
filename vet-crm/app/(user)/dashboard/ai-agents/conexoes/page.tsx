@@ -3,11 +3,11 @@
 // Página de Integrações - AI Agents
 import { useState, useEffect } from 'react';
 import {
-  LuCheck
+  LuCheck,
   LuEye,
-  LuEyeOff
+  LuEyeOff,
   LuSparkles
-  LuSave
+  LuSave,
   LuTrash
 } from 'react-icons/lu';
 import Link from 'next/link';

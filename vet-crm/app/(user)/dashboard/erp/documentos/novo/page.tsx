@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   LuArrowLeft,
-  LuFileText
+  LuFileText,
   LuCheck,
   LuDownload,
   LuEye,
