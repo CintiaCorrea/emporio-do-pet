@@ -242,15 +242,6 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
           ]}
         />
 
-        <SubMenu
-          icon={() => <span style={{fontSize:"14px"}}>🛡</span>}
-          label="Equipe"
-          collapsed={collapsed}
-          children={[
-            { href: "/dashboard/configuracoes/profissionais", label: "Profissionais" },
-            { href: "/dashboard/usuarios", label: "Equipe & Acesso" },
-          ]}
-        />
       </nav>
 
       <div className="px-2 pb-2 border-t border-[#e8dfc8] pt-2">
