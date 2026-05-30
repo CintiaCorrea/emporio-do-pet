@@ -4,6 +4,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { FornecedoresService } from './fornecedores.service';
 import { CreateFornecedorDto, UpdateFornecedorDto } from './dto/fornecedor.dto';
 import { CreateExameDto, UpdateExameDto } from './dto/exame.dto';
+import { ImportBatchDto } from './dto/import.dto';
 
 @ApiTags('fornecedores')
 @ApiBearerAuth()
@@ -42,4 +43,8 @@ export class FornecedoresController {
   // ===== Seed inicial =====
   @Post('seed-pacote-inicial')
   seed() { return this.service.seedPacoteInicial(); }
+
+  // ===== Import em lote =====
+  @Post('exames/import-batch')
+  importBatch(@Body() dto: ImportBatchDto) { return this.service.importBatch(dto); }
 }

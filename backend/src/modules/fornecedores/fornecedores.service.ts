@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateFornecedorDto, UpdateFornecedorDto } from './dto/fornecedor.dto';
 import { CreateExameDto, UpdateExameDto } from './dto/exame.dto';
+import { ImportBatchDto } from './dto/import.dto';
 
 @Injectable()
 export class FornecedoresService {
@@ -116,5 +117,65 @@ export class FornecedoresService {
       fornecedoresCriados: Object.keys(fornecedoresCriados).length,
       examesCriados: examesCount,
     };
+  }
+
+  // ===== Import em lote (CSV/Excel) =====
+  async importBatch(dto: ImportBatchDto) {
+    const CAT_MAP: Record<string, string> = {
+      'hematologia': 'HEMATOLOGIA', 'bioquimica': 'BIOQUIMICA', 'bioquímica': 'BIOQUIMICA',
+      'imagem': 'IMAGEM', 'citologia': 'CITOLOGIA', 'microbiologia': 'MICROBIOLOGIA',
+      'endocrinologia': 'ENDOCRINOLOGIA', 'histopatologia': 'HISTOPATOLOGIA', 'outros': 'OUTROS', 'outro': 'OUTROS',
+    };
+    const normalizar = (s: string) => (s || '').toLowerCase().trim().replace(/[\u0300-\u036f]/g, '');
+
+    // Pre-criar fornecedores únicos da planilha
+    const fornecedoresUnicos = [...new Set(dto.rows.map(r => (r.fornecedor || '').trim()).filter(Boolean))];
+    const fornecedorMap: Record<string, string> = {};
+    for (const nomeForn of fornecedoresUnicos) {
+      let f = await this.prisma.fornecedor.findFirst({ where: { nome: { equals: nomeForn, mode: 'insensitive' } } });
+      if (!f) {
+        f = await this.prisma.fornecedor.create({ data: {
+          nome: nomeForn, tipo: 'LABORATORIO' as any, ativo: true,
+          observacoes: `Criado automaticamente via importação em ${new Date().toISOString().slice(0,10)}`,
+        }});
+      }
+      fornecedorMap[nomeForn] = f.id;
+    }
+
+    let criados = 0, atualizados = 0, ignorados = 0;
+    for (const r of dto.rows) {
+      const fornNome = (r.fornecedor || '').trim();
+      const fornecedorId = fornecedorMap[fornNome];
+      if (!fornecedorId) { ignorados++; continue; }
+      const catKey = normalizar(r.categoria || 'outros');
+      const categoria = (CAT_MAP[catKey] || 'OUTROS') as any;
+
+      // Buscar existente por codigo+fornecedor (se tem codigo) ou nome+fornecedor
+      let existente = null;
+      if (r.codigo) {
+        existente = await this.prisma.catalogoExame.findFirst({ where: { fornecedorId, codigo: r.codigo } });
+      }
+      if (!existente) {
+        existente = await this.prisma.catalogoExame.findFirst({ where: { fornecedorId, nome: { equals: r.nome, mode: 'insensitive' } } });
+      }
+
+      const data = {
+        nome: r.nome, codigo: r.codigo || null, categoria,
+        valorFornecedor: r.custo ?? null, valorClienteSugerido: r.preco_venda ?? null,
+        tempoResultadoDias: r.prazo_dias ?? null,
+        ativo: r.ativo ?? true,
+        fornecedorId,
+      };
+
+      if (existente) {
+        if (!dto.upsert) { ignorados++; continue; }
+        await this.prisma.catalogoExame.update({ where: { id: existente.id }, data });
+        atualizados++;
+      } else {
+        await this.prisma.catalogoExame.create({ data });
+        criados++;
+      }
+    }
+    return { criados, atualizados, ignorados, fornecedoresUsados: Object.keys(fornecedorMap).length };
   }
 }

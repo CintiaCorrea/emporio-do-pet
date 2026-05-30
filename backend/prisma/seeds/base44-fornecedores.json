@@ -1,0 +1,6 @@
+[
+  {"_id":"6a0f19bec4602e622b8b7861","nome":"IFVet","tipo":"LABORATORIO","especialidade":"Laboratório de análises veterinárias","modelo_pagamento":"LOTE_MENSAL","observacoes":"Tabela importada em 2026-05-21 do PDF 'TABELA DE EXAMES 2025'. Inclui prazos em dias úteis.","ativo":true},
+  {"_id":"6a0f19bec4602e622b8b7862","nome":"LAFORVET","tipo":"LABORATORIO","especialidade":"Laboratório de análises veterinárias","modelo_pagamento":"LOTE_MENSAL","observacoes":"Tabela importada do PDF Cliente Especial – Novembro 2024.","ativo":true},
+  {"_id":"6a0f19bec4602e622b8b7863","nome":"Veter","tipo":"LABORATORIO","especialidade":"Laboratório de análises veterinárias","modelo_pagamento":"LOTE_MENSAL","observacoes":"TABELA VETER – CONVÊNIO 2026 vigente desde 01/05/2026.","ativo":true},
+  {"_id":"6a0f19bec4602e622b8b7864","nome":"Vetex","tipo":"LABORATORIO","especialidade":"Laboratório de análises veterinárias","modelo_pagamento":"LOTE_MENSAL","observacoes":"Tabela importada do PDF vigente desde 01/01/2026. Códigos numéricos preservados.","ativo":true}
+]
