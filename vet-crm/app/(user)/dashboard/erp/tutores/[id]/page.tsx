@@ -1,6 +1,7 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
+import TutorStatsPanel from '@/components/gamification/TutorStatsPanel';
 import Link from "next/link";
 import toast, { Toaster } from "react-hot-toast";
 import {
@@ -348,6 +349,12 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
           </AccordionCard>
         </div>
       </div>
+
+      {tutor && (
+        <div className="px-4 max-w-7xl mx-auto py-4">
+          <TutorStatsPanel tutorId={tutor.id} endpoint="tutors" />
+        </div>
+      )}
     </div>
   );
 }

@@ -7,6 +7,7 @@
 
 
 import { useState, useEffect, use, useCallback } from 'react';
+import TutorStatsPanel from '@/components/gamification/TutorStatsPanel';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -452,6 +453,10 @@ function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string;
       <div className="text-gray-400">{icon}</div>
       <span className="text-sm text-gray-500 w-32">{label}</span>
       <span className="text-sm font-medium text-gray-900">{value}</span>
+
+      <div className="px-4 max-w-7xl mx-auto py-4">
+        <TutorStatsPanel tutorId={id} endpoint="clients" />
+      </div>
     </div>
   );
 }

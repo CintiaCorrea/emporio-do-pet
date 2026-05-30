@@ -60,6 +60,9 @@ export class PetsController {
     });
   }
 
+  @Get(':id/stats')
+  getStats(@Param('id') id: string) { return this.petsService.getStats(id); }
+
   @Get(':id')
   @ApiOperation({ summary: 'Buscar pet por ID' })
   findOne(@Param('id') id: string) {

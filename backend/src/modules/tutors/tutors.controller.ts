@@ -68,6 +68,9 @@ export class TutorsController {
     return this.tutorsService.getStats();
   }
 
+  @Get(':id/stats')
+  getStatsById(@Param('id') id: string) { return this.tutorsService.getStatsForTutor(id); }
+
   @Get(':id')
   @ApiOperation({ summary: 'Buscar tutor por ID' })
   findOne(@Param('id') id: string) {

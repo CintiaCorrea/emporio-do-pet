@@ -150,4 +150,54 @@ export class PetsService {
       where: { id },
     });
   }
+
+  async getStats(id: string) {
+    const pet = await this.prisma.pet.findUnique({
+      where: { id },
+      select: { id: true, name: true, weight: true, createdAt: true, birthDate: true },
+    });
+    if (!pet) return null;
+    const appointments = await this.prisma.appointment.findMany({
+      where: { petId: id },
+      orderBy: { date: 'desc' },
+      select: { id: true, date: true, value: true, status: true, description: true, user: { select: { name: true } } },
+      take: 50,
+    });
+    const total = appointments.length;
+    const totalGasto = appointments.reduce((s, a) => s + (a.value || 0), 0);
+    const ultimoAtendimento = appointments[0]?.date || null;
+    const proximoAgendado = await this.prisma.appointment.findFirst({
+      where: { petId: id, date: { gt: new Date() } },
+      orderBy: { date: 'asc' },
+      select: { id: true, date: true, description: true, user: { select: { name: true } } },
+    });
+    // Atendimentos por mês (últimos 6)
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    const recent = appointments.filter(a => new Date(a.date) >= sixMonthsAgo);
+    const monthly: Record<string, number> = {};
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date();
+      d.setMonth(d.getMonth() - i);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      monthly[key] = 0;
+    }
+    for (const a of recent) {
+      const d = new Date(a.date);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      if (key in monthly) monthly[key]++;
+    }
+    return {
+      pet: { id: pet.id, name: pet.name, weight: pet.weight, birthDate: pet.birthDate },
+      total,
+      totalGasto: +totalGasto.toFixed(2),
+      ultimoAtendimento,
+      proximoAgendado,
+      mensal: Object.entries(monthly).map(([k, v]) => ({ mes: k, qtd: v })),
+      timeline: appointments.slice(0, 10).map(a => ({
+        id: a.id, date: a.date, value: a.value, status: a.status,
+        description: a.description, profissional: a.user?.name,
+      })),
+    };
+  }
 }

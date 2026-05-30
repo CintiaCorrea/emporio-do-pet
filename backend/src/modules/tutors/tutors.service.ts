@@ -302,4 +302,49 @@ export class TutorsService {
     return { ...tutor, score };
   }
 
+
+  async getStatsForTutor(id: string) {
+    const tutor = await this.prisma.tutor.findUnique({
+      where: { id },
+      select: { id: true, name: true, createdAt: true },
+    });
+    if (!tutor) return null;
+    const pets = await this.prisma.pet.findMany({ where: { tutorId: id }, select: { id: true, name: true, species: true } });
+    const appointments = await this.prisma.appointment.findMany({
+      where: { tutorId: id },
+      orderBy: { date: 'desc' },
+      select: { id: true, date: true, value: true, status: true, pet: { select: { name: true } } },
+      take: 100,
+    });
+    const total = appointments.length;
+    const ltvCalc = appointments.reduce((s: number, a: any) => s + (a.value || 0), 0);
+    const ticketMedio = total > 0 ? +(ltvCalc / total).toFixed(2) : 0;
+    const monthly: Record<string, { qtd: number; valor: number }> = {};
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date();
+      d.setMonth(d.getMonth() - i);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      monthly[key] = { qtd: 0, valor: 0 };
+    }
+    for (const a of appointments) {
+      const d = new Date(a.date);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      if (key in monthly) { monthly[key].qtd++; monthly[key].valor += a.value || 0; }
+    }
+    return {
+      tutor: {
+        id: tutor.id, name: tutor.name,
+        dataPrimeiraVisita: appointments.length > 0 ? appointments[appointments.length - 1].date : null,
+        dataUltimaVisita: appointments[0]?.date || null,
+      },
+      ltv: +ltvCalc.toFixed(2),
+      ticketMedio,
+      totalAtendimentos: total,
+      totalPets: pets.length,
+      pets,
+      mensal: Object.entries(monthly).map(([k, v]) => ({ mes: k, qtd: v.qtd, valor: +v.valor.toFixed(2) })),
+      ultimoAtendimento: appointments[0]?.date || null,
+    };
+  }
+
 }

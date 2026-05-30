@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { LuArrowLeft, LuPawPrint, LuVenetianMask, LuCalendar, LuUser, LuPencil, LuTrash, LuPhone, LuFiles } from 'react-icons/lu';
 import Sidebar from '@/components/protected/dashboard/Sidebar';
 import Link from 'next/link';
+import PetStatsPanel from '@/components/gamification/PetStatsPanel';
 import ConfirmDeleteModal from '@/components/common/ConfirmDeleteModal';
 import toast from 'react-hot-toast';
 
@@ -822,6 +823,12 @@ export default function PetDetailsPage() {
           </div>
         </div>
       </div>
+
+      {pet && (
+        <div className="px-4 max-w-7xl mx-auto py-4">
+          <PetStatsPanel petId={pet.id} />
+        </div>
+      )}
     </div>
   );
 }
