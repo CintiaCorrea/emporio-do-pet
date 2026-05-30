@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { LuPlus, LuSearch, LuPencil, LuTrash, LuPawPrint LuDownload, LuEye, LuUser } from 'react-icons/lu';
+import { LuPlus, LuSearch, LuPencil, LuTrash, LuPawPrint, LuDownload, LuEye, LuUser } from 'react-icons/lu';
 import Link from 'next/link';
 import ConfirmDeleteModal from '@/components/common/ConfirmDeleteModal';
 import toast from 'react-hot-toast';

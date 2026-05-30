@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
-import { LuCheck LuCalendar } from 'react-icons/lu';
+import { LuCheck, LuCalendar } from 'react-icons/lu';
 import { useNotifications, Notification } from '@/hooks/useNotifications';
 import { toast } from 'sonner';
 
