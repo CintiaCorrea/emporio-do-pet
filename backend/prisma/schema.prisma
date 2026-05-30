@@ -1605,6 +1605,60 @@ model ListaItem {
 
 
 
+
+
+// ============================================
+// Config 10: Pipelines configuráveis
+// Diferente dos pipelines fixos (Lead), aqui o admin define pipelines custom
+// pra acompanhar outras coisas (vendas de pacotes, pós-venda, projetos internos)
+// ============================================
+enum PipelineEscopo {
+  LEAD          // pipelines aplicáveis a Leads (substitui o LeadStatus enum estático)
+  CLIENTE       // pipelines pra tutores/clientes (ex: jornada de fidelização)
+  PROJETO       // pipelines de projetos internos
+  CUSTOM
+}
+
+model PipelineDefinition {
+  id          String           @id @default(uuid())
+  nome        String
+  escopo      PipelineEscopo   @default(CUSTOM)
+  descricao   String?
+  cor         String?          // hex pra destacar visualmente
+  ativo       Boolean          @default(true)
+  ordem       Int              @default(0)
+  isPadrao    Boolean          @default(false)  // pipeline default pra esse escopo
+
+  estagios    PipelineEstagio[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([escopo, ativo])
+  @@map("pipeline_definitions")
+}
+
+model PipelineEstagio {
+  id            String              @id @default(uuid())
+  pipelineId    String
+  pipeline      PipelineDefinition  @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  nome          String
+  descricao     String?
+  cor           String?             // hex pro chip do estágio
+  ordem         Int
+  ehInicial     Boolean             @default(false)  // primeiro estágio
+  ehGanho       Boolean             @default(false)  // estágio de sucesso
+  ehPerda       Boolean             @default(false)  // estágio de fracasso
+  ativo         Boolean             @default(true)
+  diasMaxParar  Int?                // SLA: alerta se passar X dias parado nesse estágio
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([pipelineId, ordem])
+  @@map("pipeline_estagios")
+}
+
 // ============================================
 // Config 9: Templates de E-mail + Variáveis disponíveis
 // Templates HTML/texto com placeholders + biblioteca de variáveis catalogadas

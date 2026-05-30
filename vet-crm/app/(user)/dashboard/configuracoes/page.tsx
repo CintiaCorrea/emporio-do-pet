@@ -22,7 +22,7 @@ const ITEMS: ConfigItem[] = [
   { href: "/dashboard/configuracoes/cadencias", icon: "⚡", title: "Cadências automáticas", description: "Sequências de comunicação (pós-cirurgia, etc)", status: "ready" },
   { href: "/dashboard/configuracoes/exames", icon: "🧪", title: "Exames e Fornecedores", description: "Catálogo de exames + laboratórios parceiros", status: "ready" },
   { href: "/dashboard/configuracoes/email-templates", icon: "✉️", title: "Templates de Email", description: "Modelos com variáveis pra disparos automáticos", status: "ready" },
-  { href: "/dashboard/configuracoes/pipelines", icon: "🌿", title: "Pipelines", description: "Etapas customizáveis do comercial/clínico/fisio", status: "soon" },
+  { href: "/dashboard/configuracoes/pipelines", icon: "🌿", title: "Pipelines", description: "Etapas customizáveis do comercial/clínico/fisio", status: "ready" },
   { href: "/dashboard/configuracoes/campanhas", icon: "📣", title: "Campanhas", description: "Campanhas de marketing (Google/Meta Ads)", status: "soon" },
   { href: "/dashboard/configuracoes/metas", icon: "🎯", title: "Metas", description: "Metas de faturamento, atendimentos, conversões", status: "soon" },
   { href: "/dashboard/configuracoes/avaliacoes", icon: "⭐", title: "Avaliações", description: "Pesquisa NPS e fluxo Google My Business", status: "soon" },
