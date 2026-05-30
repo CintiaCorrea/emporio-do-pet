@@ -179,16 +179,16 @@ export default function PipelinesConfigPage() {
           const isOpen = expanded === p.id;
           const maxOrdem = Math.max(0, ...p.estagios.map(e => e.ordem));
           return (
-            <div key={p.id} className="bg-white rounded-xl border" style={{ borderColor: "#E5DCC9", borderLeft: `4px solid ${p.cor || "#3C3489"}`, opacity: p.ativo ? 1 : 0.5 }}>
+            <div key={p.id} className="bg-white rounded-xl border" style={{ borderColor: "#E5DCC9", opacity: p.ativo ? 1 : 0.5 }}>
               <div className="px-4 py-3 border-b flex items-center gap-3" style={{ borderColor: "#E5DCC9" }}>
                 <button onClick={() => setExpanded(isOpen ? null : p.id)} className="text-lg">{isOpen ? "▼" : "▶"}</button>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-semibold text-sm" style={{ color: "#3C3489" }}>{p.nome}</span>
-                    <span className="text-xs px-2 py-0.5 rounded" style={{ background: "#F3EEFC", color: "#3C3489" }}>
+                    <span className="text-xs px-2 py-0.5 rounded" style={{ background: "#F1F1F1", color: "#3C3489" }}>
                       {sc.emoji} {sc.label}
                     </span>
-                    {p.isPadrao && <span className="text-xs px-2 py-0.5 rounded" style={{ background: "#DDF4E1", color: "#1E6B36" }}>⭐ Padrão</span>}
+                    {p.isPadrao && <span className="text-xs px-2 py-0.5 rounded" style={{ background: "#F1F1F1", color: "#6B7280" }}>Padrão</span>}
                     <span className="text-xs text-gray-500">{p.estagios.length} estágios</span>
                   </div>
                   {p.descricao && <div className="text-xs text-gray-500 mt-0.5">{p.descricao}</div>}
@@ -201,7 +201,7 @@ export default function PipelinesConfigPage() {
                     <div className="absolute right-0 top-full mt-1 bg-white border rounded-lg shadow-lg z-50 min-w-[140px]"
                       style={{ borderColor: "#E5DCC9" }}>
                       <button onClick={() => openPEdit(p)} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2"><LuPencil size={14} /> Editar</button>
-                      <button onClick={() => deleteP(p)} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2" style={{ color: "#A32D2D" }}><LuTrash size={14} /> Excluir</button>
+                      <button onClick={() => deleteP(p)} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2" style={{ color: "#6B7280" }}><LuTrash size={14} /> Excluir</button>
                     </div>
                   )}
                 </div>
@@ -211,7 +211,7 @@ export default function PipelinesConfigPage() {
                   <div className="flex gap-2 overflow-x-auto pb-2">
                     {p.estagios.map(e => (
                       <div key={e.id} className="relative flex-shrink-0 border rounded-lg p-3 min-w-[180px]"
-                        style={{ borderColor: e.cor || "#E5DCC9", borderTop: `3px solid ${e.cor || "#A0AEC0"}`, opacity: e.ativo ? 1 : 0.5 }}>
+                        style={{ borderColor: e.cor || "#E5DCC9", opacity: e.ativo ? 1 : 0.5 }}>
                         <div className="flex items-center gap-2 mb-1 flex-wrap">
                           <span className="text-xs font-bold" style={{ color: e.cor || "#333" }}>#{e.ordem}</span>
                           {e.ehInicial && <span className="text-xs" title="Inicial">🏁</span>}
@@ -223,7 +223,7 @@ export default function PipelinesConfigPage() {
                         {e.diasMaxParar && <div className="text-xs text-gray-400 mt-1">⏱ SLA: {e.diasMaxParar}d</div>}
                         <div className="flex gap-1 mt-2 justify-end">
                           <button onClick={() => openEEdit(e)} className="p-1 hover:bg-gray-100 rounded" title="Editar"><LuPencil size={12} /></button>
-                          <button onClick={() => deleteE(e)} className="p-1 hover:bg-gray-100 rounded" style={{ color: "#A32D2D" }} title="Excluir"><LuTrash size={12} /></button>
+                          <button onClick={() => deleteE(e)} className="p-1 hover:bg-gray-100 rounded" style={{ color: "#6B7280" }} title="Excluir"><LuTrash size={12} /></button>
                         </div>
                       </div>
                     ))}

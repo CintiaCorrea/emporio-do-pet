@@ -27,7 +27,7 @@ interface Profissional {
 }
 
 const ROLE_LABEL: Record<string, { label: string; color: string; bg: string }> = {
-  ADMIN: { label: "Administrador", color: "#00798A", bg: "#E0F4F6" },
+  ADMIN: { label: "Administrador", color: "#6B7280", bg: "#F1F1F1" },
   VETERINARIAN: { label: "Veterinário(a)", color: "#0C447C", bg: "#E6F1FB" },
   RECEPTIONIST: { label: "Recepção", color: "#8A5A0F", bg: "#FCE5C8" },
 };
@@ -35,8 +35,8 @@ const ROLE_LABEL: Record<string, { label: string; color: string; bg: string }> =
 const TIPO_LABEL: Record<TipoProfissional, { label: string; color: string; bg: string }> = {
   VETERINARIO: { label: "Veterinário", color: "#0F6E56", bg: "#E1F5EE" },
   RECEPCIONISTA: { label: "Recepção", color: "#185FA5", bg: "#E6F1FB" },
-  ESTAGIARIO: { label: "Estagiário", color: "#8a6313", bg: "#FBF0DD" },
-  GERENTE: { label: "Gerente", color: "#3C3489", bg: "#EEEDFE" },
+  ESTAGIARIO: { label: "Estagiário", color: "#6B7280", bg: "#F1F1F1" },
+  GERENTE: { label: "Gerente", color: "#3C3489", bg: "#F1F1F1" },
   OUTRO: { label: "Outro", color: "#5F5E5A", bg: "#f0e8d4" },
 };
 

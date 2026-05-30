@@ -16,7 +16,7 @@ interface Raca {
 
 const ESPECIE_LABEL: Record<Especie, { label: string; emoji: string; color: string; bg: string }> = {
   CAO: { label: "Cão", emoji: "🐶", color: "#185FA5", bg: "#E6F1FB" },
-  GATO: { label: "Gato", emoji: "🐱", color: "#00798A", bg: "#E0F4F6" },
+  GATO: { label: "Gato", emoji: "🐱", color: "#6B7280", bg: "#F1F1F1" },
   OUTRO: { label: "Outro", emoji: "🐾", color: "#5F5E5A", bg: "#f0e8d4" },
 };
 
@@ -239,7 +239,7 @@ export default function RacasConfigPage() {
               className="w-full px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm bg-white mb-3 focus:outline-none focus:border-[#009AAC]">
               <option value="CAO">🐶 Cão</option>
               <option value="GATO">🐱 Gato</option>
-              <option value="OUTRO">🐾 Outro</option>
+              <option value="OUTRO">Outro</option>
             </select>
             <label className="block text-[11px] text-[#5F5E5A] mb-1 font-medium">Ordem</label>
             <input type="number" value={form.ordem ?? 0} onChange={(e) => setForm({ ...form, ordem: parseInt(e.target.value) || 0 })}
