@@ -37,7 +37,7 @@ export default function RecentActivities({ atividades }: RecentActivitiesProps) 
     return icones[tipo as keyof typeof icones] || '📌';
   };
 
-  const getStatusColor = (status? (() => null) : string) => {
+  const getStatusColor = (status?: string) => {
     const cores = {
       pendente: 'bg-yellow-100 text-yellow-800 border-yellow-200',
       concluido: 'bg-green-100 text-green-800 border-green-200',

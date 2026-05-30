@@ -13,7 +13,7 @@ interface Tutor {
 }
 
 interface Pet {
-  id? (() => null) : string;
+  id?: string;
   name: string;
   species: string;
   breed: string;
@@ -30,8 +30,8 @@ interface Pet {
   observations: string;
   documents: string[]; // IDs dos templates de documentos selecionados
   owner: string;
-  tutorId? (() => null) : string;
-  avatar? (() => null) : string;
+  tutorId?: string;
+  avatar?: string;
 }
 
 interface ApiResponse {

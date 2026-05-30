@@ -20,14 +20,14 @@ interface KnowledgeDocument {
   fileSize: number;
   status: string;
   chunkCount: number;
-  errorMessage? (() => null) : string;
+  errorMessage?: string;
   createdAt: string;
 }
 
 interface KnowledgeBaseDetail {
   id: string;
   name: string;
-  description? (() => null) : string;
+  description?: string;
   status: string;
   totalDocuments: number;
   totalChunks: number;

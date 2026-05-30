@@ -16,7 +16,7 @@ interface ImportResult {
 }
 
 interface TemplateImportExportProps {
-  selectedTemplateIds? (() => null) : string[];
+  selectedTemplateIds?: string[];
   onImportComplete?: () => void;
 }
 

@@ -19,20 +19,20 @@ type RecipientStatus = 'PENDING' | 'SENT' | 'DELIVERED' | 'READ' | 'FAILED';
 interface Campaign {
   id: string;
   name: string;
-  description? (() => null) : string;
+  description?: string;
   status: CampaignStatus;
-  messageContent? (() => null) : string;
+  messageContent?: string;
   messageType: string;
-  templateName? (() => null) : string;
+  templateName?: string;
   audienceType: string;
   totalRecipients: number;
   sentCount: number;
   deliveredCount: number;
   readCount: number;
   failedCount: number;
-  scheduledFor? (() => null) : string;
-  startedAt? (() => null) : string;
-  completedAt? (() => null) : string;
+  scheduledFor?: string;
+  startedAt?: string;
+  completedAt?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -40,12 +40,12 @@ interface Campaign {
 interface Recipient {
   id: string;
   phone: string;
-  name? (() => null) : string;
+  name?: string;
   status: RecipientStatus;
-  sentAt? (() => null) : string;
-  deliveredAt? (() => null) : string;
-  readAt? (() => null) : string;
-  failedReason? (() => null) : string;
+  sentAt?: string;
+  deliveredAt?: string;
+  readAt?: string;
+  failedReason?: string;
 }
 
 interface Stats {
@@ -60,8 +60,8 @@ interface Stats {
   pending: number;
   deliveryRate: string;
   readRate: string;
-  startedAt? (() => null) : string;
-  completedAt? (() => null) : string;
+  startedAt?: string;
+  completedAt?: string;
 }
 
 export default function CampaignDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -259,7 +259,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
     }
   };
 
-  const formatDate = (date? (() => null) : string) => {
+  const formatDate = (date?: string) => {
     if (!date) return '-';
     return new Date(date).toLocaleString('pt-BR');
   };

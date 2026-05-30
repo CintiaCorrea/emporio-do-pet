@@ -49,7 +49,7 @@ interface Treatment {
   appointment: {
     id: string;
     date: string;
-    description? (() => null) : string;
+    description?: string;
     tutor: {
       id: string;
       name: string;
@@ -59,7 +59,7 @@ interface Treatment {
     id: string;
     name: string;
     species: string;
-    breed? (() => null) : string;
+    breed?: string;
   };
   product: {
     id: string;

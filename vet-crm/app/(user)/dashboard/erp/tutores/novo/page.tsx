@@ -13,7 +13,7 @@ interface Contact {
   type: 'MOBILE' | 'PHONE' | 'BUSINESS';
   number: string;
   isWhatsApp: boolean;
-  observations? (() => null) : string;
+  observations?: string;
   isPrimary: boolean;
 }
 
@@ -22,35 +22,35 @@ interface TutorFormData {
   type: 'INDIVIDUAL' | 'LEGAL_ENTITY';
   name: string;
   isActive: boolean;
-  email? (() => null) : string; // ✅ NOVO CAMPO ADICIONADO
+  email?: string; // ✅ NOVO CAMPO ADICIONADO
   nationality: string;
   gender?: 'MALE' | 'FEMALE' | 'OTHER';
   // Documentos
-  cpf? (() => null) : string;
-  rg? (() => null) : string;
-  birthDate? (() => null) : string;
-  profession? (() => null) : string;
+  cpf?: string;
+  rg?: string;
+  birthDate?: string;
+  profession?: string;
   // Como nos conheceu
-  howFoundUs? (() => null) : string;
+  howFoundUs?: string;
   // Preferências de Contato
   acceptsEmail: boolean;
   acceptsWhatsApp: boolean;
   acceptsSMS: boolean;
   acceptsSmsCampaign: boolean;
   // Endereço
-  cep? (() => null) : string;
-  address? (() => null) : string;
-  addressNumber? (() => null) : string;
-  complement? (() => null) : string;
-  referencePoint? (() => null) : string;
-  neighborhood? (() => null) : string;
-  city? (() => null) : string;
-  state? (() => null) : string;
+  cep?: string;
+  address?: string;
+  addressNumber?: string;
+  complement?: string;
+  referencePoint?: string;
+  neighborhood?: string;
+  city?: string;
+  state?: string;
   // Extras
-  observations? (() => null) : string;
+  observations?: string;
   tags: string[];
-  formDate? (() => null) : string;
-  inclusionDate? (() => null) : string;
+  formDate?: string;
+  inclusionDate?: string;
   // Contatos (serão criados separadamente)
   contacts: Contact[];
 }

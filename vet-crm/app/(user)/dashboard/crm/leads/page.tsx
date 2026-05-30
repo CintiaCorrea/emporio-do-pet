@@ -15,10 +15,10 @@ interface Lead {
   tags: string[];
   status: string;
   currentScore: number;
-  channel? (() => null) : string | null;
+  channel?: string | null;
   source: string;
   sourceDetail: string | null;
-  customFields? (() => null) : any;
+  customFields?: any;
   lastSeenAt: string;
   createdAt: string;
 }
@@ -29,7 +29,7 @@ const TEMPERATURE = (score: number) => {
   return { label: "Quente", icon: "🔥", color: "#C2410C", bg: "#FFE2D2" };
 };
 
-const CHANNEL = (ch? (() => null) : string | null) => {
+const CHANNEL = (ch?: string | null) => {
   const v = (ch || "").toUpperCase();
   if (v === "WHATSAPP" || !v) return { label: "WhatsApp", icon: LuStickyNote, color: "#0F6E56", bg: "#E1F5EE" };
   if (v === "LIGACAO") return { label: "Ligação", icon: LuPhone, color: "#0C447C", bg: "#E6F1FB" };

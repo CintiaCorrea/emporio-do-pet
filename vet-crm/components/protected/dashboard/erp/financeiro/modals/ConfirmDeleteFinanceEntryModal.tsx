@@ -6,7 +6,7 @@ import {  LuTrash, LuTriangleAlert, LuLoader } from "react-icons/lu";
 interface Props {
   isOpen: boolean;
   title: string;
-  subtitle? (() => null) : string;
+  subtitle?: string;
   onClose: () => void;
   onConfirm: () => Promise<void> | void;
 }

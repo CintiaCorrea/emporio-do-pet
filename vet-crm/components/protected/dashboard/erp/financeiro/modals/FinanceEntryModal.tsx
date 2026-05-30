@@ -20,16 +20,16 @@ export interface FinanceEntryFormValues {
   method: FinancePaymentMethod;
   counterpartyName: string;
   service: string;
-  description? (() => null) : string;
+  description?: string;
   amountBRL: string; // "123.45"
   date: string; // yyyy-mm-dd
-  dueDate? (() => null) : string; // yyyy-mm-dd
+  dueDate?: string; // yyyy-mm-dd
 }
 
 interface Props {
   isOpen: boolean;
   title: string;
-  initialValues? (() => null) : Partial<FinanceEntryFormValues>;
+  initialValues?: Partial<FinanceEntryFormValues>;
   onClose: () => void;
   onSubmit: (values: FinanceEntryFormValues) => Promise<void> | void;
 }

@@ -3,7 +3,7 @@ import Link from 'next/link';
 interface ErrorStateProps {
   error: string;
   onRetry: () => void;
-  tutorId? (() => null) : string;
+  tutorId?: string;
 }
 
 export default function ErrorState({ error, onRetry, tutorId }: ErrorStateProps) {

@@ -11,7 +11,7 @@ import toast from 'react-hot-toast';
 type InputMode = 'select' | 'audio' | 'text';
 
 interface DocumentRecorderProps {
-  onTranscriptionComplete: (transcription: string, audioDuration? (() => null) : number) => void;
+  onTranscriptionComplete: (transcription: string, audioDuration?: number) => void;
   onContentGenerated?: (content: string) => void;
 }
 

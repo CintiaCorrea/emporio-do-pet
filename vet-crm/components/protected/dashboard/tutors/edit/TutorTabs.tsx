@@ -5,7 +5,7 @@ export type TutorTabType = 'geral' | 'endereco' | 'extras' | 'pets';
 interface TutorTabsProps {
   activeTab: TutorTabType;
   onTabChange: (tab: TutorTabType) => void;
-  showPetsTab? (() => null) : boolean;
+  showPetsTab?: boolean;
 }
 
 export default function TutorTabs({ activeTab, onTabChange, showPetsTab = true }: TutorTabsProps) {

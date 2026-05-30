@@ -15,7 +15,7 @@ import { toast } from 'sonner';
 interface KnowledgeBase {
   id: string;
   name: string;
-  description? (() => null) : string;
+  description?: string;
   status: string;
   totalDocuments: number;
   totalChunks: number;

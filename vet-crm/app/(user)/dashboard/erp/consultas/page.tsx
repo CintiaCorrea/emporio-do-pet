@@ -28,37 +28,37 @@ interface Consultation {
   tutor: {
     id: string;
     name: string;
-    phone? (() => null) : string;
+    phone?: string;
   };
   pet: {
     id: string;
     name: string;
     species: string;
-    breed? (() => null) : string;
-    age? (() => null) : string;
+    breed?: string;
+    age?: string;
   };
   veterinarian: {
     id: string;
     name: string;
-    email? (() => null) : string;
+    email?: string;
   };
   date: string;
   time: string;
   duration: number;
-  type? (() => null) : ConsultationType;
+  type?: ConsultationType;
   status: ConsultationStatus;
   reason: string;
-  diagnosis? (() => null) : string;
-  prescription? (() => null) : string;
-  notes? (() => null) : string;
+  diagnosis?: string;
+  prescription?: string;
+  notes?: string;
   vitalSigns?: {
-    temperature? (() => null) : number;
-    heartRate? (() => null) : number;
-    weight? (() => null) : number;
+    temperature?: number;
+    heartRate?: number;
+    weight?: number;
   };
   value: number;
   paid: boolean;
-  followUpDate? (() => null) : string;
+  followUpDate?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -71,15 +71,15 @@ interface Appointment {
   userId: string;
   date: string;
   duration: number;
-  description? (() => null) : string;
-  notes? (() => null) : string;
+  description?: string;
+  notes?: string;
   value: number;
   status: string;
   paymentStatus: 'PAID' | 'PENDING' | 'OVERDUE' | 'CANCELLED';
   tutor: {
     id: string;
     name: string;
-    contacts? (() => null) : Array<{
+    contacts?: Array<{
       id: string;
       number: string;
       type: string;
@@ -90,14 +90,14 @@ interface Appointment {
     id: string;
     name: string;
     species: string;
-    breed? (() => null) : string;
+    breed?: string;
   };
   user?: {
     id: string;
     name: string;
     email: string;
   };
-  treatments? (() => null) : Array<{
+  treatments?: Array<{
     id: string;
     description: string;
     cost: number;
@@ -115,7 +115,7 @@ interface Pet {
   id: string;
   name: string;
   species: string;
-  breed? (() => null) : string;
+  breed?: string;
 }
 
 interface User {
@@ -146,7 +146,7 @@ const appointmentToConsultation = (appointment: Appointment): Consultation => {
   // Extrair informações adicionais das notes se existirem
   let diagnosis: string | undefined;
   let prescription: string | undefined;
-  let vitalSigns: { temperature? (() => null) : number; heartRate? (() => null) : number; weight? (() => null) : number } | undefined;
+  let vitalSigns: { temperature?: number; heartRate?: number; weight?: number } | undefined;
   
   if (appointment.notes) {
     // Tentar extrair informações estruturadas das notes
@@ -382,7 +382,7 @@ export default function ConsultationsPage() {
     }
   };
 
-  const getTypeColor = (type? (() => null) : ConsultationType) => {
+  const getTypeColor = (type?: ConsultationType) => {
     if (!type) return 'bg-gray-100 text-gray-800';
     switch (type) {
       case 'ROUTINE': return 'bg-blue-100 text-blue-800';
@@ -395,7 +395,7 @@ export default function ConsultationsPage() {
     }
   };
 
-  const getTypeLabel = (type? (() => null) : ConsultationType) => {
+  const getTypeLabel = (type?: ConsultationType) => {
     if (!type) return 'Consulta';
     switch (type) {
       case 'ROUTINE': return 'Rotina';
@@ -408,7 +408,7 @@ export default function ConsultationsPage() {
     }
   };
 
-  const getTypeIcon = (type? (() => null) : ConsultationType) => {
+  const getTypeIcon = (type?: ConsultationType) => {
     if (!type) return;
     switch (type) {
       case 'ROUTINE': return;

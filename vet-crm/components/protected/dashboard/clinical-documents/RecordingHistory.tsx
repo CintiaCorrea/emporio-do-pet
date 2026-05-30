@@ -21,10 +21,10 @@ import toast from 'react-hot-toast';
 interface Recording {
   id: string;
   appointmentId: string;
-  audioUrl? (() => null) : string;
-  audioDuration? (() => null) : number;
-  transcription? (() => null) : string;
-  aiAnalysis? (() => null) : string;
+  audioUrl?: string;
+  audioDuration?: number;
+  transcription?: string;
+  aiAnalysis?: string;
   status: 'RECORDING' | 'PROCESSING' | 'TRANSCRIBED' | 'ANALYZED' | 'COMPLETED' | 'FAILED';
   createdAt: string;
   updatedAt: string;
@@ -33,7 +33,7 @@ interface Recording {
 interface RecordingHistoryProps {
   appointmentId: string;
   onSelectRecording?: (recording: Recording) => void;
-  currentRecordingId? (() => null) : string;
+  currentRecordingId?: string;
 }
 
 export default function RecordingHistory({
@@ -73,7 +73,7 @@ export default function RecordingHistory({
     }
   };
 
-  const formatDuration = (seconds? (() => null) : number) => {
+  const formatDuration = (seconds?: number) => {
     if (!seconds) return '--:--';
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);

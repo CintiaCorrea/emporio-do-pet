@@ -20,9 +20,9 @@ import toast from 'react-hot-toast';
 interface RecordingEntry {
   id: string;
   transcription: string;
-  audioDuration? (() => null) : number;
+  audioDuration?: number;
   createdAt: string;
-  audioUrl? (() => null) : string;
+  audioUrl?: string;
 }
 
 interface DocumentRecordingHistoryProps {
@@ -96,7 +96,7 @@ export default function DocumentRecordingHistory({
     }
   };
 
-  const formatDuration = (seconds? (() => null) : number) => {
+  const formatDuration = (seconds?: number) => {
     if (!seconds) return '--:--';
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);

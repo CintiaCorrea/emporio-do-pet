@@ -23,17 +23,17 @@ type WhatsAppTemplateCategory = 'MARKETING' | 'UTILITY' | 'AUTHENTICATION';
 interface WhatsAppTemplateComponent {
   type: 'HEADER' | 'BODY' | 'FOOTER' | 'BUTTONS';
   format?: 'TEXT' | 'IMAGE' | 'VIDEO' | 'DOCUMENT';
-  text? (() => null) : string;
+  text?: string;
   example?: {
-    header_text? (() => null) : string[];
-    body_text? (() => null) : string[][];
-    header_handle? (() => null) : string[];
+    header_text?: string[];
+    body_text?: string[][];
+    header_handle?: string[];
   };
-  buttons? (() => null) : Array<{
+  buttons?: Array<{
     type: 'QUICK_REPLY' | 'PHONE_NUMBER' | 'URL' | 'COPY_CODE';
     text: string;
-    url? (() => null) : string;
-    phone_number? (() => null) : string;
+    url?: string;
+    phone_number?: string;
   }>;
 }
 
@@ -46,20 +46,20 @@ interface WhatsAppTemplate {
   components: WhatsAppTemplateComponent[];
   quality_score?: {
     score: 'GREEN' | 'YELLOW' | 'RED' | 'UNKNOWN';
-    reasons? (() => null) : string[];
+    reasons?: string[];
   };
-  rejected_reason? (() => null) : string;
-  previous_category? (() => null) : string;
+  rejected_reason?: string;
+  previous_category?: string;
 }
 
 interface TemplatesResponse {
   data: WhatsAppTemplate[];
   paging?: {
     cursors?: {
-      before? (() => null) : string;
-      after? (() => null) : string;
+      before?: string;
+      after?: string;
     };
-    next? (() => null) : string;
+    next?: string;
   };
 }
 
@@ -225,7 +225,7 @@ export default function TemplatesPage() {
     }
   };
 
-  const getQualityColor = (score? (() => null) : string) => {
+  const getQualityColor = (score?: string) => {
     switch (score) {
       case 'GREEN': return 'text-cyan-500';
       case 'YELLOW': return 'text-orange-500';
@@ -244,7 +244,7 @@ export default function TemplatesPage() {
     return languages[code] || code;
   };
 
-  const getComponentIcon = (type: string, format? (() => null) : string) => {
+  const getComponentIcon = (type: string, format?: string) => {
     if (type === 'HEADER') {
       switch (format) {
         case 'IMAGE': return <span style={{fontSize:"14px"}}>🖼</span>;

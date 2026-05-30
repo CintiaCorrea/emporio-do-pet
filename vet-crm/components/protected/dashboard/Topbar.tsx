@@ -9,7 +9,7 @@ import {
 import NotificationBell from './NotificationBell';
 
 interface TopbarProps {
-  sidebarOpen? (() => null) : boolean;
+  sidebarOpen?: boolean;
 }
 
 export default function Topbar({ sidebarOpen = false }: TopbarProps) {

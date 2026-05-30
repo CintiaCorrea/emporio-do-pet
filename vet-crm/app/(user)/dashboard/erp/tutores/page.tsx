@@ -14,9 +14,9 @@ interface Tutor {
   cpf: string | null;
   classificacao: string;
   status: string;
-  pets? (() => null) : Pet[];
+  pets?: Pet[];
   contacts?: { number: string; isPrimary: boolean }[];
-  birthDate? (() => null) : string | null;
+  birthDate?: string | null;
   createdAt: string;
 }
 
@@ -42,7 +42,7 @@ const getInitials = (name: string | null) => {
   return ((parts[0]?.[0] || "") + (parts[parts.length-1]?.[0] || "")).toUpperCase() || name.slice(0, 2).toUpperCase();
 };
 
-const isAniversariante = (birthDate? (() => null) : string | null) => {
+const isAniversariante = (birthDate?: string | null) => {
   if (!birthDate) return false;
   const d = new Date(birthDate);
   const today = new Date();

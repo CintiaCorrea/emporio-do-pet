@@ -23,12 +23,12 @@ interface Message {
   type: string;
   content: string;
   status: MessageStatus;
-  mediaUrl? (() => null) : string;
-  mediaCaption? (() => null) : string;
+  mediaUrl?: string;
+  mediaCaption?: string;
   createdAt: string;
-  sentAt? (() => null) : string;
-  deliveredAt? (() => null) : string;
-  readAt? (() => null) : string;
+  sentAt?: string;
+  deliveredAt?: string;
+  readAt?: string;
 }
 
 interface Agent {
@@ -46,14 +46,14 @@ interface Tutor {
 interface Conversation {
   id: string;
   contactPhone: string;
-  contactName? (() => null) : string;
-  contactPushName? (() => null) : string;
+  contactName?: string;
+  contactPushName?: string;
   status: ConversationStatus;
   unreadCount: number;
-  lastMessageAt? (() => null) : string;
+  lastMessageAt?: string;
   isAutoReplyEnabled: boolean;
-  assignedAgent? (() => null) : Agent;
-  tutor? (() => null) : Tutor;
+  assignedAgent?: Agent;
+  tutor?: Tutor;
 }
 
 export default function ConversationPage({ params }: { params: Promise<{ id: string }> }) {
