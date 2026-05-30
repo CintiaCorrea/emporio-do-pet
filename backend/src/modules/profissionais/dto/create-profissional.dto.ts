@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsString, IsOptional, IsEnum, IsEmail, IsBoolean, IsNumber, IsDateString } from 'class-validator';
-import { ProfissionalTipo } from '@prisma/client';
+import { ProfissionalTipo, Role } from '@prisma/client';
 
 export class CreateProfissionalDto {
   @ApiProperty()
@@ -62,4 +62,20 @@ export class CreateProfissionalDto {
   @ApiPropertyOptional()
   @IsOptional() @IsBoolean()
   ativo?: boolean;
+
+  // ========================================
+  // Campos pra integração com User (acesso ao sistema)
+  // ========================================
+
+  @ApiPropertyOptional({ description: 'Se marcado, cria/atualiza User vinculado pra acesso ao sistema' })
+  @IsOptional() @IsBoolean()
+  criarAcesso?: boolean;
+
+  @ApiPropertyOptional({ enum: ['ADMIN', 'VETERINARIAN', 'RECEPTIONIST'] })
+  @IsOptional() @IsEnum(['ADMIN', 'VETERINARIAN', 'RECEPTIONIST'] as any)
+  role?: Role;
+
+  @ApiPropertyOptional({ description: 'Senha do User (obrigatória ao criar novo acesso)' })
+  @IsOptional() @IsString()
+  password?: string;
 }
