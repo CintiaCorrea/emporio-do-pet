@@ -1,0 +1,316 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { LuArrowLeft, LuPlus, LuPencil, LuTrash, LuUser, LuSearch } from "react-icons/lu";
+
+type TipoProfissional = "VETERINARIO" | "RECEPCIONISTA" | "ESTAGIARIO" | "GERENTE" | "OUTRO";
+
+interface Profissional {
+  id: string;
+  nomeCompleto: string;
+  nomeExibicao?: string | null;
+  iniciais?: string | null;
+  tipo: TipoProfissional;
+  especialidade?: string | null;
+  crmv?: string | null;
+  telefone?: string | null;
+  email?: string | null;
+  fotoUrl?: string | null;
+  corAvatar?: string | null;
+  comissaoPercentual?: number | null;
+  userId?: string | null;
+  dataInicio?: string | null;
+  observacoes?: string | null;
+  ativo: boolean;
+  user?: { id: string; name: string; email: string; role: string } | null;
+}
+
+const TIPO_LABEL: Record<TipoProfissional, { label: string; color: string; bg: string }> = {
+  VETERINARIO: { label: "Veterinário", color: "#0F6E56", bg: "#E1F5EE" },
+  RECEPCIONISTA: { label: "Recepção", color: "#185FA5", bg: "#E6F1FB" },
+  ESTAGIARIO: { label: "Estagiário", color: "#8a6313", bg: "#FBF0DD" },
+  GERENTE: { label: "Gerente", color: "#3C3489", bg: "#EEEDFE" },
+  OUTRO: { label: "Outro", color: "#5F5E5A", bg: "#f0e8d4" },
+};
+
+const getInitials = (name: string) => {
+  const p = name.trim().split(/\s+/);
+  return ((p[0]?.[0] || "") + (p[1]?.[0] || "")).toUpperCase() || "??";
+};
+
+const EMPTY_FORM: Partial<Profissional> = {
+  nomeCompleto: "",
+  tipo: "VETERINARIO",
+  ativo: true,
+};
+
+export default function ProfissionaisConfigPage() {
+  const [items, setItems] = useState<Profissional[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [showInactive, setShowInactive] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState<Partial<Profissional>>(EMPTY_FORM);
+  const [saving, setSaving] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/profissionais?includeInactive=${showInactive}`);
+      const data = await res.json().catch(() => []);
+      setItems(Array.isArray(data) ? data : (data?.data || []));
+    } catch { setItems([]); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [showInactive]);
+
+  const filtered = useMemo(() => {
+    let arr = items;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      arr = arr.filter((p) =>
+        p.nomeCompleto?.toLowerCase().includes(q) ||
+        p.especialidade?.toLowerCase().includes(q) ||
+        p.crmv?.toLowerCase().includes(q),
+      );
+    }
+    return arr;
+  }, [items, search]);
+
+  const openNew = () => {
+    setEditingId(null);
+    setForm(EMPTY_FORM);
+    setModalOpen(true);
+  };
+
+  const openEdit = (p: Profissional) => {
+    setEditingId(p.id);
+    setForm({ ...p });
+    setModalOpen(true);
+  };
+
+  const handleSave = async () => {
+    if (!form.nomeCompleto?.trim()) {
+      alert("Nome é obrigatório.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const payload = { ...form };
+      if (editingId) {
+        await fetch(`/api/profissionais/${editingId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      } else {
+        await fetch("/api/profissionais", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      }
+      setModalOpen(false);
+      load();
+    } catch (e) { alert("Erro ao salvar."); }
+    finally { setSaving(false); }
+  };
+
+  const handleDelete = async (p: Profissional) => {
+    if (!confirm(`Excluir ${p.nomeCompleto}? Essa ação não pode ser desfeita.`)) return;
+    try {
+      await fetch(`/api/profissionais/${p.id}`, { method: "DELETE" });
+      load();
+    } catch { alert("Erro ao excluir."); }
+  };
+
+  return (
+    <div className="p-4 max-w-6xl mx-auto">
+      <header className="flex items-center gap-3 mb-4">
+        <Link href="/dashboard/configuracoes" className="text-[#5F5E5A] hover:text-[#0E2244]">
+          <LuArrowLeft className="w-5 h-5" />
+        </Link>
+        <div className="flex-1">
+          <h1 className="text-xl text-[#0E2244] font-medium">Profissionais</h1>
+          <p className="text-sm text-[#888780]">Equipe da clínica — vets, recepção, estagiários</p>
+        </div>
+        <button onClick={openNew} className="bg-[#009AAC] text-white px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5">
+          <LuPlus className="w-3.5 h-3.5" />Adicionar Profissional
+        </button>
+      </header>
+
+      <div className="flex gap-2 mb-3 items-center">
+        <div className="relative flex-1">
+          <LuSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#B4B2A9]" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar..."
+            className="w-full pl-8 pr-3 py-1.5 border border-[#e8e1d2] rounded-lg text-sm bg-white" />
+        </div>
+        <label className="flex items-center gap-1.5 text-xs text-[#5F5E5A]">
+          <input type="checkbox" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} />
+          Mostrar inativos
+        </label>
+      </div>
+
+      <div className="bg-white rounded-xl border border-[#e8e1d2] overflow-hidden">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-[#fafafa] border-b border-[#e8e1d2] text-[11px] text-[#888780] font-medium">
+              <th className="text-left py-2.5 px-3">Profissional</th>
+              <th className="text-left py-2.5 px-3">Tipo</th>
+              <th className="text-left py-2.5 px-3">Especialidade</th>
+              <th className="text-left py-2.5 px-3">CRMV</th>
+              <th className="text-left py-2.5 px-3">Comissão</th>
+              <th className="text-left py-2.5 px-3">Status</th>
+              <th className="py-2.5 px-3"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr><td colSpan={7} className="py-8 text-center text-gray-400">Carregando...</td></tr>
+            ) : filtered.length === 0 ? (
+              <tr><td colSpan={7} className="py-8 text-center text-gray-400">
+                Nenhum profissional cadastrado. Clique em <b>+ Adicionar Profissional</b>.
+              </td></tr>
+            ) : filtered.map((p) => {
+              const tipo = TIPO_LABEL[p.tipo];
+              return (
+                <tr key={p.id} className="border-b border-[#f0e8d4] hover:bg-[#fdfaee]">
+                  <td className="py-2.5 px-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-medium text-white"
+                           style={{ background: p.corAvatar || "#009AAC" }}>
+                        {p.iniciais || getInitials(p.nomeCompleto)}
+                      </div>
+                      <div>
+                        <div className="text-[#0E2244] font-medium">{p.nomeExibicao || p.nomeCompleto}</div>
+                        <div className="text-[10px] text-[#888780]">{p.email || p.telefone || "—"}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="py-2.5 px-3">
+                    <span style={{ background: tipo.bg, color: tipo.color }}
+                          className="text-[10px] font-medium px-2 py-0.5 rounded-full">
+                      {tipo.label}
+                    </span>
+                  </td>
+                  <td className="py-2.5 px-3 text-[#4d5a66]">{p.especialidade || "—"}</td>
+                  <td className="py-2.5 px-3 text-[#4d5a66]">{p.crmv || "—"}</td>
+                  <td className="py-2.5 px-3 text-[#4d5a66]">{p.comissaoPercentual ? `${p.comissaoPercentual}%` : "—"}</td>
+                  <td className="py-2.5 px-3">
+                    <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${p.ativo ? "bg-[#E1F5EE] text-[#0F6E56]" : "bg-[#f0e8d4] text-[#5F5E5A]"}`}>
+                      {p.ativo ? "Ativo" : "Inativo"}
+                    </span>
+                  </td>
+                  <td className="py-2.5 px-3">
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => openEdit(p)} title="Editar" className="p-1 text-[#5F5E5A] hover:text-[#009AAC]">
+                        <LuPencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button onClick={() => handleDelete(p)} title="Excluir" className="p-1 text-[#5F5E5A] hover:text-[#A32D2D]">
+                        <LuTrash className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* MODAL */}
+      {modalOpen && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setModalOpen(false)}>
+          <div className="bg-white rounded-xl p-5 max-w-lg w-full" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base text-[#0E2244] font-medium">
+                {editingId ? "Editar profissional" : "Adicionar profissional"}
+              </h3>
+              <button onClick={() => setModalOpen(false)} className="text-[#5F5E5A] text-xl">×</button>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="col-span-2">
+                <label className="block text-[11px] text-[#5F5E5A] mb-1 font-medium">Nome completo *</label>
+                <input value={form.nomeCompleto || ""} onChange={(e) => setForm({ ...form, nomeCompleto: e.target.value })}
+                  className="w-full px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm focus:outline-none focus:border-[#009AAC]" />
+              </div>
+              <div>
+                <label className="block text-[11px] text-[#5F5E5A] mb-1 font-medium">Nome de exibição</label>
+                <input value={form.nomeExibicao || ""} onChange={(e) => setForm({ ...form, nomeExibicao: e.target.value })}
+                  placeholder="Dra. Vivian"
+                  className="w-full px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm focus:outline-none focus:border-[#009AAC]" />
+              </div>
+              <div>
+                <label className="block text-[11px] text-[#5F5E5A] mb-1 font-medium">Iniciais</label>
+                <input value={form.iniciais || ""} onChange={(e) => setForm({ ...form, iniciais: e.target.value.toUpperCase().substring(0,2) })}
+                  maxLength={2} placeholder="VC"
+                  className="w-full px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm focus:outline-none focus:border-[#009AAC]" />
+              </div>
+              <div>
+                <label className="block text-[11px] text-[#5F5E5A] mb-1 font-medium">Tipo *</label>
+                <select value={form.tipo || "VETERINARIO"} onChange={(e) => setForm({ ...form, tipo: e.target.value as TipoProfissional })}
+                  className="w-full px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm focus:outline-none focus:border-[#009AAC]">
+                  <option value="VETERINARIO">Veterinário</option>
+                  <option value="RECEPCIONISTA">Recepção</option>
+                  <option value="ESTAGIARIO">Estagiário</option>
+                  <option value="GERENTE">Gerente</option>
+                  <option value="OUTRO">Outro</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[11px] text-[#5F5E5A] mb-1 font-medium">Especialidade</label>
+                <input value={form.especialidade || ""} onChange={(e) => setForm({ ...form, especialidade: e.target.value })}
+                  placeholder="Fisioterapia, Med. Integrativa..."
+                  className="w-full px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm focus:outline-none focus:border-[#009AAC]" />
+              </div>
+              <div>
+                <label className="block text-[11px] text-[#5F5E5A] mb-1 font-medium">CRMV</label>
+                <input value={form.crmv || ""} onChange={(e) => setForm({ ...form, crmv: e.target.value })}
+                  className="w-full px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm focus:outline-none focus:border-[#009AAC]" />
+              </div>
+              <div>
+                <label className="block text-[11px] text-[#5F5E5A] mb-1 font-medium">Telefone</label>
+                <input value={form.telefone || ""} onChange={(e) => setForm({ ...form, telefone: e.target.value })}
+                  className="w-full px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm focus:outline-none focus:border-[#009AAC]" />
+              </div>
+              <div>
+                <label className="block text-[11px] text-[#5F5E5A] mb-1 font-medium">Email</label>
+                <input type="email" value={form.email || ""} onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  className="w-full px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm focus:outline-none focus:border-[#009AAC]" />
+              </div>
+              <div>
+                <label className="block text-[11px] text-[#5F5E5A] mb-1 font-medium">Cor do avatar</label>
+                <input type="color" value={form.corAvatar || "#009AAC"} onChange={(e) => setForm({ ...form, corAvatar: e.target.value })}
+                  className="w-full h-10 border border-[#e8e1d2] rounded-lg cursor-pointer" />
+              </div>
+              <div>
+                <label className="block text-[11px] text-[#5F5E5A] mb-1 font-medium">Comissão (%)</label>
+                <input type="number" step="0.1" value={form.comissaoPercentual || ""} onChange={(e) => setForm({ ...form, comissaoPercentual: e.target.value ? parseFloat(e.target.value) : null })}
+                  className="w-full px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm focus:outline-none focus:border-[#009AAC]" />
+              </div>
+              <div className="col-span-2">
+                <label className="block text-[11px] text-[#5F5E5A] mb-1 font-medium">Observações</label>
+                <textarea value={form.observacoes || ""} onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
+                  rows={2}
+                  className="w-full px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm focus:outline-none focus:border-[#009AAC] resize-none" />
+              </div>
+              <div className="col-span-2 flex items-center gap-2">
+                <input type="checkbox" id="ativo" checked={form.ativo ?? true} onChange={(e) => setForm({ ...form, ativo: e.target.checked })} />
+                <label htmlFor="ativo" className="text-sm text-[#0E2244]">Ativo</label>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-4">
+              <button onClick={() => setModalOpen(false)} className="px-3 py-1.5 text-xs text-[#5F5E5A]">Cancelar</button>
+              <button onClick={handleSave} disabled={saving} className="bg-[#009AAC] text-white px-4 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50">
+                {saving ? "Salvando..." : "Salvar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

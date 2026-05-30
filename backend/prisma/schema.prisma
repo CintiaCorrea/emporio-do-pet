@@ -235,6 +235,7 @@ model User {
   appointments        Appointment[] // NOVO: Relacionamento com agendamentos
   financeEntries      FinanceEntry[]
   integrationSettings IntegrationSettings?
+  profissional        Profissional?
 
   // AI Agents
   aiAgents       AIAgent[]
@@ -1396,6 +1397,48 @@ model InternalNote {
   @@index([toUserId, readAt])
   @@index([conversationId])
   @@map("internal_notes")
+}
+
+
+
+// ============================================
+// Profissional — membro da equipe (vet, recepção, etc)
+// Separado de User: User é auth, Profissional é "membro da clínica"
+// (pode ou não ter login no sistema)
+// ============================================
+model Profissional {
+  id              String   @id @default(uuid())
+  nomeCompleto    String   // Nome completo do profissional
+  nomeExibicao    String?  // Nome usado em dropdowns (ex: "Dra. Vivian")
+  iniciais        String?  // Iniciais pro avatar (máx 2 chars)
+  tipo            ProfissionalTipo @default(VETERINARIO)
+  especialidade   String?  // Ex: Fisioterapia, Medicina Integrativa
+  crmv            String?  // CRMV ou outro registro
+  telefone        String?
+  email           String?  @unique
+  fotoUrl         String?
+  corAvatar       String?  // Cor hex usada quando sem foto
+  comissaoPercentual Float? // % de comissão padrão
+  userId          String?  @unique // Se tem login no sistema, vincula User
+  dataInicio      DateTime? // Data de início
+  observacoes     String?
+  ativo           Boolean  @default(true)
+
+  user      User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tipo])
+  @@index([ativo])
+  @@map("profissionais")
+}
+
+enum ProfissionalTipo {
+  VETERINARIO
+  RECEPCIONISTA
+  ESTAGIARIO
+  GERENTE
+  OUTRO
 }
 
 // ============================================

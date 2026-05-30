@@ -30,6 +30,7 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { LeadsModule } from './modules/leads/leads.module';
 import { InternalNotesModule } from './modules/internal-notes/internal-notes.module';
 import { ScheduledMessagesModule } from './modules/scheduled-messages/scheduled-messages.module';
+import { ProfissionaisModule } from './modules/profissionais/profissionais.module';
 import { EnrichmentModule } from './modules/enrichment/enrichment.module';
 import { ScoringModule } from './modules/scoring/scoring.module';
 import { InsightsModule } from './modules/insights/insights.module';
@@ -139,6 +140,7 @@ import configuration from './config/configuration';
     LeadsModule,
     InternalNotesModule,
     ScheduledMessagesModule,
+    ProfissionaisModule,
     EnrichmentModule,
     ScoringModule,
     InsightsModule,
