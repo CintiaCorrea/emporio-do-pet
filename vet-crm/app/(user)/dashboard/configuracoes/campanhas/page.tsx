@@ -5,6 +5,15 @@ import Link from "next/link";
 import { LuArrowLeft, LuPlus, LuPencil, LuTrash, LuSearch } from "react-icons/lu";
 import CsvImporter from "@/components/import/CsvImporter";
 
+async function safeJson<T>(res: Response, fallback: T): Promise<T> {
+  try {
+    if (!res.ok) return fallback;
+    const data = await res.json();
+    return data == null ? fallback : data;
+  } catch { return fallback; }
+}
+
+
 type Plat = "GOOGLE_ADS" | "META_ADS_FACEBOOK" | "META_ADS_INSTAGRAM" | "TIKTOK_ADS" | "OUTRAS";
 type TipoC = "CONVERSAO" | "TRAFEGO" | "ENGAJAMENTO" | "MENSAGEM_WHATSAPP" | "RECONHECIMENTO";
 type StatC = "ATIVA" | "PAUSADA" | "ENCERRADA" | "EM_TESTE" | "PLANEJADA";
@@ -39,7 +48,7 @@ export default function CampanhasPage() {
 
   async function load() {
     setLoading(true);
-    try { const res = await fetch("/api/campanhas"); setList(await res.json()); }
+    try { const res = await fetch("/api/campanhas"); const data = await safeJson<any[]>(res, []); setList(Array.isArray(data) ? data : await safeJson(res, [])); }
     catch (e) { console.error(e); } finally { setLoading(false); }
   }
   useEffect(() => { load(); }, []);
