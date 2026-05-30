@@ -19,7 +19,7 @@ const ITEMS: ConfigItem[] = [
   { href: "/dashboard/configuracoes/racas", icon: "🐾", title: "Raças", description: "Lista de raças por espécie", status: "ready" },
   { href: "/dashboard/configuracoes/listas", icon: "📋", title: "Listas customizáveis", description: "Canais, origens, motivos de perda, status clínicos", status: "ready" },
   { href: "/dashboard/configuracoes/scripts", icon: "📝", title: "Scripts", description: "Roteiros de mensagem áudio/texto/email", status: "ready" },
-  { href: "/dashboard/configuracoes/cadencias", icon: "⚡", title: "Cadências automáticas", description: "Sequências de comunicação (pós-cirurgia, etc)", status: "soon" },
+  { href: "/dashboard/configuracoes/cadencias", icon: "⚡", title: "Cadências automáticas", description: "Sequências de comunicação (pós-cirurgia, etc)", status: "ready" },
   { href: "/dashboard/configuracoes/exames", icon: "🧪", title: "Exames e Fornecedores", description: "Catálogo de exames + laboratórios parceiros", status: "ready" },
   { href: "/dashboard/configuracoes/emails", icon: "✉️", title: "Templates de Email", description: "Modelos com variáveis pra disparos automáticos", status: "soon" },
   { href: "/dashboard/configuracoes/pipelines", icon: "🌿", title: "Pipelines", description: "Etapas customizáveis do comercial/clínico/fisio", status: "soon" },

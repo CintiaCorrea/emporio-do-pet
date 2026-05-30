@@ -1601,6 +1601,76 @@ model ListaItem {
 
 
 
+
+
+// ============================================
+// Config 8: Cadências — fluxos de mensagens automatizadas
+// CadenciaTemplate (sequência) + CadenciaPasso (cada passo da sequência)
+// ============================================
+enum CadenciaGatilho {
+  AGENDAMENTO_CRIADO
+  AGENDAMENTO_CONFIRMADO
+  ATENDIMENTO_FINALIZADO
+  EXAME_SOLICITADO
+  EXAME_PRONTO
+  LEAD_NOVO
+  LEAD_INATIVO_7D
+  PACOTE_ATIVADO
+  PACOTE_PROXIMO_DO_FIM
+  NIVER_PET
+  NIVER_TUTOR
+  MANUAL
+}
+
+enum TipoPasso {
+  WHATSAPP
+  EMAIL
+  TAREFA_INTERNA
+  AGUARDAR
+}
+
+enum UnidadeTempo {
+  MINUTOS
+  HORAS
+  DIAS
+}
+
+model CadenciaTemplate {
+  id          String          @id @default(uuid())
+  nome        String
+  descricao   String?
+  gatilho     CadenciaGatilho @default(MANUAL)
+  ativo       Boolean         @default(true)
+  ordem       Int             @default(0)
+
+  passos      CadenciaPasso[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([gatilho, ativo])
+  @@map("cadencia_templates")
+}
+
+model CadenciaPasso {
+  id          String       @id @default(uuid())
+  cadenciaId  String
+  cadencia    CadenciaTemplate @relation(fields: [cadenciaId], references: [id], onDelete: Cascade)
+  ordem       Int
+  tipo        TipoPasso    @default(WHATSAPP)
+  titulo      String?      // nome curto pro passo (ex: "Lembrete 24h antes")
+  conteudo    String       // texto da mensagem (com placeholders {tutor}, {pet})
+  atrasoValor Int          @default(0)  // quanto tempo após o passo anterior
+  atrasoUnidade UnidadeTempo @default(DIAS)
+  ativo       Boolean      @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([cadenciaId, ordem])
+  @@map("cadencia_passos")
+}
+
 // ============================================
 // Config 7: Scripts / Templates de Resposta
 // Mensagens prontas pra recepção colar no WhatsApp
