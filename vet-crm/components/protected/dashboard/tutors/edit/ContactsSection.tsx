@@ -1,4 +1,4 @@
-import { LuPlus LuTrash } from 'react-icons/lu';
+import { LuPlus, LuTrash } from 'react-icons/lu';
 import { ContactInput } from '@/types/tutor-edit';
 import FormField from './FormField';
 

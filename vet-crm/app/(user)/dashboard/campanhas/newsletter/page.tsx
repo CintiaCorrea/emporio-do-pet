@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { LuPlus, LuSearch, LuPencil, LuTrash LuDownload, LuEye LuSave LuCalendar } from 'react-icons/lu';
+import { LuPlus, LuSearch, LuPencil, LuTrash, LuDownload, LuEye, LuSave, LuCalendar } from 'react-icons/lu';
 import Link from 'next/link';
 
 interface Newsletter {

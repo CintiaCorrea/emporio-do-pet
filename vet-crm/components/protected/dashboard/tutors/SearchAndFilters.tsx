@@ -1,4 +1,4 @@
-import { LuSearch LuDownload } from 'react-icons/lu';
+import { LuSearch, LuDownload } from 'react-icons/lu';
 
 interface SearchAndFiltersProps {
   searchTerm: string;

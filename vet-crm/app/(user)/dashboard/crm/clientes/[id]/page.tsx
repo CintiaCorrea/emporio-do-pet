@@ -10,9 +10,9 @@ import { useState, useEffect, use, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
-  LuArrowLeft, LuLoader LuUser,
-  LuPhone LuCalendar,
-  LuDollarSign LuCheck, LuPlus, LuTrash} from 'react-icons/lu';
+  LuArrowLeft, LuLoader, LuUser,
+  LuPhone, LuCalendar,
+  LuDollarSign, LuCheck, LuPlus, LuTrash} from 'react-icons/lu';
 import toast from 'react-hot-toast';
 
 interface Tutor {

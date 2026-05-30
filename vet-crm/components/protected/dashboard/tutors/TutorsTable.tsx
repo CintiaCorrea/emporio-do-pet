@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { LuUser, LuPhone LuEye, LuPencil, LuTrash } from 'react-icons/lu';
+import { LuUser, LuPhone, LuEye, LuPencil, LuTrash } from 'react-icons/lu';
 import { Tutor } from '@/types/tutor';
 import { formatDate, formatCPF, formatPhone, getPrimaryPhone, getGenderDisplay } from '@/utils/formatters-tutors';
 

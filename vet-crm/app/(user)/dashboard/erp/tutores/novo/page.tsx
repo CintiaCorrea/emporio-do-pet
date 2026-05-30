@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { LuPlus LuTrash, LuUser LuSave, LuArrowLeft LuPawPrint } from 'react-icons/lu';
+import { LuPlus, LuTrash, LuUser, LuSave, LuArrowLeft, LuPawPrint } from 'react-icons/lu';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';

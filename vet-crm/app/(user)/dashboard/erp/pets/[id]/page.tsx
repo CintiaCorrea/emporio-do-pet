@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { LuArrowLeft, LuPawPrint, LuVenetianMask, LuCalendar, LuUser, LuPencil, LuTrash, LuPhone LuFiles } from 'react-icons/lu';
+import { LuArrowLeft, LuPawPrint, LuVenetianMask, LuCalendar, LuUser, LuPencil, LuTrash, LuPhone, LuFiles } from 'react-icons/lu';
 import Sidebar from '@/components/protected/dashboard/Sidebar';
 import Link from 'next/link';
 import ConfirmDeleteModal from '@/components/common/ConfirmDeleteModal';

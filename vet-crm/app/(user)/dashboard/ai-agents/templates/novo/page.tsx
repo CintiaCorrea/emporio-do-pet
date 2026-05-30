@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { LuArrowLeft LuCheck, LuLoader } from 'react-icons/lu';
+import { LuArrowLeft, LuCheck, LuLoader } from 'react-icons/lu';
 import { CategorySelector } from './components/CategorySelector';
 import { StepIndicator } from './components/StepIndicator';
 import { StandardTemplateEditor } from './components/StandardTemplateEditor';

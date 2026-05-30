@@ -1,4 +1,4 @@
-import { LuUser LuPawPrint } from 'react-icons/lu';
+import { LuUser, LuPawPrint } from 'react-icons/lu';
 
 export type TutorTabType = 'geral' | 'endereco' | 'extras' | 'pets';
 
