@@ -5,6 +5,15 @@ import Link from "next/link";
 import { LuArrowLeft, LuPlus, LuPencil, LuTrash } from "react-icons/lu";
 import CsvImporter from "@/components/import/CsvImporter";
 
+async function safeJson<T>(res: Response, fallback: T): Promise<T> {
+  try {
+    if (!res.ok) return fallback;
+    const data = await res.json();
+    return data == null ? fallback : data;
+  } catch { return fallback; }
+}
+
+
 type Cat = "VET" | "RECEPCAO" | "CLINICA_GERAL";
 type Class = "PROMOTOR" | "NEUTRO" | "DETRATOR";
 type Canal = "PRESENCIAL" | "WHATSAPP" | "EMAIL" | "TELEFONE" | "FORMULARIO";
@@ -57,7 +66,7 @@ export default function AvaliacoesPage() {
     setLoading(true);
     try {
       const [n, g, s] = await Promise.all([fetch("/api/avaliacoes/nps"), fetch("/api/avaliacoes/google"), fetch("/api/avaliacoes/stats")]);
-      setNps(await n.json()); setGoogle(await g.json()); setStats(await s.json());
+      setNps(await safeJson(n, [])); setGoogle(await safeJson(g, [])); setStats(await safeJson(s, null));
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   }

@@ -5,6 +5,15 @@ import Link from "next/link";
 import { LuArrowLeft, LuPlus, LuPencil, LuTrash } from "react-icons/lu";
 import CsvImporter from "@/components/import/CsvImporter";
 
+async function safeJson<T>(res: Response, fallback: T): Promise<T> {
+  try {
+    if (!res.ok) return fallback;
+    const data = await res.json();
+    return data == null ? fallback : data;
+  } catch { return fallback; }
+}
+
+
 type TipoMeta = "FATURAMENTO_GERAL" | "FATURAMENTO_INDIVIDUAL" | "ATENDIMENTOS" | "SERVICO_ESPECIFICO" | "CONVERSOES" | "NPS";
 type Per = "SEMANAL" | "MENSAL" | "TRIMESTRAL" | "SEMESTRAL" | "ANUAL";
 type StatM = "EM_ANDAMENTO" | "ATINGIDA" | "NAO_ATINGIDA";
@@ -39,7 +48,7 @@ export default function MetasPage() {
 
   async function load() {
     setLoading(true);
-    try { const res = await fetch("/api/metas"); setList(await res.json()); }
+    try { const res = await fetch("/api/metas"); setList(await safeJson(res, [])); }
     catch (e) { console.error(e); } finally { setLoading(false); }
   }
   useEffect(() => { load(); }, []);
