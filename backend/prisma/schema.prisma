@@ -1597,6 +1597,88 @@ model ListaItem {
   @@map("lista_itens")
 }
 
+
+
+// ============================================
+// Fornecedores (laboratórios, profissionais, parceiros)
+// + Catálogo de exames terceirizados vinculados ao fornecedor
+// ============================================
+enum FornecedorTipo {
+  LABORATORIO
+  PROFISSIONAL
+  PARCEIRO
+  OUTRO
+}
+
+enum ModeloPagamento {
+  LOTE_MENSAL          // pagamento em lote no fim do mês
+  DIRETO_CLIENTE       // cliente paga direto pro fornecedor
+  REPASSE_VIA_CLINICA  // clínica recebe e repassa
+}
+
+enum ComissaoTipo {
+  PERCENTUAL
+  VALOR_FIXO
+  VARIAVEL
+}
+
+enum CategoriaExame {
+  HEMATOLOGIA
+  BIOQUIMICA
+  IMAGEM
+  CITOLOGIA
+  MICROBIOLOGIA
+  ENDOCRINOLOGIA
+  HISTOPATOLOGIA
+  OUTROS
+}
+
+model Fornecedor {
+  id                   String           @id @default(uuid())
+  nome                 String
+  tipo                 FornecedorTipo   @default(LABORATORIO)
+  especialidade        String?
+  telefone             String?
+  email                String?
+  contatoResponsavel   String?
+  modeloPagamento      ModeloPagamento  @default(LOTE_MENSAL)
+  comissaoTipo         ComissaoTipo?
+  comissaoValor        Float?
+  diaFechamentoLote    Int?             // dia do mês (1-31)
+  ativo                Boolean          @default(true)
+  observacoes          String?
+
+  exames CatalogoExame[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tipo, ativo])
+  @@map("fornecedores")
+}
+
+model CatalogoExame {
+  id                    String          @id @default(uuid())
+  fornecedorId          String
+  fornecedor            Fornecedor      @relation(fields: [fornecedorId], references: [id], onDelete: Cascade)
+  codigo                String?
+  nome                  String
+  descricao             String?
+  categoria             CategoriaExame  @default(OUTROS)
+  valorFornecedor       Float?
+  valorClienteSugerido  Float?
+  tempoResultadoDias    Int?
+  ativo                 Boolean         @default(true)
+  observacoes           String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([fornecedorId, ativo])
+  @@index([categoria, ativo])
+  @@map("catalogo_exames")
+}
+
 // ============================================
 // CRM B2C - Leads com Insights Preditivos
 // ============================================

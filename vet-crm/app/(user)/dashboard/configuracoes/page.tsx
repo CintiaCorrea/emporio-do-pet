@@ -20,7 +20,7 @@ const ITEMS: ConfigItem[] = [
   { href: "/dashboard/configuracoes/listas", icon: "📋", title: "Listas customizáveis", description: "Canais, origens, motivos de perda, status clínicos", status: "ready" },
   { href: "/dashboard/configuracoes/scripts", icon: "📝", title: "Scripts", description: "Roteiros de mensagem áudio/texto/email", status: "soon" },
   { href: "/dashboard/configuracoes/cadencias", icon: "⚡", title: "Cadências automáticas", description: "Sequências de comunicação (pós-cirurgia, etc)", status: "soon" },
-  { href: "/dashboard/configuracoes/exames", icon: "🧪", title: "Exames e Fornecedores", description: "Catálogo de exames + laboratórios parceiros", status: "soon" },
+  { href: "/dashboard/configuracoes/exames", icon: "🧪", title: "Exames e Fornecedores", description: "Catálogo de exames + laboratórios parceiros", status: "ready" },
   { href: "/dashboard/configuracoes/emails", icon: "✉️", title: "Templates de Email", description: "Modelos com variáveis pra disparos automáticos", status: "soon" },
   { href: "/dashboard/configuracoes/pipelines", icon: "🌿", title: "Pipelines", description: "Etapas customizáveis do comercial/clínico/fisio", status: "soon" },
   { href: "/dashboard/configuracoes/campanhas", icon: "📣", title: "Campanhas", description: "Campanhas de marketing (Google/Meta Ads)", status: "soon" },
@@ -60,7 +60,7 @@ export default function ConfiguracoesIndex() {
       </div>
 
       <p className="text-[11px] text-[#888780] text-center mt-6">
-        Configurações sendo portadas do Base44. 5 das 13 finalizadas.
+        Configurações sendo portadas do Base44. 6 das 13 finalizadas.
       </p>
     </div>
   );
