@@ -126,7 +126,8 @@ export default function ProfissionaisConfigPage() {
     }
     setSaving(true);
     try {
-      const payload = { ...form };
+      // Sanear payload: remover campos do response que não vão no DTO
+      const { id, createdAt, updatedAt, user, ...payload } = form as any;
       const url = editingId ? `/api/profissionais/${editingId}` : "/api/profissionais";
       const method = editingId ? "PATCH" : "POST";
       const r = await fetch(url, {
@@ -199,7 +200,7 @@ export default function ProfissionaisConfigPage() {
         </label>
       </div>
 
-      <div className="bg-white rounded-xl border border-[#e8e1d2] overflow-hidden">
+      <div className="bg-white rounded-xl border border-[#e8e1d2]">
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-[#fafafa] border-b border-[#e8e1d2] text-[11px] text-[#888780] font-medium">
@@ -264,25 +265,27 @@ export default function ProfissionaisConfigPage() {
                     </span>
                   </td>
                   <td className="py-2.5 px-3 relative">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setMenuOpenId(menuOpenId === p.id ? null : p.id); }}
-                      className="p-1.5 text-[#5F5E5A] hover:bg-[#f0e8d4] rounded transition"
-                      title="Ações">
-                      <LuEllipsisVertical className="w-4 h-4" />
-                    </button>
-                    {menuOpenId === p.id && (
-                      <div onClick={(e) => e.stopPropagation()}
-                        className="absolute right-3 top-9 bg-white border border-[#e8e1d2] rounded-lg shadow-lg z-30 py-1 min-w-[140px]">
-                        <button onClick={() => { openEdit(p); setMenuOpenId(null); }}
-                          className="w-full text-left px-3 py-1.5 text-sm text-[#0E2244] hover:bg-[#fdfaee] flex items-center gap-2">
-                          <LuPencil className="w-3.5 h-3.5" />Editar
-                        </button>
-                        <button onClick={() => { handleDelete(p); setMenuOpenId(null); }}
-                          className="w-full text-left px-3 py-1.5 text-sm text-[#A32D2D] hover:bg-[#FCEBEB] flex items-center gap-2">
-                          <LuTrash className="w-3.5 h-3.5" />Excluir
-                        </button>
-                      </div>
-                    )}
+                    <div className="relative inline-block">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setMenuOpenId(menuOpenId === p.id ? null : p.id); }}
+                        className="p-1.5 text-[#5F5E5A] hover:bg-[#f0e8d4] rounded transition"
+                        title="Ações">
+                        <LuEllipsisVertical className="w-4 h-4" />
+                      </button>
+                      {menuOpenId === p.id && (
+                        <div onClick={(e) => e.stopPropagation()}
+                          className="absolute right-0 top-full mt-1 bg-white border border-[#e8e1d2] rounded-lg shadow-xl z-50 py-1 min-w-[140px]">
+                          <button onClick={() => { openEdit(p); setMenuOpenId(null); }}
+                            className="w-full text-left px-3 py-1.5 text-sm text-[#0E2244] hover:bg-[#fdfaee] flex items-center gap-2">
+                            <LuPencil className="w-3.5 h-3.5" />Editar
+                          </button>
+                          <button onClick={() => { handleDelete(p); setMenuOpenId(null); }}
+                            className="w-full text-left px-3 py-1.5 text-sm text-[#A32D2D] hover:bg-[#FCEBEB] flex items-center gap-2">
+                            <LuTrash className="w-3.5 h-3.5" />Excluir
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </td>
                 </tr>
               );
