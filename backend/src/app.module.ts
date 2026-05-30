@@ -40,6 +40,9 @@ import { ScriptsModule } from './modules/scripts/scripts.module';
 import { CadenciasModule } from './modules/cadencias/cadencias.module';
 import { EmailTemplatesModule } from './modules/email-templates/email-templates.module';
 import { PipelinesModule } from './modules/pipelines/pipelines.module';
+import { AvaliacoesModule } from './modules/avaliacoes/avaliacoes.module';
+import { MetasModule } from './modules/metas/metas.module';
+import { CampanhasModule } from './modules/campanhas/campanhas.module';
 import { EnrichmentModule } from './modules/enrichment/enrichment.module';
 import { ScoringModule } from './modules/scoring/scoring.module';
 import { InsightsModule } from './modules/insights/insights.module';
@@ -159,6 +162,9 @@ import configuration from './config/configuration';
     CadenciasModule,
     EmailTemplatesModule,
     PipelinesModule,
+    AvaliacoesModule,
+    MetasModule,
+    CampanhasModule,
     EnrichmentModule,
     ScoringModule,
     InsightsModule,
