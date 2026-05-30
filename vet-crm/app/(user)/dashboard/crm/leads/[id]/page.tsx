@@ -220,6 +220,20 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
         </div>
       </div>
 
+      
+
+      {/* 2 cards inferiores: Dados do Lead + Conquistas (FU e Etiquetas subiram pro topo) */}
+      <div className="grid grid-cols-2 gap-2.5 mb-3">
+        <div className="bg-white rounded-xl border border-[#d8d0bc] p-3">
+          <h3 className="text-[11px] text-[#5b6470] tracking-wide font-medium mb-2">DADOS DO LEAD</h3>
+          <div className="text-[11px] text-[#4d5a66] leading-loose">
+            <div><LuPhone className="inline w-3 h-3 text-[#0C447C]" /> <span className="text-[#00798A]">{lead.phone || "—"}</span></div>
+            <div><strong className="text-[#0E2244] font-medium">Canal:</strong> {lead.channel || "WhatsApp"}</div>
+            <div><strong className="text-[#0E2244] font-medium">Serviço:</strong> {customFields.servicoInteresse || "—"}</div>
+            <div><strong className="text-[#0E2244] font-medium">Valor:</strong> {customFields.valor ? `R$ ${customFields.valor}` : "—"}</div>
+          </div>
+        </div>
+
       {/* Qualificação destacada (em cima — falta preencher) */}
       <div className="bg-[#FFF8E1] border border-[#FCD194] border-l-[3px] border-l-[#BA7517] rounded-xl p-4 mb-3">
         <div className="flex justify-between items-center mb-3">
@@ -305,18 +319,6 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
           </div>
         </div>
       </div>
-
-      {/* 2 cards inferiores: Dados do Lead + Conquistas (FU e Etiquetas subiram pro topo) */}
-      <div className="grid grid-cols-2 gap-2.5 mb-3">
-        <div className="bg-white rounded-xl border border-[#d8d0bc] p-3">
-          <h3 className="text-[11px] text-[#5b6470] tracking-wide font-medium mb-2">DADOS DO LEAD</h3>
-          <div className="text-[11px] text-[#4d5a66] leading-loose">
-            <div><LuPhone className="inline w-3 h-3 text-[#0C447C]" /> <span className="text-[#00798A]">{lead.phone || "—"}</span></div>
-            <div><strong className="text-[#0E2244] font-medium">Canal:</strong> {lead.channel || "WhatsApp"}</div>
-            <div><strong className="text-[#0E2244] font-medium">Serviço:</strong> {customFields.servicoInteresse || "—"}</div>
-            <div><strong className="text-[#0E2244] font-medium">Valor:</strong> {customFields.valor ? `R$ ${customFields.valor}` : "—"}</div>
-          </div>
-        </div>
         <div className="bg-white rounded-xl border border-[#d8d0bc] p-3">
           <h3 className="text-[11px] text-[#5b6470] tracking-wide font-medium mb-2">CONQUISTAS · 3/8</h3>
           <div className="grid grid-cols-8 gap-1">
