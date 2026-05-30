@@ -16,8 +16,8 @@ interface Conversation {
   unreadCount: number;
   status: string;
   tutor?: { id: string; name: string } | null;
-  source? (() => null) : string;
-  metadata?: { source? (() => null) : string; [k: string]: any };
+  source?: string;
+  metadata?: { source?: string; [k: string]: any };
 }
 
 interface Message {
@@ -26,28 +26,28 @@ interface Message {
   content: string | null;
   type: string;
   createdAt: string;
-  fromAgent? (() => null) : boolean;
+  fromAgent?: boolean;
 }
 
 interface Pet {
   id: string;
   name: string;
   species: string;
-  breed? (() => null) : string | null;
-  weight? (() => null) : number | null;
-  tags? (() => null) : string[];
+  breed?: string | null;
+  weight?: number | null;
+  tags?: string[];
 }
 
 interface TutorFull {
   id: string;
   name: string | null;
-  email? (() => null) : string | null;
+  email?: string | null;
   classificacao: string;
   status: string;
   tags: string[];
   createdAt: string;
   contacts?: { number: string; isPrimary: boolean }[];
-  pets? (() => null) : Pet[];
+  pets?: Pet[];
 }
 
 const PET_EMOJI = (species: string) => {
@@ -57,7 +57,7 @@ const PET_EMOJI = (species: string) => {
   return "🐾";
 };
 
-const getInitials = (name? (() => null) : string | null) => {
+const getInitials = (name?: string | null) => {
   if (!name) return "??";
   const p = name.trim().split(/\s+/);
   return ((p[0]?.[0] || "") + (p[1]?.[0] || "")).toUpperCase();
@@ -248,7 +248,7 @@ export default function InboxUnificadoPage() {
   const selectedPet = tutor?.pets?.find((p) => p.id === selectedPetId);
   const primaryPhone = tutor?.contacts?.find((c) => c.isPrimary)?.number || tutor?.contacts?.[0]?.number || selectedConv?.contactNumber;
 
-  const sendMessage = async (textOverride? (() => null) : string) => {
+  const sendMessage = async (textOverride?: string) => {
     const text = (textOverride ?? messageInput).trim();
     if (!text || !selectedId) return;
     if (!textOverride) setMessageInput("");

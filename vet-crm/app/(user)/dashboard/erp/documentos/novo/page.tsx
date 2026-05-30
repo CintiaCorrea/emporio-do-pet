@@ -33,7 +33,7 @@ export default function NewDocumentPage() {
   const [generatedDocs, setGeneratedDocs] = useState<GeneratedDocument[]>([]);
   const [saving, setSaving] = useState(false);
 
-  const handleTranscriptionComplete = (text: string, audioDuration? (() => null) : number) => {
+  const handleTranscriptionComplete = (text: string, audioDuration?: number) => {
     setTranscription(text);
     addToRecordingHistory({
       transcription: text,
@@ -46,7 +46,7 @@ export default function NewDocumentPage() {
     setStep('done');
   };
 
-  const handleSelectFromHistory = (recording: { id: string; transcription: string; audioDuration? (() => null) : number; createdAt: string; audioUrl? (() => null) : string }) => {
+  const handleSelectFromHistory = (recording: { id: string; transcription: string; audioDuration?: number; createdAt: string; audioUrl?: string }) => {
     setTranscription(recording.transcription);
     setShowHistory(false);
     setStep('generate');

@@ -1,7 +1,7 @@
 interface FormFieldProps {
   label: string;
   htmlFor: string;
-  required? (() => null) : boolean;
+  required?: boolean;
   children: React.ReactNode;
 }
 

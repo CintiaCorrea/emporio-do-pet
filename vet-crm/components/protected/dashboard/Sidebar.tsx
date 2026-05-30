@@ -12,7 +12,7 @@ interface SidebarProps {
   toggleSidebar: () => void;
 }
 
-const EmporioLogo = ({ collapsed = false }: { collapsed? (() => null) : boolean }) => (
+const EmporioLogo = ({ collapsed = false }: { collapsed?: boolean }) => (
   <div className={`flex items-center gap-2 ${collapsed ? "justify-center" : ""}`}>
     {/* Logo SVG inline: círculo turquesa com paw print marinho */}
     <svg width={collapsed ? 32 : 38} height={collapsed ? 32 : 38} viewBox="0 0 40 40" fill="none">
@@ -33,11 +33,11 @@ const EmporioLogo = ({ collapsed = false }: { collapsed? (() => null) : boolean 
 
 interface NavItemProps {
   href: string;
-  icon: React.ComponentType<{ className? (() => null) : string }>;
+  icon: React.ComponentType<{ className?: string }>;
   label: string;
-  badge? (() => null) : number;
-  exact? (() => null) : boolean;
-  collapsed? (() => null) : boolean;
+  badge?: number;
+  exact?: boolean;
+  collapsed?: boolean;
 }
 
 const NavItem = ({ href, icon: Icon, label, badge, exact, collapsed }: NavItemProps) => {
@@ -67,10 +67,10 @@ const NavItem = ({ href, icon: Icon, label, badge, exact, collapsed }: NavItemPr
 };
 
 interface SubMenuProps {
-  icon: React.ComponentType<{ className? (() => null) : string }>;
+  icon: React.ComponentType<{ className?: string }>;
   label: string;
   children: { href: string; label: string }[];
-  collapsed? (() => null) : boolean;
+  collapsed?: boolean;
 }
 
 const SubMenu = ({ icon: Icon, label, children, collapsed }: SubMenuProps) => {

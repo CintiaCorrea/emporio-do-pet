@@ -31,7 +31,7 @@ interface Appointment {
     id: string;
     name: string;
     species: string;
-    breed? (() => null) : string;
+    breed?: string;
   };
   user?: {
     id: string;
@@ -40,8 +40,8 @@ interface Appointment {
   };
   date: string;
   duration: number;
-  description? (() => null) : string;
-  notes? (() => null) : string;
+  description?: string;
+  notes?: string;
   value: number;
   status: AppointmentStatus;
   paymentStatus: PaymentStatus;

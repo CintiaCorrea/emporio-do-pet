@@ -19,19 +19,19 @@ interface ClinicalDocument {
   type: string;
   title: string;
   content: string;
-  htmlContent? (() => null) : string;
+  htmlContent?: string;
   status: string;
   isAiGenerated: boolean;
-  aiModel? (() => null) : string;
-  signedBy? (() => null) : string;
-  crmv? (() => null) : string;
+  aiModel?: string;
+  signedBy?: string;
+  crmv?: string;
   sharedVia: string[];
   version: number;
   createdAt: string;
   appointment?: {
     id: string;
     date: string;
-    description? (() => null) : string;
+    description?: string;
   };
   pet?: {
     id: string;
@@ -41,8 +41,8 @@ interface ClinicalDocument {
   tutor?: {
     id: string;
     name: string;
-    email? (() => null) : string;
-    contacts? (() => null) : Array<{ number: string; isWhatsApp: boolean }>;
+    email?: string;
+    contacts?: Array<{ number: string; isWhatsApp: boolean }>;
   };
   user?: {
     id: string;

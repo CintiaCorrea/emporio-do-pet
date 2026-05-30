@@ -52,7 +52,7 @@ interface Conversation {
 
 interface Message {
   id: string;
-  waMessageId? (() => null) : string | null;
+  waMessageId?: string | null;
   direction: 'INBOUND' | 'OUTBOUND';
   type: string;
   content: string;
@@ -61,10 +61,10 @@ interface Message {
   sentAt: string | null;
   deliveredAt: string | null;
   readAt: string | null;
-  failedReason? (() => null) : string | null;
+  failedReason?: string | null;
   senderType?: 'AI' | 'HUMAN' | 'CUSTOMER' | 'SYSTEM';
-  agentName? (() => null) : string;
-  metadata? (() => null) : Record<string, unknown>;
+  agentName?: string;
+  metadata?: Record<string, unknown>;
 }
 
 interface Agent {

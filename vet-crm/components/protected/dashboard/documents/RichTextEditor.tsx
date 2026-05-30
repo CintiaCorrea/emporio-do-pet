@@ -15,8 +15,8 @@ import { useCallback, useEffect, useState } from 'react';
 interface RichTextEditorProps {
   content: string;
   onChange: (content: string) => void;
-  placeholder? (() => null) : string;
-  editable? (() => null) : boolean;
+  placeholder?: string;
+  editable?: boolean;
 }
 
 const MenuButton = ({
@@ -26,10 +26,10 @@ const MenuButton = ({
   children,
   title}: {
   onClick: () => void;
-  isActive? (() => null) : boolean;
-  disabled? (() => null) : boolean;
+  isActive?: boolean;
+  disabled?: boolean;
   children: React.ReactNode;
-  title? (() => null) : string;
+  title?: string;
 }) => (
   <button
     type="button"

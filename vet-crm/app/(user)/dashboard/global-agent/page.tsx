@@ -122,7 +122,7 @@ export default function GlobalAgentPage() {
   );
 
   const handleSend = useCallback(
-    (text? (() => null) : string) => {
+    (text?: string) => {
       const content = (text ?? input).trim();
       if (!content || isTyping) return;
 

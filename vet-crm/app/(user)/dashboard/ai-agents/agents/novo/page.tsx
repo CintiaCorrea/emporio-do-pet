@@ -36,10 +36,10 @@ interface NewAgentForm {
   // WhatsApp
   whatsappEnabled: boolean;
   whatsappAutoReply: boolean;
-  whatsappTemplateId? (() => null) : string;
-  whatsappTemplateName? (() => null) : string;
-  whatsappGreeting? (() => null) : string;
-  whatsappOfflineMessage? (() => null) : string;
+  whatsappTemplateId?: string;
+  whatsappTemplateName?: string;
+  whatsappGreeting?: string;
+  whatsappOfflineMessage?: string;
   whatsappBusinessHoursOnly: boolean;
   // CRM
   crmEnabled: boolean;
@@ -47,7 +47,7 @@ interface NewAgentForm {
   crmAutoUpdateLead: boolean;
   crmLeadScoring: boolean;
   crmNotifyOnHighScore: boolean;
-  crmAssignToBoard? (() => null) : string;
+  crmAssignToBoard?: string;
   // Voice
   voiceEnabled: boolean;
   voiceId: string;
@@ -95,13 +95,13 @@ Pet: {pet_name}`};
 interface AgentTemplate {
   id: string;
   name: string;
-  description? (() => null) : string;
+  description?: string;
   category: string;
   systemPrompt: string;
-  provider? (() => null) : string;
-  model? (() => null) : string;
-  temperature? (() => null) : number;
-  maxTokens? (() => null) : number;
+  provider?: string;
+  model?: string;
+  temperature?: number;
+  maxTokens?: number;
 }
 
 export default function NovoAgentePage() {

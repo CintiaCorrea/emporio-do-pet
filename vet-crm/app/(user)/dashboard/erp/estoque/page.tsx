@@ -31,11 +31,11 @@ interface StockMovement {
   quantity: number;
   previousStock: number;
   newStock: number;
-  reason? (() => null) : string;
+  reason?: string;
   date: string;
   user: string;
-  userId? (() => null) : string;
-  userName? (() => null) : string;
+  userId?: string;
+  userName?: string;
 }
 
 interface ApiProduct {

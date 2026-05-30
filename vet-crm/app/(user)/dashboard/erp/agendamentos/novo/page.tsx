@@ -24,7 +24,7 @@ interface Pet {
   id: string;
   name: string;
   species: string;
-  breed? (() => null) : string;
+  breed?: string;
 }
 
 interface User {

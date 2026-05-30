@@ -23,14 +23,14 @@ interface Integration {
   color: string;
   bgColor: string;
   status: IntegrationStatus;
-  apiKey? (() => null) : string;
-  webhookUrl? (() => null) : string;
-  phoneNumberId? (() => null) : string;
-  businessAccountId? (() => null) : string;
-  accessToken? (() => null) : string;
-  model? (() => null) : string;
-  lastSync? (() => null) : string;
-  usageCount? (() => null) : number;
+  apiKey?: string;
+  webhookUrl?: string;
+  phoneNumberId?: string;
+  businessAccountId?: string;
+  accessToken?: string;
+  model?: string;
+  lastSync?: string;
+  usageCount?: number;
   docsUrl: string;
 }
 
@@ -1151,7 +1151,7 @@ function AiUsageSection() {
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {Object.entries(pricing.models).map(([model, info]) => {
-                  const p = info as { promptCostPer1K? (() => null) : number; completionCostPer1K? (() => null) : number };
+                  const p = info as { promptCostPer1K?: number; completionCostPer1K?: number };
                   return (
                     <tr key={model} className="hover:bg-gray-50">
                       <td className="px-4 py-3 font-medium text-gray-900">{model}</td>

@@ -7,7 +7,7 @@ interface BoardListItemProps {
   onToggleFavorite: (id: string) => void;
   onDelete: (id: string) => void;
   isLast: boolean;
-  isSystemBoard? (() => null) : boolean;
+  isSystemBoard?: boolean;
 }
 
 export default function BoardListItem({ board, onToggleFavorite, onDelete, isLast, isSystemBoard }: BoardListItemProps) {

@@ -11,7 +11,7 @@ interface NewTaskModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (task: NewTaskData) => void;
-  columnId? (() => null) : string;
+  columnId?: string;
 }
 
 const NewTaskModal = ({ isOpen, onClose, onSubmit, columnId }: NewTaskModalProps) => {

@@ -30,7 +30,7 @@ const DOCUMENT_TYPES = [
 
 interface DocumentGeneratorProps {
   appointmentId: string;
-  recordingId? (() => null) : string;
+  recordingId?: string;
   hasTranscription: boolean;
   hasAnalysis: boolean;
   onDocumentsGenerated?: (docs: any[]) => void;

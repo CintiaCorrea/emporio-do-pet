@@ -20,20 +20,20 @@ interface ApiPet {
   id: string;
   name: string;
   species: string;
-  breed? (() => null) : string;
+  breed?: string;
   status: string;
-  sex? (() => null) : string;
-  sterilization? (() => null) : string;
-  birthDate? (() => null) : string;
-  coat? (() => null) : string;
-  coatColor? (() => null) : string;
-  weight? (() => null) : number;
-  microchip? (() => null) : string;
-  allergies? (() => null) : string[];
-  medicalNotes? (() => null) : string;
-  observations? (() => null) : string;
-  documents? (() => null) : string[];
-  avatar? (() => null) : string;
+  sex?: string;
+  sterilization?: string;
+  birthDate?: string;
+  coat?: string;
+  coatColor?: string;
+  weight?: number;
+  microchip?: string;
+  allergies?: string[];
+  medicalNotes?: string;
+  observations?: string;
+  documents?: string[];
+  avatar?: string;
 }
 
 export default function EditTutorPage() {
