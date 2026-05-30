@@ -26,6 +26,12 @@ interface Profissional {
   user?: { id: string; name: string; email: string; role: string } | null;
 }
 
+const ROLE_LABEL: Record<string, { label: string; color: string; bg: string }> = {
+  ADMIN: { label: "Administrador", color: "#00798A", bg: "#E0F4F6" },
+  VETERINARIAN: { label: "Veterinário(a)", color: "#0C447C", bg: "#E6F1FB" },
+  RECEPTIONIST: { label: "Recepção", color: "#8A5A0F", bg: "#FCE5C8" },
+};
+
 const TIPO_LABEL: Record<TipoProfissional, { label: string; color: string; bg: string }> = {
   VETERINARIO: { label: "Veterinário", color: "#0F6E56", bg: "#E1F5EE" },
   RECEPCIONISTA: { label: "Recepção", color: "#185FA5", bg: "#E6F1FB" },
@@ -39,10 +45,13 @@ const getInitials = (name: string) => {
   return ((p[0]?.[0] || "") + (p[1]?.[0] || "")).toUpperCase() || "??";
 };
 
-const EMPTY_FORM: Partial<Profissional> = {
+const EMPTY_FORM: any = {
   nomeCompleto: "",
   tipo: "VETERINARIO",
   ativo: true,
+  criarAcesso: false,
+  role: "RECEPTIONIST",
+  password: "",
 };
 
 export default function ProfissionaisConfigPage() {
@@ -52,7 +61,7 @@ export default function ProfissionaisConfigPage() {
   const [showInactive, setShowInactive] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState<Partial<Profissional>>(EMPTY_FORM);
+  const [form, setForm] = useState<any>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
 
@@ -98,7 +107,7 @@ export default function ProfissionaisConfigPage() {
 
   const openEdit = (p: Profissional) => {
     setEditingId(p.id);
-    setForm({ ...p });
+    setForm({ ...p, criarAcesso: !!p.user, role: p.user?.role || "RECEPTIONIST", password: "" });
     setModalOpen(true);
   };
 
@@ -144,8 +153,8 @@ export default function ProfissionaisConfigPage() {
           <LuArrowLeft className="w-5 h-5" />
         </Link>
         <div className="flex-1">
-          <h1 className="text-xl text-[#0E2244] font-medium">Profissionais</h1>
-          <p className="text-sm text-[#888780]">Equipe da clínica — vets, recepção, estagiários</p>
+          <h1 className="text-xl text-[#0E2244] font-medium">Profissionais — Equipe e Acesso</h1>
+          <p className="text-sm text-[#888780]">Equipe da clínica e acessos ao sistema</p>
         </div>
         <button onClick={openNew} className="bg-[#009AAC] text-white px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5">
           <LuPlus className="w-3.5 h-3.5" />Adicionar Profissional
@@ -173,15 +182,16 @@ export default function ProfissionaisConfigPage() {
               <th className="text-left py-2.5 px-3">Especialidade</th>
               <th className="text-left py-2.5 px-3">CRMV</th>
               <th className="text-left py-2.5 px-3">Comissão</th>
+              <th className="text-left py-2.5 px-3">Acesso ao sistema</th>
               <th className="text-left py-2.5 px-3">Status</th>
               <th className="py-2.5 px-3"></th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={7} className="py-8 text-center text-gray-400">Carregando...</td></tr>
+              <tr><td colSpan={8} className="py-8 text-center text-gray-400">Carregando...</td></tr>
             ) : filtered.length === 0 ? (
-              <tr><td colSpan={7} className="py-8 text-center text-gray-400">
+              <tr><td colSpan={8} className="py-8 text-center text-gray-400">
                 Nenhum profissional cadastrado. Clique em <b>+ Adicionar Profissional</b>.
               </td></tr>
             ) : filtered.map((p) => {
@@ -209,6 +219,19 @@ export default function ProfissionaisConfigPage() {
                   <td className="py-2.5 px-3 text-[#4d5a66]">{p.especialidade || "—"}</td>
                   <td className="py-2.5 px-3 text-[#4d5a66]">{p.crmv || "—"}</td>
                   <td className="py-2.5 px-3 text-[#4d5a66]">{p.comissaoPercentual ? `${p.comissaoPercentual}%` : "—"}</td>
+                  <td className="py-2.5 px-3">
+                    {p.user ? (
+                      <div className="flex flex-col gap-0.5">
+                        <span style={{ background: ROLE_LABEL[p.user.role]?.bg || "#f0e8d4", color: ROLE_LABEL[p.user.role]?.color || "#5F5E5A" }}
+                              className="text-[10px] font-medium px-2 py-0.5 rounded-full inline-block w-fit">
+                          ✓ {ROLE_LABEL[p.user.role]?.label || p.user.role}
+                        </span>
+                        <span className="text-[10px] text-[#888780]">{p.user.email}</span>
+                      </div>
+                    ) : (
+                      <span className="text-[10px] text-[#B4B2A9]">Sem acesso</span>
+                    )}
+                  </td>
                   <td className="py-2.5 px-3">
                     <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${p.ativo ? "bg-[#E1F5EE] text-[#0F6E56]" : "bg-[#f0e8d4] text-[#5F5E5A]"}`}>
                       {p.ativo ? "Ativo" : "Inativo"}
@@ -320,7 +343,42 @@ export default function ProfissionaisConfigPage() {
               </div>
               <div className="col-span-2 flex items-center gap-2">
                 <input type="checkbox" id="ativo" checked={form.ativo ?? true} onChange={(e) => setForm({ ...form, ativo: e.target.checked })} />
-                <label htmlFor="ativo" className="text-sm text-[#0E2244]">Ativo</label>
+                <label htmlFor="ativo" className="text-sm text-[#0E2244]">Ativo (aparece nos dropdowns da clínica)</label>
+              </div>
+
+              {/* Acesso ao sistema */}
+              <div className="col-span-2 mt-2 pt-3 border-t border-[#e8e1d2]">
+                <div className="flex items-center gap-2 mb-2">
+                  <input type="checkbox" id="criarAcesso" checked={!!form.criarAcesso}
+                    onChange={(e) => setForm({ ...form, criarAcesso: e.target.checked })} />
+                  <label htmlFor="criarAcesso" className="text-sm text-[#0E2244] font-medium">Tem acesso ao sistema (login)</label>
+                </div>
+                {form.criarAcesso && (
+                  <div className="grid grid-cols-2 gap-3 bg-[#fdfaee] border border-[#e8e1d2] rounded-lg p-3">
+                    <div className="col-span-2">
+                      <p className="text-[10px] text-[#888780] mb-2">
+                        ⚠ Email obrigatório acima. {editingId ? "Para trocar a senha, preencha o campo abaixo." : "Defina a senha inicial."}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] text-[#5F5E5A] mb-1 font-medium">Papel no sistema</label>
+                      <select value={form.role || "RECEPTIONIST"} onChange={(e) => setForm({ ...form, role: e.target.value })}
+                        className="w-full px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm bg-white focus:outline-none focus:border-[#009AAC]">
+                        <option value="ADMIN">Administrador</option>
+                        <option value="VETERINARIAN">Veterinário(a)</option>
+                        <option value="RECEPTIONIST">Recepção</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] text-[#5F5E5A] mb-1 font-medium">
+                        Senha {editingId && <span className="text-[#888780]">(deixe vazio pra manter)</span>}
+                      </label>
+                      <input type="password" value={form.password || ""} onChange={(e) => setForm({ ...form, password: e.target.value })}
+                        placeholder={editingId ? "Nova senha (opcional)" : "Senha inicial"}
+                        className="w-full px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm focus:outline-none focus:border-[#009AAC]" />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
             <div className="flex justify-end gap-2 mt-4">

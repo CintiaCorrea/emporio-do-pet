@@ -13,7 +13,7 @@ interface ConfigItem {
 }
 
 const ITEMS: ConfigItem[] = [
-  { href: "/dashboard/configuracoes/profissionais", icon: "👥", title: "Profissionais", description: "Equipe da clínica — vets, recepção, estagiários", status: "ready" },
+  { href: "/dashboard/configuracoes/profissionais", icon: "👥", title: "Profissionais — Equipe e Acesso", description: "Equipe da clínica + acessos ao sistema (login)", status: "ready" },
   { href: "/dashboard/configuracoes/etiquetas", icon: "🏷", title: "Etiquetas", description: "Tags e categorias pra Lead, Cliente e Pet", status: "soon" },
   { href: "/dashboard/configuracoes/servicos", icon: "🛠", title: "Serviços e Produtos", description: "Catálogo com preço, custo e comissão", status: "soon" },
   { href: "/dashboard/configuracoes/racas", icon: "🐾", title: "Raças", description: "Lista de raças por espécie", status: "soon" },
