@@ -39,6 +39,7 @@ import { FornecedoresModule } from './modules/fornecedores/fornecedores.module';
 import { ScriptsModule } from './modules/scripts/scripts.module';
 import { CadenciasModule } from './modules/cadencias/cadencias.module';
 import { EmailTemplatesModule } from './modules/email-templates/email-templates.module';
+import { PipelinesModule } from './modules/pipelines/pipelines.module';
 import { EnrichmentModule } from './modules/enrichment/enrichment.module';
 import { ScoringModule } from './modules/scoring/scoring.module';
 import { InsightsModule } from './modules/insights/insights.module';
@@ -157,6 +158,7 @@ import configuration from './config/configuration';
     ScriptsModule,
     CadenciasModule,
     EmailTemplatesModule,
+    PipelinesModule,
     EnrichmentModule,
     ScoringModule,
     InsightsModule,
