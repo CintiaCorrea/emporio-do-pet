@@ -22,9 +22,9 @@ const ITEMS: ConfigItem[] = [
   { href: "/dashboard/configuracoes/exames", title: "Exames e Fornecedores", description: "Catálogo de exames + laboratórios parceiros", status: "ready" },
   { href: "/dashboard/configuracoes/email-templates", title: "Templates de Email", description: "Modelos com variáveis pra disparos automáticos", status: "ready" },
   { href: "/dashboard/configuracoes/pipelines", title: "Pipelines", description: "Etapas customizáveis do comercial/clínico/fisio", status: "ready" },
-  { href: "/dashboard/configuracoes/campanhas", title: "Campanhas", description: "Campanhas de marketing (Google/Meta Ads)", status: "soon" },
-  { href: "/dashboard/configuracoes/metas", title: "Metas", description: "Metas de faturamento, atendimentos, conversões", status: "soon" },
-  { href: "/dashboard/configuracoes/avaliacoes", title: "Avaliações", description: "Pesquisa NPS e fluxo Google My Business", status: "soon" },
+  { href: "/dashboard/configuracoes/campanhas", title: "Campanhas", description: "Campanhas de marketing (Google/Meta Ads)", status: "ready" },
+  { href: "/dashboard/configuracoes/metas", title: "Metas", description: "Metas de faturamento, atendimentos, conversões", status: "ready" },
+  { href: "/dashboard/configuracoes/avaliacoes", title: "Avaliações", description: "Pesquisa NPS e fluxo Google My Business", status: "ready" },
 ];
 
 export default function ConfiguracoesIndex() {

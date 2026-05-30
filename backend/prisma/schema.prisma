@@ -2322,3 +2322,115 @@ model MediaFile {
   @@index([storageProvider])
   @@map("media_files")
 }
+
+// ============================================
+// Config 11: Campanhas (marketing)
+// ============================================
+enum PlataformaCampanha { GOOGLE_ADS META_ADS_FACEBOOK META_ADS_INSTAGRAM TIKTOK_ADS OUTRAS }
+enum TipoCampanha { CONVERSAO TRAFEGO ENGAJAMENTO MENSAGEM_WHATSAPP RECONHECIMENTO }
+enum StatusCampanha { ATIVA PAUSADA ENCERRADA EM_TESTE PLANEJADA }
+
+model Campanha {
+  id           String              @id @default(uuid())
+  nome         String
+  plataforma   PlataformaCampanha  @default(OUTRAS)
+  tipo         TipoCampanha        @default(CONVERSAO)
+  tagOrigem    String?             // tag pro BotConversa rastrear
+  inicio       DateTime?           @db.Date
+  fim          DateTime?           @db.Date
+  status       StatusCampanha      @default(ATIVA)
+  investimento Float?              // R$ total
+  observacoes  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, plataforma])
+  @@map("campanhas")
+}
+
+// ============================================
+// Config 12: Metas
+// ============================================
+enum TipoMeta { FATURAMENTO_GERAL FATURAMENTO_INDIVIDUAL ATENDIMENTOS SERVICO_ESPECIFICO CONVERSOES NPS }
+enum PeriodicidadeMeta { SEMANAL MENSAL TRIMESTRAL SEMESTRAL ANUAL }
+enum StatusMeta { EM_ANDAMENTO ATINGIDA NAO_ATINGIDA }
+
+model Meta {
+  id             String             @id @default(uuid())
+  tipo           TipoMeta
+  periodicidade  PeriodicidadeMeta  @default(MENSAL)
+  profissionalId String?            // quando individual
+  servicoId      String?            // quando serviço específico
+  dataInicio     DateTime           @db.Date
+  valorMeta      Float
+  valorRealizado Float              @default(0)
+  status         StatusMeta         @default(EM_ANDAMENTO)
+  observacoes    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tipo, status])
+  @@index([dataInicio])
+  @@map("metas")
+}
+
+// ============================================
+// Config 13: Avaliações (NPS + Google Reviews)
+// ============================================
+enum CategoriaAlvoNPS { VET RECEPCAO CLINICA_GERAL }
+enum ClassificacaoNPS { PROMOTOR NEUTRO DETRATOR }
+enum CanalColetaNPS { PRESENCIAL WHATSAPP EMAIL TELEFONE FORMULARIO }
+enum StatusAvaliacaoGoogle { PERGUNTA_ENVIADA NAO_GOSTOU LINK_ENVIADO VOTOU NAO_VOTOU CANCELADO }
+
+model AvaliacaoNPS {
+  id              String              @id @default(uuid())
+  tutorId         String?
+  petId           String?
+  atendimentoId   String?
+  categoriaAlvo   CategoriaAlvoNPS
+  profissionalId  String?
+  score           Int                 // 0-10
+  classificacao   ClassificacaoNPS
+  comentario      String?
+  canalColeta     CanalColetaNPS      @default(PRESENCIAL)
+  dataColeta      DateTime            @default(now())
+  coletadoPor     String?             // email
+  observacoes     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([dataColeta])
+  @@index([classificacao])
+  @@map("avaliacoes_nps")
+}
+
+model AvaliacaoGoogle {
+  id              String                  @id @default(uuid())
+  tutorId         String?
+  petId           String?
+  atendimentoId   String?
+  profissionalId  String?
+  coletadoPor     String?
+  dataPergunta    DateTime                @default(now())
+  gostou          Boolean?                // null = ainda não respondeu
+  comentarioNegativo String?              // quando gostou=false
+  canalEnvio      String?                 // WhatsApp, Email, SMS, etc
+  dataEnvioLink   DateTime?
+  linkEnviado     String?
+  dataVoto        DateTime?
+  notaDada        Int?                    // 1-5
+  votoConfirmado  Boolean                 @default(false)
+  status          StatusAvaliacaoGoogle   @default(PERGUNTA_ENVIADA)
+  observacoes     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([dataPergunta])
+  @@map("avaliacoes_google")
+}
+
