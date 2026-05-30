@@ -77,4 +77,7 @@ export class PetsController {
   remove(@Param('id') id: string) {
     return this.petsService.remove(id);
   }
+
+  @Get(':id/profile-stats')
+  profileStats(@Param('id') id: string) { return this.petsService.profileStats(id); }
 }

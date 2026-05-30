@@ -74,6 +74,11 @@ export class TutorsController {
     return this.tutorsService.findByIdExpanded(id);
   }
 
+
+  @Get(':id/profile-stats')
+  @ApiOperation({ summary: 'Estatísticas individuais do tutor (LTV, frequência, etc)' })
+  profileStats(@Param('id') id: string) { return this.tutorsService.profileStats(id); }
+
   @Patch(':id')
   @ApiOperation({ summary: 'Atualizar tutor' })
   update(@Param('id') id: string, @Body() updateTutorDto: UpdateTutorDto) {

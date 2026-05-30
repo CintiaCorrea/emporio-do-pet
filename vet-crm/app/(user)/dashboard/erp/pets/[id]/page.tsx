@@ -7,6 +7,7 @@ import Sidebar from '@/components/protected/dashboard/Sidebar';
 import Link from 'next/link';
 import ConfirmDeleteModal from '@/components/common/ConfirmDeleteModal';
 import toast from 'react-hot-toast';
+import PetProfilePanel from '@/components/profile/PetProfilePanel';
 
 interface Pet {
   id: string;
@@ -452,6 +453,12 @@ export default function PetDetailsPage() {
                   </Link>
                 </div>
               </div>
+            </div>
+
+
+            {/* Painel de gamificação clínica/financeira */}
+            <div className="mb-4">
+              <PetProfilePanel petId={petId} />
             </div>
 
             {/* Card principal com tabs (igual ao formulário) */}

@@ -150,4 +150,74 @@ export class PetsService {
       where: { id },
     });
   }
+
+  async profileStats(petId: string) {
+    const pet = await this.prisma.pet.findUnique({ where: { id: petId }, include: { tutor: true } });
+    if (!pet) throw new NotFoundException('Pet não encontrado');
+
+    const now = new Date();
+    const [appointments, todayCount, futuras] = await Promise.all([
+      this.prisma.appointment.findMany({
+        where: { petId },
+        select: { id: true, date: true, value: true, status: true, paymentStatus: true, description: true },
+        orderBy: { date: 'desc' },
+      }),
+      this.prisma.appointment.count({ where: { petId, status: { not: 'CANCELLED' } } }),
+      this.prisma.appointment.findMany({
+        where: { petId, date: { gte: now }, status: { not: 'CANCELLED' } },
+        orderBy: { date: 'asc' }, take: 1,
+        select: { id: true, date: true, description: true },
+      }),
+    ]);
+    const realizadas = appointments.filter(a => a.status === 'COMPLETED' || a.status === 'DONE' || a.date < now);
+    const ultima = realizadas[0];
+    const proxima = futuras[0];
+    const diasDesdeUltima = ultima ? Math.floor((now.getTime() - new Date(ultima.date).getTime()) / 86400000) : null;
+    const diasAteProxima = proxima ? Math.floor((new Date(proxima.date).getTime() - now.getTime()) / 86400000) : null;
+    const valorTotal = realizadas.reduce((s, a) => s + (a.value || 0), 0);
+    const valorPago = realizadas.filter(a => a.paymentStatus === 'PAID').reduce((s, a) => s + (a.value || 0), 0);
+
+    // Frequência mensal últimos 12 meses
+    const freq: { mes: string; total: number }[] = [];
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const next = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
+      const total = realizadas.filter(a => {
+        const ad = new Date(a.date);
+        return ad >= d && ad < next;
+      }).length;
+      freq.push({ mes: d.toLocaleDateString('pt-BR', { month: 'short' }), total });
+    }
+
+    let idadeAnos: number | null = null;
+    let idadeMeses: number | null = null;
+    if (pet.birthDate) {
+      const ms = now.getTime() - new Date(pet.birthDate).getTime();
+      const totalMeses = Math.floor(ms / (1000 * 60 * 60 * 24 * 30));
+      idadeAnos = Math.floor(totalMeses / 12);
+      idadeMeses = totalMeses % 12;
+    }
+
+    // Timeline simplificada (últimos 10 atendimentos)
+    const timeline = realizadas.slice(0, 10).map(a => ({
+      id: a.id, data: a.date, descricao: a.description, valor: a.value, paymentStatus: a.paymentStatus,
+    }));
+
+    return {
+      totalConsultas: todayCount,
+      realizadas: realizadas.length,
+      futurasAgendadas: futuras.length > 0 ? 1 : 0,
+      diasDesdeUltima,
+      ultima: ultima ? { id: ultima.id, data: ultima.date, descricao: ultima.description } : null,
+      proxima: proxima ? { id: proxima.id, data: proxima.date, descricao: proxima.description } : null,
+      diasAteProxima,
+      valorTotal: +valorTotal.toFixed(2),
+      valorPago: +valorPago.toFixed(2),
+      ticketMedio: realizadas.length > 0 ? +(valorTotal / realizadas.length).toFixed(2) : 0,
+      idadeAnos, idadeMeses,
+      pesoAtual: pet.weight,
+      frequenciaMensal: freq,
+      timeline,
+    };
+  }
 }
