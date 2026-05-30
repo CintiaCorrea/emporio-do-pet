@@ -1603,6 +1603,58 @@ model ListaItem {
 
 
 
+
+
+// ============================================
+// Config 9: Templates de E-mail + Variáveis disponíveis
+// Templates HTML/texto com placeholders + biblioteca de variáveis catalogadas
+// ============================================
+enum CategoriaEmail {
+  TRANSACIONAL    // confirmação, agendamento, etc — operacional
+  BOAS_VINDAS     // novos clientes
+  EDUCATIVO       // newsletter, dicas
+  PROMOCIONAL     // ofertas, pacotes
+  ANIVERSARIO     // niver tutor/pet
+  REENGAJAMENTO   // recuperação de inativos
+  OUTRO
+}
+
+model EmailTemplate {
+  id          String          @id @default(uuid())
+  nome        String
+  assunto     String          // assunto do email
+  corpoHtml   String          // html template
+  corpoTexto  String?         // versão texto plano (fallback)
+  categoria   CategoriaEmail  @default(TRANSACIONAL)
+  descricao   String?
+  ativo       Boolean         @default(true)
+  ordem       Int             @default(0)
+  vezesEnviado Int            @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([categoria, ativo])
+  @@map("email_templates")
+}
+
+model EmailVariable {
+  id          String   @id @default(uuid())
+  chave       String   @unique  // ex: tutor_nome, pet_nome
+  label       String              // ex: "Nome do tutor"
+  descricao   String?             // ex: "Primeiro nome do tutor responsável"
+  exemplo     String?             // ex: "Cintia"
+  categoria   String   @default("Geral")  // pra agrupar no seletor
+  ordem       Int      @default(0)
+  ativo       Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([categoria, ativo])
+  @@map("email_variables")
+}
+
 // ============================================
 // Config 8: Cadências — fluxos de mensagens automatizadas
 // CadenciaTemplate (sequência) + CadenciaPasso (cada passo da sequência)
