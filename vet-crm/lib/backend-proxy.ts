@@ -155,14 +155,16 @@ export async function proxyToBackend(
     }
 
     if (!upstreamResponse.ok) {
+      // Repassar o body completo do backend pro frontend ver os detalhes do erro
+      if (data && typeof data === 'object') {
+        return NextResponse.json(data, { status: upstreamResponse.status });
+      }
       const message =
         (data &&
-          (data.error ||
-            (Array.isArray(data.message) ? data.message.join(', ') : data.message) ||
-            data.message)) ||
+          ((Array.isArray(data.message) ? data.message.join(', ') : data.message) ||
+            data.error)) ||
         upstreamResponse.statusText ||
         'Erro ao processar requisição';
-
       return NextResponse.json({ error: message }, { status: upstreamResponse.status });
     }
 
@@ -208,6 +210,10 @@ export async function proxyToBackend(
             retryResponse.statusText ||
             'Erro ao processar requisição';
 
+          // Repassar body completo do backend
+          if (data && typeof data === 'object') {
+            return NextResponse.json(data, { status: retryResponse.status });
+          }
           return NextResponse.json({ error: message }, { status: retryResponse.status });
         }
 
