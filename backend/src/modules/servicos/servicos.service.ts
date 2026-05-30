@@ -150,4 +150,44 @@ export class ServicosService {
       created: { categorias: createdCats.length, servicos: itens.length },
     };
   }
+
+  async importBatch(rows: any[], upsert = true) {
+    let criados = 0, atualizados = 0, ignorados = 0;
+    const COM_MAP: Record<string, string> = {
+      'valor_cheio': 'VALOR_CHEIO', 'valor cheio': 'VALOR_CHEIO',
+      'margem': 'MARGEM',
+      'sem_comissao': 'SEM_COMISSAO', 'sem comissão': 'SEM_COMISSAO', 'sem comissao': 'SEM_COMISSAO',
+      'herdar': 'HERDAR', 'herdar da categoria': 'HERDAR',
+    };
+    const catNomes = [...new Set(rows.map(r => (r.categoria || '').trim()).filter(Boolean))];
+    const catMap: Record<string, string> = {};
+    for (const nome of catNomes) {
+      let c = await this.prisma.serviceCategory.findFirst({ where: { nome: { equals: nome, mode: 'insensitive' } } });
+      if (!c) c = await this.prisma.serviceCategory.create({ data: { nome, comissaoBasePadrao: 'VALOR_CHEIO' as any, ativo: true } });
+      catMap[nome] = c.id;
+    }
+    for (const r of rows) {
+      const nome = r.nome;
+      if (!nome) { ignorados++; continue; }
+      const comKey = ((r.comissao_base_default || r.comissaoBaseDefault) || 'herdar').toString().toLowerCase().trim();
+      const data: any = {
+        nome,
+        valorPadrao: r.valor_padrao ?? r.valorPadrao ?? r.preco ?? null,
+        custoPadrao: r.custo_padrao ?? r.custoPadrao ?? r.custo ?? null,
+        comissaoBaseDefault: (COM_MAP[comKey] || 'HERDAR') as any,
+        categoryId: r.categoria ? catMap[r.categoria.trim()] : null,
+        ativo: r.ativo !== undefined ? r.ativo : true,
+      };
+      let existente = await this.prisma.servico.findFirst({ where: { nome: { equals: nome, mode: 'insensitive' } } });
+      if (existente) {
+        if (!upsert) { ignorados++; continue; }
+        await this.prisma.servico.update({ where: { id: existente.id }, data });
+        atualizados++;
+      } else {
+        await this.prisma.servico.create({ data });
+        criados++;
+      }
+    }
+    return { criados, atualizados, ignorados, categoriasCriadas: catNomes.length };
+  }
 }

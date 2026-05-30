@@ -36,4 +36,9 @@ export class ProfissionaisController {
   remove(@Param('id') id: string) {
     return this.service.remove(id);
   }
+
+  @Post('import-batch')
+  importBatch(@Body() body: { rows: any[]; upsert?: boolean }) {
+    return this.service.importBatch(body.rows, body.upsert);
+  }
 }

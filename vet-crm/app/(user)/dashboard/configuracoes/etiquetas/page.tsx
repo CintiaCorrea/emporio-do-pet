@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import CsvImporter from "@/components/import/CsvImporter";
 import { LuArrowLeft, LuPlus, LuPencil, LuTrash, LuSearch, LuEllipsisVertical } from "react-icons/lu";
 
 type TipoEtiqueta = "CLINICA" | "STATUS" | "CUSTOM";
@@ -38,6 +39,7 @@ const EMPTY_CAT: any = { nome: "", ordem: 0, ativo: true };
 const EMPTY_ET: any = { texto: "", tipo: "CUSTOM", cor: "#0E2244", aplicaEm: [], categoryId: null, ativo: true };
 
 export default function EtiquetasConfigPage() {
+  const [importOpen, setImportOpen] = useState(false);
   const [categories, setCategories] = useState<TagCategory[]>([]);
   const [etiquetas, setEtiquetas] = useState<EtiquetaTemplate[]>([]);
   const [loading, setLoading] = useState(true);
@@ -367,6 +369,25 @@ export default function EtiquetasConfigPage() {
           </div>
         </div>
       )}
+
+      
+      {/* Botão Importar planilha (FAB) */}
+      <button
+        onClick={() => setImportOpen(true)}
+        className="fixed bottom-6 right-6 px-4 py-3 rounded-full text-sm shadow-md hover:shadow-lg transition"
+        style={{ background: "#3C3489", color: "white" }}
+        title="Importar planilha"
+      >
+        Importar planilha
+      </button>
+      <CsvImporter
+        open={importOpen} onClose={() => setImportOpen(false)}
+        title="Importar Etiquetas"
+        endpoint="/api/etiquetas/import-batch"
+        exampleHint="Exporte de Base44 > EtiquetaTemplate. Tipos: clinica, status, custom."
+        fields={[{"key": "texto", "label": "Texto", "aliases": ["nome"], "required": true}, {"key": "tipo", "label": "Tipo"}, {"key": "cor", "label": "Cor"}, {"key": "categoria", "label": "Categoria"}, {"key": "aplicaEm", "label": "Aplica em", "aliases": ["aplica_em"]}, {"key": "descricao", "label": "Descri\u00e7\u00e3o"}, {"key": "ativo", "label": "Ativo", "type": "boolean"}]}
+        onSuccess={() => load()}
+      />
     </div>
   );
 }

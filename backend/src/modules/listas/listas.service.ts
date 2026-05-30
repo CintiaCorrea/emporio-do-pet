@@ -114,4 +114,32 @@ export class ListasService {
       created: { total: data.length, listas: Object.keys(seeds).length },
     };
   }
+
+  async importBatch(rows: any[], upsert = true) {
+    let criados = 0, atualizados = 0, ignorados = 0;
+    // Garantir tipos das listas referenciadas
+    const tipos = [...new Set(rows.map(r => (r.lista || '').trim()).filter(Boolean))];
+    for (const t of tipos) {
+      const existing = await this.prisma.listaTipo.findUnique({ where: { nome: t } });
+      if (!existing) {
+        await this.prisma.listaTipo.create({ data: { nome: t, label: t, ativo: true } });
+      }
+    }
+    for (const r of rows) {
+      const lista = (r.lista || '').trim();
+      const valor = (r.valor || '').toString().trim();
+      if (!lista || !valor) { ignorados++; continue; }
+      const data: any = { lista, valor, ordem: r.ordem ?? 0, ativo: r.ativo !== undefined ? r.ativo : true };
+      const existente = await this.prisma.listaItem.findFirst({ where: { lista, valor: { equals: valor, mode: 'insensitive' } } });
+      if (existente) {
+        if (!upsert) { ignorados++; continue; }
+        await this.prisma.listaItem.update({ where: { id: existente.id }, data });
+        atualizados++;
+      } else {
+        await this.prisma.listaItem.create({ data });
+        criados++;
+      }
+    }
+    return { criados, atualizados, ignorados, tiposCriados: tipos.length };
+  }
 }

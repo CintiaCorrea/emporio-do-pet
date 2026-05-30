@@ -87,4 +87,30 @@ export class RacasService {
       created: { caninas: caninas.length, felinas: felinas.length, outras: outras.length, total: data.length },
     };
   }
+
+  async importBatch(rows: any[], upsert = true) {
+    let criados = 0, atualizados = 0, ignorados = 0;
+    const ESP_MAP: Record<string, string> = {
+      'cao': 'CAO', 'cão': 'CAO', 'cachorro': 'CAO',
+      'gato': 'GATO', 'felino': 'GATO',
+      'outro': 'OUTRO',
+    };
+    for (const r of rows) {
+      const nome = r.nome;
+      if (!nome) { ignorados++; continue; }
+      const espKey = (r.especie || 'outro').toString().toLowerCase().trim();
+      const especie = (ESP_MAP[espKey] || 'OUTRO') as any;
+      const data: any = { nome, especie, ordem: r.ordem ?? 0, ativo: r.ativo !== undefined ? r.ativo : true };
+      let existente = await this.prisma.raca.findFirst({ where: { nome: { equals: nome, mode: 'insensitive' }, especie } });
+      if (existente) {
+        if (!upsert) { ignorados++; continue; }
+        await this.prisma.raca.update({ where: { id: existente.id }, data });
+        atualizados++;
+      } else {
+        await this.prisma.raca.create({ data });
+        criados++;
+      }
+    }
+    return { criados, atualizados, ignorados };
+  }
 }

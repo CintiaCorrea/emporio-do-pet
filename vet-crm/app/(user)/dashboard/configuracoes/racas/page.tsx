@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import CsvImporter from "@/components/import/CsvImporter";
 import { LuArrowLeft, LuPlus, LuPencil, LuTrash, LuSearch, LuEllipsisVertical } from "react-icons/lu";
 
 type Especie = "CAO" | "GATO" | "OUTRO";
@@ -23,6 +24,7 @@ const ESPECIE_LABEL: Record<Especie, { label: string; emoji: string; color: stri
 const EMPTY: any = { nome: "", especie: "CAO", ordem: 0, ativo: true };
 
 export default function RacasConfigPage() {
+  const [importOpen, setImportOpen] = useState(false);
   const [racas, setRacas] = useState<Raca[]>([]);
   const [loading, setLoading] = useState(true);
   const [showInactive, setShowInactive] = useState(false);
@@ -255,6 +257,25 @@ export default function RacasConfigPage() {
           </div>
         </div>
       )}
+
+      
+      {/* Botão Importar planilha (FAB) */}
+      <button
+        onClick={() => setImportOpen(true)}
+        className="fixed bottom-6 right-6 px-4 py-3 rounded-full text-sm shadow-md hover:shadow-lg transition"
+        style={{ background: "#3C3489", color: "white" }}
+        title="Importar planilha"
+      >
+        Importar planilha
+      </button>
+      <CsvImporter
+        open={importOpen} onClose={() => setImportOpen(false)}
+        title="Importar Raças"
+        endpoint="/api/racas/import-batch"
+        exampleHint="Exporte de Base44 > Raca. Espécies: Cão, Gato, Outro."
+        fields={[{"key": "nome", "label": "Nome", "required": true}, {"key": "especie", "label": "Esp\u00e9cie", "required": true}, {"key": "ordem", "label": "Ordem", "type": "int"}, {"key": "ativo", "label": "Ativo", "type": "boolean"}]}
+        onSuccess={() => load()}
+      />
     </div>
   );
 }

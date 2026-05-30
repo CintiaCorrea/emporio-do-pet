@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import CsvImporter from "@/components/import/CsvImporter";
 import { LuArrowLeft, LuPlus, LuPencil, LuTrash, LuUser, LuSearch, LuEllipsisVertical } from "react-icons/lu";
 
 type TipoProfissional = "VETERINARIO" | "RECEPCIONISTA" | "ESTAGIARIO" | "GERENTE" | "OUTRO";
@@ -55,6 +56,7 @@ const EMPTY_FORM: any = {
 };
 
 export default function ProfissionaisConfigPage() {
+  const [importOpen, setImportOpen] = useState(false);
   const [items, setItems] = useState<Profissional[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -419,6 +421,25 @@ export default function ProfissionaisConfigPage() {
           </div>
         </div>
       )}
+
+      
+      {/* Botão Importar planilha (FAB) */}
+      <button
+        onClick={() => setImportOpen(true)}
+        className="fixed bottom-6 right-6 px-4 py-3 rounded-full text-sm shadow-md hover:shadow-lg transition"
+        style={{ background: "#3C3489", color: "white" }}
+        title="Importar planilha"
+      >
+        Importar planilha
+      </button>
+      <CsvImporter
+        open={importOpen} onClose={() => setImportOpen(false)}
+        title="Importar Profissionais"
+        endpoint="/api/profissionais/import-batch"
+        exampleHint="Exporte do Base44 a tabela de Profissionais. Tipos aceitos: Veterinário, Recepcionista, Estagiário, Gerente, Outro."
+        fields={[{"key": "nomeCompleto", "label": "Nome", "aliases": ["nome", "nome_completo"], "required": true}, {"key": "tipo", "label": "Tipo"}, {"key": "especialidade", "label": "Especialidade"}, {"key": "crmv", "label": "CRMV"}, {"key": "telefone", "label": "Telefone"}, {"key": "email", "label": "Email"}, {"key": "comissaoPercentual", "label": "Comiss\u00e3o %", "aliases": ["comissao_percentual", "comissao"], "type": "number"}, {"key": "ativo", "label": "Ativo", "type": "boolean"}]}
+        onSuccess={() => load()}
+      />
     </div>
   );
 }

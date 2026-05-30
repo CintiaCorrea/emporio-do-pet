@@ -71,4 +71,39 @@ export class EtiquetasService {
     if (!exists) throw new NotFoundException('Etiqueta não encontrada');
     return this.prisma.etiquetaTemplate.delete({ where: { id } });
   }
+
+  async importBatch(rows: any[], upsert = true) {
+    let criados = 0, atualizados = 0, ignorados = 0;
+    // Pre-criar categorias únicas (caso venham na planilha)
+    const catNomes = [...new Set(rows.map(r => (r.categoria || '').trim()).filter(Boolean))];
+    const catMap: Record<string, string> = {};
+    for (const nome of catNomes) {
+      let c = await this.prisma.tagCategory.findFirst({ where: { nome: { equals: nome, mode: 'insensitive' } } });
+      if (!c) c = await this.prisma.tagCategory.create({ data: { nome, ativo: true } });
+      catMap[nome] = c.id;
+    }
+    const TIPO_MAP: Record<string, string> = { 'clinica': 'CLINICA', 'clínica': 'CLINICA', 'status': 'STATUS', 'custom': 'CUSTOM' };
+    for (const r of rows) {
+      const texto = r.texto || r.nome;
+      if (!texto) { ignorados++; continue; }
+      const tipoKey = (r.tipo || 'custom').toString().toLowerCase().trim();
+      const tipo = (TIPO_MAP[tipoKey] || 'CUSTOM') as any;
+      const aplicaEm = r.aplicaEm ? (typeof r.aplicaEm === 'string' ? r.aplicaEm.split(/[,|;]/).map((s: string) => s.trim()).filter(Boolean) : r.aplicaEm) : ['Lead'];
+      const data: any = {
+        texto, tipo, cor: r.cor || null, descricao: r.descricao || null,
+        aplicaEm, categoryId: r.categoria ? catMap[r.categoria.trim()] : null,
+        ativo: r.ativo !== undefined ? r.ativo : true,
+      };
+      let existente = await this.prisma.etiquetaTemplate.findFirst({ where: { texto: { equals: texto, mode: 'insensitive' } } });
+      if (existente) {
+        if (!upsert) { ignorados++; continue; }
+        await this.prisma.etiquetaTemplate.update({ where: { id: existente.id }, data });
+        atualizados++;
+      } else {
+        await this.prisma.etiquetaTemplate.create({ data });
+        criados++;
+      }
+    }
+    return { criados, atualizados, ignorados, categoriasCriadas: catNomes.length };
+  }
 }
