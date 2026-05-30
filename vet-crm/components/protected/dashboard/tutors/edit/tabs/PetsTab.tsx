@@ -7,7 +7,7 @@ import { PetInline, emptyPetInline, normalizeBreed, formatDateMask } from '@/typ
 interface PetsTabProps {
   pets: PetInline[];
   onPetsChange: (pets: PetInline[]) => void;
-  tutorId?: string;
+  tutorId? (() => null) : string;
 }
 
 export default function PetsTab({ pets, onPetsChange, tutorId }: PetsTabProps) {

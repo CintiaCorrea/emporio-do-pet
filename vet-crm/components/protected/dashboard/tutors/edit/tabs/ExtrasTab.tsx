@@ -7,7 +7,7 @@ interface ExtrasTabProps {
 }
 
 export default function ExtrasTab({ tutor, onTutorChange }: ExtrasTabProps) {
-  const formatDateForInput = (dateString?: string) => {
+  const formatDateForInput = (dateString? (() => null) : string) => {
     if (!dateString) return '';
     try {
       return new Date(dateString).toISOString().split('T')[0];

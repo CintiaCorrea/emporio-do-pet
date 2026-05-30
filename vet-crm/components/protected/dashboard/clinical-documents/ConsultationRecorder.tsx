@@ -9,7 +9,7 @@ import toast from 'react-hot-toast';
 
 interface ConsultationRecorderProps {
   appointmentId: string;
-  recordingId?: string;
+  recordingId? (() => null) : string;
   onRecordingCreated?: (recording: any) => void;
   onTranscriptionComplete?: (transcription: string) => void;
   onAnalysisComplete?: (analysis: any) => void;

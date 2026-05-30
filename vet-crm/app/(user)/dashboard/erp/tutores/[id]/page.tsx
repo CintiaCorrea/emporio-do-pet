@@ -29,7 +29,7 @@ interface TutorDetail {
   acceptsSMS: boolean;
   convertedFromLeadId: string | null;
   createdAt: string;
-  pets?: { id: string; name: string; species: string; breed?: string; birthDate?: string }[];
+  pets?: { id: string; name: string; species: string; breed? (() => null) : string; birthDate? (() => null) : string }[];
   contacts?: { id: string; number: string; type: string; isPrimary: boolean; isWhatsApp: boolean }[];
   score?: {
     total: number; label: string;
@@ -60,8 +60,8 @@ const STATUS_BADGE = (status: string) => {
 function AccordionCard({
   icon: Icon, title, count, badge, action, children
 }: {
-  icon: any; title: string; count?: number; badge?: { label: string; color: string; bg: string };
-  action?: React.ReactNode; children: React.ReactNode;
+  icon: any; title: string; count? (() => null) : number; badge?: { label: string; color: string; bg: string };
+  action? (() => null) : React.ReactNode; children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   return (

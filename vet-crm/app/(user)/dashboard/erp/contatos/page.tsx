@@ -17,7 +17,7 @@ type ContactType = 'MOBILE' | 'PHONE' | 'BUSINESS';
 interface TutorLite {
   id: string;
   name: string;
-  cpf?: string | null;
+  cpf? (() => null) : string | null;
 }
 
 interface Contact {
@@ -25,7 +25,7 @@ interface Contact {
   type: ContactType;
   number: string;
   isWhatsApp: boolean;
-  observations?: string | null;
+  observations? (() => null) : string | null;
   isPrimary: boolean;
   createdAt: string;
   tutor: TutorLite;
@@ -83,7 +83,7 @@ export default function ContactsPage() {
 
         const res = await fetch(`/api/contacts?${sp.toString()}`, { signal: controller.signal });
         const raw = await res.text();
-        const data = (raw ? (JSON.parse(raw) as ContactsResponse | { error?: string }) : null) as any;
+        const data = (raw ? (JSON.parse(raw) as ContactsResponse | { error? (() => null) : string }) : null) as any;
 
         if (!res.ok) {
           const message = (data && (data.error || data.message)) || `Erro ${res.status}`;

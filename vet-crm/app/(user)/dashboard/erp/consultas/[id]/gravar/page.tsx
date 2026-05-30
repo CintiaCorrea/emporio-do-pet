@@ -19,15 +19,15 @@ interface Appointment {
   id: string;
   date: string;
   duration: number;
-  description?: string;
-  notes?: string;
+  description? (() => null) : string;
+  notes? (() => null) : string;
   status: string;
   tutor: { id: string; name: string };
-  pet: { id: string; name: string; species: string; breed?: string; weight?: number; birthDate?: string };
+  pet: { id: string; name: string; species: string; breed? (() => null) : string; weight? (() => null) : number; birthDate? (() => null) : string };
   user: { id: string; name: string };
   treatments: Array<{ id: string; description: string; cost: number }>;
-  recording?: any;
-  clinicalDocuments?: any[];
+  recording? (() => null) : any;
+  clinicalDocuments? (() => null) : any[];
 }
 
 export default function GravarConsultaPage({ params }: { params: Promise<{ id: string }> }) {

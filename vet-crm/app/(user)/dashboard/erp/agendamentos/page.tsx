@@ -48,8 +48,8 @@ interface Appointment {
     id: string;
     name: string;
     species: string;
-    breed?: string;
-    gender?: string;
+    breed? (() => null) : string;
+    gender? (() => null) : string;
   };
   user?: {
     id: string;
@@ -59,8 +59,8 @@ interface Appointment {
   };
   date: string;
   duration: number;
-  description?: string;
-  notes?: string;
+  description? (() => null) : string;
+  notes? (() => null) : string;
   value: number;
   status: AppointmentStatus;
   paymentStatus: PaymentStatus;

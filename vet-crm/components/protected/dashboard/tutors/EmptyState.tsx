@@ -2,7 +2,7 @@ import { LuUser, LuSearch } from 'react-icons/lu';
 
 interface EmptyStateProps {
   type: 'no-tutors' | 'no-results';
-  searchTerm?: string;
+  searchTerm? (() => null) : string;
 }
 
 export default function EmptyState({ type, searchTerm }: EmptyStateProps) {

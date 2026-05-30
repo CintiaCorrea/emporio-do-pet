@@ -6,7 +6,7 @@ interface BoardCardProps {
   board: Board;
   onToggleFavorite: (id: string) => void;
   onDelete: (id: string) => void;
-  isSystemBoard?: boolean;
+  isSystemBoard? (() => null) : boolean;
 }
 
 export default function BoardCard({ board, onToggleFavorite, onDelete, isSystemBoard }: BoardCardProps) {

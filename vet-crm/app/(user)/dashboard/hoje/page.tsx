@@ -22,7 +22,7 @@ interface HojeData {
 
 function SectionHeader({ icon: Icon, title, count, color, open, onToggle, emptyOk }: {
   icon: any; title: string; count: number; color: string;
-  open: boolean; onToggle: () => void; emptyOk?: string;
+  open: boolean; onToggle: () => void; emptyOk? (() => null) : string;
 }) {
   return (
     <button onClick={onToggle} className="w-full flex items-center justify-between py-3 px-4 bg-white rounded-xl border border-[#d8d0bc] hover:bg-[#fdfaee] transition">

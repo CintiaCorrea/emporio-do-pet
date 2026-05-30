@@ -26,11 +26,11 @@ interface FinanceEntry {
   method: FinanceMethod;
   counterpartyName: string;
   service: string;
-  description?: string | null;
+  description? (() => null) : string | null;
   amountCents: number;
   date: string;
-  dueDate?: string | null;
-  paidAt?: string | null;
+  dueDate? (() => null) : string | null;
+  paidAt? (() => null) : string | null;
 }
 
 interface FinanceSummary {

@@ -20,17 +20,17 @@ type UserProfile = {
   name: string | null;
   email: string;
   role: string;
-  image?: string | null;
-  isApproved?: boolean;
-  isBlocked?: boolean;
-  createdAt?: string;
-  updatedAt?: string;
+  image? (() => null) : string | null;
+  isApproved? (() => null) : boolean;
+  isBlocked? (() => null) : boolean;
+  createdAt? (() => null) : string;
+  updatedAt? (() => null) : string;
 };
 
 type ProfileStats = {
-  tutorsTotal?: number;
-  petsTotal?: number;
-  appointmentsTotal?: number;
+  tutorsTotal? (() => null) : number;
+  petsTotal? (() => null) : number;
+  appointmentsTotal? (() => null) : number;
 };
 
 export default function PerfilPage() {

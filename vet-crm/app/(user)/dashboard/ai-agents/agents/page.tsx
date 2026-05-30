@@ -22,7 +22,7 @@ type AIProvider = 'OPENAI' | 'GEMINI' | 'DEEPSEEK';
 interface AIAgent {
   id: string;
   name: string;
-  description?: string;
+  description? (() => null) : string;
   type: AgentType;
   status: AgentStatus;
   provider: AIProvider;
@@ -30,7 +30,7 @@ interface AIAgent {
   systemPrompt: string;
   temperature: number;
   maxTokens: number;
-  templateId?: string;
+  templateId? (() => null) : string;
   template?: {
     id: string;
     name: string;
@@ -39,12 +39,12 @@ interface AIAgent {
   totalInteractions: number;
   successRate: number;
   avgResponseTime: number;
-  lastActiveAt?: string;
+  lastActiveAt? (() => null) : string;
   createdAt: string;
   updatedAt: string;
   _count?: {
     executions: number;
-    automations?: number;
+    automations? (() => null) : number;
   };
 }
 

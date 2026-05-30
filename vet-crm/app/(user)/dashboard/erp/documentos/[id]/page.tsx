@@ -122,7 +122,7 @@ export default function DocumentDetailPage({
   }
 
   const status = statusConfig[document.status] || statusConfig.DRAFT;
-  const StatusIcon = status?.icon ||;
+  const StatusIcon = status?.icon ;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/20 w-full">

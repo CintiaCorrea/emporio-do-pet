@@ -242,7 +242,7 @@ export default function DocumentsPage() {
               <div className="divide-y divide-gray-100">
                 {documents.map((doc) => {
                   const status = statusConfig[doc.status] || statusConfig.DRAFT;
-                  const StatusIcon = status?.icon ||;
+                  const StatusIcon = status?.icon ;
 
                   return (
                     <div

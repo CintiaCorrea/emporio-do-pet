@@ -3,7 +3,7 @@ import { LuPlus, LuLoader, LuSave } from 'react-icons/lu';
 interface FormActionsProps {
   isLoading: boolean;
   onCancel: () => void;
-  isEdit?: boolean;
+  isEdit? (() => null) : boolean;
 }
 
 export default function FormActions({ isLoading, onCancel, isEdit = false }: FormActionsProps) {

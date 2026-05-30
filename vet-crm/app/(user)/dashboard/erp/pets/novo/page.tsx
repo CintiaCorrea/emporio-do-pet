@@ -14,7 +14,7 @@ interface Tutor {
 }
 
 interface Pet {
-  id?: string;
+  id? (() => null) : string;
   name: string;
   species: string;
   breed: string;
@@ -31,8 +31,8 @@ interface Pet {
   observations: string;
   documents: string[]; // IDs dos templates de documentos selecionados
   owner: string;
-  tutorId?: string; // Adicionando campo para vincular ao tutor
-  avatar?: string; // URL da foto (Cloudinary)
+  tutorId? (() => null) : string; // Adicionando campo para vincular ao tutor
+  avatar? (() => null) : string; // URL da foto (Cloudinary)
 }
 
 function normalizeBreed(value: string) {

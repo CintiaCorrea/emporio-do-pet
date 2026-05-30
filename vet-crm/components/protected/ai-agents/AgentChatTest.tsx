@@ -13,22 +13,22 @@ interface Message {
   role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: Date;
-  audioBase64?: string;
+  audioBase64? (() => null) : string;
   usage?: {
     prompt_tokens: number;
     completion_tokens: number;
     total_tokens: number;
   };
-  latencyMs?: number;
+  latencyMs? (() => null) : number;
 }
 
 interface AgentContext {
-  clinicName?: string;
-  tutorName?: string;
-  petName?: string;
-  petSpecies?: string;
-  currentDate?: string;
-  customVariable?: string;
+  clinicName? (() => null) : string;
+  tutorName? (() => null) : string;
+  petName? (() => null) : string;
+  petSpecies? (() => null) : string;
+  currentDate? (() => null) : string;
+  customVariable? (() => null) : string;
 }
 
 interface VoiceSettings {
@@ -44,10 +44,10 @@ interface AgentChatTestProps {
   systemPrompt: string;
   provider: string;
   model: string;
-  voiceEnabled?: boolean;
-  voiceId?: string;
-  voiceSpeed?: number;
-  voiceModel?: string;
+  voiceEnabled? (() => null) : boolean;
+  voiceId? (() => null) : string;
+  voiceSpeed? (() => null) : number;
+  voiceModel? (() => null) : string;
   onClose?: () => void;
 }
 

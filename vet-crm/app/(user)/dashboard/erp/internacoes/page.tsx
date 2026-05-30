@@ -26,34 +26,34 @@ interface Hospitalization {
   tutor: {
     id: string;
     name: string;
-    phone?: string;
+    phone? (() => null) : string;
   };
   pet: {
     id: string;
     name: string;
     species: string;
-    breed?: string;
-    age?: string;
+    breed? (() => null) : string;
+    age? (() => null) : string;
   };
   veterinarian?: {
     id: string;
     name: string;
   };
   admissionDate: string;
-  estimatedDischargeDate?: string;
-  actualDischargeDate?: string;
+  estimatedDischargeDate? (() => null) : string;
+  actualDischargeDate? (() => null) : string;
   reason: string;
-  diagnosis?: string;
-  notes?: string;
-  roomNumber?: string;
+  diagnosis? (() => null) : string;
+  notes? (() => null) : string;
+  roomNumber? (() => null) : string;
   dailyRate: number;
   totalCost: number;
   status: HospitalizationStatus;
   priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
   vitalSigns?: {
-    temperature?: number;
-    heartRate?: number;
-    weight?: number;
+    temperature? (() => null) : number;
+    heartRate? (() => null) : number;
+    weight? (() => null) : number;
   };
   treatments: Array<{
     id: string;
@@ -74,7 +74,7 @@ interface Pet {
   id: string;
   name: string;
   species: string;
-  breed?: string;
+  breed? (() => null) : string;
 }
 
 interface User {

@@ -31,7 +31,7 @@ interface KanbanColumnExtendedProps extends KanbanColumnProps {
   columnId: string;
   onDeleteColumn: (columnId: string) => void;
   onRenameColumn: (columnId: string, newName: string) => void;
-  isSystemBoard?: boolean;
+  isSystemBoard? (() => null) : boolean;
 }
 
 const KanbanColumn = ({ 

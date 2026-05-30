@@ -25,7 +25,7 @@ interface Consultation {
     id: string;
     name: string;
     species: string;
-    breed?: string;
+    breed? (() => null) : string;
   };
   veterinarian: {
     id: string;
@@ -46,8 +46,8 @@ interface Appointment {
   userId: string;
   date: string;
   duration: number;
-  description?: string;
-  notes?: string;
+  description? (() => null) : string;
+  notes? (() => null) : string;
   value: number;
   status: string;
   paymentStatus: 'PAID' | 'PENDING' | 'OVERDUE' | 'CANCELLED';
@@ -59,7 +59,7 @@ interface Appointment {
     id: string;
     name: string;
     species: string;
-    breed?: string;
+    breed? (() => null) : string;
   };
   user?: {
     id: string;

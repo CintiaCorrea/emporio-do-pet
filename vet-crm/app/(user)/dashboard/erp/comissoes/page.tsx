@@ -20,12 +20,12 @@ type CommissionType = 'CONSULTATION' | 'SURGERY' | 'HOSPITALIZATION' | 'SERVICE'
 
 interface Commission {
   id: string;
-  appointmentId?: string;
+  appointmentId? (() => null) : string;
   professional: {
     id: string;
     name: string;
     role: string;
-    avatar?: string | null;
+    avatar? (() => null) : string | null;
   };
   service: string;
   serviceType: CommissionType;
@@ -36,7 +36,7 @@ interface Commission {
   commissionValue: number;
   status: CommissionStatus;
   serviceDate: string;
-  paymentDate?: string;
+  paymentDate? (() => null) : string;
   createdAt: string;
 }
 

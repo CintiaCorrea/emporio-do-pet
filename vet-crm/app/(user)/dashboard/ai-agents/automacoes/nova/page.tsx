@@ -20,12 +20,12 @@ interface AutomationForm {
   category: AutomationCategory;
   trigger: AutomationTrigger;
   triggerConfig: {
-    cron?: string;
-    timezone?: string;
-    eventType?: string;
-    webhookSecret?: string;
+    cron? (() => null) : string;
+    timezone? (() => null) : string;
+    eventType? (() => null) : string;
+    webhookSecret? (() => null) : string;
   };
-  agentId?: string;
+  agentId? (() => null) : string;
   steps: AutomationStep[];
 }
 

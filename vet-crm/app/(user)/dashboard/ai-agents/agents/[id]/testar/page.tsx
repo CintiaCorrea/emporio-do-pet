@@ -13,17 +13,17 @@ import AgentChatTest from '@/components/protected/ai-agents/AgentChatTest';
 interface Agent {
   id: string;
   name: string;
-  description?: string;
+  description? (() => null) : string;
   provider: string;
   model: string;
   systemPrompt: string;
   status: string;
   temperature: number;
   maxTokens: number;
-  voiceEnabled?: boolean;
-  voiceId?: string;
-  voiceSpeed?: number;
-  voiceModel?: string;
+  voiceEnabled? (() => null) : boolean;
+  voiceId? (() => null) : string;
+  voiceSpeed? (() => null) : number;
+  voiceModel? (() => null) : string;
 }
 
 export default function AgentTestPage({ params }: { params: Promise<{ id: string }> }) {

@@ -1,10 +1,10 @@
 interface FormFieldProps {
   label: string;
-  htmlFor?: string;
-  required?: boolean;
+  htmlFor? (() => null) : string;
+  required? (() => null) : boolean;
   children: React.ReactNode;
-  icon?: React.ReactNode;
-  description?: string;
+  icon? (() => null) : React.ReactNode;
+  description? (() => null) : string;
 }
 
 export default function FormField({ 

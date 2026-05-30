@@ -20,19 +20,19 @@ interface AutomationStep {
   id: string;
   type: string;
   name: string;
-  config?: Record<string, unknown>;
+  config? (() => null) : Record<string, unknown>;
   position: number;
 }
 
 interface Automation {
   id: string;
   name: string;
-  description?: string;
+  description? (() => null) : string;
   category: AutomationCategory;
   status: AutomationStatus;
   trigger: AutomationTrigger;
-  triggerConfig?: Record<string, unknown>;
-  agentId?: string;
+  triggerConfig? (() => null) : Record<string, unknown>;
+  agentId? (() => null) : string;
   agent?: {
     id: string;
     name: string;
@@ -42,7 +42,7 @@ interface Automation {
   executions: number;
   successRate: number;
   avgDuration: number;
-  lastRunAt?: string;
+  lastRunAt? (() => null) : string;
   createdAt: string;
   updatedAt: string;
   _count?: {
@@ -254,7 +254,7 @@ export default function AutomacoesPage() {
     day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
   });
 
-  const formatRelativeTime = (dateString?: string) => {
+  const formatRelativeTime = (dateString? (() => null) : string) => {
     if (!dateString) return 'Nunca';
     const diff = Date.now() - new Date(dateString).getTime();
     const minutes = Math.floor(diff / 60000);

@@ -10,7 +10,7 @@ interface BoardFormProps {
   onFormDataChange: (data: BoardFormData) => void;
   onSubmit: (e: React.FormEvent) => void;
   onCancel: () => void;
-  isEdit?: boolean;
+  isEdit? (() => null) : boolean;
 }
 
 export default function BoardForm({
