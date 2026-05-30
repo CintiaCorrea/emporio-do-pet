@@ -116,34 +116,60 @@ export default function ProfissionaisConfigPage() {
       alert("Nome é obrigatório.");
       return;
     }
+    if (form.criarAcesso && !form.email) {
+      alert("Email é obrigatório quando 'Tem acesso ao sistema' está marcado.");
+      return;
+    }
+    if (form.criarAcesso && !editingId && !form.password) {
+      alert("Senha é obrigatória ao criar um novo acesso.");
+      return;
+    }
     setSaving(true);
     try {
       const payload = { ...form };
-      if (editingId) {
-        await fetch(`/api/profissionais/${editingId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-      } else {
-        await fetch("/api/profissionais", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
+      const url = editingId ? `/api/profissionais/${editingId}` : "/api/profissionais";
+      const method = editingId ? "PATCH" : "POST";
+      const r = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!r.ok) {
+        let msg = `HTTP ${r.status}`;
+        try {
+          const body = await r.json();
+          if (body?.message) {
+            msg += `: ${Array.isArray(body.message) ? body.message.join(", ") : body.message}`;
+          } else {
+            msg += `: ${JSON.stringify(body).substring(0, 200)}`;
+          }
+        } catch { /* not json */ }
+        console.error("Save failed:", r.status, msg);
+        alert("Erro ao salvar — " + msg);
+        return;
       }
       setModalOpen(false);
       load();
-    } catch (e) { alert("Erro ao salvar."); }
+    } catch (e: any) {
+      console.error(e);
+      alert("Erro ao salvar: " + (e?.message || "Erro de rede"));
+    }
     finally { setSaving(false); }
   };
 
   const handleDelete = async (p: Profissional) => {
     if (!confirm(`Excluir ${p.nomeCompleto}? Essa ação não pode ser desfeita.`)) return;
     try {
-      await fetch(`/api/profissionais/${p.id}`, { method: "DELETE" });
+      const r = await fetch(`/api/profissionais/${p.id}`, { method: "DELETE" });
+      if (!r.ok) {
+        const body = await r.text().catch(() => "");
+        alert(`Erro ao excluir (HTTP ${r.status}): ${body.substring(0, 200)}`);
+        return;
+      }
       load();
-    } catch { alert("Erro ao excluir."); }
+    } catch (e: any) {
+      alert("Erro ao excluir: " + (e?.message || "Erro de rede"));
+    }
   };
 
   return (
