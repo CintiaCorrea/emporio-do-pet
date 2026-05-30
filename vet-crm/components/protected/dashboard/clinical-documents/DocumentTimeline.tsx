@@ -11,13 +11,13 @@ import {
 import toast from 'react-hot-toast';
 
 const TYPE_ICONS: Record<string, any> = {
-  ANAMNESIS:
-  PRESCRIPTION:
-  DIAGNOSIS:
-  TUTOR_REPORT:
-  MEDICAL_CERTIFICATE:
-  EXAM_REQUEST:
-  SURGICAL_REPORT:
+  ANAMNESIS: () => null,
+  PRESCRIPTION: () => null,
+  DIAGNOSIS: () => null,
+  TUTOR_REPORT: () => null,
+  MEDICAL_CERTIFICATE: () => null,
+  EXAM_REQUEST: () => null,
+  SURGICAL_REPORT: () => null,
   DISCHARGE_SUMMARY: LuFileText,
   VACCINATION_CARD: LuFileText,
   GENERAL: LuFileText};
