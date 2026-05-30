@@ -37,6 +37,7 @@ import { RacasModule } from './modules/racas/racas.module';
 import { ListasModule } from './modules/listas/listas.module';
 import { FornecedoresModule } from './modules/fornecedores/fornecedores.module';
 import { ScriptsModule } from './modules/scripts/scripts.module';
+import { CadenciasModule } from './modules/cadencias/cadencias.module';
 import { EnrichmentModule } from './modules/enrichment/enrichment.module';
 import { ScoringModule } from './modules/scoring/scoring.module';
 import { InsightsModule } from './modules/insights/insights.module';
@@ -153,6 +154,7 @@ import configuration from './config/configuration';
     ListasModule,
     FornecedoresModule,
     ScriptsModule,
+    CadenciasModule,
     EnrichmentModule,
     ScoringModule,
     InsightsModule,
