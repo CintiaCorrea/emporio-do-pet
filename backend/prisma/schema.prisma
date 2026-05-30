@@ -1599,6 +1599,46 @@ model ListaItem {
 
 
 
+
+
+// ============================================
+// Config 7: Scripts / Templates de Resposta
+// Mensagens prontas pra recepção colar no WhatsApp
+// ============================================
+model ScriptCategory {
+  id      String   @id @default(uuid())
+  nome    String   @unique
+  emoji   String?
+  ordem   Int      @default(0)
+  ativo   Boolean  @default(true)
+  scripts ScriptTemplate[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("script_categories")
+}
+
+model ScriptTemplate {
+  id          String           @id @default(uuid())
+  nome        String           // título curto, identificador
+  conteudo    String           // texto com placeholders tipo {tutor}, {pet}, {data}
+  descricao   String?          // contexto de uso
+  variaveis   String[]         // lista de placeholders disponíveis
+  categoryId  String?
+  category    ScriptCategory?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  ordem       Int              @default(0)
+  ativo       Boolean          @default(true)
+  vezesUsado  Int              @default(0) // contador de uso (analytics)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([categoryId, ativo])
+  @@index([ativo, ordem])
+  @@map("script_templates")
+}
+
 // ============================================
 // Fornecedores (laboratórios, profissionais, parceiros)
 // + Catálogo de exames terceirizados vinculados ao fornecedor
