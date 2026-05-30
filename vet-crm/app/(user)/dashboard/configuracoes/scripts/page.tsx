@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import CsvImporter from "@/components/import/CsvImporter";
 import { LuArrowLeft, LuPlus, LuPencil, LuTrash, LuSearch, LuEllipsisVertical, LuSparkles, LuCheck } from "react-icons/lu";
 
 interface Category {
@@ -36,6 +37,7 @@ function extractVariaveis(conteudo: string): string[] {
 }
 
 export default function ScriptsConfigPage() {
+  const [importOpen, setImportOpen] = useState(false);
   const [cats, setCats] = useState<Category[]>([]);
   const [scripts, setScripts] = useState<Script[]>([]);
   const [loading, setLoading] = useState(true);
@@ -172,6 +174,7 @@ export default function ScriptsConfigPage() {
             <h1 className="text-xl font-semibold" style={{ color: "#3C3489" }}>Scripts (Templates de Resposta)</h1>
             <p className="text-sm text-gray-600">Mensagens prontas pra recepção colar no WhatsApp. Use {`{tutor}`}, {`{pet}`} como variáveis.</p>
           </div>
+          <button onClick={() => setImportOpen(true)} className="px-3 py-2 rounded-lg text-sm border" style={{ borderColor: "#E5DCC9", color: "#3C3489" }}>Importar planilha</button>
           <label className="flex items-center gap-2 text-sm cursor-pointer">
             <input type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)} />
             Mostrar inativos
@@ -415,6 +418,15 @@ export default function ScriptsConfigPage() {
           </div>
         </div>
       )}
+
+      <CsvImporter
+        open={importOpen} onClose={() => setImportOpen(false)}
+        title="Importar Scripts"
+        endpoint="/api/scripts/import-batch"
+        exampleHint="Exporte de Base44 > Script. Variáveis tipo {tutor} {pet} são auto-detectadas se não vierem na coluna."
+        fields={[{"key": "nome", "label": "Nome", "required": true}, {"key": "conteudo", "label": "Conte\u00fado", "aliases": ["corpo", "texto"], "required": true}, {"key": "categoria", "label": "Categoria"}, {"key": "descricao", "label": "Descri\u00e7\u00e3o"}, {"key": "ativo", "label": "Ativo", "type": "boolean"}]}
+        onSuccess={() => load()}
+      />
     </div>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import CsvImporter from "@/components/import/CsvImporter";
 import { LuArrowLeft, LuPlus, LuPencil, LuTrash, LuEllipsisVertical, LuSparkles } from "react-icons/lu";
 
 type Gatilho = "AGENDAMENTO_CRIADO" | "AGENDAMENTO_CONFIRMADO" | "ATENDIMENTO_FINALIZADO" | "EXAME_SOLICITADO" | "EXAME_PRONTO" | "LEAD_NOVO" | "LEAD_INATIVO_7D" | "PACOTE_ATIVADO" | "PACOTE_PROXIMO_DO_FIM" | "NIVER_PET" | "NIVER_TUTOR" | "MANUAL";
@@ -56,6 +57,7 @@ const EMPTY_CAD: any = { nome: "", descricao: "", gatilho: "MANUAL", ativo: true
 const EMPTY_PASSO: any = { ordem: 1, tipo: "WHATSAPP", titulo: "", conteudo: "", atrasoValor: 0, atrasoUnidade: "DIAS", ativo: true };
 
 export default function CadenciasConfigPage() {
+  const [importOpen, setImportOpen] = useState(false);
   const [cadencias, setCadencias] = useState<Cadencia[]>([]);
   const [loading, setLoading] = useState(true);
   const [showInactive, setShowInactive] = useState(false);
@@ -174,6 +176,7 @@ export default function CadenciasConfigPage() {
             <h1 className="text-xl font-semibold" style={{ color: "#3C3489" }}>Cadências (fluxos automatizados)</h1>
             <p className="text-sm text-gray-600">Sequências de mensagens disparadas por gatilhos. Use {`{tutor}`}, {`{pet}`}, {`{data}`}, {`{hora}`}.</p>
           </div>
+          <button onClick={() => setImportOpen(true)} className="px-3 py-2 rounded-lg text-sm border" style={{ borderColor: "#E5DCC9", color: "#3C3489" }}>Importar planilha</button>
           <label className="flex items-center gap-2 text-sm cursor-pointer">
             <input type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)} />
             Inativas
@@ -378,6 +381,15 @@ export default function CadenciasConfigPage() {
           </div>
         </div>
       )}
+
+      <CsvImporter
+        open={importOpen} onClose={() => setImportOpen(false)}
+        title="Importar Cadências"
+        endpoint="/api/cadencias/import-batch"
+        exampleHint="Exporte de Base44 > CadenciaTemplate. Gatilhos: agendamento_criado, atendimento_finalizado, lead_novo, niver_pet, etc."
+        fields={[{"key": "nome", "label": "Nome", "required": true}, {"key": "descricao", "label": "Descri\u00e7\u00e3o"}, {"key": "gatilho", "label": "Gatilho"}, {"key": "ordem", "label": "Ordem", "type": "int"}, {"key": "ativo", "label": "Ativa", "type": "boolean"}]}
+        onSuccess={() => load()}
+      />
     </div>
   );
 }

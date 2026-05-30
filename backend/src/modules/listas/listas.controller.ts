@@ -49,4 +49,9 @@ export class ListasController {
 
   @Post('seed')
   seedPacoteInicial() { return this.service.seedPacoteInicial(); }
+
+  @Post('import-batch')
+  importBatch(@Body() body: { rows: any[]; upsert?: boolean }) {
+    return this.service.importBatch(body.rows, body.upsert);
+  }
 }

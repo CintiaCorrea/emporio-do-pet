@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import CsvImporter from "@/components/import/CsvImporter";
 import { LuArrowLeft, LuPlus, LuPencil, LuTrash, LuEllipsisVertical, LuSparkles } from "react-icons/lu";
 
 type Escopo = "LEAD" | "CLIENTE" | "PROJETO" | "CUSTOM";
@@ -43,6 +44,7 @@ const EMPTY_P: any = { nome: "", escopo: "CUSTOM", descricao: "", cor: "#3C3489"
 const EMPTY_E: any = { nome: "", descricao: "", cor: "#A0AEC0", ordem: 1, ehInicial: false, ehGanho: false, ehPerda: false, ativo: true, diasMaxParar: null };
 
 export default function PipelinesConfigPage() {
+  const [importOpen, setImportOpen] = useState(false);
   const [pipes, setPipes] = useState<Pipeline[]>([]);
   const [loading, setLoading] = useState(true);
   const [showInactive, setShowInactive] = useState(false);
@@ -153,6 +155,7 @@ export default function PipelinesConfigPage() {
             <h1 className="text-xl font-semibold" style={{ color: "#3C3489" }}>Pipelines configuráveis</h1>
             <p className="text-sm text-gray-600">Defina fluxos de estágios para Leads, Clientes ou projetos internos.</p>
           </div>
+          <button onClick={() => setImportOpen(true)} className="px-3 py-2 rounded-lg text-sm border" style={{ borderColor: "#E5DCC9", color: "#3C3489" }}>Importar planilha</button>
           <label className="flex items-center gap-2 text-sm cursor-pointer">
             <input type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)} />
             Inativos
@@ -345,6 +348,15 @@ export default function PipelinesConfigPage() {
           </div>
         </div>
       )}
+
+      <CsvImporter
+        open={importOpen} onClose={() => setImportOpen(false)}
+        title="Importar Pipelines"
+        endpoint="/api/pipelines/import-batch"
+        exampleHint="Exporte de Base44 > PipelineConfig. Escopo: LEAD, CLIENTE, PROJETO, CUSTOM."
+        fields={[{"key": "nome", "label": "Nome", "required": true}, {"key": "escopo", "label": "Escopo"}, {"key": "descricao", "label": "Descri\u00e7\u00e3o"}, {"key": "cor", "label": "Cor"}, {"key": "isPadrao", "label": "Padr\u00e3o", "type": "boolean"}, {"key": "ativo", "label": "Ativo", "type": "boolean"}]}
+        onSuccess={() => load()}
+      />
     </div>
   );
 }

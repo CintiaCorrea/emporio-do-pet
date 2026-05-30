@@ -98,4 +98,31 @@ export class PipelinesService {
     }
     return { skipped: false, pipelinesCriados: totalP, estagiosCriados: totalE };
   }
+
+  async importBatch(rows: any[], upsert = true) {
+    let criados = 0, atualizados = 0, ignorados = 0;
+    const ESC_MAP: Record<string, string> = { 'lead': 'LEAD', 'cliente': 'CLIENTE', 'projeto': 'PROJETO', 'custom': 'CUSTOM' };
+    for (const r of rows) {
+      const nome = r.nome;
+      if (!nome) { ignorados++; continue; }
+      const escKey = (r.escopo || 'custom').toString().toLowerCase().trim();
+      const data: any = {
+        nome, escopo: (ESC_MAP[escKey] || 'CUSTOM') as any,
+        descricao: r.descricao || null, cor: r.cor || null,
+        ativo: r.ativo !== undefined ? r.ativo : true,
+        ordem: r.ordem ?? 0,
+        isPadrao: r.isPadrao ?? false,
+      };
+      const existente = await this.prisma.pipelineDefinition.findFirst({ where: { nome: { equals: nome, mode: 'insensitive' } } });
+      if (existente) {
+        if (!upsert) { ignorados++; continue; }
+        await this.prisma.pipelineDefinition.update({ where: { id: existente.id }, data });
+        atualizados++;
+      } else {
+        await this.prisma.pipelineDefinition.create({ data });
+        criados++;
+      }
+    }
+    return { criados, atualizados, ignorados };
+  }
 }

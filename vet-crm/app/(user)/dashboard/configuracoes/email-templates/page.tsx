@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import CsvImporter from "@/components/import/CsvImporter";
 import { LuArrowLeft, LuPlus, LuPencil, LuTrash, LuSearch, LuEllipsisVertical, LuSparkles, LuEye } from "react-icons/lu";
 
 type Categoria = "TRANSACIONAL" | "BOAS_VINDAS" | "EDUCATIVO" | "PROMOCIONAL" | "ANIVERSARIO" | "REENGAJAMENTO" | "OUTRO";
@@ -43,6 +44,7 @@ const EMPTY_TPL: any = { nome: "", assunto: "", corpoHtml: "", corpoTexto: "", c
 const EMPTY_VAR: any = { chave: "", label: "", descricao: "", exemplo: "", categoria: "Geral", ordem: 0, ativo: true };
 
 export default function EmailTemplatesPage() {
+  const [importOpen, setImportOpen] = useState(false);
   const [tpls, setTpls] = useState<Template[]>([]);
   const [vars, setVars] = useState<Variable[]>([]);
   const [loading, setLoading] = useState(true);
@@ -173,6 +175,7 @@ export default function EmailTemplatesPage() {
             <h1 className="text-xl font-semibold" style={{ color: "#3C3489" }}>Templates de E-mail</h1>
             <p className="text-sm text-gray-600">Templates HTML pra emails transacionais e campanhas. Use {`{{tutor_nome}}`}, {`{{pet_nome}}`}, etc.</p>
           </div>
+          <button onClick={() => setImportOpen(true)} className="px-3 py-2 rounded-lg text-sm border" style={{ borderColor: "#E5DCC9", color: "#3C3489" }}>Importar planilha</button>
           <label className="flex items-center gap-2 text-sm cursor-pointer">
             <input type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)} />
             Inativos
@@ -437,6 +440,15 @@ export default function EmailTemplatesPage() {
           </div>
         </div>
       )}
+
+      <CsvImporter
+        open={importOpen} onClose={() => setImportOpen(false)}
+        title="Importar Templates de Email"
+        endpoint="/api/email-templates/import-batch"
+        exampleHint="Exporte de Base44 > EmailTemplate. Categorias: TRANSACIONAL, BOAS_VINDAS, EDUCATIVO, PROMOCIONAL, ANIVERSARIO, REENGAJAMENTO, OUTRO."
+        fields={[{"key": "nome", "label": "Nome", "required": true}, {"key": "assunto", "label": "Assunto", "required": true}, {"key": "corpoHtml", "label": "Corpo HTML", "aliases": ["corpo_html", "corpo"], "required": true}, {"key": "categoria", "label": "Categoria"}, {"key": "descricao", "label": "Descri\u00e7\u00e3o"}, {"key": "ativo", "label": "Ativo", "type": "boolean"}]}
+        onSuccess={() => load()}
+      />
     </div>
   );
 }

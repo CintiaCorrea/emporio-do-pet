@@ -56,4 +56,9 @@ export class EtiquetasController {
   removeEtiqueta(@Param('id') id: string) {
     return this.service.removeEtiqueta(id);
   }
+
+  @Post('import-batch')
+  importBatch(@Body() body: { rows: any[]; upsert?: boolean }) {
+    return this.service.importBatch(body.rows, body.upsert);
+  }
 }

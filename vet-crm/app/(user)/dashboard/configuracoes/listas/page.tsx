@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import CsvImporter from "@/components/import/CsvImporter";
 import { LuArrowLeft, LuPlus, LuPencil, LuTrash, LuSearch, LuEllipsisVertical } from "react-icons/lu";
 
 interface ListaTipo {
@@ -29,6 +30,7 @@ const EMPTY_TIPO: any = { nome: "", label: "", emoji: "📋", descricao: "", ord
 const EMPTY_ITEM: any = { valor: "", ordem: 0, ativo: true };
 
 export default function ListasConfigPage() {
+  const [importOpen, setImportOpen] = useState(false);
   const [tipos, setTipos] = useState<ListaTipo[]>([]);
   const [items, setItems] = useState<ListaItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -404,6 +406,25 @@ export default function ListasConfigPage() {
           </div>
         </div>
       )}
+
+      
+      {/* Botão Importar planilha (FAB) */}
+      <button
+        onClick={() => setImportOpen(true)}
+        className="fixed bottom-6 right-6 px-4 py-3 rounded-full text-sm shadow-md hover:shadow-lg transition"
+        style={{ background: "#3C3489", color: "white" }}
+        title="Importar planilha"
+      >
+        Importar planilha
+      </button>
+      <CsvImporter
+        open={importOpen} onClose={() => setImportOpen(false)}
+        title="Importar Itens de Lista"
+        endpoint="/api/listas/import-batch"
+        exampleHint="Exporte de Base44 > ListaItem. Coluna 'lista' identifica a lista (ex: canais, origens, motivos_perda)."
+        fields={[{"key": "lista", "label": "Lista", "required": true}, {"key": "valor", "label": "Valor", "required": true}, {"key": "ordem", "label": "Ordem", "type": "int"}, {"key": "ativo", "label": "Ativo", "type": "boolean"}]}
+        onSuccess={() => load()}
+      />
     </div>
   );
 }

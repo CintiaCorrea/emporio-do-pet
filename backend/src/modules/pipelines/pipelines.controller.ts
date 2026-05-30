@@ -29,4 +29,9 @@ export class PipelinesController {
 
   @Post('seed-pacote-inicial')
   seed() { return this.service.seedPacoteInicial(); }
+
+  @Post('import-batch')
+  importBatch(@Body() body: { rows: any[]; upsert?: boolean }) {
+    return this.service.importBatch(body.rows, body.upsert);
+  }
 }

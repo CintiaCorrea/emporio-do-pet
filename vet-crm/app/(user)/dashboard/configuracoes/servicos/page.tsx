@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import CsvImporter from "@/components/import/CsvImporter";
 import { LuArrowLeft, LuPlus, LuPencil, LuTrash, LuSearch, LuEllipsisVertical } from "react-icons/lu";
 
 type ComissaoBase = "VALOR_CHEIO" | "MARGEM" | "SEM_COMISSAO" | "HERDAR";
@@ -38,6 +39,7 @@ const EMPTY_CAT: any = { nome: "", comissaoBasePadrao: "VALOR_CHEIO", ativo: tru
 const EMPTY_SV: any = { nome: "", valorPadrao: null, custoPadrao: null, comissaoBaseDefault: "HERDAR", categoryId: null, ativo: true };
 
 export default function ServicosConfigPage() {
+  const [importOpen, setImportOpen] = useState(false);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [servicos, setServicos] = useState<Servico[]>([]);
   const [loading, setLoading] = useState(true);
@@ -407,6 +409,25 @@ export default function ServicosConfigPage() {
           </div>
         </div>
       )}
+
+      
+      {/* Botão Importar planilha (FAB) */}
+      <button
+        onClick={() => setImportOpen(true)}
+        className="fixed bottom-6 right-6 px-4 py-3 rounded-full text-sm shadow-md hover:shadow-lg transition"
+        style={{ background: "#3C3489", color: "white" }}
+        title="Importar planilha"
+      >
+        Importar planilha
+      </button>
+      <CsvImporter
+        open={importOpen} onClose={() => setImportOpen(false)}
+        title="Importar Serviços"
+        endpoint="/api/servicos/import-batch"
+        exampleHint="Exporte de Base44 > Servico. Comissão: Valor cheio, Margem, Sem comissão, Herdar da categoria."
+        fields={[{"key": "nome", "label": "Nome", "required": true}, {"key": "categoria", "label": "Categoria"}, {"key": "valor_padrao", "label": "Pre\u00e7o Venda", "aliases": ["valorPadrao", "preco"], "type": "number"}, {"key": "custo_padrao", "label": "Custo", "aliases": ["custoPadrao", "custo"], "type": "number"}, {"key": "comissao_base_default", "label": "Comiss\u00e3o Base", "aliases": ["comissaoBaseDefault"]}, {"key": "ativo", "label": "Ativo", "type": "boolean"}]}
+        onSuccess={() => load()}
+      />
     </div>
   );
 }

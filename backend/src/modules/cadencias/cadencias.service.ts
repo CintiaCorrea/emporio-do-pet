@@ -112,4 +112,35 @@ export class CadenciasService {
     }
     return { skipped: false, cadenciasCriadas: totalSeq, passosCriados: totalPassos };
   }
+
+  async importBatch(rows: any[], upsert = true) {
+    let criados = 0, atualizados = 0, ignorados = 0;
+    const GAT_MAP: Record<string, string> = {
+      'agendamento_criado': 'AGENDAMENTO_CRIADO', 'agendamento_confirmado': 'AGENDAMENTO_CONFIRMADO',
+      'atendimento_finalizado': 'ATENDIMENTO_FINALIZADO', 'exame_solicitado': 'EXAME_SOLICITADO',
+      'exame_pronto': 'EXAME_PRONTO', 'lead_novo': 'LEAD_NOVO', 'lead_inativo_7d': 'LEAD_INATIVO_7D',
+      'niver_pet': 'NIVER_PET', 'niver_tutor': 'NIVER_TUTOR', 'manual': 'MANUAL',
+    };
+    for (const r of rows) {
+      const nome = r.nome;
+      if (!nome) { ignorados++; continue; }
+      const gatKey = (r.gatilho || 'manual').toString().toLowerCase().replace(/[ -]/g, '_').trim();
+      const data: any = {
+        nome, descricao: r.descricao || null,
+        gatilho: (GAT_MAP[gatKey] || 'MANUAL') as any,
+        ativo: r.ativo !== undefined ? r.ativo : true,
+        ordem: r.ordem ?? 0,
+      };
+      const existente = await this.prisma.cadenciaTemplate.findFirst({ where: { nome: { equals: nome, mode: 'insensitive' } } });
+      if (existente) {
+        if (!upsert) { ignorados++; continue; }
+        await this.prisma.cadenciaTemplate.update({ where: { id: existente.id }, data });
+        atualizados++;
+      } else {
+        await this.prisma.cadenciaTemplate.create({ data });
+        criados++;
+      }
+    }
+    return { criados, atualizados, ignorados };
+  }
 }

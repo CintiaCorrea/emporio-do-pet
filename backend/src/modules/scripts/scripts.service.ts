@@ -114,4 +114,41 @@ export class ScriptsService {
 
     return { skipped: false, categoriasCriadas: categorias.length, scriptsCriados: count2 };
   }
+
+  async importBatch(rows: any[], upsert = true) {
+    let criados = 0, atualizados = 0, ignorados = 0;
+    const catNomes = [...new Set(rows.map(r => (r.categoria || '').trim()).filter(Boolean))];
+    const catMap: Record<string, string> = {};
+    for (const nome of catNomes) {
+      let c = await this.prisma.scriptCategory.findUnique({ where: { nome } });
+      if (!c) c = await this.prisma.scriptCategory.create({ data: { nome, ativo: true } });
+      catMap[nome] = c.id;
+    }
+    function extractVars(s: string): string[] {
+      const m = s.match(/\{([a-z_][a-z0-9_]*)\}/gi) || [];
+      return Array.from(new Set(m.map(x => x.slice(1, -1))));
+    }
+    for (const r of rows) {
+      const nome = r.nome;
+      const conteudo = r.conteudo || r.corpo || r.texto;
+      if (!nome || !conteudo) { ignorados++; continue; }
+      const data: any = {
+        nome, conteudo, descricao: r.descricao || null,
+        variaveis: r.variaveis ? (typeof r.variaveis === 'string' ? r.variaveis.split(/[,|;]/).map((s: string) => s.trim()).filter(Boolean) : r.variaveis) : extractVars(conteudo),
+        categoryId: r.categoria ? catMap[r.categoria.trim()] : null,
+        ordem: r.ordem ?? 0,
+        ativo: r.ativo !== undefined ? r.ativo : true,
+      };
+      const existente = await this.prisma.scriptTemplate.findFirst({ where: { nome: { equals: nome, mode: 'insensitive' } } });
+      if (existente) {
+        if (!upsert) { ignorados++; continue; }
+        await this.prisma.scriptTemplate.update({ where: { id: existente.id }, data });
+        atualizados++;
+      } else {
+        await this.prisma.scriptTemplate.create({ data });
+        criados++;
+      }
+    }
+    return { criados, atualizados, ignorados, categoriasCriadas: catNomes.length };
+  }
 }

@@ -113,4 +113,44 @@ export class ProfissionaisService {
     await this.findOne(id);
     return this.prisma.profissional.delete({ where: { id } });
   }
+
+  async importBatch(rows: any[], upsert = true) {
+    let criados = 0, atualizados = 0, ignorados = 0;
+    const TIPO_MAP: Record<string, string> = {
+      'veterinario': 'VETERINARIO', 'veterinário': 'VETERINARIO', 'vet': 'VETERINARIO',
+      'recepcionista': 'RECEPCIONISTA', 'recepção': 'RECEPCIONISTA',
+      'estagiario': 'ESTAGIARIO', 'estagiário': 'ESTAGIARIO',
+      'gerente': 'GERENTE', 'outro': 'OUTRO',
+    };
+    for (const r of rows) {
+      const nome = r.nomeCompleto || r.nome || r.nome_completo;
+      if (!nome) { ignorados++; continue; }
+      const tipoKey = (r.tipo || 'outro').toString().toLowerCase().trim();
+      const tipo = (TIPO_MAP[tipoKey] || 'OUTRO') as any;
+      const data: any = {
+        nomeCompleto: nome,
+        nomeExibicao: r.nomeExibicao || r.nome_exibicao || nome,
+        iniciais: r.iniciais || nome.split(' ').slice(0,2).map((x: string) => x[0]).join('').toUpperCase().slice(0,2),
+        tipo,
+        especialidade: r.especialidade || null,
+        crmv: r.crmv || null,
+        telefone: r.telefone || null,
+        email: r.email || null,
+        comissaoPercentual: r.comissaoPercentual ?? r.comissao_percentual ?? null,
+        ativo: r.ativo !== undefined ? r.ativo : true,
+      };
+      let existente = null as any;
+      if (data.email) existente = await this.prisma.profissional.findFirst({ where: { email: data.email } });
+      if (!existente) existente = await this.prisma.profissional.findFirst({ where: { nomeCompleto: { equals: nome, mode: 'insensitive' } } });
+      if (existente) {
+        if (!upsert) { ignorados++; continue; }
+        await this.prisma.profissional.update({ where: { id: existente.id }, data });
+        atualizados++;
+      } else {
+        await this.prisma.profissional.create({ data });
+        criados++;
+      }
+    }
+    return { criados, atualizados, ignorados };
+  }
 }

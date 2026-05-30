@@ -122,4 +122,38 @@ export class EmailTemplatesService {
 
     return { skipped: false, templatesCriados: templates.length, variaveisCriadas: vars.length };
   }
+
+  async importBatch(rows: any[], upsert = true) {
+    let criados = 0, atualizados = 0, ignorados = 0;
+    const CAT_MAP: Record<string, string> = {
+      'transacional': 'TRANSACIONAL', 'boas_vindas': 'BOAS_VINDAS', 'boas-vindas': 'BOAS_VINDAS',
+      'educativo': 'EDUCATIVO', 'promocional': 'PROMOCIONAL', 'aniversario': 'ANIVERSARIO',
+      'aniversário': 'ANIVERSARIO', 'reengajamento': 'REENGAJAMENTO', 'outro': 'OUTRO',
+    };
+    for (const r of rows) {
+      const nome = r.nome;
+      const assunto = r.assunto;
+      const corpoHtml = r.corpoHtml || r.corpo_html || r.corpo;
+      if (!nome || !assunto || !corpoHtml) { ignorados++; continue; }
+      const catKey = (r.categoria || 'transacional').toString().toLowerCase().trim();
+      const data: any = {
+        nome, assunto, corpoHtml,
+        corpoTexto: r.corpoTexto || r.corpo_texto || null,
+        categoria: (CAT_MAP[catKey] || 'OUTRO') as any,
+        descricao: r.descricao || null,
+        ativo: r.ativo !== undefined ? r.ativo : true,
+        ordem: r.ordem ?? 0,
+      };
+      const existente = await this.prisma.emailTemplate.findFirst({ where: { nome: { equals: nome, mode: 'insensitive' } } });
+      if (existente) {
+        if (!upsert) { ignorados++; continue; }
+        await this.prisma.emailTemplate.update({ where: { id: existente.id }, data });
+        atualizados++;
+      } else {
+        await this.prisma.emailTemplate.create({ data });
+        criados++;
+      }
+    }
+    return { criados, atualizados, ignorados };
+  }
 }
