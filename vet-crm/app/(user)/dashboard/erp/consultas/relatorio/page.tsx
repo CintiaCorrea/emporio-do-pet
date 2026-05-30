@@ -450,7 +450,7 @@ export default function ConsultationsReportPage() {
                   label: "Canceladas", 
                   value: stats.canceled, 
                   color: "red", 
-                  icon: 
+                  icon: () => null, 
                   trend: stats.total > 0 ? ((stats.canceled / stats.total) * 100).toFixed(1) + '%' : '0%'
                 },
                 { 

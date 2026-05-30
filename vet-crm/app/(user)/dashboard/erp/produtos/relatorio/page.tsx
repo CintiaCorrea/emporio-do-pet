@@ -508,7 +508,7 @@ export default function ProductsReportPage() {
                   label: "Sem Estoque", 
                   value: stats.outOfStock, 
                   color: "red", 
-                  icon: 
+                  icon: () => null, 
                   trend: stats.totalProducts > 0 ? ((stats.outOfStock / stats.totalProducts) * 100).toFixed(1) + '%' : '0%'
                 },
                 { 

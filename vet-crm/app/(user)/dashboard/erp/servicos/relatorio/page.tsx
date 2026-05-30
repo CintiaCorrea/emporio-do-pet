@@ -467,7 +467,7 @@ export default function ServicesReportPage() {
                   label: "Sem Uso", 
                   value: stats.servicesWithNoUsage, 
                   color: "red", 
-                  icon: 
+                  icon: () => null, 
                   trend: stats.totalServices > 0 ? ((stats.servicesWithNoUsage / stats.totalServices) * 100).toFixed(1) + '%' : '0%'
                 }
               ].map((stat, index) => (
