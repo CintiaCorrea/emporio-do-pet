@@ -15,7 +15,7 @@ interface ConfigItem {
 const ITEMS: ConfigItem[] = [
   { href: "/dashboard/configuracoes/profissionais", icon: "👥", title: "Profissionais — Equipe e Acesso", description: "Equipe da clínica + acessos ao sistema (login)", status: "ready" },
   { href: "/dashboard/configuracoes/etiquetas", icon: "🏷", title: "Etiquetas", description: "Tags e categorias pra Lead, Cliente e Pet", status: "ready" },
-  { href: "/dashboard/configuracoes/servicos", icon: "🛠", title: "Serviços e Produtos", description: "Catálogo com preço, custo e comissão", status: "soon" },
+  { href: "/dashboard/configuracoes/servicos", icon: "🛠", title: "Serviços e Produtos", description: "Catálogo com preço, custo e comissão", status: "ready" },
   { href: "/dashboard/configuracoes/racas", icon: "🐾", title: "Raças", description: "Lista de raças por espécie", status: "soon" },
   { href: "/dashboard/configuracoes/listas", icon: "📋", title: "Listas customizáveis", description: "Canais, origens, motivos de perda, status clínicos", status: "soon" },
   { href: "/dashboard/configuracoes/scripts", icon: "📝", title: "Scripts", description: "Roteiros de mensagem áudio/texto/email", status: "soon" },
@@ -60,7 +60,7 @@ export default function ConfiguracoesIndex() {
       </div>
 
       <p className="text-[11px] text-[#888780] text-center mt-6">
-        Configurações sendo portadas do Base44. 2 das 13 finalizadas.
+        Configurações sendo portadas do Base44. 3 das 13 finalizadas.
       </p>
     </div>
   );

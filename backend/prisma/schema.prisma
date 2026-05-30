@@ -1485,6 +1485,50 @@ model EtiquetaTemplate {
   @@map("etiqueta_templates")
 }
 
+
+
+// ============================================
+// Serviços (catálogo de serviços e produtos vendidos pela clínica)
+// ============================================
+enum ComissaoBase {
+  VALOR_CHEIO    // % sobre o preço
+  MARGEM         // % sobre (valor - custo)
+  SEM_COMISSAO   // não comissiona
+  HERDAR         // usa o padrão da categoria (só faz sentido em Servico)
+}
+
+model ServiceCategory {
+  id                    String        @id @default(uuid())
+  nome                  String
+  comissaoBasePadrao    ComissaoBase  @default(VALOR_CHEIO)
+  ativo                 Boolean       @default(true)
+  servicos              Servico[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ativo])
+  @@map("service_categories")
+}
+
+model Servico {
+  id                   String           @id @default(uuid())
+  nome                 String
+  valorPadrao          Float?           // R$
+  custoPadrao          Float?           // R$ (medicamentos/vacinas/produtos)
+  comissaoBaseDefault  ComissaoBase     @default(HERDAR)
+  categoryId           String?
+  category             ServiceCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  ativo                Boolean          @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ativo])
+  @@index([categoryId])
+  @@map("servicos")
+}
+
 // ============================================
 // CRM B2C - Leads com Insights Preditivos
 // ============================================

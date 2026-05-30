@@ -32,6 +32,7 @@ import { InternalNotesModule } from './modules/internal-notes/internal-notes.mod
 import { ScheduledMessagesModule } from './modules/scheduled-messages/scheduled-messages.module';
 import { ProfissionaisModule } from './modules/profissionais/profissionais.module';
 import { EtiquetasModule } from './modules/etiquetas/etiquetas.module';
+import { ServicosModule } from './modules/servicos/servicos.module';
 import { EnrichmentModule } from './modules/enrichment/enrichment.module';
 import { ScoringModule } from './modules/scoring/scoring.module';
 import { InsightsModule } from './modules/insights/insights.module';
@@ -143,6 +144,7 @@ import configuration from './config/configuration';
     ScheduledMessagesModule,
     ProfissionaisModule,
     EtiquetasModule,
+    ServicosModule,
     EnrichmentModule,
     ScoringModule,
     InsightsModule,
