@@ -425,7 +425,7 @@ export default function AppointmentsPage() {
                   label: "Canceladas", 
                   value: stats.cancelled, 
                   color: "red", 
-                  icon: }
+                  icon: () => null }
               ].map((stat, index) => (
                 <div key={index} className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-blue-500/5 p-6 hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-300 hover:scale-105">
                   <div className="flex items-center justify-between mb-4">
