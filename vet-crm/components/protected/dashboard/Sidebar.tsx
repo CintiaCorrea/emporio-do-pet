@@ -247,7 +247,7 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
           label="Equipe"
           collapsed={collapsed}
           children={[
-            { href: "/dashboard/profissionais", label: "Profissionais" },
+            { href: "/dashboard/configuracoes/profissionais", label: "Profissionais" },
             { href: "/dashboard/usuarios", label: "Equipe & Acesso" },
           ]}
         />
