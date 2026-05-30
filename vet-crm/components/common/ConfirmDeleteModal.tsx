@@ -10,7 +10,7 @@ export interface ConfirmDeleteModalProps {
   /** Ex: "Atma", "Werley Santana" */
   itemName: string;
   /** Texto opcional de consequência (abaixo da pergunta) */
-  consequenceText?: string;
+  consequenceText? (() => null) : string;
   onClose: () => void;
   onConfirm: () => Promise<void> | void;
 }

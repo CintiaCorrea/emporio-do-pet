@@ -11,10 +11,10 @@ interface User {
   email: string;
   role: string;
   status: string;
-  image?: string | null;
+  image? (() => null) : string | null;
   createdAt: string;
-  approvedAt?: string | null;
-  rejectionReason?: string | null;
+  approvedAt? (() => null) : string | null;
+  rejectionReason? (() => null) : string | null;
   approvedBy?: {
     name: string | null;
     email: string;

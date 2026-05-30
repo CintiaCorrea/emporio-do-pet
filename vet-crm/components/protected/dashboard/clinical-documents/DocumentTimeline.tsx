@@ -45,9 +45,9 @@ const TYPE_COLORS: Record<string, string> = {
   DISCHARGE_SUMMARY: 'text-cyan-600 bg-cyan-100 dark:bg-cyan-900/30'};
 
 interface DocumentTimelineProps {
-  petId?: string;
-  tutorId?: string;
-  limit?: number;
+  petId? (() => null) : string;
+  tutorId? (() => null) : string;
+  limit? (() => null) : number;
 }
 
 export default function DocumentTimeline({ petId, tutorId, limit = 10 }: DocumentTimelineProps) {

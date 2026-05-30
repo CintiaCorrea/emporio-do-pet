@@ -66,8 +66,8 @@ function detectBoardTypeFromName(name: string): BoardType {
 
 interface KanbanBoardProps {
   boardId: string;
-  boardName?: string;
-  boardType?: BoardType;
+  boardName? (() => null) : string;
+  boardType? (() => null) : BoardType;
 }
 
 const KanbanBoard = ({ boardId, boardName = "CRM", boardType: propBoardType = "APPOINTMENT" }: KanbanBoardProps) => {
@@ -83,7 +83,7 @@ const KanbanBoard = ({ boardId, boardName = "CRM", boardType: propBoardType = "A
   const isSystemBoard = SYSTEM_BOARD_NAMES.has(boardName);
 
   const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [leadCards, setLeadCards] = useState<{ id: string; title: string; columnId: string; position: number; leadId?: string; metadata?: Record<string, unknown> }[]>([]);
+  const [leadCards, setLeadCards] = useState<{ id: string; title: string; columnId: string; position: number; leadId? (() => null) : string; metadata? (() => null) : Record<string, unknown> }[]>([]);
   const [statuses, setStatuses] = useState<KanbanColumn[]>([]);
   const [isColumnModalOpen, setIsColumnModalOpen] = useState(false);
   const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);

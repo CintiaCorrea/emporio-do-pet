@@ -20,7 +20,7 @@ export default function GeneralTab({
   onRemoveContact,
   onSetPrimaryContact
 }: GeneralTabProps) {
-  const formatDateForInput = (dateString?: string) => {
+  const formatDateForInput = (dateString? (() => null) : string) => {
     if (!dateString) return '';
     try {
       return new Date(dateString).toISOString().split('T')[0];

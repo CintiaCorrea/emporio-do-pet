@@ -18,27 +18,27 @@ interface Pet {
   sterilization: string;
   birthDate: string;
   coat: string;
-  coatColor?: string;
-  weight?: number;
-  microchip?: string;
-  avatar?: string;
-  observations?: string;
+  coatColor? (() => null) : string;
+  weight? (() => null) : number;
+  microchip? (() => null) : string;
+  avatar? (() => null) : string;
+  observations? (() => null) : string;
   allergies: string[];
-  medicalNotes?: string;
-  documents?: string[];
+  medicalNotes? (() => null) : string;
+  documents? (() => null) : string[];
   owner: string;
   tutorId: string;
   createdAt: string;
   tutor?: {
     id: string;
     name: string;
-    email?: string;
+    email? (() => null) : string;
     contacts?: {
       number: string;
       type: string;
       isWhatsApp: boolean;
     }[];
-    address?: string;
+    address? (() => null) : string;
   };
   _count?: {
     appointments: number;
@@ -343,7 +343,7 @@ export default function PetDetailsPage() {
     }
   };
 
-  const formatWeight = (weight?: number) => {
+  const formatWeight = (weight? (() => null) : number) => {
     if (weight === null || weight === undefined) return 'Não informado';
     return `${String(weight).replace('.', ',')} kg`;
   };

@@ -10,15 +10,15 @@ interface Newsletter {
   subject: string;
   status: 'draft' | 'scheduled' | 'sent' | 'failed' | 'DRAFT' | 'SCHEDULED' | 'SENT' | 'FAILED';
   recipientCount: number;
-  sentCount?: number;
-  openCount?: number;
-  clickCount?: number;
-  scheduledFor?: string;
-  sentAt?: string;
+  sentCount? (() => null) : number;
+  openCount? (() => null) : number;
+  clickCount? (() => null) : number;
+  scheduledFor? (() => null) : string;
+  sentAt? (() => null) : string;
   createdAt: string;
   recipientType: 'all' | 'client' | 'lead' | 'ALL' | 'CLIENT' | 'LEAD' | 'TUTOR';
-  recipients?: any[];
-  newsletterLogs?: any[];
+  recipients? (() => null) : any[];
+  newsletterLogs? (() => null) : any[];
 }
 
 export default function NewslettersListPage() {

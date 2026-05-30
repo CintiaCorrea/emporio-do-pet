@@ -7,13 +7,13 @@ import {
 } from 'react-icons/lu';
 
 type NewsletterLike = {
-  id?: string;
-  title?: string;
-  status?: string;
-  recipients?: any[];
-  recipientCount?: number;
-  openCount?: number;
-  clickCount?: number;
+  id? (() => null) : string;
+  title? (() => null) : string;
+  status? (() => null) : string;
+  recipients? (() => null) : any[];
+  recipientCount? (() => null) : number;
+  openCount? (() => null) : number;
+  clickCount? (() => null) : number;
 };
 
 export default function CampanhasPage() {

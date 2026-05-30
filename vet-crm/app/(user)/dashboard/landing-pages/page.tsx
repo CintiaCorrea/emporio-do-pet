@@ -16,8 +16,8 @@ interface LandingPageItem {
   id: string;
   name: string;
   slug: string;
-  description?: string;
-  thumbnail?: string;
+  description? (() => null) : string;
+  thumbnail? (() => null) : string;
   status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
   updatedAt: string;
 }

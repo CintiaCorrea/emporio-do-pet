@@ -19,17 +19,17 @@ type AutomationStatus = 'ACTIVE' | 'PAUSED' | 'DRAFT' | 'ERROR';
 interface Automation {
   id: string;
   name: string;
-  description?: string;
+  description? (() => null) : string;
   category: AutomationCategory;
   status: AutomationStatus;
   trigger: AutomationTrigger;
   triggerConfig?: {
-    cron?: string;
-    timezone?: string;
-    eventType?: string;
-    webhookSecret?: string;
+    cron? (() => null) : string;
+    timezone? (() => null) : string;
+    eventType? (() => null) : string;
+    webhookSecret? (() => null) : string;
   };
-  agentId?: string;
+  agentId? (() => null) : string;
   agent?: { id: string; name: string };
   steps: {
     id: string;
@@ -41,7 +41,7 @@ interface Automation {
   executions: number;
   successRate: number;
   avgDuration: number;
-  lastRunAt?: string;
+  lastRunAt? (() => null) : string;
   createdAt: string;
   updatedAt: string;
 }
@@ -52,12 +52,12 @@ interface AutomationForm {
   category: AutomationCategory;
   trigger: AutomationTrigger;
   triggerConfig: {
-    cron?: string;
-    timezone?: string;
-    eventType?: string;
-    webhookSecret?: string;
+    cron? (() => null) : string;
+    timezone? (() => null) : string;
+    eventType? (() => null) : string;
+    webhookSecret? (() => null) : string;
   };
-  agentId?: string;
+  agentId? (() => null) : string;
   steps: AutomationStep[];
 }
 

@@ -16,18 +16,18 @@ import { toast } from 'sonner';
 
 interface TemplateComponent {
   type: string;
-  format?: string;
-  text?: string;
-  buttons?: Array<{
+  format? (() => null) : string;
+  text? (() => null) : string;
+  buttons? (() => null) : Array<{
     type: string;
-    text?: string;
-    url?: string;
-    phone_number?: string;
+    text? (() => null) : string;
+    url? (() => null) : string;
+    phone_number? (() => null) : string;
   }>;
   example?: {
-    header_text?: string[];
-    header_handle?: string[];
-    body_text?: string[][];
+    header_text? (() => null) : string[];
+    header_handle? (() => null) : string[];
+    body_text? (() => null) : string[][];
   };
 }
 
@@ -42,7 +42,7 @@ interface WhatsAppTemplate {
     score: string;
     date: string;
   };
-  rejected_reason?: string;
+  rejected_reason? (() => null) : string;
 }
 
 const STATUS_CONFIG: Record<string, { bg: string; text: string; icon: React.ReactNode; label: string }> = {

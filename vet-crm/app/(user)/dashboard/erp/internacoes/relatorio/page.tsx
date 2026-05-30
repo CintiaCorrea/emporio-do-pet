@@ -25,34 +25,34 @@ interface Hospitalization {
   tutor: {
     id: string;
     name: string;
-    phone?: string;
+    phone? (() => null) : string;
   };
   pet: {
     id: string;
     name: string;
     species: string;
-    breed?: string;
-    age?: string;
+    breed? (() => null) : string;
+    age? (() => null) : string;
   };
   veterinarian?: {
     id: string;
     name: string;
   };
   admissionDate: string;
-  estimatedDischargeDate?: string;
-  actualDischargeDate?: string;
+  estimatedDischargeDate? (() => null) : string;
+  actualDischargeDate? (() => null) : string;
   reason: string;
-  diagnosis?: string;
-  notes?: string;
-  roomNumber?: string;
+  diagnosis? (() => null) : string;
+  notes? (() => null) : string;
+  roomNumber? (() => null) : string;
   dailyRate: number;
   totalCost: number;
   status: HospitalizationStatus;
   priority: Priority;
   vitalSigns?: {
-    temperature?: number;
-    heartRate?: number;
-    weight?: number;
+    temperature? (() => null) : number;
+    heartRate? (() => null) : number;
+    weight? (() => null) : number;
   };
   treatments: Array<{
     id: string;
@@ -209,7 +209,7 @@ export default function HospitalizationsReportPage() {
     });
   };
 
-  const calculateDaysHospitalized = (admissionDate: string, dischargeDate?: string) => {
+  const calculateDaysHospitalized = (admissionDate: string, dischargeDate? (() => null) : string) => {
     const admission = new Date(admissionDate);
     const discharge = dischargeDate ? new Date(dischargeDate) : new Date();
     const diffTime = Math.abs(discharge.getTime() - admission.getTime());

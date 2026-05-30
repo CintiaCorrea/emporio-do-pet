@@ -16,7 +16,7 @@ type TabId = 'overview' | 'executions' | 'analytics' | 'versions' | 'settings';
 interface Agent {
   id: string;
   name: string;
-  description?: string;
+  description? (() => null) : string;
   type: string;
   status: string;
   provider: string;
@@ -28,10 +28,10 @@ interface Agent {
   successRate: number;
   avgResponseTime: number;
   totalCostUsd: number;
-  lastActiveAt?: string;
+  lastActiveAt? (() => null) : string;
   rateLimitRequests: number;
   rateLimitWindow: number;
-  voiceEnabled?: boolean;
+  voiceEnabled? (() => null) : boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -40,8 +40,8 @@ interface Execution {
   id: string;
   status: string;
   input: string;
-  output?: string;
-  error?: string;
+  output? (() => null) : string;
+  error? (() => null) : string;
   latencyMs: number;
   usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
   createdAt: string;
@@ -64,7 +64,7 @@ interface AnalyticsData {
 interface AgentVersion {
   id: string;
   version: number;
-  changeNotes?: string;
+  changeNotes? (() => null) : string;
   config: Record<string, unknown>;
   createdAt: string;
 }

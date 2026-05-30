@@ -10,7 +10,7 @@ export interface AutomationStep {
   id: string;
   type: string;
   name: string;
-  config?: Record<string, unknown>;
+  config? (() => null) : Record<string, unknown>;
   position: number;
 }
 
@@ -19,14 +19,14 @@ interface StepType {
   label: string;
   description: string;
   icon: React.ReactNode;
-  configFields?: ConfigField[];
+  configFields? (() => null) : ConfigField[];
 }
 
 interface ConfigField {
   key: string;
   label: string;
   type: 'text' | 'textarea' | 'number' | 'select';
-  placeholder?: string;
+  placeholder? (() => null) : string;
   options?: { value: string; label: string }[];
 }
 

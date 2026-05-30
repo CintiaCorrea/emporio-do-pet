@@ -214,7 +214,7 @@ const NewsletterPage = () => {
     }
   };
 
-  const prepareRecipients = (): { clientId?: string; tutorId?: string; leadEmail?: string }[] => {
+  const prepareRecipients = (): { clientId? (() => null) : string; tutorId? (() => null) : string; leadEmail? (() => null) : string }[] => {
     switch (newsletter.recipientType) {
       case RecipientType.ALL:
         return [

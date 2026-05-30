@@ -23,10 +23,10 @@ interface TeamMember {
   email: string;
   role: UserRole;
   status: UserStatus;
-  image?: string | null;
+  image? (() => null) : string | null;
   permissions: string[];
-  isApproved?: boolean;
-  isBlocked?: boolean;
+  isApproved? (() => null) : boolean;
+  isBlocked? (() => null) : boolean;
   createdAt: string;
 }
 
@@ -78,7 +78,7 @@ interface SettingToggleProps {
   enabled: boolean;
   onChange: (enabled: boolean) => void;
   label: string;
-  description?: string;
+  description? (() => null) : string;
 }
 
 function SettingToggle({ enabled, onChange, label, description }: SettingToggleProps) {

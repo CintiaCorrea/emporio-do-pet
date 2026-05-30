@@ -23,7 +23,7 @@ interface ContactFormData {
   type: 'MOBILE' | 'PHONE' | 'BUSINESS';
   number: string;
   isWhatsApp: boolean;
-  observations?: string;
+  observations? (() => null) : string;
   isPrimary: boolean;
   tutorId: string;
 }
