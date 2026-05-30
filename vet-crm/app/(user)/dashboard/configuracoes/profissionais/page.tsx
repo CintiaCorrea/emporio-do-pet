@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { LuArrowLeft, LuPlus, LuPencil, LuTrash, LuUser, LuSearch } from "react-icons/lu";
+import { LuArrowLeft, LuPlus, LuPencil, LuTrash, LuUser, LuSearch, LuEllipsisVertical } from "react-icons/lu";
 
 type TipoProfissional = "VETERINARIO" | "RECEPCIONISTA" | "ESTAGIARIO" | "GERENTE" | "OUTRO";
 
@@ -54,6 +54,16 @@ export default function ProfissionaisConfigPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<Partial<Profissional>>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+
+  // Fechar menu ao clicar fora
+  useEffect(() => {
+    const handler = () => setMenuOpenId(null);
+    if (menuOpenId) {
+      document.addEventListener("click", handler);
+      return () => document.removeEventListener("click", handler);
+    }
+  }, [menuOpenId]);
 
   const load = async () => {
     setLoading(true);
@@ -204,15 +214,26 @@ export default function ProfissionaisConfigPage() {
                       {p.ativo ? "Ativo" : "Inativo"}
                     </span>
                   </td>
-                  <td className="py-2.5 px-3">
-                    <div className="flex items-center gap-1">
-                      <button onClick={() => openEdit(p)} title="Editar" className="p-1 text-[#5F5E5A] hover:text-[#009AAC]">
-                        <LuPencil className="w-3.5 h-3.5" />
-                      </button>
-                      <button onClick={() => handleDelete(p)} title="Excluir" className="p-1 text-[#5F5E5A] hover:text-[#A32D2D]">
-                        <LuTrash className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
+                  <td className="py-2.5 px-3 relative">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setMenuOpenId(menuOpenId === p.id ? null : p.id); }}
+                      className="p-1.5 text-[#5F5E5A] hover:bg-[#f0e8d4] rounded transition"
+                      title="Ações">
+                      <LuEllipsisVertical className="w-4 h-4" />
+                    </button>
+                    {menuOpenId === p.id && (
+                      <div onClick={(e) => e.stopPropagation()}
+                        className="absolute right-3 top-9 bg-white border border-[#e8e1d2] rounded-lg shadow-lg z-30 py-1 min-w-[140px]">
+                        <button onClick={() => { openEdit(p); setMenuOpenId(null); }}
+                          className="w-full text-left px-3 py-1.5 text-sm text-[#0E2244] hover:bg-[#fdfaee] flex items-center gap-2">
+                          <LuPencil className="w-3.5 h-3.5" />Editar
+                        </button>
+                        <button onClick={() => { handleDelete(p); setMenuOpenId(null); }}
+                          className="w-full text-left px-3 py-1.5 text-sm text-[#A32D2D] hover:bg-[#FCEBEB] flex items-center gap-2">
+                          <LuTrash className="w-3.5 h-3.5" />Excluir
+                        </button>
+                      </div>
+                    )}
                   </td>
                 </tr>
               );
