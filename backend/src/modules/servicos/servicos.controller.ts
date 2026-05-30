@@ -50,4 +50,10 @@ export class ServicosController {
   removeServico(@Param('id') id: string) {
     return this.service.removeServico(id);
   }
+
+  // ===== Seed (pacote inicial) =====
+  @Post('seed')
+  seedPacoteInicial() {
+    return this.service.seedPacoteInicial();
+  }
 }
