@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import {
   LuSearch,
   LuPlus,
-  LuTriangleAlert
+  LuTriangleAlert,
   LuCalendar
 } from 'react-icons/lu';
 

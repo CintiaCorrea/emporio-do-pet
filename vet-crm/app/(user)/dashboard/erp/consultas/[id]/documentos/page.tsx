@@ -7,7 +7,7 @@ import {
   LuFileText,
   LuLoader,
   LuPlus,
-  LuDownload
+  LuDownload,
   LuSparkles,
   LuCalendar,
   LuPawPrint,

@@ -5,9 +5,9 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   LuArrowLeft,
-  LuLoader
+  LuLoader,
   LuEye,
-  LuCalendar
+  LuCalendar,
   LuDownload,
   LuSearch,
   LuTrash} from 'react-icons/lu';

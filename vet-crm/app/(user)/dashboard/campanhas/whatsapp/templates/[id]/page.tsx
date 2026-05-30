@@ -7,7 +7,7 @@ import {
   LuArrowLeft,
   LuSave,
   LuLoader,
-  LuCheck
+  LuCheck,
   LuTrash,
   LuPencil,
   LuEye,

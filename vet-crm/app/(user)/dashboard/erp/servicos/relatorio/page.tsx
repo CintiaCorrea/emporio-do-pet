@@ -5,9 +5,9 @@ import Link from 'next/link';
 import Sidebar from '@/components/protected/dashboard/Sidebar';
 import { 
   LuArrowLeft,
-  LuCalendar
+  LuCalendar,
   LuDollarSign,
-  LuDownload
+  LuDownload,
   LuFileText
 } from 'react-icons/lu';
 import toast from 'react-hot-toast';

@@ -5,7 +5,7 @@ import {
   LuSparkles,
   LuPlus,
   LuTrash,
-  LuCheck
+  LuCheck,
   LuLoaderCircle,
   LuUser} from 'react-icons/lu';
 

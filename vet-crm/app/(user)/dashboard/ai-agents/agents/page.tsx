@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import ConfirmDeleteModal from '@/components/common/ConfirmDeleteModal';
 import {
   LuSearch,
-  LuPlus
+  LuPlus,
   LuPencil,
   LuTrash,
   LuFileText,

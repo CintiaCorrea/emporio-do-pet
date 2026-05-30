@@ -5,11 +5,11 @@ import Link from 'next/link';
 import { 
   LuFileText,
   LuSearch,
-  LuPlus
+  LuPlus,
   LuTrash,
   LuCheck,
   LuSparkles,
-  LuLoader
+  LuLoader,
   LuPhone
 } from 'react-icons/lu';
 import { AiOutlineWarning } from 'react-icons/ai';

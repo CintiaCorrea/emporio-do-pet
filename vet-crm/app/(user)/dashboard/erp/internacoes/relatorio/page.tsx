@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Sidebar from '@/components/protected/dashboard/Sidebar';
 import { 
   LuArrowLeft,
-  LuCalendar
+  LuCalendar,
   LuDollarSign,
   LuUser,
   LuPawPrint,

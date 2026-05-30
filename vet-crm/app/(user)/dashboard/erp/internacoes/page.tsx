@@ -12,7 +12,7 @@ import {
   LuCalendar,
   LuTriangleAlert,
   LuDollarSign,
-  LuPhone
+  LuPhone,
   LuSave
 } from 'react-icons/lu';
 import toast from 'react-hot-toast';

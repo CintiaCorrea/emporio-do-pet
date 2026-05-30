@@ -6,7 +6,7 @@ import {
   LuCheck,
   LuEye,
   LuEyeOff,
-  LuSparkles
+  LuSparkles,
   LuSave,
   LuTrash
 } from 'react-icons/lu';
