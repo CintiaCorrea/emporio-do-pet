@@ -46,9 +46,9 @@ const GATILHO_LABEL: Record<Gatilho, { label: string; emoji: string }> = {
 };
 
 const TIPO_LABEL: Record<TipoPasso, { label: string; emoji: string; bg: string; color: string }> = {
-  WHATSAPP: { label: "WhatsApp", emoji: "💬", bg: "#DDF4E1", color: "#1E6B36" },
-  EMAIL: { label: "E-mail", emoji: "📧", bg: "#E0F4F6", color: "#00798A" },
-  TAREFA_INTERNA: { label: "Tarefa interna", emoji: "📌", bg: "#FBF0DD", color: "#8a6313" },
+  WHATSAPP: { label: "WhatsApp", emoji: "💬", bg: "#F1F1F1", color: "#6B7280" },
+  EMAIL: { label: "E-mail", emoji: "📧", bg: "#F1F1F1", color: "#6B7280" },
+  TAREFA_INTERNA: { label: "Tarefa interna", emoji: "📌", bg: "#F1F1F1", color: "#6B7280" },
   AGUARDAR: { label: "Aguardar", emoji: "⏸", bg: "#F1F1F1", color: "#555" },
 };
 
@@ -210,7 +210,7 @@ export default function CadenciasConfigPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-sm" style={{ color: "#3C3489" }}>{c.nome}</span>
-                    <span className="text-xs px-2 py-0.5 rounded" style={{ background: "#F3EEFC", color: "#3C3489" }}>
+                    <span className="text-xs px-2 py-0.5 rounded" style={{ background: "#F1F1F1", color: "#3C3489" }}>
                       {g.emoji} {g.label}
                     </span>
                     <span className="text-xs text-gray-500">{c.passos.length} {c.passos.length === 1 ? "passo" : "passos"}</span>
@@ -227,7 +227,7 @@ export default function CadenciasConfigPage() {
                       <button onClick={() => openCadEdit(c)} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2">
                         <LuPencil size={14} /> Editar
                       </button>
-                      <button onClick={() => deleteCad(c)} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2" style={{ color: "#A32D2D" }}>
+                      <button onClick={() => deleteCad(c)} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2" style={{ color: "#6B7280" }}>
                         <LuTrash size={14} /> Excluir
                       </button>
                     </div>
@@ -259,7 +259,7 @@ export default function CadenciasConfigPage() {
                           <button onClick={() => openPassoEdit(p)} title="Editar" className="p-1 hover:bg-gray-100 rounded">
                             <LuPencil size={14} />
                           </button>
-                          <button onClick={() => deletePasso(p)} title="Excluir" className="p-1 hover:bg-gray-100 rounded" style={{ color: "#A32D2D" }}>
+                          <button onClick={() => deletePasso(p)} title="Excluir" className="p-1 hover:bg-gray-100 rounded" style={{ color: "#6B7280" }}>
                             <LuTrash size={14} />
                           </button>
                         </div>

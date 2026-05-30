@@ -232,7 +232,7 @@ export default function ScriptsConfigPage() {
                       <button onClick={() => openCatEdit(c)} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2">
                         <LuPencil size={14} /> Editar
                       </button>
-                      <button onClick={() => deleteCat(c)} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2" style={{ color: "#A32D2D" }}>
+                      <button onClick={() => deleteCat(c)} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2" style={{ color: "#6B7280" }}>
                         <LuTrash size={14} /> Excluir
                       </button>
                     </div>
@@ -275,7 +275,7 @@ export default function ScriptsConfigPage() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         {s.category && (
-                          <span className="text-xs px-2 py-0.5 rounded" style={{ background: "#F3EEFC", color: "#3C3489" }}>
+                          <span className="text-xs px-2 py-0.5 rounded" style={{ background: "#F1F1F1", color: "#3C3489" }}>
                             {s.category.emoji} {s.category.nome}
                           </span>
                         )}
@@ -288,7 +288,7 @@ export default function ScriptsConfigPage() {
                       {s.variaveis.length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-2">
                           {s.variaveis.map(v => (
-                            <span key={v} className="text-xs px-2 py-0.5 rounded" style={{ background: "#FBF0DD", color: "#8a6313" }}>
+                            <span key={v} className="text-xs px-2 py-0.5 rounded" style={{ background: "#F1F1F1", color: "#6B7280" }}>
                               {`{${v}}`}
                             </span>
                           ))}
@@ -299,7 +299,7 @@ export default function ScriptsConfigPage() {
                       <button onClick={() => copyScript(s)} title="Copiar"
                         className="px-3 py-1.5 rounded-lg text-xs flex items-center gap-1"
                         style={{ background: copiedId === s.id ? "#22C55E" : "#3C3489", color: "white" }}>
-                        {copiedId === s.id ? <><LuCheck size={12} /> Copiado!</> : "📋 Copiar"}
+                        {copiedId === s.id ? <><LuCheck size={12} /> Copiado!</> : "Copiar"}
                       </button>
                       <div className="relative">
                         <button onClick={() => setOpenMenuSc(openMenuSc === s.id ? null : s.id)}
@@ -312,7 +312,7 @@ export default function ScriptsConfigPage() {
                             <button onClick={() => openScEdit(s)} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2">
                               <LuPencil size={14} /> Editar
                             </button>
-                            <button onClick={() => deleteSc(s)} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2" style={{ color: "#A32D2D" }}>
+                            <button onClick={() => deleteSc(s)} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2" style={{ color: "#6B7280" }}>
                               <LuTrash size={14} /> Excluir
                             </button>
                           </div>
@@ -392,7 +392,7 @@ export default function ScriptsConfigPage() {
                 <div className="text-xs text-gray-500 mt-1">
                   Use {`{nome_da_variavel}`} para placeholders. Detectados:
                   {extractVariaveis(scForm.conteudo || "").map(v => (
-                    <span key={v} className="ml-1 px-1 rounded" style={{ background: "#FBF0DD", color: "#8a6313" }}>{`{${v}}`}</span>
+                    <span key={v} className="ml-1 px-1 rounded" style={{ background: "#F1F1F1", color: "#6B7280" }}>{`{${v}}`}</span>
                   ))}
                 </div>
               </div>

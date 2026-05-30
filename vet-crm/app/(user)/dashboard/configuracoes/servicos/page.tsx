@@ -26,10 +26,10 @@ interface Servico {
 }
 
 const COMISSAO_LABEL: Record<ComissaoBase, { label: string; bg: string; color: string }> = {
-  VALOR_CHEIO: { label: "Valor cheio", bg: "#E0F4F6", color: "#00798A" },
-  MARGEM: { label: "Margem", bg: "#FBF0DD", color: "#8a6313" },
-  SEM_COMISSAO: { label: "Sem comissão", bg: "#FCEBEB", color: "#A32D2D" },
-  HERDAR: { label: "Herdar da categoria", bg: "#EEEDFE", color: "#3C3489" },
+  VALOR_CHEIO: { label: "Valor cheio", bg: "#F1F1F1", color: "#6B7280" },
+  MARGEM: { label: "Margem", bg: "#F1F1F1", color: "#6B7280" },
+  SEM_COMISSAO: { label: "Sem comissão", bg: "#F1F1F1", color: "#6B7280" },
+  HERDAR: { label: "Herdar da categoria", bg: "#F1F1F1", color: "#3C3489" },
 };
 
 const fmtR = (v?: number | null) => v == null ? "—" : `R$ ${v.toFixed(2)}`;

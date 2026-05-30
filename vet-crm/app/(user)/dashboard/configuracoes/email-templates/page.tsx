@@ -30,12 +30,12 @@ interface Variable {
 }
 
 const CAT_LABEL: Record<Categoria, { label: string; emoji: string; bg: string; color: string }> = {
-  TRANSACIONAL: { label: "Transacional", emoji: "📨", bg: "#E0F4F6", color: "#00798A" },
-  BOAS_VINDAS: { label: "Boas-vindas", emoji: "👋", bg: "#DDF4E1", color: "#1E6B36" },
-  EDUCATIVO: { label: "Educativo", emoji: "📚", bg: "#EEEDFE", color: "#3C3489" },
-  PROMOCIONAL: { label: "Promocional", emoji: "🎁", bg: "#FBF0DD", color: "#8a6313" },
-  ANIVERSARIO: { label: "Aniversário", emoji: "🎂", bg: "#FCE9DC", color: "#9A4C0E" },
-  REENGAJAMENTO: { label: "Reengajamento", emoji: "🔔", bg: "#FCEBEB", color: "#A32D2D" },
+  TRANSACIONAL: { label: "Transacional", emoji: "📨", bg: "#F1F1F1", color: "#6B7280" },
+  BOAS_VINDAS: { label: "Boas-vindas", emoji: "👋", bg: "#F1F1F1", color: "#6B7280" },
+  EDUCATIVO: { label: "Educativo", emoji: "📚", bg: "#F1F1F1", color: "#3C3489" },
+  PROMOCIONAL: { label: "Promocional", emoji: "🎁", bg: "#F1F1F1", color: "#6B7280" },
+  ANIVERSARIO: { label: "Aniversário", emoji: "🎂", bg: "#F1F1F1", color: "#6B7280" },
+  REENGAJAMENTO: { label: "Reengajamento", emoji: "🔔", bg: "#F1F1F1", color: "#6B7280" },
   OUTRO: { label: "Outro", emoji: "📋", bg: "#F1F1F1", color: "#555" },
 };
 
@@ -178,7 +178,7 @@ export default function EmailTemplatesPage() {
             Inativos
           </label>
           <button onClick={() => setVariavelDrawerOpen(true)} className="px-3 py-2 rounded-lg text-sm border" style={{ borderColor: "#E5DCC9", color: "#3C3489" }}>
-            📚 Variáveis ({vars.length})
+            Variáveis ({vars.length})
           </button>
           {tpls.length === 0 && !loading && (
             <button onClick={rodarSeed} disabled={seeding}
@@ -243,7 +243,7 @@ export default function EmailTemplatesPage() {
                         <button onClick={() => openTplEdit(t)} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2">
                           <LuPencil size={14} /> Editar
                         </button>
-                        <button onClick={() => deleteTpl(t)} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2" style={{ color: "#A32D2D" }}>
+                        <button onClick={() => deleteTpl(t)} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2" style={{ color: "#6B7280" }}>
                           <LuTrash size={14} /> Excluir
                         </button>
                       </div>
@@ -270,7 +270,7 @@ export default function EmailTemplatesPage() {
         <div className="fixed inset-0 bg-black/40 z-50" onClick={() => setVariavelDrawerOpen(false)}>
           <div className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-xl overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="p-4 border-b flex items-center justify-between" style={{ borderColor: "#E5DCC9" }}>
-              <h2 className="font-semibold" style={{ color: "#3C3489" }}>📚 Biblioteca de Variáveis</h2>
+              <h2 className="font-semibold" style={{ color: "#3C3489" }}>Biblioteca de Variáveis</h2>
               <button onClick={openVarNew} className="px-2 py-1 rounded-lg text-xs flex items-center gap-1"
                 style={{ background: "#3C3489", color: "white" }}>
                 <LuPlus size={12} /> Nova
@@ -285,7 +285,7 @@ export default function EmailTemplatesPage() {
                       <div key={v.id} className="relative flex items-center justify-between p-2 border rounded-lg" style={{ borderColor: "#E5DCC9", opacity: v.ativo ? 1 : 0.5 }}>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <code className="text-xs px-1.5 py-0.5 rounded" style={{ background: "#FBF0DD", color: "#8a6313" }}>{`{{${v.chave}}}`}</code>
+                            <code className="text-xs px-1.5 py-0.5 rounded" style={{ background: "#F1F1F1", color: "#6B7280" }}>{`{{${v.chave}}}`}</code>
                             <span className="text-xs font-medium">{v.label}</span>
                           </div>
                           {v.exemplo && <div className="text-xs text-gray-500 mt-0.5">ex: {v.exemplo}</div>}
@@ -300,7 +300,7 @@ export default function EmailTemplatesPage() {
                               <button onClick={() => openVarEdit(v)} className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center gap-2">
                                 <LuPencil size={12} /> Editar
                               </button>
-                              <button onClick={() => deleteVar(v)} className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center gap-2" style={{ color: "#A32D2D" }}>
+                              <button onClick={() => deleteVar(v)} className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center gap-2" style={{ color: "#6B7280" }}>
                                 <LuTrash size={12} /> Excluir
                               </button>
                             </div>
@@ -352,7 +352,7 @@ export default function EmailTemplatesPage() {
                 <textarea value={tplForm.corpoHtml || ""} onChange={e => setTplForm({ ...tplForm, corpoHtml: e.target.value })}
                   rows={10} className="w-full px-3 py-2 border rounded-lg text-sm font-mono" style={{ borderColor: "#E5DCC9" }}
                   placeholder="<html>...</html>" />
-                <div className="text-xs text-gray-500 mt-1">Variáveis disponíveis no painel 📚 lateral.</div>
+                <div className="text-xs text-gray-500 mt-1">Variáveis disponíveis no painel lateral.</div>
               </div>
               <div className="md:col-span-2">
                 <label className="text-xs text-gray-600">Corpo texto puro (opcional, fallback)</label>

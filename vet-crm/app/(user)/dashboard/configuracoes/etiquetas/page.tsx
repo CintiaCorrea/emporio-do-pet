@@ -27,7 +27,7 @@ interface EtiquetaTemplate {
 }
 
 const TIPO_LABEL: Record<TipoEtiqueta, { label: string; color: string; bg: string }> = {
-  CLINICA: { label: "Clínica", color: "#A32D2D", bg: "#FCEBEB" },
+  CLINICA: { label: "Clínica", color: "#6B7280", bg: "#F1F1F1" },
   STATUS: { label: "Status", color: "#185FA5", bg: "#E6F1FB" },
   CUSTOM: { label: "Custom", color: "#5F5E5A", bg: "#f0e8d4" },
 };
