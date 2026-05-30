@@ -5,10 +5,10 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   LuArrowLeft,
-  LuLoader
+  LuLoader,
   LuUser,
   LuPhone,
-  LuCheck
+  LuCheck,
   LuPawPrint} from 'react-icons/lu';
 import { toast } from 'sonner';
 import { useNotifications, WhatsAppMessageEvent, WhatsAppStatusEvent } from '@/hooks/useNotifications';

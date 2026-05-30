@@ -11,7 +11,7 @@ import {
   LuUser,
   LuPawPrint,
   LuCalendar,
-  LuDollarSign
+  LuDollarSign,
   LuPhone,
   LuFileText,
   LuSave

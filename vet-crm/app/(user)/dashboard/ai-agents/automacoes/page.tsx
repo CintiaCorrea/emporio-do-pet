@@ -4,9 +4,9 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
   LuSearch,
-  LuPlus
+  LuPlus,
   LuPencil,
-  LuCalendar
+  LuCalendar,
   LuLoader
 } from 'react-icons/lu';
 import { toast } from 'sonner';

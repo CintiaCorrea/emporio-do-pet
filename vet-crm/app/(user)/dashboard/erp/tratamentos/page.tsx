@@ -10,7 +10,7 @@ import {
   LuPawPrint,
   LuCalendar,
   LuDollarSign,
-  LuSave
+  LuSave,
   LuEye
 } from 'react-icons/lu';
 import toast from 'react-hot-toast';

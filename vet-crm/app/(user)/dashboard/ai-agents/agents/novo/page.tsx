@@ -7,7 +7,7 @@ import {
   LuArrowLeft,
   LuLoader,
   LuSave,
-  LuSparkles
+  LuSparkles,
   LuUserPlus,
   LuTarget,
   LuCalendar} from 'react-icons/lu';
