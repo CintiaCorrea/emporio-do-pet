@@ -54,6 +54,29 @@ export default function ServicosConfigPage() {
   const [svForm, setSvForm] = useState<any>(EMPTY_SV);
 
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+  const [seeding, setSeeding] = useState(false);
+
+  const importarPacoteInicial = async () => {
+    if (!confirm("Importar pacote inicial?\n\nIsso vai criar 10 categorias e ~40 serviços padrão de clínica veterinária. Você pode editar valores e remover o que não usa depois.")) return;
+    setSeeding(true);
+    try {
+      const r = await fetch("/api/servicos/seed", { method: "POST" });
+      if (!r.ok) {
+        const body = await r.json().catch(() => ({}));
+        alert("Erro: " + (body?.message || body?.reason || `HTTP ${r.status}`));
+        return;
+      }
+      const result = await r.json().catch(() => ({}));
+      if (result?.skipped) {
+        alert(result.reason || "Já tem cadastros.");
+      } else {
+        alert(`✓ Pacote inicial importado!\n\nCriados: ${result?.created?.categorias || 0} categorias, ${result?.created?.servicos || 0} serviços.`);
+      }
+      loadAll();
+    } catch (e: any) {
+      alert("Erro ao importar: " + (e?.message || ""));
+    } finally { setSeeding(false); }
+  };
 
   useEffect(() => {
     const h = () => setMenuOpenId(null);
@@ -211,9 +234,27 @@ export default function ServicosConfigPage() {
             {loading ? (
               <p className="text-center text-[11px] text-[#888780] py-6">Carregando...</p>
             ) : filtered.length === 0 ? (
-              <p className="text-center text-[11px] text-[#888780] py-6">
-                Nenhum serviço nesse filtro. Clique em <b>+ Adicionar Serviço</b>.
-              </p>
+              servicos.length === 0 && categorias.length === 0 ? (
+                <div className="text-center py-10 px-6">
+                  <div className="text-4xl mb-3">📦</div>
+                  <p className="text-sm text-[#0E2244] font-medium mb-1">Comece com um pacote inicial</p>
+                  <p className="text-[11px] text-[#888780] mb-4">
+                    10 categorias + ~40 serviços padrão de clínica veterinária integrativa.<br/>
+                    Você ajusta valores e remove o que não usa depois.
+                  </p>
+                  <button onClick={importarPacoteInicial} disabled={seeding}
+                    className="bg-[#009AAC] text-white px-4 py-2 rounded-lg text-xs font-medium disabled:opacity-50">
+                    {seeding ? "Importando..." : "📥 Importar pacote inicial"}
+                  </button>
+                  <p className="text-[10px] text-[#888780] mt-3">
+                    Ou clique em <b>+ Adicionar Serviço</b> pra começar do zero
+                  </p>
+                </div>
+              ) : (
+                <p className="text-center text-[11px] text-[#888780] py-6">
+                  Nenhum serviço nesse filtro. Clique em <b>+ Adicionar Serviço</b>.
+                </p>
+              )
             ) : (
               <table className="w-full text-sm">
                 <thead>
