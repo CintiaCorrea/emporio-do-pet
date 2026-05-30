@@ -1529,6 +1529,32 @@ model Servico {
   @@map("servicos")
 }
 
+
+
+// ============================================
+// Raças (lista por espécie pra dropdowns de Pet)
+// ============================================
+enum EspecieRaca {
+  CAO
+  GATO
+  OUTRO
+}
+
+model Raca {
+  id      String      @id @default(uuid())
+  nome    String
+  especie EspecieRaca
+  ordem   Int         @default(0)
+  ativo   Boolean     @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([nome, especie])
+  @@index([especie, ativo, ordem])
+  @@map("racas")
+}
+
 // ============================================
 // CRM B2C - Leads com Insights Preditivos
 // ============================================

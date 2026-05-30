@@ -33,6 +33,7 @@ import { ScheduledMessagesModule } from './modules/scheduled-messages/scheduled-
 import { ProfissionaisModule } from './modules/profissionais/profissionais.module';
 import { EtiquetasModule } from './modules/etiquetas/etiquetas.module';
 import { ServicosModule } from './modules/servicos/servicos.module';
+import { RacasModule } from './modules/racas/racas.module';
 import { EnrichmentModule } from './modules/enrichment/enrichment.module';
 import { ScoringModule } from './modules/scoring/scoring.module';
 import { InsightsModule } from './modules/insights/insights.module';
@@ -145,6 +146,7 @@ import configuration from './config/configuration';
     ProfissionaisModule,
     EtiquetasModule,
     ServicosModule,
+    RacasModule,
     EnrichmentModule,
     ScoringModule,
     InsightsModule,
