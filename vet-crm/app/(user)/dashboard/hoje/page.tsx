@@ -8,7 +8,8 @@ import {
   LuCake, LuCalendar, LuFlaskConical, LuChevronRight,
 } from "react-icons/lu";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
-import { normalizeRole, AppRole, roleShort } from "@/lib/ui/role";
+import { useRolePreview } from "@/lib/ui/RolePreview";
+import { AppRole, roleShort } from "@/lib/ui/role";
 
 interface HojeData {
   retornosVencidos: { id: string }[];
@@ -41,7 +42,8 @@ function fmtDate(d: Date) {
 
 export default function HojePage() {
   const { data: session } = useSession();
-  const role: AppRole = normalizeRole(session?.user?.role);
+  const { effectiveRole, isPreviewing } = useRolePreview();
+  const role: AppRole = effectiveRole;
   const userName = session?.user?.name || "Usuário";
   const today = new Date();
 
@@ -74,7 +76,6 @@ export default function HojePage() {
     ];
   }, [data]);
 
-  // Quais pendências mostrar por perfil
   const visibleKeys: Record<AppRole, string[]> = {
     ADMIN:        ["confirm", "chat", "fu", "lead", "intern", "birth"],
     VETERINARIAN: ["agenda", "fu", "exam", "intern", "birth"],
@@ -94,7 +95,9 @@ export default function HojePage() {
         >
           {loading ? "carregando..." : `${total} pendências`}
         </span>
-        <span className="ml-auto text-[11px] text-[#94a3b8]">Perfil: {roleShort(role)}</span>
+        <span className="ml-auto text-[11px] text-[#94a3b8]">
+          Perfil: {roleShort(role)}{isPreviewing && <span className="text-[#d97706]"> · preview</span>}
+        </span>
       </div>
 
       <div className="bg-white border rounded-2xl overflow-hidden" style={{ borderColor: "#e8edf0" }}>
