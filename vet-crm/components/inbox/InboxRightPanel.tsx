@@ -169,12 +169,40 @@ export default function InboxRightPanel({ canal = "BotConversa" }: { canal?: str
     setTutor({ ...tutor, estadoRelacionamento: value });
   }
 
+  // Mapeia origem amigável → enum LeadSource do backend
+  const sourceMap: Record<string, string> = {
+    "Direto": "DIRECT",
+    "Google Ads": "GOOGLE_ADS",
+    "Instagram": "INSTAGRAM",
+    "Facebook": "FACEBOOK",
+    "TikTok": "TIKTOK",
+    "Indicação": "REFERRAL",
+    "Landing Page": "LANDING_PAGE",
+    "WhatsApp": "WHATSAPP",
+    "Email": "EMAIL",
+    "Orgânico": "ORGANIC",
+  };
+
   async function handleCadastro() {
     if (!cadForm.nome || !cadForm.telefone) { toast.error("Nome e telefone obrigatórios"); return; }
     const endpoint = cadastroAs === "LEAD" ? "/api/leads" : "/api/tutors";
+    const cleanPhone = cadForm.telefone.replace(/\D/g, "") || cadForm.telefone;
+    const emailFallback = `contato+${cleanPhone}@emporiodopet.crm`;
     const payload: any = cadastroAs === "LEAD"
-      ? { name: cadForm.nome, phone: cadForm.telefone, email: cadForm.email || undefined, source: cadForm.origem || "DIRECT", customFields: { canal: cadForm.canalLead, petName: cadForm.petNome, especie: cadForm.petEspecie, idade: cadForm.petIdade }, notes: cadForm.notas || undefined }
-      : { name: cadForm.nome, contacts: [{ type: "MOBILE", number: cadForm.telefone, isPrimary: true, isWhatsApp: true }], email: cadForm.email || undefined, howFoundUs: cadForm.origem };
+      ? {
+          name: cadForm.nome,
+          phone: cleanPhone,
+          email: (cadForm.email && cadForm.email.includes("@")) ? cadForm.email : emailFallback,
+          source: sourceMap[cadForm.origem] || "OTHER",
+          customFields: { canal: cadForm.canalLead, petName: cadForm.petNome, especie: cadForm.petEspecie, idade: cadForm.petIdade },
+          notes: cadForm.notas || undefined,
+        }
+      : {
+          name: cadForm.nome,
+          contacts: [{ type: "MOBILE", number: cleanPhone, isPrimary: true, isWhatsApp: cadForm.canalLead === "WhatsApp" }],
+          ...(cadForm.email && cadForm.email.includes("@") ? { email: cadForm.email } : {}),
+          ...(cadForm.origem ? { howFoundUs: cadForm.origem } : {}),
+        };
 
     const res = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
     if (!res.ok) {
