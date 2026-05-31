@@ -246,6 +246,7 @@ model User {
   boards              Board[]
   newsletters         Newsletter[]
   appointments        Appointment[] // NOVO: Relacionamento com agendamentos
+  appointmentItemsExecuted AppointmentItem[] @relation("AppointmentItemExecutor")
   financeEntries      FinanceEntry[]
   integrationSettings IntegrationSettings?
   profissional        Profissional?
@@ -501,6 +502,7 @@ model Appointment {
   pet        Pet         @relation(fields: [petId], references: [id], onDelete: Cascade)
   user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   treatments Treatment[]
+  items      AppointmentItem[]
   kanbanCard KanbanCard?
   boardId    String?
   board      Board?      @relation(fields: [boardId], references: [id], onDelete: SetNull)
@@ -1542,6 +1544,7 @@ model ServiceCategory {
 model Servico {
   id                   String           @id @default(uuid())
   nome                 String
+  appointmentItems     AppointmentItem[]
   valorPadrao          Float?           // R$
   custoPadrao          Float?           // R$ (medicamentos/vacinas/produtos)
   comissaoBaseDefault  ComissaoBase     @default(HERDAR)
@@ -1898,6 +1901,8 @@ model Fornecedor {
   updatedAt DateTime @updatedAt
 
   @@index([tipo, ativo])
+  appointmentItems AppointmentItem[] @relation("AppointmentItemFornecedor")
+
   @@map("fornecedores")
 }
 
@@ -2518,3 +2523,48 @@ model AvaliacaoGoogle {
   @@map("avaliacoes_google")
 }
 
+
+
+// ============================================
+// AppointmentItem — linhas de cobrança do atendimento
+// (de onde sai vendas + comissões + lançamento financeiro)
+// ============================================
+model AppointmentItem {
+  id              String       @id @default(uuid())
+  appointmentId   String
+  appointment     Appointment  @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  // Vinculação a catálogo (opcional — pode ser descrição livre)
+  servicoId       String?
+  servico         Servico?     @relation(fields: [servicoId], references: [id], onDelete: SetNull)
+  descricao       String?
+
+  // Executor: profissional interno OU fornecedor externo (lab)
+  executorUserId  String?
+  executorUser    User?        @relation("AppointmentItemExecutor", fields: [executorUserId], references: [id], onDelete: SetNull)
+  fornecedorId    String?
+  fornecedor      Fornecedor?  @relation("AppointmentItemFornecedor", fields: [fornecedorId], references: [id], onDelete: SetNull)
+
+  // Valores
+  quantidade      Float        @default(1)
+  valorUnitario   Float        @default(0)
+  custoUnitario   Float        @default(0)
+  desconto        Float        @default(0)
+  valorTotal      Float        @default(0)
+
+  // Comissão
+  comissaoBase    String?      // CHEIO | MARGEM | SEM
+  comissaoTipo    String?      // PERCENTUAL | VALOR_FIXO
+  comissaoValor   Float?
+  comissaoCalculada Float?
+
+  observacoes     String?
+
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([appointmentId])
+  @@index([servicoId])
+  @@index([fornecedorId])
+  @@map("appointment_items")
+}

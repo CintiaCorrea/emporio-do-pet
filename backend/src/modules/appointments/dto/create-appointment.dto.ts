@@ -158,6 +158,13 @@ export class CreateAppointmentDto {
   @Type(() => CreateAppointmentTreatmentDto)
   treatments?: CreateAppointmentTreatmentDto[];
 
+  @ApiPropertyOptional({ description: 'Itens (serviços/exames) cobrados no atendimento' })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateAppointmentItemDto)
+  items?: CreateAppointmentItemDto[];
+
   @ApiPropertyOptional({
     description: 'Criar pet junto do appointment (quando petId não for enviado)',
   })
@@ -180,4 +187,60 @@ export class CreateAppointmentTreatmentDto {
   @IsOptional()
   @IsUUID()
   productId?: string;
+}
+
+
+export class CreateAppointmentItemDto {
+  @ApiPropertyOptional({ description: 'ID do serviço (catálogo)' })
+  @IsOptional() @IsUUID()
+  servicoId?: string;
+
+  @ApiPropertyOptional({ description: 'Descrição customizada (se não selecionar do catálogo)' })
+  @IsOptional() @IsString()
+  descricao?: string;
+
+  @ApiPropertyOptional({ description: 'ID do profissional executor (User)' })
+  @IsOptional() @IsUUID()
+  executorUserId?: string;
+
+  @ApiPropertyOptional({ description: 'ID do fornecedor (lab externo)' })
+  @IsOptional() @IsUUID()
+  fornecedorId?: string;
+
+  @ApiPropertyOptional({ default: 1 })
+  @IsOptional() @IsNumber()
+  quantidade?: number;
+
+  @ApiPropertyOptional({ default: 0 })
+  @IsOptional() @IsNumber()
+  valorUnitario?: number;
+
+  @ApiPropertyOptional({ default: 0 })
+  @IsOptional() @IsNumber()
+  custoUnitario?: number;
+
+  @ApiPropertyOptional({ default: 0 })
+  @IsOptional() @IsNumber()
+  desconto?: number;
+
+  @ApiPropertyOptional({ description: 'Valor total da linha (qtd*unit - desconto)' })
+  @IsOptional() @IsNumber()
+  valorTotal?: number;
+
+  @ApiPropertyOptional({ description: 'Base de cálculo da comissão: CHEIO|MARGEM|SEM' })
+  @IsOptional() @IsString()
+  comissaoBase?: string;
+
+  @ApiPropertyOptional({ description: 'Tipo de comissão: PERCENTUAL|VALOR_FIXO' })
+  @IsOptional() @IsString()
+  comissaoTipo?: string;
+
+  @ApiPropertyOptional() @IsOptional() @IsNumber()
+  comissaoValor?: number;
+
+  @ApiPropertyOptional() @IsOptional() @IsNumber()
+  comissaoCalculada?: number;
+
+  @ApiPropertyOptional() @IsOptional() @IsString()
+  observacoes?: string;
 }
