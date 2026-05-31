@@ -207,7 +207,21 @@ export default function InboxRightPanel({ canal = "BotConversa" }: { canal?: str
     const res = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
     if (!res.ok) {
       const err = await res.json().catch(() => null);
-      toast.error(`Erro: ${err?.message || res.status}`);
+      const msg = Array.isArray(err?.message) ? err.message.join(", ") : (err?.message || `HTTP ${res.status}`);
+      // Detectar duplicidade
+      if (res.status === 409 || /duplicate|unique|already|já exist/i.test(msg)) {
+        toast.error(`Já existe ${cadastroAs === "LEAD" ? "lead" : "tutor"} com esse email ou telefone. Buscando o existente...`);
+        // Buscar pelo telefone limpo
+        const r = await fetch(`/api/tutors?search=${encodeURIComponent(cleanPhone)}&limit=5`);
+        const d = await r.json().catch(() => null);
+        const found = Array.isArray(d) ? d[0] : (d?.tutors || d?.data || [])[0];
+        if (found) {
+          setCadastroOpen(false);
+          await selectTutor(found);
+          return;
+        }
+      }
+      toast.error(`Não consegui cadastrar — ${msg.slice(0, 120)}`);
       return;
     }
     const created = await res.json();
