@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  LuArrowLeft, LuPencil, LuTrash, LuPlus, LuMessageSquare, LuChevronRight,
+  LuArrowLeft, LuPencil, LuTrash, LuPlus, LuMessageSquare, LuChevronRight, LuEllipsisVertical,
 } from "react-icons/lu";
 import toast from "react-hot-toast";
 import ConfirmDeleteModal from "@/components/common/ConfirmDeleteModal";
@@ -83,6 +83,8 @@ export default function PetDetailPage() {
   const [loadingPet, setLoadingPet] = useState(true);
   const [loadingAt, setLoadingAt] = useState(true);
   const [delOpen, setDelOpen] = useState(false);
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [delAtId, setDelAtId] = useState<string | null>(null);
 
   usePageTitle(pet ? pet.name : "Pet", pet?.tutor ? `Tutor: ${pet.tutor.name}` : undefined);
 
@@ -111,6 +113,13 @@ export default function PetDetailPage() {
     // eslint-disable-next-line
   }, [petId]);
 
+  useEffect(() => {
+    if (!openMenu) return;
+    const close = () => setOpenMenu(null);
+    document.addEventListener("click", close);
+    return () => document.removeEventListener("click", close);
+  }, [openMenu]);
+
   async function handleDelete() {
     const res = await fetch(`/api/pets/${petId}`, { method: "DELETE" });
     if (res.ok) {
@@ -120,6 +129,17 @@ export default function PetDetailPage() {
       toast.error("Erro ao remover");
     }
     setDelOpen(false);
+  }
+
+  async function handleDeleteAtendimento(id: string) {
+    const res = await fetch(`/api/atendimentos/${id}`, { method: "DELETE" });
+    if (res.ok) {
+      toast.success("Atendimento removido");
+      setAtendimentos(atendimentos.filter(a => a.id !== id));
+    } else {
+      toast.error("Erro ao remover");
+    }
+    setDelAtId(null);
   }
 
   const tutorWhats = pet?.tutor?.contacts?.find(c => c.isWhatsApp)?.number
@@ -265,12 +285,8 @@ export default function PetDetailPage() {
                   const st = STATUS_PILL[a.status] || { label: a.status, bg: "#eef2f4", color: "#64748b" };
                   const title = a.description || a.chiefComplaint || a.diagnosis || TYPE_LABEL[a.type] || a.type;
                   return (
-                    <Link
-                      key={a.id}
-                      href={`/dashboard/erp/atendimentos/${a.id}`}
-                      className="flex items-center gap-3 py-3 hover:bg-gray-50/60 transition rounded-lg px-2 -mx-2"
-                    >
-                      <div className="flex-1 min-w-0">
+                    <div key={a.id} className="flex items-center gap-3 py-3 hover:bg-gray-50/60 transition rounded-lg px-2 -mx-2 relative">
+                      <Link href={`/dashboard/erp/atendimentos/${a.id}`} className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-xs font-bold tracking-wide" style={{ color: "#014D5E" }}>
                             {TYPE_LABEL[a.type] || a.type}
@@ -286,9 +302,37 @@ export default function PetDetailPage() {
                         <div className="text-[11px] text-gray-400 mt-0.5">
                           {fmtDt(a.date)}{a.user?.name && ` · ${a.user.name}`}
                         </div>
+                      </Link>
+                      <Link href={`/dashboard/erp/atendimentos/${a.id}`} className="text-gray-400 hover:text-[#009AAC] flex-shrink-0">
+                        <LuChevronRight size={16} />
+                      </Link>
+                      <div className="relative flex-shrink-0">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setOpenMenu(openMenu === a.id ? null : a.id); }}
+                          className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-700"
+                          title="Mais ações"
+                        >
+                          <LuEllipsisVertical size={16} />
+                        </button>
+                        {openMenu === a.id && (
+                          <div className="absolute right-0 top-7 w-44 bg-white border rounded-lg shadow-lg z-20 py-1" style={{ borderColor: "#E8DFC8" }}>
+                            <Link
+                              href={`/dashboard/erp/atendimentos/${a.id}`}
+                              onClick={() => setOpenMenu(null)}
+                              className="flex items-center gap-2 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50"
+                            >
+                              Ver ficha
+                            </Link>
+                            <button
+                              onClick={() => { setOpenMenu(null); setDelAtId(a.id); }}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-600 hover:bg-red-50"
+                            >
+                              <LuTrash size={12} /> Excluir
+                            </button>
+                          </div>
+                        )}
                       </div>
-                      <LuChevronRight size={16} className="text-gray-400 flex-shrink-0" />
-                    </Link>
+                    </div>
                   );
                 })}
               </div>
@@ -318,6 +362,15 @@ export default function PetDetailPage() {
           <PetProfilePanel petId={pet.id} />
         </div>
       </div>
+
+      <ConfirmDeleteModal
+        isOpen={!!delAtId}
+        entityLabel="Atendimento"
+        itemName={atendimentos.find(a => a.id === delAtId) ? (atendimentos.find(a => a.id === delAtId)!.description || TYPE_LABEL[atendimentos.find(a => a.id === delAtId)!.type] || "Atendimento") : "Atendimento"}
+        consequenceText="Os itens (serviços/exames) vinculados também serão removidos."
+        onConfirm={() => delAtId && handleDeleteAtendimento(delAtId)}
+        onClose={() => setDelAtId(null)}
+      />
 
       <ConfirmDeleteModal
         isOpen={delOpen}

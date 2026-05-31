@@ -62,31 +62,33 @@ export default function PetProfilePanel({ petId }: { petId: string }) {
 
   return (
     <div className="space-y-3">
-      <KpiCards items={[
+      <KpiCards cols={2} items={[
         { label: "Consultas realizadas", value: stats.realizadas, hint: stats.totalConsultas !== stats.realizadas ? `+ ${stats.totalConsultas - stats.realizadas} agendadas` : undefined, highlight: stats.realizadas > 0 },
         { label: "Última visita", value: ultimaTxt, hint: stats.ultima?.descricao || undefined },
         { label: "Próxima consulta", value: proximaTxt, hint: stats.proxima?.descricao || undefined },
         { label: "Idade", value: idade, hint: stats.pesoAtual ? `${stats.pesoAtual}kg` : undefined },
       ]} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-        <MiniBarChart title="Frequência de consultas (últimos 12 meses)" data={stats.frequenciaMensal.map(f => ({ label: f.mes, value: f.total }))} />
-        <div className="bg-white border rounded-xl p-4 grid grid-cols-2 gap-3" style={{ borderColor: "#E5DCC9" }}>
+      <MiniBarChart title="Frequência de consultas (últimos 12 meses)" data={stats.frequenciaMensal.map(f => ({ label: f.mes, value: f.total }))} />
+
+      <div className="bg-white border rounded-xl p-4 space-y-3" style={{ borderColor: "#E5DCC9" }}>
+        <div className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Financeiro</div>
+        <div className="grid grid-cols-2 gap-3">
           <div>
-            <div className="text-xs text-gray-500">Valor total atendimentos</div>
-            <div className="text-xl font-semibold mt-1 tabular-nums" style={{ color: "#009AAC" }}>{fmtR(stats.valorTotal)}</div>
+            <div className="text-[11px] text-gray-500">Valor total</div>
+            <div className="text-lg font-semibold mt-0.5 tabular-nums" style={{ color: "#009AAC" }}>{fmtR(stats.valorTotal)}</div>
           </div>
           <div>
-            <div className="text-xs text-gray-500">Pago</div>
-            <div className="text-xl font-semibold mt-1 tabular-nums">{fmtR(stats.valorPago)}</div>
+            <div className="text-[11px] text-gray-500">Pago</div>
+            <div className="text-lg font-semibold mt-0.5 tabular-nums">{fmtR(stats.valorPago)}</div>
           </div>
           <div>
-            <div className="text-xs text-gray-500">Ticket médio</div>
-            <div className="text-xl font-semibold mt-1 tabular-nums">{fmtR(stats.ticketMedio)}</div>
+            <div className="text-[11px] text-gray-500">Ticket médio</div>
+            <div className="text-lg font-semibold mt-0.5 tabular-nums">{fmtR(stats.ticketMedio)}</div>
           </div>
           <div>
-            <div className="text-xs text-gray-500">A receber</div>
-            <div className="text-xl font-semibold mt-1 tabular-nums" style={{ color: (stats.valorTotal - stats.valorPago) > 0 ? "#A32D2D" : "#1A1A1A" }}>{fmtR(stats.valorTotal - stats.valorPago)}</div>
+            <div className="text-[11px] text-gray-500">A receber</div>
+            <div className="text-lg font-semibold mt-0.5 tabular-nums" style={{ color: (stats.valorTotal - stats.valorPago) > 0 ? "#A32D2D" : "#1A1A1A" }}>{fmtR(stats.valorTotal - stats.valorPago)}</div>
           </div>
         </div>
       </div>
