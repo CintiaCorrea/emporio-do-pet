@@ -1,274 +1,180 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { useState } from "react";
 import {
-  LuCalendar} from "react-icons/lu";
+  LuSun, LuLayoutDashboard, LuMessageSquare, LuList, LuUsers, LuPaw,
+  LuCalendar, LuBuilding2, LuSettings, LuChevronLeft, LuChevronRight,
+  LuLogOut, LuCircleDollarSign, LuMegaphone, LuUserCog,
+} from "react-icons/lu";
+import { normalizeRole, roleLabel, AppRole } from "@/lib/ui/role";
 
 interface SidebarProps {
   isOpen: boolean;
   toggleSidebar: () => void;
 }
 
-const EmporioLogo = ({ collapsed = false }: { collapsed?: boolean }) => (
-  <div className={`flex items-center gap-2 ${collapsed ? "justify-center" : ""}`}>
-    {/* Logo SVG inline: círculo turquesa com paw print marinho */}
-    <svg width={collapsed ? 32 : 38} height={collapsed ? 32 : 38} viewBox="0 0 40 40" fill="none">
-      <circle cx="20" cy="20" r="18.5" fill="white" stroke="#009AAC" strokeWidth="1.5" />
-      <path
-        d="M14 18.5c0 1.4-1.1 2.5-2.5 2.5S9 19.9 9 18.5 10.1 16 11.5 16s2.5 1.1 2.5 2.5zm17 0c0 1.4-1.1 2.5-2.5 2.5S26 19.9 26 18.5s1.1-2.5 2.5-2.5 2.5 1.1 2.5 2.5zM17 14c0 1.7-1.3 3-3 3s-3-1.3-3-3 1.3-3 3-3 3 1.3 3 3zm12 0c0 1.7-1.3 3-3 3s-3-1.3-3-3 1.3-3 3-3 3 1.3 3 3zm-9 16c-3.5 0-7-2-7-5.5 0-2.5 2.5-4.5 7-4.5s7 2 7 4.5c0 3.5-3.5 5.5-7 5.5z"
-        fill="#0E2244"
-      />
-    </svg>
-    {!collapsed && (
-      <div className="leading-tight">
-        <div className="text-[11px] font-semibold tracking-wider text-[#0E2244]">EMPÓRIO</div>
-        <div className="text-[11px] font-semibold tracking-wider text-[#0E2244]">DO PET</div>
-      </div>
-    )}
-  </div>
-);
-
-interface NavItemProps {
+type Item = {
   href: string;
-  icon: React.ComponentType<{ className?: string }>;
   label: string;
+  Icon: React.ComponentType<{ size?: number; className?: string }>;
+  roles: AppRole[];
   badge?: number;
+  tag?: { admin?: string; vet?: string; recep?: string };
   exact?: boolean;
-  collapsed?: boolean;
-}
-
-const NavItem = ({ href, icon: Icon, label, badge, exact, collapsed }: NavItemProps) => {
-  const pathname = usePathname();
-  const active = exact ? pathname === href : pathname.startsWith(href);
-  return (
-    <Link
-      href={href}
-      title={collapsed ? label : undefined}
-      className={`flex items-center ${collapsed ? "justify-center" : "justify-between"} gap-2.5 px-3 py-2.5 rounded-lg text-sm transition-colors mb-0.5 ${
-        active
-          ? "bg-[#009AAC] text-white font-medium"
-          : "text-[#4d5a66] hover:bg-[#FBF0DD]"
-      }`}
-    >
-      <span className="flex items-center gap-2.5">
-        <Icon className="w-[18px] h-[18px] flex-shrink-0" />
-        {!collapsed && <span>{label}</span>}
-      </span>
-      {!collapsed && badge !== undefined && badge > 0 && (
-        <span className="bg-[#E24B4A] text-white text-[10px] font-medium px-2 py-0.5 rounded-full">
-          {badge}
-        </span>
-      )}
-    </Link>
-  );
 };
 
-interface SubMenuProps {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  children: { href: string; label: string }[];
-  collapsed?: boolean;
-}
+const NAV: Item[] = [
+  { href: "/dashboard/hoje", label: "Hoje", Icon: LuSun, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
+  { href: "/dashboard", label: "Dashboard", Icon: LuLayoutDashboard, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"], exact: true },
+  { href: "/dashboard/inbox", label: "Inbox Recepção", Icon: LuMessageSquare, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
+  { href: "/dashboard/crm/leads", label: "Leads", Icon: LuList, roles: ["ADMIN", "RECEPTIONIST"] },
+  { href: "/dashboard/erp/tutores", label: "Tutores", Icon: LuUsers, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
+  { href: "/dashboard/erp/pets", label: "Pets", Icon: LuPaw, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
+  { href: "/dashboard/calendario", label: "Calendário", Icon: LuCalendar, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
+  {
+    href: "/dashboard/erp/internacoes", label: "Internação", Icon: LuBuilding2,
+    roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"],
+    tag: { admin: "Visualiza", vet: "Edita", recep: "Visualiza" },
+  },
+  { href: "/dashboard/configuracoes", label: "Configurações", Icon: LuSettings, roles: ["ADMIN"] },
+];
 
-const SubMenu = ({ icon: Icon, label, children, collapsed }: SubMenuProps) => {
-  const pathname = usePathname();
-  const hasActiveChild = children.some((c) => pathname.startsWith(c.href));
-  const [open, setOpen] = useState(hasActiveChild);
-
-  if (collapsed) {
-    return (
-      <button
-        title={label}
-        className="w-full flex justify-center px-3 py-2.5 text-[#4d5a66] hover:bg-[#FBF0DD] rounded-lg mb-0.5 transition-colors"
-      >
-        <Icon className="w-[18px] h-[18px]" />
-      </button>
-    );
-  }
-
-  return (
-    <div className="mb-0.5">
-      <button
-        onClick={() => setOpen(!open)}
-        className={`w-full flex items-center justify-between gap-2.5 px-3 py-2.5 rounded-lg text-sm transition-colors ${
-          hasActiveChild ? "bg-[#FBF0DD] text-[#0E2244]" : "text-[#4d5a66] hover:bg-[#FBF0DD]"
-        }`}
-      >
-        <span className="flex items-center gap-2.5">
-          <Icon className="w-[18px] h-[18px]" />
-          {label}
-        </span>
-        {open ? (
-          <span style={{fontSize:"14px"}}>▼</span>
-        ) : (
-          <span style={{fontSize:"14px"}}>▶</span>
-        )}
-      </button>
-      {open && (
-        <div className="ml-5 mt-1 mb-1 pl-3 border-l border-[#e8dfc8]">
-          {children.map((c) => {
-            const childActive = pathname === c.href;
-            return (
-              <Link
-                key={c.href}
-                href={c.href}
-                className={`block py-1.5 px-3 text-sm rounded-md mb-0.5 transition-colors ${
-                  childActive
-                    ? "bg-[#FBEED8] text-[#8a6313] font-medium"
-                    : "text-[#5b6470] hover:bg-[#FBF0DD]"
-                }`}
-              >
-                {c.label}
-              </Link>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-};
+const FUTURE = [
+  { label: "Financeiro", Icon: LuCircleDollarSign, soon: "depois" },
+  { label: "RH", Icon: LuUserCog, soon: "depois" },
+  { label: "Marketing", Icon: LuMegaphone, soon: "integrado" },
+];
 
 export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
   const collapsed = !isOpen;
+  const pathname = usePathname();
   const { data: session } = useSession();
+  const role: AppRole = normalizeRole(session?.user?.role);
   const userName = session?.user?.name || "Usuário";
-  const userEmail = session?.user?.email || "";
-  const getInitials = (name: string) => {
-    const p = name.trim().split(/\s+/);
-    return ((p[0]?.[0] || "") + (p[1]?.[0] || "")).toUpperCase() || "??";
+  const initials = ((userName.split(/\s+/)[0]?.[0] || "") + (userName.split(/\s+/)[1]?.[0] || "")).toUpperCase() || "??";
+
+  const isActive = (it: Item) => it.exact ? pathname === it.href : pathname.startsWith(it.href);
+  const visible = (it: Item) => it.roles.includes(role);
+  const tagFor = (it: Item) => {
+    if (!it.tag) return null;
+    return role === "ADMIN" ? it.tag.admin : role === "VETERINARIAN" ? it.tag.vet : it.tag.recep;
   };
 
   return (
     <aside
-      className={`${
-        collapsed ? "w-16" : "w-56"
-      } fixed top-0 left-0 h-screen z-50 shrink-0 transition-all duration-200 bg-[#FFFEF8] border-r border-[#e8dfc8] flex flex-col`}
+      className={`${collapsed ? "w-16" : "w-[252px]"} fixed top-0 left-0 h-screen z-50 shrink-0 transition-all duration-200 bg-white border-r flex flex-col`}
+      style={{ borderColor: "#e8edf0" }}
     >
-      <div className="px-3 py-4 flex items-center justify-between">
-        <EmporioLogo collapsed={collapsed} />
-        {!collapsed && (
-          <button
-            onClick={toggleSidebar}
-            className="text-[#4d5a66] hover:bg-[#FBF0DD] p-1 rounded"
-            aria-label="Fechar sidebar"
-          >
-            ←
-          </button>
+      {/* Collapse tab */}
+      <button
+        onClick={toggleSidebar}
+        className="absolute top-[22px] -right-[11px] w-[22px] h-[22px] rounded-full bg-white border flex items-center justify-center text-[#94a3b8] z-10 shadow-sm hover:text-[#009AAC] transition"
+        style={{ borderColor: "#e8edf0" }}
+        title={collapsed ? "Expandir" : "Recolher"}
+      >
+        {collapsed ? <LuChevronRight size={11} /> : <LuChevronLeft size={11} />}
+      </button>
+
+      {/* Brand */}
+      <div className={`px-4 ${collapsed ? "py-4" : "py-[18px]"} border-b flex items-center justify-center`} style={{ borderColor: "#e8edf0" }}>
+        {collapsed ? (
+          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#009AAC] to-[#014D5E] flex items-center justify-center">
+            <LuPaw className="text-white" size={18} />
+          </div>
+        ) : (
+          <img src="https://emporiodopet.com.br/wp-content/uploads/2022/04/logo-emporio-do-pet-padrao.png" alt="Empório do Pet" style={{ height: 46, width: "auto" }} />
         )}
       </div>
 
-      {collapsed && (
-        <button
-          onClick={toggleSidebar}
-          className="mx-auto mb-2 text-[#4d5a66] hover:bg-[#FBF0DD] p-1 rounded"
-          aria-label="Abrir sidebar"
-        >
-          →
-        </button>
-      )}
-
-      <nav className="flex-1 px-2 pb-3 overflow-y-auto">
-        <NavItem href="/dashboard/hoje" icon={() => <span style={{fontSize:"14px"}}>🏠</span>} label="Hoje" collapsed={collapsed} />
-        <NavItem
-          href="/dashboard"
-          icon={() => <span style={{fontSize:"14px"}}>▦</span>}
-          label="Dashboard"
-          exact
-          collapsed={collapsed}
-        />
-        <NavItem
-          href="/dashboard/inbox"
-          icon={() => <span style={{fontSize:"14px"}}>📥</span>}
-          label="Inbox"
-          collapsed={collapsed}
-        />
-        <NavItem href="/dashboard/crm/leads" icon={() => <span style={{fontSize:"14px"}}>≡</span>} label="Leads" collapsed={collapsed} />
-        <NavItem
-          href="/dashboard/erp/tutores"
-          icon={() => <span style={{fontSize:"14px"}}>👥</span>}
-          label="Clientes"
-          collapsed={collapsed}
-        />
-        <NavItem
-          href="/dashboard/calendario"
-          icon={LuCalendar}
-          label="Calendário"
-          collapsed={collapsed}
-        />
-        <NavItem
-          href="/dashboard/erp/internacoes"
-          icon={() => <span style={{fontSize:"14px"}}>🛏</span>}
-          label="Internações"
-          collapsed={collapsed}
-        />
-        <NavItem
-          href="/dashboard/configuracoes"
-          icon={() => <span style={{fontSize:"14px"}}>⚙</span>}
-          label="Configurações"
-          collapsed={collapsed}
-        />
-
-        <div className={`mt-4 ${collapsed ? "px-0" : "px-3"} pb-1`}>
-          {!collapsed && (
-            <div className="text-[10px] tracking-[1.5px] text-[#8a7a5a] font-medium">ADMIN</div>
-          )}
+      {/* Nav */}
+      <nav className="flex-1 px-3 pt-2 pb-4 overflow-y-auto">
+        <div className="flex flex-col gap-[2px]">
+          {NAV.filter(visible).map((it) => {
+            const active = isActive(it);
+            const tag = tagFor(it);
+            return (
+              <Link
+                key={it.href}
+                href={it.href}
+                title={collapsed ? it.label : undefined}
+                className={`flex items-center ${collapsed ? "justify-center" : "gap-3"} px-3 py-[9px] rounded-[9px] text-[13.5px] transition relative`}
+                style={
+                  active
+                    ? { background: "linear-gradient(90deg, #009AAC, #00B4C4)", color: "#FFFFFF", fontWeight: 600, boxShadow: "0 4px 12px -2px rgba(0,154,172,.45)" }
+                    : { color: "#475569" }
+                }
+              >
+                <it.Icon size={18} className="flex-shrink-0" />
+                {!collapsed && (
+                  <>
+                    <span className="flex-1 truncate">{it.label}</span>
+                    {it.badge !== undefined && it.badge > 0 && (
+                      <span
+                        className="text-[10.5px] font-semibold rounded-full px-1.5 min-w-[20px] h-[18px] flex items-center justify-center"
+                        style={{ background: active ? "white" : "#ef4444", color: active ? "#ef4444" : "white" }}
+                      >
+                        {it.badge}
+                      </span>
+                    )}
+                    {tag && (
+                      <span
+                        className="text-[9px] font-bold tracking-wide px-1.5 py-[2px] rounded-[6px] uppercase"
+                        style={
+                          active
+                            ? { background: "rgba(255,255,255,.25)", color: "white" }
+                            : { background: "#eef2f4", color: "#64748b" }
+                        }
+                      >
+                        {tag}
+                      </span>
+                    )}
+                  </>
+                )}
+              </Link>
+            );
+          })}
         </div>
 
-        <SubMenu
-          icon={() => <span style={{fontSize:"14px"}}>📣</span>}
-          label="Marketing"
-          collapsed={collapsed}
-          children={[
-            { href: "/dashboard/campanhas", label: "Campanhas" },
-            { href: "/dashboard/campanhas/midia", label: "Mídia" },
-            { href: "/dashboard/campanhas/funil-semana", label: "Funil Semana" },
-            { href: "/dashboard/campanhas/nps", label: "NPS" },
-            { href: "/dashboard/campanhas/avaliacoes-google", label: "Aval. Google" },
-            { href: "/dashboard/campanhas/email", label: "Emails" },
-          ]}
-        />
-
-        <SubMenu
-          icon={() => <span style={{fontSize:"14px"}}>🚚</span>}
-          label="Op. Terceiros"
-          collapsed={collapsed}
-          children={[
-            { href: "/dashboard/erp/fornecedores", label: "Fornecedores" },
-            { href: "/dashboard/erp/fin-terceiros", label: "Fin. Terceiros" },
-            { href: "/dashboard/erp/catalogo-exames", label: "Catál. Exames" },
-          ]}
-        />
-
+        {/* Módulos em breve */}
+        {!collapsed && (
+          <div className="mt-2 mx-1 pt-[10px]" style={{ borderTop: "1px dashed #e8edf0" }}>
+            <div className="text-[10px] font-bold tracking-[0.8px] text-[#94a3b8] uppercase px-3 py-1.5">
+              Módulos · em breve
+            </div>
+            {FUTURE.map((f) => (
+              <div key={f.label} className="flex items-center gap-3 px-3 py-2 rounded-[9px] text-[#b6c1c9] text-[13px] cursor-not-allowed">
+                <f.Icon size={17} />
+                <span className="flex-1">{f.label}</span>
+                <span className="text-[8.5px] font-bold tracking-wide bg-[#f1f5f7] text-[#94a3b8] px-1.5 py-[2px] rounded-[6px] uppercase">{f.soon}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </nav>
 
-      <div className="px-2 pb-2 border-t border-[#e8dfc8] pt-2">
-        {!collapsed && (
-          <div className="flex items-center gap-2 px-2 py-2 mb-1">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#009AAC] to-[#0E2244] text-white flex items-center justify-center text-[11px] font-medium flex-shrink-0">
-              {getInitials(userName)}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-xs text-[#0E2244] font-medium truncate">{userName}</div>
-              <div className="text-[10px] text-[#888780] truncate">Admin</div>
-            </div>
+      {/* Foot */}
+      <div className={`border-t ${collapsed ? "px-2 py-3" : "px-4 py-3"} flex flex-col gap-2.5`} style={{ borderColor: "#e8edf0" }}>
+        <div className={`flex items-center ${collapsed ? "justify-center" : "gap-[10px]"}`}>
+          <div className="w-[34px] h-[34px] rounded-full bg-gradient-to-br from-[#009AAC] to-[#014D5E] text-white flex items-center justify-center text-xs font-semibold flex-shrink-0" title={userName}>
+            {initials}
           </div>
-        )}
-        {collapsed && (
-          <div className="flex justify-center mb-1">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#009AAC] to-[#0E2244] text-white flex items-center justify-center text-[11px] font-medium" title={userName}>
-              {getInitials(userName)}
+          {!collapsed && (
+            <div className="flex flex-col leading-tight min-w-0">
+              <span className="text-[12.5px] text-[#1e293b] font-semibold truncate">{userName}</span>
+              <span className="text-[11px] text-[#94a3b8]">{roleLabel(role)}</span>
             </div>
-          </div>
-        )}
+          )}
+        </div>
         <button
           onClick={() => signOut({ callbackUrl: "/" })}
-          className={`w-full flex items-center ${collapsed ? "justify-center" : ""} gap-2.5 px-3 py-2 rounded-lg text-xs text-[#4d5a66] hover:bg-[#FBF0DD]`}
+          className={`flex items-center ${collapsed ? "justify-center" : "gap-2"} text-[#64748b] hover:text-[#ef4444] text-[12.5px]`}
           title={collapsed ? "Sair" : undefined}
         >
-          <span style={{fontSize:"14px"}}>⤴</span>
+          <LuLogOut size={15} />
           {!collapsed && <span>Sair</span>}
         </button>
       </div>

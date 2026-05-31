@@ -1,188 +1,138 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
+import {
+  LuCircleCheck, LuMessageSquare, LuRefreshCcw, LuUserPlus, LuBuilding2,
+  LuCake, LuCalendar, LuFlaskConical, LuChevronRight,
+} from "react-icons/lu";
+import { usePageTitle } from "@/lib/ui/PageHeaderContext";
+import { normalizeRole, AppRole, roleShort } from "@/lib/ui/role";
 
-
-interface RetornoVencido {
-  id: string; nome: string | null; petNome: string | null; telefone: string | null;
-  diagnostico: string | null; diasAtraso: number; tags: string[];
-}
-interface Toque {
-  id: string; nome: string | null; petNome: string | null; telefone: string | null;
-  canal: string; ultimaInteracao: string;
-}
 interface HojeData {
-  retornosVencidos: RetornoVencido[];
-  toques: Toque[];
+  retornosVencidos: { id: string }[];
+  toques: { id: string }[];
   tutoresAcompanhar: number;
   examesAEntregar: number;
   pacotesEmRisco: number;
 }
 
-function SectionHeader({ icon: Icon, title, count, color, open, onToggle, emptyOk }: {
-  icon: any; title: string; count: number; color: string;
-  open: boolean; onToggle: () => void; emptyOk?: string;
-}) {
-  return (
-    <button onClick={onToggle} className="w-full flex items-center justify-between py-3 px-4 bg-white rounded-xl border border-[#d8d0bc] hover:bg-[#fdfaee] transition">
-      <div className="flex items-center gap-3">
-        {open ? <span style={{fontSize:"12px"}}>▼</span> : <span style={{fontSize:"12px"}}>▶</span>}
-        <Icon className="w-5 h-5" style={{ color }} />
-        <span className="text-sm text-[#0E2244] font-medium">{title}</span>
-        <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${count === 0 ? "bg-[#E1F5EE] text-[#0F6E56]" : "bg-[#FCE5C8] text-[#8A5A0F]"}`}>
-          {count}
-        </span>
-      </div>
-      {count === 0 && emptyOk && (
-        <span className="text-[11px] text-[#0F6E56]">✓ {emptyOk}</span>
-      )}
-    </button>
-  );
+interface Pendencia {
+  key: string;
+  title: string;
+  sub: string;
+  count: number;
+  link: string;
+  href: string;
+  Icon: any;
+}
+
+async function safeJson<T>(res: Response, fb: T): Promise<T> {
+  try { if (!res.ok) return fb; const d = await res.json(); return d == null ? fb : d; } catch { return fb; }
+}
+
+function fmtDate(d: Date) {
+  const dia = d.toLocaleDateString("pt-BR", { weekday: "long" });
+  const dd = d.getDate();
+  const mes = d.toLocaleDateString("pt-BR", { month: "long" });
+  return `${dia.charAt(0).toUpperCase() + dia.slice(1)}, ${dd} de ${mes}`;
 }
 
 export default function HojePage() {
+  const { data: session } = useSession();
+  const role: AppRole = normalizeRole(session?.user?.role);
+  const userName = session?.user?.name || "Usuário";
+  const today = new Date();
+
+  usePageTitle("Hoje", `Seu dia · ${userName} · ${fmtDate(today)}`);
+
   const [data, setData] = useState<HojeData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [open, setOpen] = useState({
-    retornos: true, toques: true, tutores: false, exames: false, pacotes: false});
-  const toggle = (k: keyof typeof open) => setOpen({ ...open, [k]: !open[k] });
 
   useEffect(() => {
-    const load = async () => {
-      try {
-        const res = await fetch("/api/hoje");
-        const d = await res.json().catch(() => ({}));
-        setData({
-          retornosVencidos: Array.isArray(d?.retornosVencidos) ? d.retornosVencidos : [],
-          toques: Array.isArray(d?.toques) ? d.toques : [],
-          tutoresAcompanhar: typeof d?.tutoresAcompanhar === "number" ? d.tutoresAcompanhar : 0,
-          examesAEntregar: typeof d?.examesAEntregar === "number" ? d.examesAEntregar : 0,
-          pacotesEmRisco: typeof d?.pacotesEmRisco === "number" ? d.pacotesEmRisco : 0});
-      } catch (e) {
-        console.error(e);
-        setData({ retornosVencidos: [], toques: [], tutoresAcompanhar: 0, examesAEntregar: 0, pacotesEmRisco: 0 });
-      }
-      finally { setLoading(false); }
-    };
-    load();
+    (async () => {
+      setLoading(true);
+      const res = await fetch("/api/hoje");
+      const d = await safeJson<HojeData | null>(res, null);
+      setData(d);
+      setLoading(false);
+    })();
   }, []);
 
-  const dataHoje = new Date().toLocaleDateString("pt-BR", {
-    weekday: "long", day: "numeric", month: "long"});
+  const all: Pendencia[] = useMemo(() => {
+    if (!data) return [];
+    return [
+      { key: "confirm", title: "Confirmar agendamentos", sub: "Consultas aguardando confirmação", count: data.retornosVencidos.length, link: "Inbox", href: "/dashboard/inbox", Icon: LuCircleCheck },
+      { key: "chat", title: "Responder conversas", sub: "Sem resposta no WhatsApp", count: data.toques.length, link: "Inbox", href: "/dashboard/inbox", Icon: LuMessageSquare },
+      { key: "fu", title: "Follow-ups de hoje", sub: "Tutores para retomar contato", count: data.tutoresAcompanhar, link: "Tutores", href: "/dashboard/erp/tutores", Icon: LuRefreshCcw },
+      { key: "lead", title: "Leads novos para triar", sub: "Aguardando triagem", count: 0, link: "Leads", href: "/dashboard/crm/leads", Icon: LuUserPlus },
+      { key: "intern", title: "Internados para acompanhar", sub: "Pets em observação", count: 0, link: "Internação", href: "/dashboard/erp/internacoes", Icon: LuBuilding2 },
+      { key: "exam", title: "Exames a avaliar", sub: "Resultados pendentes", count: data.examesAEntregar, link: "Pets", href: "/dashboard/erp/pets", Icon: LuFlaskConical },
+      { key: "agenda", title: "Meus atendimentos de hoje", sub: "Na sua agenda", count: 0, link: "Calendário", href: "/dashboard/calendario", Icon: LuCalendar },
+      { key: "birth", title: "Aniversariantes do dia", sub: "Pets que fazem aniversário hoje", count: 0, link: "Parabéns", href: "/dashboard/erp/pets?aniversario=1", Icon: LuCake },
+    ];
+  }, [data]);
 
-  const tutoresAtencao = (data?.retornosVencidos?.length || 0) + (data?.tutoresAcompanhar || 0);
+  // Quais pendências mostrar por perfil
+  const visibleKeys: Record<AppRole, string[]> = {
+    ADMIN:        ["confirm", "chat", "fu", "lead", "intern", "birth"],
+    VETERINARIAN: ["agenda", "fu", "exam", "intern", "birth"],
+    RECEPTIONIST: ["confirm", "chat", "lead", "fu", "birth"],
+  };
+
+  const todo = all.filter((p) => visibleKeys[role].includes(p.key));
+  const total = todo.reduce((s, t) => s + t.count, 0);
 
   return (
-    <div className="min-h-screen p-6 max-w-5xl mx-auto">
-      <header className="mb-6">
-        <h1 className="text-2xl text-[#0E2244] font-medium capitalize">Hoje — {dataHoje}</h1>
-        <p className="text-sm text-[#009AAC] mt-1">
-          {data?.retornosVencidos?.length || 0} retornos vencidos · {data?.toques?.length || 0} toques hoje · {tutoresAtencao} tutores precisando atenção
-        </p>
-      </header>
+    <div className="p-6 max-w-7xl mx-auto">
+      <div className="flex items-center gap-3 mb-4">
+        <h2 className="text-[15px] font-bold" style={{ color: "#014D5E" }}>O que precisa ser feito hoje</h2>
+        <span
+          className="text-xs font-semibold px-3 py-1 rounded-full"
+          style={{ background: "#e6f6f8", color: "#009AAC" }}
+        >
+          {loading ? "carregando..." : `${total} pendências`}
+        </span>
+        <span className="ml-auto text-[11px] text-[#94a3b8]">Perfil: {roleShort(role)}</span>
+      </div>
 
-      {loading ? (
-        <p className="text-sm text-gray-400 text-center py-12">Carregando...</p>
-      ) : (
-        <div className="flex flex-col gap-2.5">
-          <div>
-            <SectionHeader icon={() => <span style={{fontSize:"14px"}}>📅</span>} title="Retornos vencidos" count={data?.retornosVencidos?.length || 0}
-              color="#C2410C" open={open.retornos} onToggle={() => toggle("retornos")}
-              emptyOk="Nenhum retorno vencido!" />
-            {open.retornos && (data?.retornosVencidos?.length || 0) > 0 && (
-              <div className="mt-2 flex flex-col gap-2">
-                {data?.retornosVencidos.map((r) => (
-                  <Link key={r.id} href={`/dashboard/crm/leads/${r.id}`} className="block bg-white border border-[#d8d0bc] rounded-lg p-3 hover:border-[#009AAC] transition">
-                    <div className="flex items-center justify-between flex-wrap gap-2">
-                      <div className="flex items-center gap-2 text-sm">
-                        {r.petNome && <span>🐾 <strong className="text-[#0E2244] font-medium">{r.petNome}</strong></span>}
-                        {r.petNome && r.nome && <span className="text-gray-400">·</span>}
-                        <span className="text-[#4d5a66]">{r.nome}</span>
-                        <span className="bg-[#FCE5C8] text-[#8A5A0F] text-[10px] font-medium px-2 py-0.5 rounded-full">
-                          {r.diasAtraso}d de atraso
-                        </span>
-                      </div>
-                      {r.telefone && (
-                        <a href={`https://wa.me/${r.telefone.replace(/\D/g, "")}`} target="_blank" rel="noreferrer" className="bg-[#E0F4F6] text-[#00798A] text-[11px] px-2.5 py-1 rounded-full inline-flex items-center gap-1.5 border border-[#b5dde2]">
-                          <span style={{fontSize:"14px"}}>💬</span>{r.telefone}
-                        </a>
-                      )}
-                    </div>
-                    {r.diagnostico && <p className="text-[11px] text-[#5b6470] mt-1.5"><strong className="text-[#0E2244] font-medium">Diagnóstico:</strong> {r.diagnostico}</p>}
-                    {r.tags?.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {r.tags.slice(0, 5).map((t) => (
-                          <span key={t} className="bg-[#FBF0DD] text-[#8a6313] text-[10px] px-2 py-0.5 rounded-full">⭕ {t}</span>
-                        ))}
-                      </div>
-                    )}
-                  </Link>
-                ))}
+      <div className="bg-white border rounded-2xl overflow-hidden" style={{ borderColor: "#e8edf0" }}>
+        {loading ? (
+          <div className="px-6 py-10 text-center text-sm text-[#94a3b8]">Carregando seu dia...</div>
+        ) : todo.length === 0 ? (
+          <div className="px-6 py-10 text-center text-sm text-[#94a3b8]">Nada pendente aqui hoje. 🎉</div>
+        ) : (
+          todo.map((p, i) => (
+            <Link
+              key={p.key}
+              href={p.href}
+              className="flex items-center gap-3.5 px-[18px] py-[13px] border-b hover:bg-[#e6f6f8]/60 transition cursor-pointer"
+              style={{ borderColor: i === todo.length - 1 ? "transparent" : "#e8edf0" }}
+            >
+              <div className="w-[38px] h-[38px] rounded-[10px] flex items-center justify-center flex-shrink-0" style={{ background: "#e6f6f8", color: "#009AAC" }}>
+                <p.Icon size={19} />
               </div>
-            )}
-          </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-[13.5px] font-semibold text-[#1e293b]">{p.title}</div>
+                <div className="text-xs text-[#64748b]">{p.sub}</div>
+              </div>
+              <span className="text-[10px] font-bold uppercase tracking-wide text-[#009AAC] hidden sm:block">{p.link}</span>
+              <span
+                className="text-[13px] font-bold text-white min-w-[26px] h-6 rounded-xl flex items-center justify-center px-2 flex-shrink-0"
+                style={{ background: p.count > 0 ? "linear-gradient(90deg, #009AAC, #00B4C4)" : "#cbd5e1" }}
+              >
+                {p.count}
+              </span>
+              <LuChevronRight size={16} className="text-[#94a3b8] flex-shrink-0" />
+            </Link>
+          ))
+        )}
+      </div>
 
-          <div>
-            <SectionHeader icon={() => <span style={{fontSize:"14px"}}>📞</span>} title="Próximos toques de cadência" count={data?.toques?.length || 0}
-              color="#00798A" open={open.toques} onToggle={() => toggle("toques")}
-              emptyOk="Sem toques agendados" />
-            {open.toques && (data?.toques?.length || 0) > 0 && (
-              <div className="mt-2 flex flex-col gap-2">
-                {data?.toques.map((t) => (
-                  <Link key={t.id} href={`/dashboard/crm/leads/${t.id}`} className="block bg-white border border-[#d8d0bc] rounded-lg p-3 hover:border-[#009AAC] transition">
-                    <div className="flex items-center justify-between gap-2 flex-wrap">
-                      <div className="flex items-center gap-2 text-sm">
-                        {t.petNome && <span>🐾 <strong className="text-[#0E2244] font-medium">{t.petNome}</strong></span>}
-                        {t.petNome && t.nome && <span className="text-gray-400">·</span>}
-                        <span className="text-[#4d5a66]">{t.nome}</span>
-                        <span className="bg-[#E1F5EE] text-[#0F6E56] text-[10px] font-medium px-2 py-0.5 rounded-full">{t.canal}</span>
-                      </div>
-                      {t.telefone && (
-                        <a href={`https://wa.me/${t.telefone.replace(/\D/g, "")}`} target="_blank" rel="noreferrer" className="bg-[#E0F4F6] text-[#00798A] text-[11px] px-2.5 py-1 rounded-full inline-flex items-center gap-1.5 border border-[#b5dde2]">
-                          <span style={{fontSize:"14px"}}>💬</span>{t.telefone}
-                        </a>
-                      )}
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div>
-            <SectionHeader icon={() => <span style={{fontSize:"14px"}}>💗</span>} title="Tutores a acompanhar" count={data?.tutoresAcompanhar || 0}
-              color="#993556" open={open.tutores} onToggle={() => toggle("tutores")} />
-            {open.tutores && (
-              <div className="mt-2 bg-white border border-[#d8d0bc] rounded-lg p-4 text-center text-xs text-gray-400">
-                {(data?.tutoresAcompanhar || 0) === 0 ? "Nada por aqui no momento" : "Lista de tutores a acompanhar — em construção (precisa do campo proximo_followup no Tutor)"}
-              </div>
-            )}
-          </div>
-
-          <div>
-            <SectionHeader icon={() => <span style={{fontSize:"14px"}}>🧪</span>} title="Exames a entregar" count={data?.examesAEntregar || 0}
-              color="#009AAC" open={open.exames} onToggle={() => toggle("exames")}
-              emptyOk="Tudo em dia por aqui" />
-            {open.exames && (
-              <div className="mt-2 bg-white border border-[#d8d0bc] rounded-lg p-4 text-center text-xs text-gray-400">
-                Lista de exames — em construção (depende do módulo CatalogoExame)
-              </div>
-            )}
-          </div>
-
-          <div>
-            <SectionHeader icon={() => <span style={{fontSize:"14px"}}>📦</span>} title="Pacotes em risco" count={data?.pacotesEmRisco || 0}
-              color="#BA7517" open={open.pacotes} onToggle={() => toggle("pacotes")}
-              emptyOk="Tudo em dia por aqui" />
-            {open.pacotes && (
-              <div className="mt-2 bg-white border border-[#d8d0bc] rounded-lg p-4 text-center text-xs text-gray-400">
-                Pacotes em risco — em construção (depende do módulo PacoteSessoes)
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      <div className="mt-6 text-xs text-[#94a3b8] text-center">
+        Métricas e relatórios ficam no <Link href="/dashboard" className="underline">Dashboard</Link> e no Inbox.
+      </div>
     </div>
   );
 }
