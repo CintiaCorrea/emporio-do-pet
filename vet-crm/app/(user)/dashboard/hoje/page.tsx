@@ -47,7 +47,13 @@ export default function HojePage() {
   const userName = session?.user?.name || "Usuário";
   const today = new Date();
 
-  usePageTitle("Hoje", `Seu dia · ${userName} · ${fmtDate(today)}`);
+  const hora = today.getHours();
+  const saudacao = hora < 12 ? "Bom dia" : hora < 18 ? "Boa tarde" : "Boa noite";
+  const partes = userName.trim().split(/\s+/);
+  const primeiroNome = partes[0]
+    ? partes[0].charAt(0).toUpperCase() + partes[0].slice(1).toLowerCase()
+    : "Usuário";
+  usePageTitle(`${saudacao}, ${primeiroNome}`, fmtDate(today));
 
   const [data, setData] = useState<HojeData | null>(null);
   const [loading, setLoading] = useState(true);

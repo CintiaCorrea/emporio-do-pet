@@ -2,11 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { signOut, useSession } from "next-auth/react";
 import {
   LuSun, LuLayoutDashboard, LuMessageSquare, LuList, LuUsers, LuPawPrint,
   LuCalendar, LuBuilding2, LuSettings, LuChevronLeft, LuChevronRight,
-  LuLogOut, LuCircleDollarSign, LuMegaphone, LuUserCog, LuEye,
+  LuCircleDollarSign, LuMegaphone, LuUserCog, LuEye, LuCircleHelp,
 } from "react-icons/lu";
 import { roleLabel, AppRole } from "@/lib/ui/role";
 import { useRolePreview } from "@/lib/ui/RolePreview";
@@ -51,11 +50,8 @@ const FUTURE = [
 export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
   const collapsed = !isOpen;
   const pathname = usePathname();
-  const { data: session } = useSession();
-  const { realRole, effectiveRole, isPreviewing, preview, setPreview } = useRolePreview();
+  const { realRole, effectiveRole, isPreviewing, setPreview } = useRolePreview();
   const role = effectiveRole;
-  const userName = session?.user?.name || "Usuário";
-  const initials = ((userName.split(/\s+/)[0]?.[0] || "") + (userName.split(/\s+/)[1]?.[0] || "")).toUpperCase() || "??";
 
   const isActive = (it: Item) => it.exact ? pathname === it.href : pathname.startsWith(it.href);
   const visible = (it: Item) => it.roles.includes(role);
@@ -88,7 +84,6 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
         )}
       </div>
 
-      {/* Role Preview Switcher — só pra admin real e sidebar expandida */}
       {!collapsed && realRole === "ADMIN" && (
         <div className="px-3 pt-3 pb-1">
           <div className="text-[9.5px] font-bold tracking-[0.7px] text-[#94a3b8] uppercase mb-1.5 px-1 flex items-center gap-1">
@@ -186,28 +181,16 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
         )}
       </nav>
 
-      <div className={`border-t ${collapsed ? "px-2 py-3" : "px-4 py-3"} flex flex-col gap-2.5`} style={{ borderColor: "#e8edf0" }}>
-        <div className={`flex items-center ${collapsed ? "justify-center" : "gap-[10px]"}`}>
-          <div className="w-[34px] h-[34px] rounded-full bg-gradient-to-br from-[#009AAC] to-[#014D5E] text-white flex items-center justify-center text-xs font-semibold flex-shrink-0" title={userName}>
-            {initials}
-          </div>
-          {!collapsed && (
-            <div className="flex flex-col leading-tight min-w-0">
-              <span className="text-[12.5px] text-[#1e293b] font-semibold truncate">{userName}</span>
-              <span className="text-[11px] text-[#94a3b8]">
-                {roleLabel(role)}{isPreviewing && <span className="text-[#d97706]"> · preview</span>}
-              </span>
-            </div>
-          )}
-        </div>
-        <button
-          onClick={() => signOut({ callbackUrl: "/" })}
-          className={`flex items-center ${collapsed ? "justify-center" : "gap-2"} text-[#64748b] hover:text-[#ef4444] text-[12.5px]`}
-          title={collapsed ? "Sair" : undefined}
+      {/* Rodapé enxuto: só Ajuda */}
+      <div className={`border-t ${collapsed ? "px-2 py-3" : "px-3 py-3"}`} style={{ borderColor: "#e8edf0" }}>
+        <Link
+          href="/dashboard/ajuda"
+          className={`flex items-center ${collapsed ? "justify-center" : "gap-2.5"} px-3 py-2 rounded-[9px] text-[12.5px] text-[#64748b] hover:bg-[#f6f8f9] transition`}
+          title={collapsed ? "Ajuda" : undefined}
         >
-          <LuLogOut size={15} />
-          {!collapsed && <span>Sair</span>}
-        </button>
+          <LuCircleHelp size={15} />
+          {!collapsed && <span>Ajuda</span>}
+        </Link>
       </div>
     </aside>
   );
