@@ -53,7 +53,8 @@ export default function HojePage() {
   const primeiroNome = partes[0]
     ? partes[0].charAt(0).toUpperCase() + partes[0].slice(1).toLowerCase()
     : "Usuário";
-  usePageTitle(`${saudacao}, ${primeiroNome}`, fmtDate(today));
+  const escopo = effectiveRole === "ADMIN" ? "Visão geral da clínica" : "Seu dia";
+  usePageTitle(`${saudacao}, ${primeiroNome}`, `${escopo} · ${fmtDate(today)}`);
 
   const [data, setData] = useState<HojeData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -133,7 +134,7 @@ export default function HojePage() {
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex items-center gap-3 mb-4">
-        <h2 className="text-[15px] font-bold" style={{ color: "#014D5E" }}>O que precisa de atenção hoje</h2>
+        <h2 className="text-[15px] font-bold" style={{ color: "#014D5E" }}>{effectiveRole === "ADMIN" ? "O que a clínica precisa de atenção hoje" : "O que você precisa atender hoje"}</h2>
         <span
           className="text-xs font-semibold px-3 py-1 rounded-full"
           style={{ background: "#e6f6f8", color: "#009AAC" }}
