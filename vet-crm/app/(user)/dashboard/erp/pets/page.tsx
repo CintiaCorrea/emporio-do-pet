@@ -62,7 +62,7 @@ export default function PetsListPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterSpecies, setFilterSpecies] = useState<"ALL" | string>("ALL");
-  const [filterStatus, setFilterStatus] = useState<"ALL" | string>("ACTIVE");
+  const [filterStatus, setFilterStatus] = useState<"ALL" | string>("ALL");
 
   async function load() {
     setLoading(true);
