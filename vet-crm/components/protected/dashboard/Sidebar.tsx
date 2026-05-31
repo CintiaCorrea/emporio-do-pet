@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { useState } from "react";
 import {
-  LuSun, LuLayoutDashboard, LuMessageSquare, LuList, LuUsers, LuPaw,
+  LuSun, LuLayoutDashboard, LuMessageSquare, LuList, LuUsers, LuPawPrint,
   LuCalendar, LuBuilding2, LuSettings, LuChevronLeft, LuChevronRight,
   LuLogOut, LuCircleDollarSign, LuMegaphone, LuUserCog,
 } from "react-icons/lu";
@@ -33,7 +33,7 @@ const NAV: Item[] = [
   { href: "/dashboard/inbox", label: "Inbox Recepção", Icon: LuMessageSquare, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
   { href: "/dashboard/crm/leads", label: "Leads", Icon: LuList, roles: ["ADMIN", "RECEPTIONIST"] },
   { href: "/dashboard/erp/tutores", label: "Tutores", Icon: LuUsers, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
-  { href: "/dashboard/erp/pets", label: "Pets", Icon: LuPaw, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
+  { href: "/dashboard/erp/pets", label: "Pets", Icon: LuPawPrint, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
   { href: "/dashboard/calendario", label: "Calendário", Icon: LuCalendar, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
   {
     href: "/dashboard/erp/internacoes", label: "Internação", Icon: LuBuilding2,
@@ -83,7 +83,7 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
       <div className={`px-4 ${collapsed ? "py-4" : "py-[18px]"} border-b flex items-center justify-center`} style={{ borderColor: "#e8edf0" }}>
         {collapsed ? (
           <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#009AAC] to-[#014D5E] flex items-center justify-center">
-            <LuPaw className="text-white" size={18} />
+            <LuPawPrint className="text-white" size={18} />
           </div>
         ) : (
           <img src="https://emporiodopet.com.br/wp-content/uploads/2022/04/logo-emporio-do-pet-padrao.png" alt="Empório do Pet" style={{ height: 46, width: "auto" }} />
