@@ -72,12 +72,15 @@ export class TutorsService {
   async findAll(params?: { search?: string; skip?: number; take?: number }) {
     const { search, skip = 0, take = 20 } = params || {};
 
+    // Normaliza telefone (remove não-dígitos) pra busca por contato
+    const onlyDigits = search ? search.replace(/\D/g, '') : '';
     const where = search
       ? {
           OR: [
             { name: { contains: search, mode: 'insensitive' as const } },
             { email: { contains: search, mode: 'insensitive' as const } },
             { cpf: { contains: search } },
+            ...(onlyDigits ? [{ contacts: { some: { number: { contains: onlyDigits } } } }] : []),
           ],
         }
       : {};
