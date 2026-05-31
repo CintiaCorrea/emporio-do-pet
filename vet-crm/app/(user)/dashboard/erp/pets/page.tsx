@@ -1,487 +1,216 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { LuPlus, LuSearch, LuPencil, LuTrash, LuPawPrint, LuDownload, LuEye, LuUser } from 'react-icons/lu';
-import Link from 'next/link';
-import ConfirmDeleteModal from '@/components/common/ConfirmDeleteModal';
-import toast from 'react-hot-toast';
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { LuPlus, LuSearch, LuPencil, LuTrash, LuEye, LuUpload } from "react-icons/lu";
+import PetIcon from "@/components/profile/PetIcon";
+import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 
 interface Pet {
   id: string;
   name: string;
   species: string;
-  breed: string;
-  status: 'ACTIVE' | 'DECEASED' | 'TRANSFERRED' | 'INACTIVE';
-  sex: string;
-  sterilization: string;
-  birthDate: string;
-  coat: string;
-  owner: string;
+  breed?: string | null;
+  status: "ACTIVE" | "DECEASED" | "TRANSFERRED" | "INACTIVE";
+  gender?: string | null;
+  birthDate?: string | null;
+  avatar?: string | null;
   tutorId: string;
+  tutor?: { id: string; name: string; phone?: string };
   createdAt: string;
-  tutor?: {
-    name: string;
-  };
+  updatedAt: string;
 }
 
-interface ApiResponse {
-  pets: Pet[];
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    pages: number;
-  };
+const STATUS_LABEL: Record<string, { label: string; dot: string }> = {
+  ACTIVE: { label: "Ativo", dot: "#22C55E" },
+  INACTIVE: { label: "Inativo", dot: "#94A3B8" },
+  DECEASED: { label: "Falecido", dot: "#6B7280" },
+  TRANSFERRED: { label: "Transferido", dot: "#F59E0B" },
+};
+
+const SPECIES_LABEL: Record<string, string> = {
+  CANINE: "Cão",
+  FELINE: "Gato",
+  BIRD: "Pássaro",
+  RODENT: "Roedor",
+  REPTILE: "Réptil",
+  FISH: "Peixe",
+  OTHER: "Outro",
+};
+
+function ageFromBirth(b?: string | null): string {
+  if (!b) return "—";
+  const d = new Date(b);
+  const now = new Date();
+  let anos = now.getFullYear() - d.getFullYear();
+  const m = now.getMonth() - d.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < d.getDate())) anos--;
+  if (anos < 1) {
+    const meses = (now.getFullYear() - d.getFullYear()) * 12 + (now.getMonth() - d.getMonth());
+    return `${Math.max(0, meses)} mes${meses !== 1 ? "es" : ""}`;
+  }
+  return `${anos} ano${anos !== 1 ? "s" : ""}`;
+}
+
+async function safeJson<T>(res: Response, fb: T): Promise<T> {
+  try { if (!res.ok) return fb; const d = await res.json(); return d == null ? fb : d; } catch { return fb; }
 }
 
 export default function PetsListPage() {
+  usePageTitle("Pets", "Pacientes cadastrados");
   const [pets, setPets] = useState<Pet[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'ACTIVE' | 'DECEASED' | 'TRANSFERRED' | 'INACTIVE'>('all');
-  const [filterSpecies, setFilterSpecies] = useState<'all' | 'Canina' | 'Felina' | 'Ave' | 'Roedor' | 'Réptil'>('all');
-  const [petToDelete, setPetToDelete] = useState<Pet | null>(null);
+  const [search, setSearch] = useState("");
+  const [filterSpecies, setFilterSpecies] = useState<"ALL" | string>("ALL");
+  const [filterStatus, setFilterStatus] = useState<"ALL" | string>("ACTIVE");
 
-
-  // Buscar pets da API
-  useEffect(() => {
-    const fetchPets = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const response = await fetch('/api/pets');
-        
-        if (!response.ok) {
-          throw new Error(`Erro ${response.status}: ${response.statusText}`);
-        }
-        
-        const data: ApiResponse = await response.json();
-        
-        // A API retorna { pets: [], pagination: {} }
-        if (!data.pets || !Array.isArray(data.pets)) {
-          console.warn('Dados recebidos não contêm array de pets:', data);
-          setPets([]);
-          return;
-        }
-        
-        setPets(data.pets);
-      } catch (error) {
-        console.error('Erro ao buscar pets:', error);
-        setError(error instanceof Error ? error.message : 'Erro desconhecido ao carregar pets');
-        setPets([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchPets();
-  }, []);
-
-  // Filtrar pets
-  const filteredPets = pets.filter(pet => {
-    const name = pet.name || '';
-    const breed = pet.breed || '';
-    const owner = pet.owner || pet.tutor?.name || '';
-    const species = pet.species || '';
-    const status = pet.status || 'INACTIVE';
-    
-    const matchesSearch = name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         breed.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         owner.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesStatus = filterStatus === 'all' || status === filterStatus;
-    const matchesSpecies = filterSpecies === 'all' || species === filterSpecies;
-    
-    return matchesSearch && matchesStatus && matchesSpecies;
-  });
-
-  const requestDeletePet = (pet: Pet) => {
-    setPetToDelete(pet);
-  };
-
-  const confirmDeletePet = async () => {
-    if (!petToDelete) return;
-
-    const res = await fetch(`/api/pets/${petToDelete.id}`, { method: 'DELETE' });
-    const data = await res.json().catch(() => null);
-    if (!res.ok) {
-      const message =
-        (data && (data.error || (Array.isArray(data.message) ? data.message.join(', ') : data.message))) ||
-        'Erro ao excluir pet';
-      throw new Error(message);
-    }
-
-    setPets((prev) => prev.filter((p) => p.id !== petToDelete.id));
-    toast.success('Pet excluído com sucesso!');
-    setPetToDelete(null);
-  };
-
-  const formatDate = (dateString: string) => {
+  async function load() {
+    setLoading(true);
     try {
-      if (!dateString) return 'Não informada';
-      
-      // BirthDate é "data-only" (não é um instante). Se vier como ISO (com Z ou offset),
-      // pegamos o YYYY-MM-DD para não deslocar um dia por fuso horário.
-      const isoDateMatch = dateString.match(/^(\d{4})-(\d{2})-(\d{2})/);
-      if (isoDateMatch) {
-        const yyyy = isoDateMatch[1];
-        const mm = isoDateMatch[2];
-        const dd = isoDateMatch[3];
-        return `${dd}/${mm}/${yyyy}`;
-      }
-      
-      // Tenta parsear formato dd/mm/aaaa ou similar
-      const cleaned = dateString.replace(/[.\-]/g, "/").trim();
-      const brMatch = cleaned.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
-      if (brMatch) {
-        const day = String(Number(brMatch[1])).padStart(2, '0');
-        const month = String(Number(brMatch[2])).padStart(2, '0');
-        let year = Number(brMatch[3]);
-        if (brMatch[3].length === 2) {
-          year = year <= 49 ? 2000 + year : 1900 + year;
-        }
-        return `${day}/${month}/${year}`;
-      }
-
-      // Último fallback: tenta Date (apenas se não parecer data-only)
-      const d = new Date(dateString);
-      if (!Number.isNaN(d.getTime())) {
-        return d.toLocaleDateString('pt-BR');
-      }
-      
-      return 'Não informada';
-    } catch {
-      return 'Não informada';
+      const params = new URLSearchParams({ limit: "200" });
+      if (search) params.set("search", search);
+      const res = await fetch(`/api/pets?${params}`);
+      const d = await safeJson<any>(res, { pets: [] });
+      setPets(Array.isArray(d) ? d : (d.pets || []));
+    } finally {
+      setLoading(false);
     }
-  };
+  }
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [search]);
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'ACTIVE':
-        return 'bg-green-100 text-green-800';
-      case 'DECEASED':
-        return 'bg-red-100 text-red-800';
-      case 'TRANSFERRED':
-        return 'bg-blue-100 text-blue-800';
-      case 'INACTIVE':
-        return 'bg-gray-100 text-gray-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
+  const filtered = useMemo(() => {
+    let arr = pets;
+    if (filterSpecies !== "ALL") arr = arr.filter(p => p.species === filterSpecies);
+    if (filterStatus !== "ALL") arr = arr.filter(p => p.status === filterStatus);
+    return arr;
+  }, [pets, filterSpecies, filterStatus]);
 
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'ACTIVE':
-        return 'Ativo';
-      case 'DECEASED':
-        return 'Óbito';
-      case 'TRANSFERRED':
-        return 'Transferido';
-      case 'INACTIVE':
-        return 'Inativo';
-      default:
-        return status;
-    }
-  };
-
-  const getSpeciesText = (species: string) => {
-    switch (species) {
-      case 'Canina':
-        return 'Canino';
-      case 'Felina':
-        return 'Felino';
-      case 'Ave':
-        return 'Ave';
-      case 'Roedor':
-        return 'Roedor';
-      case 'Réptil':
-        return 'Réptil';
-      default:
-        return species;
-    }
-  };
-
-  const getSexText = (sex: string) => {
-    switch (sex) {
-      case 'MALE':
-        return 'Macho';
-      case 'FEMALE':
-        return 'Fêmea';
-      case 'OTHER':
-        return 'Indefinido';
-      default:
-        return sex || 'Indefinido';
-    }
-  };
-
-  // Estado de renderização condicional
-  const renderContent = () => {
-    if (loading) {
-      return (
-        <div className="p-12 text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Carregando pets...</p>
-        </div>
-      );
-    }
-
-    if (error) {
-      return (
-        <div className="p-12 text-center">
-          <div className="text-red-500 text-4xl mb-4">⚠️</div>
-          <h3 className="mt-4 text-lg font-semibold text-gray-900">Erro ao carregar pets</h3>
-          <p className="mt-2 text-gray-600">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="mt-4 px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
-          >
-            Tentar novamente
-          </button>
-        </div>
-      );
-    }
-
-    if (pets.length === 0) {
-      return (
-        <div className="p-12 text-center">
-          <LuPawPrint className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-4 text-lg font-semibold text-gray-900">
-            Nenhum pet cadastrado
-          </h3>
-          <p className="mt-2 text-gray-600">
-            Comece cadastrando o primeiro pet
-          </p>
-          <Link
-            href="/dashboard/erp/pets/novo"
-            className="mt-4 inline-flex items-center gap-2 px-6 py-2 text-white bg-gradient-to-r from-green-600 to-cyan-600 rounded-2xl hover:from-green-700 hover:to-cyan-700 transition-all duration-300"
-          >
-            <LuPlus className="w-4 h-4" />
-            <span>Cadastrar Primeiro Pet</span>
-          </Link>
-        </div>
-      );
-    }
-
-    if (filteredPets.length === 0) {
-      return (
-        <div className="p-12 text-center">
-          <LuPawPrint className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-4 text-lg font-semibold text-gray-900">
-            Nenhum pet encontrado
-          </h3>
-          <p className="mt-2 text-gray-600">
-            Tente ajustar os filtros de busca
-          </p>
-        </div>
-      );
-    }
-
-    return (
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-white/20 bg-gradient-to-r from-white to-white/95">
-              <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Pet</th>
-              <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Espécie/Raça</th>
-              <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Tutor</th>
-              <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Nascimento</th>
-              <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Status</th>
-              <th className="px-6 py-4 text-right text-sm font-semibold text-gray-900">Ações</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-white/10">
-            {filteredPets.map((pet) => (
-              <tr key={pet.id} className="hover:bg-gray-50/50 transition-colors duration-200">
-                <td className="px-6 py-4">
-                  <div className="flex items-center">
-                    <div className="flex-shrink-0 h-10 w-10 bg-gradient-to-br from-green-500 to-cyan-600 rounded-2xl flex items-center justify-center">
-                      <LuPawPrint className="h-6 w-6 text-white" />
-                    </div>
-                    <div className="ml-4">
-                      <div className="text-sm font-semibold text-gray-900">{pet.name || 'Nome não informado'}</div>
-                      <div className="text-sm text-gray-500">
-                        {getSexText(pet.sex)}
-                      </div>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-6 py-4">
-                  <div className="text-sm text-gray-900">{getSpeciesText(pet.species)}</div>
-                  <div className="text-sm text-gray-500">{pet.breed || 'Raça não informada'}</div>
-                </td>
-                <td className="px-6 py-4">
-                  <div className="flex items-center">
-                    <LuUser className="h-4 w-4 text-gray-400 mr-2" />
-                    <div className="text-sm text-gray-900">{pet.owner || pet.tutor?.name || 'Tutor não informado'}</div>
-                  </div>
-                </td>
-                <td className="px-6 py-4 text-sm text-gray-900">
-                  {formatDate(pet.birthDate)}
-                </td>
-                <td className="px-6 py-4">
-                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold ${getStatusColor(pet.status)}`}>
-                    {getStatusText(pet.status)}
-                  </span>
-                </td>
-                <td className="px-6 py-4 text-right text-sm font-medium">
-                  <div className="flex justify-end space-x-2">
-                    <Link
-                      href={`/dashboard/erp/pets/${pet.id}`}
-                      className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-xl transition-all duration-300 hover:scale-110"
-                      title="Visualizar"
-                    >
-                      <LuEye className="w-4 h-4" />
-                    </Link>
-                    <Link
-                      href={`/dashboard/erp/pets/${pet.id}/editar`}
-                      className="p-2 text-green-600 hover:text-green-700 hover:bg-green-50 rounded-xl transition-all duration-300 hover:scale-110"
-                      title="Editar"
-                    >
-                      <LuPencil className="w-4 h-4" />
-                    </Link>
-                    <button
-                      onClick={() => requestDeletePet(pet)}
-                      className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl transition-all duration-300 hover:scale-110"
-                      title="Excluir"
-                    >
-                      <LuTrash className="w-4 h-4" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    );
-  };
+  const counts = useMemo(() => {
+    const c: Record<string, number> = { ALL: pets.length };
+    for (const p of pets) c[p.species] = (c[p.species] || 0) + 1;
+    return c;
+  }, [pets]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-green-50/20 to-cyan-50/10 w-full overflow-hidden">
-      <ConfirmDeleteModal
-        isOpen={Boolean(petToDelete)}
-        entityLabel="Pet"
-        itemName={petToDelete?.name || '—'}
-        consequenceText="Esta ação não pode ser desfeita. Os dados do pet serão removidos."
-        onClose={() => setPetToDelete(null)}
-        onConfirm={confirmDeletePet}
-      />
-      {/* Main Content */}
-      <div className="p-6">
-        <div className="max-w-7xl mx-auto">
-            {/* Header */}
-            <div className="mb-8">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-                    Pets
-                  </h1>
-                  <p className="text-gray-600 mt-2">
-                    Gerencie todos os pets cadastrados no sistema
-                  </p>
-                </div>
-                <Link
-                  href="/dashboard/erp/pets/novo"
-                  className="group mt-4 sm:mt-0 flex items-center gap-2 px-6 py-3 text-white bg-gradient-to-r from-green-600 to-cyan-600 rounded-2xl hover:from-green-700 hover:to-cyan-700 focus:outline-none focus:ring-2 focus:ring-green-500/50 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-green-500/25"
-                >
-                  <LuPlus className="w-5 h-5 transition-transform duration-300 group-hover:rotate-90" />
-                  <span className="font-semibold">Novo Pet</span>
-                </Link>
-              </div>
-            </div>
+    <div className="min-h-screen bg-white">
+      <div className="max-w-7xl mx-auto px-6 pt-4 flex items-center justify-between gap-3">
+        <div className="text-xs text-gray-500">{filtered.length} de {pets.length} pets</div>
+        <div className="relative flex-1 max-w-md mx-3">
+          <LuSearch size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Buscar por nome, raça, tutor..."
+            className="w-full pl-8 pr-3 py-2 border rounded-lg text-sm bg-white"
+            style={{ borderColor: "#E8DFC8" }}
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <select
+            value={filterStatus}
+            onChange={e => setFilterStatus(e.target.value)}
+            className="px-3 py-2 border rounded-lg text-sm bg-white"
+            style={{ borderColor: "#E8DFC8" }}
+          >
+            <option value="ALL">Todos status</option>
+            {Object.entries(STATUS_LABEL).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+          </select>
+          <Link
+            href="/dashboard/erp/pets/novo"
+            className="px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-2 text-white"
+            style={{ background: "#009AAC" }}
+          >
+            <LuPlus size={14} /> Novo Pet
+          </Link>
+        </div>
+      </div>
 
-            {/* Filtros e Busca - Só mostra se não estiver em estado de erro */}
-            {!error && pets.length > 0 && (
-              <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-3xl shadow-2xl shadow-green-500/10 p-6 mb-6">
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-                  {/* Barra de Pesquisa */}
-                  <div className="md:col-span-4 relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <LuSearch className="h-5 w-5 text-gray-400" />
-                    </div>
-                    <input
-                      type="text"
-                      placeholder="Buscar por nome, raça ou tutor..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full pl-10 pr-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500/50 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm"
-                    />
-                  </div>
-
-                  {/* Filtro de Status */}
-                  <div className="md:col-span-3">
-                    <div className="flex items-center space-x-2">
-                      <span style={{fontSize:"14px"}}>⌕</span>
-                      <select
-                        value={filterStatus}
-                        onChange={(e) => setFilterStatus(e.target.value as any)}
-                        className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm"
-                      >
-                        <option value="all">Todos os status</option>
-                        <option value="ACTIVE">Ativos</option>
-                        <option value="DECEASED">Óbito</option>
-                        <option value="TRANSFERRED">Transferidos</option>
-                        <option value="INACTIVE">Inativos</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Filtro de Espécie */}
-                  <div className="md:col-span-3">
-                    <div className="flex items-center space-x-2">
-                      <LuPawPrint className="h-5 w-5 text-gray-400" />
-                      <select
-                        value={filterSpecies}
-                        onChange={(e) => setFilterSpecies(e.target.value as any)}
-                        className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm"
-                      >
-                        <option value="all">Todas as espécies</option>
-                        <option value="Canina">Caninos</option>
-                        <option value="Felina">Felinos</option>
-                        <option value="Ave">Aves</option>
-                        <option value="Roedor">Roedores</option>
-                        <option value="Réptil">Répteis</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Botão Exportar */}
-                  <div className="md:col-span-2">
-                    <button className="w-full flex items-center justify-center gap-2 px-4 py-3 text-gray-700 bg-white/80 border border-gray-200/80 rounded-2xl hover:bg-white hover:border-gray-300 hover:shadow-lg transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-gray-500/50">
-                      <LuDownload className="w-5 h-5" />
-                      <span className="font-semibold">Exportar</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Tabela de Pets */}
-            <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-3xl shadow-2xl shadow-green-500/10 overflow-hidden">
-              {renderContent()}
-
-              {/* Paginação */}
-              {!loading && !error && pets.length > 0 && filteredPets.length > 0 && (
-                <div className="px-6 py-4 border-t border-white/20 bg-gradient-to-r from-white to-white/95">
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm text-gray-700">
-                      Mostrando <span className="font-semibold">{filteredPets.length}</span> de{' '}
-                      <span className="font-semibold">{pets.length}</span> pets
-                    </div>
-                    <div className="flex space-x-2">
-                      <button className="px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-2xl hover:bg-gray-50 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed">
-                        Anterior
-                      </button>
-                      <button className="px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-green-600 to-cyan-600 rounded-2xl hover:from-green-700 hover:to-cyan-700 transition-all duration-300">
-                        Próxima
-                      </button>
-                    </div>
-                  </div>
-                </div>
+      <div className="max-w-7xl mx-auto px-6 py-4">
+        <div className="bg-white border rounded-xl overflow-hidden" style={{ borderColor: "#E8DFC8" }}>
+          <table className="w-full text-sm">
+            <thead className="border-b" style={{ background: "#FAFAFA", borderColor: "#E8DFC8" }}>
+              <tr>
+                <th className="text-left px-4 py-2.5 font-medium text-gray-500 w-8"></th>
+                <th className="text-left px-4 py-2.5 font-medium text-gray-500">Pet</th>
+                <th className="text-left px-4 py-2.5 font-medium text-gray-500 hidden md:table-cell">Tutor</th>
+                <th className="text-left px-4 py-2.5 font-medium text-gray-500 hidden md:table-cell">Espécie / Raça</th>
+                <th className="text-left px-4 py-2.5 font-medium text-gray-500 hidden lg:table-cell">Idade</th>
+                <th className="text-left px-4 py-2.5 font-medium text-gray-500 hidden lg:table-cell">Status</th>
+                <th className="text-right px-4 py-2.5 font-medium text-gray-500 w-24">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading && <tr><td colSpan={7} className="text-center py-8 text-gray-400">Carregando...</td></tr>}
+              {!loading && filtered.length === 0 && (
+                <tr><td colSpan={7} className="text-center py-8 text-gray-400">Nenhum pet encontrado.</td></tr>
               )}
-            </div>
+              {filtered.map(p => (
+                <tr key={p.id} className="border-b hover:bg-gray-50/60 transition" style={{ borderColor: "#F0EBE0" }}>
+                  <td className="px-4 py-2.5">
+                    <span
+                      className="inline-block w-2.5 h-2.5 rounded-full"
+                      style={{ background: STATUS_LABEL[p.status]?.dot || "#94A3B8" }}
+                      title={STATUS_LABEL[p.status]?.label}
+                    />
+                  </td>
+                  <td className="px-4 py-2.5">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "#e6f6f8", color: "#009AAC" }}>
+                        <PetIcon species={p.species} size={18} />
+                      </div>
+                      <Link href={`/dashboard/erp/pets/${p.id}`} className="font-medium hover:underline" style={{ color: "#0E2244" }}>
+                        {p.name}
+                      </Link>
+                    </div>
+                  </td>
+                  <td className="px-4 py-2.5 hidden md:table-cell">
+                    {p.tutor ? (
+                      <Link href={`/dashboard/erp/tutores/${p.tutorId}`} className="text-gray-700 hover:underline">
+                        {p.tutor.name}
+                      </Link>
+                    ) : "—"}
+                  </td>
+                  <td className="px-4 py-2.5 hidden md:table-cell text-gray-700">
+                    {SPECIES_LABEL[p.species] || p.species}{p.breed ? ` · ${p.breed}` : ""}
+                  </td>
+                  <td className="px-4 py-2.5 hidden lg:table-cell text-gray-500">{ageFromBirth(p.birthDate)}</td>
+                  <td className="px-4 py-2.5 hidden lg:table-cell">
+                    <span className="text-xs">{STATUS_LABEL[p.status]?.label || p.status}</span>
+                  </td>
+                  <td className="px-4 py-2.5 text-right whitespace-nowrap">
+                    <Link href={`/dashboard/erp/pets/${p.id}`} className="p-1 hover:bg-gray-200 rounded inline-block text-gray-600">
+                      <LuEye size={14} />
+                    </Link>
+                    <Link href={`/dashboard/erp/pets/${p.id}/editar`} className="p-1 hover:bg-gray-200 rounded inline-block ml-1 text-gray-600">
+                      <LuPencil size={14} />
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-6 py-4">
+        <div className="bg-white border rounded-xl p-4" style={{ borderColor: "#E8DFC8" }}>
+          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">ESPÉCIES</div>
+          <div className="flex items-center gap-2 flex-wrap">
+            {(["ALL", "CANINE", "FELINE", "BIRD", "RODENT", "REPTILE", "FISH", "OTHER"] as const).map(k => (
+              <button
+                key={k}
+                onClick={() => setFilterSpecies(k)}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium border"
+                style={{
+                  borderColor: filterSpecies === k ? "#009AAC" : "#E8DFC8",
+                  background: filterSpecies === k ? "#E0F4F6" : "white",
+                  color: filterSpecies === k ? "#009AAC" : "#4B5563",
+                }}
+              >
+                {k === "ALL" ? "Todas" : SPECIES_LABEL[k]} <span className="text-gray-400">({counts[k] || 0})</span>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </div>
