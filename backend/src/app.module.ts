@@ -14,6 +14,7 @@ import { BotconversaWebhookModule } from './modules/webhooks/botconversa/botconv
 import { PetsModule } from './modules/pets/pets.module';
 import { BreedsModule } from './modules/breeds/breeds.module';
 import { AppointmentsModule } from './modules/appointments/appointments.module';
+import { InteracoesModule } from './modules/interacoes/interacoes.module';
 import { BoardsModule } from './modules/boards/boards.module';
 import { ColumnsModule } from './modules/columns/columns.module';
 import { NewslettersModule } from './modules/newsletters/newsletters.module';
@@ -136,6 +137,7 @@ import configuration from './config/configuration';
     PetsModule,
     BreedsModule,
     AppointmentsModule,
+    InteracoesModule,
     BoardsModule,
     ColumnsModule,
     NewslettersModule,
