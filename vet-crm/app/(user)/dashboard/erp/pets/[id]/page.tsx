@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  LuArrowLeft, LuPencil, LuTrash, LuPlus, LuFlaskConical,
-  LuPackage, LuMessageSquare, LuShare2, LuTag, LuClock,
+  LuArrowLeft, LuPencil, LuTrash, LuPlus, LuMessageSquare, LuChevronRight,
 } from "react-icons/lu";
 import toast from "react-hot-toast";
 import ConfirmDeleteModal from "@/components/common/ConfirmDeleteModal";
@@ -37,8 +36,41 @@ interface Pet {
   _count?: { appointments: number; treatments: number };
 }
 
+interface Atendimento {
+  id: string;
+  type: string;
+  status: string;
+  date: string;
+  description?: string | null;
+  diagnosis?: string | null;
+  chiefComplaint?: string | null;
+  value: number;
+  user?: { id: string; name: string };
+}
+
+const TYPE_LABEL: Record<string, string> = {
+  CONSULTA: "Consulta", RETORNO: "Retorno", AVALIACAO: "Avaliação",
+  EMERGENCIA: "Emergência", PROCEDIMENTO: "Procedimento", VACINACAO: "Vacinação",
+  CIRURGIA: "Cirurgia", SESSAO_FISIO: "Sessão de Fisioterapia", OUTRO: "Outro",
+};
+const STATUS_PILL: Record<string, { label: string; bg: string; color: string }> = {
+  SCHEDULED: { label: "Agendado", bg: "#eef2f4", color: "#64748b" },
+  IN_PROGRESS: { label: "Em andamento", bg: "#fef3c7", color: "#92400e" },
+  COMPLETED: { label: "Realizado", bg: "#dcfce7", color: "#15803d" },
+  MISSED: { label: "Faltou", bg: "#fee2e2", color: "#b91c1c" },
+  CANCELED: { label: "Cancelado", bg: "#f1f5f9", color: "#475569" },
+  CONFIRMED: { label: "Confirmado", bg: "#dbeafe", color: "#1e40af" },
+};
+
 async function safeJson<T>(res: Response, fb: T): Promise<T> {
   try { if (!res.ok) return fb; const d = await res.json(); return d == null ? fb : d; } catch { return fb; }
+}
+
+function fmtDt(s?: string | null) {
+  if (!s) return "—";
+  const d = new Date(s);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
 }
 
 export default function PetDetailPage() {
@@ -47,21 +79,37 @@ export default function PetDetailPage() {
   const petId = params?.id as string;
 
   const [pet, setPet] = useState<Pet | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"CLINICA" | "PACOTES" | "EXAMES">("CLINICA");
+  const [atendimentos, setAtendimentos] = useState<Atendimento[]>([]);
+  const [loadingPet, setLoadingPet] = useState(true);
+  const [loadingAt, setLoadingAt] = useState(true);
   const [delOpen, setDelOpen] = useState(false);
-  const [tagsOpen, setTagsOpen] = useState(false);
 
   usePageTitle(pet ? pet.name : "Pet", pet?.tutor ? `Tutor: ${pet.tutor.name}` : undefined);
 
-  async function load() {
-    setLoading(true);
+  async function loadPet() {
+    setLoadingPet(true);
     const res = await fetch(`/api/pets/${petId}`);
     const d = await safeJson<Pet | null>(res, null);
     setPet(d);
-    setLoading(false);
+    setLoadingPet(false);
   }
-  useEffect(() => { if (petId) load(); /* eslint-disable-next-line */ }, [petId]);
+  async function loadAtendimentos() {
+    setLoadingAt(true);
+    const res = await fetch(`/api/atendimentos?petId=${petId}&limit=100`);
+    const d = await safeJson<any>(res, { appointments: [] });
+    const arr = Array.isArray(d) ? d : (d.appointments || d.atendimentos || d.data || []);
+    // ordenar mais recentes primeiro
+    arr.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    setAtendimentos(arr);
+    setLoadingAt(false);
+  }
+
+  useEffect(() => {
+    if (!petId) return;
+    loadPet();
+    loadAtendimentos();
+    // eslint-disable-next-line
+  }, [petId]);
 
   async function handleDelete() {
     const res = await fetch(`/api/pets/${petId}`, { method: "DELETE" });
@@ -74,19 +122,11 @@ export default function PetDetailPage() {
     setDelOpen(false);
   }
 
-  function handleEncaminhar() {
-    toast("Encaminhar para outro veterinário — em breve", { icon: "↗" });
-  }
+  const tutorWhats = pet?.tutor?.contacts?.find(c => c.isWhatsApp)?.number
+    || pet?.tutor?.contacts?.find(c => c.isPrimary)?.number
+    || pet?.tutor?.contacts?.[0]?.number || null;
 
-  const tutorWhats = useMemo(() => {
-    if (!pet?.tutor?.contacts) return null;
-    const wa = pet.tutor.contacts.find(c => c.isWhatsApp) || pet.tutor.contacts.find(c => c.isPrimary) || pet.tutor.contacts[0];
-    return wa?.number || null;
-  }, [pet]);
-
-  if (loading) {
-    return <div className="p-10 text-center text-gray-400">Carregando ficha...</div>;
-  }
+  if (loadingPet) return <div className="p-10 text-center text-gray-400">Carregando ficha...</div>;
   if (!pet) {
     return (
       <div className="p-10 text-center">
@@ -95,9 +135,6 @@ export default function PetDetailPage() {
       </div>
     );
   }
-
-  const pipelineClinico = "Em tratamento"; // TODO: backend campo real
-  const pipelineFisio = "—";
 
   return (
     <div className="min-h-screen bg-white">
@@ -122,9 +159,6 @@ export default function PetDetailPage() {
                     {ageFromBirth(pet.birthDate)}
                   </span>
                 )}
-                <span className="px-2 py-0.5 rounded-md text-[11px] font-medium" style={{ background: "#fef3c7", color: "#92400e" }}>
-                  {pipelineClinico}
-                </span>
               </div>
               {pet.tutor && (
                 <div className="text-xs text-gray-500 mt-0.5">
@@ -145,13 +179,6 @@ export default function PetDetailPage() {
                 <LuMessageSquare size={14} /> WhatsApp
               </a>
             )}
-            <button
-              onClick={handleEncaminhar}
-              className="px-3 py-1.5 rounded-lg text-sm border flex items-center gap-1.5"
-              style={{ borderColor: "#E8DFC8", color: "#475569" }}
-            >
-              <LuShare2 size={14} /> Encaminhar
-            </button>
             <Link
               href={`/dashboard/erp/pets/${pet.id}/editar`}
               className="px-3 py-1.5 rounded-lg text-sm border flex items-center gap-1.5"
@@ -174,166 +201,102 @@ export default function PetDetailPage() {
         <div className="space-y-4">
           {/* Magia da recepção */}
           <div className="rounded-xl border px-4 py-3 text-sm" style={{ background: "#fffbeb", borderColor: "#fde68a", color: "#92611a" }}>
-            <span className="font-semibold">💭 Sobre {pet.name}:</span> {pet.observations || <span className="italic opacity-70">Adicionar algo que vale lembrar sobre o pet — apelido, comportamento, medo, preferência (até 140 caracteres).</span>}
+            <span className="font-semibold">💭 Sobre {pet.name}:</span> {pet.observations || <span className="italic opacity-70">Adicionar algo que vale lembrar sobre o pet — apelido, comportamento, medo, preferência.</span>}
           </div>
 
-          {/* Etiquetas */}
-          <div className="bg-white border rounded-xl p-4" style={{ borderColor: "#E8DFC8" }}>
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-semibold flex items-center gap-2" style={{ color: "#0E2244" }}>
-                <LuTag size={14} /> Etiquetas
-              </h3>
-              <button
-                onClick={() => setTagsOpen(o => !o)}
-                className="text-xs flex items-center gap-1"
-                style={{ color: "#009AAC" }}
+          {/* Dados Clínicos */}
+          <section className="bg-white border rounded-2xl p-5" style={{ borderColor: "#E8DFC8" }}>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold" style={{ color: "#014D5E" }}>Dados Clínicos</h3>
+              <Link href={`/dashboard/erp/pets/${pet.id}/editar`} className="text-xs flex items-center gap-1" style={{ color: "#009AAC" }}>
+                <LuPencil size={12} /> Editar
+              </Link>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+              <Field label="Espécie" value={speciesLabel(pet.species)} />
+              <Field label="Raça" value={pet.breed} />
+              <Field label="Sexo" value={genderLabel(pet.gender)} />
+              <Field label="Idade" value={ageFromBirth(pet.birthDate)} />
+              <Field label="Peso" value={pet.weight ? `${pet.weight} kg` : null} />
+              <Field label="Pelagem" value={pet.coat} />
+              <Field label="Cor" value={pet.coatColor} />
+              <Field label="Microchip" value={pet.microchip} />
+              <Field label="Esterilização" value={
+                !pet.sterilization ? "—" :
+                pet.sterilization.toLowerCase().includes("steril") || pet.sterilization.toLowerCase().includes("castr") ? "Sim" :
+                pet.sterilization.toLowerCase().includes("not") ? "Não" :
+                pet.sterilization
+              } />
+            </div>
+            {(pet.allergies?.length || pet.medicalNotes) && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm mt-3 pt-3 border-t" style={{ borderColor: "#F0EBE0" }}>
+                <Field label="Alergias" value={pet.allergies?.length ? pet.allergies.join(", ") : null} />
+                <Field label="Notas médicas" value={pet.medicalNotes} block />
+              </div>
+            )}
+          </section>
+
+          {/* Histórico de Atendimentos */}
+          <section className="bg-white border rounded-2xl p-5" style={{ borderColor: "#E8DFC8" }}>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold" style={{ color: "#014D5E" }}>Histórico de Atendimentos</h3>
+              <Link
+                href={`/dashboard/erp/pets/${pet.id}/atendimentos/novo`}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium text-white flex items-center gap-1.5"
+                style={{ background: "#009AAC" }}
               >
-                <LuPlus size={12} /> Adicionar
-              </button>
+                <LuPlus size={12} /> Novo Atendimento
+              </Link>
             </div>
-            <div className="text-sm text-gray-400">
-              Sem etiquetas. Use pra agrupar pets por temperamento, restrição, dieta, etc.
-            </div>
-            {tagsOpen && (
-              <div className="mt-3 pt-3 border-t flex items-center gap-2" style={{ borderColor: "#F0EBE0" }}>
-                <select className="flex-1 px-3 py-1.5 border rounded-lg text-sm bg-white" style={{ borderColor: "#E8DFC8" }} disabled>
-                  <option>Selecionar etiqueta... (em breve)</option>
-                </select>
-                <button className="px-3 py-1.5 rounded-lg text-xs text-white" style={{ background: "#009AAC" }} disabled>+</button>
+            {loadingAt ? (
+              <div className="text-center py-6 text-sm text-gray-400">Carregando...</div>
+            ) : atendimentos.length === 0 ? (
+              <div className="text-center py-8 text-sm text-gray-400">
+                Nenhum atendimento registrado ainda.
+                <div className="mt-2">
+                  <Link href={`/dashboard/erp/pets/${pet.id}/atendimentos/novo`} className="text-xs underline" style={{ color: "#009AAC" }}>
+                    Registrar primeiro atendimento
+                  </Link>
+                </div>
               </div>
-            )}
-          </div>
-
-          {/* Tabs */}
-          <div className="bg-white border rounded-xl overflow-hidden" style={{ borderColor: "#E8DFC8" }}>
-            <div className="flex border-b" style={{ borderColor: "#E8DFC8" }}>
-              {(
-                [
-                  { k: "CLINICA", label: "Clínica" },
-                  { k: "PACOTES", label: "Pacotes" },
-                  { k: "EXAMES", label: "Exames" },
-                ] as const
-              ).map(t => (
-                <button
-                  key={t.k}
-                  onClick={() => setTab(t.k)}
-                  className="flex-1 px-4 py-3 text-sm font-medium border-b-2 transition"
-                  style={{
-                    borderColor: tab === t.k ? "#009AAC" : "transparent",
-                    color: tab === t.k ? "#009AAC" : "#6B7280",
-                    background: tab === t.k ? "#f6fdfd" : "transparent",
-                  }}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
-
-            {tab === "CLINICA" && (
-              <div className="p-5 space-y-5">
-                <section>
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-sm font-semibold" style={{ color: "#0E2244" }}>Dados Clínicos</h3>
-                    <Link href={`/dashboard/erp/pets/${pet.id}/editar`} className="text-xs flex items-center gap-1" style={{ color: "#009AAC" }}>
-                      <LuPencil size={12} /> Editar
+            ) : (
+              <div className="divide-y" style={{ borderColor: "#F0EBE0" }}>
+                {atendimentos.map((a) => {
+                  const st = STATUS_PILL[a.status] || { label: a.status, bg: "#eef2f4", color: "#64748b" };
+                  const title = a.description || a.chiefComplaint || a.diagnosis || TYPE_LABEL[a.type] || a.type;
+                  return (
+                    <Link
+                      key={a.id}
+                      href={`/dashboard/erp/atendimentos/${a.id}`}
+                      className="flex items-center gap-3 py-3 hover:bg-gray-50/60 transition rounded-lg px-2 -mx-2"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-bold tracking-wide" style={{ color: "#014D5E" }}>
+                            {TYPE_LABEL[a.type] || a.type}
+                          </span>
+                          <span className="px-1.5 py-0.5 rounded-md text-[10px] font-medium" style={{ background: st.bg, color: st.color }}>
+                            {st.label}
+                          </span>
+                          {a.value > 0 && (
+                            <span className="text-[10.5px] text-gray-500">R$ {Number(a.value).toFixed(2)}</span>
+                          )}
+                        </div>
+                        <div className="text-sm text-gray-700 truncate mt-0.5">{title}</div>
+                        <div className="text-[11px] text-gray-400 mt-0.5">
+                          {fmtDt(a.date)}{a.user?.name && ` · ${a.user.name}`}
+                        </div>
+                      </div>
+                      <LuChevronRight size={16} className="text-gray-400 flex-shrink-0" />
                     </Link>
-                  </div>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
-                    <Field label="Espécie" value={speciesLabel(pet.species)} />
-                    <Field label="Raça" value={pet.breed} />
-                    <Field label="Sexo" value={genderLabel(pet.gender)} />
-                    <Field label="Esterilização" value={
-                      !pet.sterilization ? "—" :
-                      pet.sterilization.toLowerCase().includes("steril") || pet.sterilization.toLowerCase().includes("castr") ? "Sim" :
-                      pet.sterilization.toLowerCase().includes("not") ? "Não" :
-                      pet.sterilization
-                    } />
-                    <Field label="Idade" value={ageFromBirth(pet.birthDate)} />
-                    <Field label="Peso" value={pet.weight ? `${pet.weight} kg` : null} />
-                    <Field label="Pelagem" value={pet.coat} />
-                    <Field label="Cor" value={pet.coatColor} />
-                    <Field label="Microchip" value={pet.microchip} />
-                  </div>
-                </section>
-
-                <section>
-                  <h3 className="text-sm font-semibold mb-2" style={{ color: "#0E2244" }}>Pipelines do Pet</h3>
-                  <div className="border rounded-xl divide-y" style={{ borderColor: "#E8DFC8" }}>
-                    <PipelineRow label="CLÍNICO — TRATAMENTO" stage={pipelineClinico} />
-                    <PipelineRow label="FISIOTERAPIA — PACOTE" stage={pipelineFisio} muted />
-                  </div>
-                </section>
-
-                <section>
-                  <h3 className="text-sm font-semibold mb-2 flex items-center gap-2" style={{ color: "#0E2244" }}>
-                    <LuClock size={14} /> Cadência de acompanhamento
-                  </h3>
-                  <div className="border rounded-xl p-4 flex items-center justify-between" style={{ borderColor: "#E8DFC8" }}>
-                    <span className="text-sm text-gray-400">Nenhuma cadência ativa.</span>
-                    <button className="px-3 py-1.5 rounded-lg text-xs border flex items-center gap-1.5" style={{ borderColor: "#E8DFC8", color: "#009AAC" }} disabled>
-                      <LuPlus size={12} /> Iniciar cadência
-                    </button>
-                  </div>
-                </section>
-
-                <section>
-                  <h3 className="text-sm font-semibold mb-2" style={{ color: "#0E2244" }}>Alergias e medicações</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                    <Field label="Alergias" value={pet.allergies?.length ? pet.allergies.join(", ") : null} />
-                    <Field label="Notas médicas" value={pet.medicalNotes} block />
-                  </div>
-                </section>
-
-                <section>
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-sm font-semibold" style={{ color: "#0E2244" }}>Histórico de Atendimentos</h3>
-                    <Link href={`/dashboard/erp/agendamentos/novo?petId=${pet.id}`} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white flex items-center gap-1.5" style={{ background: "#009AAC" }}>
-                      <LuPlus size={12} /> Novo Atendimento
-                    </Link>
-                  </div>
-                  <div className="border rounded-xl p-5 text-center text-sm text-gray-400" style={{ borderColor: "#E8DFC8" }}>
-                    {pet._count?.appointments ? `${pet._count.appointments} consultas registradas.` : "Nenhum atendimento registrado."}
-                  </div>
-                </section>
+                  );
+                })}
               </div>
             )}
-
-            {tab === "PACOTES" && (
-              <div className="p-5">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold" style={{ color: "#0E2244" }}>Pacotes de Sessões de {pet.name}</h3>
-                  <button className="px-3 py-1.5 rounded-lg text-xs font-medium text-white flex items-center gap-1.5" style={{ background: "#009AAC" }}>
-                    <LuPackage size={12} /> Criar Pacote
-                  </button>
-                </div>
-                <div className="border rounded-xl p-6 text-center text-sm text-gray-400" style={{ borderColor: "#E8DFC8" }}>
-                  Nenhum pacote criado ainda.
-                  <div className="mt-2">
-                    <button className="px-3 py-1.5 rounded-lg text-xs border" style={{ borderColor: "#E8DFC8", color: "#009AAC" }}>
-                      + Criar primeiro pacote
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {tab === "EXAMES" && (
-              <div className="p-5">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold" style={{ color: "#0E2244" }}>Exames e Serviços Externos</h3>
-                  <button className="px-3 py-1.5 rounded-lg text-xs font-medium text-white flex items-center gap-1.5" style={{ background: "#009AAC" }}>
-                    <LuFlaskConical size={12} /> Solicitar
-                  </button>
-                </div>
-                <div className="border rounded-xl p-6 text-center text-sm text-gray-400" style={{ borderColor: "#E8DFC8" }}>
-                  Nenhum exame ou serviço externo registrado.
-                </div>
-              </div>
-            )}
-          </div>
+          </section>
 
           {/* Rodapé */}
-          <div className="flex items-center gap-3 pt-2">
+          <div className="flex items-center gap-3 pt-2 pb-6">
             <Link
               href={`/dashboard/erp/pets/${pet.id}/editar`}
               className="flex-1 px-4 py-2.5 rounded-lg text-sm border flex items-center justify-center gap-2"
@@ -373,26 +336,6 @@ function Field({ label, value, block }: { label: string; value?: string | null; 
     <div className={block ? "md:col-span-2" : ""}>
       <div className="text-[10.5px] uppercase tracking-wide text-gray-400 font-semibold mb-0.5">{label}</div>
       <div className="text-gray-700">{value || <span className="text-gray-300">—</span>}</div>
-    </div>
-  );
-}
-
-function PipelineRow({ label, stage, muted }: { label: string; stage: string; muted?: boolean }) {
-  return (
-    <div className="flex items-center justify-between px-4 py-3 text-sm hover:bg-gray-50/60 transition cursor-pointer">
-      <div className="font-semibold text-xs tracking-wide" style={{ color: muted ? "#94a3b8" : "#0E2244" }}>{label}</div>
-      <div className="flex items-center gap-2">
-        <span
-          className="px-2 py-0.5 rounded-md text-[11px] font-medium"
-          style={{
-            background: muted ? "#f1f5f7" : "#fef3c7",
-            color: muted ? "#94a3b8" : "#92400e",
-          }}
-        >
-          {stage}
-        </span>
-        <LuArrowLeft size={14} className="rotate-180 text-gray-400" />
-      </div>
     </div>
   );
 }

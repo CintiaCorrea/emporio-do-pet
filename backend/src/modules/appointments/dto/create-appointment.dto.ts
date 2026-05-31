@@ -90,6 +90,62 @@ export class CreateAppointmentDto {
   @IsEnum(PaymentStatus)
   paymentStatus?: PaymentStatus;
 
+  // ---- Campos clínicos da ficha de atendimento ----
+  @ApiPropertyOptional({
+    enum: ['CONSULTA','RETORNO','AVALIACAO','EMERGENCIA','PROCEDIMENTO','VACINACAO','CIRURGIA','SESSAO_FISIO','OUTRO'],
+  })
+  @IsOptional()
+  @IsString()
+  type?: string;
+
+  @ApiPropertyOptional({ description: 'Motivo da consulta / queixa principal' })
+  @IsOptional() @IsString()
+  chiefComplaint?: string;
+
+  @ApiPropertyOptional({ description: 'Anamnese' })
+  @IsOptional() @IsString()
+  anamnesis?: string;
+
+  @ApiPropertyOptional({ description: 'Exame físico' })
+  @IsOptional() @IsString()
+  physicalExam?: string;
+
+  @ApiPropertyOptional({ description: 'Diagnóstico' })
+  @IsOptional() @IsString()
+  diagnosis?: string;
+
+  @ApiPropertyOptional({ description: 'Conduta / tratamento adotado' })
+  @IsOptional() @IsString()
+  conduct?: string;
+
+  @ApiPropertyOptional({ description: 'Prescrição médica' })
+  @IsOptional() @IsString()
+  prescription?: string;
+
+  @ApiPropertyOptional({ description: 'Exames solicitados' })
+  @IsOptional() @IsString()
+  examsRequested?: string;
+
+  @ApiPropertyOptional({ description: 'Acompanhamento para próximo contato (recepção)' })
+  @IsOptional() @IsString()
+  followUpNotes?: string;
+
+  @ApiPropertyOptional({ description: 'Data sugerida do próximo retorno (ISO date)' })
+  @IsOptional() @IsDateString()
+  nextReturnDate?: string;
+
+  @ApiPropertyOptional({ description: 'Peso do pet no atendimento (kg)' })
+  @IsOptional() @IsNumber()
+  petWeight?: number;
+
+  @ApiPropertyOptional({ description: 'Temperatura (ºC)' })
+  @IsOptional() @IsNumber()
+  temperature?: number;
+
+  @ApiPropertyOptional({ description: 'Forma de pagamento' })
+  @IsOptional() @IsString()
+  paymentMethod?: string;
+
   @ApiPropertyOptional({ description: 'ID do board (kanban)' })
   @IsOptional()
   @IsUUID()

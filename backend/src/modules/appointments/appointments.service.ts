@@ -64,6 +64,7 @@ export class AppointmentsService {
     const appointmentDate = new Date(createAppointmentDto.date);
     const finalStatus = createAppointmentDto.status || 'SCHEDULED';
 
+    const dto = createAppointmentDto as any;
     const appointmentData: any = {
       tutorId: createAppointmentDto.tutorId,
       petId: finalPetId,
@@ -75,6 +76,20 @@ export class AppointmentsService {
       value: createAppointmentDto.value || 0,
       status: finalStatus,
       paymentStatus: createAppointmentDto.paymentStatus || 'PENDING',
+      // Campos clínicos
+      type: dto.type || 'CONSULTA',
+      chiefComplaint: dto.chiefComplaint ?? null,
+      anamnesis: dto.anamnesis ?? null,
+      physicalExam: dto.physicalExam ?? null,
+      diagnosis: dto.diagnosis ?? null,
+      conduct: dto.conduct ?? null,
+      prescription: dto.prescription ?? null,
+      examsRequested: dto.examsRequested ?? null,
+      followUpNotes: dto.followUpNotes ?? null,
+      nextReturnDate: dto.nextReturnDate ? new Date(dto.nextReturnDate) : null,
+      petWeight: dto.petWeight ?? null,
+      temperature: dto.temperature ?? null,
+      paymentMethod: dto.paymentMethod ?? null,
       ...(createAppointmentDto.boardId && { boardId: createAppointmentDto.boardId }),
     };
 
@@ -359,6 +374,21 @@ export class AppointmentsService {
     if (updateAppointmentDto.duration !== undefined)
       updateData.duration = updateAppointmentDto.duration;
     if (updateAppointmentDto.status !== undefined) updateData.status = updateAppointmentDto.status;
+    // Campos clínicos
+    const dto = updateAppointmentDto as any;
+    if (dto.type !== undefined) updateData.type = dto.type;
+    if (dto.chiefComplaint !== undefined) updateData.chiefComplaint = dto.chiefComplaint;
+    if (dto.anamnesis !== undefined) updateData.anamnesis = dto.anamnesis;
+    if (dto.physicalExam !== undefined) updateData.physicalExam = dto.physicalExam;
+    if (dto.diagnosis !== undefined) updateData.diagnosis = dto.diagnosis;
+    if (dto.conduct !== undefined) updateData.conduct = dto.conduct;
+    if (dto.prescription !== undefined) updateData.prescription = dto.prescription;
+    if (dto.examsRequested !== undefined) updateData.examsRequested = dto.examsRequested;
+    if (dto.followUpNotes !== undefined) updateData.followUpNotes = dto.followUpNotes;
+    if (dto.nextReturnDate !== undefined) updateData.nextReturnDate = dto.nextReturnDate ? new Date(dto.nextReturnDate) : null;
+    if (dto.petWeight !== undefined) updateData.petWeight = dto.petWeight;
+    if (dto.temperature !== undefined) updateData.temperature = dto.temperature;
+    if (dto.paymentMethod !== undefined) updateData.paymentMethod = dto.paymentMethod;
     if (updateAppointmentDto.paymentStatus !== undefined)
       updateData.paymentStatus = updateAppointmentDto.paymentStatus;
     if (updateAppointmentDto.boardId !== undefined)
