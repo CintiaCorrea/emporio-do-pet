@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { LuArrowLeft, LuPencil, LuX, LuPlus, LuSearch } from "react-icons/lu";
 import CsvImporter from "@/components/import/CsvImporter";
-import { LuArrowLeft, LuPlus, LuPencil, LuTrash, LuSearch, LuEllipsisVertical } from "react-icons/lu";
 
 type Especie = "CAO" | "GATO" | "OUTRO";
 
@@ -15,267 +15,215 @@ interface Raca {
   ativo: boolean;
 }
 
-const ESPECIE_LABEL: Record<Especie, { label: string; emoji: string; color: string; bg: string }> = {
-  CAO: { label: "Cão", emoji: "🐶", color: "#185FA5", bg: "#E6F1FB" },
-  GATO: { label: "Gato", emoji: "🐱", color: "#6B7280", bg: "#F1F1F1" },
-  OUTRO: { label: "Outro", emoji: "🐾", color: "#5F5E5A", bg: "#f0e8d4" },
-};
+const ESP_LABEL: Record<Especie, string> = { CAO: "Cão", GATO: "Gato", OUTRO: "Outro" };
+const ESP_DOT: Record<Especie, string> = { CAO: "#009AAC", GATO: "#A855F7", OUTRO: "#94A3B8" };
 
 const EMPTY: any = { nome: "", especie: "CAO", ordem: 0, ativo: true };
 
-export default function RacasConfigPage() {
-  const [importOpen, setImportOpen] = useState(false);
-  const [racas, setRacas] = useState<Raca[]>([]);
+export default function RacasPage() {
+  const [list, setList] = useState<Raca[]>([]);
   const [loading, setLoading] = useState(true);
   const [showInactive, setShowInactive] = useState(false);
   const [search, setSearch] = useState("");
-  const [filterEspecie, setFilterEspecie] = useState<Especie | null>(null);
+  const [filterEsp, setFilterEsp] = useState<"ALL" | Especie>("ALL");
+
   const [modalOpen, setModalOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<any>(EMPTY);
-  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
-  const [seeding, setSeeding] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
-  useEffect(() => {
-    const h = () => setMenuOpenId(null);
-    if (menuOpenId) {
-      document.addEventListener("click", h);
-      return () => document.removeEventListener("click", h);
-    }
-  }, [menuOpenId]);
-
-  const load = async () => {
+  async function load() {
     setLoading(true);
     try {
-      const r = await fetch(`/api/racas?includeInactive=${showInactive}`);
-      const d = await r.json().catch(() => []);
-      setRacas(Array.isArray(d) ? d : []);
-    } catch { setRacas([]); }
+      const qs = showInactive ? "?includeInactive=true" : "";
+      const res = await fetch(`/api/racas${qs}`);
+      const data = await res.json();
+      setList(Array.isArray(data) ? data : []);
+    } catch (e) { console.error(e); }
     finally { setLoading(false); }
-  };
+  }
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [showInactive]);
 
-  const counts = useMemo(() => ({
-    CAO: racas.filter((r) => r.especie === "CAO").length,
-    GATO: racas.filter((r) => r.especie === "GATO").length,
-    OUTRO: racas.filter((r) => r.especie === "OUTRO").length,
-  }), [racas]);
-
   const filtered = useMemo(() => {
-    let arr = racas;
-    if (filterEspecie) arr = arr.filter((r) => r.especie === filterEspecie);
-    if (search.trim()) {
+    let arr = list;
+    if (filterEsp !== "ALL") arr = arr.filter(r => r.especie === filterEsp);
+    if (search) {
       const q = search.toLowerCase();
-      arr = arr.filter((r) => r.nome.toLowerCase().includes(q));
+      arr = arr.filter(r => r.nome.toLowerCase().includes(q));
     }
-    return arr;
-  }, [racas, filterEspecie, search]);
+    return arr.sort((a, b) => a.especie.localeCompare(b.especie) || a.ordem - b.ordem || a.nome.localeCompare(b.nome));
+  }, [list, filterEsp, search]);
 
-  const openNew = () => { setEditId(null); setForm({ ...EMPTY, especie: filterEspecie || "CAO" }); setModalOpen(true); };
-  const openEdit = (r: Raca) => { setEditId(r.id); setForm({ ...r }); setModalOpen(true); };
-
-  const save = async () => {
-    if (!form.nome?.trim()) { alert("Nome é obrigatório."); return; }
-    const { id, createdAt, updatedAt, ...payload } = form as any;
-    const url = editId ? `/api/racas/${editId}` : "/api/racas";
-    const r = await fetch(url, { method: editId ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-    if (!r.ok) {
-      const body = await r.json().catch(() => ({}));
-      alert("Erro: " + (body?.message ? (Array.isArray(body.message) ? body.message.join(", ") : body.message) : `HTTP ${r.status}`));
-      return;
-    }
-    setModalOpen(false); load();
-  };
-
-  const del = async (r: Raca) => {
-    if (!confirm(`Excluir raça "${r.nome}"?`)) return;
-    await fetch(`/api/racas/${r.id}`, { method: "DELETE" });
-    load();
-  };
-
-  const importarPacote = async () => {
-    if (!confirm("Importar pacote inicial?\n\n~49 raças caninas, ~36 felinas e ~20 de outras espécies (coelhos, hamsters, pássaros, etc).")) return;
-    setSeeding(true);
+  function openNew() { setEditId(null); setForm({ ...EMPTY, especie: filterEsp !== "ALL" ? filterEsp : "CAO" }); setModalOpen(true); }
+  function openEdit(r: Raca) { setEditId(r.id); setForm({ ...r }); setModalOpen(true); }
+  async function save() {
     try {
-      const r = await fetch("/api/racas/seed", { method: "POST" });
-      const body = await r.json().catch(() => ({}));
-      if (!r.ok) { alert("Erro: " + (body?.message || `HTTP ${r.status}`)); return; }
-      if (body?.skipped) { alert(body.reason || "Já tem raças cadastradas."); }
-      else alert(`✓ Pacote importado! ${body?.created?.total || 0} raças (${body?.created?.caninas} cães + ${body?.created?.felinas} gatos + ${body?.created?.outras} outras).`);
-      load();
-    } catch (e: any) { alert("Erro ao importar: " + (e?.message || "")); }
-    finally { setSeeding(false); }
-  };
+      const { id, createdAt, updatedAt, ...payload } = form as any;
+      const url = editId ? `/api/racas/${editId}` : "/api/racas";
+      const method = editId ? "PATCH" : "POST";
+      const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      if (!res.ok) { const err = await res.json().catch(() => null); alert(`Erro: ${err?.message || res.status}`); return; }
+      setModalOpen(false); await load();
+    } catch (e) { alert(`Erro: ${e}`); }
+  }
+  async function remove(r: Raca) {
+    if (!confirm(`Excluir raça "${r.nome}"?`)) return;
+    const res = await fetch(`/api/racas/${r.id}`, { method: "DELETE" });
+    if (!res.ok) { alert(`Erro: ${res.status}`); return; }
+    await load();
+  }
+  async function toggleAtivo(r: Raca) {
+    const res = await fetch(`/api/racas/${r.id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ativo: !r.ativo }),
+    });
+    if (!res.ok) { alert(`Erro: ${res.status}`); return; }
+    await load();
+  }
+
+  const counts: Record<string, number> = { ALL: list.length };
+  for (const r of list) counts[r.especie] = (counts[r.especie] || 0) + 1;
 
   return (
-    <div className="p-4 max-w-5xl mx-auto">
-      <header className="flex items-center gap-3 mb-4">
-        <Link href="/dashboard/configuracoes" className="text-[#5F5E5A] hover:text-[#0E2244]">
-          <LuArrowLeft className="w-5 h-5" />
-        </Link>
-        <div className="flex-1">
-          <h1 className="text-xl text-[#0E2244] font-medium">Raças</h1>
-          <p className="text-sm text-[#888780]">Lista de raças por espécie, usada nos cadastros de Pet</p>
-        </div>
-        <label className="flex items-center gap-1.5 text-xs text-[#5F5E5A]">
-          <input type="checkbox" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} />
-          Mostrar inativas
-        </label>
-        <button onClick={openNew} className="bg-[#009AAC] text-white px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5">
-          <LuPlus className="w-3.5 h-3.5" />Adicionar Raça
-        </button>
-      </header>
-
-      {/* Chips de filtro */}
-      <div className="flex gap-1.5 mb-3 flex-wrap items-center">
-        {([null, "CAO", "GATO", "OUTRO"] as (Especie | null)[]).map((e) => {
-          const isSel = filterEspecie === e;
-          const label = e === null ? `Todas (${racas.length})` : `${ESPECIE_LABEL[e].emoji} ${ESPECIE_LABEL[e].label} (${counts[e]})`;
-          return (
-            <button key={String(e)} onClick={() => setFilterEspecie(e)}
-              className={`text-xs px-3 py-1 rounded-full font-medium ${isSel ? "bg-[#009AAC] text-white" : "bg-white border border-[#e8e1d2] text-[#5F5E5A]"}`}>
-              {label}
-            </button>
-          );
-        })}
-        <div className="relative flex-1 min-w-[200px] ml-2">
-          <LuSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#B4B2A9]" />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar raça..."
-            className="w-full pl-8 pr-3 py-1.5 border border-[#e8e1d2] rounded-lg text-xs bg-white" />
+    <div className="min-h-screen bg-white">
+      <div className="bg-white border-b" style={{ borderColor: "#E8DFC8" }}>
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center gap-3">
+          <Link href="/dashboard/configuracoes" className="p-2 rounded-lg hover:bg-gray-100"><LuArrowLeft size={18} /></Link>
+          <div className="flex-1">
+            <h1 className="text-xl font-semibold" style={{ color: "#0E2244" }}>Raças</h1>
+            <p className="text-sm text-gray-500">Catálogo de raças por espécie (cão, gato, outros)</p>
+          </div>
+          <label className="flex items-center gap-2 text-sm cursor-pointer text-gray-600">
+            <input type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)} />
+            Mostrar inativas
+          </label>
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-[#e8e1d2]">
-        {loading ? (
-          <p className="text-center text-[11px] text-[#888780] py-6">Carregando...</p>
-        ) : filtered.length === 0 ? (
-          racas.length === 0 ? (
-            <div className="text-center py-10 px-6">
-              <div className="text-4xl mb-3">🐾</div>
-              <p className="text-sm text-[#0E2244] font-medium mb-1">Importe a lista completa de raças</p>
-              <p className="text-[11px] text-[#888780] mb-4">
-                Cerca de 105 raças (49 caninas, 36 felinas, 20 outras espécies) usadas no Brasil.<br/>
-                Você pode adicionar, editar e excluir depois.
-              </p>
-              <button onClick={importarPacote} disabled={seeding}
-                className="bg-[#009AAC] text-white px-4 py-2 rounded-lg text-xs font-medium disabled:opacity-50">
-                {seeding ? "Importando..." : "📥 Importar pacote inicial"}
-              </button>
-              <p className="text-[10px] text-[#888780] mt-3">
-                Ou clique em <b>+ Adicionar Raça</b> pra começar do zero
-              </p>
-            </div>
-          ) : (
-            <p className="text-center text-[11px] text-[#888780] py-6">Nenhuma raça nesse filtro.</p>
-          )
-        ) : (
+      <div className="max-w-7xl mx-auto px-6 pt-4 flex items-center justify-between gap-3">
+        <button onClick={() => setImportOpen(true)}
+          className="px-3 py-2 rounded-lg text-sm font-medium border flex items-center gap-2"
+          style={{ borderColor: "#009AAC", color: "#009AAC", background: "white" }}>
+          Importar planilha
+        </button>
+        <div className="relative flex-1 max-w-md mx-3">
+          <LuSearch size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar raças..."
+            className="w-full pl-8 pr-3 py-2 border rounded-lg text-sm bg-white" style={{ borderColor: "#E8DFC8" }} />
+        </div>
+        <button onClick={openNew} className="px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-2 text-white" style={{ background: "#009AAC" }}>
+          <LuPlus size={14} /> Nova Raça
+        </button>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-6 py-4">
+        <div className="bg-white border rounded-xl overflow-hidden" style={{ borderColor: "#E8DFC8" }}>
           <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-[#fafafa] border-b border-[#e8e1d2] text-[11px] text-[#888780] font-medium">
-                <th className="text-left py-2.5 px-3">Raça</th>
-                <th className="text-left py-2.5 px-3">Espécie</th>
-                <th className="text-center py-2.5 px-3">Status</th>
-                <th className="py-2.5 px-3"></th>
+            <thead className="border-b" style={{ background: "#FAFAFA", borderColor: "#E8DFC8" }}>
+              <tr>
+                <th className="text-left px-4 py-2.5 font-medium text-gray-500 w-8"></th>
+                <th className="text-left px-4 py-2.5 font-medium text-gray-500">Nome</th>
+                <th className="text-left px-4 py-2.5 font-medium text-gray-500 hidden md:table-cell">Espécie</th>
+                <th className="text-right px-4 py-2.5 font-medium text-gray-500 hidden md:table-cell w-16">Ordem</th>
+                <th className="text-center px-4 py-2.5 font-medium text-gray-500">Ativo</th>
+                <th className="text-right px-4 py-2.5 font-medium text-gray-500 w-24">Ações</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((r) => {
-                const esp = ESPECIE_LABEL[r.especie];
-                return (
-                  <tr key={r.id} className="border-b border-[#f0e8d4] hover:bg-[#fdfaee]">
-                    <td className="py-2 px-3 text-[#0E2244]">{r.nome}</td>
-                    <td className="py-2 px-3">
-                      <span style={{ background: esp.bg, color: esp.color }}
-                        className="text-[10px] font-medium px-2 py-0.5 rounded-full">
-                        {esp.emoji} {esp.label}
-                      </span>
-                    </td>
-                    <td className="py-2 px-3 text-center">
-                      <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${r.ativo ? "bg-[#E1F5EE] text-[#0F6E56]" : "bg-[#f0e8d4] text-[#5F5E5A]"}`}>
-                        {r.ativo ? "Ativa" : "Inativa"}
-                      </span>
-                    </td>
-                    <td className="py-2 px-3 relative">
-                      <div className="relative inline-block">
-                        <button onClick={(e) => { e.stopPropagation(); setMenuOpenId(menuOpenId === r.id ? null : r.id); }}
-                          className="p-1.5 text-[#5F5E5A] hover:bg-[#f0e8d4] rounded">
-                          <LuEllipsisVertical className="w-4 h-4" />
-                        </button>
-                        {menuOpenId === r.id && (
-                          <div onClick={(e) => e.stopPropagation()}
-                            className="absolute right-0 top-full mt-1 bg-white border border-[#e8e1d2] rounded-lg shadow-xl z-50 py-1 min-w-[120px]">
-                            <button onClick={() => { openEdit(r); setMenuOpenId(null); }}
-                              className="w-full text-left px-3 py-1.5 text-xs text-[#0E2244] hover:bg-[#fdfaee] flex items-center gap-2">
-                              <LuPencil className="w-3 h-3" />Editar
-                            </button>
-                            <button onClick={() => { del(r); setMenuOpenId(null); }}
-                              className="w-full text-left px-3 py-1.5 text-xs text-[#A32D2D] hover:bg-[#FCEBEB] flex items-center gap-2">
-                              <LuTrash className="w-3 h-3" />Excluir
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
+              {loading && <tr><td colSpan={6} className="text-center py-8 text-gray-400">Carregando...</td></tr>}
+              {!loading && filtered.length === 0 && <tr><td colSpan={6} className="text-center py-8 text-gray-400">Nenhuma raça.</td></tr>}
+              {filtered.map(r => (
+                <tr key={r.id} className="border-b hover:bg-gray-50/60 transition" style={{ borderColor: "#F0EBE0", opacity: r.ativo ? 1 : 0.5 }}>
+                  <td className="px-4 py-2.5">
+                    <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: ESP_DOT[r.especie] }} />
+                  </td>
+                  <td className="px-4 py-2.5 font-medium" style={{ color: "#0E2244" }}>{r.nome}</td>
+                  <td className="px-4 py-2.5 hidden md:table-cell text-gray-700">{ESP_LABEL[r.especie]}</td>
+                  <td className="px-4 py-2.5 hidden md:table-cell text-right tabular-nums text-gray-500">{r.ordem}</td>
+                  <td className="px-4 py-2.5 text-center">
+                    <button onClick={() => toggleAtivo(r)} className="inline-flex items-center w-10 h-5 rounded-full transition"
+                      style={{ background: r.ativo ? "#009AAC" : "#CBD5E0" }}>
+                      <span className="block w-4 h-4 rounded-full bg-white transition shadow" style={{ marginLeft: r.ativo ? 20 : 2 }} />
+                    </button>
+                  </td>
+                  <td className="px-4 py-2.5 text-right">
+                    <button onClick={() => openEdit(r)} className="p-1 hover:bg-gray-200 rounded inline-block text-gray-600" title="Editar"><LuPencil size={14} /></button>
+                    <button onClick={() => remove(r)} className="p-1 hover:bg-gray-200 rounded inline-block ml-1" style={{ color: "#EF4444" }} title="Excluir"><LuX size={14} /></button>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
-        )}
+        </div>
       </div>
 
-      {/* Modal */}
+      {/* Filtro por espécie */}
+      <div className="max-w-7xl mx-auto px-6 py-4">
+        <div className="bg-white border rounded-xl p-4" style={{ borderColor: "#E8DFC8" }}>
+          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">ESPÉCIES</div>
+          <div className="flex items-center gap-2 flex-wrap">
+            {(["ALL", "CAO", "GATO", "OUTRO"] as const).map(k => (
+              <button key={k} onClick={() => setFilterEsp(k)}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium border flex items-center gap-1.5"
+                style={{
+                  borderColor: filterEsp === k ? "#009AAC" : "#E8DFC8",
+                  background: filterEsp === k ? "#E0F4F6" : "white",
+                  color: filterEsp === k ? "#009AAC" : "#4B5563",
+                }}>
+                {k === "ALL" ? "Todas" : ESP_LABEL[k as Especie]} <span className="text-gray-400">({counts[k] || 0})</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
       {modalOpen && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setModalOpen(false)}>
-          <div className="bg-white rounded-xl p-5 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base text-[#0E2244] font-medium">{editId ? "Editar raça" : "Nova raça"}</h3>
-              <button onClick={() => setModalOpen(false)} className="text-[#5F5E5A] text-xl">×</button>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setModalOpen(false)}>
+          <div className="bg-white rounded-xl p-6 max-w-md w-full" onClick={e => e.stopPropagation()}>
+            <h2 className="text-lg font-semibold mb-4" style={{ color: "#0E2244" }}>{editId ? "Editar raça" : "Nova raça"}</h2>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-gray-600">Nome *</label>
+                <input value={form.nome || ""} onChange={e => setForm({ ...form, nome: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }} />
+              </div>
+              <div className="grid grid-cols-[1fr_80px] gap-3">
+                <div>
+                  <label className="text-xs text-gray-600">Espécie *</label>
+                  <select value={form.especie} onChange={e => setForm({ ...form, especie: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }}>
+                    {Object.entries(ESP_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-600">Ordem</label>
+                  <input type="number" value={form.ordem || 0} onChange={e => setForm({ ...form, ordem: Number(e.target.value) })}
+                    className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }} />
+                </div>
+              </div>
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input type="checkbox" checked={form.ativo} onChange={e => setForm({ ...form, ativo: e.target.checked })} />
+                Ativa
+              </label>
             </div>
-            <label className="block text-[11px] text-[#5F5E5A] mb-1 font-medium">Nome *</label>
-            <input value={form.nome || ""} onChange={(e) => setForm({ ...form, nome: e.target.value })}
-              placeholder="Labrador, Persa, etc"
-              className="w-full px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm mb-3 focus:outline-none focus:border-[#009AAC]" />
-            <label className="block text-[11px] text-[#5F5E5A] mb-1 font-medium">Espécie *</label>
-            <select value={form.especie || "CAO"} onChange={(e) => setForm({ ...form, especie: e.target.value })}
-              className="w-full px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm bg-white mb-3 focus:outline-none focus:border-[#009AAC]">
-              <option value="CAO">🐶 Cão</option>
-              <option value="GATO">🐱 Gato</option>
-              <option value="OUTRO">Outro</option>
-            </select>
-            <label className="block text-[11px] text-[#5F5E5A] mb-1 font-medium">Ordem</label>
-            <input type="number" value={form.ordem ?? 0} onChange={(e) => setForm({ ...form, ordem: parseInt(e.target.value) || 0 })}
-              className="w-full px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm mb-3 focus:outline-none focus:border-[#009AAC]" />
-            <div className="flex items-center gap-2 mb-3">
-              <input type="checkbox" id="ra-ativo" checked={form.ativo ?? true} onChange={(e) => setForm({ ...form, ativo: e.target.checked })} />
-              <label htmlFor="ra-ativo" className="text-sm text-[#0E2244]">Ativa (aparece nos dropdowns)</label>
-            </div>
-            <div className="flex justify-end gap-2">
-              <button onClick={() => setModalOpen(false)} className="px-3 py-1.5 text-xs text-[#5F5E5A]">Cancelar</button>
-              <button onClick={save} className="bg-[#009AAC] text-white px-4 py-1.5 rounded-lg text-xs font-medium">Salvar</button>
+            <div className="flex justify-end gap-2 mt-5">
+              <button onClick={() => setModalOpen(false)} className="px-4 py-2 rounded-lg text-sm border" style={{ borderColor: "#E8DFC8" }}>Cancelar</button>
+              <button onClick={save} className="px-4 py-2 rounded-lg text-sm text-white" style={{ background: "#009AAC" }}>Salvar</button>
             </div>
           </div>
         </div>
       )}
 
-      
-      {/* Botão Importar planilha (FAB) */}
-      <button
-        onClick={() => setImportOpen(true)}
-        className="fixed bottom-6 right-6 px-4 py-3 rounded-full text-sm shadow-md hover:shadow-lg transition"
-        style={{ background: "#009AAC", color: "white" }}
-        title="Importar planilha"
-      >
-        Importar planilha
-      </button>
-      <CsvImporter
-        open={importOpen} onClose={() => setImportOpen(false)}
-        title="Importar Raças"
-        endpoint="/api/racas/import-batch"
+      <CsvImporter open={importOpen} onClose={() => setImportOpen(false)}
+        title="Importar Raças" endpoint="/api/racas/import-batch"
         exampleHint="Exporte de Base44 > Raca. Espécies: Cão, Gato, Outro."
-        fields={[{"key": "nome", "label": "Nome", "required": true}, {"key": "especie", "label": "Esp\u00e9cie", "required": true}, {"key": "ordem", "label": "Ordem", "type": "int"}, {"key": "ativo", "label": "Ativo", "type": "boolean"}]}
-        onSuccess={() => load()}
-      />
+        fields={[
+          { key: "nome", label: "Nome", required: true },
+          { key: "especie", label: "Espécie", required: true },
+          { key: "ordem", label: "Ordem", type: "int" },
+          { key: "ativo", label: "Ativo", type: "boolean" },
+        ]}
+        onSuccess={() => load()} />
     </div>
   );
 }
