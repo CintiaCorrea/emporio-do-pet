@@ -18,6 +18,19 @@ interface Pet {
 
 interface Profissional { id: string; name: string; }
 interface Servico { id: string; nome: string; valorPadrao: number | null; custoPadrao?: number | null; }
+interface Exame {
+  id: string;
+  nome: string;
+  codigo?: string | null;
+  categoria?: string | null;
+  valor_cliente_sugerido?: number | null;
+  valorClienteSugerido?: number | null;
+  valor_fornecedor?: number | null;
+  valorFornecedor?: number | null;
+  fornecedor_id?: string | null;
+  fornecedorId?: string | null;
+  fornecedor?: { id: string; nome: string } | null;
+}
 interface AppointmentItem {
   servicoId?: string;
   descricao?: string;
@@ -70,7 +83,10 @@ export default function NovoAtendimentoPage() {
   // Items (serviços e valores)
   const [items, setItems] = useState<AppointmentItem[]>([]);
   const [servicos, setServicos] = useState<Servico[]>([]);
+  const [exames, setExames] = useState<Exame[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerTab, setPickerTab] = useState<"servicos" | "exames">("servicos");
+  const [pickerSearch, setPickerSearch] = useState("");
 
   // Form state
   const [form, setForm] = useState({
@@ -120,6 +136,11 @@ export default function NovoAtendimentoPage() {
       const svc = r3 ? await safeJson<any>(r3, []) : [];
       const svcList = Array.isArray(svc) ? svc : (svc.servicos || svc.itens || svc.data || []);
       setServicos(svcList);
+      // exames (catálogo de fornecedores)
+      const r4 = await fetch("/api/fornecedores/exames?limit=2000").catch(() => null);
+      const exm = r4 ? await safeJson<any>(r4, []) : [];
+      const exmList = Array.isArray(exm) ? exm : (exm.exames || exm.itens || exm.data || []);
+      setExames(exmList);
     })();
   }, [petId, session?.user?.id, session?.user?.role]);
 
@@ -153,6 +174,20 @@ export default function NovoAtendimentoPage() {
       custoUnitario: svc?.custoPadrao ?? 0,
       desconto: 0,
       valorTotal: svc?.valorPadrao ?? 0,
+    }]);
+  }
+  function addExame(ex: Exame) {
+    const valor = Number(ex.valor_cliente_sugerido ?? ex.valorClienteSugerido ?? 0);
+    const custo = Number(ex.valor_fornecedor ?? ex.valorFornecedor ?? 0);
+    const fid = ex.fornecedor_id || ex.fornecedorId || ex.fornecedor?.id;
+    setItems([...items, {
+      descricao: ex.nome + (ex.codigo ? ` (${ex.codigo})` : ""),
+      fornecedorId: fid || undefined,
+      quantidade: 1,
+      valorUnitario: valor,
+      custoUnitario: custo,
+      desconto: 0,
+      valorTotal: valor,
     }]);
   }
   function removeItem(idx: number) {
@@ -457,32 +492,86 @@ export default function NovoAtendimentoPage() {
         </div>
       </div>
 
-      {/* Modal picker de serviço */}
+      {/* Modal picker de serviço/exame */}
       {pickerOpen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setPickerOpen(false)}>
-          <div className="bg-white rounded-xl p-5 max-w-lg w-full max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <h3 className="text-sm font-semibold mb-3" style={{ color: "#014D5E" }}>Adicionar serviço do catálogo</h3>
-            <div className="space-y-1">
-              {servicos.length === 0 && <div className="text-xs text-gray-400 py-4 text-center">Nenhum serviço cadastrado. <a href="/dashboard/configuracoes/servicos" className="underline" style={{color: "#009AAC"}}>Cadastrar</a></div>}
-              {servicos.map(s => (
-                <button
-                  key={s.id}
-                  onClick={() => { addItem(s); setPickerOpen(false); }}
-                  className="w-full text-left px-3 py-2 rounded-lg border hover:bg-gray-50 flex items-center justify-between gap-2"
-                  style={{ borderColor: "#F0EBE0" }}
-                >
-                  <span className="text-sm text-gray-700">{s.nome}</span>
-                  <span className="text-xs text-gray-500">R$ {Number(s.valorPadrao || 0).toFixed(2)}</span>
-                </button>
-              ))}
-            </div>
-            <div className="mt-3 pt-3 border-t" style={{ borderColor: "#F0EBE0" }}>
-              <button onClick={() => { addItem(); setPickerOpen(false); }} className="text-xs text-gray-500 hover:text-[#009AAC]">
-                + Linha em branco (descrição livre)
+          <div className="bg-white rounded-xl p-5 max-w-2xl w-full max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <h3 className="text-sm font-semibold mb-3" style={{ color: "#014D5E" }}>Adicionar do catálogo</h3>
+            {/* Tabs */}
+            <div className="flex border-b mb-3" style={{ borderColor: "#E8DFC8" }}>
+              <button
+                onClick={() => setPickerTab("servicos")}
+                className="px-3 py-1.5 text-xs font-medium border-b-2 transition"
+                style={{ borderColor: pickerTab === "servicos" ? "#009AAC" : "transparent", color: pickerTab === "servicos" ? "#009AAC" : "#6B7280" }}
+              >
+                Serviços ({servicos.length})
+              </button>
+              <button
+                onClick={() => setPickerTab("exames")}
+                className="px-3 py-1.5 text-xs font-medium border-b-2 transition"
+                style={{ borderColor: pickerTab === "exames" ? "#009AAC" : "transparent", color: pickerTab === "exames" ? "#009AAC" : "#6B7280" }}
+              >
+                Exames ({exames.length})
               </button>
             </div>
-            <div className="flex justify-end mt-3">
-              <button onClick={() => setPickerOpen(false)} className="px-3 py-1.5 text-xs rounded-lg border" style={{ borderColor: "#E8DFC8" }}>Fechar</button>
+            <input
+              value={pickerSearch}
+              onChange={e => setPickerSearch(e.target.value)}
+              placeholder={pickerTab === "servicos" ? "Buscar serviço..." : "Buscar exame..."}
+              className="w-full px-3 py-2 border rounded-lg text-sm mb-3"
+              style={{ borderColor: "#E8DFC8" }}
+              autoFocus
+            />
+            <div className="space-y-1 overflow-y-auto flex-1">
+              {pickerTab === "servicos" && (
+                <>
+                  {servicos.length === 0 && <div className="text-xs text-gray-400 py-4 text-center">Nenhum serviço cadastrado. <a href="/dashboard/configuracoes/servicos" className="underline" style={{color: "#009AAC"}}>Cadastrar</a></div>}
+                  {servicos.filter(s => !pickerSearch || s.nome.toLowerCase().includes(pickerSearch.toLowerCase())).map(s => (
+                    <button
+                      key={s.id}
+                      onClick={() => { addItem(s); setPickerOpen(false); setPickerSearch(""); }}
+                      className="w-full text-left px-3 py-2 rounded-lg border hover:bg-gray-50 flex items-center justify-between gap-2"
+                      style={{ borderColor: "#F0EBE0" }}
+                    >
+                      <span className="text-sm text-gray-700">{s.nome}</span>
+                      <span className="text-xs text-gray-500 tabular-nums">R$ {Number(s.valorPadrao || 0).toFixed(2)}</span>
+                    </button>
+                  ))}
+                </>
+              )}
+              {pickerTab === "exames" && (
+                <>
+                  {exames.length === 0 && <div className="text-xs text-gray-400 py-4 text-center">Nenhum exame cadastrado. <a href="/dashboard/configuracoes/exames" className="underline" style={{color: "#009AAC"}}>Cadastrar</a></div>}
+                  {exames.filter(e => !pickerSearch || e.nome.toLowerCase().includes(pickerSearch.toLowerCase()) || (e.codigo || "").toLowerCase().includes(pickerSearch.toLowerCase())).slice(0, 50).map(ex => {
+                    const v = Number(ex.valor_cliente_sugerido ?? ex.valorClienteSugerido ?? 0);
+                    const c = Number(ex.valor_fornecedor ?? ex.valorFornecedor ?? 0);
+                    const f = ex.fornecedor?.nome || "";
+                    return (
+                      <button
+                        key={ex.id}
+                        onClick={() => { addExame(ex); setPickerOpen(false); setPickerSearch(""); }}
+                        className="w-full text-left px-3 py-2 rounded-lg border hover:bg-gray-50"
+                        style={{ borderColor: "#F0EBE0" }}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-sm text-gray-700 flex-1">{ex.nome}{ex.codigo ? ` (${ex.codigo})` : ""}</span>
+                          <span className="text-xs text-gray-500 tabular-nums">R$ {v.toFixed(2)}</span>
+                        </div>
+                        <div className="flex items-center justify-between gap-2 mt-0.5">
+                          <span className="text-[10.5px] text-gray-400">{f || "—"}{ex.categoria ? ` · ${ex.categoria}` : ""}</span>
+                          {c > 0 && <span className="text-[10.5px] text-gray-400">Custo: R$ {c.toFixed(2)}</span>}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </>
+              )}
+            </div>
+            <div className="mt-3 pt-3 border-t flex items-center justify-between" style={{ borderColor: "#F0EBE0" }}>
+              <button onClick={() => { addItem(); setPickerOpen(false); setPickerSearch(""); }} className="text-xs text-gray-500 hover:text-[#009AAC]">
+                + Linha em branco (descrição livre)
+              </button>
+              <button onClick={() => { setPickerOpen(false); setPickerSearch(""); }} className="px-3 py-1.5 text-xs rounded-lg border" style={{ borderColor: "#E8DFC8" }}>Fechar</button>
             </div>
           </div>
         </div>
