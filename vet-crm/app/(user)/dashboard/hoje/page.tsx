@@ -4,12 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import {
-  LuCircleCheck, LuMessageSquare, LuRefreshCcw, LuUserPlus, LuBuilding2,
-  LuCake, LuCalendar, LuFlaskConical, LuChevronRight,
+  LuRefreshCcw, LuPhone, LuPackage, LuHeart,
+  LuFlaskConical, LuCake, LuChevronRight,
 } from "react-icons/lu";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { useRolePreview } from "@/lib/ui/RolePreview";
-import { AppRole, roleShort } from "@/lib/ui/role";
+import { roleShort } from "@/lib/ui/role";
 
 interface HojeData {
   retornosVencidos: { id: string }[];
@@ -17,6 +17,7 @@ interface HojeData {
   tutoresAcompanhar: number;
   examesAEntregar: number;
   pacotesEmRisco: number;
+  aniversariantes?: number;
 }
 
 interface Pendencia {
@@ -43,7 +44,6 @@ function fmtDate(d: Date) {
 export default function HojePage() {
   const { data: session } = useSession();
   const { effectiveRole, isPreviewing } = useRolePreview();
-  const role: AppRole = effectiveRole;
   const userName = session?.user?.name || "Usuário";
   const today = new Date();
 
@@ -68,33 +68,72 @@ export default function HojePage() {
     })();
   }, []);
 
-  const all: Pendencia[] = useMemo(() => {
+  const items: Pendencia[] = useMemo(() => {
     if (!data) return [];
     return [
-      { key: "confirm", title: "Confirmar agendamentos", sub: "Consultas aguardando confirmação", count: data.retornosVencidos.length, link: "Inbox", href: "/dashboard/inbox", Icon: LuCircleCheck },
-      { key: "chat", title: "Responder conversas", sub: "Sem resposta no WhatsApp", count: data.toques.length, link: "Inbox", href: "/dashboard/inbox", Icon: LuMessageSquare },
-      { key: "fu", title: "Follow-ups de hoje", sub: "Tutores para retomar contato", count: data.tutoresAcompanhar, link: "Tutores", href: "/dashboard/erp/tutores", Icon: LuRefreshCcw },
-      { key: "lead", title: "Leads novos para triar", sub: "Aguardando triagem", count: 0, link: "Leads", href: "/dashboard/crm/leads", Icon: LuUserPlus },
-      { key: "intern", title: "Internados para acompanhar", sub: "Pets em observação", count: 0, link: "Internação", href: "/dashboard/erp/internacoes", Icon: LuBuilding2 },
-      { key: "exam", title: "Exames a avaliar", sub: "Resultados pendentes", count: data.examesAEntregar, link: "Pets", href: "/dashboard/erp/pets", Icon: LuFlaskConical },
-      { key: "agenda", title: "Meus atendimentos de hoje", sub: "Na sua agenda", count: 0, link: "Calendário", href: "/dashboard/calendario", Icon: LuCalendar },
-      { key: "birth", title: "Aniversariantes do dia", sub: "Pets que fazem aniversário hoje", count: 0, link: "Parabéns", href: "/dashboard/erp/pets?aniversario=1", Icon: LuCake },
+      {
+        key: "retornos",
+        title: "Retornos vencidos",
+        sub: "Leads sem contato após retorno marcado",
+        count: data.retornosVencidos.length,
+        link: "Leads",
+        href: "/dashboard/crm/leads?atrasados=1",
+        Icon: LuRefreshCcw,
+      },
+      {
+        key: "toques",
+        title: "Próximos toques de cadência",
+        sub: "Mensagens automáticas a disparar",
+        count: data.toques.length,
+        link: "Leads",
+        href: "/dashboard/crm/leads?cadencia=hoje",
+        Icon: LuPhone,
+      },
+      {
+        key: "pacotes",
+        title: "Pacotes em risco",
+        sub: "Próximos do vencimento sem uso",
+        count: data.pacotesEmRisco || 0,
+        link: "Pacotes",
+        href: "/dashboard/erp/pacotes?risco=1",
+        Icon: LuPackage,
+      },
+      {
+        key: "tutores",
+        title: "Tutores a acompanhar",
+        sub: "Follow-ups previstos para hoje",
+        count: data.tutoresAcompanhar || 0,
+        link: "Tutores",
+        href: "/dashboard/erp/tutores?fu=hoje",
+        Icon: LuHeart,
+      },
+      {
+        key: "exames",
+        title: "Exames a entregar",
+        sub: "Resultados aguardando envio ao tutor",
+        count: data.examesAEntregar || 0,
+        link: "Pets",
+        href: "/dashboard/erp/pets?exames=pendentes",
+        Icon: LuFlaskConical,
+      },
+      {
+        key: "aniversariantes",
+        title: "Aniversariantes do dia",
+        sub: "Pets que fazem aniversário hoje",
+        count: data.aniversariantes || 0,
+        link: "Parabéns",
+        href: "/dashboard/erp/pets?aniversario=1",
+        Icon: LuCake,
+      },
     ];
   }, [data]);
 
-  const visibleKeys: Record<AppRole, string[]> = {
-    ADMIN:        ["confirm", "chat", "fu", "lead", "intern", "birth"],
-    VETERINARIAN: ["agenda", "fu", "exam", "intern", "birth"],
-    RECEPTIONIST: ["confirm", "chat", "lead", "fu", "birth"],
-  };
-
-  const todo = all.filter((p) => visibleKeys[role].includes(p.key));
-  const total = todo.reduce((s, t) => s + t.count, 0);
+  const total = items.reduce((s, t) => s + t.count, 0);
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex items-center gap-3 mb-4">
-        <h2 className="text-[15px] font-bold" style={{ color: "#014D5E" }}>O que precisa ser feito hoje</h2>
+        <h2 className="text-[15px] font-bold" style={{ color: "#014D5E" }}>O que precisa de atenção hoje</h2>
         <span
           className="text-xs font-semibold px-3 py-1 rounded-full"
           style={{ background: "#e6f6f8", color: "#009AAC" }}
@@ -102,24 +141,27 @@ export default function HojePage() {
           {loading ? "carregando..." : `${total} pendências`}
         </span>
         <span className="ml-auto text-[11px] text-[#94a3b8]">
-          Perfil: {roleShort(role)}{isPreviewing && <span className="text-[#d97706]"> · preview</span>}
+          Perfil: {roleShort(effectiveRole)}{isPreviewing && <span className="text-[#d97706]"> · preview</span>}
         </span>
       </div>
 
       <div className="bg-white border rounded-2xl overflow-hidden" style={{ borderColor: "#e8edf0" }}>
         {loading ? (
           <div className="px-6 py-10 text-center text-sm text-[#94a3b8]">Carregando seu dia...</div>
-        ) : todo.length === 0 ? (
-          <div className="px-6 py-10 text-center text-sm text-[#94a3b8]">Nada pendente aqui hoje. 🎉</div>
+        ) : items.length === 0 ? (
+          <div className="px-6 py-10 text-center text-sm text-[#94a3b8]">Tudo em ordem por aqui. 🎉</div>
         ) : (
-          todo.map((p, i) => (
+          items.map((p, i) => (
             <Link
               key={p.key}
               href={p.href}
               className="flex items-center gap-3.5 px-[18px] py-[13px] border-b hover:bg-[#e6f6f8]/60 transition cursor-pointer"
-              style={{ borderColor: i === todo.length - 1 ? "transparent" : "#e8edf0" }}
+              style={{ borderColor: i === items.length - 1 ? "transparent" : "#e8edf0" }}
             >
-              <div className="w-[38px] h-[38px] rounded-[10px] flex items-center justify-center flex-shrink-0" style={{ background: "#e6f6f8", color: "#009AAC" }}>
+              <div
+                className="w-[38px] h-[38px] rounded-[10px] flex items-center justify-center flex-shrink-0"
+                style={{ background: "#e6f6f8", color: "#009AAC" }}
+              >
                 <p.Icon size={19} />
               </div>
               <div className="flex-1 min-w-0">
@@ -140,7 +182,8 @@ export default function HojePage() {
       </div>
 
       <div className="mt-6 text-xs text-[#94a3b8] text-center">
-        Métricas e relatórios ficam no <Link href="/dashboard" className="underline">Dashboard</Link> e no Inbox.
+        Métricas e relatórios ficam no <Link href="/dashboard" className="underline">Dashboard</Link>.
+        Conversas no <Link href="/dashboard/inbox" className="underline">Inbox</Link>.
       </div>
     </div>
   );
