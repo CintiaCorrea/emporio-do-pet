@@ -2,431 +2,313 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { LuArrowLeft, LuPencil, LuX, LuPlus, LuSearch, LuCheck } from "react-icons/lu";
 import CsvImporter from "@/components/import/CsvImporter";
-import { LuArrowLeft, LuPlus, LuPencil, LuTrash, LuSearch, LuEllipsisVertical, LuSparkles, LuCheck } from "react-icons/lu";
 
-interface Category {
-  id: string;
-  nome: string;
-  emoji?: string | null;
-  ordem: number;
-  ativo: boolean;
-  _count?: { scripts: number };
-}
-
+interface Category { id: string; nome: string; emoji?: string | null; ordem: number; ativo: boolean; _count?: { scripts: number }; }
 interface Script {
-  id: string;
-  nome: string;
-  conteudo: string;
-  descricao?: string | null;
-  variaveis: string[];
-  categoryId?: string | null;
-  ordem: number;
-  ativo: boolean;
-  vezesUsado: number;
+  id: string; nome: string; conteudo: string; descricao?: string | null;
+  variaveis: string[]; categoryId?: string | null; ordem: number; ativo: boolean; vezesUsado: number;
   category?: { id: string; nome: string; emoji?: string | null } | null;
 }
 
-const EMPTY_CAT: any = { nome: "", emoji: "", ordem: 0, ativo: true };
-const EMPTY_SC: any = { nome: "", conteudo: "", descricao: "", variaveis: [], categoryId: "", ordem: 0, ativo: true };
+const EMPTY_S: any = { nome: "", conteudo: "", descricao: "", variaveis: [], categoryId: "", ordem: 0, ativo: true };
+const EMPTY_C: any = { nome: "", emoji: "", ordem: 0, ativo: true };
 
-// Detecta variáveis tipo {tutor}, {pet}, etc no conteúdo
-function extractVariaveis(conteudo: string): string[] {
-  const matches = conteudo.match(/\{([a-z_][a-z0-9_]*)\}/gi) || [];
-  return Array.from(new Set(matches.map(m => m.slice(1, -1))));
+function extractVars(c: string): string[] {
+  const m = c.match(/\{([a-z_][a-z0-9_]*)\}/gi) || [];
+  return Array.from(new Set(m.map(x => x.slice(1, -1))));
 }
 
-export default function ScriptsConfigPage() {
-  const [importOpen, setImportOpen] = useState(false);
+export default function ScriptsPage() {
   const [cats, setCats] = useState<Category[]>([]);
   const [scripts, setScripts] = useState<Script[]>([]);
   const [loading, setLoading] = useState(true);
   const [showInactive, setShowInactive] = useState(false);
   const [search, setSearch] = useState("");
-  const [selectedCatId, setSelectedCatId] = useState<string | null>(null);
-
-  const [catModalOpen, setCatModalOpen] = useState(false);
-  const [catEditId, setCatEditId] = useState<string | null>(null);
-  const [catForm, setCatForm] = useState<any>(EMPTY_CAT);
-  const [openMenuCat, setOpenMenuCat] = useState<string | null>(null);
-
-  const [scModalOpen, setScModalOpen] = useState(false);
-  const [scEditId, setScEditId] = useState<string | null>(null);
-  const [scForm, setScForm] = useState<any>(EMPTY_SC);
-  const [openMenuSc, setOpenMenuSc] = useState<string | null>(null);
-
+  const [filterCat, setFilterCat] = useState<string>("ALL");
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [seeding, setSeeding] = useState(false);
+
+  const [sModalOpen, setSModalOpen] = useState(false);
+  const [sEditId, setSEditId] = useState<string | null>(null);
+  const [sForm, setSForm] = useState<any>(EMPTY_S);
+
+  const [cModalOpen, setCModalOpen] = useState(false);
+  const [cEditId, setCEditId] = useState<string | null>(null);
+  const [cForm, setCForm] = useState<any>(EMPTY_C);
+
+  const [importOpen, setImportOpen] = useState(false);
 
   async function load() {
     setLoading(true);
     try {
       const qs = showInactive ? "?includeInactive=true" : "";
-      const [resC, resS] = await Promise.all([
-        fetch(`/api/scripts/categories${qs}`),
-        fetch(`/api/scripts${qs}`),
-      ]);
-      setCats(await resC.json());
-      setScripts(await resS.json());
+      const [rC, rS] = await Promise.all([fetch(`/api/scripts/categories${qs}`), fetch(`/api/scripts${qs}`)]);
+      setCats(await rC.json().then(d => Array.isArray(d) ? d : []));
+      setScripts(await rS.json().then(d => Array.isArray(d) ? d : []));
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   }
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [showInactive]);
 
-  const scriptsFiltrados = useMemo(() => {
+  const filtered = useMemo(() => {
     let arr = scripts;
-    if (selectedCatId) arr = arr.filter(s => s.categoryId === selectedCatId);
+    if (filterCat === "NONE") arr = arr.filter(s => !s.categoryId);
+    else if (filterCat !== "ALL") arr = arr.filter(s => s.categoryId === filterCat);
     if (search) {
       const q = search.toLowerCase();
       arr = arr.filter(s => s.nome.toLowerCase().includes(q) || s.conteudo.toLowerCase().includes(q));
     }
     return arr;
-  }, [scripts, selectedCatId, search]);
+  }, [scripts, filterCat, search]);
 
-  // ===== Category handlers =====
-  function openCatNew() { setCatEditId(null); setCatForm(EMPTY_CAT); setCatModalOpen(true); }
-  function openCatEdit(c: Category) { setCatEditId(c.id); setCatForm({ ...c }); setCatModalOpen(true); setOpenMenuCat(null); }
-  async function saveCat() {
+  function openSNew() { setSEditId(null); setSForm({ ...EMPTY_S, categoryId: filterCat !== "ALL" && filterCat !== "NONE" ? filterCat : "" }); setSModalOpen(true); }
+  function openSEdit(s: Script) { setSEditId(s.id); setSForm({ ...s }); setSModalOpen(true); }
+  async function saveS() {
     try {
-      const { id, createdAt, updatedAt, _count, scripts: _s, ...payload } = catForm as any;
-      const url = catEditId ? `/api/scripts/categories/${catEditId}` : "/api/scripts/categories";
-      const method = catEditId ? "PATCH" : "POST";
-      const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-      if (!res.ok) {
-        const err = await res.json().catch(() => null);
-        alert(`Erro: ${err?.message ? (Array.isArray(err.message) ? err.message.join("\n") : err.message) : res.status}`);
-        return;
-      }
-      setCatModalOpen(false); await load();
-    } catch (e) { alert(`Erro: ${e}`); }
-  }
-  async function deleteCat(c: Category) {
-    if (!confirm(`Excluir categoria "${c.nome}"? Os scripts ficam sem categoria.`)) return;
-    try {
-      const res = await fetch(`/api/scripts/categories/${c.id}`, { method: "DELETE" });
-      if (!res.ok) { alert(`Erro: ${res.status}`); return; }
-      if (selectedCatId === c.id) setSelectedCatId(null);
-      setOpenMenuCat(null); await load();
-    } catch (e) { alert(`Erro: ${e}`); }
-  }
-
-  // ===== Script handlers =====
-  function openScNew() {
-    setScEditId(null);
-    setScForm({ ...EMPTY_SC, categoryId: selectedCatId || "" });
-    setScModalOpen(true);
-  }
-  function openScEdit(s: Script) { setScEditId(s.id); setScForm({ ...s }); setScModalOpen(true); setOpenMenuSc(null); }
-  async function saveSc() {
-    try {
-      const { id, createdAt, updatedAt, category, vezesUsado, ...payload } = scForm as any;
-      payload.variaveis = extractVariaveis(payload.conteudo); // auto-detecta
+      const { id, createdAt, updatedAt, category, vezesUsado, ...payload } = sForm as any;
+      payload.variaveis = extractVars(payload.conteudo);
       if (!payload.categoryId) payload.categoryId = null;
-      const url = scEditId ? `/api/scripts/${scEditId}` : "/api/scripts";
-      const method = scEditId ? "PATCH" : "POST";
+      const url = sEditId ? `/api/scripts/${sEditId}` : "/api/scripts";
+      const method = sEditId ? "PATCH" : "POST";
       const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-      if (!res.ok) {
-        const err = await res.json().catch(() => null);
-        alert(`Erro: ${err?.message ? (Array.isArray(err.message) ? err.message.join("\n") : err.message) : res.status}`);
-        return;
-      }
-      setScModalOpen(false); await load();
+      if (!res.ok) { const err = await res.json().catch(() => null); alert(`Erro: ${err?.message || res.status}`); return; }
+      setSModalOpen(false); await load();
     } catch (e) { alert(`Erro: ${e}`); }
   }
-  async function deleteSc(s: Script) {
+  async function removeS(s: Script) {
     if (!confirm(`Excluir script "${s.nome}"?`)) return;
-    try {
-      const res = await fetch(`/api/scripts/${s.id}`, { method: "DELETE" });
-      if (!res.ok) { alert(`Erro: ${res.status}`); return; }
-      setOpenMenuSc(null); await load();
-    } catch (e) { alert(`Erro: ${e}`); }
+    const res = await fetch(`/api/scripts/${s.id}`, { method: "DELETE" });
+    if (!res.ok) { alert(`Erro: ${res.status}`); return; }
+    await load();
   }
-
+  async function toggleS(s: Script) {
+    const res = await fetch(`/api/scripts/${s.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ativo: !s.ativo }) });
+    if (!res.ok) { alert(`Erro: ${res.status}`); return; }
+    await load();
+  }
   async function copyScript(s: Script) {
     try {
       await navigator.clipboard.writeText(s.conteudo);
       await fetch(`/api/scripts/${s.id}/use`, { method: "POST" });
       setCopiedId(s.id);
       setTimeout(() => setCopiedId(null), 1500);
-    } catch (e) { alert("Não consegui copiar: " + e); }
+      await load();
+    } catch (e) { alert("Erro ao copiar: " + e); }
   }
 
-  async function rodarSeed() {
-    if (!confirm("Carregar pacote inicial de 8 categorias + 16 scripts padrão? Só funciona se ainda não houver scripts cadastrados.")) return;
-    setSeeding(true);
+  function openCNew() { setCEditId(null); setCForm(EMPTY_C); setCModalOpen(true); }
+  function openCEdit(c: Category) { setCEditId(c.id); setCForm({ ...c }); setCModalOpen(true); }
+  async function saveC() {
     try {
-      const res = await fetch("/api/scripts/seed-pacote-inicial", { method: "POST" });
-      const data = await res.json();
-      if (data?.skipped) alert(`Pacote não carregado: ${data.message}`);
-      else { alert(`✅ ${data.categoriasCriadas} categorias e ${data.scriptsCriados} scripts criados!`); await load(); }
+      const { id, createdAt, updatedAt, _count, ...payload } = cForm as any;
+      const url = cEditId ? `/api/scripts/categories/${cEditId}` : "/api/scripts/categories";
+      const method = cEditId ? "PATCH" : "POST";
+      const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      if (!res.ok) { const err = await res.json().catch(() => null); alert(`Erro: ${err?.message || res.status}`); return; }
+      setCModalOpen(false); await load();
     } catch (e) { alert(`Erro: ${e}`); }
-    finally { setSeeding(false); }
   }
+  async function removeC(c: Category) {
+    if (!confirm(`Excluir categoria "${c.nome}"?`)) return;
+    const res = await fetch(`/api/scripts/categories/${c.id}`, { method: "DELETE" });
+    if (!res.ok) { alert(`Erro: ${res.status}`); return; }
+    if (filterCat === c.id) setFilterCat("ALL");
+    await load();
+  }
+
+  const totalSemCat = scripts.filter(s => !s.categoryId).length;
 
   return (
-    <div className="min-h-screen" style={{ background: "#FAF7F2" }}>
-      <div className="bg-white border-b" style={{ borderColor: "#E5DCC9" }}>
+    <div className="min-h-screen bg-white">
+      <div className="bg-white border-b" style={{ borderColor: "#E8DFC8" }}>
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center gap-3">
-          <Link href="/dashboard/configuracoes" className="p-2 rounded-lg hover:bg-gray-100">
-            <LuArrowLeft size={18} />
-          </Link>
+          <Link href="/dashboard/configuracoes" className="p-2 rounded-lg hover:bg-gray-100"><LuArrowLeft size={18} /></Link>
           <div className="flex-1">
-            <h1 className="text-xl font-semibold" style={{ color: "#009AAC" }}>Scripts (Templates de Resposta)</h1>
-            <p className="text-sm text-gray-600">Mensagens prontas pra recepção colar no WhatsApp. Use {`{tutor}`}, {`{pet}`} como variáveis.</p>
+            <h1 className="text-xl font-semibold" style={{ color: "#0E2244" }}>Scripts</h1>
+            <p className="text-sm text-gray-500">Templates de resposta prontos pra recepção colar no WhatsApp</p>
           </div>
-          <button onClick={() => setImportOpen(true)} className="px-3 py-2 rounded-lg text-sm border" style={{ borderColor: "#E5DCC9", color: "#009AAC" }}>Importar planilha</button>
-          <label className="flex items-center gap-2 text-sm cursor-pointer">
+          <label className="flex items-center gap-2 text-sm cursor-pointer text-gray-600">
             <input type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)} />
             Mostrar inativos
           </label>
-          {scripts.length === 0 && !loading && (
-            <button onClick={rodarSeed} disabled={seeding}
-              className="px-3 py-2 rounded-lg text-sm flex items-center gap-2"
-              style={{ background: "#009AAC", color: "white", opacity: seeding ? 0.5 : 1 }}>
-              <LuSparkles size={16} /> {seeding ? "Carregando…" : "Carregar pacote inicial"}
-            </button>
-          )}
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-6 grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6">
-        {/* Categorias */}
-        <div className="bg-white rounded-xl border" style={{ borderColor: "#E5DCC9" }}>
-          <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: "#E5DCC9" }}>
-            <div>
-              <div className="text-sm font-semibold" style={{ color: "#009AAC" }}>Categorias</div>
-              <div className="text-xs text-gray-500">{cats.length} cadastradas</div>
-            </div>
-            <button onClick={openCatNew} className="px-2 py-1 rounded-lg text-xs flex items-center gap-1"
-              style={{ background: "#009AAC", color: "white" }}>
-              <LuPlus size={14} /> Adicionar
-            </button>
-          </div>
-          <div className="p-2 max-h-[70vh] overflow-y-auto">
-            <button onClick={() => setSelectedCatId(null)}
-              className={`w-full text-left px-3 py-2 rounded-lg mb-1 text-sm ${!selectedCatId ? "font-semibold" : ""}`}
-              style={{ background: !selectedCatId ? "#E0F4F6" : "transparent", color: !selectedCatId ? "#009AAC" : "#333" }}>
-              📂 Todos ({scripts.length})
-            </button>
-            {cats.map(c => {
-              const sel = selectedCatId === c.id;
-              return (
-                <div key={c.id} className="relative">
-                  <button onClick={() => setSelectedCatId(c.id)}
-                    className={`w-full text-left px-3 py-2 rounded-lg mb-1 text-sm ${sel ? "font-semibold" : ""}`}
-                    style={{ background: sel ? "#E0F4F6" : "transparent", color: sel ? "#009AAC" : "#333", opacity: c.ativo ? 1 : 0.5 }}>
-                    <div className="flex items-center justify-between">
-                      <span className="flex items-center gap-2 min-w-0">
-                        <span>{c.emoji || "📌"}</span>
-                        <span className="truncate">{c.nome}</span>
-                      </span>
-                      <span className="flex items-center gap-2 flex-shrink-0">
-                        <span className="text-xs text-gray-500">{c._count?.scripts || 0}</span>
-                        <span onClick={(ev) => { ev.stopPropagation(); setOpenMenuCat(openMenuCat === c.id ? null : c.id); }}
-                          className="p-1 hover:bg-gray-200 rounded">
-                          <LuEllipsisVertical size={14} />
-                        </span>
-                      </span>
-                    </div>
-                  </button>
-                  {openMenuCat === c.id && (
-                    <div className="absolute right-2 top-full mt-1 bg-white border rounded-lg shadow-lg z-50 min-w-[140px]"
-                      style={{ borderColor: "#E5DCC9" }}>
-                      <button onClick={() => openCatEdit(c)} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2">
-                        <LuPencil size={14} /> Editar
-                      </button>
-                      <button onClick={() => deleteCat(c)} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2" style={{ color: "#6B7280" }}>
-                        <LuTrash size={14} /> Excluir
-                      </button>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+      <div className="max-w-7xl mx-auto px-6 pt-4 flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex gap-2">
+          <button onClick={openCNew} className="px-3 py-2 rounded-lg text-sm font-medium border flex items-center gap-2" style={{ borderColor: "#009AAC", color: "#009AAC", background: "white" }}>
+            <LuPlus size={14} /> Nova Categoria
+          </button>
+          <button onClick={() => setImportOpen(true)} className="px-3 py-2 rounded-lg text-sm font-medium border flex items-center gap-2" style={{ borderColor: "#009AAC", color: "#009AAC", background: "white" }}>
+            Importar planilha
+          </button>
         </div>
+        <div className="relative flex-1 max-w-md mx-3">
+          <LuSearch size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar scripts..." className="w-full pl-8 pr-3 py-2 border rounded-lg text-sm bg-white" style={{ borderColor: "#E8DFC8" }} />
+        </div>
+        <button onClick={openSNew} className="px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-2 text-white" style={{ background: "#009AAC" }}>
+          <LuPlus size={14} /> Novo Script
+        </button>
+      </div>
 
-        {/* Scripts */}
-        <div className="bg-white rounded-xl border" style={{ borderColor: "#E5DCC9" }}>
-          <div className="px-4 py-3 border-b flex items-center gap-3" style={{ borderColor: "#E5DCC9" }}>
-            <div className="flex-1">
-              <div className="text-sm font-semibold" style={{ color: "#009AAC" }}>
-                {selectedCatId ? cats.find(c => c.id === selectedCatId)?.nome : "Todos os scripts"}
-              </div>
-              <div className="text-xs text-gray-500">{scriptsFiltrados.length} scripts</div>
-            </div>
-            <div className="relative">
-              <LuSearch size={14} className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar..."
-                className="pl-7 pr-3 py-1.5 text-sm border rounded-lg" style={{ borderColor: "#E5DCC9" }} />
-            </div>
-            <button onClick={openScNew} className="px-3 py-1.5 rounded-lg text-sm flex items-center gap-1"
-              style={{ background: "#009AAC", color: "white" }}>
-              <LuPlus size={14} /> Adicionar
-            </button>
-          </div>
-          <div className="p-3 max-h-[70vh] overflow-y-auto">
-            {loading && <div className="text-center py-8 text-sm text-gray-500">Carregando...</div>}
-            {!loading && scriptsFiltrados.length === 0 && (
-              <div className="text-center text-sm text-gray-500 py-8">Nenhum script.</div>
-            )}
-            <div className="space-y-3">
-              {scriptsFiltrados.map(s => (
-                <div key={s.id} className="relative border rounded-lg p-3 hover:shadow-sm transition"
-                  style={{ borderColor: "#E5DCC9", opacity: s.ativo ? 1 : 0.5 }}>
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        {s.category && (
-                          <span className="text-xs px-2 py-0.5 rounded" style={{ background: "#F1F1F1", color: "#009AAC" }}>
-                            {s.category.emoji} {s.category.nome}
-                          </span>
-                        )}
-                        {s.vezesUsado > 0 && <span className="text-xs text-gray-400">Usado {s.vezesUsado}×</span>}
+      <div className="max-w-7xl mx-auto px-6 py-4">
+        <div className="bg-white border rounded-xl overflow-hidden" style={{ borderColor: "#E8DFC8" }}>
+          <table className="w-full text-sm">
+            <thead className="border-b" style={{ background: "#FAFAFA", borderColor: "#E8DFC8" }}>
+              <tr>
+                <th className="text-left px-4 py-2.5 font-medium text-gray-500">Nome / Conteúdo</th>
+                <th className="text-left px-4 py-2.5 font-medium text-gray-500 hidden md:table-cell">Categoria</th>
+                <th className="text-right px-4 py-2.5 font-medium text-gray-500 hidden md:table-cell w-20">Usos</th>
+                <th className="text-center px-4 py-2.5 font-medium text-gray-500">Ativo</th>
+                <th className="text-right px-4 py-2.5 font-medium text-gray-500 w-32">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading && <tr><td colSpan={5} className="text-center py-8 text-gray-400">Carregando...</td></tr>}
+              {!loading && filtered.length === 0 && <tr><td colSpan={5} className="text-center py-8 text-gray-400">Nenhum script.</td></tr>}
+              {filtered.map(s => (
+                <tr key={s.id} className="border-b hover:bg-gray-50/60 transition" style={{ borderColor: "#F0EBE0", opacity: s.ativo ? 1 : 0.5 }}>
+                  <td className="px-4 py-2.5">
+                    <div className="font-medium" style={{ color: "#0E2244" }}>{s.nome}</div>
+                    <div className="text-xs text-gray-500 mt-0.5 line-clamp-2">{s.conteudo}</div>
+                    {s.variaveis.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {s.variaveis.slice(0, 4).map(v => <code key={v} className="text-xs px-1.5 py-0.5 rounded" style={{ background: "#FBF0DD", color: "#8a6313" }}>{`{${v}}`}</code>)}
+                        {s.variaveis.length > 4 && <span className="text-xs text-gray-400">+{s.variaveis.length - 4}</span>}
                       </div>
-                      <div className="font-medium text-sm mb-1" style={{ color: "#333" }}>{s.nome}</div>
-                      <div className="text-sm whitespace-pre-wrap text-gray-700 bg-gray-50 rounded p-2 max-h-32 overflow-y-auto">
-                        {s.conteudo}
-                      </div>
-                      {s.variaveis.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {s.variaveis.map(v => (
-                            <span key={v} className="text-xs px-2 py-0.5 rounded" style={{ background: "#F1F1F1", color: "#6B7280" }}>
-                              {`{${v}}`}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex flex-col gap-1 flex-shrink-0">
-                      <button onClick={() => copyScript(s)} title="Copiar"
-                        className="px-3 py-1.5 rounded-lg text-xs flex items-center gap-1"
-                        style={{ background: copiedId === s.id ? "#22C55E" : "#009AAC", color: "white" }}>
-                        {copiedId === s.id ? <><LuCheck size={12} /> Copiado!</> : "Copiar"}
-                      </button>
-                      <div className="relative">
-                        <button onClick={() => setOpenMenuSc(openMenuSc === s.id ? null : s.id)}
-                          className="w-full p-1 hover:bg-gray-100 rounded">
-                          <LuEllipsisVertical size={14} className="mx-auto" />
-                        </button>
-                        {openMenuSc === s.id && (
-                          <div className="absolute right-0 top-full mt-1 bg-white border rounded-lg shadow-lg z-50 min-w-[140px]"
-                            style={{ borderColor: "#E5DCC9" }}>
-                            <button onClick={() => openScEdit(s)} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2">
-                              <LuPencil size={14} /> Editar
-                            </button>
-                            <button onClick={() => deleteSc(s)} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2" style={{ color: "#6B7280" }}>
-                              <LuTrash size={14} /> Excluir
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                    )}
+                  </td>
+                  <td className="px-4 py-2.5 hidden md:table-cell text-gray-700">{s.category?.emoji} {s.category?.nome || "—"}</td>
+                  <td className="px-4 py-2.5 hidden md:table-cell text-right tabular-nums text-gray-500">{s.vezesUsado}</td>
+                  <td className="px-4 py-2.5 text-center">
+                    <button onClick={() => toggleS(s)} className="inline-flex items-center w-10 h-5 rounded-full transition" style={{ background: s.ativo ? "#009AAC" : "#CBD5E0" }}>
+                      <span className="block w-4 h-4 rounded-full bg-white transition shadow" style={{ marginLeft: s.ativo ? 20 : 2 }} />
+                    </button>
+                  </td>
+                  <td className="px-4 py-2.5 text-right">
+                    <button onClick={() => copyScript(s)} className="px-2 py-1 rounded text-xs font-medium inline-flex items-center gap-1 mr-1"
+                      style={{ background: copiedId === s.id ? "#22C55E" : "#E0F4F6", color: copiedId === s.id ? "white" : "#009AAC" }}>
+                      {copiedId === s.id ? <><LuCheck size={11} /> ✓</> : "Copiar"}
+                    </button>
+                    <button onClick={() => openSEdit(s)} className="p-1 hover:bg-gray-200 rounded inline-block text-gray-600"><LuPencil size={14} /></button>
+                    <button onClick={() => removeS(s)} className="p-1 hover:bg-gray-200 rounded inline-block ml-1" style={{ color: "#EF4444" }}><LuX size={14} /></button>
+                  </td>
+                </tr>
               ))}
-            </div>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-6 py-4">
+        <div className="bg-white border rounded-xl p-4" style={{ borderColor: "#E8DFC8" }}>
+          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">CATEGORIAS</div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button onClick={() => setFilterCat("ALL")}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium border flex items-center gap-1.5"
+              style={{
+                borderColor: filterCat === "ALL" ? "#009AAC" : "#E8DFC8",
+                background: filterCat === "ALL" ? "#E0F4F6" : "white",
+                color: filterCat === "ALL" ? "#009AAC" : "#4B5563",
+              }}>
+              Todas <span className="text-gray-400">({scripts.length})</span>
+            </button>
+            <button onClick={() => setFilterCat("NONE")}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium border flex items-center gap-1.5"
+              style={{
+                borderColor: filterCat === "NONE" ? "#009AAC" : "#E8DFC8",
+                background: filterCat === "NONE" ? "#E0F4F6" : "white",
+                color: filterCat === "NONE" ? "#009AAC" : "#4B5563",
+              }}>
+              Sem categoria <span className="text-gray-400">({totalSemCat})</span>
+            </button>
+            {cats.map(c => (
+              <div key={c.id} className="inline-flex items-center gap-0.5 border rounded-lg overflow-hidden"
+                style={{ borderColor: filterCat === c.id ? "#009AAC" : "#E8DFC8", background: filterCat === c.id ? "#E0F4F6" : "white", opacity: c.ativo ? 1 : 0.5 }}>
+                <button onClick={() => setFilterCat(c.id)} className="px-3 py-1.5 text-xs font-medium flex items-center gap-1.5"
+                  style={{ color: filterCat === c.id ? "#009AAC" : "#4B5563" }}>
+                  {c.emoji} {c.nome} <span className="text-gray-400">({c._count?.scripts || 0})</span>
+                </button>
+                <button onClick={() => openCEdit(c)} className="p-1.5 hover:bg-gray-100 border-l text-gray-600" style={{ borderColor: "#E8DFC8" }}><LuPencil size={11} /></button>
+                <button onClick={() => removeC(c)} className="p-1.5 hover:bg-gray-100 border-l" style={{ borderColor: "#E8DFC8", color: "#EF4444" }}><LuX size={11} /></button>
+              </div>
+            ))}
+            <button onClick={openCNew} className="px-3 py-1.5 rounded-lg text-xs font-medium border-2 border-dashed flex items-center gap-1.5 text-gray-500 hover:text-gray-700 hover:border-gray-400" style={{ borderColor: "#D1D5DB" }}>
+              <LuPlus size={12} /> Nova categoria
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Modal Categoria */}
-      {catModalOpen && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setCatModalOpen(false)}>
-          <div className="bg-white rounded-xl p-6 max-w-md w-full" onClick={e => e.stopPropagation()}>
-            <h2 className="text-lg font-semibold mb-4" style={{ color: "#009AAC" }}>
-              {catEditId ? "Editar categoria" : "Nova categoria"}
-            </h2>
-            <div className="grid grid-cols-[1fr_80px] gap-3">
+      {sModalOpen && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setSModalOpen(false)}>
+          <div className="bg-white rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <h2 className="text-lg font-semibold mb-4" style={{ color: "#0E2244" }}>{sEditId ? "Editar script" : "Novo script"}</h2>
+            <div className="space-y-3">
               <div>
                 <label className="text-xs text-gray-600">Nome *</label>
-                <input value={catForm.nome || ""} onChange={e => setCatForm({ ...catForm, nome: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E5DCC9" }} />
+                <input value={sForm.nome || ""} onChange={e => setSForm({ ...sForm, nome: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }} placeholder="Ex: Confirmar agendamento" />
               </div>
               <div>
-                <label className="text-xs text-gray-600">Emoji</label>
-                <input value={catForm.emoji || ""} onChange={e => setCatForm({ ...catForm, emoji: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg text-sm text-center" style={{ borderColor: "#E5DCC9" }} />
-              </div>
-              <div className="col-span-2">
-                <label className="flex items-center gap-2 text-sm cursor-pointer">
-                  <input type="checkbox" checked={catForm.ativo} onChange={e => setCatForm({ ...catForm, ativo: e.target.checked })} />
-                  Ativo
-                </label>
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 mt-5">
-              <button onClick={() => setCatModalOpen(false)} className="px-4 py-2 rounded-lg text-sm border" style={{ borderColor: "#E5DCC9" }}>Cancelar</button>
-              <button onClick={saveCat} className="px-4 py-2 rounded-lg text-sm" style={{ background: "#009AAC", color: "white" }}>Salvar</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal Script */}
-      {scModalOpen && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setScModalOpen(false)}>
-          <div className="bg-white rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <h2 className="text-lg font-semibold mb-4" style={{ color: "#009AAC" }}>
-              {scEditId ? "Editar script" : "Novo script"}
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="md:col-span-2">
-                <label className="text-xs text-gray-600">Nome (curto, identificador) *</label>
-                <input value={scForm.nome || ""} onChange={e => setScForm({ ...scForm, nome: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E5DCC9" }}
-                  placeholder="Ex: Confirmar agendamento" />
-              </div>
-              <div className="md:col-span-2">
                 <label className="text-xs text-gray-600">Categoria</label>
-                <select value={scForm.categoryId || ""} onChange={e => setScForm({ ...scForm, categoryId: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E5DCC9" }}>
+                <select value={sForm.categoryId || ""} onChange={e => setSForm({ ...sForm, categoryId: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }}>
                   <option value="">Sem categoria</option>
-                  {cats.filter(c => c.ativo).map(c => (
-                    <option key={c.id} value={c.id}>{c.emoji} {c.nome}</option>
-                  ))}
+                  {cats.filter(c => c.ativo).map(c => <option key={c.id} value={c.id}>{c.emoji} {c.nome}</option>)}
                 </select>
               </div>
-              <div className="md:col-span-2">
+              <div>
                 <label className="text-xs text-gray-600">Mensagem *</label>
-                <textarea value={scForm.conteudo || ""} onChange={e => setScForm({ ...scForm, conteudo: e.target.value })}
-                  rows={6} className="w-full px-3 py-2 border rounded-lg text-sm font-mono" style={{ borderColor: "#E5DCC9" }}
-                  placeholder="Olá, {tutor}! Tudo bem com o {pet}?" />
-                <div className="text-xs text-gray-500 mt-1">
-                  Use {`{nome_da_variavel}`} para placeholders. Detectados:
-                  {extractVariaveis(scForm.conteudo || "").map(v => (
-                    <span key={v} className="ml-1 px-1 rounded" style={{ background: "#F1F1F1", color: "#6B7280" }}>{`{${v}}`}</span>
-                  ))}
+                <textarea value={sForm.conteudo || ""} onChange={e => setSForm({ ...sForm, conteudo: e.target.value })} rows={6} className="w-full px-3 py-2 border rounded-lg text-sm font-mono" style={{ borderColor: "#E8DFC8" }} placeholder="Olá, {tutor}! Tudo bem com o {pet}?" />
+                <div className="text-xs text-gray-500 mt-1">Use {`{nome_da_variavel}`}. Detectadas:
+                  {extractVars(sForm.conteudo || "").map(v => <code key={v} className="ml-1 px-1 rounded" style={{ background: "#FBF0DD", color: "#8a6313" }}>{`{${v}}`}</code>)}
                 </div>
               </div>
-              <div className="md:col-span-2">
-                <label className="text-xs text-gray-600">Descrição (interna)</label>
-                <input value={scForm.descricao || ""} onChange={e => setScForm({ ...scForm, descricao: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E5DCC9" }} />
-              </div>
-              <div className="md:col-span-2">
-                <label className="flex items-center gap-2 text-sm cursor-pointer">
-                  <input type="checkbox" checked={scForm.ativo} onChange={e => setScForm({ ...scForm, ativo: e.target.checked })} />
-                  Ativo
-                </label>
-              </div>
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input type="checkbox" checked={sForm.ativo} onChange={e => setSForm({ ...sForm, ativo: e.target.checked })} /> Ativo
+              </label>
             </div>
             <div className="flex justify-end gap-2 mt-5">
-              <button onClick={() => setScModalOpen(false)} className="px-4 py-2 rounded-lg text-sm border" style={{ borderColor: "#E5DCC9" }}>Cancelar</button>
-              <button onClick={saveSc} className="px-4 py-2 rounded-lg text-sm" style={{ background: "#009AAC", color: "white" }}>Salvar</button>
+              <button onClick={() => setSModalOpen(false)} className="px-4 py-2 rounded-lg text-sm border" style={{ borderColor: "#E8DFC8" }}>Cancelar</button>
+              <button onClick={saveS} className="px-4 py-2 rounded-lg text-sm text-white" style={{ background: "#009AAC" }}>Salvar</button>
             </div>
           </div>
         </div>
       )}
 
-      <CsvImporter
-        open={importOpen} onClose={() => setImportOpen(false)}
-        title="Importar Scripts"
-        endpoint="/api/scripts/import-batch"
-        exampleHint="Exporte de Base44 > Script. Variáveis tipo {tutor} {pet} são auto-detectadas se não vierem na coluna."
-        fields={[{"key": "nome", "label": "Nome", "required": true}, {"key": "conteudo", "label": "Conte\u00fado", "aliases": ["corpo", "texto"], "required": true}, {"key": "categoria", "label": "Categoria"}, {"key": "descricao", "label": "Descri\u00e7\u00e3o"}, {"key": "ativo", "label": "Ativo", "type": "boolean"}]}
-        onSuccess={() => load()}
-      />
+      {cModalOpen && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setCModalOpen(false)}>
+          <div className="bg-white rounded-xl p-6 max-w-md w-full" onClick={e => e.stopPropagation()}>
+            <h2 className="text-lg font-semibold mb-4" style={{ color: "#0E2244" }}>{cEditId ? "Editar categoria" : "Nova categoria"}</h2>
+            <div className="grid grid-cols-[1fr_80px] gap-3">
+              <div><label className="text-xs text-gray-600">Nome *</label>
+                <input value={cForm.nome || ""} onChange={e => setCForm({ ...cForm, nome: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }} /></div>
+              <div><label className="text-xs text-gray-600">Emoji</label>
+                <input value={cForm.emoji || ""} onChange={e => setCForm({ ...cForm, emoji: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm text-center" style={{ borderColor: "#E8DFC8" }} /></div>
+            </div>
+            <label className="flex items-center gap-2 text-sm cursor-pointer mt-3">
+              <input type="checkbox" checked={cForm.ativo} onChange={e => setCForm({ ...cForm, ativo: e.target.checked })} /> Ativa
+            </label>
+            <div className="flex justify-end gap-2 mt-5">
+              <button onClick={() => setCModalOpen(false)} className="px-4 py-2 rounded-lg text-sm border" style={{ borderColor: "#E8DFC8" }}>Cancelar</button>
+              <button onClick={saveC} className="px-4 py-2 rounded-lg text-sm text-white" style={{ background: "#009AAC" }}>Salvar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <CsvImporter open={importOpen} onClose={() => setImportOpen(false)}
+        title="Importar Scripts" endpoint="/api/scripts/import-batch"
+        exampleHint="Exporte de Base44 > Script. Variáveis {tutor} {pet} são auto-detectadas."
+        fields={[
+          { key: "nome", label: "Nome", required: true },
+          { key: "conteudo", label: "Conteúdo", aliases: ["corpo", "texto"], required: true },
+          { key: "categoria", label: "Categoria" },
+          { key: "descricao", label: "Descrição" },
+          { key: "ativo", label: "Ativo", type: "boolean" },
+        ]}
+        onSuccess={() => load()} />
     </div>
   );
 }
