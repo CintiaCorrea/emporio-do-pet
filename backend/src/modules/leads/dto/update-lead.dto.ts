@@ -1,5 +1,5 @@
 import { PartialType } from '@nestjs/swagger';
-import { IsEnum, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsOptional, IsString, IsDateString } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { CreateLeadDto } from './create-lead.dto';
 
@@ -23,4 +23,16 @@ export class UpdateLeadDto extends PartialType(CreateLeadDto) {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @ApiPropertyOptional() @IsOptional() @IsString()
+  pipelineComercialEtapa?: string;
+
+  @ApiPropertyOptional() @IsOptional() @IsDateString()
+  proximoFollowupAt?: string;
+
+  @ApiPropertyOptional() @IsOptional() @IsString()
+  resumoIa?: string;
+
+  @ApiPropertyOptional() @IsOptional() @IsDateString()
+  resumoIaUpdatedAt?: string;
 }

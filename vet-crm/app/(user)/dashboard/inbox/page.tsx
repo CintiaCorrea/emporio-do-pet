@@ -135,7 +135,7 @@ export default function InboxPage() {
           </div>
         )}
 
-        <aside className="w-[340px] border-l flex-shrink-0 overflow-hidden" style={{ borderColor: "#E8DFC8" }}>
+        <aside className="w-[300px] border-l flex-shrink-0 overflow-hidden transition-all" style={{ borderColor: "#E8DFC8" }}>
           <InboxRightPanel canal={canalForPanel} />
         </aside>
       </div>

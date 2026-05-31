@@ -225,7 +225,18 @@ export default function InboxRightPanel({ canal = "BotConversa" }: { canal?: str
   return (
     <div className="h-full flex flex-col bg-white">
       <div className="px-3 pt-3 pb-2 border-b flex-shrink-0" style={{ borderColor: "#E8DFC8" }}>
-        <div className="text-[10.5px] font-bold tracking-wide text-gray-500 uppercase mb-1.5">Contexto da conversa</div>
+        <div className="text-[10.5px] font-bold tracking-wide text-gray-500 uppercase mb-1.5 flex items-center justify-between">
+          <span>Contexto da conversa</span>
+          {!tutor && !lead && !cadastroOpen && (
+            <button
+              onClick={() => { setCadastroOpen(true); setCadastroAs("LEAD"); setCadForm({ ...cadForm, telefone: search.replace(/\D/g, "") || search, nome: "" }); }}
+              className="text-[10px] font-semibold flex items-center gap-1 normal-case"
+              style={{ color: "#009AAC" }}
+            >
+              <LuPlus size={10} /> cadastrar
+            </button>
+          )}
+        </div>
         <div className="relative">
           <LuSearch size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
