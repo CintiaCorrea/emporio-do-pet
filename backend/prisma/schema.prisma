@@ -260,6 +260,7 @@ model User {
   whatsappConversations         WhatsAppConversation[]
   internalNotesSent             InternalNote[]         @relation("internal_notes_from")
   internalNotesReceived         InternalNote[]         @relation("internal_notes_to")
+  interacoesRegistradas         Interacao[]            @relation("InteracaoAutor")
   whatsappConversationsTakeover WhatsAppConversation[] @relation("whatsapp_assigned_user")
   whatsappCampaigns             WhatsAppCampaign[]
 
@@ -329,6 +330,12 @@ model LandingPage {
 // NOVOS MODELS: Tutor e Contact
 model Tutor {
   id                    String                 @id @default(uuid())
+  // Pipeline & Follow-up (Inbox v3)
+  estadoRelacionamento  String?  // Em dia / Pet em tratamento / Precisa de atenção / A recuperar / Inativo
+  proximoFollowupAt     DateTime?
+  resumoIa              String?  @db.Text
+  resumoIaUpdatedAt     DateTime?
+  interacoes            Interacao[]
   // Informações Básicas
   type                  PersonType             @default(INDIVIDUAL)
   name                  String
@@ -441,6 +448,11 @@ model Pet {
   allergies     String[] // Lista de alergias
   medicalNotes  String? // Notas médicas importantes
   documents     String[]             @default([]) // Lista de documentos (URLs/nomes)
+  // Pipeline & Follow-up (Inbox v3)
+  pipelineClinicoEtapa String?  // Diagnóstico inicial / Em tratamento / Aguardando exames / Retorno agendado / Em manutenção / Alta clínica / Abandonou
+  pipelineFisioEtapa   String?  // Avaliação inicial / Pacote em andamento / Sessão a sessão / Manutenção / Reavaliação / Alta / Pausa
+  proximoFollowupAt    DateTime?
+  interacoes           Interacao[]
   // Relacionamentos
   tutorId       String
   tutor         Tutor                @relation(fields: [tutorId], references: [id], onDelete: Cascade)
@@ -2024,6 +2036,12 @@ model Lead {
   lastSeenAt     DateTime   @default(now())
   lastActivityAt DateTime?
   convertedAt    DateTime?
+  // Pipeline & Follow-up (Inbox v3)
+  pipelineComercialEtapa String?  // Triagem / Novo / Qualificação / Orçamento / Aguard retorno / Retomar / Reaproximação / Agendado / Compareceu / Perdido
+  proximoFollowupAt      DateTime?
+  resumoIa               String?  @db.Text
+  resumoIaUpdatedAt      DateTime?
+  interacoes             Interacao[]
 
   // Score atual (desnormalizado para queries rápidas)
   currentScore   Int       @default(0)
@@ -2567,4 +2585,41 @@ model AppointmentItem {
   @@index([servicoId])
   @@index([fornecedorId])
   @@map("appointment_items")
+}
+
+
+// ============================================
+// Interacao — registros de interação com Lead/Tutor/Pet
+// (entra na ficha como histórico de FU)
+// ============================================
+model Interacao {
+  id String @id @default(uuid())
+
+  // Pode vincular a qualquer combinação
+  leadId  String?
+  lead    Lead?   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  tutorId String?
+  tutor   Tutor?  @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+  petId   String?
+  pet     Pet?    @relation(fields: [petId], references: [id], onDelete: SetNull)
+
+  autorUserId String?
+  autor       User?   @relation("InteracaoAutor", fields: [autorUserId], references: [id], onDelete: SetNull)
+
+  tipo               String   @default("NOTA")  // NOTA | ENCAMINHAMENTO | AGENDAMENTO | EMAIL_ENVIADO | WHATSAPP_ENVIADO | LIGACAO | PRESENCIAL | PERDIDO
+  texto              String   @db.Text
+  proximaAcao        String?
+  proximoFollowupAt  DateTime?
+  canal              String?  // WhatsApp BC | WhatsApp Meta | Email | Ligação | Presencial
+
+  threadId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([leadId])
+  @@index([tutorId])
+  @@index([petId])
+  @@index([createdAt])
+  @@map("interacoes")
 }
