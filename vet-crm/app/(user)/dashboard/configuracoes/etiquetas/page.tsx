@@ -375,7 +375,7 @@ export default function EtiquetasConfigPage() {
       <button
         onClick={() => setImportOpen(true)}
         className="fixed bottom-6 right-6 px-4 py-3 rounded-full text-sm shadow-md hover:shadow-lg transition"
-        style={{ background: "#3C3489", color: "white" }}
+        style={{ background: "#009AAC", color: "white" }}
         title="Importar planilha"
       >
         Importar planilha

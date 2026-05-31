@@ -104,13 +104,13 @@ export default function AvaliacoesPage() {
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center gap-3">
           <Link href="/dashboard/configuracoes" className="p-2 rounded-lg hover:bg-gray-100"><LuArrowLeft size={18} /></Link>
           <div className="flex-1">
-            <h1 className="text-xl font-semibold" style={{ color: "#3C3489" }}>Avaliações</h1>
+            <h1 className="text-xl font-semibold" style={{ color: "#009AAC" }}>Avaliações</h1>
             <p className="text-sm text-gray-600">NPS coletado pela recepção + fluxo Google My Business (pergunta filtro + envio de link).</p>
           </div>
           {tab === "nps" && (
             <>
-              <button onClick={() => setImportOpen(true)} className="px-3 py-2 rounded-lg text-sm border" style={{ borderColor: "#E5DCC9", color: "#3C3489" }}>Importar planilha</button>
-              <button onClick={openNew} className="px-3 py-2 rounded-lg text-sm flex items-center gap-2" style={{ background: "#3C3489", color: "white" }}>
+              <button onClick={() => setImportOpen(true)} className="px-3 py-2 rounded-lg text-sm border" style={{ borderColor: "#E5DCC9", color: "#009AAC" }}>Importar planilha</button>
+              <button onClick={openNew} className="px-3 py-2 rounded-lg text-sm flex items-center gap-2" style={{ background: "#009AAC", color: "white" }}>
                 <LuPlus size={16} /> Registrar NPS
               </button>
             </>
@@ -118,11 +118,11 @@ export default function AvaliacoesPage() {
         </div>
         <div className="max-w-7xl mx-auto px-6 flex gap-1">
           <button onClick={() => setTab("nps")} className="px-4 py-2 text-sm font-medium border-b-2"
-            style={{ borderColor: tab === "nps" ? "#3C3489" : "transparent", color: tab === "nps" ? "#3C3489" : "#666" }}>
+            style={{ borderColor: tab === "nps" ? "#009AAC" : "transparent", color: tab === "nps" ? "#009AAC" : "#666" }}>
             NPS ({nps.length})
           </button>
           <button onClick={() => setTab("google")} className="px-4 py-2 text-sm font-medium border-b-2"
-            style={{ borderColor: tab === "google" ? "#3C3489" : "transparent", color: tab === "google" ? "#3C3489" : "#666" }}>
+            style={{ borderColor: tab === "google" ? "#009AAC" : "transparent", color: tab === "google" ? "#009AAC" : "#666" }}>
             Google Reviews ({google.length})
           </button>
         </div>
@@ -232,7 +232,7 @@ export default function AvaliacoesPage() {
       {modalOpen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setModalOpen(false)}>
           <div className="bg-white rounded-xl p-6 max-w-xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <h2 className="text-lg font-semibold mb-4" style={{ color: "#3C3489" }}>{editId ? "Editar NPS" : "Registrar avaliação NPS"}</h2>
+            <h2 className="text-lg font-semibold mb-4" style={{ color: "#009AAC" }}>{editId ? "Editar NPS" : "Registrar avaliação NPS"}</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div><label className="text-xs text-gray-600">Categoria avaliada</label>
                 <select value={form.categoriaAlvo} onChange={e => setForm({ ...form, categoriaAlvo: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E5DCC9" }}>
@@ -253,7 +253,7 @@ export default function AvaliacoesPage() {
             </div>
             <div className="flex justify-end gap-2 mt-5">
               <button onClick={() => setModalOpen(false)} className="px-4 py-2 rounded-lg text-sm border" style={{ borderColor: "#E5DCC9" }}>Cancelar</button>
-              <button onClick={save} className="px-4 py-2 rounded-lg text-sm" style={{ background: "#3C3489", color: "white" }}>Salvar</button>
+              <button onClick={save} className="px-4 py-2 rounded-lg text-sm" style={{ background: "#009AAC", color: "white" }}>Salvar</button>
             </div>
           </div>
         </div>

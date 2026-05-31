@@ -33,7 +33,7 @@ interface Variable {
 const CAT_LABEL: Record<Categoria, { label: string; emoji: string; bg: string; color: string }> = {
   TRANSACIONAL: { label: "Transacional", emoji: "📨", bg: "#F1F1F1", color: "#6B7280" },
   BOAS_VINDAS: { label: "Boas-vindas", emoji: "👋", bg: "#F1F1F1", color: "#6B7280" },
-  EDUCATIVO: { label: "Educativo", emoji: "📚", bg: "#F1F1F1", color: "#3C3489" },
+  EDUCATIVO: { label: "Educativo", emoji: "📚", bg: "#F1F1F1", color: "#009AAC" },
   PROMOCIONAL: { label: "Promocional", emoji: "🎁", bg: "#F1F1F1", color: "#6B7280" },
   ANIVERSARIO: { label: "Aniversário", emoji: "🎂", bg: "#F1F1F1", color: "#6B7280" },
   REENGAJAMENTO: { label: "Reengajamento", emoji: "🔔", bg: "#F1F1F1", color: "#6B7280" },
@@ -172,26 +172,26 @@ export default function EmailTemplatesPage() {
             <LuArrowLeft size={18} />
           </Link>
           <div className="flex-1">
-            <h1 className="text-xl font-semibold" style={{ color: "#3C3489" }}>Templates de E-mail</h1>
+            <h1 className="text-xl font-semibold" style={{ color: "#009AAC" }}>Templates de E-mail</h1>
             <p className="text-sm text-gray-600">Templates HTML pra emails transacionais e campanhas. Use {`{{tutor_nome}}`}, {`{{pet_nome}}`}, etc.</p>
           </div>
-          <button onClick={() => setImportOpen(true)} className="px-3 py-2 rounded-lg text-sm border" style={{ borderColor: "#E5DCC9", color: "#3C3489" }}>Importar planilha</button>
+          <button onClick={() => setImportOpen(true)} className="px-3 py-2 rounded-lg text-sm border" style={{ borderColor: "#E5DCC9", color: "#009AAC" }}>Importar planilha</button>
           <label className="flex items-center gap-2 text-sm cursor-pointer">
             <input type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)} />
             Inativos
           </label>
-          <button onClick={() => setVariavelDrawerOpen(true)} className="px-3 py-2 rounded-lg text-sm border" style={{ borderColor: "#E5DCC9", color: "#3C3489" }}>
+          <button onClick={() => setVariavelDrawerOpen(true)} className="px-3 py-2 rounded-lg text-sm border" style={{ borderColor: "#E5DCC9", color: "#009AAC" }}>
             Variáveis ({vars.length})
           </button>
           {tpls.length === 0 && !loading && (
             <button onClick={rodarSeed} disabled={seeding}
               className="px-3 py-2 rounded-lg text-sm flex items-center gap-2"
-              style={{ background: "#3C3489", color: "white", opacity: seeding ? 0.5 : 1 }}>
+              style={{ background: "#009AAC", color: "white", opacity: seeding ? 0.5 : 1 }}>
               <LuSparkles size={16} /> {seeding ? "Carregando…" : "Carregar pacote inicial"}
             </button>
           )}
           <button onClick={openTplNew} className="px-3 py-2 rounded-lg text-sm flex items-center gap-2"
-            style={{ background: "#3C3489", color: "white" }}>
+            style={{ background: "#009AAC", color: "white" }}>
             <LuPlus size={16} /> Novo template
           </button>
         </div>
@@ -200,7 +200,7 @@ export default function EmailTemplatesPage() {
       <div className="max-w-7xl mx-auto px-6 py-6">
         <div className="flex items-center gap-3 mb-4 flex-wrap">
           <button onClick={() => setFilterCat("")} className={`px-3 py-1.5 rounded-lg text-xs ${!filterCat ? "font-semibold" : ""}`}
-            style={{ background: !filterCat ? "#3C3489" : "#fff", color: !filterCat ? "white" : "#333", border: "1px solid #E5DCC9" }}>
+            style={{ background: !filterCat ? "#009AAC" : "#fff", color: !filterCat ? "white" : "#333", border: "1px solid #E5DCC9" }}>
             Todos ({tpls.length})
           </button>
           {(Object.keys(CAT_LABEL) as Categoria[]).map(k => {
@@ -253,11 +253,11 @@ export default function EmailTemplatesPage() {
                     )}
                   </div>
                 </div>
-                <div className="font-semibold text-sm mb-1" style={{ color: "#3C3489" }}>{t.nome}</div>
+                <div className="font-semibold text-sm mb-1" style={{ color: "#009AAC" }}>{t.nome}</div>
                 <div className="text-xs text-gray-500 mb-2 truncate">📧 {t.assunto}</div>
                 {t.descricao && <div className="text-xs text-gray-600 mb-2 line-clamp-2">{t.descricao}</div>}
                 <div className="flex items-center justify-between mt-2">
-                  <button onClick={() => setPreviewId(t.id)} className="text-xs flex items-center gap-1" style={{ color: "#3C3489" }}>
+                  <button onClick={() => setPreviewId(t.id)} className="text-xs flex items-center gap-1" style={{ color: "#009AAC" }}>
                     <LuEye size={12} /> Visualizar
                   </button>
                   {t.vezesEnviado > 0 && <span className="text-xs text-gray-400">{t.vezesEnviado} envios</span>}
@@ -273,9 +273,9 @@ export default function EmailTemplatesPage() {
         <div className="fixed inset-0 bg-black/40 z-50" onClick={() => setVariavelDrawerOpen(false)}>
           <div className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-xl overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="p-4 border-b flex items-center justify-between" style={{ borderColor: "#E5DCC9" }}>
-              <h2 className="font-semibold" style={{ color: "#3C3489" }}>Biblioteca de Variáveis</h2>
+              <h2 className="font-semibold" style={{ color: "#009AAC" }}>Biblioteca de Variáveis</h2>
               <button onClick={openVarNew} className="px-2 py-1 rounded-lg text-xs flex items-center gap-1"
-                style={{ background: "#3C3489", color: "white" }}>
+                style={{ background: "#009AAC", color: "white" }}>
                 <LuPlus size={12} /> Nova
               </button>
             </div>
@@ -323,7 +323,7 @@ export default function EmailTemplatesPage() {
       {tplModalOpen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setTplModalOpen(false)}>
           <div className="bg-white rounded-xl p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <h2 className="text-lg font-semibold mb-4" style={{ color: "#3C3489" }}>
+            <h2 className="text-lg font-semibold mb-4" style={{ color: "#009AAC" }}>
               {tplEditId ? "Editar template" : "Novo template"}
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -371,7 +371,7 @@ export default function EmailTemplatesPage() {
             </div>
             <div className="flex justify-end gap-2 mt-5">
               <button onClick={() => setTplModalOpen(false)} className="px-4 py-2 rounded-lg text-sm border" style={{ borderColor: "#E5DCC9" }}>Cancelar</button>
-              <button onClick={saveTpl} className="px-4 py-2 rounded-lg text-sm" style={{ background: "#3C3489", color: "white" }}>Salvar</button>
+              <button onClick={saveTpl} className="px-4 py-2 rounded-lg text-sm" style={{ background: "#009AAC", color: "white" }}>Salvar</button>
             </div>
           </div>
         </div>
@@ -381,7 +381,7 @@ export default function EmailTemplatesPage() {
       {varModalOpen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setVarModalOpen(false)}>
           <div className="bg-white rounded-xl p-6 max-w-md w-full" onClick={e => e.stopPropagation()}>
-            <h2 className="text-lg font-semibold mb-4" style={{ color: "#3C3489" }}>
+            <h2 className="text-lg font-semibold mb-4" style={{ color: "#009AAC" }}>
               {varEditId ? "Editar variável" : "Nova variável"}
             </h2>
             <div className="space-y-3">
@@ -417,7 +417,7 @@ export default function EmailTemplatesPage() {
             </div>
             <div className="flex justify-end gap-2 mt-5">
               <button onClick={() => setVarModalOpen(false)} className="px-4 py-2 rounded-lg text-sm border" style={{ borderColor: "#E5DCC9" }}>Cancelar</button>
-              <button onClick={saveVar} className="px-4 py-2 rounded-lg text-sm" style={{ background: "#3C3489", color: "white" }}>Salvar</button>
+              <button onClick={saveVar} className="px-4 py-2 rounded-lg text-sm" style={{ background: "#009AAC", color: "white" }}>Salvar</button>
             </div>
           </div>
         </div>
@@ -429,7 +429,7 @@ export default function EmailTemplatesPage() {
           <div className="bg-white rounded-xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
             <div className="p-4 border-b flex items-center justify-between" style={{ borderColor: "#E5DCC9" }}>
               <div className="min-w-0 flex-1">
-                <h2 className="font-semibold truncate" style={{ color: "#3C3489" }}>{preview.nome}</h2>
+                <h2 className="font-semibold truncate" style={{ color: "#009AAC" }}>{preview.nome}</h2>
                 <div className="text-xs text-gray-500 truncate">📧 {preview.assunto}</div>
               </div>
               <button onClick={() => setPreviewId(null)} className="text-gray-500 hover:text-gray-700 text-2xl">×</button>

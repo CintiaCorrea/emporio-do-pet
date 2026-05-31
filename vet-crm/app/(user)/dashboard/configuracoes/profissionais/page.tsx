@@ -37,7 +37,7 @@ const TIPO_LABEL: Record<TipoProfissional, { label: string; color: string; bg: s
   VETERINARIO: { label: "Veterinário", color: "#0F6E56", bg: "#E1F5EE" },
   RECEPCIONISTA: { label: "Recepção", color: "#185FA5", bg: "#E6F1FB" },
   ESTAGIARIO: { label: "Estagiário", color: "#6B7280", bg: "#F1F1F1" },
-  GERENTE: { label: "Gerente", color: "#3C3489", bg: "#F1F1F1" },
+  GERENTE: { label: "Gerente", color: "#009AAC", bg: "#F1F1F1" },
   OUTRO: { label: "Outro", color: "#5F5E5A", bg: "#f0e8d4" },
 };
 
@@ -427,7 +427,7 @@ export default function ProfissionaisConfigPage() {
       <button
         onClick={() => setImportOpen(true)}
         className="fixed bottom-6 right-6 px-4 py-3 rounded-full text-sm shadow-md hover:shadow-lg transition"
-        style={{ background: "#3C3489", color: "white" }}
+        style={{ background: "#009AAC", color: "white" }}
         title="Importar planilha"
       >
         Importar planilha

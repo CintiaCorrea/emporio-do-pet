@@ -33,7 +33,7 @@ export default function ConfiguracoesIndex() {
     <div className="min-h-screen" style={{ background: "#FAF7F2" }}>
       <div className="bg-white border-b" style={{ borderColor: "#E5DCC9" }}>
         <div className="max-w-5xl mx-auto px-6 py-4">
-          <h1 className="text-xl font-semibold" style={{ color: "#3C3489" }}>Configurações</h1>
+          <h1 className="text-xl font-semibold" style={{ color: "#009AAC" }}>Configurações</h1>
           <p className="text-sm text-gray-600">Cadastros base que alimentam o CRM. {ready} das {ITEMS.length} prontas.</p>
         </div>
       </div>
@@ -55,7 +55,7 @@ export default function ConfiguracoesIndex() {
                   <tr key={item.href} className="border-b hover:bg-gray-50" style={{ borderColor: "#F0EBE0" }}>
                     <td className="px-4 py-3">
                       {isReady ? (
-                        <Link href={item.href} className="font-medium hover:underline" style={{ color: "#3C3489" }}>
+                        <Link href={item.href} className="font-medium hover:underline" style={{ color: "#009AAC" }}>
                           {item.title}
                         </Link>
                       ) : (

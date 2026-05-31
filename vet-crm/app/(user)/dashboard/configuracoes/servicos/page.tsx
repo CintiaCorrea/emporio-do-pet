@@ -30,7 +30,7 @@ const COMISSAO_LABEL: Record<ComissaoBase, { label: string; bg: string; color: s
   VALOR_CHEIO: { label: "Valor cheio", bg: "#F1F1F1", color: "#6B7280" },
   MARGEM: { label: "Margem", bg: "#F1F1F1", color: "#6B7280" },
   SEM_COMISSAO: { label: "Sem comissão", bg: "#F1F1F1", color: "#6B7280" },
-  HERDAR: { label: "Herdar da categoria", bg: "#F1F1F1", color: "#3C3489" },
+  HERDAR: { label: "Herdar da categoria", bg: "#F1F1F1", color: "#009AAC" },
 };
 
 const fmtR = (v?: number | null) => v == null ? "—" : `R$ ${v.toFixed(2)}`;
@@ -415,7 +415,7 @@ export default function ServicosConfigPage() {
       <button
         onClick={() => setImportOpen(true)}
         className="fixed bottom-6 right-6 px-4 py-3 rounded-full text-sm shadow-md hover:shadow-lg transition"
-        style={{ background: "#3C3489", color: "white" }}
+        style={{ background: "#009AAC", color: "white" }}
         title="Importar planilha"
       >
         Importar planilha

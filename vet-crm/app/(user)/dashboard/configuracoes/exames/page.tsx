@@ -232,20 +232,20 @@ export default function ExamesConfigPage() {
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center gap-3">
           <Link href="/dashboard/configuracoes" className="p-2 rounded-lg hover:bg-gray-100"><LuArrowLeft size={18} /></Link>
           <div className="flex-1">
-            <h1 className="text-xl font-semibold" style={{ color: "#3C3489" }}>Exames e Fornecedores</h1>
+            <h1 className="text-xl font-semibold" style={{ color: "#009AAC" }}>Exames e Fornecedores</h1>
             <p className="text-sm text-gray-600">Catálogo completo de exames terceirizados — custo (fornecedor) + preço de venda.</p>
           </div>
-          <button onClick={() => setImportOpen(true)} className="px-3 py-2 rounded-lg text-sm flex items-center gap-2 border" style={{ borderColor: "#E5DCC9", color: "#3C3489" }}>
+          <button onClick={() => setImportOpen(true)} className="px-3 py-2 rounded-lg text-sm flex items-center gap-2 border" style={{ borderColor: "#E5DCC9", color: "#009AAC" }}>
             <LuUpload size={16} /> Importar planilha
           </button>
         </div>
         <div className="max-w-7xl mx-auto px-6 flex gap-1">
           <button onClick={() => setTab("exames")} className="px-4 py-2 text-sm font-medium border-b-2"
-            style={{ borderColor: tab === "exames" ? "#3C3489" : "transparent", color: tab === "exames" ? "#3C3489" : "#666" }}>
+            style={{ borderColor: tab === "exames" ? "#009AAC" : "transparent", color: tab === "exames" ? "#009AAC" : "#666" }}>
             🧪 Catálogo de Exames ({exames.length})
           </button>
           <button onClick={() => setTab("fornecedores")} className="px-4 py-2 text-sm font-medium border-b-2"
-            style={{ borderColor: tab === "fornecedores" ? "#3C3489" : "transparent", color: tab === "fornecedores" ? "#3C3489" : "#666" }}>
+            style={{ borderColor: tab === "fornecedores" ? "#009AAC" : "transparent", color: tab === "fornecedores" ? "#009AAC" : "#666" }}>
             📦 Fornecedores ({fornecedores.length})
           </button>
         </div>
@@ -283,7 +283,7 @@ export default function ExamesConfigPage() {
               <div className="flex items-end gap-2">
                 <span className="text-sm text-gray-500 mb-2">{examesFilt.length} exames</span>
                 <button onClick={openExNew} className="px-3 py-2 rounded-lg text-sm flex items-center gap-1"
-                  style={{ background: "#3C3489", color: "white" }}>
+                  style={{ background: "#009AAC", color: "white" }}>
                   <LuPlus size={14} /> Novo
                 </button>
               </div>
@@ -342,8 +342,8 @@ export default function ExamesConfigPage() {
         {tab === "fornecedores" && (
           <div className="bg-white rounded-xl border overflow-hidden" style={{ borderColor: "#E5DCC9" }}>
             <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: "#E5DCC9" }}>
-              <div className="text-sm font-semibold" style={{ color: "#3C3489" }}>{fornecedores.length} fornecedores cadastrados</div>
-              <button onClick={openFornNew} className="px-3 py-2 rounded-lg text-sm flex items-center gap-1" style={{ background: "#3C3489", color: "white" }}>
+              <div className="text-sm font-semibold" style={{ color: "#009AAC" }}>{fornecedores.length} fornecedores cadastrados</div>
+              <button onClick={openFornNew} className="px-3 py-2 rounded-lg text-sm flex items-center gap-1" style={{ background: "#009AAC", color: "white" }}>
                 <LuPlus size={14} /> Novo fornecedor
               </button>
             </div>
@@ -382,7 +382,7 @@ export default function ExamesConfigPage() {
       {eModalOpen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setEModalOpen(false)}>
           <div className="bg-white rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <h2 className="text-lg font-semibold mb-4" style={{ color: "#3C3489" }}>{eEditId ? "Editar exame" : "Novo exame"}</h2>
+            <h2 className="text-lg font-semibold mb-4" style={{ color: "#009AAC" }}>{eEditId ? "Editar exame" : "Novo exame"}</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="md:col-span-2">
                 <label className="text-xs text-gray-600">Nome *</label>
@@ -426,7 +426,7 @@ export default function ExamesConfigPage() {
             </div>
             <div className="flex justify-end gap-2 mt-5">
               <button onClick={() => setEModalOpen(false)} className="px-4 py-2 rounded-lg text-sm border" style={{ borderColor: "#E5DCC9" }}>Cancelar</button>
-              <button onClick={saveEx} className="px-4 py-2 rounded-lg text-sm" style={{ background: "#3C3489", color: "white" }}>Salvar</button>
+              <button onClick={saveEx} className="px-4 py-2 rounded-lg text-sm" style={{ background: "#009AAC", color: "white" }}>Salvar</button>
             </div>
           </div>
         </div>
@@ -436,7 +436,7 @@ export default function ExamesConfigPage() {
       {fModalOpen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setFModalOpen(false)}>
           <div className="bg-white rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <h2 className="text-lg font-semibold mb-4" style={{ color: "#3C3489" }}>{fEditId ? "Editar fornecedor" : "Novo fornecedor"}</h2>
+            <h2 className="text-lg font-semibold mb-4" style={{ color: "#009AAC" }}>{fEditId ? "Editar fornecedor" : "Novo fornecedor"}</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="md:col-span-2"><label className="text-xs text-gray-600">Nome *</label>
                 <input value={fForm.nome || ""} onChange={e => setFForm({ ...fForm, nome: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E5DCC9" }} /></div>
@@ -464,7 +464,7 @@ export default function ExamesConfigPage() {
             </div>
             <div className="flex justify-end gap-2 mt-5">
               <button onClick={() => setFModalOpen(false)} className="px-4 py-2 rounded-lg text-sm border" style={{ borderColor: "#E5DCC9" }}>Cancelar</button>
-              <button onClick={saveForn} className="px-4 py-2 rounded-lg text-sm" style={{ background: "#3C3489", color: "white" }}>Salvar</button>
+              <button onClick={saveForn} className="px-4 py-2 rounded-lg text-sm" style={{ background: "#009AAC", color: "white" }}>Salvar</button>
             </div>
           </div>
         </div>
@@ -474,7 +474,7 @@ export default function ExamesConfigPage() {
       {importOpen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setImportOpen(false)}>
           <div className="bg-white rounded-xl p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <h2 className="text-lg font-semibold mb-2" style={{ color: "#3C3489" }}>Importar planilha de exames</h2>
+            <h2 className="text-lg font-semibold mb-2" style={{ color: "#009AAC" }}>Importar planilha de exames</h2>
             <div className="text-xs text-gray-600 mb-4">
               Exporte do Base44 (ou monte uma planilha) em <strong>CSV</strong>. Colunas aceitas:
               <code className="bg-gray-100 px-1 mx-1 rounded">nome</code>,
@@ -530,7 +530,7 @@ export default function ExamesConfigPage() {
             <div className="flex justify-end gap-2 mt-5">
               <button onClick={() => { setImportOpen(false); setImportPreview([]); }} className="px-4 py-2 rounded-lg text-sm border" style={{ borderColor: "#E5DCC9" }}>Cancelar</button>
               <button onClick={executarImport} disabled={importPreview.length === 0 || importing}
-                className="px-4 py-2 rounded-lg text-sm" style={{ background: "#3C3489", color: "white", opacity: importPreview.length === 0 || importing ? 0.4 : 1 }}>
+                className="px-4 py-2 rounded-lg text-sm" style={{ background: "#009AAC", color: "white", opacity: importPreview.length === 0 || importing ? 0.4 : 1 }}>
                 {importing ? "Importando..." : `Importar ${importPreview.length} exames`}
               </button>
             </div>
