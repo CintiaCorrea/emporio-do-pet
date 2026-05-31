@@ -2,58 +2,56 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { LuPlus, LuSearch, LuPencil, LuTrash, LuEye, LuUpload } from "react-icons/lu";
+import { LuPlus, LuSearch, LuPencil, LuEye } from "react-icons/lu";
 import PetIcon from "@/components/profile/PetIcon";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
+import { speciesLabel, speciesKey, statusLabel, ageFromBirth } from "@/lib/pets/labels";
 
 interface Pet {
   id: string;
   name: string;
   species: string;
   breed?: string | null;
-  status: "ACTIVE" | "DECEASED" | "TRANSFERRED" | "INACTIVE";
+  status: string;
   gender?: string | null;
   birthDate?: string | null;
   avatar?: string | null;
   tutorId: string;
-  tutor?: { id: string; name: string; phone?: string };
+  tutor?: { id: string; name: string; contacts?: { number: string; isPrimary?: boolean }[] };
   createdAt: string;
   updatedAt: string;
 }
 
-const STATUS_LABEL: Record<string, { label: string; dot: string }> = {
-  ACTIVE: { label: "Ativo", dot: "#22C55E" },
-  INACTIVE: { label: "Inativo", dot: "#94A3B8" },
-  DECEASED: { label: "Falecido", dot: "#6B7280" },
-  TRANSFERRED: { label: "Transferido", dot: "#F59E0B" },
-};
-
-const SPECIES_LABEL: Record<string, string> = {
-  CANINE: "Cão",
-  FELINE: "Gato",
-  BIRD: "Pássaro",
-  RODENT: "Roedor",
-  REPTILE: "Réptil",
-  FISH: "Peixe",
-  OTHER: "Outro",
-};
-
-function ageFromBirth(b?: string | null): string {
-  if (!b) return "—";
-  const d = new Date(b);
-  const now = new Date();
-  let anos = now.getFullYear() - d.getFullYear();
-  const m = now.getMonth() - d.getMonth();
-  if (m < 0 || (m === 0 && now.getDate() < d.getDate())) anos--;
-  if (anos < 1) {
-    const meses = (now.getFullYear() - d.getFullYear()) * 12 + (now.getMonth() - d.getMonth());
-    return `${Math.max(0, meses)} mes${meses !== 1 ? "es" : ""}`;
-  }
-  return `${anos} ano${anos !== 1 ? "s" : ""}`;
-}
-
 async function safeJson<T>(res: Response, fb: T): Promise<T> {
   try { if (!res.ok) return fb; const d = await res.json(); return d == null ? fb : d; } catch { return fb; }
+}
+
+const SP_FILTERS = [
+  { k: "ALL", label: "Todas" },
+  { k: "CANINE", label: "Cães" },
+  { k: "FELINE", label: "Gatos" },
+  { k: "BIRD", label: "Pássaros" },
+  { k: "RODENT", label: "Roedores" },
+  { k: "REPTILE", label: "Répteis" },
+  { k: "FISH", label: "Peixes" },
+  { k: "OTHER", label: "Outros" },
+];
+
+const STATUS_FILTERS = [
+  { k: "ALL", label: "Todos status" },
+  { k: "ACTIVE", label: "Ativo" },
+  { k: "INACTIVE", label: "Inativo" },
+  { k: "DECEASED", label: "Falecido" },
+  { k: "TRANSFERRED", label: "Transferido" },
+];
+
+function normStatusKey(s?: string | null): string {
+  const k = (s || "").toLowerCase();
+  if (k === "active" || k === "ativo") return "ACTIVE";
+  if (k === "inactive" || k === "inativo") return "INACTIVE";
+  if (k === "deceased" || k === "falecido") return "DECEASED";
+  if (k === "transferred" || k === "transferido") return "TRANSFERRED";
+  return s || "";
 }
 
 export default function PetsListPage() {
@@ -61,13 +59,13 @@ export default function PetsListPage() {
   const [pets, setPets] = useState<Pet[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [filterSpecies, setFilterSpecies] = useState<"ALL" | string>("ALL");
-  const [filterStatus, setFilterStatus] = useState<"ALL" | string>("ALL");
+  const [filterSpecies, setFilterSpecies] = useState<string>("ALL");
+  const [filterStatus, setFilterStatus] = useState<string>("ALL");
 
   async function load() {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ limit: "200" });
+      const params = new URLSearchParams({ limit: "500" });
       if (search) params.set("search", search);
       const res = await fetch(`/api/pets?${params}`);
       const d = await safeJson<any>(res, { pets: [] });
@@ -80,14 +78,17 @@ export default function PetsListPage() {
 
   const filtered = useMemo(() => {
     let arr = pets;
-    if (filterSpecies !== "ALL") arr = arr.filter(p => p.species === filterSpecies);
-    if (filterStatus !== "ALL") arr = arr.filter(p => p.status === filterStatus);
+    if (filterSpecies !== "ALL") arr = arr.filter(p => speciesKey(p.species) === filterSpecies);
+    if (filterStatus !== "ALL") arr = arr.filter(p => normStatusKey(p.status) === filterStatus);
     return arr;
   }, [pets, filterSpecies, filterStatus]);
 
   const counts = useMemo(() => {
     const c: Record<string, number> = { ALL: pets.length };
-    for (const p of pets) c[p.species] = (c[p.species] || 0) + 1;
+    for (const p of pets) {
+      const k = speciesKey(p.species);
+      c[k] = (c[k] || 0) + 1;
+    }
     return c;
   }, [pets]);
 
@@ -112,8 +113,7 @@ export default function PetsListPage() {
             className="px-3 py-2 border rounded-lg text-sm bg-white"
             style={{ borderColor: "#E8DFC8" }}
           >
-            <option value="ALL">Todos status</option>
-            {Object.entries(STATUS_LABEL).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+            {STATUS_FILTERS.map(s => <option key={s.k} value={s.k}>{s.label}</option>)}
           </select>
           <Link
             href="/dashboard/erp/pets/novo"
@@ -144,49 +144,48 @@ export default function PetsListPage() {
               {!loading && filtered.length === 0 && (
                 <tr><td colSpan={7} className="text-center py-8 text-gray-400">Nenhum pet encontrado.</td></tr>
               )}
-              {filtered.map(p => (
-                <tr key={p.id} className="border-b hover:bg-gray-50/60 transition" style={{ borderColor: "#F0EBE0" }}>
-                  <td className="px-4 py-2.5">
-                    <span
-                      className="inline-block w-2.5 h-2.5 rounded-full"
-                      style={{ background: STATUS_LABEL[p.status]?.dot || "#94A3B8" }}
-                      title={STATUS_LABEL[p.status]?.label}
-                    />
-                  </td>
-                  <td className="px-4 py-2.5">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "#e6f6f8", color: "#009AAC" }}>
-                        <PetIcon species={p.species} size={18} />
+              {filtered.map(p => {
+                const st = statusLabel(p.status);
+                return (
+                  <tr key={p.id} className="border-b hover:bg-gray-50/60 transition" style={{ borderColor: "#F0EBE0" }}>
+                    <td className="px-4 py-2.5">
+                      <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: st.dot }} title={st.label} />
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "#e6f6f8", color: "#009AAC" }}>
+                          <PetIcon species={p.species} size={18} />
+                        </div>
+                        <Link href={`/dashboard/erp/pets/${p.id}`} className="font-medium hover:underline" style={{ color: "#0E2244" }}>
+                          {p.name}
+                        </Link>
                       </div>
-                      <Link href={`/dashboard/erp/pets/${p.id}`} className="font-medium hover:underline" style={{ color: "#0E2244" }}>
-                        {p.name}
+                    </td>
+                    <td className="px-4 py-2.5 hidden md:table-cell">
+                      {p.tutor ? (
+                        <Link href={`/dashboard/erp/tutores/${p.tutorId}`} className="text-gray-700 hover:underline">
+                          {p.tutor.name}
+                        </Link>
+                      ) : "—"}
+                    </td>
+                    <td className="px-4 py-2.5 hidden md:table-cell text-gray-700">
+                      {speciesLabel(p.species)}{p.breed ? ` · ${p.breed}` : ""}
+                    </td>
+                    <td className="px-4 py-2.5 hidden lg:table-cell text-gray-500">{ageFromBirth(p.birthDate)}</td>
+                    <td className="px-4 py-2.5 hidden lg:table-cell">
+                      <span className="text-xs">{st.label}</span>
+                    </td>
+                    <td className="px-4 py-2.5 text-right whitespace-nowrap">
+                      <Link href={`/dashboard/erp/pets/${p.id}`} className="p-1 hover:bg-gray-200 rounded inline-block text-gray-600">
+                        <LuEye size={14} />
                       </Link>
-                    </div>
-                  </td>
-                  <td className="px-4 py-2.5 hidden md:table-cell">
-                    {p.tutor ? (
-                      <Link href={`/dashboard/erp/tutores/${p.tutorId}`} className="text-gray-700 hover:underline">
-                        {p.tutor.name}
+                      <Link href={`/dashboard/erp/pets/${p.id}/editar`} className="p-1 hover:bg-gray-200 rounded inline-block ml-1 text-gray-600">
+                        <LuPencil size={14} />
                       </Link>
-                    ) : "—"}
-                  </td>
-                  <td className="px-4 py-2.5 hidden md:table-cell text-gray-700">
-                    {SPECIES_LABEL[p.species] || p.species}{p.breed ? ` · ${p.breed}` : ""}
-                  </td>
-                  <td className="px-4 py-2.5 hidden lg:table-cell text-gray-500">{ageFromBirth(p.birthDate)}</td>
-                  <td className="px-4 py-2.5 hidden lg:table-cell">
-                    <span className="text-xs">{STATUS_LABEL[p.status]?.label || p.status}</span>
-                  </td>
-                  <td className="px-4 py-2.5 text-right whitespace-nowrap">
-                    <Link href={`/dashboard/erp/pets/${p.id}`} className="p-1 hover:bg-gray-200 rounded inline-block text-gray-600">
-                      <LuEye size={14} />
-                    </Link>
-                    <Link href={`/dashboard/erp/pets/${p.id}/editar`} className="p-1 hover:bg-gray-200 rounded inline-block ml-1 text-gray-600">
-                      <LuPencil size={14} />
-                    </Link>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -196,18 +195,18 @@ export default function PetsListPage() {
         <div className="bg-white border rounded-xl p-4" style={{ borderColor: "#E8DFC8" }}>
           <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">ESPÉCIES</div>
           <div className="flex items-center gap-2 flex-wrap">
-            {(["ALL", "CANINE", "FELINE", "BIRD", "RODENT", "REPTILE", "FISH", "OTHER"] as const).map(k => (
+            {SP_FILTERS.map(f => (
               <button
-                key={k}
-                onClick={() => setFilterSpecies(k)}
+                key={f.k}
+                onClick={() => setFilterSpecies(f.k)}
                 className="px-3 py-1.5 rounded-lg text-xs font-medium border"
                 style={{
-                  borderColor: filterSpecies === k ? "#009AAC" : "#E8DFC8",
-                  background: filterSpecies === k ? "#E0F4F6" : "white",
-                  color: filterSpecies === k ? "#009AAC" : "#4B5563",
+                  borderColor: filterSpecies === f.k ? "#009AAC" : "#E8DFC8",
+                  background: filterSpecies === f.k ? "#E0F4F6" : "white",
+                  color: filterSpecies === f.k ? "#009AAC" : "#4B5563",
                 }}
               >
-                {k === "ALL" ? "Todas" : SPECIES_LABEL[k]} <span className="text-gray-400">({counts[k] || 0})</span>
+                {f.label} <span className="text-gray-400">({counts[f.k] || 0})</span>
               </button>
             ))}
           </div>
