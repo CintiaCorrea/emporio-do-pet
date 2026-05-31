@@ -8,7 +8,6 @@ interface PetIconProps {
   className?: string;
 }
 
-// Versões em linha (clean Base44 — Cintia aceitou ambos)
 function DogLineIcon({ size = 16, className }: { size?: number; className?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -36,13 +35,14 @@ function CatLineIcon({ size = 16, className }: { size?: number; className?: stri
 }
 
 export default function PetIcon({ species, size = 16, className = "" }: PetIconProps) {
-  const sp = (species || "").toLowerCase();
-  if (sp.includes("cao") || sp.includes("cão") || sp.includes("canine") || sp === "dog") {
+  const sp = (species || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  // Reconhece: cao, cão, cachorro, canino, canine, canina, dog
+  if (sp.match(/\b(cao|cachorro|canin|dog)/)) {
     return <DogLineIcon size={size} className={className} />;
   }
-  if (sp.includes("gato") || sp.includes("feline") || sp === "cat") {
+  // Reconhece: gato, gata, felino, feline, felina, cat
+  if (sp.match(/\b(gat|felin|cat)/)) {
     return <CatLineIcon size={size} className={className} />;
   }
-  // fallback
   return <LuPawPrint size={size} className={className} />;
 }

@@ -4,14 +4,15 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  LuArrowLeft, LuPencil, LuPhone, LuMail, LuTrash, LuPlus, LuFlaskConical,
-  LuPackage, LuCalendar, LuRefreshCcw, LuMessageSquare,
+  LuArrowLeft, LuPencil, LuTrash, LuPlus, LuFlaskConical,
+  LuPackage, LuMessageSquare, LuShare2, LuTag, LuClock,
 } from "react-icons/lu";
 import toast from "react-hot-toast";
 import ConfirmDeleteModal from "@/components/common/ConfirmDeleteModal";
 import PetProfilePanel from "@/components/profile/PetProfilePanel";
 import PetIcon from "@/components/profile/PetIcon";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
+import { speciesLabel, ageFromBirth, genderLabel } from "@/lib/pets/labels";
 
 interface Pet {
   id: string;
@@ -31,28 +32,9 @@ interface Pet {
   allergies?: string[];
   medicalNotes?: string | null;
   tutorId: string;
-  tutor?: { id: string; name: string; phone?: string; email?: string };
+  tutor?: { id: string; name: string; contacts?: { number: string; isPrimary?: boolean; isWhatsApp?: boolean }[] };
   createdAt: string;
   _count?: { appointments: number; treatments: number };
-}
-
-const SPECIES_LABEL: Record<string, string> = {
-  CANINE: "Cão", FELINE: "Gato", BIRD: "Pássaro", RODENT: "Roedor",
-  REPTILE: "Réptil", FISH: "Peixe", OTHER: "Outro",
-};
-
-function ageFromBirth(b?: string | null): string {
-  if (!b) return "—";
-  const d = new Date(b);
-  const now = new Date();
-  let anos = now.getFullYear() - d.getFullYear();
-  const m = now.getMonth() - d.getMonth();
-  if (m < 0 || (m === 0 && now.getDate() < d.getDate())) anos--;
-  if (anos < 1) {
-    const meses = (now.getFullYear() - d.getFullYear()) * 12 + (now.getMonth() - d.getMonth());
-    return `${Math.max(0, meses)} mes${meses !== 1 ? "es" : ""}`;
-  }
-  return `${anos} ano${anos !== 1 ? "s" : ""}`;
 }
 
 async function safeJson<T>(res: Response, fb: T): Promise<T> {
@@ -68,6 +50,7 @@ export default function PetDetailPage() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"CLINICA" | "PACOTES" | "EXAMES">("CLINICA");
   const [delOpen, setDelOpen] = useState(false);
+  const [tagsOpen, setTagsOpen] = useState(false);
 
   usePageTitle(pet ? pet.name : "Pet", pet?.tutor ? `Tutor: ${pet.tutor.name}` : undefined);
 
@@ -91,6 +74,16 @@ export default function PetDetailPage() {
     setDelOpen(false);
   }
 
+  function handleEncaminhar() {
+    toast("Encaminhar para outro veterinário — em breve", { icon: "↗" });
+  }
+
+  const tutorWhats = useMemo(() => {
+    if (!pet?.tutor?.contacts) return null;
+    const wa = pet.tutor.contacts.find(c => c.isWhatsApp) || pet.tutor.contacts.find(c => c.isPrimary) || pet.tutor.contacts[0];
+    return wa?.number || null;
+  }, [pet]);
+
   if (loading) {
     return <div className="p-10 text-center text-gray-400">Carregando ficha...</div>;
   }
@@ -103,12 +96,12 @@ export default function PetDetailPage() {
     );
   }
 
-  const pipelineClinico = "Em tratamento"; // TODO: campo real quando backend implementar
+  const pipelineClinico = "Em tratamento"; // TODO: backend campo real
   const pipelineFisio = "—";
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Top bar — voltar + ações */}
+      {/* Top bar */}
       <div className="bg-white border-b" style={{ borderColor: "#E8DFC8" }}>
         <div className="max-w-7xl mx-auto px-6 py-3 flex items-center gap-3">
           <Link href="/dashboard/erp/pets" className="p-2 rounded-lg hover:bg-gray-100">
@@ -119,14 +112,16 @@ export default function PetDetailPage() {
               {pet.avatar ? <img src={pet.avatar} alt={pet.name} className="w-12 h-12 rounded-full object-cover" /> : <PetIcon species={pet.species} size={28} />}
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="text-xl font-bold" style={{ color: "#014D5E" }}>{pet.name}</h2>
                 <span className="px-2 py-0.5 rounded-md text-[11px] font-medium" style={{ background: "#eef2f4", color: "#64748b" }}>
-                  {SPECIES_LABEL[pet.species] || pet.species}
+                  {speciesLabel(pet.species)}
                 </span>
-                <span className="px-2 py-0.5 rounded-md text-[11px] font-medium" style={{ background: "#eef2f4", color: "#64748b" }}>
-                  {ageFromBirth(pet.birthDate)}
-                </span>
+                {pet.birthDate && (
+                  <span className="px-2 py-0.5 rounded-md text-[11px] font-medium" style={{ background: "#eef2f4", color: "#64748b" }}>
+                    {ageFromBirth(pet.birthDate)}
+                  </span>
+                )}
                 <span className="px-2 py-0.5 rounded-md text-[11px] font-medium" style={{ background: "#fef3c7", color: "#92400e" }}>
                   {pipelineClinico}
                 </span>
@@ -134,15 +129,15 @@ export default function PetDetailPage() {
               {pet.tutor && (
                 <div className="text-xs text-gray-500 mt-0.5">
                   Tutor: <Link href={`/dashboard/erp/tutores/${pet.tutorId}`} className="hover:underline" style={{ color: "#009AAC" }}>{pet.tutor.name}</Link>
-                  {pet.tutor.phone && <span> · {pet.tutor.phone}</span>}
+                  {tutorWhats && <span> · {tutorWhats}</span>}
                 </div>
               )}
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {pet.tutor?.phone && (
+            {tutorWhats && (
               <a
-                href={`https://wa.me/${pet.tutor.phone.replace(/\D/g, "")}`}
+                href={`https://wa.me/${tutorWhats.replace(/\D/g, "")}`}
                 target="_blank" rel="noopener"
                 className="px-3 py-1.5 rounded-lg text-sm border flex items-center gap-1.5"
                 style={{ borderColor: "#22C55E", color: "#16a34a" }}
@@ -150,6 +145,13 @@ export default function PetDetailPage() {
                 <LuMessageSquare size={14} /> WhatsApp
               </a>
             )}
+            <button
+              onClick={handleEncaminhar}
+              className="px-3 py-1.5 rounded-lg text-sm border flex items-center gap-1.5"
+              style={{ borderColor: "#E8DFC8", color: "#475569" }}
+            >
+              <LuShare2 size={14} /> Encaminhar
+            </button>
             <Link
               href={`/dashboard/erp/pets/${pet.id}/editar`}
               className="px-3 py-1.5 rounded-lg text-sm border flex items-center gap-1.5"
@@ -173,6 +175,33 @@ export default function PetDetailPage() {
           {/* Magia da recepção */}
           <div className="rounded-xl border px-4 py-3 text-sm" style={{ background: "#fffbeb", borderColor: "#fde68a", color: "#92611a" }}>
             <span className="font-semibold">💭 Sobre {pet.name}:</span> {pet.observations || <span className="italic opacity-70">Adicionar algo que vale lembrar sobre o pet — apelido, comportamento, medo, preferência (até 140 caracteres).</span>}
+          </div>
+
+          {/* Etiquetas */}
+          <div className="bg-white border rounded-xl p-4" style={{ borderColor: "#E8DFC8" }}>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-semibold flex items-center gap-2" style={{ color: "#0E2244" }}>
+                <LuTag size={14} /> Etiquetas
+              </h3>
+              <button
+                onClick={() => setTagsOpen(o => !o)}
+                className="text-xs flex items-center gap-1"
+                style={{ color: "#009AAC" }}
+              >
+                <LuPlus size={12} /> Adicionar
+              </button>
+            </div>
+            <div className="text-sm text-gray-400">
+              Sem etiquetas. Use pra agrupar pets por temperamento, restrição, dieta, etc.
+            </div>
+            {tagsOpen && (
+              <div className="mt-3 pt-3 border-t flex items-center gap-2" style={{ borderColor: "#F0EBE0" }}>
+                <select className="flex-1 px-3 py-1.5 border rounded-lg text-sm bg-white" style={{ borderColor: "#E8DFC8" }} disabled>
+                  <option>Selecionar etiqueta... (em breve)</option>
+                </select>
+                <button className="px-3 py-1.5 rounded-lg text-xs text-white" style={{ background: "#009AAC" }} disabled>+</button>
+              </div>
+            )}
           </div>
 
           {/* Tabs */}
@@ -210,10 +239,15 @@ export default function PetDetailPage() {
                     </Link>
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
-                    <Field label="Espécie" value={SPECIES_LABEL[pet.species] || pet.species} />
+                    <Field label="Espécie" value={speciesLabel(pet.species)} />
                     <Field label="Raça" value={pet.breed} />
-                    <Field label="Sexo" value={pet.gender} />
-                    <Field label="Esterilização" value={pet.sterilization === "STERILIZED" ? "Sim" : pet.sterilization === "NOT_STERILIZED" ? "Não" : pet.sterilization} />
+                    <Field label="Sexo" value={genderLabel(pet.gender)} />
+                    <Field label="Esterilização" value={
+                      !pet.sterilization ? "—" :
+                      pet.sterilization.toLowerCase().includes("steril") || pet.sterilization.toLowerCase().includes("castr") ? "Sim" :
+                      pet.sterilization.toLowerCase().includes("not") ? "Não" :
+                      pet.sterilization
+                    } />
                     <Field label="Idade" value={ageFromBirth(pet.birthDate)} />
                     <Field label="Peso" value={pet.weight ? `${pet.weight} kg` : null} />
                     <Field label="Pelagem" value={pet.coat} />
@@ -227,6 +261,18 @@ export default function PetDetailPage() {
                   <div className="border rounded-xl divide-y" style={{ borderColor: "#E8DFC8" }}>
                     <PipelineRow label="CLÍNICO — TRATAMENTO" stage={pipelineClinico} />
                     <PipelineRow label="FISIOTERAPIA — PACOTE" stage={pipelineFisio} muted />
+                  </div>
+                </section>
+
+                <section>
+                  <h3 className="text-sm font-semibold mb-2 flex items-center gap-2" style={{ color: "#0E2244" }}>
+                    <LuClock size={14} /> Cadência de acompanhamento
+                  </h3>
+                  <div className="border rounded-xl p-4 flex items-center justify-between" style={{ borderColor: "#E8DFC8" }}>
+                    <span className="text-sm text-gray-400">Nenhuma cadência ativa.</span>
+                    <button className="px-3 py-1.5 rounded-lg text-xs border flex items-center gap-1.5" style={{ borderColor: "#E8DFC8", color: "#009AAC" }} disabled>
+                      <LuPlus size={12} /> Iniciar cadência
+                    </button>
                   </div>
                 </section>
 
@@ -305,7 +351,6 @@ export default function PetDetailPage() {
           </div>
         </div>
 
-        {/* Sidebar lateral: gamificação */}
         <div className="space-y-4">
           <PetProfilePanel petId={pet.id} />
         </div>
