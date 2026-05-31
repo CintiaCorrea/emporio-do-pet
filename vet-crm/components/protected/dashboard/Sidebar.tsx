@@ -1,16 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
-import { useState } from "react";
 import {
   LuSun, LuLayoutDashboard, LuMessageSquare, LuList, LuUsers, LuPawPrint,
   LuCalendar, LuBuilding2, LuSettings, LuChevronLeft, LuChevronRight,
-  LuLogOut, LuCircleDollarSign, LuMegaphone, LuUserCog,
+  LuLogOut, LuCircleDollarSign, LuMegaphone, LuUserCog, LuEye,
 } from "react-icons/lu";
-import { normalizeRole, roleLabel, AppRole } from "@/lib/ui/role";
+import { roleLabel, AppRole } from "@/lib/ui/role";
+import { useRolePreview } from "@/lib/ui/RolePreview";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -53,7 +52,8 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
   const collapsed = !isOpen;
   const pathname = usePathname();
   const { data: session } = useSession();
-  const role: AppRole = normalizeRole(session?.user?.role);
+  const { realRole, effectiveRole, isPreviewing, preview, setPreview } = useRolePreview();
+  const role = effectiveRole;
   const userName = session?.user?.name || "Usuário";
   const initials = ((userName.split(/\s+/)[0]?.[0] || "") + (userName.split(/\s+/)[1]?.[0] || "")).toUpperCase() || "??";
 
@@ -69,7 +69,6 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
       className={`${collapsed ? "w-16" : "w-[252px]"} fixed top-0 left-0 h-screen z-50 shrink-0 transition-all duration-200 bg-white border-r flex flex-col`}
       style={{ borderColor: "#e8edf0" }}
     >
-      {/* Collapse tab */}
       <button
         onClick={toggleSidebar}
         className="absolute top-[22px] -right-[11px] w-[22px] h-[22px] rounded-full bg-white border flex items-center justify-center text-[#94a3b8] z-10 shadow-sm hover:text-[#009AAC] transition"
@@ -79,7 +78,6 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
         {collapsed ? <LuChevronRight size={11} /> : <LuChevronLeft size={11} />}
       </button>
 
-      {/* Brand */}
       <div className={`px-4 ${collapsed ? "py-4" : "py-[18px]"} border-b flex items-center justify-center`} style={{ borderColor: "#e8edf0" }}>
         {collapsed ? (
           <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#009AAC] to-[#014D5E] flex items-center justify-center">
@@ -90,7 +88,40 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
         )}
       </div>
 
-      {/* Nav */}
+      {/* Role Preview Switcher — só pra admin real e sidebar expandida */}
+      {!collapsed && realRole === "ADMIN" && (
+        <div className="px-3 pt-3 pb-1">
+          <div className="text-[9.5px] font-bold tracking-[0.7px] text-[#94a3b8] uppercase mb-1.5 px-1 flex items-center gap-1">
+            <LuEye size={10} /> Perfil logado (preview)
+          </div>
+          <div className="flex bg-[#f6f8f9] border rounded-[9px] p-[3px] gap-[2px]" style={{ borderColor: "#e8edf0" }}>
+            {(["ADMIN", "VETERINARIAN", "RECEPTIONIST"] as const).map(r => {
+              const on = role === r;
+              return (
+                <button
+                  key={r}
+                  onClick={() => setPreview(r === "ADMIN" ? null : r)}
+                  className="flex-1 text-[11px] font-semibold px-1 py-1.5 rounded-[7px] transition"
+                  style={
+                    on
+                      ? { background: "linear-gradient(90deg,#009AAC,#00B4C4)", color: "#fff", boxShadow: "0 2px 6px -1px rgba(0,154,172,.4)" }
+                      : { color: "#64748b" }
+                  }
+                >
+                  {r === "ADMIN" ? "Admin" : r === "VETERINARIAN" ? "Vet" : "Recepção"}
+                </button>
+              );
+            })}
+          </div>
+          {isPreviewing && (
+            <div className="mt-1.5 text-[10px] text-[#d97706] bg-[#fffbeb] border border-[#fde68a] rounded-md px-2 py-1 flex items-center gap-1">
+              <span>👁</span>
+              <span>Modo preview · {roleLabel(role)}</span>
+            </div>
+          )}
+        </div>
+      )}
+
       <nav className="flex-1 px-3 pt-2 pb-4 overflow-y-auto">
         <div className="flex flex-col gap-[2px]">
           {NAV.filter(visible).map((it) => {
@@ -139,7 +170,6 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
           })}
         </div>
 
-        {/* Módulos em breve */}
         {!collapsed && (
           <div className="mt-2 mx-1 pt-[10px]" style={{ borderTop: "1px dashed #e8edf0" }}>
             <div className="text-[10px] font-bold tracking-[0.8px] text-[#94a3b8] uppercase px-3 py-1.5">
@@ -156,7 +186,6 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
         )}
       </nav>
 
-      {/* Foot */}
       <div className={`border-t ${collapsed ? "px-2 py-3" : "px-4 py-3"} flex flex-col gap-2.5`} style={{ borderColor: "#e8edf0" }}>
         <div className={`flex items-center ${collapsed ? "justify-center" : "gap-[10px]"}`}>
           <div className="w-[34px] h-[34px] rounded-full bg-gradient-to-br from-[#009AAC] to-[#014D5E] text-white flex items-center justify-center text-xs font-semibold flex-shrink-0" title={userName}>
@@ -165,7 +194,9 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
           {!collapsed && (
             <div className="flex flex-col leading-tight min-w-0">
               <span className="text-[12.5px] text-[#1e293b] font-semibold truncate">{userName}</span>
-              <span className="text-[11px] text-[#94a3b8]">{roleLabel(role)}</span>
+              <span className="text-[11px] text-[#94a3b8]">
+                {roleLabel(role)}{isPreviewing && <span className="text-[#d97706]"> · preview</span>}
+              </span>
             </div>
           )}
         </div>

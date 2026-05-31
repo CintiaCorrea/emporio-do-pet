@@ -3,7 +3,8 @@
 import { useSession } from "next-auth/react";
 import { LuSearch, LuBell } from "react-icons/lu";
 import { usePageHeader } from "@/lib/ui/PageHeaderContext";
-import { normalizeRole } from "@/lib/ui/role";
+import { useRolePreview } from "@/lib/ui/RolePreview";
+import { roleLabel } from "@/lib/ui/role";
 
 interface Props {
   sidebarOpen: boolean;
@@ -11,7 +12,7 @@ interface Props {
 
 export default function Header({ sidebarOpen }: Props) {
   const { data: session } = useSession();
-  const role = normalizeRole(session?.user?.role);
+  const { effectiveRole, isPreviewing } = useRolePreview();
   const userName = session?.user?.name || "Usuário";
   const initials = ((userName.split(/\s+/)[0]?.[0] || "") + (userName.split(/\s+/)[1]?.[0] || "")).toUpperCase() || "??";
   const { header } = usePageHeader();
@@ -21,12 +22,22 @@ export default function Header({ sidebarOpen }: Props) {
       className="h-16 bg-white border-b flex items-center justify-between px-6 fixed top-0 right-0 z-40 transition-all duration-200"
       style={{ borderColor: "#e8edf0", left: sidebarOpen ? 252 : 64 }}
     >
-      <div className="min-w-0 flex-1">
-        <h1 className="text-[19px] font-bold leading-tight truncate" style={{ color: "#014D5E" }}>
-          {header.title || "—"}
-        </h1>
-        {header.subtitle && (
-          <p className="text-[12.5px] text-[#64748b] mt-[2px] truncate">{header.subtitle}</p>
+      <div className="min-w-0 flex-1 flex items-center gap-3">
+        <div className="min-w-0">
+          <h1 className="text-[19px] font-bold leading-tight truncate" style={{ color: "#014D5E" }}>
+            {header.title || "—"}
+          </h1>
+          {header.subtitle && (
+            <p className="text-[12.5px] text-[#64748b] mt-[2px] truncate">{header.subtitle}</p>
+          )}
+        </div>
+        {isPreviewing && (
+          <span
+            className="hidden sm:inline-flex items-center gap-1 text-[10.5px] font-semibold uppercase tracking-wide bg-[#fffbeb] border border-[#fde68a] text-[#d97706] px-2 py-[3px] rounded-md"
+            title="Você está em modo preview de outro perfil"
+          >
+            👁 Preview · {roleLabel(effectiveRole)}
+          </span>
         )}
       </div>
 
@@ -50,7 +61,7 @@ export default function Header({ sidebarOpen }: Props) {
 
         <div
           className="w-[38px] h-[38px] rounded-full bg-gradient-to-br from-[#009AAC] to-[#014D5E] text-white flex items-center justify-center text-[13px] font-semibold cursor-pointer"
-          title={`${userName} · ${role}`}
+          title={`${userName} · ${effectiveRole}${isPreviewing ? " (preview)" : ""}`}
         >
           {initials}
         </div>
