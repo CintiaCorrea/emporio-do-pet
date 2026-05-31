@@ -173,10 +173,10 @@ export default function CadenciasConfigPage() {
             <LuArrowLeft size={18} />
           </Link>
           <div className="flex-1">
-            <h1 className="text-xl font-semibold" style={{ color: "#3C3489" }}>Cadências (fluxos automatizados)</h1>
+            <h1 className="text-xl font-semibold" style={{ color: "#009AAC" }}>Cadências (fluxos automatizados)</h1>
             <p className="text-sm text-gray-600">Sequências de mensagens disparadas por gatilhos. Use {`{tutor}`}, {`{pet}`}, {`{data}`}, {`{hora}`}.</p>
           </div>
-          <button onClick={() => setImportOpen(true)} className="px-3 py-2 rounded-lg text-sm border" style={{ borderColor: "#E5DCC9", color: "#3C3489" }}>Importar planilha</button>
+          <button onClick={() => setImportOpen(true)} className="px-3 py-2 rounded-lg text-sm border" style={{ borderColor: "#E5DCC9", color: "#009AAC" }}>Importar planilha</button>
           <label className="flex items-center gap-2 text-sm cursor-pointer">
             <input type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)} />
             Inativas
@@ -184,12 +184,12 @@ export default function CadenciasConfigPage() {
           {cadencias.length === 0 && !loading && (
             <button onClick={rodarSeed} disabled={seeding}
               className="px-3 py-2 rounded-lg text-sm flex items-center gap-2"
-              style={{ background: "#3C3489", color: "white", opacity: seeding ? 0.5 : 1 }}>
+              style={{ background: "#009AAC", color: "white", opacity: seeding ? 0.5 : 1 }}>
               <LuSparkles size={16} /> {seeding ? "Carregando…" : "Carregar pacote inicial"}
             </button>
           )}
           <button onClick={openCadNew} className="px-3 py-2 rounded-lg text-sm flex items-center gap-2"
-            style={{ background: "#3C3489", color: "white" }}>
+            style={{ background: "#009AAC", color: "white" }}>
             <LuPlus size={16} /> Nova cadência
           </button>
         </div>
@@ -212,8 +212,8 @@ export default function CadenciasConfigPage() {
                 <button onClick={() => setExpanded(isOpen ? null : c.id)} className="text-lg">{isOpen ? "▼" : "▶"}</button>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="font-semibold text-sm" style={{ color: "#3C3489" }}>{c.nome}</span>
-                    <span className="text-xs px-2 py-0.5 rounded" style={{ background: "#F1F1F1", color: "#3C3489" }}>
+                    <span className="font-semibold text-sm" style={{ color: "#009AAC" }}>{c.nome}</span>
+                    <span className="text-xs px-2 py-0.5 rounded" style={{ background: "#F1F1F1", color: "#009AAC" }}>
                       {g.emoji} {g.label}
                     </span>
                     <span className="text-xs text-gray-500">{c.passos.length} {c.passos.length === 1 ? "passo" : "passos"}</span>
@@ -245,7 +245,7 @@ export default function CadenciasConfigPage() {
                     return (
                       <div key={p.id} className="border rounded-lg p-3 flex items-start gap-3" style={{ borderColor: "#E5DCC9", opacity: p.ativo ? 1 : 0.5 }}>
                         <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
-                          style={{ background: "#3C3489", color: "white" }}>
+                          style={{ background: "#009AAC", color: "white" }}>
                           {p.ordem}
                         </div>
                         <div className="flex-1 min-w-0">
@@ -271,7 +271,7 @@ export default function CadenciasConfigPage() {
                   })}
                   <button onClick={() => openPassoNew(c.id, maxOrdem + 1)}
                     className="w-full px-3 py-2 rounded-lg text-sm border-2 border-dashed flex items-center justify-center gap-1 hover:bg-gray-50"
-                    style={{ borderColor: "#E5DCC9", color: "#3C3489" }}>
+                    style={{ borderColor: "#E5DCC9", color: "#009AAC" }}>
                     <LuPlus size={14} /> Adicionar passo
                   </button>
                 </div>
@@ -285,7 +285,7 @@ export default function CadenciasConfigPage() {
       {cadModalOpen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setCadModalOpen(false)}>
           <div className="bg-white rounded-xl p-6 max-w-lg w-full" onClick={e => e.stopPropagation()}>
-            <h2 className="text-lg font-semibold mb-4" style={{ color: "#3C3489" }}>
+            <h2 className="text-lg font-semibold mb-4" style={{ color: "#009AAC" }}>
               {cadEditId ? "Editar cadência" : "Nova cadência"}
             </h2>
             <div className="space-y-3">
@@ -315,7 +315,7 @@ export default function CadenciasConfigPage() {
             </div>
             <div className="flex justify-end gap-2 mt-5">
               <button onClick={() => setCadModalOpen(false)} className="px-4 py-2 rounded-lg text-sm border" style={{ borderColor: "#E5DCC9" }}>Cancelar</button>
-              <button onClick={saveCad} className="px-4 py-2 rounded-lg text-sm" style={{ background: "#3C3489", color: "white" }}>Salvar</button>
+              <button onClick={saveCad} className="px-4 py-2 rounded-lg text-sm" style={{ background: "#009AAC", color: "white" }}>Salvar</button>
             </div>
           </div>
         </div>
@@ -325,7 +325,7 @@ export default function CadenciasConfigPage() {
       {passoModalOpen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setPassoModalOpen(false)}>
           <div className="bg-white rounded-xl p-6 max-w-xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <h2 className="text-lg font-semibold mb-4" style={{ color: "#3C3489" }}>
+            <h2 className="text-lg font-semibold mb-4" style={{ color: "#009AAC" }}>
               {passoEditId ? "Editar passo" : "Novo passo"}
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -376,7 +376,7 @@ export default function CadenciasConfigPage() {
             </div>
             <div className="flex justify-end gap-2 mt-5">
               <button onClick={() => setPassoModalOpen(false)} className="px-4 py-2 rounded-lg text-sm border" style={{ borderColor: "#E5DCC9" }}>Cancelar</button>
-              <button onClick={savePasso} className="px-4 py-2 rounded-lg text-sm" style={{ background: "#3C3489", color: "white" }}>Salvar</button>
+              <button onClick={savePasso} className="px-4 py-2 rounded-lg text-sm" style={{ background: "#009AAC", color: "white" }}>Salvar</button>
             </div>
           </div>
         </div>

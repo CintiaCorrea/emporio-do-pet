@@ -30,7 +30,7 @@ const TIPO_LABEL: Record<TipoMeta, string> = {
 };
 const PER_LABEL: Record<Per, string> = { SEMANAL: "Semanal", MENSAL: "Mensal", TRIMESTRAL: "Trimestral", SEMESTRAL: "Semestral", ANUAL: "Anual" };
 const STAT_LABEL: Record<StatM, { label: string; color: string }> = {
-  EM_ANDAMENTO: { label: "Em andamento", color: "#3C3489" }, ATINGIDA: { label: "Atingida", color: "#1E6B36" },
+  EM_ANDAMENTO: { label: "Em andamento", color: "#009AAC" }, ATINGIDA: { label: "Atingida", color: "#1E6B36" },
   NAO_ATINGIDA: { label: "Não atingida", color: "#A32D2D" },
 };
 
@@ -83,11 +83,11 @@ export default function MetasPage() {
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center gap-3">
           <Link href="/dashboard/configuracoes" className="p-2 rounded-lg hover:bg-gray-100"><LuArrowLeft size={18} /></Link>
           <div className="flex-1">
-            <h1 className="text-xl font-semibold" style={{ color: "#3C3489" }}>Metas</h1>
+            <h1 className="text-xl font-semibold" style={{ color: "#009AAC" }}>Metas</h1>
             <p className="text-sm text-gray-600">Faturamento, atendimentos, conversões e NPS. Tipos individuais usam profissional vinculado.</p>
           </div>
-          <button onClick={() => setImportOpen(true)} className="px-3 py-2 rounded-lg text-sm border" style={{ borderColor: "#E5DCC9", color: "#3C3489" }}>Importar planilha</button>
-          <button onClick={openNew} className="px-3 py-2 rounded-lg text-sm flex items-center gap-2" style={{ background: "#3C3489", color: "white" }}>
+          <button onClick={() => setImportOpen(true)} className="px-3 py-2 rounded-lg text-sm border" style={{ borderColor: "#E5DCC9", color: "#009AAC" }}>Importar planilha</button>
+          <button onClick={openNew} className="px-3 py-2 rounded-lg text-sm flex items-center gap-2" style={{ background: "#009AAC", color: "white" }}>
             <LuPlus size={16} /> Nova meta
           </button>
         </div>
@@ -124,7 +124,7 @@ export default function MetasPage() {
                     <td className="px-3 py-2 text-right hidden md:table-cell">
                       <div className="inline-flex items-center gap-2">
                         <div className="w-20 h-2 bg-gray-200 rounded overflow-hidden">
-                          <div className="h-full rounded" style={{ width: `${Math.min(100, pct)}%`, background: pct >= 100 ? "#1E6B36" : "#3C3489" }} />
+                          <div className="h-full rounded" style={{ width: `${Math.min(100, pct)}%`, background: pct >= 100 ? "#1E6B36" : "#009AAC" }} />
                         </div>
                         <span className="text-xs tabular-nums">{pct.toFixed(0)}%</span>
                       </div>
@@ -147,7 +147,7 @@ export default function MetasPage() {
       {modalOpen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setModalOpen(false)}>
           <div className="bg-white rounded-xl p-6 max-w-2xl w-full" onClick={e => e.stopPropagation()}>
-            <h2 className="text-lg font-semibold mb-4" style={{ color: "#3C3489" }}>{editId ? "Editar meta" : "Nova meta"}</h2>
+            <h2 className="text-lg font-semibold mb-4" style={{ color: "#009AAC" }}>{editId ? "Editar meta" : "Nova meta"}</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div><label className="text-xs text-gray-600">Tipo *</label>
                 <select value={form.tipo} onChange={e => setForm({ ...form, tipo: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E5DCC9" }}>
@@ -172,7 +172,7 @@ export default function MetasPage() {
             </div>
             <div className="flex justify-end gap-2 mt-5">
               <button onClick={() => setModalOpen(false)} className="px-4 py-2 rounded-lg text-sm border" style={{ borderColor: "#E5DCC9" }}>Cancelar</button>
-              <button onClick={save} className="px-4 py-2 rounded-lg text-sm" style={{ background: "#3C3489", color: "white" }}>Salvar</button>
+              <button onClick={save} className="px-4 py-2 rounded-lg text-sm" style={{ background: "#009AAC", color: "white" }}>Salvar</button>
             </div>
           </div>
         </div>

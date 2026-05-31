@@ -162,7 +162,7 @@ export default function HojePage() {
 
           <div>
             <SectionHeader icon={() => <span style={{fontSize:"14px"}}>🧪</span>} title="Exames a entregar" count={data?.examesAEntregar || 0}
-              color="#3C3489" open={open.exames} onToggle={() => toggle("exames")}
+              color="#009AAC" open={open.exames} onToggle={() => toggle("exames")}
               emptyOk="Tudo em dia por aqui" />
             {open.exames && (
               <div className="mt-2 bg-white border border-[#d8d0bc] rounded-lg p-4 text-center text-xs text-gray-400">

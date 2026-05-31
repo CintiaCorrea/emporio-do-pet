@@ -153,7 +153,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
           <Link href={`/dashboard/erp/tutores/${id}/editar`} className="bg-white border border-[#cfd8e0] text-[#4d5a66] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5"><LuPencil className="w-3.5 h-3.5" />Editar</Link>
           <button className="bg-white border border-[#FCD194] text-[#BA7517] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5" onClick={() => toast("Marcado a recuperar")}><LuTriangleAlert className="w-3.5 h-3.5" />Marcar a recuperar</button>
           <button className="bg-white border border-[#cfd8e0] text-[#0C447C] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5" onClick={() => toast("Encaminhado")}><span style={{fontSize:"13px"}}>↔</span>Encaminhar</button>
-          <button className="bg-white border border-[#cfd8e0] text-[#3C3489] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5" onClick={() => toast("Retomado como Lead")}><span style={{fontSize:"13px"}}>↺</span>Retomar como Lead</button>
+          <button className="bg-white border border-[#cfd8e0] text-[#009AAC] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5" onClick={() => toast("Retomado como Lead")}><span style={{fontSize:"13px"}}>↺</span>Retomar como Lead</button>
           <button className="bg-[#fbe6e6] border border-[#f4baba] text-[#A32D2D] px-2.5 py-1.5 rounded-lg text-xs"><LuTrash className="w-3.5 h-3.5" /></button>
         </div>
       </div>
@@ -257,7 +257,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
             {(tutor.tags?.length || 0) === 0 && <p className="text-[11px] text-gray-400 mb-2">Sem etiquetas</p>}
             <div className="flex flex-wrap gap-1">
               {tutor.tags?.map((t) => (
-                <span key={t} className="bg-[#EEEDFE] text-[#3C3489] text-[10px] px-2 py-0.5 rounded-full">● {t}</span>
+                <span key={t} className="bg-[#EEEDFE] text-[#009AAC] text-[10px] px-2 py-0.5 rounded-full">● {t}</span>
               ))}
               <button className="border border-dashed border-[#cfd8e0] text-gray-400 text-[10px] px-2 py-0.5 rounded-full">+ tag</button>
             </div>
@@ -329,7 +329,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
             <p className="text-center text-[11px] text-gray-400 py-2">Nenhum registrado</p>
           </AccordionCard>
 
-          <AccordionCard icon={() => <span style={{fontSize:"14px"}}>⚡</span>} title="Sequências" badge={{ label: "Em breve", color: "#3C3489", bg: "#EEEDFE" }}>
+          <AccordionCard icon={() => <span style={{fontSize:"14px"}}>⚡</span>} title="Sequências" badge={{ label: "Em breve", color: "#009AAC", bg: "#EEEDFE" }}>
             <div className="flex flex-col gap-1">
               <div className="bg-[#fbfaf6] rounded px-2 py-1.5 flex items-center justify-between text-[11px]">
                 <span className="text-[#0E2244] truncate">📧 Boas-vindas</span>

@@ -40,7 +40,7 @@ const ESCOPO_LABEL: Record<Escopo, { label: string; emoji: string }> = {
   CUSTOM: { label: "Custom", emoji: "🔧" },
 };
 
-const EMPTY_P: any = { nome: "", escopo: "CUSTOM", descricao: "", cor: "#3C3489", ativo: true, ordem: 0, isPadrao: false };
+const EMPTY_P: any = { nome: "", escopo: "CUSTOM", descricao: "", cor: "#009AAC", ativo: true, ordem: 0, isPadrao: false };
 const EMPTY_E: any = { nome: "", descricao: "", cor: "#A0AEC0", ordem: 1, ehInicial: false, ehGanho: false, ehPerda: false, ativo: true, diasMaxParar: null };
 
 export default function PipelinesConfigPage() {
@@ -152,10 +152,10 @@ export default function PipelinesConfigPage() {
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center gap-3">
           <Link href="/dashboard/configuracoes" className="p-2 rounded-lg hover:bg-gray-100"><LuArrowLeft size={18} /></Link>
           <div className="flex-1">
-            <h1 className="text-xl font-semibold" style={{ color: "#3C3489" }}>Pipelines configuráveis</h1>
+            <h1 className="text-xl font-semibold" style={{ color: "#009AAC" }}>Pipelines configuráveis</h1>
             <p className="text-sm text-gray-600">Defina fluxos de estágios para Leads, Clientes ou projetos internos.</p>
           </div>
-          <button onClick={() => setImportOpen(true)} className="px-3 py-2 rounded-lg text-sm border" style={{ borderColor: "#E5DCC9", color: "#3C3489" }}>Importar planilha</button>
+          <button onClick={() => setImportOpen(true)} className="px-3 py-2 rounded-lg text-sm border" style={{ borderColor: "#E5DCC9", color: "#009AAC" }}>Importar planilha</button>
           <label className="flex items-center gap-2 text-sm cursor-pointer">
             <input type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)} />
             Inativos
@@ -163,12 +163,12 @@ export default function PipelinesConfigPage() {
           {pipes.length === 0 && !loading && (
             <button onClick={rodarSeed} disabled={seeding}
               className="px-3 py-2 rounded-lg text-sm flex items-center gap-2"
-              style={{ background: "#3C3489", color: "white", opacity: seeding ? 0.5 : 1 }}>
+              style={{ background: "#009AAC", color: "white", opacity: seeding ? 0.5 : 1 }}>
               <LuSparkles size={16} /> {seeding ? "Carregando…" : "Carregar pacote inicial"}
             </button>
           )}
           <button onClick={openPNew} className="px-3 py-2 rounded-lg text-sm flex items-center gap-2"
-            style={{ background: "#3C3489", color: "white" }}>
+            style={{ background: "#009AAC", color: "white" }}>
             <LuPlus size={16} /> Novo pipeline
           </button>
         </div>
@@ -187,8 +187,8 @@ export default function PipelinesConfigPage() {
                 <button onClick={() => setExpanded(isOpen ? null : p.id)} className="text-lg">{isOpen ? "▼" : "▶"}</button>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-semibold text-sm" style={{ color: "#3C3489" }}>{p.nome}</span>
-                    <span className="text-xs px-2 py-0.5 rounded" style={{ background: "#F1F1F1", color: "#3C3489" }}>
+                    <span className="font-semibold text-sm" style={{ color: "#009AAC" }}>{p.nome}</span>
+                    <span className="text-xs px-2 py-0.5 rounded" style={{ background: "#F1F1F1", color: "#009AAC" }}>
                       {sc.emoji} {sc.label}
                     </span>
                     {p.isPadrao && <span className="text-xs px-2 py-0.5 rounded" style={{ background: "#F1F1F1", color: "#6B7280" }}>Padrão</span>}
@@ -232,7 +232,7 @@ export default function PipelinesConfigPage() {
                     ))}
                     <button onClick={() => openENew(p.id, maxOrdem + 1)}
                       className="flex-shrink-0 min-w-[180px] border-2 border-dashed rounded-lg p-3 flex items-center justify-center gap-1 text-sm hover:bg-gray-50"
-                      style={{ borderColor: "#E5DCC9", color: "#3C3489" }}>
+                      style={{ borderColor: "#E5DCC9", color: "#009AAC" }}>
                       <LuPlus size={14} /> Novo estágio
                     </button>
                   </div>
@@ -247,7 +247,7 @@ export default function PipelinesConfigPage() {
       {pModalOpen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setPModalOpen(false)}>
           <div className="bg-white rounded-xl p-6 max-w-lg w-full" onClick={e => e.stopPropagation()}>
-            <h2 className="text-lg font-semibold mb-4" style={{ color: "#3C3489" }}>{pEditId ? "Editar pipeline" : "Novo pipeline"}</h2>
+            <h2 className="text-lg font-semibold mb-4" style={{ color: "#009AAC" }}>{pEditId ? "Editar pipeline" : "Novo pipeline"}</h2>
             <div className="space-y-3">
               <div>
                 <label className="text-xs text-gray-600">Nome *</label>
@@ -264,7 +264,7 @@ export default function PipelinesConfigPage() {
                 </div>
                 <div>
                   <label className="text-xs text-gray-600">Cor</label>
-                  <input type="color" value={pForm.cor || "#3C3489"} onChange={e => setPForm({ ...pForm, cor: e.target.value })}
+                  <input type="color" value={pForm.cor || "#009AAC"} onChange={e => setPForm({ ...pForm, cor: e.target.value })}
                     className="w-full h-9 border rounded-lg" style={{ borderColor: "#E5DCC9" }} />
                 </div>
               </div>
@@ -284,7 +284,7 @@ export default function PipelinesConfigPage() {
             </div>
             <div className="flex justify-end gap-2 mt-5">
               <button onClick={() => setPModalOpen(false)} className="px-4 py-2 rounded-lg text-sm border" style={{ borderColor: "#E5DCC9" }}>Cancelar</button>
-              <button onClick={saveP} className="px-4 py-2 rounded-lg text-sm" style={{ background: "#3C3489", color: "white" }}>Salvar</button>
+              <button onClick={saveP} className="px-4 py-2 rounded-lg text-sm" style={{ background: "#009AAC", color: "white" }}>Salvar</button>
             </div>
           </div>
         </div>
@@ -294,7 +294,7 @@ export default function PipelinesConfigPage() {
       {eModalOpen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setEModalOpen(false)}>
           <div className="bg-white rounded-xl p-6 max-w-lg w-full" onClick={e => e.stopPropagation()}>
-            <h2 className="text-lg font-semibold mb-4" style={{ color: "#3C3489" }}>{eEditId ? "Editar estágio" : "Novo estágio"}</h2>
+            <h2 className="text-lg font-semibold mb-4" style={{ color: "#009AAC" }}>{eEditId ? "Editar estágio" : "Novo estágio"}</h2>
             <div className="grid grid-cols-1 md:grid-cols-[1fr_100px_80px] gap-3">
               <div>
                 <label className="text-xs text-gray-600">Nome *</label>
@@ -343,7 +343,7 @@ export default function PipelinesConfigPage() {
             </div>
             <div className="flex justify-end gap-2 mt-5">
               <button onClick={() => setEModalOpen(false)} className="px-4 py-2 rounded-lg text-sm border" style={{ borderColor: "#E5DCC9" }}>Cancelar</button>
-              <button onClick={saveE} className="px-4 py-2 rounded-lg text-sm" style={{ background: "#3C3489", color: "white" }}>Salvar</button>
+              <button onClick={saveE} className="px-4 py-2 rounded-lg text-sm" style={{ background: "#009AAC", color: "white" }}>Salvar</button>
             </div>
           </div>
         </div>

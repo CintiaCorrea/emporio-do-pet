@@ -171,10 +171,10 @@ export default function ScriptsConfigPage() {
             <LuArrowLeft size={18} />
           </Link>
           <div className="flex-1">
-            <h1 className="text-xl font-semibold" style={{ color: "#3C3489" }}>Scripts (Templates de Resposta)</h1>
+            <h1 className="text-xl font-semibold" style={{ color: "#009AAC" }}>Scripts (Templates de Resposta)</h1>
             <p className="text-sm text-gray-600">Mensagens prontas pra recepção colar no WhatsApp. Use {`{tutor}`}, {`{pet}`} como variáveis.</p>
           </div>
-          <button onClick={() => setImportOpen(true)} className="px-3 py-2 rounded-lg text-sm border" style={{ borderColor: "#E5DCC9", color: "#3C3489" }}>Importar planilha</button>
+          <button onClick={() => setImportOpen(true)} className="px-3 py-2 rounded-lg text-sm border" style={{ borderColor: "#E5DCC9", color: "#009AAC" }}>Importar planilha</button>
           <label className="flex items-center gap-2 text-sm cursor-pointer">
             <input type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)} />
             Mostrar inativos
@@ -182,7 +182,7 @@ export default function ScriptsConfigPage() {
           {scripts.length === 0 && !loading && (
             <button onClick={rodarSeed} disabled={seeding}
               className="px-3 py-2 rounded-lg text-sm flex items-center gap-2"
-              style={{ background: "#3C3489", color: "white", opacity: seeding ? 0.5 : 1 }}>
+              style={{ background: "#009AAC", color: "white", opacity: seeding ? 0.5 : 1 }}>
               <LuSparkles size={16} /> {seeding ? "Carregando…" : "Carregar pacote inicial"}
             </button>
           )}
@@ -194,18 +194,18 @@ export default function ScriptsConfigPage() {
         <div className="bg-white rounded-xl border" style={{ borderColor: "#E5DCC9" }}>
           <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: "#E5DCC9" }}>
             <div>
-              <div className="text-sm font-semibold" style={{ color: "#3C3489" }}>Categorias</div>
+              <div className="text-sm font-semibold" style={{ color: "#009AAC" }}>Categorias</div>
               <div className="text-xs text-gray-500">{cats.length} cadastradas</div>
             </div>
             <button onClick={openCatNew} className="px-2 py-1 rounded-lg text-xs flex items-center gap-1"
-              style={{ background: "#3C3489", color: "white" }}>
+              style={{ background: "#009AAC", color: "white" }}>
               <LuPlus size={14} /> Adicionar
             </button>
           </div>
           <div className="p-2 max-h-[70vh] overflow-y-auto">
             <button onClick={() => setSelectedCatId(null)}
               className={`w-full text-left px-3 py-2 rounded-lg mb-1 text-sm ${!selectedCatId ? "font-semibold" : ""}`}
-              style={{ background: !selectedCatId ? "#F3EEFC" : "transparent", color: !selectedCatId ? "#3C3489" : "#333" }}>
+              style={{ background: !selectedCatId ? "#E0F4F6" : "transparent", color: !selectedCatId ? "#009AAC" : "#333" }}>
               📂 Todos ({scripts.length})
             </button>
             {cats.map(c => {
@@ -214,7 +214,7 @@ export default function ScriptsConfigPage() {
                 <div key={c.id} className="relative">
                   <button onClick={() => setSelectedCatId(c.id)}
                     className={`w-full text-left px-3 py-2 rounded-lg mb-1 text-sm ${sel ? "font-semibold" : ""}`}
-                    style={{ background: sel ? "#F3EEFC" : "transparent", color: sel ? "#3C3489" : "#333", opacity: c.ativo ? 1 : 0.5 }}>
+                    style={{ background: sel ? "#E0F4F6" : "transparent", color: sel ? "#009AAC" : "#333", opacity: c.ativo ? 1 : 0.5 }}>
                     <div className="flex items-center justify-between">
                       <span className="flex items-center gap-2 min-w-0">
                         <span>{c.emoji || "📌"}</span>
@@ -250,7 +250,7 @@ export default function ScriptsConfigPage() {
         <div className="bg-white rounded-xl border" style={{ borderColor: "#E5DCC9" }}>
           <div className="px-4 py-3 border-b flex items-center gap-3" style={{ borderColor: "#E5DCC9" }}>
             <div className="flex-1">
-              <div className="text-sm font-semibold" style={{ color: "#3C3489" }}>
+              <div className="text-sm font-semibold" style={{ color: "#009AAC" }}>
                 {selectedCatId ? cats.find(c => c.id === selectedCatId)?.nome : "Todos os scripts"}
               </div>
               <div className="text-xs text-gray-500">{scriptsFiltrados.length} scripts</div>
@@ -261,7 +261,7 @@ export default function ScriptsConfigPage() {
                 className="pl-7 pr-3 py-1.5 text-sm border rounded-lg" style={{ borderColor: "#E5DCC9" }} />
             </div>
             <button onClick={openScNew} className="px-3 py-1.5 rounded-lg text-sm flex items-center gap-1"
-              style={{ background: "#3C3489", color: "white" }}>
+              style={{ background: "#009AAC", color: "white" }}>
               <LuPlus size={14} /> Adicionar
             </button>
           </div>
@@ -278,7 +278,7 @@ export default function ScriptsConfigPage() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         {s.category && (
-                          <span className="text-xs px-2 py-0.5 rounded" style={{ background: "#F1F1F1", color: "#3C3489" }}>
+                          <span className="text-xs px-2 py-0.5 rounded" style={{ background: "#F1F1F1", color: "#009AAC" }}>
                             {s.category.emoji} {s.category.nome}
                           </span>
                         )}
@@ -301,7 +301,7 @@ export default function ScriptsConfigPage() {
                     <div className="flex flex-col gap-1 flex-shrink-0">
                       <button onClick={() => copyScript(s)} title="Copiar"
                         className="px-3 py-1.5 rounded-lg text-xs flex items-center gap-1"
-                        style={{ background: copiedId === s.id ? "#22C55E" : "#3C3489", color: "white" }}>
+                        style={{ background: copiedId === s.id ? "#22C55E" : "#009AAC", color: "white" }}>
                         {copiedId === s.id ? <><LuCheck size={12} /> Copiado!</> : "Copiar"}
                       </button>
                       <div className="relative">
@@ -334,7 +334,7 @@ export default function ScriptsConfigPage() {
       {catModalOpen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setCatModalOpen(false)}>
           <div className="bg-white rounded-xl p-6 max-w-md w-full" onClick={e => e.stopPropagation()}>
-            <h2 className="text-lg font-semibold mb-4" style={{ color: "#3C3489" }}>
+            <h2 className="text-lg font-semibold mb-4" style={{ color: "#009AAC" }}>
               {catEditId ? "Editar categoria" : "Nova categoria"}
             </h2>
             <div className="grid grid-cols-[1fr_80px] gap-3">
@@ -357,7 +357,7 @@ export default function ScriptsConfigPage() {
             </div>
             <div className="flex justify-end gap-2 mt-5">
               <button onClick={() => setCatModalOpen(false)} className="px-4 py-2 rounded-lg text-sm border" style={{ borderColor: "#E5DCC9" }}>Cancelar</button>
-              <button onClick={saveCat} className="px-4 py-2 rounded-lg text-sm" style={{ background: "#3C3489", color: "white" }}>Salvar</button>
+              <button onClick={saveCat} className="px-4 py-2 rounded-lg text-sm" style={{ background: "#009AAC", color: "white" }}>Salvar</button>
             </div>
           </div>
         </div>
@@ -367,7 +367,7 @@ export default function ScriptsConfigPage() {
       {scModalOpen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setScModalOpen(false)}>
           <div className="bg-white rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <h2 className="text-lg font-semibold mb-4" style={{ color: "#3C3489" }}>
+            <h2 className="text-lg font-semibold mb-4" style={{ color: "#009AAC" }}>
               {scEditId ? "Editar script" : "Novo script"}
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -413,7 +413,7 @@ export default function ScriptsConfigPage() {
             </div>
             <div className="flex justify-end gap-2 mt-5">
               <button onClick={() => setScModalOpen(false)} className="px-4 py-2 rounded-lg text-sm border" style={{ borderColor: "#E5DCC9" }}>Cancelar</button>
-              <button onClick={saveSc} className="px-4 py-2 rounded-lg text-sm" style={{ background: "#3C3489", color: "white" }}>Salvar</button>
+              <button onClick={saveSc} className="px-4 py-2 rounded-lg text-sm" style={{ background: "#009AAC", color: "white" }}>Salvar</button>
             </div>
           </div>
         </div>

@@ -299,7 +299,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
           </div>
           <div className="flex flex-wrap gap-1">
             {(lead.tags || []).map((t: string) => (
-              <span key={t} className="bg-[#EEEDFE] text-[#3C3489] text-[10px] px-2 py-0.5 rounded-full">{t}</span>
+              <span key={t} className="bg-[#EEEDFE] text-[#009AAC] text-[10px] px-2 py-0.5 rounded-full">{t}</span>
             ))}
             <button className="border border-dashed border-[#cfd8e0] text-gray-400 text-[10px] px-2 py-0.5 rounded-full">+ tag</button>
           </div>

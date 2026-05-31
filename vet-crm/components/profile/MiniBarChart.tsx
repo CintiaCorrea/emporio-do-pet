@@ -2,13 +2,13 @@
 
 interface Bar { label: string; value: number; }
 
-export function MiniBarChart({ title, data, unit = "", color = "#3C3489", height = 100 }: {
+export function MiniBarChart({ title, data, unit = "", color = "#009AAC", height = 100 }: {
   title?: string; data: Bar[]; unit?: string; color?: string; height?: number;
 }) {
   const max = Math.max(1, ...data.map(d => d.value));
   return (
     <div className="bg-white border rounded-xl p-4" style={{ borderColor: "#E5DCC9" }}>
-      {title && <div className="text-sm font-medium mb-3" style={{ color: "#3C3489" }}>{title}</div>}
+      {title && <div className="text-sm font-medium mb-3" style={{ color: "#009AAC" }}>{title}</div>}
       <div className="flex items-end justify-between gap-1" style={{ height }}>
         {data.map((d, i) => {
           const h = (d.value / max) * height;

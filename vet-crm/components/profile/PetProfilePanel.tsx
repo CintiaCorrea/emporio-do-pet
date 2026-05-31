@@ -74,7 +74,7 @@ export default function PetProfilePanel({ petId }: { petId: string }) {
         <div className="bg-white border rounded-xl p-4 grid grid-cols-2 gap-3" style={{ borderColor: "#E5DCC9" }}>
           <div>
             <div className="text-xs text-gray-500">Valor total atendimentos</div>
-            <div className="text-xl font-semibold mt-1 tabular-nums" style={{ color: "#3C3489" }}>{fmtR(stats.valorTotal)}</div>
+            <div className="text-xl font-semibold mt-1 tabular-nums" style={{ color: "#009AAC" }}>{fmtR(stats.valorTotal)}</div>
           </div>
           <div>
             <div className="text-xs text-gray-500">Pago</div>
@@ -93,7 +93,7 @@ export default function PetProfilePanel({ petId }: { petId: string }) {
 
       {stats.timeline.length > 0 && (
         <div>
-          <div className="text-sm font-medium mb-2" style={{ color: "#3C3489" }}>Histórico clínico recente</div>
+          <div className="text-sm font-medium mb-2" style={{ color: "#009AAC" }}>Histórico clínico recente</div>
           <Timeline events={stats.timeline} emptyMsg="Sem consultas registradas." />
         </div>
       )}

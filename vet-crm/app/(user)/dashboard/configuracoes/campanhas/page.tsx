@@ -27,7 +27,7 @@ const PLAT_LABEL: Record<Plat, string> = { GOOGLE_ADS: "Google Ads", META_ADS_FA
 const TIPO_LABEL: Record<TipoC, string> = { CONVERSAO: "Conversão", TRAFEGO: "Tráfego", ENGAJAMENTO: "Engajamento", MENSAGEM_WHATSAPP: "WhatsApp", RECONHECIMENTO: "Reconhecimento" };
 const STAT_LABEL: Record<StatC, { label: string; color: string }> = {
   ATIVA: { label: "Ativa", color: "#1E6B36" }, PAUSADA: { label: "Pausada", color: "#8a6313" },
-  ENCERRADA: { label: "Encerrada", color: "#6B7280" }, EM_TESTE: { label: "Em teste", color: "#3C3489" },
+  ENCERRADA: { label: "Encerrada", color: "#6B7280" }, EM_TESTE: { label: "Em teste", color: "#009AAC" },
   PLANEJADA: { label: "Planejada", color: "#A0AEC0" },
 };
 
@@ -94,11 +94,11 @@ export default function CampanhasPage() {
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center gap-3">
           <Link href="/dashboard/configuracoes" className="p-2 rounded-lg hover:bg-gray-100"><LuArrowLeft size={18} /></Link>
           <div className="flex-1">
-            <h1 className="text-xl font-semibold" style={{ color: "#3C3489" }}>Campanhas</h1>
+            <h1 className="text-xl font-semibold" style={{ color: "#009AAC" }}>Campanhas</h1>
             <p className="text-sm text-gray-600">Campanhas de marketing (Google/Meta Ads). Tag de origem rastreia leads no BotConversa.</p>
           </div>
-          <button onClick={() => setImportOpen(true)} className="px-3 py-2 rounded-lg text-sm border" style={{ borderColor: "#E5DCC9", color: "#3C3489" }}>Importar planilha</button>
-          <button onClick={openNew} className="px-3 py-2 rounded-lg text-sm flex items-center gap-2" style={{ background: "#3C3489", color: "white" }}>
+          <button onClick={() => setImportOpen(true)} className="px-3 py-2 rounded-lg text-sm border" style={{ borderColor: "#E5DCC9", color: "#009AAC" }}>Importar planilha</button>
+          <button onClick={openNew} className="px-3 py-2 rounded-lg text-sm flex items-center gap-2" style={{ background: "#009AAC", color: "white" }}>
             <LuPlus size={16} /> Nova campanha
           </button>
         </div>
@@ -168,7 +168,7 @@ export default function CampanhasPage() {
       {modalOpen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setModalOpen(false)}>
           <div className="bg-white rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <h2 className="text-lg font-semibold mb-4" style={{ color: "#3C3489" }}>{editId ? "Editar campanha" : "Nova campanha"}</h2>
+            <h2 className="text-lg font-semibold mb-4" style={{ color: "#009AAC" }}>{editId ? "Editar campanha" : "Nova campanha"}</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="md:col-span-2"><label className="text-xs text-gray-600">Nome *</label>
                 <input value={form.nome || ""} onChange={e => setForm({ ...form, nome: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E5DCC9" }} /></div>
@@ -197,7 +197,7 @@ export default function CampanhasPage() {
             </div>
             <div className="flex justify-end gap-2 mt-5">
               <button onClick={() => setModalOpen(false)} className="px-4 py-2 rounded-lg text-sm border" style={{ borderColor: "#E5DCC9" }}>Cancelar</button>
-              <button onClick={save} className="px-4 py-2 rounded-lg text-sm" style={{ background: "#3C3489", color: "white" }}>Salvar</button>
+              <button onClick={save} className="px-4 py-2 rounded-lg text-sm" style={{ background: "#009AAC", color: "white" }}>Salvar</button>
             </div>
           </div>
         </div>

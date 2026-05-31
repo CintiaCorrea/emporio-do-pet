@@ -115,7 +115,7 @@ export default function CsvImporter({ open, onClose, title, endpoint, fields, ex
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-xl p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <h2 className="text-lg font-semibold mb-2" style={{ color: "#3C3489" }}>{title}</h2>
+        <h2 className="text-lg font-semibold mb-2" style={{ color: "#009AAC" }}>{title}</h2>
         <div className="text-xs text-gray-600 mb-3">
           {exampleHint && <div className="mb-1">{exampleHint}</div>}
           <div>Colunas aceitas:&nbsp;
@@ -167,7 +167,7 @@ export default function CsvImporter({ open, onClose, title, endpoint, fields, ex
         <div className="flex justify-end gap-2 mt-5">
           <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm border" style={{ borderColor: "#E5DCC9" }}>Cancelar</button>
           <button onClick={executar} disabled={preview.length === 0 || running}
-            className="px-4 py-2 rounded-lg text-sm" style={{ background: "#3C3489", color: "white", opacity: preview.length === 0 || running ? 0.4 : 1 }}>
+            className="px-4 py-2 rounded-lg text-sm" style={{ background: "#009AAC", color: "white", opacity: preview.length === 0 || running ? 0.4 : 1 }}>
             {running ? "Importando..." : `Importar ${preview.length} registros`}
           </button>
         </div>
