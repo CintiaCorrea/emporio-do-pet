@@ -17,6 +17,19 @@ interface Pet {
 }
 
 interface Profissional { id: string; name: string; }
+interface Servico { id: string; nome: string; valorPadrao: number | null; custoPadrao?: number | null; }
+interface AppointmentItem {
+  servicoId?: string;
+  descricao?: string;
+  executorUserId?: string;
+  fornecedorId?: string;
+  quantidade: number;
+  valorUnitario: number;
+  custoUnitario: number;
+  desconto: number;
+  valorTotal: number;
+  comissaoValor?: number;
+}
 
 const TYPES = [
   { v: "CONSULTA", label: "Consulta" },
@@ -53,6 +66,11 @@ export default function NovoAtendimentoPage() {
   const [pet, setPet] = useState<Pet | null>(null);
   const [vets, setVets] = useState<Profissional[]>([]);
   const [saving, setSaving] = useState(false);
+
+  // Items (serviços e valores)
+  const [items, setItems] = useState<AppointmentItem[]>([]);
+  const [servicos, setServicos] = useState<Servico[]>([]);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   // Form state
   const [form, setForm] = useState({
@@ -97,11 +115,48 @@ export default function NovoAtendimentoPage() {
       } else if (list[0]?.id) {
         setForm(f => ({ ...f, userId: list[0].id }));
       }
+      // serviços (catálogo)
+      const r3 = await fetch("/api/servicos/itens?limit=500").catch(() => null);
+      const svc = r3 ? await safeJson<any>(r3, []) : [];
+      const svcList = Array.isArray(svc) ? svc : (svc.servicos || svc.itens || svc.data || []);
+      setServicos(svcList);
     })();
   }, [petId, session?.user?.id, session?.user?.role]);
 
+  // Soma automática dos itens no campo "valor"
+  useEffect(() => {
+    const total = items.reduce((s, it) => s + (Number(it.valorTotal) || 0), 0);
+    setForm(f => ({ ...f, value: total > 0 ? total.toFixed(2) : "" }));
+  }, [items]);
+
   function set<K extends keyof typeof form>(k: K, v: typeof form[K]) {
     setForm({ ...form, [k]: v });
+  }
+
+  function updateItem(idx: number, patch: Partial<AppointmentItem>) {
+    const arr = [...items];
+    const it = { ...arr[idx], ...patch };
+    const qtd = Number(it.quantidade) || 1;
+    const unit = Number(it.valorUnitario) || 0;
+    const desc = Number(it.desconto) || 0;
+    it.valorTotal = qtd * unit - desc;
+    arr[idx] = it;
+    setItems(arr);
+  }
+  function addItem(svc?: Servico) {
+    setItems([...items, {
+      servicoId: svc?.id,
+      descricao: svc?.nome,
+      executorUserId: form.userId || undefined,
+      quantidade: 1,
+      valorUnitario: svc?.valorPadrao ?? 0,
+      custoUnitario: svc?.custoPadrao ?? 0,
+      desconto: 0,
+      valorTotal: svc?.valorPadrao ?? 0,
+    }]);
+  }
+  function removeItem(idx: number) {
+    setItems(items.filter((_, i) => i !== idx));
   }
 
   async function handleSave() {
@@ -133,6 +188,18 @@ export default function NovoAtendimentoPage() {
       value: form.value ? Number(form.value) : 0,
       paymentMethod: form.paymentMethod || null,
       notes: form.notes || null,
+      items: items.map(it => ({
+        servicoId: it.servicoId || undefined,
+        descricao: it.descricao || undefined,
+        executorUserId: it.executorUserId || undefined,
+        fornecedorId: it.fornecedorId || undefined,
+        quantidade: it.quantidade,
+        valorUnitario: it.valorUnitario,
+        custoUnitario: it.custoUnitario,
+        desconto: it.desconto,
+        valorTotal: it.valorTotal,
+        comissaoValor: it.comissaoValor,
+      })),
     };
     try {
       const res = await fetch("/api/atendimentos", {
@@ -258,23 +325,108 @@ export default function NovoAtendimentoPage() {
           </div>
         </Section>
 
-        {/* Seção: Próximo passo */}
-        <Section title="Próximo passo" Icon={LuCalendar}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <Field label="Acompanhamento (o que a recepção vai perguntar no próximo toque)" block>
-              <textarea rows={3} value={form.followUpNotes} onChange={e => set("followUpNotes", e.target.value)} className="input" placeholder="Ex: confirmar se a urina voltou ao normal, se a tosse diminuiu" />
-            </Field>
-            <Field label="Data sugerida do próximo retorno">
-              <input type="date" value={form.nextReturnDate} onChange={e => set("nextReturnDate", e.target.value)} className="input" />
-            </Field>
+        {/* Seção: Serviços e Valores (de onde sai a venda) */}
+        <Section title="Serviços e Valores" Icon={LuDollarSign}>
+          <div className="border rounded-lg overflow-hidden" style={{ borderColor: "#E8DFC8" }}>
+            <table className="w-full text-sm">
+              <thead className="border-b" style={{ background: "#FAFAFA", borderColor: "#E8DFC8" }}>
+                <tr>
+                  <th className="text-left px-3 py-2 font-medium text-gray-500">Serviço / descrição</th>
+                  <th className="text-right px-3 py-2 font-medium text-gray-500 w-16">Qtd</th>
+                  <th className="text-right px-3 py-2 font-medium text-gray-500 w-24">Valor</th>
+                  <th className="text-right px-3 py-2 font-medium text-gray-500 w-24">Custo</th>
+                  <th className="text-left px-3 py-2 font-medium text-gray-500 w-40">Executado por</th>
+                  <th className="text-right px-3 py-2 font-medium text-gray-500 w-20">Com.%</th>
+                  <th className="text-right px-3 py-2 font-medium text-gray-500 w-24">Total</th>
+                  <th className="w-8"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.length === 0 && (
+                  <tr><td colSpan={8} className="text-center px-3 py-4 text-gray-400 text-xs">Nenhum serviço lançado.</td></tr>
+                )}
+                {items.map((it, idx) => {
+                  const svc = servicos.find(s => s.id === it.servicoId);
+                  return (
+                    <tr key={idx} className="border-b" style={{ borderColor: "#F0EBE0" }}>
+                      <td className="px-3 py-1.5">
+                        {svc ? (
+                          <span className="text-gray-700">{svc.nome}</span>
+                        ) : (
+                          <input
+                            value={it.descricao || ""}
+                            onChange={e => updateItem(idx, { descricao: e.target.value })}
+                            placeholder="Descrição..."
+                            className="w-full px-2 py-1 border rounded text-sm"
+                            style={{ borderColor: "#E8DFC8" }}
+                          />
+                        )}
+                      </td>
+                      <td className="px-2 py-1.5 text-right">
+                        <input type="number" min={0.01} step="0.5" value={it.quantidade}
+                          onChange={e => updateItem(idx, { quantidade: Number(e.target.value) || 1 })}
+                          className="w-14 px-1 py-1 border rounded text-sm text-right" style={{ borderColor: "#E8DFC8" }} />
+                      </td>
+                      <td className="px-2 py-1.5 text-right">
+                        <input type="number" min={0} step="0.01" value={it.valorUnitario}
+                          onChange={e => updateItem(idx, { valorUnitario: Number(e.target.value) || 0 })}
+                          className="w-20 px-1 py-1 border rounded text-sm text-right" style={{ borderColor: "#E8DFC8" }} />
+                      </td>
+                      <td className="px-2 py-1.5 text-right">
+                        <input type="number" min={0} step="0.01" value={it.custoUnitario}
+                          onChange={e => updateItem(idx, { custoUnitario: Number(e.target.value) || 0 })}
+                          className="w-20 px-1 py-1 border rounded text-sm text-right" style={{ borderColor: "#E8DFC8" }} />
+                      </td>
+                      <td className="px-2 py-1.5">
+                        <select value={it.executorUserId || ""}
+                          onChange={e => updateItem(idx, { executorUserId: e.target.value || undefined })}
+                          className="w-full px-1.5 py-1 border rounded text-xs" style={{ borderColor: "#E8DFC8" }}>
+                          <option value="">— vet padrão —</option>
+                          {vets.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+                        </select>
+                      </td>
+                      <td className="px-2 py-1.5 text-right">
+                        <input type="number" min={0} step="0.1" value={it.comissaoValor ?? ""}
+                          onChange={e => updateItem(idx, { comissaoValor: e.target.value ? Number(e.target.value) : undefined })}
+                          placeholder="%" className="w-14 px-1 py-1 border rounded text-sm text-right" style={{ borderColor: "#E8DFC8" }} />
+                      </td>
+                      <td className="px-3 py-1.5 text-right font-semibold tabular-nums" style={{ color: "#014D5E" }}>
+                        R$ {Number(it.valorTotal || 0).toFixed(2)}
+                      </td>
+                      <td className="px-1 py-1.5 text-right">
+                        <button onClick={() => removeItem(idx)} className="text-gray-400 hover:text-red-500 text-sm">×</button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              {items.length > 0 && (
+                <tfoot className="border-t" style={{ background: "#FAFAFA", borderColor: "#E8DFC8" }}>
+                  <tr>
+                    <td colSpan={6} className="px-3 py-2 text-right text-xs font-medium text-gray-500">Total geral</td>
+                    <td className="px-3 py-2 text-right font-bold tabular-nums" style={{ color: "#014D5E" }}>
+                      R$ {items.reduce((s, it) => s + (Number(it.valorTotal) || 0), 0).toFixed(2)}
+                    </td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              )}
+            </table>
           </div>
+          <button
+            onClick={() => setPickerOpen(true)}
+            className="w-full mt-2 px-3 py-2 border border-dashed rounded-lg text-sm text-gray-500 hover:bg-gray-50 hover:text-[#009AAC] transition flex items-center justify-center gap-2"
+            style={{ borderColor: "#E8DFC8" }}
+          >
+            + Adicionar serviço
+          </button>
         </Section>
 
-        {/* Seção: Cobrança */}
-        <Section title="Cobrança" Icon={LuDollarSign}>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <Field label="Valor total (R$)">
-              <input type="number" step="0.01" min={0} value={form.value} onChange={e => set("value", e.target.value)} className="input" />
+        {/* Seção: Pós-atendimento (próximo retorno + forma pagamento) */}
+        <Section title="Pós-atendimento" Icon={LuCalendar}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <Field label="Próximo retorno">
+              <input type="date" value={form.nextReturnDate} onChange={e => set("nextReturnDate", e.target.value)} className="input" />
             </Field>
             <Field label="Forma de pagamento">
               <select value={form.paymentMethod} onChange={e => set("paymentMethod", e.target.value)} className="input">
@@ -283,6 +435,10 @@ export default function NovoAtendimentoPage() {
               </select>
             </Field>
           </div>
+          <Field label="O que verificar com o cliente (guia para o próximo toque)" block>
+            <textarea rows={3} value={form.followUpNotes} onChange={e => set("followUpNotes", e.target.value)}
+              placeholder="Ex: verificar se o pet está tomando os remédios, perguntar se a coceira melhorou..." className="input" />
+          </Field>
           <Field label="Observações administrativas (privado)" block>
             <textarea rows={2} value={form.notes} onChange={e => set("notes", e.target.value)} className="input" />
           </Field>
@@ -300,6 +456,37 @@ export default function NovoAtendimentoPage() {
           </button>
         </div>
       </div>
+
+      {/* Modal picker de serviço */}
+      {pickerOpen && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setPickerOpen(false)}>
+          <div className="bg-white rounded-xl p-5 max-w-lg w-full max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <h3 className="text-sm font-semibold mb-3" style={{ color: "#014D5E" }}>Adicionar serviço do catálogo</h3>
+            <div className="space-y-1">
+              {servicos.length === 0 && <div className="text-xs text-gray-400 py-4 text-center">Nenhum serviço cadastrado. <a href="/dashboard/configuracoes/servicos" className="underline" style={{color: "#009AAC"}}>Cadastrar</a></div>}
+              {servicos.map(s => (
+                <button
+                  key={s.id}
+                  onClick={() => { addItem(s); setPickerOpen(false); }}
+                  className="w-full text-left px-3 py-2 rounded-lg border hover:bg-gray-50 flex items-center justify-between gap-2"
+                  style={{ borderColor: "#F0EBE0" }}
+                >
+                  <span className="text-sm text-gray-700">{s.nome}</span>
+                  <span className="text-xs text-gray-500">R$ {Number(s.valorPadrao || 0).toFixed(2)}</span>
+                </button>
+              ))}
+            </div>
+            <div className="mt-3 pt-3 border-t" style={{ borderColor: "#F0EBE0" }}>
+              <button onClick={() => { addItem(); setPickerOpen(false); }} className="text-xs text-gray-500 hover:text-[#009AAC]">
+                + Linha em branco (descrição livre)
+              </button>
+            </div>
+            <div className="flex justify-end mt-3">
+              <button onClick={() => setPickerOpen(false)} className="px-3 py-1.5 text-xs rounded-lg border" style={{ borderColor: "#E8DFC8" }}>Fechar</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style jsx>{`
         .input {

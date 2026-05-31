@@ -115,6 +115,36 @@ export class AppointmentsService {
             petId: finalPetId!,
           })),
         });
+
+      // Items (serviços/exames) — cobrança detalhada
+      const itemsDto = (createAppointmentDto as any).items as any[] | undefined;
+      if (itemsDto && itemsDto.length > 0) {
+        await tx.appointmentItem.createMany({
+          data: itemsDto.map((it: any) => {
+            const qtd = Number(it.quantidade ?? 1);
+            const unit = Number(it.valorUnitario ?? 0);
+            const desc = Number(it.desconto ?? 0);
+            const total = Number.isFinite(it.valorTotal) ? Number(it.valorTotal) : (qtd * unit - desc);
+            return {
+              appointmentId: appointment.id,
+              servicoId: it.servicoId ?? null,
+              descricao: it.descricao ?? null,
+              executorUserId: it.executorUserId ?? null,
+              fornecedorId: it.fornecedorId ?? null,
+              quantidade: qtd,
+              valorUnitario: unit,
+              custoUnitario: Number(it.custoUnitario ?? 0),
+              desconto: desc,
+              valorTotal: total,
+              comissaoBase: it.comissaoBase ?? null,
+              comissaoTipo: it.comissaoTipo ?? null,
+              comissaoValor: it.comissaoValor != null ? Number(it.comissaoValor) : null,
+              comissaoCalculada: it.comissaoCalculada != null ? Number(it.comissaoCalculada) : null,
+              observacoes: it.observacoes ?? null,
+            };
+          }),
+        });
+      }
       }
 
       return tx.appointment.findUnique({
@@ -292,6 +322,14 @@ export class AppointmentsService {
             product: { select: { id: true, name: true, type: true, price: true } },
           },
           orderBy: { createdAt: 'desc' },
+        },
+        items: {
+          include: {
+            servico: { select: { id: true, nome: true, valorPadrao: true } },
+            executorUser: { select: { id: true, name: true } },
+            fornecedor: { select: { id: true, nome: true } },
+          },
+          orderBy: { createdAt: 'asc' },
         },
         kanbanCard: {
           select: {

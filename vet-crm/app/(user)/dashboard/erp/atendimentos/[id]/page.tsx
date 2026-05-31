@@ -8,6 +8,23 @@ import PetIcon from "@/components/profile/PetIcon";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { speciesLabel } from "@/lib/pets/labels";
 
+interface AppointmentItem {
+  id: string;
+  servicoId?: string;
+  descricao?: string | null;
+  executorUserId?: string | null;
+  fornecedorId?: string | null;
+  quantidade: number;
+  valorUnitario: number;
+  custoUnitario: number;
+  desconto: number;
+  valorTotal: number;
+  comissaoValor?: number | null;
+  servico?: { id: string; nome: string };
+  executorUser?: { id: string; name: string };
+  fornecedor?: { id: string; nome: string };
+}
+
 interface Atendimento {
   id: string;
   type: string;
@@ -35,6 +52,7 @@ interface Atendimento {
   pet?: { id: string; name: string; species: string };
   tutor?: { id: string; name: string };
   user?: { id: string; name: string };
+  items?: AppointmentItem[];
 }
 
 const TYPE_LABEL: Record<string, string> = {
@@ -164,6 +182,43 @@ export default function AtendimentoDetailPage() {
           <KV label="Acompanhamento (recepção)" value={data.followUpNotes} block />
           <KV label="Próximo retorno sugerido" value={fmtDate(data.nextReturnDate)} />
         </Section>
+
+        {data.items && data.items.length > 0 && (
+          <Section title="Serviços e Valores" Icon={LuDollarSign}>
+            <div className="border rounded-lg overflow-hidden" style={{ borderColor: "#E8DFC8" }}>
+              <table className="w-full text-sm">
+                <thead className="border-b" style={{ background: "#FAFAFA", borderColor: "#E8DFC8" }}>
+                  <tr>
+                    <th className="text-left px-3 py-2 font-medium text-gray-500">Serviço / descrição</th>
+                    <th className="text-right px-3 py-2 font-medium text-gray-500 w-16">Qtd</th>
+                    <th className="text-right px-3 py-2 font-medium text-gray-500 w-24">Valor</th>
+                    <th className="text-left px-3 py-2 font-medium text-gray-500">Executado por</th>
+                    <th className="text-right px-3 py-2 font-medium text-gray-500 w-24">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.items.map((it) => (
+                    <tr key={it.id} className="border-b" style={{ borderColor: "#F0EBE0" }}>
+                      <td className="px-3 py-1.5 text-gray-700">{it.servico?.nome || it.descricao || "—"}</td>
+                      <td className="px-3 py-1.5 text-right text-gray-500">{it.quantidade}</td>
+                      <td className="px-3 py-1.5 text-right text-gray-500 tabular-nums">R$ {Number(it.valorUnitario || 0).toFixed(2)}</td>
+                      <td className="px-3 py-1.5 text-gray-500">{it.fornecedor?.nome || it.executorUser?.name || "—"}</td>
+                      <td className="px-3 py-1.5 text-right font-semibold tabular-nums" style={{ color: "#014D5E" }}>R$ {Number(it.valorTotal || 0).toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot className="border-t" style={{ background: "#FAFAFA", borderColor: "#E8DFC8" }}>
+                  <tr>
+                    <td colSpan={4} className="px-3 py-2 text-right text-xs font-medium text-gray-500">Total geral</td>
+                    <td className="px-3 py-2 text-right font-bold tabular-nums" style={{ color: "#014D5E" }}>
+                      R$ {data.items.reduce((s, it) => s + (Number(it.valorTotal) || 0), 0).toFixed(2)}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </Section>
+        )}
 
         <Section title="Cobrança" Icon={LuDollarSign}>
           <Grid cols={3}>
