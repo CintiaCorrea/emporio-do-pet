@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { LuSearch, LuPlus, LuUpload, LuDownload, LuPaw } from "react-icons/lu";
+import { LuSearch, LuPlus, LuUpload, LuDownload, LuPawPrint } from "react-icons/lu";
 
 type Filter = "Cliente" | "Fornecedor" | "Parceiro" | "Ex_cliente" | "Todos";
 

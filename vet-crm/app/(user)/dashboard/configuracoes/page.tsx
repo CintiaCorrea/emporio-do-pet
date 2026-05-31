@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import {
-  LuUsers, LuTag, LuPackage, LuPaw, LuList,
+  LuUsers, LuTag, LuPackage, LuPawPrint, LuList,
   LuMessageSquare, LuClock, LuFlaskConical, LuMail, LuLayoutGrid,
   LuMegaphone, LuTarget, LuStar, LuArrowRight, LuSearch,
 } from "react-icons/lu";
@@ -18,7 +18,7 @@ const ITEMS: Item[] = [
   { href: "/dashboard/configuracoes/profissionais", title: "Profissionais", description: "Equipe + acessos ao sistema (login)", Icon: LuUsers, group: "CADASTROS" },
   { href: "/dashboard/configuracoes/etiquetas", title: "Etiquetas", description: "Tags pra Lead, Cliente e Pet", Icon: LuTag, group: "CADASTROS" },
   { href: "/dashboard/configuracoes/servicos", title: "Serviços e Produtos", description: "Catálogo com preço, custo e comissão", Icon: LuPackage, group: "CADASTROS" },
-  { href: "/dashboard/configuracoes/racas", title: "Raças", description: "Lista de raças por espécie", Icon: LuPaw, group: "CADASTROS" },
+  { href: "/dashboard/configuracoes/racas", title: "Raças", description: "Lista de raças por espécie", Icon: LuPawPrint, group: "CADASTROS" },
   { href: "/dashboard/configuracoes/listas", title: "Listas customizáveis", description: "Canais, origens, motivos, status", Icon: LuList, group: "CADASTROS" },
   { href: "/dashboard/configuracoes/exames", title: "Exames e Fornecedores", description: "Catálogo + laboratórios parceiros", Icon: LuFlaskConical, group: "CADASTROS" },
   // Comunicação
