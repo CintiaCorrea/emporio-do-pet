@@ -2354,9 +2354,27 @@ model MediaFile {
 // ============================================
 // Config 11: Campanhas (marketing)
 // ============================================
-enum PlataformaCampanha { GOOGLE_ADS META_ADS_FACEBOOK META_ADS_INSTAGRAM TIKTOK_ADS OUTRAS }
-enum TipoCampanha { CONVERSAO TRAFEGO ENGAJAMENTO MENSAGEM_WHATSAPP RECONHECIMENTO }
-enum StatusCampanha { ATIVA PAUSADA ENCERRADA EM_TESTE PLANEJADA }
+enum PlataformaCampanha {
+  GOOGLE_ADS
+  META_ADS_FACEBOOK
+  META_ADS_INSTAGRAM
+  TIKTOK_ADS
+  OUTRAS
+}
+enum TipoCampanha {
+  CONVERSAO
+  TRAFEGO
+  ENGAJAMENTO
+  MENSAGEM_WHATSAPP
+  RECONHECIMENTO
+}
+enum StatusCampanha {
+  ATIVA
+  PAUSADA
+  ENCERRADA
+  EM_TESTE
+  PLANEJADA
+}
 
 model Campanha {
   id           String              @id @default(uuid())
@@ -2380,9 +2398,26 @@ model Campanha {
 // ============================================
 // Config 12: Metas
 // ============================================
-enum TipoMeta { FATURAMENTO_GERAL FATURAMENTO_INDIVIDUAL ATENDIMENTOS SERVICO_ESPECIFICO CONVERSOES NPS }
-enum PeriodicidadeMeta { SEMANAL MENSAL TRIMESTRAL SEMESTRAL ANUAL }
-enum StatusMeta { EM_ANDAMENTO ATINGIDA NAO_ATINGIDA }
+enum TipoMeta {
+  FATURAMENTO_GERAL
+  FATURAMENTO_INDIVIDUAL
+  ATENDIMENTOS
+  SERVICO_ESPECIFICO
+  CONVERSOES
+  NPS
+}
+enum PeriodicidadeMeta {
+  SEMANAL
+  MENSAL
+  TRIMESTRAL
+  SEMESTRAL
+  ANUAL
+}
+enum StatusMeta {
+  EM_ANDAMENTO
+  ATINGIDA
+  NAO_ATINGIDA
+}
 
 model Meta {
   id             String             @id @default(uuid())
@@ -2407,10 +2442,31 @@ model Meta {
 // ============================================
 // Config 13: Avaliações (NPS + Google Reviews)
 // ============================================
-enum CategoriaAlvoNPS { VET RECEPCAO CLINICA_GERAL }
-enum ClassificacaoNPS { PROMOTOR NEUTRO DETRATOR }
-enum CanalColetaNPS { PRESENCIAL WHATSAPP EMAIL TELEFONE FORMULARIO }
-enum StatusAvaliacaoGoogle { PERGUNTA_ENVIADA NAO_GOSTOU LINK_ENVIADO VOTOU NAO_VOTOU CANCELADO }
+enum CategoriaAlvoNPS {
+  VET
+  RECEPCAO
+  CLINICA_GERAL
+}
+enum ClassificacaoNPS {
+  PROMOTOR
+  NEUTRO
+  DETRATOR
+}
+enum CanalColetaNPS {
+  PRESENCIAL
+  WHATSAPP
+  EMAIL
+  TELEFONE
+  FORMULARIO
+}
+enum StatusAvaliacaoGoogle {
+  PERGUNTA_ENVIADA
+  NAO_GOSTOU
+  LINK_ENVIADO
+  VOTOU
+  NAO_VOTOU
+  CANCELADO
+}
 
 model AvaliacaoNPS {
   id              String              @id @default(uuid())
