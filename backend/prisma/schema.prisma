@@ -22,6 +22,19 @@ enum AppointmentStatus {
   CANCELED
   CONFIRMED
   IN_PROGRESS
+  MISSED
+}
+
+enum AppointmentType {
+  CONSULTA
+  RETORNO
+  AVALIACAO
+  EMERGENCIA
+  PROCEDIMENTO
+  VACINACAO
+  CIRURGIA
+  SESSAO_FISIO
+  OUTRO
 }
 
 // NOVO ENUM para status de pagamento
@@ -467,6 +480,21 @@ model Appointment {
   value         Float         @default(0)
   status        String        @default("SCHEDULED")
   paymentStatus PaymentStatus @default(PENDING)
+
+  // Campos clínicos (ficha de atendimento)
+  type              AppointmentType @default(CONSULTA)
+  chiefComplaint    String? // motivo_consulta — queixa principal
+  anamnesis         String? // anamnese
+  physicalExam      String? // exame físico
+  diagnosis         String? // diagnostico
+  conduct           String? // conduta / tratamento adotado
+  prescription      String? // prescrição médica
+  examsRequested    String? // exames solicitados
+  followUpNotes     String? // acompanhamento_proximo_contato (recepção/cadência)
+  nextReturnDate    DateTime? // proximo_retorno (date)
+  petWeight         Float? // peso_pet (kg)
+  temperature       Float? // temperatura (ºC)
+  paymentMethod     String? // forma_pagamento livre
 
   // Relacionamentos
   tutor      Tutor       @relation(fields: [tutorId], references: [id], onDelete: Cascade)
