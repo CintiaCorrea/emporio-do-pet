@@ -133,12 +133,12 @@ export default function InboxRightPanel({ canal = "BotConversa" }: { canal?: str
 
   function reset() {
     setSearch(""); setTutor(null); setLead(null);
-    setResults([]); setPets([]); setSelectedPet(null); setAtendimentos([]);
+    setResults([]); setLeadResults([]); setPets([]); setSelectedPet(null); setAtendimentos([]);
     setCadastroOpen(false); setInteracaoOpen(false);
   }
 
   const tutorPhone = tutor?.contacts?.find(c => c.isWhatsApp)?.number || tutor?.contacts?.find(c => c.isPrimary)?.number || tutor?.contacts?.[0]?.number;
-  const isUnknown = search && search.length >= 2 && !searching && results.length === 0 && !tutor;
+  const isUnknown = search && search.length >= 2 && !searching && results.length === 0 && leadResults.length === 0 && !tutor && !lead;
 
   async function updateEntityEtapa(entity: "lead" | "pet", id: string, field: string, value: string) {
     const url = entity === "lead" ? `/api/leads/${id}` : `/api/pets/${id}`;
@@ -288,13 +288,19 @@ export default function InboxRightPanel({ canal = "BotConversa" }: { canal?: str
             className="w-full pl-8 pr-3 py-2 border rounded-lg text-sm bg-white"
             style={{ borderColor: "#E8DFC8" }}
           />
-          {results.length > 0 && (
+          {(results.length > 0 || leadResults.length > 0) && (
             <div className="absolute left-0 right-0 top-full mt-1 bg-white border rounded-lg shadow-lg z-30 max-h-72 overflow-y-auto" style={{ borderColor: "#E8DFC8" }}>
+              {results.length > 0 && (
+                <div className="px-2 py-1 text-[9.5px] font-bold uppercase tracking-wide text-gray-400">Clientes</div>
+              )}
               {results.map(r => {
                 const phone = r.contacts?.find(c => c.isPrimary)?.number || r.contacts?.[0]?.number || "";
                 return (
                   <button key={r.id} onClick={() => selectTutor(r)} className="w-full text-left px-3 py-2 hover:bg-gray-50 border-b last:border-b-0" style={{ borderColor: "#F0EBE0" }}>
-                    <div className="text-sm text-[#014D5E] font-medium">{r.name}</div>
+                    <div className="text-sm text-[#014D5E] font-medium flex items-center gap-1.5">
+                      <span style={{ background: "#dcfce7", color: "#15803d", padding: "0 4px", borderRadius: 3, fontSize: 8.5, fontWeight: 700 }}>CLI</span>
+                      {r.name}
+                    </div>
                     <div className="text-[11px] text-gray-500 flex items-center gap-2">
                       {phone && <span>📞 {phone}</span>}
                       {r.pets && r.pets.length > 0 && <span>🐾 {r.pets.length}</span>}
@@ -302,6 +308,21 @@ export default function InboxRightPanel({ canal = "BotConversa" }: { canal?: str
                   </button>
                 );
               })}
+              {leadResults.length > 0 && (
+                <div className="px-2 py-1 text-[9.5px] font-bold uppercase tracking-wide text-gray-400 border-t" style={{ borderColor: "#F0EBE0" }}>Leads</div>
+              )}
+              {leadResults.map(l => (
+                <button key={l.id} onClick={() => { setLead(l); setTutor(null); setResults([]); setLeadResults([]); setSearch(l.name || l.phone || ""); setPets([]); setSelectedPet(null); setAtendimentos([]); }} className="w-full text-left px-3 py-2 hover:bg-gray-50 border-b last:border-b-0" style={{ borderColor: "#F0EBE0" }}>
+                  <div className="text-sm text-[#014D5E] font-medium flex items-center gap-1.5">
+                    <span style={{ background: "#dbeafe", color: "#1e40af", padding: "0 4px", borderRadius: 3, fontSize: 8.5, fontWeight: 700 }}>LEAD</span>
+                    {l.name || "Sem nome"}
+                  </div>
+                  <div className="text-[11px] text-gray-500 flex items-center gap-2">
+                    {l.phone && <span>📞 {l.phone}</span>}
+                    {l.pipelineComercialEtapa && <span>📊 {l.pipelineComercialEtapa}</span>}
+                  </div>
+                </button>
+              ))}
             </div>
           )}
         </div>
