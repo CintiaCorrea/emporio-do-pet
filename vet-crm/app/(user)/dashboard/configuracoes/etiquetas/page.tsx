@@ -2,23 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import CsvImporter from "@/components/import/CsvImporter";
-import { LuArrowLeft, LuPlus, LuPencil, LuTrash, LuSearch, LuEllipsisVertical } from "react-icons/lu";
+import { LuArrowLeft, LuPencil, LuX, LuPlus, LuSearch } from "react-icons/lu";
 
-type TipoEtiqueta = "CLINICA" | "STATUS" | "CUSTOM";
+type Tipo = "CLINICA" | "STATUS" | "CUSTOM";
 
-interface TagCategory {
-  id: string;
-  nome: string;
-  ordem: number;
-  ativo: boolean;
-  _count?: { etiquetas: number };
-}
-
-interface EtiquetaTemplate {
+interface Etiqueta {
   id: string;
   texto: string;
-  tipo: TipoEtiqueta;
+  tipo: Tipo;
   cor?: string | null;
   descricao?: string | null;
   aplicaEm: string[];
@@ -27,367 +18,391 @@ interface EtiquetaTemplate {
   category?: { id: string; nome: string } | null;
 }
 
-const TIPO_LABEL: Record<TipoEtiqueta, { label: string; color: string; bg: string }> = {
-  CLINICA: { label: "Clínica", color: "#6B7280", bg: "#F1F1F1" },
-  STATUS: { label: "Status", color: "#185FA5", bg: "#E6F1FB" },
-  CUSTOM: { label: "Custom", color: "#5F5E5A", bg: "#f0e8d4" },
+interface Bloco {
+  id: string;
+  nome: string;
+  ordem: number;
+  ativo: boolean;
+  _count?: { etiquetas: number };
+}
+
+const TIPO_DOT: Record<Tipo, string> = {
+  CLINICA: "#009AAC",   // turquesa
+  STATUS: "#EF4444",    // vermelho
+  CUSTOM: "#8B5CF6",    // roxo
+};
+const TIPO_LABEL: Record<Tipo, string> = {
+  CLINICA: "Clínica",
+  STATUS: "Status",
+  CUSTOM: "Custom",
 };
 
-const APLICA_OPCOES = ["Lead", "Cliente", "Pet"];
+const EMPTY_E: any = { texto: "", tipo: "CUSTOM", cor: "#009AAC", aplicaEm: ["Lead"], descricao: "", ativo: true };
+const EMPTY_C: any = { nome: "", ordem: 0, ativo: true };
 
-const EMPTY_CAT: any = { nome: "", ordem: 0, ativo: true };
-const EMPTY_ET: any = { texto: "", tipo: "CUSTOM", cor: "#0E2244", aplicaEm: [], categoryId: null, ativo: true };
-
-export default function EtiquetasConfigPage() {
-  const [importOpen, setImportOpen] = useState(false);
-  const [categories, setCategories] = useState<TagCategory[]>([]);
-  const [etiquetas, setEtiquetas] = useState<EtiquetaTemplate[]>([]);
+export default function EtiquetasPage() {
+  const [etiquetas, setEtiquetas] = useState<Etiqueta[]>([]);
+  const [blocos, setBlocos] = useState<Bloco[]>([]);
   const [loading, setLoading] = useState(true);
   const [showInactive, setShowInactive] = useState(false);
   const [search, setSearch] = useState("");
-  const [selectedCatId, setSelectedCatId] = useState<string | null>(null);
+  const [filterBloco, setFilterBloco] = useState<string | "ALL" | "NONE">("ALL");
 
-  const [catModalOpen, setCatModalOpen] = useState(false);
-  const [catEditId, setCatEditId] = useState<string | null>(null);
-  const [catForm, setCatForm] = useState<any>(EMPTY_CAT);
+  const [eModalOpen, setEModalOpen] = useState(false);
+  const [eEditId, setEEditId] = useState<string | null>(null);
+  const [eForm, setEForm] = useState<any>(EMPTY_E);
 
-  const [etModalOpen, setEtModalOpen] = useState(false);
-  const [etEditId, setEtEditId] = useState<string | null>(null);
-  const [etForm, setEtForm] = useState<any>(EMPTY_ET);
+  const [cModalOpen, setCModalOpen] = useState(false);
+  const [cEditId, setCEditId] = useState<string | null>(null);
+  const [cForm, setCForm] = useState<any>(EMPTY_C);
 
-  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
-
-  // Fechar menu ao clicar fora
-  useEffect(() => {
-    const h = () => setMenuOpenId(null);
-    if (menuOpenId) {
-      document.addEventListener("click", h);
-      return () => document.removeEventListener("click", h);
-    }
-  }, [menuOpenId]);
-
-  const loadAll = async () => {
+  async function load() {
     setLoading(true);
     try {
-      const [catRes, etRes] = await Promise.all([
-        fetch(`/api/etiquetas/categorias?includeInactive=${showInactive}`),
-        fetch(`/api/etiquetas/templates?includeInactive=${showInactive}`),
+      const qs = showInactive ? "?includeInactive=true" : "";
+      const [r1, r2] = await Promise.all([
+        fetch(`/api/etiquetas${qs}`),
+        fetch(`/api/etiquetas/categorias${qs}`),
       ]);
-      const cats = await catRes.json().catch(() => []);
-      const ets = await etRes.json().catch(() => []);
-      setCategories(Array.isArray(cats) ? cats : []);
-      setEtiquetas(Array.isArray(ets) ? ets : []);
-    } catch (e) { console.error(e); }
+      const e = await r1.json();
+      const c = await r2.json();
+      setEtiquetas(Array.isArray(e) ? e : []);
+      setBlocos(Array.isArray(c) ? c : []);
+    } catch (er) { console.error(er); }
     finally { setLoading(false); }
-  };
-
-  useEffect(() => { loadAll(); /* eslint-disable-next-line */ }, [showInactive]);
+  }
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [showInactive]);
 
   const filtered = useMemo(() => {
     let arr = etiquetas;
-    if (selectedCatId === "sem-categoria") arr = arr.filter((e) => !e.categoryId);
-    else if (selectedCatId) arr = arr.filter((e) => e.categoryId === selectedCatId);
-    if (search.trim()) {
+    if (filterBloco === "NONE") arr = arr.filter(e => !e.categoryId);
+    else if (filterBloco !== "ALL") arr = arr.filter(e => e.categoryId === filterBloco);
+    if (search) {
       const q = search.toLowerCase();
-      arr = arr.filter((e) => e.texto.toLowerCase().includes(q));
+      arr = arr.filter(e => e.texto.toLowerCase().includes(q));
     }
     return arr;
-  }, [etiquetas, selectedCatId, search]);
+  }, [etiquetas, filterBloco, search]);
 
-  // ===== Handlers Categoria =====
-  const openNewCat = () => { setCatEditId(null); setCatForm(EMPTY_CAT); setCatModalOpen(true); };
-  const openEditCat = (c: TagCategory) => { setCatEditId(c.id); setCatForm({ ...c }); setCatModalOpen(true); };
-  const saveCat = async () => {
-    if (!catForm.nome?.trim()) { alert("Nome é obrigatório."); return; }
-    const { id, _count, ...payload } = catForm as any;
-    const url = catEditId ? `/api/etiquetas/categorias/${catEditId}` : "/api/etiquetas/categorias";
-    const method = catEditId ? "PATCH" : "POST";
-    const r = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-    if (!r.ok) {
-      const body = await r.json().catch(() => ({}));
-      alert("Erro: " + (body?.message ? (Array.isArray(body.message) ? body.message.join(", ") : body.message) : `HTTP ${r.status}`));
-      return;
-    }
-    setCatModalOpen(false); loadAll();
-  };
-  const deleteCat = async (c: TagCategory) => {
-    if (!confirm(`Excluir categoria ${c.nome}? Etiquetas dela ficarão sem categoria.`)) return;
-    await fetch(`/api/etiquetas/categorias/${c.id}`, { method: "DELETE" });
-    if (selectedCatId === c.id) setSelectedCatId(null);
-    loadAll();
-  };
+  // Pill color: usa Etiqueta.cor se tiver, senão a cor do tipo (CLINICA, STATUS, CUSTOM)
+  function pillStyle(e: Etiqueta): React.CSSProperties {
+    const col = e.cor || TIPO_DOT[e.tipo];
+    return {
+      color: col,
+      background: hexToBg(col),
+      border: `1px solid ${col}40`,
+    };
+  }
+  function hexToBg(hex: string): string {
+    const c = hex.replace("#", "");
+    if (c.length !== 6) return "#F1F1F1";
+    const r = parseInt(c.slice(0, 2), 16);
+    const g = parseInt(c.slice(2, 4), 16);
+    const b = parseInt(c.slice(4, 6), 16);
+    return `rgba(${r},${g},${b},0.08)`;
+  }
 
-  // ===== Handlers Etiqueta =====
-  const openNewEt = () => { setEtEditId(null); setEtForm({ ...EMPTY_ET, categoryId: selectedCatId === "sem-categoria" ? null : selectedCatId }); setEtModalOpen(true); };
-  const openEditEt = (e: EtiquetaTemplate) => { setEtEditId(e.id); setEtForm({ ...e }); setEtModalOpen(true); };
-  const saveEt = async () => {
-    if (!etForm.texto?.trim()) { alert("Texto é obrigatório."); return; }
-    const { id, category, createdAt, updatedAt, ...payload } = etForm as any;
-    const url = etEditId ? `/api/etiquetas/templates/${etEditId}` : "/api/etiquetas/templates";
-    const method = etEditId ? "PATCH" : "POST";
-    const r = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-    if (!r.ok) {
-      const body = await r.json().catch(() => ({}));
-      alert("Erro: " + (body?.message ? (Array.isArray(body.message) ? body.message.join(", ") : body.message) : `HTTP ${r.status}`));
-      return;
-    }
-    setEtModalOpen(false); loadAll();
-  };
-  const deleteEt = async (e: EtiquetaTemplate) => {
+  // ===== Etiqueta CRUD =====
+  function openENew() { setEEditId(null); setEForm({ ...EMPTY_E, categoryId: filterBloco !== "ALL" && filterBloco !== "NONE" ? filterBloco : null }); setEModalOpen(true); }
+  function openEEdit(e: Etiqueta) { setEEditId(e.id); setEForm({ ...e, aplicaEm: e.aplicaEm.length ? e.aplicaEm : ["Lead"] }); setEModalOpen(true); }
+  async function saveE() {
+    try {
+      const { id, createdAt, updatedAt, category, ...payload } = eForm as any;
+      const url = eEditId ? `/api/etiquetas/${eEditId}` : "/api/etiquetas";
+      const method = eEditId ? "PATCH" : "POST";
+      const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      if (!res.ok) {
+        const err = await res.json().catch(() => null);
+        alert(`Erro: ${err?.message ? (Array.isArray(err.message) ? err.message.join("\n") : err.message) : res.status}`);
+        return;
+      }
+      setEModalOpen(false); await load();
+    } catch (er) { alert(`Erro: ${er}`); }
+  }
+  async function deleteE(e: Etiqueta) {
     if (!confirm(`Excluir etiqueta "${e.texto}"?`)) return;
-    await fetch(`/api/etiquetas/templates/${e.id}`, { method: "DELETE" });
-    loadAll();
-  };
+    const res = await fetch(`/api/etiquetas/${e.id}`, { method: "DELETE" });
+    if (!res.ok) { alert(`Erro: ${res.status}`); return; }
+    await load();
+  }
+  async function toggleAtivo(e: Etiqueta) {
+    const res = await fetch(`/api/etiquetas/${e.id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ativo: !e.ativo }),
+    });
+    if (!res.ok) { alert(`Erro: ${res.status}`); return; }
+    await load();
+  }
 
-  const toggleAplica = (v: string) => {
-    const cur = etForm.aplicaEm || [];
-    if (cur.includes(v)) setEtForm({ ...etForm, aplicaEm: cur.filter((x: string) => x !== v) });
-    else setEtForm({ ...etForm, aplicaEm: [...cur, v] });
-  };
+  // ===== Bloco CRUD =====
+  function openCNew() { setCEditId(null); setCForm(EMPTY_C); setCModalOpen(true); }
+  function openCEdit(c: Bloco) { setCEditId(c.id); setCForm({ ...c }); setCModalOpen(true); }
+  async function saveC() {
+    try {
+      const { id, createdAt, updatedAt, _count, ...payload } = cForm as any;
+      const url = cEditId ? `/api/etiquetas/categorias/${cEditId}` : "/api/etiquetas/categorias";
+      const method = cEditId ? "PATCH" : "POST";
+      const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      if (!res.ok) {
+        const err = await res.json().catch(() => null);
+        alert(`Erro: ${err?.message ? (Array.isArray(err.message) ? err.message.join("\n") : err.message) : res.status}`);
+        return;
+      }
+      setCModalOpen(false); await load();
+    } catch (er) { alert(`Erro: ${er}`); }
+  }
+  async function deleteC(c: Bloco) {
+    if (!confirm(`Excluir bloco "${c.nome}"? As etiquetas ficam sem bloco.`)) return;
+    const res = await fetch(`/api/etiquetas/categorias/${c.id}`, { method: "DELETE" });
+    if (!res.ok) { alert(`Erro: ${res.status}`); return; }
+    if (filterBloco === c.id) setFilterBloco("ALL");
+    await load();
+  }
+
+  const totalSemBloco = etiquetas.filter(e => !e.categoryId).length;
 
   return (
-    <div className="p-4 max-w-6xl mx-auto">
-      <header className="flex items-center gap-3 mb-4">
-        <Link href="/dashboard/configuracoes" className="text-[#5F5E5A] hover:text-[#0E2244]">
-          <LuArrowLeft className="w-5 h-5" />
-        </Link>
-        <div className="flex-1">
-          <h1 className="text-xl text-[#0E2244] font-medium">Etiquetas</h1>
-          <p className="text-sm text-[#888780]">Tags com cor pra organizar Lead, Cliente e Pet</p>
-        </div>
-        <label className="flex items-center gap-1.5 text-xs text-[#5F5E5A]">
-          <input type="checkbox" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} />
-          Mostrar inativas
-        </label>
-      </header>
-
-      <div className="grid grid-cols-[250px_1fr] gap-3">
-        {/* ===== Categorias ===== */}
-        <div className="bg-white rounded-xl border border-[#e8e1d2]">
-          <div className="px-3 py-2.5 border-b border-[#e8e1d2] flex items-center justify-between">
-            <span className="text-[11px] text-[#888780] font-medium">CATEGORIAS</span>
-            <button onClick={openNewCat} className="text-[10px] text-[#009AAC] hover:underline font-medium">+ Nova</button>
+    <div className="min-h-screen bg-white">
+      {/* Header */}
+      <div className="bg-white border-b" style={{ borderColor: "#E8DFC8" }}>
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center gap-3">
+          <Link href="/dashboard/configuracoes" className="p-2 rounded-lg hover:bg-gray-100"><LuArrowLeft size={18} /></Link>
+          <div className="flex-1">
+            <h1 className="text-xl font-semibold" style={{ color: "#0E2244" }}>Etiquetas</h1>
+            <p className="text-sm text-gray-500">Tags com cor pra organizar Lead, Cliente e Pet</p>
           </div>
-          <div className="flex flex-col">
-            <button onClick={() => setSelectedCatId(null)}
-              className={`text-left px-3 py-2 text-xs border-b border-[#f0e8d4] ${selectedCatId === null ? "bg-[#fdfaee] border-l-2 border-l-[#009AAC]" : "hover:bg-[#fdfaee]"}`}>
-              Todas <span className="text-[10px] text-[#888780]">({etiquetas.length})</span>
+          <label className="flex items-center gap-2 text-sm cursor-pointer text-gray-600">
+            <input type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)} />
+            Mostrar inativas
+          </label>
+        </div>
+      </div>
+
+      {/* Toolbar — Novo Bloco (outline) + Nova Etiqueta (filled) */}
+      <div className="max-w-7xl mx-auto px-6 pt-4 flex items-center justify-between gap-3">
+        <button onClick={openCNew}
+          className="px-3 py-2 rounded-lg text-sm font-medium border flex items-center gap-2"
+          style={{ borderColor: "#009AAC", color: "#009AAC", background: "white" }}>
+          <LuPlus size={14} /> Novo Bloco
+        </button>
+        <div className="relative flex-1 max-w-md mx-3">
+          <LuSearch size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar etiquetas..."
+            className="w-full pl-8 pr-3 py-2 border rounded-lg text-sm bg-white"
+            style={{ borderColor: "#E8DFC8" }} />
+        </div>
+        <button onClick={openENew}
+          className="px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-2 text-white"
+          style={{ background: "#009AAC" }}>
+          <LuPlus size={14} /> Nova Etiqueta
+        </button>
+      </div>
+
+      {/* Tabela */}
+      <div className="max-w-7xl mx-auto px-6 py-4">
+        <div className="bg-white border rounded-xl overflow-hidden" style={{ borderColor: "#E8DFC8" }}>
+          <table className="w-full text-sm">
+            <thead className="border-b" style={{ background: "#FAFAFA", borderColor: "#E8DFC8" }}>
+              <tr>
+                <th className="text-left px-4 py-2.5 font-medium text-gray-500 w-8"></th>
+                <th className="text-left px-4 py-2.5 font-medium text-gray-500">Etiqueta</th>
+                <th className="text-left px-4 py-2.5 font-medium text-gray-500 hidden md:table-cell">Bloco</th>
+                <th className="text-left px-4 py-2.5 font-medium text-gray-500 hidden md:table-cell">Aplica em</th>
+                <th className="text-center px-4 py-2.5 font-medium text-gray-500">Ativo</th>
+                <th className="text-right px-4 py-2.5 font-medium text-gray-500 w-24">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading && <tr><td colSpan={6} className="text-center py-8 text-gray-400">Carregando...</td></tr>}
+              {!loading && filtered.length === 0 && <tr><td colSpan={6} className="text-center py-8 text-gray-400">Nenhuma etiqueta.</td></tr>}
+              {filtered.map((e, idx) => {
+                const dot = e.cor || TIPO_DOT[e.tipo];
+                return (
+                  <tr key={e.id} className="border-b hover:bg-gray-50/60 transition" style={{ borderColor: "#F0EBE0", opacity: e.ativo ? 1 : 0.5 }}>
+                    <td className="px-4 py-2.5">
+                      <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: dot }} />
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-medium" style={pillStyle(e)}>
+                        {e.texto}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2.5 hidden md:table-cell text-gray-700">{e.category?.nome || TIPO_LABEL[e.tipo]}</td>
+                    <td className="px-4 py-2.5 hidden md:table-cell text-gray-500">{e.aplicaEm?.join(", ") || "—"}</td>
+                    <td className="px-4 py-2.5 text-center">
+                      <button onClick={() => toggleAtivo(e)} className="inline-flex items-center w-10 h-5 rounded-full transition"
+                        style={{ background: e.ativo ? "#009AAC" : "#CBD5E0" }}>
+                        <span className="block w-4 h-4 rounded-full bg-white transition shadow"
+                          style={{ marginLeft: e.ativo ? 20 : 2 }} />
+                      </button>
+                    </td>
+                    <td className="px-4 py-2.5 text-right">
+                      <button onClick={() => openEEdit(e)} className="p-1 hover:bg-gray-200 rounded inline-block text-gray-600" title="Editar">
+                        <LuPencil size={14} />
+                      </button>
+                      <button onClick={() => deleteE(e)} className="p-1 hover:bg-gray-200 rounded inline-block ml-1" style={{ color: "#EF4444" }} title="Excluir">
+                        <LuX size={14} />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Rodapé — BLOCOS / CATEGORIAS como filtros */}
+      <div className="max-w-7xl mx-auto px-6 py-4">
+        <div className="bg-white border rounded-xl p-4" style={{ borderColor: "#E8DFC8" }}>
+          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">BLOCOS / CATEGORIAS</div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button onClick={() => setFilterBloco("ALL")}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium border flex items-center gap-1.5"
+              style={{
+                borderColor: filterBloco === "ALL" ? "#009AAC" : "#E8DFC8",
+                background: filterBloco === "ALL" ? "#E0F4F6" : "white",
+                color: filterBloco === "ALL" ? "#009AAC" : "#4B5563",
+              }}>
+              Todas <span className="text-gray-400">({etiquetas.length})</span>
             </button>
-            <button onClick={() => setSelectedCatId("sem-categoria")}
-              className={`text-left px-3 py-2 text-xs border-b border-[#f0e8d4] ${selectedCatId === "sem-categoria" ? "bg-[#fdfaee] border-l-2 border-l-[#009AAC]" : "hover:bg-[#fdfaee]"}`}>
-              <em className="text-[#888780]">Sem categoria</em>
+            <button onClick={() => setFilterBloco("NONE")}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium border flex items-center gap-1.5"
+              style={{
+                borderColor: filterBloco === "NONE" ? "#009AAC" : "#E8DFC8",
+                background: filterBloco === "NONE" ? "#E0F4F6" : "white",
+                color: filterBloco === "NONE" ? "#009AAC" : "#4B5563",
+              }}>
+              Sem bloco <span className="text-gray-400">({totalSemBloco})</span>
             </button>
-            {categories.map((c) => (
-              <div key={c.id}
-                className={`flex items-center justify-between border-b border-[#f0e8d4] ${selectedCatId === c.id ? "bg-[#fdfaee] border-l-2 border-l-[#009AAC]" : "hover:bg-[#fdfaee]"}`}>
-                <button onClick={() => setSelectedCatId(c.id)} className="flex-1 text-left px-3 py-2 text-xs text-[#0E2244]">
-                  {c.nome} <span className="text-[10px] text-[#888780]">({c._count?.etiquetas || 0})</span>
+            {blocos.map(b => (
+              <div key={b.id} className="inline-flex items-center gap-0.5 border rounded-lg overflow-hidden"
+                style={{
+                  borderColor: filterBloco === b.id ? "#009AAC" : "#E8DFC8",
+                  background: filterBloco === b.id ? "#E0F4F6" : "white",
+                  opacity: b.ativo ? 1 : 0.5,
+                }}>
+                <button onClick={() => setFilterBloco(b.id)}
+                  className="px-3 py-1.5 text-xs font-medium flex items-center gap-1.5"
+                  style={{ color: filterBloco === b.id ? "#009AAC" : "#4B5563" }}>
+                  {b.nome} <span className="text-gray-400">({b._count?.etiquetas || 0})</span>
                 </button>
-                <div className="relative">
-                  <button onClick={(e) => { e.stopPropagation(); setMenuOpenId(menuOpenId === `cat-${c.id}` ? null : `cat-${c.id}`); }}
-                    className="p-1.5 text-[#5F5E5A] hover:bg-[#f0e8d4] rounded mr-1">
-                    <LuEllipsisVertical className="w-3.5 h-3.5" />
-                  </button>
-                  {menuOpenId === `cat-${c.id}` && (
-                    <div onClick={(e) => e.stopPropagation()}
-                      className="absolute right-0 top-full mt-1 bg-white border border-[#e8e1d2] rounded-lg shadow-xl z-50 py-1 min-w-[120px]">
-                      <button onClick={() => { openEditCat(c); setMenuOpenId(null); }}
-                        className="w-full text-left px-3 py-1.5 text-xs text-[#0E2244] hover:bg-[#fdfaee] flex items-center gap-2">
-                        <LuPencil className="w-3 h-3" />Editar
-                      </button>
-                      <button onClick={() => { deleteCat(c); setMenuOpenId(null); }}
-                        className="w-full text-left px-3 py-1.5 text-xs text-[#A32D2D] hover:bg-[#FCEBEB] flex items-center gap-2">
-                        <LuTrash className="w-3 h-3" />Excluir
-                      </button>
-                    </div>
-                  )}
-                </div>
+                <button onClick={() => openCEdit(b)} className="p-1.5 hover:bg-gray-100 border-l" style={{ borderColor: "#E8DFC8", color: "#4B5563" }} title="Editar bloco">
+                  <LuPencil size={11} />
+                </button>
+                <button onClick={() => deleteC(b)} className="p-1.5 hover:bg-gray-100 border-l" style={{ borderColor: "#E8DFC8", color: "#EF4444" }} title="Excluir bloco">
+                  <LuX size={11} />
+                </button>
               </div>
             ))}
-          </div>
-        </div>
-
-        {/* ===== Etiquetas ===== */}
-        <div className="bg-white rounded-xl border border-[#e8e1d2]">
-          <div className="px-3 py-2.5 border-b border-[#e8e1d2] flex items-center justify-between gap-2">
-            <div className="flex-1 relative">
-              <LuSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#B4B2A9]" />
-              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar etiquetas..."
-                className="w-full pl-8 pr-3 py-1.5 border border-[#e8e1d2] rounded-lg text-xs bg-[#fafafa]" />
-            </div>
-            <button onClick={openNewEt} className="bg-[#009AAC] text-white px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5">
-              <LuPlus className="w-3.5 h-3.5" />Adicionar Etiqueta
+            <button onClick={openCNew}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium border-2 border-dashed flex items-center gap-1.5 text-gray-500 hover:text-gray-700 hover:border-gray-400"
+              style={{ borderColor: "#D1D5DB" }}>
+              <LuPlus size={12} /> Novo bloco
             </button>
-          </div>
-          <div className="p-3">
-            {loading ? (
-              <p className="text-center text-[11px] text-[#888780] py-6">Carregando...</p>
-            ) : filtered.length === 0 ? (
-              <p className="text-center text-[11px] text-[#888780] py-6">
-                Nenhuma etiqueta nesse filtro. Clique em <b>+ Adicionar Etiqueta</b>.
-              </p>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {filtered.map((e) => {
-                  const tipo = TIPO_LABEL[e.tipo];
-                  return (
-                    <div key={e.id} className="border border-[#e8e1d2] rounded-lg p-2.5 bg-[#fbfaf6] min-w-[200px] relative">
-                      <div className="flex items-start justify-between mb-1">
-                        <span style={{ background: e.cor || "#f0e8d4", color: "#fff" }}
-                          className="text-[11px] font-medium px-2 py-0.5 rounded-full inline-block">
-                          {e.texto}
-                        </span>
-                        <div className="relative">
-                          <button onClick={(ev) => { ev.stopPropagation(); setMenuOpenId(menuOpenId === `et-${e.id}` ? null : `et-${e.id}`); }}
-                            className="p-1 text-[#5F5E5A] hover:bg-white rounded">
-                            <LuEllipsisVertical className="w-3.5 h-3.5" />
-                          </button>
-                          {menuOpenId === `et-${e.id}` && (
-                            <div onClick={(ev) => ev.stopPropagation()}
-                              className="absolute right-0 top-full mt-1 bg-white border border-[#e8e1d2] rounded-lg shadow-xl z-50 py-1 min-w-[120px]">
-                              <button onClick={() => { openEditEt(e); setMenuOpenId(null); }}
-                                className="w-full text-left px-3 py-1.5 text-xs text-[#0E2244] hover:bg-[#fdfaee] flex items-center gap-2">
-                                <LuPencil className="w-3 h-3" />Editar
-                              </button>
-                              <button onClick={() => { deleteEt(e); setMenuOpenId(null); }}
-                                className="w-full text-left px-3 py-1.5 text-xs text-[#A32D2D] hover:bg-[#FCEBEB] flex items-center gap-2">
-                                <LuTrash className="w-3 h-3" />Excluir
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1.5 mt-1.5">
-                        <span style={{ background: tipo.bg, color: tipo.color }} className="text-[9px] font-medium px-1.5 py-0.5 rounded">
-                          {tipo.label}
-                        </span>
-                        {!e.ativo && <span className="text-[9px] bg-[#f0e8d4] text-[#5F5E5A] px-1.5 py-0.5 rounded">Inativa</span>}
-                      </div>
-                      <div className="text-[10px] text-[#888780] mt-1.5">
-                        Aplica em: {(e.aplicaEm || []).join(", ") || "—"}
-                      </div>
-                      {e.category && (
-                        <div className="text-[10px] text-[#888780] mt-0.5">Categoria: {e.category.nome}</div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
           </div>
         </div>
       </div>
 
-      {/* ===== Modal Categoria ===== */}
-      {catModalOpen && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setCatModalOpen(false)}>
-          <div className="bg-white rounded-xl p-5 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base text-[#0E2244] font-medium">{catEditId ? "Editar categoria" : "Nova categoria"}</h3>
-              <button onClick={() => setCatModalOpen(false)} className="text-[#5F5E5A] text-xl">×</button>
-            </div>
-            <label className="block text-[11px] text-[#5F5E5A] mb-1 font-medium">Nome *</label>
-            <input value={catForm.nome || ""} onChange={(e) => setCatForm({ ...catForm, nome: e.target.value })}
-              className="w-full px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm mb-3 focus:outline-none focus:border-[#009AAC]" />
-            <label className="block text-[11px] text-[#5F5E5A] mb-1 font-medium">Ordem</label>
-            <input type="number" value={catForm.ordem ?? 0} onChange={(e) => setCatForm({ ...catForm, ordem: parseInt(e.target.value) || 0 })}
-              className="w-full px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm mb-3 focus:outline-none focus:border-[#009AAC]" />
-            <div className="flex items-center gap-2 mb-3">
-              <input type="checkbox" id="cat-ativo" checked={catForm.ativo ?? true} onChange={(e) => setCatForm({ ...catForm, ativo: e.target.checked })} />
-              <label htmlFor="cat-ativo" className="text-sm text-[#0E2244]">Ativa</label>
-            </div>
-            <div className="flex justify-end gap-2">
-              <button onClick={() => setCatModalOpen(false)} className="px-3 py-1.5 text-xs text-[#5F5E5A]">Cancelar</button>
-              <button onClick={saveCat} className="bg-[#009AAC] text-white px-4 py-1.5 rounded-lg text-xs font-medium">Salvar</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ===== Modal Etiqueta ===== */}
-      {etModalOpen && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setEtModalOpen(false)}>
-          <div className="bg-white rounded-xl p-5 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base text-[#0E2244] font-medium">{etEditId ? "Editar etiqueta" : "Nova etiqueta"}</h3>
-              <button onClick={() => setEtModalOpen(false)} className="text-[#5F5E5A] text-xl">×</button>
-            </div>
-            <label className="block text-[11px] text-[#5F5E5A] mb-1 font-medium">Texto *</label>
-            <input value={etForm.texto || ""} onChange={(e) => setEtForm({ ...etForm, texto: e.target.value })}
-              placeholder="VIP, A recuperar, Castrado..."
-              className="w-full px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm mb-3 focus:outline-none focus:border-[#009AAC]" />
-
-            <div className="grid grid-cols-2 gap-3 mb-3">
+      {/* Modal Etiqueta */}
+      {eModalOpen && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setEModalOpen(false)}>
+          <div className="bg-white rounded-xl p-6 max-w-md w-full" onClick={e => e.stopPropagation()}>
+            <h2 className="text-lg font-semibold mb-4" style={{ color: "#0E2244" }}>
+              {eEditId ? "Editar etiqueta" : "Nova etiqueta"}
+            </h2>
+            <div className="space-y-3">
               <div>
-                <label className="block text-[11px] text-[#5F5E5A] mb-1 font-medium">Tipo</label>
-                <select value={etForm.tipo || "CUSTOM"} onChange={(e) => setEtForm({ ...etForm, tipo: e.target.value })}
-                  className="w-full px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm bg-white focus:outline-none focus:border-[#009AAC]">
-                  <option value="CLINICA">Clínica</option>
-                  <option value="STATUS">Status</option>
-                  <option value="CUSTOM">Custom</option>
+                <label className="text-xs text-gray-600">Texto *</label>
+                <input value={eForm.texto || ""} onChange={e => setEForm({ ...eForm, texto: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }} />
+              </div>
+              <div className="grid grid-cols-[1fr_80px] gap-3">
+                <div>
+                  <label className="text-xs text-gray-600">Tipo</label>
+                  <select value={eForm.tipo} onChange={e => setEForm({ ...eForm, tipo: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }}>
+                    {Object.entries(TIPO_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-600">Cor</label>
+                  <input type="color" value={eForm.cor || "#009AAC"} onChange={e => setEForm({ ...eForm, cor: e.target.value })}
+                    className="w-full h-9 border rounded-lg" style={{ borderColor: "#E8DFC8" }} />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-gray-600">Bloco</label>
+                <select value={eForm.categoryId || ""} onChange={e => setEForm({ ...eForm, categoryId: e.target.value || null })}
+                  className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }}>
+                  <option value="">Sem bloco</option>
+                  {blocos.map(b => <option key={b.id} value={b.id}>{b.nome}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-[11px] text-[#5F5E5A] mb-1 font-medium">Cor</label>
-                <input type="color" value={etForm.cor || "#0E2244"} onChange={(e) => setEtForm({ ...etForm, cor: e.target.value })}
-                  className="w-full h-10 border border-[#e8e1d2] rounded-lg cursor-pointer" />
+                <label className="text-xs text-gray-600">Aplica em</label>
+                <div className="flex gap-3 mt-1">
+                  {["Lead", "Cliente", "Pet"].map(opt => (
+                    <label key={opt} className="flex items-center gap-1.5 text-sm cursor-pointer">
+                      <input type="checkbox" checked={(eForm.aplicaEm || []).includes(opt)}
+                        onChange={e => {
+                          const set = new Set(eForm.aplicaEm || []);
+                          if (e.target.checked) set.add(opt); else set.delete(opt);
+                          setEForm({ ...eForm, aplicaEm: Array.from(set) });
+                        }} />
+                      {opt}
+                    </label>
+                  ))}
+                </div>
               </div>
+              <div>
+                <label className="text-xs text-gray-600">Descrição</label>
+                <input value={eForm.descricao || ""} onChange={e => setEForm({ ...eForm, descricao: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }} />
+              </div>
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input type="checkbox" checked={eForm.ativo} onChange={e => setEForm({ ...eForm, ativo: e.target.checked })} />
+                Ativo
+              </label>
             </div>
-
-            <label className="block text-[11px] text-[#5F5E5A] mb-1 font-medium">Categoria</label>
-            <select value={etForm.categoryId || ""} onChange={(e) => setEtForm({ ...etForm, categoryId: e.target.value || null })}
-              className="w-full px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm mb-3 bg-white focus:outline-none focus:border-[#009AAC]">
-              <option value="">Sem categoria</option>
-              {categories.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-            </select>
-
-            <label className="block text-[11px] text-[#5F5E5A] mb-1 font-medium">Aplica em</label>
-            <div className="flex gap-2 mb-3">
-              {APLICA_OPCOES.map((opt) => (
-                <button key={opt} type="button"
-                  onClick={() => toggleAplica(opt)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium ${(etForm.aplicaEm || []).includes(opt) ? "bg-[#009AAC] text-white" : "bg-white border border-[#e8e1d2] text-[#5F5E5A]"}`}>
-                  {opt}
-                </button>
-              ))}
-            </div>
-
-            <label className="block text-[11px] text-[#5F5E5A] mb-1 font-medium">Descrição (opcional)</label>
-            <textarea value={etForm.descricao || ""} onChange={(e) => setEtForm({ ...etForm, descricao: e.target.value })}
-              rows={2}
-              className="w-full px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm mb-3 focus:outline-none focus:border-[#009AAC] resize-none" />
-
-            <div className="flex items-center gap-2 mb-3">
-              <input type="checkbox" id="et-ativo" checked={etForm.ativo ?? true} onChange={(e) => setEtForm({ ...etForm, ativo: e.target.checked })} />
-              <label htmlFor="et-ativo" className="text-sm text-[#0E2244]">Ativa</label>
-            </div>
-
-            <div className="flex justify-end gap-2">
-              <button onClick={() => setEtModalOpen(false)} className="px-3 py-1.5 text-xs text-[#5F5E5A]">Cancelar</button>
-              <button onClick={saveEt} className="bg-[#009AAC] text-white px-4 py-1.5 rounded-lg text-xs font-medium">Salvar</button>
+            <div className="flex justify-end gap-2 mt-5">
+              <button onClick={() => setEModalOpen(false)} className="px-4 py-2 rounded-lg text-sm border" style={{ borderColor: "#E8DFC8" }}>Cancelar</button>
+              <button onClick={saveE} className="px-4 py-2 rounded-lg text-sm text-white" style={{ background: "#009AAC" }}>Salvar</button>
             </div>
           </div>
         </div>
       )}
 
-      
-      {/* Botão Importar planilha (FAB) */}
-      <button
-        onClick={() => setImportOpen(true)}
-        className="fixed bottom-6 right-6 px-4 py-3 rounded-full text-sm shadow-md hover:shadow-lg transition"
-        style={{ background: "#009AAC", color: "white" }}
-        title="Importar planilha"
-      >
-        Importar planilha
-      </button>
-      <CsvImporter
-        open={importOpen} onClose={() => setImportOpen(false)}
-        title="Importar Etiquetas"
-        endpoint="/api/etiquetas/import-batch"
-        exampleHint="Exporte de Base44 > EtiquetaTemplate. Tipos: clinica, status, custom."
-        fields={[{"key": "texto", "label": "Texto", "aliases": ["nome"], "required": true}, {"key": "tipo", "label": "Tipo"}, {"key": "cor", "label": "Cor"}, {"key": "categoria", "label": "Categoria"}, {"key": "aplicaEm", "label": "Aplica em", "aliases": ["aplica_em"]}, {"key": "descricao", "label": "Descri\u00e7\u00e3o"}, {"key": "ativo", "label": "Ativo", "type": "boolean"}]}
-        onSuccess={() => load()}
-      />
+      {/* Modal Bloco */}
+      {cModalOpen && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setCModalOpen(false)}>
+          <div className="bg-white rounded-xl p-6 max-w-md w-full" onClick={e => e.stopPropagation()}>
+            <h2 className="text-lg font-semibold mb-4" style={{ color: "#0E2244" }}>
+              {cEditId ? "Editar bloco" : "Novo bloco"}
+            </h2>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-gray-600">Nome *</label>
+                <input value={cForm.nome || ""} onChange={e => setCForm({ ...cForm, nome: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }} />
+              </div>
+              <div>
+                <label className="text-xs text-gray-600">Ordem</label>
+                <input type="number" value={cForm.ordem || 0} onChange={e => setCForm({ ...cForm, ordem: Number(e.target.value) })}
+                  className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }} />
+              </div>
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input type="checkbox" checked={cForm.ativo} onChange={e => setCForm({ ...cForm, ativo: e.target.checked })} />
+                Ativo
+              </label>
+            </div>
+            <div className="flex justify-end gap-2 mt-5">
+              <button onClick={() => setCModalOpen(false)} className="px-4 py-2 rounded-lg text-sm border" style={{ borderColor: "#E8DFC8" }}>Cancelar</button>
+              <button onClick={saveC} className="px-4 py-2 rounded-lg text-sm text-white" style={{ background: "#009AAC" }}>Salvar</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
