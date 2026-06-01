@@ -54,8 +54,10 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
   const { realRole, effectiveRole, isPreviewing, setPreview } = useRolePreview();
   const role = effectiveRole;
 
-  const isActive = (it: Item) => it.exact ? pathname === it.href : pathname.startsWith(it.href);
-  const visible = (it: Item) => it.roles.includes(role);
+const isActive = (it: Item) => {
+       if (it.exact) return pathname === it.href;
+       return pathname === it.href || pathname.startsWith(it.href + "/");
+     };  const visible = (it: Item) => it.roles.includes(role);
   const tagFor = (it: Item) => {
     if (!it.tag) return null;
     return role === "ADMIN" ? it.tag.admin : role === "VETERINARIAN" ? it.tag.vet : it.tag.recep;
