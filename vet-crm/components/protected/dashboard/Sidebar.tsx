@@ -29,7 +29,7 @@ const NAV: Item[] = [
   { href: "/dashboard/hoje", label: "Hoje", Icon: LuSun, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
   { href: "/dashboard", label: "Dashboard", Icon: LuLayoutDashboard, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"], exact: true },
   { href: "/dashboard/inbox", label: "Inbox BC", Icon: LuMessageSquare, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
-  { href: "/dashboard/inbox-meta", label: "Inbox Meta", Icon: LuMessageSquare, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
+  { href: "/dashboard/inbox-nativo", label: "Inbox Meta", Icon: LuMessageSquare, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
   { href: "/dashboard/crm/leads", label: "Leads", Icon: LuList, roles: ["ADMIN", "RECEPTIONIST"] },
   { href: "/dashboard/erp/tutores", label: "Tutores", Icon: LuUsers, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
   { href: "/dashboard/erp/pets", label: "Pets", Icon: LuPawPrint, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
