@@ -189,8 +189,27 @@ export class BotConversaController {
         }
       }
 
-      // 3) Auto-criar Lead se nada existe
+      // 3) Auto-criar Tutor (se BC marcou como Cliente) OU Lead (default)
       if (tutors.length === 0 && leads.length === 0) {
+        const ehCliente = (body.tipo_contato || '').toLowerCase().includes('client');
+        if (ehCliente) {
+          try {
+            const tutor = await this.prisma.tutor.create({
+              data: {
+                name: tutorName || 'Sem nome',
+                isActive: true,
+                ...(resumo != null && { resumoIa: resumo, resumoIaUpdatedAt: updatedAt }),
+                contacts: { create: [{ type: 'MOBILE', number: phoneDigits, isPrimary: true, isWhatsApp: true }] },
+                ...(email && email.includes('@') ? { email } : {}),
+              } as any,
+            });
+            result.tutorCreated = true;
+            result.tutorId = tutor.id;
+            return result;
+          } catch (e: any) {
+            result.warnings.push(`tutor auto-create failed: ${e?.message || e}`);
+          }
+        }
         const emailFallback = `contato+${phoneDigits}@emporiodopet.crm`;
         const finalEmail = email && email.includes('@') ? email : emailFallback;
         const source = mapSource(body.origem, body.canal);
