@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import Link from "next/link";
 import {
   LuSearch, LuPhone, LuPlus, LuExternalLink, LuChevronRight,
-  LuMessageSquare, LuSparkles, LuRefreshCcw,
+  LuMessageSquare, LuSparkles, LuShare2, LuCheckCheck,
+  LuCalendar, LuFileText, LuFlaskConical, LuStickyNote,
 } from "react-icons/lu";
 import toast from "react-hot-toast";
 import PetIcon from "@/components/profile/PetIcon";
@@ -12,7 +13,7 @@ import { speciesLabel, ageFromBirth } from "@/lib/pets/labels";
 
 interface Contact { id: string; number: string; isPrimary?: boolean; isWhatsApp?: boolean; }
 interface Tutor {
-  id: string; name: string; email?: string | null; cpf?: string | null;
+  id: string; name: string; email?: string | null;
   contacts?: Contact[];
   pets?: Pet[];
   estadoRelacionamento?: string | null;
@@ -26,6 +27,7 @@ interface Lead {
   proximoFollowupAt?: string | null;
   resumoIa?: string | null;
   resumoIaUpdatedAt?: string | null;
+  status?: string;
 }
 interface Pet {
   id: string; name: string; species: string; breed?: string | null;
@@ -38,6 +40,7 @@ interface Atendimento {
   id: string; date: string; type: string; status: string; description?: string | null;
   diagnosis?: string | null; chiefComplaint?: string | null; value?: number;
 }
+interface Staff { id: string; name: string | null; role: string; }
 
 const TYPE_LABEL: Record<string, string> = {
   CONSULTA: "Consulta", RETORNO: "Retorno", AVALIACAO: "Avaliação",
@@ -57,6 +60,12 @@ const ESTADO_RELACIONAMENTO = [
   { v: "INATIVO", label: "Inativo há muito", color: "#64748b", bg: "#f1f5f9" },
 ];
 
+const sourceMap: Record<string, string> = {
+  "Direto": "DIRECT", "Google Ads": "GOOGLE_ADS", "Instagram": "INSTAGRAM",
+  "Facebook": "FACEBOOK", "TikTok": "TIKTOK", "Indicação": "REFERRAL",
+  "Landing Page": "LANDING_PAGE", "WhatsApp": "WHATSAPP", "Email": "EMAIL", "Orgânico": "ORGANIC",
+};
+
 async function safeJson<T>(res: Response, fb: T): Promise<T> {
   try { if (!res.ok) return fb; const d = await res.json(); return d == null ? fb : d; } catch { return fb; }
 }
@@ -75,50 +84,61 @@ function fmtRelative(s?: string | null) {
   if (mins < 60) return `há ${mins}min`;
   const h = Math.floor(mins/60);
   if (h < 24) return `há ${h}h`;
-  const days = Math.floor(h/24);
-  return `há ${days}d`;
+  return `há ${Math.floor(h/24)}d`;
 }
 
 export default function InboxRightPanel({ canal = "BotConversa" }: { canal?: string }) {
   const [search, setSearch] = useState("");
-  const [results, setResults] = useState<Tutor[]>([]);
-  const [leadResults, setLeadResults] = useState<Lead[]>([]);
-  const [chegandoAgora, setChegandoAgora] = useState<Lead[]>([]);
+  const [results, setResults] = useState<{tutors: Tutor[], leads: Lead[]}>({tutors: [], leads: []});
   const [searching, setSearching] = useState(false);
   const [tutor, setTutor] = useState<Tutor | null>(null);
   const [lead, setLead] = useState<Lead | null>(null);
   const [pets, setPets] = useState<Pet[]>([]);
   const [selectedPet, setSelectedPet] = useState<Pet | null>(null);
   const [atendimentos, setAtendimentos] = useState<Atendimento[]>([]);
+  const [chegandoAgora, setChegandoAgora] = useState<Lead[]>([]);
+  const [staff, setStaff] = useState<Staff[]>([]);
+  const [forwardOpen, setForwardOpen] = useState(false);
 
-  // Cadastro inline
   const [cadastroOpen, setCadastroOpen] = useState(false);
   const [cadastroAs, setCadastroAs] = useState<"LEAD" | "CLIENTE">("LEAD");
   const [cadForm, setCadForm] = useState({ nome: "", telefone: "", email: "", canalLead: "WhatsApp", origem: "Direto", petNome: "", petEspecie: "Cão", petIdade: "", notas: "" });
 
-  // Interação
   const [interacaoOpen, setInteracaoOpen] = useState(false);
   const [interacaoForm, setInteracaoForm] = useState({ texto: "", tipo: "NOTA", proximaAcao: "", proximoFollowupAt: "" });
 
-  // Busca Tutor + Lead em paralelo (debounce 300ms)
+  // Carregar staff uma vez
   useEffect(() => {
-    if (!search || search.length < 2) { setResults([]); setLeadResults([]); return; }
+    fetch("/api/inbox/context/staff").then(r => r.json()).then(d => setStaff(Array.isArray(d) ? d : [])).catch(() => {});
+  }, []);
+
+  // BUSCA UNIFICADA (1 resultado consolidado)
+  useEffect(() => {
+    if (!search || search.length < 2) { setResults({tutors: [], leads: []}); return; }
     const t = setTimeout(async () => {
       setSearching(true);
-      const [resTutors, resLeads] = await Promise.all([
-        fetch(`/api/tutors?search=${encodeURIComponent(search)}&limit=10`),
-        fetch(`/api/leads?search=${encodeURIComponent(search)}&limit=10`),
-      ]);
-      const dT = await safeJson<any>(resTutors, {});
-      const dL = await safeJson<any>(resLeads, {});
-      setResults(Array.isArray(dT) ? dT : (dT.tutors || dT.data || []));
-      setLeadResults(Array.isArray(dL) ? dL : (dL.leads || dL.data || []));
+      const res = await fetch(`/api/inbox/context/lookup?search=${encodeURIComponent(search)}`);
+      const d = await safeJson<any>(res, {});
+      // Tutor sempre tem prioridade (ele é o canônico)
+      const ts = (d.tutors || []).slice(0, 5);
+      // Lead aparece SÓ se NÃO há Tutor com mesmo telefone
+      const tutorPhonesTail = new Set<string>();
+      ts.forEach((t: any) => (t.contacts || []).forEach((c: any) => {
+        const dig = (c.number || "").replace(/\D/g, "");
+        tutorPhonesTail.add(dig.length > 9 ? dig.slice(-9) : dig);
+      }));
+      const ls = (d.leads || []).filter((l: any) => {
+        const dig = (l.phone || "").replace(/\D/g, "");
+        const tail = dig.length > 9 ? dig.slice(-9) : dig;
+        return !tutorPhonesTail.has(tail);
+      });
+      setResults({tutors: ts, leads: ls});
       setSearching(false);
     }, 300);
     return () => clearTimeout(t);
   }, [search]);
 
-  // "Chegando agora" — Leads criados via BotConversa nos últimos 30min
+  // Chegando agora
   useEffect(() => {
     if (tutor || lead || search) return;
     let cancelled = false;
@@ -142,15 +162,41 @@ export default function InboxRightPanel({ canal = "BotConversa" }: { canal?: str
 
   async function selectTutor(t: Tutor) {
     setTutor(t);
-    // NÃO limpar lead — mantém ambos visíveis se Lead foi quem trouxe o Tutor
-    setResults([]);
+    setResults({tutors: [], leads: []});
     if (!lead) setSearch(t.name);
-    const res = await fetch(`/api/tutors/${t.id}/pets`);
-    const d = await safeJson<any>(res, []);
-    const list = Array.isArray(d) ? d : (d.pets || []);
-    setPets(list);
-    if (list[0]) selectPet(list[0]);
+
+    // Carregar pets (do tutor)
+    const resP = await fetch(`/api/tutors/${t.id}/pets`);
+    const dP = await safeJson<any>(resP, []);
+    const petsList = Array.isArray(dP) ? dP : (dP.pets || []);
+    setPets(petsList);
+    if (petsList[0]) selectPet(petsList[0]);
     else { setSelectedPet(null); setAtendimentos([]); }
+
+    // Buscar Lead histórico (mesmo telefone)
+    const tutorPhone = (t.contacts || [])[0]?.number;
+    if (tutorPhone) {
+      const tail = tutorPhone.replace(/\D/g, "").slice(-9);
+      const resL = await fetch(`/api/leads?search=${encodeURIComponent(tail)}&limit=3`);
+      const dL = await safeJson<any>(resL, {});
+      const arrL = Array.isArray(dL) ? dL : (dL.leads || []);
+      if (arrL[0]) setLead(arrL[0]);
+    }
+  }
+
+  async function selectLead(l: Lead) {
+    setLead(l);
+    setResults({tutors: [], leads: []});
+    setSearch(l.name || l.phone || "");
+
+    // Buscar Tutor por telefone — se existe, transita pra Tutor (com Lead histórico)
+    if (l.phone) {
+      const tail = l.phone.replace(/\D/g, "").slice(-9);
+      const resT = await fetch(`/api/tutors?search=${encodeURIComponent(tail)}&limit=3`);
+      const dT = await safeJson<any>(resT, {});
+      const arr = Array.isArray(dT) ? dT : (dT.tutors || dT.data || []);
+      if (arr[0]) await selectTutor(arr[0]);
+    }
   }
 
   async function selectPet(p: Pet) {
@@ -164,20 +210,13 @@ export default function InboxRightPanel({ canal = "BotConversa" }: { canal?: str
 
   function reset() {
     setSearch(""); setTutor(null); setLead(null);
-    setResults([]); setLeadResults([]); setPets([]); setSelectedPet(null); setAtendimentos([]);
-    setCadastroOpen(false); setInteracaoOpen(false);
+    setResults({tutors: [], leads: []}); setPets([]); setSelectedPet(null); setAtendimentos([]);
+    setCadastroOpen(false); setInteracaoOpen(false); setForwardOpen(false);
   }
-
-  const tutorPhone = tutor?.contacts?.find(c => c.isWhatsApp)?.number || tutor?.contacts?.find(c => c.isPrimary)?.number || tutor?.contacts?.[0]?.number;
-  const isUnknown = search && search.length >= 2 && !searching && results.length === 0 && leadResults.length === 0 && !tutor && !lead;
 
   async function updateEntityEtapa(entity: "lead" | "pet", id: string, field: string, value: string) {
     const url = entity === "lead" ? `/api/leads/${id}` : `/api/pets/${id}`;
-    const res = await fetch(url, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ [field]: value }),
-    });
+    const res = await fetch(url, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ [field]: value }) });
     if (!res.ok) { toast.error("Erro ao atualizar etapa"); return; }
     toast.success("Etapa atualizada");
     if (entity === "lead" && lead) setLead({ ...lead, [field]: value } as any);
@@ -190,53 +229,45 @@ export default function InboxRightPanel({ canal = "BotConversa" }: { canal?: str
 
   async function updateTutorEstado(value: string) {
     if (!tutor) return;
-    const res = await fetch(`/api/tutors/${tutor.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ estadoRelacionamento: value }),
-    });
+    const res = await fetch(`/api/tutors/${tutor.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ estadoRelacionamento: value }) });
     if (!res.ok) { toast.error("Erro ao atualizar"); return; }
     toast.success("Estado atualizado");
     setTutor({ ...tutor, estadoRelacionamento: value });
   }
 
-  // Mapeia origem amigável → enum LeadSource do backend
-  const sourceMap: Record<string, string> = {
-    "Direto": "DIRECT",
-    "Google Ads": "GOOGLE_ADS",
-    "Instagram": "INSTAGRAM",
-    "Facebook": "FACEBOOK",
-    "TikTok": "TIKTOK",
-    "Indicação": "REFERRAL",
-    "Landing Page": "LANDING_PAGE",
-    "WhatsApp": "WHATSAPP",
-    "Email": "EMAIL",
-    "Orgânico": "ORGANIC",
-  };
+  async function handleForward(userId: string, userName: string) {
+    const res = await fetch("/api/inbox/context/forward", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tutorId: tutor?.id, leadId: lead?.id, toUserId: userId }),
+    });
+    if (!res.ok) { toast.error("Erro ao encaminhar"); return; }
+    toast.success(`Encaminhado para ${userName}`);
+    setForwardOpen(false);
+    reset();
+  }
+
+  async function handleResolve() {
+    if (!confirm("Marcar essa conversa como resolvida?")) return;
+    const res = await fetch("/api/inbox/context/resolve", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tutorId: tutor?.id, leadId: lead?.id }),
+    });
+    if (!res.ok) { toast.error("Erro ao resolver"); return; }
+    toast.success("Resolvido — histórico salvo");
+    reset();
+  }
 
   async function handleConvertLead() {
     if (!lead) return;
     if (!confirm(`Converter ${lead.name || "esse lead"} em cliente?`)) return;
-    try {
-      const res = await fetch(`/api/leads/${lead.id}/convert`, { method: "POST" });
-      if (!res.ok) {
-        const err = await res.json().catch(() => null);
-        toast.error(`Erro: ${err?.message || res.status}`);
-        return;
-      }
-      const data = await res.json();
-      toast.success(data.linked ? "Lead vinculado ao cliente existente" : "Cliente criado a partir do lead");
-      // Buscar o Tutor recém criado/encontrado
-      if (data.tutorId) {
-        const rT = await fetch(`/api/tutors/${data.tutorId}`);
-        const tutor = await safeJson<any>(rT, null);
-        if (tutor) {
-          setLead({ ...lead, status: "CONVERTED" } as any);
-          await selectTutor(tutor);
-        }
-      }
-    } catch (e: any) {
-      toast.error(`Erro: ${e?.message || String(e)}`);
+    const res = await fetch(`/api/leads/${lead.id}/convert`, { method: "POST" });
+    if (!res.ok) { toast.error("Erro ao converter"); return; }
+    const data = await res.json();
+    toast.success(data.linked ? "Vinculado ao cliente existente" : "Cliente criado");
+    if (data.tutorId) {
+      const rT = await fetch(`/api/tutors/${data.tutorId}`);
+      const t = await safeJson<any>(rT, null);
+      if (t) { setLead({ ...lead, status: "CONVERTED" } as any); await selectTutor(t); }
     }
   }
 
@@ -247,8 +278,7 @@ export default function InboxRightPanel({ canal = "BotConversa" }: { canal?: str
     const emailFallback = `contato+${cleanPhone}@emporiodopet.crm`;
     const payload: any = cadastroAs === "LEAD"
       ? {
-          name: cadForm.nome,
-          phone: cleanPhone,
+          name: cadForm.nome, phone: cleanPhone,
           email: (cadForm.email && cadForm.email.includes("@")) ? cadForm.email : emailFallback,
           source: sourceMap[cadForm.origem] || "OTHER",
           customFields: { canal: cadForm.canalLead, petName: cadForm.petNome, especie: cadForm.petEspecie, idade: cadForm.petIdade },
@@ -260,49 +290,37 @@ export default function InboxRightPanel({ canal = "BotConversa" }: { canal?: str
           ...(cadForm.email && cadForm.email.includes("@") ? { email: cadForm.email } : {}),
           ...(cadForm.origem ? { howFoundUs: cadForm.origem } : {}),
         };
-
     const res = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
     if (!res.ok) {
       const err = await res.json().catch(() => null);
       const msg = Array.isArray(err?.message) ? err.message.join(", ") : (err?.message || `HTTP ${res.status}`);
-      // Detectar duplicidade
       if (res.status === 409 || /duplicate|unique|already|já exist/i.test(msg)) {
-        toast.error(`Já existe ${cadastroAs === "LEAD" ? "lead" : "tutor"} com esse email ou telefone. Buscando o existente...`);
-        // Buscar pelo telefone limpo
-        const r = await fetch(`/api/tutors?search=${encodeURIComponent(cleanPhone)}&limit=5`);
+        toast.error("Já existe — buscando o existente...");
+        const r = await fetch(`/api/inbox/context/lookup?phone=${encodeURIComponent(cleanPhone)}`);
         const d = await r.json().catch(() => null);
-        const found = Array.isArray(d) ? d[0] : (d?.tutors || d?.data || [])[0];
-        if (found) {
-          setCadastroOpen(false);
-          await selectTutor(found);
-          return;
-        }
+        if (d?.unified?.tutor) { setCadastroOpen(false); await selectTutor(d.unified.tutor); return; }
+        if (d?.unified?.lead) { setCadastroOpen(false); await selectLead(d.unified.lead); return; }
       }
-      toast.error(`Não consegui cadastrar — ${msg.slice(0, 120)}`);
+      toast.error(`Erro: ${msg.slice(0, 120)}`);
       return;
     }
     const created = await res.json();
-    // Cria pet vinculado se foi cliente e nome do pet preenchido
     if (cadastroAs === "CLIENTE" && cadForm.petNome) {
       const petPayload: any = { name: cadForm.petNome, species: cadForm.petEspecie === "Cão" ? "CANINE" : cadForm.petEspecie === "Gato" ? "FELINE" : "OTHER", tutorId: created.id, status: "ACTIVE" };
       await fetch("/api/pets", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(petPayload) }).catch(() => null);
     }
     toast.success(`${cadastroAs === "LEAD" ? "Lead" : "Cliente"} cadastrado`);
     setCadastroOpen(false);
-    if (cadastroAs === "CLIENTE") {
-      await selectTutor(created);
-    } else {
-      setLead(created);
-      setSearch(created.name || created.phone || "");
-      setResults([]);
-    }
+    if (cadastroAs === "CLIENTE") await selectTutor(created);
+    else await selectLead(created);
   }
 
-  async function handleInteracao() {
-    if (!interacaoForm.texto.trim()) { toast.error("Escreva o resumo"); return; }
+  async function handleInteracao(tipoOverride?: string) {
+    const tipo = tipoOverride || interacaoForm.tipo;
+    if (!interacaoForm.texto.trim() && !tipoOverride) { toast.error("Escreva o resumo"); return; }
     const payload: any = {
-      tipo: interacaoForm.tipo,
-      texto: interacaoForm.texto,
+      tipo,
+      texto: interacaoForm.texto || `${tipo} — registrado às ${new Date().toLocaleString('pt-BR')}`,
       proximaAcao: interacaoForm.proximaAcao || undefined,
       proximoFollowupAt: interacaoForm.proximoFollowupAt ? new Date(interacaoForm.proximoFollowupAt).toISOString() : undefined,
       canal,
@@ -311,15 +329,13 @@ export default function InboxRightPanel({ canal = "BotConversa" }: { canal?: str
       ...(selectedPet && { petId: selectedPet.id }),
     };
     const res = await fetch("/api/interacoes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-    if (!res.ok) {
-      const err = await res.json().catch(() => null);
-      toast.error(`Erro: ${err?.message || res.status}`);
-      return;
-    }
-    toast.success("Interação registrada na ficha");
+    if (!res.ok) { toast.error("Erro"); return; }
+    toast.success("Interação registrada");
     setInteracaoOpen(false);
     setInteracaoForm({ texto: "", tipo: "NOTA", proximaAcao: "", proximoFollowupAt: "" });
   }
+
+  const isUnknown = search && search.length >= 2 && !searching && results.tutors.length === 0 && results.leads.length === 0 && !tutor && !lead;
 
   return (
     <div className="h-full flex flex-col bg-white">
@@ -328,20 +344,10 @@ export default function InboxRightPanel({ canal = "BotConversa" }: { canal?: str
           <span>Contexto da conversa</span>
           <div className="flex items-center gap-2 normal-case">
             {(tutor || lead) && (
-              <button
-                onClick={reset}
-                className="text-[10px] font-semibold flex items-center gap-1 text-gray-400 hover:text-red-500"
-                title="Voltar à lista de contatos chegando"
-              >
-                ← fechar
-              </button>
+              <button onClick={reset} className="text-[10px] font-semibold text-gray-400 hover:text-red-500">← fechar</button>
             )}
             {!tutor && !lead && !cadastroOpen && (
-              <button
-                onClick={() => { setCadastroOpen(true); setCadastroAs("LEAD"); setCadForm({ ...cadForm, telefone: search.replace(/\D/g, "") || search, nome: "" }); }}
-                className="text-[10px] font-semibold flex items-center gap-1"
-                style={{ color: "#009AAC" }}
-              >
+              <button onClick={() => { setCadastroOpen(true); setCadastroAs("LEAD"); setCadForm({ ...cadForm, telefone: search.replace(/\D/g, "") || search, nome: "" }); }} className="text-[10px] font-semibold flex items-center gap-1" style={{ color: "#009AAC" }}>
                 <LuPlus size={10} /> cadastrar
               </button>
             )}
@@ -349,55 +355,32 @@ export default function InboxRightPanel({ canal = "BotConversa" }: { canal?: str
         </div>
         <div className="relative">
           <LuSearch size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            value={search}
-            onChange={e => { setSearch(e.target.value); if (!e.target.value) reset(); }}
-            placeholder="Telefone, nome ou email..."
-            className="w-full pl-8 pr-3 py-2 border rounded-lg text-sm bg-white"
-            style={{ borderColor: "#E8DFC8" }}
-          />
-          {(results.length > 0 || leadResults.length > 0) && (
+          <input value={search} onChange={e => { setSearch(e.target.value); if (!e.target.value) reset(); }} placeholder="Telefone, nome ou email..." className="w-full pl-8 pr-3 py-2 border rounded-lg text-sm bg-white" style={{ borderColor: "#E8DFC8" }} />
+          {(results.tutors.length > 0 || results.leads.length > 0) && (
             <div className="absolute left-0 right-0 top-full mt-1 bg-white border rounded-lg shadow-lg z-30 max-h-72 overflow-y-auto" style={{ borderColor: "#E8DFC8" }}>
-              {results.length > 0 && (
-                <div className="px-2 py-1 text-[9.5px] font-bold uppercase tracking-wide text-gray-400">Clientes</div>
-              )}
-              {results.map(r => {
-                const phone = r.contacts?.find(c => c.isPrimary)?.number || r.contacts?.[0]?.number || "";
+              {results.tutors.map(t => {
+                const phone = t.contacts?.find(c => c.isPrimary)?.number || t.contacts?.[0]?.number || "";
                 return (
-                  <button key={r.id} onClick={() => selectTutor(r)} className="w-full text-left px-3 py-2 hover:bg-gray-50 border-b last:border-b-0" style={{ borderColor: "#F0EBE0" }}>
+                  <button key={t.id} onClick={() => selectTutor(t)} className="w-full text-left px-3 py-2 hover:bg-gray-50 border-b last:border-b-0" style={{ borderColor: "#F0EBE0" }}>
                     <div className="text-sm text-[#014D5E] font-medium flex items-center gap-1.5">
-                      <span style={{ background: "#dcfce7", color: "#15803d", padding: "0 4px", borderRadius: 3, fontSize: 8.5, fontWeight: 700 }}>CLI</span>
-                      {r.name}
+                      <span style={{ background: "#dcfce7", color: "#15803d", padding: "0 4px", borderRadius: 3, fontSize: 8.5, fontWeight: 700 }}>CLIENTE</span>
+                      {t.name}
                     </div>
                     <div className="text-[11px] text-gray-500 flex items-center gap-2">
                       {phone && <span>📞 {phone}</span>}
-                      {r.pets && r.pets.length > 0 && <span>🐾 {r.pets.length}</span>}
+                      {t.pets && t.pets.length > 0 && <span>🐾 {t.pets.length}</span>}
                     </div>
                   </button>
                 );
               })}
-              {leadResults.length > 0 && (
-                <div className="px-2 py-1 text-[9.5px] font-bold uppercase tracking-wide text-gray-400 border-t" style={{ borderColor: "#F0EBE0" }}>Leads</div>
-              )}
-              {leadResults.map(l => (
-                <button key={l.id} onClick={async () => {
-                  setLead(l); setTutor(null); setResults([]); setLeadResults([]); setSearch(l.name || l.phone || ""); setPets([]); setSelectedPet(null); setAtendimentos([]);
-                  if (l.phone) {
-                    const phoneDigits = l.phone.replace(/\D/g, "");
-                    const tail = phoneDigits.length > 9 ? phoneDigits.slice(-9) : phoneDigits;
-                    const rT = await fetch(`/api/tutors?search=${encodeURIComponent(tail)}&limit=3`);
-                    const dT = await safeJson<any>(rT, {});
-                    const tutors = Array.isArray(dT) ? dT : (dT.tutors || dT.data || []);
-                    if (tutors[0]) await selectTutor(tutors[0]);
-                  }
-                }} className="w-full text-left px-3 py-2 hover:bg-gray-50 border-b last:border-b-0" style={{ borderColor: "#F0EBE0" }}>
+              {results.leads.map(l => (
+                <button key={l.id} onClick={() => selectLead(l)} className="w-full text-left px-3 py-2 hover:bg-gray-50 border-b last:border-b-0" style={{ borderColor: "#F0EBE0" }}>
                   <div className="text-sm text-[#014D5E] font-medium flex items-center gap-1.5">
                     <span style={{ background: "#dbeafe", color: "#1e40af", padding: "0 4px", borderRadius: 3, fontSize: 8.5, fontWeight: 700 }}>LEAD</span>
                     {l.name || "Sem nome"}
                   </div>
                   <div className="text-[11px] text-gray-500 flex items-center gap-2">
                     {l.phone && <span>📞 {l.phone}</span>}
-                    {l.pipelineComercialEtapa && <span>📊 {l.pipelineComercialEtapa}</span>}
                   </div>
                 </button>
               ))}
@@ -408,70 +391,50 @@ export default function InboxRightPanel({ canal = "BotConversa" }: { canal?: str
       </div>
 
       <div className="flex-1 overflow-y-auto min-h-0">
-        {/* Estado: vazio */}
-        {!tutor && !lead && !isUnknown && (
-          <>
-            {chegandoAgora.length > 0 && (
-              <section className="px-3 py-3 border-b" style={{ borderColor: "#E8DFC8" }}>
-                <div className="text-[10.5px] font-bold tracking-wide uppercase text-gray-500 mb-2 flex items-center gap-1.5">
-                  📬 Chegando agora <span className="text-[9.5px] font-normal normal-case text-gray-400">· últimos 30min</span>
-                </div>
-                <div className="space-y-1.5">
-                  {chegandoAgora.map(l => (
-                    <button
-                      key={l.id}
-                      onClick={async () => {
-                        setLead(l); setSearch(l.name || l.phone || ""); setResults([]); setLeadResults([]);
-                        // Buscar tutor pelo telefone do lead pra carregar pets/atendimentos
-                        if (l.phone) {
-                          const phoneDigits = l.phone.replace(/\D/g, "");
-                          const tail = phoneDigits.length > 9 ? phoneDigits.slice(-9) : phoneDigits;
-                          const rT = await fetch(`/api/tutors?search=${encodeURIComponent(tail)}&limit=3`);
-                          const dT = await safeJson<any>(rT, {});
-                          const tutors = Array.isArray(dT) ? dT : (dT.tutors || dT.data || []);
-                          if (tutors[0]) await selectTutor(tutors[0]);
-                        }
-                      }}
-                      className="w-full text-left px-2 py-1.5 rounded-lg border hover:bg-gray-50 transition flex items-center gap-2"
-                      style={{ borderColor: "#F0EBE0" }}
-                    >
-                      <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-[9px] font-semibold text-white" style={{ background: "linear-gradient(135deg,#6366f1,#4f46e5)" }}>
-                        BC
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-[12px] font-semibold text-[#014D5E] truncate">{l.name || "Sem nome"}</div>
-                        <div className="text-[10.5px] text-gray-500 truncate">📞 {l.phone || "—"} · {fmtRelative((l as any).firstSeenAt || (l as any).createdAt)}</div>
-                      </div>
-                      <LuChevronRight size={11} className="text-gray-400 flex-shrink-0" />
-                    </button>
-                  ))}
-                </div>
-              </section>
-            )}
-            <div className="flex-1 flex flex-col items-center justify-center px-6 text-center py-8">
-              <div className="text-3xl mb-2">💬</div>
-              <div className="text-sm text-gray-600 font-medium">Selecione um contato</div>
-              <div className="text-xs text-gray-400 mt-1 leading-relaxed">{chegandoAgora.length > 0 ? "Clica num da lista acima ou cole" : "Cole"} o telefone na busca pra ver o contexto.</div>
+        {/* Chegando agora (apenas quando nada selecionado) */}
+        {!tutor && !lead && !isUnknown && chegandoAgora.length > 0 && (
+          <section className="px-3 py-3 border-b" style={{ borderColor: "#E8DFC8" }}>
+            <div className="text-[10.5px] font-bold tracking-wide uppercase text-gray-500 mb-2 flex items-center gap-1.5">
+              📬 Chegando agora <span className="text-[9.5px] font-normal normal-case text-gray-400">· últimos 30min</span>
             </div>
-          </>
+            <div className="space-y-1.5">
+              {chegandoAgora.map(l => (
+                <button key={l.id} onClick={() => selectLead(l)} className="w-full text-left px-2 py-1.5 rounded-lg border hover:bg-gray-50 transition flex items-center gap-2" style={{ borderColor: "#F0EBE0" }}>
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-[9px] font-semibold text-white" style={{ background: "linear-gradient(135deg,#6366f1,#4f46e5)" }}>BC</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[12px] font-semibold text-[#014D5E] truncate">{l.name || "Sem nome"}</div>
+                    <div className="text-[10.5px] text-gray-500 truncate">📞 {l.phone || "—"} · {fmtRelative((l as any).firstSeenAt || (l as any).createdAt)}</div>
+                  </div>
+                  <LuChevronRight size={11} className="text-gray-400 flex-shrink-0" />
+                </button>
+              ))}
+            </div>
+          </section>
         )}
 
-        {/* Estado: contato não encontrado — CTA cadastrar */}
+        {!tutor && !lead && !isUnknown && chegandoAgora.length === 0 && (
+          <div className="flex-1 flex flex-col items-center justify-center px-6 text-center py-8">
+            <div className="text-3xl mb-2">💬</div>
+            <div className="text-sm text-gray-600 font-medium">Selecione um contato</div>
+            <div className="text-xs text-gray-400 mt-1">Cole o telefone na busca pra ver o contexto.</div>
+          </div>
+        )}
+
+        {/* Cadastro inline */}
         {isUnknown && !cadastroOpen && (
           <div className="px-3 py-6 text-center">
             <div className="text-3xl mb-2">🆕</div>
             <div className="text-sm font-semibold text-[#014D5E] mb-1">Contato não cadastrado</div>
-            <div className="text-xs text-gray-500 mb-3 leading-relaxed">"{search}" não está no CRM. Quer cadastrar?</div>
+            <div className="text-xs text-gray-500 mb-3">"{search}" não está no CRM.</div>
             <button onClick={() => { setCadastroOpen(true); setCadastroAs("LEAD"); setCadForm({ ...cadForm, telefone: search.replace(/\D/g, "") || search, nome: "" }); }} className="px-4 py-2 rounded-lg text-xs font-semibold text-white" style={{ background: "#009AAC" }}>+ Cadastrar como Lead</button>
             <div className="mt-2"><button onClick={() => { setCadastroOpen(true); setCadastroAs("CLIENTE"); setCadForm({ ...cadForm, telefone: search.replace(/\D/g, "") || search }); }} className="text-[11px] underline" style={{ color: "#009AAC" }}>ou cadastrar direto como Cliente</button></div>
           </div>
         )}
 
-        {/* Form cadastro inline */}
         {cadastroOpen && (
           <div className="px-3 py-3 space-y-2 bg-[#f6fdfd] border-b" style={{ borderColor: "#E8DFC8" }}>
             <div className="flex items-center justify-between mb-1">
-              <div className="text-[10.5px] font-bold tracking-wide uppercase text-gray-500">Novo {cadastroAs}</div>
+              <div className="text-[10.5px] font-bold uppercase text-gray-500">Novo {cadastroAs}</div>
               <div className="flex items-center gap-1 text-[10px]">
                 <button onClick={() => setCadastroAs("LEAD")} className="px-2 py-0.5 rounded" style={{ background: cadastroAs === "LEAD" ? "#009AAC" : "#f1f5f9", color: cadastroAs === "LEAD" ? "white" : "#64748b" }}>Lead</button>
                 <button onClick={() => setCadastroAs("CLIENTE")} className="px-2 py-0.5 rounded" style={{ background: cadastroAs === "CLIENTE" ? "#009AAC" : "#f1f5f9", color: cadastroAs === "CLIENTE" ? "white" : "#64748b" }}>Cliente</button>
@@ -481,19 +444,13 @@ export default function InboxRightPanel({ canal = "BotConversa" }: { canal?: str
             <input value={cadForm.telefone} onChange={e => setCadForm({ ...cadForm, telefone: e.target.value })} placeholder="Telefone *" className="w-full px-2 py-1.5 border rounded text-xs" style={{ borderColor: "#E8DFC8" }} />
             <input value={cadForm.email} onChange={e => setCadForm({ ...cadForm, email: e.target.value })} placeholder="Email (opcional)" className="w-full px-2 py-1.5 border rounded text-xs" style={{ borderColor: "#E8DFC8" }} />
             <div className="grid grid-cols-2 gap-2">
-              <select value={cadForm.canalLead} onChange={e => setCadForm({ ...cadForm, canalLead: e.target.value })} className="px-2 py-1.5 border rounded text-xs" style={{ borderColor: "#E8DFC8" }}>
-                {["WhatsApp","Ligação","Walk-in","Indicação","Formulário LP"].map(c => <option key={c}>{c}</option>)}
-              </select>
-              <select value={cadForm.origem} onChange={e => setCadForm({ ...cadForm, origem: e.target.value })} className="px-2 py-1.5 border rounded text-xs" style={{ borderColor: "#E8DFC8" }}>
-                {["Direto","Google Ads","Instagram","Facebook","Indicação"].map(c => <option key={c}>{c}</option>)}
-              </select>
+              <select value={cadForm.canalLead} onChange={e => setCadForm({ ...cadForm, canalLead: e.target.value })} className="px-2 py-1.5 border rounded text-xs" style={{ borderColor: "#E8DFC8" }}>{["WhatsApp","Ligação","Walk-in","Indicação","Formulário LP"].map(c => <option key={c}>{c}</option>)}</select>
+              <select value={cadForm.origem} onChange={e => setCadForm({ ...cadForm, origem: e.target.value })} className="px-2 py-1.5 border rounded text-xs" style={{ borderColor: "#E8DFC8" }}>{["Direto","Google Ads","Instagram","Facebook","Indicação"].map(c => <option key={c}>{c}</option>)}</select>
             </div>
             <input value={cadForm.petNome} onChange={e => setCadForm({ ...cadForm, petNome: e.target.value })} placeholder="Nome do pet (opcional)" className="w-full px-2 py-1.5 border rounded text-xs" style={{ borderColor: "#E8DFC8" }} />
             {cadForm.petNome && (
               <div className="grid grid-cols-2 gap-2">
-                <select value={cadForm.petEspecie} onChange={e => setCadForm({ ...cadForm, petEspecie: e.target.value })} className="px-2 py-1.5 border rounded text-xs" style={{ borderColor: "#E8DFC8" }}>
-                  {["Cão","Gato","Outro"].map(c => <option key={c}>{c}</option>)}
-                </select>
+                <select value={cadForm.petEspecie} onChange={e => setCadForm({ ...cadForm, petEspecie: e.target.value })} className="px-2 py-1.5 border rounded text-xs" style={{ borderColor: "#E8DFC8" }}>{["Cão","Gato","Outro"].map(c => <option key={c}>{c}</option>)}</select>
                 <input value={cadForm.petIdade} onChange={e => setCadForm({ ...cadForm, petIdade: e.target.value })} placeholder="Idade" className="px-2 py-1.5 border rounded text-xs" style={{ borderColor: "#E8DFC8" }} />
               </div>
             )}
@@ -508,46 +465,49 @@ export default function InboxRightPanel({ canal = "BotConversa" }: { canal?: str
         {/* Resumo IA */}
         {(tutor?.resumoIa || lead?.resumoIa) && (
           <section className="px-3 py-3 border-b" style={{ borderColor: "#E8DFC8" }}>
-            <div className="text-[10.5px] font-bold tracking-wide uppercase text-gray-500 mb-1.5 flex items-center justify-between">
-              <span className="flex items-center gap-1.5"><LuSparkles size={11} /> Resumo da conversa (IA)</span>
-              <span className="text-[10px] text-gray-400 normal-case font-normal">{fmtRelative(tutor?.resumoIaUpdatedAt || lead?.resumoIaUpdatedAt)}</span>
-            </div>
+            <div className="text-[10.5px] font-bold uppercase text-gray-500 mb-1.5 flex items-center gap-1.5"><LuSparkles size={11} /> Resumo IA <span className="text-[10px] text-gray-400 normal-case font-normal ml-auto">{fmtRelative(tutor?.resumoIaUpdatedAt || lead?.resumoIaUpdatedAt)}</span></div>
             <div className="rounded-md px-3 py-2 text-[11.5px] leading-relaxed" style={{ background: "linear-gradient(135deg, #f0fdfa, #e0f4f6)", border: "1px solid #99e9d8", color: "#0c4a6e" }}>
-              <div className="text-[9.5px] font-bold uppercase mb-1 flex items-center gap-1" style={{ color: "#0e7490" }}>
-                <span style={{ background: "#14b8a6", color: "white", padding: "0 4px", borderRadius: 3, fontSize: 9 }}>IA</span>
-                via BotConversa
-              </div>
+              <div className="text-[9.5px] font-bold uppercase mb-1" style={{ color: "#0e7490" }}><span style={{ background: "#14b8a6", color: "white", padding: "0 4px", borderRadius: 3, fontSize: 9 }}>IA</span> via BotConversa</div>
               {tutor?.resumoIa || lead?.resumoIa}
             </div>
           </section>
         )}
 
-        {/* Tutor / Lead */}
+        {/* Bloco Cliente (Tutor) */}
         {tutor && (
           <section className="px-3 py-3 border-b" style={{ borderColor: "#E8DFC8" }}>
             <div className="flex items-center justify-between mb-2">
-              <div className="text-[10.5px] font-bold tracking-wide uppercase text-gray-500">Cliente</div>
+              <div className="text-[10.5px] font-bold uppercase text-gray-500">Cliente</div>
               <Link href={`/dashboard/erp/tutores/${tutor.id}`} target="_blank" className="text-[10.5px] flex items-center gap-1" style={{ color: "#009AAC" }}>Ficha <LuExternalLink size={10} /></Link>
             </div>
             <div className="flex items-start gap-2.5">
-              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#009AAC] to-[#014D5E] text-white flex items-center justify-center text-xs font-semibold flex-shrink-0">
-                {((tutor.name.split(/\s+/)[0]?.[0] || "") + (tutor.name.split(/\s+/)[1]?.[0] || "")).toUpperCase()}
-              </div>
+              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#009AAC] to-[#014D5E] text-white flex items-center justify-center text-xs font-semibold flex-shrink-0">{((tutor.name.split(/\s+/)[0]?.[0] || "") + (tutor.name.split(/\s+/)[1]?.[0] || "")).toUpperCase()}</div>
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-semibold text-[#014D5E] truncate">{tutor.name}</div>
-                {tutorPhone && <div className="text-[11px] text-gray-500 flex items-center gap-1"><LuPhone size={10} /> {tutorPhone}</div>}
+                {(tutor.contacts?.[0]?.number) && <div className="text-[11px] text-gray-500 flex items-center gap-1"><LuPhone size={10} /> {tutor.contacts[0].number}</div>}
               </div>
             </div>
-            {lead && (lead as any).status === "CONVERTED" && (
-              <Link
-                href={`/dashboard/crm/leads/${lead.id}`}
-                target="_blank"
-                className="flex items-center gap-1 mt-2 pt-2 border-t border-dashed text-[10.5px] text-gray-500 hover:text-[#009AAC]"
-                style={{ borderColor: "#E8DFC8" }}
-                title="Ver histórico do lead que originou esse cliente"
-              >
-                📜 Ver histórico do lead
-              </Link>
+            {/* Botões padronizados Encaminhar/Resolver */}
+            <div className="flex items-center gap-1.5 mt-2.5">
+              <div className="relative flex-1">
+                <button onClick={() => setForwardOpen(o => !o)} className="w-full px-2 py-1.5 rounded text-[10.5px] border flex items-center justify-center gap-1 text-gray-600 hover:text-[#009AAC]" style={{ borderColor: "#E8DFC8" }}><LuShare2 size={11} /> Encaminhar</button>
+                {forwardOpen && (
+                  <div className="absolute left-0 right-0 top-full mt-1 bg-white border rounded-lg shadow-lg z-40 max-h-48 overflow-y-auto" style={{ borderColor: "#E8DFC8" }}>
+                    <div className="px-2 py-1 text-[9.5px] font-bold uppercase text-gray-400">Para quem?</div>
+                    {staff.map(s => (
+                      <button key={s.id} onClick={() => handleForward(s.id, s.name || "")} className="w-full text-left px-2 py-1.5 hover:bg-gray-50 border-t text-xs" style={{ borderColor: "#F0EBE0" }}>
+                        <div className="font-medium text-[#014D5E]">{s.name || "—"}</div>
+                        <div className="text-[10px] text-gray-400">{s.role}</div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <button onClick={handleResolve} className="flex-1 px-2 py-1.5 rounded text-[10.5px] border flex items-center justify-center gap-1" style={{ borderColor: "#22C55E", color: "#16a34a" }}><LuCheckCheck size={11} /> Resolver</button>
+            </div>
+            {/* Histórico do Lead */}
+            {lead && lead.status === "CONVERTED" && (
+              <Link href={`/dashboard/crm/leads/${lead.id}`} target="_blank" className="flex items-center gap-1 mt-2 pt-2 border-t border-dashed text-[10.5px] text-gray-500 hover:text-[#009AAC]" style={{ borderColor: "#E8DFC8" }}>📜 Ver histórico do lead</Link>
             )}
             {/* Estado relacionamento */}
             <div className="mt-2.5">
@@ -555,65 +515,58 @@ export default function InboxRightPanel({ canal = "BotConversa" }: { canal?: str
               <div className="flex flex-wrap gap-1">
                 {ESTADO_RELACIONAMENTO.map(e => {
                   const on = (tutor.estadoRelacionamento || "") === e.v;
-                  return (
-                    <button key={e.v} onClick={() => updateTutorEstado(e.v)} className="text-[9.5px] px-2 py-0.5 rounded font-semibold"
-                      style={{ background: on ? e.color : e.bg, color: on ? "white" : e.color, border: on ? "none" : `1px solid ${e.color}55` }}>
-                      {e.label}
-                    </button>
-                  );
+                  return (<button key={e.v} onClick={() => updateTutorEstado(e.v)} className="text-[9.5px] px-2 py-0.5 rounded font-semibold" style={{ background: on ? e.color : e.bg, color: on ? "white" : e.color, border: on ? "none" : `1px solid ${e.color}55` }}>{e.label}</button>);
                 })}
               </div>
             </div>
           </section>
         )}
 
+        {/* Bloco Lead (só se não tem Tutor) */}
         {lead && !tutor && (
           <section className="px-3 py-3 border-b" style={{ borderColor: "#E8DFC8" }}>
             <div className="flex items-center justify-between mb-2">
-              <div className="text-[10.5px] font-bold tracking-wide uppercase text-gray-500">Lead</div>
+              <div className="text-[10.5px] font-bold uppercase text-gray-500">Lead</div>
               <Link href={`/dashboard/crm/leads/${lead.id}`} target="_blank" className="text-[10.5px] flex items-center gap-1" style={{ color: "#009AAC" }}>Ficha <LuExternalLink size={10} /></Link>
             </div>
             <div className="text-sm font-semibold text-[#014D5E]">{lead.name || "Sem nome"}</div>
             {lead.phone && <div className="text-[11px] text-gray-500 flex items-center gap-1"><LuPhone size={10} /> {lead.phone}</div>}
+            {/* Botões padronizados */}
+            <div className="flex items-center gap-1.5 mt-2">
+              <div className="relative flex-1">
+                <button onClick={() => setForwardOpen(o => !o)} className="w-full px-2 py-1.5 rounded text-[10.5px] border flex items-center justify-center gap-1 text-gray-600 hover:text-[#009AAC]" style={{ borderColor: "#E8DFC8" }}><LuShare2 size={11} /> Encaminhar</button>
+                {forwardOpen && (
+                  <div className="absolute left-0 right-0 top-full mt-1 bg-white border rounded-lg shadow-lg z-40 max-h-48 overflow-y-auto" style={{ borderColor: "#E8DFC8" }}>
+                    <div className="px-2 py-1 text-[9.5px] font-bold uppercase text-gray-400">Para quem?</div>
+                    {staff.map(s => (<button key={s.id} onClick={() => handleForward(s.id, s.name || "")} className="w-full text-left px-2 py-1.5 hover:bg-gray-50 border-t text-xs" style={{ borderColor: "#F0EBE0" }}><div className="font-medium text-[#014D5E]">{s.name || "—"}</div><div className="text-[10px] text-gray-400">{s.role}</div></button>))}
+                  </div>
+                )}
+              </div>
+              <button onClick={handleResolve} className="flex-1 px-2 py-1.5 rounded text-[10.5px] border flex items-center justify-center gap-1" style={{ borderColor: "#22C55E", color: "#16a34a" }}><LuCheckCheck size={11} /> Resolver</button>
+            </div>
             <div className="mt-3">
               <div className="text-[9.5px] font-bold uppercase text-gray-400 mb-1">Pipeline comercial</div>
               <div className="flex flex-wrap gap-1">
                 {PIPELINE_COMERCIAL.map(s => {
                   const on = (lead.pipelineComercialEtapa || "") === s;
-                  return (
-                    <button key={s} onClick={() => updateEntityEtapa("lead", lead.id, "pipelineComercialEtapa", s)} className="text-[9.5px] px-1.5 py-0.5 rounded font-medium"
-                      style={{ background: on ? "linear-gradient(90deg,#009AAC,#00B4C4)" : "#f1f5f9", color: on ? "white" : "#64748b" }}>
-                      {s}
-                    </button>
-                  );
+                  return (<button key={s} onClick={() => updateEntityEtapa("lead", lead.id, "pipelineComercialEtapa", s)} className="text-[9.5px] px-1.5 py-0.5 rounded font-medium" style={{ background: on ? "linear-gradient(90deg,#009AAC,#00B4C4)" : "#f1f5f9", color: on ? "white" : "#64748b" }}>{s}</button>);
                 })}
               </div>
-              {lead.proximoFollowupAt && <div className="text-[10.5px] text-gray-500 mt-1.5">⏰ Próximo FU: <strong>{fmtDate(lead.proximoFollowupAt)}</strong></div>}
             </div>
-            <button
-              onClick={handleConvertLead}
-              className="w-full mt-2 px-3 py-1.5 rounded-lg text-xs font-semibold text-white flex items-center justify-center gap-1.5"
-              style={{ background: "linear-gradient(90deg,#009AAC,#00B4C4)" }}
-              title="Cria Tutor a partir do Lead, mantém Lead como histórico"
-            >
-              → Converter em Cliente
-            </button>
+            <button onClick={handleConvertLead} className="w-full mt-2 px-3 py-1.5 rounded-lg text-xs font-semibold text-white" style={{ background: "linear-gradient(90deg,#009AAC,#00B4C4)" }}>→ Converter em Cliente</button>
           </section>
         )}
 
         {/* Pets */}
         {pets.length > 0 && (
           <section className="px-3 py-3 border-b" style={{ borderColor: "#E8DFC8" }}>
-            <div className="text-[10.5px] font-bold tracking-wide uppercase text-gray-500 mb-1.5">Pets ({pets.length})</div>
+            <div className="text-[10.5px] font-bold uppercase text-gray-500 mb-1.5">Pets ({pets.length})</div>
             <div className="flex flex-col gap-1">
               {pets.map(p => {
                 const active = selectedPet?.id === p.id;
                 return (
-                  <button key={p.id} onClick={() => selectPet(p)} className="flex items-center gap-2 px-2 py-1.5 rounded-lg text-left transition"
-                    style={{ background: active ? "#e0f4f6" : "transparent", border: "1px solid", borderColor: active ? "#009AAC" : "#F0EBE0" }}>
-                    <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: active ? "#009AAC" : "#e6f6f8", color: active ? "white" : "#009AAC" }}>
-                      <PetIcon species={p.species} size={14} />
-                    </div>
+                  <button key={p.id} onClick={() => selectPet(p)} className="flex items-center gap-2 px-2 py-1.5 rounded-lg text-left transition" style={{ background: active ? "#e0f4f6" : "transparent", border: "1px solid", borderColor: active ? "#009AAC" : "#F0EBE0" }}>
+                    <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: active ? "#009AAC" : "#e6f6f8", color: active ? "white" : "#009AAC" }}><PetIcon species={p.species} size={14} /></div>
                     <div className="flex-1 min-w-0">
                       <div className="text-xs font-medium" style={{ color: "#014D5E" }}>{p.name}</div>
                       <div className="text-[10.5px] text-gray-500">{speciesLabel(p.species)}{p.breed ? ` · ${p.breed}` : ""}{p.birthDate ? ` · ${ageFromBirth(p.birthDate)}` : ""}</div>
@@ -628,105 +581,74 @@ export default function InboxRightPanel({ canal = "BotConversa" }: { canal?: str
         {/* Pipelines do Pet */}
         {selectedPet && (
           <section className="px-3 py-3 border-b" style={{ borderColor: "#E8DFC8" }}>
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-[10.5px] font-bold tracking-wide uppercase text-gray-500">Pipelines da {selectedPet.name}</div>
-              <Link href={`/dashboard/erp/pets/${selectedPet.id}`} target="_blank" className="text-[10.5px] flex items-center gap-1" style={{ color: "#009AAC" }}>Ficha <LuExternalLink size={10} /></Link>
-            </div>
-            {selectedPet.observations && (
-              <div className="rounded px-2 py-1 text-[10.5px] mb-2" style={{ background: "#fffbeb", color: "#92611a", border: "1px solid #fde68a" }}>💭 {selectedPet.observations}</div>
-            )}
-
+            <div className="text-[10.5px] font-bold uppercase text-gray-500 mb-2">Pipelines da {selectedPet.name}</div>
+            {selectedPet.observations && <div className="rounded px-2 py-1 text-[10.5px] mb-2" style={{ background: "#fffbeb", color: "#92611a", border: "1px solid #fde68a" }}>💭 {selectedPet.observations}</div>}
             <div className="mb-2">
-              <div className="text-[9.5px] font-bold uppercase text-gray-400 mb-1 flex items-center justify-between">
-                Clínico <span style={{ background: "#fef3c7", color: "#92400e", padding: "0 4px", borderRadius: 3, fontSize: 8.5, fontWeight: 700 }}>CLI</span>
-              </div>
-              <div className="flex flex-wrap gap-1">
-                {PIPELINE_CLINICO.map(s => {
-                  const on = (selectedPet.pipelineClinicoEtapa || "") === s;
-                  return (
-                    <button key={s} onClick={() => updateEntityEtapa("pet", selectedPet.id, "pipelineClinicoEtapa", s)} className="text-[9.5px] px-1.5 py-0.5 rounded font-medium"
-                      style={{ background: on ? "linear-gradient(90deg,#f59e0b,#fbbf24)" : "#f1f5f9", color: on ? "white" : "#64748b" }}>
-                      {s}
-                    </button>
-                  );
-                })}
-              </div>
+              <div className="text-[9.5px] font-bold uppercase text-gray-400 mb-1 flex items-center justify-between">Clínico <span style={{ background: "#fef3c7", color: "#92400e", padding: "0 4px", borderRadius: 3, fontSize: 8.5, fontWeight: 700 }}>CLI</span></div>
+              <div className="flex flex-wrap gap-1">{PIPELINE_CLINICO.map(s => { const on = (selectedPet.pipelineClinicoEtapa || "") === s; return (<button key={s} onClick={() => updateEntityEtapa("pet", selectedPet.id, "pipelineClinicoEtapa", s)} className="text-[9.5px] px-1.5 py-0.5 rounded font-medium" style={{ background: on ? "linear-gradient(90deg,#f59e0b,#fbbf24)" : "#f1f5f9", color: on ? "white" : "#64748b" }}>{s}</button>); })}</div>
             </div>
-
             <div>
-              <div className="text-[9.5px] font-bold uppercase text-gray-400 mb-1 flex items-center justify-between">
-                Fisioterapia <span style={{ background: "#ede9fe", color: "#5b21b6", padding: "0 4px", borderRadius: 3, fontSize: 8.5, fontWeight: 700 }}>FISIO</span>
-              </div>
-              <div className="flex flex-wrap gap-1">
-                {PIPELINE_FISIO.map(s => {
-                  const on = (selectedPet.pipelineFisioEtapa || "") === s;
-                  return (
-                    <button key={s} onClick={() => updateEntityEtapa("pet", selectedPet.id, "pipelineFisioEtapa", s)} className="text-[9.5px] px-1.5 py-0.5 rounded font-medium"
-                      style={{ background: on ? "linear-gradient(90deg,#8b5cf6,#a78bfa)" : "#f1f5f9", color: on ? "white" : "#64748b" }}>
-                      {s}
-                    </button>
-                  );
-                })}
-              </div>
+              <div className="text-[9.5px] font-bold uppercase text-gray-400 mb-1 flex items-center justify-between">Fisioterapia <span style={{ background: "#ede9fe", color: "#5b21b6", padding: "0 4px", borderRadius: 3, fontSize: 8.5, fontWeight: 700 }}>FISIO</span></div>
+              <div className="flex flex-wrap gap-1">{PIPELINE_FISIO.map(s => { const on = (selectedPet.pipelineFisioEtapa || "") === s; return (<button key={s} onClick={() => updateEntityEtapa("pet", selectedPet.id, "pipelineFisioEtapa", s)} className="text-[9.5px] px-1.5 py-0.5 rounded font-medium" style={{ background: on ? "linear-gradient(90deg,#8b5cf6,#a78bfa)" : "#f1f5f9", color: on ? "white" : "#64748b" }}>{s}</button>); })}</div>
             </div>
           </section>
         )}
 
-        {/* Bloco "Registrar Interação" */}
+        {/* AÇÕES NO PET (padrão Inbox nativo) */}
+        {selectedPet && tutor && (
+          <section className="px-3 py-3 border-b" style={{ borderColor: "#E8DFC8" }}>
+            <div className="text-[10.5px] font-bold uppercase text-gray-500 mb-2">⚡ Ações na {selectedPet.name}</div>
+            <div className="grid grid-cols-2 gap-1.5">
+              <button onClick={() => { setInteracaoOpen(true); setInteracaoForm({ ...interacaoForm, tipo: "NOTA" }); }} className="px-2 py-1.5 rounded text-[10.5px] border flex items-center justify-center gap-1 text-gray-600 hover:text-[#009AAC]" style={{ borderColor: "#E8DFC8" }}>
+                <LuStickyNote size={11} /> Nota
+              </button>
+              <Link href={`/dashboard/erp/agendamentos/novo?tutorId=${tutor.id}&petId=${selectedPet.id}`} target="_blank" className="px-2 py-1.5 rounded text-[10.5px] border flex items-center justify-center gap-1 text-gray-600 hover:text-[#009AAC]" style={{ borderColor: "#E8DFC8" }}>
+                <LuCalendar size={11} /> Agendar
+              </Link>
+              <Link href={`/dashboard/erp/pets/${selectedPet.id}`} target="_blank" className="px-2 py-1.5 rounded text-[10.5px] border flex items-center justify-center gap-1 text-gray-600 hover:text-[#009AAC]" style={{ borderColor: "#E8DFC8" }}>
+                <LuFileText size={11} /> Prontuário
+              </Link>
+              <Link href={`/dashboard/erp/pets/${selectedPet.id}/atendimentos/novo?tipo=EXAME`} target="_blank" className="px-2 py-1.5 rounded text-[10.5px] border flex items-center justify-center gap-1 text-gray-600 hover:text-[#009AAC]" style={{ borderColor: "#E8DFC8" }}>
+                <LuFlaskConical size={11} /> Exame
+              </Link>
+            </div>
+          </section>
+        )}
+
+        {/* Registrar Interação */}
         {(tutor || lead) && (
           <section className="px-3 py-3 border-b" style={{ borderColor: "#E8DFC8" }}>
             <div className="flex items-center justify-between mb-2">
-              <div className="text-[10.5px] font-bold tracking-wide uppercase text-gray-500 flex items-center gap-1.5">
-                <LuMessageSquare size={11} /> Registrar interação
-              </div>
-              {!interacaoOpen && (
-                <button onClick={() => setInteracaoOpen(true)} className="text-[10.5px] font-semibold flex items-center gap-1" style={{ color: "#009AAC" }}>
-                  <LuPlus size={11} /> nova
-                </button>
-              )}
+              <div className="text-[10.5px] font-bold uppercase text-gray-500 flex items-center gap-1.5"><LuMessageSquare size={11} /> Registrar interação</div>
+              {!interacaoOpen && (<button onClick={() => setInteracaoOpen(true)} className="text-[10.5px] font-semibold flex items-center gap-1" style={{ color: "#009AAC" }}><LuPlus size={11} /> nova</button>)}
             </div>
             {interacaoOpen && (
               <div className="space-y-2 bg-[#f6fdfd] p-2 rounded-lg border" style={{ borderColor: "#E8DFC8" }}>
                 <select value={interacaoForm.tipo} onChange={e => setInteracaoForm({ ...interacaoForm, tipo: e.target.value })} className="w-full px-2 py-1 text-xs border rounded" style={{ borderColor: "#E8DFC8" }}>
-                  <option value="NOTA">Nota</option>
-                  <option value="WHATSAPP_ENVIADO">WhatsApp enviado</option>
-                  <option value="LIGACAO">Ligação</option>
-                  <option value="EMAIL_ENVIADO">Email</option>
-                  <option value="PRESENCIAL">Presencial</option>
-                  <option value="ENCAMINHAMENTO">Encaminhamento</option>
-                  <option value="AGENDAMENTO">Agendamento</option>
-                  <option value="PERDIDO">Perdido</option>
+                  <option value="NOTA">Nota</option><option value="WHATSAPP_ENVIADO">WhatsApp</option><option value="LIGACAO">Ligação</option><option value="EMAIL_ENVIADO">Email</option><option value="PRESENCIAL">Presencial</option><option value="ENCAMINHAMENTO">Encaminhamento</option><option value="AGENDAMENTO">Agendamento</option>
                 </select>
                 <textarea value={interacaoForm.texto} onChange={e => setInteracaoForm({ ...interacaoForm, texto: e.target.value })} placeholder="Resumo da conversa de hoje..." rows={3} className="w-full px-2 py-1 text-xs border rounded" style={{ borderColor: "#E8DFC8" }} />
                 <input value={interacaoForm.proximaAcao} onChange={e => setInteracaoForm({ ...interacaoForm, proximaAcao: e.target.value })} placeholder="Próxima ação (opcional)" className="w-full px-2 py-1 text-xs border rounded" style={{ borderColor: "#E8DFC8" }} />
-                <div className="flex items-center gap-2">
-                  <input type="date" value={interacaoForm.proximoFollowupAt} onChange={e => setInteracaoForm({ ...interacaoForm, proximoFollowupAt: e.target.value })} placeholder="Próximo FU" className="flex-1 px-2 py-1 text-xs border rounded" style={{ borderColor: "#E8DFC8" }} />
-                </div>
+                <input type="date" value={interacaoForm.proximoFollowupAt} onChange={e => setInteracaoForm({ ...interacaoForm, proximoFollowupAt: e.target.value })} className="w-full px-2 py-1 text-xs border rounded" style={{ borderColor: "#E8DFC8" }} />
                 <div className="flex gap-2">
                   <button onClick={() => setInteracaoOpen(false)} className="flex-1 px-2 py-1 text-xs border rounded" style={{ borderColor: "#E8DFC8" }}>Cancelar</button>
-                  <button onClick={handleInteracao} className="flex-1 px-2 py-1 text-xs text-white rounded font-semibold" style={{ background: "#009AAC" }}>Salvar na ficha</button>
+                  <button onClick={() => handleInteracao()} className="flex-1 px-2 py-1 text-xs text-white rounded font-semibold" style={{ background: "#009AAC" }}>Salvar na ficha</button>
                 </div>
-                <div className="text-[10px] text-gray-400 text-center">Vai pra Histórico de Interações do {tutor ? "tutor" : "lead"}{selectedPet ? ` + ${selectedPet.name}` : ""}</div>
               </div>
             )}
           </section>
         )}
 
-        {/* Pet selecionado: ações + atendimentos */}
+        {/* Atendimentos */}
         {selectedPet && (
           <section className="px-3 py-3 flex-1 flex flex-col">
             <div className="flex items-center justify-between mb-2">
-              <div className="text-[10.5px] font-bold tracking-wide uppercase text-gray-500">Últimos atendimentos ({atendimentos.length})</div>
-              <Link href={`/dashboard/erp/pets/${selectedPet.id}/atendimentos/novo`} target="_blank" className="text-[10.5px] font-semibold flex items-center gap-1" style={{ color: "#009AAC" }}>
-                <LuPlus size={11} /> novo
-              </Link>
+              <div className="text-[10.5px] font-bold uppercase text-gray-500">Últimos atendimentos ({atendimentos.length})</div>
+              <Link href={`/dashboard/erp/pets/${selectedPet.id}/atendimentos/novo`} target="_blank" className="text-[10.5px] font-semibold flex items-center gap-1" style={{ color: "#009AAC" }}><LuPlus size={11} /> novo</Link>
             </div>
             <div className="flex-1 flex flex-col gap-1.5">
               {atendimentos.length === 0 ? (
-                <div className="flex-1 flex flex-col items-center justify-center text-[11px] text-gray-400 text-center px-3">
-                  Nenhum atendimento ainda
-                  <Link href={`/dashboard/erp/pets/${selectedPet.id}/atendimentos/novo`} target="_blank" className="mt-2 px-3 py-1.5 rounded-lg text-xs font-semibold text-white" style={{ background: "#009AAC" }}>+ Novo Atendimento</Link>
-                </div>
+                <div className="flex-1 flex flex-col items-center justify-center text-[11px] text-gray-400 text-center">Nenhum atendimento ainda</div>
               ) : (
                 atendimentos.map(a => (
                   <Link key={a.id} href={`/dashboard/erp/atendimentos/${a.id}`} target="_blank" className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 transition border" style={{ borderColor: "#F0EBE0" }}>
@@ -734,7 +656,6 @@ export default function InboxRightPanel({ canal = "BotConversa" }: { canal?: str
                       <div className="text-[11px] font-semibold" style={{ color: "#014D5E" }}>{TYPE_LABEL[a.type] || a.type} <span className="text-gray-400 font-normal">· {fmtDate(a.date)}</span></div>
                       <div className="text-[10.5px] text-gray-500 truncate">{a.description || a.diagnosis || a.chiefComplaint || "—"}</div>
                     </div>
-                    <LuChevronRight size={11} className="text-gray-400 flex-shrink-0" />
                   </Link>
                 ))
               )}
