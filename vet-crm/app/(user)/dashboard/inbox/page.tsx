@@ -95,7 +95,7 @@ export default function InboxPage() {
         {source === "META" && (
           <iframe
             key={`meta-${reloadKey}`}
-            src="/dashboard/inbox-nativo?embed=1"
+            src="/embed/inbox-meta"
             className="flex-1 border-0 min-w-0"
             title="WhatsApp Meta (via API)"
           />
