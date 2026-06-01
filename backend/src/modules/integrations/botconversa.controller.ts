@@ -13,8 +13,13 @@ interface WebhookBody {
   // Tutor / Lead — aliases
   tutor_nome?: string;
   nome?: string;
+  nome_completo?: string;
   name?: string;
   email?: string;
+
+  // Classificação
+  tipo_contato?: string;  // 'Lead' | 'Cliente' (informativo)
+  trigger?: string;       // 'primeira_msg' | 'fim_fluxo' etc
 
   // Pet
   pet_nome?: string;
@@ -90,7 +95,7 @@ export class BotConversaController {
 
       const updatedAt = body.atualizado_em ? new Date(body.atualizado_em) : new Date();
       const resumo = (body.resumo_ia || body.ResumoIA || '').toString().trim() || null;
-      const tutorName = (body.tutor_nome || body.nome || body.name || '').toString().trim();
+      const tutorName = (body.tutor_nome || body.nome_completo || body.nome || body.name || '').toString().trim();
       const email = (body.email || '').toString().trim();
       const petName = (body.pet_nome || '').toString().trim();
       const petEspecie = mapEspecieToEnum(body.pet_especie);
@@ -165,6 +170,8 @@ export class BotConversaController {
           if (petIdade) newCf.idade = petIdade;
           if (body.canal) newCf.canal = body.canal;
           if (servicoInteresse) newCf.servicoInteresse = servicoInteresse;
+          if (body.trigger) newCf.triggerBC = body.trigger;
+          if (body.tipo_contato) newCf.tipoContatoBC = body.tipo_contato;
 
           await this.prisma.lead.update({
             where: { id: l.id },
@@ -201,6 +208,8 @@ export class BotConversaController {
                 ...(body.pet_especie && { especie: body.pet_especie }),
                 ...(petIdade && { idade: petIdade }),
                 ...(servicoInteresse && { servicoInteresse }),
+                ...(body.trigger && { triggerBC: body.trigger }),
+                ...(body.tipo_contato && { tipoContatoBC: body.tipo_contato }),
                 canal: body.canal || 'WhatsApp',
                 fonte: 'BotConversa Webhook',
               },
