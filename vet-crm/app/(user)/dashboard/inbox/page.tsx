@@ -93,33 +93,12 @@ export default function InboxPage() {
         )}
 
         {source === "META" && (
-          <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-[#dcf8c6]/30 to-white">
-            <div className="text-center max-w-md p-8">
-              <div className="w-16 h-16 mx-auto mb-3 rounded-full flex items-center justify-center" style={{ background: "linear-gradient(135deg,#25D366,#128C7E)" }}>
-                <LuMessageSquare size={28} color="white" />
-              </div>
-              <div className="text-base font-semibold text-[#014D5E] mb-1">WhatsApp Meta Business</div>
-              <div className="text-xs text-gray-600 mb-1 leading-relaxed">
-                O Meta bloqueia incorporar o painel (X-Frame-Options) por segurança.
-              </div>
-              <div className="text-xs text-gray-500 mb-5 leading-relaxed">
-                Use a janela própria do Meta ao lado — o painel à direita continua puxando contexto do CRM e registrando interação na ficha.
-              </div>
-              <div className="flex flex-col gap-2">
-                <button onClick={openMeta} className="px-5 py-2.5 rounded-lg text-sm font-semibold text-white flex items-center justify-center gap-2" style={{ background: "linear-gradient(90deg,#25D366,#128C7E)" }}>
-                  <LuExternalLink size={14} /> Abrir Meta em janela
-                </button>
-                <button onClick={() => setSource("BC")} className="text-xs underline" style={{ color: "#64748b" }}>
-                  voltar pro BotConversa
-                </button>
-              </div>
-              <div className="mt-6 pt-4 border-t border-dashed" style={{ borderColor: "#E8DFC8" }}>
-                <div className="text-[10.5px] text-gray-400 leading-relaxed">
-                  Em construção: tela própria de WhatsApp Meta dentro do app (lendo direto da API). Sem dependência do business.facebook.com.
-                </div>
-              </div>
-            </div>
-          </div>
+          <iframe
+            key={`meta-${reloadKey}`}
+            src="/dashboard/inbox-nativo?embed=1"
+            className="flex-1 border-0 min-w-0"
+            title="WhatsApp Meta (via API)"
+          />
         )}
 
         {source === "NATIVE" && (
