@@ -82,6 +82,7 @@ function fmtRelative(s?: string | null) {
 export default function InboxRightPanel({ canal = "BotConversa" }: { canal?: string }) {
   const [search, setSearch] = useState("");
   const [results, setResults] = useState<Tutor[]>([]);
+  const [leadResults, setLeadResults] = useState<Lead[]>([]);
   const [searching, setSearching] = useState(false);
   const [tutor, setTutor] = useState<Tutor | null>(null);
   const [lead, setLead] = useState<Lead | null>(null);
