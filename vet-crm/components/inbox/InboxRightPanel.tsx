@@ -141,8 +141,10 @@ export default function InboxRightPanel({ canal = "BotConversa" }: { canal?: str
   }, [tutor, lead, search]);
 
   async function selectTutor(t: Tutor) {
-    setTutor(t); setLead(null);
-    setResults([]); setSearch(t.name);
+    setTutor(t);
+    // NÃO limpar lead — mantém ambos visíveis se Lead foi quem trouxe o Tutor
+    setResults([]);
+    if (!lead) setSearch(t.name);
     const res = await fetch(`/api/tutors/${t.id}/pets`);
     const d = await safeJson<any>(res, []);
     const list = Array.isArray(d) ? d : (d.pets || []);
@@ -298,15 +300,26 @@ export default function InboxRightPanel({ canal = "BotConversa" }: { canal?: str
       <div className="px-3 pt-3 pb-2 border-b flex-shrink-0" style={{ borderColor: "#E8DFC8" }}>
         <div className="text-[10.5px] font-bold tracking-wide text-gray-500 uppercase mb-1.5 flex items-center justify-between">
           <span>Contexto da conversa</span>
-          {!tutor && !lead && !cadastroOpen && (
-            <button
-              onClick={() => { setCadastroOpen(true); setCadastroAs("LEAD"); setCadForm({ ...cadForm, telefone: search.replace(/\D/g, "") || search, nome: "" }); }}
-              className="text-[10px] font-semibold flex items-center gap-1 normal-case"
-              style={{ color: "#009AAC" }}
-            >
-              <LuPlus size={10} /> cadastrar
-            </button>
-          )}
+          <div className="flex items-center gap-2 normal-case">
+            {(tutor || lead) && (
+              <button
+                onClick={reset}
+                className="text-[10px] font-semibold flex items-center gap-1 text-gray-400 hover:text-red-500"
+                title="Voltar à lista de contatos chegando"
+              >
+                ← fechar
+              </button>
+            )}
+            {!tutor && !lead && !cadastroOpen && (
+              <button
+                onClick={() => { setCadastroOpen(true); setCadastroAs("LEAD"); setCadForm({ ...cadForm, telefone: search.replace(/\D/g, "") || search, nome: "" }); }}
+                className="text-[10px] font-semibold flex items-center gap-1"
+                style={{ color: "#009AAC" }}
+              >
+                <LuPlus size={10} /> cadastrar
+              </button>
+            )}
+          </div>
         </div>
         <div className="relative">
           <LuSearch size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -341,7 +354,17 @@ export default function InboxRightPanel({ canal = "BotConversa" }: { canal?: str
                 <div className="px-2 py-1 text-[9.5px] font-bold uppercase tracking-wide text-gray-400 border-t" style={{ borderColor: "#F0EBE0" }}>Leads</div>
               )}
               {leadResults.map(l => (
-                <button key={l.id} onClick={() => { setLead(l); setTutor(null); setResults([]); setLeadResults([]); setSearch(l.name || l.phone || ""); setPets([]); setSelectedPet(null); setAtendimentos([]); }} className="w-full text-left px-3 py-2 hover:bg-gray-50 border-b last:border-b-0" style={{ borderColor: "#F0EBE0" }}>
+                <button key={l.id} onClick={async () => {
+                  setLead(l); setTutor(null); setResults([]); setLeadResults([]); setSearch(l.name || l.phone || ""); setPets([]); setSelectedPet(null); setAtendimentos([]);
+                  if (l.phone) {
+                    const phoneDigits = l.phone.replace(/\D/g, "");
+                    const tail = phoneDigits.length > 9 ? phoneDigits.slice(-9) : phoneDigits;
+                    const rT = await fetch(`/api/tutors?search=${encodeURIComponent(tail)}&limit=3`);
+                    const dT = await safeJson<any>(rT, {});
+                    const tutors = Array.isArray(dT) ? dT : (dT.tutors || dT.data || []);
+                    if (tutors[0]) await selectTutor(tutors[0]);
+                  }
+                }} className="w-full text-left px-3 py-2 hover:bg-gray-50 border-b last:border-b-0" style={{ borderColor: "#F0EBE0" }}>
                   <div className="text-sm text-[#014D5E] font-medium flex items-center gap-1.5">
                     <span style={{ background: "#dbeafe", color: "#1e40af", padding: "0 4px", borderRadius: 3, fontSize: 8.5, fontWeight: 700 }}>LEAD</span>
                     {l.name || "Sem nome"}
@@ -371,7 +394,18 @@ export default function InboxRightPanel({ canal = "BotConversa" }: { canal?: str
                   {chegandoAgora.map(l => (
                     <button
                       key={l.id}
-                      onClick={() => { setLead(l); setSearch(l.name || l.phone || ""); setResults([]); setLeadResults([]); }}
+                      onClick={async () => {
+                        setLead(l); setSearch(l.name || l.phone || ""); setResults([]); setLeadResults([]);
+                        // Buscar tutor pelo telefone do lead pra carregar pets/atendimentos
+                        if (l.phone) {
+                          const phoneDigits = l.phone.replace(/\D/g, "");
+                          const tail = phoneDigits.length > 9 ? phoneDigits.slice(-9) : phoneDigits;
+                          const rT = await fetch(`/api/tutors?search=${encodeURIComponent(tail)}&limit=3`);
+                          const dT = await safeJson<any>(rT, {});
+                          const tutors = Array.isArray(dT) ? dT : (dT.tutors || dT.data || []);
+                          if (tutors[0]) await selectTutor(tutors[0]);
+                        }
+                      }}
                       className="w-full text-left px-2 py-1.5 rounded-lg border hover:bg-gray-50 transition flex items-center gap-2"
                       style={{ borderColor: "#F0EBE0" }}
                     >
