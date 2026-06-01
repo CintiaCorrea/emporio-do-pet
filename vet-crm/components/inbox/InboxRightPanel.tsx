@@ -83,6 +83,7 @@ export default function InboxRightPanel({ canal = "BotConversa" }: { canal?: str
   const [search, setSearch] = useState("");
   const [results, setResults] = useState<Tutor[]>([]);
   const [leadResults, setLeadResults] = useState<Lead[]>([]);
+  const [chegandoAgora, setChegandoAgora] = useState<Lead[]>([]);
   const [searching, setSearching] = useState(false);
   const [tutor, setTutor] = useState<Tutor | null>(null);
   const [lead, setLead] = useState<Lead | null>(null);
@@ -333,11 +334,39 @@ export default function InboxRightPanel({ canal = "BotConversa" }: { canal?: str
       <div className="flex-1 overflow-y-auto min-h-0">
         {/* Estado: vazio */}
         {!tutor && !lead && !isUnknown && (
-          <div className="h-full flex flex-col items-center justify-center px-6 text-center">
-            <div className="text-4xl mb-2">💬</div>
-            <div className="text-sm text-gray-600 font-medium">Selecione um tutor</div>
-            <div className="text-xs text-gray-400 mt-1 leading-relaxed">Cole o telefone do contato no BotConversa pra ver o contexto aqui.</div>
-          </div>
+          <>
+            {chegandoAgora.length > 0 && (
+              <section className="px-3 py-3 border-b" style={{ borderColor: "#E8DFC8" }}>
+                <div className="text-[10.5px] font-bold tracking-wide uppercase text-gray-500 mb-2 flex items-center gap-1.5">
+                  📬 Chegando agora <span className="text-[9.5px] font-normal normal-case text-gray-400">· últimos 30min</span>
+                </div>
+                <div className="space-y-1.5">
+                  {chegandoAgora.map(l => (
+                    <button
+                      key={l.id}
+                      onClick={() => { setLead(l); setSearch(l.name || l.phone || ""); setResults([]); setLeadResults([]); }}
+                      className="w-full text-left px-2 py-1.5 rounded-lg border hover:bg-gray-50 transition flex items-center gap-2"
+                      style={{ borderColor: "#F0EBE0" }}
+                    >
+                      <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-[9px] font-semibold text-white" style={{ background: "linear-gradient(135deg,#6366f1,#4f46e5)" }}>
+                        BC
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[12px] font-semibold text-[#014D5E] truncate">{l.name || "Sem nome"}</div>
+                        <div className="text-[10.5px] text-gray-500 truncate">📞 {l.phone || "—"} · {fmtRelative((l as any).firstSeenAt || (l as any).createdAt)}</div>
+                      </div>
+                      <LuChevronRight size={11} className="text-gray-400 flex-shrink-0" />
+                    </button>
+                  ))}
+                </div>
+              </section>
+            )}
+            <div className="flex-1 flex flex-col items-center justify-center px-6 text-center py-8">
+              <div className="text-3xl mb-2">💬</div>
+              <div className="text-sm text-gray-600 font-medium">Selecione um contato</div>
+              <div className="text-xs text-gray-400 mt-1 leading-relaxed">{chegandoAgora.length > 0 ? "Clica num da lista acima ou cole" : "Cole"} o telefone na busca pra ver o contexto.</div>
+            </div>
+          </>
         )}
 
         {/* Estado: contato não encontrado — CTA cadastrar */}

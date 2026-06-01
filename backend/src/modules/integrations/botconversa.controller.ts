@@ -41,6 +41,7 @@ interface WebhookBody {
 }
 
 function onlyDigits(s?: string): string { return (s || '').replace(/\D/g, ''); }
+function last9(s: string): string { return s.length > 9 ? s.slice(-9) : s; }
 
 function mapEspecieToEnum(es?: string): string {
   if (!es) return 'OTHER';
@@ -106,7 +107,7 @@ export class BotConversaController {
       let tutors: any[] = [];
       try {
         tutors = await this.prisma.tutor.findMany({
-          where: { contacts: { some: { number: { contains: phoneDigits } } } },
+          where: { contacts: { some: { number: { contains: last9(phoneDigits) } } } },
           select: { id: true, name: true, pets: { select: { id: true, name: true } } },
           take: 5,
         });
@@ -153,7 +154,7 @@ export class BotConversaController {
       let leads: any[] = [];
       try {
         leads = await this.prisma.lead.findMany({
-          where: { phone: { contains: phoneDigits } },
+          where: { phone: { contains: last9(phoneDigits) } },
           select: { id: true, customFields: true, name: true },
           take: 5,
         });

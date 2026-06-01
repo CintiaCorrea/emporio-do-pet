@@ -72,15 +72,17 @@ export class TutorsService {
   async findAll(params?: { search?: string; skip?: number; take?: number }) {
     const { search, skip = 0, take = 20 } = params || {};
 
-    // Normaliza telefone (remove não-dígitos) pra busca por contato
+    // Normaliza telefone (remove não-dígitos) e usa últimos 9 dígitos
+    // pra casar com qualquer formato (5585xxx ou 85xxx)
     const onlyDigits = search ? search.replace(/\D/g, '') : '';
+    const tail9 = onlyDigits.length > 9 ? onlyDigits.slice(-9) : onlyDigits;
     const where = search
       ? {
           OR: [
             { name: { contains: search, mode: 'insensitive' as const } },
             { email: { contains: search, mode: 'insensitive' as const } },
             { cpf: { contains: search } },
-            ...(onlyDigits ? [{ contacts: { some: { number: { contains: onlyDigits } } } }] : []),
+            ...(onlyDigits ? [{ contacts: { some: { number: { contains: tail9 } } } }] : []),
           ],
         }
       : {};
