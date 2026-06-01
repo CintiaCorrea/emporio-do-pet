@@ -48,10 +48,12 @@ export class LeadsService {
     const where: Prisma.LeadWhereInput = {};
 
     if (search) {
+      const onlyDigits = search.replace(/\D/g, '');
+      const tail9 = onlyDigits.length > 9 ? onlyDigits.slice(-9) : onlyDigits;
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } },
         { email: { contains: search, mode: 'insensitive' } },
-        { phone: { contains: search } },
+        ...(onlyDigits ? [{ phone: { contains: tail9 } }] : [{ phone: { contains: search } }]),
       ];
     }
 
