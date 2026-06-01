@@ -214,6 +214,32 @@ export default function InboxRightPanel({ canal = "BotConversa" }: { canal?: str
     "Orgânico": "ORGANIC",
   };
 
+  async function handleConvertLead() {
+    if (!lead) return;
+    if (!confirm(`Converter ${lead.name || "esse lead"} em cliente?`)) return;
+    try {
+      const res = await fetch(`/api/leads/${lead.id}/convert`, { method: "POST" });
+      if (!res.ok) {
+        const err = await res.json().catch(() => null);
+        toast.error(`Erro: ${err?.message || res.status}`);
+        return;
+      }
+      const data = await res.json();
+      toast.success(data.linked ? "Lead vinculado ao cliente existente" : "Cliente criado a partir do lead");
+      // Buscar o Tutor recém criado/encontrado
+      if (data.tutorId) {
+        const rT = await fetch(`/api/tutors/${data.tutorId}`);
+        const tutor = await safeJson<any>(rT, null);
+        if (tutor) {
+          setLead({ ...lead, status: "CONVERTED" } as any);
+          await selectTutor(tutor);
+        }
+      }
+    } catch (e: any) {
+      toast.error(`Erro: ${e?.message || String(e)}`);
+    }
+  }
+
   async function handleCadastro() {
     if (!cadForm.nome || !cadForm.telefone) { toast.error("Nome e telefone obrigatórios"); return; }
     const endpoint = cadastroAs === "LEAD" ? "/api/leads" : "/api/tutors";
@@ -512,6 +538,17 @@ export default function InboxRightPanel({ canal = "BotConversa" }: { canal?: str
                 {tutorPhone && <div className="text-[11px] text-gray-500 flex items-center gap-1"><LuPhone size={10} /> {tutorPhone}</div>}
               </div>
             </div>
+            {lead && (lead as any).status === "CONVERTED" && (
+              <Link
+                href={`/dashboard/crm/leads/${lead.id}`}
+                target="_blank"
+                className="flex items-center gap-1 mt-2 pt-2 border-t border-dashed text-[10.5px] text-gray-500 hover:text-[#009AAC]"
+                style={{ borderColor: "#E8DFC8" }}
+                title="Ver histórico do lead que originou esse cliente"
+              >
+                📜 Ver histórico do lead
+              </Link>
+            )}
             {/* Estado relacionamento */}
             <div className="mt-2.5">
               <div className="text-[9.5px] font-bold uppercase text-gray-400 mb-1">Estado de relacionamento</div>
@@ -553,6 +590,14 @@ export default function InboxRightPanel({ canal = "BotConversa" }: { canal?: str
               </div>
               {lead.proximoFollowupAt && <div className="text-[10.5px] text-gray-500 mt-1.5">⏰ Próximo FU: <strong>{fmtDate(lead.proximoFollowupAt)}</strong></div>}
             </div>
+            <button
+              onClick={handleConvertLead}
+              className="w-full mt-2 px-3 py-1.5 rounded-lg text-xs font-semibold text-white flex items-center justify-center gap-1.5"
+              style={{ background: "linear-gradient(90deg,#009AAC,#00B4C4)" }}
+              title="Cria Tutor a partir do Lead, mantém Lead como histórico"
+            >
+              → Converter em Cliente
+            </button>
           </section>
         )}
 
