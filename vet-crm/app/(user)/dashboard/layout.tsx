@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useSession } from 'next-auth/react';
+import { useSearchParams } from 'next/navigation';
 import Sidebar from '@/components/protected/dashboard/Sidebar';
 import Header from '@/components/protected/dashboard/Header';
 import HotToaster from '@/components/common/HotToaster';
@@ -13,6 +14,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
   const { data: session } = useSession();
   const realRole = session?.user?.role;
+  const searchParams = useSearchParams();
+  const embedMode = searchParams?.get('embed') === '1';
+
+  // Modo embed: renderiza só o conteúdo, sem sidebar/header (pra usar dentro de iframe)
+  if (embedMode) {
+    return (
+      <RolePreviewProvider realRole={realRole}>
+        <PageHeaderProvider>
+          <HotToaster />
+          <main className="min-h-screen" style={{ background: "#f6f8f9" }}>
+            {children}
+          </main>
+        </PageHeaderProvider>
+      </RolePreviewProvider>
+    );
+  }
 
   return (
     <RolePreviewProvider realRole={realRole}>
