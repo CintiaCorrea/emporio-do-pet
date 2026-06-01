@@ -100,18 +100,45 @@ export default function InboxRightPanel({ canal = "BotConversa" }: { canal?: str
   const [interacaoOpen, setInteracaoOpen] = useState(false);
   const [interacaoForm, setInteracaoForm] = useState({ texto: "", tipo: "NOTA", proximaAcao: "", proximoFollowupAt: "" });
 
+  // Busca Tutor + Lead em paralelo (debounce 300ms)
   useEffect(() => {
-    if (!search || search.length < 2) { setResults([]); return; }
+    if (!search || search.length < 2) { setResults([]); setLeadResults([]); return; }
     const t = setTimeout(async () => {
       setSearching(true);
-      const res = await fetch(`/api/tutors?search=${encodeURIComponent(search)}&limit=10`);
-      const d = await safeJson<any>(res, {});
-      const arr = Array.isArray(d) ? d : (d.tutors || d.data || []);
-      setResults(arr);
+      const [resTutors, resLeads] = await Promise.all([
+        fetch(`/api/tutors?search=${encodeURIComponent(search)}&limit=10`),
+        fetch(`/api/leads?search=${encodeURIComponent(search)}&limit=10`),
+      ]);
+      const dT = await safeJson<any>(resTutors, {});
+      const dL = await safeJson<any>(resLeads, {});
+      setResults(Array.isArray(dT) ? dT : (dT.tutors || dT.data || []));
+      setLeadResults(Array.isArray(dL) ? dL : (dL.leads || dL.data || []));
       setSearching(false);
     }, 300);
     return () => clearTimeout(t);
   }, [search]);
+
+  // "Chegando agora" — Leads criados via BotConversa nos últimos 30min
+  useEffect(() => {
+    if (tutor || lead || search) return;
+    let cancelled = false;
+    async function load() {
+      try {
+        const res = await fetch(`/api/leads?source=WHATSAPP&limit=15`);
+        const d = await safeJson<any>(res, {});
+        const arr = Array.isArray(d) ? d : (d.leads || d.data || []);
+        const cutoff = Date.now() - 30 * 60 * 1000;
+        const recent = arr.filter((l: any) => {
+          const t = new Date(l.firstSeenAt || l.createdAt || 0).getTime();
+          return t >= cutoff;
+        });
+        if (!cancelled) setChegandoAgora(recent);
+      } catch { /* ignore */ }
+    }
+    load();
+    const id = setInterval(load, 30000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, [tutor, lead, search]);
 
   async function selectTutor(t: Tutor) {
     setTutor(t); setLead(null);
