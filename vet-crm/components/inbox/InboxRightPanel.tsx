@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import {
   LuSearch, LuPhone, LuPlus, LuExternalLink, LuShare2, LuCheckCheck,
   LuMessageSquare, LuSparkles, LuCalendar, LuFileText, LuFlaskConical, LuStickyNote,
-  LuX, LuArrowUpRight,
+  LuX, LuArrowUpRight, LuInbox, LuMessageCircle, LuRefreshCcw,
 } from "react-icons/lu";
 import toast from "react-hot-toast";
 import PetIcon from "@/components/profile/PetIcon";
@@ -24,7 +24,7 @@ interface Tutor {
   createdAt?: string | null;
 }
 interface Lead {
-  id: string; name?: string | null; phone?: string | null;
+  id: string; name?: string | null; phone?: string | null; email?: string | null;
   pipelineComercialEtapa?: string | null;
   proximoFollowupAt?: string | null;
   resumoIa?: string | null;
@@ -32,6 +32,8 @@ interface Lead {
   status?: string;
   source?: string | null;
   createdAt?: string | null;
+  customFields?: any;
+  notes?: string | null;
 }
 interface Pet {
   id: string; name: string; species: string; breed?: string | null;
@@ -49,6 +51,17 @@ interface HistoricoItem {
   href?: string;
 }
 interface Staff { id: string; name: string | null; role: string; }
+interface IncomingItem {
+  id: string;
+  kind: "LEAD" | "CLIENTE";
+  name: string;
+  phone: string;
+  petName?: string;
+  petSpecies?: string;
+  servico?: string;
+  createdAt: string;
+  raw: Lead | Tutor;
+}
 
 const TYPE_LABEL: Record<string, string> = {
   CONSULTA: "Consulta", RETORNO: "Retorno", AVALIACAO: "Avaliação",
@@ -95,7 +108,6 @@ function formatPhone(raw: string): string {
   if (d.length !== 13) return raw || "";
   return `55 (${d.slice(2, 4)}) ${d.slice(4, 9)}-${d.slice(9)}`;
 }
-
 async function safeJson<T>(res: Response, fb: T): Promise<T> {
   try { if (!res.ok) return fb; const d = await res.json(); return d == null ? fb : d; } catch { return fb; }
 }
@@ -132,7 +144,40 @@ function formatLtv(cents?: number | null) {
   return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 }
 
+// Extrai serviço solicitado do texto do resumo IA (parsing simples por palavras-chave).
+const SERVICO_KEYWORDS: { pattern: RegExp; label: string }[] = [
+  { pattern: /banho\s*e\s*tosa|banho|tosa/i, label: "Banho e tosa" },
+  { pattern: /retorno|consulta\s*de\s*retorno/i, label: "Consulta de retorno" },
+  { pattern: /vacina[çc][ãa]o|vacina/i, label: "Vacinação" },
+  { pattern: /fisio(terapia)?|reabilita[çc][ãa]o/i, label: "Fisioterapia" },
+  { pattern: /castra[çc][ãa]o|esteriliza[çc][ãa]o/i, label: "Castração" },
+  { pattern: /exame|sangue|raio-?x|ultrassom/i, label: "Exame" },
+  { pattern: /emerg[êe]ncia|urg[êe]ncia/i, label: "Emergência" },
+  { pattern: /consulta(?!.*retorno)/i, label: "Consulta" },
+  { pattern: /interna[çc][ãa]o|interna/i, label: "Internação" },
+  { pattern: /cirurgia/i, label: "Cirurgia" },
+];
+function extrairServico(resumo?: string | null, customField?: string | null): string | null {
+  if (customField && customField.trim()) return customField.trim();
+  if (!resumo) return null;
+  for (const { pattern, label } of SERVICO_KEYWORDS) {
+    if (pattern.test(resumo)) return label;
+  }
+  return null;
+}
+
+type Tab = "inbox" | "contexto";
+
 export default function InboxRightPanel({ canal = "BotConversa", initialPhone }: { canal?: string; initialPhone?: string | null }) {
+  // ===== Tab control =====
+  const [activeTab, setActiveTab] = useState<Tab>("inbox");
+
+  // ===== Caixa de Entrada =====
+  const [incoming, setIncoming] = useState<IncomingItem[]>([]);
+  const [loadingIncoming, setLoadingIncoming] = useState(false);
+  const [incomingLimit, setIncomingLimit] = useState(20);
+
+  // ===== Busca / contexto =====
   const [search, setSearch] = useState("");
   const [results, setResults] = useState<{ tutors: Tutor[]; leads: Lead[] }>({ tutors: [], leads: [] });
   const [searching, setSearching] = useState(false);
@@ -142,7 +187,6 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
   const [pets, setPets] = useState<Pet[]>([]);
   const [selectedPet, setSelectedPet] = useState<Pet | null>(null);
   const [historico, setHistorico] = useState<HistoricoItem[]>([]);
-  const [chegandoAgora, setChegandoAgora] = useState<Lead[]>([]);
   const [staff, setStaff] = useState<Staff[]>([]);
   const [forwardOpen, setForwardOpen] = useState(false);
 
@@ -163,40 +207,86 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
   const [editingInteracaoId, setEditingInteracaoId] = useState<string | null>(null);
   const [interacaoDraft, setInteracaoDraft] = useState("");
 
+  // Pet de interesse no Lead (novo)
+  const [leadPetNome, setLeadPetNome] = useState("");
+  const [leadPetEspecie, setLeadPetEspecie] = useState("Cão");
+
   useEffect(() => {
     fetch("/api/inbox/context/staff").then(r => r.json()).then(d => setStaff(Array.isArray(d) ? d : [])).catch(() => {});
   }, []);
 
-  // Quando recebe initialPhone (ex: Inbox Meta selecionou uma conversa), dispara lookup automatico
-  useEffect(() => {
-    if (!initialPhone) return;
-    const tail = last9(initialPhone);
-    if (!tail || tail.length < 8) return;
-    let cancelled = false;
-    (async () => {
+  // === Caixa de Entrada: carrega Leads recentes não-resolvidos + Tutores com conversa BC ativa ===
+  async function loadIncoming() {
+    setLoadingIncoming(true);
+    try {
+      const items: IncomingItem[] = [];
+      // Leads recentes (não-convertidos, não-resolvidos)
+      const rL = await fetch(`/api/leads?source=WHATSAPP&limit=${incomingLimit}`);
+      const dL = await safeJson<any>(rL, {});
+      const arrL = Array.isArray(dL) ? dL : (dL.leads || dL.data || []);
+      arrL.forEach((l: any) => {
+        if (l.status === "CONVERTED" || l.status === "RESOLVED" || l.status === "LOST") return;
+        const cf = l.customFields || {};
+        const servico = extrairServico(l.resumoIa, cf.servicoInteresse || cf.servico_interesse);
+        items.push({
+          id: `L-${l.id}`,
+          kind: "LEAD",
+          name: l.name || "Sem nome",
+          phone: l.phone || "",
+          petName: cf.petName || cf.pet_name || cf.petNome,
+          petSpecies: cf.especie || cf.species,
+          servico: servico || undefined,
+          createdAt: l.firstSeenAt || l.createdAt || new Date().toISOString(),
+          raw: l,
+        });
+      });
+      // Tutores que receberam mensagem recente (via WhatsApp conversations abertas)
       try {
-        const res = await fetch(`/api/inbox/context/lookup?phone=${encodeURIComponent(initialPhone)}`);
-        const d = await safeJson<any>(res, {});
-        if (cancelled) return;
-        const tutorMatch = d?.unified?.tutor || (d.tutors || [])[0];
-        const leadMatch = d?.unified?.lead || (d.leads || [])[0];
-        if (tutorMatch) { await selectTutor(tutorMatch); return; }
-        if (leadMatch) { await selectLead(leadMatch); return; }
-        // Nao encontrou nada: limpa estado e prepara busca com o phone preenchido
-        setSearch(initialPhone);
-      } catch { /* ignore */ }
-    })();
-    return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialPhone]);
+        const rC = await fetch(`/api/whatsapp/conversations?status=open&limit=${incomingLimit}`);
+        const dC = await safeJson<any>(rC, {});
+        const arrC = Array.isArray(dC) ? dC : (dC.conversations || dC.data || []);
+        for (const c of arrC) {
+          if (!c.tutor || !c.tutor.id) continue;
+          const phone = c.contactNumber || (c.tutor.contacts || [])[0]?.number || "";
+          items.push({
+            id: `T-${c.tutor.id}`,
+            kind: "CLIENTE",
+            name: c.tutor.name || "Sem nome",
+            phone,
+            createdAt: c.lastMessageAt || c.createdAt || new Date().toISOString(),
+            raw: c.tutor,
+          });
+        }
+      } catch { /* ignora se endpoint não existir ainda */ }
+      // Ordena por data desc, dedupe por phone (último 9)
+      const seenPhones = new Set<string>();
+      const dedupado = items
+        .filter(it => {
+          const t = last9(it.phone);
+          if (!t) return true;
+          if (seenPhones.has(t)) return false;
+          seenPhones.add(t); return true;
+        })
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      setIncoming(dedupado);
+    } catch { /* ignore */ }
+    setLoadingIncoming(false);
+  }
 
+  useEffect(() => {
+    loadIncoming();
+    const id = setInterval(loadIncoming, 30000); // refetch a cada 30s
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [incomingLimit]);
+
+  // === Busca por texto/telefone ===
   useEffect(() => {
     if (!search || search.length < 2) { setResults({ tutors: [], leads: [] }); return; }
     const t = setTimeout(async () => {
       setSearching(true);
       const res = await fetch(`/api/inbox/context/lookup?search=${encodeURIComponent(search)}`);
       const d = await safeJson<any>(res, {});
-      // BASE DE DEDUPE = ULTIMOS 9 DIGITOS DO TELEFONE. Nunca aparece 2 registros com o mesmo last9.
       const seenTutorPhones = new Set<string>();
       const ts = ((d.tutors || []) as any[]).filter(t => {
         const phones = (t.contacts || []).map((c: any) => last9(c.number || "")).filter((p: string) => p && p.length >= 8);
@@ -206,7 +296,6 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
         seenTutorPhones.add(main);
         return true;
       }).slice(0, 5);
-      // Dedupe Leads pelos ultimos 9 digitos + remove leads cujo phone ja tem Tutor.
       const seenLeadPhones = new Set<string>();
       const ls = ((d.leads || []) as any[]).filter(l => {
         const tail = last9(l.phone || "");
@@ -222,23 +311,27 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
     return () => clearTimeout(t);
   }, [search]);
 
+  // initialPhone (Inbox Meta passa o phone do contato selecionado)
   useEffect(() => {
-    if (tutor || lead || search) return;
+    if (!initialPhone) return;
+    const tail = last9(initialPhone);
+    if (!tail || tail.length < 8) return;
     let cancelled = false;
-    async function load() {
+    (async () => {
       try {
-        const res = await fetch(`/api/leads?source=WHATSAPP&limit=15`);
+        const res = await fetch(`/api/inbox/context/lookup?phone=${encodeURIComponent(initialPhone)}`);
         const d = await safeJson<any>(res, {});
-        const arr = Array.isArray(d) ? d : (d.leads || d.data || []);
-        const cutoff = Date.now() - 30 * 60 * 1000;
-        const recent = arr.filter((l: any) => new Date(l.firstSeenAt || l.createdAt || 0).getTime() >= cutoff);
-        if (!cancelled) setChegandoAgora(recent);
+        if (cancelled) return;
+        const tutorMatch = d?.unified?.tutor || (d.tutors || [])[0];
+        const leadMatch = d?.unified?.lead || (d.leads || [])[0];
+        if (tutorMatch) { await selectTutor(tutorMatch); return; }
+        if (leadMatch) { await selectLead(leadMatch); return; }
+        setSearch(initialPhone);
       } catch { /* ignore */ }
-    }
-    load();
-    const id = setInterval(load, 30000);
-    return () => { cancelled = true; clearInterval(id); };
-  }, [tutor, lead, search]);
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialPhone]);
 
   async function carregarHistorico(tutorId?: string, leadId?: string, leadHistoricoId?: string) {
     const items: HistoricoItem[] = [];
@@ -294,6 +387,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
     setLead(null);
     setResults({ tutors: [], leads: [] });
     setSearch(t.name);
+    setActiveTab("contexto"); // ABRE aba contexto
 
     const resP = await fetch(`/api/tutors/${t.id}/pets`);
     const dP = await safeJson<any>(resP, []);
@@ -319,6 +413,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
   async function selectLead(l: Lead) {
     setResults({ tutors: [], leads: [] });
     setSearch(l.name || l.phone || "");
+    setActiveTab("contexto"); // ABRE aba contexto
 
     if (l.phone) {
       const tail = last9(l.phone);
@@ -335,8 +430,20 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
     setLeadHistorico(null);
     setPets([]);
     setSelectedPet(null);
+    // preenche pet de interesse com customFields se existirem
+    const cf = (l.customFields || {}) as any;
+    setLeadPetNome(cf.petName || cf.pet_name || cf.petNome || "");
+    setLeadPetEspecie(cf.especie || cf.species || "Cão");
     const hist = await carregarHistorico(undefined, l.id, undefined);
     setHistorico(hist);
+  }
+
+  async function selectFromIncoming(item: IncomingItem) {
+    if (item.kind === "LEAD") {
+      await selectLead(item.raw as Lead);
+    } else {
+      await selectTutor(item.raw as Tutor);
+    }
   }
 
   function reset() {
@@ -344,6 +451,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
     setResults({ tutors: [], leads: [] }); setPets([]); setSelectedPet(null);
     setHistorico([]);
     setCadastroOpen(false); setInteracaoOpen(false); setForwardOpen(false);
+    setActiveTab("inbox"); // volta pra Caixa
   }
 
   async function updateLeadEtapa(value: string) {
@@ -375,6 +483,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
     if (!res.ok) { toast.error("Erro ao encaminhar"); return; }
     toast.success(`Encaminhado para ${userName}`);
     setForwardOpen(false);
+    loadIncoming();
     reset();
   }
   async function handleResolve() {
@@ -382,12 +491,23 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
     const res = await fetch("/api/inbox/context/resolve", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tutorId: tutor?.id, leadId: lead?.id }) });
     if (!res.ok) { toast.error("Erro ao resolver"); return; }
     toast.success("Resolvido");
+    loadIncoming();
     reset();
   }
   async function handleConverter() {
     if (!lead) return;
     if (!confirm(`Converter ${lead.name || "esse lead"} em cliente?`)) return;
-    const res = await fetch(`/api/leads/${lead.id}/convert`, { method: "POST" });
+    // Inclui pet de interesse no payload da conversão
+    const body: any = {};
+    if (leadPetNome) {
+      body.petName = leadPetNome;
+      body.petEspecie = leadPetEspecie;
+    }
+    const res = await fetch(`/api/leads/${lead.id}/convert`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
     if (!res.ok) { toast.error("Erro ao converter"); return; }
     const data = await res.json();
     toast.success(data.linked ? "Vinculado ao cliente existente" : "Cliente criado");
@@ -396,6 +516,16 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
       const t = await safeJson<any>(rT, null);
       if (t) await selectTutor(t);
     }
+  }
+  // NOVO: desconverter cliente em lead (toggle Lead/Cliente)
+  async function handleDesconverter() {
+    if (!tutor) return;
+    if (!confirm(`Reclassificar ${tutor.name} como Lead? O cadastro permanece, mas vai aparecer como Lead nas listagens.`)) return;
+    const res = await fetch(`/api/tutors/${tutor.id}/reclassify-as-lead`, { method: "POST" });
+    if (!res.ok) { toast.error("Erro ao reclassificar (endpoint pode não existir ainda)"); return; }
+    toast.success("Reclassificado como Lead");
+    reset();
+    loadIncoming();
   }
 
   async function handleCadastro() {
@@ -481,64 +611,65 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
     toast.success("Resumo salvo");
     setEditingResumo(false);
   }
-
   async function saveName() {
     const v = nameDraft.trim();
     if (!v) { toast.error("Nome obrigatório"); return; }
     if (tutor) {
       const r = await fetch(`/api/tutors/${tutor.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: v }) });
-      if (!r.ok) { toast.error("Erro ao salvar nome"); return; }
+      if (!r.ok) { toast.error("Erro"); return; }
       setTutor({ ...tutor, name: v });
     } else if (lead) {
       const r = await fetch(`/api/leads/${lead.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: v }) });
-      if (!r.ok) { toast.error("Erro ao salvar nome"); return; }
+      if (!r.ok) { toast.error("Erro"); return; }
       setLead({ ...lead, name: v });
     }
     toast.success("Nome salvo");
     setEditingName(false);
   }
-
   async function saveInteracaoEdit(interacaoId: string) {
     const txt = interacaoDraft.trim();
     if (!txt) { toast.error("Texto obrigatório"); return; }
-    // O ID no historico tem prefixo i- ou it- ou il-; remover
     const realId = interacaoId.replace(/^(it-|il-|i-)/, "");
     const r = await fetch(`/api/interacoes/${realId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ texto: txt }) });
-    if (!r.ok) { toast.error("Erro ao salvar"); return; }
-    toast.success("Interação atualizada");
+    if (!r.ok) { toast.error("Erro"); return; }
+    toast.success("Atualizada");
     setEditingInteracaoId(null);
     const hist = await carregarHistorico(tutor?.id, lead?.id, leadHistorico?.id);
     setHistorico(hist);
   }
-
   async function savePhone() {
     const raw = phoneDraft.trim();
     const v = normalizePhone(raw);
     if (!v || v.length < 10) { toast.error("Telefone inválido"); return; }
     if (tutor) {
-      // Atualiza primeiro contato (ou cria se nao existe)
       const existing = tutor.contacts || [];
       const newContacts = existing.length
         ? existing.map((c, i) => i === 0 ? { ...c, number: v } : c)
         : [{ id: "tmp", number: v, isPrimary: true, isWhatsApp: true }];
       const r = await fetch(`/api/tutors/${tutor.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ contacts: newContacts }) });
-      if (!r.ok) { toast.error("Erro ao salvar telefone"); return; }
+      if (!r.ok) { toast.error("Erro"); return; }
       setTutor({ ...tutor, contacts: newContacts });
     } else if (lead) {
       const r = await fetch(`/api/leads/${lead.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ phone: v }) });
-      if (!r.ok) { toast.error("Erro ao salvar telefone"); return; }
+      if (!r.ok) { toast.error("Erro"); return; }
       setLead({ ...lead, phone: v });
     }
     toast.success("Telefone salvo");
     setEditingPhone(false);
   }
 
+  // ===== Memos pra render =====
   const resumo = lead?.resumoIa || tutor?.resumoIa || leadHistorico?.resumoIa;
   const resumoWhen = lead?.resumoIaUpdatedAt || tutor?.resumoIaUpdatedAt || leadHistorico?.resumoIaUpdatedAt;
   const tutorPrimaryPhone = (tutor?.contacts || []).find(c => c.isPrimary)?.number || tutor?.contacts?.[0]?.number || "";
   const ltv = formatLtv(tutor?.ltvCents);
   const clienteDesde = tutor?.createdAt ? fmtMonthYear(tutor.createdAt) : null;
   const numAtendimentos = historico.filter(h => h.type === "ATENDIMENTO").length;
+  const servicoSolicitado = useMemo(() => {
+    const cf: any = (lead?.customFields || {});
+    return extrairServico(resumo, cf.servicoInteresse || cf.servico_interesse);
+  }, [resumo, lead]);
+
   const SECTION = "px-3 py-2.5 border-b";
   const SECTION_STYLE: React.CSSProperties = { borderColor: "#E8DFC8" };
   const NUM = "inline-flex items-center justify-center w-4 h-4 rounded-full bg-amber-100 text-amber-800 text-[9px] font-bold mr-1.5";
@@ -547,45 +678,77 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
 
   return (
     <div className="h-full flex flex-col bg-white" style={{ maxHeight: "calc(100vh - 60px)" }}>
-      <div className="px-3 pt-3 pb-2 border-b flex-shrink-0" style={SECTION_STYLE}>
-        <div className="flex items-center justify-between mb-2">
-          <div className="text-[10px] font-bold tracking-wide text-gray-500 uppercase">Contexto da conversa</div>
-          <div className="flex items-center gap-1.5">
-            {(tutor || lead) && (
-              <>
-                <div className="relative">
-                  <button onClick={() => setForwardOpen(o => !o)} className="text-[10.5px] font-semibold flex items-center gap-1 px-2 py-1 rounded border hover:bg-gray-50" style={{ borderColor: "#E8DFC8", color: "#475569" }}>
-                    <LuShare2 size={11} /> Encaminhar
-                  </button>
-                  {forwardOpen && (
-                    <div className="absolute right-0 top-full mt-1 bg-white border rounded-lg shadow-lg z-40 w-44 max-h-60 overflow-y-auto" style={{ borderColor: "#E8DFC8" }}>
-                      {staff.length === 0 ? (
-                        <div className="px-3 py-2 text-[10.5px] text-gray-400">Carregando...</div>
-                      ) : staff.map(s => (
-                        <button key={s.id} onClick={() => handleForward(s.id, s.name || "")} className="w-full text-left px-3 py-1.5 text-[11px] hover:bg-gray-50 border-b last:border-b-0" style={{ borderColor: "#F0EBE0" }}>
-                          <div className="font-medium" style={{ color: "#014D5E" }}>{s.name || "Sem nome"}</div>
-                          <div className="text-[9.5px] text-gray-400 uppercase">{s.role}</div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <button onClick={handleResolve} className="text-[10.5px] font-semibold flex items-center gap-1 px-2 py-1 rounded text-white" style={{ background: "#009AAC" }}>
-                  <LuCheckCheck size={11} /> Resolver
-                </button>
-                <button onClick={reset} className="text-gray-400 hover:text-red-500" title="Fechar"><LuX size={13} /></button>
-              </>
-            )}
-            {!tutor && !lead && !cadastroOpen && (
-              <button onClick={() => { setCadastroOpen(true); setCadastroAs("LEAD"); setCadForm({ ...cadForm, telefone: onlyDigits(search) || search, nome: "" }); }} className="text-[10.5px] font-semibold flex items-center gap-1" style={{ color: "#009AAC" }}>
-                <LuPlus size={11} /> cadastrar
+      {/* ========== ABAS ========== */}
+      <div className="flex border-b flex-shrink-0" style={{ borderColor: "#E8DFC8", background: "#FAFAF7" }}>
+        <button
+          onClick={() => setActiveTab("inbox")}
+          className={`flex-1 px-2 py-2.5 text-[11px] font-semibold flex items-center justify-center gap-1.5 transition`}
+          style={{
+            color: activeTab === "inbox" ? "#014D5E" : "#5F5E5A",
+            background: activeTab === "inbox" ? "white" : "transparent",
+            borderBottom: activeTab === "inbox" ? "2px solid #009AAC" : "2px solid transparent",
+          }}
+        >
+          <LuInbox size={13} /> Caixa de entrada
+          {incoming.length > 0 && (
+            <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold" style={{ background: activeTab === "inbox" ? "#009AAC" : "#E8DFC8", color: activeTab === "inbox" ? "white" : "#5F5E5A" }}>
+              {incoming.length}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={() => setActiveTab("contexto")}
+          className={`flex-1 px-2 py-2.5 text-[11px] font-semibold flex items-center justify-center gap-1.5 transition`}
+          style={{
+            color: activeTab === "contexto" ? "#014D5E" : "#5F5E5A",
+            background: activeTab === "contexto" ? "white" : "transparent",
+            borderBottom: activeTab === "contexto" ? "2px solid #009AAC" : "2px solid transparent",
+          }}
+        >
+          <LuMessageCircle size={13} /> Contexto
+        </button>
+      </div>
+
+      {/* ========== Header ações (Encaminhar/Resolver) ========== */}
+      <div className="px-3 py-2 border-b flex-shrink-0 flex items-center justify-end gap-1.5" style={SECTION_STYLE}>
+        {(tutor || lead) && (
+          <>
+            <div className="relative">
+              <button onClick={() => setForwardOpen(o => !o)} className="text-[10.5px] font-semibold flex items-center gap-1 px-2 py-1 rounded border hover:bg-gray-50" style={{ borderColor: "#E8DFC8", color: "#475569" }}>
+                <LuShare2 size={11} /> Encaminhar
               </button>
-            )}
-          </div>
-        </div>
+              {forwardOpen && (
+                <div className="absolute right-0 top-full mt-1 bg-white border rounded-lg shadow-lg z-40 w-44 max-h-60 overflow-y-auto" style={{ borderColor: "#E8DFC8" }}>
+                  {staff.length === 0 ? (
+                    <div className="px-3 py-2 text-[10.5px] text-gray-400">Carregando...</div>
+                  ) : staff.map(s => (
+                    <button key={s.id} onClick={() => handleForward(s.id, s.name || "")} className="w-full text-left px-3 py-1.5 text-[11px] hover:bg-gray-50 border-b last:border-b-0" style={{ borderColor: "#F0EBE0" }}>
+                      <div className="font-medium" style={{ color: "#014D5E" }}>{s.name || "Sem nome"}</div>
+                      <div className="text-[9.5px] text-gray-400 uppercase">{s.role}</div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <button onClick={handleResolve} className="text-[10.5px] font-semibold flex items-center gap-1 px-2 py-1 rounded text-white" style={{ background: "#009AAC" }}>
+              <LuCheckCheck size={11} /> Resolver
+            </button>
+            <button onClick={reset} className="text-gray-400 hover:text-red-500" title="Voltar pra Caixa"><LuX size={13} /></button>
+          </>
+        )}
+        {!tutor && !lead && !cadastroOpen && (
+          <button onClick={() => { setCadastroOpen(true); setCadastroAs("LEAD"); setCadForm({ ...cadForm, telefone: onlyDigits(search) || search, nome: "" }); }} className="text-[10.5px] font-semibold flex items-center gap-1" style={{ color: "#009AAC" }}>
+            <LuPlus size={11} /> cadastrar
+          </button>
+        )}
+        <button onClick={loadIncoming} className="text-gray-400 hover:text-[#009AAC]" title="Atualizar caixa"><LuRefreshCcw size={12} /></button>
+      </div>
+
+      {/* ========== BUSCA ========== */}
+      <div className="px-3 py-2 border-b flex-shrink-0" style={SECTION_STYLE}>
         <div className="relative">
           <LuSearch size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input value={search} onChange={e => { setSearch(e.target.value); if (!e.target.value) reset(); }} placeholder="Telefone, nome ou email..." className="w-full pl-8 pr-3 py-2 border rounded-lg text-sm bg-white" style={SECTION_STYLE} />
+          <input value={search} onChange={e => { setSearch(e.target.value); if (!e.target.value && !tutor && !lead) { /* mantém aba */ } }} placeholder="Telefone, nome ou email..." className="w-full pl-8 pr-3 py-1.5 border rounded-lg text-sm bg-white" style={SECTION_STYLE} />
           {(results.tutors.length > 0 || results.leads.length > 0) && (
             <div className="absolute left-0 right-0 top-full mt-1 bg-white border rounded-lg shadow-lg z-30 max-h-72 overflow-y-auto" style={SECTION_STYLE}>
               {results.tutors.map(t => {
@@ -614,339 +777,410 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
         </div>
       </div>
 
+      {/* ========== CONTEÚDO BASEADO NA ABA ========== */}
       <div className="flex-1 overflow-y-auto min-h-0">
-        {cadastroOpen && (
-          <section className={SECTION} style={SECTION_STYLE}>
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-[10.5px] font-bold uppercase text-gray-500">Novo cadastro</div>
-              <button onClick={() => setCadastroOpen(false)} className="text-gray-400"><LuX size={12} /></button>
-            </div>
-            <div className="flex gap-1 mb-2">
-              <button onClick={() => setCadastroAs("LEAD")} className={`flex-1 px-2 py-1 text-[11px] rounded ${cadastroAs === "LEAD" ? "text-white" : "border text-gray-600"}`} style={cadastroAs === "LEAD" ? { background: "#009AAC" } : { borderColor: "#E8DFC8" }}>Lead</button>
-              <button onClick={() => setCadastroAs("CLIENTE")} className={`flex-1 px-2 py-1 text-[11px] rounded ${cadastroAs === "CLIENTE" ? "text-white" : "border text-gray-600"}`} style={cadastroAs === "CLIENTE" ? { background: "#009AAC" } : { borderColor: "#E8DFC8" }}>Cliente</button>
-            </div>
-            <div className="space-y-1.5">
-              <input value={cadForm.nome} onChange={e => setCadForm({ ...cadForm, nome: e.target.value })} placeholder="Nome *" className="w-full px-2 py-1 text-xs border rounded" style={SECTION_STYLE} />
-              <input value={cadForm.telefone} onChange={e => setCadForm({ ...cadForm, telefone: e.target.value })} placeholder="Telefone *" className="w-full px-2 py-1 text-xs border rounded" style={SECTION_STYLE} />
-              <input value={cadForm.email} onChange={e => setCadForm({ ...cadForm, email: e.target.value })} placeholder="Email (opcional)" className="w-full px-2 py-1 text-xs border rounded" style={SECTION_STYLE} />
-              <select value={cadForm.origem} onChange={e => setCadForm({ ...cadForm, origem: e.target.value })} className="w-full px-2 py-1 text-xs border rounded" style={SECTION_STYLE}>
-                {Object.keys(sourceMap).map(o => <option key={o} value={o}>{o}</option>)}
-              </select>
-              {cadastroAs === "CLIENTE" && (
-                <>
-                  <input value={cadForm.petNome} onChange={e => setCadForm({ ...cadForm, petNome: e.target.value })} placeholder="Pet (opcional)" className="w-full px-2 py-1 text-xs border rounded" style={SECTION_STYLE} />
-                  <select value={cadForm.petEspecie} onChange={e => setCadForm({ ...cadForm, petEspecie: e.target.value })} className="w-full px-2 py-1 text-xs border rounded" style={SECTION_STYLE}>
-                    <option>Cão</option><option>Gato</option><option>Outro</option>
-                  </select>
-                </>
-              )}
-              <button onClick={handleCadastro} className="w-full px-2 py-1.5 text-xs text-white rounded font-semibold" style={{ background: "#009AAC" }}>Salvar</button>
-            </div>
-          </section>
-        )}
 
-        {!tutor && !lead && !search && !cadastroOpen && chegandoAgora.length > 0 && (
-          <section className={SECTION} style={SECTION_STYLE}>
-            <div className={LBL}><span>📬 Chegando agora · últimos 30min</span></div>
-            <div className="space-y-1">
-              {chegandoAgora.map(l => (
-                <button key={l.id} onClick={() => selectLead(l)} className="w-full text-left px-2 py-1.5 rounded border hover:bg-gray-50" style={{ borderColor: "#F0EBE0" }}>
-                  <div className="text-[11.5px] font-semibold" style={{ color: "#014D5E" }}>{l.name || "Sem nome"}</div>
-                  <div className="text-[10px] text-gray-500 flex items-center justify-between">
-                    <span>{formatPhone(l.phone || "") || "—"}</span>
-                    <span className="text-[9.5px]">{fmtRelative(l.createdAt)}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {!tutor && !lead && !search && !cadastroOpen && chegandoAgora.length === 0 && (
-          <div className="px-3 py-6 text-center text-[11.5px] text-gray-400 leading-relaxed">
-            Veja o telefone no BotConversa, cole na busca pra puxar contexto do CRM e registrar interação na ficha.
+        {/* Aba INBOX = Caixa de Entrada */}
+        {activeTab === "inbox" && (
+          <div className="p-2.5 space-y-1.5">
+            {loadingIncoming && incoming.length === 0 ? (
+              <div className="text-center py-6 text-[11px] text-gray-400">Carregando...</div>
+            ) : incoming.length === 0 ? (
+              <div className="text-center py-6 text-[11px] text-gray-400 italic">
+                Nenhum contato novo agora.<br />
+                Quando alguém escrever pelo BotConversa, aparece aqui.
+              </div>
+            ) : (
+              <>
+                {incoming.slice(0, incomingLimit).map(item => {
+                  const isLead = item.kind === "LEAD";
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => selectFromIncoming(item)}
+                      className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg border text-left transition hover:translate-x-[2px] hover:shadow-sm"
+                      style={{
+                        background: isLead ? "#FFFBEB" : "#F0FDFA",
+                        borderColor: "#E8DFC8",
+                        borderLeftWidth: 4,
+                        borderLeftColor: isLead ? "#92611A" : "#009AAC",
+                      }}
+                    >
+                      <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[9.5px] font-bold flex-shrink-0" style={{ background: isLead ? "linear-gradient(135deg,#D97706,#92611A)" : "linear-gradient(135deg,#009AAC,#014D5E)" }}>
+                        {initials(item.name)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[11.5px] font-semibold flex items-center gap-1.5 flex-wrap" style={{ color: "#014D5E" }}>
+                          {item.name}
+                          <span className="text-[8.5px] font-bold px-1.5 py-0.5 rounded uppercase" style={{ background: isLead ? "#FEF3C7" : "#CCFBF1", color: isLead ? "#92611A" : "#0E7490" }}>{isLead ? "Lead" : "Cliente"}</span>
+                          <span className="text-[7.5px] font-bold px-1 rounded text-white" style={{ background: "#009AAC" }}>BC</span>
+                        </div>
+                        <div className="text-[10px] text-gray-500 truncate">
+                          {item.phone ? formatPhone(item.phone) : "—"}
+                          {item.petName && <> · 🐾 {item.petName}{item.petSpecies ? ` (${item.petSpecies})` : ""}</>}
+                          {item.servico && <> · {item.servico}</>}
+                        </div>
+                      </div>
+                      <div className="text-[9px] text-gray-400 flex-shrink-0">{fmtRelative(item.createdAt)}</div>
+                    </button>
+                  );
+                })}
+                {incoming.length >= incomingLimit && (
+                  <button onClick={() => setIncomingLimit(l => l + 20)} className="w-full py-2 text-[10.5px] font-semibold border rounded text-[#014D5E]" style={SECTION_STYLE}>
+                    ver mais ({incoming.length - incomingLimit}+)
+                  </button>
+                )}
+              </>
+            )}
           </div>
         )}
 
-        {(tutor || lead) && (
-          <section className={SECTION} style={SECTION_STYLE}>
-            <div className={LBL}>
-              <span><span className={NUM}>1</span><LuSparkles size={11} className="inline -mt-0.5 mr-1" />Resumo da conversa (IA){resumoWhen && <span className="font-normal text-gray-400 normal-case ml-1 text-[9.5px]">{fmtRelative(resumoWhen)}</span>}</span>
-            </div>
-            {editingResumo ? (
-              <div className="rounded-lg p-2 border" style={{ background: "#f0fdfa", borderColor: "#99e9d8" }}>
-                <textarea value={resumoDraft} onChange={e => setResumoDraft(e.target.value)} rows={4} className="w-full px-2 py-1.5 text-[11.5px] border rounded resize-none" style={{ borderColor: "#99e9d8", color: "#0c4a6e" }} placeholder="Resumo da conversa..." />
-                <div className="flex gap-1.5 mt-1.5">
-                  <button onClick={() => setResumoDraft("")} className="px-2 py-1 text-[10.5px] border rounded text-gray-500" style={{ borderColor: "#E8DFC8" }} title="Limpar">🗑 limpar</button>
-                  <button onClick={() => setEditingResumo(false)} className="flex-1 px-2 py-1 text-[10.5px] border rounded" style={{ borderColor: "#E8DFC8" }}>Cancelar</button>
-                  <button onClick={saveResumo} className="flex-1 px-2 py-1 text-[10.5px] text-white rounded font-semibold" style={{ background: "#009AAC" }}>Salvar</button>
+        {/* Aba CONTEXTO */}
+        {activeTab === "contexto" && (
+          <>
+            {/* Cadastro inline */}
+            {cadastroOpen && (
+              <section className={SECTION} style={SECTION_STYLE}>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-[10.5px] font-bold uppercase text-gray-500">Novo cadastro</div>
+                  <button onClick={() => setCadastroOpen(false)} className="text-gray-400"><LuX size={12} /></button>
                 </div>
-              </div>
-            ) : resumo ? (
-              <div onClick={() => { setEditingResumo(true); setResumoDraft(resumo); }} className="rounded-lg p-2.5 text-[11.5px] leading-relaxed cursor-pointer hover:opacity-90 group relative" style={{ background: "linear-gradient(135deg,#f0fdfa,#e0f4f6)", border: "1px solid #99e9d8", color: "#0c4a6e" }} title="Clique para editar">
-                <div className="text-[9.5px] font-bold uppercase mb-1 flex items-center gap-1" style={{ color: "#0e7490" }}>
-                  <span className="px-1 rounded text-white" style={{ background: "#14b8a6" }}>IA</span> via BotConversa
-                  <span className="ml-auto text-gray-400 opacity-0 group-hover:opacity-100 normal-case font-normal">✏ editar</span>
+                <div className="flex gap-1 mb-2">
+                  <button onClick={() => setCadastroAs("LEAD")} className={`flex-1 px-2 py-1 text-[11px] rounded ${cadastroAs === "LEAD" ? "text-white" : "border text-gray-600"}`} style={cadastroAs === "LEAD" ? { background: "#009AAC" } : { borderColor: "#E8DFC8" }}>Lead</button>
+                  <button onClick={() => setCadastroAs("CLIENTE")} className={`flex-1 px-2 py-1 text-[11px] rounded ${cadastroAs === "CLIENTE" ? "text-white" : "border text-gray-600"}`} style={cadastroAs === "CLIENTE" ? { background: "#009AAC" } : { borderColor: "#E8DFC8" }}>Cliente</button>
                 </div>
-                {resumo}
-              </div>
-            ) : (
-              <div onClick={() => { setEditingResumo(true); setResumoDraft(""); }} className="rounded-lg p-2.5 text-[11px] text-center italic cursor-pointer hover:bg-gray-100" style={{ background: "#fafafa", border: "1px dashed #E8DFC8", color: "#94a3b8" }}>
-                Sem resumo ainda · ✏ clique para adicionar
+                <div className="space-y-1.5">
+                  <input value={cadForm.nome} onChange={e => setCadForm({ ...cadForm, nome: e.target.value })} placeholder="Nome *" className="w-full px-2 py-1 text-xs border rounded" style={SECTION_STYLE} />
+                  <input value={cadForm.telefone} onChange={e => setCadForm({ ...cadForm, telefone: e.target.value })} placeholder="Telefone *" className="w-full px-2 py-1 text-xs border rounded" style={SECTION_STYLE} />
+                  <input value={cadForm.email} onChange={e => setCadForm({ ...cadForm, email: e.target.value })} placeholder="Email (opcional)" className="w-full px-2 py-1 text-xs border rounded" style={SECTION_STYLE} />
+                  <select value={cadForm.origem} onChange={e => setCadForm({ ...cadForm, origem: e.target.value })} className="w-full px-2 py-1 text-xs border rounded" style={SECTION_STYLE}>
+                    {Object.keys(sourceMap).map(o => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                  {cadastroAs === "CLIENTE" && (
+                    <>
+                      <input value={cadForm.petNome} onChange={e => setCadForm({ ...cadForm, petNome: e.target.value })} placeholder="Pet (opcional)" className="w-full px-2 py-1 text-xs border rounded" style={SECTION_STYLE} />
+                      <select value={cadForm.petEspecie} onChange={e => setCadForm({ ...cadForm, petEspecie: e.target.value })} className="w-full px-2 py-1 text-xs border rounded" style={SECTION_STYLE}>
+                        <option>Cão</option><option>Gato</option><option>Outro</option>
+                      </select>
+                    </>
+                  )}
+                  <button onClick={handleCadastro} className="w-full px-2 py-1.5 text-xs text-white rounded font-semibold" style={{ background: "#009AAC" }}>Salvar</button>
+                </div>
+              </section>
+            )}
+
+            {/* Estado vazio */}
+            {!tutor && !lead && !cadastroOpen && (
+              <div className="px-3 py-6 text-center text-[11.5px] text-gray-400 leading-relaxed">
+                Selecione um contato na <strong>Caixa de Entrada</strong> ou pesquise acima.
               </div>
             )}
-          </section>
-        )}
 
-        {tutor && (
-          <section className={SECTION} style={SECTION_STYLE}>
-            <div className={LBL}>
-              <span><span className={NUM}>2</span>Cliente <span className="ml-1 text-[8.5px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold normal-case">CLIENTE</span></span>
-              <Link href={`/dashboard/erp/tutores/${tutor.id}`} target="_blank" className={LINK} style={{ color: "#009AAC" }}>Ficha <LuExternalLink size={9} className="inline -mt-0.5" /></Link>
-            </div>
-            <div className="flex items-start gap-2">
-              <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-semibold flex-shrink-0" style={{ background: "linear-gradient(135deg,#009AAC,#014D5E)" }}>{initials(tutor.name)}</div>
-              <div className="min-w-0 flex-1">
-                {editingName ? (
-                  <div className="flex gap-1 mb-1">
-                    <input autoFocus value={nameDraft} onChange={e => setNameDraft(e.target.value)} onKeyDown={e => { if (e.key === "Enter") saveName(); if (e.key === "Escape") setEditingName(false); }} className="flex-1 text-[12.5px] font-semibold border rounded px-1.5 py-0.5" style={{ borderColor: "#009AAC", color: "#014D5E" }} />
-                    <button onClick={() => setNameDraft("")} title="Limpar" className="px-1.5 text-[10px] border rounded text-gray-500" style={{ borderColor: "#E8DFC8" }}>🗑</button>
-                    <button onClick={saveName} className="px-1.5 text-[10px] text-white rounded font-semibold" style={{ background: "#009AAC" }}>✓</button>
-                    <button onClick={() => setEditingName(false)} className="px-1.5 text-[10px] border rounded" style={{ borderColor: "#E8DFC8" }}>✕</button>
-                  </div>
-                ) : (
-                  <div onClick={() => { setEditingName(true); setNameDraft(tutor.name); }} className="text-[12.5px] font-semibold truncate cursor-pointer hover:underline" style={{ color: "#014D5E" }} title="Clique para editar">{tutor.name}</div>
-                )}
-                <div className="text-[10.5px] text-gray-500 leading-snug">
-                  {editingPhone ? (
-                    <span className="inline-flex gap-1 items-center">
-                      <input autoFocus value={phoneDraft} onChange={e => setPhoneDraft(e.target.value)} onKeyDown={e => { if (e.key === "Enter") savePhone(); if (e.key === "Escape") setEditingPhone(false); }} className="text-[10.5px] border rounded px-1.5 py-0.5 w-28" style={{ borderColor: "#009AAC" }} />
-                      <button onClick={() => setPhoneDraft("")} title="Limpar" className="text-[10px] text-gray-500">🗑</button>
-                      <button onClick={savePhone} className="text-[10px] text-[#009AAC] font-bold">✓</button>
-                      <button onClick={() => setEditingPhone(false)} className="text-[10px] text-gray-400">✕</button>
-                    </span>
-                  ) : (
-                    <span onClick={() => { setEditingPhone(true); setPhoneDraft(tutorPrimaryPhone || ""); }} className="cursor-pointer hover:underline" title="Clique para editar">
-                      <LuPhone size={9} className="inline -mt-0.5" /> {tutorPrimaryPhone ? formatPhone(tutorPrimaryPhone) : "+ adicionar telefone"}
-                    </span>
-                  )}
-                  {ltv && <> · LTV {ltv}</>}
-                  <br />
-                  🐾 {pets.length} pet{pets.length !== 1 ? "s" : ""}
-                  {numAtendimentos > 0 && <> · {numAtendimentos} atendimento{numAtendimentos !== 1 ? "s" : ""}</>}
-                  {clienteDesde && <> · cliente desde {clienteDesde}</>}
+            {/* BLOCO 1: RESUMO IA + SERVICO */}
+            {(tutor || lead) && (
+              <section className={SECTION} style={SECTION_STYLE}>
+                <div className={LBL}>
+                  <span><span className={NUM}>1</span><LuSparkles size={11} className="inline -mt-0.5 mr-1" />Resumo da conversa (IA){resumoWhen && <span className="font-normal text-gray-400 normal-case ml-1 text-[9.5px]">{fmtRelative(resumoWhen)}</span>}</span>
                 </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 mt-2">
-              <span className="text-[9.5px] font-bold uppercase text-gray-400 whitespace-nowrap">Estado relac.</span>
-              <select value={tutor.estadoRelacionamento || ""} onChange={e => updateTutorEstado(e.target.value)} className="flex-1 text-[10.5px] px-2 py-1 border rounded-lg font-medium" style={{ borderColor: "#009AAC", color: "#014D5E", background: "white" }}>
-                <option value="">— selecionar —</option>
-                {ESTADO_RELACIONAMENTO.map(e => <option key={e.v} value={e.v}>{e.label}</option>)}
-              </select>
-            </div>
-          </section>
-        )}
-        {!tutor && lead && (
-          <section className={SECTION} style={{ ...SECTION_STYLE, background: "#fef9f1" }}>
-            <div className={LBL}>
-              <span><span className={NUM}>2</span>Lead <span className="ml-1 text-[8.5px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-bold normal-case">LEAD</span></span>
-              <Link href={`/dashboard/erp/leads/${lead.id}`} target="_blank" className={LINK} style={{ color: "#009AAC" }}>Ficha <LuExternalLink size={9} className="inline -mt-0.5" /></Link>
-            </div>
-            <div className="flex items-start gap-2">
-              <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-semibold flex-shrink-0" style={{ background: "linear-gradient(135deg,#f59e0b,#d97706)" }}>{initials(lead.name || "?")}</div>
-              <div className="min-w-0 flex-1">
-                {editingName ? (
-                  <div className="flex gap-1 mb-1">
-                    <input autoFocus value={nameDraft} onChange={e => setNameDraft(e.target.value)} onKeyDown={e => { if (e.key === "Enter") saveName(); if (e.key === "Escape") setEditingName(false); }} className="flex-1 text-[12.5px] font-semibold border rounded px-1.5 py-0.5" style={{ borderColor: "#009AAC", color: "#014D5E" }} />
-                    <button onClick={() => setNameDraft("")} title="Limpar" className="px-1.5 text-[10px] border rounded text-gray-500" style={{ borderColor: "#E8DFC8" }}>🗑</button>
-                    <button onClick={saveName} className="px-1.5 text-[10px] text-white rounded font-semibold" style={{ background: "#009AAC" }}>✓</button>
-                    <button onClick={() => setEditingName(false)} className="px-1.5 text-[10px] border rounded" style={{ borderColor: "#E8DFC8" }}>✕</button>
-                  </div>
-                ) : (
-                  <div onClick={() => { setEditingName(true); setNameDraft(lead.name || ""); }} className="text-[12.5px] font-semibold truncate cursor-pointer hover:underline" style={{ color: "#014D5E" }} title="Clique para editar">{lead.name || "Sem nome"}</div>
-                )}
-                <div className="text-[10.5px] text-gray-500 leading-snug">
-                  {editingPhone ? (
-                    <span className="inline-flex gap-1 items-center">
-                      <input autoFocus value={phoneDraft} onChange={e => setPhoneDraft(e.target.value)} onKeyDown={e => { if (e.key === "Enter") savePhone(); if (e.key === "Escape") setEditingPhone(false); }} className="text-[10.5px] border rounded px-1.5 py-0.5 w-28" style={{ borderColor: "#009AAC" }} />
-                      <button onClick={() => setPhoneDraft("")} title="Limpar" className="text-[10px] text-gray-500">🗑</button>
-                      <button onClick={savePhone} className="text-[10px] text-[#009AAC] font-bold">✓</button>
-                      <button onClick={() => setEditingPhone(false)} className="text-[10px] text-gray-400">✕</button>
-                    </span>
-                  ) : (
-                    <span onClick={() => { setEditingPhone(true); setPhoneDraft(lead.phone || ""); }} className="cursor-pointer hover:underline" title="Clique para editar">
-                      <LuPhone size={9} className="inline -mt-0.5" /> {lead.phone ? formatPhone(lead.phone) : "+ adicionar telefone"}
-                    </span>
-                  )}
-                  {lead.source && <> · via {lead.source}</>}
-                  {lead.createdAt && <> · {fmtRelative(lead.createdAt)}</>}
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 mt-2">
-              <span className="text-[9.5px] font-bold uppercase text-gray-400 whitespace-nowrap">Pipeline comercial</span>
-              <select value={lead.pipelineComercialEtapa || ""} onChange={e => updateLeadEtapa(e.target.value)} className="flex-1 text-[10.5px] px-2 py-1 border rounded-lg font-medium" style={{ borderColor: "#009AAC", color: "#014D5E", background: "white" }}>
-                <option value="">— selecionar etapa —</option>
-                {PIPELINE_COMERCIAL.map(e => <option key={e} value={e}>{e}</option>)}
-              </select>
-            </div>
-            {lead.status !== "CONVERTED" && (
-              <button onClick={handleConverter} className="mt-2 w-full text-[10.5px] py-1.5 border rounded font-semibold hover:bg-white flex items-center justify-center gap-1" style={{ borderColor: "#009AAC", color: "#009AAC" }}>
-                <LuArrowUpRight size={12} /> Converter em cliente
-              </button>
-            )}
-          </section>
-        )}
-
-        {tutor && (
-          <section className={SECTION} style={SECTION_STYLE}>
-            <div className={LBL}>
-              <span><span className={NUM}>3</span>Pets {pets.length > 0 && `(${pets.length})`}{pets.length > 1 ? " · clique pra expandir" : ""}</span>
-              <button onClick={() => window.open(`/dashboard/erp/pets/novo?tutorId=${tutor.id}`, "_blank")} className={LINK} style={{ color: "#009AAC" }} type="button"><LuPlus size={10} className="inline" /> cadastrar</button>
-            </div>
-            {pets.length > 0 ? (
-              <div className="space-y-1.5">
-                {pets.map(p => {
-                  const active = selectedPet?.id === p.id;
-                  return (
-                    <div key={p.id} className={`rounded-lg border ${active ? "" : "hover:bg-gray-50"}`} style={active ? { background: "#e0f4f6", borderColor: "#009AAC" } : { borderColor: "#F0EBE0" }}>
-                      <button onClick={() => setSelectedPet(active ? null : p)} className="w-full flex items-center gap-2 px-2 py-1.5 text-left">
-                        <PetIcon species={p.species} size={20} />
-                        <div className="min-w-0 flex-1">
-                          <div className="text-[11.5px] font-semibold truncate" style={{ color: "#014D5E" }}>{p.name}</div>
-                          <div className="text-[10px] text-gray-500 truncate">{speciesLabel(p.species)}{p.breed ? ` · ${p.breed}` : ""}{p.birthDate ? ` · ${ageFromBirth(p.birthDate)}` : ""}</div>
-                        </div>
-                        <span className="text-[10px] text-gray-400">{active ? "▴" : "▾"}</span>
-                      </button>
-                      {active && (
-                        <div className="px-2 pb-2 pt-1 border-t" style={{ borderColor: "#cfe8eb" }}>
-                          {/* Dados clínicos resumo */}
-                          <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[10.5px] mb-2 mt-1">
-                            <div><span className="text-gray-400">Espécie:</span> <span style={{ color: "#014D5E" }}>{speciesLabel(p.species)}</span></div>
-                            <div><span className="text-gray-400">Raça:</span> <span style={{ color: "#014D5E" }}>{p.breed || "—"}</span></div>
-                            <div><span className="text-gray-400">Idade:</span> <span style={{ color: "#014D5E" }}>{p.birthDate ? ageFromBirth(p.birthDate) : "—"}</span></div>
-                            <div><span className="text-gray-400">Obs:</span> <span style={{ color: "#014D5E" }} className="truncate inline-block max-w-[100px]" title={p.observations || ""}>{p.observations ? p.observations.slice(0, 18) + (p.observations.length > 18 ? "…" : "") : "—"}</span></div>
-                          </div>
-                          {/* Pipelines em dropdown */}
-                          <div className="space-y-1.5 mb-2">
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-[8.5px] font-bold px-1.5 py-0.5 rounded" style={{ background: "#fef3c7", color: "#92400e", minWidth: 28, textAlign: "center" }}>CLI</span>
-                              <select value={p.pipelineClinicoEtapa || ""} onChange={e => updatePetEtapa("pipelineClinicoEtapa", e.target.value)} className="flex-1 text-[10.5px] px-2 py-1 border rounded font-medium" style={{ borderColor: "#fef3c7", color: "#014D5E", background: "white" }}>
-                                <option value="">— sem etapa —</option>
-                                {PIPELINE_CLINICO.map(et => <option key={et} value={et}>{et}</option>)}
-                              </select>
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-[8.5px] font-bold px-1.5 py-0.5 rounded" style={{ background: "#ede9fe", color: "#5b21b6", minWidth: 28, textAlign: "center" }}>FIS</span>
-                              <select value={p.pipelineFisioEtapa || ""} onChange={e => updatePetEtapa("pipelineFisioEtapa", e.target.value)} className="flex-1 text-[10.5px] px-2 py-1 border rounded font-medium" style={{ borderColor: "#ede9fe", color: "#014D5E", background: "white" }}>
-                                <option value="">— sem etapa —</option>
-                                {PIPELINE_FISIO.map(et => <option key={et} value={et}>{et}</option>)}
-                              </select>
-                            </div>
-                          </div>
-                          {/* Ação principal: registrar atendimento */}
-                          <button onClick={() => window.open(`/dashboard/erp/pets/${p.id}/atendimentos/novo`, "_blank")} className="w-full px-2 py-1.5 rounded text-[10.5px] text-white font-semibold flex items-center justify-center gap-1 mb-1.5" style={{ background: "#009AAC" }} type="button"><LuPlus size={11} /> Registrar atendimento</button>
-                          <button onClick={() => window.open(`/dashboard/erp/pets/${p.id}`, "_blank")} className="w-full text-[10px] py-1 border rounded font-medium bg-white hover:bg-gray-50" style={{ borderColor: "#009AAC", color: "#009AAC" }} type="button">Abrir ficha completa ↗</button>
-                        </div>
-                      )}
+                {editingResumo ? (
+                  <div className="rounded-lg p-2 border" style={{ background: "#f0fdfa", borderColor: "#99e9d8" }}>
+                    <textarea value={resumoDraft} onChange={e => setResumoDraft(e.target.value)} rows={4} className="w-full px-2 py-1.5 text-[11.5px] border rounded resize-none" style={{ borderColor: "#99e9d8", color: "#0c4a6e" }} placeholder="Resumo da conversa..." />
+                    <div className="flex gap-1.5 mt-1.5">
+                      <button onClick={() => setResumoDraft("")} className="px-2 py-1 text-[10.5px] border rounded text-gray-500" style={{ borderColor: "#E8DFC8" }} title="Limpar">🗑 limpar</button>
+                      <button onClick={() => setEditingResumo(false)} className="flex-1 px-2 py-1 text-[10.5px] border rounded" style={{ borderColor: "#E8DFC8" }}>Cancelar</button>
+                      <button onClick={saveResumo} className="flex-1 px-2 py-1 text-[10.5px] text-white rounded font-semibold" style={{ background: "#009AAC" }}>Salvar</button>
                     </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="rounded-lg p-3 text-center text-[11px] text-gray-400" style={{ background: "#fafafa", border: "1px dashed #E8DFC8" }}>
-                Nenhum pet cadastrado ainda<br />
-                <button onClick={() => window.open(`/dashboard/erp/pets/novo?tutorId=${tutor.id}`, "_blank")} className="font-semibold mt-1" style={{ color: "#009AAC" }} type="button">+ Cadastrar pet</button>
-              </div>
+                  </div>
+                ) : resumo ? (
+                  <>
+                    <div onClick={() => { setEditingResumo(true); setResumoDraft(resumo); }} className="rounded-lg p-2.5 text-[11.5px] leading-relaxed cursor-pointer hover:opacity-90 group" style={{ background: "linear-gradient(135deg,#f0fdfa,#e0f4f6)", border: "1px solid #99e9d8", color: "#0c4a6e" }} title="Clique para editar">
+                      <div className="text-[9.5px] font-bold uppercase mb-1 flex items-center gap-1" style={{ color: "#0e7490" }}>
+                        <span className="px-1 rounded text-white" style={{ background: "#14b8a6" }}>IA</span> via BotConversa
+                        <span className="ml-auto text-gray-400 opacity-0 group-hover:opacity-100 normal-case font-normal">✏ editar</span>
+                      </div>
+                      {resumo}
+                    </div>
+                    {servicoSolicitado && (
+                      <div className="mt-1.5 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg" style={{ background: "#009AAC", color: "white" }}>
+                        <span className="text-[10px] font-bold">🎯 Serviço:</span>
+                        <span className="text-[11.5px] font-semibold">{servicoSolicitado}</span>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div onClick={() => { setEditingResumo(true); setResumoDraft(""); }} className="rounded-lg p-2.5 text-[11px] text-center italic cursor-pointer hover:bg-gray-100" style={{ background: "#fafafa", border: "1px dashed #E8DFC8", color: "#94a3b8" }}>
+                    Sem resumo ainda · ✏ clique para adicionar
+                  </div>
+                )}
+              </section>
             )}
-          </section>
-        )}
 
-        {(tutor || lead) && (
-          <section className={SECTION} style={SECTION_STYLE}>
-            <div className={LBL}>
-              <span><span className={NUM}>4</span><LuMessageSquare size={11} className="inline -mt-0.5 mr-1" />Registrar interação</span>
-              {!interacaoOpen && (<button onClick={() => setInteracaoOpen(true)} className={LINK} style={{ color: "#009AAC" }}><LuPlus size={10} className="inline" /> nova</button>)}
-            </div>
-            {interacaoOpen && (
-              <div className="space-y-2 rounded-lg p-2 border" style={{ background: "#f6fdfd", borderColor: "#E8DFC8" }}>
-                <select value={interacaoForm.tipo} onChange={e => setInteracaoForm({ ...interacaoForm, tipo: e.target.value })} className="w-full px-2 py-1 text-xs border rounded" style={SECTION_STYLE}>
-                  <option value="NOTA">Nota</option>
-                  <option value="WHATSAPP_ENVIADO">WhatsApp enviado</option>
-                  <option value="LIGACAO">Ligação</option>
-                  <option value="EMAIL_ENVIADO">Email</option>
-                  <option value="PRESENCIAL">Presencial</option>
-                  <option value="ENCAMINHAMENTO">Encaminhamento</option>
-                </select>
-                <textarea value={interacaoForm.texto} onChange={e => setInteracaoForm({ ...interacaoForm, texto: e.target.value })} placeholder="Resumo da conversa de hoje..." rows={3} className="w-full px-2 py-1 text-xs border rounded" style={SECTION_STYLE} />
-                <input value={interacaoForm.proximaAcao} onChange={e => setInteracaoForm({ ...interacaoForm, proximaAcao: e.target.value })} placeholder="Próxima ação (opcional)" className="w-full px-2 py-1 text-xs border rounded" style={SECTION_STYLE} />
-                <input type="date" value={interacaoForm.proximoFollowupAt} onChange={e => setInteracaoForm({ ...interacaoForm, proximoFollowupAt: e.target.value })} className="w-full px-2 py-1 text-xs border rounded" style={SECTION_STYLE} />
-                <div className="flex gap-2">
-                  <button onClick={() => setInteracaoOpen(false)} className="flex-1 px-2 py-1 text-xs border rounded" style={SECTION_STYLE}>Cancelar</button>
-                  <button onClick={handleInteracao} className="flex-1 px-2 py-1 text-xs text-white rounded font-semibold" style={{ background: "#009AAC" }}>Salvar na ficha</button>
+            {/* BLOCO 2: CLIENTE com toggle Lead↔Cliente */}
+            {tutor && (
+              <section className={SECTION} style={SECTION_STYLE}>
+                <div className={LBL}>
+                  <span>
+                    <span className={NUM}>2</span>Cliente
+                    {/* TOGGLE Lead/Cliente */}
+                    <span className="inline-flex ml-1.5 rounded-full p-0.5 border" style={{ background: "#FAFAF7", borderColor: "#E8DFC8" }}>
+                      <button onClick={handleDesconverter} className="px-2 py-0.5 text-[9px] font-bold rounded-full uppercase text-[#5F5E5A] hover:bg-amber-100 hover:text-[#92611A]">Lead</button>
+                      <button className="px-2 py-0.5 text-[9px] font-bold rounded-full uppercase" style={{ background: "#CCFBF1", color: "#0E7490" }}>Cliente</button>
+                    </span>
+                  </span>
+                  <Link href={`/dashboard/erp/tutores/${tutor.id}`} target="_blank" className={LINK} style={{ color: "#009AAC" }}>Ficha <LuExternalLink size={9} className="inline -mt-0.5" /></Link>
                 </div>
-              </div>
-            )}
-          </section>
-        )}
-
-        {(tutor || lead) && (
-          <section className="px-3 py-2.5">
-            <div className={LBL}>
-              <span><span className={NUM}>5</span>Últimos atendimentos{historico.length > 0 && ` (${historico.length})`}</span>
-              {tutor && selectedPet && (
-                <Link href={`/dashboard/erp/pets/${selectedPet.id}/atendimentos/novo`} target="_blank" className={LINK} style={{ color: "#009AAC" }}><LuPlus size={10} className="inline" /> novo</Link>
-              )}
-            </div>
-            {historico.length === 0 ? (
-              <div className="rounded-lg p-3 text-center text-[11px] italic text-gray-400" style={{ background: "#fafafa", border: "1px dashed #E8DFC8" }}>
-                Nenhum atendimento ainda
-              </div>
-            ) : (
-              <div className="space-y-1">
-                {historico.map(h => {
-                  const isInteracao = h.type === "INTERACAO";
-                  const isEditing = editingInteracaoId === h.id;
-                  if (isEditing) {
-                    return (
-                      <div key={h.id} className="rounded-lg p-2 border" style={{ background: "#f6fdfd", borderColor: "#E8DFC8" }}>
-                        <div className="text-[10px] font-semibold mb-1" style={{ color: "#014D5E" }}>{h.title}</div>
-                        <textarea autoFocus value={interacaoDraft} onChange={e => setInteracaoDraft(e.target.value)} rows={3} className="w-full px-2 py-1 text-[11px] border rounded" style={SECTION_STYLE} />
-                        <div className="flex gap-1.5 mt-1.5">
-                          <button onClick={() => setInteracaoDraft("")} title="Limpar" className="px-2 py-1 text-[10.5px] border rounded text-gray-500" style={SECTION_STYLE}>🗑</button>
-                          <button onClick={() => setEditingInteracaoId(null)} className="flex-1 px-2 py-1 text-[10.5px] border rounded" style={SECTION_STYLE}>Cancelar</button>
-                          <button onClick={() => saveInteracaoEdit(h.id)} className="flex-1 px-2 py-1 text-[10.5px] text-white rounded font-semibold" style={{ background: "#009AAC" }}>Salvar</button>
-                        </div>
+                <div className="flex items-start gap-2">
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-semibold flex-shrink-0" style={{ background: "linear-gradient(135deg,#009AAC,#014D5E)" }}>{initials(tutor.name)}</div>
+                  <div className="min-w-0 flex-1">
+                    {editingName ? (
+                      <div className="flex gap-1 mb-1">
+                        <input autoFocus value={nameDraft} onChange={e => setNameDraft(e.target.value)} onKeyDown={e => { if (e.key === "Enter") saveName(); if (e.key === "Escape") setEditingName(false); }} className="flex-1 text-[12.5px] font-semibold border rounded px-1.5 py-0.5" style={{ borderColor: "#009AAC", color: "#014D5E" }} />
+                        <button onClick={() => setNameDraft("")} title="Limpar" className="px-1.5 text-[10px] border rounded text-gray-500" style={{ borderColor: "#E8DFC8" }}>🗑</button>
+                        <button onClick={saveName} className="px-1.5 text-[10px] text-white rounded font-semibold" style={{ background: "#009AAC" }}>✓</button>
+                        <button onClick={() => setEditingName(false)} className="px-1.5 text-[10px] border rounded" style={{ borderColor: "#E8DFC8" }}>✕</button>
                       </div>
-                    );
-                  }
-                  const Tag: any = h.href ? Link : "div";
-                  const tagProps: any = h.href ? { href: h.href, target: "_blank" } : {};
-                  return (
-                    <Tag key={h.id} {...tagProps} className="flex items-start gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 transition border group" style={{ borderColor: "#F0EBE0" }}>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-[11px] font-semibold flex items-center gap-1 flex-wrap" style={{ color: "#014D5E" }}>
-                          {h.title}
-                          <span className={`text-[8.5px] px-1.5 py-0.5 rounded font-bold uppercase ${h.fase === "LEAD" ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"}`}>{h.fase}</span>
-                        </div>
-                        <div className="text-[10.5px] text-gray-500 truncate">{h.subtitle}</div>
-                      </div>
-                      {h.type === "INTERACAO" && (
-                        <button
-                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditingInteracaoId(h.id); setInteracaoDraft(h.subtitle); }}
-                          className="text-[10px] text-gray-400 hover:text-[#009AAC] opacity-0 group-hover:opacity-100 flex-shrink-0"
-                          title="Editar interação"
-                        >✏</button>
+                    ) : (
+                      <div onClick={() => { setEditingName(true); setNameDraft(tutor.name); }} className="text-[12.5px] font-semibold truncate cursor-pointer hover:underline" style={{ color: "#014D5E" }} title="Clique para editar">{tutor.name}</div>
+                    )}
+                    <div className="text-[10.5px] text-gray-500 leading-snug">
+                      {editingPhone ? (
+                        <span className="inline-flex gap-1 items-center">
+                          <input autoFocus value={phoneDraft} onChange={e => setPhoneDraft(e.target.value)} onKeyDown={e => { if (e.key === "Enter") savePhone(); if (e.key === "Escape") setEditingPhone(false); }} className="text-[10.5px] border rounded px-1.5 py-0.5 w-28" style={{ borderColor: "#009AAC" }} />
+                          <button onClick={() => setPhoneDraft("")} title="Limpar" className="text-[10px] text-gray-500">🗑</button>
+                          <button onClick={savePhone} className="text-[10px] text-[#009AAC] font-bold">✓</button>
+                          <button onClick={() => setEditingPhone(false)} className="text-[10px] text-gray-400">✕</button>
+                        </span>
+                      ) : (
+                        <span onClick={() => { setEditingPhone(true); setPhoneDraft(tutorPrimaryPhone || ""); }} className="cursor-pointer hover:underline" title="Clique para editar">
+                          <LuPhone size={9} className="inline -mt-0.5" /> {tutorPrimaryPhone ? formatPhone(tutorPrimaryPhone) : "+ adicionar telefone"}
+                        </span>
                       )}
-                    </Tag>
-                  );
-                })}
-              </div>
+                      {ltv && <> · LTV {ltv}</>}
+                      <br />
+                      🐾 {pets.length} pet{pets.length !== 1 ? "s" : ""}
+                      {numAtendimentos > 0 && <> · {numAtendimentos} atendimento{numAtendimentos !== 1 ? "s" : ""}</>}
+                      {clienteDesde && <> · cliente desde {clienteDesde}</>}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 mt-2">
+                  <span className="text-[9.5px] font-bold uppercase text-gray-400 whitespace-nowrap">Estado relac.</span>
+                  <select value={tutor.estadoRelacionamento || ""} onChange={e => updateTutorEstado(e.target.value)} className="flex-1 text-[10.5px] px-2 py-1 border rounded-lg font-medium" style={{ borderColor: "#009AAC", color: "#014D5E", background: "white" }}>
+                    <option value="">— selecionar —</option>
+                    {ESTADO_RELACIONAMENTO.map(e => <option key={e.v} value={e.v}>{e.label}</option>)}
+                  </select>
+                </div>
+              </section>
             )}
-          </section>
-        )}
+            {/* BLOCO 2: LEAD com toggle Lead↔Cliente + PET DE INTERESSE */}
+            {!tutor && lead && (
+              <section className={SECTION} style={{ ...SECTION_STYLE, background: "#FFFBEB" }}>
+                <div className={LBL}>
+                  <span>
+                    <span className={NUM}>2</span>Lead
+                    <span className="inline-flex ml-1.5 rounded-full p-0.5 border" style={{ background: "#FAFAF7", borderColor: "#E8DFC8" }}>
+                      <button className="px-2 py-0.5 text-[9px] font-bold rounded-full uppercase" style={{ background: "#FEF3C7", color: "#92611A" }}>Lead</button>
+                      <button onClick={handleConverter} className="px-2 py-0.5 text-[9px] font-bold rounded-full uppercase text-[#5F5E5A] hover:bg-teal-100 hover:text-[#0E7490]">Cliente</button>
+                    </span>
+                  </span>
+                  <Link href={`/dashboard/erp/leads/${lead.id}`} target="_blank" className={LINK} style={{ color: "#009AAC" }}>Ficha <LuExternalLink size={9} className="inline -mt-0.5" /></Link>
+                </div>
+                <div className="flex items-start gap-2">
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-semibold flex-shrink-0" style={{ background: "linear-gradient(135deg,#D97706,#92611A)" }}>{initials(lead.name || "?")}</div>
+                  <div className="min-w-0 flex-1">
+                    {editingName ? (
+                      <div className="flex gap-1 mb-1">
+                        <input autoFocus value={nameDraft} onChange={e => setNameDraft(e.target.value)} onKeyDown={e => { if (e.key === "Enter") saveName(); if (e.key === "Escape") setEditingName(false); }} className="flex-1 text-[12.5px] font-semibold border rounded px-1.5 py-0.5" style={{ borderColor: "#009AAC", color: "#014D5E" }} />
+                        <button onClick={() => setNameDraft("")} title="Limpar" className="px-1.5 text-[10px] border rounded text-gray-500" style={{ borderColor: "#E8DFC8" }}>🗑</button>
+                        <button onClick={saveName} className="px-1.5 text-[10px] text-white rounded font-semibold" style={{ background: "#009AAC" }}>✓</button>
+                        <button onClick={() => setEditingName(false)} className="px-1.5 text-[10px] border rounded" style={{ borderColor: "#E8DFC8" }}>✕</button>
+                      </div>
+                    ) : (
+                      <div onClick={() => { setEditingName(true); setNameDraft(lead.name || ""); }} className="text-[12.5px] font-semibold truncate cursor-pointer hover:underline" style={{ color: "#014D5E" }} title="Clique para editar">{lead.name || "Sem nome"}</div>
+                    )}
+                    <div className="text-[10.5px] text-gray-500 leading-snug">
+                      {editingPhone ? (
+                        <span className="inline-flex gap-1 items-center">
+                          <input autoFocus value={phoneDraft} onChange={e => setPhoneDraft(e.target.value)} onKeyDown={e => { if (e.key === "Enter") savePhone(); if (e.key === "Escape") setEditingPhone(false); }} className="text-[10.5px] border rounded px-1.5 py-0.5 w-28" style={{ borderColor: "#009AAC" }} />
+                          <button onClick={() => setPhoneDraft("")} title="Limpar" className="text-[10px] text-gray-500">🗑</button>
+                          <button onClick={savePhone} className="text-[10px] text-[#009AAC] font-bold">✓</button>
+                          <button onClick={() => setEditingPhone(false)} className="text-[10px] text-gray-400">✕</button>
+                        </span>
+                      ) : (
+                        <span onClick={() => { setEditingPhone(true); setPhoneDraft(lead.phone || ""); }} className="cursor-pointer hover:underline" title="Clique para editar">
+                          <LuPhone size={9} className="inline -mt-0.5" /> {lead.phone ? formatPhone(lead.phone) : "+ adicionar telefone"}
+                        </span>
+                      )}
+                      {lead.source && <> · via {lead.source}</>}
+                      {lead.createdAt && <> · {fmtRelative(lead.createdAt)}</>}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 mt-2">
+                  <span className="text-[9.5px] font-bold uppercase text-gray-400 whitespace-nowrap">Pipeline comercial</span>
+                  <select value={lead.pipelineComercialEtapa || ""} onChange={e => updateLeadEtapa(e.target.value)} className="flex-1 text-[10.5px] px-2 py-1 border rounded-lg font-medium" style={{ borderColor: "#009AAC", color: "#014D5E", background: "white" }}>
+                    <option value="">— selecionar etapa —</option>
+                    {PIPELINE_COMERCIAL.map(e => <option key={e} value={e}>{e}</option>)}
+                  </select>
+                </div>
+                {/* PET DE INTERESSE */}
+                <div className="text-[9.5px] font-bold uppercase text-[#92611A] mt-2 mb-1">🐾 Pet de interesse</div>
+                <div className="flex gap-1.5">
+                  <input value={leadPetNome} onChange={e => setLeadPetNome(e.target.value)} placeholder="Nome do pet" className="flex-1 px-2 py-1 text-[11px] border rounded" style={{ borderColor: "#E8DFC8" }} />
+                  <select value={leadPetEspecie} onChange={e => setLeadPetEspecie(e.target.value)} className="px-2 py-1 text-[11px] border rounded w-[80px]" style={{ borderColor: "#E8DFC8" }}>
+                    <option>Cão</option><option>Gato</option><option>Outro</option>
+                  </select>
+                </div>
+                <button onClick={handleConverter} className="mt-2 w-full text-[10.5px] py-1.5 border rounded font-semibold hover:bg-white flex items-center justify-center gap-1" style={{ borderColor: "#009AAC", color: "#009AAC" }}>
+                  <LuArrowUpRight size={12} /> Converter em cliente
+                </button>
+              </section>
+            )}
 
+            {/* BLOCO 3: PETS */}
+            {tutor && (
+              <section className={SECTION} style={SECTION_STYLE}>
+                <div className={LBL}>
+                  <span><span className={NUM}>3</span>Pets {pets.length > 0 && `(${pets.length})`}{pets.length > 1 ? " · clique pra expandir" : ""}</span>
+                  <button onClick={() => window.open(`/dashboard/erp/pets/novo?tutorId=${tutor.id}`, "_blank")} className={LINK} style={{ color: "#009AAC" }} type="button"><LuPlus size={10} className="inline" /> cadastrar</button>
+                </div>
+                {pets.length > 0 ? (
+                  <div className="space-y-1.5">
+                    {pets.map(p => {
+                      const active = selectedPet?.id === p.id;
+                      return (
+                        <div key={p.id} className={`rounded-lg border ${active ? "" : "hover:bg-gray-50"}`} style={active ? { background: "#e0f4f6", borderColor: "#009AAC" } : { borderColor: "#F0EBE0" }}>
+                          <button onClick={() => setSelectedPet(active ? null : p)} className="w-full flex items-center gap-2 px-2 py-1.5 text-left">
+                            <PetIcon species={p.species} size={20} />
+                            <div className="min-w-0 flex-1">
+                              <div className="text-[11.5px] font-semibold truncate" style={{ color: "#014D5E" }}>{p.name}</div>
+                              <div className="text-[10px] text-gray-500 truncate">{speciesLabel(p.species)}{p.breed ? ` · ${p.breed}` : ""}{p.birthDate ? ` · ${ageFromBirth(p.birthDate)}` : ""}</div>
+                            </div>
+                            <span className="text-[10px] text-gray-400">{active ? "▴" : "▾"}</span>
+                          </button>
+                          {active && (
+                            <div className="px-2 pb-2 pt-1 border-t" style={{ borderColor: "#cfe8eb" }}>
+                              <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[10.5px] mb-2 mt-1">
+                                <div><span className="text-gray-400">Espécie:</span> <span style={{ color: "#014D5E" }}>{speciesLabel(p.species)}</span></div>
+                                <div><span className="text-gray-400">Raça:</span> <span style={{ color: "#014D5E" }}>{p.breed || "—"}</span></div>
+                                <div><span className="text-gray-400">Idade:</span> <span style={{ color: "#014D5E" }}>{p.birthDate ? ageFromBirth(p.birthDate) : "—"}</span></div>
+                              </div>
+                              <div className="space-y-1.5 mb-2">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-[8.5px] font-bold px-1.5 py-0.5 rounded" style={{ background: "#fef3c7", color: "#92400e", minWidth: 28, textAlign: "center" }}>CLI</span>
+                                  <select value={p.pipelineClinicoEtapa || ""} onChange={e => updatePetEtapa("pipelineClinicoEtapa", e.target.value)} className="flex-1 text-[10.5px] px-2 py-1 border rounded font-medium" style={{ borderColor: "#fef3c7", color: "#014D5E", background: "white" }}>
+                                    <option value="">— sem etapa —</option>
+                                    {PIPELINE_CLINICO.map(et => <option key={et} value={et}>{et}</option>)}
+                                  </select>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-[8.5px] font-bold px-1.5 py-0.5 rounded" style={{ background: "#ede9fe", color: "#5b21b6", minWidth: 28, textAlign: "center" }}>FIS</span>
+                                  <select value={p.pipelineFisioEtapa || ""} onChange={e => updatePetEtapa("pipelineFisioEtapa", e.target.value)} className="flex-1 text-[10.5px] px-2 py-1 border rounded font-medium" style={{ borderColor: "#ede9fe", color: "#014D5E", background: "white" }}>
+                                    <option value="">— sem etapa —</option>
+                                    {PIPELINE_FISIO.map(et => <option key={et} value={et}>{et}</option>)}
+                                  </select>
+                                </div>
+                              </div>
+                              <button onClick={() => window.open(`/dashboard/erp/pets/${p.id}/atendimentos/novo`, "_blank")} className="w-full px-2 py-1.5 rounded text-[10.5px] text-white font-semibold flex items-center justify-center gap-1 mb-1.5" style={{ background: "#009AAC" }} type="button"><LuPlus size={11} /> Registrar atendimento</button>
+                              <button onClick={() => window.open(`/dashboard/erp/pets/${p.id}`, "_blank")} className="w-full text-[10px] py-1 border rounded font-medium bg-white hover:bg-gray-50" style={{ borderColor: "#009AAC", color: "#009AAC" }} type="button">Abrir ficha completa ↗</button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="rounded-lg p-3 text-center text-[11px] text-gray-400" style={{ background: "#fafafa", border: "1px dashed #E8DFC8" }}>
+                    Nenhum pet cadastrado ainda<br />
+                    <button onClick={() => window.open(`/dashboard/erp/pets/novo?tutorId=${tutor.id}`, "_blank")} className="font-semibold mt-1" style={{ color: "#009AAC" }} type="button">+ Cadastrar pet</button>
+                  </div>
+                )}
+              </section>
+            )}
+
+            {/* BLOCO 4: REGISTRAR INTERACAO */}
+            {(tutor || lead) && (
+              <section className={SECTION} style={SECTION_STYLE}>
+                <div className={LBL}>
+                  <span><span className={NUM}>4</span><LuMessageSquare size={11} className="inline -mt-0.5 mr-1" />Registrar interação</span>
+                  {!interacaoOpen && (<button onClick={() => setInteracaoOpen(true)} className={LINK} style={{ color: "#009AAC" }}><LuPlus size={10} className="inline" /> nova</button>)}
+                </div>
+                {interacaoOpen && (
+                  <div className="space-y-2 rounded-lg p-2 border" style={{ background: "#f6fdfd", borderColor: "#E8DFC8" }}>
+                    <select value={interacaoForm.tipo} onChange={e => setInteracaoForm({ ...interacaoForm, tipo: e.target.value })} className="w-full px-2 py-1 text-xs border rounded" style={SECTION_STYLE}>
+                      <option value="NOTA">Nota</option>
+                      <option value="WHATSAPP_ENVIADO">WhatsApp enviado</option>
+                      <option value="LIGACAO">Ligação</option>
+                      <option value="EMAIL_ENVIADO">Email</option>
+                      <option value="PRESENCIAL">Presencial</option>
+                      <option value="ENCAMINHAMENTO">Encaminhamento</option>
+                    </select>
+                    <textarea value={interacaoForm.texto} onChange={e => setInteracaoForm({ ...interacaoForm, texto: e.target.value })} placeholder="Resumo da conversa..." rows={3} className="w-full px-2 py-1 text-xs border rounded" style={SECTION_STYLE} />
+                    <input value={interacaoForm.proximaAcao} onChange={e => setInteracaoForm({ ...interacaoForm, proximaAcao: e.target.value })} placeholder="Próxima ação (opcional)" className="w-full px-2 py-1 text-xs border rounded" style={SECTION_STYLE} />
+                    <input type="date" value={interacaoForm.proximoFollowupAt} onChange={e => setInteracaoForm({ ...interacaoForm, proximoFollowupAt: e.target.value })} className="w-full px-2 py-1 text-xs border rounded" style={SECTION_STYLE} />
+                    <div className="flex gap-2">
+                      <button onClick={() => setInteracaoOpen(false)} className="flex-1 px-2 py-1 text-xs border rounded" style={SECTION_STYLE}>Cancelar</button>
+                      <button onClick={handleInteracao} className="flex-1 px-2 py-1 text-xs text-white rounded font-semibold" style={{ background: "#009AAC" }}>Salvar na ficha</button>
+                    </div>
+                  </div>
+                )}
+              </section>
+            )}
+
+            {/* BLOCO 5: ULTIMOS ATENDIMENTOS */}
+            {(tutor || lead) && (
+              <section className="px-3 py-2.5">
+                <div className={LBL}>
+                  <span><span className={NUM}>5</span>Últimos atendimentos{historico.length > 0 && ` (${historico.length})`}</span>
+                  {tutor && selectedPet && (
+                    <Link href={`/dashboard/erp/pets/${selectedPet.id}/atendimentos/novo`} target="_blank" className={LINK} style={{ color: "#009AAC" }}><LuPlus size={10} className="inline" /> novo</Link>
+                  )}
+                </div>
+                {historico.length === 0 ? (
+                  <div className="rounded-lg p-3 text-center text-[11px] italic text-gray-400" style={{ background: "#fafafa", border: "1px dashed #E8DFC8" }}>
+                    Nenhum atendimento ainda
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    {historico.map(h => {
+                      const isInteracao = h.type === "INTERACAO";
+                      const isEditing = editingInteracaoId === h.id;
+                      if (isEditing) {
+                        return (
+                          <div key={h.id} className="rounded-lg p-2 border" style={{ background: "#f6fdfd", borderColor: "#E8DFC8" }}>
+                            <div className="text-[10px] font-semibold mb-1" style={{ color: "#014D5E" }}>{h.title}</div>
+                            <textarea autoFocus value={interacaoDraft} onChange={e => setInteracaoDraft(e.target.value)} rows={3} className="w-full px-2 py-1 text-[11px] border rounded" style={SECTION_STYLE} />
+                            <div className="flex gap-1.5 mt-1.5">
+                              <button onClick={() => setEditingInteracaoId(null)} className="flex-1 px-2 py-1 text-[10.5px] border rounded" style={SECTION_STYLE}>Cancelar</button>
+                              <button onClick={() => saveInteracaoEdit(h.id)} className="flex-1 px-2 py-1 text-[10.5px] text-white rounded font-semibold" style={{ background: "#009AAC" }}>Salvar</button>
+                            </div>
+                          </div>
+                        );
+                      }
+                      const Tag: any = h.href ? Link : "div";
+                      const tagProps: any = h.href ? { href: h.href, target: "_blank" } : {};
+                      return (
+                        <Tag key={h.id} {...tagProps} className="flex items-start gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 transition border group" style={{ borderColor: "#F0EBE0" }}>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-[11px] font-semibold flex items-center gap-1 flex-wrap" style={{ color: "#014D5E" }}>
+                              {h.title}
+                              <span className={`text-[8.5px] px-1.5 py-0.5 rounded font-bold uppercase ${h.fase === "LEAD" ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"}`}>{h.fase}</span>
+                            </div>
+                            <div className="text-[10.5px] text-gray-500 truncate">{h.subtitle}</div>
+                          </div>
+                          {isInteracao && (
+                            <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditingInteracaoId(h.id); setInteracaoDraft(h.subtitle); }} className="text-[10px] text-gray-400 hover:text-[#009AAC] opacity-0 group-hover:opacity-100 flex-shrink-0" title="Editar interação">✏</button>
+                          )}
+                        </Tag>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
+            )}
+
+          </>
+        )}
       </div>
     </div>
   );
