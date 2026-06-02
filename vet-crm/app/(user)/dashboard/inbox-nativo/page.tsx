@@ -642,8 +642,8 @@ export default function InboxUnificadoPage() {
           {/* RIGHT - Painel CRM unificado (igual ao Inbox BC) */}
   <InboxRightPanel canal="WhatsApp Meta" initialPhone={selectedConv?.contactNumber} />
           </div>
-        </div>
-      )}
+
+    )}
 
       {tab === "internas" && (
         <div className="grid grid-cols-[280px_1fr] min-h-[500px]">
