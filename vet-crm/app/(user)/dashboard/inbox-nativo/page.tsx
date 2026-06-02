@@ -4,8 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   LuPlus, LuSearch, LuUserPlus, LuPencil, LuPhone, LuCalendar, LuInbox} from "react-icons/lu";
-import InboxRightPanel from "@/components/inbox/InboxRightPanel";
-
+import { usePageTitle, usePageRightSlot } from "@/lib/ui/PageHeaderContext";
 type Tab = "conversas" | "internas" | "encaminhadas";
 type ListFilter = "todos" | "leads" | "clientes";
 
@@ -83,6 +82,8 @@ const SCRIPTS_PLACEHOLDER = [
 ];
 
 export default function InboxUnificadoPage() {
+  usePageTitle("Inbox Meta", "Conversas WhatsApp Business via API Meta");
+  usePageRightSlot(<div className="flex items-center gap-5"><div className="flex flex-col items-end leading-tight"><div className="text-[13px] font-bold" style={{color:"#014D5E"}}>+1h</div><div className="text-[9.5px] uppercase font-semibold text-[#94a3b8] tracking-wide">⏱ esperando</div></div><div className="flex flex-col items-end leading-tight"><div className="text-[13px] font-bold" style={{color:"#014D5E"}}>—</div><div className="text-[9.5px] uppercase font-semibold text-[#94a3b8] tracking-wide">⌛ tempo méd.</div></div><div className="flex flex-col items-end leading-tight"><div className="text-[13px] font-bold" style={{color:"#014D5E"}}>—</div><div className="text-[9.5px] uppercase font-semibold text-[#94a3b8] tracking-wide">🏆 streak</div></div></div>);
   const [tab, setTab] = useState<Tab>("conversas");
   const [filter, setFilter] = useState<ListFilter>("todos");
   const [search, setSearch] = useState("");
@@ -417,20 +418,10 @@ export default function InboxUnificadoPage() {
     finally { setAtendSaving(false); }
   };
 
-  return (
+ return (
     <div className="bg-white border border-[#e8e1d2] rounded-xl overflow-hidden m-4 max-w-[1400px] mx-auto" style={{background:"#ffffff"}}>
-      {/* Header */}
-      <div className="px-4 py-3 border-b border-[#e8e1d2] flex items-center justify-between bg-white">
-        <div className="flex items-center gap-2.5">
-          <LuInbox size={20} className="text-[#009AAC]" />
-          <span className="text-lg text-[#0E2244] font-medium">Inbox</span>
-          {counts.unread > 0 && (
-            <span className="bg-[#E24B4A] text-white text-[11px] px-2 py-0.5 rounded-full font-medium">
-              {counts.unread}
-            </span>
-          )}
-          <span className="text-xs text-[#888780] ml-1">Triagem, mensagens e comunicação interna</span>
-        </div>
+      {/* Toolbar - Hoje + Atualizar + Nova mensagem */}
+      <div className="px-4 py-3 border-b border-[#e8e1d2] flex items-center justify-end bg-white">
         <div className="flex items-center gap-3">
           <span className="text-[11px] text-[#5F5E5A] hidden md:flex items-center gap-1.5">
             <span style={{fontSize:"13px"}}>🏆</span>
@@ -444,7 +435,6 @@ export default function InboxUnificadoPage() {
           </button>
         </div>
       </div>
-
       {/* Tabs */}
       <div className="px-4 border-b border-[#e8e1d2] flex gap-5 bg-white">
         <button onClick={() => setTab("conversas")} className={`py-2.5 text-xs font-medium border-b-2 flex items-center gap-1.5 ${tab === "conversas" ? "border-[#009AAC] text-[#0E2244]" : "border-transparent text-[#888780]"}`}>
