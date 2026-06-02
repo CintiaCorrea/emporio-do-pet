@@ -461,7 +461,7 @@ export default function InboxUnificadoPage() {
       </div>
 
       {tab === "conversas" && (
-        <div className="grid grid-cols-[310px_1fr_340px] min-h-[640px]">
+        <div className="grid grid-cols-[310px_1fr_340px] h-[calc(100vh-140px)]">
           {/* LEFT - Lista */}
           <div className="border-r border-[#e8e1d2] bg-white flex flex-col">
             <div className="p-2.5 flex gap-1.5 flex-wrap border-b border-[#e8e1d2]">
@@ -568,7 +568,7 @@ export default function InboxUnificadoPage() {
                   </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-4 bg-white flex flex-col gap-2 max-h-[420px]">
+                <div className="flex-1 overflow-y-auto p-4 bg-white flex flex-col gap-2">
                   {messages.length === 0 ? (
                     <p className="text-center text-[11px] text-[#888780]">Sem mensagens</p>
                   ) : messages.map((m) => {
