@@ -17,7 +17,7 @@ export class TutorsService {
 
   async create(createTutorDto: CreateTutorDto) {
 // === Normalize + dedupe por ultimos 9 digitos ===
-    const phones = (dto.contacts || []).map(c => last9(c.number)).filter(p => p && p.length >= 8);
+    const phones = (createTutorDto.contacts || []).map(c => last9(c.number)).filter(p => p && p.length >= 8);
     if (phones.length > 0) {
       const existing = await this.prisma.tutor.findFirst({
         where: {
@@ -31,8 +31,8 @@ export class TutorsService {
       });
       if (existing) return existing; // 2b: retorna existente
       // Normaliza os contatos antes de criar
-      if (dto.contacts) {
-        dto.contacts = dto.contacts.map(c => ({ ...c, number: normalizePhone(c.number) }));
+      if (createTutorDto.contacts) {
+        createTutorDto.contacts = createTutorDto.contacts.map(c => ({ ...c, number: normalizePhone(c.number) }));
       }
     }
     const { contacts, ...tutorData } = createTutorDto as any;
