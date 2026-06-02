@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   LuPlus, LuSearch, LuUserPlus, LuPencil, LuPhone, LuCalendar} from "react-icons/lu";
+import InboxRightPanel from "@/components/inbox/InboxRightPanel";
 
 type Tab = "conversas" | "internas" | "encaminhadas";
 type ListFilter = "todos" | "leads" | "clientes";
@@ -638,155 +639,8 @@ export default function InboxUnificadoPage() {
             )}
           </div>
 
-          {/* RIGHT - Ficha estilo Base44 */}
-          <div className="border-l border-[#e8e1d2] bg-white p-3 flex flex-col gap-3 overflow-y-auto max-h-[700px]">
-            {!selectedId ? (
-              <div className="flex flex-col gap-3 opacity-50 pointer-events-none">
-                <div className="bg-white border border-dashed border-[#e8e1d2] rounded-xl p-3">
-                  <div className="text-[10px] text-[#888780] font-medium mb-2">CLIENTE</div>
-                  <div className="h-4 bg-[#f0e8d4] rounded w-3/4 mb-1.5"></div>
-                  <div className="h-2.5 bg-[#f0e8d4] rounded w-1/2"></div>
-                </div>
-                <div className="bg-white border border-dashed border-[#e8e1d2] rounded-xl p-3">
-                  <div className="text-[10px] text-[#888780] font-medium mb-2">🐾 PETS</div>
-                  <div className="h-9 bg-[#f0e8d4] rounded-lg"></div>
-                </div>
-                <p className="text-center text-[11px] text-[#888780] mt-2">Selecione uma conversa pra ver a ficha</p>
-              </div>
-            ) : !tutor ? (
-              // Lead sem tutor — card com Ver lead, Encaminhar, Resolver
-              <>
-                <div className="bg-white border border-[#e8e1d2] rounded-xl p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="bg-[#FCEBEB] text-[#A32D2D] text-[10px] px-2 py-0.5 rounded-full font-medium">Lead</span>
-                    <button className="text-[10px] text-[#5F5E5A] hover:underline">↗ Ver ficha</button>
-                  </div>
-                  <div className="text-base text-[#0E2244] font-medium mb-0.5">{selectedConv?.contactName || "Sem nome"}</div>
-                  <div className="text-[11px] text-[#888780] mb-3">Lead em triagem</div>
-                  <div className="text-[12px] text-[#5F5E5A] flex items-center gap-2 mb-1">
-                    📞 {selectedConv?.contactNumber || "—"}
-                  </div>
-                  <div className="grid grid-cols-2 gap-1.5 mt-3">
-                    <button onClick={() => setEncaminharOpen(true)} className="bg-white border border-[#185FA5] text-[#185FA5] py-1.5 rounded-lg text-[11px] font-medium flex items-center justify-center gap-1.5 hover:bg-[#E6F1FB]">
-                      ↗ Encaminhar
-                    </button>
-                    <button onClick={resolverConversa} disabled={resolvendo} className="bg-white border border-[#0F6E56] text-[#0F6E56] py-1.5 rounded-lg text-[11px] font-medium flex items-center justify-center gap-1.5 hover:bg-[#E1F5EE] disabled:opacity-50">
-                      ✓ {resolvendo ? "Resolvendo..." : "Resolver"}
-                    </button>
-                  </div>
-                </div>
-                <p className="text-[11px] text-[#888780] text-center">Lead ainda não convertido em cliente. Converta na ficha do lead pra cadastrar pets.</p>
-              </>
-            ) : (
-              <>
-                {/* Header da ficha estilo Base44 */}
-                <div className="bg-white border border-[#e8e1d2] rounded-xl p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="bg-[#E1F5EE] text-[#0F6E56] text-[10px] px-2 py-0.5 rounded-full font-medium">Cliente</span>
-                    <Link href={`/dashboard/erp/tutores/${tutor.id}`} className="text-[10px] text-[#5F5E5A] hover:underline flex items-center gap-1">
-                      ↗ Ver ficha
-                    </Link>
-                  </div>
-                  <div className="text-base text-[#0E2244] font-medium mb-0.5">{tutor.name || "Sem nome"}</div>
-                  <div className="text-[11px] text-[#888780] mb-3">Cliente</div>
-                  <div className="text-[12px] text-[#5F5E5A] flex items-center gap-2 mb-1">
-                    📞 {primaryPhone || "—"}
-                  </div>
-                  {tutor.email && (
-                    <div className="text-[12px] text-[#5F5E5A] flex items-center gap-2 mb-1">
-                      ✉️ {tutor.email}
-                    </div>
-                  )}
-                  {tutor.tags?.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      {tutor.tags.slice(0, 4).map((t) => (
-                        <span key={t} className="bg-[#E0F4F6] text-[#00798A] text-[9px] px-1.5 py-0.5 rounded-full">⭕ {t}</span>
-                      ))}
-                    </div>
-                  )}
-                  <div className="grid grid-cols-2 gap-1.5 mt-3">
-                    <button onClick={() => setEncaminharOpen(true)} className="bg-white border border-[#185FA5] text-[#185FA5] py-1.5 rounded-lg text-[11px] font-medium flex items-center justify-center gap-1.5 hover:bg-[#E6F1FB]">
-                      ↗ Encaminhar
-                    </button>
-                    <button onClick={resolverConversa} disabled={resolvendo} className="bg-white border border-[#0F6E56] text-[#0F6E56] py-1.5 rounded-lg text-[11px] font-medium flex items-center justify-center gap-1.5 hover:bg-[#E1F5EE] disabled:opacity-50">
-                      ✓ {resolvendo ? "..." : "Resolver"}
-                    </button>
-                  </div>
-                </div>
-
-                {/* PETS */}
-                <div className="bg-white border border-[#e8e1d2] rounded-xl p-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] text-[#888780] font-medium">🐾 PETS ({tutor.pets?.length || 0})</span>
-                    <Link href={`/dashboard/erp/pets/novo?tutorId=${tutor.id}`} className="text-[10px] text-[#009AAC] font-medium">+ Cadastrar</Link>
-                  </div>
-                  {(tutor.pets?.length || 0) === 0 ? (
-                    <div className="text-[11px] text-[#888780] text-center py-3">
-                      Sem pets cadastrados
-                    </div>
-                  ) : (
-                    <div className="flex flex-col gap-1.5">
-                      {tutor.pets!.map((p) => {
-                        const isSel = selectedPetId === p.id;
-                        return (
-                          <button key={p.id} onClick={() => setSelectedPetId(p.id)}
-                            className={`text-left px-2.5 py-2 rounded-lg flex items-center justify-between ${isSel ? "bg-[#f9f9f9] border border-[#009AAC]" : "bg-white border border-transparent hover:bg-[#f9f9f9]"}`}>
-                            <div className="flex items-center gap-2">
-                              <span className="text-base">{PET_EMOJI(p.species)}</span>
-                              <div>
-                                <span className="text-[12px] text-[#0E2244] font-medium">{p.name}</span>
-                                <span className="text-[10px] text-[#888780] ml-1">{p.species}</span>
-                              </div>
-                            </div>
-                            {(p.tags?.length || 0) > 0 && (
-                              <span className="bg-[#FBF0DD] text-[#8a6313] text-[9px] px-2 py-0.5 rounded-full">
-                                {p.tags![0]}
-                              </span>
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-
-                {/* Ações no pet selecionado */}
-                {selectedPet && (
-                  <div className="bg-white border border-[#e8e1d2] rounded-xl p-3">
-                    <div className="text-[10px] text-[#888780] font-medium mb-2">⚡ AÇÕES NO {selectedPet.name.toUpperCase()}</div>
-                    <div className="flex flex-wrap gap-1.5">
-                      <button onClick={() => setNotaPetOpen(true)}
-                        className="bg-white border border-[#e8e1d2] px-2.5 py-1 rounded text-[10px] text-[#0E2244] flex items-center gap-1 hover:bg-[#f9f9f9]">
-                        <LuPencil className="w-2.5 h-2.5" />Nota
-                      </button>
-                      <button onClick={() => setAgendaPetOpen(true)}
-                        className="bg-white border border-[#e8e1d2] px-2.5 py-1 rounded text-[10px] text-[#0E2244] flex items-center gap-1 hover:bg-[#f9f9f9]">
-                        <LuCalendar className="w-2.5 h-2.5" />Agendar
-                      </button>
-                      <Link href={`/dashboard/erp/pets/${selectedPet.id}`}
-                        className="bg-white border border-[#e8e1d2] px-2.5 py-1 rounded text-[10px] text-[#0E2244] flex items-center gap-1 hover:bg-[#f9f9f9]">
-                        🩺 Prontuário
-                      </Link>
-                      <Link href={`/dashboard/erp/pets/${selectedPet.id}?tab=exames`}
-                        className="bg-white border border-[#e8e1d2] px-2.5 py-1 rounded text-[10px] text-[#0E2244] flex items-center gap-1 hover:bg-[#f9f9f9]">
-                        🧪 Exame
-                      </Link>
-                    </div>
-                  </div>
-                )}
-
-                {/* Últimos atendimentos */}
-                <div className="bg-white border border-[#e8e1d2] rounded-xl p-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] text-[#888780] font-medium">⏱ ÚLTIMOS ATENDIMENTOS</span>
-                    <button
-                      onClick={() => { if (!selectedPetId) { alert("Selecione um pet acima"); return; } setAtendModalOpen(true); }}
-                      className="text-[10px] text-[#009AAC] font-medium hover:underline">+ Adicionar</button>
-                  </div>
-                  <p className="text-[11px] text-[#5F5E5A] text-center py-2">Nenhum atendimento registrado</p>
-                </div>
-              </>
-            )}
+          {/* RIGHT - Painel CRM unificado (igual ao Inbox BC) */}
+  <InboxRightPanel canal="WhatsApp Meta" initialPhone={selectedConv?.contactNumber} />
           </div>
         </div>
       )}
