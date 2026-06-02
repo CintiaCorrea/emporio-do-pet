@@ -15,7 +15,7 @@ interface Props {
 export default function Header({ sidebarOpen }: Props) {
   const { data: session } = useSession();
   const { effectiveRole, isPreviewing, realRole } = useRolePreview();
-  const userName = session?.user?.name || "Usuário";
+  const userName = session?.user?.name || "Usuario";
   const userEmail = session?.user?.email || "";
   const initials = ((userName.split(/\s+/)[0]?.[0] || "") + (userName.split(/\s+/)[1]?.[0] || "")).toUpperCase() || "??";
   const { header } = usePageHeader();
@@ -49,7 +49,7 @@ export default function Header({ sidebarOpen }: Props) {
         {isPreviewing && (
           <span
             className="hidden sm:inline-flex items-center gap-1 text-[10.5px] font-semibold uppercase tracking-wide bg-[#fffbeb] border border-[#fde68a] text-[#d97706] px-2 py-[3px] rounded-md"
-            title="Você está em modo preview de outro perfil"
+            title="Voce esta em modo preview de outro perfil"
           >
             👁 Preview · {roleLabel(effectiveRole)}
           </span>
@@ -57,6 +57,13 @@ export default function Header({ sidebarOpen }: Props) {
       </div>
 
       <div className="flex items-center gap-[14px] shrink-0">
+        {/* Slot customizado para stats inline da pagina (ex: Inbox com esperando/streak) */}
+        {header.rightSlot && (
+          <div className="hidden xl:flex items-center pr-3 mr-1 border-r" style={{ borderColor: "#e8edf0" }}>
+            {header.rightSlot}
+          </div>
+        )}
+
         <div className="hidden md:flex items-center gap-2 bg-[#f6f8f9] border rounded-[9px] px-3 py-2 w-[240px]" style={{ borderColor: "#e8edf0" }}>
           <LuSearch size={15} className="text-[#94a3b8]" />
           <input
@@ -68,7 +75,7 @@ export default function Header({ sidebarOpen }: Props) {
         <button
           className="w-[38px] h-[38px] rounded-[9px] border bg-white flex items-center justify-center text-[#64748b] hover:text-[#009AAC] relative transition"
           style={{ borderColor: "#e8edf0" }}
-          title="Notificações"
+          title="Notificacoes"
         >
           <LuBell size={17} />
           <span className="absolute top-2 right-[9px] w-[7px] h-[7px] rounded-full bg-[#ef4444] border-2 border-white" />
@@ -118,7 +125,7 @@ export default function Header({ sidebarOpen }: Props) {
                   onClick={() => setOpen(false)}
                   className="flex items-center gap-2.5 px-4 py-2.5 text-[13px] text-[#475569] hover:bg-[#f6f8f9] transition"
                 >
-                  <LuSettings size={15} className="text-[#94a3b8]" /> Configurações
+                  <LuSettings size={15} className="text-[#94a3b8]" /> Configuracoes
                 </Link>
               )}
               <div className="border-t my-1" style={{ borderColor: "#e8edf0" }} />
