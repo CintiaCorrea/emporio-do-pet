@@ -153,6 +153,16 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
   const [interacaoOpen, setInteracaoOpen] = useState(false);
   const [interacaoForm, setInteracaoForm] = useState({ texto: "", tipo: "NOTA", proximaAcao: "", proximoFollowupAt: "" });
 
+  // Inline edit
+  const [editingResumo, setEditingResumo] = useState(false);
+  const [resumoDraft, setResumoDraft] = useState("");
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState("");
+  const [editingPhone, setEditingPhone] = useState(false);
+  const [phoneDraft, setPhoneDraft] = useState("");
+  const [editingInteracaoId, setEditingInteracaoId] = useState<string | null>(null);
+  const [interacaoDraft, setInteracaoDraft] = useState("");
+
   useEffect(() => {
     fetch("/api/inbox/context/staff").then(r => r.json()).then(d => setStaff(Array.isArray(d) ? d : [])).catch(() => {});
   }, []);
@@ -437,6 +447,76 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
     setHistorico(hist);
   }
 
+  async function saveResumo() {
+    const txt = resumoDraft.trim();
+    if (lead) {
+      const r = await fetch(`/api/leads/${lead.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ resumoIa: txt, resumoIaUpdatedAt: new Date().toISOString() }) });
+      if (!r.ok) { toast.error("Erro ao salvar resumo"); return; }
+      setLead({ ...lead, resumoIa: txt, resumoIaUpdatedAt: new Date().toISOString() });
+    } else if (tutor) {
+      const r = await fetch(`/api/tutors/${tutor.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ resumoIa: txt, resumoIaUpdatedAt: new Date().toISOString() }) });
+      if (!r.ok) { toast.error("Erro ao salvar resumo"); return; }
+      setTutor({ ...tutor, resumoIa: txt, resumoIaUpdatedAt: new Date().toISOString() });
+    } else if (leadHistorico) {
+      const r = await fetch(`/api/leads/${leadHistorico.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ resumoIa: txt, resumoIaUpdatedAt: new Date().toISOString() }) });
+      if (!r.ok) { toast.error("Erro ao salvar resumo"); return; }
+      setLeadHistorico({ ...leadHistorico, resumoIa: txt, resumoIaUpdatedAt: new Date().toISOString() });
+    }
+    toast.success("Resumo salvo");
+    setEditingResumo(false);
+  }
+
+  async function saveName() {
+    const v = nameDraft.trim();
+    if (!v) { toast.error("Nome obrigatório"); return; }
+    if (tutor) {
+      const r = await fetch(`/api/tutors/${tutor.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: v }) });
+      if (!r.ok) { toast.error("Erro ao salvar nome"); return; }
+      setTutor({ ...tutor, name: v });
+    } else if (lead) {
+      const r = await fetch(`/api/leads/${lead.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: v }) });
+      if (!r.ok) { toast.error("Erro ao salvar nome"); return; }
+      setLead({ ...lead, name: v });
+    }
+    toast.success("Nome salvo");
+    setEditingName(false);
+  }
+
+  async function saveInteracaoEdit(interacaoId: string) {
+    const txt = interacaoDraft.trim();
+    if (!txt) { toast.error("Texto obrigatório"); return; }
+    // O ID no historico tem prefixo i- ou it- ou il-; remover
+    const realId = interacaoId.replace(/^(it-|il-|i-)/, "");
+    const r = await fetch(`/api/interacoes/${realId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ texto: txt }) });
+    if (!r.ok) { toast.error("Erro ao salvar"); return; }
+    toast.success("Interação atualizada");
+    setEditingInteracaoId(null);
+    const hist = await carregarHistorico(tutor?.id, lead?.id, leadHistorico?.id);
+    setHistorico(hist);
+  }
+
+  async function savePhone() {
+    const raw = phoneDraft.trim();
+    const v = normalizePhone(raw);
+    if (!v || v.length < 10) { toast.error("Telefone inválido"); return; }
+    if (tutor) {
+      // Atualiza primeiro contato (ou cria se nao existe)
+      const existing = tutor.contacts || [];
+      const newContacts = existing.length
+        ? existing.map((c, i) => i === 0 ? { ...c, number: v } : c)
+        : [{ id: "tmp", number: v, isPrimary: true, isWhatsApp: true }];
+      const r = await fetch(`/api/tutors/${tutor.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ contacts: newContacts }) });
+      if (!r.ok) { toast.error("Erro ao salvar telefone"); return; }
+      setTutor({ ...tutor, contacts: newContacts });
+    } else if (lead) {
+      const r = await fetch(`/api/leads/${lead.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ phone: v }) });
+      if (!r.ok) { toast.error("Erro ao salvar telefone"); return; }
+      setLead({ ...lead, phone: v });
+    }
+    toast.success("Telefone salvo");
+    setEditingPhone(false);
+  }
+
   const resumo = lead?.resumoIa || tutor?.resumoIa || leadHistorico?.resumoIa;
   const resumoWhen = lead?.resumoIaUpdatedAt || tutor?.resumoIaUpdatedAt || leadHistorico?.resumoIaUpdatedAt;
   const tutorPrimaryPhone = (tutor?.contacts || []).find(c => c.isPrimary)?.number || tutor?.contacts?.[0]?.number || "";
@@ -450,7 +530,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
   const LINK = "text-[10.5px] font-semibold normal-case cursor-pointer";
 
   return (
-    <div className="h-full flex flex-col bg-white">
+    <div className="h-full flex flex-col bg-white" style={{ maxHeight: "calc(100vh - 60px)" }}>
       <div className="px-3 pt-3 pb-2 border-b flex-shrink-0" style={SECTION_STYLE}>
         <div className="flex items-center justify-between mb-2">
           <div className="text-[10px] font-bold tracking-wide text-gray-500 uppercase">Contexto da conversa</div>
@@ -577,16 +657,25 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
             <div className={LBL}>
               <span><span className={NUM}>1</span><LuSparkles size={11} className="inline -mt-0.5 mr-1" />Resumo da conversa (IA){resumoWhen && <span className="font-normal text-gray-400 normal-case ml-1 text-[9.5px]">{fmtRelative(resumoWhen)}</span>}</span>
             </div>
-            {resumo ? (
-              <div className="rounded-lg p-2.5 text-[11.5px] leading-relaxed" style={{ background: "linear-gradient(135deg,#f0fdfa,#e0f4f6)", border: "1px solid #99e9d8", color: "#0c4a6e" }}>
+            {editingResumo ? (
+              <div className="rounded-lg p-2 border" style={{ background: "#f0fdfa", borderColor: "#99e9d8" }}>
+                <textarea value={resumoDraft} onChange={e => setResumoDraft(e.target.value)} rows={4} className="w-full px-2 py-1.5 text-[11.5px] border rounded resize-none" style={{ borderColor: "#99e9d8", color: "#0c4a6e" }} placeholder="Resumo da conversa..." />
+                <div className="flex gap-1.5 mt-1.5">
+                  <button onClick={() => setEditingResumo(false)} className="flex-1 px-2 py-1 text-[10.5px] border rounded" style={{ borderColor: "#E8DFC8" }}>Cancelar</button>
+                  <button onClick={saveResumo} className="flex-1 px-2 py-1 text-[10.5px] text-white rounded font-semibold" style={{ background: "#009AAC" }}>Salvar</button>
+                </div>
+              </div>
+            ) : resumo ? (
+              <div onClick={() => { setEditingResumo(true); setResumoDraft(resumo); }} className="rounded-lg p-2.5 text-[11.5px] leading-relaxed cursor-pointer hover:opacity-90 group relative" style={{ background: "linear-gradient(135deg,#f0fdfa,#e0f4f6)", border: "1px solid #99e9d8", color: "#0c4a6e" }} title="Clique para editar">
                 <div className="text-[9.5px] font-bold uppercase mb-1 flex items-center gap-1" style={{ color: "#0e7490" }}>
                   <span className="px-1 rounded text-white" style={{ background: "#14b8a6" }}>IA</span> via BotConversa
+                  <span className="ml-auto text-gray-400 opacity-0 group-hover:opacity-100 normal-case font-normal">✏ editar</span>
                 </div>
                 {resumo}
               </div>
             ) : (
-              <div className="rounded-lg p-2.5 text-[11px] text-center italic" style={{ background: "#fafafa", border: "1px dashed #E8DFC8", color: "#94a3b8" }}>
-                Sem resumo ainda · ↻ atualizar do BotConversa
+              <div onClick={() => { setEditingResumo(true); setResumoDraft(""); }} className="rounded-lg p-2.5 text-[11px] text-center italic cursor-pointer hover:bg-gray-100" style={{ background: "#fafafa", border: "1px dashed #E8DFC8", color: "#94a3b8" }}>
+                Sem resumo ainda · ✏ clique para adicionar
               </div>
             )}
           </section>
@@ -600,10 +689,28 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
             </div>
             <div className="flex items-start gap-2">
               <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-semibold flex-shrink-0" style={{ background: "linear-gradient(135deg,#009AAC,#014D5E)" }}>{initials(tutor.name)}</div>
-              <div className="min-w-0">
-                <div className="text-[12.5px] font-semibold truncate" style={{ color: "#014D5E" }}>{tutor.name}</div>
+              <div className="min-w-0 flex-1">
+                {editingName ? (
+                  <div className="flex gap-1 mb-1">
+                    <input autoFocus value={nameDraft} onChange={e => setNameDraft(e.target.value)} onKeyDown={e => { if (e.key === "Enter") saveName(); if (e.key === "Escape") setEditingName(false); }} className="flex-1 text-[12.5px] font-semibold border rounded px-1.5 py-0.5" style={{ borderColor: "#009AAC", color: "#014D5E" }} />
+                    <button onClick={saveName} className="px-1.5 text-[10px] text-white rounded font-semibold" style={{ background: "#009AAC" }}>✓</button>
+                    <button onClick={() => setEditingName(false)} className="px-1.5 text-[10px] border rounded" style={{ borderColor: "#E8DFC8" }}>✕</button>
+                  </div>
+                ) : (
+                  <div onClick={() => { setEditingName(true); setNameDraft(tutor.name); }} className="text-[12.5px] font-semibold truncate cursor-pointer hover:underline" style={{ color: "#014D5E" }} title="Clique para editar">{tutor.name}</div>
+                )}
                 <div className="text-[10.5px] text-gray-500 leading-snug">
-                  {tutorPrimaryPhone && (<><LuPhone size={9} className="inline -mt-0.5" /> {formatPhone(tutorPrimaryPhone)}</>)}
+                  {editingPhone ? (
+                    <span className="inline-flex gap-1 items-center">
+                      <input autoFocus value={phoneDraft} onChange={e => setPhoneDraft(e.target.value)} onKeyDown={e => { if (e.key === "Enter") savePhone(); if (e.key === "Escape") setEditingPhone(false); }} className="text-[10.5px] border rounded px-1.5 py-0.5 w-32" style={{ borderColor: "#009AAC" }} />
+                      <button onClick={savePhone} className="text-[10px] text-[#009AAC] font-bold">✓</button>
+                      <button onClick={() => setEditingPhone(false)} className="text-[10px] text-gray-400">✕</button>
+                    </span>
+                  ) : (
+                    <span onClick={() => { setEditingPhone(true); setPhoneDraft(tutorPrimaryPhone || ""); }} className="cursor-pointer hover:underline" title="Clique para editar">
+                      <LuPhone size={9} className="inline -mt-0.5" /> {tutorPrimaryPhone ? formatPhone(tutorPrimaryPhone) : "+ adicionar telefone"}
+                    </span>
+                  )}
                   {ltv && <> · LTV {ltv}</>}
                   <br />
                   🐾 {pets.length} pet{pets.length !== 1 ? "s" : ""}
@@ -633,10 +740,28 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
             </div>
             <div className="flex items-start gap-2">
               <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-semibold flex-shrink-0" style={{ background: "linear-gradient(135deg,#f59e0b,#d97706)" }}>{initials(lead.name || "?")}</div>
-              <div className="min-w-0">
-                <div className="text-[12.5px] font-semibold truncate" style={{ color: "#014D5E" }}>{lead.name || "Sem nome"}</div>
+              <div className="min-w-0 flex-1">
+                {editingName ? (
+                  <div className="flex gap-1 mb-1">
+                    <input autoFocus value={nameDraft} onChange={e => setNameDraft(e.target.value)} onKeyDown={e => { if (e.key === "Enter") saveName(); if (e.key === "Escape") setEditingName(false); }} className="flex-1 text-[12.5px] font-semibold border rounded px-1.5 py-0.5" style={{ borderColor: "#009AAC", color: "#014D5E" }} />
+                    <button onClick={saveName} className="px-1.5 text-[10px] text-white rounded font-semibold" style={{ background: "#009AAC" }}>✓</button>
+                    <button onClick={() => setEditingName(false)} className="px-1.5 text-[10px] border rounded" style={{ borderColor: "#E8DFC8" }}>✕</button>
+                  </div>
+                ) : (
+                  <div onClick={() => { setEditingName(true); setNameDraft(lead.name || ""); }} className="text-[12.5px] font-semibold truncate cursor-pointer hover:underline" style={{ color: "#014D5E" }} title="Clique para editar">{lead.name || "Sem nome"}</div>
+                )}
                 <div className="text-[10.5px] text-gray-500 leading-snug">
-                  {lead.phone && (<><LuPhone size={9} className="inline -mt-0.5" /> {formatPhone(lead.phone)}</>)}
+                  {editingPhone ? (
+                    <span className="inline-flex gap-1 items-center">
+                      <input autoFocus value={phoneDraft} onChange={e => setPhoneDraft(e.target.value)} onKeyDown={e => { if (e.key === "Enter") savePhone(); if (e.key === "Escape") setEditingPhone(false); }} className="text-[10.5px] border rounded px-1.5 py-0.5 w-32" style={{ borderColor: "#009AAC" }} />
+                      <button onClick={savePhone} className="text-[10px] text-[#009AAC] font-bold">✓</button>
+                      <button onClick={() => setEditingPhone(false)} className="text-[10px] text-gray-400">✕</button>
+                    </span>
+                  ) : (
+                    <span onClick={() => { setEditingPhone(true); setPhoneDraft(lead.phone || ""); }} className="cursor-pointer hover:underline" title="Clique para editar">
+                      <LuPhone size={9} className="inline -mt-0.5" /> {lead.phone ? formatPhone(lead.phone) : "+ adicionar telefone"}
+                    </span>
+                  )}
                   {lead.source && <> · via {lead.source}</>}
                   {lead.createdAt && <> · {fmtRelative(lead.createdAt)}</>}
                 </div>
@@ -789,10 +914,24 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
             ) : (
               <div className="space-y-1">
                 {historico.map(h => {
+                  const isInteracao = h.type === "INTERACAO";
+                  const isEditing = editingInteracaoId === h.id;
+                  if (isEditing) {
+                    return (
+                      <div key={h.id} className="rounded-lg p-2 border" style={{ background: "#f6fdfd", borderColor: "#E8DFC8" }}>
+                        <div className="text-[10px] font-semibold mb-1" style={{ color: "#014D5E" }}>{h.title}</div>
+                        <textarea autoFocus value={interacaoDraft} onChange={e => setInteracaoDraft(e.target.value)} rows={3} className="w-full px-2 py-1 text-[11px] border rounded" style={SECTION_STYLE} />
+                        <div className="flex gap-1.5 mt-1.5">
+                          <button onClick={() => setEditingInteracaoId(null)} className="flex-1 px-2 py-1 text-[10.5px] border rounded" style={SECTION_STYLE}>Cancelar</button>
+                          <button onClick={() => saveInteracaoEdit(h.id)} className="flex-1 px-2 py-1 text-[10.5px] text-white rounded font-semibold" style={{ background: "#009AAC" }}>Salvar</button>
+                        </div>
+                      </div>
+                    );
+                  }
                   const Tag: any = h.href ? Link : "div";
                   const tagProps: any = h.href ? { href: h.href, target: "_blank" } : {};
                   return (
-                    <Tag key={h.id} {...tagProps} className="flex items-start gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 transition border" style={{ borderColor: "#F0EBE0" }}>
+                    <Tag key={h.id} {...tagProps} className="flex items-start gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 transition border group" style={{ borderColor: "#F0EBE0" }}>
                       <div className="flex-1 min-w-0">
                         <div className="text-[11px] font-semibold flex items-center gap-1 flex-wrap" style={{ color: "#014D5E" }}>
                           {h.title}
@@ -800,6 +939,13 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                         </div>
                         <div className="text-[10.5px] text-gray-500 truncate">{h.subtitle}</div>
                       </div>
+                      {isInteracao && (
+                        <button
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditingInteracaoId(h.id); setInteracaoDraft(h.subtitle); }}
+                          className="text-[10px] text-gray-400 hover:text-[#009AAC] opacity-0 group-hover:opacity-100 flex-shrink-0"
+                          title="Editar interação"
+                        >✏</button>
+                      )}
                     </Tag>
                   );
                 })}
