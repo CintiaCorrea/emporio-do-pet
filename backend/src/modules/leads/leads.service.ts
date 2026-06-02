@@ -7,6 +7,7 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { CreateLeadDto, UpdateLeadDto, TrackEventDto, ListLeadsQueryDto, SortByDto } from './dto';
 import { Prisma } from '@prisma/client';
+import { normalizePhone, last9 } from '../../common/phone';
 
 @Injectable()
 export class LeadsService {
@@ -199,6 +200,28 @@ export class LeadsService {
    * Cria novo lead e enfileira enriquecimento
    */
   async create(dto: CreateLeadDto) {
+// === Normalize + dedupe por ultimos 9 digitos ===
+    if (dto.phone) {
+      const normalized = normalizePhone(dto.phone);
+      const tail = last9(normalized);
+      if (tail && tail.length >= 8) {
+        // 2b: retorna registro existente (silencioso) em vez de criar duplicata
+        const existingLead = await this.prisma.lead.findFirst({
+          where: { phone: { contains: tail } },
+        });
+        if (existingLead) return existingLead;
+        // Tambem checa se ja existe Tutor com mesmo telefone
+        const existingTutor = await this.prisma.tutor.findFirst({
+          where: { contacts: { some: { number: { contains: tail } } } },
+          include: { contacts: true, pets: true },
+        });
+        if (existingTutor) {
+          // Lead nao deve duplicar Tutor existente — retorna como Lead "convertido"
+          throw new Error(`PHONE_BELONGS_TO_TUTOR:${existingTutor.id}`);
+        }
+        dto.phone = normalized;
+      }
+    }
     const email = dto.email.toLowerCase();
 
     // Verificar se já existe
@@ -693,7 +716,7 @@ export class LeadsService {
       : null;
 
     if (!tutor && lead.phone) {
-      const last8 = lead.phone.replace(/\D/g, '').slice(-8);
+      const last8 = lead.phone.replace(/\D/g, '').slice(-9);
       const contact = await this.prisma.contact.findFirst({
         where: { number: { endsWith: last8 } },
         include: { tutor: true },
