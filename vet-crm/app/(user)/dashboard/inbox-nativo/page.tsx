@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  LuPlus, LuSearch, LuUserPlus, LuPencil, LuPhone, LuCalendar} from "react-icons/lu";
+  LuPlus, LuSearch, LuUserPlus, LuPencil, LuPhone, LuCalendar, LuInbox} from "react-icons/lu";
 import InboxRightPanel from "@/components/inbox/InboxRightPanel";
 
 type Tab = "conversas" | "internas" | "encaminhadas";
@@ -422,7 +422,7 @@ export default function InboxUnificadoPage() {
       {/* Header */}
       <div className="px-4 py-3 border-b border-[#e8e1d2] flex items-center justify-between bg-white">
         <div className="flex items-center gap-2.5">
-          <span style={{fontSize:"18px"}}>📥</span>
+          <LuInbox size={20} className="text-[#009AAC]" />
           <span className="text-lg text-[#0E2244] font-medium">Inbox</span>
           {counts.unread > 0 && (
             <span className="bg-[#E24B4A] text-white text-[11px] px-2 py-0.5 rounded-full font-medium">
