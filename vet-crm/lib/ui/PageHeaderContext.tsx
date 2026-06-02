@@ -6,23 +6,26 @@ import { usePathname } from "next/navigation";
 interface PageHeader {
   title: string;
   subtitle?: string;
+  rightSlot?: ReactNode;
 }
 
 interface Ctx {
   header: PageHeader;
   setHeader: (h: PageHeader) => void;
+  setRightSlot: (slot: ReactNode | null) => void;
 }
 
-const PageHeaderCtx = createContext<Ctx>({ header: { title: "" }, setHeader: () => {} });
+const PageHeaderCtx = createContext<Ctx>({
+  header: { title: "" },
+  setHeader: () => {},
+  setRightSlot: () => {},
+});
 
 /**
  * Mapa de rotas -> titulo padrao. Garante que toda pagina tem um titulo
  * mesmo quando ela nao chama `usePageTitle`. Quando a rota muda, o header
  * atualiza automaticamente. Paginas individuais ainda podem sobrescrever
  * via usePageTitle (ex: ficha do tutor com nome dinamico).
- *
- * IMPORTANTE: a ordem importa - rotas mais especificas vem primeiro porque
- * usamos startsWith pra fallback. Exact matches sao tentados primeiro.
  */
 const ROUTE_TITLES: Array<{ match: string; exact?: boolean; title: string; subtitle?: string }> = [
   { match: "/dashboard/hoje", exact: true, title: "Hoje", subtitle: "Sua agenda do dia" },
@@ -36,26 +39,22 @@ const ROUTE_TITLES: Array<{ match: string; exact?: boolean; title: string; subti
   { match: "/dashboard/internacao", title: "Internacao", subtitle: "Pacientes em internacao" },
   { match: "/dashboard/configuracoes", title: "Configuracoes" },
   { match: "/dashboard/perfil", exact: true, title: "Meu perfil" },
-  // ERP
   { match: "/dashboard/erp/tutores", title: "Tutores" },
   { match: "/dashboard/erp/pets", title: "Pets" },
   { match: "/dashboard/erp/atendimentos", title: "Atendimentos" },
   { match: "/dashboard/erp/agendamentos", title: "Agendamentos" },
   { match: "/dashboard/erp/leads", title: "Leads" },
   { match: "/dashboard/erp", title: "ERP" },
-  // Fallback raiz do dashboard
   { match: "/dashboard", exact: true, title: "Dashboard" },
 ];
 
 function resolveTitle(pathname: string | null): PageHeader {
   if (!pathname) return { title: "" };
-  // 1) tenta match exato
   for (const r of ROUTE_TITLES) {
     if (r.exact && pathname === r.match) {
       return { title: r.title, subtitle: r.subtitle };
     }
   }
-  // 2) tenta startsWith (mais especifico primeiro)
   const sorted = [...ROUTE_TITLES].sort((a, b) => b.match.length - a.match.length);
   for (const r of sorted) {
     if (pathname === r.match || pathname.startsWith(r.match + "/")) {
@@ -67,16 +66,21 @@ function resolveTitle(pathname: string | null): PageHeader {
 
 export function PageHeaderProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const [header, setHeader] = useState<PageHeader>(() => resolveTitle(pathname));
+  const [header, setHeaderState] = useState<PageHeader>(() => resolveTitle(pathname));
 
-  // Quando a rota muda, atualiza titulo automaticamente.
-  // Isso garante que paginas sem usePageTitle ainda mostram titulo correto
-  // e o header nao fica "preso" no titulo da pagina anterior.
+  // Reset header quando rota muda
   useEffect(() => {
-    setHeader(resolveTitle(pathname));
+    setHeaderState(resolveTitle(pathname));
   }, [pathname]);
 
-  return <PageHeaderCtx.Provider value={{ header, setHeader }}>{children}</PageHeaderCtx.Provider>;
+  function setHeader(h: PageHeader) {
+    setHeaderState(prev => ({ ...prev, ...h }));
+  }
+  function setRightSlot(slot: ReactNode | null) {
+    setHeaderState(prev => ({ ...prev, rightSlot: slot || undefined }));
+  }
+
+  return <PageHeaderCtx.Provider value={{ header, setHeader, setRightSlot }}>{children}</PageHeaderCtx.Provider>;
 }
 
 export function usePageHeader() {
@@ -92,4 +96,16 @@ export function usePageTitle(title: string, subtitle?: string) {
   useEffect(() => {
     setHeader({ title, subtitle });
   }, [title, subtitle]);
+}
+
+/**
+ * Use em paginas que querem renderizar conteudo customizado no canto direito do header global
+ * (ex: stats inline no Inbox). Limpa automaticamente quando o componente desmonta.
+ */
+export function usePageRightSlot(slot: ReactNode | null) {
+  const { setRightSlot } = usePageHeader();
+  useEffect(() => {
+    setRightSlot(slot);
+    return () => setRightSlot(null);
+  }, [slot]);
 }
