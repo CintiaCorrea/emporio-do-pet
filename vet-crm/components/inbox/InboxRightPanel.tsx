@@ -240,24 +240,8 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
           raw: l,
         });
       });
-      // Tutores que receberam mensagem recente (via WhatsApp conversations abertas)
-      try {
-        const rC = await fetch(`/api/whatsapp/conversations?status=open&limit=${incomingLimit}`);
-        const dC = await safeJson<any>(rC, {});
-        const arrC = Array.isArray(dC) ? dC : (dC.conversations || dC.data || []);
-        for (const c of arrC) {
-          if (!c.tutor || !c.tutor.id) continue;
-          const phone = c.contactNumber || (c.tutor.contacts || [])[0]?.number || "";
-          items.push({
-            id: `T-${c.tutor.id}`,
-            kind: "CLIENTE",
-            name: c.tutor.name || "Sem nome",
-            phone,
-            createdAt: c.lastMessageAt || c.createdAt || new Date().toISOString(),
-            raw: c.tutor,
-          });
-        }
-      } catch { /* ignora se endpoint não existir ainda */ }
+      // NOTA: chamada a /api/whatsapp/conversations removida ate backend implementar endpoint
+      // (estava gerando 400 a cada 30s e travando navegacao do menu lateral)
       // Ordena por data desc, dedupe por phone (último 9)
       const seenPhones = new Set<string>();
       const dedupado = items
