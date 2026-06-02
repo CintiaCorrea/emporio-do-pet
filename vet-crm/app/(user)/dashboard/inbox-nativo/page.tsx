@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   LuPlus, LuSearch, LuUserPlus, LuPencil, LuPhone, LuCalendar, LuInbox} from "react-icons/lu";
-import { usePageTitle, usePageRightSlot } from "@/lib/ui/PageHeaderContext";
+  import InboxRightPanel from "@/components/inbox/InboxRightPanel";
+  import { usePageTitle, usePageRightSlot } from "@/lib/ui/PageHeaderContext";
 type Tab = "conversas" | "internas" | "encaminhadas";
 type ListFilter = "todos" | "leads" | "clientes";
 
