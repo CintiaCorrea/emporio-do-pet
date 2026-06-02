@@ -132,7 +132,7 @@ function formatLtv(cents?: number | null) {
   return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 }
 
-export default function InboxRightPanel({ canal = "BotConversa" }: { canal?: string }) {
+export default function InboxRightPanel({ canal = "BotConversa", initialPhone }: { canal?: string; initialPhone?: string | null }) {
   const [search, setSearch] = useState("");
   const [results, setResults] = useState<{ tutors: Tutor[]; leads: Lead[] }>({ tutors: [], leads: [] });
   const [searching, setSearching] = useState(false);
@@ -156,6 +156,29 @@ export default function InboxRightPanel({ canal = "BotConversa" }: { canal?: str
   useEffect(() => {
     fetch("/api/inbox/context/staff").then(r => r.json()).then(d => setStaff(Array.isArray(d) ? d : [])).catch(() => {});
   }, []);
+
+  // Quando recebe initialPhone (ex: Inbox Meta selecionou uma conversa), dispara lookup automatico
+  useEffect(() => {
+    if (!initialPhone) return;
+    const tail = last9(initialPhone);
+    if (!tail || tail.length < 8) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/inbox/context/lookup?phone=${encodeURIComponent(initialPhone)}`);
+        const d = await safeJson<any>(res, {});
+        if (cancelled) return;
+        const tutorMatch = d?.unified?.tutor || (d.tutors || [])[0];
+        const leadMatch = d?.unified?.lead || (d.leads || [])[0];
+        if (tutorMatch) { await selectTutor(tutorMatch); return; }
+        if (leadMatch) { await selectLead(leadMatch); return; }
+        // Nao encontrou nada: limpa estado e prepara busca com o phone preenchido
+        setSearch(initialPhone);
+      } catch { /* ignore */ }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialPhone]);
 
   useEffect(() => {
     if (!search || search.length < 2) { setResults({ tutors: [], leads: [] }); return; }
