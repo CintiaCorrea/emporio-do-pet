@@ -196,10 +196,23 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
       setSearching(true);
       const res = await fetch(`/api/inbox/context/lookup?search=${encodeURIComponent(search)}`);
       const d = await safeJson<any>(res, {});
-      const ts = (d.tutors || []).slice(0, 5);
+      // Dedupe Tutores: por id + por nome+telefone (fallback)
+      const seenT = new Set<string>();
+      const ts = ((d.tutors || []) as any[]).filter(t => {
+        const phone = (t.contacts || [])[0]?.number || "";
+        const key = `${t.id}|${(t.name || "").toLowerCase().trim()}|${last9(phone)}`;
+        if (seenT.has(t.id) || seenT.has(key)) return false;
+        seenT.add(t.id); seenT.add(key); return true;
+      }).slice(0, 5);
       const tutorPhonesTail = new Set<string>();
       ts.forEach((t: any) => (t.contacts || []).forEach((c: any) => tutorPhonesTail.add(last9(c.number || ""))));
-      const ls = (d.leads || []).filter((l: any) => !tutorPhonesTail.has(last9(l.phone || "")));
+      // Dedupe Leads: por id + filtra os que tem Tutor com mesmo phone
+      const seenL = new Set<string>();
+      const ls = ((d.leads || []) as any[]).filter(l => {
+        if (seenL.has(l.id)) return false;
+        seenL.add(l.id);
+        return !tutorPhonesTail.has(last9(l.phone || ""));
+      });
       setResults({ tutors: ts, leads: ls });
       setSearching(false);
     }, 300);
@@ -661,6 +674,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
               <div className="rounded-lg p-2 border" style={{ background: "#f0fdfa", borderColor: "#99e9d8" }}>
                 <textarea value={resumoDraft} onChange={e => setResumoDraft(e.target.value)} rows={4} className="w-full px-2 py-1.5 text-[11.5px] border rounded resize-none" style={{ borderColor: "#99e9d8", color: "#0c4a6e" }} placeholder="Resumo da conversa..." />
                 <div className="flex gap-1.5 mt-1.5">
+                  <button onClick={() => setResumoDraft("")} className="px-2 py-1 text-[10.5px] border rounded text-gray-500" style={{ borderColor: "#E8DFC8" }} title="Limpar">🗑 limpar</button>
                   <button onClick={() => setEditingResumo(false)} className="flex-1 px-2 py-1 text-[10.5px] border rounded" style={{ borderColor: "#E8DFC8" }}>Cancelar</button>
                   <button onClick={saveResumo} className="flex-1 px-2 py-1 text-[10.5px] text-white rounded font-semibold" style={{ background: "#009AAC" }}>Salvar</button>
                 </div>
@@ -693,6 +707,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                 {editingName ? (
                   <div className="flex gap-1 mb-1">
                     <input autoFocus value={nameDraft} onChange={e => setNameDraft(e.target.value)} onKeyDown={e => { if (e.key === "Enter") saveName(); if (e.key === "Escape") setEditingName(false); }} className="flex-1 text-[12.5px] font-semibold border rounded px-1.5 py-0.5" style={{ borderColor: "#009AAC", color: "#014D5E" }} />
+                    <button onClick={() => setNameDraft("")} title="Limpar" className="px-1.5 text-[10px] border rounded text-gray-500" style={{ borderColor: "#E8DFC8" }}>🗑</button>
                     <button onClick={saveName} className="px-1.5 text-[10px] text-white rounded font-semibold" style={{ background: "#009AAC" }}>✓</button>
                     <button onClick={() => setEditingName(false)} className="px-1.5 text-[10px] border rounded" style={{ borderColor: "#E8DFC8" }}>✕</button>
                   </div>
@@ -702,7 +717,8 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                 <div className="text-[10.5px] text-gray-500 leading-snug">
                   {editingPhone ? (
                     <span className="inline-flex gap-1 items-center">
-                      <input autoFocus value={phoneDraft} onChange={e => setPhoneDraft(e.target.value)} onKeyDown={e => { if (e.key === "Enter") savePhone(); if (e.key === "Escape") setEditingPhone(false); }} className="text-[10.5px] border rounded px-1.5 py-0.5 w-32" style={{ borderColor: "#009AAC" }} />
+                      <input autoFocus value={phoneDraft} onChange={e => setPhoneDraft(e.target.value)} onKeyDown={e => { if (e.key === "Enter") savePhone(); if (e.key === "Escape") setEditingPhone(false); }} className="text-[10.5px] border rounded px-1.5 py-0.5 w-28" style={{ borderColor: "#009AAC" }} />
+                      <button onClick={() => setPhoneDraft("")} title="Limpar" className="text-[10px] text-gray-500">🗑</button>
                       <button onClick={savePhone} className="text-[10px] text-[#009AAC] font-bold">✓</button>
                       <button onClick={() => setEditingPhone(false)} className="text-[10px] text-gray-400">✕</button>
                     </span>
@@ -744,6 +760,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                 {editingName ? (
                   <div className="flex gap-1 mb-1">
                     <input autoFocus value={nameDraft} onChange={e => setNameDraft(e.target.value)} onKeyDown={e => { if (e.key === "Enter") saveName(); if (e.key === "Escape") setEditingName(false); }} className="flex-1 text-[12.5px] font-semibold border rounded px-1.5 py-0.5" style={{ borderColor: "#009AAC", color: "#014D5E" }} />
+                    <button onClick={() => setNameDraft("")} title="Limpar" className="px-1.5 text-[10px] border rounded text-gray-500" style={{ borderColor: "#E8DFC8" }}>🗑</button>
                     <button onClick={saveName} className="px-1.5 text-[10px] text-white rounded font-semibold" style={{ background: "#009AAC" }}>✓</button>
                     <button onClick={() => setEditingName(false)} className="px-1.5 text-[10px] border rounded" style={{ borderColor: "#E8DFC8" }}>✕</button>
                   </div>
@@ -753,7 +770,8 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                 <div className="text-[10.5px] text-gray-500 leading-snug">
                   {editingPhone ? (
                     <span className="inline-flex gap-1 items-center">
-                      <input autoFocus value={phoneDraft} onChange={e => setPhoneDraft(e.target.value)} onKeyDown={e => { if (e.key === "Enter") savePhone(); if (e.key === "Escape") setEditingPhone(false); }} className="text-[10.5px] border rounded px-1.5 py-0.5 w-32" style={{ borderColor: "#009AAC" }} />
+                      <input autoFocus value={phoneDraft} onChange={e => setPhoneDraft(e.target.value)} onKeyDown={e => { if (e.key === "Enter") savePhone(); if (e.key === "Escape") setEditingPhone(false); }} className="text-[10.5px] border rounded px-1.5 py-0.5 w-28" style={{ borderColor: "#009AAC" }} />
+                      <button onClick={() => setPhoneDraft("")} title="Limpar" className="text-[10px] text-gray-500">🗑</button>
                       <button onClick={savePhone} className="text-[10px] text-[#009AAC] font-bold">✓</button>
                       <button onClick={() => setEditingPhone(false)} className="text-[10px] text-gray-400">✕</button>
                     </span>
@@ -767,16 +785,12 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                 </div>
               </div>
             </div>
-            <div className="text-[9.5px] font-bold uppercase text-gray-400 mt-2 mb-1">Pipeline comercial</div>
-            <div className="flex flex-wrap gap-1">
-              {PIPELINE_COMERCIAL.map(e => {
-                const active = lead.pipelineComercialEtapa === e;
-                return (
-                  <button key={e} onClick={() => updateLeadEtapa(e)} className="text-[9.5px] px-2 py-0.5 rounded-full font-medium" style={active ? { background: "linear-gradient(90deg,#009AAC,#00B4C4)", color: "white" } : { background: "#f1f5f9", color: "#64748b" }}>
-                    {e}
-                  </button>
-                );
-              })}
+            <div className="flex items-center gap-2 mt-2">
+              <span className="text-[9.5px] font-bold uppercase text-gray-400 whitespace-nowrap">Pipeline comercial</span>
+              <select value={lead.pipelineComercialEtapa || ""} onChange={e => updateLeadEtapa(e.target.value)} className="flex-1 text-[10.5px] px-2 py-1 border rounded-lg font-medium" style={{ borderColor: "#009AAC", color: "#014D5E", background: "white" }}>
+                <option value="">— selecionar etapa —</option>
+                {PIPELINE_COMERCIAL.map(e => <option key={e} value={e}>{e}</option>)}
+              </select>
             </div>
             {lead.status !== "CONVERTED" && (
               <button onClick={handleConverter} className="mt-2 w-full text-[10.5px] py-1.5 border rounded font-semibold hover:bg-white flex items-center justify-center gap-1" style={{ borderColor: "#009AAC", color: "#009AAC" }}>
@@ -789,83 +803,67 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
         {tutor && (
           <section className={SECTION} style={SECTION_STYLE}>
             <div className={LBL}>
-              <span><span className={NUM}>3</span>Pets {pets.length > 0 && `(${pets.length})`}{pets.length > 1 ? " · clique pra selecionar" : ""}</span>
-              <Link href={`/dashboard/erp/tutores/${tutor.id}/pets/novo`} target="_blank" className={LINK} style={{ color: "#009AAC" }}><LuPlus size={10} className="inline" /> cadastrar</Link>
+              <span><span className={NUM}>3</span>Pets {pets.length > 0 && `(${pets.length})`}{pets.length > 1 ? " · clique pra expandir" : ""}</span>
+              <button onClick={() => window.open(`/dashboard/erp/pets/novo?tutorId=${tutor.id}`, "_blank")} className={LINK} style={{ color: "#009AAC" }} type="button"><LuPlus size={10} className="inline" /> cadastrar</button>
             </div>
             {pets.length > 0 ? (
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 {pets.map(p => {
                   const active = selectedPet?.id === p.id;
                   return (
-                    <button key={p.id} onClick={() => setSelectedPet(p)} className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg border text-left ${active ? "" : "hover:bg-gray-50"}`} style={active ? { background: "#e0f4f6", borderColor: "#009AAC" } : { borderColor: "#F0EBE0" }}>
-                      <PetIcon species={p.species} size={20} />
-                      <div className="min-w-0 flex-1">
-                        <div className="text-[11.5px] font-semibold truncate" style={{ color: "#014D5E" }}>{p.name}</div>
-                        <div className="text-[10px] text-gray-500 truncate">{speciesLabel(p.species)}{p.breed ? ` · ${p.breed}` : ""}{p.birthDate ? ` · ${ageFromBirth(p.birthDate)}` : ""}</div>
-                      </div>
-                    </button>
+                    <div key={p.id} className={`rounded-lg border ${active ? "" : "hover:bg-gray-50"}`} style={active ? { background: "#e0f4f6", borderColor: "#009AAC" } : { borderColor: "#F0EBE0" }}>
+                      <button onClick={() => setSelectedPet(active ? null : p)} className="w-full flex items-center gap-2 px-2 py-1.5 text-left">
+                        <PetIcon species={p.species} size={20} />
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[11.5px] font-semibold truncate" style={{ color: "#014D5E" }}>{p.name}</div>
+                          <div className="text-[10px] text-gray-500 truncate">{speciesLabel(p.species)}{p.breed ? ` · ${p.breed}` : ""}{p.birthDate ? ` · ${ageFromBirth(p.birthDate)}` : ""}</div>
+                        </div>
+                        <span className="text-[10px] text-gray-400">{active ? "▴" : "▾"}</span>
+                      </button>
+                      {active && (
+                        <div className="px-2 pb-2 pt-1 border-t" style={{ borderColor: "#cfe8eb" }}>
+                          {/* Dados clínicos resumo */}
+                          <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[10.5px] mb-2 mt-1">
+                            <div><span className="text-gray-400">Espécie:</span> <span style={{ color: "#014D5E" }}>{speciesLabel(p.species)}</span></div>
+                            <div><span className="text-gray-400">Raça:</span> <span style={{ color: "#014D5E" }}>{p.breed || "—"}</span></div>
+                            <div><span className="text-gray-400">Idade:</span> <span style={{ color: "#014D5E" }}>{p.birthDate ? ageFromBirth(p.birthDate) : "—"}</span></div>
+                            <div><span className="text-gray-400">Obs:</span> <span style={{ color: "#014D5E" }} className="truncate inline-block max-w-[100px]" title={p.observations || ""}>{p.observations ? p.observations.slice(0, 18) + (p.observations.length > 18 ? "…" : "") : "—"}</span></div>
+                          </div>
+                          {/* Pipelines em dropdown */}
+                          <div className="space-y-1.5 mb-2">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[8.5px] font-bold px-1.5 py-0.5 rounded" style={{ background: "#fef3c7", color: "#92400e", minWidth: 28, textAlign: "center" }}>CLI</span>
+                              <select value={p.pipelineClinicoEtapa || ""} onChange={e => updatePetEtapa("pipelineClinicoEtapa", e.target.value)} className="flex-1 text-[10.5px] px-2 py-1 border rounded font-medium" style={{ borderColor: "#fef3c7", color: "#014D5E", background: "white" }}>
+                                <option value="">— sem etapa —</option>
+                                {PIPELINE_CLINICO.map(et => <option key={et} value={et}>{et}</option>)}
+                              </select>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[8.5px] font-bold px-1.5 py-0.5 rounded" style={{ background: "#ede9fe", color: "#5b21b6", minWidth: 28, textAlign: "center" }}>FIS</span>
+                              <select value={p.pipelineFisioEtapa || ""} onChange={e => updatePetEtapa("pipelineFisioEtapa", e.target.value)} className="flex-1 text-[10.5px] px-2 py-1 border rounded font-medium" style={{ borderColor: "#ede9fe", color: "#014D5E", background: "white" }}>
+                                <option value="">— sem etapa —</option>
+                                {PIPELINE_FISIO.map(et => <option key={et} value={et}>{et}</option>)}
+                              </select>
+                            </div>
+                          </div>
+                          {/* Ações */}
+                          <div className="grid grid-cols-2 gap-1.5 mb-1.5">
+                            <button onClick={() => { setInteracaoOpen(true); setInteracaoForm({ ...interacaoForm, tipo: "NOTA" }); }} className="px-2 py-1 rounded text-[10px] border flex items-center justify-center gap-1 text-gray-600 hover:text-[#009AAC] bg-white" style={SECTION_STYLE}><LuStickyNote size={10} /> Nota</button>
+                            <button onClick={() => window.open(`/dashboard/erp/agendamentos/novo?tutorId=${tutor.id}&petId=${p.id}`, "_blank")} className="px-2 py-1 rounded text-[10px] border flex items-center justify-center gap-1 text-gray-600 hover:text-[#009AAC] bg-white" style={SECTION_STYLE} type="button"><LuCalendar size={10} /> Agendar</button>
+                            <button onClick={() => window.open(`/dashboard/erp/pets/${p.id}/atendimentos/novo`, "_blank")} className="px-2 py-1 rounded text-[10px] border flex items-center justify-center gap-1 text-gray-600 hover:text-[#009AAC] bg-white" style={SECTION_STYLE} type="button"><LuFileText size={10} /> + Atendim.</button>
+                            <button onClick={() => window.open(`/dashboard/erp/pets/${p.id}/atendimentos/novo?tipo=EXAME`, "_blank")} className="px-2 py-1 rounded text-[10px] border flex items-center justify-center gap-1 text-gray-600 hover:text-[#009AAC] bg-white" style={SECTION_STYLE} type="button"><LuFlaskConical size={10} /> Exame</button>
+                          </div>
+                          <button onClick={() => window.open(`/dashboard/erp/pets/${p.id}`, "_blank")} className="w-full text-[10px] py-1 border rounded font-medium bg-white hover:bg-gray-50" style={{ borderColor: "#009AAC", color: "#009AAC" }} type="button">Abrir ficha completa ↗</button>
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
               </div>
             ) : (
               <div className="rounded-lg p-3 text-center text-[11px] text-gray-400" style={{ background: "#fafafa", border: "1px dashed #E8DFC8" }}>
                 Nenhum pet cadastrado ainda<br />
-                <Link href={`/dashboard/erp/tutores/${tutor.id}/pets/novo`} target="_blank" className="font-semibold" style={{ color: "#009AAC" }}>+ Cadastrar pet</Link>
-              </div>
-            )}
-          </section>
-        )}
-
-        {tutor && (
-          <section className={SECTION} style={SECTION_STYLE}>
-            <div className={LBL}><span><span className={NUM}>4</span>Pipelines{selectedPet ? ` da ${selectedPet.name}` : " do Pet"}</span></div>
-            {selectedPet ? (
-              <>
-                <div className="mb-2">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-[9.5px] font-bold uppercase text-gray-400">Clínico</span>
-                    <span className="text-[8.5px] font-bold px-1.5 rounded" style={{ background: "#fef3c7", color: "#92400e" }}>CLI</span>
-                  </div>
-                  <div className="flex flex-wrap gap-1">
-                    {PIPELINE_CLINICO.map(e => {
-                      const active = selectedPet.pipelineClinicoEtapa === e;
-                      return (
-                        <button key={e} onClick={() => updatePetEtapa("pipelineClinicoEtapa", e)} className="text-[9.5px] px-2 py-0.5 rounded-full font-medium" style={active ? { background: "linear-gradient(90deg,#f59e0b,#fbbf24)", color: "white" } : { background: "#f1f5f9", color: "#64748b" }}>
-                          {e}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-[9.5px] font-bold uppercase text-gray-400">Fisioterapia</span>
-                    <span className="text-[8.5px] font-bold px-1.5 rounded" style={{ background: "#ede9fe", color: "#5b21b6" }}>FISIO</span>
-                  </div>
-                  <div className="flex flex-wrap gap-1">
-                    {PIPELINE_FISIO.map(e => {
-                      const active = selectedPet.pipelineFisioEtapa === e;
-                      return (
-                        <button key={e} onClick={() => updatePetEtapa("pipelineFisioEtapa", e)} className="text-[9.5px] px-2 py-0.5 rounded-full font-medium" style={active ? { background: "linear-gradient(90deg,#7c3aed,#8b5cf6)", color: "white" } : { background: "#f1f5f9", color: "#64748b" }}>
-                          {e}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-                <div className="mt-2.5 pt-2.5 border-t" style={{ borderColor: "#F0EBE0" }}>
-                  <div className="text-[9.5px] font-bold uppercase text-gray-500 mb-1.5">Ações na {selectedPet.name}</div>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    <button onClick={() => { setInteracaoOpen(true); setInteracaoForm({ ...interacaoForm, tipo: "NOTA" }); }} className="px-2 py-1.5 rounded text-[10.5px] border flex items-center justify-center gap-1 text-gray-600 hover:text-[#009AAC]" style={SECTION_STYLE}><LuStickyNote size={11} /> Nota</button>
-                    <Link href={`/dashboard/erp/agendamentos/novo?tutorId=${tutor.id}&petId=${selectedPet.id}`} target="_blank" className="px-2 py-1.5 rounded text-[10.5px] border flex items-center justify-center gap-1 text-gray-600 hover:text-[#009AAC]" style={SECTION_STYLE}><LuCalendar size={11} /> Agendar</Link>
-                    <Link href={`/dashboard/erp/pets/${selectedPet.id}`} target="_blank" className="px-2 py-1.5 rounded text-[10.5px] border flex items-center justify-center gap-1 text-gray-600 hover:text-[#009AAC]" style={SECTION_STYLE}><LuFileText size={11} /> Prontuário</Link>
-                    <Link href={`/dashboard/erp/pets/${selectedPet.id}/atendimentos/novo?tipo=EXAME`} target="_blank" className="px-2 py-1.5 rounded text-[10.5px] border flex items-center justify-center gap-1 text-gray-600 hover:text-[#009AAC]" style={SECTION_STYLE}><LuFlaskConical size={11} /> Exame</Link>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div className="rounded-lg p-3 text-center text-[11px] italic text-gray-400" style={{ background: "#fafafa", border: "1px dashed #E8DFC8" }}>
-                {pets.length > 0 ? "Selecione um pet pra ver pipelines" : "Cadastre um pet primeiro"}
+                <button onClick={() => window.open(`/dashboard/erp/pets/novo?tutorId=${tutor.id}`, "_blank")} className="font-semibold mt-1" style={{ color: "#009AAC" }} type="button">+ Cadastrar pet</button>
               </div>
             )}
           </section>
@@ -874,7 +872,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
         {(tutor || lead) && (
           <section className={SECTION} style={SECTION_STYLE}>
             <div className={LBL}>
-              <span><span className={NUM}>5</span><LuMessageSquare size={11} className="inline -mt-0.5 mr-1" />Registrar interação</span>
+              <span><span className={NUM}>4</span><LuMessageSquare size={11} className="inline -mt-0.5 mr-1" />Registrar interação</span>
               {!interacaoOpen && (<button onClick={() => setInteracaoOpen(true)} className={LINK} style={{ color: "#009AAC" }}><LuPlus size={10} className="inline" /> nova</button>)}
             </div>
             {interacaoOpen && (
@@ -902,7 +900,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
         {(tutor || lead) && (
           <section className="px-3 py-2.5">
             <div className={LBL}>
-              <span><span className={NUM}>6</span>Últimos atendimentos{historico.length > 0 && ` (${historico.length})`}</span>
+              <span><span className={NUM}>5</span>Últimos atendimentos{historico.length > 0 && ` (${historico.length})`}</span>
               {tutor && selectedPet && (
                 <Link href={`/dashboard/erp/pets/${selectedPet.id}/atendimentos/novo`} target="_blank" className={LINK} style={{ color: "#009AAC" }}><LuPlus size={10} className="inline" /> novo</Link>
               )}
@@ -922,6 +920,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                         <div className="text-[10px] font-semibold mb-1" style={{ color: "#014D5E" }}>{h.title}</div>
                         <textarea autoFocus value={interacaoDraft} onChange={e => setInteracaoDraft(e.target.value)} rows={3} className="w-full px-2 py-1 text-[11px] border rounded" style={SECTION_STYLE} />
                         <div className="flex gap-1.5 mt-1.5">
+                          <button onClick={() => setInteracaoDraft("")} title="Limpar" className="px-2 py-1 text-[10.5px] border rounded text-gray-500" style={SECTION_STYLE}>🗑</button>
                           <button onClick={() => setEditingInteracaoId(null)} className="flex-1 px-2 py-1 text-[10.5px] border rounded" style={SECTION_STYLE}>Cancelar</button>
                           <button onClick={() => saveInteracaoEdit(h.id)} className="flex-1 px-2 py-1 text-[10.5px] text-white rounded font-semibold" style={{ background: "#009AAC" }}>Salvar</button>
                         </div>
@@ -939,7 +938,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                         </div>
                         <div className="text-[10.5px] text-gray-500 truncate">{h.subtitle}</div>
                       </div>
-                      {isInteracao && (
+                      {h.type === "INTERACAO" && (
                         <button
                           onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditingInteracaoId(h.id); setInteracaoDraft(h.subtitle); }}
                           className="text-[10px] text-gray-400 hover:text-[#009AAC] opacity-0 group-hover:opacity-100 flex-shrink-0"
