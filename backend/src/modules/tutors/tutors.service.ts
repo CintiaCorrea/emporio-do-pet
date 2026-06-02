@@ -5,6 +5,7 @@ import { EventsService } from '../events/events.service';
 import { TutorStatus } from '@prisma/client';
 import { CreateTutorDto } from './dto/create-tutor.dto';
 import { UpdateTutorDto } from './dto/update-tutor.dto';
+import { normalizePhone, last9 } from '../../common/phone';
 
 @Injectable()
 export class TutorsService {
@@ -15,6 +16,25 @@ export class TutorsService {
   ) {}
 
   async create(createTutorDto: CreateTutorDto) {
+// === Normalize + dedupe por ultimos 9 digitos ===
+    const phones = (dto.contacts || []).map(c => last9(c.number)).filter(p => p && p.length >= 8);
+    if (phones.length > 0) {
+      const existing = await this.prisma.tutor.findFirst({
+        where: {
+          contacts: {
+            some: {
+              number: { contains: phones[0] },
+            },
+          },
+        },
+        include: { contacts: true, pets: true },
+      });
+      if (existing) return existing; // 2b: retorna existente
+      // Normaliza os contatos antes de criar
+      if (dto.contacts) {
+        dto.contacts = dto.contacts.map(c => ({ ...c, number: normalizePhone(c.number) }));
+      }
+    }
     const { contacts, ...tutorData } = createTutorDto as any;
 
     const contactCreates = Array.isArray(contacts)
