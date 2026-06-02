@@ -196,22 +196,25 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
       setSearching(true);
       const res = await fetch(`/api/inbox/context/lookup?search=${encodeURIComponent(search)}`);
       const d = await safeJson<any>(res, {});
-      // Dedupe Tutores: por id + por nome+telefone (fallback)
-      const seenT = new Set<string>();
+      // BASE DE DEDUPE = ULTIMOS 9 DIGITOS DO TELEFONE. Nunca aparece 2 registros com o mesmo last9.
+      const seenTutorPhones = new Set<string>();
       const ts = ((d.tutors || []) as any[]).filter(t => {
-        const phone = (t.contacts || [])[0]?.number || "";
-        const key = `${t.id}|${(t.name || "").toLowerCase().trim()}|${last9(phone)}`;
-        if (seenT.has(t.id) || seenT.has(key)) return false;
-        seenT.add(t.id); seenT.add(key); return true;
+        const phones = (t.contacts || []).map((c: any) => last9(c.number || "")).filter((p: string) => p && p.length >= 8);
+        const main = phones[0];
+        if (!main) return true;
+        if (seenTutorPhones.has(main)) return false;
+        seenTutorPhones.add(main);
+        return true;
       }).slice(0, 5);
-      const tutorPhonesTail = new Set<string>();
-      ts.forEach((t: any) => (t.contacts || []).forEach((c: any) => tutorPhonesTail.add(last9(c.number || ""))));
-      // Dedupe Leads: por id + filtra os que tem Tutor com mesmo phone
-      const seenL = new Set<string>();
+      // Dedupe Leads pelos ultimos 9 digitos + remove leads cujo phone ja tem Tutor.
+      const seenLeadPhones = new Set<string>();
       const ls = ((d.leads || []) as any[]).filter(l => {
-        if (seenL.has(l.id)) return false;
-        seenL.add(l.id);
-        return !tutorPhonesTail.has(last9(l.phone || ""));
+        const tail = last9(l.phone || "");
+        if (!tail || tail.length < 8) return true;
+        if (seenTutorPhones.has(tail)) return false;
+        if (seenLeadPhones.has(tail)) return false;
+        seenLeadPhones.add(tail);
+        return true;
       });
       setResults({ tutors: ts, leads: ls });
       setSearching(false);
@@ -735,16 +738,12 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                 </div>
               </div>
             </div>
-            <div className="text-[9.5px] font-bold uppercase text-gray-400 mt-2 mb-1">Estado de relacionamento</div>
-            <div className="flex flex-wrap gap-1">
-              {ESTADO_RELACIONAMENTO.map(e => {
-                const active = tutor.estadoRelacionamento === e.v;
-                return (
-                  <button key={e.v} onClick={() => updateTutorEstado(e.v)} className={`text-[9.5px] px-2 py-0.5 rounded-full font-medium ${active ? "ring-2 ring-offset-1" : "opacity-70 hover:opacity-100"} ${e.cls}`} style={active ? { boxShadow: "0 0 0 1.5px #009AAC" } : {}}>
-                    {e.label}
-                  </button>
-                );
-              })}
+            <div className="flex items-center gap-2 mt-2">
+              <span className="text-[9.5px] font-bold uppercase text-gray-400 whitespace-nowrap">Estado relac.</span>
+              <select value={tutor.estadoRelacionamento || ""} onChange={e => updateTutorEstado(e.target.value)} className="flex-1 text-[10.5px] px-2 py-1 border rounded-lg font-medium" style={{ borderColor: "#009AAC", color: "#014D5E", background: "white" }}>
+                <option value="">— selecionar —</option>
+                {ESTADO_RELACIONAMENTO.map(e => <option key={e.v} value={e.v}>{e.label}</option>)}
+              </select>
             </div>
           </section>
         )}
@@ -846,13 +845,8 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                               </select>
                             </div>
                           </div>
-                          {/* Ações */}
-                          <div className="grid grid-cols-2 gap-1.5 mb-1.5">
-                            <button onClick={() => { setInteracaoOpen(true); setInteracaoForm({ ...interacaoForm, tipo: "NOTA" }); }} className="px-2 py-1 rounded text-[10px] border flex items-center justify-center gap-1 text-gray-600 hover:text-[#009AAC] bg-white" style={SECTION_STYLE}><LuStickyNote size={10} /> Nota</button>
-                            <button onClick={() => window.open(`/dashboard/erp/agendamentos/novo?tutorId=${tutor.id}&petId=${p.id}`, "_blank")} className="px-2 py-1 rounded text-[10px] border flex items-center justify-center gap-1 text-gray-600 hover:text-[#009AAC] bg-white" style={SECTION_STYLE} type="button"><LuCalendar size={10} /> Agendar</button>
-                            <button onClick={() => window.open(`/dashboard/erp/pets/${p.id}/atendimentos/novo`, "_blank")} className="px-2 py-1 rounded text-[10px] border flex items-center justify-center gap-1 text-gray-600 hover:text-[#009AAC] bg-white" style={SECTION_STYLE} type="button"><LuFileText size={10} /> + Atendim.</button>
-                            <button onClick={() => window.open(`/dashboard/erp/pets/${p.id}/atendimentos/novo?tipo=EXAME`, "_blank")} className="px-2 py-1 rounded text-[10px] border flex items-center justify-center gap-1 text-gray-600 hover:text-[#009AAC] bg-white" style={SECTION_STYLE} type="button"><LuFlaskConical size={10} /> Exame</button>
-                          </div>
+                          {/* Ação principal: registrar atendimento */}
+                          <button onClick={() => window.open(`/dashboard/erp/pets/${p.id}/atendimentos/novo`, "_blank")} className="w-full px-2 py-1.5 rounded text-[10.5px] text-white font-semibold flex items-center justify-center gap-1 mb-1.5" style={{ background: "#009AAC" }} type="button"><LuPlus size={11} /> Registrar atendimento</button>
                           <button onClick={() => window.open(`/dashboard/erp/pets/${p.id}`, "_blank")} className="w-full text-[10px] py-1 border rounded font-medium bg-white hover:bg-gray-50" style={{ borderColor: "#009AAC", color: "#009AAC" }} type="button">Abrir ficha completa ↗</button>
                         </div>
                       )}
