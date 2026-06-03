@@ -1,109 +1,198 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getBackendBaseUrl, buildApiBase } from '@/lib/backend-proxy';
 
-/**
- * Normaliza telefone brasileiro inserindo o "9" do celular quando faltar.
- *
- * Aceita formatos como:
- *   558586018111   (12 digitos, BR sem 9 do celular)  → 5585986018111
- *   5585986018111  (13 digitos, ja canonico)          → 5585986018111
- *   8586018111     (10 digitos, DDD+8sem9)            → 5585986018111
- *   85986018111    (11 digitos, DDD+9+8)              → 5585986018111
- *   +55...         (com simbolos)                     → strip e processa
- *
- * Regra: precisa ter o primeiro digito do numero local entre 6-9 (celular BR).
- * Senao retorna o input "so digitos" sem alterar (telefone fixo).
- */
-function normalizePhoneBR(phone?: string | null): string | null {
-  if (!phone) return null;
-  const d = String(phone).replace(/\D/g, '');
-  if (!d) return null;
+// Poll BotConversa - puxa subscribers atualizados recentes
+// e dispara o webhook proprio com payload sintetico,
+// reusando toda a logica de normalizacao, enriquecimento por tags e dedupe.
+//
+// Uso:
+//   GET  /api/integrations/botconversa/poll?since=ISO  (padrao: 24h atras)
+//   POST /api/integrations/botconversa/poll body { since?, dryRun?, limit? }
+//
+// Idempotente: chamar varias vezes nao duplica.
 
-  // Casos cobertos:
-  // 1) 13 digitos comecando com 55 + DDD + 9 + 8 digitos → ja canonico
-  if (d.length === 13 && d.startsWith('55') && d[4] === '9') {
-    return d;
-  }
-  // 2) 12 digitos comecando com 55 + DDD + 8 digitos (sem 9), primeiro entre 6-9 → insere 9
-  if (d.length === 12 && d.startsWith('55') && /[6789]/.test(d[4])) {
-    return d.slice(0, 4) + '9' + d.slice(4);
-  }
-  // 3) 11 digitos DDD + 9 + 8 → adiciona 55
-  if (d.length === 11 && d[2] === '9' && /[6789]/.test(d[2])) {
-    return '55' + d;
-  }
-  // 4) 10 digitos DDD + 8 sem 9 → adiciona 55 + 9
-  if (d.length === 10 && /[6789]/.test(d[2])) {
-    return '55' + d.slice(0, 2) + '9' + d.slice(2);
-  }
-  // Default: retorna so digitos (telefone fixo ou formato desconhecido)
-  return d;
+const BC_API_KEY =
+  process.env.BOTCONVERSA_API_KEY ||
+  process.env.BC_API_KEY ||
+  '';
+const BC_BASE = 'https://backend.botconversa.com.br/api/v1/webhook';
+const BC_SECRET =
+  process.env.BOTCONVERSA_WEBHOOK_SECRET || '';
+
+type BCSubscriber = {
+  id?: number | string;
+  phone?: string;
+  full_phone?: string;
+  first_name?: string;
+  last_name?: string;
+  full_name?: string;
+  last_interaction?: string;
+  created_at?: string;
+  tags?: any[];
+};
+
+function joinName(s: BCSubscriber): string {
+  if (s.full_name) return s.full_name;
+  const parts = [s.first_name, s.last_name].filter(Boolean) as string[];
+  return parts.join(' ').trim();
 }
 
-/**
- * Normaliza todos os campos de telefone no payload do webhook BC.
- * Aceita aliases: phone, full_phone, telefone, fone.
- */
-function normalizePayloadPhones(payload: any): any {
-  if (!payload || typeof payload !== 'object') return payload;
-  const keys = ['phone', 'full_phone', 'telefone', 'fone'];
-  for (const k of keys) {
-    if (payload[k]) {
-      const norm = normalizePhoneBR(payload[k]);
-      if (norm) payload[k] = norm;
-    }
-  }
-  return payload;
+function classifyByTags(tags: string[]): 'cliente' | 'lead' {
+  return tags.some((t) => /cliente/i.test(t)) ? 'cliente' : 'lead';
 }
 
-// Webhook público — não exige JWT (BotConversa não tem credenciais nossas)
-async function forward(request: NextRequest, method: 'GET' | 'POST') {
-  const backendBase = getBackendBaseUrl();
-  if (!backendBase) {
-    return NextResponse.json({ ok: false, error: 'Backend não configurado' }, { status: 500 });
-  }
-  const apiBase = buildApiBase(backendBase);
-  const url = `${apiBase}/integrations/botconversa/webhook`;
+function normalizeTags(raw: any[] | undefined): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((t) => (typeof t === 'string' ? t : t?.name || t?.tag || ''))
+    .filter(Boolean);
+}
 
-  let body: string | undefined;
-  if (method === 'POST') {
-    const raw = await request.text();
+async function fetchSubscribers(): Promise<{ data: BCSubscriber[]; endpointUsed: string }> {
+  const candidates = [
+    `${BC_BASE}/subscriber/?ordering=-last_interaction&page_size=100`,
+    `${BC_BASE}/subscribers/?ordering=-last_interaction&page_size=100`,
+    `${BC_BASE}/subscriber/`,
+    `${BC_BASE}/subscribers/`,
+  ];
+  for (const url of candidates) {
     try {
-      const parsed = JSON.parse(raw);
-      const normalized = normalizePayloadPhones(parsed);
-      body = JSON.stringify(normalized);
+      const res = await fetch(url, {
+        headers: { 'API-KEY': BC_API_KEY, Accept: 'application/json' },
+      });
+      if (!res.ok) continue;
+      const j = await res.json();
+      const list = Array.isArray(j) ? j : j.results || j.data || j.subscribers || [];
+      if (Array.isArray(list)) return { data: list, endpointUsed: url };
     } catch {
-      // se não for JSON válido, passa adiante intacto
-      body = raw;
+      // tenta proximo
+    }
+  }
+  return { data: [], endpointUsed: 'none' };
+}
+
+async function handle(request: NextRequest) {
+  if (!BC_API_KEY) {
+    return NextResponse.json(
+      { ok: false, error: 'BOTCONVERSA_API_KEY nao configurada no env' },
+      { status: 500 },
+    );
+  }
+
+  const url = new URL(request.url);
+  const sinceParam =
+    url.searchParams.get('since') ||
+    (request.method === 'POST'
+      ? await request
+          .clone()
+          .json()
+          .then((b: any) => b?.since)
+          .catch(() => null)
+      : null);
+
+  const since = sinceParam
+    ? new Date(sinceParam)
+    : new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+  const dryRun = url.searchParams.get('dryRun') === '1';
+  const limit = Math.min(parseInt(url.searchParams.get('limit') || '50', 10), 200);
+
+  const { data: subs, endpointUsed } = await fetchSubscribers();
+
+  if (endpointUsed === 'none') {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: 'Nenhum endpoint de subscriber do BC retornou lista.',
+        triedBase: BC_BASE,
+      },
+      { status: 502 },
+    );
+  }
+
+  const filtered = subs
+    .filter((s) => {
+      const ts = s.last_interaction || s.created_at;
+      if (!ts) return true;
+      return new Date(ts) >= since;
+    })
+    .sort((a, b) => {
+      const ta = new Date(a.last_interaction || a.created_at || 0).getTime();
+      const tb = new Date(b.last_interaction || b.created_at || 0).getTime();
+      return tb - ta;
+    })
+    .slice(0, limit);
+
+  if (dryRun) {
+    return NextResponse.json({
+      ok: true,
+      dryRun: true,
+      endpointUsed,
+      totalFromBC: subs.length,
+      filteredCount: filtered.length,
+      since: since.toISOString(),
+      sample: filtered.slice(0, 5).map((s) => ({
+        phone: s.phone || s.full_phone,
+        name: joinName(s),
+        last: s.last_interaction,
+        tags: normalizeTags(s.tags),
+      })),
+    });
+  }
+
+  const webhookUrl = `${url.origin}/api/integrations/botconversa/webhook`;
+  const results: any[] = [];
+  for (const s of filtered) {
+    const phone = s.phone || s.full_phone;
+    if (!phone) continue;
+    const tags = normalizeTags(s.tags);
+    const tipo = classifyByTags(tags);
+    const payload = {
+      full_phone: phone,
+      nome_completo: joinName(s) || 'Sem nome',
+      tipo_contato: tipo,
+      trigger: 'poll',
+      bc_last_interaction: s.last_interaction,
+    };
+    try {
+      const r = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Botconversa-Secret': BC_SECRET,
+        },
+        body: JSON.stringify(payload),
+      });
+      const j = await r.json().catch(() => ({}));
+      results.push({ phone, name: payload.nome_completo, tipo, tags, status: r.status, ...j });
+    } catch (e: any) {
+      results.push({ phone, error: e?.message || String(e) });
     }
   }
 
-  try {
-    const res = await fetch(url, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      body,
-    });
-    const txt = await res.text();
-    let parsed: any = null;
-    try { parsed = JSON.parse(txt); } catch { parsed = { ok: res.ok, raw: txt.slice(0, 500) }; }
-    return NextResponse.json(parsed, { status: res.status });
-  } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e?.message || String(e) }, { status: 502 });
-  }
-}
+  const summary = {
+    polled: filtered.length,
+    tutoresCreated: results.filter((r) => r.tutorCreated).length,
+    leadsCreated: results.filter((r) => r.leadCreated).length,
+    tutoresUpdated: results.reduce((a, r) => a + (r.tutorsUpdated || 0), 0),
+    leadsUpdated: results.reduce((a, r) => a + (r.leadsUpdated || 0), 0),
+    errors: results.filter((r) => r.error || (r.status && r.status >= 400)).length,
+  };
 
-export async function POST(request: NextRequest) {
-  return forward(request, 'POST');
+  return NextResponse.json({
+    ok: true,
+    endpointUsed,
+    totalFromBC: subs.length,
+    since: since.toISOString(),
+    now: new Date().toISOString(),
+    summary,
+    results,
+  });
 }
 
 export async function GET(request: NextRequest) {
-  // Healthcheck pra Cintia testar a URL no navegador
-  return NextResponse.json({
-    ok: true,
-    info: 'BotConversa webhook endpoint',
-    method: 'POST',
-    expectedFields: ['phone OR full_phone', 'tutor_nome', 'pet_nome', 'pet_especie', 'pet_idade', 'resumo_ia OR ResumoIA', 'servico_interesse'],
-    normalization: 'phone/full_phone serao normalizados pra formato 55DDD9XXXXXXXX se vierem sem o 9 do celular',
-  });
+  return handle(request);
+}
+
+export async function POST(request: NextRequest) {
+  return handle(request);
 }
