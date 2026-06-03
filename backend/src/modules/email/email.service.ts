@@ -50,11 +50,12 @@ export class EmailService {
   }
 
   private initializeTransporter() {
-    const host = this.configService.get<string>('EMAIL_HOST') || 'mail.emporiodopet.com.br';
-    const port = parseInt(this.configService.get<string>('EMAIL_PORT') || '465', 10);
+    const resendKey = this.configService.get<string>('RESEND_API_KEY');
+    const host = resendKey ? 'smtp.resend.com' : (this.configService.get<string>('EMAIL_HOST') || 'mail.emporiodopet.com.br');
+    const port = resendKey ? 465 : parseInt(this.configService.get<string>('EMAIL_PORT') || '465', 10);
     const secure = this.configService.get<string>('EMAIL_SECURE') !== 'false';
-    const user = this.configService.get<string>('EMAIL_USER');
-    const pass = this.configService.get<string>('EMAIL_PASSWORD');
+    const user = resendKey ? 'resend' : this.configService.get<string>('EMAIL_USER');
+    const pass = resendKey || this.configService.get<string>('EMAIL_PASSWORD');
 
     this.defaultFrom = this.configService.get<string>('EMAIL_FROM') || 
       'Empório do Pet <contato@emporiodopet.com.br>';
