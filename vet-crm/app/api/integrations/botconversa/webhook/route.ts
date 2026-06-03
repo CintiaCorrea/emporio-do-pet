@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getBackendBaseUrl, buildApiBase } from '@/lib/backend-proxy';
 
+const BC_API_KEY = '49058590-48d7-4da9-a5a6-d15261c50756';
+const BC_BASE = 'https://backend.botconversa.com.br/api/v1/webhook';
+
 /**
- * Normaliza telefone brasileiro inserindo o "9" do celular ou removendo
- * prefixo "55" duplicado.
+ * Normaliza telefone BR.
  */
 function normalizePhoneBR(phone) {
   if (!phone) return null;
@@ -46,15 +48,33 @@ function normalizePayloadPhones(payload) {
 }
 
 /**
- * Verifica se o telefone JA pertence a um Tutor existente no banco.
- * Se sim, devolve o ID do tutor; senao null.
- * Faz busca pelos ultimos 9 e tambem ultimos 8 digitos (telefones antigos).
+ * Busca tags atuais do contato no BotConversa.
+ */
+async function fetchSubscriberTags(phone) {
+  if (!phone) return [];
+  try {
+    const res = await fetch(`${BC_BASE}/subscriber/get_by_phone/${phone}/`, {
+      headers: { 'API-KEY': BC_API_KEY },
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const tags = data.tags || data.data?.tags || [];
+    if (!Array.isArray(tags)) return [];
+    return tags
+      .map(t => (typeof t === 'string' ? t : t.name || t.tag || ''))
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Verifica se telefone existe como Tutor no backend.
  */
 async function findExistingTutor(apiBase, phone) {
   if (!phone) return null;
   const d = String(phone).replace(/\D/g, '');
   if (!d) return null;
-  // Busca pelos ultimos 9 digitos (canonico)
   const tail9 = d.slice(-9);
   const tail8 = d.slice(-8);
   try {
@@ -63,7 +83,6 @@ async function findExistingTutor(apiBase, phone) {
     const data = await r.json();
     const arr = Array.isArray(data) ? data : (data.tutors || data.data || []);
     if (arr.length > 0) return arr[0].id;
-    // Fallback: busca por 8 digitos
     const r2 = await fetch(`${apiBase}/tutors?search=${tail8}&limit=5`);
     if (!r2.ok) return null;
     const data2 = await r2.json();
@@ -72,6 +91,17 @@ async function findExistingTutor(apiBase, phone) {
   } catch {
     return null;
   }
+}
+
+/**
+ * Determina tipo_contato baseado em tags do BC.
+ * Tag "Cliente" -> cliente. Senao mantem o que veio.
+ */
+function classifyByTags(tags, defaultType) {
+  if (!Array.isArray(tags) || tags.length === 0) return defaultType;
+  const hasClienteTag = tags.some(t => /^cliente$/i.test(String(t).trim()));
+  if (hasClienteTag) return 'cliente';
+  return defaultType;
 }
 
 async function forward(request, method) {
@@ -89,9 +119,17 @@ async function forward(request, method) {
       const parsed = JSON.parse(raw);
       const normalized = normalizePayloadPhones(parsed);
 
-      // AUTO-DETECT: se telefone ja eh Tutor existente, forca tipo_contato=cliente
       const phone = normalized.full_phone || normalized.phone || normalized.telefone;
+
       if (phone) {
+        // 1. Busca tags atuais do BC
+        const bcTags = await fetchSubscriberTags(phone);
+        if (bcTags.length > 0) {
+          normalized._bcTags = bcTags;
+          // 2. Classifica via tag
+          normalized.tipo_contato = classifyByTags(bcTags, normalized.tipo_contato || 'lead');
+        }
+        // 3. Confirma com lookup no banco do app (auto-detect)
         const existingTutorId = await findExistingTutor(apiBase, phone);
         if (existingTutorId) {
           normalized.tipo_contato = 'cliente';
@@ -130,6 +168,6 @@ export async function GET(request) {
     info: 'BotConversa webhook endpoint',
     method: 'POST',
     expectedFields: ['phone OR full_phone', 'tutor_nome', 'pet_nome'],
-    normalization: 'phone normalizado pra 55DDD9XXXXXXXX. tipo_contato auto-detectado: se telefone ja eh Tutor, vira cliente.',
+    enrichment: 'tags do BC + auto-detect Tutor existente -> forca tipo_contato',
   });
 }
