@@ -2,16 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getBackendBaseUrl, buildApiBase } from '@/lib/backend-proxy';
 
 /**
- * Normaliza telefone brasileiro inserindo o "9" do celular quando faltar
- * ou removendo prefixo "55" duplicado.
+ * Normaliza telefone brasileiro inserindo o "9" do celular ou removendo
+ * prefixo "55" duplicado.
  */
 function normalizePhoneBR(phone) {
   if (!phone) return null;
   let d = String(phone).replace(/\D/g, '');
   if (!d) return null;
-  
-  // Caso > 13 digitos: BC envia "55{ddd}{telefone}" mas {telefone} ja inclui codigo pais
-  // Resultado: 55 duplicado tipo "5585558586018111" (16 chars)
   if (d.length > 13) {
     const t11 = d.slice(-11);
     if (/^\d{2}9[6-9]/.test(t11)) {
@@ -25,7 +22,6 @@ function normalizePhoneBR(phone) {
       }
     }
   }
-  
   if (d.length === 13 && d.startsWith('55') && d[4] === '9') return d;
   if (d.length === 12 && d.startsWith('55') && /[6789]/.test(d[4])) {
     return d.slice(0, 4) + '9' + d.slice(4);
@@ -49,6 +45,35 @@ function normalizePayloadPhones(payload) {
   return payload;
 }
 
+/**
+ * Verifica se o telefone JA pertence a um Tutor existente no banco.
+ * Se sim, devolve o ID do tutor; senao null.
+ * Faz busca pelos ultimos 9 e tambem ultimos 8 digitos (telefones antigos).
+ */
+async function findExistingTutor(apiBase, phone) {
+  if (!phone) return null;
+  const d = String(phone).replace(/\D/g, '');
+  if (!d) return null;
+  // Busca pelos ultimos 9 digitos (canonico)
+  const tail9 = d.slice(-9);
+  const tail8 = d.slice(-8);
+  try {
+    const r = await fetch(`${apiBase}/tutors?search=${tail9}&limit=5`);
+    if (!r.ok) return null;
+    const data = await r.json();
+    const arr = Array.isArray(data) ? data : (data.tutors || data.data || []);
+    if (arr.length > 0) return arr[0].id;
+    // Fallback: busca por 8 digitos
+    const r2 = await fetch(`${apiBase}/tutors?search=${tail8}&limit=5`);
+    if (!r2.ok) return null;
+    const data2 = await r2.json();
+    const arr2 = Array.isArray(data2) ? data2 : (data2.tutors || data2.data || []);
+    return arr2.length > 0 ? arr2[0].id : null;
+  } catch {
+    return null;
+  }
+}
+
 async function forward(request, method) {
   const backendBase = getBackendBaseUrl();
   if (!backendBase) {
@@ -63,6 +88,17 @@ async function forward(request, method) {
     try {
       const parsed = JSON.parse(raw);
       const normalized = normalizePayloadPhones(parsed);
+
+      // AUTO-DETECT: se telefone ja eh Tutor existente, forca tipo_contato=cliente
+      const phone = normalized.full_phone || normalized.phone || normalized.telefone;
+      if (phone) {
+        const existingTutorId = await findExistingTutor(apiBase, phone);
+        if (existingTutorId) {
+          normalized.tipo_contato = 'cliente';
+          normalized._autoDetected = true;
+        }
+      }
+
       body = JSON.stringify(normalized);
     } catch {
       body = raw;
@@ -94,6 +130,6 @@ export async function GET(request) {
     info: 'BotConversa webhook endpoint',
     method: 'POST',
     expectedFields: ['phone OR full_phone', 'tutor_nome', 'pet_nome'],
-    normalization: 'phone/full_phone normalizados pra 55DDD9XXXXXXXX (handles 10/11/12/13/16+ digitos)',
+    normalization: 'phone normalizado pra 55DDD9XXXXXXXX. tipo_contato auto-detectado: se telefone ja eh Tutor, vira cliente.',
   });
 }
