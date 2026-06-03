@@ -5,6 +5,7 @@ import Link from "next/link";
 import toast, { Toaster } from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import { openWhatsAppMeta } from "@/lib/actions/whatsapp";
+import { criarPetEAbrir } from "@/lib/actions/pets";
 import { SendEmailModal } from "@/components/email/SendEmailModal";
 import ConfirmDeleteModal from "@/components/common/ConfirmDeleteModal";
 import {
@@ -339,10 +340,10 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
                 <h3 className="text-[13px] text-[#0E2244] font-medium">Pets</h3>
                 <span className="bg-[#E0F4F6] text-[#00798A] text-[10px] font-medium px-1.5 py-0.5 rounded-full">{pets.length}</span>
               </div>
-              <Link href={`/dashboard/erp/pets/novo?tutorId=${tutor.id}`}
+              <button onClick={() => criarPetEAbrir(tutor.id)}
                 className="bg-white border border-[#cfd8e0] text-[#4d5a66] px-2.5 py-1 rounded text-[11px]">
                 <LuPlus className="inline w-3 h-3" /> Adicionar Pet
-              </Link>
+              </button>
             </div>
             {pets.length === 0 ? (
               <p className="text-center text-[11px] text-gray-400 py-3">Nenhum pet cadastrado</p>

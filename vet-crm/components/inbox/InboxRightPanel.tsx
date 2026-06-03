@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
+import { criarPetEAbrir } from "@/lib/actions/pets";
 import Link from "next/link";
 import {
   LuSearch, LuPhone, LuPlus, LuExternalLink, LuShare2, LuCheckCheck,
@@ -1048,7 +1049,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
               <section className={SECTION} style={SECTION_STYLE}>
                 <div className={LBL}>
                   <span><span className={NUM}>3</span>Pets {pets.length > 0 && `(${pets.length})`}{pets.length > 1 ? " · clique pra expandir" : ""}</span>
-                  <button onClick={() => window.open(`/dashboard/erp/pets/novo?tutorId=${tutor.id}`, "_blank")} className={LINK} style={{ color: "#009AAC" }} type="button"><LuPlus size={10} className="inline" /> cadastrar</button>
+                  <button onClick={() => criarPetEAbrir(tutor.id, true)} className={LINK} style={{ color: "#009AAC" }} type="button"><LuPlus size={10} className="inline" /> cadastrar</button>
                 </div>
                 {pets.length > 0 ? (
                   <div className="space-y-1.5">
@@ -1098,7 +1099,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                 ) : (
                   <div className="rounded-lg p-3 text-center text-[11px] text-gray-400" style={{ background: "#fafafa", border: "1px dashed #E8DFC8" }}>
                     Nenhum pet cadastrado ainda<br />
-                    <button onClick={() => window.open(`/dashboard/erp/pets/novo?tutorId=${tutor.id}`, "_blank")} className="font-semibold mt-1" style={{ color: "#009AAC" }} type="button">+ Cadastrar pet</button>
+                    <button onClick={() => criarPetEAbrir(tutor.id, true)} className="font-semibold mt-1" style={{ color: "#009AAC" }} type="button">+ Cadastrar pet</button>
                   </div>
                 )}
               </section>
