@@ -240,8 +240,30 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
           raw: l,
         });
       });
-      // NOTA: chamada a /api/whatsapp/conversations removida ate backend implementar endpoint
-      // (estava gerando 400 a cada 30s e travando navegacao do menu lateral)
+      // Tutores (clientes) com Interacao BC recente — busca em /api/interacoes
+      try {
+        const rI = await fetch(`/api/interacoes?canal=${encodeURIComponent("WhatsApp BC")}&limit=${incomingLimit}`);
+        const arrI = await safeJson<any[]>(rI, []);
+        const seenTutorIds = new Set<string>();
+        for (const it of (Array.isArray(arrI) ? arrI : [])) {
+          if (!it.tutorId || seenTutorIds.has(it.tutorId)) continue;
+          seenTutorIds.add(it.tutorId);
+          try {
+            const rT = await fetch(`/api/tutors/${it.tutorId}`);
+            const t = await safeJson<any>(rT, null);
+            if (!t || !t.id) continue;
+            const phone = (t.contacts || [])[0]?.number || "";
+            items.push({
+              id: `T-${t.id}`,
+              kind: "CLIENTE",
+              name: t.name || "Sem nome",
+              phone,
+              createdAt: it.createdAt || it.dataHora || new Date().toISOString(),
+              raw: t,
+            });
+          } catch { /* ignora tutor individual */ }
+        }
+      } catch { /* ignora se endpoint falhar */ }
       // Ordena por data desc, dedupe por phone (último 9)
       const seenPhones = new Set<string>();
       const dedupado = items
