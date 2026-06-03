@@ -144,6 +144,43 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
     setDelOpen(false);
   }
 
+  async function marcarRecuperar() {
+    try {
+      const r = await fetch(`/api/tutors/${id}`, { method: "PATCH", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ estadoRelacionamento: "A recuperar" }) });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      toast.success("Marcado a recuperar");
+      load();
+    } catch (e: any) {
+      toast.error("Erro: " + (e?.message || ""));
+    }
+  }
+
+  async function encaminhar() {
+    const destino = window.prompt("Encaminhar para quem? (vet, recepção, admin)");
+    if (!destino || !destino.trim()) return;
+    try {
+      const r = await fetch("/api/interacoes", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ tutorId: id, tipo: "ENCAMINHAMENTO", texto: `Encaminhado para: ${destino}`, canal: "Sistema" }) });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      toast.success(`Encaminhado para ${destino}`);
+    } catch (e: any) {
+      toast.error("Erro ao encaminhar: " + (e?.message || ""));
+    }
+  }
+
+  async function retomarComoLead() {
+    if (!tutor) return;
+    if (!window.confirm(`Criar um novo Lead com os dados de ${tutor.name}?`)) return;
+    try {
+      const r = await fetch("/api/leads", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ name: tutor.name, phone: phone, email: tutor.email, source: "WHATSAPP" }) });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const lead = await r.json();
+      toast.success("Lead criado!");
+      router.push(`/dashboard/crm/leads/${lead.id}`);
+    } catch (e: any) {
+      toast.error("Erro ao criar Lead: " + (e?.message || ""));
+    }
+  }
+
   if (loading) return <div className="p-6 text-center text-gray-500">Carregando...</div>;
   if (!tutor) return <div className="p-6 text-center text-gray-500">Cliente não encontrado</div>;
 
@@ -170,9 +207,9 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
           <button onClick={() => openWhatsAppMeta(phone)} className="bg-white border border-[#009AAC] text-[#00798A] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5"><LuStickyNote className="w-3.5 h-3.5" />WhatsApp</button>
           <button onClick={() => setEmailOpen(true)} className="bg-white border border-[#cfd8e0] text-[#4d5a66] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5"><span style={{fontSize:"14px"}}>✉️</span>Email</button>
           <Link href={`/dashboard/erp/tutores/${id}/editar`} className="bg-white border border-[#cfd8e0] text-[#4d5a66] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5"><LuPencil className="w-3.5 h-3.5" />Editar</Link>
-          <button className="bg-white border border-[#FCD194] text-[#BA7517] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5" onClick={() => toast("Marcado a recuperar")}><LuTriangleAlert className="w-3.5 h-3.5" />Marcar a recuperar</button>
-          <button className="bg-white border border-[#cfd8e0] text-[#0C447C] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5" onClick={() => toast("Encaminhado")}><span style={{fontSize:"13px"}}>↔</span>Encaminhar</button>
-          <button className="bg-white border border-[#cfd8e0] text-[#009AAC] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5" onClick={() => toast("Retomado como Lead")}><span style={{fontSize:"13px"}}>↺</span>Retomar como Lead</button>
+          <button className="bg-white border border-[#FCD194] text-[#BA7517] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5" onClick={marcarRecuperar}><LuTriangleAlert className="w-3.5 h-3.5" />Marcar a recuperar</button>
+          <button className="bg-white border border-[#cfd8e0] text-[#0C447C] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5" onClick={encaminhar}><span style={{fontSize:"13px"}}>↔</span>Encaminhar</button>
+          <button className="bg-white border border-[#cfd8e0] text-[#009AAC] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5" onClick={retomarComoLead}><span style={{fontSize:"13px"}}>↺</span>Retomar como Lead</button>
           <button onClick={() => setDelOpen(true)} className="bg-[#fbe6e6] border border-[#f4baba] text-[#A32D2D] px-2.5 py-1.5 rounded-lg text-xs"><LuTrash className="w-3.5 h-3.5" /></button>
         </div>
       </div>

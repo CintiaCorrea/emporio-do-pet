@@ -129,6 +129,28 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
     setDelOpen(false);
   }
 
+  async function encaminharLead(destino: string) {
+    try {
+      const r = await fetch("/api/interacoes", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ leadId: id, tipo: "ENCAMINHAMENTO", texto: `Encaminhado para: ${destino}`, canal: "Sistema" }) });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      toast.success(`Encaminhado para ${destino}`);
+    } catch (e: any) {
+      toast.error("Erro: " + (e?.message || ""));
+    }
+  }
+
+  async function naoELead() {
+    if (!window.confirm("Marcar este contato como 'não lead' e remover da lista?")) return;
+    try {
+      const r = await fetch(`/api/leads/${id}`, { method: "DELETE" });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      toast.success("Removido da lista de leads");
+      router.push("/dashboard/crm/leads");
+    } catch (e: any) {
+      toast.error("Erro: " + (e?.message || ""));
+    }
+  }
+
   const convertNow = async () => {
     try {
       const res = await fetch(`/api/leads/${id}/convert`, { method: "POST" });
@@ -178,10 +200,10 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
           <button onClick={() => setEmailOpen(true)} className="bg-white border border-[#cfd8e0] text-[#4d5a66] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5">
             <span style={{fontSize:"14px"}}>✉️</span>Email
           </button>
-          <button className="bg-white border border-[#cfd8e0] text-[#0C447C] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5" onClick={() => toast("Encaminhado pro vet")}>
+          <button className="bg-white border border-[#cfd8e0] text-[#0C447C] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5" onClick={() => encaminharLead("vet")}>
             <span style={{fontSize:"14px"}}>🩺</span>Com o vet
           </button>
-          <button className="bg-white border border-[#cfd8e0] text-[#993556] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5" onClick={() => toast("Encaminhado pra adm")}>
+          <button className="bg-white border border-[#cfd8e0] text-[#993556] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5" onClick={() => encaminharLead("administração")}>
             <span style={{fontSize:"14px"}}>💼</span>Com a adm
           </button>
           <button onClick={() => changeStage("Resolver")} className="bg-white border border-[#cfd8e0] text-[#0F6E56] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5">
@@ -190,7 +212,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
           <button onClick={() => setShowScripts(!showScripts)} className="bg-white border border-[#cfd8e0] text-[#4d5a66] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5">
             <span style={{fontSize:"14px"}}>📖</span>Scripts
           </button>
-          <button className="bg-white border border-[#cfd8e0] text-[#4d5a66] px-3 py-1.5 rounded-lg text-xs">Não é lead</button>
+          <button onClick={naoELead} className="bg-white border border-[#cfd8e0] text-[#4d5a66] px-3 py-1.5 rounded-lg text-xs">Não é lead</button>
           <button onClick={() => setDelOpen(true)} className="bg-[#fbe6e6] border border-[#f4baba] text-[#A32D2D] px-2.5 py-1.5 rounded-lg text-xs"><LuTrash className="w-3.5 h-3.5" /></button>
 
           {showScripts && (
