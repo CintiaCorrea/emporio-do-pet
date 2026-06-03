@@ -107,5 +107,6 @@ export function usePageRightSlot(slot: ReactNode | null) {
   useEffect(() => {
     setRightSlot(slot);
     return () => setRightSlot(null);
-  }, [slot]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 }
