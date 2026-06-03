@@ -2,12 +2,30 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getBackendBaseUrl, buildApiBase } from '@/lib/backend-proxy';
 
 /**
- * Normaliza telefone brasileiro inserindo o "9" do celular quando faltar.
+ * Normaliza telefone brasileiro inserindo o "9" do celular quando faltar
+ * ou removendo prefixo "55" duplicado.
  */
 function normalizePhoneBR(phone) {
   if (!phone) return null;
-  const d = String(phone).replace(/\D/g, '');
+  let d = String(phone).replace(/\D/g, '');
   if (!d) return null;
+  
+  // Caso > 13 digitos: BC envia "55{ddd}{telefone}" mas {telefone} ja inclui codigo pais
+  // Resultado: 55 duplicado tipo "5585558586018111" (16 chars)
+  if (d.length > 13) {
+    const t11 = d.slice(-11);
+    if (/^\d{2}9[6-9]/.test(t11)) {
+      d = '55' + t11;
+    } else {
+      const t10 = d.slice(-10);
+      if (/^\d{2}[6-9]/.test(t10)) {
+        d = '55' + t10.slice(0, 2) + '9' + t10.slice(2);
+      } else {
+        d = d.slice(-13);
+      }
+    }
+  }
+  
   if (d.length === 13 && d.startsWith('55') && d[4] === '9') return d;
   if (d.length === 12 && d.startsWith('55') && /[6789]/.test(d[4])) {
     return d.slice(0, 4) + '9' + d.slice(4);
@@ -76,6 +94,6 @@ export async function GET(request) {
     info: 'BotConversa webhook endpoint',
     method: 'POST',
     expectedFields: ['phone OR full_phone', 'tutor_nome', 'pet_nome'],
-    normalization: 'phone/full_phone normalizados pra formato 55DDD9XXXXXXXX',
+    normalization: 'phone/full_phone normalizados pra 55DDD9XXXXXXXX (handles 10/11/12/13/16+ digitos)',
   });
 }
