@@ -1,14 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Poll BotConversa - puxa subscribers atualizados recentes
-// e dispara o webhook proprio com payload sintetico,
-// reusando toda a logica de normalizacao, enriquecimento por tags e dedupe.
-//
-// Uso:
-//   GET  /api/integrations/botconversa/poll?since=ISO  (padrao: 24h atras)
-//   POST /api/integrations/botconversa/poll body { since?, dryRun?, limit? }
-//
-// Idempotente: chamar varias vezes nao duplica.
+// Poll BotConversa - puxa subscribers recentes e dispara o webhook proprio
+// pra cada um. O webhook ja dedupe por telefone, entao chamar varias vezes
+// nao gera duplicatas.
 
 const BC_API_KEY =
   process.env.BOTCONVERSA_API_KEY ||
@@ -49,8 +43,8 @@ function normalizeTags(raw: any[] | undefined): string[] {
 
 async function fetchSubscribers(): Promise<{ data: BCSubscriber[]; endpointUsed: string }> {
   const candidates = [
-    `${BC_BASE}/subscriber/?ordering=-last_interaction&page_size=100`,
-    `${BC_BASE}/subscribers/?ordering=-last_interaction&page_size=100`,
+    `${BC_BASE}/subscriber/?page_size=100`,
+    `${BC_BASE}/subscribers/?page_size=100`,
     `${BC_BASE}/subscriber/`,
     `${BC_BASE}/subscribers/`,
   ];
@@ -63,9 +57,7 @@ async function fetchSubscribers(): Promise<{ data: BCSubscriber[]; endpointUsed:
       const j = await res.json();
       const list = Array.isArray(j) ? j : j.results || j.data || j.subscribers || [];
       if (Array.isArray(list)) return { data: list, endpointUsed: url };
-    } catch {
-      // tenta proximo
-    }
+    } catch {}
   }
   return { data: [], endpointUsed: 'none' };
 }
@@ -79,20 +71,6 @@ async function handle(request: NextRequest) {
   }
 
   const url = new URL(request.url);
-  const sinceParam =
-    url.searchParams.get('since') ||
-    (request.method === 'POST'
-      ? await request
-          .clone()
-          .json()
-          .then((b: any) => b?.since)
-          .catch(() => null)
-      : null);
-
-  const since = sinceParam
-    ? new Date(sinceParam)
-    : new Date(Date.now() - 24 * 60 * 60 * 1000);
-
   const dryRun = url.searchParams.get('dryRun') === '1';
   const limit = Math.min(parseInt(url.searchParams.get('limit') || '50', 10), 200);
 
@@ -100,27 +78,12 @@ async function handle(request: NextRequest) {
 
   if (endpointUsed === 'none') {
     return NextResponse.json(
-      {
-        ok: false,
-        error: 'Nenhum endpoint de subscriber do BC retornou lista.',
-        triedBase: BC_BASE,
-      },
+      { ok: false, error: 'Nenhum endpoint de subscriber do BC retornou lista.', triedBase: BC_BASE },
       { status: 502 },
     );
   }
 
-  const filtered = subs
-    .filter((s) => {
-      const ts = s.last_interaction || s.created_at;
-      if (!ts) return true;
-      return new Date(ts) >= since;
-    })
-    .sort((a, b) => {
-      const ta = new Date(a.last_interaction || a.created_at || 0).getTime();
-      const tb = new Date(b.last_interaction || b.created_at || 0).getTime();
-      return tb - ta;
-    })
-    .slice(0, limit);
+  const toProcess = subs.slice(0, limit);
 
   if (dryRun) {
     return NextResponse.json({
@@ -128,12 +91,11 @@ async function handle(request: NextRequest) {
       dryRun: true,
       endpointUsed,
       totalFromBC: subs.length,
-      filteredCount: filtered.length,
-      since: since.toISOString(),
-      sample: filtered.slice(0, 5).map((s) => ({
+      willProcess: toProcess.length,
+      rawSample: subs.slice(0, 3),
+      friendlySample: toProcess.slice(0, 10).map((s) => ({
         phone: s.phone || s.full_phone,
         name: joinName(s),
-        last: s.last_interaction,
         tags: normalizeTags(s.tags),
       })),
     });
@@ -141,7 +103,7 @@ async function handle(request: NextRequest) {
 
   const webhookUrl = `${url.origin}/api/integrations/botconversa/webhook`;
   const results: any[] = [];
-  for (const s of filtered) {
+  for (const s of toProcess) {
     const phone = s.phone || s.full_phone;
     if (!phone) continue;
     const tags = normalizeTags(s.tags);
@@ -151,7 +113,6 @@ async function handle(request: NextRequest) {
       nome_completo: joinName(s) || 'Sem nome',
       tipo_contato: tipo,
       trigger: 'poll',
-      bc_last_interaction: s.last_interaction,
     };
     try {
       const r = await fetch(webhookUrl, {
@@ -163,14 +124,14 @@ async function handle(request: NextRequest) {
         body: JSON.stringify(payload),
       });
       const j = await r.json().catch(() => ({}));
-      results.push({ phone, name: payload.nome_completo, tipo, tags, status: r.status, ...j });
+      results.push({ phone, name: payload.nome_completo, tipo, status: r.status, ...j });
     } catch (e: any) {
       results.push({ phone, error: e?.message || String(e) });
     }
   }
 
   const summary = {
-    polled: filtered.length,
+    polled: toProcess.length,
     tutoresCreated: results.filter((r) => r.tutorCreated).length,
     leadsCreated: results.filter((r) => r.leadCreated).length,
     tutoresUpdated: results.reduce((a, r) => a + (r.tutorsUpdated || 0), 0),
@@ -182,7 +143,6 @@ async function handle(request: NextRequest) {
     ok: true,
     endpointUsed,
     totalFromBC: subs.length,
-    since: since.toISOString(),
     now: new Date().toISOString(),
     summary,
     results,
