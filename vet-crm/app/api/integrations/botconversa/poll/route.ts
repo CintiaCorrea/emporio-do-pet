@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Poll BotConversa - puxa subscribers recentes e dispara o webhook proprio
-// pra cada um. O webhook ja dedupe por telefone, entao chamar varias vezes
-// nao gera duplicatas.
+// Poll BotConversa - puxa subscribers mais recentes (ordenados por -id) e
+// dispara o webhook proprio pra cada um. Webhook deduplica por telefone.
 
 const BC_API_KEY =
   process.env.BOTCONVERSA_API_KEY ||
@@ -19,7 +18,6 @@ type BCSubscriber = {
   first_name?: string;
   last_name?: string;
   full_name?: string;
-  last_interaction?: string;
   created_at?: string;
   tags?: any[];
 };
@@ -41,25 +39,34 @@ function normalizeTags(raw: any[] | undefined): string[] {
     .filter(Boolean);
 }
 
-async function fetchSubscribers(): Promise<{ data: BCSubscriber[]; endpointUsed: string }> {
-  const candidates = [
-    `${BC_BASE}/subscriber/?page_size=100`,
-    `${BC_BASE}/subscribers/?page_size=100`,
-    `${BC_BASE}/subscriber/`,
-    `${BC_BASE}/subscribers/`,
-  ];
-  for (const url of candidates) {
+// Pagina ate juntar `wanted` subscribers ou esgotar `maxPages`.
+// Tenta primeiro com ordering=-id (mais recentes primeiro); se nao respeitar,
+// inverte localmente no final.
+async function fetchSubscribers(wanted: number): Promise<{ data: BCSubscriber[]; endpointUsed: string }> {
+  const all: BCSubscriber[] = [];
+  let url: string | null = `${BC_BASE}/subscribers/?ordering=-id`;
+  let endpointUsed = url;
+  let pages = 0;
+  const maxPages = 10;
+  while (url && pages < maxPages && all.length < wanted) {
     try {
       const res = await fetch(url, {
         headers: { 'API-KEY': BC_API_KEY, Accept: 'application/json' },
       });
-      if (!res.ok) continue;
+      if (!res.ok) break;
       const j = await res.json();
       const list = Array.isArray(j) ? j : j.results || j.data || j.subscribers || [];
-      if (Array.isArray(list)) return { data: list, endpointUsed: url };
-    } catch {}
+      if (!Array.isArray(list) || list.length === 0) break;
+      all.push(...list);
+      url = j?.next || null;
+      pages++;
+    } catch {
+      break;
+    }
   }
-  return { data: [], endpointUsed: 'none' };
+  // Se o BC nao respeita ordering, garante ordem por id desc localmente
+  all.sort((a, b) => Number(b.id || 0) - Number(a.id || 0));
+  return { data: all, endpointUsed };
 }
 
 async function handle(request: NextRequest) {
@@ -74,11 +81,11 @@ async function handle(request: NextRequest) {
   const dryRun = url.searchParams.get('dryRun') === '1';
   const limit = Math.min(parseInt(url.searchParams.get('limit') || '50', 10), 200);
 
-  const { data: subs, endpointUsed } = await fetchSubscribers();
+  const { data: subs, endpointUsed } = await fetchSubscribers(limit);
 
-  if (endpointUsed === 'none') {
+  if (!subs.length) {
     return NextResponse.json(
-      { ok: false, error: 'Nenhum endpoint de subscriber do BC retornou lista.', triedBase: BC_BASE },
+      { ok: false, error: 'Nenhum subscriber do BC retornou.', triedBase: BC_BASE },
       { status: 502 },
     );
   }
@@ -92,10 +99,11 @@ async function handle(request: NextRequest) {
       endpointUsed,
       totalFromBC: subs.length,
       willProcess: toProcess.length,
-      rawSample: subs.slice(0, 3),
       friendlySample: toProcess.slice(0, 10).map((s) => ({
+        id: s.id,
         phone: s.phone || s.full_phone,
         name: joinName(s),
+        created_at: s.created_at,
         tags: normalizeTags(s.tags),
       })),
     });
