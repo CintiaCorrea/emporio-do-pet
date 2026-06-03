@@ -3,6 +3,10 @@
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import toast, { Toaster } from "react-hot-toast";
+import { useRouter } from "next/navigation";
+import { openWhatsAppMeta } from "@/lib/actions/whatsapp";
+import { SendEmailModal } from "@/components/email/SendEmailModal";
+import ConfirmDeleteModal from "@/components/common/ConfirmDeleteModal";
 import {
   LuArrowLeft, LuStickyNote, LuPencil, LuTriangleAlert,
   LuTrash, LuPhone, LuCalendar, LuUser, LuPlus} from "react-icons/lu";
@@ -87,6 +91,9 @@ function AccordionCard({
 
 export default function TutorDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const router = useRouter();
+  const [emailOpen, setEmailOpen] = useState(false);
+  const [delOpen, setDelOpen] = useState(false);
   const [tutor, setTutor] = useState<TutorDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [nota, setNota] = useState("");
@@ -125,6 +132,18 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
     finally { setNotaSaving(false); }
   };
 
+  async function handleDelete() {
+    try {
+      const res = await fetch(`/api/tutors/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      toast.success("Tutor removido");
+      router.push("/dashboard/erp/tutores");
+    } catch (e: any) {
+      toast.error("Erro ao remover: " + (e?.message || ""));
+    }
+    setDelOpen(false);
+  }
+
   if (loading) return <div className="p-6 text-center text-gray-500">Carregando...</div>;
   if (!tutor) return <div className="p-6 text-center text-gray-500">Cliente não encontrado</div>;
 
@@ -148,13 +167,13 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
           <span style={{ background: status.bg, color: status.color }} className="text-[11px] font-medium px-2 py-0.5 rounded-full">{status.label}</span>
         </div>
         <div className="flex gap-1.5 flex-wrap">
-          <a href={phone ? `https://wa.me/${phone.replace(/\D/g, "")}` : "#"} target="_blank" rel="noreferrer" className="bg-white border border-[#009AAC] text-[#00798A] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5"><LuStickyNote className="w-3.5 h-3.5" />WhatsApp</a>
-          <a href={tutor.email ? `mailto:${tutor.email}` : "#"} className="bg-white border border-[#cfd8e0] text-[#4d5a66] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5"><span style={{fontSize:"14px"}}>✉️</span>Email</a>
+          <button onClick={() => openWhatsAppMeta(phone)} className="bg-white border border-[#009AAC] text-[#00798A] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5"><LuStickyNote className="w-3.5 h-3.5" />WhatsApp</button>
+          <button onClick={() => setEmailOpen(true)} className="bg-white border border-[#cfd8e0] text-[#4d5a66] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5"><span style={{fontSize:"14px"}}>✉️</span>Email</button>
           <Link href={`/dashboard/erp/tutores/${id}/editar`} className="bg-white border border-[#cfd8e0] text-[#4d5a66] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5"><LuPencil className="w-3.5 h-3.5" />Editar</Link>
           <button className="bg-white border border-[#FCD194] text-[#BA7517] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5" onClick={() => toast("Marcado a recuperar")}><LuTriangleAlert className="w-3.5 h-3.5" />Marcar a recuperar</button>
           <button className="bg-white border border-[#cfd8e0] text-[#0C447C] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5" onClick={() => toast("Encaminhado")}><span style={{fontSize:"13px"}}>↔</span>Encaminhar</button>
           <button className="bg-white border border-[#cfd8e0] text-[#009AAC] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5" onClick={() => toast("Retomado como Lead")}><span style={{fontSize:"13px"}}>↺</span>Retomar como Lead</button>
-          <button className="bg-[#fbe6e6] border border-[#f4baba] text-[#A32D2D] px-2.5 py-1.5 rounded-lg text-xs"><LuTrash className="w-3.5 h-3.5" /></button>
+          <button onClick={() => setDelOpen(true)} className="bg-[#fbe6e6] border border-[#f4baba] text-[#A32D2D] px-2.5 py-1.5 rounded-lg text-xs"><LuTrash className="w-3.5 h-3.5" /></button>
         </div>
       </div>
 
@@ -343,11 +362,28 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
           </AccordionCard>
 
           <AccordionCard icon={() => <span style={{fontSize:"14px"}}>✉️</span>} title="Emails" count={0}
-            action={<button className="bg-white border border-[#cfd8e0] text-[#4d5a66] px-2 py-0.5 rounded text-[10px]"><LuPlus className="inline w-2.5 h-2.5" /> Enviar</button>}>
+            action={<button onClick={() => setEmailOpen(true)} className="bg-white border border-[#cfd8e0] text-[#4d5a66] px-2 py-0.5 rounded text-[10px]"><LuPlus className="inline w-2.5 h-2.5" /> Enviar</button>}>
             <p className="text-center text-[11px] text-gray-400 py-2">Nenhum email</p>
           </AccordionCard>
         </div>
       </div>
+
+      <SendEmailModal
+        open={emailOpen}
+        onClose={() => setEmailOpen(false)}
+        defaultTo={tutor.email || ""}
+        defaultSubject={`Sobre ${tutor.name?.split(" ")[0] || "voce"}`}
+        defaultHtml="<p>Ola!</p>"
+        tutorId={tutor.id}
+      />
+      <ConfirmDeleteModal
+        isOpen={delOpen}
+        entityLabel="Tutor"
+        itemName={tutor.name || "Tutor"}
+        consequenceText="Os pets, atendimentos e historico vinculados tambem serao removidos."
+        onConfirm={handleDelete}
+        onClose={() => setDelOpen(false)}
+      />
     </div>
   );
 }
