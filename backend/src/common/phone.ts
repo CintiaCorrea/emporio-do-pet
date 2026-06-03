@@ -52,5 +52,9 @@ export function formatPhone(raw?: string | null): string {
 export function samePhone(a?: string | null, b?: string | null): boolean {
   const la = last9(a);
   const lb = last9(b);
-  return !!la && la.length >= 8 && la === lb;
+  if (!la || !lb) return false;
+  if (la.length >= 8 && la === lb) return true;
+  const la8 = la.slice(-8);
+  const lb8 = lb.slice(-8);
+  return la8.length === 8 && la8 === lb8;
 }
