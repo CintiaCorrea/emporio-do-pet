@@ -8,6 +8,8 @@ import {
 } from "react-icons/lu";
 import toast from "react-hot-toast";
 import ConfirmDeleteModal from "@/components/common/ConfirmDeleteModal";
+import { openWhatsAppMeta } from "@/lib/actions/whatsapp";
+import { SendEmailModal } from "@/components/email/SendEmailModal";
 import PetProfilePanel from "@/components/profile/PetProfilePanel";
 import PetIcon from "@/components/profile/PetIcon";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
@@ -83,6 +85,7 @@ export default function PetDetailPage() {
   const [loadingPet, setLoadingPet] = useState(true);
   const [loadingAt, setLoadingAt] = useState(true);
   const [delOpen, setDelOpen] = useState(false);
+  const [emailOpen, setEmailOpen] = useState(false);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [delAtId, setDelAtId] = useState<string | null>(null);
 
@@ -190,14 +193,22 @@ export default function PetDetailPage() {
           </div>
           <div className="flex items-center gap-2">
             {tutorWhats && (
-              <a
-                href={`https://wa.me/${tutorWhats.replace(/\D/g, "")}`}
-                target="_blank" rel="noopener"
+              <button
+                onClick={() => openWhatsAppMeta(tutorWhats)}
                 className="px-3 py-1.5 rounded-lg text-sm border flex items-center gap-1.5"
                 style={{ borderColor: "#22C55E", color: "#16a34a" }}
               >
                 <LuMessageSquare size={14} /> WhatsApp
-              </a>
+              </button>
+            )}
+            {pet.tutor?.email && (
+              <button
+                onClick={() => setEmailOpen(true)}
+                className="px-3 py-1.5 rounded-lg text-sm border flex items-center gap-1.5"
+                style={{ borderColor: "#E8DFC8", color: "#475569" }}
+              >
+                <LuMail size={14} /> Email
+              </button>
             )}
             <Link
               href={`/dashboard/erp/pets/${pet.id}/editar`}

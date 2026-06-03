@@ -4,6 +4,9 @@ import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import toast, { Toaster } from "react-hot-toast";
+import { openWhatsAppMeta } from "@/lib/actions/whatsapp";
+import { SendEmailModal } from "@/components/email/SendEmailModal";
+import ConfirmDeleteModal from "@/components/common/ConfirmDeleteModal";
 import {
   LuArrowLeft, LuStickyNote, LuTrash, LuPlus, LuSparkles, LuPhone} from "react-icons/lu";
 
@@ -51,6 +54,8 @@ function getTemp(score: number) {
 export default function LeadDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
+  const [emailOpen, setEmailOpen] = useState(false);
+  const [delOpen, setDelOpen] = useState(false);
   const [lead, setLead] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showScripts, setShowScripts] = useState(false);
@@ -112,6 +117,18 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
     } catch (e: any) { toast.error("Erro: " + e.message); }
   };
 
+  async function handleDelete() {
+    try {
+      const res = await fetch(`/api/leads/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      toast.success("Lead removido");
+      router.push("/dashboard/crm/leads");
+    } catch (e: any) {
+      toast.error("Erro ao remover: " + (e?.message || ""));
+    }
+    setDelOpen(false);
+  }
+
   const convertNow = async () => {
     try {
       const res = await fetch(`/api/leads/${id}/convert`, { method: "POST" });
@@ -155,12 +172,12 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
           <button onClick={convertNow} className="bg-[#0F6E56] text-white px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5">
             <span style={{fontSize:"14px"}}>✓</span>Converter pra cliente
           </button>
-          <a href={lead.phone ? `https://wa.me/${lead.phone.replace(/\D/g, "")}` : "#"} target="_blank" rel="noreferrer" className="bg-white border border-[#009AAC] text-[#00798A] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5">
+          <button onClick={() => openWhatsAppMeta(lead.phone)} className="bg-white border border-[#009AAC] text-[#00798A] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5">
             <LuStickyNote className="w-3.5 h-3.5" />WhatsApp
-          </a>
-          <a href={lead.email ? `mailto:${lead.email}` : "#"} className="bg-white border border-[#cfd8e0] text-[#4d5a66] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5">
+          </button>
+          <button onClick={() => setEmailOpen(true)} className="bg-white border border-[#cfd8e0] text-[#4d5a66] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5">
             <span style={{fontSize:"14px"}}>✉️</span>Email
-          </a>
+          </button>
           <button className="bg-white border border-[#cfd8e0] text-[#0C447C] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5" onClick={() => toast("Encaminhado pro vet")}>
             <span style={{fontSize:"14px"}}>🩺</span>Com o vet
           </button>
@@ -174,7 +191,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
             <span style={{fontSize:"14px"}}>📖</span>Scripts
           </button>
           <button className="bg-white border border-[#cfd8e0] text-[#4d5a66] px-3 py-1.5 rounded-lg text-xs">Não é lead</button>
-          <button className="bg-[#fbe6e6] border border-[#f4baba] text-[#A32D2D] px-2.5 py-1.5 rounded-lg text-xs"><LuTrash className="w-3.5 h-3.5" /></button>
+          <button onClick={() => setDelOpen(true)} className="bg-[#fbe6e6] border border-[#f4baba] text-[#A32D2D] px-2.5 py-1.5 rounded-lg text-xs"><LuTrash className="w-3.5 h-3.5" /></button>
 
           {showScripts && (
             <div className="absolute right-0 top-12 z-50 w-80 bg-white border border-[#d8d0bc] rounded-xl shadow-lg p-3">
