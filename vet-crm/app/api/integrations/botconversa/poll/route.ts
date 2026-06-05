@@ -39,9 +39,6 @@ function normalizeTags(raw: any[] | undefined): string[] {
     .filter(Boolean);
 }
 
-// Pagina ate juntar `wanted` subscribers ou esgotar `maxPages`.
-// Tenta primeiro com ordering=-id (mais recentes primeiro); se nao respeitar,
-// inverte localmente no final.
 async function fetchSubscribers(wanted: number): Promise<{ data: BCSubscriber[]; endpointUsed: string }> {
   const all: BCSubscriber[] = [];
   let url: string | null = `${BC_BASE}/subscribers/?ordering=-id`;
@@ -64,9 +61,16 @@ async function fetchSubscribers(wanted: number): Promise<{ data: BCSubscriber[];
       break;
     }
   }
-  // Se o BC nao respeita ordering, garante ordem por id desc localmente
   all.sort((a, b) => Number(b.id || 0) - Number(a.id || 0));
   return { data: all, endpointUsed };
+}
+
+// Resolve a URL publica do webhook usando o Host header, com fallback
+// pra app.emporiodopet.com.br se o host nao estiver presente.
+function resolveWebhookUrl(request: NextRequest): string {
+  const host = request.headers.get('host') || 'app.emporiodopet.com.br';
+  const proto = request.headers.get('x-forwarded-proto') || 'https';
+  return `${proto}://${host}/api/integrations/botconversa/webhook`;
 }
 
 async function handle(request: NextRequest) {
@@ -109,7 +113,7 @@ async function handle(request: NextRequest) {
     });
   }
 
-  const webhookUrl = `${url.origin}/api/integrations/botconversa/webhook`;
+  const webhookUrl = resolveWebhookUrl(request);
   const results: any[] = [];
   for (const s of toProcess) {
     const phone = s.phone || s.full_phone;
@@ -150,6 +154,7 @@ async function handle(request: NextRequest) {
   return NextResponse.json({
     ok: true,
     endpointUsed,
+    webhookUrl,
     totalFromBC: subs.length,
     now: new Date().toISOString(),
     summary,
