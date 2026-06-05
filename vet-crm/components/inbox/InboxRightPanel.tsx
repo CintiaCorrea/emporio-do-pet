@@ -6,7 +6,7 @@ import Link from "next/link";
 import {
   LuSearch, LuPhone, LuPlus, LuExternalLink, LuShare2, LuCheckCheck,
   LuMessageSquare, LuSparkles, LuCalendar, LuFileText, LuFlaskConical, LuStickyNote,
-  LuX, LuArrowUpRight, LuInbox, LuMessageCircle, LuRefreshCcw,
+  LuX, LuArrowUpRight, LuInbox, LuMessageCircle, 
 } from "react-icons/lu";
 import toast from "react-hot-toast";
 import PetIcon from "@/components/profile/PetIcon";
@@ -748,7 +748,6 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
             <LuPlus size={11} /> cadastrar
           </button>
         )}
-        <button onClick={loadIncoming} className="text-gray-400 hover:text-[#009AAC]" title="Atualizar caixa"><LuRefreshCcw size={12} /></button>
       </div>
 
       {/* ========== BUSCA ========== */}
