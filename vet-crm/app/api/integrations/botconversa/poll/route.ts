@@ -84,6 +84,10 @@ async function handle(request: NextRequest) {
   const url = new URL(request.url);
   const dryRun = url.searchParams.get('dryRun') === '1';
   const limit = Math.min(parseInt(url.searchParams.get('limit') || '50', 10), 200);
+  // Janela de novidade: so processa subscribers CRIADOS nos ultimos N minutos
+  // (default 10). Conversas antigas nao reentram; use ?all=1 pra backfill manual.
+  const sinceMinutes = Math.max(1, parseInt(url.searchParams.get('sinceMinutes') || '10', 10));
+  const processAll = url.searchParams.get('all') === '1';
 
   const { data: subs, endpointUsed } = await fetchSubscribers(limit);
 
@@ -94,7 +98,25 @@ async function handle(request: NextRequest) {
     );
   }
 
-  const toProcess = subs.slice(0, limit);
+  const cutoff = Date.now() - sinceMinutes * 60_000;
+  const fresh = processAll
+    ? subs
+    : subs.filter((s) => {
+        const ts = s.created_at ? new Date(s.created_at).getTime() : 0;
+        return ts >= cutoff;
+      });
+  const toProcess = fresh.slice(0, limit);
+
+  if (!dryRun && toProcess.length === 0) {
+    return NextResponse.json({
+      ok: true,
+      endpointUsed,
+      totalFromBC: subs.length,
+      now: new Date().toISOString(),
+      summary: { polled: 0 },
+      info: `nenhum subscriber novo nos ultimos ${sinceMinutes} min`,
+    });
+  }
 
   if (dryRun) {
     return NextResponse.json({
