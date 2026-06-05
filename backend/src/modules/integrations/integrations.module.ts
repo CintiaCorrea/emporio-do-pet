@@ -9,12 +9,3 @@ import { PrismaModule } from '../prisma/prisma.module';
   providers: [BcPollCronService],
 })
 export class IntegrationsModule {}
-import { Module } from '@nestjs/common';
-import { BotConversaController } from './botconversa.controller';
-import { PrismaModule } from '../prisma/prisma.module';
-
-@Module({
-  imports: [PrismaModule],
-  controllers: [BotConversaController],
-})
-export class IntegrationsModule {}
