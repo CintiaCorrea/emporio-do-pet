@@ -245,7 +245,7 @@ export class BotconversaWebhookService {
         // Marca o Lead como convertido
         await this.prisma.lead.update({
           where: { id: existingLead.id },
-          data: { status: LeadStatus.CONVERTIDO as any, lastActivityAt: new Date() },
+          data: { status: LeadStatus.CONVERTED as any, lastActivityAt: new Date() },
         }).catch(() => {});
         await this.recordInteracaoBC({ tutorId: tutor.id, ownerId, payload, resumoIA, tags });
         this.logger.log(`BotConversa: Lead ${existingLead.id} promovido a Tutor ${tutor.id}`);
