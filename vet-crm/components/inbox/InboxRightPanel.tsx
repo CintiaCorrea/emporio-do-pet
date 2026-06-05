@@ -221,12 +221,32 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
     setLoadingIncoming(true);
     try {
       const items: IncomingItem[] = [];
-      // Leads recentes (não-convertidos, não-resolvidos)
+      // Últimas resoluções por lead/tutor (Interacao tipo RESOLVIDO)
+      const resolvedByTutor = new Map<string, number>();
+      const resolvedByLead = new Map<string, number>();
+      try {
+        const rR = await fetch(`/api/interacoes?tipo=RESOLVIDO&limit=200`);
+        const arrR = await safeJson<any[]>(rR, []);
+        for (const it of (Array.isArray(arrR) ? arrR : [])) {
+          if (it.tipo !== "RESOLVIDO") continue;
+          const ts = new Date(it.createdAt || 0).getTime();
+          if (it.tutorId && ts > (resolvedByTutor.get(it.tutorId) || 0)) resolvedByTutor.set(it.tutorId, ts);
+          if (it.leadId && ts > (resolvedByLead.get(it.leadId) || 0)) resolvedByLead.set(it.leadId, ts);
+        }
+      } catch { /* segue sem mapa de resolvidos */ }
+      // Quem tem follow-up/sequência agendado sai da caixa (fica na ação)
+      const temFollowupFuturo = (x: any) =>
+        !!x?.proximoFollowupAt && new Date(x.proximoFollowupAt).getTime() > Date.now();
+      // Leads recentes (não-convertidos, não-resolvidos, sem follow-up futuro)
       const rL = await fetch(`/api/leads?source=WHATSAPP&limit=${incomingLimit}`);
       const dL = await safeJson<any>(rL, {});
       const arrL = Array.isArray(dL) ? dL : (dL.leads || dL.data || []);
       arrL.forEach((l: any) => {
         if (l.status === "CONVERTED" || l.status === "RESOLVED" || l.status === "LOST") return;
+        if (temFollowupFuturo(l)) return;
+        const lastResolved = resolvedByLead.get(l.id) || 0;
+        const lastActivity = new Date(l.lastActivityAt || l.firstSeenAt || l.createdAt || 0).getTime();
+        if (lastResolved && lastResolved >= lastActivity) return; // resolvido após última atividade
         const cf = l.customFields || {};
         const servico = extrairServico(l.resumoIa, cf.servicoInteresse || cf.servico_interesse);
         items.push({
@@ -241,25 +261,30 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
           raw: l,
         });
       });
-      // Tutores (clientes) com Interacao BC recente — busca em /api/interacoes
+      // Tutores (clientes) com Interacao BC mais recente que a última resolução
       try {
         const rI = await fetch(`/api/interacoes?canal=${encodeURIComponent("WhatsApp BC")}&limit=${incomingLimit}`);
         const arrI = await safeJson<any[]>(rI, []);
         const seenTutorIds = new Set<string>();
         for (const it of (Array.isArray(arrI) ? arrI : [])) {
+          if (it.canal !== "WhatsApp BC") continue;
           if (!it.tutorId || seenTutorIds.has(it.tutorId)) continue;
           seenTutorIds.add(it.tutorId);
+          const bcTs = new Date(it.updatedAt || it.createdAt || 0).getTime();
+          const lastResolved = resolvedByTutor.get(it.tutorId) || 0;
+          if (lastResolved >= bcTs) continue; // resolvido depois da última conversa
           try {
             const rT = await fetch(`/api/tutors/${it.tutorId}`);
             const t = await safeJson<any>(rT, null);
             if (!t || !t.id) continue;
+            if (temFollowupFuturo(t)) continue; // em follow-up/sequência
             const phone = (t.contacts || [])[0]?.number || "";
             items.push({
               id: `T-${t.id}`,
               kind: "CLIENTE",
               name: t.name || "Sem nome",
               phone,
-              createdAt: it.createdAt || it.dataHora || new Date().toISOString(),
+              createdAt: it.updatedAt || it.createdAt || it.dataHora || new Date().toISOString(),
               raw: t,
             });
           } catch { /* ignora tutor individual */ }
