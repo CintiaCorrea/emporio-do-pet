@@ -8,10 +8,11 @@ import { BotconversaPayload } from './dto/botconversa-payload.dto';
  *
  * Regras (espelham botconversaLeadCapture do Base44):
  *  - Idempotência por telefone (last 8 dígitos).
- *  - Tag FU-cliente → upsert em Tutor com classificacao=Cliente.
+ *  - Tag "Cliente" ou "FU-cliente" (case-insensitive) → upsert em Tutor.
  *  - Caso contrário, upsert em Lead.
+ *  - Cria Interacao canal "WhatsApp BC" para alimentar Caixa de Entrada.
  *  - Tags do BotConversa preservadas.
- *  - LeadEvent registra rastro.
+ *  - LeadEvent registra rastro adicional.
  */
 @Injectable()
 export class BotconversaWebhookService {
@@ -53,6 +54,15 @@ export class BotconversaWebhookService {
   }
 
   /**
+   * Detecta cliente por tags (case-insensitive: "Cliente", "FU-cliente")
+   * OU pelo tipo_contato vindo do poll.
+   */
+  private isClienteContact(tags: string[], payload: BotconversaPayload): boolean {
+    if ((payload as any).tipo_contato === 'cliente') return true;
+    return tags.some((t) => /^(fu-)?cliente$/i.test(t));
+  }
+
+  /**
    * Detecta se o payload representa uma mensagem do BotConversa (espelhamento).
    * Aceita várias chaves possíveis (BotConversa varia por flow).
    */
@@ -75,6 +85,16 @@ export class BotconversaWebhookService {
   }
 
   /**
+   * Pega o user "dono" da clínica para autoria das interações automáticas.
+   */
+  private async getOwnerUserId(): Promise<string | null> {
+    const owner =
+      (await this.prisma.user.findFirst({ where: { role: 'ADMIN' }, orderBy: { createdAt: 'asc' } })) ||
+      (await this.prisma.user.findFirst({ orderBy: { createdAt: 'asc' } }));
+    return owner?.id || null;
+  }
+
+  /**
    * Cria/atualiza WhatsAppConversation e grava WhatsAppMessage refletindo o BotConversa.
    * Usado quando o BotConversa dispara webhook a cada mensagem (não só lead).
    */
@@ -84,16 +104,12 @@ export class BotconversaWebhookService {
     last8: string,
     msg: { content: string; direction: 'INBOUND' | 'OUTBOUND' },
   ): Promise<{ ok: boolean; kind: 'message'; conversationId: string; created: boolean }> {
-    // Acha o user "dono" da clínica (primeiro admin, fallback primeiro user)
-    const owner =
-      (await this.prisma.user.findFirst({ where: { role: 'ADMIN' }, orderBy: { createdAt: 'asc' } })) ||
-      (await this.prisma.user.findFirst({ orderBy: { createdAt: 'asc' } }));
-    if (!owner) {
+    const ownerId = await this.getOwnerUserId();
+    if (!ownerId) {
       this.logger.error('BotConversa mirror: nenhum user encontrado pra atribuir a conversa');
       return { ok: false as any, kind: 'message', conversationId: '', created: false };
     }
 
-    // Acha tutor existente
     const existingContact = await this.prisma.contact.findFirst({
       where: { number: { endsWith: last8 } },
       include: { tutor: true },
@@ -101,15 +117,14 @@ export class BotconversaWebhookService {
     const tutorId = existingContact?.tutor?.id || null;
     const contactName = this.resolveName(payload) || null;
 
-    // Upsert da conversa pelo (userId, contactPhone)
     let conversation = await this.prisma.whatsAppConversation.findFirst({
-      where: { userId: owner.id, contactPhone: { endsWith: last8 } },
+      where: { userId: ownerId, contactPhone: { endsWith: last8 } },
     });
     let createdConv = false;
     if (!conversation) {
       conversation = await this.prisma.whatsAppConversation.create({
         data: {
-          userId: owner.id,
+          userId: ownerId,
           contactPhone: phoneRaw,
           contactName: contactName,
           tutorId,
@@ -133,7 +148,6 @@ export class BotconversaWebhookService {
       });
     }
 
-    // Cria a mensagem
     await this.prisma.whatsAppMessage.create({
       data: {
         conversationId: conversation.id,
@@ -174,8 +188,9 @@ export class BotconversaWebhookService {
     const name = this.resolveName(payload);
     const email = payload.email || payload['Email'];
     const tags = this.resolveTags(payload);
-    const isClient = tags.includes('FU-cliente');
+    const isClient = this.isClienteContact(tags, payload);
     const resumoIA = payload.ResumoIA || payload['resumoIA'] || payload['resumo_ia'];
+    const ownerId = await this.getOwnerUserId();
 
     // 1) Tutor existente via Contact
     const existingContact = await this.prisma.contact.findFirst({
@@ -194,6 +209,7 @@ export class BotconversaWebhookService {
           ...(name && !tutor.name ? { name } : {}),
         },
       });
+      await this.recordInteracaoBC({ tutorId: updated.id, ownerId, payload, resumoIA, tags });
       this.logger.log(`BotConversa: Tutor existente atualizado ${updated.id}`);
       return { ok: true, kind: 'tutor', id: updated.id, created: false };
     }
@@ -204,6 +220,38 @@ export class BotconversaWebhookService {
     });
 
     if (existingLead) {
+      // Se a tag agora indica Cliente, promove Lead → Tutor
+      if (isClient) {
+        const tutor = await this.prisma.tutor.create({
+          data: {
+            name: name || existingLead.name || 'Cliente BotConversa',
+            email: email || existingLead.email || undefined,
+            classificacao: 'Cliente',
+            status: 'ACTIVE',
+            tags: Array.from(new Set([...(existingLead.tags || []), ...tags])),
+            observations: resumoIA || existingLead.notes,
+            contacts: {
+              create: [
+                {
+                  number: phoneRaw!,
+                  type: 'MOBILE',
+                  isWhatsApp: true,
+                  isPrimary: true,
+                },
+              ],
+            },
+          },
+        });
+        // Marca o Lead como convertido
+        await this.prisma.lead.update({
+          where: { id: existingLead.id },
+          data: { status: LeadStatus.CONVERTIDO as any, lastActivityAt: new Date() },
+        }).catch(() => {});
+        await this.recordInteracaoBC({ tutorId: tutor.id, ownerId, payload, resumoIA, tags });
+        this.logger.log(`BotConversa: Lead ${existingLead.id} promovido a Tutor ${tutor.id}`);
+        return { ok: true, kind: 'tutor', id: tutor.id, created: true };
+      }
+
       const mergedTags = Array.from(new Set([...(existingLead.tags || []), ...tags]));
       const updated = await this.prisma.lead.update({
         where: { id: existingLead.id },
@@ -215,6 +263,7 @@ export class BotconversaWebhookService {
         },
       });
       await this.recordEvent(updated.id, payload, resumoIA, tags);
+      await this.recordInteracaoBC({ leadId: updated.id, ownerId, payload, resumoIA, tags });
       this.logger.log(`BotConversa: Lead existente atualizado ${updated.id}`);
       return { ok: true, kind: 'lead', id: updated.id, created: false };
     }
@@ -241,6 +290,7 @@ export class BotconversaWebhookService {
           },
         },
       });
+      await this.recordInteracaoBC({ tutorId: tutor.id, ownerId, payload, resumoIA, tags });
       this.logger.log(`BotConversa: Tutor novo criado ${tutor.id}`);
       return { ok: true, kind: 'tutor', id: tutor.id, created: true };
     }
@@ -258,8 +308,66 @@ export class BotconversaWebhookService {
       },
     });
     await this.recordEvent(lead.id, payload, resumoIA, tags);
+    await this.recordInteracaoBC({ leadId: lead.id, ownerId, payload, resumoIA, tags });
     this.logger.log(`BotConversa: Lead novo criado ${lead.id}`);
     return { ok: true, kind: 'lead', id: lead.id, created: true };
+  }
+
+  /**
+   * Cria Interacao com canal "WhatsApp BC" para alimentar a Caixa de Entrada
+   * do app. Idempotente: se já existir uma interacao do mesmo dia pro mesmo
+   * lead/tutor, atualiza ela em vez de criar nova.
+   */
+  private async recordInteracaoBC(opts: {
+    leadId?: string;
+    tutorId?: string;
+    ownerId: string | null;
+    payload: BotconversaPayload;
+    resumoIA: string | undefined;
+    tags: string[];
+  }) {
+    if (!opts.ownerId) {
+      this.logger.warn('recordInteracaoBC: sem ownerId, pulando');
+      return;
+    }
+    const texto = opts.resumoIA
+      ? opts.resumoIA
+      : `Contato via BotConversa (trigger: ${opts.payload.trigger || 'desconhecido'})`;
+    try {
+      // Verifica se já tem interacao BC do mesmo dia
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const existing = await this.prisma.interacao.findFirst({
+        where: {
+          canal: 'WhatsApp BC',
+          createdAt: { gte: todayStart },
+          OR: [
+            opts.leadId ? { leadId: opts.leadId } : undefined,
+            opts.tutorId ? { tutorId: opts.tutorId } : undefined,
+          ].filter(Boolean) as any,
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (existing) {
+        await this.prisma.interacao.update({
+          where: { id: existing.id },
+          data: { texto, updatedAt: new Date() },
+        });
+        return;
+      }
+      await this.prisma.interacao.create({
+        data: {
+          canal: 'WhatsApp BC',
+          tipo: 'NOTA' as any,
+          texto,
+          autorUserId: opts.ownerId,
+          leadId: opts.leadId,
+          tutorId: opts.tutorId,
+        },
+      });
+    } catch (e) {
+      this.logger.warn(`Falha ao registrar Interacao BC: ${e}`);
+    }
   }
 
   private async recordEvent(
