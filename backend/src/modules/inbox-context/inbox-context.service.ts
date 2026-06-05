@@ -111,13 +111,8 @@ export class InboxContextService {
       },
     });
 
-    // Atualizar timestamp resolução no Lead se for o caso
-    if (body.leadId) {
-      await this.prisma.lead.update({
-        where: { id: body.leadId },
-        data: { lastActivityAt: new Date() },
-      });
-    }
+    // Nao atualiza lastActivityAt: a Caixa de Entrada compara o horario da
+    // resolucao com a ultima atividade pra decidir se o item ainda aparece.
 
     return { ok: true, interacaoId: interacao.id };
   }
