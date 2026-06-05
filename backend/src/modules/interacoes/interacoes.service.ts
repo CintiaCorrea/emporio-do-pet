@@ -30,12 +30,14 @@ export class InteracoesService {
     return created;
   }
 
-  async findAll(params: { leadId?: string; tutorId?: string; petId?: string; limit?: number }) {
-    const { leadId, tutorId, petId, limit = 50 } = params;
+  async findAll(params: { leadId?: string; tutorId?: string; petId?: string; canal?: string; tipo?: string; limit?: number }) {
+    const { leadId, tutorId, petId, canal, tipo, limit = 50 } = params;
     const where: any = {};
     if (leadId) where.leadId = leadId;
     if (tutorId) where.tutorId = tutorId;
     if (petId) where.petId = petId;
+    if (canal) where.canal = canal;
+    if (tipo) where.tipo = tipo;
     return (this.prisma as any).interacao.findMany({
       where,
       include: { autor: { select: { id: true, name: true } } },
