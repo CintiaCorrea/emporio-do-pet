@@ -200,25 +200,8 @@ export class BotConversaController {
 
         await this.recordInteracaoBC({ tutorId: t.id, ownerId, texto: textoInteracao });
 
-        if (petName) {
-          const exists = t.pets.some((p: any) => (p.name || '').toLowerCase().trim() === petName.toLowerCase());
-          if (!exists) {
-            try {
-              await this.prisma.pet.create({
-                data: {
-                  name: petName,
-                  species: petEspecie as any,
-                  tutorId: t.id,
-                  status: 'ACTIVE',
-                  observations: petIdade ? `Idade informada via BotConversa: ${petIdade}` : null,
-                },
-              });
-              result.petsCreated++;
-            } catch (e: any) {
-              result.warnings.push(`pet ${petName} create failed: ${e?.message || e}`);
-            }
-          }
-        }
+        // Pet auto-create REMOVIDO: cliente respondia mensagens livres no campo
+        // pet_nome do BC. Equipe cadastra Pet manualmente apos confirmar o nome real.
       }
 
       // 2) Lead existente
