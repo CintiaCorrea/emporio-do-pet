@@ -23,9 +23,11 @@ export class InteracoesController {
     @Query('leadId') leadId?: string,
     @Query('tutorId') tutorId?: string,
     @Query('petId') petId?: string,
+    @Query('canal') canal?: string,
+    @Query('tipo') tipo?: string,
     @Query('limit') limit?: string,
   ) {
-    return this.service.findAll({ leadId, tutorId, petId, limit: limit ? Number(limit) : undefined });
+    return this.service.findAll({ leadId, tutorId, petId, canal, tipo, limit: limit ? Number(limit) : undefined });
   }
 
   @Get(':id') findById(@Param('id') id: string) { return this.service.findById(id); }
