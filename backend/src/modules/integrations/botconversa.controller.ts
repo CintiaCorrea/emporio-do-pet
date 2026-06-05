@@ -36,6 +36,9 @@ interface WebhookBody {
   origem?: string;
   servico_interesse?: string;
 
+  // Tags do BC (vem como array de strings do poll)
+  tags?: string[];
+
   // Permitir QUALQUER outro campo extra (não falha validação)
   [key: string]: any;
 }
@@ -67,7 +70,7 @@ function mapSource(origem?: string, canal?: string): string {
   if (v.includes('direto') || v.includes('direct')) return 'DIRECT';
   if (v.includes('organi')) return 'ORGANIC';
   if (v.includes('landing')) return 'LANDING_PAGE';
-  return 'WHATSAPP'; // default razoável quando vem do BotConversa
+  return 'WHATSAPP';
 }
 
 @ApiTags('integrations')
@@ -75,6 +78,64 @@ function mapSource(origem?: string, canal?: string): string {
 export class BotConversaController {
   private readonly logger = new Logger(BotConversaController.name);
   constructor(private prisma: PrismaService) {}
+
+  /**
+   * Pega o user "dono" para autoria das Interacoes BC.
+   */
+  private async getOwnerUserId(): Promise<string | null> {
+    const owner =
+      (await this.prisma.user.findFirst({ where: { role: 'ADMIN' as any }, orderBy: { createdAt: 'asc' } })) ||
+      (await this.prisma.user.findFirst({ orderBy: { createdAt: 'asc' } }));
+    return owner?.id || null;
+  }
+
+  /**
+   * Cria Interacao com canal "WhatsApp BC" para alimentar a Caixa de Entrada.
+   * Idempotente: se ja existe uma do mesmo dia pro mesmo lead/tutor, atualiza ela.
+   */
+  private async recordInteracaoBC(opts: {
+    leadId?: string;
+    tutorId?: string;
+    ownerId: string | null;
+    texto: string;
+  }) {
+    if (!opts.ownerId) return;
+    if (!opts.leadId && !opts.tutorId) return;
+    try {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const orClause: any[] = [];
+      if (opts.leadId) orClause.push({ leadId: opts.leadId });
+      if (opts.tutorId) orClause.push({ tutorId: opts.tutorId });
+      const existing = await this.prisma.interacao.findFirst({
+        where: {
+          canal: 'WhatsApp BC',
+          createdAt: { gte: todayStart },
+          OR: orClause,
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (existing) {
+        await this.prisma.interacao.update({
+          where: { id: existing.id },
+          data: { texto: opts.texto, updatedAt: new Date() },
+        });
+        return;
+      }
+      await this.prisma.interacao.create({
+        data: {
+          canal: 'WhatsApp BC',
+          tipo: 'NOTA',
+          texto: opts.texto,
+          autorUserId: opts.ownerId,
+          leadId: opts.leadId,
+          tutorId: opts.tutorId,
+        },
+      });
+    } catch (e: any) {
+      this.logger.warn(`Falha ao registrar Interacao BC: ${e?.message || e}`);
+    }
+  }
 
   @Post('webhook')
   @HttpCode(200)
@@ -103,6 +164,15 @@ export class BotConversaController {
       const petIdade = (body.pet_idade || '').toString().trim();
       const servicoInteresse = (body.servico_interesse || '').toString().trim();
 
+      const tagsArr: string[] = Array.isArray(body.tags) ? body.tags.filter(t => typeof t === 'string') : [];
+      // Cliente se: tipo_contato='cliente'/'client' OU tem tag literal "Cliente"
+      const ehCliente =
+        (body.tipo_contato || '').toLowerCase().includes('client') ||
+        tagsArr.some(t => /^(fu-)?cliente$/i.test(t));
+
+      const ownerId = await this.getOwnerUserId();
+      const textoInteracao = resumo || `Contato via BotConversa (trigger: ${body.trigger || 'desconhecido'})`;
+
       // 1) Tutor existente
       let tutors: any[] = [];
       try {
@@ -128,7 +198,8 @@ export class BotConversaController {
           result.warnings.push(`tutor ${t.id} update failed: ${e?.message || e}`);
         }
 
-        // Pet auto-criar se webhook mandou e não existe
+        await this.recordInteracaoBC({ tutorId: t.id, ownerId, texto: textoInteracao });
+
         if (petName) {
           const exists = t.pets.some((p: any) => (p.name || '').toLowerCase().trim() === petName.toLowerCase());
           if (!exists) {
@@ -155,7 +226,7 @@ export class BotConversaController {
       try {
         leads = await this.prisma.lead.findMany({
           where: { phone: { contains: last9(phoneDigits) } },
-          select: { id: true, customFields: true, name: true },
+          select: { id: true, customFields: true, name: true, email: true, tags: true },
           take: 5,
         });
       } catch (e: any) {
@@ -163,6 +234,32 @@ export class BotConversaController {
       }
 
       for (const l of leads) {
+        // Se tag indica Cliente E nao tem tutor ainda, promove Lead -> Tutor
+        if (ehCliente && tutors.length === 0) {
+          try {
+            const tutor = await this.prisma.tutor.create({
+              data: {
+                name: tutorName || l.name || 'Cliente BotConversa',
+                isActive: true,
+                ...(resumo != null && { resumoIa: resumo, resumoIaUpdatedAt: updatedAt }),
+                contacts: { create: [{ type: 'MOBILE', number: phoneDigits, isPrimary: true, isWhatsApp: true }] },
+                ...(l.email && l.email.includes('@') && !l.email.includes('@emporiodopet.crm') ? { email: l.email } : {}),
+              } as any,
+            });
+            await this.prisma.lead.update({
+              where: { id: l.id },
+              data: { lastActivityAt: new Date() } as any,
+            }).catch(() => {});
+            await this.recordInteracaoBC({ tutorId: tutor.id, ownerId, texto: textoInteracao });
+            result.tutorCreated = true;
+            result.tutorId = tutor.id;
+            result.promotedFromLead = l.id;
+            return result;
+          } catch (e: any) {
+            result.warnings.push(`lead->tutor promotion failed: ${e?.message || e}`);
+          }
+        }
+
         try {
           const existingCf = (l.customFields as any) || {};
           const newCf: any = { ...existingCf };
@@ -187,11 +284,12 @@ export class BotConversaController {
         } catch (e: any) {
           result.warnings.push(`lead ${l.id} update failed: ${e?.message || e}`);
         }
+
+        await this.recordInteracaoBC({ leadId: l.id, ownerId, texto: textoInteracao });
       }
 
       // 3) Auto-criar Tutor (se BC marcou como Cliente) OU Lead (default)
       if (tutors.length === 0 && leads.length === 0) {
-        const ehCliente = (body.tipo_contato || '').toLowerCase().includes('client');
         if (ehCliente) {
           try {
             const tutor = await this.prisma.tutor.create({
@@ -203,6 +301,7 @@ export class BotConversaController {
                 ...(email && email.includes('@') ? { email } : {}),
               } as any,
             });
+            await this.recordInteracaoBC({ tutorId: tutor.id, ownerId, texto: textoInteracao });
             result.tutorCreated = true;
             result.tutorId = tutor.id;
             return result;
@@ -235,16 +334,15 @@ export class BotConversaController {
               },
             } as any,
           });
+          await this.recordInteracaoBC({ leadId: lead.id, ownerId, texto: textoInteracao });
           result.leadCreated = true;
           result.leadId = lead.id;
         } catch (e: any) {
-          // Pode ser duplicate de email (raro com fallback +phone), tenta sem email
           const msg = String(e?.message || e);
           result.warnings.push(`lead create failed: ${msg.slice(0, 200)}`);
         }
       }
     } catch (outerError: any) {
-      // Captura tudo — webhook nunca deve retornar 500
       this.logger.error(`BotConversa webhook outer error: ${outerError?.message || outerError}`);
       result.ok = false;
       result.warnings.push(`outer error: ${outerError?.message || outerError}`);
