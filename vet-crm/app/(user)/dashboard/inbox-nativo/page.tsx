@@ -84,7 +84,6 @@ const SCRIPTS_PLACEHOLDER = [
 
 export default function InboxUnificadoPage() {
   usePageTitle("Inbox Meta", "Conversas WhatsApp Business via API Meta");
-  usePageRightSlot(<div className="flex items-center gap-5"><div className="flex flex-col items-end leading-tight"><div className="text-[13px] font-bold" style={{color:"#014D5E"}}>+1h</div><div className="text-[9.5px] uppercase font-semibold text-[#94a3b8] tracking-wide">⏱ esperando</div></div><div className="flex flex-col items-end leading-tight"><div className="text-[13px] font-bold" style={{color:"#014D5E"}}>—</div><div className="text-[9.5px] uppercase font-semibold text-[#94a3b8] tracking-wide">⌛ tempo méd.</div></div><div className="flex flex-col items-end leading-tight"><div className="text-[13px] font-bold" style={{color:"#014D5E"}}>—</div><div className="text-[9.5px] uppercase font-semibold text-[#94a3b8] tracking-wide">🏆 streak</div></div></div>);
   const [tab, setTab] = useState<Tab>("conversas");
   const [filter, setFilter] = useState<ListFilter>("todos");
   const [search, setSearch] = useState("");
@@ -137,6 +136,14 @@ export default function InboxUnificadoPage() {
   const [agendaPetDate, setAgendaPetDate] = useState(() => new Date(Date.now() + 86400000).toISOString().substring(0, 16));
   const [agendaPetDesc, setAgendaPetDesc] = useState("");
   const [agendaPetSaving, setAgendaPetSaving] = useState(false);
+
+  usePageRightSlot(
+    <div className="flex items-center gap-2.5">
+      <span className="text-[11px] text-[#5F5E5A] hidden xl:flex items-center gap-1.5"><span style={{fontSize:"13px"}}>🏆</span>Hoje: <b className="text-[#0F6E56]">— resolvidas</b></span>
+      <button onClick={() => setRefreshTick((t) => t + 1)} title="Atualizar" className="bg-white border border-[#cfd8e0] px-3 py-1.5 rounded-lg text-xs text-[#5F5E5A] flex items-center gap-1.5 hover:bg-[#f9f9f9]"><span style={{fontSize:"12px"}}>↻</span>Atualizar</button>
+      <button onClick={() => setNovaMsgOpen(true)} className="bg-[#009AAC] text-white px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5"><LuPlus className="w-3.5 h-3.5" />Nova mensagem</button>
+    </div>
+  );
 
   // Carregar usuários internos
   useEffect(() => {
@@ -420,22 +427,7 @@ export default function InboxUnificadoPage() {
   };
 
  return (
-    <div className="bg-white border border-[#e8e1d2] rounded-xl overflow-hidden m-4 max-w-[1400px] mx-auto" style={{background:"#ffffff"}}>
-      {/* Toolbar - Hoje + Atualizar + Nova mensagem */}
-      <div className="px-4 py-3 border-b border-[#e8e1d2] flex items-center justify-end bg-white">
-        <div className="flex items-center gap-3">
-          <span className="text-[11px] text-[#5F5E5A] hidden md:flex items-center gap-1.5">
-            <span style={{fontSize:"13px"}}>🏆</span>
-            Hoje: <b className="text-[#0F6E56]">— resolvidas</b>
-          </span>
-          <button onClick={() => setRefreshTick((t) => t + 1)} className="bg-white border border-[#cfd8e0] px-3 py-1.5 rounded-lg text-xs text-[#5F5E5A] flex items-center gap-1.5 hover:bg-[#f9f9f9]">
-            <span style={{fontSize:"12px"}}>↻</span>Atualizar
-          </button>
-          <button onClick={() => setNovaMsgOpen(true)} className="bg-[#009AAC] text-white px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5">
-            <LuPlus className="w-3.5 h-3.5" />Nova mensagem
-          </button>
-        </div>
-      </div>
+    <div className="bg-white border border-[#e8e1d2] rounded-xl overflow-hidden m-4 max-w-[1400px] mx-auto flex flex-col h-[calc(100vh-100px)]" style={{background:"#ffffff"}}>
       {/* Tabs */}
       <div className="px-4 border-b border-[#e8e1d2] flex gap-5 bg-white">
         <button onClick={() => setTab("conversas")} className={`py-2.5 text-xs font-medium border-b-2 flex items-center gap-1.5 ${tab === "conversas" ? "border-[#009AAC] text-[#0E2244]" : "border-transparent text-[#888780]"}`}>
@@ -452,7 +444,7 @@ export default function InboxUnificadoPage() {
       </div>
 
       {tab === "conversas" && (
-        <div className="grid grid-cols-[310px_1fr_340px] h-[calc(100vh-140px)]">
+        <div className="grid grid-cols-[310px_1fr_340px] flex-1 min-h-0">
           {/* LEFT - Lista */}
           <div className="border-r border-[#e8e1d2] bg-white flex flex-col">
             <div className="p-2.5 flex gap-1.5 flex-wrap border-b border-[#e8e1d2]">
@@ -637,7 +629,7 @@ export default function InboxUnificadoPage() {
     )}
 
       {tab === "internas" && (
-        <div className="grid grid-cols-[280px_1fr] min-h-[500px]">
+        <div className="grid grid-cols-[280px_1fr] flex-1 min-h-0">
           <div className="border-r border-[#e8e1d2] bg-white">
             <div className="px-3 py-2.5 border-b border-[#e8e1d2] text-[11px] text-[#888780] font-medium">
               EQUIPE ({internalUsers.length})
