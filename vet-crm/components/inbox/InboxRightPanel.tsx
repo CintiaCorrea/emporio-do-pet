@@ -38,7 +38,7 @@ interface Lead {
 }
 interface Pet {
   id: string; name: string; species: string; breed?: string | null;
-  birthDate?: string | null; observations?: string | null; avatar?: string | null;
+  birthDate?: string | null; observations?: string | null; avatar?: string | null; gender?: string | null;
   pipelineClinicoEtapa?: string | null;
   pipelineFisioEtapa?: string | null;
 }
@@ -187,6 +187,23 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
   const [leadHistorico, setLeadHistorico] = useState<Lead | null>(null);
   const [pets, setPets] = useState<Pet[]>([]);
   const [selectedPet, setSelectedPet] = useState<Pet | null>(null);
+  const [breedOptions, setBreedOptions] = useState<string[]>([]);
+  useEffect(() => {
+    if (!selectedPet) { setBreedOptions([]); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const sp = speciesKey(selectedPet.species);
+        const res = await fetch(`/api/breeds?species=${encodeURIComponent(sp)}`, { cache: "no-store" });
+        if (!res.ok) { if (!cancelled) setBreedOptions([]); return; }
+        const data = await res.json();
+        const arr: any[] = Array.isArray(data) ? data : Array.isArray(data?.breeds) ? data.breeds : [];
+        const names = Array.from(new Set(arr.map((b: any) => (typeof b === "string" ? b : b?.name)).filter(Boolean)));
+        if (!cancelled) setBreedOptions(names as string[]);
+      } catch { if (!cancelled) setBreedOptions([]); }
+    })();
+    return () => { cancelled = true; };
+  }, [selectedPet?.id, selectedPet?.species]);
   const [historico, setHistorico] = useState<HistoricoItem[]>([]);
   const [staff, setStaff] = useState<Staff[]>([]);
   const [forwardOpen, setForwardOpen] = useState(false);
@@ -1105,7 +1122,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                                 </div>
                                 <div className="flex items-center gap-1.5">
                                   <span className="text-gray-400 w-12 flex-shrink-0">Espécie</span>
-                                  <select defaultValue={speciesKey(p.species)} onChange={e => savePetField(p.id, { species: e.target.value })} className="flex-1 text-[10.5px] px-2 py-1 border rounded" style={{ borderColor: "#cfe8eb", color: "#014D5E", background: "white" }}>
+                                  <select value={speciesKey(p.species)} onChange={e => savePetField(p.id, { species: e.target.value, breed: null })} className="flex-1 text-[10.5px] px-2 py-1 border rounded" style={{ borderColor: "#cfe8eb", color: "#014D5E", background: "white" }}>
                                     <option value="CANINE">Cão</option>
                                     <option value="FELINE">Gato</option>
                                     <option value="BIRD">Ave</option>
@@ -1115,8 +1132,21 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                                   </select>
                                 </div>
                                 <div className="flex items-center gap-1.5">
+                                  <span className="text-gray-400 w-12 flex-shrink-0">Sexo</span>
+                                  <select value={p.gender || ""} onChange={e => savePetField(p.id, { gender: e.target.value || null })} className="flex-1 text-[10.5px] px-2 py-1 border rounded" style={{ borderColor: "#cfe8eb", color: "#014D5E", background: "white" }}>
+                                    <option value="">—</option>
+                                    <option value="MALE">Macho</option>
+                                    <option value="FEMALE">Fêmea</option>
+                                    <option value="OTHER">Outro</option>
+                                  </select>
+                                </div>
+                                <div className="flex items-center gap-1.5">
                                   <span className="text-gray-400 w-12 flex-shrink-0">Raça</span>
-                                  <input defaultValue={p.breed || ""} placeholder="Raça" onBlur={e => { const v = e.target.value.trim(); if (v !== (p.breed || "")) savePetField(p.id, { breed: v || null }); }} className="flex-1 text-[10.5px] px-2 py-1 border rounded" style={{ borderColor: "#cfe8eb", color: "#014D5E" }} />
+                                  <select value={p.breed || ""} onChange={e => savePetField(p.id, { breed: e.target.value || null })} className="flex-1 text-[10.5px] px-2 py-1 border rounded" style={{ borderColor: "#cfe8eb", color: "#014D5E", background: "white" }}>
+                                    <option value="">— selecione —</option>
+                                    {p.breed && !breedOptions.includes(p.breed) && <option value={p.breed}>{p.breed}</option>}
+                                    {breedOptions.map(b => <option key={b} value={b}>{b}</option>)}
+                                  </select>
                                 </div>
                                 <div className="flex items-center gap-1.5">
                                   <span className="text-gray-400 w-12 flex-shrink-0">Nasc.</span>
