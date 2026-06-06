@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  LuArrowLeft, LuPencil, LuTrash, LuPlus, LuMessageSquare, LuChevronRight, LuEllipsisVertical,
+  LuArrowLeft, LuPencil, LuTrash, LuPlus, LuMessageSquare, LuChevronRight, LuEllipsisVertical, LuMail,
 } from "react-icons/lu";
 import toast from "react-hot-toast";
 import ConfirmDeleteModal from "@/components/common/ConfirmDeleteModal";
