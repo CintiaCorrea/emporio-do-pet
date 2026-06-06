@@ -96,6 +96,19 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
   async function loadLeadTags() { try { const r = await fetch(`/api/listas?lista=leadtag_${id}`, { cache: "no-store" }); const d = await r.json(); const a = Array.isArray(d) ? d : (d.itens || d.data || []); setLeadTags(a.map((i: any) => ({ id: i.id, texto: i.valor }))); } catch {} }
   async function loadTagTpls() { try { const r = await fetch(`/api/etiquetas/templates`, { cache: "no-store" }); const d = await r.json(); const a = Array.isArray(d) ? d : (d.templates || d.data || []); setTagTpls(a.filter((t: any) => t.ativo !== false && (t.aplicaEm || []).includes("Lead"))); } catch {} }
   useEffect(() => { load(); loadComercial(); loadLeadTags(); loadTagTpls(); }, [id]);
+  async function setStage(stage: string) {
+    try {
+      if (stage === "Compareceu") {
+        const r = await fetch(`/api/leads/${id}/convert`, { method: "POST" });
+        const d = await r.json().catch(() => ({}));
+        if (d?.tutorId) { toast.success("Lead convertido em cliente!"); router.push(`/dashboard/erp/tutores/${d.tutorId}`); return; }
+      }
+      const r = await fetch(`/api/leads/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pipelineComercialEtapa: stage || null }) });
+      if (!r.ok) throw new Error(String(r.status));
+      toast.success(stage ? `Etapa: ${stage}` : "Etapa limpa");
+      await load();
+    } catch (e: any) { toast.error("Erro: " + (e?.message || "")); }
+  }
   async function saveFu() { if (!fuDate) { toast.error("Escolha uma data"); return; } setSavingFu(true); try { const r = await fetch(`/api/leads/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ proximoFollowupAt: new Date(fuDate + "T12:00:00").toISOString() }) }); if (!r.ok) throw new Error(); toast.success("Follow-up agendado"); setFuDate(""); await load(); } catch { toast.error("Erro ao agendar"); } finally { setSavingFu(false); } }
   async function clearFu() { try { const r = await fetch(`/api/leads/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ proximoFollowupAt: null }) }); if (!r.ok) throw new Error(); toast.success("Follow-up removido"); await load(); } catch { toast.error("Erro"); } }
   async function addTagLead(texto: string) { setSavingTag(true); try { const r = await fetch(`/api/listas`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lista: `leadtag_${id}`, valor: texto }) }); if (!r.ok) throw new Error(); toast.success("Etiqueta adicionada"); setTagPicker(false); await loadLeadTags(); } catch { toast.error("Erro (talvez já exista)"); } finally { setSavingTag(false); } }
@@ -331,7 +344,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
 
         <div className="bg-white rounded-xl border border-[#d8d0bc] p-3">
           <div className="flex items-center gap-2 mb-2"><span style={{fontSize:"14px"}}>🌿</span><h3 className="text-[12px] text-[#0E2244] font-medium">Pipeline</h3></div>
-          <select value={lead.pipelineComercialEtapa || ""} onChange={(e) => changeStage(e.target.value)}
+          <select value={lead.pipelineComercialEtapa || ""} onChange={(e) => setStage(e.target.value)}
             className="w-full border border-[#009AAC] rounded px-2 py-1 text-[11px] text-[#0E2244] bg-white focus:outline-none mb-1">
             <option value="">— selecionar —</option>
             {lead.pipelineComercialEtapa && !(pipeComercial.length ? pipeComercial : PIPELINE_STAGES).includes(lead.pipelineComercialEtapa) && <option value={lead.pipelineComercialEtapa}>{lead.pipelineComercialEtapa}</option>}
