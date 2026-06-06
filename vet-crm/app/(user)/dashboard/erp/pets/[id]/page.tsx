@@ -341,9 +341,8 @@ export default function PetDetailPage() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-5 grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-5">
-        <div className="space-y-4">
-          {/* Magia da recepção */}
+      {/* Sobre (1 linha) */}
+      <div className="max-w-7xl mx-auto px-6 pt-5">
           <div className="rounded-xl border px-4 py-3 text-sm" style={{ background: "#fffbeb", borderColor: "#fde68a", color: "#92611a" }}>
             <div className="flex items-start justify-between gap-2">
               <span className="font-semibold">💭 Sobre {pet.name}:</span>
@@ -361,8 +360,10 @@ export default function PetDetailPage() {
               <span> {pet.observations || <span className="italic opacity-70">Adicionar algo que vale lembrar sobre o pet — apelido, comportamento, medo, preferência (até 140 caracteres).</span>}</span>
             )}
           </div>
+      </div>
 
-          {/* Etiquetas */}
+      {/* Etiquetas (linha) */}
+      <div className="max-w-7xl mx-auto px-6 pt-3">
           <div className="bg-white border rounded-xl p-4" style={{ borderColor: "#E8DFC8" }}>
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-semibold flex items-center gap-2" style={{ color: "#0E2244" }}>
@@ -392,9 +393,11 @@ export default function PetDetailPage() {
               </div>
             )}
           </div>
+      </div>
 
-          {/* Tabs */}
-          <div className="bg-white border rounded-xl overflow-hidden" style={{ borderColor: "#E8DFC8" }}>
+      {/* 3 colunas: Clínica/Pacotes/Exames | Pipelines+Cadência | Painel do pet */}
+      <div className="max-w-7xl mx-auto px-6 pt-3 grid grid-cols-1 lg:grid-cols-[1.25fr_1fr_320px] gap-5 items-start">
+        <div className="bg-white border rounded-xl overflow-hidden" style={{ borderColor: "#E8DFC8" }}>
             <div className="flex border-b" style={{ borderColor: "#E8DFC8" }}>
               {(
                 [
@@ -417,9 +420,8 @@ export default function PetDetailPage() {
                 </button>
               ))}
             </div>
-
-            {tab === "CLINICA" && (
-              <div className="p-5 space-y-5">
+          {tab === "CLINICA" && (
+            <div className="p-5">
                 <section>
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="text-sm font-semibold" style={{ color: "#0E2244" }}>Dados Clínicos</h3>
@@ -460,133 +462,8 @@ export default function PetDetailPage() {
                     <Field label="Microchip" value={pet.microchip} />
                   </div>
                 </section>
-
-                <section>
-                  <h3 className="text-sm font-semibold mb-2" style={{ color: "#0E2244" }}>Pipelines do Pet</h3>
-                  <div className="border rounded-xl divide-y" style={{ borderColor: "#E8DFC8" }}>
-                    <div className="flex items-center justify-between px-4 py-3 gap-3">
-                      <span className="font-semibold text-xs tracking-wide" style={{ color: "#0E2244" }}>CLÍNICO — TRATAMENTO</span>
-                      <select value={pet.pipelineClinicoEtapa || ""} onChange={(e) => savePipe("pipelineClinicoEtapa", e.target.value)} disabled={savingPipe} className="px-2 py-1 border rounded-lg text-xs" style={{ borderColor: "#E8DFC8" }}>
-                        <option value="">— selecionar —</option>
-                        {pet.pipelineClinicoEtapa && !pipes.clinico.includes(pet.pipelineClinicoEtapa) && <option value={pet.pipelineClinicoEtapa}>{pet.pipelineClinicoEtapa}</option>}
-                        {pipes.clinico.map((e) => <option key={e} value={e}>{e}</option>)}
-                      </select>
-                    </div>
-                    <div className="flex items-center justify-between px-4 py-3 gap-3">
-                      <span className="font-semibold text-xs tracking-wide" style={{ color: "#0E2244" }}>FISIOTERAPIA</span>
-                      <select value={pet.pipelineFisioEtapa || ""} onChange={(e) => savePipe("pipelineFisioEtapa", e.target.value)} disabled={savingPipe} className="px-2 py-1 border rounded-lg text-xs" style={{ borderColor: "#E8DFC8" }}>
-                        <option value="">— selecionar —</option>
-                        {pet.pipelineFisioEtapa && !pipes.fisio.includes(pet.pipelineFisioEtapa) && <option value={pet.pipelineFisioEtapa}>{pet.pipelineFisioEtapa}</option>}
-                        {pipes.fisio.map((e) => <option key={e} value={e}>{e}</option>)}
-                      </select>
-                    </div>
-                  </div>
-                </section>
-
-                <section>
-                  <h3 className="text-sm font-semibold mb-2 flex items-center gap-2" style={{ color: "#0E2244" }}>
-                    <LuCalendar size={14} /> Follow-up
-                  </h3>
-                  <div className="border rounded-xl p-4" style={{ borderColor: "#E8DFC8" }}>
-                    {pet.proximoFollowupAt ? (
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm" style={{ color: "#0E2244" }}><LuCalendar size={12} className="inline" /> {new Date(pet.proximoFollowupAt).toLocaleDateString("pt-BR")}</span>
-                        <button onClick={clearFu} className="text-xs" style={{ color: "#ef4444" }}>Remover</button>
-                      </div>
-                    ) : <p className="text-sm text-gray-400 mb-2">Sem follow-up agendado</p>}
-                    <div className="flex gap-2">
-                      <input type="date" value={fuDate} onChange={(e) => setFuDate(e.target.value)} className="flex-1 px-2 py-1.5 border rounded-lg text-xs" style={{ borderColor: "#E8DFC8" }} />
-                      <button onClick={saveFu} disabled={savingFu} className="px-3 py-1.5 rounded-lg text-xs text-white" style={{ background: "#009AAC" }}>{savingFu ? "..." : "Agendar"}</button>
-                    </div>
-                    <div className="mt-3 pt-3 border-t" style={{ borderColor: "#f0e8d4" }}>
-                      <div className="flex items-center gap-1.5 mb-2"><span style={{ fontSize: "13px" }}>💬</span><h4 className="text-xs font-semibold" style={{ color: "#0E2244" }}>Interações <span className="text-[10px] text-gray-400">({petInteracoes.length})</span></h4></div>
-                      <div className="flex gap-1.5 mb-2">
-                        <select value={intTipo} onChange={(e) => setIntTipo(e.target.value)} className="border rounded px-1.5 py-1 text-[11px]" style={{ borderColor: "#E8DFC8" }}><option value="NOTA">Nota</option><option value="LIGACAO">Ligação</option><option value="WHATSAPP_ENVIADO">WhatsApp</option><option value="PRESENCIAL">Presencial</option></select>
-                        <input value={intTexto} onChange={(e) => setIntTexto(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addInteracaoPet(); }} placeholder="Registrar..." className="flex-1 min-w-0 border rounded px-2 py-1 text-[11px]" style={{ borderColor: "#E8DFC8" }} />
-                        <button onClick={addInteracaoPet} disabled={savingInt} className="text-white px-2.5 py-1 rounded text-[11px] font-medium disabled:opacity-50" style={{ background: "#009AAC" }}>{savingInt ? "..." : "+"}</button>
-                      </div>
-                      {petInteracoes.length === 0 ? <p className="text-center text-[11px] text-gray-400 py-2">Nenhuma interação ainda</p> : (
-                        <div className="flex flex-col gap-1.5 max-h-60 overflow-auto">
-                          {petInteracoes.map((it: any) => (
-                            <div key={it.id} className="bg-[#fbfaf6] rounded px-2.5 py-1.5">
-                              <div className="flex items-center justify-between"><span className="text-[10px] font-medium" style={{ color: "#00798A" }}>{it.tipo}{it.canal ? ` · ${it.canal}` : ""}</span><span className="text-[10px] text-gray-400">{new Date(it.createdAt).toLocaleDateString("pt-BR")}</span></div>
-                              <p className="text-[11px] mt-0.5" style={{ color: "#0E2244" }}>{it.texto}</p>
-                              {it.autor?.name && <p className="text-[10px] text-gray-400 mt-0.5">por {it.autor.name}</p>}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </section>
-
-                <section>
-                  <h3 className="text-sm font-semibold mb-2 flex items-center gap-2" style={{ color: "#0E2244" }}>
-                    <LuClock size={14} /> Cadência de acompanhamento
-                  </h3>
-                  <div className="border rounded-xl p-4" style={{ borderColor: "#E8DFC8" }}>
-                    {cadAtivas.length === 0 ? (
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-400">Nenhuma cadência ativa.</span>
-                        <button onClick={() => setCadPick(v => !v)} className="px-3 py-1.5 rounded-lg text-xs border flex items-center gap-1.5" style={{ borderColor: "#E8DFC8", color: "#009AAC" }}><LuPlus size={12} /> Iniciar cadência</button>
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        {cadAtivas.map(c => (
-                          <div key={c.id} className="flex items-center justify-between">
-                            <span className="text-sm" style={{ color: "#0E2244" }}>{c.data?.nome || "Cadência"} <span className="text-xs text-gray-400">· desde {c.data?.startedAt ? new Date(c.data.startedAt).toLocaleDateString("pt-BR") : "—"}</span></span>
-                            <button onClick={() => delCad(c.id)} className="text-xs" style={{ color: "#ef4444" }}>Encerrar</button>
-                          </div>
-                        ))}
-                        <button onClick={() => setCadPick(v => !v)} className="text-xs flex items-center gap-1" style={{ color: "#009AAC" }}><LuPlus size={12} /> Iniciar outra</button>
-                      </div>
-                    )}
-                    {cadPick && (
-                      <div className="mt-3 pt-3 border-t flex flex-wrap gap-1.5" style={{ borderColor: "#F0EBE0" }}>
-                        {cadOpts.length === 0 ? <p className="text-xs text-gray-400">Nenhuma cadência cadastrada em Configurações.</p> :
-                          cadOpts.map((c: any) => (<button key={c.id} disabled={savingCad} onClick={() => addCad(c)} className="text-[11px] px-2 py-1 rounded-lg border disabled:opacity-50" style={{ borderColor: "#E8DFC8", color: "#009AAC" }}>+ {c.nome || c.titulo}</button>))}
-                      </div>
-                    )}
-                  </div>
-                </section>
-
-                <section>
-                  <h3 className="text-sm font-semibold mb-2" style={{ color: "#0E2244" }}>Alergias e medicações</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                    <Field label="Alergias" value={pet.allergies?.length ? pet.allergies.join(", ") : null} />
-                    <Field label="Notas médicas" value={pet.medicalNotes} block />
-                  </div>
-                </section>
-
-                <section>
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-sm font-semibold" style={{ color: "#0E2244" }}>Histórico de Atendimentos</h3>
-                    <button onClick={() => { setAtd(ATD0); setItems([]); setAtdOpen(true); }} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white flex items-center gap-1.5" style={{ background: "#009AAC" }}>
-                      <LuPlus size={12} /> Novo Atendimento
-                    </button>
-                  </div>
-                  {atendimentos.length === 0 ? (
-                    <div className="border rounded-xl p-5 text-center text-sm text-gray-400" style={{ borderColor: "#E8DFC8" }}>Nenhum atendimento registrado.</div>
-                  ) : (
-                    <div className="space-y-2">
-                      {atendimentos.map((a: any) => (
-                        <button key={a.id} onClick={() => abrirAtd(a.id)} className="w-full text-left border rounded-xl px-3 py-2 hover:bg-gray-50/60 flex items-center justify-between" style={{ borderColor: "#E8DFC8" }}>
-                          <div>
-                            <div className="text-sm font-medium" style={{ color: "#0E2244" }}>{ATD_TIPO_LABEL(a.type)} <span className="text-[11px] text-gray-400">{new Date(a.date).toLocaleDateString("pt-BR")}</span></div>
-                            <div className="text-[11px] text-gray-500">{a.user?.name || "—"}{a.chiefComplaint ? ` · ${a.chiefComplaint}` : ""}</div>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-sm font-medium" style={{ color: "#0F6E56" }}>{Number(a.value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</div>
-                            <div className="text-[10px] text-gray-400">{a.status || ""}</div>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </section>
-              </div>
-            )}
-
+            </div>
+          )}
             {tab === "PACOTES" && (
               <div className="p-5">
                 <div className="flex items-center justify-between mb-3">
@@ -628,7 +505,6 @@ export default function PetDetailPage() {
                 )}
               </div>
             )}
-
             {tab === "EXAMES" && (
               <div className="p-5">
                 <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
@@ -659,9 +535,145 @@ export default function PetDetailPage() {
                 )}
               </div>
             )}
-          </div>
+        </div>
 
-          {/* Rodapé */}
+        <div className="space-y-4">
+          <div className="bg-white border rounded-xl p-4" style={{ borderColor: "#E8DFC8" }}>
+                <section>
+                  <h3 className="text-sm font-semibold mb-2" style={{ color: "#0E2244" }}>Pipelines do Pet</h3>
+                  <div className="border rounded-xl divide-y" style={{ borderColor: "#E8DFC8" }}>
+                    <div className="flex items-center justify-between px-4 py-3 gap-3">
+                      <span className="font-semibold text-xs tracking-wide" style={{ color: "#0E2244" }}>CLÍNICO — TRATAMENTO</span>
+                      <select value={pet.pipelineClinicoEtapa || ""} onChange={(e) => savePipe("pipelineClinicoEtapa", e.target.value)} disabled={savingPipe} className="px-2 py-1 border rounded-lg text-xs" style={{ borderColor: "#E8DFC8" }}>
+                        <option value="">— selecionar —</option>
+                        {pet.pipelineClinicoEtapa && !pipes.clinico.includes(pet.pipelineClinicoEtapa) && <option value={pet.pipelineClinicoEtapa}>{pet.pipelineClinicoEtapa}</option>}
+                        {pipes.clinico.map((e) => <option key={e} value={e}>{e}</option>)}
+                      </select>
+                    </div>
+                    <div className="flex items-center justify-between px-4 py-3 gap-3">
+                      <span className="font-semibold text-xs tracking-wide" style={{ color: "#0E2244" }}>FISIOTERAPIA</span>
+                      <select value={pet.pipelineFisioEtapa || ""} onChange={(e) => savePipe("pipelineFisioEtapa", e.target.value)} disabled={savingPipe} className="px-2 py-1 border rounded-lg text-xs" style={{ borderColor: "#E8DFC8" }}>
+                        <option value="">— selecionar —</option>
+                        {pet.pipelineFisioEtapa && !pipes.fisio.includes(pet.pipelineFisioEtapa) && <option value={pet.pipelineFisioEtapa}>{pet.pipelineFisioEtapa}</option>}
+                        {pipes.fisio.map((e) => <option key={e} value={e}>{e}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                </section>
+          </div>
+          <div className="bg-white border rounded-xl p-4" style={{ borderColor: "#E8DFC8" }}>
+                <section>
+                  <h3 className="text-sm font-semibold mb-2 flex items-center gap-2" style={{ color: "#0E2244" }}>
+                    <LuClock size={14} /> Cadência de acompanhamento
+                  </h3>
+                  <div className="border rounded-xl p-4" style={{ borderColor: "#E8DFC8" }}>
+                    {cadAtivas.length === 0 ? (
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-400">Nenhuma cadência ativa.</span>
+                        <button onClick={() => setCadPick(v => !v)} className="px-3 py-1.5 rounded-lg text-xs border flex items-center gap-1.5" style={{ borderColor: "#E8DFC8", color: "#009AAC" }}><LuPlus size={12} /> Iniciar cadência</button>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {cadAtivas.map(c => (
+                          <div key={c.id} className="flex items-center justify-between">
+                            <span className="text-sm" style={{ color: "#0E2244" }}>{c.data?.nome || "Cadência"} <span className="text-xs text-gray-400">· desde {c.data?.startedAt ? new Date(c.data.startedAt).toLocaleDateString("pt-BR") : "—"}</span></span>
+                            <button onClick={() => delCad(c.id)} className="text-xs" style={{ color: "#ef4444" }}>Encerrar</button>
+                          </div>
+                        ))}
+                        <button onClick={() => setCadPick(v => !v)} className="text-xs flex items-center gap-1" style={{ color: "#009AAC" }}><LuPlus size={12} /> Iniciar outra</button>
+                      </div>
+                    )}
+                    {cadPick && (
+                      <div className="mt-3 pt-3 border-t flex flex-wrap gap-1.5" style={{ borderColor: "#F0EBE0" }}>
+                        {cadOpts.length === 0 ? <p className="text-xs text-gray-400">Nenhuma cadência cadastrada em Configurações.</p> :
+                          cadOpts.map((c: any) => (<button key={c.id} disabled={savingCad} onClick={() => addCad(c)} className="text-[11px] px-2 py-1 rounded-lg border disabled:opacity-50" style={{ borderColor: "#E8DFC8", color: "#009AAC" }}>+ {c.nome || c.titulo}</button>))}
+                      </div>
+                    )}
+                  </div>
+                </section>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <PetProfilePanel petId={pet.id} />
+        </div>
+      </div>
+
+      {/* Follow-up — linha toda */}
+      <div className="max-w-7xl mx-auto px-6 pt-3">
+        <div className="bg-white border rounded-xl p-4" style={{ borderColor: "#E8DFC8" }}>
+                <section>
+                  <h3 className="text-sm font-semibold mb-2 flex items-center gap-2" style={{ color: "#0E2244" }}>
+                    <LuCalendar size={14} /> Follow-up
+                  </h3>
+                  <div className="border rounded-xl p-4" style={{ borderColor: "#E8DFC8" }}>
+                    {pet.proximoFollowupAt ? (
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm" style={{ color: "#0E2244" }}><LuCalendar size={12} className="inline" /> {new Date(pet.proximoFollowupAt).toLocaleDateString("pt-BR")}</span>
+                        <button onClick={clearFu} className="text-xs" style={{ color: "#ef4444" }}>Remover</button>
+                      </div>
+                    ) : <p className="text-sm text-gray-400 mb-2">Sem follow-up agendado</p>}
+                    <div className="flex gap-2">
+                      <input type="date" value={fuDate} onChange={(e) => setFuDate(e.target.value)} className="flex-1 px-2 py-1.5 border rounded-lg text-xs" style={{ borderColor: "#E8DFC8" }} />
+                      <button onClick={saveFu} disabled={savingFu} className="px-3 py-1.5 rounded-lg text-xs text-white" style={{ background: "#009AAC" }}>{savingFu ? "..." : "Agendar"}</button>
+                    </div>
+                    <div className="mt-3 pt-3 border-t" style={{ borderColor: "#f0e8d4" }}>
+                      <div className="flex items-center gap-1.5 mb-2"><span style={{ fontSize: "13px" }}>💬</span><h4 className="text-xs font-semibold" style={{ color: "#0E2244" }}>Interações <span className="text-[10px] text-gray-400">({petInteracoes.length})</span></h4></div>
+                      <div className="flex gap-1.5 mb-2">
+                        <select value={intTipo} onChange={(e) => setIntTipo(e.target.value)} className="border rounded px-1.5 py-1 text-[11px]" style={{ borderColor: "#E8DFC8" }}><option value="NOTA">Nota</option><option value="LIGACAO">Ligação</option><option value="WHATSAPP_ENVIADO">WhatsApp</option><option value="PRESENCIAL">Presencial</option></select>
+                        <input value={intTexto} onChange={(e) => setIntTexto(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addInteracaoPet(); }} placeholder="Registrar..." className="flex-1 min-w-0 border rounded px-2 py-1 text-[11px]" style={{ borderColor: "#E8DFC8" }} />
+                        <button onClick={addInteracaoPet} disabled={savingInt} className="text-white px-2.5 py-1 rounded text-[11px] font-medium disabled:opacity-50" style={{ background: "#009AAC" }}>{savingInt ? "..." : "+"}</button>
+                      </div>
+                      {petInteracoes.length === 0 ? <p className="text-center text-[11px] text-gray-400 py-2">Nenhuma interação ainda</p> : (
+                        <div className="flex flex-col gap-1.5 max-h-60 overflow-auto">
+                          {petInteracoes.map((it: any) => (
+                            <div key={it.id} className="bg-[#fbfaf6] rounded px-2.5 py-1.5">
+                              <div className="flex items-center justify-between"><span className="text-[10px] font-medium" style={{ color: "#00798A" }}>{it.tipo}{it.canal ? ` · ${it.canal}` : ""}</span><span className="text-[10px] text-gray-400">{new Date(it.createdAt).toLocaleDateString("pt-BR")}</span></div>
+                              <p className="text-[11px] mt-0.5" style={{ color: "#0E2244" }}>{it.texto}</p>
+                              {it.autor?.name && <p className="text-[10px] text-gray-400 mt-0.5">por {it.autor.name}</p>}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </section>
+        </div>
+      </div>
+
+      {/* Histórico de Atendimentos — linha toda */}
+      <div className="max-w-7xl mx-auto px-6 pt-3">
+        <div className="bg-white border rounded-xl p-4" style={{ borderColor: "#E8DFC8" }}>
+                <section>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-semibold" style={{ color: "#0E2244" }}>Histórico de Atendimentos</h3>
+                    <button onClick={() => { setAtd(ATD0); setItems([]); setAtdOpen(true); }} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white flex items-center gap-1.5" style={{ background: "#009AAC" }}>
+                      <LuPlus size={12} /> Novo Atendimento
+                    </button>
+                  </div>
+                  {atendimentos.length === 0 ? (
+                    <div className="border rounded-xl p-5 text-center text-sm text-gray-400" style={{ borderColor: "#E8DFC8" }}>Nenhum atendimento registrado.</div>
+                  ) : (
+                    <div className="space-y-2">
+                      {atendimentos.map((a: any) => (
+                        <button key={a.id} onClick={() => abrirAtd(a.id)} className="w-full text-left border rounded-xl px-3 py-2 hover:bg-gray-50/60 flex items-center justify-between" style={{ borderColor: "#E8DFC8" }}>
+                          <div>
+                            <div className="text-sm font-medium" style={{ color: "#0E2244" }}>{ATD_TIPO_LABEL(a.type)} <span className="text-[11px] text-gray-400">{new Date(a.date).toLocaleDateString("pt-BR")}</span></div>
+                            <div className="text-[11px] text-gray-500">{a.user?.name || "—"}{a.chiefComplaint ? ` · ${a.chiefComplaint}` : ""}</div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-sm font-medium" style={{ color: "#0F6E56" }}>{Number(a.value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</div>
+                            <div className="text-[10px] text-gray-400">{a.status || ""}</div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </section>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-6 pt-3 pb-5">
           <div className="flex items-center gap-3 pt-2">
             <Link
               href={`/dashboard/erp/tutores/${pet.tutorId}`}
@@ -671,11 +683,6 @@ export default function PetDetailPage() {
               Ficha do Tutor <LuArrowLeft size={14} className="rotate-180" />
             </Link>
           </div>
-        </div>
-
-        <div className="space-y-4">
-          <PetProfilePanel petId={pet.id} />
-        </div>
       </div>
 
       {atdOpen && (
