@@ -1,8 +1,20 @@
 "use client";
+/* ─────────────────────────────────────────────────────────────
+   EMPÓRIO DO PET · versão Cintia + Claude (Cowork)   [EMP-COWORK]
+   Tela........: Lista de Clientes/Tutores  (erp/tutores)
+   Atualizado..: 06/06/2026 — Cintia + Claude
+   ✔ Salvar SEMPRE no main (é a versão que publica).
+   ✔ Backup periódico ativo.
+   ⚠ NÃO sobrescrever por "Add files via upload".
+   ─────────────────────────────────────────────────────────────
+   Estrutura espelhada do Base44 (padrão-ouro): colunas Tutor /
+   Pets / Telefone / Última visita / Relacionamento / LTV + FU
+   embaixo do nome. LTV e Última visita = estrutura (sem dado ainda).
+   ───────────────────────────────────────────────────────────── */
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { LuSearch, LuPlus, LuUpload, LuDownload, LuPawPrint, LuTrash } from "react-icons/lu";
+import { LuSearch, LuPlus, LuUpload, LuPawPrint, LuTrash } from "react-icons/lu";
 
 type Filter = "Cliente" | "Fornecedor" | "Parceiro" | "Ex_cliente" | "Todos";
 
@@ -17,16 +29,19 @@ interface Tutor {
   pets?: Pet[];
   contacts?: { number: string; isPrimary: boolean }[];
   birthDate?: string | null;
+  estadoRelacionamento?: string | null;
+  proximoFollowupAt?: string | null;
   createdAt: string;
 }
 
-const STATUS_BADGE = (status: string) => {
-  const s = (status || "").toUpperCase();
-  if (s === "ACTIVE") return { label: "Em dia", color: "#0F6E56", bg: "#E1F5EE" };
-  if (s === "INACTIVE") return { label: "Inativo", color: "#5b6470", bg: "#f0e8d4" };
-  if (s === "SUSPENDED") return { label: "A recuperar", color: "#BA7517", bg: "#FCE5C8" };
-  if (s === "CHURNED") return { label: "Ex-cliente", color: "#A32D2D", bg: "#FCEBEB" };
-  return { label: status, color: "#4d5a66", bg: "#f0e8d4" };
+const REL_BADGE = (v?: string | null) => {
+  const s = (v || "").toLowerCase();
+  if (s.includes("vencid")) return { color: "#A32D2D", bg: "#FCEBEB" };
+  if (s.includes("recuper") || s.includes("reativ") || s.includes("aniversár")) return { color: "#BA7517", bg: "#FCE5C8" };
+  if (s.includes("fideliz")) return { color: "#00798A", bg: "#E0F4F6" };
+  if (s.includes("próximo") || s.includes("proximo")) return { color: "#0C447C", bg: "#E6EEF7" };
+  if (s.includes("em dia")) return { color: "#0F6E56", bg: "#E1F5EE" };
+  return { color: "#5b6470", bg: "#f0e8d4" };
 };
 
 const PET_EMOJI = (species: string) => {
@@ -186,7 +201,7 @@ export default function ClientesPage() {
         <div className="flex gap-2">
           <input ref={importInputRef} type="file" accept=".csv,text/csv" className="hidden" onChange={handleImportTutores} />
           <button onClick={() => importInputRef.current?.click()} className="bg-white border border-[#cfd8e0] px-3 py-1.5 rounded-lg text-xs text-[#4d5a66] flex items-center gap-1.5">
-            <LuUpload className="w-3.5 h-3.5" />Importar
+            <LuUpload className="w-3.5 h-3.5" />Importar CSV
           </button>
           <Link href="/dashboard/erp/tutores/novo" className="bg-[#009AAC] text-white px-3.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5">
             <LuPlus className="w-3.5 h-3.5" />Novo cliente
@@ -215,7 +230,7 @@ export default function ClientesPage() {
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Buscar cliente, pet, telefone..."
+          placeholder="Buscar nome, pet, telefone ou email…"
           className="w-full bg-white border border-[#d8d0bc] rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-[#009AAC]"
         />
       </div>
@@ -224,23 +239,24 @@ export default function ClientesPage() {
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-[#F8F3E4] border-b border-[#d8d0bc] text-[11px] text-[#5b6470] font-medium">
-              <th className="text-left py-2.5 px-3">Cliente</th>
+              <th className="text-left py-2.5 px-3">Tutor</th>
               <th className="text-left py-2.5 px-3">Pets</th>
               <th className="text-left py-2.5 px-3">Telefone</th>
-              <th className="text-left py-2.5 px-3">Status</th>
-              <th className="text-right py-2.5 px-3">Cliente desde</th>
+              <th className="text-left py-2.5 px-3">Última visita</th>
+              <th className="text-left py-2.5 px-3">Relacionamento</th>
+              <th className="text-right py-2.5 px-3">LTV</th>
               <th className="text-right py-2.5 px-3"></th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={6} className="py-12 text-center text-gray-400">Carregando...</td></tr>
+              <tr><td colSpan={7} className="py-12 text-center text-gray-400">Carregando...</td></tr>
             ) : filtered.length === 0 ? (
-              <tr><td colSpan={6} className="py-12 text-center text-gray-400">Nenhum cliente nesse filtro</td></tr>
+              <tr><td colSpan={7} className="py-12 text-center text-gray-400">Nenhum cliente nesse filtro</td></tr>
             ) : (
               filtered.map((t) => {
                 const phone = t.contacts?.find((c) => c.isPrimary)?.number || t.contacts?.[0]?.number;
-                const status = STATUS_BADGE(t.status);
+                const rel = REL_BADGE(t.estadoRelacionamento);
                 const isAniv = isAniversariante(t.birthDate);
                 return (
                   <tr key={t.id} className="border-b border-[#f0e8d4] hover:bg-[#fdfaee]">
@@ -252,7 +268,10 @@ export default function ClientesPage() {
                             <span className="absolute -top-1 -right-1 bg-[#FFE2D2] border border-white rounded-full px-1 text-[9px]" title="Aniversariante do mês">🎂</span>
                           )}
                         </div>
-                        <div className="text-[#0E2244] font-medium">{t.name || "Sem nome"}</div>
+                        <div>
+                          <div className="text-[#0E2244] font-medium">{t.name || "Sem nome"}</div>
+                          {t.proximoFollowupAt && <span className="text-[10px] text-[#BA7517]">FU: {new Date(t.proximoFollowupAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}</span>}
+                        </div>
                       </Link>
                     </td>
                     <td className="py-2.5 px-3">
@@ -266,14 +285,13 @@ export default function ClientesPage() {
                       </div>
                     </td>
                     <td className="py-2.5 px-3 text-[#4d5a66]">{phone || "—"}</td>
+                    <td className="py-2.5 px-3 text-[#4d5a66] text-[11px]">—</td>
                     <td className="py-2.5 px-3">
-                      <span style={{ background: status.bg, color: status.color }} className="text-[10px] font-medium px-2 py-0.5 rounded-full">
-                        {status.label}
-                      </span>
+                      {t.estadoRelacionamento ? (
+                        <span style={{ background: rel.bg, color: rel.color }} className="text-[10px] font-medium px-2 py-0.5 rounded-full">{t.estadoRelacionamento}</span>
+                      ) : <span className="text-[10px] text-gray-400">—</span>}
                     </td>
-                    <td className="py-2.5 px-3 text-right text-[#4d5a66] text-[11px]">
-                      {new Date(t.createdAt).toLocaleDateString("pt-BR")}
-                    </td>
+                    <td className="py-2.5 px-3 text-right text-[#4d5a66] text-[11px]">—</td>
                     <td className="py-2.5 px-3 text-right">
                       <button type="button" onClick={() => handleDeleteTutor(t)} disabled={deletingId === t.id} title="Excluir cliente" className="disabled:opacity-40 p-1 hover:bg-gray-100 rounded">
                         <LuTrash className="w-3.5 h-3.5 text-[#cfd8e0] hover:text-[#A32D2D]" />
