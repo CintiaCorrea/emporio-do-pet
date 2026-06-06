@@ -219,8 +219,23 @@ export default function PetDetailPage() {
     try { await listasAdd(`petpac_${petId}`, JSON.stringify({ serviceId: srv.id, nome: srv.nome || srv.titulo || srv.descricao, total, used: 0, createdAt: new Date().toISOString() })); toast.success("Pacote criado"); setPacForm({ open: false, serviceId: "", total: "4" }); await loadPetColecoes(); } catch { toast.error("Erro ao criar pacote"); } finally { setSavingPac(false); }
   }
   async function usarSessao(p: { id: string; data: any }) {
-    const used = Math.min((p.data.used || 0) + 1, p.data.total || 0);
-    try { const r = await fetch(`/api/listas/${p.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ valor: JSON.stringify({ ...p.data, used }) }) }); if (!r.ok) throw new Error(); await loadPetColecoes(); } catch { toast.error("Erro ao registrar sessão"); }
+    const total = p.data.total || 0;
+    const used = Math.min((p.data.used || 0) + 1, total);
+    try {
+      const r = await fetch(`/api/listas/${p.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ valor: JSON.stringify({ ...p.data, used }) }) });
+      if (!r.ok) throw new Error();
+      await loadPetColecoes();
+      if (used === total) { toast.success("🎉 Pacote concluído!"); await alertaRenovacao(p.data.nome, used, total, true); }
+      else if (total > 1 && used === total - 1) { toast("⏳ Penúltima sessão — avaliar renovação"); await alertaRenovacao(p.data.nome, used, total, false); }
+    } catch { toast.error("Erro ao registrar sessão"); }
+  }
+  async function alertaRenovacao(nome: string, used: number, total: number, ultima: boolean) {
+    const texto = ultima
+      ? `⚠ Pacote "${nome}": ÚLTIMA sessão usada (${used}/${total}). Verificar renovação com o cliente.`
+      : `⚠ Pacote "${nome}": penúltima sessão (${used}/${total}). Avaliar renovação.`;
+    try { await fetch(`/api/interacoes`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ petId, tipo: "NOTA", texto, canal: "Sistema" }) }); } catch {}
+    try { await fetch(`/api/pets/${petId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ proximoFollowupAt: new Date().toISOString() }) }); } catch {}
+    await load(); await loadInteracoesPet();
   }
   async function delPacote(id: string) { try { await listasDel(id); toast.success("Pacote removido"); await loadPetColecoes(); } catch { toast.error("Erro"); } }
   async function addExame() { if (!exPick.trim()) { toast.error("Escolha um exame"); return; } setSavingEx(true); try { await listasAdd(`petexa_${petId}`, JSON.stringify({ nome: exPick.trim(), status: "Solicitado", date: new Date().toISOString() })); toast.success("Exame solicitado"); setExPick(""); await loadPetColecoes(); } catch { toast.error("Erro"); } finally { setSavingEx(false); } }
@@ -489,16 +504,21 @@ export default function PetDetailPage() {
                 ) : (
                   <div className="space-y-2">
                     {pacotes.map(p => { const used = p.data.used || 0; const total = p.data.total || 0; const done = used >= total; return (
-                      <div key={p.id} className="border rounded-xl p-3" style={{ borderColor: "#E8DFC8" }}>
+                      <div key={p.id} className="border rounded-xl p-3" style={{ borderColor: done ? "#0F6E56" : (total > 1 && used === total - 1 ? "#BA7517" : "#E8DFC8"), background: done ? "#F3FBF7" : "#fff" }}>
                         <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium" style={{ color: "#0E2244" }}>{p.data.nome}</span>
+                          <span className="text-sm font-medium" style={{ color: "#0E2244" }}>{done ? "🏆 " : "🐾 "}{p.data.nome}</span>
                           <button onClick={() => delPacote(p.id)} className="text-xs" style={{ color: "#ef4444" }}>Excluir</button>
                         </div>
-                        <div className="flex items-center gap-3 mt-1">
-                          <div className="flex-1 h-2 rounded-full bg-gray-100 overflow-hidden"><div className="h-full" style={{ width: `${total ? Math.min(100, (used / total) * 100) : 0}%`, background: "#009AAC" }} /></div>
-                          <span className="text-xs text-gray-500">{used}/{total} sessões</span>
-                          <button onClick={() => usarSessao(p)} disabled={done} className="px-2 py-1 rounded-lg text-xs border disabled:opacity-40" style={{ borderColor: "#E8DFC8", color: "#009AAC" }}>{done ? "Concluído" : "+1 sessão"}</button>
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {Array.from({ length: Math.min(total, 30) }).map((_, i) => <span key={i} style={{ fontSize: "15px" }} title={`Sessão ${i + 1}`}>{i < used ? "🐾" : "⚪"}</span>)}
                         </div>
+                        <div className="flex items-center gap-3 mt-2">
+                          <div className="flex-1 h-2 rounded-full bg-gray-100 overflow-hidden"><div className="h-full transition-all" style={{ width: `${total ? Math.min(100, (used / total) * 100) : 0}%`, background: done ? "#0F6E56" : "#009AAC" }} /></div>
+                          <span className="text-xs font-medium" style={{ color: done ? "#0F6E56" : "#0E2244" }}>{used}/{total}</span>
+                          <button onClick={() => usarSessao(p)} disabled={done} className="px-2 py-1 rounded-lg text-xs border disabled:opacity-40" style={{ borderColor: "#E8DFC8", color: "#009AAC" }}>{done ? "🎉 Concluído" : "+1 sessão"}</button>
+                        </div>
+                        {!done && total > 1 && used === total - 1 && <p className="text-[11px] mt-2" style={{ color: "#BA7517" }}>⏳ Penúltima sessão — avaliar renovação com o cliente.</p>}
+                        {done && <p className="text-[11px] mt-2" style={{ color: "#0F6E56" }}>🎉 Pacote concluído! Criamos um lembrete pra verificar renovação.</p>}
                       </div>
                     ); })}
                   </div>
