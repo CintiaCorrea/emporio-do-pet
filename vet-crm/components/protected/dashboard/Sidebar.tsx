@@ -1,4 +1,5 @@
 "use client";
+// [EMP-COWORK] label do menu Tutores -> Clientes (Cintia 06/06). Rota /tutores inalterada.
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -31,7 +32,7 @@ const NAV: Item[] = [
   { href: "/dashboard/inbox", label: "Inbox BC", Icon: LuMessageSquare, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
   { href: "/dashboard/inbox-nativo", label: "Inbox Meta", Icon: LuMessageSquare, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
   { href: "/dashboard/crm/leads", label: "Leads", Icon: LuList, roles: ["ADMIN", "RECEPTIONIST"] },
-  { href: "/dashboard/erp/tutores", label: "Tutores", Icon: LuUsers, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
+  { href: "/dashboard/erp/tutores", label: "Clientes", Icon: LuUsers, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
   { href: "/dashboard/erp/pets", label: "Pets", Icon: LuPawPrint, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
   { href: "/dashboard/erp/agendamentos", label: "Calendário", Icon: LuCalendar, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
   {
