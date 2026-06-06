@@ -1,4 +1,13 @@
 "use client";
+/* ─────────────────────────────────────────────────────────────
+   EMPÓRIO DO PET · versão Cintia + Claude (Cowork)   [EMP-COWORK]
+   Tela........: Ficha do Pet  (pets/[id])
+   Atualizado..: 06/06/2026 — Cintia + Claude
+   ✔ Salvar SEMPRE no main (é a versão que publica).
+   ✔ Backup periódico ativo (GitHub Action diária).
+   ⚠ NÃO sobrescrever por "Add files via upload".
+     Toda mudança = commit pequeno e direto. Em dúvida, perguntar.
+   ───────────────────────────────────────────────────────────── */
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
