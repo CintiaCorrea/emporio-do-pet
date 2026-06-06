@@ -221,7 +221,7 @@ export default function PetDetailPage() {
     if (!atd.userId) { toast.error("Selecione o profissional responsável"); return; }
     setSavingAtd(true);
     try {
-      const body: any = { name: pet.name, species: speciesEnum(pet.species), tutorId: pet.tutorId, petId: pet.id, userId: atd.userId, date: new Date(atd.date).toISOString(), type: atd.type, status: atd.status };
+      const body: any = { tutorId: pet.tutorId, petId: pet.id, userId: atd.userId, date: new Date(atd.date).toISOString(), type: atd.type, status: atd.status };
       if (atd.duration) body.duration = Number(atd.duration);
       for (const k of ["chiefComplaint", "anamnesis", "physicalExam", "diagnosis", "conduct", "prescription"]) { if (atd[k]) body[k] = atd[k]; }
       const r = await fetch("/api/appointments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
