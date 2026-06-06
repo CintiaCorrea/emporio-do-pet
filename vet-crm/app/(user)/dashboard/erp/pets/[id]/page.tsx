@@ -83,6 +83,7 @@ export default function PetDetailPage() {
   const [fuDate, setFuDate] = useState("");
   const [savingFu, setSavingFu] = useState(false);
   const [pipes, setPipes] = useState<{ clinico: string[]; fisio: string[] }>({ clinico: [], fisio: [] });
+  const [examFases, setExamFases] = useState<string[]>([]);
   const [savingPipe, setSavingPipe] = useState(false);
   const [petTags, setPetTags] = useState<{ id: string; texto: string }[]>([]);
   const [tagTpls, setTagTpls] = useState<any[]>([]);
@@ -129,6 +130,7 @@ export default function PetDetailPage() {
       const arr = Array.isArray(d) ? d : (d.pipelines || d.data || []);
       const pick = (kw: string) => { const p = arr.find((x: any) => (x.nome || "").toLowerCase().includes(kw) && x.ativo !== false); return p ? (p.estagios || []).slice().sort((a: any, b: any) => (a.ordem || 0) - (b.ordem || 0)).map((e: any) => e.nome) : []; };
       setPipes({ clinico: pick("cl\u00edn"), fisio: pick("fisio") });
+      setExamFases(pick("exame"));
     } catch {}
   }
   useEffect(() => { if (petId) { load(); loadPipes(); loadPetColecoes(); loadCatalogos(); loadInteracoesPet(); loadAtendimentos(); } /* eslint-disable-next-line */ }, [petId]);
@@ -238,7 +240,8 @@ export default function PetDetailPage() {
     await load(); await loadInteracoesPet();
   }
   async function delPacote(id: string) { try { await listasDel(id); toast.success("Pacote removido"); await loadPetColecoes(); } catch { toast.error("Erro"); } }
-  async function addExame() { if (!exPick.trim()) { toast.error("Escolha um exame"); return; } setSavingEx(true); try { await listasAdd(`petexa_${petId}`, JSON.stringify({ nome: exPick.trim(), status: "Solicitado", date: new Date().toISOString() })); toast.success("Exame solicitado"); setExPick(""); await loadPetColecoes(); } catch { toast.error("Erro"); } finally { setSavingEx(false); } }
+  async function addExame() { if (!exPick.trim()) { toast.error("Escolha um exame"); return; } setSavingEx(true); try { await listasAdd(`petexa_${petId}`, JSON.stringify({ nome: exPick.trim(), status: examFases[0] || "Solicitado", date: new Date().toISOString() })); toast.success("Exame solicitado"); setExPick(""); await loadPetColecoes(); } catch { toast.error("Erro"); } finally { setSavingEx(false); } }
+  async function updExameStatus(id: string, data: any, novoStatus: string) { try { const r = await fetch(`/api/listas/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ valor: JSON.stringify({ ...data, status: novoStatus }) }) }); if (!r.ok) throw new Error(); await loadPetColecoes(); } catch { toast.error("Erro ao atualizar fase"); } }
   async function delExame(id: string) { try { await listasDel(id); await loadPetColecoes(); } catch { toast.error("Erro"); } }
   async function criarAtendimento() {
     if (!pet) return;
@@ -547,7 +550,11 @@ export default function PetDetailPage() {
                           <span className="text-xs text-gray-400 ml-2">{x.data.date ? new Date(x.data.date).toLocaleDateString("pt-BR") : ""}</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: "#E0F4F6", color: "#00798A" }}>{x.data.status || "Solicitado"}</span>
+                          <select value={x.data.status || ""} onChange={(e) => updExameStatus(x.id, x.data, e.target.value)} className="text-[11px] px-2 py-1 border rounded-lg" style={{ borderColor: "#E8DFC8", color: "#00798A" }}>
+                            {x.data.status && !examFases.includes(x.data.status) && <option value={x.data.status}>{x.data.status}</option>}
+                            {examFases.length === 0 && <option value="Solicitado">Solicitado</option>}
+                            {examFases.map((f) => <option key={f} value={f}>{f}</option>)}
+                          </select>
                           <button onClick={() => delExame(x.id)} className="text-xs" style={{ color: "#ef4444" }}>Excluir</button>
                         </div>
                       </div>
