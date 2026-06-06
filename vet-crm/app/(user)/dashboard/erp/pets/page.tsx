@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { LuPlus, LuSearch, LuPencil, LuEye, LuTrash } from "react-icons/lu";
+import { useRouter } from "next/navigation";
+import { LuPlus, LuSearch, LuPencil, LuEye, LuTrash, LuX } from "react-icons/lu";
 import PetIcon from "@/components/profile/PetIcon";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { speciesLabel, speciesKey, statusLabel, ageFromBirth } from "@/lib/pets/labels";
@@ -62,6 +63,25 @@ export default function PetsListPage() {
   const [filterSpecies, setFilterSpecies] = useState<string>("ALL");
   const [filterStatus, setFilterStatus] = useState<string>("ALL");
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const router = useRouter();
+  const [novoOpen, setNovoOpen] = useState(false);
+  const [novoNome, setNovoNome] = useState("");
+  const [novoSpecies, setNovoSpecies] = useState("CANINE");
+  const [novoTutorId, setNovoTutorId] = useState("");
+  const [savingNovo, setSavingNovo] = useState(false);
+  const [tutorsList, setTutorsList] = useState<any[]>([]);
+
+  const handleCriarPet = async () => {
+    if (!novoNome.trim()) { window.alert("Informe o nome do pet"); return; }
+    if (!novoTutorId) { window.alert("Selecione o cliente (tutor)"); return; }
+    setSavingNovo(true);
+    try {
+      const res = await fetch("/api/pets", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ name: novoNome.trim(), species: novoSpecies, tutorId: novoTutorId }) });
+      if (!res.ok) throw new Error(await res.text());
+      const novo = await res.json();
+      if (novo?.id) router.push(`/dashboard/erp/pets/${novo.id}`); else window.location.reload();
+    } catch { window.alert("Não foi possível criar o pet. Tente novamente."); } finally { setSavingNovo(false); }
+  };
 
   const handleDeletePet = async (pet: Pet) => {
     if (deletingId) return;
@@ -93,6 +113,7 @@ export default function PetsListPage() {
     }
   }
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [search]);
+  useEffect(() => { fetch(`/api/tutors?limit=500`).then(r => r.json()).then(d => setTutorsList(Array.isArray(d) ? d : (d.tutors || d.data || []))).catch(() => {}); }, []);
 
   const filtered = useMemo(() => {
     let arr = pets;
@@ -133,13 +154,13 @@ export default function PetsListPage() {
           >
             {STATUS_FILTERS.map(s => <option key={s.k} value={s.k}>{s.label}</option>)}
           </select>
-          <Link
-            href="/dashboard/erp/pets/novo"
+          <button
+            onClick={() => { setNovoNome(""); setNovoSpecies("CANINE"); setNovoTutorId(""); setNovoOpen(true); }}
             className="px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-2 text-white"
             style={{ background: "#009AAC" }}
           >
             <LuPlus size={14} /> Novo Pet
-          </Link>
+          </button>
         </div>
       </div>
 
@@ -197,7 +218,7 @@ export default function PetsListPage() {
                       <Link href={`/dashboard/erp/pets/${p.id}`} className="p-1 hover:bg-gray-200 rounded inline-block text-gray-600">
                         <LuEye size={14} />
                       </Link>
-                      <Link href={`/dashboard/erp/pets/${p.id}/editar`} className="p-1 hover:bg-gray-200 rounded inline-block ml-1 text-gray-600">
+                      <Link href={`/dashboard/erp/pets/${p.id}`} className="p-1 hover:bg-gray-200 rounded inline-block ml-1 text-gray-600" title="Abrir ficha (edição inline)">
                         <LuPencil size={14} />
                       </Link>
                       <button type="button" onClick={() => handleDeletePet(p)} disabled={deletingId === p.id} title="Excluir pet" className="p-1 hover:bg-gray-200 rounded inline-block ml-1 text-gray-600 disabled:opacity-40">
@@ -233,6 +254,32 @@ export default function PetsListPage() {
           </div>
         </div>
       </div>
+
+      {novoOpen && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center pt-24" onClick={() => setNovoOpen(false)}>
+          <div className="bg-white rounded-2xl p-5 w-[420px] max-w-[92vw]" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-medium" style={{ color: "#0E2244" }}>Novo Pet</h2>
+              <button onClick={() => setNovoOpen(false)} className="text-gray-400 hover:text-gray-600"><LuX size={16} /></button>
+            </div>
+            <label className="text-[11px] text-gray-500">Nome *</label>
+            <input autoFocus value={novoNome} onChange={(e) => setNovoNome(e.target.value)} placeholder="Nome do pet" className="w-full h-9 mt-0.5 mb-3 px-3 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }} />
+            <label className="text-[11px] text-gray-500">Espécie *</label>
+            <select value={novoSpecies} onChange={(e) => setNovoSpecies(e.target.value)} className="w-full h-9 mt-0.5 mb-3 px-3 border rounded-lg text-sm bg-white" style={{ borderColor: "#E8DFC8" }}>
+              {["CANINE", "FELINE", "BIRD", "RODENT", "REPTILE", "OTHER"].map(sp => <option key={sp} value={sp}>{speciesLabel(sp)}</option>)}
+            </select>
+            <label className="text-[11px] text-gray-500">Cliente (tutor) *</label>
+            <select value={novoTutorId} onChange={(e) => setNovoTutorId(e.target.value)} className="w-full h-9 mt-0.5 px-3 border rounded-lg text-sm bg-white" style={{ borderColor: "#E8DFC8" }}>
+              <option value="">— selecionar —</option>
+              {tutorsList.map((t: any) => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+            <div className="flex gap-2 justify-end mt-4">
+              <button onClick={() => setNovoOpen(false)} className="px-4 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8", color: "#5b6470" }}>Cancelar</button>
+              <button onClick={handleCriarPet} disabled={savingNovo} className="px-4 py-2 rounded-lg text-sm text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingNovo ? "Criando..." : "Criar e abrir ficha"}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
