@@ -1,4 +1,13 @@
 "use client";
+/* ─────────────────────────────────────────────────────────────
+   EMPÓRIO DO PET · versão Cintia + Claude (Cowork)   [EMP-COWORK]
+   Tela........: Ficha do Tutor  (erp/tutores/[id])
+   Atualizado..: 06/06/2026 — Cintia + Claude
+   ✔ Salvar SEMPRE no main (é a versão que publica).
+   ✔ Backup periódico ativo.
+   ⚠ NÃO sobrescrever por "Add files via upload".
+     Toda mudança = commit pequeno e direto. Em dúvida, perguntar.
+   ───────────────────────────────────────────────────────────── */
 
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
@@ -99,6 +108,9 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
   const [loading, setLoading] = useState(true);
   const [nota, setNota] = useState("");
   const [notaSaving, setNotaSaving] = useState(false);
+  const [editDados, setEditDados] = useState(false);
+  const [dadosForm, setDadosForm] = useState<any>({});
+  const [savingDados, setSavingDados] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -117,6 +129,18 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
     }
     finally { setLoading(false); }
   };
+
+  async function saveDados() {
+    setSavingDados(true);
+    try {
+      const res = await fetch(`/api/tutors/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(dadosForm) });
+      if (!res.ok) throw new Error(String(res.status));
+      toast.success("Dados atualizados");
+      setEditDados(false);
+      await load();
+    } catch (e) { toast.error("Erro ao salvar"); }
+    finally { setSavingDados(false); }
+  }
 
   useEffect(() => { load(); }, [id]);
 
@@ -242,7 +266,24 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
         {/* Coluna esquerda */}
         <div className="flex flex-col gap-2.5">
           <div className="bg-white border border-[#d8d0bc] rounded-xl p-3.5">
-            <h3 className="text-[13px] text-[#0E2244] font-medium mb-2">Dados pessoais</h3>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-[13px] text-[#0E2244] font-medium">Dados pessoais</h3>
+              <button onClick={() => { setDadosForm({ name: tutor.name || "", email: tutor.email || "", cpf: tutor.cpf || "", address: tutor.address || "", neighborhood: tutor.neighborhood || "", city: tutor.city || "" }); setEditDados(v => !v); }} className="text-[11px] flex items-center gap-1" style={{ color: "#009AAC" }}><LuPencil className="w-3 h-3" /> {editDados ? "Fechar" : "Editar"}</button>
+            </div>
+            {editDados && (
+              <div className="mb-3 pb-3 border-b border-[#f0e8d4] flex flex-col gap-1.5 text-[11px]">
+                {(([["name", "Nome"], ["email", "Email"], ["cpf", "CPF"], ["address", "Endereço"], ["neighborhood", "Bairro"], ["city", "Cidade"]]) as [string, string][]).map(([k, label]) => (
+                  <div key={k}>
+                    <label className="text-[#5b6470]">{label}</label>
+                    <input value={dadosForm[k] ?? ""} onChange={e => setDadosForm((f: any) => ({ ...f, [k]: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#d8d0bc] rounded text-[12px] text-[#0E2244]" />
+                  </div>
+                ))}
+                <div className="flex gap-2 mt-1">
+                  <button onClick={saveDados} disabled={savingDados} className="px-3 py-1 rounded text-[11px] text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingDados ? "Salvando..." : "Salvar"}</button>
+                  <button onClick={() => setEditDados(false)} className="px-3 py-1 rounded text-[11px] border border-[#cfd8e0] text-[#5b6470]">Cancelar</button>
+                </div>
+              </div>
+            )}
             <div className="text-[11px] text-[#4d5a66] leading-loose">
               {phone && <div><LuPhone className="inline w-3 h-3 text-[#0C447C]" /> <strong className="text-[#0E2244] font-medium">Telefone:</strong> <span className="text-[#00798A]">{phone}</span></div>}
               {tutor.email && <div><span style={{fontSize:"14px"}}>✉️</span> <strong className="text-[#0E2244] font-medium">Email:</strong> <span className="text-[#00798A]">{tutor.email}</span></div>}
