@@ -21,6 +21,8 @@ interface Lead {
   customFields?: any;
   lastSeenAt: string;
   createdAt: string;
+  pipelineComercialEtapa?: string | null;
+  proximoFollowupAt?: string | null;
 }
 
 const TEMPERATURE = (score: number) => {
@@ -367,6 +369,7 @@ export default function LeadsPage() {
                         <div>
                           <div className="text-[#0E2244] font-medium">{l.name || "Sem nome"}</div>
                           <div className="text-[11px] text-[#5b6470]">{petName ? `🐾 ${petName}` : "sem pet"}</div>
+                          {l.proximoFollowupAt && <div className="text-[10px] text-[#BA7517]">FU: {new Date(l.proximoFollowupAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}</div>}
                         </div>
                       </Link>
                     </td>
@@ -378,9 +381,11 @@ export default function LeadsPage() {
                       </span>
                     </td>
                     <td className="py-2.5 px-3">
-                      <span style={{ background: stage.bg, color: stage.color }} className="text-[10px] font-medium px-2 py-0.5 rounded-full">
-                        {stage.label}
-                      </span>
+                      {l.pipelineComercialEtapa ? (
+                        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: "#E6F1FB", color: "#0C447C" }}>{l.pipelineComercialEtapa}</span>
+                      ) : (
+                        <span style={{ background: stage.bg, color: stage.color }} className="text-[10px] font-medium px-2 py-0.5 rounded-full">{stage.label}</span>
+                      )}
                     </td>
                     <td className="py-2.5 px-3">
                       <div className="flex items-center gap-1.5">
