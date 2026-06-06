@@ -60,6 +60,13 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
   const [loading, setLoading] = useState(true);
   const [showScripts, setShowScripts] = useState(false);
   const [scriptCat, setScriptCat] = useState<keyof typeof SCRIPTS>("Saudação");
+  const [pipeComercial, setPipeComercial] = useState<string[]>([]);
+  const [fuDate, setFuDate] = useState("");
+  const [savingFu, setSavingFu] = useState(false);
+  const [leadTags, setLeadTags] = useState<{ id: string; texto: string }[]>([]);
+  const [tagTpls, setTagTpls] = useState<any[]>([]);
+  const [tagPicker, setTagPicker] = useState(false);
+  const [savingTag, setSavingTag] = useState(false);
 
   const [qual, setQual] = useState({
     qualSituacaoPet: "",
@@ -85,7 +92,14 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
     } finally { setLoading(false); }
   };
 
-  useEffect(() => { load(); }, [id]);
+  async function loadComercial() { try { const r = await fetch(`/api/pipelines`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.pipelines || d.data || []); const p = arr.find((x: any) => (x.escopo === "LEAD" || (x.nome || "").toLowerCase().includes("comercial")) && x.ativo !== false); if (p) setPipeComercial((p.estagios || []).slice().sort((a: any, b: any) => (a.ordem || 0) - (b.ordem || 0)).map((e: any) => e.nome)); } catch {} }
+  async function loadLeadTags() { try { const r = await fetch(`/api/listas?lista=leadtag_${id}`, { cache: "no-store" }); const d = await r.json(); const a = Array.isArray(d) ? d : (d.itens || d.data || []); setLeadTags(a.map((i: any) => ({ id: i.id, texto: i.valor }))); } catch {} }
+  async function loadTagTpls() { try { const r = await fetch(`/api/etiquetas/templates`, { cache: "no-store" }); const d = await r.json(); const a = Array.isArray(d) ? d : (d.templates || d.data || []); setTagTpls(a.filter((t: any) => t.ativo !== false && (t.aplicaEm || []).includes("Lead"))); } catch {} }
+  useEffect(() => { load(); loadComercial(); loadLeadTags(); loadTagTpls(); }, [id]);
+  async function saveFu() { if (!fuDate) { toast.error("Escolha uma data"); return; } setSavingFu(true); try { const r = await fetch(`/api/leads/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ proximoFollowupAt: new Date(fuDate + "T12:00:00").toISOString() }) }); if (!r.ok) throw new Error(); toast.success("Follow-up agendado"); setFuDate(""); await load(); } catch { toast.error("Erro ao agendar"); } finally { setSavingFu(false); } }
+  async function clearFu() { try { const r = await fetch(`/api/leads/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ proximoFollowupAt: null }) }); if (!r.ok) throw new Error(); toast.success("Follow-up removido"); await load(); } catch { toast.error("Erro"); } }
+  async function addTagLead(texto: string) { setSavingTag(true); try { const r = await fetch(`/api/listas`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lista: `leadtag_${id}`, valor: texto }) }); if (!r.ok) throw new Error(); toast.success("Etiqueta adicionada"); setTagPicker(false); await loadLeadTags(); } catch { toast.error("Erro (talvez já exista)"); } finally { setSavingTag(false); } }
+  async function delTagLead(tid: string) { try { const r = await fetch(`/api/listas/${tid}`, { method: "DELETE" }); if (!r.ok) throw new Error(); await loadLeadTags(); } catch { toast.error("Erro ao remover"); } }
 
   const saveQualification = async () => {
     try {
@@ -317,9 +331,11 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
 
         <div className="bg-white rounded-xl border border-[#d8d0bc] p-3">
           <div className="flex items-center gap-2 mb-2"><span style={{fontSize:"14px"}}>🌿</span><h3 className="text-[12px] text-[#0E2244] font-medium">Pipeline</h3></div>
-          <select onChange={(e) => changeStage(e.target.value)} defaultValue="Em qualificação"
+          <select value={lead.pipelineComercialEtapa || ""} onChange={(e) => changeStage(e.target.value)}
             className="w-full border border-[#009AAC] rounded px-2 py-1 text-[11px] text-[#0E2244] bg-white focus:outline-none mb-1">
-            {PIPELINE_STAGES.map((s) => <option key={s}>{s}</option>)}
+            <option value="">— selecionar —</option>
+            {lead.pipelineComercialEtapa && !(pipeComercial.length ? pipeComercial : PIPELINE_STAGES).includes(lead.pipelineComercialEtapa) && <option value={lead.pipelineComercialEtapa}>{lead.pipelineComercialEtapa}</option>}
+            {(pipeComercial.length ? pipeComercial : PIPELINE_STAGES).map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
           <p className="text-[9px] text-gray-400">Compareceu vira cliente</p>
         </div>
@@ -327,21 +343,36 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
         <div className="bg-white rounded-xl border border-[#d8d0bc] p-3">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-[12px] text-[#0E2244] font-medium">📅 Follow-up</h3>
-            <button className="text-[10px] text-[#009AAC] hover:underline">+ Agendar</button>
           </div>
-          <p className="text-[11px] text-gray-400">Sem follow-up agendado</p>
+          {lead.proximoFollowupAt ? (
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[11px] text-[#0E2244]">{new Date(lead.proximoFollowupAt).toLocaleDateString("pt-BR")}</span>
+              <button onClick={clearFu} className="text-[10px] text-[#A32D2D]">Remover</button>
+            </div>
+          ) : <p className="text-[11px] text-gray-400 mb-1.5">Sem follow-up agendado</p>}
+          <div className="flex gap-1">
+            <input type="date" value={fuDate} onChange={(e) => setFuDate(e.target.value)} className="flex-1 min-w-0 border border-[#d8d0bc] rounded px-1.5 py-1 text-[10px]" />
+            <button onClick={saveFu} disabled={savingFu} className="bg-[#009AAC] text-white px-2 py-1 rounded text-[10px] disabled:opacity-50">{savingFu ? "..." : "Agendar"}</button>
+          </div>
         </div>
 
         <div className="bg-white rounded-xl border border-[#d8d0bc] p-3">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-[12px] text-[#0E2244] font-medium">🏷 Etiquetas</h3>
           </div>
-          <div className="flex flex-wrap gap-1">
-            {(lead.tags || []).map((t: string) => (
-              <span key={t} className="bg-[#EEEDFE] text-[#009AAC] text-[10px] px-2 py-0.5 rounded-full">{t}</span>
-            ))}
-            <button className="border border-dashed border-[#cfd8e0] text-gray-400 text-[10px] px-2 py-0.5 rounded-full">+ tag</button>
+          <div className="flex flex-wrap gap-1 items-center">
+            {leadTags.length === 0 && <span className="text-[10px] text-gray-400">Sem etiquetas</span>}
+            {leadTags.map((t) => { const tpl = tagTpls.find((x: any) => x.texto === t.texto); const cor = tpl?.cor || "#009AAC"; return (
+              <span key={t.id} className="text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1" style={{ background: cor + "22", color: cor }}>● {t.texto}<button onClick={() => delTagLead(t.id)} className="font-bold hover:opacity-60">×</button></span>
+            ); })}
+            <button onClick={() => setTagPicker(v => !v)} className="border border-dashed border-[#cfd8e0] text-gray-400 text-[10px] px-2 py-0.5 rounded-full">+ tag</button>
           </div>
+          {tagPicker && (
+            <div className="mt-2 pt-2 border-t border-[#f0e8d4] flex flex-wrap gap-1">
+              {tagTpls.filter((t: any) => !leadTags.some(p => p.texto === t.texto)).length === 0 ? <p className="text-[10px] text-gray-400">Nenhuma etiqueta de Lead. Cadastre em Configurações.</p> :
+                tagTpls.filter((t: any) => !leadTags.some(p => p.texto === t.texto)).map((t: any) => (<button key={t.texto} disabled={savingTag} onClick={() => addTagLead(t.texto)} className="text-[10px] px-2 py-0.5 rounded-full border disabled:opacity-50" style={{ borderColor: (t.cor || "#009AAC") + "66", color: t.cor || "#009AAC" }}>+ {t.texto}</button>))}
+            </div>
+          )}
         </div>
       </div>
 
