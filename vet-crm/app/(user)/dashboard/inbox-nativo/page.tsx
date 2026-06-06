@@ -446,7 +446,7 @@ export default function InboxUnificadoPage() {
       {tab === "conversas" && (
         <div className="grid grid-cols-[310px_1fr_340px] flex-1 min-h-0">
           {/* LEFT - Lista */}
-          <div className="border-r border-[#e8e1d2] bg-white flex flex-col">
+          <div className="border-r border-[#e8e1d2] bg-white flex flex-col min-h-0">
             <div className="p-2.5 flex gap-1.5 flex-wrap border-b border-[#e8e1d2]">
               {(["todos", "leads", "clientes"] as ListFilter[]).map((f) => (
                 <button key={f} onClick={() => setFilter(f)}
@@ -500,7 +500,7 @@ export default function InboxUnificadoPage() {
           </div>
 
           {/* CENTER - Chat */}
-          <div className="bg-white flex flex-col">
+          <div className="bg-white flex flex-col min-h-0 overflow-hidden">
             {!selectedId ? (
               <div className="flex-1 flex items-center justify-center text-center p-8">
                 <div>
