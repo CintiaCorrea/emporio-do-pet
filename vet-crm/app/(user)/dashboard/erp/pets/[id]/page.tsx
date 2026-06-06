@@ -14,7 +14,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   LuArrowLeft, LuPencil, LuTrash, LuPlus, LuFlaskConical,
-  LuPackage, LuMessageSquare, LuShare2, LuTag, LuClock, LuCalendar,
+  LuPackage, LuMessageSquare, LuShare2, LuTag, LuClock, LuCalendar, LuX,
 } from "react-icons/lu";
 import toast from "react-hot-toast";
 import ConfirmDeleteModal from "@/components/common/ConfirmDeleteModal";
@@ -53,6 +53,15 @@ async function safeJson<T>(res: Response, fb: T): Promise<T> {
   try { if (!res.ok) return fb; const d = await res.json(); return d == null ? fb : d; } catch { return fb; }
 }
 
+function speciesEnum(sp: string): string {
+  const u = (sp || "").toUpperCase();
+  if (["CANINE", "FELINE", "BIRD", "RODENT", "REPTILE", "OTHER"].includes(u)) return u;
+  if (u.includes("CANIN") || u.includes("CACHORR") || u.startsWith("C\u00c3") || u.startsWith("CA")) return "CANINE";
+  if (u.includes("FELIN") || u.includes("GAT")) return "FELINE";
+  if (u.includes("AVE") || u.includes("BIRD") || u.includes("SSAR")) return "BIRD";
+  return "OTHER";
+}
+
 export default function PetDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -88,6 +97,11 @@ export default function PetDetailPage() {
   const [exCat, setExCat] = useState<any[]>([]);
   const [exPick, setExPick] = useState("");
   const [savingEx, setSavingEx] = useState(false);
+  const [vets, setVets] = useState<any[]>([]);
+  const [atdOpen, setAtdOpen] = useState(false);
+  const [savingAtd, setSavingAtd] = useState(false);
+  const ATD0 = { date: "", userId: "", type: "CONSULTA", status: "Realizado", duration: "30", chiefComplaint: "", anamnesis: "", physicalExam: "", diagnosis: "", conduct: "", prescription: "" };
+  const [atd, setAtd] = useState<any>(ATD0);
 
   usePageTitle(pet ? pet.name : "Pet", pet?.tutor ? `Tutor: ${pet.tutor.name}` : undefined);
 
@@ -181,6 +195,7 @@ export default function PetDetailPage() {
     try { const r = await fetch(`/api/cadencias`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.cadencias || d.data || []); setCadOpts(arr); } catch {}
     try { const r = await fetch(`/api/servicos/itens`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.itens || d.data || d.servicos || []); setFisioSrv(arr.filter((srv: any) => JSON.stringify(srv).toLowerCase().includes("fisio"))); } catch {}
     try { const r = await fetch(`/api/fornecedores/exames/lista`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.exames || d.data || d.itens || []); setExCat(arr); } catch {}
+    try { const r = await fetch(`/api/users`, { cache: "no-store" }); const d = await r.json(); setVets(Array.isArray(d) ? d : (d.users || d.data || [])); } catch {}
   }
   async function addTag(texto: string) { setSavingTag(true); try { await listasAdd(`petetq_${petId}`, texto); toast.success("Etiqueta adicionada"); await loadPetColecoes(); } catch { toast.error("Erro (talvez já exista)"); } finally { setSavingTag(false); } }
   async function delTag(id: string) { try { await listasDel(id); await loadPetColecoes(); } catch { toast.error("Erro ao remover"); } }
@@ -200,6 +215,20 @@ export default function PetDetailPage() {
   async function delPacote(id: string) { try { await listasDel(id); toast.success("Pacote removido"); await loadPetColecoes(); } catch { toast.error("Erro"); } }
   async function addExame() { if (!exPick.trim()) { toast.error("Escolha um exame"); return; } setSavingEx(true); try { await listasAdd(`petexa_${petId}`, JSON.stringify({ nome: exPick.trim(), status: "Solicitado", date: new Date().toISOString() })); toast.success("Exame solicitado"); setExPick(""); await loadPetColecoes(); } catch { toast.error("Erro"); } finally { setSavingEx(false); } }
   async function delExame(id: string) { try { await listasDel(id); await loadPetColecoes(); } catch { toast.error("Erro"); } }
+  async function criarAtendimento() {
+    if (!pet) return;
+    if (!atd.date) { toast.error("Informe data e hora"); return; }
+    if (!atd.userId) { toast.error("Selecione o profissional responsável"); return; }
+    setSavingAtd(true);
+    try {
+      const body: any = { name: pet.name, species: speciesEnum(pet.species), tutorId: pet.tutorId, petId: pet.id, userId: atd.userId, date: new Date(atd.date).toISOString(), type: atd.type, status: atd.status };
+      if (atd.duration) body.duration = Number(atd.duration);
+      for (const k of ["chiefComplaint", "anamnesis", "physicalExam", "diagnosis", "conduct", "prescription"]) { if (atd[k]) body[k] = atd[k]; }
+      const r = await fetch("/api/appointments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (!r.ok) throw new Error(await r.text());
+      toast.success("Atendimento registrado"); setAtdOpen(false); setAtd(ATD0); await load();
+    } catch { toast.error("Erro ao registrar atendimento"); } finally { setSavingAtd(false); }
+  }
 
   const tutorWhats = useMemo(() => {
     if (!pet?.tutor?.contacts) return null;
@@ -487,9 +516,9 @@ export default function PetDetailPage() {
                 <section>
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="text-sm font-semibold" style={{ color: "#0E2244" }}>Histórico de Atendimentos</h3>
-                    <Link href={`/dashboard/erp/agendamentos/novo?petId=${pet.id}`} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white flex items-center gap-1.5" style={{ background: "#009AAC" }}>
+                    <button onClick={() => setAtdOpen(true)} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white flex items-center gap-1.5" style={{ background: "#009AAC" }}>
                       <LuPlus size={12} /> Novo Atendimento
-                    </Link>
+                    </button>
                   </div>
                   <div className="border rounded-xl p-5 text-center text-sm text-gray-400" style={{ borderColor: "#E8DFC8" }}>
                     {pet._count?.appointments ? `${pet._count.appointments} consultas registradas.` : "Nenhum atendimento registrado."}
@@ -588,6 +617,38 @@ export default function PetDetailPage() {
           <PetProfilePanel petId={pet.id} />
         </div>
       </div>
+
+      {atdOpen && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center overflow-y-auto py-10" onClick={() => setAtdOpen(false)}>
+          <div className="bg-white rounded-2xl w-[520px] max-w-[94vw] p-5" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-base font-semibold" style={{ color: "#0E2244" }}>Novo Atendimento — {pet.name}</h2>
+              <button onClick={() => setAtdOpen(false)} className="text-gray-400 hover:text-gray-600"><LuX size={16} /></button>
+            </div>
+            <div className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Dados básicos</div>
+            <div className="grid grid-cols-2 gap-2 mb-3 text-xs">
+              <div><label className="text-gray-500">Data e hora *</label><input type="datetime-local" value={atd.date} onChange={(e) => setAtd((a: any) => ({ ...a, date: e.target.value }))} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg" style={{ borderColor: "#E8DFC8" }} /></div>
+              <div><label className="text-gray-500">Tipo</label><select value={atd.type} onChange={(e) => setAtd((a: any) => ({ ...a, type: e.target.value }))} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg" style={{ borderColor: "#E8DFC8" }}>{[["CONSULTA", "Consulta"], ["RETORNO", "Retorno"], ["AVALIACAO", "Avaliação"], ["EMERGENCIA", "Emergência"], ["PROCEDIMENTO", "Procedimento"], ["VACINACAO", "Vacinação"], ["CIRURGIA", "Cirurgia"], ["SESSAO_FISIO", "Sessão de fisio"], ["OUTRO", "Outro"]].map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></div>
+              <div><label className="text-gray-500">Profissional responsável *</label><select value={atd.userId} onChange={(e) => setAtd((a: any) => ({ ...a, userId: e.target.value }))} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg" style={{ borderColor: "#E8DFC8" }}><option value="">Selecionar...</option>{vets.map((u: any) => <option key={u.id} value={u.id}>{u.name}</option>)}</select></div>
+              <div><label className="text-gray-500">Status</label><select value={atd.status} onChange={(e) => setAtd((a: any) => ({ ...a, status: e.target.value }))} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg" style={{ borderColor: "#E8DFC8" }}>{["Realizado", "Agendado", "Cancelado", "Faltou"].map(v => <option key={v} value={v}>{v}</option>)}</select></div>
+              <div><label className="text-gray-500">Duração (min)</label><input type="number" value={atd.duration} onChange={(e) => setAtd((a: any) => ({ ...a, duration: e.target.value }))} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg" style={{ borderColor: "#E8DFC8" }} /></div>
+            </div>
+            <div className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Anamnese e exame</div>
+            <div className="space-y-2 text-xs">
+              <div><label className="text-gray-500">Motivo / queixa principal</label><input value={atd.chiefComplaint} onChange={(e) => setAtd((a: any) => ({ ...a, chiefComplaint: e.target.value }))} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg" style={{ borderColor: "#E8DFC8" }} /></div>
+              <div><label className="text-gray-500">Anamnese</label><textarea value={atd.anamnesis} onChange={(e) => setAtd((a: any) => ({ ...a, anamnesis: e.target.value }))} rows={2} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg" style={{ borderColor: "#E8DFC8" }} /></div>
+              <div><label className="text-gray-500">Exame físico</label><textarea value={atd.physicalExam} onChange={(e) => setAtd((a: any) => ({ ...a, physicalExam: e.target.value }))} rows={2} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg" style={{ borderColor: "#E8DFC8" }} /></div>
+              <div><label className="text-gray-500">Diagnóstico</label><textarea value={atd.diagnosis} onChange={(e) => setAtd((a: any) => ({ ...a, diagnosis: e.target.value }))} rows={2} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg" style={{ borderColor: "#E8DFC8" }} /></div>
+              <div><label className="text-gray-500">Conduta</label><textarea value={atd.conduct} onChange={(e) => setAtd((a: any) => ({ ...a, conduct: e.target.value }))} rows={2} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg" style={{ borderColor: "#E8DFC8" }} /></div>
+              <div><label className="text-gray-500">Prescrição</label><textarea value={atd.prescription} onChange={(e) => setAtd((a: any) => ({ ...a, prescription: e.target.value }))} rows={2} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg" style={{ borderColor: "#E8DFC8" }} /></div>
+            </div>
+            <div className="flex gap-2 justify-end mt-4">
+              <button onClick={() => setAtdOpen(false)} className="px-4 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8", color: "#475569" }}>Cancelar</button>
+              <button onClick={criarAtendimento} disabled={savingAtd} className="px-4 py-2 rounded-lg text-sm text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingAtd ? "Salvando..." : "Salvar atendimento"}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <ConfirmDeleteModal
         isOpen={delOpen}
