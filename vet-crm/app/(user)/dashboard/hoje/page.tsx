@@ -62,6 +62,8 @@ export default function HojePage() {
   const [examesOpen, setExamesOpen] = useState(false);
   const [fuList, setFuList] = useState<any[]>([]);
   const [fuOpen, setFuOpen] = useState(false);
+  const [pacRisco, setPacRisco] = useState<any[]>([]);
+  const [pacOpen, setPacOpen] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -101,6 +103,18 @@ export default function HojePage() {
         for (const l of leadArr) if (l.proximoFollowupAt && new Date(l.proximoFollowupAt) <= endToday) fu.push({ id: "l" + l.id, tipo: "Lead", nome: l.name || "Lead", date: l.proximoFollowupAt, href: `/dashboard/crm/leads/${l.id}` });
         fu.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
         setFuList(fu);
+        const pac: any[] = [];
+        for (const it of listArr) {
+          if ((it.lista || "").startsWith("petpac_")) {
+            let dd: any = {}; try { dd = JSON.parse(it.valor); } catch {}
+            const total = Number(dd.total) || 0, used = Number(dd.used) || 0;
+            if (total > 0 && (total - used) <= 1) {
+              const petId = it.lista.replace("petpac_", "");
+              pac.push({ id: it.id, petId, petName: petMap[petId] || "Pet", nome: dd.nome, used, total, remaining: total - used });
+            }
+          }
+        }
+        setPacRisco(pac);
       } catch {}
       setLoading(false);
     })();
@@ -130,8 +144,8 @@ export default function HojePage() {
       {
         key: "pacotes",
         title: "Pacotes em risco",
-        sub: "Próximos do vencimento sem uso",
-        count: data.pacotesEmRisco || 0,
+        sub: "Fisio na penúltima/última sessão",
+        count: pacRisco.length,
         link: "Pacotes",
         href: "/dashboard/erp/pacotes?risco=1",
         Icon: LuPackage,
@@ -164,7 +178,7 @@ export default function HojePage() {
         Icon: LuCake,
       },
     ];
-  }, [data, examesPend, fuList]);
+  }, [data, examesPend, fuList, pacRisco]);
 
   const total = items.reduce((s, t) => s + t.count, 0);
 
@@ -206,6 +220,30 @@ export default function HojePage() {
             );
             const rowCls = "flex items-center gap-3.5 px-[18px] py-[13px] border-b hover:bg-[#e6f6f8]/60 transition cursor-pointer";
             const rowStyle = { borderColor: i === items.length - 1 && !(p.key === "exames" && examesOpen) ? "transparent" : "#e8edf0" } as any;
+            if (p.key === "pacotes") {
+              return (
+                <div key={p.key}>
+                  <div className={rowCls} style={{ borderColor: "#e8edf0" }} onClick={() => setPacOpen(o => !o)}>{inner}</div>
+                  {pacOpen && (
+                    <div style={{ background: "#f8fafb" }}>
+                      {pacRisco.length === 0 ? (
+                        <div className="px-[58px] py-3 text-xs text-[#94a3b8] border-b" style={{ borderColor: "#e8edf0" }}>Nenhum pacote perto de acabar.</div>
+                      ) : pacRisco.map((e: any) => { const done = e.remaining <= 0; return (
+                        <Link key={e.id} href={`/dashboard/erp/pets/${e.petId}`} className="flex items-center gap-2 px-[58px] py-2.5 border-b hover:bg-[#e6f6f8]/60 text-xs" style={{ borderColor: "#e8edf0" }}>
+                          <span className="font-medium text-[#1e293b]">{e.petName}</span>
+                          <span className="text-[#64748b] truncate max-w-[120px]">· {e.nome}</span>
+                          <div className="flex items-center gap-1 ml-auto">
+                            <div className="w-16 h-1.5 rounded-full bg-gray-200 overflow-hidden"><div className="h-full" style={{ width: `${e.total ? Math.min(100, (e.used / e.total) * 100) : 0}%`, background: done ? "#0F6E56" : "#BA7517" }} /></div>
+                            <span className="text-[10px] text-[#64748b]">{e.used}/{e.total}</span>
+                            <span className="text-[10px] px-2 py-0.5 rounded-full" style={done ? { background: "#E1F5EE", color: "#0F6E56" } : { background: "#FCE5C8", color: "#8A5A0F" }}>{done ? "Concluído" : "Penúltima"}</span>
+                          </div>
+                        </Link>
+                      ); })}
+                    </div>
+                  )}
+                </div>
+              );
+            }
             if (p.key === "tutores") {
               const tcor: Record<string, { bg: string; fg: string }> = { Cliente: { bg: "#E0F4F6", fg: "#00798A" }, Pet: { bg: "#E1F5EE", fg: "#0F6E56" }, Lead: { bg: "#E6F1FB", fg: "#0C447C" } };
               return (
