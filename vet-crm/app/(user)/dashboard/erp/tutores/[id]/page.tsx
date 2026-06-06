@@ -383,39 +383,6 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
               <input type="date" value={fuDate} onChange={(e) => setFuDate(e.target.value)} className="flex-1 px-2 py-1.5 border border-[#d8d0bc] rounded text-[11px] text-[#0E2244]" />
               <button onClick={saveFollowup} disabled={savingFu} className="bg-[#009AAC] text-white px-3 py-1.5 rounded text-[11px] font-medium disabled:opacity-50">{savingFu ? "..." : "Agendar"}</button>
             </div>
-
-            <div className="mt-3 pt-3 border-t border-[#f0e8d4]">
-              <div className="flex items-center gap-1.5 mb-2">
-                <span style={{ fontSize: "13px" }}>💬</span>
-                <h4 className="text-[12px] text-[#0E2244] font-medium">Interações <span className="text-[10px] text-gray-400">({interacoes.length})</span></h4>
-              </div>
-              <div className="flex gap-1.5 mb-2">
-                <select value={intTipo} onChange={(e) => setIntTipo(e.target.value)} className="border border-[#d8d0bc] rounded px-1.5 py-1 text-[11px]">
-                  <option value="NOTA">Nota</option>
-                  <option value="LIGACAO">Ligação</option>
-                  <option value="WHATSAPP_ENVIADO">WhatsApp</option>
-                  <option value="PRESENCIAL">Presencial</option>
-                </select>
-                <input value={intTexto} onChange={(e) => setIntTexto(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addInteracao(); }} placeholder="Registrar..." className="flex-1 min-w-0 border border-[#d8d0bc] rounded px-2 py-1 text-[11px]" />
-                <button onClick={addInteracao} disabled={savingInt} className="bg-[#009AAC] text-white px-2.5 py-1 rounded text-[11px] font-medium disabled:opacity-50">{savingInt ? "..." : "+"}</button>
-              </div>
-              {interacoes.length === 0 ? (
-                <p className="text-center text-[11px] text-gray-400 py-2">Nenhuma interação ainda</p>
-              ) : (
-                <div className="flex flex-col gap-1.5 max-h-60 overflow-auto">
-                  {interacoes.map((it: any) => (
-                    <div key={it.id} className="bg-[#fbfaf6] rounded px-2.5 py-1.5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-medium text-[#00798A]">{it.tipo}{it.canal ? ` · ${it.canal}` : ""}</span>
-                        <span className="text-[10px] text-gray-400">{new Date(it.createdAt).toLocaleDateString("pt-BR")} {new Date(it.createdAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</span>
-                      </div>
-                      <p className="text-[11px] text-[#0E2244] mt-0.5">{it.texto}</p>
-                      {it.autor?.name && <p className="text-[10px] text-gray-400 mt-0.5">por {it.autor.name}</p>}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
           </div>
 
           {tutor.score && (
@@ -529,6 +496,35 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
             )}
           </div>
 
+          {/* Histórico de Interações — observações pros próximos atendentes (cresce com uso) */}
+          <AccordionCard icon={() => <span style={{fontSize:"14px"}}>💬</span>} title="Histórico de interações" count={interacoes.length}>
+            <div className="flex gap-2 mb-2">
+              <select value={intTipo} onChange={(e) => setIntTipo(e.target.value)} className="border border-[#d8d0bc] rounded px-2 py-1 text-[11px]">
+                <option value="NOTA">Nota</option>
+                <option value="LIGACAO">Ligação</option>
+                <option value="WHATSAPP_ENVIADO">WhatsApp</option>
+                <option value="PRESENCIAL">Presencial</option>
+              </select>
+              <input value={intTexto} onChange={(e) => setIntTexto(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addInteracao(); }} placeholder="Registrar o que foi feito..." className="flex-1 border border-[#d8d0bc] rounded px-2 py-1 text-[11px]" />
+              <button onClick={addInteracao} disabled={savingInt} className="bg-[#009AAC] text-white px-2.5 py-1 rounded text-[11px] font-medium disabled:opacity-50">{savingInt ? "..." : "Salvar"}</button>
+            </div>
+            {interacoes.length === 0 ? (
+              <p className="text-center text-[11px] text-gray-400 py-4">Nenhuma interação ainda</p>
+            ) : (
+              <div className="flex flex-col gap-1.5 max-h-72 overflow-auto">
+                {interacoes.map((it: any) => (
+                  <div key={it.id} className="bg-[#fbfaf6] rounded px-2.5 py-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-medium text-[#00798A]">{it.tipo}{it.canal ? ` · ${it.canal}` : ""}</span>
+                      <span className="text-[10px] text-gray-400">{new Date(it.createdAt).toLocaleDateString("pt-BR")} {new Date(it.createdAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</span>
+                    </div>
+                    <p className="text-[11px] text-[#0E2244] mt-0.5">{it.texto}</p>
+                    {it.autor?.name && <p className="text-[10px] text-gray-400 mt-0.5">por {it.autor.name}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </AccordionCard>
         </div>
 
         {/* Coluna direita — Atendimentos + Sequências + Emails (compactos) */}
