@@ -58,6 +58,8 @@ export default function HojePage() {
 
   const [data, setData] = useState<HojeData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [examesPend, setExamesPend] = useState<any[]>([]);
+  const [examesOpen, setExamesOpen] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -65,6 +67,28 @@ export default function HojePage() {
       const res = await fetch("/api/hoje");
       const d = await safeJson<HojeData | null>(res, null);
       setData(d);
+      try {
+        const [lst, pts] = await Promise.all([
+          safeJson<any>(await fetch("/api/listas"), []),
+          safeJson<any>(await fetch("/api/pets?limit=1000"), []),
+        ]);
+        const listArr = Array.isArray(lst) ? lst : (lst.itens || lst.data || []);
+        const petArr = Array.isArray(pts) ? pts : (pts.pets || pts.data || []);
+        const petMap: Record<string, string> = {};
+        petArr.forEach((p: any) => { petMap[p.id] = p.name; });
+        const ex: any[] = [];
+        for (const it of listArr) {
+          if ((it.lista || "").startsWith("petexa_")) {
+            let dd: any = {}; try { dd = JSON.parse(it.valor); } catch {}
+            const st = dd.status || "Solicitado";
+            if (st !== "Resultado entregue ao tutor" && st !== "Pago ao laboratório") {
+              const petId = it.lista.replace("petexa_", "");
+              ex.push({ id: it.id, petId, petName: petMap[petId] || "Pet", nome: dd.nome, status: st });
+            }
+          }
+        }
+        setExamesPend(ex);
+      } catch {}
       setLoading(false);
     })();
   }, []);
@@ -112,7 +136,7 @@ export default function HojePage() {
         key: "exames",
         title: "Exames a entregar",
         sub: "Resultados aguardando envio ao tutor",
-        count: data.examesAEntregar || 0,
+        count: examesPend.length,
         link: "Pets",
         href: "/dashboard/erp/pets?exames=pendentes",
         Icon: LuFlaskConical,
@@ -127,7 +151,7 @@ export default function HojePage() {
         Icon: LuCake,
       },
     ];
-  }, [data]);
+  }, [data, examesPend]);
 
   const total = items.reduce((s, t) => s + t.count, 0);
 
@@ -152,33 +176,47 @@ export default function HojePage() {
         ) : items.length === 0 ? (
           <div className="px-6 py-10 text-center text-sm text-[#94a3b8]">Tudo em ordem por aqui. 🎉</div>
         ) : (
-          items.map((p, i) => (
-            <Link
-              key={p.key}
-              href={p.href}
-              className="flex items-center gap-3.5 px-[18px] py-[13px] border-b hover:bg-[#e6f6f8]/60 transition cursor-pointer"
-              style={{ borderColor: i === items.length - 1 ? "transparent" : "#e8edf0" }}
-            >
-              <div
-                className="w-[38px] h-[38px] rounded-[10px] flex items-center justify-center flex-shrink-0"
-                style={{ background: "#e6f6f8", color: "#009AAC" }}
-              >
-                <p.Icon size={19} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-[13.5px] font-semibold text-[#1e293b]">{p.title}</div>
-                <div className="text-xs text-[#64748b]">{p.sub}</div>
-              </div>
-              <span className="text-[10px] font-bold uppercase tracking-wide text-[#009AAC] hidden sm:block">{p.link}</span>
-              <span
-                className="text-[13px] font-bold text-white min-w-[26px] h-6 rounded-xl flex items-center justify-center px-2 flex-shrink-0"
-                style={{ background: p.count > 0 ? "linear-gradient(90deg, #009AAC, #00B4C4)" : "#cbd5e1" }}
-              >
-                {p.count}
-              </span>
-              <LuChevronRight size={16} className="text-[#94a3b8] flex-shrink-0" />
-            </Link>
-          ))
+          items.map((p, i) => {
+            const inner = (
+              <>
+                <div className="w-[38px] h-[38px] rounded-[10px] flex items-center justify-center flex-shrink-0" style={{ background: "#e6f6f8", color: "#009AAC" }}>
+                  <p.Icon size={19} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[13.5px] font-semibold text-[#1e293b]">{p.title}</div>
+                  <div className="text-xs text-[#64748b]">{p.sub}</div>
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-wide text-[#009AAC] hidden sm:block">{p.link}</span>
+                <span className="text-[13px] font-bold text-white min-w-[26px] h-6 rounded-xl flex items-center justify-center px-2 flex-shrink-0" style={{ background: p.count > 0 ? "linear-gradient(90deg, #009AAC, #00B4C4)" : "#cbd5e1" }}>{p.count}</span>
+                <LuChevronRight size={16} className="text-[#94a3b8] flex-shrink-0" />
+              </>
+            );
+            const rowCls = "flex items-center gap-3.5 px-[18px] py-[13px] border-b hover:bg-[#e6f6f8]/60 transition cursor-pointer";
+            const rowStyle = { borderColor: i === items.length - 1 && !(p.key === "exames" && examesOpen) ? "transparent" : "#e8edf0" } as any;
+            if (p.key === "exames") {
+              return (
+                <div key={p.key}>
+                  <div className={rowCls} style={rowStyle} onClick={() => setExamesOpen(o => !o)}>{inner}</div>
+                  {examesOpen && (
+                    <div style={{ background: "#f8fafb" }}>
+                      {examesPend.length === 0 ? (
+                        <div className="px-[58px] py-3 text-xs text-[#94a3b8] border-b" style={{ borderColor: "#e8edf0" }}>Nenhum exame em acompanhamento.</div>
+                      ) : examesPend.map((e: any) => (
+                        <Link key={e.id} href={`/dashboard/erp/pets/${e.petId}`} className="flex items-center gap-2 px-[58px] py-2.5 border-b hover:bg-[#e6f6f8]/60 text-xs" style={{ borderColor: "#e8edf0" }}>
+                          <span className="font-medium text-[#1e293b]">{e.petName}</span>
+                          <span className="text-[#64748b]">· {e.nome}</span>
+                          <span className="ml-auto text-[11px] px-2 py-0.5 rounded-full" style={{ background: "#E0F4F6", color: "#00798A" }}>{e.status}</span>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            }
+            return (
+              <Link key={p.key} href={p.href} className={rowCls} style={{ borderColor: i === items.length - 1 ? "transparent" : "#e8edf0" }}>{inner}</Link>
+            );
+          })
         )}
       </div>
 
