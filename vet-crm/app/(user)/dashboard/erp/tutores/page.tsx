@@ -14,7 +14,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { LuSearch, LuPlus, LuUpload, LuPawPrint, LuTrash } from "react-icons/lu";
+import { useRouter } from "next/navigation";
+import { LuSearch, LuPlus, LuUpload, LuPawPrint, LuTrash, LuX, LuExternalLink } from "react-icons/lu";
 
 type Filter = "Cliente" | "Fornecedor" | "Parceiro" | "Ex_cliente" | "Todos";
 
@@ -100,6 +101,32 @@ export default function ClientesPage() {
   const [search, setSearch] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
+  const [novoOpen, setNovoOpen] = useState(false);
+  const [novoNome, setNovoNome] = useState("");
+  const [novoTel, setNovoTel] = useState("");
+  const [novoSaving, setNovoSaving] = useState(false);
+
+  const handleCriarCliente = async () => {
+    if (!novoNome.trim() || !novoTel.replace(/\D/g, "")) { window.alert("Informe nome e telefone."); return; }
+    setNovoSaving(true);
+    try {
+      const res = await fetch("/api/tutors", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ name: novoNome.trim(), contacts: [{ type: "MOBILE", number: novoTel.replace(/\D/g, ""), isPrimary: true, isWhatsApp: true }] }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const novo = await res.json();
+      if (novo?.id) router.push(`/dashboard/erp/tutores/${novo.id}`);
+      else window.location.reload();
+    } catch (e) {
+      window.alert("Não foi possível criar o cliente. Verifique se o telefone já está cadastrado.");
+    } finally {
+      setNovoSaving(false);
+    }
+  };
 
   const handleImportTutores = async () => {
     const file = importInputRef.current?.files?.[0];
@@ -203,9 +230,9 @@ export default function ClientesPage() {
           <button onClick={() => importInputRef.current?.click()} className="bg-white border border-[#cfd8e0] px-3 py-1.5 rounded-lg text-xs text-[#4d5a66] flex items-center gap-1.5">
             <LuUpload className="w-3.5 h-3.5" />Importar CSV
           </button>
-          <Link href="/dashboard/erp/tutores/novo" className="bg-[#009AAC] text-white px-3.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5">
+          <button onClick={() => { setNovoNome(""); setNovoTel(""); setNovoOpen(true); }} className="bg-[#009AAC] text-white px-3.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5">
             <LuPlus className="w-3.5 h-3.5" />Novo cliente
-          </Link>
+          </button>
         </div>
       </header>
 
@@ -239,7 +266,7 @@ export default function ClientesPage() {
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-[#F8F3E4] border-b border-[#d8d0bc] text-[11px] text-[#5b6470] font-medium">
-              <th className="text-left py-2.5 px-3">Tutor</th>
+              <th className="text-left py-2.5 px-3">Cliente</th>
               <th className="text-left py-2.5 px-3">Pets</th>
               <th className="text-left py-2.5 px-3">Telefone</th>
               <th className="text-left py-2.5 px-3">Última visita</th>
@@ -304,6 +331,26 @@ export default function ClientesPage() {
           </tbody>
         </table>
       </div>
+
+      {novoOpen && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center pt-24" onClick={() => setNovoOpen(false)}>
+          <div className="bg-white rounded-2xl p-5 w-[400px] max-w-[92vw]" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-medium text-[#0E2244]">Novo Cliente</h2>
+              <button onClick={() => setNovoOpen(false)} className="text-gray-400 hover:text-gray-600"><LuX className="w-4 h-4" /></button>
+            </div>
+            <label className="text-[11px] text-[#5b6470]">Nome *</label>
+            <input autoFocus value={novoNome} onChange={(e) => setNovoNome(e.target.value)} placeholder="Nome completo" className="w-full h-9 mt-0.5 mb-3 px-3 border border-[#d8d0bc] rounded-lg text-sm focus:outline-none focus:border-[#009AAC]" />
+            <label className="text-[11px] text-[#5b6470]">Telefone *</label>
+            <input value={novoTel} onChange={(e) => setNovoTel(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") handleCriarCliente(); }} placeholder="(85) 9 9999-9999" className="w-full h-9 mt-0.5 px-3 border border-[#d8d0bc] rounded-lg text-sm focus:outline-none focus:border-[#009AAC]" />
+            <p className="text-[10px] text-gray-400 mt-1.5">Depois de criar, você completa o resto (CPF, endereço, pet…) direto na ficha.</p>
+            <div className="flex gap-2 justify-end mt-4">
+              <button onClick={() => setNovoOpen(false)} className="px-4 py-2 border border-[#cfd8e0] rounded-lg text-sm text-[#5b6470]">Cancelar</button>
+              <button onClick={handleCriarCliente} disabled={novoSaving} className="px-4 py-2 rounded-lg text-sm text-white disabled:opacity-50 flex items-center gap-1.5" style={{ background: "#009AAC" }}><LuExternalLink className="w-3.5 h-3.5" /> {novoSaving ? "Criando…" : "Criar e abrir ficha"}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
