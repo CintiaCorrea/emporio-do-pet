@@ -1,3 +1,4 @@
+// [EMP-COWORK] fix: bloco de `items` movido pra fora do if de `treatments` (servicos salvavam so com tratamento). Cintia 06/06.
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService, PrismaTransactionClient } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
@@ -115,6 +116,7 @@ export class AppointmentsService {
             petId: finalPetId!,
           })),
         });
+      }
 
       // Items (serviços/exames) — cobrança detalhada
       const itemsDto = (createAppointmentDto as any).items as any[] | undefined;
@@ -144,7 +146,6 @@ export class AppointmentsService {
             };
           }),
         });
-      }
       }
 
       return tx.appointment.findUnique({
