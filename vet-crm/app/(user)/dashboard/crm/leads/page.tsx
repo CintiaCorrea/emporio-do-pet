@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { LuSearch, LuPlus, LuUpload, LuDownload, LuTrash, LuPhone, LuStickyNote, LuFootprints } from "react-icons/lu";
 
@@ -54,6 +54,35 @@ const getInitials = (name: string | null) => {
   return ((parts[0]?.[0] || "") + (parts[1]?.[0] || "")).toUpperCase() || name.slice(0, 2).toUpperCase();
 };
 
+function parseCSVText(text: string): Record<string, string>[] {
+  const clean = text.replace(/\r/g, "");
+  const firstLine = clean.split("\n")[0] || "";
+  const sep = (firstLine.match(/;/g) || []).length > (firstLine.match(/,/g) || []).length ? ";" : ",";
+  const parseLine = (line: string): string[] => {
+    const out: string[] = []; let cur = ""; let q = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (q) { if (c === '"') { if (line[i + 1] === '"') { cur += '"'; i++; } else q = false; } else cur += c; }
+      else { if (c === '"') q = true; else if (c === sep) { out.push(cur); cur = ""; } else cur += c; }
+    }
+    out.push(cur); return out;
+  };
+  const lines = clean.split("\n").filter((l) => l.trim());
+  if (!lines.length) return [];
+  const headers = parseLine(lines[0]).map((h) => h.trim().toLowerCase());
+  return lines.slice(1).map((line) => {
+    const cells = parseLine(line);
+    const obj: Record<string, string> = {};
+    headers.forEach((h, i) => { obj[h] = (cells[i] || "").trim(); });
+    return obj;
+  });
+}
+
+function pickField(row: Record<string, string>, keys: string[]): string {
+  for (const k of keys) { if (row[k]) return row[k]; }
+  return "";
+}
+
 export default function LeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,6 +94,55 @@ export default function LeadsPage() {
   const [stageFilter, setStageFilter] = useState("");
   const [channelFilter, setChannelFilter] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
+
+  const downloadCSV = () => {
+    const headers = ["nome", "telefone", "email", "canal", "etapa", "pet", "servico", "score"];
+    const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const linhas = filtered.map((l) => [
+      l.name || "", l.phone || "", l.email || "", l.channel || "",
+      l.status || "", l.customFields?.petName || "",
+      l.customFields?.servicoInteresse || l.sourceDetail || "", l.currentScore || 0,
+    ].map(esc).join(","));
+    const csv = [headers.join(","), ...linhas].join("\n");
+    const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `leads_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportLeads = async () => {
+    const file = importInputRef.current?.files?.[0];
+    if (importInputRef.current) importInputRef.current.value = "";
+    if (!file) return;
+    const rows = parseCSVText(await file.text());
+    if (!rows.length) { window.alert("Planilha vazia ou ilegivel. Use colunas como: nome, telefone, email."); return; }
+    let ok = 0, fail = 0;
+    for (const r of rows) {
+      const nome = pickField(r, ["nome", "name", "cliente", "tutor"]);
+      const telefone = pickField(r, ["telefone", "phone", "celular", "whatsapp", "fone"]).replace(/\D/g, "");
+      const email = pickField(r, ["email", "e-mail"]);
+      if (!telefone && !email) { fail++; continue; }
+      try {
+        const res = await fetch("/api/leads", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            name: nome || null,
+            phone: telefone || undefined,
+            email: email || `contato+${telefone}@emporiodopet.crm`,
+          }),
+        });
+        if (res.ok) ok++; else fail++;
+      } catch { fail++; }
+    }
+    window.alert(`Importacao concluida: ${ok} importados, ${fail} com erro.`);
+    window.location.reload();
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -155,10 +233,11 @@ export default function LeadsPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <button className="bg-white border border-[#cfd8e0] px-3 py-1.5 rounded-lg text-xs text-[#4d5a66] flex items-center gap-1.5">
+          <input ref={importInputRef} type="file" accept=".csv,text/csv" className="hidden" onChange={handleImportLeads} />
+          <button onClick={() => importInputRef.current?.click()} className="bg-white border border-[#cfd8e0] px-3 py-1.5 rounded-lg text-xs text-[#4d5a66] flex items-center gap-1.5">
             <LuUpload className="w-3.5 h-3.5" />Importar
           </button>
-          <button className="bg-white border border-[#cfd8e0] px-3 py-1.5 rounded-lg text-xs text-[#4d5a66] flex items-center gap-1.5">
+          <button onClick={downloadCSV} className="bg-white border border-[#cfd8e0] px-3 py-1.5 rounded-lg text-xs text-[#4d5a66] flex items-center gap-1.5">
             <LuDownload className="w-3.5 h-3.5" />CSV
           </button>
           <Link href="/dashboard/crm/leads/novo" className="bg-[#009AAC] text-white px-3.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5">
