@@ -293,47 +293,6 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
         </div>
       </div>
 
-      {/* Qualificação destacada (em cima — falta preencher) */}
-      <div className="bg-[#FFF8E1] border border-[#FCD194] border-l-[3px] border-l-[#BA7517] rounded-xl px-4 py-2.5 mb-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <span style={{fontSize:"14px"}}>📋</span>
-            <h3 className="text-[13px] text-[#0E2244] font-medium">Qualificação</h3>
-            <div className="flex gap-1">
-              {([["qualSituacaoPet", "1. Situação do pet hoje?"], ["qualQueMaisIncomoda", "2. O que mais incomoda?"], ["qualTentouOutroVet", "3. Já tentou outro vet?"], ["qualOQueMudaResolver", "4. O que muda ao resolver?"], ["qualQuemDecide", "5. Quem decide?"]] as [string, string][]).map(([k, label]) => { const filled = !!((qual as any)[k] || "").trim(); return (
-                <span key={k} title={label} onClick={() => setQualOpen(true)} style={{ fontSize: "16px", color: filled ? "#BA7517" : "#dcc9a0", cursor: "pointer" }}>{filled ? "★" : "☆"}</span>
-              ); })}
-            </div>
-            <span className="text-[10px] text-[#8A5A0F]">{answered}/5</span>
-          </div>
-          <button onClick={() => setQualOpen(v => !v)} className="text-[11px] text-[#8A5A0F] font-medium">{qualOpen ? "Fechar" : "Preencher"}</button>
-        </div>
-        {qualOpen && (
-        <div className="mt-3">
-        <div className="grid grid-cols-2 gap-3">
-          {[
-            ["qualSituacaoPet", "1. Situação do pet hoje?"],
-            ["qualQueMaisIncomoda", "2. O que mais incomoda?"],
-            ["qualTentouOutroVet", "3. Já tentou outro vet?"],
-            ["qualOQueMudaResolver", "4. O que muda ao resolver?"],
-          ].map(([key, label]) => (
-            <div key={key}>
-              <label className="block text-xs text-[#0E2244] font-medium mb-1">{label}</label>
-              <input value={(qual as any)[key]} onChange={(e) => setQual({ ...qual, [key]: e.target.value })} placeholder="Resposta..." className="w-full bg-white border border-[#d8d0bc] rounded px-2.5 py-1.5 text-xs focus:outline-none focus:border-[#009AAC]" />
-            </div>
-          ))}
-          <div className="col-span-2">
-            <label className="block text-xs text-[#0E2244] font-medium mb-1">5. Quem decide?</label>
-            <input value={qual.qualQuemDecide} onChange={(e) => setQual({ ...qual, qualQuemDecide: e.target.value })} placeholder="Resposta..." className="w-full bg-white border border-[#d8d0bc] rounded px-2.5 py-1.5 text-xs focus:outline-none focus:border-[#009AAC]" />
-          </div>
-        </div>
-        <div className="mt-3 flex justify-end">
-          <button onClick={saveQualification} className="bg-[#BA7517] text-white px-4 py-1.5 rounded-lg text-xs font-medium">Salvar respostas</button>
-        </div>
-        </div>
-        )}
-      </div>
-
       {/* Score + Pipeline + Follow-up + Etiquetas (4 col) — sobe FU e Etiquetas do final */}
       <div className="grid grid-cols-4 gap-2.5 mb-3">
         <div className="bg-white rounded-xl border border-[#d8d0bc] p-3">
@@ -403,6 +362,20 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
             <div><strong className="text-[#0E2244] font-medium">Canal:</strong> {lead.channel || "WhatsApp"}</div>
             <div><strong className="text-[#0E2244] font-medium">Serviço:</strong> {customFields.servicoInteresse || "—"}</div>
             <div><strong className="text-[#0E2244] font-medium">Valor:</strong> {customFields.valor ? `R$ ${customFields.valor}` : "—"}</div>
+          </div>
+          <div className="mt-3 pt-3 border-t border-[#f0e8d4]">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-[11px] text-[#5b6470] tracking-wide font-medium">QUALIFICAÇÃO <span className="text-[#8A5A0F]">· {answered}/5</span></h3>
+              <button onClick={saveQualification} className="bg-[#BA7517] text-white px-3 py-1 rounded-lg text-[10px] font-medium">Salvar</button>
+            </div>
+            <div className="space-y-2">
+              {([["qualSituacaoPet", "1. Situação do pet hoje?"], ["qualQueMaisIncomoda", "2. O que mais incomoda?"], ["qualTentouOutroVet", "3. Já tentou outro vet?"], ["qualOQueMudaResolver", "4. O que muda ao resolver?"], ["qualQuemDecide", "5. Quem decide?"]] as [string, string][]).map(([key, label]) => (
+                <div key={key}>
+                  <label className="block text-[11px] text-[#0E2244] font-medium mb-0.5">{label}</label>
+                  <input value={(qual as any)[key]} onChange={(e) => setQual({ ...qual, [key]: e.target.value })} placeholder="Resposta..." className="w-full bg-white border border-[#d8d0bc] rounded px-2.5 py-1.5 text-xs focus:outline-none focus:border-[#009AAC]" />
+                </div>
+              ))}
+            </div>
           </div>
         </div>
         <div className="bg-white rounded-xl border border-[#d8d0bc] p-3">
