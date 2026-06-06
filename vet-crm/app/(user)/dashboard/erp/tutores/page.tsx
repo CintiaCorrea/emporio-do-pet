@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { LuSearch, LuPlus, LuUpload, LuDownload, LuPawPrint } from "react-icons/lu";
+import { LuSearch, LuPlus, LuUpload, LuDownload, LuPawPrint, LuTrash } from "react-icons/lu";
 
 type Filter = "Cliente" | "Fornecedor" | "Parceiro" | "Ex_cliente" | "Todos";
 
@@ -49,11 +49,89 @@ const isAniversariante = (birthDate?: string | null) => {
   return d.getMonth() === today.getMonth();
 };
 
+function parseCSVText(text: string): Record<string, string>[] {
+  const clean = text.replace(/\r/g, "");
+  const firstLine = clean.split("\n")[0] || "";
+  const sep = (firstLine.match(/;/g) || []).length > (firstLine.match(/,/g) || []).length ? ";" : ",";
+  const parseLine = (line: string): string[] => {
+    const out: string[] = []; let cur = ""; let q = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (q) { if (c === '"') { if (line[i + 1] === '"') { cur += '"'; i++; } else q = false; } else cur += c; }
+      else { if (c === '"') q = true; else if (c === sep) { out.push(cur); cur = ""; } else cur += c; }
+    }
+    out.push(cur); return out;
+  };
+  const lines = clean.split("\n").filter((l) => l.trim());
+  if (!lines.length) return [];
+  const headers = parseLine(lines[0]).map((h) => h.trim().toLowerCase());
+  return lines.slice(1).map((line) => {
+    const cells = parseLine(line);
+    const obj: Record<string, string> = {};
+    headers.forEach((h, i) => { obj[h] = (cells[i] || "").trim(); });
+    return obj;
+  });
+}
+
+function pickField(row: Record<string, string>, keys: string[]): string {
+  for (const k of keys) { if (row[k]) return row[k]; }
+  return "";
+}
+
 export default function ClientesPage() {
   const [tutores, setTutores] = useState<Tutor[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<Filter>("Cliente");
   const [search, setSearch] = useState("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImportTutores = async () => {
+    const file = importInputRef.current?.files?.[0];
+    if (importInputRef.current) importInputRef.current.value = "";
+    if (!file) return;
+    const rows = parseCSVText(await file.text());
+    if (!rows.length) { window.alert("Planilha vazia ou ilegivel. Use colunas como: nome, telefone, email."); return; }
+    let ok = 0, fail = 0;
+    for (const r of rows) {
+      const nome = pickField(r, ["nome", "name", "cliente", "tutor"]);
+      const telefone = pickField(r, ["telefone", "phone", "celular", "whatsapp", "fone"]).replace(/\D/g, "");
+      const email = pickField(r, ["email", "e-mail"]);
+      if (!nome) { fail++; continue; }
+      try {
+        const res = await fetch("/api/tutors", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            name: nome,
+            ...(email ? { email } : {}),
+            contacts: telefone ? [{ type: "MOBILE", number: telefone, isPrimary: true, isWhatsApp: true }] : [],
+          }),
+        });
+        if (res.ok) ok++; else fail++;
+      } catch { fail++; }
+    }
+    window.alert(`Importacao concluida: ${ok} importados, ${fail} com erro.`);
+    window.location.reload();
+  };
+
+  const handleDeleteTutor = async (tutor: Tutor) => {
+    if (deletingId) return;
+    const label = tutor.name || "este cliente";
+    if (!window.confirm(`Excluir ${label}? Os pets vinculados tambem serao removidos. Esta acao nao pode ser desfeita.`)) return;
+    setDeletingId(tutor.id);
+    try {
+      const res = await fetch(`/api/tutors/${tutor.id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error(await res.text());
+      setTutores((prev) => prev.filter((x) => x.id !== tutor.id));
+    } catch (e) {
+      console.error(e);
+      window.alert("Nao foi possivel excluir o cliente. Tente novamente.");
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   useEffect(() => {
     (async () => {
@@ -106,7 +184,8 @@ export default function ClientesPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <button className="bg-white border border-[#cfd8e0] px-3 py-1.5 rounded-lg text-xs text-[#4d5a66] flex items-center gap-1.5">
+          <input ref={importInputRef} type="file" accept=".csv,text/csv" className="hidden" onChange={handleImportTutores} />
+          <button onClick={() => importInputRef.current?.click()} className="bg-white border border-[#cfd8e0] px-3 py-1.5 rounded-lg text-xs text-[#4d5a66] flex items-center gap-1.5">
             <LuUpload className="w-3.5 h-3.5" />Importar
           </button>
           <Link href="/dashboard/erp/tutores/novo" className="bg-[#009AAC] text-white px-3.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5">
@@ -150,13 +229,14 @@ export default function ClientesPage() {
               <th className="text-left py-2.5 px-3">Telefone</th>
               <th className="text-left py-2.5 px-3">Status</th>
               <th className="text-right py-2.5 px-3">Cliente desde</th>
+              <th className="text-right py-2.5 px-3"></th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={5} className="py-12 text-center text-gray-400">Carregando...</td></tr>
+              <tr><td colSpan={6} className="py-12 text-center text-gray-400">Carregando...</td></tr>
             ) : filtered.length === 0 ? (
-              <tr><td colSpan={5} className="py-12 text-center text-gray-400">Nenhum cliente nesse filtro</td></tr>
+              <tr><td colSpan={6} className="py-12 text-center text-gray-400">Nenhum cliente nesse filtro</td></tr>
             ) : (
               filtered.map((t) => {
                 const phone = t.contacts?.find((c) => c.isPrimary)?.number || t.contacts?.[0]?.number;
@@ -193,6 +273,11 @@ export default function ClientesPage() {
                     </td>
                     <td className="py-2.5 px-3 text-right text-[#4d5a66] text-[11px]">
                       {new Date(t.createdAt).toLocaleDateString("pt-BR")}
+                    </td>
+                    <td className="py-2.5 px-3 text-right">
+                      <button type="button" onClick={() => handleDeleteTutor(t)} disabled={deletingId === t.id} title="Excluir cliente" className="disabled:opacity-40 p-1 hover:bg-gray-100 rounded">
+                        <LuTrash className="w-3.5 h-3.5 text-[#cfd8e0] hover:text-[#A32D2D]" />
+                      </button>
                     </td>
                   </tr>
                 );
