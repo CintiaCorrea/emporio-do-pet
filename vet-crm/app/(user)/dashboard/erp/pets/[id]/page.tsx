@@ -415,8 +415,8 @@ export default function PetDetailPage() {
 
       {/* 3 colunas: Clínica/Pacotes/Exames | Pipelines+Cadência | Painel do pet */}
       <div className="max-w-7xl mx-auto px-6 pt-3 grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-5 items-start">
-        <div className="lg:columns-2 gap-4">
-        <div className="bg-white border rounded-xl overflow-hidden break-inside-avoid mb-4" style={{ borderColor: "#E8DFC8" }}>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+        <div className="bg-white border rounded-xl overflow-hidden" style={{ borderColor: "#E8DFC8" }}>
             <div className="flex border-b" style={{ borderColor: "#E8DFC8" }}>
               {(
                 [
@@ -564,7 +564,7 @@ export default function PetDetailPage() {
               </div>
             )}
         </div>
-          <div className="bg-white border rounded-xl p-4 break-inside-avoid mb-4" style={{ borderColor: "#E8DFC8" }}>
+          <div className="bg-white border rounded-xl p-4" style={{ borderColor: "#E8DFC8" }}>
                 <section>
                   <h3 className="text-sm font-semibold mb-2" style={{ color: "#0E2244" }}>Pipelines do Pet</h3>
                   <div className="border rounded-xl divide-y" style={{ borderColor: "#E8DFC8" }}>
@@ -587,7 +587,7 @@ export default function PetDetailPage() {
                   </div>
                 </section>
           </div>
-          <div className="bg-white border rounded-xl p-4 break-inside-avoid mb-4" style={{ borderColor: "#E8DFC8" }}>
+          <div className="bg-white border rounded-xl p-4" style={{ borderColor: "#E8DFC8" }}>
                 <section>
                   <h3 className="text-sm font-semibold mb-2 flex items-center gap-2" style={{ color: "#0E2244" }}>
                     <LuClock size={14} /> Cadência de acompanhamento
