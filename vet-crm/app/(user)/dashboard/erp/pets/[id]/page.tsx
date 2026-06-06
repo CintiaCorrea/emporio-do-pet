@@ -62,6 +62,8 @@ function speciesEnum(sp: string): string {
   return "OTHER";
 }
 
+const ATD_TIPO_LABEL = (t?: string) => (({ CONSULTA: "Consulta", RETORNO: "Retorno", AVALIACAO: "Avaliação", EMERGENCIA: "Emergência", PROCEDIMENTO: "Procedimento", VACINACAO: "Vacinação", SESSAO_FISIO: "Sessão de fisio", CIRURGIA: "Cirurgia", OUTRO: "Outro" } as any)[t || ""] || t || "Atendimento");
+
 export default function PetDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -104,6 +106,12 @@ export default function PetDetailPage() {
   const [atd, setAtd] = useState<any>(ATD0);
   const [items, setItems] = useState<any[]>([]);
   const [servicosCat, setServicosCat] = useState<any[]>([]);
+  const [petInteracoes, setPetInteracoes] = useState<any[]>([]);
+  const [intTipo, setIntTipo] = useState("NOTA");
+  const [intTexto, setIntTexto] = useState("");
+  const [savingInt, setSavingInt] = useState(false);
+  const [atendimentos, setAtendimentos] = useState<any[]>([]);
+  const [verAtd, setVerAtd] = useState<any>(null);
 
   usePageTitle(pet ? pet.name : "Pet", pet?.tutor ? `Tutor: ${pet.tutor.name}` : undefined);
 
@@ -123,7 +131,7 @@ export default function PetDetailPage() {
       setPipes({ clinico: pick("cl\u00edn"), fisio: pick("fisio") });
     } catch {}
   }
-  useEffect(() => { if (petId) { load(); loadPipes(); loadPetColecoes(); loadCatalogos(); } /* eslint-disable-next-line */ }, [petId]);
+  useEffect(() => { if (petId) { load(); loadPipes(); loadPetColecoes(); loadCatalogos(); loadInteracoesPet(); loadAtendimentos(); } /* eslint-disable-next-line */ }, [petId]);
 
   async function handleDelete() {
     const res = await fetch(`/api/pets/${petId}`, { method: "DELETE" });
@@ -236,13 +244,17 @@ export default function PetDetailPage() {
       }
       const r = await fetch("/api/appointments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (!r.ok) throw new Error(await r.text());
-      toast.success("Atendimento registrado"); setAtdOpen(false); setAtd(ATD0); setItems([]); await load();
+      toast.success("Atendimento registrado"); setAtdOpen(false); setAtd(ATD0); setItems([]); await load(); await loadAtendimentos();
     } catch { toast.error("Erro ao registrar atendimento"); } finally { setSavingAtd(false); }
   }
   function addItem() { setItems(prev => [...prev, { servicoId: "", descricao: "", quantidade: 1, valorUnitario: 0, custoUnitario: 0, executorUserId: "", comissaoValor: 0 }]); }
   function updItem(i: number, patch: any) { setItems(prev => prev.map((it, idx) => idx === i ? { ...it, ...patch } : it)); }
   function rmItem(i: number) { setItems(prev => prev.filter((_, idx) => idx !== i)); }
   function pickServico(i: number, servicoId: string) { const sv = servicosCat.find((x: any) => x.id === servicoId); updItem(i, { servicoId, descricao: sv?.nome || "", valorUnitario: sv?.valorPadrao ?? 0, custoUnitario: sv?.custoPadrao ?? 0 }); }
+  async function loadInteracoesPet() { try { const r = await fetch(`/api/interacoes?petId=${petId}&limit=100`, { cache: "no-store" }); const d = await r.json(); setPetInteracoes(Array.isArray(d) ? d : (d.interacoes || d.data || [])); } catch {} }
+  async function addInteracaoPet() { if (!intTexto.trim()) { toast.error("Escreva algo"); return; } setSavingInt(true); try { const r = await fetch(`/api/interacoes`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ petId, tipo: intTipo, texto: intTexto.trim(), canal: "Sistema" }) }); if (!r.ok) throw new Error(); toast.success("Registrado"); setIntTexto(""); await loadInteracoesPet(); } catch { toast.error("Erro ao registrar"); } finally { setSavingInt(false); } }
+  async function loadAtendimentos() { try { const r = await fetch(`/api/appointments?petId=${petId}`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.appointments || d.data || []); setAtendimentos(arr.slice().sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())); } catch {} }
+  async function abrirAtd(id: string) { try { const a = await fetch(`/api/appointments/${id}`, { cache: "no-store" }).then(r => r.json()); setVerAtd(a); } catch { toast.error("Erro ao abrir atendimento"); } }
 
   const tutorWhats = useMemo(() => {
     if (!pet?.tutor?.contacts) return null;
@@ -486,6 +498,25 @@ export default function PetDetailPage() {
                       <input type="date" value={fuDate} onChange={(e) => setFuDate(e.target.value)} className="flex-1 px-2 py-1.5 border rounded-lg text-xs" style={{ borderColor: "#E8DFC8" }} />
                       <button onClick={saveFu} disabled={savingFu} className="px-3 py-1.5 rounded-lg text-xs text-white" style={{ background: "#009AAC" }}>{savingFu ? "..." : "Agendar"}</button>
                     </div>
+                    <div className="mt-3 pt-3 border-t" style={{ borderColor: "#f0e8d4" }}>
+                      <div className="flex items-center gap-1.5 mb-2"><span style={{ fontSize: "13px" }}>💬</span><h4 className="text-xs font-semibold" style={{ color: "#0E2244" }}>Interações <span className="text-[10px] text-gray-400">({petInteracoes.length})</span></h4></div>
+                      <div className="flex gap-1.5 mb-2">
+                        <select value={intTipo} onChange={(e) => setIntTipo(e.target.value)} className="border rounded px-1.5 py-1 text-[11px]" style={{ borderColor: "#E8DFC8" }}><option value="NOTA">Nota</option><option value="LIGACAO">Ligação</option><option value="WHATSAPP_ENVIADO">WhatsApp</option><option value="PRESENCIAL">Presencial</option></select>
+                        <input value={intTexto} onChange={(e) => setIntTexto(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addInteracaoPet(); }} placeholder="Registrar..." className="flex-1 min-w-0 border rounded px-2 py-1 text-[11px]" style={{ borderColor: "#E8DFC8" }} />
+                        <button onClick={addInteracaoPet} disabled={savingInt} className="text-white px-2.5 py-1 rounded text-[11px] font-medium disabled:opacity-50" style={{ background: "#009AAC" }}>{savingInt ? "..." : "+"}</button>
+                      </div>
+                      {petInteracoes.length === 0 ? <p className="text-center text-[11px] text-gray-400 py-2">Nenhuma interação ainda</p> : (
+                        <div className="flex flex-col gap-1.5 max-h-60 overflow-auto">
+                          {petInteracoes.map((it: any) => (
+                            <div key={it.id} className="bg-[#fbfaf6] rounded px-2.5 py-1.5">
+                              <div className="flex items-center justify-between"><span className="text-[10px] font-medium" style={{ color: "#00798A" }}>{it.tipo}{it.canal ? ` · ${it.canal}` : ""}</span><span className="text-[10px] text-gray-400">{new Date(it.createdAt).toLocaleDateString("pt-BR")}</span></div>
+                              <p className="text-[11px] mt-0.5" style={{ color: "#0E2244" }}>{it.texto}</p>
+                              {it.autor?.name && <p className="text-[10px] text-gray-400 mt-0.5">por {it.autor.name}</p>}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </section>
 
@@ -534,9 +565,24 @@ export default function PetDetailPage() {
                       <LuPlus size={12} /> Novo Atendimento
                     </button>
                   </div>
-                  <div className="border rounded-xl p-5 text-center text-sm text-gray-400" style={{ borderColor: "#E8DFC8" }}>
-                    {pet._count?.appointments ? `${pet._count.appointments} consultas registradas.` : "Nenhum atendimento registrado."}
-                  </div>
+                  {atendimentos.length === 0 ? (
+                    <div className="border rounded-xl p-5 text-center text-sm text-gray-400" style={{ borderColor: "#E8DFC8" }}>Nenhum atendimento registrado.</div>
+                  ) : (
+                    <div className="space-y-2">
+                      {atendimentos.map((a: any) => (
+                        <button key={a.id} onClick={() => abrirAtd(a.id)} className="w-full text-left border rounded-xl px-3 py-2 hover:bg-gray-50/60 flex items-center justify-between" style={{ borderColor: "#E8DFC8" }}>
+                          <div>
+                            <div className="text-sm font-medium" style={{ color: "#0E2244" }}>{ATD_TIPO_LABEL(a.type)} <span className="text-[11px] text-gray-400">{new Date(a.date).toLocaleDateString("pt-BR")}</span></div>
+                            <div className="text-[11px] text-gray-500">{a.user?.name || "—"}{a.chiefComplaint ? ` · ${a.chiefComplaint}` : ""}</div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-sm font-medium" style={{ color: "#0F6E56" }}>{Number(a.value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</div>
+                            <div className="text-[10px] text-gray-400">{a.status || ""}</div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </section>
               </div>
             )}
@@ -698,6 +744,49 @@ export default function PetDetailPage() {
               <button onClick={() => setAtdOpen(false)} className="px-4 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8", color: "#475569" }}>Cancelar</button>
               <button onClick={criarAtendimento} disabled={savingAtd} className="px-4 py-2 rounded-lg text-sm text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingAtd ? "Salvando..." : "Salvar atendimento"}</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {verAtd && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center overflow-y-auto py-10" onClick={() => setVerAtd(null)}>
+          <div className="bg-white rounded-2xl w-[600px] max-w-[94vw] p-5" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-base font-semibold" style={{ color: "#0E2244" }}>Atendimento · {new Date(verAtd.date).toLocaleDateString("pt-BR")} {new Date(verAtd.date).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</h2>
+              <button onClick={() => setVerAtd(null)} className="text-gray-400 hover:text-gray-600"><LuX size={16} /></button>
+            </div>
+            <div className="text-xs space-y-2">
+              <div className="grid grid-cols-2 gap-1">
+                <div><span className="text-gray-400">Tipo:</span> {ATD_TIPO_LABEL(verAtd.type)}</div>
+                <div><span className="text-gray-400">Status:</span> {verAtd.status || "—"}</div>
+                <div><span className="text-gray-400">Profissional:</span> {verAtd.user?.name || "—"}</div>
+                <div><span className="text-gray-400">Duração:</span> {verAtd.duration ? `${verAtd.duration} min` : "—"}</div>
+                {verAtd.petWeight != null && <div><span className="text-gray-400">Peso:</span> {verAtd.petWeight} kg</div>}
+                {verAtd.temperature != null && <div><span className="text-gray-400">Temp.:</span> {verAtd.temperature} °C</div>}
+              </div>
+              {([["Queixa principal", "chiefComplaint"], ["Anamnese", "anamnesis"], ["Exame físico", "physicalExam"], ["Diagnóstico", "diagnosis"], ["Conduta", "conduct"], ["Prescrição", "prescription"], ["Exames solicitados", "examsRequested"]] as [string, string][]).map(([l, k]) => (verAtd as any)[k] ? <div key={k}><span className="text-gray-400">{l}:</span> <span style={{ color: "#0E2244" }}>{(verAtd as any)[k]}</span></div> : null)}
+              {Array.isArray(verAtd.items) && verAtd.items.length > 0 && (
+                <div className="pt-1">
+                  <div className="text-[11px] font-semibold text-gray-400 uppercase mb-1">Serviços e valores</div>
+                  <div className="space-y-1">
+                    {verAtd.items.map((it: any) => (
+                      <div key={it.id} className="flex items-center justify-between bg-[#fbfaf6] rounded px-2 py-1">
+                        <span>{it.descricao || "Serviço"} <span className="text-gray-400">x{it.quantidade}</span></span>
+                        <span className="font-medium">{Number(it.valorTotal || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div className="flex items-center justify-between border-t pt-2" style={{ borderColor: "#f0e8d4" }}>
+                <span className="text-gray-400">Total{verAtd.paymentMethod ? ` · ${verAtd.paymentMethod}` : ""}</span>
+                <span className="text-sm font-semibold" style={{ color: "#0F6E56" }}>{Number(verAtd.value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
+              </div>
+              {verAtd.nextReturnDate && <div><span className="text-gray-400">Próximo retorno:</span> {new Date(verAtd.nextReturnDate).toLocaleDateString("pt-BR")}</div>}
+              {verAtd.followUpNotes && <div><span className="text-gray-400">Verificar:</span> {verAtd.followUpNotes}</div>}
+              {verAtd.notes && <div><span className="text-gray-400">Obs.:</span> {verAtd.notes}</div>}
+            </div>
+            <div className="flex justify-end mt-4"><button onClick={() => setVerAtd(null)} className="px-4 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8", color: "#475569" }}>Fechar</button></div>
           </div>
         </div>
       )}
