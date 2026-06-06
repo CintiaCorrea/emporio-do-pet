@@ -5,7 +5,7 @@ import Link from "next/link";
 import {
   LuPlus, LuSearch, LuUserPlus, LuPencil, LuPhone, LuCalendar, LuInbox} from "react-icons/lu";
   import InboxRightPanel from "@/components/inbox/InboxRightPanel";
-  import { usePageTitle, usePageRightSlot } from "@/lib/ui/PageHeaderContext";
+  import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 type Tab = "conversas" | "internas" | "encaminhadas";
 type ListFilter = "todos" | "leads" | "clientes";
 
@@ -136,14 +136,6 @@ export default function InboxUnificadoPage() {
   const [agendaPetDate, setAgendaPetDate] = useState(() => new Date(Date.now() + 86400000).toISOString().substring(0, 16));
   const [agendaPetDesc, setAgendaPetDesc] = useState("");
   const [agendaPetSaving, setAgendaPetSaving] = useState(false);
-
-  usePageRightSlot(
-    <div className="flex items-center gap-2.5">
-      <span className="text-[11px] text-[#5F5E5A] hidden xl:flex items-center gap-1.5"><span style={{fontSize:"13px"}}>🏆</span>Hoje: <b className="text-[#0F6E56]">— resolvidas</b></span>
-      <button onClick={() => setRefreshTick((t) => t + 1)} title="Atualizar" className="bg-white border border-[#cfd8e0] px-3 py-1.5 rounded-lg text-xs text-[#5F5E5A] flex items-center gap-1.5 hover:bg-[#f9f9f9]"><span style={{fontSize:"12px"}}>↻</span>Atualizar</button>
-      <button onClick={() => setNovaMsgOpen(true)} className="bg-[#009AAC] text-white px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5"><LuPlus className="w-3.5 h-3.5" />Nova mensagem</button>
-    </div>
-  );
 
   // Carregar usuários internos
   useEffect(() => {
@@ -429,7 +421,7 @@ export default function InboxUnificadoPage() {
  return (
     <div className="bg-white border border-[#e8e1d2] rounded-xl overflow-hidden m-4 max-w-[1400px] mx-auto flex flex-col h-[calc(100vh-100px)]" style={{background:"#ffffff"}}>
       {/* Tabs */}
-      <div className="px-4 border-b border-[#e8e1d2] flex gap-5 bg-white">
+      <div className="px-4 border-b border-[#e8e1d2] flex gap-5 bg-white items-center">
         <button onClick={() => setTab("conversas")} className={`py-2.5 text-xs font-medium border-b-2 flex items-center gap-1.5 ${tab === "conversas" ? "border-[#009AAC] text-[#0E2244]" : "border-transparent text-[#888780]"}`}>
           Conversas
           <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${tab === "conversas" ? "bg-[#E1F5EE] text-[#0F6E56]" : "bg-[#f0e8d4] text-[#5F5E5A]"}`}>{counts.total}</span>
@@ -441,6 +433,11 @@ export default function InboxUnificadoPage() {
         <button onClick={() => setTab("encaminhadas")} className={`py-2.5 text-xs font-medium border-b-2 ${tab === "encaminhadas" ? "border-[#009AAC] text-[#0E2244]" : "border-transparent text-[#888780]"}`}>
           Encaminhadas
         </button>
+        <div className="ml-auto flex items-center gap-2.5">
+          <span className="text-[11px] text-[#5F5E5A] hidden lg:flex items-center gap-1.5">Hoje: <b className="text-[#0F6E56]">— resolvidas</b></span>
+          <button onClick={() => setRefreshTick((t) => t + 1)} title="Atualizar" className="bg-white border border-[#cfd8e0] px-3 py-1.5 rounded-lg text-xs text-[#5F5E5A] flex items-center gap-1.5 hover:bg-[#f9f9f9]"><span style={{fontSize:"12px"}}>↻</span>Atualizar</button>
+          <button onClick={() => setNovaMsgOpen(true)} className="bg-[#009AAC] text-white px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5"><LuPlus className="w-3.5 h-3.5" />Nova mensagem</button>
+        </div>
       </div>
 
       {tab === "conversas" && (
