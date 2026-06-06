@@ -444,7 +444,7 @@ export default function InboxUnificadoPage() {
       </div>
 
       {tab === "conversas" && (
-        <div className="grid grid-cols-[310px_1fr_340px] flex-1 min-h-0">
+        <div className="grid grid-cols-[310px_1fr_340px] grid-rows-[minmax(0,1fr)] flex-1 min-h-0">
           {/* LEFT - Lista */}
           <div className="border-r border-[#e8e1d2] bg-white flex flex-col min-h-0">
             <div className="p-2.5 flex gap-1.5 flex-wrap border-b border-[#e8e1d2]">
