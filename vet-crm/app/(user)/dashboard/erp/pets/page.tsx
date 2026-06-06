@@ -8,10 +8,21 @@ import PetIcon from "@/components/profile/PetIcon";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { speciesLabel, speciesKey, statusLabel, ageFromBirth } from "@/lib/pets/labels";
 
+const ETAPA_BADGE = (v?: string | null) => {
+  const s = (v || "").toLowerCase();
+  if (s.includes("alta")) return { bg: "#E1F5EE", fg: "#0F6E56" };
+  if (s.includes("abandon") || s.includes("pausa")) return { bg: "#FCEBEB", fg: "#A32D2D" };
+  if (s.includes("aguard") || s.includes("retorno") || s.includes("reaval")) return { bg: "#FAEEDA", fg: "#854F0B" };
+  if (s.includes("tratamento") || s.includes("andamento") || s.includes("sess") || s.includes("avalia")) return { bg: "#E6F1FB", fg: "#0C447C" };
+  return { bg: "#F1EFE8", fg: "#5F5E5A" };
+};
+
 interface Pet {
   id: string;
   name: string;
   species: string;
+  pipelineClinicoEtapa?: string | null;
+  proximoFollowupAt?: string | null;
   breed?: string | null;
   status: string;
   gender?: string | null;
@@ -174,7 +185,7 @@ export default function PetsListPage() {
                 <th className="text-left px-4 py-2.5 font-medium text-gray-500 hidden md:table-cell">Tutor</th>
                 <th className="text-left px-4 py-2.5 font-medium text-gray-500 hidden md:table-cell">Espécie / Raça</th>
                 <th className="text-left px-4 py-2.5 font-medium text-gray-500 hidden lg:table-cell">Idade</th>
-                <th className="text-left px-4 py-2.5 font-medium text-gray-500 hidden lg:table-cell">Status</th>
+                <th className="text-left px-4 py-2.5 font-medium text-gray-500 hidden lg:table-cell">Etapa (clínico)</th>
                 <th className="text-right px-4 py-2.5 font-medium text-gray-500 w-24">Ações</th>
               </tr>
             </thead>
@@ -185,6 +196,7 @@ export default function PetsListPage() {
               )}
               {filtered.map(p => {
                 const st = statusLabel(p.status);
+                const etB = ETAPA_BADGE(p.pipelineClinicoEtapa);
                 return (
                   <tr key={p.id} className="border-b hover:bg-gray-50/60 transition" style={{ borderColor: "#F0EBE0" }}>
                     <td className="px-4 py-2.5">
@@ -195,9 +207,12 @@ export default function PetsListPage() {
                         <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "#e6f6f8", color: "#009AAC" }}>
                           <PetIcon species={p.species} size={18} />
                         </div>
-                        <Link href={`/dashboard/erp/pets/${p.id}`} className="font-medium hover:underline" style={{ color: "#0E2244" }}>
-                          {p.name}
-                        </Link>
+                        <div>
+                          <Link href={`/dashboard/erp/pets/${p.id}`} className="font-medium hover:underline" style={{ color: "#0E2244" }}>
+                            {p.name}
+                          </Link>
+                          {p.proximoFollowupAt && <div className="text-[10px] text-[#BA7517]">FU: {new Date(p.proximoFollowupAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}</div>}
+                        </div>
                       </div>
                     </td>
                     <td className="px-4 py-2.5 hidden md:table-cell">
@@ -212,7 +227,7 @@ export default function PetsListPage() {
                     </td>
                     <td className="px-4 py-2.5 hidden lg:table-cell text-gray-500">{ageFromBirth(p.birthDate)}</td>
                     <td className="px-4 py-2.5 hidden lg:table-cell">
-                      <span className="text-xs">{st.label}</span>
+                      {p.pipelineClinicoEtapa ? <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: etB.bg, color: etB.fg }}>{p.pipelineClinicoEtapa}</span> : <span className="text-xs text-gray-400">—</span>}
                     </td>
                     <td className="px-4 py-2.5 text-right whitespace-nowrap">
                       <Link href={`/dashboard/erp/pets/${p.id}`} className="p-1 hover:bg-gray-200 rounded inline-block text-gray-600">
