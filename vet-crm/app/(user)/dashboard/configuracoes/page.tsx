@@ -1,4 +1,13 @@
 "use client";
+/* ─────────────────────────────────────────────────────────────
+   EMPÓRIO DO PET · versão Cintia + Claude (Cowork)   [EMP-COWORK]
+   Tela........: Configurações (índice)  (configuracoes)
+   Atualizado..: 06/06/2026 — Cintia + Claude
+   ✔ Salvar SEMPRE no main (é a versão que publica).
+   ✔ Backup periódico ativo.
+   ⚠ NÃO sobrescrever por "Add files via upload".
+     Toda mudança = commit pequeno e direto. Em dúvida, perguntar.
+   ───────────────────────────────────────────────────────────── */
 
 import Link from "next/link";
 import { useState } from "react";
@@ -16,6 +25,7 @@ type Item = {
 const ITEMS: Item[] = [
   // Cadastros
   { href: "/dashboard/configuracoes/profissionais", title: "Profissionais", description: "Equipe + acessos ao sistema (login)", Icon: LuUsers, group: "CADASTROS" },
+  { href: "/dashboard/configuracoes/permissoes", title: "Perfis e Permissões", description: "O que cada perfil vê e edita em cada tela", Icon: LuUsers, group: "CADASTROS" },
   { href: "/dashboard/configuracoes/etiquetas", title: "Etiquetas", description: "Tags pra Lead, Cliente e Pet", Icon: LuTag, group: "CADASTROS" },
   { href: "/dashboard/configuracoes/servicos", title: "Serviços e Produtos", description: "Catálogo com preço, custo e comissão", Icon: LuPackage, group: "CADASTROS" },
   { href: "/dashboard/configuracoes/racas", title: "Raças", description: "Lista de raças por espécie", Icon: LuPawPrint, group: "CADASTROS" },
