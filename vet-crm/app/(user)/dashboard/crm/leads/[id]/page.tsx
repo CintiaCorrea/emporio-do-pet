@@ -67,6 +67,11 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
   const [tagTpls, setTagTpls] = useState<any[]>([]);
   const [tagPicker, setTagPicker] = useState(false);
   const [savingTag, setSavingTag] = useState(false);
+  const [leadInteracoes, setLeadInteracoes] = useState<any[]>([]);
+  const [intTipo, setIntTipo] = useState("NOTA");
+  const [intTexto, setIntTexto] = useState("");
+  const [savingInt, setSavingInt] = useState(false);
+  const [qualOpen, setQualOpen] = useState(false);
 
   const [qual, setQual] = useState({
     qualSituacaoPet: "",
@@ -95,7 +100,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
   async function loadComercial() { try { const r = await fetch(`/api/pipelines`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.pipelines || d.data || []); const p = arr.find((x: any) => (x.escopo === "LEAD" || (x.nome || "").toLowerCase().includes("comercial")) && x.ativo !== false); if (p) setPipeComercial((p.estagios || []).slice().sort((a: any, b: any) => (a.ordem || 0) - (b.ordem || 0)).map((e: any) => e.nome)); } catch {} }
   async function loadLeadTags() { try { const r = await fetch(`/api/listas?lista=leadtag_${id}`, { cache: "no-store" }); const d = await r.json(); const a = Array.isArray(d) ? d : (d.itens || d.data || []); setLeadTags(a.map((i: any) => ({ id: i.id, texto: i.valor }))); } catch {} }
   async function loadTagTpls() { try { const r = await fetch(`/api/etiquetas/templates`, { cache: "no-store" }); const d = await r.json(); const a = Array.isArray(d) ? d : (d.templates || d.data || []); setTagTpls(a.filter((t: any) => t.ativo !== false && (t.aplicaEm || []).includes("Lead"))); } catch {} }
-  useEffect(() => { load(); loadComercial(); loadLeadTags(); loadTagTpls(); }, [id]);
+  useEffect(() => { load(); loadComercial(); loadLeadTags(); loadTagTpls(); loadLeadInteracoes(); }, [id]);
   async function setStage(stage: string) {
     try {
       if (stage === "Compareceu") {
@@ -113,6 +118,8 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
   async function clearFu() { try { const r = await fetch(`/api/leads/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ proximoFollowupAt: null }) }); if (!r.ok) throw new Error(); toast.success("Follow-up removido"); await load(); } catch { toast.error("Erro"); } }
   async function addTagLead(texto: string) { setSavingTag(true); try { const r = await fetch(`/api/listas`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lista: `leadtag_${id}`, valor: texto }) }); if (!r.ok) throw new Error(); toast.success("Etiqueta adicionada"); setTagPicker(false); await loadLeadTags(); } catch { toast.error("Erro (talvez já exista)"); } finally { setSavingTag(false); } }
   async function delTagLead(tid: string) { try { const r = await fetch(`/api/listas/${tid}`, { method: "DELETE" }); if (!r.ok) throw new Error(); await loadLeadTags(); } catch { toast.error("Erro ao remover"); } }
+  async function loadLeadInteracoes() { try { const r = await fetch(`/api/interacoes?leadId=${id}&limit=100`, { cache: "no-store" }); const d = await r.json(); setLeadInteracoes(Array.isArray(d) ? d : (d.interacoes || d.data || [])); } catch {} }
+  async function addLeadInteracao() { if (!intTexto.trim()) { toast.error("Escreva algo"); return; } setSavingInt(true); try { const r = await fetch(`/api/interacoes`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ leadId: id, tipo: intTipo, texto: intTexto.trim(), canal: "Sistema" }) }); if (!r.ok) throw new Error(); toast.success("Registrado"); setIntTexto(""); await loadLeadInteracoes(); } catch { toast.error("Erro ao registrar"); } finally { setSavingInt(false); } }
 
   const saveQualification = async () => {
     try {
@@ -287,22 +294,22 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
       </div>
 
       {/* Qualificação destacada (em cima — falta preencher) */}
-      <div className="bg-[#FFF8E1] border border-[#FCD194] border-l-[3px] border-l-[#BA7517] rounded-xl p-4 mb-3">
-        <div className="flex justify-between items-center mb-3">
-          <div className="flex items-center gap-2">
+      <div className="bg-[#FFF8E1] border border-[#FCD194] border-l-[3px] border-l-[#BA7517] rounded-xl px-4 py-2.5 mb-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
             <span style={{fontSize:"14px"}}>📋</span>
-            <h3 className="text-sm text-[#0E2244] font-medium">Qualificação — preencha agora</h3>
-            <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${answered === 5 ? "bg-[#E1F5EE] text-[#0F6E56]" : "bg-[#FCE5C8] text-[#8A5A0F]"}`}>
-              {answered === 5 ? "✓ Completa" : `⚠ ${answered}/5 respondidas`}
-            </span>
+            <h3 className="text-[13px] text-[#0E2244] font-medium">Qualificação</h3>
+            <div className="flex gap-1">
+              {([["qualSituacaoPet", "1. Situação do pet hoje?"], ["qualQueMaisIncomoda", "2. O que mais incomoda?"], ["qualTentouOutroVet", "3. Já tentou outro vet?"], ["qualOQueMudaResolver", "4. O que muda ao resolver?"], ["qualQuemDecide", "5. Quem decide?"]] as [string, string][]).map(([k, label]) => { const filled = !!((qual as any)[k] || "").trim(); return (
+                <span key={k} title={label} onClick={() => setQualOpen(true)} style={{ fontSize: "16px", color: filled ? "#BA7517" : "#dcc9a0", cursor: "pointer" }}>{filled ? "★" : "☆"}</span>
+              ); })}
+            </div>
+            <span className="text-[10px] text-[#8A5A0F]">{answered}/5</span>
           </div>
-          <div className="text-[11px] text-[#8A5A0F]">+10 pontos por resposta · 5/5 desbloqueia <strong className="font-medium">Investigador</strong></div>
+          <button onClick={() => setQualOpen(v => !v)} className="text-[11px] text-[#8A5A0F] font-medium">{qualOpen ? "Fechar" : "Preencher"}</button>
         </div>
-        <div className="flex gap-1 mb-3">
-          {[0, 1, 2, 3, 4].map((i) => (
-            <div key={i} className={`flex-1 h-1 rounded-full ${i < answered ? "bg-[#BA7517]" : "bg-[#BA7517]/20"}`} />
-          ))}
-        </div>
+        {qualOpen && (
+        <div className="mt-3">
         <div className="grid grid-cols-2 gap-3">
           {[
             ["qualSituacaoPet", "1. Situação do pet hoje?"],
@@ -323,6 +330,8 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
         <div className="mt-3 flex justify-end">
           <button onClick={saveQualification} className="bg-[#BA7517] text-white px-4 py-1.5 rounded-lg text-xs font-medium">Salvar respostas</button>
         </div>
+        </div>
+        )}
       </div>
 
       {/* Score + Pipeline + Follow-up + Etiquetas (4 col) — sobe FU e Etiquetas do final */}
@@ -354,18 +363,14 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
         </div>
 
         <div className="bg-white rounded-xl border border-[#d8d0bc] p-3">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-[12px] text-[#0E2244] font-medium">📅 Follow-up</h3>
-          </div>
-          {lead.proximoFollowupAt ? (
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[11px] text-[#0E2244]">{new Date(lead.proximoFollowupAt).toLocaleDateString("pt-BR")}</span>
-              <button onClick={clearFu} className="text-[10px] text-[#A32D2D]">Remover</button>
-            </div>
-          ) : <p className="text-[11px] text-gray-400 mb-1.5">Sem follow-up agendado</p>}
-          <div className="flex gap-1">
-            <input type="date" value={fuDate} onChange={(e) => setFuDate(e.target.value)} className="flex-1 min-w-0 border border-[#d8d0bc] rounded px-1.5 py-1 text-[10px]" />
-            <button onClick={saveFu} disabled={savingFu} className="bg-[#009AAC] text-white px-2 py-1 rounded text-[10px] disabled:opacity-50">{savingFu ? "..." : "Agendar"}</button>
+          <h3 className="text-[11px] text-[#5b6470] tracking-wide font-medium mb-2">CONQUISTAS · 3/8</h3>
+          <div className="grid grid-cols-8 gap-1">
+            <div className="aspect-square bg-[#E0F4F6] rounded flex items-center justify-center" title="Primeiro contato"><span style={{fontSize:"14px"}}>💬</span></div>
+            <div className="aspect-square bg-[#E1F5EE] rounded flex items-center justify-center" title="WhatsApp ativo"><LuStickyNote className="w-3 h-3 text-[#0F6E56]" /></div>
+            <div className="aspect-square bg-[#FFE2D2] rounded flex items-center justify-center text-xs" title="Quente">🔥</div>
+            {[0, 1, 2, 3, 4].map((i) => (
+              <div key={i} className="aspect-square bg-[#f0e8d4] rounded flex items-center justify-center opacity-40"><span style={{fontSize:"14px"}}>🔒</span></div>
+            ))}
           </div>
         </div>
 
@@ -401,14 +406,35 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
           </div>
         </div>
         <div className="bg-white rounded-xl border border-[#d8d0bc] p-3">
-          <h3 className="text-[11px] text-[#5b6470] tracking-wide font-medium mb-2">CONQUISTAS · 3/8</h3>
-          <div className="grid grid-cols-8 gap-1">
-            <div className="aspect-square bg-[#E0F4F6] rounded flex items-center justify-center" title="Primeiro contato"><span style={{fontSize:"14px"}}>💬</span></div>
-            <div className="aspect-square bg-[#E1F5EE] rounded flex items-center justify-center" title="WhatsApp ativo"><LuStickyNote className="w-3 h-3 text-[#0F6E56]" /></div>
-            <div className="aspect-square bg-[#FFE2D2] rounded flex items-center justify-center text-xs" title="Quente">🔥</div>
-            {[0, 1, 2, 3, 4].map((i) => (
-              <div key={i} className="aspect-square bg-[#f0e8d4] rounded flex items-center justify-center opacity-40"><span style={{fontSize:"14px"}}>🔒</span></div>
-            ))}
+          <h3 className="text-[12px] text-[#0E2244] font-medium mb-2">📅 Follow-up</h3>
+          {lead.proximoFollowupAt ? (
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[11px] text-[#0E2244]">{new Date(lead.proximoFollowupAt).toLocaleDateString("pt-BR")}</span>
+              <button onClick={clearFu} className="text-[10px] text-[#A32D2D]">Remover</button>
+            </div>
+          ) : <p className="text-[11px] text-gray-400 mb-1.5">Sem follow-up agendado</p>}
+          <div className="flex gap-1">
+            <input type="date" value={fuDate} onChange={(e) => setFuDate(e.target.value)} className="flex-1 min-w-0 border border-[#d8d0bc] rounded px-1.5 py-1 text-[10px]" />
+            <button onClick={saveFu} disabled={savingFu} className="bg-[#009AAC] text-white px-2 py-1 rounded text-[10px] disabled:opacity-50">{savingFu ? "..." : "Agendar"}</button>
+          </div>
+          <div className="mt-3 pt-3 border-t border-[#f0e8d4]">
+            <div className="flex items-center gap-1.5 mb-2"><span style={{ fontSize: "13px" }}>💬</span><h4 className="text-[11px] font-semibold text-[#0E2244]">Histórico de Interações <span className="text-[10px] text-gray-400">({leadInteracoes.length})</span></h4></div>
+            <div className="flex gap-1.5 mb-2">
+              <select value={intTipo} onChange={(e) => setIntTipo(e.target.value)} className="border border-[#d8d0bc] rounded px-1.5 py-1 text-[11px]"><option value="NOTA">Nota</option><option value="LIGACAO">Ligação</option><option value="WHATSAPP_ENVIADO">WhatsApp</option><option value="PRESENCIAL">Presencial</option></select>
+              <input value={intTexto} onChange={(e) => setIntTexto(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addLeadInteracao(); }} placeholder="Registrar..." className="flex-1 min-w-0 border border-[#d8d0bc] rounded px-2 py-1 text-[11px]" />
+              <button onClick={addLeadInteracao} disabled={savingInt} className="bg-[#009AAC] text-white px-2.5 py-1 rounded text-[11px] font-medium disabled:opacity-50">{savingInt ? "..." : "+"}</button>
+            </div>
+            {leadInteracoes.length === 0 ? <p className="text-center text-[11px] text-gray-400 py-2">Nenhuma interação ainda</p> : (
+              <div className="flex flex-col gap-1.5 max-h-60 overflow-auto">
+                {leadInteracoes.map((it: any) => (
+                  <div key={it.id} className="bg-[#fbfaf6] rounded px-2.5 py-1.5">
+                    <div className="flex items-center justify-between"><span className="text-[10px] font-medium text-[#00798A]">{it.tipo}{it.canal ? ` · ${it.canal}` : ""}</span><span className="text-[10px] text-gray-400">{new Date(it.createdAt).toLocaleDateString("pt-BR")}</span></div>
+                    <p className="text-[11px] text-[#0E2244] mt-0.5">{it.texto}</p>
+                    {it.autor?.name && <p className="text-[10px] text-gray-400 mt-0.5">por {it.autor.name}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
