@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { LuSearch, LuPlus, LuUpload, LuDownload, LuTrash, LuPhone, LuStickyNote, LuFootprints } from "react-icons/lu";
+import { useRouter } from "next/navigation";
+import { LuSearch, LuPlus, LuUpload, LuDownload, LuTrash, LuPhone, LuStickyNote, LuFootprints, LuX } from "react-icons/lu";
 
 type Filter = "ativos" | "perdidos" | "outros" | "convertidos" | "todos";
 type Periodo = "7d" | "30d" | "tudo" | "custom";
@@ -96,6 +97,25 @@ export default function LeadsPage() {
   const [stageFilter, setStageFilter] = useState("");
   const [channelFilter, setChannelFilter] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const router = useRouter();
+  const [novoOpen, setNovoOpen] = useState(false);
+  const [novoNome, setNovoNome] = useState("");
+  const [novoTel, setNovoTel] = useState("");
+  const [novoEmail, setNovoEmail] = useState("");
+  const [savingNovo, setSavingNovo] = useState(false);
+
+  const handleCriarLead = async () => {
+    if (!novoNome.trim() && !novoTel.trim()) { window.alert("Informe pelo menos nome ou telefone"); return; }
+    setSavingNovo(true);
+    try {
+      const digits = novoTel.replace(/\D/g, "");
+      const email = novoEmail.trim() || `${digits || Date.now()}@whatsapp.lead`;
+      const res = await fetch("/api/leads", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ name: novoNome.trim() || undefined, phone: digits || undefined, email }) });
+      if (!res.ok) throw new Error(await res.text());
+      const novo = await res.json();
+      if (novo?.id) router.push(`/dashboard/crm/leads/${novo.id}`); else window.location.reload();
+    } catch { window.alert("Não foi possível criar o lead (o e-mail pode já existir)."); } finally { setSavingNovo(false); }
+  };
   const importInputRef = useRef<HTMLInputElement>(null);
 
   const downloadCSV = () => {
@@ -242,9 +262,9 @@ export default function LeadsPage() {
           <button onClick={downloadCSV} className="bg-white border border-[#cfd8e0] px-3 py-1.5 rounded-lg text-xs text-[#4d5a66] flex items-center gap-1.5">
             <LuDownload className="w-3.5 h-3.5" />CSV
           </button>
-          <Link href="/dashboard/crm/leads/novo" className="bg-[#009AAC] text-white px-3.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5">
+          <button onClick={() => { setNovoNome(""); setNovoTel(""); setNovoEmail(""); setNovoOpen(true); }} className="bg-[#009AAC] text-white px-3.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5">
             <LuPlus className="w-3.5 h-3.5" />Novo Lead
-          </Link>
+          </button>
         </div>
       </header>
 
@@ -425,6 +445,28 @@ export default function LeadsPage() {
         <span>☕ Morno 41–70</span>
         <span>🔥 Quente 71–100</span>
       </div>
+
+      {novoOpen && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center pt-24" onClick={() => setNovoOpen(false)}>
+          <div className="bg-white rounded-2xl p-5 w-[420px] max-w-[92vw]" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-medium text-[#0E2244]">Novo Lead</h2>
+              <button onClick={() => setNovoOpen(false)} className="text-gray-400 hover:text-gray-600"><LuX className="w-4 h-4" /></button>
+            </div>
+            <label className="text-[11px] text-[#5b6470]">Nome</label>
+            <input autoFocus value={novoNome} onChange={(e) => setNovoNome(e.target.value)} placeholder="Nome do lead" className="w-full h-9 mt-0.5 mb-3 px-3 border border-[#d8d0bc] rounded-lg text-sm focus:outline-none focus:border-[#009AAC]" />
+            <label className="text-[11px] text-[#5b6470]">Telefone</label>
+            <input value={novoTel} onChange={(e) => setNovoTel(e.target.value)} placeholder="(85) 9 9999-9999" className="w-full h-9 mt-0.5 mb-3 px-3 border border-[#d8d0bc] rounded-lg text-sm focus:outline-none focus:border-[#009AAC]" />
+            <label className="text-[11px] text-[#5b6470]">Email (opcional)</label>
+            <input value={novoEmail} onChange={(e) => setNovoEmail(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") handleCriarLead(); }} placeholder="email@exemplo.com" className="w-full h-9 mt-0.5 px-3 border border-[#d8d0bc] rounded-lg text-sm focus:outline-none focus:border-[#009AAC]" />
+            <p className="text-[10px] text-gray-400 mt-1.5">Sem email, geramos um provisório a partir do telefone.</p>
+            <div className="flex gap-2 justify-end mt-4">
+              <button onClick={() => setNovoOpen(false)} className="px-4 py-2 border border-[#cfd8e0] rounded-lg text-sm text-[#5b6470]">Cancelar</button>
+              <button onClick={handleCriarLead} disabled={savingNovo} className="px-4 py-2 rounded-lg text-sm text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingNovo ? "Criando..." : "Criar e abrir"}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
