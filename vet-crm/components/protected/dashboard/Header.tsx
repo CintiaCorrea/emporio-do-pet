@@ -1,4 +1,5 @@
 "use client";
+// [EMP-COWORK] busca topo: "tutor" -> "cliente" (Cintia 06/06).
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -67,7 +68,7 @@ export default function Header({ sidebarOpen }: Props) {
         <div className="hidden md:flex items-center gap-2 bg-[#f6f8f9] border rounded-[9px] px-3 py-2 w-[240px]" style={{ borderColor: "#e8edf0" }}>
           <LuSearch size={15} className="text-[#94a3b8]" />
           <input
-            placeholder="Buscar tutor, pet ou lead..."
+            placeholder="Buscar cliente, pet ou lead..."
             className="bg-transparent outline-none text-[13px] text-[#1e293b] placeholder-[#94a3b8] flex-1"
           />
         </div>
