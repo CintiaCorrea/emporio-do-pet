@@ -100,8 +100,10 @@ export default function PetDetailPage() {
   const [vets, setVets] = useState<any[]>([]);
   const [atdOpen, setAtdOpen] = useState(false);
   const [savingAtd, setSavingAtd] = useState(false);
-  const ATD0 = { date: "", userId: "", type: "CONSULTA", status: "Realizado", duration: "30", chiefComplaint: "", anamnesis: "", physicalExam: "", diagnosis: "", conduct: "", prescription: "" };
+  const ATD0 = { date: "", userId: "", type: "CONSULTA", status: "Realizado", duration: "30", chiefComplaint: "", anamnesis: "", physicalExam: "", petWeight: "", temperature: "", diagnosis: "", conduct: "", prescription: "", examsRequested: "", nextReturnDate: "", paymentMethod: "", followUpNotes: "", notes: "" };
   const [atd, setAtd] = useState<any>(ATD0);
+  const [items, setItems] = useState<any[]>([]);
+  const [servicosCat, setServicosCat] = useState<any[]>([]);
 
   usePageTitle(pet ? pet.name : "Pet", pet?.tutor ? `Tutor: ${pet.tutor.name}` : undefined);
 
@@ -193,7 +195,7 @@ export default function PetDetailPage() {
   async function loadCatalogos() {
     try { const r = await fetch(`/api/etiquetas/templates`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.templates || d.data || []); setTagTpls(arr.filter((t: any) => t.ativo !== false && (t.aplicaEm || []).includes("Pet"))); } catch {}
     try { const r = await fetch(`/api/cadencias`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.cadencias || d.data || []); setCadOpts(arr); } catch {}
-    try { const r = await fetch(`/api/servicos/itens`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.itens || d.data || d.servicos || []); setFisioSrv(arr.filter((srv: any) => JSON.stringify(srv).toLowerCase().includes("fisio"))); } catch {}
+    try { const r = await fetch(`/api/servicos/itens`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.itens || d.data || d.servicos || []); setServicosCat(arr); setFisioSrv(arr.filter((srv: any) => JSON.stringify(srv).toLowerCase().includes("fisio"))); } catch {}
     try { const r = await fetch(`/api/fornecedores/exames/lista`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.exames || d.data || d.itens || []); setExCat(arr); } catch {}
     try { const r = await fetch(`/api/users`, { cache: "no-store" }); const d = await r.json(); setVets(Array.isArray(d) ? d : (d.users || d.data || [])); } catch {}
   }
@@ -223,12 +225,24 @@ export default function PetDetailPage() {
     try {
       const body: any = { tutorId: pet.tutorId, petId: pet.id, userId: atd.userId, date: new Date(atd.date).toISOString(), type: atd.type, status: atd.status };
       if (atd.duration) body.duration = Number(atd.duration);
-      for (const k of ["chiefComplaint", "anamnesis", "physicalExam", "diagnosis", "conduct", "prescription"]) { if (atd[k]) body[k] = atd[k]; }
+      for (const k of ["chiefComplaint", "anamnesis", "physicalExam", "diagnosis", "conduct", "prescription", "examsRequested", "paymentMethod", "followUpNotes", "notes"]) { if (atd[k]) body[k] = atd[k]; }
+      if (atd.petWeight) body.petWeight = Number(atd.petWeight);
+      if (atd.temperature) body.temperature = Number(atd.temperature);
+      if (atd.nextReturnDate) body.nextReturnDate = new Date(atd.nextReturnDate + "T12:00:00").toISOString();
+      const itensValidos = items.filter((it: any) => it.descricao || it.servicoId);
+      if (itensValidos.length) {
+        body.items = itensValidos.map((it: any) => ({ ...(it.servicoId ? { servicoId: it.servicoId } : {}), ...(it.descricao ? { descricao: it.descricao } : {}), ...(it.executorUserId ? { executorUserId: it.executorUserId } : {}), quantidade: Number(it.quantidade) || 1, valorUnitario: Number(it.valorUnitario) || 0, custoUnitario: Number(it.custoUnitario) || 0, valorTotal: (Number(it.quantidade) || 0) * (Number(it.valorUnitario) || 0), ...(it.comissaoValor ? { comissaoTipo: "PERCENTUAL", comissaoValor: Number(it.comissaoValor) } : {}) }));
+        body.value = body.items.reduce((sm: number, it: any) => sm + (it.valorTotal || 0), 0);
+      }
       const r = await fetch("/api/appointments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (!r.ok) throw new Error(await r.text());
-      toast.success("Atendimento registrado"); setAtdOpen(false); setAtd(ATD0); await load();
+      toast.success("Atendimento registrado"); setAtdOpen(false); setAtd(ATD0); setItems([]); await load();
     } catch { toast.error("Erro ao registrar atendimento"); } finally { setSavingAtd(false); }
   }
+  function addItem() { setItems(prev => [...prev, { servicoId: "", descricao: "", quantidade: 1, valorUnitario: 0, custoUnitario: 0, executorUserId: "", comissaoValor: 0 }]); }
+  function updItem(i: number, patch: any) { setItems(prev => prev.map((it, idx) => idx === i ? { ...it, ...patch } : it)); }
+  function rmItem(i: number) { setItems(prev => prev.filter((_, idx) => idx !== i)); }
+  function pickServico(i: number, servicoId: string) { const sv = servicosCat.find((x: any) => x.id === servicoId); updItem(i, { servicoId, descricao: sv?.nome || "", valorUnitario: sv?.valorPadrao ?? 0, custoUnitario: sv?.custoPadrao ?? 0 }); }
 
   const tutorWhats = useMemo(() => {
     if (!pet?.tutor?.contacts) return null;
@@ -516,7 +530,7 @@ export default function PetDetailPage() {
                 <section>
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="text-sm font-semibold" style={{ color: "#0E2244" }}>Histórico de Atendimentos</h3>
-                    <button onClick={() => setAtdOpen(true)} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white flex items-center gap-1.5" style={{ background: "#009AAC" }}>
+                    <button onClick={() => { setAtd(ATD0); setItems([]); setAtdOpen(true); }} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white flex items-center gap-1.5" style={{ background: "#009AAC" }}>
                       <LuPlus size={12} /> Novo Atendimento
                     </button>
                   </div>
@@ -620,7 +634,7 @@ export default function PetDetailPage() {
 
       {atdOpen && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center overflow-y-auto py-10" onClick={() => setAtdOpen(false)}>
-          <div className="bg-white rounded-2xl w-[520px] max-w-[94vw] p-5" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl w-[660px] max-w-[94vw] p-5" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-base font-semibold" style={{ color: "#0E2244" }}>Novo Atendimento — {pet.name}</h2>
               <button onClick={() => setAtdOpen(false)} className="text-gray-400 hover:text-gray-600"><LuX size={16} /></button>
@@ -638,10 +652,48 @@ export default function PetDetailPage() {
               <div><label className="text-gray-500">Motivo / queixa principal</label><input value={atd.chiefComplaint} onChange={(e) => setAtd((a: any) => ({ ...a, chiefComplaint: e.target.value }))} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg" style={{ borderColor: "#E8DFC8" }} /></div>
               <div><label className="text-gray-500">Anamnese</label><textarea value={atd.anamnesis} onChange={(e) => setAtd((a: any) => ({ ...a, anamnesis: e.target.value }))} rows={2} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg" style={{ borderColor: "#E8DFC8" }} /></div>
               <div><label className="text-gray-500">Exame físico</label><textarea value={atd.physicalExam} onChange={(e) => setAtd((a: any) => ({ ...a, physicalExam: e.target.value }))} rows={2} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg" style={{ borderColor: "#E8DFC8" }} /></div>
+              <div className="grid grid-cols-2 gap-2">
+                <div><label className="text-gray-500">Peso do pet (kg)</label><input type="number" step="0.1" value={atd.petWeight} onChange={(e) => setAtd((a: any) => ({ ...a, petWeight: e.target.value }))} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg" style={{ borderColor: "#E8DFC8" }} /></div>
+                <div><label className="text-gray-500">Temperatura (°C)</label><input type="number" step="0.1" value={atd.temperature} onChange={(e) => setAtd((a: any) => ({ ...a, temperature: e.target.value }))} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg" style={{ borderColor: "#E8DFC8" }} /></div>
+              </div>
               <div><label className="text-gray-500">Diagnóstico</label><textarea value={atd.diagnosis} onChange={(e) => setAtd((a: any) => ({ ...a, diagnosis: e.target.value }))} rows={2} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg" style={{ borderColor: "#E8DFC8" }} /></div>
               <div><label className="text-gray-500">Conduta</label><textarea value={atd.conduct} onChange={(e) => setAtd((a: any) => ({ ...a, conduct: e.target.value }))} rows={2} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg" style={{ borderColor: "#E8DFC8" }} /></div>
               <div><label className="text-gray-500">Prescrição</label><textarea value={atd.prescription} onChange={(e) => setAtd((a: any) => ({ ...a, prescription: e.target.value }))} rows={2} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg" style={{ borderColor: "#E8DFC8" }} /></div>
+              <div><label className="text-gray-500">Exames solicitados</label><textarea value={atd.examsRequested} onChange={(e) => setAtd((a: any) => ({ ...a, examsRequested: e.target.value }))} rows={2} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg" style={{ borderColor: "#E8DFC8" }} /></div>
             </div>
+            <div className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mt-4 mb-1.5">Serviços e valores</div>
+            <div className="text-xs">
+              <div className="hidden md:grid gap-1 text-[10px] text-gray-400 px-1 mb-1" style={{ gridTemplateColumns: "1fr 40px 64px 64px 1fr 48px 70px 22px" }}>
+                <span>Serviço/descrição</span><span className="text-center">Qtd</span><span>Valor</span><span>Custo</span><span>Executado por</span><span className="text-center">Com.%</span><span className="text-right">Total</span><span></span>
+              </div>
+              {items.length === 0 && <p className="text-center text-gray-400 py-2">Nenhum serviço lançado.</p>}
+              {items.map((it, i) => (
+                <div key={i} className="grid gap-1 mb-1 items-center" style={{ gridTemplateColumns: "1fr 40px 64px 64px 1fr 48px 70px 22px" }}>
+                  <input list="srvcat" value={it.descricao} onChange={(e) => { const nome = e.target.value; const sv = servicosCat.find((x: any) => x.nome === nome); if (sv) { pickServico(i, sv.id); } else { updItem(i, { descricao: nome, servicoId: "" }); } }} placeholder="Serviço..." className="px-1.5 py-1 border rounded" style={{ borderColor: "#E8DFC8" }} />
+                  <input type="number" value={it.quantidade} onChange={(e) => updItem(i, { quantidade: e.target.value })} className="px-1 py-1 border rounded text-center" style={{ borderColor: "#E8DFC8" }} />
+                  <input type="number" value={it.valorUnitario} onChange={(e) => updItem(i, { valorUnitario: e.target.value })} className="px-1 py-1 border rounded" style={{ borderColor: "#E8DFC8" }} />
+                  <input type="number" value={it.custoUnitario} onChange={(e) => updItem(i, { custoUnitario: e.target.value })} className="px-1 py-1 border rounded" style={{ borderColor: "#E8DFC8" }} />
+                  <select value={it.executorUserId} onChange={(e) => updItem(i, { executorUserId: e.target.value })} className="px-1 py-1 border rounded" style={{ borderColor: "#E8DFC8" }}><option value="">—</option>{vets.map((u: any) => <option key={u.id} value={u.id}>{u.name}</option>)}</select>
+                  <input type="number" value={it.comissaoValor} onChange={(e) => updItem(i, { comissaoValor: e.target.value })} className="px-1 py-1 border rounded text-center" style={{ borderColor: "#E8DFC8" }} />
+                  <span className="text-right tabular-nums text-[11px]">{((Number(it.quantidade) || 0) * (Number(it.valorUnitario) || 0)).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
+                  <button onClick={() => rmItem(i)} className="text-gray-400 hover:text-red-500"><LuX size={12} /></button>
+                </div>
+              ))}
+              <datalist id="srvcat">{servicosCat.slice(0, 1000).map((sv: any) => <option key={sv.id} value={sv.nome} />)}</datalist>
+              <button onClick={addItem} className="w-full mt-1 px-3 py-1.5 rounded-lg border border-dashed text-[11px]" style={{ borderColor: "#009AAC", color: "#00798A" }}>+ Adicionar serviço</button>
+              {items.length > 0 && <div className="text-right text-sm font-medium mt-2" style={{ color: "#0E2244" }}>Total: {items.reduce((sm, it) => sm + (Number(it.quantidade) || 0) * (Number(it.valorUnitario) || 0), 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</div>}
+            </div>
+
+            <div className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mt-4 mb-1.5">Pós-atendimento</div>
+            <div className="space-y-2 text-xs">
+              <div className="grid grid-cols-2 gap-2">
+                <div><label className="text-gray-500">Próximo retorno</label><input type="date" value={atd.nextReturnDate} onChange={(e) => setAtd((a: any) => ({ ...a, nextReturnDate: e.target.value }))} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg" style={{ borderColor: "#E8DFC8" }} /></div>
+                <div><label className="text-gray-500">Forma de pagamento</label><select value={atd.paymentMethod} onChange={(e) => setAtd((a: any) => ({ ...a, paymentMethod: e.target.value }))} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg" style={{ borderColor: "#E8DFC8" }}><option value="">Selecionar...</option>{["Dinheiro", "PIX", "Cartão de crédito", "Cartão de débito", "Transferência", "Boleto"].map(v => <option key={v} value={v}>{v}</option>)}</select></div>
+              </div>
+              <div><label className="text-gray-500">O que verificar com o cliente (guia pro próximo toque)</label><textarea value={atd.followUpNotes} onChange={(e) => setAtd((a: any) => ({ ...a, followUpNotes: e.target.value }))} rows={2} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg" style={{ borderColor: "#E8DFC8" }} /></div>
+              <div><label className="text-gray-500">Observações</label><textarea value={atd.notes} onChange={(e) => setAtd((a: any) => ({ ...a, notes: e.target.value }))} rows={2} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg" style={{ borderColor: "#E8DFC8" }} /></div>
+            </div>
+
             <div className="flex gap-2 justify-end mt-4">
               <button onClick={() => setAtdOpen(false)} className="px-4 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8", color: "#475569" }}>Cancelar</button>
               <button onClick={criarAtendimento} disabled={savingAtd} className="px-4 py-2 rounded-lg text-sm text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingAtd ? "Salvando..." : "Salvar atendimento"}</button>
