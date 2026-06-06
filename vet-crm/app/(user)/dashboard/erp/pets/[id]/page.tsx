@@ -83,8 +83,20 @@ export default function PetDetailPage() {
     setDelOpen(false);
   }
 
-  function handleEncaminhar() {
-    toast("Encaminhar para outro veterinário — em breve", { icon: "↗" });
+  async function handleEncaminhar() {
+    const destino = window.prompt("Encaminhar este pet para quem? (vet, recepção, admin)");
+    if (!destino || !destino.trim()) return;
+    try {
+      const r = await fetch("/api/interacoes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ petId: params.id, tipo: "ENCAMINHAMENTO", texto: `Pet encaminhado para: ${destino.trim()}`, canal: "Sistema" }),
+      });
+      if (!r.ok) throw new Error(String(r.status));
+      toast.success(`Encaminhado para ${destino.trim()}`);
+    } catch {
+      toast.error("Erro ao encaminhar");
+    }
   }
 
   const tutorWhats = useMemo(() => {
