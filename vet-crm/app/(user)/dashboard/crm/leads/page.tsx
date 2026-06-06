@@ -64,6 +64,7 @@ export default function LeadsPage() {
   const [dateTo, setDateTo] = useState("");
   const [stageFilter, setStageFilter] = useState("");
   const [channelFilter, setChannelFilter] = useState("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -80,6 +81,23 @@ export default function LeadsPage() {
     };
     load();
   }, []);
+
+  const handleDeleteLead = async (lead: Lead) => {
+    if (deletingId) return;
+    const label = lead.name || lead.phone || "este lead";
+    if (!window.confirm(`Excluir ${label}? Esta acao nao pode ser desfeita.`)) return;
+    setDeletingId(lead.id);
+    try {
+      const res = await fetch(`/api/leads/${lead.id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error(await res.text());
+      setLeads((prev) => prev.filter((x) => x.id !== lead.id));
+    } catch (e) {
+      console.error(e);
+      window.alert("Nao foi possivel excluir o lead. Tente novamente.");
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const periodLimits = useMemo(() => {
     const now = Date.now();
@@ -298,7 +316,17 @@ export default function LeadsPage() {
                     <td className="py-2.5 px-3 text-right text-[#0E2244] font-medium">
                       {valor ? `R$ ${valor}` : "—"}
                     </td>
-                    <td className="py-2.5 px-3"><LuTrash className="w-3.5 h-3.5 text-[#cfd8e0] cursor-pointer hover:text-[#A32D2D]" /></td>
+                    <td className="py-2.5 px-3">
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteLead(l)}
+                        disabled={deletingId === l.id}
+                        title="Excluir lead"
+                        className="disabled:opacity-40"
+                      >
+                        <LuTrash className="w-3.5 h-3.5 text-[#cfd8e0] cursor-pointer hover:text-[#A32D2D]" />
+                      </button>
+                    </td>
                   </tr>
                 );
               })
