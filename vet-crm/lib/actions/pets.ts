@@ -20,7 +20,7 @@ export async function criarPetEAbrir(tutorId: string, openInNewTab = false): Pro
     }
     const pet = await r.json();
     if (!pet?.id) throw new Error("Resposta invalida");
-    const url = `/dashboard/erp/pets/${pet.id}/editar`;
+    const url = `/dashboard/erp/pets/${pet.id}`;
     if (typeof window !== "undefined") {
       if (openInNewTab) window.open(url, "_blank", "noopener");
       else window.location.href = url;
