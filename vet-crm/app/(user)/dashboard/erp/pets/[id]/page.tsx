@@ -73,6 +73,21 @@ export default function PetDetailPage() {
   const [savingFu, setSavingFu] = useState(false);
   const [pipes, setPipes] = useState<{ clinico: string[]; fisio: string[] }>({ clinico: [], fisio: [] });
   const [savingPipe, setSavingPipe] = useState(false);
+  const [petTags, setPetTags] = useState<{ id: string; texto: string }[]>([]);
+  const [tagTpls, setTagTpls] = useState<any[]>([]);
+  const [savingTag, setSavingTag] = useState(false);
+  const [cadAtivas, setCadAtivas] = useState<{ id: string; data: any }[]>([]);
+  const [cadOpts, setCadOpts] = useState<any[]>([]);
+  const [cadPick, setCadPick] = useState(false);
+  const [savingCad, setSavingCad] = useState(false);
+  const [pacotes, setPacotes] = useState<{ id: string; data: any }[]>([]);
+  const [fisioSrv, setFisioSrv] = useState<any[]>([]);
+  const [pacForm, setPacForm] = useState<{ open: boolean; serviceId: string; total: string }>({ open: false, serviceId: "", total: "4" });
+  const [savingPac, setSavingPac] = useState(false);
+  const [exames, setExames] = useState<{ id: string; data: any }[]>([]);
+  const [exCat, setExCat] = useState<any[]>([]);
+  const [exPick, setExPick] = useState("");
+  const [savingEx, setSavingEx] = useState(false);
 
   usePageTitle(pet ? pet.name : "Pet", pet?.tutor ? `Tutor: ${pet.tutor.name}` : undefined);
 
@@ -92,7 +107,7 @@ export default function PetDetailPage() {
       setPipes({ clinico: pick("cl\u00edn"), fisio: pick("fisio") });
     } catch {}
   }
-  useEffect(() => { if (petId) { load(); loadPipes(); } /* eslint-disable-next-line */ }, [petId]);
+  useEffect(() => { if (petId) { load(); loadPipes(); loadPetColecoes(); loadCatalogos(); } /* eslint-disable-next-line */ }, [petId]);
 
   async function handleDelete() {
     const res = await fetch(`/api/pets/${petId}`, { method: "DELETE" });
@@ -150,6 +165,41 @@ export default function PetDetailPage() {
   async function clearFu() {
     try { await patchPet({ proximoFollowupAt: null }); toast.success("Follow-up removido"); await load(); } catch { toast.error("Erro"); }
   }
+
+  async function listasGet(lista: string) { try { const r = await fetch(`/api/listas?lista=${encodeURIComponent(lista)}`, { cache: "no-store" }); const d = await r.json(); return Array.isArray(d) ? d : (d.itens || d.data || []); } catch { return []; } }
+  async function listasAdd(lista: string, valor: string) { const r = await fetch(`/api/listas`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lista, valor }) }); if (!r.ok) throw new Error(String(r.status)); return r.json(); }
+  async function listasDel(id: string) { const r = await fetch(`/api/listas/${id}`, { method: "DELETE" }); if (!r.ok) throw new Error(String(r.status)); }
+  async function loadPetColecoes() {
+    const [tags, cads, pacs, exs] = await Promise.all([listasGet(`petetq_${petId}`), listasGet(`petcad_${petId}`), listasGet(`petpac_${petId}`), listasGet(`petexa_${petId}`)]);
+    setPetTags(tags.map((i: any) => ({ id: i.id, texto: i.valor })));
+    setCadAtivas(cads.map((i: any) => { let d: any = {}; try { d = JSON.parse(i.valor); } catch {} return { id: i.id, data: d }; }));
+    const parse = (arr: any[]) => arr.map((i: any) => { let d: any = {}; try { d = JSON.parse(i.valor); } catch {} return { id: i.id, data: d }; });
+    setPacotes(parse(pacs)); setExames(parse(exs));
+  }
+  async function loadCatalogos() {
+    try { const r = await fetch(`/api/etiquetas/templates`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.templates || d.data || []); setTagTpls(arr.filter((t: any) => t.ativo !== false && (t.aplicaEm || []).includes("Pet"))); } catch {}
+    try { const r = await fetch(`/api/cadencias`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.cadencias || d.data || []); setCadOpts(arr); } catch {}
+    try { const r = await fetch(`/api/servicos/itens`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.itens || d.data || d.servicos || []); setFisioSrv(arr.filter((srv: any) => JSON.stringify(srv).toLowerCase().includes("fisio"))); } catch {}
+    try { const r = await fetch(`/api/fornecedores/exames/lista`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.exames || d.data || d.itens || []); setExCat(arr); } catch {}
+  }
+  async function addTag(texto: string) { setSavingTag(true); try { await listasAdd(`petetq_${petId}`, texto); toast.success("Etiqueta adicionada"); await loadPetColecoes(); } catch { toast.error("Erro (talvez já exista)"); } finally { setSavingTag(false); } }
+  async function delTag(id: string) { try { await listasDel(id); await loadPetColecoes(); } catch { toast.error("Erro ao remover"); } }
+  async function addCad(c: any) { setSavingCad(true); try { await listasAdd(`petcad_${petId}`, JSON.stringify({ cadenciaId: c.id, nome: c.nome || c.titulo, startedAt: new Date().toISOString() })); toast.success("Cadência iniciada"); setCadPick(false); await loadPetColecoes(); } catch { toast.error("Erro"); } finally { setSavingCad(false); } }
+  async function delCad(id: string) { try { await listasDel(id); toast.success("Cadência encerrada"); await loadPetColecoes(); } catch { toast.error("Erro"); } }
+  async function addPacote() {
+    const srv = fisioSrv.find((s: any) => String(s.id) === pacForm.serviceId);
+    if (!srv) { toast.error("Escolha um serviço de fisioterapia"); return; }
+    const total = Number(pacForm.total) || 0; if (total <= 0) { toast.error("Informe o total de sessões"); return; }
+    setSavingPac(true);
+    try { await listasAdd(`petpac_${petId}`, JSON.stringify({ serviceId: srv.id, nome: srv.nome || srv.titulo || srv.descricao, total, used: 0, createdAt: new Date().toISOString() })); toast.success("Pacote criado"); setPacForm({ open: false, serviceId: "", total: "4" }); await loadPetColecoes(); } catch { toast.error("Erro ao criar pacote"); } finally { setSavingPac(false); }
+  }
+  async function usarSessao(p: { id: string; data: any }) {
+    const used = Math.min((p.data.used || 0) + 1, p.data.total || 0);
+    try { const r = await fetch(`/api/listas/${p.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ valor: JSON.stringify({ ...p.data, used }) }) }); if (!r.ok) throw new Error(); await loadPetColecoes(); } catch { toast.error("Erro ao registrar sessão"); }
+  }
+  async function delPacote(id: string) { try { await listasDel(id); toast.success("Pacote removido"); await loadPetColecoes(); } catch { toast.error("Erro"); } }
+  async function addExame() { if (!exPick.trim()) { toast.error("Escolha um exame"); return; } setSavingEx(true); try { await listasAdd(`petexa_${petId}`, JSON.stringify({ nome: exPick.trim(), status: "Solicitado", date: new Date().toISOString() })); toast.success("Exame solicitado"); setExPick(""); await loadPetColecoes(); } catch { toast.error("Erro"); } finally { setSavingEx(false); } }
+  async function delExame(id: string) { try { await listasDel(id); await loadPetColecoes(); } catch { toast.error("Erro"); } }
 
   const tutorWhats = useMemo(() => {
     if (!pet?.tutor?.contacts) return null;
@@ -263,23 +313,27 @@ export default function PetDetailPage() {
               <h3 className="text-sm font-semibold flex items-center gap-2" style={{ color: "#0E2244" }}>
                 <LuTag size={14} /> Etiquetas
               </h3>
-              <button
-                onClick={() => setTagsOpen(o => !o)}
-                className="text-xs flex items-center gap-1"
-                style={{ color: "#009AAC" }}
-              >
-                <LuPlus size={12} /> Adicionar (em breve)
+              <button onClick={() => setTagsOpen(o => !o)} className="text-xs flex items-center gap-1" style={{ color: "#009AAC" }}>
+                <LuPlus size={12} /> Adicionar
               </button>
             </div>
-            <div className="text-sm text-gray-400">
-              Sem etiquetas. Use pra agrupar pets por temperamento, restrição, dieta, etc.
+            <div className="flex flex-wrap gap-1.5 items-center">
+              {petTags.length === 0 && <span className="text-sm text-gray-400">Sem etiquetas. Use pra agrupar pets por temperamento, restrição, dieta, etc.</span>}
+              {petTags.map(t => { const tpl = tagTpls.find((x: any) => x.texto === t.texto); const cor = tpl?.cor || "#009AAC"; return (
+                <span key={t.id} className="text-[11px] px-2 py-0.5 rounded-full flex items-center gap-1" style={{ background: cor + "22", color: cor }}>● {t.texto}<button onClick={() => delTag(t.id)} title="Remover" className="font-bold hover:opacity-60">×</button></span>
+              ); })}
             </div>
             {tagsOpen && (
-              <div className="mt-3 pt-3 border-t flex items-center gap-2" style={{ borderColor: "#F0EBE0" }}>
-                <select className="flex-1 px-3 py-1.5 border rounded-lg text-sm bg-white" style={{ borderColor: "#E8DFC8" }} disabled>
-                  <option>Selecionar etiqueta... (em breve)</option>
-                </select>
-                <button className="px-3 py-1.5 rounded-lg text-xs text-white" style={{ background: "#009AAC" }} disabled>+</button>
+              <div className="mt-3 pt-3 border-t" style={{ borderColor: "#F0EBE0" }}>
+                {tagTpls.filter((t: any) => !petTags.some(p => p.texto === t.texto)).length === 0 ? (
+                  <p className="text-xs text-gray-400">Nenhuma etiqueta de Pet disponível. Cadastre em Configurações → Etiquetas.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {tagTpls.filter((t: any) => !petTags.some(p => p.texto === t.texto)).map((t: any) => (
+                      <button key={t.texto} disabled={savingTag} onClick={() => addTag(t.texto)} className="text-[11px] px-2 py-0.5 rounded-full border disabled:opacity-50" style={{ borderColor: (t.cor || "#009AAC") + "66", color: t.cor || "#009AAC" }}>+ {t.texto}</button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -396,11 +450,29 @@ export default function PetDetailPage() {
                   <h3 className="text-sm font-semibold mb-2 flex items-center gap-2" style={{ color: "#0E2244" }}>
                     <LuClock size={14} /> Cadência de acompanhamento
                   </h3>
-                  <div className="border rounded-xl p-4 flex items-center justify-between" style={{ borderColor: "#E8DFC8" }}>
-                    <span className="text-sm text-gray-400">Nenhuma cadência ativa.</span>
-                    <button className="px-3 py-1.5 rounded-lg text-xs border flex items-center gap-1.5" style={{ borderColor: "#E8DFC8", color: "#009AAC" }} disabled>
-                      <LuPlus size={12} /> Iniciar cadência (em breve)
-                    </button>
+                  <div className="border rounded-xl p-4" style={{ borderColor: "#E8DFC8" }}>
+                    {cadAtivas.length === 0 ? (
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-400">Nenhuma cadência ativa.</span>
+                        <button onClick={() => setCadPick(v => !v)} className="px-3 py-1.5 rounded-lg text-xs border flex items-center gap-1.5" style={{ borderColor: "#E8DFC8", color: "#009AAC" }}><LuPlus size={12} /> Iniciar cadência</button>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {cadAtivas.map(c => (
+                          <div key={c.id} className="flex items-center justify-between">
+                            <span className="text-sm" style={{ color: "#0E2244" }}>{c.data?.nome || "Cadência"} <span className="text-xs text-gray-400">· desde {c.data?.startedAt ? new Date(c.data.startedAt).toLocaleDateString("pt-BR") : "—"}</span></span>
+                            <button onClick={() => delCad(c.id)} className="text-xs" style={{ color: "#ef4444" }}>Encerrar</button>
+                          </div>
+                        ))}
+                        <button onClick={() => setCadPick(v => !v)} className="text-xs flex items-center gap-1" style={{ color: "#009AAC" }}><LuPlus size={12} /> Iniciar outra</button>
+                      </div>
+                    )}
+                    {cadPick && (
+                      <div className="mt-3 pt-3 border-t flex flex-wrap gap-1.5" style={{ borderColor: "#F0EBE0" }}>
+                        {cadOpts.length === 0 ? <p className="text-xs text-gray-400">Nenhuma cadência cadastrada em Configurações.</p> :
+                          cadOpts.map((c: any) => (<button key={c.id} disabled={savingCad} onClick={() => addCad(c)} className="text-[11px] px-2 py-1 rounded-lg border disabled:opacity-50" style={{ borderColor: "#E8DFC8", color: "#009AAC" }}>+ {c.nome || c.titulo}</button>))}
+                      </div>
+                    )}
                   </div>
                 </section>
 
@@ -430,32 +502,72 @@ export default function PetDetailPage() {
               <div className="p-5">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm font-semibold" style={{ color: "#0E2244" }}>Pacotes de Sessões de {pet.name}</h3>
-                  <button disabled title="Em breve — vai conectar com os serviços de fisioterapia" className="px-3 py-1.5 rounded-lg text-xs font-medium text-white flex items-center gap-1.5 opacity-50 cursor-not-allowed" style={{ background: "#009AAC" }}>
-                    <LuPackage size={12} /> Criar Pacote (em breve)
+                  <button onClick={() => setPacForm(f => ({ ...f, open: !f.open }))} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white flex items-center gap-1.5" style={{ background: "#009AAC" }}>
+                    <LuPackage size={12} /> Criar Pacote
                   </button>
                 </div>
-                <div className="border rounded-xl p-6 text-center text-sm text-gray-400" style={{ borderColor: "#E8DFC8" }}>
-                  Nenhum pacote criado ainda.
-                  <div className="mt-2">
-                    <button disabled className="px-3 py-1.5 rounded-lg text-xs border opacity-50 cursor-not-allowed" style={{ borderColor: "#E8DFC8", color: "#009AAC" }}>
-                      + Criar primeiro pacote (em breve)
-                    </button>
+                {pacForm.open && (
+                  <div className="border rounded-xl p-4 mb-3 flex flex-wrap items-end gap-2" style={{ borderColor: "#E8DFC8" }}>
+                    <div className="flex-1 min-w-[180px]"><label className="text-xs text-gray-500">Serviço de fisioterapia</label>
+                      <select value={pacForm.serviceId} onChange={(e) => setPacForm(f => ({ ...f, serviceId: e.target.value }))} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg text-xs" style={{ borderColor: "#E8DFC8" }}>
+                        <option value="">— selecionar —</option>
+                        {fisioSrv.map((srv: any) => <option key={srv.id} value={srv.id}>{srv.nome || srv.titulo || srv.descricao}</option>)}
+                      </select>
+                    </div>
+                    <div className="w-24"><label className="text-xs text-gray-500">Sessões</label><input type="number" min="1" value={pacForm.total} onChange={(e) => setPacForm(f => ({ ...f, total: e.target.value }))} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg text-xs" style={{ borderColor: "#E8DFC8" }} /></div>
+                    <button onClick={addPacote} disabled={savingPac} className="px-3 py-1.5 rounded-lg text-xs text-white" style={{ background: "#009AAC" }}>{savingPac ? "..." : "Criar"}</button>
                   </div>
-                </div>
+                )}
+                {pacotes.length === 0 ? (
+                  <div className="border rounded-xl p-6 text-center text-sm text-gray-400" style={{ borderColor: "#E8DFC8" }}>Nenhum pacote criado ainda.</div>
+                ) : (
+                  <div className="space-y-2">
+                    {pacotes.map(p => { const used = p.data.used || 0; const total = p.data.total || 0; const done = used >= total; return (
+                      <div key={p.id} className="border rounded-xl p-3" style={{ borderColor: "#E8DFC8" }}>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium" style={{ color: "#0E2244" }}>{p.data.nome}</span>
+                          <button onClick={() => delPacote(p.id)} className="text-xs" style={{ color: "#ef4444" }}>Excluir</button>
+                        </div>
+                        <div className="flex items-center gap-3 mt-1">
+                          <div className="flex-1 h-2 rounded-full bg-gray-100 overflow-hidden"><div className="h-full" style={{ width: `${total ? Math.min(100, (used / total) * 100) : 0}%`, background: "#009AAC" }} /></div>
+                          <span className="text-xs text-gray-500">{used}/{total} sessões</span>
+                          <button onClick={() => usarSessao(p)} disabled={done} className="px-2 py-1 rounded-lg text-xs border disabled:opacity-40" style={{ borderColor: "#E8DFC8", color: "#009AAC" }}>{done ? "Concluído" : "+1 sessão"}</button>
+                        </div>
+                      </div>
+                    ); })}
+                  </div>
+                )}
               </div>
             )}
 
             {tab === "EXAMES" && (
               <div className="p-5">
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
                   <h3 className="text-sm font-semibold" style={{ color: "#0E2244" }}>Exames e Serviços Externos</h3>
-                  <button disabled title="Em breve — vai conectar com o catálogo de exames" className="px-3 py-1.5 rounded-lg text-xs font-medium text-white flex items-center gap-1.5 opacity-50 cursor-not-allowed" style={{ background: "#009AAC" }}>
-                    <LuFlaskConical size={12} /> Solicitar (em breve)
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <input list="exames-catalogo" value={exPick} onChange={(e) => setExPick(e.target.value)} placeholder="Buscar exame..." className="px-2 py-1.5 border rounded-lg text-xs" style={{ borderColor: "#E8DFC8", minWidth: "180px" }} />
+                    <datalist id="exames-catalogo">{exCat.slice(0, 1000).map((e: any, i: number) => <option key={i} value={e.nome || e.titulo || e.descricao} />)}</datalist>
+                    <button onClick={addExame} disabled={savingEx} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white flex items-center gap-1.5" style={{ background: "#009AAC" }}><LuFlaskConical size={12} /> {savingEx ? "..." : "Solicitar"}</button>
+                  </div>
                 </div>
-                <div className="border rounded-xl p-6 text-center text-sm text-gray-400" style={{ borderColor: "#E8DFC8" }}>
-                  Nenhum exame ou serviço externo registrado.
-                </div>
+                {exames.length === 0 ? (
+                  <div className="border rounded-xl p-6 text-center text-sm text-gray-400" style={{ borderColor: "#E8DFC8" }}>Nenhum exame ou serviço externo registrado.</div>
+                ) : (
+                  <div className="space-y-2">
+                    {exames.map(x => (
+                      <div key={x.id} className="border rounded-xl p-3 flex items-center justify-between" style={{ borderColor: "#E8DFC8" }}>
+                        <div>
+                          <span className="text-sm font-medium" style={{ color: "#0E2244" }}>{x.data.nome}</span>
+                          <span className="text-xs text-gray-400 ml-2">{x.data.date ? new Date(x.data.date).toLocaleDateString("pt-BR") : ""}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: "#E0F4F6", color: "#00798A" }}>{x.data.status || "Solicitado"}</span>
+                          <button onClick={() => delExame(x.id)} className="text-xs" style={{ color: "#ef4444" }}>Excluir</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
