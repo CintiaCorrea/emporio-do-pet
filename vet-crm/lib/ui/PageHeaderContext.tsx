@@ -1,4 +1,5 @@
 "use client";
+// [EMP-COWORK] titulo do header Tutores -> Clientes (Cintia 06/06).
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { usePathname } from "next/navigation";
@@ -33,13 +34,13 @@ const ROUTE_TITLES: Array<{ match: string; exact?: boolean; title: string; subti
   { match: "/dashboard/inbox-nativo", exact: true, title: "Inbox Meta", subtitle: "Conversas WhatsApp Business via API Meta" },
   { match: "/dashboard/inbox", exact: true, title: "Inbox BC", subtitle: "Conversas BotConversa com contexto do CRM" },
   { match: "/dashboard/leads", title: "Leads", subtitle: "Potenciais clientes em qualificacao" },
-  { match: "/dashboard/tutores", title: "Tutores", subtitle: "Clientes do Emporio do Pet" },
+  { match: "/dashboard/tutores", title: "Clientes", subtitle: "Clientes do Emporio do Pet" },
   { match: "/dashboard/pets", title: "Pets", subtitle: "Pacientes" },
   { match: "/dashboard/calendario", title: "Calendario", subtitle: "Agendamentos e visitas" },
   { match: "/dashboard/internacao", title: "Internacao", subtitle: "Pacientes em internacao" },
   { match: "/dashboard/configuracoes", title: "Configuracoes" },
   { match: "/dashboard/perfil", exact: true, title: "Meu perfil" },
-  { match: "/dashboard/erp/tutores", title: "Tutores" },
+  { match: "/dashboard/erp/tutores", title: "Clientes" },
   { match: "/dashboard/erp/pets", title: "Pets" },
   { match: "/dashboard/erp/atendimentos", title: "Atendimentos" },
   { match: "/dashboard/erp/agendamentos", title: "Agendamentos" },
