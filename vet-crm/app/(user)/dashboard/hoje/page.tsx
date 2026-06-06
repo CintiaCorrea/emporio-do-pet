@@ -60,6 +60,8 @@ export default function HojePage() {
   const [loading, setLoading] = useState(true);
   const [examesPend, setExamesPend] = useState<any[]>([]);
   const [examesOpen, setExamesOpen] = useState(false);
+  const [fuList, setFuList] = useState<any[]>([]);
+  const [fuOpen, setFuOpen] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -68,9 +70,11 @@ export default function HojePage() {
       const d = await safeJson<HojeData | null>(res, null);
       setData(d);
       try {
-        const [lst, pts] = await Promise.all([
+        const [lst, pts, tts, lds] = await Promise.all([
           safeJson<any>(await fetch("/api/listas"), []),
           safeJson<any>(await fetch("/api/pets?limit=1000"), []),
+          safeJson<any>(await fetch("/api/tutors?limit=1000"), []),
+          safeJson<any>(await fetch("/api/leads?limit=1000"), []),
         ]);
         const listArr = Array.isArray(lst) ? lst : (lst.itens || lst.data || []);
         const petArr = Array.isArray(pts) ? pts : (pts.pets || pts.data || []);
@@ -88,6 +92,15 @@ export default function HojePage() {
           }
         }
         setExamesPend(ex);
+        const tutorArr = Array.isArray(tts) ? tts : (tts.tutors || tts.data || []);
+        const leadArr = Array.isArray(lds) ? lds : (lds.leads || lds.data || []);
+        const endToday = new Date(); endToday.setHours(23, 59, 59, 999);
+        const fu: any[] = [];
+        for (const t of tutorArr) if (t.proximoFollowupAt && new Date(t.proximoFollowupAt) <= endToday) fu.push({ id: "t" + t.id, tipo: "Cliente", nome: t.name || "Cliente", date: t.proximoFollowupAt, href: `/dashboard/erp/tutores/${t.id}` });
+        for (const p of petArr) if (p.proximoFollowupAt && new Date(p.proximoFollowupAt) <= endToday) fu.push({ id: "p" + p.id, tipo: "Pet", nome: p.name || "Pet", date: p.proximoFollowupAt, href: `/dashboard/erp/pets/${p.id}` });
+        for (const l of leadArr) if (l.proximoFollowupAt && new Date(l.proximoFollowupAt) <= endToday) fu.push({ id: "l" + l.id, tipo: "Lead", nome: l.name || "Lead", date: l.proximoFollowupAt, href: `/dashboard/crm/leads/${l.id}` });
+        fu.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        setFuList(fu);
       } catch {}
       setLoading(false);
     })();
@@ -125,9 +138,9 @@ export default function HojePage() {
       },
       {
         key: "tutores",
-        title: "Tutores a acompanhar",
-        sub: "Follow-ups previstos para hoje",
-        count: data.tutoresAcompanhar || 0,
+        title: "Follow-ups de hoje",
+        sub: "Clientes, Pets e Leads a acompanhar",
+        count: fuList.length,
         link: "Tutores",
         href: "/dashboard/erp/tutores?fu=hoje",
         Icon: LuHeart,
@@ -151,7 +164,7 @@ export default function HojePage() {
         Icon: LuCake,
       },
     ];
-  }, [data, examesPend]);
+  }, [data, examesPend, fuList]);
 
   const total = items.reduce((s, t) => s + t.count, 0);
 
@@ -193,6 +206,27 @@ export default function HojePage() {
             );
             const rowCls = "flex items-center gap-3.5 px-[18px] py-[13px] border-b hover:bg-[#e6f6f8]/60 transition cursor-pointer";
             const rowStyle = { borderColor: i === items.length - 1 && !(p.key === "exames" && examesOpen) ? "transparent" : "#e8edf0" } as any;
+            if (p.key === "tutores") {
+              const tcor: Record<string, { bg: string; fg: string }> = { Cliente: { bg: "#E0F4F6", fg: "#00798A" }, Pet: { bg: "#E1F5EE", fg: "#0F6E56" }, Lead: { bg: "#E6F1FB", fg: "#0C447C" } };
+              return (
+                <div key={p.key}>
+                  <div className={rowCls} style={{ borderColor: "#e8edf0" }} onClick={() => setFuOpen(o => !o)}>{inner}</div>
+                  {fuOpen && (
+                    <div style={{ background: "#f8fafb" }}>
+                      {fuList.length === 0 ? (
+                        <div className="px-[58px] py-3 text-xs text-[#94a3b8] border-b" style={{ borderColor: "#e8edf0" }}>Nenhum follow-up para hoje.</div>
+                      ) : fuList.map((e: any) => (
+                        <Link key={e.id} href={e.href} className="flex items-center gap-2 px-[58px] py-2.5 border-b hover:bg-[#e6f6f8]/60 text-xs" style={{ borderColor: "#e8edf0" }}>
+                          <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: (tcor[e.tipo] || tcor.Cliente).bg, color: (tcor[e.tipo] || tcor.Cliente).fg }}>{e.tipo}</span>
+                          <span className="font-medium text-[#1e293b]">{e.nome}</span>
+                          <span className="ml-auto text-[#64748b]">{new Date(e.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}</span>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            }
             if (p.key === "exames") {
               return (
                 <div key={p.key}>
