@@ -46,6 +46,15 @@ interface WebhookBody {
 function onlyDigits(s?: string): string { return (s || '').replace(/\D/g, ''); }
 function last9(s: string): string { return s.length > 9 ? s.slice(-9) : s; }
 
+// True só se o nome do pet for "de verdade": não vazio e SEM placeholder do BC.
+// Protege contra variável não resolvida (ex.: "{Pet}", "{Espécie}") virar pet-lixo.
+function isRealPetName(s?: string): boolean {
+  const v = (s || '').trim();
+  if (!v) return false;
+  if (v.includes('{') || v.includes('}')) return false;
+  return true;
+}
+
 function mapEspecieToEnum(es?: string): string {
   if (!es) return 'OTHER';
   const k = es.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -54,7 +63,7 @@ function mapEspecieToEnum(es?: string): string {
   if (k.match(/\b(passaro|bird|ave)/)) return 'BIRD';
   if (k.match(/\b(roedor|rodent)/)) return 'RODENT';
   if (k.match(/\b(reptil|reptile)/)) return 'REPTILE';
-  if (k.match(/\b(peixe|fish)/)) return 'FISH';
+  // peixe/fish não tem no enum PetSpecies -> OTHER
   return 'OTHER';
 }
 
@@ -87,6 +96,39 @@ export class BotConversaController {
       (await this.prisma.user.findFirst({ where: { role: 'ADMIN' as any }, orderBy: { createdAt: 'asc' } })) ||
       (await this.prisma.user.findFirst({ orderBy: { createdAt: 'asc' } }));
     return owner?.id || null;
+  }
+
+  /**
+   * Cria/liga a ficha de Pet a um Tutor (cliente), reconhecendo pelo telefone do tutor.
+   * - Só cria se o nome do pet for real (guard contra "{Pet}" não resolvido).
+   * - Dedup por nome dentro do mesmo tutor (1 tutor -> N pets, sem duplicar o mesmo).
+   * Retorna true se criou um pet novo.
+   */
+  private async ensurePetForTutor(opts: {
+    tutorId: string;
+    existingPets?: { id: string; name: string }[];
+    petName: string;
+    especieEnum: string;
+  }): Promise<boolean> {
+    if (!isRealPetName(opts.petName)) return false;
+    const alvo = opts.petName.trim().toLowerCase();
+    const jaExiste = (opts.existingPets || []).some(
+      p => (p.name || '').trim().toLowerCase() === alvo,
+    );
+    if (jaExiste) return false;
+    try {
+      await this.prisma.pet.create({
+        data: {
+          name: opts.petName.trim(),
+          species: opts.especieEnum as any,
+          tutorId: opts.tutorId,
+        } as any,
+      });
+      return true;
+    } catch (e: any) {
+      this.logger.warn(`Falha ao criar Pet: ${e?.message || e}`);
+      return false;
+    }
   }
 
   /**
@@ -200,8 +242,10 @@ export class BotConversaController {
 
         await this.recordInteracaoBC({ tutorId: t.id, ownerId, texto: textoInteracao });
 
-        // Pet auto-create REMOVIDO: cliente respondia mensagens livres no campo
-        // pet_nome do BC. Equipe cadastra Pet manualmente apos confirmar o nome real.
+        // Cliente existente que informou o pet -> garante a ficha do Pet (dedup por nome).
+        if (await this.ensurePetForTutor({ tutorId: t.id, existingPets: t.pets, petName, especieEnum: petEspecie })) {
+          result.petsCreated++;
+        }
       }
 
       // 2) Lead existente
@@ -234,6 +278,12 @@ export class BotConversaController {
               data: { lastActivityAt: new Date() } as any,
             }).catch(() => {});
             await this.recordInteracaoBC({ tutorId: tutor.id, ownerId, texto: textoInteracao });
+
+            // Lead virou cliente -> cria a ficha do Pet se veio nome real.
+            if (await this.ensurePetForTutor({ tutorId: tutor.id, existingPets: [], petName, especieEnum: petEspecie })) {
+              result.petsCreated++;
+            }
+
             result.tutorCreated = true;
             result.tutorId = tutor.id;
             result.promotedFromLead = l.id;
@@ -285,6 +335,12 @@ export class BotConversaController {
               } as any,
             });
             await this.recordInteracaoBC({ tutorId: tutor.id, ownerId, texto: textoInteracao });
+
+            // Cliente novo -> cria a ficha do Pet se veio nome real.
+            if (await this.ensurePetForTutor({ tutorId: tutor.id, existingPets: [], petName, especieEnum: petEspecie })) {
+              result.petsCreated++;
+            }
+
             result.tutorCreated = true;
             result.tutorId = tutor.id;
             return result;
