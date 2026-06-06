@@ -61,7 +61,7 @@ export default function EtiquetasPage() {
     try {
       const qs = showInactive ? "?includeInactive=true" : "";
       const [r1, r2] = await Promise.all([
-        fetch(`/api/etiquetas${qs}`),
+        fetch(`/api/etiquetas/templates${qs}`),
         fetch(`/api/etiquetas/categorias${qs}`),
       ]);
       const e = await r1.json();
@@ -108,7 +108,7 @@ export default function EtiquetasPage() {
   async function saveE() {
     try {
       const { id, createdAt, updatedAt, category, ...payload } = eForm as any;
-      const url = eEditId ? `/api/etiquetas/${eEditId}` : "/api/etiquetas";
+      const url = eEditId ? `/api/etiquetas/templates/${eEditId}` : "/api/etiquetas/templates";
       const method = eEditId ? "PATCH" : "POST";
       const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       if (!res.ok) {
@@ -121,12 +121,12 @@ export default function EtiquetasPage() {
   }
   async function deleteE(e: Etiqueta) {
     if (!confirm(`Excluir etiqueta "${e.texto}"?`)) return;
-    const res = await fetch(`/api/etiquetas/${e.id}`, { method: "DELETE" });
+    const res = await fetch(`/api/etiquetas/templates/${e.id}`, { method: "DELETE" });
     if (!res.ok) { alert(`Erro: ${res.status}`); return; }
     await load();
   }
   async function toggleAtivo(e: Etiqueta) {
-    const res = await fetch(`/api/etiquetas/${e.id}`, {
+    const res = await fetch(`/api/etiquetas/templates/${e.id}`, {
       method: "PATCH", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ativo: !e.ativo }),
     });
