@@ -43,6 +43,7 @@ interface TutorDetail {
   acceptsSMS: boolean;
   convertedFromLeadId: string | null;
   proximoFollowupAt?: string | null;
+  estadoRelacionamento?: string | null;
   createdAt: string;
   pets?: { id: string; name: string; species: string; breed?: string; birthDate?: string }[];
   contacts?: { id: string; number: string; type: string; isPrimary: boolean; isWhatsApp: boolean }[];
@@ -121,6 +122,9 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
   const [intTipo, setIntTipo] = useState("NOTA");
   const [intTexto, setIntTexto] = useState("");
   const [savingInt, setSavingInt] = useState(false);
+  const [estagios, setEstagios] = useState<string[]>([]);
+  const [pipelineNome, setPipelineNome] = useState("");
+  const [savingEstagio, setSavingEstagio] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -176,6 +180,10 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
     setSavingInt(true);
     try { const r = await fetch(`/api/interacoes`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tutorId: id, tipo: intTipo, texto: intTexto.trim(), canal: "Sistema" }) }); if (!r.ok) throw new Error(); toast.success("Registrado"); setIntTexto(""); await loadInteracoes(); } catch { toast.error("Erro ao registrar"); } finally { setSavingInt(false); }
   }
+  async function saveEstagio(valor: string) {
+    setSavingEstagio(true);
+    try { const r = await fetch(`/api/tutors/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ estadoRelacionamento: valor || null }) }); if (!r.ok) throw new Error(); toast.success("Estágio atualizado"); await load(); } catch { toast.error("Erro ao atualizar estágio"); } finally { setSavingEstagio(false); }
+  }
 
   async function loadInteracoes() {
     try { const r = await fetch(`/api/interacoes?tutorId=${id}&limit=100`, { cache: "no-store" }); const d = await r.json(); setInteracoes(Array.isArray(d) ? d : (d.interacoes || d.data || [])); } catch {}
@@ -183,7 +191,17 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
   async function loadTemplates() {
     try { const r = await fetch(`/api/etiquetas/templates`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.templates || d.data || []); setTplTags(arr.filter((t: any) => t.ativo !== false && (t.aplicaEm || []).includes("Cliente"))); } catch {}
   }
-  useEffect(() => { load(); loadInteracoes(); loadTemplates(); }, [id]);
+  async function loadPipelineCliente() {
+    try {
+      const r = await fetch(`/api/pipelines`, { cache: "no-store" });
+      const d = await r.json();
+      const arr = Array.isArray(d) ? d : (d.pipelines || d.data || []);
+      const cliente = arr.filter((p: any) => p.escopo === "CLIENTE" && p.ativo !== false);
+      const p = cliente.find((x: any) => x.isPadrao) || cliente[0];
+      if (p) { setPipelineNome(p.nome); setEstagios((p.estagios || []).slice().sort((a: any, b: any) => (a.ordem || 0) - (b.ordem || 0)).map((e: any) => e.nome)); }
+    } catch {}
+  }
+  useEffect(() => { load(); loadInteracoes(); loadTemplates(); loadPipelineCliente(); }, [id]);
 
   const saveNota = async () => {
     setNotaSaving(true);
@@ -346,7 +364,13 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
               <LuCalendar className="w-3.5 h-3.5" />
               <h3 className="text-[13px] text-[#0E2244] font-medium">Follow-up</h3>
             </div>
-            <p className="text-[10px] text-[#5b6470] mb-1.5">Pipeline: <span className="bg-[#E0F4F6] text-[#00798A] px-1.5 py-0.5 rounded">Relacionamento (Tutor)</span></p>
+            <p className="text-[10px] text-[#5b6470] mb-1">Pipeline: <span className="bg-[#E0F4F6] text-[#00798A] px-1.5 py-0.5 rounded">{pipelineNome || "Cliente"}</span></p>
+            <label className="text-[10px] text-[#5b6470]">Estágio</label>
+            <select value={tutor.estadoRelacionamento || ""} onChange={(e) => saveEstagio(e.target.value)} disabled={savingEstagio} className="w-full mb-2 px-2 py-1.5 border border-[#d8d0bc] rounded text-xs text-[#0E2244] disabled:opacity-50">
+              <option value="">— selecionar —</option>
+              {tutor.estadoRelacionamento && !estagios.includes(tutor.estadoRelacionamento) && <option value={tutor.estadoRelacionamento}>{tutor.estadoRelacionamento}</option>}
+              {estagios.map((e) => <option key={e} value={e}>{e}</option>)}
+            </select>
             {tutor.proximoFollowupAt ? (
               <div className="flex items-center justify-between bg-[#fbfaf6] rounded px-2.5 py-2 mb-2">
                 <span className="text-[12px] text-[#0E2244]"><LuCalendar className="inline w-3 h-3 text-[#009AAC]" /> {new Date(tutor.proximoFollowupAt).toLocaleDateString("pt-BR")}</span>
