@@ -18,6 +18,7 @@ import { LuArrowLeft, LuExternalLink } from "react-icons/lu";
 
 const TELAS_DEV = [
   { href: "/dashboard/erp/tutores", label: "Tutores", desc: "Lista, ficha, editar e novo (versão do dev)" },
+  { href: "/dashboard/erp/tutores/novo", label: "Cadastro antigo de cliente", desc: "Formulário /novo original do dev (estilo antigo) — guardado pra comparação" },
   { href: "/dashboard/erp/pets", label: "Pets", desc: "Lista, ficha, editar e novo (versão do dev)" },
   { href: "/dashboard/crm/leads", label: "Leads", desc: "Lista e ficha (versão do dev)" },
   { href: "/dashboard/erp/agendamentos", label: "Agenda de consultas", desc: "Calendário de agendamento (não usado)" },
