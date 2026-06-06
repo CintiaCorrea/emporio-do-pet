@@ -44,7 +44,7 @@ export default function ServicosPage() {
     setLoading(true);
     try {
       const qs = showInactive ? "?includeInactive=true" : "";
-      const [rC, rS] = await Promise.all([fetch(`/api/servicos/categorias${qs}`), fetch(`/api/servicos${qs}`)]);
+      const [rC, rS] = await Promise.all([fetch(`/api/servicos/categorias${qs}`), fetch(`/api/servicos/itens${qs}`)]);
       setCategorias(await rC.json().then(d => Array.isArray(d) ? d : []));
       setServicos(await rS.json().then(d => Array.isArray(d) ? d : []));
     } catch (e) { console.error(e); }
@@ -68,7 +68,7 @@ export default function ServicosPage() {
   async function saveS() {
     try {
       const { id, createdAt, updatedAt, category, ...payload } = sForm as any;
-      const url = sEditId ? `/api/servicos/${sEditId}` : "/api/servicos";
+      const url = sEditId ? `/api/servicos/itens/${sEditId}` : "/api/servicos/itens";
       const method = sEditId ? "PATCH" : "POST";
       const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       if (!res.ok) { const err = await res.json().catch(() => null); alert(`Erro: ${err?.message || res.status}`); return; }
@@ -77,12 +77,12 @@ export default function ServicosPage() {
   }
   async function removeS(s: Servico) {
     if (!confirm(`Excluir serviço "${s.nome}"?`)) return;
-    const res = await fetch(`/api/servicos/${s.id}`, { method: "DELETE" });
+    const res = await fetch(`/api/servicos/itens/${s.id}`, { method: "DELETE" });
     if (!res.ok) { alert(`Erro: ${res.status}`); return; }
     await load();
   }
   async function toggleS(s: Servico) {
-    const res = await fetch(`/api/servicos/${s.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ativo: !s.ativo }) });
+    const res = await fetch(`/api/servicos/itens/${s.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ativo: !s.ativo }) });
     if (!res.ok) { alert(`Erro: ${res.status}`); return; }
     await load();
   }
