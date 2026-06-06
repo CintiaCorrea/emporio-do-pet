@@ -411,7 +411,8 @@ export default function PetDetailPage() {
       </div>
 
       {/* 3 colunas: Clínica/Pacotes/Exames | Pipelines+Cadência | Painel do pet */}
-      <div className="max-w-7xl mx-auto px-6 pt-3 grid grid-cols-1 lg:grid-cols-[1fr_1fr_300px] gap-5 items-start">
+      <div className="max-w-7xl mx-auto px-6 pt-3 grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-5 items-start">
+        <div className="space-y-4">
         <div className="bg-white border rounded-xl overflow-hidden" style={{ borderColor: "#E8DFC8" }}>
             <div className="flex border-b" style={{ borderColor: "#E8DFC8" }}>
               {(
@@ -556,8 +557,6 @@ export default function PetDetailPage() {
               </div>
             )}
         </div>
-
-        <div className="space-y-4">
           <div className="bg-white border rounded-xl p-4" style={{ borderColor: "#E8DFC8" }}>
                 <section>
                   <h3 className="text-sm font-semibold mb-2" style={{ color: "#0E2244" }}>Pipelines do Pet</h3>
