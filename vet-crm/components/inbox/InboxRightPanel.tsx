@@ -10,7 +10,7 @@ import {
 } from "react-icons/lu";
 import toast from "react-hot-toast";
 import PetIcon from "@/components/profile/PetIcon";
-import { speciesLabel, ageFromBirth } from "@/lib/pets/labels";
+import { speciesLabel, speciesKey, ageFromBirth } from "@/lib/pets/labels";
 
 interface Contact { id: string; number: string; isPrimary?: boolean; isWhatsApp?: boolean; }
 interface Tutor {
@@ -501,6 +501,13 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
     const updated = { ...selectedPet, [field]: value } as Pet;
     setSelectedPet(updated);
     setPets(pets.map(p => p.id === selectedPet.id ? updated : p));
+  }
+  async function savePetField(petId: string, patch: Record<string, any>) {
+    const res = await fetch(`/api/pets/${petId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) });
+    if (!res.ok) { toast.error("Erro ao salvar"); return; }
+    toast.success("Pet atualizado");
+    setPets(pets.map(p => p.id === petId ? ({ ...p, ...patch } as Pet) : p));
+    setSelectedPet(selectedPet && selectedPet.id === petId ? ({ ...selectedPet, ...patch } as Pet) : selectedPet);
   }
   async function updateTutorEstado(value: string) {
     if (!tutor) return;
@@ -1091,10 +1098,31 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                           </button>
                           {active && (
                             <div className="px-2 pb-2 pt-1 border-t" style={{ borderColor: "#cfe8eb" }}>
-                              <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[10.5px] mb-2 mt-1">
-                                <div><span className="text-gray-400">Espécie:</span> <span style={{ color: "#014D5E" }}>{speciesLabel(p.species)}</span></div>
-                                <div><span className="text-gray-400">Raça:</span> <span style={{ color: "#014D5E" }}>{p.breed || "—"}</span></div>
-                                <div><span className="text-gray-400">Idade:</span> <span style={{ color: "#014D5E" }}>{p.birthDate ? ageFromBirth(p.birthDate) : "—"}</span></div>
+                              <div className="space-y-1 text-[10.5px] mb-2 mt-1">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-gray-400 w-12 flex-shrink-0">Nome</span>
+                                  <input defaultValue={p.name === "Sem nome" ? "" : p.name} placeholder="Nome do pet" onBlur={e => { const v = e.target.value.trim(); if (v && v !== p.name) savePetField(p.id, { name: v }); }} className="flex-1 text-[10.5px] px-2 py-1 border rounded" style={{ borderColor: "#cfe8eb", color: "#014D5E" }} />
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-gray-400 w-12 flex-shrink-0">Espécie</span>
+                                  <select defaultValue={speciesKey(p.species)} onChange={e => savePetField(p.id, { species: e.target.value })} className="flex-1 text-[10.5px] px-2 py-1 border rounded" style={{ borderColor: "#cfe8eb", color: "#014D5E", background: "white" }}>
+                                    <option value="CANINE">Cão</option>
+                                    <option value="FELINE">Gato</option>
+                                    <option value="BIRD">Ave</option>
+                                    <option value="RODENT">Roedor</option>
+                                    <option value="REPTILE">Réptil</option>
+                                    <option value="OTHER">Outro</option>
+                                  </select>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-gray-400 w-12 flex-shrink-0">Raça</span>
+                                  <input defaultValue={p.breed || ""} placeholder="Raça" onBlur={e => { const v = e.target.value.trim(); if (v !== (p.breed || "")) savePetField(p.id, { breed: v || null }); }} className="flex-1 text-[10.5px] px-2 py-1 border rounded" style={{ borderColor: "#cfe8eb", color: "#014D5E" }} />
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-gray-400 w-12 flex-shrink-0">Nasc.</span>
+                                  <input type="date" defaultValue={p.birthDate ? String(p.birthDate).slice(0, 10) : ""} onChange={e => savePetField(p.id, { birthDate: e.target.value ? new Date(e.target.value).toISOString() : null })} className="flex-1 text-[10.5px] px-2 py-1 border rounded" style={{ borderColor: "#cfe8eb", color: "#014D5E", background: "white" }} />
+                                  <span className="text-[9.5px] text-gray-400 flex-shrink-0 w-12">{p.birthDate ? ageFromBirth(p.birthDate) : ""}</span>
+                                </div>
                               </div>
                               <div className="space-y-1.5 mb-2">
                                 <div className="flex items-center gap-1.5">
