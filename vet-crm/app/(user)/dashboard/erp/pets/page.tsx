@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { LuPlus, LuSearch, LuPencil, LuEye } from "react-icons/lu";
+import { LuPlus, LuSearch, LuPencil, LuEye, LuTrash } from "react-icons/lu";
 import PetIcon from "@/components/profile/PetIcon";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { speciesLabel, speciesKey, statusLabel, ageFromBirth } from "@/lib/pets/labels";
@@ -61,6 +61,24 @@ export default function PetsListPage() {
   const [search, setSearch] = useState("");
   const [filterSpecies, setFilterSpecies] = useState<string>("ALL");
   const [filterStatus, setFilterStatus] = useState<string>("ALL");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const handleDeletePet = async (pet: Pet) => {
+    if (deletingId) return;
+    const label = pet.name || "este pet";
+    if (!window.confirm(`Excluir ${label}? Esta acao nao pode ser desfeita.`)) return;
+    setDeletingId(pet.id);
+    try {
+      const res = await fetch(`/api/pets/${pet.id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error(await res.text());
+      setPets((prev) => prev.filter((x) => x.id !== pet.id));
+    } catch (e) {
+      console.error(e);
+      window.alert("Nao foi possivel excluir o pet. Tente novamente.");
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   async function load() {
     setLoading(true);
@@ -182,6 +200,9 @@ export default function PetsListPage() {
                       <Link href={`/dashboard/erp/pets/${p.id}/editar`} className="p-1 hover:bg-gray-200 rounded inline-block ml-1 text-gray-600">
                         <LuPencil size={14} />
                       </Link>
+                      <button type="button" onClick={() => handleDeletePet(p)} disabled={deletingId === p.id} title="Excluir pet" className="p-1 hover:bg-gray-200 rounded inline-block ml-1 text-gray-600 disabled:opacity-40">
+                        <LuTrash size={14} />
+                      </button>
                     </td>
                   </tr>
                 );
