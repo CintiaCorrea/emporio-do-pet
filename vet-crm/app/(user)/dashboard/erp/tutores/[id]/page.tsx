@@ -42,6 +42,7 @@ interface TutorDetail {
   acceptsWhatsApp: boolean;
   acceptsSMS: boolean;
   convertedFromLeadId: string | null;
+  proximoFollowupAt?: string | null;
   createdAt: string;
   pets?: { id: string; name: string; species: string; breed?: string; birthDate?: string }[];
   contacts?: { id: string; number: string; type: string; isPrimary: boolean; isWhatsApp: boolean }[];
@@ -111,6 +112,15 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
   const [editDados, setEditDados] = useState(false);
   const [dadosForm, setDadosForm] = useState<any>({});
   const [savingDados, setSavingDados] = useState(false);
+  const [tagPicker, setTagPicker] = useState(false);
+  const [tplTags, setTplTags] = useState<any[]>([]);
+  const [savingTag, setSavingTag] = useState(false);
+  const [fuDate, setFuDate] = useState("");
+  const [savingFu, setSavingFu] = useState(false);
+  const [interacoes, setInteracoes] = useState<any[]>([]);
+  const [intTipo, setIntTipo] = useState("NOTA");
+  const [intTexto, setIntTexto] = useState("");
+  const [savingInt, setSavingInt] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -142,7 +152,38 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
     finally { setSavingDados(false); }
   }
 
-  useEffect(() => { load(); }, [id]);
+  async function addTag(texto: string) {
+    if (!tutor) return;
+    const novas = Array.from(new Set([...(tutor.tags || []), texto]));
+    setSavingTag(true);
+    try { const r = await fetch(`/api/tutors/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tags: novas }) }); if (!r.ok) throw new Error(); toast.success("Etiqueta adicionada"); setTagPicker(false); await load(); } catch { toast.error("Erro ao adicionar etiqueta"); } finally { setSavingTag(false); }
+  }
+  async function removeTag(texto: string) {
+    if (!tutor) return;
+    const novas = (tutor.tags || []).filter((t) => t !== texto);
+    try { const r = await fetch(`/api/tutors/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tags: novas }) }); if (!r.ok) throw new Error(); await load(); } catch { toast.error("Erro ao remover etiqueta"); }
+  }
+  async function saveFollowup() {
+    if (!fuDate) { toast.error("Escolha uma data"); return; }
+    setSavingFu(true);
+    try { const r = await fetch(`/api/tutors/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ proximoFollowupAt: new Date(fuDate + "T12:00:00").toISOString() }) }); if (!r.ok) throw new Error(); toast.success("Follow-up agendado"); setFuDate(""); await load(); } catch { toast.error("Erro ao agendar"); } finally { setSavingFu(false); }
+  }
+  async function clearFollowup() {
+    try { const r = await fetch(`/api/tutors/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ proximoFollowupAt: null }) }); if (!r.ok) throw new Error(); toast.success("Follow-up removido"); await load(); } catch { toast.error("Erro ao remover"); }
+  }
+  async function addInteracao() {
+    if (!intTexto.trim()) { toast.error("Escreva algo"); return; }
+    setSavingInt(true);
+    try { const r = await fetch(`/api/interacoes`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tutorId: id, tipo: intTipo, texto: intTexto.trim(), canal: "Sistema" }) }); if (!r.ok) throw new Error(); toast.success("Registrado"); setIntTexto(""); await loadInteracoes(); } catch { toast.error("Erro ao registrar"); } finally { setSavingInt(false); }
+  }
+
+  async function loadInteracoes() {
+    try { const r = await fetch(`/api/interacoes?tutorId=${id}&limit=100`, { cache: "no-store" }); const d = await r.json(); setInteracoes(Array.isArray(d) ? d : (d.interacoes || d.data || [])); } catch {}
+  }
+  async function loadTemplates() {
+    try { const r = await fetch(`/api/etiquetas/templates`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.templates || d.data || []); setTplTags(arr.filter((t: any) => t.ativo !== false && (t.aplicaEm || []).includes("Cliente"))); } catch {}
+  }
+  useEffect(() => { load(); loadInteracoes(); loadTemplates(); }, [id]);
 
   const saveNota = async () => {
     setNotaSaving(true);
@@ -231,7 +272,6 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
         <div className="flex gap-1.5 flex-wrap">
           <button onClick={() => openWhatsAppMeta(phone)} className="bg-white border border-[#009AAC] text-[#00798A] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5"><LuStickyNote className="w-3.5 h-3.5" />WhatsApp</button>
           <button onClick={() => setEmailOpen(true)} className="bg-white border border-[#cfd8e0] text-[#4d5a66] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5"><span style={{fontSize:"14px"}}>✉️</span>Email</button>
-          <Link href={`/dashboard/erp/tutores/${id}/editar`} className="bg-white border border-[#cfd8e0] text-[#4d5a66] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5"><LuPencil className="w-3.5 h-3.5" />Editar</Link>
           <button className="bg-white border border-[#FCD194] text-[#BA7517] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5" onClick={marcarRecuperar}><LuTriangleAlert className="w-3.5 h-3.5" />Marcar a recuperar</button>
           <button className="bg-white border border-[#cfd8e0] text-[#0C447C] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5" onClick={encaminhar}><span style={{fontSize:"13px"}}>↔</span>Encaminhar</button>
           <button className="bg-white border border-[#cfd8e0] text-[#009AAC] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5" onClick={retomarComoLead}><span style={{fontSize:"13px"}}>↺</span>Retomar como Lead</button>
@@ -304,18 +344,21 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
           <div className="bg-white border border-[#d8d0bc] rounded-xl p-3.5">
             <div className="flex items-center gap-2 mb-2">
               <LuCalendar className="w-3.5 h-3.5" />
-              <h3 className="text-[13px] text-[#0E2244] font-medium">Follow-up & Cadência</h3>
+              <h3 className="text-[13px] text-[#0E2244] font-medium">Follow-up</h3>
             </div>
-            <p className="text-[10px] text-[#5b6470] mb-1.5">Acompanhando:</p>
-            <select className="w-full px-2.5 py-1.5 border border-[#d8d0bc] rounded text-xs text-[#0E2244]">
-              <option>Relacionamento (Tutor)</option>
-              <option>Pós-venda</option>
-              <option>Retenção</option>
-            </select>
-            <p className="text-center text-[11px] text-gray-400 my-2">Sem follow-up pro cliente</p>
-            <button className="w-full bg-white border border-dashed border-[#009AAC] text-[#00798A] py-1.5 rounded text-[11px] font-medium">
-              <LuPlus className="inline w-3 h-3" /> Agendar follow-up
-            </button>
+            <p className="text-[10px] text-[#5b6470] mb-1.5">Pipeline: <span className="bg-[#E0F4F6] text-[#00798A] px-1.5 py-0.5 rounded">Relacionamento (Tutor)</span></p>
+            {tutor.proximoFollowupAt ? (
+              <div className="flex items-center justify-between bg-[#fbfaf6] rounded px-2.5 py-2 mb-2">
+                <span className="text-[12px] text-[#0E2244]"><LuCalendar className="inline w-3 h-3 text-[#009AAC]" /> {new Date(tutor.proximoFollowupAt).toLocaleDateString("pt-BR")}</span>
+                <button onClick={clearFollowup} className="text-[10px] text-[#A32D2D]">Remover</button>
+              </div>
+            ) : (
+              <p className="text-center text-[11px] text-gray-400 my-2">Sem follow-up agendado</p>
+            )}
+            <div className="flex gap-1.5">
+              <input type="date" value={fuDate} onChange={(e) => setFuDate(e.target.value)} className="flex-1 px-2 py-1.5 border border-[#d8d0bc] rounded text-[11px] text-[#0E2244]" />
+              <button onClick={saveFollowup} disabled={savingFu} className="bg-[#009AAC] text-white px-3 py-1.5 rounded text-[11px] font-medium disabled:opacity-50">{savingFu ? "..." : "Agendar"}</button>
+            </div>
           </div>
 
           {tutor.score && (
@@ -353,12 +396,32 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
           <div className="bg-white border border-[#d8d0bc] rounded-xl p-3.5">
             <h3 className="text-[13px] text-[#0E2244] font-medium mb-2">Etiquetas</h3>
             {(tutor.tags?.length || 0) === 0 && <p className="text-[11px] text-gray-400 mb-2">Sem etiquetas</p>}
-            <div className="flex flex-wrap gap-1">
-              {tutor.tags?.map((t) => (
-                <span key={t} className="bg-[#EEEDFE] text-[#009AAC] text-[10px] px-2 py-0.5 rounded-full">● {t}</span>
-              ))}
-              <button className="border border-dashed border-[#cfd8e0] text-gray-400 text-[10px] px-2 py-0.5 rounded-full">+ tag</button>
+            <div className="flex flex-wrap gap-1 items-center">
+              {tutor.tags?.map((t) => {
+                const tpl = tplTags.find((x: any) => x.texto === t);
+                const cor = tpl?.cor || "#009AAC";
+                return (
+                  <span key={t} className="text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1" style={{ background: cor + "22", color: cor }}>
+                    ● {t}
+                    <button onClick={() => removeTag(t)} title="Remover" className="hover:opacity-60 font-bold">×</button>
+                  </span>
+                );
+              })}
+              <button onClick={() => setTagPicker((v) => !v)} className="border border-dashed border-[#cfd8e0] text-gray-400 text-[10px] px-2 py-0.5 rounded-full">+ tag</button>
             </div>
+            {tagPicker && (
+              <div className="mt-2 pt-2 border-t border-[#f0e8d4]">
+                {tplTags.filter((t: any) => !(tutor.tags || []).includes(t.texto)).length === 0 ? (
+                  <p className="text-[10px] text-gray-400">Nenhuma etiqueta de Cliente disponível. Cadastre em Configurações → Etiquetas.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-1">
+                    {tplTags.filter((t: any) => !(tutor.tags || []).includes(t.texto)).map((t: any) => (
+                      <button key={t.texto} disabled={savingTag} onClick={() => addTag(t.texto)} className="text-[10px] px-2 py-0.5 rounded-full border disabled:opacity-50" style={{ borderColor: (t.cor || "#009AAC") + "66", color: t.cor || "#009AAC" }}>+ {t.texto}</button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="bg-white border border-[#d8d0bc] rounded-xl p-3.5">
@@ -409,24 +472,39 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
             )}
           </div>
 
-          {/* Histórico de Interações grande (cresce com uso) */}
-          <AccordionCard icon={() => <span style={{fontSize:"14px"}}>💬</span>} title="Histórico de interações" count={0}
-            action={<button className="bg-[#009AAC] text-white px-2.5 py-1 rounded text-[11px] font-medium"><LuPlus className="inline w-3 h-3" /> Nota</button>}>
+          {/* Histórico de Interações — observações pros próximos atendentes (cresce com uso) */}
+          <AccordionCard icon={() => <span style={{fontSize:"14px"}}>💬</span>} title="Histórico de interações" count={interacoes.length}>
             <div className="flex gap-2 mb-2">
-              <select className="border border-[#d8d0bc] rounded px-2 py-1 text-[11px]"><option>Nota</option><option>WhatsApp</option><option>Email</option></select>
-              <input placeholder="Registrar..." className="flex-1 border border-[#d8d0bc] rounded px-2 py-1 text-[11px]" />
+              <select value={intTipo} onChange={(e) => setIntTipo(e.target.value)} className="border border-[#d8d0bc] rounded px-2 py-1 text-[11px]">
+                <option value="NOTA">Nota</option>
+                <option value="LIGACAO">Ligação</option>
+                <option value="WHATSAPP_ENVIADO">WhatsApp</option>
+                <option value="PRESENCIAL">Presencial</option>
+              </select>
+              <input value={intTexto} onChange={(e) => setIntTexto(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addInteracao(); }} placeholder="Registrar o que foi feito..." className="flex-1 border border-[#d8d0bc] rounded px-2 py-1 text-[11px]" />
+              <button onClick={addInteracao} disabled={savingInt} className="bg-[#009AAC] text-white px-2.5 py-1 rounded text-[11px] font-medium disabled:opacity-50">{savingInt ? "..." : "Salvar"}</button>
             </div>
-            <p className="text-center text-[11px] text-gray-400 py-4">Nenhuma interação ainda</p>
+            {interacoes.length === 0 ? (
+              <p className="text-center text-[11px] text-gray-400 py-4">Nenhuma interação ainda</p>
+            ) : (
+              <div className="flex flex-col gap-1.5 max-h-72 overflow-auto">
+                {interacoes.map((it: any) => (
+                  <div key={it.id} className="bg-[#fbfaf6] rounded px-2.5 py-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-medium text-[#00798A]">{it.tipo}{it.canal ? ` · ${it.canal}` : ""}</span>
+                      <span className="text-[10px] text-gray-400">{new Date(it.createdAt).toLocaleDateString("pt-BR")} {new Date(it.createdAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</span>
+                    </div>
+                    <p className="text-[11px] text-[#0E2244] mt-0.5">{it.texto}</p>
+                    {it.autor?.name && <p className="text-[10px] text-gray-400 mt-0.5">por {it.autor.name}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
           </AccordionCard>
         </div>
 
         {/* Coluna direita — Atendimentos + Sequências + Emails (compactos) */}
         <div className="flex flex-col gap-2.5">
-          <AccordionCard icon={() => <span style={{fontSize:"14px"}}>🩺</span>} title="Atendimentos" count={0}
-            action={<button className="bg-[#0F6E56] text-white px-2 py-0.5 rounded text-[10px] font-medium"><LuPlus className="inline w-2.5 h-2.5" /> Novo</button>}>
-            <p className="text-center text-[11px] text-gray-400 py-2">Nenhum registrado</p>
-          </AccordionCard>
-
           <AccordionCard icon={() => <span style={{fontSize:"14px"}}>⚡</span>} title="Sequências" badge={{ label: "Em breve", color: "#009AAC", bg: "#EEEDFE" }}>
             <div className="flex flex-col gap-1">
               <div className="bg-[#fbfaf6] rounded px-2 py-1.5 flex items-center justify-between text-[11px]">
