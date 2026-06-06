@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import {
-  LuRefreshCcw, LuPhone, LuPackage, LuHeart,
+  LuRefreshCcw, LuPhone, LuPackage,
   LuFlaskConical, LuCake, LuChevronRight,
 } from "react-icons/lu";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
@@ -60,8 +60,12 @@ export default function HojePage() {
   const [loading, setLoading] = useState(true);
   const [examesPend, setExamesPend] = useState<any[]>([]);
   const [examesOpen, setExamesOpen] = useState(false);
-  const [fuList, setFuList] = useState<any[]>([]);
-  const [fuOpen, setFuOpen] = useState(false);
+  const [fuDue, setFuDue] = useState<any[]>([]);
+  const [fuDueOpen, setFuDueOpen] = useState(false);
+  const [toques, setToques] = useState<any[]>([]);
+  const [toquesOpen, setToquesOpen] = useState(false);
+  const [aniv, setAniv] = useState<any[]>([]);
+  const [anivOpen, setAnivOpen] = useState(false);
   const [pacRisco, setPacRisco] = useState<any[]>([]);
   const [pacOpen, setPacOpen] = useState(false);
 
@@ -72,11 +76,12 @@ export default function HojePage() {
       const d = await safeJson<HojeData | null>(res, null);
       setData(d);
       try {
-        const [lst, pts, tts, lds] = await Promise.all([
+        const [lst, pts, tts, lds, cds] = await Promise.all([
           safeJson<any>(await fetch("/api/listas"), []),
           safeJson<any>(await fetch("/api/pets?limit=1000"), []),
           safeJson<any>(await fetch("/api/tutors?limit=1000"), []),
           safeJson<any>(await fetch("/api/leads?limit=1000"), []),
+          safeJson<any>(await fetch("/api/cadencias"), []),
         ]);
         const listArr = Array.isArray(lst) ? lst : (lst.itens || lst.data || []);
         const petArr = Array.isArray(pts) ? pts : (pts.pets || pts.data || []);
@@ -96,13 +101,46 @@ export default function HojePage() {
         setExamesPend(ex);
         const tutorArr = Array.isArray(tts) ? tts : (tts.tutors || tts.data || []);
         const leadArr = Array.isArray(lds) ? lds : (lds.leads || lds.data || []);
+        const tutorMap: Record<string, string> = {};
+        tutorArr.forEach((t: any) => { tutorMap[t.id] = t.name; });
+        const startToday = new Date(); startToday.setHours(0, 0, 0, 0);
         const endToday = new Date(); endToday.setHours(23, 59, 59, 999);
         const fu: any[] = [];
         for (const t of tutorArr) if (t.proximoFollowupAt && new Date(t.proximoFollowupAt) <= endToday) fu.push({ id: "t" + t.id, tipo: "Cliente", nome: t.name || "Cliente", date: t.proximoFollowupAt, href: `/dashboard/erp/tutores/${t.id}` });
         for (const p of petArr) if (p.proximoFollowupAt && new Date(p.proximoFollowupAt) <= endToday) fu.push({ id: "p" + p.id, tipo: "Pet", nome: p.name || "Pet", date: p.proximoFollowupAt, href: `/dashboard/erp/pets/${p.id}` });
         for (const l of leadArr) if (l.proximoFollowupAt && new Date(l.proximoFollowupAt) <= endToday) fu.push({ id: "l" + l.id, tipo: "Lead", nome: l.name || "Lead", date: l.proximoFollowupAt, href: `/dashboard/crm/leads/${l.id}` });
         fu.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-        setFuList(fu);
+        setFuDue(fu);
+        // Toques de cadencia: passos das cadencias (clientes/pets) que vencem hoje
+        const cadArr = Array.isArray(cds) ? cds : (cds.cadencias || cds.data || []);
+        const cadById: Record<string, any> = {};
+        cadArr.forEach((c: any) => { cadById[c.id] = c; });
+        const msUnid: Record<string, number> = { MINUTOS: 60000, HORAS: 3600000, DIAS: 86400000, SEMANAS: 604800000, MESES: 2592000000 };
+        const tq: any[] = [];
+        for (const it of listArr) {
+          const lista = it.lista || "";
+          const isPet = lista.startsWith("petcad_"), isCli = lista.startsWith("tutcad_");
+          if (!isPet && !isCli) continue;
+          let dd: any = {}; try { dd = JSON.parse(it.valor); } catch {}
+          const cad = cadById[dd.cadenciaId]; if (!cad || !dd.startedAt) continue;
+          const start = new Date(dd.startedAt).getTime();
+          for (const passo of (cad.passos || [])) {
+            if (passo.ativo === false) continue;
+            const ms = (msUnid[passo.atrasoUnidade] || 86400000) * (Number(passo.atrasoValor) || 0);
+            const due = new Date(start + ms);
+            if (due >= startToday && due <= endToday) {
+              const ownerId = lista.replace(isPet ? "petcad_" : "tutcad_", "");
+              tq.push({ id: it.id + "_" + passo.id, tipo: isPet ? "Pet" : "Cliente", nome: isPet ? (petMap[ownerId] || "Pet") : (tutorMap[ownerId] || "Cliente"), cadencia: cad.nome, passo: passo.titulo || passo.tipo, canal: passo.tipo, href: isPet ? `/dashboard/erp/pets/${ownerId}` : `/dashboard/erp/tutores/${ownerId}` });
+            }
+          }
+        }
+        setToques(tq);
+        // Aniversariantes (cliente.birthDate + pet.birthDate)
+        const td = new Date(); const dd2 = td.getDate(), mm2 = td.getMonth();
+        const an: any[] = [];
+        for (const t of tutorArr) if (t.birthDate) { const b = new Date(t.birthDate); if (b.getDate() === dd2 && b.getMonth() === mm2) an.push({ id: "t" + t.id, tipo: "Cliente", nome: t.name || "Cliente", date: t.birthDate, href: `/dashboard/erp/tutores/${t.id}` }); }
+        for (const p of petArr) if (p.birthDate) { const b = new Date(p.birthDate); if (b.getDate() === dd2 && b.getMonth() === mm2) an.push({ id: "p" + p.id, tipo: "Pet", nome: p.name || "Pet", date: p.birthDate, href: `/dashboard/erp/pets/${p.id}` }); }
+        setAniv(an);
         const pac: any[] = [];
         for (const it of listArr) {
           if ((it.lista || "").startsWith("petpac_")) {
@@ -126,19 +164,19 @@ export default function HojePage() {
       {
         key: "retornos",
         title: "Retornos vencidos",
-        sub: "Leads sem contato após retorno marcado",
-        count: data.retornosVencidos.length,
-        link: "Leads",
-        href: "/dashboard/crm/leads?atrasados=1",
+        sub: "Follow-ups vencidos e de hoje (Cliente/Pet/Lead)",
+        count: fuDue.length,
+        link: "Follow-up",
+        href: "#",
         Icon: LuRefreshCcw,
       },
       {
         key: "toques",
-        title: "Próximos toques de cadência",
-        sub: "Mensagens automáticas a disparar",
-        count: data.toques.length,
-        link: "Leads",
-        href: "/dashboard/crm/leads?cadencia=hoje",
+        title: "Toques de cadência",
+        sub: "Passos de cadência (clientes/pets) previstos para hoje",
+        count: toques.length,
+        link: "Cadências",
+        href: "#",
         Icon: LuPhone,
       },
       {
@@ -149,15 +187,6 @@ export default function HojePage() {
         link: "Pacotes",
         href: "/dashboard/erp/pacotes?risco=1",
         Icon: LuPackage,
-      },
-      {
-        key: "tutores",
-        title: "Follow-ups de hoje",
-        sub: "Clientes, Pets e Leads a acompanhar",
-        count: fuList.length,
-        link: "Tutores",
-        href: "/dashboard/erp/tutores?fu=hoje",
-        Icon: LuHeart,
       },
       {
         key: "exames",
@@ -171,14 +200,14 @@ export default function HojePage() {
       {
         key: "aniversariantes",
         title: "Aniversariantes do dia",
-        sub: "Pets que fazem aniversário hoje",
-        count: data.aniversariantes || 0,
+        sub: "Clientes e pets que fazem aniversário hoje",
+        count: aniv.length,
         link: "Parabéns",
-        href: "/dashboard/erp/pets?aniversario=1",
+        href: "#",
         Icon: LuCake,
       },
     ];
-  }, [data, examesPend, fuList, pacRisco]);
+  }, [data, examesPend, fuDue, toques, aniv, pacRisco]);
 
   const total = items.reduce((s, t) => s + t.count, 0);
 
@@ -244,27 +273,46 @@ export default function HojePage() {
                 </div>
               );
             }
-            if (p.key === "tutores") {
-              const tcor: Record<string, { bg: string; fg: string }> = { Cliente: { bg: "#E0F4F6", fg: "#00798A" }, Pet: { bg: "#E1F5EE", fg: "#0F6E56" }, Lead: { bg: "#E6F1FB", fg: "#0C447C" } };
-              return (
-                <div key={p.key}>
-                  <div className={rowCls} style={{ borderColor: "#e8edf0" }} onClick={() => setFuOpen(o => !o)}>{inner}</div>
-                  {fuOpen && (
-                    <div style={{ background: "#f8fafb" }}>
-                      {fuList.length === 0 ? (
-                        <div className="px-[58px] py-3 text-xs text-[#94a3b8] border-b" style={{ borderColor: "#e8edf0" }}>Nenhum follow-up para hoje.</div>
-                      ) : fuList.map((e: any) => (
-                        <Link key={e.id} href={e.href} className="flex items-center gap-2 px-[58px] py-2.5 border-b hover:bg-[#e6f6f8]/60 text-xs" style={{ borderColor: "#e8edf0" }}>
-                          <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: (tcor[e.tipo] || tcor.Cliente).bg, color: (tcor[e.tipo] || tcor.Cliente).fg }}>{e.tipo}</span>
-                          <span className="font-medium text-[#1e293b]">{e.nome}</span>
-                          <span className="ml-auto text-[#64748b]">{new Date(e.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}</span>
-                        </Link>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            }
+            const tcor: Record<string, { bg: string; fg: string }> = { Cliente: { bg: "#E0F4F6", fg: "#00798A" }, Pet: { bg: "#E1F5EE", fg: "#0F6E56" }, Lead: { bg: "#E6F1FB", fg: "#0C447C" } };
+            const fuExpand = (list: any[], open: boolean, setOpen: (f: (o: boolean) => boolean) => void, emptyMsg: string) => (
+              <div key={p.key}>
+                <div className={rowCls} style={{ borderColor: "#e8edf0" }} onClick={() => setOpen(o => !o)}>{inner}</div>
+                {open && (
+                  <div style={{ background: "#f8fafb" }}>
+                    {list.length === 0 ? (
+                      <div className="px-[58px] py-3 text-xs text-[#94a3b8] border-b" style={{ borderColor: "#e8edf0" }}>{emptyMsg}</div>
+                    ) : list.map((e: any) => (
+                      <Link key={e.id} href={e.href} className="flex items-center gap-2 px-[58px] py-2.5 border-b hover:bg-[#e6f6f8]/60 text-xs" style={{ borderColor: "#e8edf0" }}>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: (tcor[e.tipo] || tcor.Cliente).bg, color: (tcor[e.tipo] || tcor.Cliente).fg }}>{e.tipo}</span>
+                        <span className="font-medium text-[#1e293b]">{e.nome}</span>
+                        {e.date && <span className="ml-auto text-[#64748b]">{new Date(e.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}</span>}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+            if (p.key === "retornos") return fuExpand(fuDue, fuDueOpen, setFuDueOpen, "Nenhum follow-up vencido ou de hoje.");
+            if (p.key === "aniversariantes") return fuExpand(aniv, anivOpen, setAnivOpen, "Ninguém faz aniversário hoje.");
+            if (p.key === "toques") return (
+              <div key={p.key}>
+                <div className={rowCls} style={{ borderColor: "#e8edf0" }} onClick={() => setToquesOpen(o => !o)}>{inner}</div>
+                {toquesOpen && (
+                  <div style={{ background: "#f8fafb" }}>
+                    {toques.length === 0 ? (
+                      <div className="px-[58px] py-3 text-xs text-[#94a3b8] border-b" style={{ borderColor: "#e8edf0" }}>Nenhum toque de cadência para hoje.</div>
+                    ) : toques.map((e: any) => (
+                      <Link key={e.id} href={e.href} className="flex items-center gap-2 px-[58px] py-2.5 border-b hover:bg-[#e6f6f8]/60 text-xs" style={{ borderColor: "#e8edf0" }}>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: (tcor[e.tipo] || tcor.Cliente).bg, color: (tcor[e.tipo] || tcor.Cliente).fg }}>{e.tipo}</span>
+                        <span className="font-medium text-[#1e293b]">{e.nome}</span>
+                        <span className="text-[#64748b] truncate max-w-[200px]">· {e.cadencia} — {e.passo}</span>
+                        {e.canal && <span className="ml-auto text-[10px] text-[#009AAC] font-semibold">{e.canal}</span>}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
             if (p.key === "exames") {
               return (
                 <div key={p.key}>
