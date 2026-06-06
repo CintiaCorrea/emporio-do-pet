@@ -396,7 +396,7 @@ export default function PetDetailPage() {
       </div>
 
       {/* 3 colunas: Clínica/Pacotes/Exames | Pipelines+Cadência | Painel do pet */}
-      <div className="max-w-7xl mx-auto px-6 pt-3 grid grid-cols-1 lg:grid-cols-[1.25fr_1fr_320px] gap-5 items-start">
+      <div className="max-w-7xl mx-auto px-6 pt-3 grid grid-cols-1 lg:grid-cols-[1fr_1fr_300px] gap-5 items-start">
         <div className="bg-white border rounded-xl overflow-hidden" style={{ borderColor: "#E8DFC8" }}>
             <div className="flex border-b" style={{ borderColor: "#E8DFC8" }}>
               {(
