@@ -1,3 +1,12 @@
+/* ─────────────────────────────────────────────────────────────
+   EMPÓRIO DO PET · versão Cintia + Claude (Cowork)   [EMP-COWORK]
+   Tela........: Webhook BotConversa (backend)  (integrations/botconversa)
+   Atualizado..: 06/06/2026 — Cintia + Claude
+   ✔ Salvar SEMPRE no main (é a versão que publica).
+   ✔ Backup periódico ativo.
+   ⚠ NÃO sobrescrever por "Add files via upload".
+     Toda mudança = commit pequeno e direto. Em dúvida, perguntar.
+   ───────────────────────────────────────────────────────────── */
 import { Body, Controller, HttpCode, Post, Logger } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { PrismaService } from '../prisma/prisma.service';
@@ -51,7 +60,14 @@ function last9(s: string): string { return s.length > 9 ? s.slice(-9) : s; }
 function isRealPetName(s?: string): boolean {
   const v = (s || '').trim();
   if (!v) return false;
+  // placeholder não resolvido do BC (ex.: "{Pet}", "{Espécie}")
   if (v.includes('{') || v.includes('}')) return false;
+  // mensagem/frase no lugar do nome: muito longa, com pontuação ou muitas palavras
+  if (v.length > 40) return false;
+  if (/[.!?]/.test(v)) return false;
+  if (v.split(/\s+/).length > 4) return false;
+  // valores genéricos que não são nome de pet
+  if (/^(sem nome|sem|n\/a|na|nao sei|não sei|teste|test|pet|none|null)$/i.test(v)) return false;
   return true;
 }
 
