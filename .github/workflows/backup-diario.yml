@@ -1,0 +1,23 @@
+name: Backup diário do main
+
+on:
+  schedule:
+    - cron: '0 6 * * *'   # todo dia ~03:00 (horário de Brasília)
+  workflow_dispatch:        # permite rodar manualmente também
+
+permissions:
+  contents: write
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Criar branch de backup datado
+        run: |
+          DATA=$(date +%Y-%m-%d)
+          echo "Salvando cópia do main em backup/main-$DATA"
+          git push origin HEAD:refs/heads/backup/main-$DATA --force
