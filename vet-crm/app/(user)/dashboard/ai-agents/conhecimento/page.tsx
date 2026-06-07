@@ -105,7 +105,7 @@ export default function KnowledgeBasesPage() {
       <div className="flex justify-end">
         <button
           onClick={() => setShowCreateModal(true)}
-          className="flex items-center justify-center gap-2 rounded-xl bg-[#009AAC] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#00798A]"
+          className="flex items-center justify-center gap-2 rounded-lg bg-[#009AAC] px-3.5 py-1.5 text-xs font-medium text-white hover:bg-[#00798A]"
         >
           <LuPlus className="w-4 h-4" />
           Nova base
