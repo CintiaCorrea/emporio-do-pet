@@ -29,6 +29,12 @@ const PageHeaderCtx = createContext<Ctx>({
  * via usePageTitle (ex: ficha do tutor com nome dinamico).
  */
 const ROUTE_TITLES: Array<{ match: string; exact?: boolean; title: string; subtitle?: string }> = [
+  { match: "/dashboard/ai-agents/agents", title: "Agentes", subtitle: "Agentes inteligentes de atendimento" },
+  { match: "/dashboard/ai-agents/conhecimento", title: "Conhecimento", subtitle: "Base de conhecimento (RAG) dos agentes" },
+  { match: "/dashboard/ai-agents/automacoes", title: "Automações", subtitle: "Fluxos automáticos" },
+  { match: "/dashboard/ai-agents/conexoes", title: "Conexões", subtitle: "Integrações de canais dos agentes" },
+  { match: "/dashboard/ai-agents/templates", title: "Templates", subtitle: "Modelos de agente e mensagens" },
+  { match: "/dashboard/ai-agents", title: "IA / Atendimento", subtitle: "Agentes e automações" },
   { match: "/dashboard/hoje", exact: true, title: "Hoje", subtitle: "Sua agenda do dia" },
   { match: "/dashboard/dashboard", exact: true, title: "Dashboard", subtitle: "Indicadores e visao geral" },
   { match: "/dashboard/inbox-nativo", exact: true, title: "Inbox Meta", subtitle: "Conversas WhatsApp Business via API Meta" },
