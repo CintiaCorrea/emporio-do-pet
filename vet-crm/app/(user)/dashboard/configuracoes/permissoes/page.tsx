@@ -8,7 +8,7 @@
    ⚠ NÃO sobrescrever por "Add files via upload".
      Toda mudança = commit pequeno e direto. Em dúvida, perguntar.
    ─────────────────────────────────────────────────────────────
-   ETAPA 1: tela + persistência (em /api/listas). NÃO está ligada
+   ETAPA 1 (atualizada 07/06 c/ Financeiro+Marketing+IA): tela + persistência (em /api/listas). NÃO está ligada
    ao menu nem bloqueia acesso ainda — isso é a Etapa 2/3.
    ───────────────────────────────────────────────────────────── */
 
@@ -31,6 +31,14 @@ const TELAS: { key: string; label: string }[] = [
   { key: "pets", label: "Pets" },
   { key: "agendamentos", label: "Calendário" },
   { key: "internacao", label: "Internação" },
+  { key: "financeiro", label: "Financeiro (Fin. Terceiros)" },
+  { key: "mkt-funil", label: "Marketing · Funil Semana" },
+  { key: "mkt-nps", label: "Marketing · NPS" },
+  { key: "mkt-google", label: "Marketing · Aval. Google" },
+  { key: "mkt-campanhas", label: "Marketing · Campanhas" },
+  { key: "mkt-midia", label: "Marketing · Mídia" },
+  { key: "mkt-emails", label: "Marketing · Emails" },
+  { key: "ia", label: "IA / Atendimento" },
   { key: "configuracoes", label: "Configurações" },
 ];
 
