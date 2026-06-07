@@ -44,6 +44,7 @@ const ROUTE_TITLES: Array<{ match: string; exact?: boolean; title: string; subti
   { match: "/dashboard/erp/pets", title: "Pets" },
   { match: "/dashboard/erp/atendimentos", title: "Atendimentos" },
   { match: "/dashboard/erp/agendamentos/clinico", title: "Calendário Clínico", subtitle: "Retornos, follow-ups e datas importantes" },
+  { match: "/dashboard/erp/internacoes", title: "Internações", subtitle: "Pacientes internados e boletins" },
   { match: "/dashboard/erp/agendamentos", title: "Agendamentos" },
   { match: "/dashboard/erp/leads", title: "Leads" },
   { match: "/dashboard/erp", title: "ERP" },
