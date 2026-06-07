@@ -46,7 +46,7 @@ export default function MidiaPage() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      <div className="bg-white border rounded-2xl p-4 mb-4" style={{ borderColor: "#e8dfc8" }}>
+      <div className="bg-white border rounded-xl p-4 mb-4" style={{ borderColor: "#e8dfc8" }}>
         <div className="text-[13px] font-medium text-[#014D5E] mb-3">Novo lançamento</div>
         {campanhas.length === 0 ? (
           <div className="text-[12px] text-[#A32D2D]">Cadastre uma campanha primeiro (menu Campanhas) pra registrar lançamentos.</div>
@@ -63,7 +63,7 @@ export default function MidiaPage() {
           <div><label className="text-[11px] text-[#6b7280] block mb-1">Conversões</label><input type="number" min={0} value={form.conversoes} onChange={(e) => setForm({ ...form, conversoes: e.target.value })} className="w-full border border-[#d8d0bc] rounded-lg px-3 py-2 focus:outline-none focus:border-[#009AAC]" /></div>
           <div><label className="text-[11px] text-[#6b7280] block mb-1">Alcance</label><input type="number" min={0} value={form.alcance} onChange={(e) => setForm({ ...form, alcance: e.target.value })} className="w-full border border-[#d8d0bc] rounded-lg px-3 py-2 focus:outline-none focus:border-[#009AAC]" /></div>
           <div className="lg:col-span-2"><label className="text-[11px] text-[#6b7280] block mb-1">Observações</label><input value={form.obs} onChange={(e) => setForm({ ...form, obs: e.target.value })} className="w-full border border-[#d8d0bc] rounded-lg px-3 py-2 focus:outline-none focus:border-[#009AAC]" /></div>
-          <div className="col-span-2 lg:col-span-3 flex justify-end"><button onClick={registrar} disabled={saving} className="bg-[#009AAC] text-white px-4 py-2 rounded-lg text-[13px] font-medium disabled:opacity-60">{saving ? "Registrando..." : "Registrar lançamento"}</button></div>
+          <div className="col-span-2 lg:col-span-3 flex justify-end"><button onClick={registrar} disabled={saving} className="bg-[#009AAC] text-white px-3.5 py-1.5 rounded-lg text-xs font-medium disabled:opacity-60">{saving ? "Registrando..." : "Registrar lançamento"}</button></div>
         </div>
         )}
       </div>
