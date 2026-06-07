@@ -47,6 +47,7 @@ const NAV: Item[] = [
   { href: "/dashboard/marketing/avaliacoes-google", label: "Aval. Google", Icon: LuStar, roles: ["ADMIN"] },
   { href: "/dashboard/marketing/campanhas", label: "Campanhas", Icon: LuMegaphone, roles: ["ADMIN"] },
   { href: "/dashboard/marketing/midia", label: "Mídia", Icon: LuCircleDollarSign, roles: ["ADMIN"] },
+  { href: "/dashboard/marketing/emails", label: "Emails", Icon: LuMegaphone, roles: ["ADMIN"] },
   { href: "/dashboard/configuracoes", label: "Configurações", Icon: LuSettings, roles: ["ADMIN"] },
 ];
 
