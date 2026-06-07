@@ -52,7 +52,6 @@ const NAV: Entry[] = [
   {
     href: "/dashboard/erp/internacoes", label: "Internação", Icon: LuBuilding2,
     roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"],
-    tag: { admin: "Visualiza", vet: "Edita", recep: "Visualiza" },
   },
   {
     group: true, key: "financeiro", label: "Financeiro", Icon: LuCircleDollarSign, roles: ["ADMIN"],
