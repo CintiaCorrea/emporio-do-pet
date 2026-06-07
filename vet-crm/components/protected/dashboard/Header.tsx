@@ -3,8 +3,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
-import { LuSearch, LuBell, LuSettings, LuLogOut, LuUser, LuChevronDown } from "react-icons/lu";
+import { LuSearch, LuBell, LuSettings, LuLogOut, LuUser, LuChevronDown, LuArrowLeft } from "react-icons/lu";
 import { usePageHeader } from "@/lib/ui/PageHeaderContext";
 import { useRolePreview } from "@/lib/ui/RolePreview";
 import { roleLabel } from "@/lib/ui/role";
@@ -20,6 +21,7 @@ export default function Header({ sidebarOpen }: Props) {
   const userEmail = session?.user?.email || "";
   const initials = ((userName.split(/\s+/)[0]?.[0] || "") + (userName.split(/\s+/)[1]?.[0] || "")).toUpperCase() || "??";
   const { header } = usePageHeader();
+  const router = useRouter();
 
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -39,6 +41,15 @@ export default function Header({ sidebarOpen }: Props) {
       style={{ borderColor: "#e8edf0", left: sidebarOpen ? 252 : 64 }}
     >
       <div className="min-w-0 flex-1 flex items-center gap-3">
+        <button
+          onClick={() => router.back()}
+          title="Voltar"
+          aria-label="Voltar"
+          className="w-9 h-9 rounded-[9px] border bg-white flex items-center justify-center text-[#64748b] hover:text-[#009AAC] transition flex-shrink-0"
+          style={{ borderColor: "#e8edf0" }}
+        >
+          <LuArrowLeft size={18} />
+        </button>
         <div className="min-w-0">
           <h1 className="text-[19px] font-bold leading-tight truncate" style={{ color: "#014D5E" }}>
             {header.title || "—"}
