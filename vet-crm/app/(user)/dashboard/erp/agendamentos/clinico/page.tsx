@@ -158,7 +158,8 @@ export default function CalendarioClinicoPage() {
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex items-center gap-2 mb-4">
         <Link href="/dashboard/erp/agendamentos/clinico" className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white" style={{ background: "#009AAC" }}>Clínico (FU)</Link>
-        <Link href="/dashboard/erp/agendamentos" className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white border text-[#5F5E5A] hover:bg-[#f6f8f9]" style={{ borderColor: "#e8edf0" }}>Agendamentos</Link>
+        <Link href="/dashboard/erp/agendamentos/calendario" className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white border text-[#5F5E5A] hover:bg-[#f6f8f9]" style={{ borderColor: "#e8edf0" }}>Agenda</Link>
+        <Link href="/dashboard/erp/agendamentos" className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white border text-[#5F5E5A] hover:bg-[#f6f8f9]" style={{ borderColor: "#e8edf0" }}>Lista</Link>
       </div>
 
       <div className="flex items-center gap-1.5 flex-wrap mb-4">
@@ -224,7 +225,7 @@ export default function CalendarioClinicoPage() {
               const c = TIPO[e.tipo] || TIPO.Cliente; const sit = situacao(e.date);
               return (
                 <tr key={e.id} onClick={() => e.href && e.href !== "#" && router.push(e.href)} className="border-t border-[#f4eede] hover:bg-[#fdfaee] transition cursor-pointer">
-                  <td className="px-3.5 py-1.5 whitespace-nowrap"><span className="inline-block w-[7px] h-[7px] rounded-full align-middle mr-2" style={{ background: c.fg }} />{e.nome}</td>
+                  <td className="px-3.5 py-1.5 whitespace-nowrap"><span className="inline-block w-[7px] h-[7px] rounded-full align-middle mr-2" style={{ background: sit.cor }} />{e.nome}</td>
                   <td className="px-2 py-1.5"><span className="text-[9.5px] px-2 py-0.5 rounded-full" style={{ background: c.bg, color: c.fg }}>{e.tipo}</span></td>
                   <td className="px-2 py-1.5 text-[#6b7280] truncate max-w-[220px]">{e.sub}</td>
                   <td className="px-2 py-1.5 text-[#6b7280] whitespace-nowrap">{fmtData(e.date)}</td>
