@@ -184,7 +184,7 @@ export default function AutomacoesPage() {
 
   const getStatusColor = (status: AutomationStatus) => {
     switch (status) {
-      case 'ACTIVE': return 'bg-cyan-100 text-cyan-700';
+      case 'ACTIVE': return 'bg-[#E1F5EE] text-[#0F6E56]';
       case 'PAUSED': return 'bg-orange-100 text-orange-700';
       case 'DRAFT': return 'bg-gray-100 text-gray-700';
       case 'ERROR': return 'bg-red-100 text-red-700';
@@ -202,11 +202,11 @@ export default function AutomacoesPage() {
 
   const getCategoryColor = (category: AutomationCategory) => {
     switch (category) {
-      case 'ATENDIMENTO': return 'bg-blue-50 text-blue-600';
+      case 'ATENDIMENTO': return 'bg-[#E0F4F6] text-[#009AAC]';
       case 'MARKETING': return 'bg-pink-50 text-pink-600';
       case 'NOTIFICACAO': return 'bg-orange-50 text-orange-600';
-      case 'INTEGRACAO': return 'bg-violet-50 text-violet-600';
-      case 'AGENDAMENTO': return 'bg-cyan-50 text-cyan-600';
+      case 'INTEGRACAO': return 'bg-[#E0F4F6] text-[#009AAC]';
+      case 'AGENDAMENTO': return 'bg-[#E1F5EE] text-[#009AAC]';
     }
   };
 
@@ -270,7 +270,7 @@ export default function AutomacoesPage() {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-8rem)]">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-cyan-100 border-t-emerald-600 rounded-full animate-spin"></div>
+          <div className="w-12 h-12 border-4 border-[#d8d0bc] border-t-emerald-600 rounded-full animate-spin"></div>
           <p className="text-gray-500 font-medium">Carregando automações...</p>
         </div>
       </div>
@@ -281,75 +281,63 @@ export default function AutomacoesPage() {
     <div className="p-6 lg:p-8">
       <div className="max-w-[1600px] mx-auto">
             
-            {/* Breadcrumb e Header */}
-            <div className="mb-8">
-              <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
-                <Link href="/dashboard/ai-agents/agents" className="hover:text-cyan-600 transition-colors">AI Agents</Link>
-                <span style={{fontSize:"14px"}}>▶</span>
-                <span className="text-gray-900 font-medium">Automações</span>
-              </div>
-              
-              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                <div>
-                  <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Automações</h1>
-                  <p className="text-gray-500 mt-1">Crie e gerencie fluxos de trabalho automatizados</p>
-                </div>
-                <Link
-                  href="/dashboard/ai-agents/automacoes/nova"
-                  className="flex items-center gap-2 px-6 py-3 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl font-semibold shadow-lg shadow-cyan-500/20 transition-all duration-200 hover:shadow-xl"
-                >
-                  <LuPlus className="w-5 h-5" />
-                  Nova Automação
-                </Link>
-              </div>
+            {/* Toolbar */}
+            <div className="flex justify-end mb-5">
+              <Link
+                href="/dashboard/ai-agents/automacoes/nova"
+                className="flex items-center gap-2 px-4 py-2 bg-[#009AAC] hover:bg-[#00798A] text-white rounded-xl text-sm font-medium transition"
+              >
+                <LuPlus className="w-4 h-4" />
+                Nova automação
+              </Link>
             </div>
 
             {/* Cards de estatísticas */}
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-              <div className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-lg transition-all">
+              <div className="bg-white rounded-xl border border-[#d8d0bc] p-5 transition-all">
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-cyan-50"><span style={{fontSize:"14px"}}>🔀</span></div>
+                  <div className="p-2.5 rounded-xl bg-[#E1F5EE]"><span style={{fontSize:"14px"}}>🔀</span></div>
                   <div><p className="text-sm text-gray-500">Total</p><p className="text-2xl font-bold text-gray-900">{stats.total}</p></div>
                 </div>
               </div>
-              <div className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-lg transition-all">
+              <div className="bg-white rounded-xl border border-[#d8d0bc] p-5 transition-all">
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-cyan-50"><span style={{fontSize:"14px"}}>✓</span></div>
+                  <div className="p-2.5 rounded-xl bg-[#E1F5EE]"><span style={{fontSize:"14px"}}>✓</span></div>
                   <div><p className="text-sm text-gray-500">Ativas</p><p className="text-2xl font-bold text-gray-900">{stats.active}</p></div>
                 </div>
               </div>
-              <div className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-lg transition-all">
+              <div className="bg-white rounded-xl border border-[#d8d0bc] p-5 transition-all">
                 <div className="flex items-center gap-3">
                   <div className="p-2.5 rounded-xl bg-orange-50"><span style={{fontSize:"14px"}}>⏸</span></div>
                   <div><p className="text-sm text-gray-500">Pausadas</p><p className="text-2xl font-bold text-gray-900">{stats.paused}</p></div>
                 </div>
               </div>
-              <div className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-lg transition-all">
+              <div className="bg-white rounded-xl border border-[#d8d0bc] p-5 transition-all">
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-blue-50"><span style={{fontSize:"14px"}}>⚡</span></div>
+                  <div className="p-2.5 rounded-xl bg-[#E0F4F6]"><span style={{fontSize:"14px"}}>⚡</span></div>
                   <div><p className="text-sm text-gray-500">Execuções</p><p className="text-2xl font-bold text-gray-900">{formatNumber(stats.totalExecutions)}</p></div>
                 </div>
               </div>
-              <div className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-lg transition-all">
+              <div className="bg-white rounded-xl border border-[#d8d0bc] p-5 transition-all">
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-violet-50"><span style={{fontSize:"14px"}}>⚡</span></div>
+                  <div className="p-2.5 rounded-xl bg-[#E0F4F6]"><span style={{fontSize:"14px"}}>⚡</span></div>
                   <div><p className="text-sm text-gray-500">Taxa Sucesso</p><p className="text-2xl font-bold text-gray-900">{stats.avgSuccessRate}%</p></div>
                 </div>
               </div>
             </div>
 
             {/* Filtros */}
-            <div className="bg-white rounded-2xl border border-gray-100 p-4 mb-6">
+            <div className="bg-white rounded-xl border border-[#d8d0bc] p-4 mb-6">
               <div className="flex flex-col lg:flex-row gap-4">
                 <div className="flex-1 relative">
                   <LuSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                   <input type="text" placeholder="Buscar automações..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 transition-all" />
+                    className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#009AAC]/40 focus:border-[#009AAC] transition-all" />
                 </div>
                 <div className="flex items-center gap-2">
                   <span style={{fontSize:"14px"}}>⌕</span>
                   <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as AutomationStatus | 'all')}
-                    className="px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 transition-all cursor-pointer">
+                    className="px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#009AAC]/40 focus:border-[#009AAC] transition-all cursor-pointer">
                     <option value="all">Todos os Status</option>
                     <option value="ACTIVE">Ativo</option>
                     <option value="PAUSED">Pausado</option>
@@ -359,7 +347,7 @@ export default function AutomacoesPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value as AutomationCategory | 'all')}
-                    className="px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 transition-all cursor-pointer">
+                    className="px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#009AAC]/40 focus:border-[#009AAC] transition-all cursor-pointer">
                     <option value="all">Todas Categorias</option>
                     <option value="ATENDIMENTO">Atendimento</option>
                     <option value="MARKETING">Marketing</option>
@@ -373,7 +361,7 @@ export default function AutomacoesPage() {
 
             {/* Lista de Automações */}
             {filteredAutomations.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-gray-100">
+              <div className="flex flex-col items-center justify-center py-20 bg-white rounded-xl border border-[#d8d0bc]">
                 <span style={{fontSize:"14px"}}>🔀</span>
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">Nenhuma automação encontrada</h3>
                 <p className="text-gray-500 text-center max-w-md">
@@ -386,14 +374,14 @@ export default function AutomacoesPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {filteredAutomations.map((automation) => (
                   <div key={automation.id} onClick={() => { setSelectedAutomation(automation); setIsModalOpen(true); }}
-                    className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-lg hover:border-cyan-200 transition-all cursor-pointer group">
+                    className="bg-white rounded-xl border border-[#d8d0bc] p-5 hover:border-[#d8d0bc] transition-all cursor-pointer group">
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center gap-3">
-                        <div className={`p-2.5 rounded-xl ${automation.status === 'ACTIVE' ? 'bg-cyan-50' : automation.status === 'PAUSED' ? 'bg-orange-50' : automation.status === 'ERROR' ? 'bg-red-50' : 'bg-gray-50'}`}>
+                        <div className={`p-2.5 rounded-xl ${automation.status === 'ACTIVE' ? 'bg-[#E1F5EE]' : automation.status === 'PAUSED' ? 'bg-orange-50' : automation.status === 'ERROR' ? 'bg-red-50' : 'bg-gray-50'}`}>
                           <span style={{fontSize:"14px"}}>🔀</span>
                         </div>
                         <div>
-                          <h3 className="font-semibold text-gray-900 group-hover:text-cyan-600 transition-colors">{automation.name}</h3>
+                          <h3 className="font-semibold text-gray-900 group-hover:text-[#009AAC] transition-colors">{automation.name}</h3>
                           <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full ${getCategoryColor(automation.category)}`}>
                             {getCategoryIcon(automation.category)} {getCategoryText(automation.category)}
                           </span>
@@ -415,7 +403,7 @@ export default function AutomacoesPage() {
                       ))}
                       {automation.steps.length > 3 && <span className="text-xs text-gray-400 ml-1">+{automation.steps.length - 3}</span>}
                     </div>
-                    <div className="grid grid-cols-3 gap-2 pt-4 border-t border-gray-100">
+                    <div className="grid grid-cols-3 gap-2 pt-4 border-t border-[#d8d0bc]">
                       <div className="text-center"><p className="text-lg font-semibold text-gray-900">{formatNumber(automation.executions || 0)}</p><p className="text-xs text-gray-500">Execuções</p></div>
                       <div className="text-center"><p className="text-lg font-semibold text-gray-900">{(automation.successRate || 0).toFixed(1)}%</p><p className="text-xs text-gray-500">Sucesso</p></div>
                       <div className="text-center"><p className="text-lg font-semibold text-gray-900">{formatRelativeTime(automation.lastRunAt)}</p><p className="text-xs text-gray-500">Última exec.</p></div>
@@ -429,11 +417,11 @@ export default function AutomacoesPage() {
       {/* Modal de Detalhes */}
       {isModalOpen && selectedAutomation && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
-            <div className="p-6 border-b border-gray-100">
+          <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto ">
+            <div className="p-6 border-b border-[#d8d0bc]">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-4">
-                  <div className={`p-3 rounded-xl ${selectedAutomation.status === 'ACTIVE' ? 'bg-cyan-50' : selectedAutomation.status === 'PAUSED' ? 'bg-orange-50' : selectedAutomation.status === 'ERROR' ? 'bg-red-50' : 'bg-gray-50'}`}>
+                  <div className={`p-3 rounded-xl ${selectedAutomation.status === 'ACTIVE' ? 'bg-[#E1F5EE]' : selectedAutomation.status === 'PAUSED' ? 'bg-orange-50' : selectedAutomation.status === 'ERROR' ? 'bg-red-50' : 'bg-gray-50'}`}>
                     <span style={{fontSize:"14px"}}>🔀</span>
                   </div>
                   <div>
@@ -465,7 +453,7 @@ export default function AutomacoesPage() {
                     <button 
                       onClick={() => handleUpdateStatus(selectedAutomation.id, 'ACTIVE')}
                       disabled={actionLoading === selectedAutomation.id}
-                      className="flex items-center gap-2 px-4 py-2 bg-cyan-50 hover:bg-cyan-100 text-cyan-700 rounded-lg transition-colors disabled:opacity-50"
+                      className="flex items-center gap-2 px-4 py-2 bg-[#E1F5EE] hover:bg-[#E1F5EE] text-[#0F6E56] rounded-lg transition-colors disabled:opacity-50"
                     >
                       {actionLoading === selectedAutomation.id ? <LuLoader className="w-4 h-4 animate-spin" /> : <span style={{fontSize:"14px"}}>▶</span>}
                       Ativar
@@ -501,7 +489,7 @@ export default function AutomacoesPage() {
                 <div className="space-y-2">
                   {selectedAutomation.steps.map((step, idx) => (
                     <div key={step.id} className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-cyan-100 flex items-center justify-center text-cyan-700 text-sm font-medium">{idx + 1}</div>
+                      <div className="w-8 h-8 rounded-full bg-[#E1F5EE] flex items-center justify-center text-[#0F6E56] text-sm font-medium">{idx + 1}</div>
                       <div className="flex-1 p-3 bg-gray-50 rounded-xl"><p className="text-gray-900">{step.name}</p><p className="text-xs text-gray-500">{step.type}</p></div>
                     </div>
                   ))}
@@ -516,15 +504,15 @@ export default function AutomacoesPage() {
                   <div className="bg-gray-50 rounded-xl p-4"><p className="text-2xl font-bold text-gray-900">{formatRelativeTime(selectedAutomation.lastRunAt)}</p><p className="text-sm text-gray-500">Última Execução</p></div>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-100">
+              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-[#d8d0bc]">
                 <div><h3 className="text-sm font-medium text-gray-500 mb-1">Criado em</h3><p className="text-gray-900">{formatDate(selectedAutomation.createdAt)}</p></div>
                 <div><h3 className="text-sm font-medium text-gray-500 mb-1">Atualizado em</h3><p className="text-gray-900">{formatDate(selectedAutomation.updatedAt)}</p></div>
               </div>
-              <div className="pt-4 border-t border-gray-100">
+              <div className="pt-4 border-t border-[#d8d0bc]">
                 <button 
                   onClick={() => handleExecute(selectedAutomation.id)}
                   disabled={actionLoading === selectedAutomation.id}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl font-semibold transition-all disabled:opacity-50"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[#009AAC] hover:bg-[#00798A] text-white rounded-xl font-semibold transition-all disabled:opacity-50"
                 >
                   {actionLoading === selectedAutomation.id ? (
                     <>
