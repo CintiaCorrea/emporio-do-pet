@@ -333,16 +333,16 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
             {(pipeComercial.length ? pipeComercial : PIPELINE_STAGES).map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
           <p className="text-[9px] text-gray-400">Compareceu vira cliente</p>
+          <div className="mt-2.5 pt-2.5 border-t border-[#f0e8d4]">
+            <label className="text-[10px] text-[#5b6470] font-medium">Motivo da perda</label>
+            <select value={motivoPerda} onChange={(e) => saveMotivo(e.target.value)} className="w-full mt-1 border border-[#d8d0bc] rounded px-2 py-1 text-[11px] text-[#0E2244] bg-white focus:outline-none">
+              <option value="">— sem motivo —</option>
+              {MOTIVOS_PERDA.map((m) => <option key={m} value={m}>{m}</option>)}
+            </select>
+            <p className="text-[9px] text-gray-400 mt-1">Preencha quando o lead for perdido (alimenta a dashboard)</p>
+          </div>
         </div>
 
-        <div className="bg-white rounded-xl border border-[#d8d0bc] p-3">
-          <h3 className="text-[12px] text-[#0E2244] font-medium mb-2">Motivo da perda</h3>
-          <select value={motivoPerda} onChange={(e) => saveMotivo(e.target.value)} className="w-full border border-[#d8d0bc] rounded px-2 py-1 text-[11px] text-[#0E2244] bg-white focus:outline-none">
-            <option value="">— sem motivo —</option>
-            {MOTIVOS_PERDA.map((m) => <option key={m} value={m}>{m}</option>)}
-          </select>
-          <p className="text-[9px] text-gray-400 mt-1">Preencha quando o lead for perdido (alimenta a dashboard)</p>
-        </div>
 
         <div className="bg-white rounded-xl border border-[#d8d0bc] p-3">
           <h3 className="text-[11px] text-[#5b6470] tracking-wide font-medium mb-2">CONQUISTAS · 3/8</h3>
