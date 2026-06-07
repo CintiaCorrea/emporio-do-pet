@@ -77,7 +77,6 @@ const NAV: Entry[] = [
       { href: "/dashboard/ai-agents/agents", label: "Agentes", Icon: LuSparkles, roles: ["ADMIN"] },
       { href: "/dashboard/ai-agents/conhecimento", label: "Conhecimento", Icon: LuFileText, roles: ["ADMIN"] },
       { href: "/dashboard/ai-agents/automacoes", label: "Automações", Icon: LuRefreshCcw, roles: ["ADMIN"] },
-      { href: "/dashboard/ai-agents/conversas", label: "Conversas", Icon: LuMessageSquare, roles: ["ADMIN"] },
       { href: "/dashboard/ai-agents/conexoes", label: "Conexões", Icon: LuExternalLink, roles: ["ADMIN"] },
       { href: "/dashboard/ai-agents/templates", label: "Templates", Icon: LuList, roles: ["ADMIN"] },
     ],
