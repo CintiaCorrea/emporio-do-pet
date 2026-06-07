@@ -34,6 +34,8 @@ const ROUTE_TITLES: Array<{ match: string; exact?: boolean; title: string; subti
   { match: "/dashboard/inbox-nativo", exact: true, title: "Inbox Meta", subtitle: "Conversas WhatsApp Business via API Meta" },
   { match: "/dashboard/inbox", exact: true, title: "Inbox BC", subtitle: "Conversas BotConversa com contexto do CRM" },
   { match: "/dashboard/leads", title: "Leads", subtitle: "Potenciais clientes em qualificacao" },
+  { match: "/dashboard/crm/leads", title: "Leads", subtitle: "Potenciais clientes em qualificação" },
+  { match: "/dashboard/crm/clientes", title: "Clientes", subtitle: "Clientes do Empório do Pet" },
   { match: "/dashboard/tutores", title: "Clientes", subtitle: "Clientes do Emporio do Pet" },
   { match: "/dashboard/pets", title: "Pets", subtitle: "Pacientes" },
   { match: "/dashboard/calendario", title: "Calendario", subtitle: "Agendamentos e visitas" },
