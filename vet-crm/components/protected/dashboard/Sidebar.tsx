@@ -7,7 +7,7 @@ import { usePathname } from "next/navigation";
 import {
   LuSun, LuLayoutDashboard, LuMessageSquare, LuList, LuUsers, LuPawPrint,
   LuCalendar, LuBuilding2, LuSettings, LuChevronLeft, LuChevronRight,
-  LuCircleDollarSign, LuMegaphone, LuUserCog, LuEye, LuCircleHelp,
+  LuCircleDollarSign, LuMegaphone, LuUserCog, LuEye, LuCircleHelp, LuStar,
 } from "react-icons/lu";
 import { roleLabel, AppRole } from "@/lib/ui/role";
 import { useRolePreview } from "@/lib/ui/RolePreview";
@@ -43,6 +43,8 @@ const NAV: Item[] = [
     tag: { admin: "Visualiza", vet: "Edita", recep: "Visualiza" },
   },
   { href: "/dashboard/marketing/funil-semana", label: "Funil Semana", Icon: LuMegaphone, roles: ["ADMIN"] },
+  { href: "/dashboard/marketing/nps", label: "NPS", Icon: LuMegaphone, roles: ["ADMIN"] },
+  { href: "/dashboard/marketing/avaliacoes-google", label: "Aval. Google", Icon: LuStar, roles: ["ADMIN"] },
   { href: "/dashboard/configuracoes", label: "Configurações", Icon: LuSettings, roles: ["ADMIN"] },
 ];
 
