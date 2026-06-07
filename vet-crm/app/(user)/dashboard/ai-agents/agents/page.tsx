@@ -13,6 +13,7 @@ import {
   LuLoader
 } from 'react-icons/lu';
 import { toast } from 'sonner';
+import { usePageTitle } from '@/lib/ui/PageHeaderContext';
 
 // Tipos para AI Agents
 type AgentStatus = 'ACTIVE' | 'PAUSED' | 'DRAFT' | 'ERROR';
@@ -49,6 +50,7 @@ interface AIAgent {
 }
 
 export default function AgentsPage() {
+  usePageTitle("Agentes", "Agentes inteligentes de atendimento");
   const router = useRouter();
   const [agents, setAgents] = useState<AIAgent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -164,7 +166,7 @@ export default function AgentsPage() {
 
   const getStatusColor = (status: AgentStatus) => {
     switch (status) {
-      case 'ACTIVE': return 'bg-cyan-100 text-cyan-700';
+      case 'ACTIVE': return 'bg-[#E1F5EE] text-[#0F6E56]';
       case 'PAUSED': return 'bg-orange-100 text-orange-700';
       case 'DRAFT': return 'bg-gray-100 text-gray-700';
       case 'ERROR': return 'bg-red-100 text-red-700';
@@ -221,7 +223,7 @@ export default function AgentsPage() {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-8rem)]">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-violet-100 border-t-violet-600 rounded-full animate-spin"></div>
+          <div className="w-12 h-12 border-4 border-[#d8d0bc] border-t-[#009AAC] rounded-full animate-spin"></div>
           <p className="text-gray-500 font-medium">Carregando agentes...</p>
         </div>
       </div>
@@ -232,38 +234,22 @@ export default function AgentsPage() {
     <div className="p-6 lg:p-8">
       <div className="max-w-[1600px] mx-auto">
             
-            {/* Breadcrumb e Header */}
-            <div className="mb-8">
-              <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
-                <span className="text-gray-500">AI Agents</span>
-                <span style={{fontSize:"14px"}}>▶</span>
-                <span className="text-gray-900 font-medium">Agents</span>
-              </div>
-              
-              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                <div>
-                  <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">
-                    Agents
-                  </h1>
-                  <p className="text-gray-500 mt-1">
-                    Gerencie seus agentes inteligentes de automação
-                  </p>
-                </div>
-                <Link
-                  href="/dashboard/ai-agents/agents/novo"
-                  className="flex items-center gap-2 px-6 py-3 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-semibold shadow-lg shadow-violet-500/20 transition-all duration-200 hover:shadow-xl"
-                >
-                  <LuPlus className="w-5 h-5" />
-                  Novo Agente
-                </Link>
-              </div>
+            {/* Toolbar */}
+            <div className="flex justify-end mb-5">
+              <Link
+                href="/dashboard/ai-agents/agents/novo"
+                className="flex items-center gap-2 px-4 py-2 bg-[#009AAC] hover:bg-[#00798A] text-white rounded-xl text-sm font-medium transition"
+              >
+                <LuPlus className="w-4 h-4" />
+                Novo agente
+              </Link>
             </div>
 
             {/* Cards de estatísticas */}
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-              <div className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-lg hover:shadow-violet-500/5 transition-all">
+              <div className="bg-white rounded-xl border border-[#d8d0bc] p-5 hover: transition-all">
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-violet-50">
+                  <div className="p-2.5 rounded-xl bg-[#E0F4F6]">
                     <span style={{fontSize:"14px"}}>🤖</span>
                   </div>
                   <div>
@@ -273,9 +259,9 @@ export default function AgentsPage() {
                 </div>
               </div>
 
-              <div className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-lg hover:shadow-cyan-500/5 transition-all">
+              <div className="bg-white rounded-xl border border-[#d8d0bc] p-5 hover: transition-all">
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-cyan-50">
+                  <div className="p-2.5 rounded-xl bg-[#E1F5EE]">
                     <span style={{fontSize:"14px"}}>✓</span>
                   </div>
                   <div>
@@ -285,7 +271,7 @@ export default function AgentsPage() {
                 </div>
               </div>
 
-              <div className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-lg hover:shadow-orange-500/5 transition-all">
+              <div className="bg-white rounded-xl border border-[#d8d0bc] p-5 hover: transition-all">
                 <div className="flex items-center gap-3">
                   <div className="p-2.5 rounded-xl bg-orange-50">
                     <span style={{fontSize:"14px"}}>⏸</span>
@@ -297,7 +283,7 @@ export default function AgentsPage() {
                 </div>
               </div>
 
-              <div className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-lg hover:shadow-blue-500/5 transition-all">
+              <div className="bg-white rounded-xl border border-[#d8d0bc] p-5 hover: transition-all">
                 <div className="flex items-center gap-3">
                   <div className="p-2.5 rounded-xl bg-blue-50">
                     <span style={{fontSize:"14px"}}>⚡</span>
@@ -309,9 +295,9 @@ export default function AgentsPage() {
                 </div>
               </div>
 
-              <div className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-lg hover:shadow-fuchsia-500/5 transition-all">
+              <div className="bg-white rounded-xl border border-[#d8d0bc] p-5 hover: transition-all">
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-fuchsia-50">
+                  <div className="p-2.5 rounded-xl bg-[#E0F4F6]">
                     <span style={{fontSize:"14px"}}>📈</span>
                   </div>
                   <div>
@@ -323,7 +309,7 @@ export default function AgentsPage() {
             </div>
 
             {/* Filtros */}
-            <div className="bg-white rounded-2xl border border-gray-100 p-4 mb-6">
+            <div className="bg-white rounded-xl border border-[#d8d0bc] p-4 mb-6">
               <div className="flex flex-col lg:flex-row gap-4">
                 {/* Busca */}
                 <div className="flex-1 relative">
@@ -333,7 +319,7 @@ export default function AgentsPage() {
                     placeholder="Buscar agentes..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 transition-all"
+                    className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#009AAC]/40 focus:border-[#009AAC] transition-all"
                   />
                 </div>
 
@@ -343,7 +329,7 @@ export default function AgentsPage() {
                   <select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value as AgentStatus | 'all')}
-                    className="px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 transition-all cursor-pointer"
+                    className="px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#009AAC]/40 focus:border-[#009AAC] transition-all cursor-pointer"
                   >
                     <option value="all">Todos os Status</option>
                     <option value="ACTIVE">Ativo</option>
@@ -358,7 +344,7 @@ export default function AgentsPage() {
                   <select
                     value={typeFilter}
                     onChange={(e) => setTypeFilter(e.target.value as AgentType | 'all')}
-                    className="px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 transition-all cursor-pointer"
+                    className="px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#009AAC]/40 focus:border-[#009AAC] transition-all cursor-pointer"
                   >
                     <option value="all">Todos os Tipos</option>
                     <option value="CHATBOT">Chatbot</option>
@@ -372,7 +358,7 @@ export default function AgentsPage() {
 
             {/* Lista de Agentes */}
             {filteredAgents.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-gray-100">
+              <div className="flex flex-col items-center justify-center py-20 bg-white rounded-xl border border-[#d8d0bc]">
                 <span style={{fontSize:"14px"}}>🤖</span>
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">Nenhum agente encontrado</h3>
                 <p className="text-gray-500 text-center max-w-md">
@@ -387,17 +373,17 @@ export default function AgentsPage() {
                   <div
                     key={agent.id}
                     onClick={() => openAgentDetails(agent)}
-                    className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-lg hover:border-violet-200 transition-all cursor-pointer group"
+                    className="bg-white rounded-xl border border-[#d8d0bc] p-5 hover:border-[#d8d0bc] transition-all cursor-pointer group"
                   >
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center gap-3">
                         <div className={`p-2.5 rounded-xl ${
-                          agent.status === 'ACTIVE' ? 'bg-cyan-50' :
+                          agent.status === 'ACTIVE' ? 'bg-[#E1F5EE]' :
                           agent.status === 'PAUSED' ? 'bg-orange-50' :
                           agent.status === 'ERROR' ? 'bg-red-50' : 'bg-gray-50'
                         }`}>
                           <span className={`${
-                            agent.status === 'ACTIVE' ? 'text-cyan-600' :
+                            agent.status === 'ACTIVE' ? 'text-[#0F6E56]' :
                             agent.status === 'PAUSED' ? 'text-orange-600' :
                             agent.status === 'ERROR' ? 'text-red-600' : 'text-gray-600'
                           }`}>
@@ -405,7 +391,7 @@ export default function AgentsPage() {
                           </span>
                         </div>
                         <div>
-                          <h3 className="font-semibold text-gray-900 group-hover:text-violet-600 transition-colors">
+                          <h3 className="font-semibold text-gray-900 group-hover:text-[#009AAC] transition-colors">
                             {agent.name}
                           </h3>
                           <p className="text-sm text-gray-500">{getTypeText(agent.type)}</p>
@@ -422,14 +408,14 @@ export default function AgentsPage() {
 
                     {agent.template && (
                       <div className="mb-4">
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-violet-50 text-violet-600 text-xs rounded-full">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[#E0F4F6] text-[#009AAC] text-xs rounded-full">
                           <LuFileText className="w-3 h-3" />
                           {agent.template.name}
                         </span>
                       </div>
                     )}
 
-                    <div className="grid grid-cols-3 gap-2 pt-4 border-t border-gray-100">
+                    <div className="grid grid-cols-3 gap-2 pt-4 border-t border-[#d8d0bc]">
                       <div className="text-center">
                         <p className="text-lg font-semibold text-gray-900">{formatNumber(agent.totalInteractions || 0)}</p>
                         <p className="text-xs text-gray-500">Interações</p>
@@ -452,17 +438,17 @@ export default function AgentsPage() {
       {/* Modal de Detalhes do Agente */}
       {isModalOpen && selectedAgent && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
-            <div className="p-6 border-b border-gray-100">
+          <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto ">
+            <div className="p-6 border-b border-[#d8d0bc]">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-4">
                   <div className={`p-3 rounded-xl ${
-                    selectedAgent.status === 'ACTIVE' ? 'bg-cyan-50' :
+                    selectedAgent.status === 'ACTIVE' ? 'bg-[#E1F5EE]' :
                     selectedAgent.status === 'PAUSED' ? 'bg-orange-50' :
                     selectedAgent.status === 'ERROR' ? 'bg-red-50' : 'bg-gray-50'
                   }`}>
                     <span className={`${
-                      selectedAgent.status === 'ACTIVE' ? 'text-cyan-600' :
+                      selectedAgent.status === 'ACTIVE' ? 'text-[#0F6E56]' :
                       selectedAgent.status === 'PAUSED' ? 'text-orange-600' :
                       selectedAgent.status === 'ERROR' ? 'text-red-600' : 'text-gray-600'
                     }`}>
@@ -507,7 +493,7 @@ export default function AgentsPage() {
                     <button 
                       onClick={() => handleUpdateStatus(selectedAgent.id, 'ACTIVE')}
                       disabled={actionLoading === selectedAgent.id}
-                      className="flex items-center gap-2 px-4 py-2 bg-cyan-50 hover:bg-cyan-100 text-cyan-700 rounded-lg transition-colors disabled:opacity-50"
+                      className="flex items-center gap-2 px-4 py-2 bg-[#E1F5EE] hover:bg-[#E1F5EE] text-[#0F6E56] rounded-lg transition-colors disabled:opacity-50"
                     >
                       {actionLoading === selectedAgent.id ? (
                         <LuLoader className="w-4 h-4 animate-spin" />
@@ -549,7 +535,7 @@ export default function AgentsPage() {
               {selectedAgent.template && (
                 <div>
                   <h3 className="text-sm font-medium text-gray-500 mb-2">Template</h3>
-                  <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-violet-50 text-violet-600 rounded-lg">
+                  <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#E0F4F6] text-[#009AAC] rounded-lg">
                     <LuFileText className="w-4 h-4" />
                     {selectedAgent.template.name}
                   </span>
@@ -596,7 +582,7 @@ export default function AgentsPage() {
               </div>
 
               {/* Informações */}
-              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-100">
+              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-[#d8d0bc]">
                 <div>
                   <h3 className="text-sm font-medium text-gray-500 mb-1">Criado em</h3>
                   <p className="text-gray-900">{formatDate(selectedAgent.createdAt)}</p>
@@ -608,10 +594,10 @@ export default function AgentsPage() {
               </div>
 
               {/* Botões de Ação */}
-              <div className="pt-4 border-t border-gray-100 space-y-3">
+              <div className="pt-4 border-t border-[#d8d0bc] space-y-3">
                 <Link
                   href={`/dashboard/ai-agents/agents/${selectedAgent.id}/testar`}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-semibold transition-all"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[#009AAC] hover:bg-[#00798A] text-white rounded-xl font-semibold transition-all"
                 >
                   <span style={{fontSize:"14px"}}>💬</span>
                   Testar Agente
