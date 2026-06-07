@@ -49,6 +49,8 @@ const ROUTE_TITLES: Array<{ match: string; exact?: boolean; title: string; subti
   { match: "/dashboard/erp/internacoes", title: "Internações", subtitle: "Pacientes internados e boletins" },
   { match: "/dashboard/erp/financeiro-terceiros", title: "Financeiro de Terceiros", subtitle: "Pagamentos a laboratórios e parceiros" },
   { match: "/dashboard/marketing/funil-semana", title: "Funil da Semana", subtitle: "Snapshot semanal do pipeline comercial" },
+  { match: "/dashboard/marketing/nps", title: "NPS", subtitle: "Avaliações de satisfação dos clientes" },
+  { match: "/dashboard/marketing/avaliacoes-google", title: "Avaliações Google", subtitle: "Gestão do fluxo de avaliações no Google" },
   { match: "/dashboard/marketing", title: "Marketing" },
   { match: "/dashboard/erp/agendamentos", title: "Agendamentos" },
   { match: "/dashboard/erp/leads", title: "Leads" },
