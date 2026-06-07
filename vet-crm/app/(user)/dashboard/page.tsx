@@ -1,560 +1,213 @@
-'use client';
+"use client";
+/* [EMP-COWORK] Dashboard nova (Cintia 07/06): espelha o comercial do Base44
+   (KPIs + funil + tendência + leads por canal/origem) + cards operacionais do dia
+   (retornos vencidos, agenda, internações, exames). Substitui a dashboard antiga do dev.
+   Dados reais: /api/leads, /api/pipelines, /api/appointments, /api/hospitalizations,
+   /api/tutors, /api/pets, /api/listas (petexa_). */
 
-import { useState, useEffect, useCallback } from 'react';
-import Link from 'next/link';
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import {
-  
-  LuPawPrint,
-  LuCalendar,
-  LuDollarSign,
-  LuTarget,
-  LuSparkles,
-  LuFileText,
-  LuUserPlus} from 'react-icons/lu';
+  LuTriangleAlert, LuCalendar, LuBuilding2, LuFlaskConical,
+  LuUsers, LuTarget, LuCircleDollarSign, LuClock, LuArrowRight,
+} from "react-icons/lu";
 
-interface DashboardData {
-  totalTutores: number;
-  totalPets: number;
-  totalClientes: number;
-  agendamentosHoje: number;
-  consultasHoje: number;
-  consultasPendentes: number;
-  internacoesAtivas: number;
-  faturamentoMes: number;
-  faturamentoHoje: number;
-  ticketMedio: number;
-  comissoesPendentes: number;
-  leadsNovos: number;
-  leadsQualificados: number;
-  taxaConversao: number;
-  campanhasAtivas: number;
-  emailsEnviados: number;
-  taxaAbertura: number;
-  agentesAtivos: number;
-  interacoesHoje: number;
-  taxaSucessoAgentes: number;
-  produtosBaixoEstoque: number;
-  alertasEstoque: number;
-}
+const TURQ = "#009AAC";
+const j = async (u: string) => { try { const r = await fetch(u, { cache: "no-store", credentials: "include" }); return await r.json(); } catch { return null; } };
+const arr = (d: any, ...keys: string[]) => { if (Array.isArray(d)) return d; for (const k of keys) if (Array.isArray(d?.[k])) return d[k]; return []; };
+const brl = (n: number) => (n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+const dShort = (s?: string) => s ? new Date(s).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) : "—";
+const hhmm = (s?: string) => s ? new Date(s).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "";
 
-interface AtividadeRecente {
-  id: string;
-  tipo: string;
-  titulo: string;
-  descricao: string;
-  tempo: string;
-  icone: string;
-  cor: string;
-}
-
-interface AgendamentoProximo {
-  id: string;
-  horario: string;
-  tutor: string;
-  pet: string;
-  servico: string;
-  status: 'confirmado' | 'pendente' | 'em_atendimento';
-}
-
-const defaultData: DashboardData = {
-  totalTutores: 0,
-  totalPets: 0,
-  totalClientes: 0,
-  agendamentosHoje: 0,
-  consultasHoje: 0,
-  consultasPendentes: 0,
-  internacoesAtivas: 0,
-  faturamentoMes: 0,
-  faturamentoHoje: 0,
-  ticketMedio: 0,
-  comissoesPendentes: 0,
-  leadsNovos: 0,
-  leadsQualificados: 0,
-  taxaConversao: 0,
-  campanhasAtivas: 0,
-  emailsEnviados: 0,
-  taxaAbertura: 0,
-  agentesAtivos: 0,
-  interacoesHoje: 0,
-  taxaSucessoAgentes: 0,
-  produtosBaixoEstoque: 0,
-  alertasEstoque: 0};
-
-function getGreeting() {
-  const h = new Date().getHours();
-  if (h < 12) return { text: 'Bom dia', emoji: '☀️' };
-  if (h < 18) return { text: 'Boa tarde', emoji: '🌤️' };
-  return { text: 'Boa noite', emoji: '🌙' };
-}
+type Period = "7d" | "30d" | "tudo";
+const DONE_EXAME = ["Resultado entregue ao tutor", "Pago ao laboratório", "Entregue"];
 
 export default function DashboardPage() {
-  const [data, setData] = useState<DashboardData>(defaultData);
-  const [atividades, setAtividades] = useState<AtividadeRecente[]>([]);
-  const [agendamentos, setAgendamentos] = useState<AgendamentoProximo[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [timeFilter, setTimeFilter] = useState<'hoje' | 'semana' | 'mes'>('hoje');
-
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [summaryRes, activitiesRes, appointmentsRes] = await Promise.all([
-        fetch('/api/dashboard/summary').catch(() => null),
-        fetch('/api/dashboard/recent-activities?limit=6').catch(() => null),
-        fetch('/api/dashboard/upcoming-appointments?limit=5').catch(() => null),
-      ]);
-      if (summaryRes?.ok) {
-        const summaryData = await summaryRes.json();
-        setData(summaryData);
-      } else setData(defaultData);
-      if (activitiesRes?.ok) {
-        const activitiesData = await activitiesRes.json();
-        setAtividades(activitiesData);
-      }
-      if (appointmentsRes?.ok) {
-        const appointmentsData = await appointmentsRes.json();
-        setAgendamentos(appointmentsData);
-      }
-    } catch (err) {
-      console.error('Erro ao carregar dashboard:', err);
-      setData(defaultData);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const [period, setPeriod] = useState<Period>("30d");
+  const [leads, setLeads] = useState<any[]>([]);
+  const [estagios, setEstagios] = useState<string[]>([]);
+  const [inicial, setInicial] = useState("Lead novo");
+  const [appts, setAppts] = useState<any[]>([]);
+  const [internacoes, setInternacoes] = useState<any[]>([]);
+  const [fuList, setFuList] = useState<any[]>([]);
+  const [examesPend, setExamesPend] = useState(0);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData, timeFilter]);
+    (async () => {
+      setLoading(true);
+      const [L, P, A, H, T, Pe, Li] = await Promise.all([
+        j("/api/leads"), j("/api/pipelines"), j("/api/appointments?limit=3000"),
+        j("/api/hospitalizations"), j("/api/tutors?limit=1000"), j("/api/pets?limit=1000"), j("/api/listas"),
+      ]);
+      const la = arr(L, "leads", "data"); setLeads(la);
+      const parr = arr(P, "pipelines", "data");
+      const lead = parr.find((x: any) => /LEAD/.test(x.escopo || "")) || parr[0];
+      const est = (lead?.estagios || []).slice().sort((a: any, b: any) => (a.ordem || 0) - (b.ordem || 0));
+      setEstagios(est.map((e: any) => e.nome));
+      setInicial((est.find((e: any) => e.ehInicial)?.nome) || est[0]?.nome || "Lead novo");
+      setAppts(arr(A, "data", "appointments", "items"));
+      setInternacoes(arr(H, "data", "items"));
 
-  const formatCurrency = (value: number) =>
-    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0 }).format(value);
+      const now = Date.now();
+      const fu: any[] = [];
+      for (const t of arr(T, "tutors", "data")) if (t.proximoFollowupAt && new Date(t.proximoFollowupAt).getTime() <= now + 86400000) fu.push({ id: "t" + t.id, tipo: "Cliente", nome: t.name || "Cliente", date: t.proximoFollowupAt, href: `/dashboard/erp/tutores/${t.id}` });
+      for (const p of arr(Pe, "pets", "data")) if (p.proximoFollowupAt && new Date(p.proximoFollowupAt).getTime() <= now + 86400000) fu.push({ id: "p" + p.id, tipo: "Pet", nome: p.name || "Pet", date: p.proximoFollowupAt, href: `/dashboard/erp/pets/${p.id}` });
+      for (const l of la) if (l.proximoFollowupAt && new Date(l.proximoFollowupAt).getTime() <= now + 86400000) fu.push({ id: "l" + l.id, tipo: "Lead", nome: l.name || "Lead", date: l.proximoFollowupAt, href: `/dashboard/crm/leads/${l.id}` });
+      fu.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      setFuList(fu);
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'confirmado': return 'bg-cyan-500/15 text-cyan-600 border border-cyan-500/30';
-      case 'pendente': return 'bg-orange-500/15 text-orange-600 border border-orange-500/30';
-      case 'em_atendimento': return 'bg-cyan-500/15 text-cyan-600 border border-cyan-500/30';
-      default: return 'bg-gray-500/10 text-gray-600 border border-gray-500/20';
-    }
-  };
+      let exa = 0;
+      for (const it of arr(Li, "itens", "data")) if ((it.lista || "").startsWith("petexa_")) { try { const d = JSON.parse(it.valor); if (!DONE_EXAME.includes(d.status)) exa++; } catch {} }
+      setExamesPend(exa);
+      setLoading(false);
+    })();
+  }, []);
 
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'confirmado': return 'Confirmado';
-      case 'pendente': return 'Pendente';
-      case 'em_atendimento': return 'Em atendimento';
-      default: return status;
-    }
-  };
+  const cutoff = useMemo(() => period === "tudo" ? 0 : Date.now() - (period === "7d" ? 7 : 30) * 86400000, [period]);
+  const leadsP = useMemo(() => leads.filter(l => !cutoff || new Date(l.createdAt || 0).getTime() >= cutoff), [leads, cutoff]);
+  const apptsP = useMemo(() => appts.filter(a => !cutoff || new Date(a.date || 0).getTime() >= cutoff), [appts, cutoff]);
 
-  const hoje = new Date().toLocaleDateString('pt-BR', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric'});
-  const greeting = getGreeting();
+  const isConv = (l: any) => l.status === "CONVERTED" || !!l.convertedToTutorId;
+  const isLost = (l: any) => l.status === "LOST" || l.status === "PERDIDO";
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[calc(100vh-5rem)]">
-        <div className="flex flex-col items-center gap-6">
-          <div className="relative">
-            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-orange-500/20 border border-cyan-500/20 animate-pulse" />
-            <div className="absolute inset-0 w-20 h-20 border-2 border-transparent border-t-blue-500 rounded-2xl animate-spin" />
-          </div>
-          <p className="text-gray-500 font-medium">Carregando seu dashboard...</p>
-        </div>
-      </div>
-    );
-  }
+  const kpis = useMemo(() => {
+    const total = leadsP.length;
+    const conv = leadsP.filter(isConv).length;
+    const aberto = leadsP.filter(l => !isConv(l) && !isLost(l)).length;
+    const valAppts = apptsP.filter(a => String(a.status).toUpperCase() !== "CANCELLED");
+    const receita = valAppts.reduce((s, a) => s + (Number(a.value) || 0), 0);
+    const comValor = valAppts.filter(a => Number(a.value) > 0).length;
+    return { total, taxa: total ? Math.round((conv / total) * 100) : 0, aberto, receita, ticket: comValor ? Math.round(receita / comValor) : 0 };
+  }, [leadsP, apptsP]);
 
-  const quickModules = [
-    { href: '/dashboard/ai-agents/agents', label: 'Agents', icon: () => <span style={{fontSize:"14px"}}>🤖</span>, color: 'violet' },
-    { href: '/dashboard/ai-agents/conversas', label: 'Conversas', icon: () => <span style={{fontSize:"14px"}}>💬</span>, color: 'violet' },
-    { href: '/dashboard/ai-agents/templates', label: 'Templates', icon: LuFileText, color: 'violet' },
-    { href: '/dashboard/ai-agents/conexoes', label: 'Conexões', icon: () => <span style={{fontSize:"14px"}}>⚙</span>, color: 'violet' },
-    { href: '/dashboard/ai-agents/automacoes', label: 'Automações', icon: () => <span style={{fontSize:"14px"}}>⚡</span>, color: 'violet' },
-    { href: '/dashboard/ai-agents/conhecimento', label: 'Base de Conhecimento', icon: () => <span style={{fontSize:"14px"}}>🗄</span>, color: 'violet' },
-    { href: '/dashboard/crm/leads', label: 'Leads', icon: LuUserPlus, color: 'blue' },
-    { href: '/dashboard/crm/pipelines', label: 'Pipelines', icon: () => <span style={{fontSize:"14px"}}>🔀</span>, color: 'blue' },
-    { href: '/dashboard/erp/tutores', label: 'Tutores', icon: () => <span style={{fontSize:"14px"}}>👥</span>, color: 'indigo' },
-    { href: '/dashboard/erp/pets', label: 'Pets', icon: LuPawPrint, color: 'amber' },
-    { href: '/dashboard/erp/clientes', label: 'Clientes', icon: () => <span style={{fontSize:"14px"}}>👥</span>, color: 'indigo' },
-    { href: '/dashboard/erp/agendamentos', label: 'Agendamentos', icon: LuCalendar, color: 'amber' },
-    { href: '/dashboard/erp/consultas', label: 'Consultas', icon: () => <span style={{fontSize:"14px"}}>🩺</span>, color: 'teal' },
-    { href: '/dashboard/erp/tratamentos', label: 'Tratamentos', icon: () => <span style={{fontSize:"14px"}}>💉</span>, color: 'teal' },
-    { href: '/dashboard/erp/internacoes', label: 'Internações', icon: () => <span style={{fontSize:"14px"}}>🛏</span>, color: 'rose' },
-    { href: '/dashboard/erp/servicos', label: 'Serviços', icon: () => <span style={{fontSize:"14px"}}>🔧</span>, color: 'indigo' },
-    { href: '/dashboard/erp/produtos', label: 'Produtos', icon: () => <span style={{fontSize:"14px"}}>📦</span>, color: 'emerald' },
-    { href: '/dashboard/erp/estoque', label: 'Estoque', icon: () => <span style={{fontSize:"14px"}}>🏬</span>, color: 'amber' },
-    { href: '/dashboard/erp/comissoes', label: 'Comissões', icon: () => <span style={{fontSize:"14px"}}>•</span>, color: 'emerald' },
-    { href: '/dashboard/erp/financeiro', label: 'Financeiro', icon: LuDollarSign, color: 'emerald' },
-    { href: '/dashboard/erp/documentos', label: 'Documentos', icon: LuFileText, color: 'slate' },
-    { href: '/dashboard/campanhas/adsense', label: 'AdSense', icon: () => <span style={{fontSize:"14px"}}>📊</span>, color: 'cyan' },
-    { href: '/dashboard/campanhas/email', label: 'Email', icon: () => <span style={{fontSize:"14px"}}>✉️</span>, color: 'cyan' },
-    { href: '/dashboard/campanhas/whatsapp', label: 'WhatsApp', icon: () => <span style={{fontSize:"14px"}}>💬</span>, color: 'emerald' },
-    { href: '/dashboard/landing-pages', label: 'Landing Pages', icon: () => <span style={{fontSize:"14px"}}>⊞</span>, color: 'purple' },
-  ];
+  const funil = useMemo(() => {
+    const c: Record<string, number> = {}; for (const e of estagios) c[e] = 0;
+    for (const l of leadsP) { const et = l.pipelineComercialEtapa || inicial; c[et] = (c[et] || 0) + 1; }
+    const max = Math.max(1, ...estagios.map(e => c[e] || 0));
+    return { c, max };
+  }, [leadsP, estagios, inicial]);
 
-  const colorClasses: Record<string, string> = {
-    violet: 'bg-orange-500/10 text-orange-600 border-orange-500/20 hover:bg-orange-500/15 hover:border-orange-500/30',
-    blue: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/20 hover:bg-cyan-500/15 hover:border-cyan-500/30',
-    indigo: 'bg-orange-500/10 text-orange-600 border-orange-500/20 hover:bg-orange-500/15 hover:border-orange-500/30',
-    amber: 'bg-orange-500/10 text-orange-600 border-orange-500/20 hover:bg-orange-500/15 hover:border-orange-500/30',
-    teal: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/20 hover:bg-cyan-500/15 hover:border-cyan-500/30',
-    rose: 'bg-rose-500/10 text-rose-600 border-rose-500/20 hover:bg-rose-500/15 hover:border-rose-500/30',
-    emerald: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/20 hover:bg-cyan-500/15 hover:border-cyan-500/30',
-    cyan: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/20 hover:bg-cyan-500/15 hover:border-cyan-500/30',
-    purple: 'bg-orange-500/10 text-orange-600 border-orange-500/20 hover:bg-orange-500/15 hover:border-orange-500/30',
-    slate: 'bg-slate-500/10 text-slate-600 border-slate-500/20 hover:bg-slate-500/15 hover:border-slate-500/30'};
+  const porCanal = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const l of leadsP) { const k = (l.source || l.channel || "Outro").toString(); m[k] = (m[k] || 0) + 1; }
+    return Object.entries(m).sort((a, b) => b[1] - a[1]).slice(0, 6);
+  }, [leadsP]);
+
+  const porOrigem = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const l of leadsP) { const k = (l.utmSource || l.utmCampaign || l.sourceDetail || l.source || "Direto").toString(); m[k] = (m[k] || 0) + 1; }
+    return Object.entries(m).sort((a, b) => b[1] - a[1]).slice(0, 6);
+  }, [leadsP]);
+
+  const tendencia = useMemo(() => {
+    const months: { label: string; leads: number; conv: number }[] = [];
+    const base = new Date(); base.setDate(1);
+    for (let i = 11; i >= 0; i--) { const d = new Date(base.getFullYear(), base.getMonth() - i, 1); months.push({ label: d.toLocaleDateString("pt-BR", { month: "short" }), leads: 0, conv: 0 }); }
+    const idxOf = (s?: string) => { if (!s) return -1; const d = new Date(s); return months.findIndex(m => { const md = new Date(base.getFullYear(), base.getMonth() - (11 - months.indexOf(m)), 1); return md.getMonth() === d.getMonth() && md.getFullYear() === d.getFullYear(); }); };
+    for (const l of leads) { const i = idxOf(l.createdAt); if (i >= 0) { months[i].leads++; if (isConv(l)) months[i].conv++; } }
+    const max = Math.max(1, ...months.map(m => m.leads));
+    return { months, max };
+  }, [leads]);
+
+  const todayAppts = useMemo(() => {
+    const s = new Date(); s.setHours(0, 0, 0, 0); const e = new Date(); e.setHours(23, 59, 59, 999);
+    return appts.filter(a => { const t = new Date(a.date || 0).getTime(); return t >= s.getTime() && t <= e.getTime() && String(a.status).toUpperCase() !== "CANCELLED"; })
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  }, [appts]);
+
+  const internAtivas = useMemo(() => internacoes.filter(h => !["DISCHARGED", "DECEASED"].includes(String(h.status).toUpperCase())), [internacoes]);
+  const fuVencidos = useMemo(() => fuList.filter(f => new Date(f.date).getTime() <= Date.now()), [fuList]);
+
+  const Card = ({ icon, label, value, href, accent, danger }: any) => (
+    <Link href={href} className="block bg-white border rounded-xl p-3 hover:shadow-sm transition" style={{ borderColor: "#d8d0bc", borderLeft: `3px solid ${accent}` }}>
+      <div className="text-[12px] text-[#64748b] flex items-center gap-1.5">{icon}{label}</div>
+      <div className="text-[24px] font-semibold mt-1" style={{ color: danger && value > 0 ? "#A32D2D" : "#0E2244" }}>{value}</div>
+    </Link>
+  );
+  const Kpi = ({ label, value }: any) => (
+    <div className="bg-[#F8F3E4] rounded-xl p-3"><div className="text-[12px] text-[#64748b]">{label}</div><div className="text-[22px] font-semibold mt-0.5 text-[#0E2244]">{value}</div></div>
+  );
+  const Bar = ({ label, val, max, color, bg }: any) => (
+    <div><div className="flex justify-between text-[12px]"><span className="text-[#334155] truncate pr-2">{label}</span><span className="text-[#64748b]">{val}</span></div>
+      <div className="h-1.5 rounded-full mt-0.5" style={{ background: bg }}><div className="h-1.5 rounded-full" style={{ width: `${Math.round((val / max) * 100)}%`, background: color }} /></div></div>
+  );
+
+  if (loading) return <div className="p-6 max-w-7xl mx-auto text-sm text-[#94a3b8]">Carregando painel...</div>;
 
   return (
-    <div className="min-h-screen">
-      {/* Hero gradient strip */}
-      <div className="absolute top-0 left-0 right-0 h-[420px] bg-gradient-to-br from-cyan-500/8 via-orange-500/5 to-cyan-500/8 pointer-events-none" aria-hidden />
-      <div className="absolute top-0 left-1/4 w-96 h-96 bg-orange-400/10 rounded-full blur-3xl pointer-events-none" aria-hidden />
-      <div className="absolute top-20 right-1/4 w-80 h-80 bg-cyan-400/10 rounded-full blur-3xl pointer-events-none" aria-hidden />
-
-      <div className="relative p-6 lg:p-8 max-w-[1600px] mx-auto">
-        {/* Header */}
-        <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 mb-8">
-          <div>
-            <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 tracking-tight">
-              {greeting.text} {greeting.emoji}
-            </h1>
-            <p className="text-gray-500 mt-1.5 capitalize text-lg">{hoje}</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="flex bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200/80 p-1 shadow-sm">
-              {(['hoje', 'semana', 'mes'] as const).map((filter) => (
-                <button
-                  key={filter}
-                  onClick={() => setTimeFilter(filter)}
-                  className={`px-4 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 ${
-                    timeFilter === filter
-                      ? 'bg-gray-900 text-white shadow-sm'
-                      : 'text-gray-600 hover:bg-gray-100'
-                  }`}
-                >
-                  {filter === 'hoje' ? 'Hoje' : filter === 'semana' ? 'Semana' : 'Mês'}
-                </button>
-              ))}
-            </div>
-            <button
-              onClick={fetchData}
-              disabled={loading}
-              className="p-2.5 bg-white/80 backdrop-blur-sm border border-gray-200/80 rounded-2xl hover:bg-gray-50 transition-all disabled:opacity-50 shadow-sm"
-            >
-              <span style={{fontSize:"14px"}}>↻</span>
+    <div className="p-6 max-w-7xl mx-auto">
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+        <span className="text-[12px] text-[#64748b]">Visão geral do CRM</span>
+        <div className="flex gap-1">
+          {(["7d", "30d", "tudo"] as Period[]).map(p => (
+            <button key={p} onClick={() => setPeriod(p)} className="text-[11px] font-medium px-3 py-1 rounded-full border"
+              style={period === p ? { background: TURQ, color: "#fff", borderColor: TURQ } : { background: "#fff", color: "#4d5a66", borderColor: "#cfd8e0" }}>
+              {p === "tudo" ? "Tudo" : p}
             </button>
-          </div>
-        </div>
-
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-2xl flex items-center gap-3">
-            <span style={{fontSize:"14px"}}>⚠️</span>
-            <p className="text-red-700 text-sm">{error}</p>
-            <button onClick={fetchData} className="ml-auto text-sm font-medium text-red-600 hover:text-red-700">
-              Tentar novamente
-            </button>
-          </div>
-        )}
-
-        {/* KPI Cards - glass style */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
-          {[
-            { label: 'Tutores', value: data.totalTutores, icon: () => <span style={{fontSize:"14px"}}>👥</span>, bg: 'bg-cyan-500/10', iconColor: 'text-cyan-600' },
-            { label: 'Pets', value: data.totalPets, icon: LuPawPrint, bg: 'bg-orange-500/10', iconColor: 'text-orange-600' },
-            { label: 'Agendamentos hoje', value: data.agendamentosHoje, icon: LuCalendar, bg: 'bg-orange-500/10', iconColor: 'text-orange-600' },
-            { label: 'Consultas hoje', value: data.consultasHoje, sub: data.consultasPendentes ? `${data.consultasPendentes} pendentes` : null, icon: () => <span style={{fontSize:"14px"}}>🩺</span>, bg: 'bg-cyan-500/10', iconColor: 'text-cyan-600' },
-            { label: 'Internações', value: data.internacoesAtivas, icon: () => <span style={{fontSize:"14px"}}>🛏</span>, bg: 'bg-rose-500/10', iconColor: 'text-rose-600' },
-            { label: 'Faturamento hoje', value: formatCurrency(data.faturamentoHoje), icon: LuDollarSign, bg: 'bg-cyan-500/10', iconColor: 'text-cyan-600' },
-          ].map(({ label, value, sub, icon: Icon, bg, iconColor }) => (
-            <div
-              key={label}
-              className="group relative bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200/80 p-5 shadow-sm hover:shadow-lg hover:shadow-gray-200/50 hover:border-gray-300/80 transition-all duration-300 hover:-translate-y-0.5"
-            >
-              <div className={`inline-flex p-2.5 rounded-xl ${bg} ${iconColor} mb-3`}>
-                <Icon className="w-5 h-5" />
-              </div>
-              <p className="text-2xl font-bold text-gray-900 tabular-nums">{typeof value === 'number' ? value.toLocaleString() : value}</p>
-              <p className="text-sm text-gray-500 mt-0.5">{label}</p>
-              {sub && <p className="text-xs text-orange-600 font-medium mt-1">{sub}</p>}
-            </div>
           ))}
         </div>
+      </div>
 
-        {/* Main 3 columns */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          {/* Agenda do dia */}
-          <div className="lg:col-span-1">
-            <div className="h-full bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200/80 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-              <div className="p-5 border-b border-gray-100 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-cyan-500/10 rounded-xl">
-                    <LuCalendar className="w-5 h-5 text-cyan-600" />
-                  </div>
-                  <div>
-                    <h2 className="font-semibold text-gray-900">Agenda do Dia</h2>
-                    <p className="text-sm text-gray-500">{data.agendamentosHoje} agendamentos</p>
-                  </div>
-                </div>
-                <Link href="/dashboard/erp/agendamentos" className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
-                  <span style={{fontSize:"14px"}}>▶</span>
-                </Link>
-              </div>
-              <div className="divide-y divide-gray-100 max-h-[320px] overflow-y-auto">
-                {agendamentos.length === 0 ? (
-                  <div className="p-8 text-center">
-                    <LuCalendar className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-                    <p className="text-gray-500 text-sm">Nenhum agendamento para hoje</p>
-                  </div>
-                ) : (
-                  agendamentos.map((ag) => (
-                    <div key={ag.id} className="p-4 hover:bg-gray-50/50 transition-colors">
-                      <div className="flex items-center gap-4">
-                        <div className="text-center min-w-[52px] font-semibold text-gray-900">{ag.horario}</div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-gray-900 truncate">{ag.tutor}</p>
-                          <p className="text-sm text-gray-500">{ag.pet} • {ag.servico}</p>
-                        </div>
-                        <span className={`px-2.5 py-1 text-xs font-medium rounded-lg whitespace-nowrap ${getStatusColor(ag.status)}`}>
-                          {getStatusText(ag.status)}
-                        </span>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-              <div className="p-4 bg-gray-50/50 border-t border-gray-100">
-                <Link href="/dashboard/erp/agendamentos" className="flex items-center justify-center gap-2 text-sm font-medium text-cyan-600 hover:text-cyan-700">
-                  Ver agenda completa <span style={{fontSize:"14px"}}>▶</span>
-                </Link>
-              </div>
-            </div>
-          </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 mb-3">
+        <Card icon={<LuTriangleAlert size={14} />} label="Retornos vencidos" value={fuVencidos.length} accent="#E24B4A" danger href="/dashboard/hoje" />
+        <Card icon={<LuCalendar size={14} />} label="Agenda hoje" value={todayAppts.length} accent={TURQ} href="/dashboard/erp/agendamentos/clinico" />
+        <Card icon={<LuBuilding2 size={14} />} label="Internações ativas" value={internAtivas.length} accent="#0F6E56" href="/dashboard/erp/internacoes" />
+        <Card icon={<LuFlaskConical size={14} />} label="Exames a entregar" value={examesPend} accent="#BA7517" href="/dashboard/erp/pets?exames=pendentes" />
+      </div>
 
-          {/* Atividades recentes */}
-          <div className="lg:col-span-1">
-            <div className="h-full bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200/80 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-              <div className="p-5 border-b border-gray-100">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-orange-500/10 rounded-xl">
-                    <span style={{fontSize:"14px"}}>⚡</span>
-                  </div>
-                  <div>
-                    <h2 className="font-semibold text-gray-900">Atividades Recentes</h2>
-                    <p className="text-sm text-gray-500">Últimas atualizações</p>
-                  </div>
-                </div>
-              </div>
-              <div className="divide-y divide-gray-100 max-h-[320px] overflow-y-auto">
-                {atividades.length === 0 ? (
-                  <div className="p-8 text-center">
-                    <span style={{fontSize:"14px"}}>⚡</span>
-                    <p className="text-gray-500 text-sm">Nenhuma atividade recente</p>
-                  </div>
-                ) : (
-                  atividades.map((a) => (
-                    <div key={a.id} className="p-4 hover:bg-gray-50/50 transition-colors">
-                      <div className="flex items-start gap-3">
-                        <span className="text-xl">{a.icone}</span>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-gray-900 text-sm">{a.titulo}</p>
-                          <p className="text-sm text-gray-500 truncate">{a.descricao}</p>
-                        </div>
-                        <span className="text-xs text-gray-400 whitespace-nowrap">{a.tempo}</span>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          </div>
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-2.5 mb-4">
+        <Kpi label="Leads total" value={kpis.total} />
+        <Kpi label="Taxa conversão" value={`${kpis.taxa}%`} />
+        <Kpi label="Pipeline aberto" value={kpis.aberto} />
+        <Kpi label="Receita (atend.)" value={brl(kpis.receita)} />
+        <Kpi label="Ticket médio" value={brl(kpis.ticket)} />
+      </div>
 
-          {/* Módulos em destaque */}
-          <div className="lg:col-span-1 space-y-4">
-            <Link href="/dashboard/ai-agents/agents" className="block group">
-              <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl p-5 text-white shadow-lg shadow-orange-500/20 hover:shadow-xl hover:shadow-orange-500/25 hover:scale-[1.02] transition-all duration-300">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="p-2.5 bg-white/20 rounded-xl">
-                    <span style={{fontSize:"14px"}}>🤖</span>
-                  </div>
-                  <span className="flex items-center gap-1.5 text-sm font-medium bg-white/20 px-3 py-1 rounded-full">
-                    <span className="w-2 h-2 bg-cyan-300 rounded-full animate-pulse" />
-                    {data.agentesAtivos} ativos
-                  </span>
-                </div>
-                <h3 className="text-lg font-semibold mb-1">AI Agents</h3>
-                <p className="text-white/80 text-sm mb-3">{data.interacoesHoje} interações hoje</p>
-                <div className="flex items-center justify-between pt-3 border-t border-white/20">
-                  <span className="text-sm text-white/80">Taxa de sucesso</span>
-                  <span className="text-lg font-bold">{data.taxaSucessoAgentes}%</span>
-                </div>
-              </div>
-            </Link>
-            <Link href="/dashboard/crm/leads" className="block group">
-              <div className="bg-gradient-to-br from-cyan-500 to-orange-600 rounded-2xl p-5 text-white shadow-lg shadow-cyan-500/20 hover:shadow-xl hover:shadow-cyan-500/25 hover:scale-[1.02] transition-all duration-300">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="p-2.5 bg-white/20 rounded-xl">
-                    <LuTarget className="w-6 h-6" />
-                  </div>
-                  <span className="text-sm font-medium">{data.taxaConversao}% conversão</span>
-                </div>
-                <h3 className="text-lg font-semibold mb-1">CRM</h3>
-                <p className="text-white/80 text-sm mb-3">{data.leadsNovos} novos leads</p>
-                <div className="flex items-center justify-between pt-3 border-t border-white/20">
-                  <span className="text-sm text-white/80">Qualificados</span>
-                  <span className="text-lg font-bold">{data.leadsQualificados}</span>
-                </div>
-              </div>
-            </Link>
-            <Link href="/dashboard/campanhas/email" className="block group">
-              <div className="bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-2xl p-5 text-white shadow-lg shadow-cyan-500/20 hover:shadow-xl hover:shadow-cyan-500/25 hover:scale-[1.02] transition-all duration-300">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="p-2.5 bg-white/20 rounded-xl">
-                    <span style={{fontSize:"14px"}}>📣</span>
-                  </div>
-                  <span className="flex items-center gap-1.5 text-sm font-medium bg-white/20 px-3 py-1 rounded-full">
-                    {data.campanhasAtivas} ativas
-                  </span>
-                </div>
-                <h3 className="text-lg font-semibold mb-1">Campanhas</h3>
-                <p className="text-white/80 text-sm mb-3">{data.emailsEnviados.toLocaleString()} emails enviados</p>
-                <div className="flex items-center justify-between pt-3 border-t border-white/20">
-                  <span className="text-sm text-white/80">Taxa de abertura</span>
-                  <span className="text-lg font-bold">{data.taxaAbertura}%</span>
-                </div>
-              </div>
-            </Link>
-          </div>
+      <div className="bg-white border rounded-xl p-4 mb-3" style={{ borderColor: "#d8d0bc" }}>
+        <div className="text-[14px] font-semibold mb-3 flex items-center gap-2 text-[#0E2244]"><LuTarget size={15} style={{ color: TURQ }} />Funil comercial — {period === "tudo" ? "todos" : "no período"}</div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2.5">
+          {estagios.length === 0 ? <div className="text-sm text-[#94a3b8]">Nenhuma etapa no pipeline de leads.</div>
+            : estagios.map(e => <Bar key={e} label={e} val={funil.c[e] || 0} max={funil.max} color={TURQ} bg="#E1F5EE" />)}
         </div>
+      </div>
 
-        {/* Hub de Módulos - todas as features */}
-        <section className="mb-8">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 bg-gray-900 rounded-xl">
-              <span style={{fontSize:"14px"}}>⊞</span>
-            </div>
-            <div>
-              <h2 className="text-xl font-bold text-gray-900">Acesso rápido</h2>
-              <p className="text-sm text-gray-500">Todos os módulos do sistema</p>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-            {quickModules.map(({ href, label, icon: Icon, color }) => (
-              <Link
-                key={href}
-                href={href}
-                className={`flex items-center gap-3 p-3 rounded-xl border bg-white/80 backdrop-blur-sm shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${colorClasses[color]}`}
-              >
-                <div className="flex-shrink-0 p-1.5 rounded-lg bg-white/80 border border-current/20">
-                  <Icon className="w-4 h-4" />
-                </div>
-                <span className="text-sm font-medium truncate">{label}</span>
-              </Link>
-            ))}
-          </div>
-        </section>
-
-        {/* Resumos: Financeiro, Estoque, Serviços, Integrações */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200/80 p-5 shadow-sm hover:shadow-md transition-all">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2.5 bg-cyan-500/10 rounded-xl">
-                <LuDollarSign className="w-5 h-5 text-cyan-600" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-gray-900">Financeiro</h3>
-                <p className="text-xs text-gray-500">Este mês</p>
-              </div>
-            </div>
-            <div className="space-y-3">
-              <div className="flex justify-between"><span className="text-sm text-gray-500">Faturamento</span><span className="font-semibold text-gray-900">{formatCurrency(data.faturamentoMes)}</span></div>
-              <div className="flex justify-between"><span className="text-sm text-gray-500">Ticket médio</span><span className="font-semibold text-gray-900">{formatCurrency(data.ticketMedio)}</span></div>
-              <div className="flex justify-between"><span className="text-sm text-gray-500">Comissões pend.</span><span className="font-semibold text-orange-600">{formatCurrency(data.comissoesPendentes)}</span></div>
-            </div>
-            <Link href="/dashboard/erp/financeiro" className="flex items-center justify-center gap-2 mt-4 pt-4 border-t border-gray-100 text-sm font-medium text-cyan-600 hover:text-cyan-700">
-              Ver detalhes <span style={{fontSize:"14px"}}>▶</span>
-            </Link>
-          </div>
-
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200/80 p-5 shadow-sm hover:shadow-md transition-all">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2.5 bg-orange-500/10 rounded-xl">
-                <span style={{fontSize:"14px"}}>🏬</span>
-              </div>
-              <div>
-                <h3 className="font-semibold text-gray-900">Estoque</h3>
-                <p className="text-xs text-gray-500">Status atual</p>
-              </div>
-            </div>
-            <div className="space-y-3">
-              <div className="flex justify-between"><span className="text-sm text-gray-500">Baixo estoque</span><span className="font-semibold text-orange-600">{data.produtosBaixoEstoque}</span></div>
-              <div className="flex justify-between"><span className="text-sm text-gray-500">Alertas</span><span className="font-semibold text-rose-600">{data.alertasEstoque}</span></div>
-            </div>
-            <Link href="/dashboard/erp/estoque" className="flex items-center justify-center gap-2 mt-4 pt-4 border-t border-gray-100 text-sm font-medium text-orange-600 hover:text-orange-700">
-              Gerenciar <span style={{fontSize:"14px"}}>▶</span>
-            </Link>
-          </div>
-
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200/80 p-5 shadow-sm hover:shadow-md transition-all">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2.5 bg-orange-500/10 rounded-xl">
-                <LuSparkles className="w-5 h-5 text-orange-600" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-gray-900">Serviços</h3>
-                <p className="text-xs text-gray-500">Mais populares</p>
-              </div>
-            </div>
-            <div className="space-y-2">
-              {['Consultas', 'Vacinação', 'Banho e Tosa'].map((s, i) => (
-                <div key={s} className="flex justify-between items-center py-1">
-                  <span className="text-sm text-gray-600">{s}</span>
-                  <div className="flex items-center gap-2">
-                    <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                      <div className="h-full bg-orange-500 rounded-full" style={{ width: `${[70, 45, 35][i]}%` }} />
-                    </div>
-                    <span className="text-xs text-gray-500">{[70, 45, 35][i]}%</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <Link href="/dashboard/erp/servicos" className="flex items-center justify-center gap-2 mt-4 pt-4 border-t border-gray-100 text-sm font-medium text-orange-600 hover:text-orange-700">
-              Ver serviços <span style={{fontSize:"14px"}}>▶</span>
-            </Link>
-          </div>
-
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200/80 p-5 shadow-sm hover:shadow-md transition-all">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2.5 bg-orange-500/10 rounded-xl">
-                <span style={{fontSize:"14px"}}>⚙</span>
-              </div>
-              <div>
-                <h3 className="font-semibold text-gray-900">Integrações</h3>
-                <p className="text-xs text-gray-500">Status</p>
-              </div>
-            </div>
-            <div className="space-y-3">
-              {['WhatsApp Bot', 'N8N Automações', 'AI Agents'].map((name) => (
-                <div key={name} className="flex justify-between items-center">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 bg-cyan-500 rounded-full" />
-                    <span className="text-sm text-gray-600">{name}</span>
-                  </div>
-                  <span className="text-xs font-medium text-cyan-600">Online</span>
-                </div>
-              ))}
-            </div>
-            <Link href="/dashboard/ai-agents/conexoes" className="flex items-center justify-center gap-2 mt-4 pt-4 border-t border-gray-100 text-sm font-medium text-orange-600 hover:text-orange-700">
-              Configurar <span style={{fontSize:"14px"}}>▶</span>
-            </Link>
-          </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-3">
+        <div className="bg-white border rounded-xl p-4" style={{ borderColor: "#d8d0bc" }}>
+          <div className="text-[14px] font-semibold mb-2 flex items-center gap-2 text-[#0E2244]"><LuCalendar size={15} style={{ color: TURQ }} />Agenda de hoje</div>
+          {todayAppts.length === 0 ? <div className="text-[13px] text-[#94a3b8] py-3">Nenhum agendamento para hoje.</div>
+            : <div className="flex flex-col gap-1.5">{todayAppts.slice(0, 6).map((a, i) => (
+              <div key={i} className="flex justify-between text-[13px]"><span className="text-[#334155]"><span className="text-[#64748b]">{hhmm(a.date)}</span> · {a.pet?.name || a.tutor?.name || "—"}</span><span className="text-[#64748b]">{a.user?.name || ""}</span></div>
+            ))}</div>}
         </div>
+        <div className="bg-white border rounded-xl p-4" style={{ borderColor: "#d8d0bc" }}>
+          <div className="text-[14px] font-semibold mb-2 flex items-center gap-2 text-[#0E2244]"><LuTriangleAlert size={15} style={{ color: "#A32D2D" }} />Precisa de atenção</div>
+          {fuVencidos.length === 0 ? <div className="text-[13px] text-[#94a3b8] py-3">Nenhum follow-up vencido.</div>
+            : <div className="flex flex-col gap-1.5">{fuVencidos.slice(0, 6).map(f => (
+              <Link key={f.id} href={f.href} className="flex justify-between text-[13px] hover:text-[#009AAC]"><span className="text-[#334155]"><span className="w-1.5 h-1.5 rounded-full inline-block mr-1.5" style={{ background: "#E24B4A" }} />{f.nome} <span className="text-[#94a3b8]">· {f.tipo}</span></span><span className="text-[#64748b]">{dShort(f.date)}</span></Link>
+            ))}</div>}
+        </div>
+      </div>
 
+      <div className="bg-white border rounded-xl p-4 mb-3" style={{ borderColor: "#d8d0bc" }}>
+        <div className="text-[14px] font-semibold mb-2 text-[#0E2244]">Tendência de leads (últimos 12 meses)</div>
+        <svg viewBox="0 0 600 90" style={{ width: "100%", height: 70 }} preserveAspectRatio="none" role="img" aria-label="Tendência de leads">
+          <polyline fill="none" stroke={TURQ} strokeWidth="2.5" points={tendencia.months.map((m, i) => `${(i / 11) * 600},${85 - (m.leads / tendencia.max) * 78}`).join(" ")} />
+          <polyline fill="none" stroke="#D4537E" strokeWidth="2" points={tendencia.months.map((m, i) => `${(i / 11) * 600},${85 - (m.conv / tendencia.max) * 78}`).join(" ")} />
+        </svg>
+        <div className="flex justify-between text-[10px] text-[#94a3b8] mt-1">{tendencia.months.map((m, i) => <span key={i}>{m.label}</span>)}</div>
+        <div className="text-[11px] text-[#64748b] mt-1 flex gap-3"><span style={{ color: TURQ }}>● Leads</span><span style={{ color: "#D4537E" }}>● Convertidos</span></div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        <div className="bg-white border rounded-xl p-4" style={{ borderColor: "#d8d0bc" }}>
+          <div className="text-[14px] font-semibold mb-3 text-[#0E2244]">Leads por canal</div>
+          <div className="flex flex-col gap-2">{porCanal.length === 0 ? <div className="text-[13px] text-[#94a3b8]">Sem dados no período.</div> : porCanal.map(([k, v]) => <Bar key={k} label={k} val={v} max={Math.max(1, ...porCanal.map(x => x[1]))} color={TURQ} bg="#E1F5EE" />)}</div>
+        </div>
+        <div className="bg-white border rounded-xl p-4" style={{ borderColor: "#d8d0bc" }}>
+          <div className="text-[14px] font-semibold mb-3 text-[#0E2244]">Leads por origem / campanha</div>
+          <div className="flex flex-col gap-2">{porOrigem.length === 0 ? <div className="text-[13px] text-[#94a3b8]">Sem dados no período.</div> : porOrigem.map(([k, v]) => <Bar key={k} label={k} val={v} max={Math.max(1, ...porOrigem.map(x => x[1]))} color="#185FA5" bg="#E6F1FB" />)}</div>
+        </div>
       </div>
     </div>
   );
