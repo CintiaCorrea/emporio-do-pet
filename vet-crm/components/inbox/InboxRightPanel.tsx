@@ -169,6 +169,7 @@ function extrairServico(resumo?: string | null, customField?: string | null): st
 
 type Tab = "inbox" | "contexto";
 
+// [EMP-COWORK] busca+acoes mesma linha (Cintia 07/06)
 export default function InboxRightPanel({ canal = "BotConversa", initialPhone }: { canal?: string; initialPhone?: string | null }) {
   // ===== Tab control =====
   const [activeTab, setActiveTab] = useState<Tab>("inbox");
@@ -765,43 +766,10 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
         </button>
       </div>
 
-      {/* ========== Header ações (Encaminhar/Resolver) ========== */}
-      <div className="px-3 py-2 border-b flex-shrink-0 flex items-center justify-end gap-1.5" style={SECTION_STYLE}>
-        {(tutor || lead) && (
-          <>
-            <div className="relative">
-              <button onClick={() => setForwardOpen(o => !o)} className="text-[10.5px] font-semibold flex items-center gap-1 px-2 py-1 rounded border hover:bg-gray-50" style={{ borderColor: "#E8DFC8", color: "#475569" }}>
-                <LuShare2 size={11} /> Encaminhar
-              </button>
-              {forwardOpen && (
-                <div className="absolute right-0 top-full mt-1 bg-white border rounded-lg shadow-lg z-40 w-44 max-h-60 overflow-y-auto" style={{ borderColor: "#E8DFC8" }}>
-                  {staff.length === 0 ? (
-                    <div className="px-3 py-2 text-[10.5px] text-gray-400">Carregando...</div>
-                  ) : staff.map(s => (
-                    <button key={s.id} onClick={() => handleForward(s.id, s.name || "")} className="w-full text-left px-3 py-1.5 text-[11px] hover:bg-gray-50 border-b last:border-b-0" style={{ borderColor: "#F0EBE0" }}>
-                      <div className="font-medium" style={{ color: "#014D5E" }}>{s.name || "Sem nome"}</div>
-                      <div className="text-[9.5px] text-gray-400 uppercase">{s.role}</div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            <button onClick={handleResolve} className="text-[10.5px] font-semibold flex items-center gap-1 px-2 py-1 rounded text-white" style={{ background: "#009AAC" }}>
-              <LuCheckCheck size={11} /> Resolver
-            </button>
-            <button onClick={reset} className="text-gray-400 hover:text-red-500" title="Voltar pra Caixa"><LuX size={13} /></button>
-          </>
-        )}
-        {!tutor && !lead && !cadastroOpen && (
-          <button onClick={() => { setCadastroOpen(true); setCadastroAs("LEAD"); setCadForm({ ...cadForm, telefone: onlyDigits(search) || search, nome: "" }); }} className="text-[10.5px] font-semibold flex items-center gap-1" style={{ color: "#009AAC" }}>
-            <LuPlus size={11} /> cadastrar
-          </button>
-        )}
-      </div>
-
-      {/* ========== BUSCA ========== */}
-      <div className="px-3 py-2 border-b flex-shrink-0" style={SECTION_STYLE}>
-        <div className="relative">
+      {/* ========== Busca + ações (mesma linha) ========== */}
+      <div className="px-3 py-2 border-b flex-shrink-0 flex items-center gap-1.5" style={SECTION_STYLE}>
+        {/* BUSCA */}
+        <div className="relative flex-1 min-w-0">
           <LuSearch size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
           <input value={search} onChange={e => { setSearch(e.target.value); if (!e.target.value && !tutor && !lead) { /* mantém aba */ } }} placeholder="Telefone, nome ou email..." className="w-full pl-8 pr-3 py-1.5 border rounded-lg text-sm bg-white" style={SECTION_STYLE} />
           {(results.tutors.length > 0 || results.leads.length > 0) && (
@@ -830,6 +798,37 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
             </div>
           )}
         </div>
+        {/* AÇÕES */}
+        {(tutor || lead) && (
+          <>
+            <div className="relative flex-shrink-0">
+              <button onClick={() => setForwardOpen(o => !o)} title="Encaminhar" className="flex items-center justify-center w-7 h-7 rounded border hover:bg-gray-50" style={{ borderColor: "#E8DFC8", color: "#475569" }}>
+                <LuShare2 size={13} />
+              </button>
+              {forwardOpen && (
+                <div className="absolute right-0 top-full mt-1 bg-white border rounded-lg shadow-lg z-40 w-44 max-h-60 overflow-y-auto" style={{ borderColor: "#E8DFC8" }}>
+                  {staff.length === 0 ? (
+                    <div className="px-3 py-2 text-[10.5px] text-gray-400">Carregando...</div>
+                  ) : staff.map(s => (
+                    <button key={s.id} onClick={() => handleForward(s.id, s.name || "")} className="w-full text-left px-3 py-1.5 text-[11px] hover:bg-gray-50 border-b last:border-b-0" style={{ borderColor: "#F0EBE0" }}>
+                      <div className="font-medium" style={{ color: "#014D5E" }}>{s.name || "Sem nome"}</div>
+                      <div className="text-[9.5px] text-gray-400 uppercase">{s.role}</div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <button onClick={handleResolve} title="Resolver" className="flex items-center justify-center w-7 h-7 rounded text-white flex-shrink-0" style={{ background: "#009AAC" }}>
+              <LuCheckCheck size={13} />
+            </button>
+            <button onClick={reset} className="text-gray-400 hover:text-red-500 flex-shrink-0" title="Voltar pra Caixa"><LuX size={13} /></button>
+          </>
+        )}
+        {!tutor && !lead && !cadastroOpen && (
+          <button onClick={() => { setCadastroOpen(true); setCadastroAs("LEAD"); setCadForm({ ...cadForm, telefone: onlyDigits(search) || search, nome: "" }); }} className="text-[10.5px] font-semibold flex items-center gap-1 flex-shrink-0 whitespace-nowrap" style={{ color: "#009AAC" }}>
+            <LuPlus size={11} /> cadastrar
+          </button>
+        )}
       </div>
 
       {/* ========== CONTEÚDO BASEADO NA ABA ========== */}
