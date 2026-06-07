@@ -312,6 +312,27 @@ export default function AppointmentsPage() {
     }).format(value);
   };
 
+  const stStyle = (s: AppointmentStatus): { bg: string; fg: string; label: string } => {
+    switch (s) {
+      case 'SCHEDULED': return { bg: '#E6F6F8', fg: '#00798A', label: 'Agendada' };
+      case 'CONFIRMED': return { bg: '#E1F5EE', fg: '#0F6E56', label: 'Confirmada' };
+      case 'IN_PROGRESS': return { bg: '#FBEFE0', fg: '#B45309', label: 'Em andamento' };
+      case 'COMPLETED': return { bg: '#EEF2F4', fg: '#5b6470', label: 'Concluída' };
+      case 'CANCELED': return { bg: '#FCE9EF', fg: '#CC3366', label: 'Cancelada' };
+      default: return { bg: '#EEF2F4', fg: '#5b6470', label: String(s) };
+    }
+  };
+  const payStyle = (s: PaymentStatus): { bg: string; fg: string; label: string } => {
+    switch (s) {
+      case 'PAID': return { bg: '#E1F5EE', fg: '#0F6E56', label: 'Pago' };
+      case 'PENDING': return { bg: '#FBEFE0', fg: '#B45309', label: 'Pendente' };
+      case 'OVERDUE': return { bg: '#FCE9EF', fg: '#CC3366', label: 'Atrasado' };
+      case 'CANCELLED': return { bg: '#EEF2F4', fg: '#5b6470', label: 'Cancelado' };
+      default: return { bg: '#EEF2F4', fg: '#5b6470', label: String(s) };
+    }
+  };
+  const ini = (n?: string) => ((n || '?').trim().slice(0, 2).toUpperCase());
+
   // Lista única de tutores para filtro
   const uniqueTutors = Array.from(new Map(
     appointments.map(apt => [apt.tutor.id, apt.tutor])
@@ -319,515 +340,168 @@ export default function AppointmentsPage() {
 
   if (loading && appointments.length === 0) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/10 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Carregando agendamentos...</p>
-        </div>
+      <div className="p-6 max-w-7xl mx-auto">
+        <div className="px-6 py-16 text-center text-sm text-[#94a3b8]">Carregando agendamentos...</div>
       </div>
     );
   }
 
+  const STAT_CARDS = [
+    { l: 'Total', v: stats.total, c: '#5b6470', bg: '#F3F1EA' },
+    { l: 'Agendadas', v: stats.scheduled, c: '#00798A', bg: '#E6F6F8' },
+    { l: 'Confirmadas', v: stats.confirmed, c: '#0F6E56', bg: '#E1F5EE' },
+    { l: 'Em andamento', v: stats.inProgress, c: '#B45309', bg: '#FBEFE0' },
+    { l: 'Concluídas', v: stats.completed, c: '#5b6470', bg: '#EEF2F4' },
+    { l: 'Canceladas', v: stats.cancelled, c: '#CC3366', bg: '#FCE9EF' },
+  ];
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/10 w-full overflow-hidden">
+    <div className="p-6 max-w-7xl mx-auto">
       <ConfirmDeleteModal
         isOpen={Boolean(appointmentToDelete)}
         entityLabel="Agendamento"
-        itemName={
-          appointmentToDelete
-            ? `${appointmentToDelete.pet?.name || 'Pet'} • ${appointmentToDelete.tutor?.name || 'Tutor'}`
-            : '—'
-        }
+        itemName={appointmentToDelete ? `${appointmentToDelete.pet?.name || 'Pet'} • ${appointmentToDelete.tutor?.name || 'Tutor'}` : '—'}
         consequenceText="Esta ação não pode ser desfeita. O agendamento será removido."
         onClose={() => setAppointmentToDelete(null)}
         onConfirm={confirmDeleteAppointment}
       />
-      <div className="p-6">
-        <div className="max-w-7xl mx-auto">
-            {/* Header */}
-            <div className="mb-8">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                  <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-                    Agendamentos
-                  </h1>
-                  <p className="text-gray-600 mt-2">
-                    Gerencie consultas e agendamentos da clínica veterinária
-                  </p>
-                </div>
-                <div className="flex gap-3">
-                  <Link 
-                    href="/dashboard/erp/agendamentos/calendario"
-                    className="group px-6 py-3 text-sm font-semibold text-gray-700 bg-white/80 border border-gray-200/80 rounded-2xl hover:bg-white hover:border-gray-300 hover:shadow-lg transition-all duration-300 hover:scale-105 flex items-center space-x-2"
-                  >
-                    <LuCalendar className="w-4 h-4" />
-                    <span>Calendário</span>
-                  </Link>
-                  <Link 
-                    href="/dashboard/erp/agendamentos/novo"
-                    className="group px-6 py-3 text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-blue-500/25 flex items-center space-x-2 relative overflow-hidden"
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent transform -skew-x-12 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
-                    <LuPlus className="w-4 h-4 relative z-10" />
-                    <span className="relative z-10">Novo Agendamento</span>
-                  </Link>
-                </div>
-              </div>
-            </div>
 
-            {/* Error Message */}
-            {error && (
-              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-2xl text-red-700">
-                {error}
-                <button 
-                  onClick={() => setError(null)}
-                  className="float-right text-red-500 hover:text-red-700"
-                >
-                  <span style={{fontSize:"14px"}}>✕</span>
-                </button>
-              </div>
-            )}
-
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6 mb-8">
-              {[
-                { 
-                  label: "Total", 
-                  value: stats.total, 
-                  color: "gray", 
-                  icon: LuCalendar
-                },
-                { 
-                  label: "Agendadas", 
-                  value: stats.scheduled, 
-                  color: "blue", 
-                  icon: () => <span style={{fontSize:"14px"}}>⏱</span>
-                },
-                { 
-                  label: "Confirmadas", 
-                  value: stats.confirmed, 
-                  color: "green", 
-                  icon: LuCheck
-                },
-                { 
-                  label: "Em Andamento", 
-                  value: stats.inProgress, 
-                  color: "orange", 
-                  icon: () => <span style={{fontSize:"14px"}}>△</span>
-                },
-                { 
-                  label: "Concluídas", 
-                  value: stats.completed, 
-                  color: "gray", 
-                  icon: LuCheck
-                },
-                { 
-                  label: "Canceladas", 
-                  value: stats.cancelled, 
-                  color: "red", 
-                  icon: () => null }
-              ].map((stat, index) => (
-                <div key={index} className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-blue-500/5 p-6 hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-300 hover:scale-105">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className={`p-3 bg-${stat.color}-50 rounded-xl`}>
-                      <stat.icon className={`w-6 h-6 text-${stat.color}-600`} />
-                    </div>
-                    <div className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-                      {stat.value}
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-600">{stat.label}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Filters and Search */}
-            <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-blue-500/5 p-6 mb-6">
-              <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
-                <div className="flex flex-col sm:flex-row gap-4 w-full lg:w-auto">
-                  <div className="relative flex-1">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <LuSearch className="w-5 h-5 text-gray-400" />
-                    </div>
-                    <input
-                      type="text"
-                      placeholder="Buscar por tutor, pet ou descrição..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full pl-10 pr-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm"
-                    />
-                  </div>
-                  
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value as AppointmentStatus | 'all')}
-                    className="px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm"
-                  >
-                    <option value="all">Todos os Status</option>
-                    <option value="SCHEDULED">Agendadas</option>
-                    <option value="CONFIRMED">Confirmadas</option>
-                    <option value="IN_PROGRESS">Em Andamento</option>
-                    <option value="COMPLETED">Concluídas</option>
-                    <option value="CANCELED">Canceladas</option>
-                  </select>
-
-                  <select
-                    value={tutorFilter}
-                    onChange={(e) => setTutorFilter(e.target.value)}
-                    className="px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm"
-                  >
-                    <option value="all">Todos os Tutores</option>
-                    {uniqueTutors.map(tutor => (
-                      <option key={tutor.id} value={tutor.id}>{tutor.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="flex gap-3 w-full lg:w-auto">
-                  <input
-                    type="date"
-                    value={dateFilter === 'all' ? '' : dateFilter}
-                    onChange={(e) => setDateFilter(e.target.value || 'all')}
-                    className="px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm flex-1 lg:flex-none"
-                  />
-                  
-                  <button 
-                    onClick={fetchAppointments}
-                    className="flex items-center gap-2 px-4 py-3 text-sm font-semibold text-gray-600 bg-white/50 border border-gray-300/50 rounded-2xl hover:bg-white hover:border-gray-400 hover:shadow-lg transition-all duration-300 hover:scale-105 backdrop-blur-sm"
-                  >
-                    <LuSearch className="w-4 h-4" />
-                    <span>Recarregar</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Appointments Table */}
-            <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-blue-500/5 overflow-hidden">
-              {/* Table Header */}
-              <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-100/50 border-b border-white/20">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    Próximas Consultas
-                  </h3>
-                  <div className="text-sm text-gray-600">
-                    {filteredAppointments.length} consultas encontradas
-                  </div>
-                </div>
-              </div>
-
-              {/* Table */}
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="bg-gradient-to-r from-gray-50 to-gray-100/50 border-b border-white/20">
-                      <th className="text-left p-6 font-semibold text-gray-700">Tutor/Pet</th>
-                      <th className="text-left p-6 font-semibold text-gray-700">Veterinário</th>
-                      <th className="text-left p-6 font-semibold text-gray-700">Descrição</th>
-                      <th className="text-left p-6 font-semibold text-gray-700">Data/Hora</th>
-                      <th className="text-left p-6 font-semibold text-gray-700">Status</th>
-                      <th className="text-left p-6 font-semibold text-gray-700">Pagamento</th>
-                      <th className="text-left p-6 font-semibold text-gray-700">Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredAppointments.map((appointment) => {
-                      const StatusIcon = getStatusIcon(appointment.status);
-                      const primaryContact = appointment.tutor.contacts.find(contact => contact.isPrimary);
-                      
-                      return (
-                        <tr 
-                          key={appointment.id} 
-                          className="border-b border-white/20 hover:bg-gray-50/50 transition-all duration-300 group cursor-pointer"
-                          onClick={() => openAppointmentDetails(appointment)}
-                        >
-                          <td className="p-6">
-                            <div className="font-semibold text-gray-900">{appointment.tutor.name}</div>
-                            <div className="text-sm text-gray-500 flex items-center gap-1 mt-1">
-                              <LuUser className="w-3 h-3" />
-                              {appointment.pet.name} ({appointment.pet.species})
-                            </div>
-                            {primaryContact && (
-                              <div className="text-sm text-gray-500 flex items-center gap-1 mt-1">
-                                <LuPhone className="w-3 h-3" />
-                                {primaryContact.number}
-                              </div>
-                            )}
-                          </td>
-                          <td className="p-6">
-                            <div className="flex items-center gap-2">
-                              <span style={{fontSize:"14px"}}>🩺</span>
-                              <span className="text-gray-700">
-                                {appointment.user?.name || 'Não atribuído'}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="p-6">
-                            <div className="text-gray-700">
-                              {appointment.description || 'Consulta veterinária'}
-                            </div>
-                            <div className="text-sm text-gray-500 mt-1">
-                              {appointment._count.treatments} tratamentos
-                            </div>
-                          </td>
-                          <td className="p-6">
-                            <div className="font-semibold text-gray-900">
-                              {formatDate(appointment.date)}
-                            </div>
-                            <div className="text-sm text-gray-500 flex items-center gap-1 mt-1">
-                              <span style={{fontSize:"14px"}}>⏱</span>
-                              {formatTime(appointment.date)} • {appointment.duration} min
-                            </div>
-                          </td>
-                          <td className="p-6">
-                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(appointment.status)}`}>
-                              <StatusIcon className="w-3 h-3 mr-1" />
-                              {appointment.status === 'SCHEDULED' && 'Agendada'}
-                              {appointment.status === 'CONFIRMED' && 'Confirmada'}
-                              {appointment.status === 'IN_PROGRESS' && 'Em Andamento'}
-                              {appointment.status === 'COMPLETED' && 'Concluída'}
-                              {appointment.status === 'CANCELED' && 'Cancelada'}
-                            </span>
-                          </td>
-                          <td className="p-6">
-                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getPaymentStatusColor(appointment.paymentStatus)}`}>
-                              {appointment.paymentStatus === 'PAID' && 'Pago'}
-                              {appointment.paymentStatus === 'PENDING' && 'Pendente'}
-                              {appointment.paymentStatus === 'OVERDUE' && 'Atrasado'}
-                              {appointment.paymentStatus === 'CANCELLED' && 'Cancelado'}
-                            </span>
-                            <div className="text-xs text-gray-500 mt-1">
-                              {formatCurrency(appointment.value)}
-                            </div>
-                          </td>
-                          <td className="p-6">
-                            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                              {appointment.status === 'SCHEDULED' && (
-                                <>
-                                  <button
-                                    onClick={() => handleConfirmAppointment(appointment.id)}
-                                    className="p-2 text-green-600 hover:bg-green-50 rounded-2xl transition-colors"
-                                    title="Confirmar consulta"
-                                  >
-                                    <LuCheck className="w-4 h-4" />
-                                  </button>
-                                  <button
-                                    onClick={() => handleCancelAppointment(appointment.id)}
-                                    className="p-2 text-red-600 hover:bg-red-50 rounded-2xl transition-colors"
-                                    title="Cancelar consulta"
-                                  >
-                                    <span style={{fontSize:"14px"}}>✕</span>
-                                  </button>
-                                </>
-                              )}
-                              {appointment.status === 'CONFIRMED' && (
-                                <button
-                                  onClick={() => handleCompleteAppointment(appointment.id)}
-                                  className="p-2 text-blue-600 hover:bg-blue-50 rounded-2xl transition-colors"
-                                  title="Marcar como concluída"
-                                >
-                                  <LuCheck className="w-4 h-4" />
-                                </button>
-                              )}
-                              <button
-                                onClick={() => requestDeleteAppointment(appointment)}
-                                className="p-2 text-gray-400 hover:bg-gray-50 hover:text-red-600 rounded-2xl transition-colors"
-                                title="Excluir consulta"
-                              >
-                                <LuTrash className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-
-                {filteredAppointments.length === 0 && !loading && (
-                  <div className="text-center py-12">
-                    <LuCalendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-500 text-lg">Nenhum agendamento encontrado</p>
-                    <p className="text-gray-400 mt-2">
-                      {appointments.length === 0 
-                        ? 'Comece criando seu primeiro agendamento' 
-                        : 'Tente ajustar os filtros de busca'
-                      }
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {/* Table Footer */}
-              <div className="flex flex-col sm:flex-row justify-between items-center p-6 border-t border-white/20 bg-gradient-to-r from-gray-50 to-gray-100/50">
-                <div className="text-sm text-gray-600 mb-4 sm:mb-0">
-                  Mostrando {filteredAppointments.length} de {appointments.length} consultas
-                </div>
-                
-                <div className="flex items-center space-x-4">
-                  <button className="px-4 py-2 text-sm text-gray-600 bg-white/80 border border-gray-200/80 rounded-2xl hover:bg-white hover:border-gray-300 transition-all duration-300">
-                    Anterior
-                  </button>
-                  <span className="text-sm text-gray-600">Página 1 de 1</span>
-                  <button className="px-4 py-2 text-sm text-gray-600 bg-white/80 border border-gray-200/80 rounded-2xl hover:bg-white hover:border-gray-300 transition-all duration-300">
-                    Próxima
-                  </button>
-                </div>
-              </div>
-            </div>
+      <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
+        <div className="flex items-center gap-2">
+          <Link href="/dashboard/erp/agendamentos/clinico" className="px-3 py-1.5 rounded-lg text-[11px] font-medium bg-white border text-[#4d5a66]" style={{ borderColor: "#cfd8e0" }}>Clínico (FU)</Link>
+          <Link href="/dashboard/erp/agendamentos/calendario" className="px-3 py-1.5 rounded-lg text-[11px] font-medium bg-white border text-[#4d5a66]" style={{ borderColor: "#cfd8e0" }}>Agenda</Link>
+          <Link href="/dashboard/erp/agendamentos" className="px-3 py-1.5 rounded-lg text-[11px] font-semibold text-white" style={{ background: "#009AAC" }}>Lista</Link>
         </div>
+        <Link href="/dashboard/erp/agendamentos/novo" className="text-[11px] font-medium text-white bg-[#009AAC] px-3.5 py-1.5 rounded-lg inline-flex items-center gap-1.5"><LuPlus className="w-3.5 h-3.5" />Novo agendamento</Link>
       </div>
-      {/* Modal de Detalhes da Consulta */}
-      {isModalOpen && selectedAppointment && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xl font-bold text-gray-900">Detalhes da Consulta</h3>
-                <button
-                  onClick={() => setIsModalOpen(false)}
-                  className="p-2 hover:bg-gray-100 rounded-2xl transition-colors"
-                >
-                  <span style={{fontSize:"14px"}}>✕</span>
-                </button>
-              </div>
-            </div>
-            
-            <div className="p-6 space-y-6">
-              {/* Informações do Tutor e Pet */}
-              <div>
-                <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <LuUser className="w-5 h-5 text-blue-600" />
-                  Informações do Tutor e Pet
-                </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Tutor</label>
-                    <p className="text-gray-900">{selectedAppointment.tutor.name}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Pet</label>
-                    <p className="text-gray-900">
-                      {selectedAppointment.pet.name} ({selectedAppointment.pet.species})
-                      {selectedAppointment.pet.breed && ` - ${selectedAppointment.pet.breed}`}
-                    </p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Contato</label>
-                    <p className="text-gray-900 flex items-center gap-2">
-                      <LuPhone className="w-4 h-4" />
-                      {selectedAppointment.tutor.contacts.find(c => c.isPrimary)?.number || 'N/A'}
-                    </p>
-                  </div>
-                </div>
-              </div>
 
-              {/* Informações da Consulta */}
-              <div>
-                <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <LuCalendar className="w-5 h-5 text-green-600" />
-                  Informações da Consulta
-                </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Veterinário</label>
-                    <p className="text-gray-900 flex items-center gap-2">
-                      <span style={{fontSize:"14px"}}>🩺</span>
-                      {selectedAppointment.user?.name || 'Não atribuído'}
-                    </p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Descrição</label>
-                    <p className="text-gray-900">{selectedAppointment.description || 'Consulta veterinária'}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Data</label>
-                    <p className="text-gray-900">{formatDate(selectedAppointment.date)}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Horário</label>
-                    <p className="text-gray-900">{formatTime(selectedAppointment.date)}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Duração</label>
-                    <p className="text-gray-900">{selectedAppointment.duration} minutos</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Valor</label>
-                    <p className="text-gray-900 font-semibold">{formatCurrency(selectedAppointment.value)}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Status</label>
-                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(selectedAppointment.status)}`}>
-                      {selectedAppointment.status === 'SCHEDULED' && 'Agendada'}
-                      {selectedAppointment.status === 'CONFIRMED' && 'Confirmada'}
-                      {selectedAppointment.status === 'IN_PROGRESS' && 'Em Andamento'}
-                      {selectedAppointment.status === 'COMPLETED' && 'Concluída'}
-                      {selectedAppointment.status === 'CANCELED' && 'Cancelada'}
-                    </span>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Pagamento</label>
-                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getPaymentStatusColor(selectedAppointment.paymentStatus)}`}>
-                      {selectedAppointment.paymentStatus === 'PAID' && 'Pago'}
-                      {selectedAppointment.paymentStatus === 'PENDING' && 'Pendente'}
-                      {selectedAppointment.paymentStatus === 'OVERDUE' && 'Atrasado'}
-                      {selectedAppointment.paymentStatus === 'CANCELLED' && 'Cancelado'}
-                    </span>
-                  </div>
-                </div>
-              </div>
+      {error && (
+        <div className="mb-4 p-3 rounded-lg text-xs font-medium flex items-center justify-between" style={{ background: "#FCE9EF", border: "1px solid #f3c9d6", color: "#CC3366" }}>
+          <span>{error}</span>
+          <button onClick={() => setError(null)} className="text-[#CC3366]">✕</button>
+        </div>
+      )}
 
-              {/* Observações */}
-              {selectedAppointment.notes && (
-                <div>
-                  <h4 className="text-lg font-semibold text-gray-900 mb-4">Observações</h4>
-                  <p className="text-gray-700 bg-gray-50 p-4 rounded-2xl">
-                    {selectedAppointment.notes}
-                  </p>
-                </div>
-              )}
+      <div className="grid grid-cols-3 lg:grid-cols-6 gap-2 mb-4">
+        {STAT_CARDS.map((st) => (
+          <div key={st.l} className="rounded-lg p-2.5 text-center" style={{ background: st.bg }}>
+            <div className="text-[19px] font-bold leading-tight" style={{ color: st.c }}>{st.v}</div>
+            <div className="text-[10.5px]" style={{ color: st.c }}>{st.l}</div>
+          </div>
+        ))}
+      </div>
 
-              {/* Tratamentos */}
-              {selectedAppointment.treatments.length > 0 && (
-                <div>
-                  <h4 className="text-lg font-semibold text-gray-900 mb-4">Tratamentos</h4>
-                  <div className="space-y-3">
-                    {selectedAppointment.treatments.map((treatment) => (
-                      <div key={treatment.id} className="bg-gray-50 p-4 rounded-2xl">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <p className="font-medium text-gray-900">{treatment.description}</p>
-                            {treatment.product && (
-                              <p className="text-sm text-gray-600 mt-1">
-                                Produto: {treatment.product.name}
-                              </p>
-                            )}
-                          </div>
-                          <p className="font-semibold text-gray-900">
-                            {formatCurrency(treatment.cost)}
-                          </p>
+      <div className="flex items-center gap-2 mb-3 flex-wrap">
+        <div className="relative flex-1 min-w-[200px]">
+          <LuSearch className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[#94a3b8]" />
+          <input type="text" placeholder="Buscar por tutor, pet ou descrição..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full bg-white border border-[#d8d0bc] rounded-lg pl-8 pr-2.5 py-1.5 text-xs focus:outline-none focus:border-[#009AAC]" />
+        </div>
+        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as AppointmentStatus | 'all')} className="bg-white border border-[#d8d0bc] rounded-lg px-2 py-1.5 text-[11px] text-[#4d5a66] focus:outline-none focus:border-[#009AAC]">
+          <option value="all">Todos os status</option>
+          <option value="SCHEDULED">Agendadas</option>
+          <option value="CONFIRMED">Confirmadas</option>
+          <option value="IN_PROGRESS">Em andamento</option>
+          <option value="COMPLETED">Concluídas</option>
+          <option value="CANCELED">Canceladas</option>
+        </select>
+        <select value={tutorFilter} onChange={(e) => setTutorFilter(e.target.value)} className="bg-white border border-[#d8d0bc] rounded-lg px-2 py-1.5 text-[11px] text-[#4d5a66] focus:outline-none focus:border-[#009AAC]">
+          <option value="all">Todos os tutores</option>
+          {uniqueTutors.map((tutor) => (<option key={tutor.id} value={tutor.id}>{tutor.name}</option>))}
+        </select>
+        <input type="date" value={dateFilter === 'all' ? '' : dateFilter} onChange={(e) => setDateFilter(e.target.value || 'all')} className="bg-white border border-[#d8d0bc] rounded-lg px-2 py-1.5 text-[11px] text-[#4d5a66] focus:outline-none focus:border-[#009AAC]" />
+        <button onClick={fetchAppointments} className="bg-white border border-[#d8d0bc] rounded-lg px-2.5 py-1.5 text-[11px] text-[#4d5a66] hover:bg-[#fdfaee] inline-flex items-center gap-1.5"><LuSearch className="w-3.5 h-3.5" />Recarregar</button>
+      </div>
+
+      <div className="bg-white rounded-xl border border-[#d8d0bc] overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full" style={{ borderCollapse: "collapse" }}>
+            <thead>
+              <tr className="bg-[#F8F3E4] text-[10.5px] uppercase tracking-wide text-[#6b7280]">
+                <th className="text-left font-medium px-3.5 py-2">Cliente / Pet</th>
+                <th className="text-left font-medium px-2 py-2">Profissional</th>
+                <th className="text-left font-medium px-2 py-2">Data / hora</th>
+                <th className="text-left font-medium px-2 py-2">Status</th>
+                <th className="text-right font-medium px-2 py-2">Valor</th>
+                <th className="text-right font-medium px-3.5 py-2">Ações</th>
+              </tr>
+            </thead>
+            <tbody className="text-[12.5px] text-[#0E2244]">
+              {filteredAppointments.map((appointment) => {
+                const st = stStyle(appointment.status); const pay = payStyle(appointment.paymentStatus);
+                return (
+                  <tr key={appointment.id} onClick={() => openAppointmentDetails(appointment)} className="border-t border-[#f4eede] hover:bg-[#fdfaee] transition cursor-pointer">
+                    <td className="px-3.5 py-2">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-medium flex-shrink-0" style={{ background: "#E0F4F6", color: "#00798A" }}>{ini(appointment.tutor.name)}</div>
+                        <div className="min-w-0">
+                          <div className="font-medium text-[#0E2244] truncate">{appointment.tutor.name}</div>
+                          <div className="text-[11px] text-[#6b7280] truncate">{appointment.pet.name} · {appointment.pet.species}</div>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </div>
+                    </td>
+                    <td className="px-2 py-2 text-[#6b7280]">{appointment.user?.name || '—'}</td>
+                    <td className="px-2 py-2 text-[#6b7280] whitespace-nowrap">{formatDate(appointment.date)}<span className="text-[#b6c1c9]"> · </span>{formatTime(appointment.date)}</td>
+                    <td className="px-2 py-2"><span className="inline-flex text-[10px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap" style={{ background: st.bg, color: st.fg }}>{st.label}</span></td>
+                    <td className="px-2 py-2 text-right whitespace-nowrap"><div className="font-medium text-[#0E2244]">{formatCurrency(appointment.value)}</div><div className="text-[10px]" style={{ color: pay.fg }}>{pay.label}</div></td>
+                    <td className="px-3.5 py-2">
+                      <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                        {appointment.status === 'SCHEDULED' && (<>
+                          <button onClick={() => handleConfirmAppointment(appointment.id)} title="Confirmar" className="p-1.5 rounded-lg text-[#0F6E56] hover:bg-[#E1F5EE]"><LuCheck className="w-4 h-4" /></button>
+                          <button onClick={() => handleCancelAppointment(appointment.id)} title="Cancelar" className="p-1.5 rounded-lg text-[#CC3366] hover:bg-[#FCE9EF]">✕</button>
+                        </>)}
+                        {appointment.status === 'CONFIRMED' && (
+                          <button onClick={() => handleCompleteAppointment(appointment.id)} title="Concluir" className="p-1.5 rounded-lg text-[#00798A] hover:bg-[#E6F6F8]"><LuCheck className="w-4 h-4" /></button>
+                        )}
+                        <button onClick={() => requestDeleteAppointment(appointment)} title="Excluir" className="p-1.5 rounded-lg text-[#94a3b8] hover:bg-[#FCE9EF] hover:text-[#CC3366]"><LuTrash className="w-4 h-4" /></button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+              {filteredAppointments.length === 0 && !loading && (
+                <tr><td colSpan={6} className="px-4 py-12 text-center"><LuCalendar className="w-9 h-9 text-[#cfd8e0] mx-auto mb-2" /><p className="text-sm text-[#94a3b8]">{appointments.length === 0 ? 'Nenhum agendamento ainda.' : 'Nenhum resultado para os filtros.'}</p></td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        <div className="px-4 py-2.5 border-t border-[#f4eede] text-[11px] text-[#6b7280]">Mostrando {filteredAppointments.length} de {appointments.length} agendamentos</div>
+      </div>
+
+      {isModalOpen && selectedAppointment && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50" onClick={() => setIsModalOpen(false)}>
+          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "#eef0e6" }}>
+              <h3 className="text-base font-semibold text-[#014D5E]">Detalhes do agendamento</h3>
+              <button onClick={() => setIsModalOpen(false)} className="text-[#94a3b8] hover:text-[#5b6470] text-sm">✕</button>
+            </div>
+            <div className="p-5 space-y-4 text-[13px]">
+              <div className="grid grid-cols-2 gap-4">
+                <div><div className="text-[11px] text-[#94a3b8]">Tutor</div><div className="text-[#0E2244] font-medium">{selectedAppointment.tutor.name}</div></div>
+                <div><div className="text-[11px] text-[#94a3b8]">Pet</div><div className="text-[#0E2244] font-medium">{selectedAppointment.pet.name} <span className="text-[#94a3b8] font-normal">({selectedAppointment.pet.species}{selectedAppointment.pet.breed ? ` · ${selectedAppointment.pet.breed}` : ''})</span></div></div>
+                <div><div className="text-[11px] text-[#94a3b8]">Contato</div><div className="text-[#0E2244]">{selectedAppointment.tutor.contacts.find((c) => c.isPrimary)?.number || '—'}</div></div>
+                <div><div className="text-[11px] text-[#94a3b8]">Profissional</div><div className="text-[#0E2244]">{selectedAppointment.user?.name || 'Não atribuído'}</div></div>
+                <div><div className="text-[11px] text-[#94a3b8]">Data</div><div className="text-[#0E2244]">{formatDate(selectedAppointment.date)} · {formatTime(selectedAppointment.date)}</div></div>
+                <div><div className="text-[11px] text-[#94a3b8]">Duração</div><div className="text-[#0E2244]">{selectedAppointment.duration} min</div></div>
+                <div><div className="text-[11px] text-[#94a3b8]">Valor</div><div className="text-[#0E2244] font-semibold">{formatCurrency(selectedAppointment.value)}</div></div>
+                <div><div className="text-[11px] text-[#94a3b8]">Status</div><span className="inline-flex text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: stStyle(selectedAppointment.status).bg, color: stStyle(selectedAppointment.status).fg }}>{stStyle(selectedAppointment.status).label}</span></div>
+                <div><div className="text-[11px] text-[#94a3b8]">Pagamento</div><span className="inline-flex text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: payStyle(selectedAppointment.paymentStatus).bg, color: payStyle(selectedAppointment.paymentStatus).fg }}>{payStyle(selectedAppointment.paymentStatus).label}</span></div>
+              </div>
+              {selectedAppointment.description && (<div><div className="text-[11px] text-[#94a3b8] mb-1">Descrição</div><p className="text-[#475569] bg-[#fbfaf6] border rounded-lg p-3" style={{ borderColor: "#eef0e6" }}>{selectedAppointment.description}</p></div>)}
+              {selectedAppointment.notes && (<div><div className="text-[11px] text-[#94a3b8] mb-1">Observações</div><p className="text-[#475569] bg-[#fbfaf6] border rounded-lg p-3" style={{ borderColor: "#eef0e6" }}>{selectedAppointment.notes}</p></div>)}
+              {selectedAppointment.treatments.length > 0 && (
+                <div><div className="text-[11px] text-[#94a3b8] mb-1">Tratamentos</div><div className="space-y-2">
+                  {selectedAppointment.treatments.map((treatment) => (
+                    <div key={treatment.id} className="bg-[#fbfaf6] border rounded-lg p-2.5 flex justify-between items-start" style={{ borderColor: "#eef0e6" }}>
+                      <div><p className="font-medium text-[#0E2244] text-[12.5px]">{treatment.description}</p>{treatment.product && (<p className="text-[11px] text-[#6b7280]">Produto: {treatment.product.name}</p>)}</div>
+                      <p className="font-semibold text-[#0E2244] text-[12.5px]">{formatCurrency(treatment.cost)}</p>
+                    </div>
+                  ))}
+                </div></div>
               )}
             </div>
-
-            <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="px-6 py-3 text-gray-700 bg-gray-100 rounded-2xl hover:bg-gray-200 transition-colors"
-              >
-                Fechar
-              </button>
-              <button className="px-6 py-3 text-white bg-blue-600 rounded-2xl hover:bg-blue-700 transition-colors flex items-center gap-2">
-                <LuPencil className="w-4 h-4" />
-                Editar Consulta
-              </button>
+            <div className="px-5 py-4 border-t flex justify-end gap-2" style={{ borderColor: "#eef0e6" }}>
+              <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-[13px] text-[#5b6470] bg-[#f3f1ea] rounded-lg hover:bg-[#ece8dd]">Fechar</button>
             </div>
           </div>
         </div>
