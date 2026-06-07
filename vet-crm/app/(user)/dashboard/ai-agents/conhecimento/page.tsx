@@ -101,23 +101,14 @@ export default function KnowledgeBasesPage() {
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-4 px-3 pb-4 pt-4 sm:space-y-6 sm:px-5 sm:pb-6 sm:pt-6 md:px-6 md:pt-7 lg:px-8 lg:pt-8">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0">
-          <h1 className="flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white sm:text-2xl">
-            <span style={{fontSize:"14px"}}>🗄</span>
-            Base de Conhecimento
-          </h1>
-          <p className="mt-1 max-w-2xl text-sm text-gray-500 dark:text-gray-400">
-            Gerencie as bases de conhecimento para RAG dos seus agentes de IA
-          </p>
-        </div>
+      {/* Toolbar */}
+      <div className="flex justify-end">
         <button
           onClick={() => setShowCreateModal(true)}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-indigo-700 sm:w-auto"
+          className="flex items-center justify-center gap-2 rounded-xl bg-[#009AAC] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#00798A]"
         >
           <LuPlus className="w-4 h-4" />
-          Nova Base
+          Nova base
         </button>
       </div>
 
@@ -129,17 +120,17 @@ export default function KnowledgeBasesPage() {
           placeholder="Buscar base de conhecimento..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-10 pr-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+          className="w-full pl-10 pr-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-[#009AAC] focus:border-transparent"
         />
       </div>
 
       {/* List */}
       {loading ? (
         <div className="flex justify-center py-12">
-          <LuLoader className="w-6 h-6 animate-spin text-indigo-600" />
+          <LuLoader className="w-6 h-6 animate-spin text-[#009AAC]" />
         </div>
       ) : filtered.length === 0 ? (
-        <div className="rounded-2xl border border-gray-200 bg-white px-4 py-12 text-center dark:border-gray-700 dark:bg-gray-800 sm:px-6 sm:py-16">
+        <div className="rounded-xl border border-gray-200 bg-white px-4 py-12 text-center dark:border-gray-700 dark:bg-gray-800 sm:px-6 sm:py-16">
           <span style={{fontSize:"14px"}}>🗄</span>
           <h3 className="mb-2 text-base font-medium text-gray-900 dark:text-white sm:text-lg">
             {search ? 'Nenhuma base encontrada' : 'Nenhuma base de conhecimento'}
@@ -152,7 +143,7 @@ export default function KnowledgeBasesPage() {
           {!search && (
             <button
               onClick={() => setShowCreateModal(true)}
-              className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors"
+              className="inline-flex items-center gap-2 bg-[#009AAC] hover:bg-[#00798A] text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors"
             >
               <LuPlus className="w-4 h-4" />
               Criar primeira base
@@ -164,7 +155,7 @@ export default function KnowledgeBasesPage() {
           {filtered.map((kb) => (
             <div
               key={kb.id}
-              className="rounded-2xl border border-gray-200 bg-white p-4 transition-colors hover:border-indigo-300 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-indigo-700 sm:p-5"
+              className="rounded-xl border border-gray-200 bg-white p-4 transition-colors hover:border-[#009AAC] dark:border-gray-700 dark:bg-gray-800 dark:hover:border-[#00798A] sm:p-5"
             >
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <Link
@@ -172,11 +163,11 @@ export default function KnowledgeBasesPage() {
                   className="group min-w-0 flex-1"
                 >
                   <div className="mb-2 flex items-start gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-100 dark:bg-indigo-900/30">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#E0F4F6] dark:bg-[#E0F4F6]">
                       <span style={{fontSize:"14px"}}>🗄</span>
                     </div>
                     <div className="min-w-0">
-                      <h3 className="flex items-start gap-1 break-words font-semibold text-gray-900 transition-colors group-hover:text-indigo-600 dark:text-white">
+                      <h3 className="flex items-start gap-1 break-words font-semibold text-gray-900 transition-colors group-hover:text-[#009AAC] dark:text-white">
                         {kb.name}
                         <span style={{fontSize:"14px"}}>▶</span>
                       </h3>
@@ -224,7 +215,7 @@ export default function KnowledgeBasesPage() {
       {/* Create Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-3 sm:items-center sm:p-4">
-          <div className="max-h-[calc(100vh-1.5rem)] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-5 shadow-xl dark:bg-gray-800 sm:max-h-[calc(100vh-2rem)] sm:p-6">
+          <div className="max-h-[calc(100vh-1.5rem)] w-full max-w-md overflow-y-auto rounded-xl bg-white p-5 dark:bg-gray-800 sm:max-h-[calc(100vh-2rem)] sm:p-6">
             <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
               Nova Base de Conhecimento
             </h2>
@@ -238,7 +229,7 @@ export default function KnowledgeBasesPage() {
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
                   placeholder="Ex: Preços e Serviços"
-                  className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-[#009AAC]"
                 />
               </div>
               <div>
@@ -250,7 +241,7 @@ export default function KnowledgeBasesPage() {
                   onChange={(e) => setNewDescription(e.target.value)}
                   placeholder="Descreva o tipo de conteúdo desta base..."
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500 resize-none"
+                  className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-[#009AAC] resize-none"
                 />
               </div>
             </div>
@@ -264,7 +255,7 @@ export default function KnowledgeBasesPage() {
               <button
                 onClick={handleCreate}
                 disabled={!newName.trim() || creating}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700 disabled:bg-gray-400 sm:w-auto"
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#009AAC] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#00798A] disabled:bg-gray-400 sm:w-auto"
               >
                 {creating && <LuLoader className="w-4 h-4 animate-spin" />}
                 Criar
