@@ -3,6 +3,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { LuTriangleAlert, LuClock, LuCalendar, LuCake, LuChevronRight } from "react-icons/lu";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 
@@ -37,6 +38,7 @@ const PERIODOS: { k: Periodo; label: string }[] = [
 
 export default function CalendarioClinicoPage() {
   usePageTitle("Calendário Clínico", "Retornos, follow-ups e datas importantes");
+  const router = useRouter();
   const [periodo, setPeriodo] = useState<Periodo>("7d");
   const [customIni, setCustomIni] = useState("");
   const [customFim, setCustomFim] = useState("");
@@ -128,6 +130,13 @@ export default function CalendarioClinicoPage() {
 
   const listas: Record<TabK, any[]> = { vencidos, proximos, retornos, aniversarios };
   const fmtData = (s: string) => { try { return new Date(s).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }); } catch { return ""; } };
+  const situacao = (s: string) => {
+    const d = new Date(s); const t = new Date();
+    const diff = Math.round((new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() - new Date(t.getFullYear(), t.getMonth(), t.getDate()).getTime()) / 86400000);
+    if (diff === 0) return { txt: "hoje", cor: "#0F6E56" };
+    if (diff < 0) return { txt: `${Math.abs(diff)}d de atraso`, cor: "#CC3366" };
+    return { txt: `em ${diff}d`, cor: "#7a8794" };
+  };
   const diasTxt = (s: string) => {
     const d = new Date(s); const t = new Date();
     const diff = Math.round((new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() - new Date(t.getFullYear(), t.getMonth(), t.getDate()).getTime()) / 86400000);
@@ -195,31 +204,41 @@ export default function CalendarioClinicoPage() {
         })}
       </div>
 
-      <div className="rounded-2xl overflow-hidden border" style={{ borderColor: tm.rowBorder }}>
-        {loading ? (
-          <div className="px-6 py-10 text-center text-sm text-[#94a3b8] bg-white">Carregando...</div>
-        ) : ativos.length === 0 ? (
-          <div className="px-6 py-10 text-center text-sm text-[#94a3b8] bg-white">{vazio[tab]}</div>
-        ) : ativos.map((e: any, i: number) => {
-          const c = TIPO[e.tipo] || TIPO.Cliente;
-          return (
-            <Link key={e.id} href={e.href} className="flex items-center gap-3 px-[18px] py-[13px] transition hover:brightness-[0.97]"
-              style={{ background: tm.rowBg, borderBottom: i === ativos.length - 1 ? "none" : `1px solid ${tm.rowBorder}` }}>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-[13.5px] font-semibold text-[#1e293b] truncate">{e.nome}</span>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full flex-shrink-0" style={{ background: c.bg, color: c.fg }}>{e.tipo}</span>
-                </div>
-                <div className="text-xs text-[#64748b] truncate">{e.sub}</div>
-              </div>
-              <div className="text-right flex-shrink-0">
-                <span className="inline-block text-[11px] font-semibold text-white px-2 py-0.5 rounded-md" style={{ background: tm.dateBg }}>{fmtData(e.date)}</span>
-                <div className="text-[11px] mt-0.5" style={{ color: tm.dayColor }}>{diasTxt(e.date)}</div>
-              </div>
-              <LuChevronRight size={16} className="text-[#94a3b8] flex-shrink-0" />
-            </Link>
-          );
-        })}
+      <div className="bg-white rounded-xl border border-[#e8dfc8] overflow-hidden">
+        <table className="w-full" style={{ borderCollapse: "collapse" }}>
+          <thead>
+            <tr className="bg-[#F8F3E4] text-[10.5px] uppercase tracking-wide text-[#6b7280]">
+              <th className="text-left font-medium px-3.5 py-1.5">Cliente / Pet</th>
+              <th className="text-left font-medium px-2 py-1.5">Tipo</th>
+              <th className="text-left font-medium px-2 py-1.5">Contexto</th>
+              <th className="text-left font-medium px-2 py-1.5">Data</th>
+              <th className="text-right font-medium px-3.5 py-1.5">Situação</th>
+            </tr>
+          </thead>
+          <tbody className="text-[12.5px] text-[#0E2244]">
+            {loading ? (
+              <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-[#94a3b8]">Carregando...</td></tr>
+            ) : ativos.length === 0 ? (
+              <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-[#94a3b8]">{vazio[tab]}</td></tr>
+            ) : ativos.map((e: any) => {
+              const c = TIPO[e.tipo] || TIPO.Cliente; const sit = situacao(e.date);
+              return (
+                <tr key={e.id} onClick={() => e.href && e.href !== "#" && router.push(e.href)} className="border-t border-[#f4eede] hover:bg-[#fdfaee] transition cursor-pointer">
+                  <td className="px-3.5 py-1.5 whitespace-nowrap"><span className="inline-block w-[7px] h-[7px] rounded-full align-middle mr-2" style={{ background: c.fg }} />{e.nome}</td>
+                  <td className="px-2 py-1.5"><span className="text-[9.5px] px-2 py-0.5 rounded-full" style={{ background: c.bg, color: c.fg }}>{e.tipo}</span></td>
+                  <td className="px-2 py-1.5 text-[#6b7280] truncate max-w-[220px]">{e.sub}</td>
+                  <td className="px-2 py-1.5 text-[#6b7280] whitespace-nowrap">{fmtData(e.date)}</td>
+                  <td className="px-3.5 py-1.5 text-right font-medium whitespace-nowrap" style={{ color: sit.cor }}>{sit.txt}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <div className="mt-2.5 flex gap-3.5 flex-wrap text-[11px] text-[#6b7280]">
+        <span className="inline-flex items-center gap-1.5"><span className="w-[7px] h-[7px] rounded-full" style={{ background: "#CC3366" }} />Em atraso</span>
+        <span className="inline-flex items-center gap-1.5"><span className="w-[7px] h-[7px] rounded-full" style={{ background: "#0F6E56" }} />Hoje</span>
+        <span className="inline-flex items-center gap-1.5"><span className="w-[7px] h-[7px] rounded-full" style={{ background: "#7a8794" }} />Próximo</span>
       </div>
     </div>
   );
