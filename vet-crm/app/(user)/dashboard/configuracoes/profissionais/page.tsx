@@ -223,7 +223,7 @@ export default function ProfissionaisPage() {
                   <div><label className="text-xs text-gray-600">Papel *</label>
                     <select value={form.role} onChange={e => setForm({ ...form, role: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }}>
                       <option value="ADMIN">Admin</option>
-                      <option value="VET">Veterinário</option>
+                      <option value="VETERINARIAN">Veterinário</option>
                       <option value="RECEPTIONIST">Recepcionista</option>
                     </select></div>
                   <div><label className="text-xs text-gray-600">Senha {editId ? "(deixe vazio pra manter)" : "*"}</label>
