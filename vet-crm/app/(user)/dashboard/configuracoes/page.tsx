@@ -59,13 +59,6 @@ export default function ConfiguracoesIndex() {
 
   return (
     <div className="min-h-screen bg-white">
-      <div className="bg-white border-b" style={{ borderColor: "#E8DFC8" }}>
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <h1 className="text-xl font-semibold" style={{ color: "#0E2244" }}>Configurações</h1>
-          <p className="text-sm text-gray-500">Cadastros base que alimentam o CRM</p>
-        </div>
-      </div>
-
       <div className="max-w-7xl mx-auto px-6 pt-4">
         <div className="relative max-w-md">
           <LuSearch size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
