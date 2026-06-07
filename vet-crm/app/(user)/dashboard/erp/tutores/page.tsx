@@ -218,7 +218,6 @@ export default function ClientesPage() {
     <div className="p-6 max-w-7xl mx-auto">
       <header className="flex justify-between items-start mb-4">
         <div>
-          <h1 className="text-2xl text-[#0E2244] font-medium">Clientes</h1>
           <p className="text-sm text-[#5b6470] mt-0.5">
             {counts.total} clientes ·{" "}
             <span className="text-[#BA7517] font-medium">🎂 {counts.aniversariantes} aniversariantes do mês</span> ·{" "}
