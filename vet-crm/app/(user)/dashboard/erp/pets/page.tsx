@@ -143,131 +143,105 @@ export default function PetsListPage() {
   }, [pets]);
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="max-w-7xl mx-auto px-6 pt-4 flex items-center justify-between gap-3">
-        <div className="text-xs text-gray-500">{filtered.length} de {pets.length} pets</div>
-        <div className="relative flex-1 max-w-md mx-3">
-          <LuSearch size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Buscar por nome, raça, tutor..."
-            className="w-full pl-8 pr-3 py-2 border rounded-lg text-sm bg-white"
-            style={{ borderColor: "#E8DFC8" }}
-          />
+    <div className="p-6 max-w-7xl mx-auto">
+      <header className="flex justify-between items-start mb-4">
+        <div>
+          <p className="text-sm text-[#5b6470] mt-0.5">
+            {counts.ALL || 0} pets · <span className="font-medium text-[#4d72a0]">{counts.CANINE || 0} cães</span> · <span className="font-medium text-[#0F6E56]">{counts.FELINE || 0} gatos</span> · <span className="font-medium text-[#5b6470]">{(counts.ALL || 0) - (counts.CANINE || 0) - (counts.FELINE || 0)} outros</span>
+          </p>
         </div>
-        <div className="flex items-center gap-2">
-          <select
-            value={filterStatus}
-            onChange={e => setFilterStatus(e.target.value)}
-            className="px-3 py-2 border rounded-lg text-sm bg-white"
-            style={{ borderColor: "#E8DFC8" }}
-          >
-            {STATUS_FILTERS.map(s => <option key={s.k} value={s.k}>{s.label}</option>)}
-          </select>
-          <button
-            onClick={() => { setNovoNome(""); setNovoSpecies("CANINE"); setNovoTutorId(""); setNovoOpen(true); }}
-            className="px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-2 text-white"
-            style={{ background: "#009AAC" }}
-          >
-            <LuPlus size={14} /> Novo Pet
+        <button onClick={() => { setNovoNome(""); setNovoSpecies("CANINE"); setNovoTutorId(""); setNovoOpen(true); }} className="bg-[#009AAC] text-white px-3.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5">
+          <LuPlus className="w-3.5 h-3.5" />Novo Pet
+        </button>
+      </header>
+
+      <div className="flex gap-2 mb-3 flex-wrap">
+        {SP_FILTERS.map(f => (
+          <button key={f.k} onClick={() => setFilterSpecies(f.k)} className={`px-3.5 py-1.5 rounded-full text-xs font-medium ${filterSpecies === f.k ? "bg-[#009AAC] text-white" : "bg-white text-[#4d5a66] border border-[#cfd8e0]"}`}>
+            {f.label}{f.k !== "ALL" && <span className={filterSpecies === f.k ? " opacity-90" : " text-gray-400"}> ({counts[f.k] || 0})</span>}
           </button>
-        </div>
+        ))}
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-4">
-        <div className="bg-white border rounded-xl overflow-hidden" style={{ borderColor: "#E8DFC8" }}>
-          <table className="w-full text-sm">
-            <thead className="border-b" style={{ background: "#FAFAFA", borderColor: "#E8DFC8" }}>
-              <tr>
-                <th className="text-left px-4 py-2.5 font-medium text-gray-500 w-8"></th>
-                <th className="text-left px-4 py-2.5 font-medium text-gray-500">Pet</th>
-                <th className="text-left px-4 py-2.5 font-medium text-gray-500 hidden md:table-cell">Tutor</th>
-                <th className="text-left px-4 py-2.5 font-medium text-gray-500 hidden md:table-cell">Espécie / Raça</th>
-                <th className="text-left px-4 py-2.5 font-medium text-gray-500 hidden lg:table-cell">Idade</th>
-                <th className="text-left px-4 py-2.5 font-medium text-gray-500 hidden lg:table-cell">Etapa (clínico)</th>
-                <th className="text-right px-4 py-2.5 font-medium text-gray-500 w-24">Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading && <tr><td colSpan={7} className="text-center py-8 text-gray-400">Carregando...</td></tr>}
-              {!loading && filtered.length === 0 && (
-                <tr><td colSpan={7} className="text-center py-8 text-gray-400">Nenhum pet encontrado.</td></tr>
-              )}
-              {filtered.map(p => {
-                const st = statusLabel(p.status);
-                const etB = ETAPA_BADGE(p.pipelineClinicoEtapa);
-                return (
-                  <tr key={p.id} className="border-b hover:bg-gray-50/60 transition" style={{ borderColor: "#F0EBE0" }}>
-                    <td className="px-4 py-2.5">
-                      <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: st.dot }} title={st.label} />
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "#e6f6f8", color: "#009AAC" }}>
-                          <PetIcon species={p.species} size={18} />
-                        </div>
-                        <div>
-                          <Link href={`/dashboard/erp/pets/${p.id}`} className="font-medium hover:underline" style={{ color: "#0E2244" }}>
-                            {p.name}
-                          </Link>
-                          {p.proximoFollowupAt && <div className="text-[10px] text-[#BA7517]">FU: {new Date(p.proximoFollowupAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}</div>}
-                        </div>
+      <div className="flex gap-2 mb-3 flex-wrap items-center">
+        <div className="relative flex-1 min-w-[200px]">
+          <LuSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por nome, raça, tutor..." className="w-full bg-white border border-[#d8d0bc] rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-[#009AAC]" />
+        </div>
+        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="bg-white border border-[#d8d0bc] rounded-lg px-3 py-2 text-sm text-[#4d5a66] focus:outline-none focus:border-[#009AAC]">
+          {STATUS_FILTERS.map(s => <option key={s.k} value={s.k}>{s.label}</option>)}
+        </select>
+      </div>
+
+      <div className="bg-white rounded-xl border border-[#d8d0bc] overflow-hidden">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-[#F8F3E4] border-b border-[#d8d0bc] text-[11px] text-[#5b6470] font-medium">
+              <th className="text-left py-2.5 px-3 w-8"></th>
+              <th className="text-left py-2.5 px-3">Pet</th>
+              <th className="text-left py-2.5 px-3 hidden md:table-cell">Tutor</th>
+              <th className="text-left py-2.5 px-3 hidden md:table-cell">Espécie / Raça</th>
+              <th className="text-left py-2.5 px-3 hidden lg:table-cell">Idade</th>
+              <th className="text-left py-2.5 px-3 hidden lg:table-cell">Etapa (clínico)</th>
+              <th className="text-right py-2.5 px-3 w-24">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading && <tr><td colSpan={7} className="text-center py-8 text-gray-400">Carregando...</td></tr>}
+            {!loading && filtered.length === 0 && (
+              <tr><td colSpan={7} className="text-center py-8 text-gray-400">Nenhum pet encontrado.</td></tr>
+            )}
+            {filtered.map(p => {
+              const st = statusLabel(p.status);
+              const etB = ETAPA_BADGE(p.pipelineClinicoEtapa);
+              return (
+                <tr key={p.id} className="border-b hover:bg-[#fdfaee] transition" style={{ borderColor: "#f0e8d4" }}>
+                  <td className="px-3 py-2.5">
+                    <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: st.dot }} title={st.label} />
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "#e6f6f8", color: "#009AAC" }}>
+                        <PetIcon species={p.species} size={18} />
                       </div>
-                    </td>
-                    <td className="px-4 py-2.5 hidden md:table-cell">
-                      {p.tutor ? (
-                        <Link href={`/dashboard/erp/tutores/${p.tutorId}`} className="text-gray-700 hover:underline">
-                          {p.tutor.name}
+                      <div>
+                        <Link href={`/dashboard/erp/pets/${p.id}`} className="font-medium hover:underline" style={{ color: "#0E2244" }}>
+                          {p.name}
                         </Link>
-                      ) : "—"}
-                    </td>
-                    <td className="px-4 py-2.5 hidden md:table-cell text-gray-700">
-                      {speciesLabel(p.species)}{p.breed ? ` · ${p.breed}` : ""}
-                    </td>
-                    <td className="px-4 py-2.5 hidden lg:table-cell text-gray-500">{ageFromBirth(p.birthDate)}</td>
-                    <td className="px-4 py-2.5 hidden lg:table-cell">
-                      {p.pipelineClinicoEtapa ? <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: etB.bg, color: etB.fg }}>{p.pipelineClinicoEtapa}</span> : <span className="text-xs text-gray-400">—</span>}
-                    </td>
-                    <td className="px-4 py-2.5 text-right whitespace-nowrap">
-                      <Link href={`/dashboard/erp/pets/${p.id}`} className="p-1 hover:bg-gray-200 rounded inline-block text-gray-600">
-                        <LuEye size={14} />
+                        {p.proximoFollowupAt && <div className="text-[10px] text-[#BA7517]">FU: {new Date(p.proximoFollowupAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}</div>}
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-3 py-2.5 hidden md:table-cell">
+                    {p.tutor ? (
+                      <Link href={`/dashboard/erp/tutores/${p.tutorId}`} className="text-gray-700 hover:underline">
+                        {p.tutor.name}
                       </Link>
-                      <Link href={`/dashboard/erp/pets/${p.id}`} className="p-1 hover:bg-gray-200 rounded inline-block ml-1 text-gray-600" title="Abrir ficha (edição inline)">
-                        <LuPencil size={14} />
-                      </Link>
-                      <button type="button" onClick={() => handleDeletePet(p)} disabled={deletingId === p.id} title="Excluir pet" className="p-1 hover:bg-gray-200 rounded inline-block ml-1 text-gray-600 disabled:opacity-40">
-                        <LuTrash size={14} />
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div className="max-w-7xl mx-auto px-6 py-4">
-        <div className="bg-white border rounded-xl p-4" style={{ borderColor: "#E8DFC8" }}>
-          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">ESPÉCIES</div>
-          <div className="flex items-center gap-2 flex-wrap">
-            {SP_FILTERS.map(f => (
-              <button
-                key={f.k}
-                onClick={() => setFilterSpecies(f.k)}
-                className="px-3 py-1.5 rounded-lg text-xs font-medium border"
-                style={{
-                  borderColor: filterSpecies === f.k ? "#009AAC" : "#E8DFC8",
-                  background: filterSpecies === f.k ? "#E0F4F6" : "white",
-                  color: filterSpecies === f.k ? "#009AAC" : "#4B5563",
-                }}
-              >
-                {f.label} <span className="text-gray-400">({counts[f.k] || 0})</span>
-              </button>
-            ))}
-          </div>
-        </div>
+                    ) : "—"}
+                  </td>
+                  <td className="px-3 py-2.5 hidden md:table-cell text-gray-700">
+                    {speciesLabel(p.species)}{p.breed ? ` · ${p.breed}` : ""}
+                  </td>
+                  <td className="px-3 py-2.5 hidden lg:table-cell text-gray-500">{ageFromBirth(p.birthDate)}</td>
+                  <td className="px-3 py-2.5 hidden lg:table-cell">
+                    {p.pipelineClinicoEtapa ? <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: etB.bg, color: etB.fg }}>{p.pipelineClinicoEtapa}</span> : <span className="text-xs text-gray-400">—</span>}
+                  </td>
+                  <td className="px-3 py-2.5 text-right whitespace-nowrap">
+                    <Link href={`/dashboard/erp/pets/${p.id}`} className="p-1 hover:bg-gray-200 rounded inline-block text-gray-600">
+                      <LuEye size={14} />
+                    </Link>
+                    <Link href={`/dashboard/erp/pets/${p.id}`} className="p-1 hover:bg-gray-200 rounded inline-block ml-1 text-gray-600" title="Abrir ficha (edição inline)">
+                      <LuPencil size={14} />
+                    </Link>
+                    <button type="button" onClick={() => handleDeletePet(p)} disabled={deletingId === p.id} title="Excluir pet" className="p-1 hover:bg-gray-200 rounded inline-block ml-1 text-gray-600 disabled:opacity-40">
+                      <LuTrash size={14} />
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
 
       {novoOpen && (
