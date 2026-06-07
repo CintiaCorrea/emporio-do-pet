@@ -11,6 +11,7 @@ import {
   LuPlus
 } from 'react-icons/lu';
 import toast from 'react-hot-toast';
+import NovoAgendamentoModal from '@/components/agendamentos/NovoAgendamentoModal';
 
 type AppointmentStatus = 'SCHEDULED' | 'CONFIRMED' | 'COMPLETED' | 'CANCELED' | 'IN_PROGRESS';
 type PaymentStatus = 'PAID' | 'PENDING' | 'OVERDUE' | 'CANCELLED';
@@ -68,6 +69,8 @@ export default function CalendarPage() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [novoOpen, setNovoOpen] = useState(false);
+  const [refreshTick, setRefreshTick] = useState(0);
 
   // Navegação do calendário
   const currentMonth = selectedDate.getMonth();
@@ -109,7 +112,7 @@ export default function CalendarPage() {
     };
 
     fetchAppointments();
-  }, [currentYear, currentMonth]);
+  }, [currentYear, currentMonth, refreshTick]);
 
   // Agrupar agendamentos por data
   const appointmentsByDate = useMemo(() => {
@@ -240,7 +243,7 @@ export default function CalendarPage() {
             <button onClick={goToNextMonth} className="p-1 rounded hover:bg-[#fdfaee]" aria-label="Próximo mês"><LuChevronRight className="w-4 h-4 text-[#5b6470]" /></button>
           </div>
           <button onClick={goToToday} className="text-[11px] font-medium text-[#009AAC] bg-[#e6f6f8] px-3 py-1.5 rounded-lg">Hoje</button>
-          <Link href="/dashboard/erp/agendamentos/novo" className="text-[11px] font-medium text-white bg-[#009AAC] px-3 py-1.5 rounded-lg inline-flex items-center gap-1"><LuPlus className="w-3 h-3" />Novo</Link>
+          <button onClick={() => setNovoOpen(true)} className="text-[11px] font-medium text-white bg-[#009AAC] px-3 py-1.5 rounded-lg inline-flex items-center gap-1"><LuPlus className="w-3 h-3" />Novo</button>
         </div>
       </div>
 
@@ -311,6 +314,7 @@ export default function CalendarPage() {
           </div>
         </div>
       )}
+      <NovoAgendamentoModal open={novoOpen} onClose={() => setNovoOpen(false)} onCreated={() => setRefreshTick((t) => t + 1)} />
     </div>
   );
 }
