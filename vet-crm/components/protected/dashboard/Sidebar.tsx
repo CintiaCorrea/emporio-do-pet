@@ -42,6 +42,7 @@ const NAV: Item[] = [
     roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"],
     tag: { admin: "Visualiza", vet: "Edita", recep: "Visualiza" },
   },
+  { href: "/dashboard/marketing/funil-semana", label: "Funil Semana", Icon: LuMegaphone, roles: ["ADMIN"] },
   { href: "/dashboard/configuracoes", label: "Configurações", Icon: LuSettings, roles: ["ADMIN"] },
 ];
 
