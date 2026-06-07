@@ -1,16 +1,9 @@
 "use client";
-/* [EMP-COWORK] Dashboard nova (Cintia 07/06): espelha o comercial do Base44
-   (KPIs + funil + tendência + leads por canal/origem) + cards operacionais do dia
-   (retornos vencidos, agenda, internações, exames). Substitui a dashboard antiga do dev.
-   Dados reais: /api/leads, /api/pipelines, /api/appointments, /api/hospitalizations,
-   /api/tutors, /api/pets, /api/listas (petexa_). */
+/* [EMP-COWORK] Dashboard nova (Cintia 07/06): comercial do Base44 + cards operacionais + motivos de perda */
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import {
-  LuTriangleAlert, LuCalendar, LuBuilding2, LuFlaskConical,
-  LuUsers, LuTarget, LuCircleDollarSign, LuClock, LuArrowRight,
-} from "react-icons/lu";
+import { LuTriangleAlert, LuCalendar, LuBuilding2, LuFlaskConical, LuTarget } from "react-icons/lu";
 
 const TURQ = "#009AAC";
 const j = async (u: string) => { try { const r = await fetch(u, { cache: "no-store", credentials: "include" }); return await r.json(); } catch { return null; } };
@@ -32,6 +25,7 @@ export default function DashboardPage() {
   const [internacoes, setInternacoes] = useState<any[]>([]);
   const [fuList, setFuList] = useState<any[]>([]);
   const [examesPend, setExamesPend] = useState(0);
+  const [motivos, setMotivos] = useState<[string, number][]>([]);
 
   useEffect(() => {
     (async () => {
@@ -57,9 +51,13 @@ export default function DashboardPage() {
       fu.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
       setFuList(fu);
 
-      let exa = 0;
-      for (const it of arr(Li, "itens", "data")) if ((it.lista || "").startsWith("petexa_")) { try { const d = JSON.parse(it.valor); if (!DONE_EXAME.includes(d.status)) exa++; } catch {} }
+      let exa = 0; const mm: Record<string, number> = {};
+      for (const it of arr(Li, "itens", "data")) {
+        if ((it.lista || "").startsWith("petexa_")) { try { const d = JSON.parse(it.valor); if (!DONE_EXAME.includes(d.status)) exa++; } catch {} }
+        else if ((it.lista || "").startsWith("leadperda_") && it.valor) { mm[it.valor] = (mm[it.valor] || 0) + 1; }
+      }
       setExamesPend(exa);
+      setMotivos(Object.entries(mm).sort((a, b) => b[1] - a[1]).slice(0, 6));
       setLoading(false);
     })();
   }, []);
@@ -84,8 +82,7 @@ export default function DashboardPage() {
   const funil = useMemo(() => {
     const c: Record<string, number> = {}; for (const e of estagios) c[e] = 0;
     for (const l of leadsP) { const et = l.pipelineComercialEtapa || inicial; c[et] = (c[et] || 0) + 1; }
-    const max = Math.max(1, ...estagios.map(e => c[e] || 0));
-    return { c, max };
+    return { c, max: Math.max(1, ...estagios.map(e => c[e] || 0)) };
   }, [leadsP, estagios, inicial]);
 
   const porCanal = useMemo(() => {
@@ -101,13 +98,11 @@ export default function DashboardPage() {
   }, [leadsP]);
 
   const tendencia = useMemo(() => {
-    const months: { label: string; leads: number; conv: number }[] = [];
     const base = new Date(); base.setDate(1);
-    for (let i = 11; i >= 0; i--) { const d = new Date(base.getFullYear(), base.getMonth() - i, 1); months.push({ label: d.toLocaleDateString("pt-BR", { month: "short" }), leads: 0, conv: 0 }); }
-    const idxOf = (s?: string) => { if (!s) return -1; const d = new Date(s); return months.findIndex(m => { const md = new Date(base.getFullYear(), base.getMonth() - (11 - months.indexOf(m)), 1); return md.getMonth() === d.getMonth() && md.getFullYear() === d.getFullYear(); }); };
-    for (const l of leads) { const i = idxOf(l.createdAt); if (i >= 0) { months[i].leads++; if (isConv(l)) months[i].conv++; } }
-    const max = Math.max(1, ...months.map(m => m.leads));
-    return { months, max };
+    const months: { label: string; y: number; mo: number; leads: number; conv: number }[] = [];
+    for (let i = 11; i >= 0; i--) { const d = new Date(base.getFullYear(), base.getMonth() - i, 1); months.push({ label: d.toLocaleDateString("pt-BR", { month: "short" }), y: d.getFullYear(), mo: d.getMonth(), leads: 0, conv: 0 }); }
+    for (const l of leads) { if (!l.createdAt) continue; const d = new Date(l.createdAt); const m = months.find(x => x.y === d.getFullYear() && x.mo === d.getMonth()); if (m) { m.leads++; if (isConv(l)) m.conv++; } }
+    return { months, max: Math.max(1, ...months.map(m => m.leads)) };
   }, [leads]);
 
   const todayAppts = useMemo(() => {
@@ -208,6 +203,11 @@ export default function DashboardPage() {
           <div className="text-[14px] font-semibold mb-3 text-[#0E2244]">Leads por origem / campanha</div>
           <div className="flex flex-col gap-2">{porOrigem.length === 0 ? <div className="text-[13px] text-[#94a3b8]">Sem dados no período.</div> : porOrigem.map(([k, v]) => <Bar key={k} label={k} val={v} max={Math.max(1, ...porOrigem.map(x => x[1]))} color="#185FA5" bg="#E6F1FB" />)}</div>
         </div>
+      </div>
+
+      <div className="bg-white border rounded-xl p-4 mt-3" style={{ borderColor: "#d8d0bc" }}>
+        <div className="text-[14px] font-semibold mb-3 flex items-center gap-2 text-[#0E2244]"><LuTriangleAlert size={15} style={{ color: "#A32D2D" }} />Top motivos de perda</div>
+        <div className="flex flex-col gap-2">{motivos.length === 0 ? <div className="text-[13px] text-[#94a3b8]">Sem motivos registrados ainda. Preencha na ficha do lead perdido.</div> : motivos.map(([k, v]) => <Bar key={k} label={k} val={v} max={Math.max(1, ...motivos.map(x => x[1]))} color="#E24B4A" bg="#FCEBEB" />)}</div>
       </div>
     </div>
   );
