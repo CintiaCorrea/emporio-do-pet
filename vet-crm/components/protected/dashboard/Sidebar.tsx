@@ -9,6 +9,7 @@ import {
   LuSun, LuLayoutDashboard, LuMessageSquare, LuList, LuUsers, LuPawPrint,
   LuCalendar, LuBuilding2, LuSettings, LuChevronLeft, LuChevronRight, LuChevronDown,
   LuCircleDollarSign, LuMegaphone, LuUserCog, LuEye, LuCircleHelp, LuStar,
+  LuSparkles, LuFileText, LuRefreshCcw, LuExternalLink,
 } from "react-icons/lu";
 import { roleLabel, AppRole } from "@/lib/ui/role";
 import { useRolePreview } from "@/lib/ui/RolePreview";
@@ -68,6 +69,17 @@ const NAV: Entry[] = [
       { href: "/dashboard/marketing/campanhas", label: "Campanhas", Icon: LuMegaphone, roles: ["ADMIN"] },
       { href: "/dashboard/marketing/midia", label: "Mídia", Icon: LuCircleDollarSign, roles: ["ADMIN"] },
       { href: "/dashboard/marketing/emails", label: "Emails", Icon: LuMessageSquare, roles: ["ADMIN"] },
+    ],
+  },
+  {
+    group: true, key: "ia", label: "IA / Atendimento", Icon: LuSparkles, roles: ["ADMIN"],
+    children: [
+      { href: "/dashboard/ai-agents/agents", label: "Agentes", Icon: LuSparkles, roles: ["ADMIN"] },
+      { href: "/dashboard/ai-agents/conhecimento", label: "Conhecimento", Icon: LuFileText, roles: ["ADMIN"] },
+      { href: "/dashboard/ai-agents/automacoes", label: "Automações", Icon: LuRefreshCcw, roles: ["ADMIN"] },
+      { href: "/dashboard/ai-agents/conversas", label: "Conversas", Icon: LuMessageSquare, roles: ["ADMIN"] },
+      { href: "/dashboard/ai-agents/conexoes", label: "Conexões", Icon: LuExternalLink, roles: ["ADMIN"] },
+      { href: "/dashboard/ai-agents/templates", label: "Templates", Icon: LuList, roles: ["ADMIN"] },
     ],
   },
   { href: "/dashboard/configuracoes", label: "Configurações", Icon: LuSettings, roles: ["ADMIN"] },
