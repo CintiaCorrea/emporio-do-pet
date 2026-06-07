@@ -18,7 +18,6 @@ import { LuArrowLeft, LuExternalLink } from "react-icons/lu";
 
 const TELAS_DEV = [
   { href: "/dashboard/erp/tutores", label: "Tutores", desc: "Lista, ficha, editar e novo (versão do dev)" },
-  { href: "/dashboard/erp/tutores/novo", label: "Cadastro antigo de cliente", desc: "Formulário /novo original do dev (estilo antigo) — guardado pra comparação" },
   { href: "/dashboard/erp/pets", label: "Pets", desc: "Lista, ficha, editar e novo (versão do dev)" },
   { href: "/dashboard/crm/leads", label: "Leads", desc: "Lista e ficha (versão do dev)" },
   { href: "/dashboard/erp/agendamentos", label: "Agenda de consultas", desc: "Calendário de agendamento (não usado)" },
@@ -38,7 +37,7 @@ export default function LegacyPage() {
           Conforme migramos cada módulo pro padrão Base44, a versão antiga de cada tela fica guardada aqui.
         </p>
         <div className="rounded-xl p-3 mb-5 text-xs" style={{ background: "#FFFBEB", border: "0.5px solid #FDE68A", color: "#78350F" }}>
-          As telas abaixo são as versões atuais do sistema do dev. Conforme a migração avança, este espaço passa a guardar a cópia <em>congelada</em> de cada uma.
+          As telas de cadastro antigas (/novo de cliente, pet, lead e agendamento) foram <strong>congeladas</strong>: ao acessá-las, o sistema redireciona automaticamente para as telas novas. As telas de lista/ficha abaixo continuam acessíveis pra comparação.
         </div>
         <div className="space-y-2">
           {TELAS_DEV.map(t => (
