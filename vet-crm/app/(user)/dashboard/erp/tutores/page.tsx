@@ -9,7 +9,7 @@
    ─────────────────────────────────────────────────────────────
    Estrutura espelhada do Base44 (padrão-ouro): colunas Tutor /
    Pets / Telefone / Última visita / Relacionamento / LTV + FU
-   embaixo do nome. LTV e Última visita = estrutura (sem dado ainda).
+   embaixo do nome. LTV (soma dos atendimentos) e Última visita = dos agendamentos.
    ───────────────────────────────────────────────────────────── */
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -58,6 +58,10 @@ const getInitials = (name: string | null) => {
   return ((parts[0]?.[0] || "") + (parts[parts.length-1]?.[0] || "")).toUpperCase() || name.slice(0, 2).toUpperCase();
 };
 
+// [EMP-COWORK] LTV (soma valores de atendimentos) + última visita
+const fmtDateShort = (s?: string) => s ? new Date(s).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" }) : "—";
+const fmtMoney = (n: number) => n > 0 ? n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "—";
+
 const isAniversariante = (birthDate?: string | null) => {
   if (!birthDate) return false;
   const d = new Date(birthDate);
@@ -97,6 +101,7 @@ function pickField(row: Record<string, string>, keys: string[]): string {
 export default function ClientesPage() {
   const [tutores, setTutores] = useState<Tutor[]>([]);
   const [loading, setLoading] = useState(true);
+  const [apptStats, setApptStats] = useState<Record<string, { last?: string; ltv: number }>>({});
   const [filter, setFilter] = useState<Filter>("Cliente");
   const [search, setSearch] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -188,6 +193,30 @@ export default function ClientesPage() {
       } finally {
         setLoading(false);
       }
+    })();
+  }, []);
+
+  // [EMP-COWORK] última visita + LTV a partir dos agendamentos (única fonte de receita hoje)
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/appointments?limit=3000", { credentials: "include" });
+        if (!res.ok) return;
+        const d = await res.json();
+        const arr = Array.isArray(d) ? d : (d.data || d.appointments || d.items || []);
+        const now = Date.now();
+        const map: Record<string, { last?: string; ltv: number }> = {};
+        for (const a of arr) {
+          const tid = a.tutorId || a.tutor?.id; if (!tid) continue;
+          const st = String(a.status || "").toUpperCase();
+          if (st === "CANCELLED" || st === "CANCELED" || st === "NO_SHOW") continue;
+          const m = map[tid] || (map[tid] = { ltv: 0 });
+          m.ltv += Number(a.value) || 0;
+          const dt = a.date ? new Date(a.date).getTime() : 0;
+          if (dt && dt <= now && (!m.last || dt > new Date(m.last).getTime())) m.last = a.date;
+        }
+        setApptStats(map);
+      } catch {}
     })();
   }, []);
 
@@ -311,13 +340,13 @@ export default function ClientesPage() {
                       </div>
                     </td>
                     <td className="py-2.5 px-3 text-[#4d5a66]">{phone || "—"}</td>
-                    <td className="py-2.5 px-3 text-[#4d5a66] text-[11px]">—</td>
+                    <td className="py-2.5 px-3 text-[#4d5a66] text-[11px]">{fmtDateShort(apptStats[t.id]?.last)}</td>
                     <td className="py-2.5 px-3">
                       {t.estadoRelacionamento ? (
                         <span style={{ background: rel.bg, color: rel.color }} className="text-[10px] font-medium px-2 py-0.5 rounded-full">{t.estadoRelacionamento}</span>
                       ) : <span className="text-[10px] text-gray-400">—</span>}
                     </td>
-                    <td className="py-2.5 px-3 text-right text-[#4d5a66] text-[11px]">—</td>
+                    <td className="py-2.5 px-3 text-right text-[#4d5a66] text-[11px]" title="Soma dos valores dos atendimentos">{fmtMoney(apptStats[t.id]?.ltv || 0)}</td>
                     <td className="py-2.5 px-3 text-right">
                       <button type="button" onClick={() => handleDeleteTutor(t)} disabled={deletingId === t.id} title="Excluir cliente" className="disabled:opacity-40 p-1 hover:bg-gray-100 rounded">
                         <LuTrash className="w-3.5 h-3.5 text-[#cfd8e0] hover:text-[#A32D2D]" />
