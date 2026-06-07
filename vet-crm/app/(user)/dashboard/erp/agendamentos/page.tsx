@@ -15,6 +15,7 @@ import {
 } from 'react-icons/lu';
 import ConfirmDeleteModal from '@/components/common/ConfirmDeleteModal';
 import toast from 'react-hot-toast';
+import NovoAgendamentoModal from '@/components/agendamentos/NovoAgendamentoModal';
 
 // Tipos baseados no schema Prisma
 type AppointmentStatus = 'SCHEDULED' | 'CONFIRMED' | 'COMPLETED' | 'CANCELED' | 'IN_PROGRESS';
@@ -94,6 +95,7 @@ export default function AppointmentsPage() {
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [appointmentToDelete, setAppointmentToDelete] = useState<Appointment | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [novoOpen, setNovoOpen] = useState(false);
 
   // Buscar appointments da API
   const fetchAppointments = async () => {
@@ -372,7 +374,7 @@ export default function AppointmentsPage() {
           <Link href="/dashboard/erp/agendamentos/calendario" className="px-3 py-1.5 rounded-lg text-[11px] font-medium bg-white border text-[#4d5a66]" style={{ borderColor: "#cfd8e0" }}>Agenda</Link>
           <Link href="/dashboard/erp/agendamentos" className="px-3 py-1.5 rounded-lg text-[11px] font-semibold text-white" style={{ background: "#009AAC" }}>Lista</Link>
         </div>
-        <Link href="/dashboard/erp/agendamentos/novo" className="text-[11px] font-medium text-white bg-[#009AAC] px-3.5 py-1.5 rounded-lg inline-flex items-center gap-1.5"><LuPlus className="w-3.5 h-3.5" />Novo agendamento</Link>
+        <button onClick={() => setNovoOpen(true)} className="text-[11px] font-medium text-white bg-[#009AAC] px-3.5 py-1.5 rounded-lg inline-flex items-center gap-1.5"><LuPlus className="w-3.5 h-3.5" />Novo agendamento</button>
       </div>
 
       {error && (
@@ -506,6 +508,7 @@ export default function AppointmentsPage() {
           </div>
         </div>
       )}
+      <NovoAgendamentoModal open={novoOpen} onClose={() => setNovoOpen(false)} onCreated={fetchAppointments} />
     </div>
   );
 }
