@@ -246,66 +246,12 @@ export default function AgentsPage() {
             </div>
 
             {/* Cards de estatísticas */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-              <div className="bg-white rounded-xl border border-[#d8d0bc] p-5 hover: transition-all">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-[#E0F4F6]">
-                    <span style={{fontSize:"14px"}}>🤖</span>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Total</p>
-                    <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-xl border border-[#d8d0bc] p-5 hover: transition-all">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-[#E1F5EE]">
-                    <span style={{fontSize:"14px"}}>✓</span>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Ativos</p>
-                    <p className="text-2xl font-bold text-gray-900">{stats.active}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-xl border border-[#d8d0bc] p-5 hover: transition-all">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-orange-50">
-                    <span style={{fontSize:"14px"}}>⏸</span>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Pausados</p>
-                    <p className="text-2xl font-bold text-gray-900">{stats.paused}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-xl border border-[#d8d0bc] p-5 hover: transition-all">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-blue-50">
-                    <span style={{fontSize:"14px"}}>⚡</span>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Interações</p>
-                    <p className="text-2xl font-bold text-gray-900">{formatNumber(stats.totalInteractions)}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-xl border border-[#d8d0bc] p-5 hover: transition-all">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-[#E0F4F6]">
-                    <span style={{fontSize:"14px"}}>📈</span>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Taxa Sucesso</p>
-                    <p className="text-2xl font-bold text-gray-900">{stats.avgSuccessRate}%</p>
-                  </div>
-                </div>
-              </div>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-2.5 mb-4">
+              <div className="bg-[#F8F3E4] rounded-xl p-3"><p className="text-[12px] text-[#64748b]">Total</p><p className="text-[22px] font-semibold text-[#0E2244] mt-0.5">{stats.total}</p></div>
+              <div className="bg-[#F8F3E4] rounded-xl p-3"><p className="text-[12px] text-[#64748b]">Ativos</p><p className="text-[22px] font-semibold text-[#0F6E56] mt-0.5">{stats.active}</p></div>
+              <div className="bg-[#F8F3E4] rounded-xl p-3"><p className="text-[12px] text-[#64748b]">Pausados</p><p className="text-[22px] font-semibold text-[#0E2244] mt-0.5">{stats.paused}</p></div>
+              <div className="bg-[#F8F3E4] rounded-xl p-3"><p className="text-[12px] text-[#64748b]">Interações</p><p className="text-[22px] font-semibold text-[#0E2244] mt-0.5">{formatNumber(stats.totalInteractions)}</p></div>
+              <div className="bg-[#F8F3E4] rounded-xl p-3"><p className="text-[12px] text-[#64748b]">Taxa sucesso</p><p className="text-[22px] font-semibold text-[#0E2244] mt-0.5">{stats.avgSuccessRate}%</p></div>
             </div>
 
             {/* Filtros */}
@@ -373,7 +319,7 @@ export default function AgentsPage() {
                   <div
                     key={agent.id}
                     onClick={() => openAgentDetails(agent)}
-                    className="bg-white rounded-xl border border-[#d8d0bc] p-5 hover:border-[#d8d0bc] transition-all cursor-pointer group"
+                    className="bg-white rounded-xl border border-[#d8d0bc] p-4 hover:border-[#009AAC] transition-all cursor-pointer group"
                   >
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center gap-3">
