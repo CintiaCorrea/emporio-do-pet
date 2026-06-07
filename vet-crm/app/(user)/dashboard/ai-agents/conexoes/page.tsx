@@ -344,7 +344,7 @@ export default function IntegracoesPage() {
             <div className="flex justify-end mb-5">
               <button 
                 onClick={loadConfig}
-                className="flex items-center gap-2 px-4 py-2 bg-white border border-[#d8d0bc] hover:bg-gray-50 text-gray-700 rounded-xl text-sm font-medium transition"
+                className="flex items-center gap-2 bg-white border border-[#cfd8e0] px-3 py-1.5 rounded-lg text-xs text-[#4d5a66] hover:bg-gray-50"
               >
                 <span style={{fontSize:"14px"}}>↻</span>
                 Atualizar
