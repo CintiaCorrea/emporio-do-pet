@@ -182,8 +182,8 @@ export default function TemplatesPage() {
   const getCategoryColor = (category: WhatsAppTemplateCategory) => {
     switch (category) {
       case 'MARKETING': return 'bg-pink-50 text-pink-600 dark:bg-pink-900/30 dark:text-pink-400';
-      case 'UTILITY': return 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400';
-      case 'AUTHENTICATION': return 'bg-purple-50 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400';
+      case 'UTILITY': return 'bg-[#E0F4F6] text-[#009AAC] dark:bg-blue-900/30 dark:text-blue-400';
+      case 'AUTHENTICATION': return 'bg-[#E0F4F6] text-[#009AAC] dark:bg-[#E0F4F6] dark:text-purple-400';
     }
   };
 
@@ -205,7 +205,7 @@ export default function TemplatesPage() {
 
   const getStatusColor = (status: WhatsAppTemplateStatus) => {
     switch (status) {
-      case 'APPROVED': return 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400';
+      case 'APPROVED': return 'bg-[#E1F5EE] text-[#0F6E56] dark:bg-cyan-900/30 dark:text-cyan-400';
       case 'PENDING': return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400';
       case 'REJECTED': return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
       case 'PAUSED': return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400';
@@ -227,7 +227,7 @@ export default function TemplatesPage() {
 
   const getQualityColor = (score?: string) => {
     switch (score) {
-      case 'GREEN': return 'text-cyan-500';
+      case 'GREEN': return 'text-[#0F6E56]';
       case 'YELLOW': return 'text-orange-500';
       case 'RED': return 'text-red-500';
       default: return 'text-gray-400';
@@ -270,7 +270,7 @@ export default function TemplatesPage() {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-8rem)]">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin"></div>
+          <div className="w-12 h-12 border-4 border-[#d8d0bc] border-t-[#009AAC] rounded-full animate-spin"></div>
           <p className="text-gray-500 dark:text-gray-400 font-medium">Carregando templates da Meta...</p>
         </div>
       </div>
@@ -281,52 +281,32 @@ export default function TemplatesPage() {
     <div className="p-6 lg:p-8">
       <div className="max-w-[1600px] mx-auto">
             
-        {/* Breadcrumb e Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mb-4">
-            <Link href="/dashboard/ai-agents/agents" className="hover:text-indigo-600 transition-colors">
-              AI Agents
-            </Link>
-            <span style={{fontSize:"14px"}}>▶</span>
-            <span className="text-gray-900 dark:text-white font-medium">Templates</span>
-          </div>
-          
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-            <div>
-              <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white">
-                Templates WhatsApp
-              </h1>
-              <p className="text-gray-500 dark:text-gray-400 mt-1">
-                Templates aprovados pela Meta para uso no WhatsApp Business API
-              </p>
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => loadTemplates(true)}
-                disabled={refreshing}
-                className="flex items-center gap-2 px-4 py-2.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-medium transition-all disabled:opacity-50"
-              >
-                <span style={{fontSize:"14px"}}>↻</span>
-                Atualizar
-              </button>
-              <TemplateImportExport onImportComplete={() => loadTemplates()} />
-              <Link
-                href="/dashboard/ai-agents/templates/novo"
-                className="flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold shadow-lg shadow-indigo-500/20 transition-all duration-200 hover:shadow-xl"
-              >
-                <LuPlus className="w-5 h-5" />
-                Novo Template
-              </Link>
-            </div>
-          </div>
+        {/* Toolbar */}
+        <div className="flex justify-end gap-3 mb-5 flex-wrap">
+          <button
+            onClick={() => loadTemplates(true)}
+            disabled={refreshing}
+            className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-sm font-medium transition disabled:opacity-50"
+          >
+            <span style={{fontSize:"14px"}}>↻</span>
+            Atualizar
+          </button>
+          <TemplateImportExport onImportComplete={() => loadTemplates()} />
+          <Link
+            href="/dashboard/ai-agents/templates/novo"
+            className="flex items-center gap-2 px-4 py-2 bg-[#009AAC] hover:bg-[#00798A] text-white rounded-xl text-sm font-medium transition"
+          >
+            <LuPlus className="w-4 h-4" />
+            Novo template
+          </Link>
         </div>
 
         {/* Cards de estatísticas */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-          <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-5 hover:shadow-lg transition-all">
+          <div className="bg-white dark:bg-gray-900 rounded-xl border border-[#d8d0bc] dark:border-gray-800 p-5 transition-all">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-900/30">
-                <LuFileText className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+              <div className="p-2.5 rounded-xl bg-[#E0F4F6] dark:bg-[#E0F4F6]">
+                <LuFileText className="w-5 h-5 text-[#009AAC] dark:text-[#009AAC]" />
               </div>
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Total</p>
@@ -335,10 +315,10 @@ export default function TemplatesPage() {
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-5 hover:shadow-lg transition-all">
+          <div className="bg-white dark:bg-gray-900 rounded-xl border border-[#d8d0bc] dark:border-gray-800 p-5 transition-all">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-cyan-50 dark:bg-cyan-900/30">
-                <LuCheck className="w-5 h-5 text-cyan-600 dark:text-cyan-400" />
+              <div className="p-2.5 rounded-xl bg-[#E1F5EE] dark:bg-cyan-900/30">
+                <LuCheck className="w-5 h-5 text-[#009AAC] dark:text-cyan-400" />
               </div>
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Aprovados</p>
@@ -347,7 +327,7 @@ export default function TemplatesPage() {
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-5 hover:shadow-lg transition-all">
+          <div className="bg-white dark:bg-gray-900 rounded-xl border border-[#d8d0bc] dark:border-gray-800 p-5 transition-all">
             <div className="flex items-center gap-3">
               <div className="p-2.5 rounded-xl bg-orange-50 dark:bg-orange-900/30">
                 <span style={{fontSize:"14px"}}>⏱</span>
@@ -359,7 +339,7 @@ export default function TemplatesPage() {
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-5 hover:shadow-lg transition-all">
+          <div className="bg-white dark:bg-gray-900 rounded-xl border border-[#d8d0bc] dark:border-gray-800 p-5 transition-all">
             <div className="flex items-center gap-3">
               <div className="p-2.5 rounded-xl bg-red-50 dark:bg-red-900/30">
                 <span style={{fontSize:"14px"}}>✕</span>
@@ -371,9 +351,9 @@ export default function TemplatesPage() {
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-5 hover:shadow-lg transition-all">
+          <div className="bg-white dark:bg-gray-900 rounded-xl border border-[#d8d0bc] dark:border-gray-800 p-5 transition-all">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-cyan-50 dark:bg-cyan-900/30">
+              <div className="p-2.5 rounded-xl bg-[#E1F5EE] dark:bg-cyan-900/30">
                 <span style={{fontSize:"14px"}}>🛡</span>
               </div>
               <div>
@@ -385,7 +365,7 @@ export default function TemplatesPage() {
         </div>
 
         {/* Filtros */}
-        <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-4 mb-6">
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-[#d8d0bc] dark:border-gray-800 p-4 mb-6">
           <div className="flex flex-col lg:flex-row gap-4">
             {/* Busca */}
             <div className="flex-1 relative">
@@ -395,7 +375,7 @@ export default function TemplatesPage() {
                 placeholder="Buscar templates..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all"
+                className="w-full pl-12 pr-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#009AAC]/50 focus:border-[#009AAC] transition-all"
               />
             </div>
 
@@ -405,7 +385,7 @@ export default function TemplatesPage() {
               <select
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value as WhatsAppTemplateCategory | 'all')}
-                className="px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all cursor-pointer"
+                className="px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#009AAC]/50 focus:border-[#009AAC] transition-all cursor-pointer"
               >
                 <option value="all">Todas Categorias</option>
                 <option value="MARKETING">Marketing</option>
@@ -419,7 +399,7 @@ export default function TemplatesPage() {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value as WhatsAppTemplateStatus | 'all')}
-                className="px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all cursor-pointer"
+                className="px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#009AAC]/50 focus:border-[#009AAC] transition-all cursor-pointer"
               >
                 <option value="all">Todos Status</option>
                 <option value="APPROVED">Aprovado</option>
@@ -433,7 +413,7 @@ export default function TemplatesPage() {
 
         {/* Lista de Templates */}
         {filteredTemplates.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800">
+          <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-gray-900 rounded-xl border border-[#d8d0bc] dark:border-gray-800">
             <LuFileText className="w-16 h-16 text-gray-300 dark:text-gray-600 mb-4" />
             <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Nenhum template encontrado</h3>
             <p className="text-gray-500 dark:text-gray-400 text-center max-w-md">
@@ -448,19 +428,19 @@ export default function TemplatesPage() {
               <div
                 key={template.id}
                 onClick={() => openTemplateDetails(template)}
-                className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-5 hover:shadow-lg hover:border-indigo-200 dark:hover:border-indigo-800 transition-all cursor-pointer group"
+                className="bg-white dark:bg-gray-900 rounded-xl border border-[#d8d0bc] dark:border-gray-800 p-5 hover:border-[#d8d0bc] dark:hover:border-[#d8d0bc] transition-all cursor-pointer group"
               >
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
                     <div className={`p-2.5 rounded-xl ${
-                      template.status === 'APPROVED' ? 'bg-cyan-50 dark:bg-cyan-900/30' :
+                      template.status === 'APPROVED' ? 'bg-[#E1F5EE] dark:bg-cyan-900/30' :
                       template.status === 'PENDING' ? 'bg-orange-50 dark:bg-orange-900/30' : 
                       template.status === 'REJECTED' ? 'bg-red-50 dark:bg-red-900/30' : 'bg-gray-50 dark:bg-gray-800'
                     }`}>
                       <span style={{fontSize:"14px"}}>💬</span>
                     </div>
                     <div>
-                      <h3 className="font-semibold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                      <h3 className="font-semibold text-gray-900 dark:text-white group-hover:text-[#009AAC] dark:group-hover:text-[#009AAC] transition-colors">
                         {template.name}
                       </h3>
                       <p className="text-xs text-gray-500 dark:text-gray-400">{getLanguageText(template.language)}</p>
@@ -479,7 +459,7 @@ export default function TemplatesPage() {
                 </div>
 
                 {/* Categoria e qualidade */}
-                <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-gray-800">
+                <div className="flex items-center justify-between pt-3 border-t border-[#d8d0bc] dark:border-gray-800">
                   <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full ${getCategoryColor(template.category)}`}>
                     {getCategoryIcon(template.category)}
                     {getCategoryText(template.category)}
@@ -502,12 +482,12 @@ export default function TemplatesPage() {
       {/* Modal de Detalhes do Template */}
       {isModalOpen && selectedTemplate && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl">
-            <div className="p-6 border-b border-gray-100 dark:border-gray-800">
+          <div className="bg-white dark:bg-gray-900 rounded-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto ">
+            <div className="p-6 border-b border-[#d8d0bc] dark:border-gray-800">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-4">
                   <div className={`p-3 rounded-xl ${
-                    selectedTemplate.status === 'APPROVED' ? 'bg-cyan-50 dark:bg-cyan-900/30' :
+                    selectedTemplate.status === 'APPROVED' ? 'bg-[#E1F5EE] dark:bg-cyan-900/30' :
                     selectedTemplate.status === 'PENDING' ? 'bg-orange-50 dark:bg-orange-900/30' : 
                     selectedTemplate.status === 'REJECTED' ? 'bg-red-50 dark:bg-red-900/30' : 'bg-gray-50 dark:bg-gray-800'
                   }`}>
@@ -583,7 +563,7 @@ export default function TemplatesPage() {
                 <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">Componentes</h3>
                 <div className="space-y-3">
                   {selectedTemplate.components.map((component, index) => (
-                    <div key={index} className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700">
+                    <div key={index} className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4 border border-[#d8d0bc] dark:border-gray-700">
                       <div className="flex items-center gap-2 mb-2">
                         {getComponentIcon(component.type, component.format)}
                         <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
@@ -617,7 +597,7 @@ export default function TemplatesPage() {
               </div>
 
               {/* Informações */}
-              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-100 dark:border-gray-800">
+              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-[#d8d0bc] dark:border-gray-800">
                 <div>
                   <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">ID do Template</h3>
                   <p className="text-gray-900 dark:text-white font-mono text-sm">{selectedTemplate.id}</p>
@@ -630,10 +610,10 @@ export default function TemplatesPage() {
 
               {/* Botão de usar */}
               {selectedTemplate.status === 'APPROVED' && (
-                <div className="pt-4 border-t border-gray-100 dark:border-gray-800">
+                <div className="pt-4 border-t border-[#d8d0bc] dark:border-gray-800">
                   <Link 
                     href={`/dashboard/ai-agents/agents?whatsappTemplate=${selectedTemplate.name}`}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold transition-all"
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[#009AAC] hover:bg-[#00798A] text-white rounded-xl font-semibold transition-all"
                   >
                     <span style={{fontSize:"14px"}}>🤖</span>
                     Usar com Agente de IA
