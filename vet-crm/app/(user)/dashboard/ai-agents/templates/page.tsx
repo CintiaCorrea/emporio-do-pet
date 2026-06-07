@@ -302,66 +302,12 @@ export default function TemplatesPage() {
         </div>
 
         {/* Cards de estatísticas */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-          <div className="bg-white dark:bg-gray-900 rounded-xl border border-[#d8d0bc] dark:border-gray-800 p-5 transition-all">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-[#E0F4F6] dark:bg-[#E0F4F6]">
-                <LuFileText className="w-5 h-5 text-[#009AAC] dark:text-[#009AAC]" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Total</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.total}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-gray-900 rounded-xl border border-[#d8d0bc] dark:border-gray-800 p-5 transition-all">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-[#E1F5EE] dark:bg-cyan-900/30">
-                <LuCheck className="w-5 h-5 text-[#009AAC] dark:text-cyan-400" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Aprovados</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.approved}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-gray-900 rounded-xl border border-[#d8d0bc] dark:border-gray-800 p-5 transition-all">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-orange-50 dark:bg-orange-900/30">
-                <span style={{fontSize:"14px"}}>⏱</span>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Pendentes</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.pending}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-gray-900 rounded-xl border border-[#d8d0bc] dark:border-gray-800 p-5 transition-all">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-red-50 dark:bg-red-900/30">
-                <span style={{fontSize:"14px"}}>✕</span>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Rejeitados</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.rejected}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-gray-900 rounded-xl border border-[#d8d0bc] dark:border-gray-800 p-5 transition-all">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-[#E1F5EE] dark:bg-cyan-900/30">
-                <span style={{fontSize:"14px"}}>🛡</span>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Qualidade</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.greenQuality}</p>
-              </div>
-            </div>
-          </div>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-2.5 mb-4">
+          <div className="bg-[#F8F3E4] rounded-xl p-3"><p className="text-[12px] text-[#64748b]">Total</p><p className="text-[22px] font-semibold text-[#0E2244] mt-0.5">{stats.total}</p></div>
+          <div className="bg-[#F8F3E4] rounded-xl p-3"><p className="text-[12px] text-[#64748b]">Aprovados</p><p className="text-[22px] font-semibold text-[#0F6E56] mt-0.5">{stats.approved}</p></div>
+          <div className="bg-[#F8F3E4] rounded-xl p-3"><p className="text-[12px] text-[#64748b]">Pendentes</p><p className="text-[22px] font-semibold text-[#BA7517] mt-0.5">{stats.pending}</p></div>
+          <div className="bg-[#F8F3E4] rounded-xl p-3"><p className="text-[12px] text-[#64748b]">Rejeitados</p><p className="text-[22px] font-semibold text-[#A32D2D] mt-0.5">{stats.rejected}</p></div>
+          <div className="bg-[#F8F3E4] rounded-xl p-3"><p className="text-[12px] text-[#64748b]">Qualidade</p><p className="text-[22px] font-semibold text-[#0E2244] mt-0.5">{stats.greenQuality}</p></div>
         </div>
 
         {/* Filtros */}
@@ -428,7 +374,7 @@ export default function TemplatesPage() {
               <div
                 key={template.id}
                 onClick={() => openTemplateDetails(template)}
-                className="bg-white dark:bg-gray-900 rounded-xl border border-[#d8d0bc] dark:border-gray-800 p-5 hover:border-[#d8d0bc] dark:hover:border-[#d8d0bc] transition-all cursor-pointer group"
+                className="bg-white dark:bg-gray-900 rounded-xl border border-[#d8d0bc] dark:border-gray-800 p-4 hover:border-[#d8d0bc] dark:hover:border-[#d8d0bc] transition-all cursor-pointer group"
               >
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
