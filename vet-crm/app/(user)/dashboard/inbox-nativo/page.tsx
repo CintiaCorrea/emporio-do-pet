@@ -119,6 +119,9 @@ export default function InboxUnificadoPage() {
   const [internalUsers, setInternalUsers] = useState<Array<{id: string; name: string; email: string; role: string}>>([]);
   const [internalSelected, setInternalSelected] = useState<string | null>(null);
   const [internalNote, setInternalNote] = useState("");
+  const [internasRecebidas, setInternasRecebidas] = useState<any[]>([]);
+  const [internasNoteSel, setInternasNoteSel] = useState<string | null>(null);
+  const [internasCompose, setInternasCompose] = useState(false);
 
   // Adicionar atendimento
   const [atendModalOpen, setAtendModalOpen] = useState(false);
@@ -326,6 +329,32 @@ export default function InboxUnificadoPage() {
     finally { setNovaMsgSending(false); }
   };
 
+  // Carregar mensagens internas recebidas (alimenta o badge e a aba Internas)
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const r = await fetch("/api/internal-notes", { cache: "no-store" });
+        if (!r.ok) return;
+        const d = await r.json();
+        const arr = Array.isArray(d) ? d : (d.notes || d.data || []);
+        if (alive) setInternasRecebidas(arr);
+      } catch {}
+    })();
+    return () => { alive = false; };
+  }, [refreshTick, tab]);
+
+  const abrirNotaInterna = async (n: any) => {
+    setInternasNoteSel(n.id);
+    setInternasCompose(false);
+    if (!n.readAt) {
+      try {
+        await fetch(`/api/internal-notes/${n.id}/read`, { method: "PATCH" });
+        setInternasRecebidas((prev) => prev.map((x) => x.id === n.id ? { ...x, readAt: new Date().toISOString() } : x));
+      } catch {}
+    }
+  };
+
   // Salvar nota interna
   const salvarNotaInterna = async () => {
     if (!internalSelected || !internalNote.trim()) {
@@ -342,6 +371,7 @@ export default function InboxUnificadoPage() {
           conversationId: selectedId || null})});
       setInternalNote("");
       setInternalSelected(null);
+      setInternasCompose(false);
       alert("Nota enviada!");
     } catch (e) { console.error(e); alert("Erro ao enviar. Tente novamente."); }
   };
@@ -428,7 +458,7 @@ export default function InboxUnificadoPage() {
         </button>
         <button onClick={() => setTab("internas")} className={`py-2.5 text-xs font-medium border-b-2 flex items-center gap-1.5 ${tab === "internas" ? "border-[#009AAC] text-[#0E2244]" : "border-transparent text-[#888780]"}`}>
           Internas
-          <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${tab === "internas" ? "bg-[#FCEBEB] text-[#A32D2D]" : "bg-[#f0e8d4] text-[#5F5E5A]"}`}>0</span>
+          <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${tab === "internas" ? "bg-[#FCEBEB] text-[#A32D2D]" : "bg-[#f0e8d4] text-[#5F5E5A]"}`}>{internasRecebidas.filter((n: any) => !n.readAt).length}</span>
         </button>
         <button onClick={() => setTab("encaminhadas")} className={`py-2.5 text-xs font-medium border-b-2 ${tab === "encaminhadas" ? "border-[#009AAC] text-[#0E2244]" : "border-transparent text-[#888780]"}`}>
           Encaminhadas
@@ -626,51 +656,80 @@ export default function InboxUnificadoPage() {
     )}
 
       {tab === "internas" && (
-        <div className="grid grid-cols-[280px_1fr] flex-1 min-h-0">
-          <div className="border-r border-[#e8e1d2] bg-white">
-            <div className="px-3 py-2.5 border-b border-[#e8e1d2] text-[11px] text-[#888780] font-medium">
-              EQUIPE ({internalUsers.length})
+        <div className="grid grid-cols-[300px_1fr] grid-rows-[minmax(0,1fr)] flex-1 min-h-0">
+          {/* LEFT - mensagens recebidas */}
+          <div className="border-r border-[#e8e1d2] bg-white flex flex-col min-h-0">
+            <div className="px-3 py-2.5 border-b border-[#e8e1d2] flex items-center justify-between">
+              <span className="text-[11px] text-[#888780] font-medium">RECEBIDAS ({internasRecebidas.filter((n: any) => !n.readAt).length})</span>
+              <button onClick={() => { setInternasCompose(true); setInternasNoteSel(null); setInternalSelected(null); setInternalNote(""); }} className="text-[11px] text-[#009AAC] font-medium flex items-center gap-1 hover:underline"><LuPlus className="w-3 h-3" />Nova nota</button>
             </div>
-            {internalUsers.length === 0 ? (
-              <p className="p-6 text-center text-[11px] text-[#888780]">
-                Cadastre usuários em<br/><Link href="/dashboard/configuracoes/usuarios" className="text-[#009AAC]">Configurações → Usuários</Link>
-              </p>
-            ) : internalUsers.map((u) => (
-              <button key={u.id} onClick={() => setInternalSelected(u.id)}
-                className={`w-full text-left p-3 border-b border-[#f0e8d4] ${internalSelected === u.id ? "bg-white border-l-[3px] border-l-[#009AAC]" : "bg-white hover:bg-[#f9f9f9]"}`}>
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-[#009AAC] text-white flex items-center justify-center text-[11px] font-medium">
-                    {getInitials(u.name)}
+            <div className="flex-1 overflow-y-auto">
+              {internasRecebidas.length === 0 ? (
+                <p className="p-6 text-center text-[11px] text-[#888780]">Nenhuma mensagem interna ainda.</p>
+              ) : internasRecebidas.map((n: any) => (
+                <button key={n.id} onClick={() => abrirNotaInterna(n)}
+                  className={`w-full text-left p-3 border-b border-[#f0e8d4] ${internasNoteSel === n.id ? "bg-[#e6f6f8] border-l-[3px] border-l-[#009AAC]" : "bg-white hover:bg-[#f9f9f9]"}`}>
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-[#009AAC] text-white flex items-center justify-center text-[11px] font-medium flex-shrink-0">
+                      {getInitials(n.fromUser?.name)}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className={`text-xs text-[#0E2244] truncate ${!n.readAt ? "font-semibold" : "font-medium"}`}>{n.fromUser?.name || "Colega"}</span>
+                        {!n.readAt && <span className="w-2 h-2 rounded-full bg-[#E24B4A] flex-shrink-0" />}
+                      </div>
+                      <div className="text-[11px] text-[#888780] truncate">{n.content}</div>
+                    </div>
                   </div>
-                  <div>
-                    <div className="text-xs text-[#0E2244] font-medium">{u.name}</div>
-                    <div className="text-[10px] text-[#888780]">{u.role}</div>
-                  </div>
-                </div>
-              </button>
-            ))}
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="bg-white p-6 flex flex-col">
-            {!internalSelected ? (
-              <div className="flex-1 flex items-center justify-center text-center">
-                <div>
-                  <span style={{fontSize:"36px",color:"#cfd8e0",display:"block",marginBottom:"12px"}}>💌</span>
-                  <p className="text-sm text-[#5F5E5A]">Selecione um colega pra mandar uma nota interna</p>
-                </div>
-              </div>
-            ) : (
+          {/* RIGHT - ler nota OU compor */}
+          <div className="bg-white p-6 flex flex-col min-h-0 overflow-y-auto">
+            {internasCompose ? (
               <>
-                <h3 className="text-sm text-[#0E2244] font-medium mb-3">
-                  Mandar nota para {internalUsers.find((u) => u.id === internalSelected)?.name}
-                </h3>
-                <textarea value={internalNote} onChange={(e) => setInternalNote(e.target.value)}
-                  rows={6} placeholder="Escreva a nota..."
+                <h3 className="text-sm text-[#0E2244] font-medium mb-3">Nova nota interna</h3>
+                <div className="mb-3">
+                  <label className="text-[11px] text-[#888780] block mb-1">Para</label>
+                  <select value={internalSelected || ""} onChange={(e) => setInternalSelected(e.target.value || null)}
+                    className="w-full px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm focus:outline-none focus:border-[#009AAC]">
+                    <option value="">Selecione um colega...</option>
+                    {internalUsers.map((u) => (<option key={u.id} value={u.id}>{u.name} · {u.role}</option>))}
+                  </select>
+                </div>
+                <textarea value={internalNote} onChange={(e) => setInternalNote(e.target.value)} rows={6} placeholder="Escreva a nota..."
                   className="w-full px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm focus:outline-none focus:border-[#009AAC] resize-none mb-3" />
                 <div className="flex justify-end gap-2">
-                  <button onClick={() => { setInternalSelected(null); setInternalNote(""); }} className="px-3 py-1.5 text-xs text-[#5F5E5A]">Cancelar</button>
+                  <button onClick={() => { setInternasCompose(false); setInternalSelected(null); setInternalNote(""); }} className="px-3 py-1.5 text-xs text-[#5F5E5A]">Cancelar</button>
                   <button onClick={salvarNotaInterna} className="bg-[#009AAC] text-white px-4 py-1.5 rounded-lg text-xs font-medium">Enviar</button>
                 </div>
               </>
+            ) : internasNoteSel ? (() => {
+              const n = internasRecebidas.find((x: any) => x.id === internasNoteSel);
+              if (!n) return null;
+              return (
+                <>
+                  <div className="flex items-center gap-2.5 mb-4 pb-3 border-b border-[#e8e1d2]">
+                    <div className="w-9 h-9 rounded-full bg-[#009AAC] text-white flex items-center justify-center text-[12px] font-medium">{getInitials(n.fromUser?.name)}</div>
+                    <div>
+                      <div className="text-sm text-[#0E2244] font-medium">{n.fromUser?.name || "Colega"}</div>
+                      <div className="text-[10px] text-[#888780]">{(() => { try { return new Date(n.createdAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }); } catch { return ""; } })()}</div>
+                    </div>
+                  </div>
+                  <p className="text-sm text-[#0E2244] whitespace-pre-wrap flex-1">{n.content}</p>
+                  <div className="flex justify-end pt-3">
+                    <button onClick={() => { setInternasCompose(true); setInternalSelected(n.fromUserId || n.fromUser?.id || null); setInternasNoteSel(null); setInternalNote(""); }} className="bg-[#009AAC] text-white px-4 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5"><LuPencil className="w-3.5 h-3.5" />Responder</button>
+                  </div>
+                </>
+              );
+            })() : (
+              <div className="flex-1 flex items-center justify-center text-center">
+                <div>
+                  <LuInbox size={36} className="mx-auto mb-3 text-[#cfd8e0]" />
+                  <p className="text-sm text-[#5F5E5A]">Selecione uma mensagem pra ler<br/>ou clique em "Nova nota" pra enviar</p>
+                </div>
+              </div>
             )}
           </div>
         </div>
