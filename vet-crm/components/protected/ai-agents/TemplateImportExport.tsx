@@ -156,7 +156,7 @@ export default function TemplateImportExport({
         <button
           onClick={handleExport}
           disabled={exporting}
-          className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl font-medium transition-colors disabled:opacity-50"
+          className="flex items-center gap-2 bg-white border border-[#cfd8e0] px-3 py-1.5 rounded-lg text-xs text-[#4d5a66] hover:bg-gray-50 disabled:opacity-50"
         >
           {exporting ? (
             <LuLoader className="w-4 h-4 animate-spin" />
@@ -168,7 +168,7 @@ export default function TemplateImportExport({
 
         <button
           onClick={() => fileInputRef.current?.click()}
-          className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl font-medium transition-colors"
+          className="flex items-center gap-2 bg-white border border-[#cfd8e0] px-3 py-1.5 rounded-lg text-xs text-[#4d5a66] hover:bg-gray-50"
         >
           <LuUpload className="w-4 h-4" />
           Importar
@@ -186,11 +186,11 @@ export default function TemplateImportExport({
       {/* Import Modal */}
       {isImportModalOpen && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl">
-            <div className="p-6 border-b border-gray-100">
+          <div className="bg-white rounded-xl w-full max-w-lg shadow-2xl">
+            <div className="p-6 border-b border-[#d8d0bc]">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-indigo-100 rounded-xl">
+                  <div className="p-2 bg-[#E0F4F6] rounded-lg">
                     <span style={{fontSize:"14px"}}>{}</span>
                   </div>
                   <div>
@@ -222,14 +222,14 @@ export default function TemplateImportExport({
                     <button
                       onClick={closeModal}
                       disabled={importing}
-                      className="flex-1 px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-colors disabled:opacity-50"
+                      className="flex-1 px-4 py-2.5 bg-white border border-[#cfd8e0] text-[#4d5a66] rounded-lg text-xs hover:bg-gray-50 disabled:opacity-50"
                     >
                       Cancelar
                     </button>
                     <button
                       onClick={handleImport}
                       disabled={importing}
-                      className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold transition-all disabled:opacity-50"
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-[#009AAC] hover:bg-[#00798A] text-white rounded-lg font-medium transition-all disabled:opacity-50"
                     >
                       {importing ? (
                         <>
