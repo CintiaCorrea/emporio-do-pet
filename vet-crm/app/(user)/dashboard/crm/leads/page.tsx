@@ -247,7 +247,6 @@ export default function LeadsPage() {
     <div className="p-6 max-w-7xl mx-auto">
       <header className="flex justify-between items-start mb-3">
         <div>
-          <h1 className="text-2xl text-[#0E2244] font-medium">Leads</h1>
           <p className="text-sm text-[#5b6470] mt-0.5">
             {counts.total} leads · <span className="text-[#C2410C] font-medium">🔥 {counts.quentes} quentes</span> ·{" "}
             <span className="text-[#B25C0A] font-medium">☕ {counts.mornos} mornos</span> ·{" "}
