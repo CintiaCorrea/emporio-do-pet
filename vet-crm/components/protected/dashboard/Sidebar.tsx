@@ -1,6 +1,7 @@
 "use client";
 // [EMP-COWORK] label do menu Tutores -> Clientes (Cintia 06/06). Rota /tutores inalterada.
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -54,6 +55,23 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
   const pathname = usePathname();
   const { realRole, effectiveRole, isPreviewing, setPreview } = useRolePreview();
   const role = effectiveRole;
+
+  const [internasUnread, setInternasUnread] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      try {
+        const r = await fetch("/api/internal-notes", { cache: "no-store" });
+        if (!r.ok) return;
+        const d = await r.json();
+        const arr = Array.isArray(d) ? d : (d.notes || d.data || []);
+        if (alive) setInternasUnread(arr.filter((x: any) => !x.readAt).length);
+      } catch {}
+    };
+    load();
+    const id = setInterval(load, 30000);
+    return () => { alive = false; clearInterval(id); };
+  }, [pathname]);
 
 const isActive = (it: Item) => {
        if (it.exact) return pathname === it.href;
@@ -126,6 +144,7 @@ const isActive = (it: Item) => {
           {NAV.filter(visible).map((it) => {
             const active = isActive(it);
             const tag = tagFor(it);
+            const badge = it.href === "/dashboard/inbox-nativo" ? internasUnread : (it.badge ?? 0);
             return (
               <Link
                 key={it.href}
@@ -139,15 +158,18 @@ const isActive = (it: Item) => {
                 }
               >
                 <it.Icon size={18} className="flex-shrink-0" />
+                {collapsed && badge > 0 && (
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full" style={{ background: "#E24B4A" }} />
+                )}
                 {!collapsed && (
                   <>
                     <span className="flex-1 truncate">{it.label}</span>
-                    {it.badge !== undefined && it.badge > 0 && (
+                    {badge > 0 && (
                       <span
                         className="text-[10.5px] font-semibold rounded-full px-1.5 min-w-[20px] h-[18px] flex items-center justify-center"
                         style={{ background: active ? "white" : "#ef4444", color: active ? "#ef4444" : "white" }}
                       >
-                        {it.badge}
+                        {badge}
                       </span>
                     )}
                     {tag && (
