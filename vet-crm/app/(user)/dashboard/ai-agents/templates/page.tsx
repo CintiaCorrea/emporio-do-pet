@@ -286,7 +286,7 @@ export default function TemplatesPage() {
           <button
             onClick={() => loadTemplates(true)}
             disabled={refreshing}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-sm font-medium transition disabled:opacity-50"
+            className="flex items-center gap-2 bg-white border border-[#cfd8e0] px-3 py-1.5 rounded-lg text-xs text-[#4d5a66] hover:bg-gray-50 disabled:opacity-50"
           >
             <span style={{fontSize:"14px"}}>↻</span>
             Atualizar
@@ -294,7 +294,7 @@ export default function TemplatesPage() {
           <TemplateImportExport onImportComplete={() => loadTemplates()} />
           <Link
             href="/dashboard/ai-agents/templates/novo"
-            className="flex items-center gap-2 px-4 py-2 bg-[#009AAC] hover:bg-[#00798A] text-white rounded-xl text-sm font-medium transition"
+            className="flex items-center gap-2 bg-[#009AAC] hover:bg-[#00798A] text-white px-3.5 py-1.5 rounded-lg text-xs font-medium"
           >
             <LuPlus className="w-4 h-4" />
             Novo template
