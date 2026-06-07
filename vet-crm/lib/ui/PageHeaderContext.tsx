@@ -40,7 +40,7 @@ const ROUTE_TITLES: Array<{ match: string; exact?: boolean; title: string; subti
   { match: "/dashboard/pets", title: "Pets", subtitle: "Pacientes" },
   { match: "/dashboard/calendario", title: "Calendario", subtitle: "Agendamentos e visitas" },
   { match: "/dashboard/internacao", title: "Internacao", subtitle: "Pacientes em internacao" },
-  { match: "/dashboard/configuracoes", title: "Configuracoes" },
+  { match: "/dashboard/configuracoes", title: "Configurações", subtitle: "Cadastros base que alimentam o CRM" },
   { match: "/dashboard/perfil", exact: true, title: "Meu perfil" },
   { match: "/dashboard/erp/tutores", title: "Clientes" },
   { match: "/dashboard/erp/pets", title: "Pets" },
