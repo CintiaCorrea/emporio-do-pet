@@ -51,6 +51,8 @@ function getTemp(score: number) {
   return { label: "Quente", icon: "🔥", color: "#C2410C", bg: "#FFE2D2" };
 }
 
+const MOTIVOS_PERDA = ["Escolheu outra clínica", "Preço/valor", "Distância", "Sem retorno do cliente", "Só queria informação", "Resolveu sozinho", "Outro"];
+
 export default function LeadDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
@@ -67,6 +69,8 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
   const [tagTpls, setTagTpls] = useState<any[]>([]);
   const [tagPicker, setTagPicker] = useState(false);
   const [savingTag, setSavingTag] = useState(false);
+  const [motivoPerda, setMotivoPerda] = useState("");
+  const [motivoId, setMotivoId] = useState<string | null>(null);
   const [leadInteracoes, setLeadInteracoes] = useState<any[]>([]);
   const [intTipo, setIntTipo] = useState("NOTA");
   const [intTexto, setIntTexto] = useState("");
@@ -100,7 +104,17 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
   async function loadComercial() { try { const r = await fetch(`/api/pipelines`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.pipelines || d.data || []); const p = arr.find((x: any) => (x.escopo === "LEAD" || (x.nome || "").toLowerCase().includes("comercial")) && x.ativo !== false); if (p) setPipeComercial((p.estagios || []).slice().sort((a: any, b: any) => (a.ordem || 0) - (b.ordem || 0)).map((e: any) => e.nome)); } catch {} }
   async function loadLeadTags() { try { const r = await fetch(`/api/listas?lista=leadtag_${id}`, { cache: "no-store" }); const d = await r.json(); const a = Array.isArray(d) ? d : (d.itens || d.data || []); setLeadTags(a.map((i: any) => ({ id: i.id, texto: i.valor }))); } catch {} }
   async function loadTagTpls() { try { const r = await fetch(`/api/etiquetas/templates`, { cache: "no-store" }); const d = await r.json(); const a = Array.isArray(d) ? d : (d.templates || d.data || []); setTagTpls(a.filter((t: any) => t.ativo !== false && (t.aplicaEm || []).includes("Lead"))); } catch {} }
-  useEffect(() => { load(); loadComercial(); loadLeadTags(); loadTagTpls(); loadLeadInteracoes(); }, [id]);
+  async function loadMotivo() { try { const r = await fetch(`/api/listas?lista=leadperda_${id}`, { cache: "no-store" }); const d = await r.json(); const a = Array.isArray(d) ? d : (d.itens || d.data || []); if (a[0]) { setMotivoPerda(a[0].valor || ""); setMotivoId(a[0].id); } else { setMotivoPerda(""); setMotivoId(null); } } catch {} }
+  async function saveMotivo(m: string) {
+    setMotivoPerda(m);
+    try {
+      if (!m && motivoId) { await fetch(`/api/listas/${motivoId}`, { method: "DELETE" }); setMotivoId(null); }
+      else if (motivoId) { await fetch(`/api/listas/${motivoId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ valor: m }) }); }
+      else if (m) { const r = await fetch(`/api/listas`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lista: `leadperda_${id}`, valor: m }) }); const d = await r.json(); if (d?.id) setMotivoId(d.id); }
+      toast.success("Motivo salvo");
+    } catch { toast.error("Erro ao salvar motivo"); }
+  }
+  useEffect(() => { load(); loadComercial(); loadLeadTags(); loadTagTpls(); loadLeadInteracoes(); loadMotivo(); }, [id]);
   async function setStage(stage: string) {
     try {
       if (stage === "Compareceu") {
@@ -319,6 +333,15 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
             {(pipeComercial.length ? pipeComercial : PIPELINE_STAGES).map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
           <p className="text-[9px] text-gray-400">Compareceu vira cliente</p>
+        </div>
+
+        <div className="bg-white rounded-xl border border-[#d8d0bc] p-3">
+          <h3 className="text-[12px] text-[#0E2244] font-medium mb-2">Motivo da perda</h3>
+          <select value={motivoPerda} onChange={(e) => saveMotivo(e.target.value)} className="w-full border border-[#d8d0bc] rounded px-2 py-1 text-[11px] text-[#0E2244] bg-white focus:outline-none">
+            <option value="">— sem motivo —</option>
+            {MOTIVOS_PERDA.map((m) => <option key={m} value={m}>{m}</option>)}
+          </select>
+          <p className="text-[9px] text-gray-400 mt-1">Preencha quando o lead for perdido (alimenta a dashboard)</p>
         </div>
 
         <div className="bg-white rounded-xl border border-[#d8d0bc] p-3">
