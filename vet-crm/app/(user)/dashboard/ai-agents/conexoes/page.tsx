@@ -105,8 +105,8 @@ export default function IntegracoesPage() {
       name: 'OpenAI',
       description: 'GPT-4, GPT-3.5 Turbo e outros modelos para geração de texto e análise',
       icon: <span style={{fontSize:"14px"}}>🧠</span>,
-      color: 'text-cyan-600',
-      bgColor: 'bg-cyan-50',
+      color: 'text-[#009AAC]',
+      bgColor: 'bg-[#E1F5EE]',
       status: 'disconnected',
       docsUrl: 'https://platform.openai.com/docs'
     },
@@ -115,8 +115,8 @@ export default function IntegracoesPage() {
       name: 'Google Gemini',
       description: 'Modelo multimodal do Google para processamento de texto, imagens e código',
       icon: <LuSparkles className="w-6 h-6" />,
-      color: 'text-blue-600',
-      bgColor: 'bg-blue-50',
+      color: 'text-[#009AAC]',
+      bgColor: 'bg-[#E0F4F6]',
       status: 'disconnected',
       docsUrl: 'https://ai.google.dev/docs'
     },
@@ -125,8 +125,8 @@ export default function IntegracoesPage() {
       name: 'DeepSeek',
       description: 'Modelo de IA avançado com excelente custo-benefício para chat e código',
       icon: <span style={{fontSize:"14px"}}>⚡</span>,
-      color: 'text-violet-600',
-      bgColor: 'bg-violet-50',
+      color: 'text-[#009AAC]',
+      bgColor: 'bg-[#E0F4F6]',
       status: 'disconnected',
       docsUrl: 'https://platform.deepseek.com/docs'
     }
@@ -314,7 +314,7 @@ export default function IntegracoesPage() {
     switch (status) {
       case 'connected': return 'bg-green-100 text-green-700';
       case 'error': return 'bg-red-100 text-red-700';
-      case 'testing': return 'bg-blue-100 text-blue-700';
+      case 'testing': return 'bg-[#E0F4F6] text-[#0F6E56]';
       default: return 'bg-gray-100 text-gray-700';
     }
   };
@@ -329,7 +329,7 @@ export default function IntegracoesPage() {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-8rem)]">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin"></div>
+          <div className="w-12 h-12 border-4 border-[#d8d0bc] border-t-blue-600 rounded-full animate-spin"></div>
           <p className="text-gray-500 font-medium">Carregando integrações...</p>
         </div>
       </div>
@@ -340,33 +340,15 @@ export default function IntegracoesPage() {
     <div className="p-4 sm:p-6 lg:p-8">
       <div className="max-w-[1400px] mx-auto">
             
-            {/* Breadcrumb e Header */}
-            <div className="mb-8">
-              <div className="flex flex-wrap items-center gap-2 text-sm text-gray-500 mb-4">
-                <Link href="/dashboard/ai-agents/agents" className="hover:text-blue-600 transition-colors">
-                  AI Agents
-                </Link>
-                <span style={{fontSize:"14px"}}>▶</span>
-                <span className="text-gray-900 font-medium">Integrações</span>
-              </div>
-              
-              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                <div>
-                  <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">
-                    Integrações
-                  </h1>
-                  <p className="text-gray-500 mt-1">
-                    Configure suas APIs e serviços externos
-                  </p>
-                </div>
-                <button 
-                  onClick={loadConfig}
-                  className="flex w-full sm:w-auto justify-center sm:justify-start items-center gap-2 px-4 py-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl font-medium transition-colors"
-                >
-                  <span style={{fontSize:"14px"}}>↻</span>
-                  Atualizar
-                </button>
-              </div>
+            {/* Toolbar */}
+            <div className="flex justify-end mb-5">
+              <button 
+                onClick={loadConfig}
+                className="flex items-center gap-2 px-4 py-2 bg-white border border-[#d8d0bc] hover:bg-gray-50 text-gray-700 rounded-xl text-sm font-medium transition"
+              >
+                <span style={{fontSize:"14px"}}>↻</span>
+                Atualizar
+              </button>
             </div>
 
             {/* Cards de Status */}
@@ -375,10 +357,10 @@ export default function IntegracoesPage() {
                 <button
                   key={integration.id}
                   onClick={() => setActiveTab(integration.id)}
-                  className={`bg-white rounded-2xl border p-4 sm:p-5 text-left transition-all hover:shadow-lg ${
+                  className={`bg-white rounded-xl border p-4 sm:p-5 text-left transition-all  ${
                     activeTab === integration.id 
-                      ? 'border-blue-500 ring-2 ring-blue-500/20' 
-                      : 'border-gray-100 hover:border-gray-200'
+                      ? 'border-[#009AAC] ring-2 ring-[#009AAC]/20' 
+                      : 'border-[#d8d0bc] hover:border-gray-200'
                   }`}
                 >
                   <div className="flex items-center justify-between mb-3">
@@ -396,7 +378,7 @@ export default function IntegracoesPage() {
             </div>
 
             {/* Configuração da Integração Selecionada */}
-            <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+            <div className="bg-white rounded-xl border border-[#d8d0bc] overflow-hidden">
               {/* WhatsApp Business API */}
               {activeTab === 'whatsapp' && (
                 <div className="p-4 sm:p-6">
@@ -412,7 +394,7 @@ export default function IntegracoesPage() {
                       href="https://developers.facebook.com/docs/whatsapp/cloud-api" 
                       target="_blank" 
                       rel="noopener noreferrer"
-                      className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 md:self-auto self-start"
+                      className="flex items-center gap-2 text-sm text-[#009AAC] hover:text-[#0F6E56] md:self-auto self-start"
                     >
                       <span style={{fontSize:"14px"}}>↗</span>
                       Documentação
@@ -421,23 +403,23 @@ export default function IntegracoesPage() {
 
                   <div className="space-y-6">
                     {/* Webhook URL */}
-                    <div className="p-4 bg-blue-50 rounded-xl border border-blue-100">
+                    <div className="p-4 bg-[#E0F4F6] rounded-xl border border-[#d8d0bc]">
                       <div className="flex items-start gap-3">
                         <span style={{fontSize:"14px"}}>ⓘ</span>
                         <div className="flex-1 min-w-0">
-                          <h4 className="font-medium text-blue-900 mb-1">Configuração do Webhook</h4>
-                          <p className="text-sm text-blue-700 mb-3">Configure estas informações no painel Meta Business → WhatsApp → Configuração</p>
+                          <h4 className="font-medium text-[#014D5E] mb-1">Configuração do Webhook</h4>
+                          <p className="text-sm text-[#0F6E56] mb-3">Configure estas informações no painel Meta Business → WhatsApp → Configuração</p>
                           
                           <div className="space-y-3">
                             <div>
-                              <p className="text-xs text-blue-600 font-medium mb-1">URL do Webhook (Callback URL):</p>
+                              <p className="text-xs text-[#009AAC] font-medium mb-1">URL do Webhook (Callback URL):</p>
                               <div className="flex flex-col md:flex-row md:items-center gap-2">
-                                <code className="w-full sm:flex-1 px-3 py-2 bg-white rounded-lg text-sm font-mono text-gray-800 border border-blue-200 break-all">
+                                <code className="w-full sm:flex-1 px-3 py-2 bg-white rounded-lg text-sm font-mono text-gray-800 border border-[#d8d0bc] break-all">
                                   {webhookUrl}
                                 </code>
                                 <button 
                                   onClick={() => copyToClipboard(webhookUrl)}
-                                  className="w-full md:w-auto inline-flex justify-center p-2 hover:bg-blue-100 rounded-lg transition-colors"
+                                  className="w-full md:w-auto inline-flex justify-center p-2 hover:bg-[#E0F4F6] rounded-lg transition-colors"
                                   title="Copiar"
                                 >
                                   <span style={{fontSize:"14px"}}>⎘</span>
@@ -445,15 +427,15 @@ export default function IntegracoesPage() {
                               </div>
                             </div>
                             
-                            <div className="pt-2 border-t border-blue-200">
-                              <p className="text-xs text-blue-600 font-medium mb-1">Campos para assinar (Webhook Fields):</p>
-                              <code className="px-3 py-2 bg-white rounded-lg text-sm font-mono text-gray-800 border border-blue-200 inline-block">
+                            <div className="pt-2 border-t border-[#d8d0bc]">
+                              <p className="text-xs text-[#009AAC] font-medium mb-1">Campos para assinar (Webhook Fields):</p>
+                              <code className="px-3 py-2 bg-white rounded-lg text-sm font-mono text-gray-800 border border-[#d8d0bc] inline-block">
                                 messages
                               </code>
                             </div>
                           </div>
                           
-                          <p className="text-xs text-blue-600 mt-3">
+                          <p className="text-xs text-[#009AAC] mt-3">
                             <strong>Nota:</strong> Para desenvolvimento local, use ngrok: <code className="bg-white px-1 rounded">ngrok http 3001</code>
                           </p>
                         </div>
@@ -570,7 +552,7 @@ export default function IntegracoesPage() {
                     )}
 
                     {/* Actions */}
-                    <div className="flex flex-col md:flex-row md:items-center gap-3 pt-4 border-t border-gray-100">
+                    <div className="flex flex-col md:flex-row md:items-center gap-3 pt-4 border-t border-[#d8d0bc]">
                       <button
                         onClick={() => handleTest('whatsapp')}
                         disabled={testing === 'whatsapp' || !config.whatsapp.accessToken}
@@ -613,7 +595,7 @@ export default function IntegracoesPage() {
               {activeTab === 'openai' && (
                 <div className="p-4 sm:p-6">
                   <div className="flex flex-col md:flex-row md:items-center gap-4 mb-6">
-                    <div className="p-3 rounded-xl bg-cyan-50">
+                    <div className="p-3 rounded-xl bg-[#E1F5EE]">
                       <span style={{fontSize:"14px"}}>🧠</span>
                     </div>
                     <div className="flex-1">
@@ -624,7 +606,7 @@ export default function IntegracoesPage() {
                       href="https://platform.openai.com/docs" 
                       target="_blank" 
                       rel="noopener noreferrer"
-                      className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 md:self-auto self-start"
+                      className="flex items-center gap-2 text-sm text-[#009AAC] hover:text-[#0F6E56] md:self-auto self-start"
                     >
                       <span style={{fontSize:"14px"}}>↗</span>
                       Documentação
@@ -646,7 +628,7 @@ export default function IntegracoesPage() {
                             openai: { ...prev.openai, apiKey: e.target.value }
                           }))}
                           placeholder="sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-                          className="w-full px-4 py-3 pr-12 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 font-mono text-sm"
+                          className="w-full px-4 py-3 pr-12 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#009AAC]/40 focus:border-[#009AAC] font-mono text-sm"
                         />
                         <button
                           type="button"
@@ -670,7 +652,7 @@ export default function IntegracoesPage() {
                           ...prev,
                           openai: { ...prev.openai, model: e.target.value }
                         }))}
-                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 cursor-pointer"
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#009AAC]/40 focus:border-[#009AAC] cursor-pointer"
                       >
                         <option value="gpt-4-turbo-preview">GPT-4 Turbo (Recomendado)</option>
                         <option value="gpt-4">GPT-4</option>
@@ -694,7 +676,7 @@ export default function IntegracoesPage() {
                         }))}
                         min="100"
                         max="128000"
-                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500"
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#009AAC]/40 focus:border-[#009AAC]"
                       />
                     </div>
 
@@ -715,7 +697,7 @@ export default function IntegracoesPage() {
                     )}
 
                     {/* Actions */}
-                    <div className="flex flex-col md:flex-row md:items-center gap-3 pt-4 border-t border-gray-100">
+                    <div className="flex flex-col md:flex-row md:items-center gap-3 pt-4 border-t border-[#d8d0bc]">
                       <button
                         onClick={() => handleTest('openai')}
                         disabled={testing === 'openai' || !config.openai.apiKey}
@@ -731,7 +713,7 @@ export default function IntegracoesPage() {
                       <button
                         onClick={() => handleSave('openai')}
                         disabled={saving === 'openai'}
-                        className="flex w-full md:w-auto justify-center md:justify-start items-center gap-2 px-6 py-2.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl font-semibold transition-colors disabled:opacity-50"
+                        className="flex w-full md:w-auto justify-center md:justify-start items-center gap-2 px-6 py-2.5 bg-[#009AAC] hover:bg-[#00798A] text-white rounded-xl font-semibold transition-colors disabled:opacity-50"
                       >
                         {saving === 'openai' ? (
                           <span style={{fontSize:"14px"}}>↻</span>
@@ -758,8 +740,8 @@ export default function IntegracoesPage() {
               {activeTab === 'gemini' && (
                 <div className="p-4 sm:p-6">
                   <div className="flex flex-col md:flex-row md:items-center gap-4 mb-6">
-                    <div className="p-3 rounded-xl bg-blue-50">
-                      <LuSparkles className="w-6 h-6 text-blue-600" />
+                    <div className="p-3 rounded-xl bg-[#E0F4F6]">
+                      <LuSparkles className="w-6 h-6 text-[#009AAC]" />
                     </div>
                     <div className="flex-1">
                       <h2 className="text-xl font-bold text-gray-900">Google Gemini</h2>
@@ -769,7 +751,7 @@ export default function IntegracoesPage() {
                       href="https://ai.google.dev/docs" 
                       target="_blank" 
                       rel="noopener noreferrer"
-                      className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 md:self-auto self-start"
+                      className="flex items-center gap-2 text-sm text-[#009AAC] hover:text-[#0F6E56] md:self-auto self-start"
                     >
                       <span style={{fontSize:"14px"}}>↗</span>
                       Documentação
@@ -791,7 +773,7 @@ export default function IntegracoesPage() {
                             gemini: { ...prev.gemini, apiKey: e.target.value }
                           }))}
                           placeholder="AIzaSyxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-                          className="w-full px-4 py-3 pr-12 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 font-mono text-sm"
+                          className="w-full px-4 py-3 pr-12 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#009AAC]/40 focus:border-[#009AAC] font-mono text-sm"
                         />
                         <button
                           type="button"
@@ -815,7 +797,7 @@ export default function IntegracoesPage() {
                           ...prev,
                           gemini: { ...prev.gemini, model: e.target.value }
                         }))}
-                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 cursor-pointer"
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#009AAC]/40 focus:border-[#009AAC] cursor-pointer"
                       >
                         <option value="gemini-pro">Gemini Pro</option>
                         <option value="gemini-pro-vision">Gemini Pro Vision</option>
@@ -841,7 +823,7 @@ export default function IntegracoesPage() {
                     )}
 
                     {/* Actions */}
-                    <div className="flex flex-col md:flex-row md:items-center gap-3 pt-4 border-t border-gray-100">
+                    <div className="flex flex-col md:flex-row md:items-center gap-3 pt-4 border-t border-[#d8d0bc]">
                       <button
                         onClick={() => handleTest('gemini')}
                         disabled={testing === 'gemini' || !config.gemini.apiKey}
@@ -857,7 +839,7 @@ export default function IntegracoesPage() {
                       <button
                         onClick={() => handleSave('gemini')}
                         disabled={saving === 'gemini'}
-                        className="flex w-full md:w-auto justify-center md:justify-start items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition-colors disabled:opacity-50"
+                        className="flex w-full md:w-auto justify-center md:justify-start items-center gap-2 px-6 py-2.5 bg-[#009AAC] hover:bg-[#00798A] text-white rounded-xl font-semibold transition-colors disabled:opacity-50"
                       >
                         {saving === 'gemini' ? (
                           <span style={{fontSize:"14px"}}>↻</span>
@@ -884,7 +866,7 @@ export default function IntegracoesPage() {
               {activeTab === 'deepseek' && (
                 <div className="p-4 sm:p-6">
                   <div className="flex flex-col md:flex-row md:items-center gap-4 mb-6">
-                    <div className="p-3 rounded-xl bg-violet-50">
+                    <div className="p-3 rounded-xl bg-[#E0F4F6]">
                       <span style={{fontSize:"14px"}}>⚡</span>
                     </div>
                     <div className="flex-1">
@@ -895,7 +877,7 @@ export default function IntegracoesPage() {
                       href="https://platform.deepseek.com/docs" 
                       target="_blank" 
                       rel="noopener noreferrer"
-                      className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 md:self-auto self-start"
+                      className="flex items-center gap-2 text-sm text-[#009AAC] hover:text-[#0F6E56] md:self-auto self-start"
                     >
                       <span style={{fontSize:"14px"}}>↗</span>
                       Documentação
@@ -917,7 +899,7 @@ export default function IntegracoesPage() {
                             deepseek: { ...prev.deepseek, apiKey: e.target.value }
                           }))}
                           placeholder="sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-                          className="w-full px-4 py-3 pr-12 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 font-mono text-sm"
+                          className="w-full px-4 py-3 pr-12 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#009AAC]/40 focus:border-[#009AAC] font-mono text-sm"
                         />
                         <button
                           type="button"
@@ -941,7 +923,7 @@ export default function IntegracoesPage() {
                           ...prev,
                           deepseek: { ...prev.deepseek, model: e.target.value }
                         }))}
-                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 cursor-pointer"
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#009AAC]/40 focus:border-[#009AAC] cursor-pointer"
                       >
                         <option value="deepseek-chat">DeepSeek Chat</option>
                         <option value="deepseek-coder">DeepSeek Coder</option>
@@ -961,7 +943,7 @@ export default function IntegracoesPage() {
                           deepseek: { ...prev.deepseek, baseUrl: e.target.value }
                         }))}
                         placeholder="https://api.deepseek.com"
-                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500"
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#009AAC]/40 focus:border-[#009AAC]"
                       />
                     </div>
 
@@ -982,7 +964,7 @@ export default function IntegracoesPage() {
                     )}
 
                     {/* Actions */}
-                    <div className="flex flex-col md:flex-row md:items-center gap-3 pt-4 border-t border-gray-100">
+                    <div className="flex flex-col md:flex-row md:items-center gap-3 pt-4 border-t border-[#d8d0bc]">
                       <button
                         onClick={() => handleTest('deepseek')}
                         disabled={testing === 'deepseek' || !config.deepseek.apiKey}
@@ -998,7 +980,7 @@ export default function IntegracoesPage() {
                       <button
                         onClick={() => handleSave('deepseek')}
                         disabled={saving === 'deepseek'}
-                        className="flex w-full md:w-auto justify-center md:justify-start items-center gap-2 px-6 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-semibold transition-colors disabled:opacity-50"
+                        className="flex w-full md:w-auto justify-center md:justify-start items-center gap-2 px-6 py-2.5 bg-[#009AAC] hover:bg-[#00798A] text-white rounded-xl font-semibold transition-colors disabled:opacity-50"
                       >
                         {saving === 'deepseek' ? (
                           <span style={{fontSize:"14px"}}>↻</span>
@@ -1064,7 +1046,7 @@ function AiUsageSection() {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center">
+      <div className="bg-white rounded-xl border border-[#d8d0bc] p-8 text-center">
         <span style={{fontSize:"14px"}}>↻</span>
         <p className="text-gray-500 text-sm">Carregando dados de uso...</p>
       </div>
@@ -1082,7 +1064,7 @@ function AiUsageSection() {
         <>
           {/* Usage Overview */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-white rounded-2xl border border-gray-100 p-5">
+            <div className="bg-white rounded-xl border border-[#d8d0bc] p-5">
               <p className="text-sm text-gray-500">Custo este Mês</p>
               <p className="text-2xl font-bold text-gray-900">${usage.currentMonthCost.toFixed(4)}</p>
               {usage.monthlyBudget && (
@@ -1091,7 +1073,7 @@ function AiUsageSection() {
                     <div
                       className={`h-2 rounded-full transition-all ${
                         Number(usage.budgetUsedPercent) > 80 ? 'bg-red-500' :
-                        Number(usage.budgetUsedPercent) > 50 ? 'bg-orange-500' : 'bg-cyan-500'
+                        Number(usage.budgetUsedPercent) > 50 ? 'bg-orange-500' : 'bg-[#E1F5EE]0'
                       }`}
                       style={{ width: `${Math.min(Number(usage.budgetUsedPercent), 100)}%` }}
                     />
@@ -1100,15 +1082,15 @@ function AiUsageSection() {
                 </div>
               )}
             </div>
-            <div className="bg-white rounded-2xl border border-gray-100 p-5">
+            <div className="bg-white rounded-xl border border-[#d8d0bc] p-5">
               <p className="text-sm text-gray-500">Custo Total (All-Time)</p>
               <p className="text-2xl font-bold text-gray-900">${usage.totalCostAllTime.toFixed(4)}</p>
             </div>
-            <div className="bg-white rounded-2xl border border-gray-100 p-5">
+            <div className="bg-white rounded-xl border border-[#d8d0bc] p-5">
               <p className="text-sm text-gray-500">Total Interações</p>
               <p className="text-2xl font-bold text-gray-900">{new Intl.NumberFormat('pt-BR').format(usage.totalInteractions)}</p>
             </div>
-            <div className="bg-white rounded-2xl border border-gray-100 p-5">
+            <div className="bg-white rounded-xl border border-[#d8d0bc] p-5">
               <p className="text-sm text-gray-500">Orçamento Mensal</p>
               <p className="text-2xl font-bold text-gray-900">
                 {usage.monthlyBudget ? `$${usage.monthlyBudget.toFixed(2)}` : 'Sem limite'}
@@ -1118,7 +1100,7 @@ function AiUsageSection() {
 
           {/* Agent Breakdown */}
           {usage.agentBreakdown.length > 0 && (
-            <div className="bg-white rounded-2xl border border-gray-100 p-6">
+            <div className="bg-white rounded-xl border border-[#d8d0bc] p-6">
               <h3 className="text-sm font-semibold text-gray-500 uppercase mb-4">Custo por Agente</h3>
               <div className="space-y-3">
                 {usage.agentBreakdown.map(agent => (
@@ -1138,7 +1120,7 @@ function AiUsageSection() {
 
       {/* Pricing Table */}
       {pricing?.models && (
-        <div className="bg-white rounded-2xl border border-gray-100 p-6">
+        <div className="bg-white rounded-xl border border-[#d8d0bc] p-6">
           <h3 className="text-sm font-semibold text-gray-500 uppercase mb-4">Tabela de Preços por Modelo</h3>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
