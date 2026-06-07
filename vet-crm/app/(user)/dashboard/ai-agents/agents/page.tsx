@@ -238,7 +238,7 @@ export default function AgentsPage() {
             <div className="flex justify-end mb-5">
               <Link
                 href="/dashboard/ai-agents/agents/novo"
-                className="flex items-center gap-2 px-4 py-2 bg-[#009AAC] hover:bg-[#00798A] text-white rounded-xl text-sm font-medium transition"
+                className="flex items-center gap-2 bg-[#009AAC] hover:bg-[#00798A] text-white px-3.5 py-1.5 rounded-lg text-xs font-medium"
               >
                 <LuPlus className="w-4 h-4" />
                 Novo agente
