@@ -24,7 +24,7 @@ export default function FunilSemanaPage() {
     try {
       const [p, l, li] = await Promise.all([
         fetch("/api/pipelines", { cache: "no-store" }).then((r) => r.json()).catch(() => []),
-        fetch("/api/leads?limit=1000", { cache: "no-store" }).then((r) => r.json()).catch(() => ({})),
+        fetch("/api/leads", { cache: "no-store" }).then((r) => r.json()).catch(() => ({})),
         fetch("/api/listas", { cache: "no-store" }).then((r) => r.json()).catch(() => []),
       ]);
       const parr = Array.isArray(p) ? p : (p.pipelines || p.data || []);
