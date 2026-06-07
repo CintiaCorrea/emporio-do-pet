@@ -293,37 +293,12 @@ export default function AutomacoesPage() {
             </div>
 
             {/* Cards de estatísticas */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-              <div className="bg-white rounded-xl border border-[#d8d0bc] p-5 transition-all">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-[#E1F5EE]"><span style={{fontSize:"14px"}}>🔀</span></div>
-                  <div><p className="text-sm text-gray-500">Total</p><p className="text-2xl font-bold text-gray-900">{stats.total}</p></div>
-                </div>
-              </div>
-              <div className="bg-white rounded-xl border border-[#d8d0bc] p-5 transition-all">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-[#E1F5EE]"><span style={{fontSize:"14px"}}>✓</span></div>
-                  <div><p className="text-sm text-gray-500">Ativas</p><p className="text-2xl font-bold text-gray-900">{stats.active}</p></div>
-                </div>
-              </div>
-              <div className="bg-white rounded-xl border border-[#d8d0bc] p-5 transition-all">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-orange-50"><span style={{fontSize:"14px"}}>⏸</span></div>
-                  <div><p className="text-sm text-gray-500">Pausadas</p><p className="text-2xl font-bold text-gray-900">{stats.paused}</p></div>
-                </div>
-              </div>
-              <div className="bg-white rounded-xl border border-[#d8d0bc] p-5 transition-all">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-[#E0F4F6]"><span style={{fontSize:"14px"}}>⚡</span></div>
-                  <div><p className="text-sm text-gray-500">Execuções</p><p className="text-2xl font-bold text-gray-900">{formatNumber(stats.totalExecutions)}</p></div>
-                </div>
-              </div>
-              <div className="bg-white rounded-xl border border-[#d8d0bc] p-5 transition-all">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-[#E0F4F6]"><span style={{fontSize:"14px"}}>⚡</span></div>
-                  <div><p className="text-sm text-gray-500">Taxa Sucesso</p><p className="text-2xl font-bold text-gray-900">{stats.avgSuccessRate}%</p></div>
-                </div>
-              </div>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-2.5 mb-4">
+              <div className="bg-[#F8F3E4] rounded-xl p-3"><p className="text-[12px] text-[#64748b]">Total</p><p className="text-[22px] font-semibold text-[#0E2244] mt-0.5">{stats.total}</p></div>
+              <div className="bg-[#F8F3E4] rounded-xl p-3"><p className="text-[12px] text-[#64748b]">Ativas</p><p className="text-[22px] font-semibold text-[#0F6E56] mt-0.5">{stats.active}</p></div>
+              <div className="bg-[#F8F3E4] rounded-xl p-3"><p className="text-[12px] text-[#64748b]">Pausadas</p><p className="text-[22px] font-semibold text-[#0E2244] mt-0.5">{stats.paused}</p></div>
+              <div className="bg-[#F8F3E4] rounded-xl p-3"><p className="text-[12px] text-[#64748b]">Execuções</p><p className="text-[22px] font-semibold text-[#0E2244] mt-0.5">{formatNumber(stats.totalExecutions)}</p></div>
+              <div className="bg-[#F8F3E4] rounded-xl p-3"><p className="text-[12px] text-[#64748b]">Taxa sucesso</p><p className="text-[22px] font-semibold text-[#0E2244] mt-0.5">{stats.avgSuccessRate}%</p></div>
             </div>
 
             {/* Filtros */}
@@ -374,7 +349,7 @@ export default function AutomacoesPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {filteredAutomations.map((automation) => (
                   <div key={automation.id} onClick={() => { setSelectedAutomation(automation); setIsModalOpen(true); }}
-                    className="bg-white rounded-xl border border-[#d8d0bc] p-5 hover:border-[#d8d0bc] transition-all cursor-pointer group">
+                    className="bg-white rounded-xl border border-[#d8d0bc] p-4 hover:border-[#d8d0bc] transition-all cursor-pointer group">
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center gap-3">
                         <div className={`p-2.5 rounded-xl ${automation.status === 'ACTIVE' ? 'bg-[#E1F5EE]' : automation.status === 'PAUSED' ? 'bg-orange-50' : automation.status === 'ERROR' ? 'bg-red-50' : 'bg-gray-50'}`}>
