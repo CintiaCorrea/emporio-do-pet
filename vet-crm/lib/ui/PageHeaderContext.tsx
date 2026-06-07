@@ -53,6 +53,8 @@ const ROUTE_TITLES: Array<{ match: string; exact?: boolean; title: string; subti
   { match: "/dashboard/marketing/avaliacoes-google", title: "Avaliações Google", subtitle: "Gestão do fluxo de avaliações no Google" },
   { match: "/dashboard/marketing/campanhas", title: "Campanhas", subtitle: "Campanhas de mídia · CAC e ROI" },
   { match: "/dashboard/marketing/midia", title: "Mídia", subtitle: "Lançamentos de investimento de mídia" },
+  { match: "/dashboard/marketing/emails", title: "Emails", subtitle: "Histórico de emails enviados" },
+  { match: "/dashboard/marketing", title: "Marketing" },
   { match: "/dashboard/marketing", title: "Marketing" },
   { match: "/dashboard/erp/agendamentos", title: "Agendamentos" },
   { match: "/dashboard/erp/leads", title: "Leads" },
