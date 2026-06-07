@@ -36,6 +36,7 @@ const NAV: Item[] = [
   { href: "/dashboard/erp/tutores", label: "Clientes", Icon: LuUsers, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
   { href: "/dashboard/erp/pets", label: "Pets", Icon: LuPawPrint, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
   { href: "/dashboard/erp/agendamentos/clinico", label: "Calendário", Icon: LuCalendar, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
+  { href: "/dashboard/erp/financeiro-terceiros", label: "Fin. Terceiros", Icon: LuCircleDollarSign, roles: ["ADMIN"] },
   {
     href: "/dashboard/erp/internacoes", label: "Internação", Icon: LuBuilding2,
     roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"],
