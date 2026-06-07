@@ -1,12 +1,13 @@
 "use client";
 // [EMP-COWORK] label do menu Tutores -> Clientes (Cintia 06/06). Rota /tutores inalterada.
+// [EMP-COWORK] grupos recolhíveis Financeiro + Marketing (Cintia 07/06).
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LuSun, LuLayoutDashboard, LuMessageSquare, LuList, LuUsers, LuPawPrint,
-  LuCalendar, LuBuilding2, LuSettings, LuChevronLeft, LuChevronRight,
+  LuCalendar, LuBuilding2, LuSettings, LuChevronLeft, LuChevronRight, LuChevronDown,
   LuCircleDollarSign, LuMegaphone, LuUserCog, LuEye, LuCircleHelp, LuStar,
 } from "react-icons/lu";
 import { roleLabel, AppRole } from "@/lib/ui/role";
@@ -27,7 +28,19 @@ type Item = {
   exact?: boolean;
 };
 
-const NAV: Item[] = [
+type Group = {
+  group: true;
+  key: string;
+  label: string;
+  Icon: React.ComponentType<{ size?: number; className?: string }>;
+  roles: AppRole[];
+  children: Item[];
+};
+
+type Entry = Item | Group;
+const isGroup = (e: Entry): e is Group => (e as Group).group === true;
+
+const NAV: Entry[] = [
   { href: "/dashboard/hoje", label: "Hoje", Icon: LuSun, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
   { href: "/dashboard", label: "Dashboard", Icon: LuLayoutDashboard, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"], exact: true },
   { href: "/dashboard/inbox", label: "Inbox BC", Icon: LuMessageSquare, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
@@ -36,25 +49,34 @@ const NAV: Item[] = [
   { href: "/dashboard/erp/tutores", label: "Clientes", Icon: LuUsers, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
   { href: "/dashboard/erp/pets", label: "Pets", Icon: LuPawPrint, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
   { href: "/dashboard/erp/agendamentos/clinico", label: "Calendário", Icon: LuCalendar, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
-  { href: "/dashboard/erp/financeiro-terceiros", label: "Fin. Terceiros", Icon: LuCircleDollarSign, roles: ["ADMIN"] },
   {
     href: "/dashboard/erp/internacoes", label: "Internação", Icon: LuBuilding2,
     roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"],
     tag: { admin: "Visualiza", vet: "Edita", recep: "Visualiza" },
   },
-  { href: "/dashboard/marketing/funil-semana", label: "Funil Semana", Icon: LuMegaphone, roles: ["ADMIN"] },
-  { href: "/dashboard/marketing/nps", label: "NPS", Icon: LuMegaphone, roles: ["ADMIN"] },
-  { href: "/dashboard/marketing/avaliacoes-google", label: "Aval. Google", Icon: LuStar, roles: ["ADMIN"] },
-  { href: "/dashboard/marketing/campanhas", label: "Campanhas", Icon: LuMegaphone, roles: ["ADMIN"] },
-  { href: "/dashboard/marketing/midia", label: "Mídia", Icon: LuCircleDollarSign, roles: ["ADMIN"] },
-  { href: "/dashboard/marketing/emails", label: "Emails", Icon: LuMegaphone, roles: ["ADMIN"] },
+  {
+    group: true, key: "financeiro", label: "Financeiro", Icon: LuCircleDollarSign, roles: ["ADMIN"],
+    children: [
+      { href: "/dashboard/erp/financeiro-terceiros", label: "Fin. Terceiros", Icon: LuCircleDollarSign, roles: ["ADMIN"] },
+    ],
+  },
+  {
+    group: true, key: "marketing", label: "Marketing", Icon: LuMegaphone, roles: ["ADMIN"],
+    children: [
+      { href: "/dashboard/marketing/funil-semana", label: "Funil Semana", Icon: LuList, roles: ["ADMIN"] },
+      { href: "/dashboard/marketing/nps", label: "NPS", Icon: LuStar, roles: ["ADMIN"] },
+      { href: "/dashboard/marketing/avaliacoes-google", label: "Aval. Google", Icon: LuStar, roles: ["ADMIN"] },
+      { href: "/dashboard/marketing/campanhas", label: "Campanhas", Icon: LuMegaphone, roles: ["ADMIN"] },
+      { href: "/dashboard/marketing/midia", label: "Mídia", Icon: LuCircleDollarSign, roles: ["ADMIN"] },
+      { href: "/dashboard/marketing/emails", label: "Emails", Icon: LuMessageSquare, roles: ["ADMIN"] },
+    ],
+  },
   { href: "/dashboard/configuracoes", label: "Configurações", Icon: LuSettings, roles: ["ADMIN"] },
 ];
 
 const FUTURE = [
-  { label: "Financeiro", Icon: LuCircleDollarSign, soon: "depois" },
   { label: "RH", Icon: LuUserCog, soon: "depois" },
-  { label: "Marketing", Icon: LuMegaphone, soon: "integrado" },
+  { label: "Academia", Icon: LuLayoutDashboard, soon: "depois" },
 ];
 
 export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
@@ -62,6 +84,8 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
   const pathname = usePathname();
   const { realRole, effectiveRole, isPreviewing, setPreview } = useRolePreview();
   const role = effectiveRole;
+
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
   const [internasUnread, setInternasUnread] = useState(0);
   useEffect(() => {
@@ -80,13 +104,63 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
     return () => { alive = false; clearInterval(id); };
   }, [pathname]);
 
-const isActive = (it: Item) => {
-       if (it.exact) return pathname === it.href;
-       return pathname === it.href || pathname.startsWith(it.href + "/");
-     };  const visible = (it: Item) => it.roles.includes(role);
+  const isActive = (it: Item) => {
+    if (it.exact) return pathname === it.href;
+    return pathname === it.href || pathname.startsWith(it.href + "/");
+  };
+  const visible = (it: Item) => it.roles.includes(role);
   const tagFor = (it: Item) => {
     if (!it.tag) return null;
     return role === "ADMIN" ? it.tag.admin : role === "VETERINARIAN" ? it.tag.vet : it.tag.recep;
+  };
+
+  const renderLink = (it: Item, indented = false) => {
+    const active = isActive(it);
+    const tag = tagFor(it);
+    const badge = it.href === "/dashboard/inbox-nativo" ? internasUnread : (it.badge ?? 0);
+    return (
+      <Link
+        key={it.href}
+        href={it.href}
+        title={collapsed ? it.label : undefined}
+        className={`flex items-center ${collapsed ? "justify-center" : "gap-3"} px-3 py-[9px] rounded-[9px] ${indented ? "text-[12.5px]" : "text-[13.5px]"} transition relative`}
+        style={
+          active
+            ? { background: "linear-gradient(90deg, #009AAC, #00B4C4)", color: "#FFFFFF", fontWeight: 600, boxShadow: "0 4px 12px -2px rgba(0,154,172,.45)" }
+            : { color: "#475569" }
+        }
+      >
+        <it.Icon size={indented ? 16 : 18} className="flex-shrink-0" />
+        {collapsed && badge > 0 && (
+          <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full" style={{ background: "#E24B4A" }} />
+        )}
+        {!collapsed && (
+          <>
+            <span className="flex-1 truncate">{it.label}</span>
+            {badge > 0 && (
+              <span
+                className="text-[10.5px] font-semibold rounded-full px-1.5 min-w-[20px] h-[18px] flex items-center justify-center"
+                style={{ background: active ? "white" : "#ef4444", color: active ? "#ef4444" : "white" }}
+              >
+                {badge}
+              </span>
+            )}
+            {tag && (
+              <span
+                className="text-[9px] font-bold tracking-wide px-1.5 py-[2px] rounded-[6px] uppercase"
+                style={
+                  active
+                    ? { background: "rgba(255,255,255,.25)", color: "white" }
+                    : { background: "#eef2f4", color: "#64748b" }
+                }
+              >
+                {tag}
+              </span>
+            )}
+          </>
+        )}
+      </Link>
+    );
   };
 
   return (
@@ -148,52 +222,34 @@ const isActive = (it: Item) => {
 
       <nav className="flex-1 px-3 pt-2 pb-4 overflow-y-auto">
         <div className="flex flex-col gap-[2px]">
-          {NAV.filter(visible).map((it) => {
-            const active = isActive(it);
-            const tag = tagFor(it);
-            const badge = it.href === "/dashboard/inbox-nativo" ? internasUnread : (it.badge ?? 0);
+          {NAV.map((entry) => {
+            if (!isGroup(entry)) return renderLink(entry);
+
+            const kids = entry.children.filter(visible);
+            if (kids.length === 0) return null;
+
+            // recolhido: mostra os filhos como ícones soltos
+            if (collapsed) return <div key={entry.key} className="flex flex-col gap-[2px]">{kids.map((it) => renderLink(it))}</div>;
+
+            const childActive = kids.some(isActive);
+            const open = openGroups[entry.key] ?? childActive;
             return (
-              <Link
-                key={it.href}
-                href={it.href}
-                title={collapsed ? it.label : undefined}
-                className={`flex items-center ${collapsed ? "justify-center" : "gap-3"} px-3 py-[9px] rounded-[9px] text-[13.5px] transition relative`}
-                style={
-                  active
-                    ? { background: "linear-gradient(90deg, #009AAC, #00B4C4)", color: "#FFFFFF", fontWeight: 600, boxShadow: "0 4px 12px -2px rgba(0,154,172,.45)" }
-                    : { color: "#475569" }
-                }
-              >
-                <it.Icon size={18} className="flex-shrink-0" />
-                {collapsed && badge > 0 && (
-                  <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full" style={{ background: "#E24B4A" }} />
+              <div key={entry.key}>
+                <button
+                  onClick={() => setOpenGroups((s) => ({ ...s, [entry.key]: !(s[entry.key] ?? childActive) }))}
+                  className="flex items-center gap-3 w-full px-3 py-[9px] rounded-[9px] text-[13.5px] transition"
+                  style={{ color: childActive ? "#0E2244" : "#475569", fontWeight: childActive ? 600 : 500 }}
+                >
+                  <entry.Icon size={18} className="flex-shrink-0" />
+                  <span className="flex-1 truncate text-left">{entry.label}</span>
+                  {open ? <LuChevronDown size={14} className="text-[#94a3b8]" /> : <LuChevronRight size={14} className="text-[#94a3b8]" />}
+                </button>
+                {open && (
+                  <div className="flex flex-col gap-[2px] mt-[2px] ml-[15px] pl-[11px]" style={{ borderLeft: "1px solid #eef2f4" }}>
+                    {kids.map((it) => renderLink(it, true))}
+                  </div>
                 )}
-                {!collapsed && (
-                  <>
-                    <span className="flex-1 truncate">{it.label}</span>
-                    {badge > 0 && (
-                      <span
-                        className="text-[10.5px] font-semibold rounded-full px-1.5 min-w-[20px] h-[18px] flex items-center justify-center"
-                        style={{ background: active ? "white" : "#ef4444", color: active ? "#ef4444" : "white" }}
-                      >
-                        {badge}
-                      </span>
-                    )}
-                    {tag && (
-                      <span
-                        className="text-[9px] font-bold tracking-wide px-1.5 py-[2px] rounded-[6px] uppercase"
-                        style={
-                          active
-                            ? { background: "rgba(255,255,255,.25)", color: "white" }
-                            : { background: "#eef2f4", color: "#64748b" }
-                        }
-                      >
-                        {tag}
-                      </span>
-                    )}
-                  </>
-                )}
-              </Link>
+              </div>
             );
           })}
         </div>
