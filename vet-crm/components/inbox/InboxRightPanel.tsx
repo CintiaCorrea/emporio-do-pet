@@ -6,7 +6,7 @@ import Link from "next/link";
 import {
   LuSearch, LuPhone, LuPlus, LuExternalLink, LuShare2, LuCheckCheck,
   LuMessageSquare, LuSparkles, LuCalendar, LuFileText, LuFlaskConical, LuStickyNote,
-  LuX, LuArrowUpRight, LuInbox, LuMessageCircle, 
+  LuX, LuArrowUpRight, LuInbox, LuMessageCircle, LuTrash,
 } from "react-icons/lu";
 import toast from "react-hot-toast";
 import PetIcon from "@/components/profile/PetIcon";
@@ -699,6 +699,20 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
     const hist = await carregarHistorico(tutor?.id, lead?.id, leadHistorico?.id);
     setHistorico(hist);
   }
+
+  async function excluirHistorico(h: any) {
+    if (!window.confirm("Excluir este atendimento? Esta ação não pode ser desfeita.")) return;
+    const isInt = h.type === "INTERACAO";
+    const realId = String(h.id || "").replace(/^(it-|il-|i-|at-)/, "");
+    const url = isInt ? `/api/interacoes/${realId}` : `/api/appointments/${realId}`;
+    try {
+      const r = await fetch(url, { method: "DELETE" });
+      if (!r.ok) { toast.error("Erro ao excluir"); return; }
+      toast.success("Excluído");
+      const hist = await carregarHistorico(tutor?.id, lead?.id, leadHistorico?.id);
+      setHistorico(hist);
+    } catch { toast.error("Erro ao excluir"); }
+  }
   async function savePhone() {
     const raw = phoneDraft.trim();
     const v = normalizePhone(raw);
@@ -1271,6 +1285,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                           {isInteracao && (
                             <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditingInteracaoId(h.id); setInteracaoDraft(h.subtitle); }} className="text-[10px] text-gray-400 hover:text-[#009AAC] opacity-0 group-hover:opacity-100 flex-shrink-0" title="Editar interação">✏</button>
                           )}
+                          <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); excluirHistorico(h); }} className="text-gray-300 hover:text-[#A32D2D] opacity-0 group-hover:opacity-100 flex-shrink-0" title="Excluir atendimento"><LuTrash size={11} /></button>
                         </Tag>
                       );
                     })}
