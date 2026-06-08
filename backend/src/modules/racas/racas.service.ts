@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { EspecieRaca } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateRacaDto, UpdateRacaDto } from './dto/raca.dto';
@@ -18,6 +18,14 @@ export class RacasService {
   }
 
   async create(dto: CreateRacaDto) {
+    const existe = await this.prisma.raca.findFirst({ where: { nome: dto.nome, especie: dto.especie } });
+    if (existe) {
+      if (existe.ativo === false) {
+        // raça já existia mas estava inativa: reativa (e atualiza ordem se enviada)
+        return this.prisma.raca.update({ where: { id: existe.id }, data: { ativo: true, ...(dto.ordem != null ? { ordem: dto.ordem } : {}) } });
+      }
+      throw new ConflictException(`A raça "${dto.nome}" já existe para essa espécie.`);
+    }
     return this.prisma.raca.create({ data: dto });
   }
 
