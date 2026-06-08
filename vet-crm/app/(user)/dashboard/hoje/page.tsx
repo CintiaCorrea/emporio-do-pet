@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import {
   LuRefreshCcw, LuPhone, LuPackage,
-  LuFlaskConical, LuCake, LuChevronRight,
+  LuFlaskConical, LuCake, LuChevronRight, LuClipboardCheck,
 } from "react-icons/lu";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { useRolePreview } from "@/lib/ui/RolePreview";
@@ -46,6 +46,7 @@ export default function HojePage() {
   const { effectiveRole, isPreviewing } = useRolePreview();
   const userName = session?.user?.name || "Usuário";
   const today = new Date();
+  const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 
   const hora = today.getHours();
   const saudacao = hora < 12 ? "Bom dia" : hora < 18 ? "Boa tarde" : "Boa noite";
@@ -68,6 +69,9 @@ export default function HojePage() {
   const [anivOpen, setAnivOpen] = useState(false);
   const [pacRisco, setPacRisco] = useState<any[]>([]);
   const [pacOpen, setPacOpen] = useState(false);
+  const [entradas, setEntradas] = useState<any[]>([]);
+  const [entConf, setEntConf] = useState<Record<string, string>>({});
+  const [entConfOpen, setEntConfOpen] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -153,10 +157,41 @@ export default function HojePage() {
           }
         }
         setPacRisco(pac);
+        // Entradas do dia (leads + clientes novos cadastrados hoje)
+        try {
+          const ldNP = await safeJson<any>(await fetch("/api/leads"), []);
+          const leadNew = Array.isArray(ldNP) ? ldNP : (ldNP.leads || ldNP.data || []);
+          const st0 = new Date(); st0.setHours(0, 0, 0, 0);
+          const en0 = new Date(); en0.setHours(23, 59, 59, 999);
+          const isToday = (dt: any) => { if (!dt) return false; const x = new Date(dt).getTime(); return x >= st0.getTime() && x <= en0.getTime(); };
+          const ent: any[] = [];
+          for (const t of tutorArr) if (isToday(t.createdAt)) ent.push({ key: `cli:${t.id}`, tipo: "Cliente", nome: t.name || "Cliente", sub: t.phone || "", at: t.createdAt, href: `/dashboard/erp/tutores/${t.id}` });
+          for (const l of leadNew) if (isToday(l.createdAt)) ent.push({ key: `lead:${l.id}`, tipo: "Lead", nome: l.name || "Lead", sub: l.origem || l.canal || "", at: l.createdAt, href: `/dashboard/crm/leads/${l.id}` });
+          ent.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+          setEntradas(ent);
+          const confMap: Record<string, string> = {};
+          for (const it of listArr) if ((it.lista || "") === `entradadia_${todayKey}`) confMap[it.valor] = it.id;
+          setEntConf(confMap);
+        } catch {}
       } catch {}
       setLoading(false);
     })();
   }, []);
+
+  async function conferirEntrada(e: any) {
+    setEntConf(m => ({ ...m, [e.key]: "1" }));
+    try { await fetch("/api/listas", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lista: `entradadia_${todayKey}`, valor: e.key }) }); }
+    catch { setEntConf(m => { const n = { ...m }; delete n[e.key]; return n; }); }
+  }
+  async function desconferirEntrada(e: any) {
+    setEntConf(m => { const n = { ...m }; delete n[e.key]; return n; });
+    try {
+      const r = await fetch(`/api/listas?lista=${encodeURIComponent("entradadia_" + todayKey)}`, { cache: "no-store" });
+      const d = await r.json(); const arr = Array.isArray(d) ? d : (d.itens || d.data || []);
+      const row = arr.find((x: any) => x.valor === e.key);
+      if (row) await fetch(`/api/listas/${row.id}`, { method: "DELETE" });
+    } catch {}
+  }
 
   const items: Pendencia[] = useMemo(() => {
     if (!data) return [];
@@ -340,6 +375,50 @@ export default function HojePage() {
         )}
       </div>
 
+      {!loading && (() => {
+        const naoConf = entradas.filter(e => !(e.key in entConf));
+        const conf = entradas.filter(e => e.key in entConf);
+        const cor: Record<string, { bg: string; fg: string }> = { Cliente: { bg: "#E0F4F6", fg: "#00798A" }, Lead: { bg: "#E6F1FB", fg: "#0C447C" } };
+        const hhmm = (dt: any) => { try { return new Date(dt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }); } catch { return ""; } };
+        return (
+          <div className="mt-6 bg-white border rounded-2xl overflow-hidden" style={{ borderColor: "#e8edf0" }}>
+            <div className="flex items-center gap-3.5 px-[18px] py-[13px] border-b" style={{ borderColor: "#e8edf0" }}>
+              <div className="w-[38px] h-[38px] rounded-[10px] flex items-center justify-center flex-shrink-0" style={{ background: "#e6f6f8", color: "#009AAC" }}><LuClipboardCheck size={19} /></div>
+              <div className="flex-1 min-w-0">
+                <div className="text-[13.5px] font-semibold text-[#1e293b]">Entradas do dia</div>
+                <div className="text-xs text-[#64748b]">Leads e clientes novos de hoje — marque ao conferir o lançamento</div>
+              </div>
+              <span className="text-[13px] font-bold text-white min-w-[26px] h-6 rounded-xl flex items-center justify-center px-2 flex-shrink-0" style={{ background: naoConf.length > 0 ? "linear-gradient(90deg, #009AAC, #00B4C4)" : "#cbd5e1" }}>{naoConf.length}</span>
+            </div>
+            {entradas.length === 0 ? (
+              <div className="px-[18px] py-8 text-center text-sm text-[#94a3b8]">Nenhuma entrada nova hoje.</div>
+            ) : naoConf.length === 0 ? (
+              <div className="px-[18px] py-6 text-center text-sm text-[#0F6E56]">Tudo conferido por hoje.</div>
+            ) : naoConf.map(e => (
+              <div key={e.key} className="flex items-center gap-3 px-[18px] py-2.5 border-b hover:bg-[#e6f6f8]/40" style={{ borderColor: "#e8edf0" }}>
+                <input type="checkbox" checked={false} onChange={() => conferirEntrada(e)} className="w-4 h-4 flex-shrink-0 cursor-pointer accent-[#009AAC]" title="Marcar como conferido" />
+                <span className="text-[10px] px-2 py-0.5 rounded-full flex-shrink-0" style={{ background: (cor[e.tipo] || cor.Cliente).bg, color: (cor[e.tipo] || cor.Cliente).fg }}>{e.tipo}</span>
+                <Link href={e.href} className="font-medium text-[13px] text-[#1e293b] hover:underline truncate">{e.nome}</Link>
+                {e.sub && <span className="text-xs text-[#64748b] truncate hidden sm:block">· {e.sub}</span>}
+                <span className="ml-auto text-[11px] text-[#94a3b8] flex-shrink-0">{hhmm(e.at)}</span>
+              </div>
+            ))}
+            {conf.length > 0 && (
+              <div>
+                <button onClick={() => setEntConfOpen(o => !o)} className="w-full text-left px-[18px] py-2 text-[11px] font-semibold text-[#94a3b8] hover:bg-[#f8fafb]">{entConfOpen ? "\u25be" : "\u25b8"} Conferidos hoje ({conf.length})</button>
+                {entConfOpen && conf.map(e => (
+                  <div key={e.key} className="flex items-center gap-3 px-[18px] py-2 border-t" style={{ borderColor: "#f1f5f9", background: "#f8fafb" }}>
+                    <input type="checkbox" checked readOnly onChange={() => desconferirEntrada(e)} className="w-4 h-4 flex-shrink-0 cursor-pointer accent-[#0F6E56]" title="Desmarcar" />
+                    <span className="text-[10px] px-2 py-0.5 rounded-full flex-shrink-0" style={{ background: (cor[e.tipo] || cor.Cliente).bg, color: (cor[e.tipo] || cor.Cliente).fg }}>{e.tipo}</span>
+                    <Link href={e.href} className="text-[13px] text-[#64748b] line-through hover:underline truncate">{e.nome}</Link>
+                    <span className="ml-auto text-[11px] text-[#cbd5e1] flex-shrink-0">{hhmm(e.at)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })()}
       <div className="mt-6 text-xs text-[#94a3b8] text-center">
         Métricas e relatórios ficam no <Link href="/dashboard" className="underline">Dashboard</Link>.
         Conversas no <Link href="/dashboard/inbox" className="underline">Inbox</Link>.
