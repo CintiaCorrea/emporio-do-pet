@@ -50,6 +50,8 @@ interface HistoricoItem {
   subtitle: string;
   fase: "CLIENTE" | "LEAD";
   href?: string;
+  tipoLabel?: string;
+  auto?: boolean;
 }
 interface Staff { id: string; name: string | null; role: string; }
 interface IncomingItem {
@@ -212,6 +214,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
     return () => { cancelled = true; };
   }, [selectedPet?.id, selectedPet?.species]);
   const [historico, setHistorico] = useState<HistoricoItem[]>([]);
+  const [histWaOpen, setHistWaOpen] = useState<Record<string, boolean>>({});
   const [staff, setStaff] = useState<Staff[]>([]);
   const [forwardOpen, setForwardOpen] = useState(false);
 
@@ -422,6 +425,8 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
           date: a.date,
           title: `${TYPE_LABEL[a.type] || a.type}${a.petName ? ` · ${a.petName}` : ""} · ${fmtDate(a.date)}`,
           subtitle: [a.diagnosis, a.description, a.chiefComplaint].filter(Boolean).join(" · ") || (a.value ? `R$ ${a.value}` : "—"),
+          tipoLabel: `${TYPE_LABEL[a.type] || a.type}${a.petName ? ` · ${a.petName}` : ""}`,
+          auto: false,
           fase: "CLIENTE",
           href: `/dashboard/erp/atendimentos/${a.id}`,
         }));
@@ -436,6 +441,8 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
           date: i.createdAt || i.date,
           title: `${TIPO_INTERACAO[i.tipo] || i.tipo} · ${fmtDate(i.createdAt || i.date)}`,
           subtitle: (i.texto || "").slice(0, 90) || "—",
+          tipoLabel: TIPO_INTERACAO[i.tipo] || i.tipo,
+          auto: /trigger|botconversa|bot conversa/i.test(i.texto || ""),
           fase: "CLIENTE",
         }));
       }
@@ -450,12 +457,47 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
           date: i.createdAt || i.date,
           title: `${TIPO_INTERACAO[i.tipo] || i.tipo} · ${fmtDate(i.createdAt || i.date)}`,
           subtitle: (i.texto || "").slice(0, 90) || "—",
+          tipoLabel: TIPO_INTERACAO[i.tipo] || i.tipo,
+          auto: /trigger|botconversa|bot conversa/i.test(i.texto || ""),
           fase: "LEAD",
         }));
       }
     } catch { /* ignore */ }
     items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     return items.slice(0, 10);
+  }
+  function renderHistItem(h: HistoricoItem) {
+    const isInteracao = h.type === "INTERACAO";
+    const isEditing = editingInteracaoId === h.id;
+    if (isEditing) {
+      return (
+        <div key={h.id} className="rounded-lg p-2 border" style={{ background: "#f6fdfd", borderColor: "#E8DFC8" }}>
+          <div className="text-[10px] font-semibold mb-1" style={{ color: "#014D5E" }}>{h.tipoLabel || h.title}</div>
+          <textarea autoFocus value={interacaoDraft} onChange={e => setInteracaoDraft(e.target.value)} rows={3} className="w-full px-2 py-1 text-[11px] border rounded" style={SECTION_STYLE} />
+          <div className="flex gap-1.5 mt-1.5">
+            <button onClick={() => setEditingInteracaoId(null)} className="flex-1 px-2 py-1 text-[10.5px] border rounded" style={SECTION_STYLE}>Cancelar</button>
+            <button onClick={() => saveInteracaoEdit(h.id)} className="flex-1 px-2 py-1 text-[10.5px] text-white rounded font-semibold" style={{ background: "#009AAC" }}>Salvar</button>
+          </div>
+        </div>
+      );
+    }
+    const Tag: any = h.href ? Link : "div";
+    const tagProps: any = h.href ? { href: h.href, target: "_blank" } : {};
+    return (
+      <Tag key={h.id} {...tagProps} className="flex items-start gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 transition border group" style={{ borderColor: "#F0EBE0" }}>
+        <div className="flex-1 min-w-0">
+          <div className="text-[11px] font-semibold flex items-center gap-1 flex-wrap" style={{ color: "#014D5E" }}>
+            {h.tipoLabel || h.title}
+            <span className={`text-[8.5px] px-1.5 py-0.5 rounded font-bold uppercase ${h.fase === "LEAD" ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"}`}>{h.fase}</span>
+          </div>
+          <div className="text-[10.5px] text-gray-500 truncate">{h.subtitle}</div>
+        </div>
+        {isInteracao && (
+          <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditingInteracaoId(h.id); setInteracaoDraft(h.subtitle); }} className="text-[10px] text-gray-400 hover:text-[#009AAC] opacity-0 group-hover:opacity-100 flex-shrink-0" title="Editar interação">✏</button>
+        )}
+        <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); excluirHistorico(h); }} className="text-gray-300 hover:text-[#A32D2D] opacity-0 group-hover:opacity-100 flex-shrink-0" title="Excluir atendimento"><LuTrash size={11} /></button>
+      </Tag>
+    );
   }
 
   async function selectTutor(t: Tutor) {
@@ -1392,40 +1434,40 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                     Nenhum atendimento ainda
                   </div>
                 ) : (
-                  <div className="space-y-1">
-                    {historico.map(h => {
-                      const isInteracao = h.type === "INTERACAO";
-                      const isEditing = editingInteracaoId === h.id;
-                      if (isEditing) {
+                  <div className="space-y-2">
+                    {(() => {
+                      const byDay: Record<string, HistoricoItem[]> = {};
+                      const order: string[] = [];
+                      historico.forEach(h => { const k = fmtDate(h.date); if (!byDay[k]) { byDay[k] = []; order.push(k); } byDay[k].push(h); });
+                      return order.map(day => {
+                        const its = byDay[day];
+                        const autos = its.filter(x => x.auto && x.type === "INTERACAO");
+                        const outros = its.filter(x => !(x.auto && x.type === "INTERACAO"));
                         return (
-                          <div key={h.id} className="rounded-lg p-2 border" style={{ background: "#f6fdfd", borderColor: "#E8DFC8" }}>
-                            <div className="text-[10px] font-semibold mb-1" style={{ color: "#014D5E" }}>{h.title}</div>
-                            <textarea autoFocus value={interacaoDraft} onChange={e => setInteracaoDraft(e.target.value)} rows={3} className="w-full px-2 py-1 text-[11px] border rounded" style={SECTION_STYLE} />
-                            <div className="flex gap-1.5 mt-1.5">
-                              <button onClick={() => setEditingInteracaoId(null)} className="flex-1 px-2 py-1 text-[10.5px] border rounded" style={SECTION_STYLE}>Cancelar</button>
-                              <button onClick={() => saveInteracaoEdit(h.id)} className="flex-1 px-2 py-1 text-[10.5px] text-white rounded font-semibold" style={{ background: "#009AAC" }}>Salvar</button>
+                          <div key={day}>
+                            <div className="flex items-center gap-1.5 mb-1 mt-0.5">
+                              <span className="text-[9.5px] font-bold uppercase text-gray-400 flex-shrink-0">{day}</span>
+                              <div className="flex-1 h-px" style={{ background: "#F0EBE0" }} />
+                              <span className="text-[9px] text-gray-300 flex-shrink-0">{its.length}</span>
+                            </div>
+                            <div className="space-y-1">
+                              {outros.map(h => renderHistItem(h))}
+                              {autos.length === 1 && renderHistItem(autos[0])}
+                              {autos.length > 1 && (
+                                <div>
+                                  <button type="button" onClick={() => setHistWaOpen(stt => ({ ...stt, [day]: !stt[day] }))} className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg border text-left" style={{ borderColor: "#F0EBE0", background: "#f6fdfd" }}>
+                                    <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: "#22c55e" }} />
+                                    <span className="text-[11px] font-semibold flex-1" style={{ color: "#014D5E" }}>WhatsApp · {autos.length} contatos automáticos</span>
+                                    <span className="text-[10px] text-gray-400 flex-shrink-0">{histWaOpen[day] ? "▴" : "▾"}</span>
+                                  </button>
+                                  {histWaOpen[day] && <div className="space-y-1 mt-1 pl-2">{autos.map(h => renderHistItem(h))}</div>}
+                                </div>
+                              )}
                             </div>
                           </div>
                         );
-                      }
-                      const Tag: any = h.href ? Link : "div";
-                      const tagProps: any = h.href ? { href: h.href, target: "_blank" } : {};
-                      return (
-                        <Tag key={h.id} {...tagProps} className="flex items-start gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 transition border group" style={{ borderColor: "#F0EBE0" }}>
-                          <div className="flex-1 min-w-0">
-                            <div className="text-[11px] font-semibold flex items-center gap-1 flex-wrap" style={{ color: "#014D5E" }}>
-                              {h.title}
-                              <span className={`text-[8.5px] px-1.5 py-0.5 rounded font-bold uppercase ${h.fase === "LEAD" ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"}`}>{h.fase}</span>
-                            </div>
-                            <div className="text-[10.5px] text-gray-500 truncate">{h.subtitle}</div>
-                          </div>
-                          {isInteracao && (
-                            <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditingInteracaoId(h.id); setInteracaoDraft(h.subtitle); }} className="text-[10px] text-gray-400 hover:text-[#009AAC] opacity-0 group-hover:opacity-100 flex-shrink-0" title="Editar interação">✏</button>
-                          )}
-                          <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); excluirHistorico(h); }} className="text-gray-300 hover:text-[#A32D2D] opacity-0 group-hover:opacity-100 flex-shrink-0" title="Excluir atendimento"><LuTrash size={11} /></button>
-                        </Tag>
-                      );
-                    })}
+                      });
+                    })()}
                   </div>
                 )}
               </section>
