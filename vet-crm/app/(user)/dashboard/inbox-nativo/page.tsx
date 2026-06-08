@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import {
-  LuPlus, LuSearch, LuUserPlus, LuPencil, LuPhone, LuCalendar, LuInbox} from "react-icons/lu";
+  LuPlus, LuSearch, LuUserPlus, LuPencil, LuPhone, LuCalendar, LuInbox, LuTrash} from "react-icons/lu";
   import InboxRightPanel from "@/components/inbox/InboxRightPanel";
   import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 type Tab = "conversas" | "internas" | "encaminhadas";
@@ -404,6 +404,11 @@ export default function InboxUnificadoPage() {
     } catch { window.alert("Erro ao enviar. Tente novamente."); }
   };
 
+  const excluirNotaInterna = async (id: string) => {
+    if (!window.confirm("Excluir esta mensagem interna?")) return;
+    try { await fetch(`/api/internal-notes/${id}`, { method: "DELETE" }); setRefreshTick((t) => t + 1); } catch { window.alert("Erro ao excluir."); }
+  };
+
   const abrirNotaInterna = async (n: any) => {
     setInternasNoteSel(n.id);
     setInternasCompose(false);
@@ -778,7 +783,10 @@ export default function InboxUnificadoPage() {
                     {c.msgs.map((m: any) => (
                       <div key={m.id} className={`max-w-[75%] ${m.mine ? "self-end" : "self-start"}`}>
                         <div className={`px-3 py-2 rounded-xl text-sm whitespace-pre-wrap ${m.mine ? "bg-[#009AAC] text-white rounded-br-sm" : "bg-[#f0f3f4] text-[#0E2244] rounded-bl-sm"}`}>{m.content}</div>
-                        <div className={`text-[9.5px] text-[#94a3b8] mt-0.5 ${m.mine ? "text-right" : ""}`}>{(() => { try { return new Date(m.createdAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }); } catch { return ""; } })()}</div>
+                        <div className={`text-[9.5px] text-[#94a3b8] mt-0.5 flex items-center gap-1.5 ${m.mine ? "justify-end" : ""}`}>
+                          <span>{(() => { try { return new Date(m.createdAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }); } catch { return ""; } })()}</span>
+                          {String(m.id || "").indexOf("local_") !== 0 && <button onClick={() => excluirNotaInterna(m.id)} title="Excluir" className="text-[#cbd5e1] hover:text-[#A32D2D]"><LuTrash className="w-2.5 h-2.5" /></button>}
+                        </div>
                       </div>
                     ))}
                   </div>
