@@ -817,3 +817,9 @@ body[data-theme='dark'] .rounded-3xl.shadow-sm {
 .text-orange-600 { color: #8A5A0F !important; }
 .text-orange-700 { color: #B25C0A !important; }
 .text-orange-800 { color: #633806 !important; }
+
+/* [EMP-COWORK] Telas acompanham o zoom / ocupam a largura toda (Cintia 07/06).
+   Tira o teto de largura do wrapper das páginas do dashboard e do card do Inbox,
+   sem afetar modais/forms (que usam max-w menores). */
+.dash-main .max-w-7xl { max-width: none !important; }
+.dash-main .max-w-\[1400px\] { max-width: none !important; }
