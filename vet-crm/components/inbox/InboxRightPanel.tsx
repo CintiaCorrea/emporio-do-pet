@@ -571,6 +571,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
     try {
       await fetch(`/api/listas`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lista: `petpac_${selectedPet.id}`, valor: JSON.stringify({ serviceId: srv.id, nome: srv.nome || srv.titulo || srv.descricao, total, used: 0, createdAt: new Date().toISOString() }) }) });
       toast.success("Pacote criado");
+      try { await fetch(`/api/pets/${selectedPet.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pipelineFisioEtapa: "Pacote em andamento" }) }); setPets(ps => ps.map(pp => pp.id === selectedPet.id ? ({ ...pp, pipelineFisioEtapa: "Pacote em andamento" } as Pet) : pp)); setSelectedPet(sp => sp && sp.id === selectedPet.id ? ({ ...sp, pipelineFisioEtapa: "Pacote em andamento" } as Pet) : sp); } catch {}
       setPacFormInbox({ open: false, serviceId: "", total: "4" });
       await loadPacotesInbox(selectedPet.id);
     } catch { toast.error("Erro ao criar pacote"); } finally { setSavingPacInbox(false); }
@@ -587,7 +588,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
         const ultima = used === total;
         const texto = ultima ? `⚠ Pacote "${pk.data.nome}": ÚLTIMA sessão usada (${used}/${total}). Verificar renovação com o cliente.` : `⚠ Pacote "${pk.data.nome}": penúltima sessão (${used}/${total}). Avaliar renovação.`;
         try { await fetch(`/api/interacoes`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ petId: selectedPet.id, tipo: "NOTA", texto, canal: "Sistema" }) }); } catch {}
-        try { await fetch(`/api/pets/${selectedPet.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ proximoFollowupAt: new Date().toISOString() }) }); } catch {}
+        try { await fetch(`/api/pets/${selectedPet.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ proximoFollowupAt: new Date().toISOString(), ...(ultima ? { pipelineFisioEtapa: "Reavaliação" } : {}) }) }); if (ultima) { setPets(ps => ps.map(pp => pp.id === selectedPet.id ? ({ ...pp, pipelineFisioEtapa: "Reavaliação" } as Pet) : pp)); setSelectedPet(sp => sp && sp.id === selectedPet.id ? ({ ...sp, pipelineFisioEtapa: "Reavaliação" } as Pet) : sp); } } catch {}
         toast(ultima ? "🎉 Pacote concluído!" : "⏳ Penúltima sessão — avaliar renovação");
       }
     } catch { toast.error("Erro ao registrar sessão"); }
