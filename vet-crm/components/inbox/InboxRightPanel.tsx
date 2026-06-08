@@ -230,6 +230,22 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
   // Pet de interesse no Lead (novo)
   const [leadPetNome, setLeadPetNome] = useState("");
   const [leadPetEspecie, setLeadPetEspecie] = useState("Cão");
+  const [pipeDyn, setPipeDyn] = useState<{ comercial: string[]; clinico: string[]; fisio: string[] }>({ comercial: [], clinico: [], fisio: [] });
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await fetch("/api/pipelines", { cache: "no-store" });
+        const d = await r.json();
+        const arr = Array.isArray(d) ? d : (d.pipelines || d.data || []);
+        const pick = (test: (x: any) => boolean) => { const p = arr.find((x: any) => test(x) && x.ativo !== false); return p ? (p.estagios || []).slice().sort((a: any, b: any) => (a.ordem || 0) - (b.ordem || 0)).map((e: any) => e.nome) : []; };
+        setPipeDyn({
+          comercial: pick((x) => x.escopo === "LEAD" || (x.nome || "").toLowerCase().includes("comercial")),
+          clinico: pick((x) => (x.nome || "").toLowerCase().includes("clín") || (x.nome || "").toLowerCase().includes("clin")),
+          fisio: pick((x) => (x.nome || "").toLowerCase().includes("fisio")),
+        });
+      } catch {}
+    })();
+  }, []);
 
   useEffect(() => {
     fetch("/api/inbox/context/staff").then(r => r.json()).then(d => setStaff(Array.isArray(d) ? d : [])).catch(() => {});
@@ -1100,7 +1116,8 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                   <span className="text-[9.5px] font-bold uppercase text-gray-400 whitespace-nowrap">Pipeline comercial</span>
                   <select value={lead.pipelineComercialEtapa || ""} onChange={e => updateLeadEtapa(e.target.value)} className="flex-1 text-[10.5px] px-2 py-1 border rounded-lg font-medium" style={{ borderColor: "#009AAC", color: "#014D5E", background: "white" }}>
                     <option value="">— selecionar etapa —</option>
-                    {PIPELINE_COMERCIAL.map(e => <option key={e} value={e}>{e}</option>)}
+                    {lead.pipelineComercialEtapa && !(pipeDyn.comercial.length ? pipeDyn.comercial : PIPELINE_COMERCIAL).includes(lead.pipelineComercialEtapa) && <option value={lead.pipelineComercialEtapa}>{lead.pipelineComercialEtapa}</option>}
+                    {(pipeDyn.comercial.length ? pipeDyn.comercial : PIPELINE_COMERCIAL).map(e => <option key={e} value={e}>{e}</option>)}
                   </select>
                 </div>
                 {/* PET DE INTERESSE */}
@@ -1184,14 +1201,16 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                                   <span className="text-[8.5px] font-bold px-1.5 py-0.5 rounded" style={{ background: "#fef3c7", color: "#92400e", minWidth: 28, textAlign: "center" }}>CLI</span>
                                   <select value={p.pipelineClinicoEtapa || ""} onChange={e => updatePetEtapa("pipelineClinicoEtapa", e.target.value)} className="flex-1 text-[10.5px] px-2 py-1 border rounded font-medium" style={{ borderColor: "#fef3c7", color: "#014D5E", background: "white" }}>
                                     <option value="">— sem etapa —</option>
-                                    {PIPELINE_CLINICO.map(et => <option key={et} value={et}>{et}</option>)}
+                                    {p.pipelineClinicoEtapa && !(pipeDyn.clinico.length ? pipeDyn.clinico : PIPELINE_CLINICO).includes(p.pipelineClinicoEtapa) && <option value={p.pipelineClinicoEtapa}>{p.pipelineClinicoEtapa}</option>}
+                                    {(pipeDyn.clinico.length ? pipeDyn.clinico : PIPELINE_CLINICO).map(et => <option key={et} value={et}>{et}</option>)}
                                   </select>
                                 </div>
                                 <div className="flex items-center gap-1.5">
                                   <span className="text-[8.5px] font-bold px-1.5 py-0.5 rounded" style={{ background: "#ede9fe", color: "#5b21b6", minWidth: 28, textAlign: "center" }}>FIS</span>
                                   <select value={p.pipelineFisioEtapa || ""} onChange={e => updatePetEtapa("pipelineFisioEtapa", e.target.value)} className="flex-1 text-[10.5px] px-2 py-1 border rounded font-medium" style={{ borderColor: "#ede9fe", color: "#014D5E", background: "white" }}>
                                     <option value="">— sem etapa —</option>
-                                    {PIPELINE_FISIO.map(et => <option key={et} value={et}>{et}</option>)}
+                                    {p.pipelineFisioEtapa && !(pipeDyn.fisio.length ? pipeDyn.fisio : PIPELINE_FISIO).includes(p.pipelineFisioEtapa) && <option value={p.pipelineFisioEtapa}>{p.pipelineFisioEtapa}</option>}
+                                    {(pipeDyn.fisio.length ? pipeDyn.fisio : PIPELINE_FISIO).map(et => <option key={et} value={et}>{et}</option>)}
                                   </select>
                                 </div>
                               </div>
