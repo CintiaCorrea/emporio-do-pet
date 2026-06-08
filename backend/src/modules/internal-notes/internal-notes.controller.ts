@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -27,5 +27,10 @@ export class InternalNotesController {
   @Patch(':id/read')
   markRead(@Param('id') id: string) {
     return this.service.markRead(id);
+  }
+
+  @Delete(':id')
+  remove(@Param('id') id: string) {
+    return this.service.remove(id);
   }
 }

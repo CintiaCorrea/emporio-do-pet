@@ -35,4 +35,8 @@ export class InternalNotesService {
       data: { readAt: new Date() },
     });
   }
+
+  async remove(id: string) {
+    return this.prisma.internalNote.delete({ where: { id } });
+  }
 }
