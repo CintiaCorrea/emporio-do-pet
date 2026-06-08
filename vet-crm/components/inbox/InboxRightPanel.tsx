@@ -192,7 +192,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
   const [breedOptions, setBreedOptions] = useState<string[]>([]);
   const [pacotesInbox, setPacotesInbox] = useState<{ id: string; data: any }[]>([]);
   const [fisioSrvInbox, setFisioSrvInbox] = useState<any[]>([]);
-  const [pacFormInbox, setPacFormInbox] = useState<{ open: boolean; serviceId: string; total: string }>({ open: false, serviceId: "", total: "4" });
+  const [pacFormInbox, setPacFormInbox] = useState<{ open: boolean; serviceId: string; total: string; jaFeitas: string }>({ open: false, serviceId: "", total: "4", jaFeitas: "0" });
   const [savingPacInbox, setSavingPacInbox] = useState(false);
   const [cadAberto, setCadAberto] = useState<Record<string, boolean>>({});
   useEffect(() => {
@@ -579,10 +579,10 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
     const total = Number(pacFormInbox.total) || 0; if (total <= 0) { toast.error("Informe o total de sessões"); return; }
     setSavingPacInbox(true);
     try {
-      await fetch(`/api/listas`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lista: `petpac_${selectedPet.id}`, valor: JSON.stringify({ serviceId: srv.id, nome: srv.nome || srv.titulo || srv.descricao, total, used: 0, createdAt: new Date().toISOString() }) }) });
+      await fetch(`/api/listas`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lista: `petpac_${selectedPet.id}`, valor: JSON.stringify({ serviceId: srv.id, nome: srv.nome || srv.titulo || srv.descricao, total, used: Math.min(Math.max(Number(pacFormInbox.jaFeitas) || 0, 0), total), createdAt: new Date().toISOString() }) }) });
       toast.success("Pacote criado");
       try { await fetch(`/api/pets/${selectedPet.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pipelineFisioEtapa: "Pacote em andamento" }) }); setPets(ps => ps.map(pp => pp.id === selectedPet.id ? ({ ...pp, pipelineFisioEtapa: "Pacote em andamento" } as Pet) : pp)); setSelectedPet(sp => sp && sp.id === selectedPet.id ? ({ ...sp, pipelineFisioEtapa: "Pacote em andamento" } as Pet) : sp); } catch {}
-      setPacFormInbox({ open: false, serviceId: "", total: "4" });
+      setPacFormInbox({ open: false, serviceId: "", total: "4", jaFeitas: "0" });
       await loadPacotesInbox(selectedPet.id);
     } catch { toast.error("Erro ao criar pacote"); } finally { setSavingPacInbox(false); }
   }
@@ -612,7 +612,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
   }, []);
   useEffect(() => {
     if (selectedPet?.id) loadPacotesInbox(selectedPet.id);
-    else { setPacotesInbox([]); setPacFormInbox({ open: false, serviceId: "", total: "4" }); }
+    else { setPacotesInbox([]); setPacFormInbox({ open: false, serviceId: "", total: "4", jaFeitas: "0" }); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPet?.id]);
   async function updateTutorEstado(value: string) {
@@ -1290,13 +1290,23 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                                   <button type="button" onClick={() => setPacFormInbox(fm => ({ ...fm, open: !fm.open }))} className="text-[10px] font-medium" style={{ color: "#009AAC" }}><LuPlus size={9} className="inline" /> pacote</button>
                                 </div>
                                 {pacFormInbox.open && (
-                                  <div className="border rounded-lg p-2 mb-1.5 flex items-end gap-1.5" style={{ borderColor: "#E8DFC8" }}>
-                                    <select value={pacFormInbox.serviceId} onChange={e => setPacFormInbox(fm => ({ ...fm, serviceId: e.target.value }))} className="flex-1 text-[10px] px-1.5 py-1 border rounded" style={{ borderColor: "#E8DFC8" }}>
-                                      <option value="">— serviço fisio —</option>
+                                  <div className="border rounded-lg p-2 mb-1.5" style={{ borderColor: "#009AAC", background: "#f5fdfe" }}>
+                                    <div className="text-[9px] font-bold uppercase mb-1" style={{ color: "#009AAC" }}>Novo pacote</div>
+                                    <select value={pacFormInbox.serviceId} onChange={e => setPacFormInbox(fm => ({ ...fm, serviceId: e.target.value }))} className="w-full text-[10px] px-1.5 py-1 border rounded mb-1.5" style={{ borderColor: "#cfe2e6", background: "white" }}>
+                                      <option value="">— serviço de fisioterapia —</option>
                                       {fisioSrvInbox.map((srv: any) => <option key={srv.id} value={srv.id}>{srv.nome || srv.titulo || srv.descricao}</option>)}
                                     </select>
-                                    <input type="number" min="1" value={pacFormInbox.total} onChange={e => setPacFormInbox(fm => ({ ...fm, total: e.target.value }))} className="w-12 text-[10px] px-1.5 py-1 border rounded" style={{ borderColor: "#E8DFC8" }} />
-                                    <button onClick={addPacoteInbox} disabled={savingPacInbox} className="px-2 py-1 rounded text-[10px] text-white" style={{ background: "#009AAC" }}>{savingPacInbox ? "..." : "ok"}</button>
+                                    <div className="flex gap-1.5 mb-1.5">
+                                      <div className="flex-1">
+                                        <div className="text-[8.5px] text-gray-500 mb-0.5">Total de sessões</div>
+                                        <input type="number" min="1" value={pacFormInbox.total} onChange={e => setPacFormInbox(fm => ({ ...fm, total: e.target.value }))} className="w-full text-[10px] px-1.5 py-1 border rounded" style={{ borderColor: "#cfe2e6", background: "white" }} />
+                                      </div>
+                                      <div className="flex-1">
+                                        <div className="text-[8.5px] text-gray-500 mb-0.5">Já feitas</div>
+                                        <input type="number" min="0" value={pacFormInbox.jaFeitas} onChange={e => setPacFormInbox(fm => ({ ...fm, jaFeitas: e.target.value }))} className="w-full text-[10px] px-1.5 py-1 border rounded" style={{ borderColor: "#1D9E75", background: "white", color: "#0F6E56" }} />
+                                      </div>
+                                    </div>
+                                    <button onClick={addPacoteInbox} disabled={savingPacInbox} className="w-full px-2 py-1.5 rounded text-[10.5px] text-white font-semibold" style={{ background: "#009AAC" }}>{savingPacInbox ? "Criando..." : "Criar pacote"}</button>
                                   </div>
                                 )}
                                 {pacotesInbox.length === 0 ? (
