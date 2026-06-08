@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import {
   LuPlus, LuSearch, LuUserPlus, LuPencil, LuPhone, LuCalendar, LuInbox} from "react-icons/lu";
@@ -95,6 +96,8 @@ export default function InboxUnificadoPage() {
   const [tutor, setTutor] = useState<TutorFull | null>(null);
   const [selectedPetId, setSelectedPetId] = useState<string | null>(null);
   const [refreshTick, setRefreshTick] = useState(0);
+  const { data: __session } = useSession();
+  const meId = (__session as any)?.user?.id as string | undefined;
 
   // Modais
   const [novaMsgOpen, setNovaMsgOpen] = useState(false);
@@ -123,7 +126,6 @@ export default function InboxUnificadoPage() {
   const [internasNoteSel, setInternasNoteSel] = useState<string | null>(null);
   const [internasConvSel, setInternasConvSel] = useState<string | null>(null);
   const [internasReply, setInternasReply] = useState("");
-  const [internasSentLocal, setInternasSentLocal] = useState<any[]>([]);
   const [internasCompose, setInternasCompose] = useState(false);
 
   // Adicionar atendimento
@@ -367,21 +369,19 @@ export default function InboxUnificadoPage() {
   const internasConversas = useMemo(() => {
     const map: Record<string, any> = {};
     for (const n of internasRecebidas) {
-      const uid = n.fromUserId || n.fromUser?.id || "_";
-      if (!map[uid]) map[uid] = { userId: uid, name: n.fromUser?.name || "Colega", msgs: [], unread: 0 };
-      map[uid].msgs.push({ ...n, mine: false });
-      if (!n.readAt) map[uid].unread++;
-    }
-    for (const sm of internasSentLocal) {
-      const uid = sm.toUserId;
-      if (!map[uid]) map[uid] = { userId: uid, name: sm.toName || "Colega", msgs: [], unread: 0 };
-      map[uid].msgs.push({ ...sm, mine: true });
+      const mine = !!meId && (n.fromUserId === meId || n.fromUser?.id === meId);
+      const otherId = mine ? (n.toUserId || n.toUser?.id) : (n.fromUserId || n.fromUser?.id);
+      const otherName = mine ? (n.toUser?.name || "Colega") : (n.fromUser?.name || "Colega");
+      if (!otherId) continue;
+      if (!map[otherId]) map[otherId] = { userId: otherId, name: otherName, msgs: [], unread: 0 };
+      map[otherId].msgs.push({ ...n, mine });
+      if (!mine && !n.readAt) map[otherId].unread++;
     }
     const arr: any[] = Object.values(map);
     for (const c of arr) c.msgs.sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
     arr.sort((a, b) => new Date(b.msgs[b.msgs.length - 1]?.createdAt || 0).getTime() - new Date(a.msgs[a.msgs.length - 1]?.createdAt || 0).getTime());
     return arr;
-  }, [internasRecebidas, internasSentLocal]);
+  }, [internasRecebidas, meId]);
 
   const abrirConversaInterna = async (c: any) => {
     setInternasConvSel(c.userId);
@@ -393,15 +393,14 @@ export default function InboxUnificadoPage() {
     }
   };
 
-  const enviarRespostaInterna = async (toUserId?: string | null, toName?: string) => {
+  const enviarRespostaInterna = async (toUserId?: string | null) => {
     const alvo = toUserId || internasConvSel;
     const txt = internasReply.trim();
     if (!txt || !alvo) return;
-    const conv = internasConversas.find((c) => c.userId === alvo);
     try {
       await fetch("/api/internal-notes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ toUserId: alvo, content: txt }) });
-      setInternasSentLocal((prev) => [...prev, { id: "local_" + Date.now(), toUserId: alvo, toName: conv?.name || toName, content: txt, createdAt: new Date().toISOString() }]);
       setInternasReply("");
+      setRefreshTick((t) => t + 1);
     } catch { window.alert("Erro ao enviar. Tente novamente."); }
   };
 
@@ -430,10 +429,12 @@ export default function InboxUnificadoPage() {
           toUserId: internalSelected,
           content: internalNote.trim(),
           conversationId: selectedId || null})});
+      const alvo = internalSelected;
       setInternalNote("");
       setInternalSelected(null);
       setInternasCompose(false);
-      alert("Nota enviada!");
+      setInternasConvSel(alvo);
+      setRefreshTick((t) => t + 1);
     } catch (e) { console.error(e); alert("Erro ao enviar. Tente novamente."); }
   };
 
@@ -519,7 +520,7 @@ export default function InboxUnificadoPage() {
         </button>
         <button onClick={() => setTab("internas")} className={`py-2.5 text-xs font-medium border-b-2 flex items-center gap-1.5 ${tab === "internas" ? "border-[#009AAC] text-[#0E2244]" : "border-transparent text-[#888780]"}`}>
           Internas
-          <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${tab === "internas" ? "bg-[#FEF3C7] text-[#A16207]" : "bg-[#f0e8d4] text-[#5F5E5A]"}`}>{internasRecebidas.filter((n: any) => !n.readAt).length}</span>
+          <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${tab === "internas" ? "bg-[#FEF3C7] text-[#A16207]" : "bg-[#f0e8d4] text-[#5F5E5A]"}`}>{internasRecebidas.filter((n: any) => n.toUserId === meId && !n.readAt).length}</span>
         </button>
         <button onClick={() => setTab("encaminhadas")} className={`py-2.5 text-xs font-medium border-b-2 ${tab === "encaminhadas" ? "border-[#009AAC] text-[#0E2244]" : "border-transparent text-[#888780]"}`}>
           Encaminhadas
