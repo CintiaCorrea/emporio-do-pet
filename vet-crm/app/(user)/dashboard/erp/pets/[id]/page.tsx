@@ -94,7 +94,7 @@ export default function PetDetailPage() {
   const [savingCad, setSavingCad] = useState(false);
   const [pacotes, setPacotes] = useState<{ id: string; data: any }[]>([]);
   const [fisioSrv, setFisioSrv] = useState<any[]>([]);
-  const [pacForm, setPacForm] = useState<{ open: boolean; serviceId: string; total: string }>({ open: false, serviceId: "", total: "4" });
+  const [pacForm, setPacForm] = useState<{ open: boolean; serviceId: string; total: string; jaFeitas: string }>({ open: false, serviceId: "", total: "4", jaFeitas: "0" });
   const [savingPac, setSavingPac] = useState(false);
   const [exames, setExames] = useState<{ id: string; data: any }[]>([]);
   const [exCat, setExCat] = useState<any[]>([]);
@@ -218,7 +218,7 @@ export default function PetDetailPage() {
     if (!srv) { toast.error("Escolha um serviço de fisioterapia"); return; }
     const total = Number(pacForm.total) || 0; if (total <= 0) { toast.error("Informe o total de sessões"); return; }
     setSavingPac(true);
-    try { await listasAdd(`petpac_${petId}`, JSON.stringify({ serviceId: srv.id, nome: srv.nome || srv.titulo || srv.descricao, total, used: 0, createdAt: new Date().toISOString() })); toast.success("Pacote criado"); setPacForm({ open: false, serviceId: "", total: "4" }); await loadPetColecoes(); try { await patchPet({ pipelineFisioEtapa: "Pacote em andamento" }); await load(); } catch {} } catch { toast.error("Erro ao criar pacote"); } finally { setSavingPac(false); }
+    try { await listasAdd(`petpac_${petId}`, JSON.stringify({ serviceId: srv.id, nome: srv.nome || srv.titulo || srv.descricao, total, used: Math.min(Math.max(Number(pacForm.jaFeitas) || 0, 0), total), createdAt: new Date().toISOString() })); toast.success("Pacote criado"); setPacForm({ open: false, serviceId: "", total: "4", jaFeitas: "0" }); await loadPetColecoes(); try { await patchPet({ pipelineFisioEtapa: "Pacote em andamento" }); await load(); } catch {} } catch { toast.error("Erro ao criar pacote"); } finally { setSavingPac(false); }
   }
   async function usarSessao(p: { id: string; data: any }) {
     const total = p.data.total || 0;
@@ -499,7 +499,8 @@ export default function PetDetailPage() {
                         {fisioSrv.map((srv: any) => <option key={srv.id} value={srv.id}>{srv.nome || srv.titulo || srv.descricao}</option>)}
                       </select>
                     </div>
-                    <div className="w-24"><label className="text-xs text-gray-500">Sessões</label><input type="number" min="1" value={pacForm.total} onChange={(e) => setPacForm(f => ({ ...f, total: e.target.value }))} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg text-xs" style={{ borderColor: "#E8DFC8" }} /></div>
+                    <div className="w-20"><label className="text-xs text-gray-500">Total</label><input type="number" min="1" value={pacForm.total} onChange={(e) => setPacForm(f => ({ ...f, total: e.target.value }))} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg text-xs" style={{ borderColor: "#E8DFC8" }} /></div>
+                    <div className="w-24"><label className="text-xs text-gray-500">Já feitas</label><input type="number" min="0" value={pacForm.jaFeitas} onChange={(e) => setPacForm(f => ({ ...f, jaFeitas: e.target.value }))} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg text-xs" style={{ borderColor: "#1D9E75", color: "#0F6E56" }} /></div>
                     <button onClick={addPacote} disabled={savingPac} className="px-3 py-1.5 rounded-lg text-xs text-white" style={{ background: "#009AAC" }}>{savingPac ? "..." : "Criar"}</button>
                   </div>
                 )}
