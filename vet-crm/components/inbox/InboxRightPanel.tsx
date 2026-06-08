@@ -190,6 +190,11 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
   const [pets, setPets] = useState<Pet[]>([]);
   const [selectedPet, setSelectedPet] = useState<Pet | null>(null);
   const [breedOptions, setBreedOptions] = useState<string[]>([]);
+  const [pacotesInbox, setPacotesInbox] = useState<{ id: string; data: any }[]>([]);
+  const [fisioSrvInbox, setFisioSrvInbox] = useState<any[]>([]);
+  const [pacFormInbox, setPacFormInbox] = useState<{ open: boolean; serviceId: string; total: string }>({ open: false, serviceId: "", total: "4" });
+  const [savingPacInbox, setSavingPacInbox] = useState(false);
+  const [cadAberto, setCadAberto] = useState<Record<string, boolean>>({});
   useEffect(() => {
     if (!selectedPet) { setBreedOptions([]); return; }
     let cancelled = false;
@@ -548,6 +553,57 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
     setPets(pets.map(p => p.id === petId ? ({ ...p, ...patch } as Pet) : p));
     setSelectedPet(selectedPet && selectedPet.id === petId ? ({ ...selectedPet, ...patch } as Pet) : selectedPet);
   }
+
+  async function loadPacotesInbox(pid: string) {
+    try {
+      const r = await fetch(`/api/listas?lista=${encodeURIComponent("petpac_" + pid)}`, { cache: "no-store" });
+      const d = await r.json();
+      const arr = Array.isArray(d) ? d : (d.itens || d.data || []);
+      setPacotesInbox(arr.map((i: any) => { let dd: any = {}; try { dd = JSON.parse(i.valor); } catch {} return { id: i.id, data: dd }; }));
+    } catch { setPacotesInbox([]); }
+  }
+  async function addPacoteInbox() {
+    if (!selectedPet) return;
+    const srv = fisioSrvInbox.find((x: any) => String(x.id) === pacFormInbox.serviceId);
+    if (!srv) { toast.error("Escolha um serviço de fisioterapia"); return; }
+    const total = Number(pacFormInbox.total) || 0; if (total <= 0) { toast.error("Informe o total de sessões"); return; }
+    setSavingPacInbox(true);
+    try {
+      await fetch(`/api/listas`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lista: `petpac_${selectedPet.id}`, valor: JSON.stringify({ serviceId: srv.id, nome: srv.nome || srv.titulo || srv.descricao, total, used: 0, createdAt: new Date().toISOString() }) }) });
+      toast.success("Pacote criado");
+      setPacFormInbox({ open: false, serviceId: "", total: "4" });
+      await loadPacotesInbox(selectedPet.id);
+    } catch { toast.error("Erro ao criar pacote"); } finally { setSavingPacInbox(false); }
+  }
+  async function usarSessaoInbox(pk: { id: string; data: any }) {
+    if (!selectedPet) return;
+    const total = pk.data.total || 0;
+    const used = Math.min((pk.data.used || 0) + 1, total);
+    try {
+      const r = await fetch(`/api/listas/${pk.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ valor: JSON.stringify({ ...pk.data, used }) }) });
+      if (!r.ok) throw new Error();
+      await loadPacotesInbox(selectedPet.id);
+      if (used === total || (total > 1 && used === total - 1)) {
+        const ultima = used === total;
+        const texto = ultima ? `⚠ Pacote "${pk.data.nome}": ÚLTIMA sessão usada (${used}/${total}). Verificar renovação com o cliente.` : `⚠ Pacote "${pk.data.nome}": penúltima sessão (${used}/${total}). Avaliar renovação.`;
+        try { await fetch(`/api/interacoes`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ petId: selectedPet.id, tipo: "NOTA", texto, canal: "Sistema" }) }); } catch {}
+        try { await fetch(`/api/pets/${selectedPet.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ proximoFollowupAt: new Date().toISOString() }) }); } catch {}
+        toast(ultima ? "🎉 Pacote concluído!" : "⏳ Penúltima sessão — avaliar renovação");
+      }
+    } catch { toast.error("Erro ao registrar sessão"); }
+  }
+  async function delPacoteInbox(id: string) {
+    if (!selectedPet) return;
+    try { await fetch(`/api/listas/${id}`, { method: "DELETE" }); toast.success("Pacote removido"); await loadPacotesInbox(selectedPet.id); } catch { toast.error("Erro"); }
+  }
+  useEffect(() => {
+    (async () => { try { const r = await fetch(`/api/servicos/itens`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.itens || d.data || d.servicos || []); setFisioSrvInbox(arr.filter((srv: any) => JSON.stringify(srv).toLowerCase().includes("fisio"))); } catch {} })();
+  }, []);
+  useEffect(() => {
+    if (selectedPet?.id) loadPacotesInbox(selectedPet.id);
+    else { setPacotesInbox([]); setPacFormInbox({ open: false, serviceId: "", total: "4" }); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedPet?.id]);
   async function updateTutorEstado(value: string) {
     if (!tutor) return;
     const res = await fetch(`/api/tutors/${tutor.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ estadoRelacionamento: value }) });
@@ -1157,7 +1213,9 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                           </button>
                           {active && (
                             <div className="px-2 pb-2 pt-1 border-t" style={{ borderColor: "#cfe8eb" }}>
-                              <div className="space-y-1 text-[10.5px] mb-2 mt-1">
+                              {(() => { const cadCompleto = !!(p.gender && p.breed && p.birthDate); const aberto = cadAberto[p.id] ?? !cadCompleto; return (<>
+                              <button type="button" onClick={() => setCadAberto(st => ({ ...st, [p.id]: !(st[p.id] ?? !cadCompleto) }))} className="w-full flex items-center justify-between text-[9.5px] font-bold uppercase text-gray-400 mb-1 mt-1"><span>Dados do pet{cadCompleto ? "" : " · completar"}</span><span>{aberto ? "▴" : "▾"}</span></button>
+                              {aberto && (<div className="space-y-1 text-[10.5px] mb-2">
                                 <div className="flex items-center gap-1.5">
                                   <span className="text-gray-400 w-12 flex-shrink-0">Nome</span>
                                   <input defaultValue={p.name === "Sem nome" ? "" : p.name} placeholder="Nome do pet" onBlur={e => { const v = e.target.value.trim(); if (v && v !== p.name) savePetField(p.id, { name: v }); }} className="flex-1 text-[10.5px] px-2 py-1 border rounded" style={{ borderColor: "#cfe8eb", color: "#014D5E" }} />
@@ -1195,7 +1253,8 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                                   <input type="date" defaultValue={p.birthDate ? String(p.birthDate).slice(0, 10) : ""} onChange={e => savePetField(p.id, { birthDate: e.target.value ? new Date(e.target.value).toISOString() : null })} className="flex-1 text-[10.5px] px-2 py-1 border rounded" style={{ borderColor: "#cfe8eb", color: "#014D5E", background: "white" }} />
                                   <span className="text-[9.5px] text-gray-400 flex-shrink-0 w-12">{p.birthDate ? ageFromBirth(p.birthDate) : ""}</span>
                                 </div>
-                              </div>
+                              </div>)}
+                              </>); })()}
                               <div className="space-y-1.5 mb-2">
                                 <div className="flex items-center gap-1.5">
                                   <span className="text-[8.5px] font-bold px-1.5 py-0.5 rounded" style={{ background: "#fef3c7", color: "#92400e", minWidth: 28, textAlign: "center" }}>CLI</span>
@@ -1213,6 +1272,44 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                                     {(pipeDyn.fisio.length ? pipeDyn.fisio : PIPELINE_FISIO).map(et => <option key={et} value={et}>{et}</option>)}
                                   </select>
                                 </div>
+                              </div>
+                              <div className="mb-2">
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="text-[9.5px] font-bold uppercase text-gray-400">Pacotes de fisio</span>
+                                  <button type="button" onClick={() => setPacFormInbox(fm => ({ ...fm, open: !fm.open }))} className="text-[10px] font-medium" style={{ color: "#009AAC" }}><LuPlus size={9} className="inline" /> pacote</button>
+                                </div>
+                                {pacFormInbox.open && (
+                                  <div className="border rounded-lg p-2 mb-1.5 flex items-end gap-1.5" style={{ borderColor: "#E8DFC8" }}>
+                                    <select value={pacFormInbox.serviceId} onChange={e => setPacFormInbox(fm => ({ ...fm, serviceId: e.target.value }))} className="flex-1 text-[10px] px-1.5 py-1 border rounded" style={{ borderColor: "#E8DFC8" }}>
+                                      <option value="">— serviço fisio —</option>
+                                      {fisioSrvInbox.map((srv: any) => <option key={srv.id} value={srv.id}>{srv.nome || srv.titulo || srv.descricao}</option>)}
+                                    </select>
+                                    <input type="number" min="1" value={pacFormInbox.total} onChange={e => setPacFormInbox(fm => ({ ...fm, total: e.target.value }))} className="w-12 text-[10px] px-1.5 py-1 border rounded" style={{ borderColor: "#E8DFC8" }} />
+                                    <button onClick={addPacoteInbox} disabled={savingPacInbox} className="px-2 py-1 rounded text-[10px] text-white" style={{ background: "#009AAC" }}>{savingPacInbox ? "..." : "ok"}</button>
+                                  </div>
+                                )}
+                                {pacotesInbox.length === 0 ? (
+                                  <div className="text-[10px] text-gray-400 italic px-1 py-1">Nenhum pacote ainda.</div>
+                                ) : (
+                                  <div className="space-y-1.5">
+                                    {pacotesInbox.map(pk => { const used = pk.data.used || 0; const total = pk.data.total || 0; const done = used >= total; return (
+                                      <div key={pk.id} className="border rounded-lg p-2" style={{ borderColor: done ? "#0F6E56" : (total > 1 && used === total - 1 ? "#BA7517" : "#E8DFC8"), background: done ? "#F3FBF7" : "#fff" }}>
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-[10.5px] font-medium" style={{ color: "#0E2244" }}>{done ? "🏆 " : "🐾 "}{pk.data.nome}</span>
+                                          <button onClick={() => delPacoteInbox(pk.id)} className="text-[9.5px]" style={{ color: "#ef4444" }}>excluir</button>
+                                        </div>
+                                        <div className="flex flex-wrap gap-0.5 mt-1">
+                                          {Array.from({ length: Math.min(total, 20) }).map((_, i) => <span key={i} style={{ fontSize: "12px" }} title={`Sessão ${i + 1}`}>{i < used ? "🐾" : "⚪"}</span>)}
+                                        </div>
+                                        <div className="flex items-center gap-1.5 mt-1">
+                                          <div className="flex-1 h-1.5 rounded-full bg-gray-100 overflow-hidden"><div className="h-full" style={{ width: `${total ? Math.min(100, (used / total) * 100) : 0}%`, background: done ? "#0F6E56" : "#009AAC" }} /></div>
+                                          <span className="text-[10px] font-medium" style={{ color: done ? "#0F6E56" : "#0E2244" }}>{used}/{total}</span>
+                                          <button onClick={() => usarSessaoInbox(pk)} disabled={done} className="px-1.5 py-0.5 rounded text-[10px] border disabled:opacity-40" style={{ borderColor: "#E8DFC8", color: "#009AAC" }}>{done ? "✓" : "+1"}</button>
+                                        </div>
+                                      </div>
+                                    ); })}
+                                  </div>
+                                )}
                               </div>
                               <button onClick={() => window.open(`/dashboard/erp/pets/${p.id}/atendimentos/novo`, "_blank")} className="w-full px-2 py-1.5 rounded text-[10.5px] text-white font-semibold flex items-center justify-center gap-1 mb-1.5" style={{ background: "#009AAC" }} type="button"><LuPlus size={11} /> Registrar atendimento</button>
                               <button onClick={() => window.open(`/dashboard/erp/pets/${p.id}`, "_blank")} className="w-full text-[10px] py-1 border rounded font-medium bg-white hover:bg-gray-50" style={{ borderColor: "#009AAC", color: "#009AAC" }} type="button">Abrir ficha completa ↗</button>
