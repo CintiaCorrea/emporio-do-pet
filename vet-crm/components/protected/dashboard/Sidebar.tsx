@@ -142,7 +142,7 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
       >
         <it.Icon size={indented ? 16 : 18} className="flex-shrink-0" />
         {collapsed && badge > 0 && (
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full" style={{ background: "#E24B4A" }} />
+          <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full" style={{ background: it.href === "/dashboard/inbox-nativo" ? "#EAB308" : "#E24B4A" }} />
         )}
         {!collapsed && (
           <>
@@ -150,7 +150,7 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
             {badge > 0 && (
               <span
                 className="text-[10.5px] font-semibold rounded-full px-1.5 min-w-[20px] h-[18px] flex items-center justify-center"
-                style={{ background: active ? "white" : "#ef4444", color: active ? "#ef4444" : "white" }}
+                style={{ background: active ? "white" : (it.href === "/dashboard/inbox-nativo" ? "#EAB308" : "#ef4444"), color: active ? (it.href === "/dashboard/inbox-nativo" ? "#A16207" : "#ef4444") : "white" }}
               >
                 {badge}
               </span>
