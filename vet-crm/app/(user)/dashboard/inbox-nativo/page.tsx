@@ -449,7 +449,7 @@ export default function InboxUnificadoPage() {
   };
 
  return (
-    <div className="bg-white border border-[#e8e1d2] rounded-xl overflow-hidden mt-1 mb-3 max-w-[1400px] mx-auto flex flex-col h-[calc(100vh-84px)]" style={{background:"#ffffff"}}>
+    <div className="bg-white border border-[#e8e1d2] rounded-xl overflow-hidden mt-1 mb-3 flex flex-col h-[calc(100vh-84px)]" style={{background:"#ffffff"}}>
       {/* Tabs */}
       <div className="px-4 border-b border-[#e8e1d2] flex gap-5 bg-white items-center">
         <button onClick={() => setTab("conversas")} className={`py-2.5 text-xs font-medium border-b-2 flex items-center gap-1.5 ${tab === "conversas" ? "border-[#009AAC] text-[#0E2244]" : "border-transparent text-[#888780]"}`}>
