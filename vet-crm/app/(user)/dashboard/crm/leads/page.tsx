@@ -102,6 +102,8 @@ export default function LeadsPage() {
   const [novoNome, setNovoNome] = useState("");
   const [novoTel, setNovoTel] = useState("");
   const [novoEmail, setNovoEmail] = useState("");
+  const [novoPetNome, setNovoPetNome] = useState("");
+  const [novoPetEspecie, setNovoPetEspecie] = useState("Cão");
   const [savingNovo, setSavingNovo] = useState(false);
 
   const handleCriarLead = async () => {
@@ -110,7 +112,7 @@ export default function LeadsPage() {
     try {
       const digits = novoTel.replace(/\D/g, "");
       const email = novoEmail.trim() || `${digits || Date.now()}@whatsapp.lead`;
-      const res = await fetch("/api/leads", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ name: novoNome.trim() || undefined, phone: digits || undefined, email }) });
+      const res = await fetch("/api/leads", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ name: novoNome.trim() || undefined, phone: digits || undefined, email, ...(novoPetNome.trim() ? { customFields: { petName: novoPetNome.trim(), especie: novoPetEspecie } } : {}) }) });
       if (!res.ok) throw new Error(await res.text());
       const novo = await res.json();
       if (novo?.id) router.push(`/dashboard/crm/leads/${novo.id}`); else window.location.reload();
@@ -459,6 +461,13 @@ export default function LeadsPage() {
             <label className="text-[11px] text-[#5b6470]">Email (opcional)</label>
             <input value={novoEmail} onChange={(e) => setNovoEmail(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") handleCriarLead(); }} placeholder="email@exemplo.com" className="w-full h-9 mt-0.5 px-3 border border-[#d8d0bc] rounded-lg text-sm focus:outline-none focus:border-[#009AAC]" />
             <p className="text-[10px] text-gray-400 mt-1.5">Sem email, geramos um provisório a partir do telefone.</p>
+            <label className="text-[11px] text-[#5b6470] block mt-3">Pet de interesse (opcional)</label>
+            <div className="flex gap-2 mt-0.5">
+              <input value={novoPetNome} onChange={(e) => setNovoPetNome(e.target.value)} placeholder="Nome do pet" className="flex-1 h-9 px-3 border border-[#d8d0bc] rounded-lg text-sm focus:outline-none focus:border-[#009AAC]" />
+              <select value={novoPetEspecie} onChange={(e) => setNovoPetEspecie(e.target.value)} className="h-9 px-2 border border-[#d8d0bc] rounded-lg text-sm w-[90px] focus:outline-none focus:border-[#009AAC]">
+                <option>Cão</option><option>Gato</option><option>Outro</option>
+              </select>
+            </div>
             <div className="flex gap-2 justify-end mt-4">
               <button onClick={() => setNovoOpen(false)} className="px-4 py-2 border border-[#cfd8e0] rounded-lg text-sm text-[#5b6470]">Cancelar</button>
               <button onClick={handleCriarLead} disabled={savingNovo} className="px-4 py-2 rounded-lg text-sm text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingNovo ? "Criando..." : "Criar e abrir"}</button>
