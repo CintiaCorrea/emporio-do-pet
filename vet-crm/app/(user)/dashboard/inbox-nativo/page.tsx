@@ -140,18 +140,32 @@ export default function InboxUnificadoPage() {
   const [agendaPetDesc, setAgendaPetDesc] = useState("");
   const [agendaPetSaving, setAgendaPetSaving] = useState(false);
 
-  // Carregar usuários internos
+  // Carregar profissionais cadastrados (chat interno). Mostra TODOS os profissionais
+  // (de /api/profissionais) + admin/recepção (de /api/users) que não sejam profissionais.
+  // Quem não tem login (userId null) aparece mas fica desabilitado (não recebe nota interna).
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch("/api/users");
-        const data = await res.json().catch(() => ({}));
-        const list = Array.isArray(data?.data) ? data.data
-                  : Array.isArray(data?.users) ? data.users
-                  : Array.isArray(data) ? data : [];
-        setInternalUsers(list.map((u: any) => ({
-          id: u?.id || "", name: u?.name || "—", email: u?.email || "", role: u?.role || ""
-        })).filter((u: any) => u.id));
+        const [pr, us] = await Promise.all([
+          fetch("/api/profissionais").then((r) => r.json()).catch(() => []),
+          fetch("/api/users").then((r) => r.json()).catch(() => ({})),
+        ]);
+        const profs = Array.isArray(pr) ? pr : (pr?.data || pr?.profissionais || pr?.items || []);
+        const usersRaw = Array.isArray(us?.data) ? us.data : Array.isArray(us?.users) ? us.users : Array.isArray(us) ? us : [];
+        const usados = new Set<string>();
+        const list: any[] = [];
+        for (const p of profs) {
+          const uid = p?.userId || null;
+          list.push({ id: uid || ("noacc_" + p.id), name: p?.nomeExibicao || p?.nomeCompleto || p?.nome || "—", role: p?.tipo || p?.especialidade || "Profissional", hasLogin: !!uid });
+          if (uid) usados.add(uid);
+        }
+        for (const u of usersRaw) {
+          if (!u?.id || usados.has(u.id)) continue;
+          list.push({ id: u.id, name: u?.name || "—", role: u?.role || "", hasLogin: true });
+        }
+        // ativos com login primeiro
+        list.sort((a, b) => Number(b.hasLogin) - Number(a.hasLogin));
+        setInternalUsers(list);
       } catch { setInternalUsers([]); }
     })();
   }, []);
@@ -695,7 +709,7 @@ export default function InboxUnificadoPage() {
                   <select value={internalSelected || ""} onChange={(e) => setInternalSelected(e.target.value || null)}
                     className="w-full px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm focus:outline-none focus:border-[#009AAC]">
                     <option value="">Selecione um colega...</option>
-                    {internalUsers.map((u) => (<option key={u.id} value={u.id}>{u.name} · {u.role}</option>))}
+                    {internalUsers.map((u) => (<option key={u.id} value={u.id} disabled={u.hasLogin === false}>{u.name}{u.role ? ` · ${u.role}` : ""}{u.hasLogin === false ? " · sem login" : ""}</option>))}
                   </select>
                 </div>
                 <textarea value={internalNote} onChange={(e) => setInternalNote(e.target.value)} rows={6} placeholder="Escreva a nota..."
