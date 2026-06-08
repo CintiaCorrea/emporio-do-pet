@@ -253,15 +253,14 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
 
   async function retomarComoLead() {
     if (!tutor) return;
-    if (!window.confirm(`Criar um novo Lead com os dados de ${tutor.name}?`)) return;
+    if (!window.confirm(`Retomar ${tutor.name} como Lead? Ela volta para a lista de Leads marcada como "Reativação". O cadastro continua único (não duplica).`)) return;
     try {
-      const r = await fetch("/api/leads", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ name: tutor.name, phone: phone, email: tutor.email, source: "WHATSAPP" }) });
+      const r = await fetch(`/api/tutors/${tutor.id}`, { method: "PATCH", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ estadoRelacionamento: "Reativação" }) });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      const lead = await r.json();
-      toast.success("Lead criado!");
-      router.push(`/dashboard/crm/leads/${lead.id}`);
+      toast.success("Retomada como Lead (Reativação)");
+      router.push(`/dashboard/crm/leads`);
     } catch (e: any) {
-      toast.error("Erro ao criar Lead: " + (e?.message || ""));
+      toast.error("Erro ao retomar como Lead: " + (e?.message || ""));
     }
   }
 
