@@ -1037,7 +1037,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                       <button onClick={handleConverter} className="px-2 py-0.5 text-[9px] font-bold rounded-full uppercase text-[#5F5E5A] hover:bg-teal-100 hover:text-[#0E7490]">Cliente</button>
                     </span>
                   </span>
-                  <Link href={`/dashboard/erp/leads/${lead.id}`} target="_blank" className={LINK} style={{ color: "#009AAC" }}>Ficha <LuExternalLink size={9} className="inline -mt-0.5" /></Link>
+                  <Link href={`/dashboard/crm/leads/${lead.id}`} target="_blank" className={LINK} style={{ color: "#009AAC" }}>Ficha <LuExternalLink size={9} className="inline -mt-0.5" /></Link>
                 </div>
                 <div className="flex items-start gap-2">
                   <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-semibold flex-shrink-0" style={{ background: "linear-gradient(135deg,#D97706,#92611A)" }}>{initials(lead.name || "?")}</div>
