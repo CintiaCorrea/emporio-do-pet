@@ -34,7 +34,7 @@ export default function PipelinesPage() {
     setLoading(true);
     try {
       const qs = showInactive ? "?includeInactive=true" : "";
-      const res = await fetch(`/api/pipelines${qs}`);
+      const res = await fetch(`/api/pipelines${qs}`, { cache: "no-store" });
       const data = await res.json();
       setList(Array.isArray(data) ? data : []);
     } catch (e) { console.error(e); }
@@ -47,7 +47,7 @@ export default function PipelinesPage() {
     if (filterEsc !== "ALL") arr = arr.filter(p => p.escopo === filterEsc);
     if (search) {
       const q = search.toLowerCase();
-      arr = arr.filter(p => p.nome.toLowerCase().includes(q));
+      arr = arr.filter(p => p.nome.toLowerCase().includes(q) || (p.estagios || []).some((e: any) => (e.nome || "").toLowerCase().includes(q)));
     }
     return arr;
   }, [list, filterEsc, search]);
