@@ -177,6 +177,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
   // ===== Caixa de Entrada =====
   const [incoming, setIncoming] = useState<IncomingItem[]>([]);
   const [loadingIncoming, setLoadingIncoming] = useState(false);
+  const [incomingError, setIncomingError] = useState(false);
   const [incomingLimit, setIncomingLimit] = useState(20);
 
   // ===== Busca / contexto =====
@@ -238,6 +239,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
   async function loadIncoming() {
     setLoadingIncoming(true);
     try {
+      let hadError = false;
       const items: IncomingItem[] = [];
       // Últimas resoluções por lead/tutor (Interacao tipo RESOLVIDO)
       const resolvedByTutor = new Map<string, number>();
@@ -257,6 +259,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
         !!x?.proximoFollowupAt && new Date(x.proximoFollowupAt).getTime() > Date.now();
       // Leads recentes (não-convertidos, não-resolvidos, sem follow-up futuro)
       const rL = await fetch(`/api/leads?source=WHATSAPP&limit=${incomingLimit}`);
+      if (!rL.ok) hadError = true;
       const dL = await safeJson<any>(rL, {});
       const arrL = Array.isArray(dL) ? dL : (dL.leads || dL.data || []);
       arrL.forEach((l: any) => {
@@ -282,6 +285,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
       // Tutores (clientes) com Interacao BC mais recente que a última resolução
       try {
         const rI = await fetch(`/api/interacoes?canal=${encodeURIComponent("WhatsApp BC")}&limit=${incomingLimit}`);
+        if (!rI.ok) hadError = true;
         const arrI = await safeJson<any[]>(rI, []);
         const seenTutorIds = new Set<string>();
         for (const it of (Array.isArray(arrI) ? arrI : [])) {
@@ -318,8 +322,9 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
           seenPhones.add(t); return true;
         })
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      setIncomingError(hadError);
       setIncoming(dedupado);
-    } catch { /* ignore */ }
+    } catch { setIncomingError(true); }
     setLoadingIncoming(false);
   }
 
@@ -840,10 +845,17 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
             {loadingIncoming && incoming.length === 0 ? (
               <div className="text-center py-6 text-[11px] text-gray-400">Carregando...</div>
             ) : incoming.length === 0 ? (
-              <div className="text-center py-6 text-[11px] text-gray-400 italic">
-                Nenhum contato novo agora.<br />
-                Quando alguém escrever pelo BotConversa, aparece aqui.
-              </div>
+              incomingError ? (
+                <div className="text-center py-6 text-[11px] text-gray-500">
+                  Não foi possível carregar a caixa de entrada.<br />
+                  <button onClick={() => loadIncoming()} className="mt-2 inline-flex items-center gap-1 text-[#009AAC] font-medium hover:underline">Tentar novamente</button>
+                </div>
+              ) : (
+                <div className="text-center py-6 text-[11px] text-gray-400 italic">
+                  Nenhum contato novo agora.<br />
+                  Quando alguém escrever pelo BotConversa, aparece aqui.
+                </div>
+              )
             ) : (
               <>
                 {incoming.slice(0, incomingLimit).map(item => {
