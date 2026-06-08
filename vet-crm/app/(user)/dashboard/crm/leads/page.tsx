@@ -88,6 +88,7 @@ function pickField(row: Record<string, string>, keys: string[]): string {
 
 export default function LeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [reativacao, setReativacao] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<Filter>("ativos");
   const [search, setSearch] = useState("");
@@ -183,6 +184,30 @@ export default function LeadsPage() {
     };
     load();
   }, []);
+
+  async function loadReativacao() {
+    try {
+      const r = await fetch("/api/tutors?limit=1000", { cache: "no-store" });
+      const d = await r.json();
+      const arr = Array.isArray(d) ? d : (d.tutors || d.data || []);
+      const reat = arr.filter((t: any) => t.estadoRelacionamento === "Reativação").map((t: any) => ({
+        id: t.id,
+        name: t.name,
+        phone: (t.contacts || []).find((c: any) => c.isPrimary)?.number || (t.contacts || [])[0]?.number || t.phone || "",
+        petName: (t.pets || [])[0]?.name || "",
+      }));
+      setReativacao(reat);
+    } catch { setReativacao([]); }
+  }
+  useEffect(() => { loadReativacao(); }, []);
+  async function tirarReativacao(id: string) {
+    if (!window.confirm("Tirar este cliente da reativação?")) return;
+    try {
+      const r = await fetch(`/api/tutors/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ estadoRelacionamento: "Em dia" }) });
+      if (!r.ok) throw new Error();
+      setReativacao((prev) => prev.filter((x) => x.id !== id));
+    } catch { window.alert("Erro ao tirar da reativação"); }
+  }
 
   const handleDeleteLead = async (lead: Lead) => {
     if (deletingId) return;
@@ -352,6 +377,30 @@ export default function LeadsPage() {
         </select>
       </div>
 
+      {reativacao.length > 0 && (
+        <div className="mb-3 bg-white rounded-xl border overflow-hidden" style={{ borderColor: "#E6F1FB" }}>
+          <div className="flex items-center gap-2 px-3 py-2 border-b" style={{ background: "#F4F9FF", borderColor: "#E6F1FB" }}>
+            <span className="text-[11px] font-semibold" style={{ color: "#0C447C" }}>Em reativação</span>
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "#E6F1FB", color: "#0C447C" }}>{reativacao.length}</span>
+            <span className="text-[10px] text-[#94a3b8] ml-1">clientes retomados como lead — cadastro único</span>
+          </div>
+          <div>
+            {reativacao.map((t) => (
+              <div key={t.id} className="flex items-center gap-2.5 px-3 py-2 border-b hover:bg-[#fdfaee]" style={{ borderColor: "#f0e8d4" }}>
+                <Link href={`/dashboard/erp/tutores/${t.id}`} className="flex items-center gap-2.5 flex-1 min-w-0">
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-medium flex-shrink-0" style={{ background: "#E6F1FB", color: "#0C447C" }}>{getInitials(t.name)}</div>
+                  <div className="min-w-0">
+                    <div className="text-[#0E2244] font-medium truncate">{t.name || "Sem nome"}</div>
+                    <div className="text-[11px] text-[#5b6470] truncate">{t.petName ? `🐾 ${t.petName}` : "sem pet"}{t.phone ? ` · ${t.phone}` : ""}</div>
+                  </div>
+                </Link>
+                <span className="text-[10px] font-medium px-2 py-0.5 rounded-full flex-shrink-0" style={{ background: "#E6F1FB", color: "#0C447C" }}>Reativação</span>
+                <button type="button" onClick={() => tirarReativacao(t.id)} title="Tirar da reativação" className="text-[12px] text-[#cfd8e0] hover:text-[#A32D2D] flex-shrink-0 px-1">✕</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="bg-white rounded-xl border border-[#d8d0bc] overflow-hidden">
         <table className="w-full text-sm">
           <thead>
