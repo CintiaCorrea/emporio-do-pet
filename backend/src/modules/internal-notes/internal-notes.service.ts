@@ -17,11 +17,15 @@ export class InternalNotesService {
   }
 
   async listForUser(userId: string) {
+    // [EMP-COWORK] retorna recebidas E enviadas pelo usuário (chat interno 2-way)
     return this.prisma.internalNote.findMany({
-      where: { toUserId: userId },
+      where: { OR: [{ toUserId: userId }, { fromUserId: userId }] },
       orderBy: { createdAt: 'desc' },
-      include: { fromUser: { select: { id: true, name: true } } },
-      take: 100,
+      include: {
+        fromUser: { select: { id: true, name: true } },
+        toUser: { select: { id: true, name: true } },
+      },
+      take: 200,
     });
   }
 
