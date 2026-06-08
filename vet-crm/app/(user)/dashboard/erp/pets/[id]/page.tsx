@@ -218,7 +218,7 @@ export default function PetDetailPage() {
     if (!srv) { toast.error("Escolha um serviço de fisioterapia"); return; }
     const total = Number(pacForm.total) || 0; if (total <= 0) { toast.error("Informe o total de sessões"); return; }
     setSavingPac(true);
-    try { await listasAdd(`petpac_${petId}`, JSON.stringify({ serviceId: srv.id, nome: srv.nome || srv.titulo || srv.descricao, total, used: 0, createdAt: new Date().toISOString() })); toast.success("Pacote criado"); setPacForm({ open: false, serviceId: "", total: "4" }); await loadPetColecoes(); } catch { toast.error("Erro ao criar pacote"); } finally { setSavingPac(false); }
+    try { await listasAdd(`petpac_${petId}`, JSON.stringify({ serviceId: srv.id, nome: srv.nome || srv.titulo || srv.descricao, total, used: 0, createdAt: new Date().toISOString() })); toast.success("Pacote criado"); setPacForm({ open: false, serviceId: "", total: "4" }); await loadPetColecoes(); try { await patchPet({ pipelineFisioEtapa: "Pacote em andamento" }); await load(); } catch {} } catch { toast.error("Erro ao criar pacote"); } finally { setSavingPac(false); }
   }
   async function usarSessao(p: { id: string; data: any }) {
     const total = p.data.total || 0;
@@ -236,7 +236,7 @@ export default function PetDetailPage() {
       ? `⚠ Pacote "${nome}": ÚLTIMA sessão usada (${used}/${total}). Verificar renovação com o cliente.`
       : `⚠ Pacote "${nome}": penúltima sessão (${used}/${total}). Avaliar renovação.`;
     try { await fetch(`/api/interacoes`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ petId, tipo: "NOTA", texto, canal: "Sistema" }) }); } catch {}
-    try { await fetch(`/api/pets/${petId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ proximoFollowupAt: new Date().toISOString() }) }); } catch {}
+    try { await fetch(`/api/pets/${petId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ proximoFollowupAt: new Date().toISOString(), ...(ultima ? { pipelineFisioEtapa: "Reavaliação" } : {}) }) }); } catch {}
     await load(); await loadInteracoesPet();
   }
   async function delPacote(id: string) { try { await listasDel(id); toast.success("Pacote removido"); await loadPetColecoes(); } catch { toast.error("Erro"); } }
