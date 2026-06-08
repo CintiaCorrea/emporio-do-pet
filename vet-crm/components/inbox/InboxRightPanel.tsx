@@ -1213,7 +1213,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                     {pets.map(p => {
                       const active = selectedPet?.id === p.id;
                       return (
-                        <div key={p.id} className={`rounded-lg border ${active ? "" : "hover:brightness-[0.97]"}`} style={active ? { background: "#e0f4f6", borderColor: "#009AAC" } : { background: "#eef9fb", borderColor: "#bfe3e8" }}>
+                        <div key={p.id} className={`rounded-lg border ${active ? "" : "hover:brightness-[0.97]"}`} style={active ? { background: "#cdebef", borderColor: "#009AAC" } : { background: "#e0f4f6", borderColor: "#9fd0d7" }}>
                           <button onClick={() => setSelectedPet(active ? null : p)} className="w-full flex items-center gap-2 px-2 py-1.5 text-left">
                             <PetIcon species={p.species} size={20} />
                             <div className="min-w-0 flex-1">
