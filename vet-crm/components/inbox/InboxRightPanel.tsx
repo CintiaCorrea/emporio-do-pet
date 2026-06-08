@@ -537,6 +537,16 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
     toast.success("Etapa atualizada");
     setLead({ ...lead, pipelineComercialEtapa: value });
   }
+  async function salvarPetInteresse(nome: string, especie: string) {
+    if (!lead) return;
+    const cf = { ...((lead.customFields || {}) as any), petName: nome, especie };
+    try {
+      const res = await fetch(`/api/leads/${lead.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ customFields: cf }) });
+      if (!res.ok) { toast.error("Erro ao salvar pet de interesse"); return; }
+      setLead({ ...lead, customFields: cf } as Lead);
+      toast.success("Pet de interesse salvo");
+    } catch { toast.error("Erro ao salvar"); }
+  }
   async function updatePetEtapa(field: "pipelineClinicoEtapa" | "pipelineFisioEtapa", value: string) {
     if (!selectedPet) return;
     const res = await fetch(`/api/pets/${selectedPet.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ [field]: value }) });
@@ -1180,8 +1190,8 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                 {/* PET DE INTERESSE */}
                 <div className="text-[9.5px] font-bold uppercase text-[#92611A] mt-2 mb-1">🐾 Pet de interesse</div>
                 <div className="flex gap-1.5">
-                  <input value={leadPetNome} onChange={e => setLeadPetNome(e.target.value)} placeholder="Nome do pet" className="flex-1 px-2 py-1 text-[11px] border rounded" style={{ borderColor: "#E8DFC8" }} />
-                  <select value={leadPetEspecie} onChange={e => setLeadPetEspecie(e.target.value)} className="px-2 py-1 text-[11px] border rounded w-[80px]" style={{ borderColor: "#E8DFC8" }}>
+                  <input value={leadPetNome} onChange={e => setLeadPetNome(e.target.value)} onBlur={() => salvarPetInteresse(leadPetNome, leadPetEspecie)} placeholder="Nome do pet" className="flex-1 px-2 py-1 text-[11px] border rounded" style={{ borderColor: "#E8DFC8" }} />
+                  <select value={leadPetEspecie} onChange={e => { setLeadPetEspecie(e.target.value); salvarPetInteresse(leadPetNome, e.target.value); }} className="px-2 py-1 text-[11px] border rounded w-[80px]" style={{ borderColor: "#E8DFC8" }}>
                     <option>Cão</option><option>Gato</option><option>Outro</option>
                   </select>
                 </div>
