@@ -22,7 +22,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <Sidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
           <Header sidebarOpen={sidebarOpen} />
           <main
-            className="min-h-screen transition-all duration-200 pt-16"
+            className="dash-main min-h-screen transition-all duration-200 pt-16"
             style={{ marginLeft: sidebarOpen ? 252 : 64 }}
           >
             {children}
