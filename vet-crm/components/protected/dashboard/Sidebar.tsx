@@ -13,6 +13,7 @@ import {
 } from "react-icons/lu";
 import { roleLabel, AppRole } from "@/lib/ui/role";
 import { useRolePreview } from "@/lib/ui/RolePreview";
+import { useSession } from "next-auth/react";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -93,6 +94,8 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
   const collapsed = !isOpen;
   const pathname = usePathname();
   const { realRole, effectiveRole, isPreviewing, setPreview } = useRolePreview();
+  const { data: __session } = useSession();
+  const meId = (__session as any)?.user?.id as string | undefined;
   const role = effectiveRole;
 
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
@@ -106,13 +109,13 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
         if (!r.ok) return;
         const d = await r.json();
         const arr = Array.isArray(d) ? d : (d.notes || d.data || []);
-        if (alive) setInternasUnread(arr.filter((x: any) => !x.readAt).length);
+        if (alive) setInternasUnread(arr.filter((x: any) => x.toUserId === meId && !x.readAt).length);
       } catch {}
     };
     load();
     const id = setInterval(load, 30000);
     return () => { alive = false; clearInterval(id); };
-  }, [pathname]);
+  }, [pathname, meId]);
 
   const isActive = (it: Item) => {
     if (it.exact) return pathname === it.href;
