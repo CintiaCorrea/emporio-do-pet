@@ -184,7 +184,7 @@ export default function ClientesPage() {
     (async () => {
       setLoading(true);
       try {
-        const res = await fetch("/api/tutors");
+        const res = await fetch("/api/tutors?take=10000");
         const data = await res.json();
         const arr = Array.isArray(data?.tutors) ? data.tutors : Array.isArray(data) ? data : [];
         setTutores(arr);
@@ -222,7 +222,7 @@ export default function ClientesPage() {
 
   const filtered = useMemo(() => {
     let arr = [...tutores];
-    if (filter !== "Todos") arr = arr.filter((t) => t.classificacao === filter);
+    if (filter !== "Todos") arr = arr.filter((t) => filter === "Cliente" ? (t.classificacao === "Cliente" || !t.classificacao) : t.classificacao === filter);
     if (search.trim()) {
       const q = search.toLowerCase();
       arr = arr.filter((t) =>
@@ -236,7 +236,7 @@ export default function ClientesPage() {
   }, [tutores, filter, search]);
 
   const counts = useMemo(() => {
-    const c = tutores.filter((t) => t.classificacao === "Cliente");
+    const c = tutores.filter((t) => t.classificacao === "Cliente" || !t.classificacao);
     return {
       total: c.length,
       aniversariantes: c.filter((t) => isAniversariante(t.birthDate)).length,
