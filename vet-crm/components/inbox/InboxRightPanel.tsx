@@ -63,6 +63,8 @@ interface IncomingItem {
   petSpecies?: string;
   servico?: string;
   createdAt: string;
+  canal?: "BC" | "Meta";
+  canais?: string[];
   raw: Lead | Tutor;
 }
 
@@ -311,6 +313,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
           petSpecies: cf.especie || cf.species,
           servico: servico || undefined,
           createdAt: l.firstSeenAt || l.createdAt || new Date().toISOString(),
+          canal: "BC",
           raw: l,
         });
       });
@@ -338,20 +341,53 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
               name: t.name || "Sem nome",
               phone,
               createdAt: it.updatedAt || it.createdAt || it.dataHora || new Date().toISOString(),
+              canal: "BC",
               raw: t,
             });
           } catch { /* ignora tutor individual */ }
         }
       } catch { /* ignora se endpoint falhar */ }
+      // Conversas Meta (WhatsApp oficial) entram na Caixa com etiqueta propria
+      try {
+        const rM = await fetch(`/api/whatsapp/conversations?limit=200`);
+        const dM = await safeJson<any>(rM, {});
+        const convs = Array.isArray(dM?.conversations) ? dM.conversations : (Array.isArray(dM) ? dM : (dM.data || []));
+        for (const c of convs) {
+          if (["RESOLVED", "CLOSED", "ARCHIVED"].includes(c.status)) continue;
+          const phone = c.contactPhone || "";
+          const tutorId = c.tutorId || c.tutor?.id;
+          const lastMsg = new Date(c.lastMessageAt || c.updatedAt || 0).getTime();
+          let nome = c.contactName || c.contactPushName || c.tutor?.name || "Sem nome";
+          if (tutorId) {
+            const lr = resolvedByTutor.get(tutorId) || 0;
+            if (lr && lr >= lastMsg) continue;
+            const t = tutorMap.get(tutorId);
+            if (t) { if (temFollowupFuturo(t)) continue; nome = t.name || nome; }
+          }
+          items.push({
+            id: `M-${c.id}`,
+            kind: tutorId ? "CLIENTE" : "LEAD",
+            name: nome,
+            phone,
+            createdAt: c.lastMessageAt || c.updatedAt || new Date().toISOString(),
+            canal: "Meta",
+            raw: (tutorMap.get(tutorId) || c) as any,
+          });
+        }
+      } catch { /* ignora se Meta indisponivel */ }
       // Ordena por data desc, dedupe por phone (último 9)
-      const seenPhones = new Set<string>();
-      const dedupado = items
-        .filter(it => {
-          const t = last9(it.phone);
-          if (!t) return true;
-          if (seenPhones.has(t)) return false;
-          seenPhones.add(t); return true;
-        })
+      const ordenado = items.slice().sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      const porPhone = new Map<string, IncomingItem>();
+      const semPhone: IncomingItem[] = [];
+      for (const it of ordenado) {
+        const canal = it.canal || "BC";
+        const t = last9(it.phone);
+        if (!t) { it.canais = [canal]; semPhone.push(it); continue; }
+        const ex = porPhone.get(t);
+        if (!ex) { it.canais = [canal]; porPhone.set(t, it); }
+        else if (ex.canais && !ex.canais.includes(canal)) { ex.canais.push(canal); }
+      }
+      const dedupado = [...porPhone.values(), ...semPhone]
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       setIncomingError(hadError);
       setIncoming(dedupado);
@@ -1025,7 +1061,9 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                         <div className="text-[11.5px] font-semibold flex items-center gap-1.5 flex-wrap" style={{ color: "#014D5E" }}>
                           {item.name}
                           <span className="text-[8.5px] font-bold px-1.5 py-0.5 rounded uppercase" style={{ background: isLead ? "#FEF3C7" : "#CCFBF1", color: isLead ? "#92611A" : "#0E7490" }}>{isLead ? "Lead" : "Cliente"}</span>
-                          <span className="text-[7.5px] font-bold px-1 rounded text-white" style={{ background: "#009AAC" }}>BC</span>
+                          {(item.canais || ["BC"]).map((c) => (
+                            <span key={c} className="text-[7.5px] font-bold px-1 rounded text-white" style={{ background: c === "Meta" ? "#1877F2" : "#009AAC" }}>{c}</span>
+                          ))}
                         </div>
                         <div className="text-[10px] text-gray-500 truncate">
                           {item.phone ? formatPhone(item.phone) : "—"}
