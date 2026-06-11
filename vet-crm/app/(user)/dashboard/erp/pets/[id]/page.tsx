@@ -18,6 +18,7 @@ import {
 } from "react-icons/lu";
 import toast from "react-hot-toast";
 import ConfirmDeleteModal from "@/components/common/ConfirmDeleteModal";
+import EncaminharBox from "@/components/inbox/EncaminharBox";
 import PetProfilePanel from "@/components/profile/PetProfilePanel";
 import PetIcon from "@/components/profile/PetIcon";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
@@ -374,13 +375,7 @@ export default function PetDetailPage() {
                 <LuMessageSquare size={14} /> WhatsApp
               </a>
             )}
-            <button
-              onClick={handleEncaminhar}
-              className="px-3 py-1.5 rounded-lg text-sm border flex items-center gap-1.5"
-              style={{ borderColor: "#E8DFC8", color: "#475569" }}
-            >
-              <LuShare2 size={14} /> Encaminhar
-            </button>
+            <EncaminharBox tipo="pet" id={petId} nome={pet?.name || ""} onChange={loadInteracoesPet} />
             <button
               onClick={() => setDelOpen(true)}
               className="px-3 py-1.5 rounded-lg text-sm border flex items-center gap-1.5"

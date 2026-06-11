@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import toast, { Toaster } from "react-hot-toast";
 import { openWhatsAppMeta } from "@/lib/actions/whatsapp";
 import { SendEmailModal } from "@/components/email/SendEmailModal";
+import EncaminharBox from "@/components/inbox/EncaminharBox";
 import ConfirmDeleteModal from "@/components/common/ConfirmDeleteModal";
 import {
   LuArrowLeft, LuStickyNote, LuTrash, LuPlus, LuSparkles, LuPhone} from "react-icons/lu";
@@ -238,12 +239,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
           <button onClick={() => setEmailOpen(true)} className="bg-white border border-[#cfd8e0] text-[#4d5a66] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5">
             <span style={{fontSize:"14px"}}>✉️</span>Email
           </button>
-          <button className="bg-white border border-[#cfd8e0] text-[#0C447C] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5" onClick={() => encaminharLead("vet")}>
-            <span style={{fontSize:"14px"}}>🩺</span>Com o vet
-          </button>
-          <button className="bg-white border border-[#cfd8e0] text-[#993556] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5" onClick={() => encaminharLead("administração")}>
-            <span style={{fontSize:"14px"}}>💼</span>Com a adm
-          </button>
+          <EncaminharBox tipo="lead" id={id} nome={lead?.name || ""} onChange={loadLeadInteracoes} />
           <button onClick={() => changeStage("Resolver")} className="bg-white border border-[#cfd8e0] text-[#0F6E56] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5">
             <span style={{fontSize:"14px"}}>✓</span>Resolver
           </button>
