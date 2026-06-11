@@ -199,9 +199,9 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
     }
   }
 
-  const convertNow = async () => {
+  const convertNow = async (classificacao: string = "Cliente") => {
     try {
-      const res = await fetch(`/api/leads/${id}/convert`, { method: "POST" });
+      const res = await fetch(`/api/leads/${id}/convert`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ classificacao }) });
       const data = await res.json();
       toast.success("Convertido!");
       if (data.tutorId) router.push(`/dashboard/erp/tutores/${data.tutorId}`);
@@ -239,9 +239,11 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
           </div>
         </div>
         <div className="flex gap-1.5 flex-wrap relative">
-          <button onClick={convertNow} className="bg-[#0F6E56] text-white px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5">
+          <button onClick={() => convertNow("Cliente")} className="bg-[#0F6E56] text-white px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5">
             <span style={{fontSize:"14px"}}>✓</span>Converter pra cliente
           </button>
+          <button onClick={() => convertNow("Fornecedor")} className="bg-white border border-[#0F6E56] text-[#0F6E56] px-3 py-1.5 rounded-lg text-xs font-medium">Fornecedor</button>
+          <button onClick={() => convertNow("Parceiro")} className="bg-white border border-[#0F6E56] text-[#0F6E56] px-3 py-1.5 rounded-lg text-xs font-medium">Parceiro</button>
           <button onClick={() => openWhatsAppMeta(lead.phone)} className="bg-white border border-[#009AAC] text-[#00798A] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5">
             <LuStickyNote className="w-3.5 h-3.5" />WhatsApp
           </button>

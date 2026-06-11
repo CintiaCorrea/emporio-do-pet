@@ -706,7 +706,11 @@ export class LeadsService {
   }
 
   // === Conversão Lead → Tutor (Cliente) ===
-  async convertToTutor(id: string) {
+  async convertToTutor(id: string, classificacaoRaw?: string) {
+    const permitidas = ['Cliente', 'Fornecedor', 'Parceiro'];
+    const classificacao = (permitidas.includes(classificacaoRaw as string)
+      ? classificacaoRaw
+      : 'Cliente') as any;
     const lead = await this.prisma.lead.findUnique({ where: { id } });
     if (!lead) throw new Error('Lead not found');
 
@@ -727,14 +731,14 @@ export class LeadsService {
     if (tutor) {
       await this.prisma.tutor.update({
         where: { id: tutor.id },
-        data: { classificacao: 'Cliente', status: 'ACTIVE' },
+        data: { classificacao, status: 'ACTIVE' },
       });
     } else {
       tutor = await this.prisma.tutor.create({
         data: {
           name: lead.name || 'Lead convertido',
           email: lead.email,
-          classificacao: 'Cliente',
+          classificacao,
           status: 'ACTIVE',
           tags: lead.tags || [],
           observations: lead.notes,
