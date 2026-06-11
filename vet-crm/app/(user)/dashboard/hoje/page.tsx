@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import {
   LuRefreshCcw, LuPhone, LuPackage,
-  LuFlaskConical, LuCake, LuChevronRight, LuClipboardCheck,
+  LuFlaskConical, LuCake, LuChevronRight, LuClipboardCheck, LuShare2,
 } from "react-icons/lu";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { useRolePreview } from "@/lib/ui/RolePreview";
@@ -44,6 +44,7 @@ function fmtDate(d: Date) {
 export default function HojePage() {
   const { data: session } = useSession();
   const { effectiveRole, isPreviewing } = useRolePreview();
+  const meId = (session as any)?.user?.id as string | undefined;
   const userName = session?.user?.name || "Usuário";
   const today = new Date();
   const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
@@ -72,6 +73,39 @@ export default function HojePage() {
   const [entradas, setEntradas] = useState<any[]>([]);
   const [entConf, setEntConf] = useState<Record<string, string>>({});
   const [entConfOpen, setEntConfOpen] = useState(false);
+  const [encMine, setEncMine] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!meId) return;
+    let alive = true;
+    const load = async () => {
+      try {
+        const r = await fetch(`/api/listas?lista=encfila`, { cache: "no-store" });
+        const d = await r.json();
+        const arr = Array.isArray(d) ? d : (d.itens || d.data || []);
+        const mine = arr
+          .map((it: any) => { try { return { entryId: it.id, ...JSON.parse(it.valor) }; } catch { return null; } })
+          .filter((x: any) => x && x.toUserId === meId && x.status === "PENDENTE")
+          .sort((a: any, b: any) => new Date(b.at).getTime() - new Date(a.at).getTime());
+        if (alive) setEncMine(mine);
+      } catch {}
+    };
+    load();
+    const onCh = () => load();
+    window.addEventListener("encfila:changed", onCh);
+    const tid = setInterval(load, 30000);
+    return () => { alive = false; window.removeEventListener("encfila:changed", onCh); clearInterval(tid); };
+  }, [meId]);
+
+  const encHref = (e: any) => e.tipo === "pet" ? `/dashboard/erp/pets/${e.id}` : e.tipo === "lead" ? `/dashboard/crm/leads/${e.id}` : `/dashboard/erp/tutores/${e.id}`;
+  async function concluirEnc(e: any) {
+    try {
+      const { entryId, ...data } = e;
+      await fetch(`/api/listas/${entryId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ valor: JSON.stringify({ ...data, status: "CONCLUIDO", concluidoEm: new Date().toISOString() }) }) });
+      setEncMine((prev) => prev.filter((x) => x.entryId !== entryId));
+      window.dispatchEvent(new Event("encfila:changed"));
+    } catch {}
+  }
 
   useEffect(() => {
     (async () => {
@@ -439,6 +473,27 @@ export default function HojePage() {
           </div>
         );
       })()}
+      {!loading && encMine.length > 0 && (
+        <div className="mt-6 bg-white border rounded-2xl overflow-hidden" style={{ borderColor: "#e8edf0" }}>
+          <div className="flex items-center gap-3.5 px-[18px] py-[13px] border-b" style={{ borderColor: "#e8edf0" }}>
+            <div className="w-[38px] h-[38px] rounded-[10px] flex items-center justify-center flex-shrink-0" style={{ background: "#fef3c7", color: "#92611A" }}><LuShare2 size={19} /></div>
+            <div className="flex-1 min-w-0">
+              <div className="text-[13.5px] font-semibold text-[#1e293b]">Encaminhados para mim</div>
+              <div className="text-xs text-[#64748b]">Clientes, pets e leads que precisam do seu atendimento</div>
+            </div>
+            <span className="text-[13px] font-bold text-white min-w-[26px] h-6 rounded-xl flex items-center justify-center px-2 flex-shrink-0" style={{ background: "linear-gradient(90deg,#D97706,#92611A)" }}>{encMine.length}</span>
+          </div>
+          {encMine.map((e) => (
+            <div key={e.entryId} className="flex items-center gap-3 px-[18px] py-2.5 border-b hover:bg-[#fef9ec]" style={{ borderColor: "#e8edf0" }}>
+              <span className="text-[10px] px-2 py-0.5 rounded-full flex-shrink-0 capitalize" style={{ background: "#FEF3C7", color: "#92611A" }}>{e.tipo}</span>
+              <Link href={encHref(e)} className="font-medium text-[13px] text-[#1e293b] hover:underline truncate">{e.nome}</Link>
+              {e.obs && <span className="text-xs text-[#64748b] truncate hidden sm:block">. {e.obs}</span>}
+              {e.byName && <span className="text-[11px] text-[#94a3b8] flex-shrink-0">por {e.byName}</span>}
+              <button onClick={() => concluirEnc(e)} className="ml-auto text-[11px] font-semibold text-[#0F6E56] hover:underline flex-shrink-0">Concluir</button>
+            </div>
+          ))}
+        </div>
+      )}
       <div className="mt-6 text-xs text-[#94a3b8] text-center">
         Métricas e relatórios ficam no <Link href="/dashboard" className="underline">Dashboard</Link>.
         Conversas no <Link href="/dashboard/inbox" className="underline">Inbox</Link>.

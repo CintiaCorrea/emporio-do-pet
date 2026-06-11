@@ -101,6 +101,7 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
   const [internasUnread, setInternasUnread] = useState(0);
+  const [encfilaUnread, setEncfilaUnread] = useState(0);
   useEffect(() => {
     let alive = true;
     const load = async () => {
@@ -119,6 +120,26 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
     return () => { alive = false; clearInterval(id); window.removeEventListener("internas:changed", onChanged); };
   }, [pathname, meId]);
 
+  useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      try {
+        const r = await fetch("/api/listas?lista=encfila", { cache: "no-store" });
+        if (!r.ok) return;
+        const d = await r.json();
+        const arr = Array.isArray(d) ? d : (d.itens || d.data || []);
+        const n = arr.map((it: any) => { try { return JSON.parse(it.valor); } catch { return null; } })
+          .filter((x: any) => x && x.toUserId === meId && x.status === "PENDENTE").length;
+        if (alive) setEncfilaUnread(n);
+      } catch {}
+    };
+    load();
+    const id = setInterval(load, 15000);
+    const onCh = () => load();
+    window.addEventListener("encfila:changed", onCh);
+    return () => { alive = false; clearInterval(id); window.removeEventListener("encfila:changed", onCh); };
+  }, [pathname, meId]);
+
   const isActive = (it: Item) => {
     if (it.exact) return pathname === it.href;
     return pathname === it.href || pathname.startsWith(it.href + "/");
@@ -132,7 +153,7 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
   const renderLink = (it: Item, indented = false) => {
     const active = isActive(it);
     const tag = tagFor(it);
-    const badge = it.href === "/dashboard/inbox-nativo" ? internasUnread : (it.badge ?? 0);
+    const badge = it.href === "/dashboard/inbox-nativo" ? internasUnread : it.href === "/dashboard/hoje" ? encfilaUnread : (it.badge ?? 0);
     return (
       <Link
         key={it.href}
