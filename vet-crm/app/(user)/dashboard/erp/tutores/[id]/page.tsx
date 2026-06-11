@@ -19,7 +19,7 @@ import { SendEmailModal } from "@/components/email/SendEmailModal";
 import ConfirmDeleteModal from "@/components/common/ConfirmDeleteModal";
 import {
   LuArrowLeft, LuStickyNote, LuPencil, LuTriangleAlert,
-  LuTrash, LuPhone, LuCalendar, LuUser, LuPlus} from "react-icons/lu";
+  LuTrash, LuPhone, LuCalendar, LuUser, LuPlus, LuCheck, LuX} from "react-icons/lu";
 
 interface TutorDetail {
   id: string;
@@ -122,6 +122,9 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
   const [intTipo, setIntTipo] = useState("NOTA");
   const [intTexto, setIntTexto] = useState("");
   const [savingInt, setSavingInt] = useState(false);
+  const [editIntId, setEditIntId] = useState<string | null>(null);
+  const [editIntTexto, setEditIntTexto] = useState("");
+  const [savingEditInt, setSavingEditInt] = useState(false);
   const [estagios, setEstagios] = useState<string[]>([]);
   const [pipelineNome, setPipelineNome] = useState("");
   const [savingEstagio, setSavingEstagio] = useState(false);
@@ -179,6 +182,16 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
     if (!intTexto.trim()) { toast.error("Escreva algo"); return; }
     setSavingInt(true);
     try { const r = await fetch(`/api/interacoes`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tutorId: id, tipo: intTipo, texto: intTexto.trim(), canal: "Sistema" }) }); if (!r.ok) throw new Error(); toast.success("Registrado"); setIntTexto(""); await loadInteracoes(); } catch { toast.error("Erro ao registrar"); } finally { setSavingInt(false); }
+  }
+  async function deleteInteracao(itId: string) {
+    if (!window.confirm("Excluir esta interação?")) return;
+    try { const r = await fetch(`/api/interacoes/${itId}`, { method: "DELETE" }); if (!r.ok) throw new Error(); setInteracoes((prev) => prev.filter((x) => x.id !== itId)); toast.success("Interação excluída"); } catch { toast.error("Erro ao excluir"); }
+  }
+  async function saveEditInteracao() {
+    if (!editIntId) return;
+    if (!editIntTexto.trim()) { toast.error("Escreva algo"); return; }
+    setSavingEditInt(true);
+    try { const r = await fetch(`/api/interacoes/${editIntId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ texto: editIntTexto.trim() }) }); if (!r.ok) throw new Error(); setEditIntId(null); setEditIntTexto(""); await loadInteracoes(); toast.success("Interação atualizada"); } catch { toast.error("Erro ao salvar"); } finally { setSavingEditInt(false); }
   }
   async function saveEstagio(valor: string) {
     setSavingEstagio(true);
@@ -515,9 +528,25 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
                   <div key={it.id} className="bg-[#fbfaf6] rounded px-2.5 py-1.5">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-medium text-[#00798A]">{it.tipo}{it.canal ? ` · ${it.canal}` : ""}</span>
-                      <span className="text-[10px] text-gray-400">{new Date(it.createdAt).toLocaleDateString("pt-BR")} {new Date(it.createdAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] text-gray-400">{new Date(it.createdAt).toLocaleDateString("pt-BR")} {new Date(it.createdAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</span>
+                        {editIntId !== it.id && (
+                          <>
+                            <button onClick={() => { setEditIntId(it.id); setEditIntTexto(it.texto || ""); }} className="text-gray-400 hover:text-[#009AAC]" title="Editar"><LuPencil className="w-3 h-3" /></button>
+                            <button onClick={() => deleteInteracao(it.id)} className="text-gray-400 hover:text-[#E24B4A]" title="Excluir"><LuTrash className="w-3 h-3" /></button>
+                          </>
+                        )}
+                      </div>
                     </div>
-                    <p className="text-[11px] text-[#0E2244] mt-0.5">{it.texto}</p>
+                    {editIntId === it.id ? (
+                      <div className="flex gap-1 mt-1">
+                        <input autoFocus value={editIntTexto} onChange={(e) => setEditIntTexto(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") saveEditInteracao(); if (e.key === "Escape") setEditIntId(null); }} className="flex-1 border border-[#d8d0bc] rounded px-2 py-1 text-[11px]" />
+                        <button onClick={saveEditInteracao} disabled={savingEditInt} className="bg-[#009AAC] text-white px-2 py-1 rounded text-[11px] disabled:opacity-50" title="Salvar"><LuCheck className="w-3 h-3" /></button>
+                        <button onClick={() => setEditIntId(null)} className="border border-[#d8d0bc] px-2 py-1 rounded text-[11px]" title="Cancelar"><LuX className="w-3 h-3" /></button>
+                      </div>
+                    ) : (
+                      <p className="text-[11px] text-[#0E2244] mt-0.5">{it.texto}</p>
+                    )}
                     {it.autor?.name && <p className="text-[10px] text-gray-400 mt-0.5">por {it.autor.name}</p>}
                   </div>
                 ))}
