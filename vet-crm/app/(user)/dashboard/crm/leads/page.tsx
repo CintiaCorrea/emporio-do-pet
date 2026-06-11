@@ -173,7 +173,7 @@ export default function LeadsPage() {
     const load = async () => {
       setLoading(true);
       try {
-        const res = await fetch("/api/leads");
+        const res = await fetch("/api/leads?limit=10000");
         const data = await res.json();
         setLeads(Array.isArray(data?.leads) ? data.leads : Array.isArray(data) ? data : []);
       } catch (e) {

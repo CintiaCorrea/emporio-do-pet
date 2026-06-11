@@ -258,9 +258,12 @@ export class LeadsController {
   }
 
   @Post(':id/convert')
-  @ApiOperation({ summary: 'Converter Lead em Tutor (Cliente)' })
-  async convertToTutor(@Param('id') id: string) {
-    return this.leadsService.convertToTutor(id);
+  @ApiOperation({ summary: 'Converter Lead em Tutor (Cliente/Fornecedor/Parceiro)' })
+  async convertToTutor(
+    @Param('id') id: string,
+    @Body() body?: { classificacao?: string },
+  ) {
+    return this.leadsService.convertToTutor(id, body?.classificacao);
   }
 
 }

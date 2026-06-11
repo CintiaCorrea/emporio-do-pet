@@ -193,6 +193,9 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
     setSavingEditInt(true);
     try { const r = await fetch(`/api/interacoes/${editIntId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ texto: editIntTexto.trim() }) }); if (!r.ok) throw new Error(); setEditIntId(null); setEditIntTexto(""); await loadInteracoes(); toast.success("Interação atualizada"); } catch { toast.error("Erro ao salvar"); } finally { setSavingEditInt(false); }
   }
+  async function saveClassificacao(valor: string) {
+    try { const r = await fetch(`/api/tutors/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ classificacao: valor }) }); if (!r.ok) throw new Error(); toast.success("Classificação atualizada"); await load(); } catch { toast.error("Erro ao classificar"); }
+  }
   async function saveEstagio(valor: string) {
     setSavingEstagio(true);
     try { const r = await fetch(`/api/tutors/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ estadoRelacionamento: valor || null }) }); if (!r.ok) throw new Error(); toast.success("Estágio atualizado"); await load(); } catch { toast.error("Erro ao atualizar estágio"); } finally { setSavingEstagio(false); }
@@ -362,7 +365,14 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
               {tutor.city && <div className="pl-4">Cidade: {tutor.city}</div>}
               {tutor.cpf && <div><span style={{fontSize:"13px"}}>🪪</span> <strong className="text-[#0E2244] font-medium">CPF:</strong> {tutor.cpf}</div>}
               <div><LuCalendar className="inline w-3 h-3" /> <strong className="text-[#0E2244] font-medium">Primeira visita:</strong> {new Date(tutor.createdAt).toLocaleDateString("pt-BR")}</div>
-              <div><LuUser className="inline w-3 h-3" /> <strong className="text-[#0E2244] font-medium">Tipo:</strong> <span className="bg-[#E0F4F6] text-[#00798A] text-[10px] px-1.5 py-0.5 rounded">{tutor.classificacao}</span></div>
+              <div className="flex items-center gap-1"><LuUser className="inline w-3 h-3" /> <strong className="text-[#0E2244] font-medium">Tipo:</strong>
+                <select value={tutor.classificacao || "Cliente"} onChange={(e) => saveClassificacao(e.target.value)} className="bg-[#E0F4F6] text-[#00798A] text-[10px] px-1.5 py-0.5 rounded border border-[#bfe3e8]">
+                  <option value="Cliente">Cliente</option>
+                  <option value="Fornecedor">Fornecedor</option>
+                  <option value="Parceiro">Parceiro</option>
+                  <option value="Ex_cliente">Ex-cliente</option>
+                </select>
+              </div>
             </div>
             {tutor.convertedFromLeadId && (
               <div className="mt-2 pt-2 border-t border-[#f0e8d4] text-[11px] text-[#5b6470]">
