@@ -195,9 +195,12 @@ export default function HojePage() {
         try {
           const ldNP = await safeJson<any>(await fetch("/api/leads"), []);
           const leadNew = Array.isArray(ldNP) ? ldNP : (ldNP.leads || ldNP.data || []);
-          const st0 = new Date(); st0.setHours(0, 0, 0, 0);
-          const en0 = new Date(); en0.setHours(23, 59, 59, 999);
-          const isToday = (dt: any) => { if (!dt) return false; const x = new Date(dt).getTime(); return x >= st0.getTime() && x <= en0.getTime(); };
+          // Acompanhamento da implantacao: conta a partir de um marco fixo (hoje, na 1a vez)
+          let inicio = listArr.find((it: any) => (it.lista || "") === "acompinicio")?.valor;
+          if (!inicio) { inicio = new Date().toISOString(); try { await fetch("/api/listas", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lista: "acompinicio", valor: inicio }) }); } catch {} }
+          const floor = new Date(inicio); floor.setHours(0, 0, 0, 0);
+          const baixados = new Set(listArr.filter((it: any) => (it.lista || "") === "acompbaixa").map((it: any) => it.valor));
+          const isToday = (dt: any) => { if (!dt) return false; return new Date(dt).getTime() >= floor.getTime(); };
           const ent: any[] = [];
           for (const t of tutorArr) if (isToday(t.createdAt)) ent.push({ key: `cli:${t.id}`, tipo: "Cliente", nome: t.name || "Cliente", sub: t.phone || "", at: t.createdAt, href: `/dashboard/erp/tutores/${t.id}` });
           for (const l of leadNew) if (isToday(l.createdAt)) ent.push({ key: `lead:${l.id}`, tipo: "Lead", nome: l.name || "Lead", sub: l.origem || l.canal || "", at: l.createdAt, href: `/dashboard/crm/leads/${l.id}` });
@@ -221,21 +224,17 @@ export default function HojePage() {
               }
             }
           } catch {}
-          ent.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
-          setEntradas(ent);
-          const confMap: Record<string, string> = {};
-          for (const it of listArr) if ((it.lista || "") === `entradadia_${todayKey}`) confMap[it.valor] = it.id;
-          setEntConf(confMap);
+          const visiveis = ent.filter((e) => !baixados.has(e.key)).sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+          setEntradas(visiveis);
         } catch {}
       } catch {}
       setLoading(false);
     })();
   }, []);
 
-  async function conferirEntrada(e: any) {
-    setEntConf(m => ({ ...m, [e.key]: "1" }));
-    try { await fetch("/api/listas", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lista: `entradadia_${todayKey}`, valor: e.key }) }); }
-    catch { setEntConf(m => { const n = { ...m }; delete n[e.key]; return n; }); }
+  async function baixarEntrada(e: any) {
+    setEntradas(prev => prev.filter(x => x.key !== e.key));
+    try { await fetch("/api/listas", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lista: "acompbaixa", valor: e.key }) }); } catch {}
   }
   async function desconferirEntrada(e: any) {
     setEntConf(m => { const n = { ...m }; delete n[e.key]; return n; });
@@ -429,47 +428,38 @@ export default function HojePage() {
         )}
       </div>
 
-      {!loading && (() => {
-        const naoConf = entradas.filter(e => !(e.key in entConf));
-        const conf = entradas.filter(e => e.key in entConf);
+      {!loading && effectiveRole === "ADMIN" && (() => {
         const cor: Record<string, { bg: string; fg: string }> = { Cliente: { bg: "#E0F4F6", fg: "#00798A" }, Lead: { bg: "#E6F1FB", fg: "#0C447C" } };
         const hhmm = (dt: any) => { try { return new Date(dt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }); } catch { return ""; } };
+        const fmtDia = (dt: any) => { const d = new Date(dt), h = new Date(), o = new Date(); o.setDate(h.getDate() - 1); const k = (x: Date) => x.toDateString(); if (k(d) === k(h)) return "Hoje"; if (k(d) === k(o)) return "Ontem"; return d.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" }); };
+        const grupos: { dia: string; itens: any[] }[] = [];
+        for (const e of entradas) { const dk = new Date(e.at).toDateString(); let g = grupos.find(x => x.dia === dk); if (!g) { g = { dia: dk, itens: [] }; grupos.push(g); } g.itens.push(e); }
         return (
           <div className="mt-6 bg-white border rounded-2xl overflow-hidden" style={{ borderColor: "#e8edf0" }}>
             <div className="flex items-center gap-3.5 px-[18px] py-[13px] border-b" style={{ borderColor: "#e8edf0" }}>
               <div className="w-[38px] h-[38px] rounded-[10px] flex items-center justify-center flex-shrink-0" style={{ background: "#e6f6f8", color: "#009AAC" }}><LuClipboardCheck size={19} /></div>
               <div className="flex-1 min-w-0">
-                <div className="text-[13.5px] font-semibold text-[#1e293b]">Entradas do dia</div>
-                <div className="text-xs text-[#64748b]">Leads e clientes novos de hoje — marque ao conferir o lançamento</div>
+                <div className="text-[13.5px] font-semibold text-[#1e293b]">Acompanhamento de entradas</div>
+                <div className="text-xs text-[#64748b]">Leads e clientes que entraram — dê baixa ao conferir o atendimento</div>
               </div>
-              <span className="text-[13px] font-bold text-white min-w-[26px] h-6 rounded-xl flex items-center justify-center px-2 flex-shrink-0" style={{ background: naoConf.length > 0 ? "linear-gradient(90deg, #009AAC, #00B4C4)" : "#cbd5e1" }}>{naoConf.length}</span>
+              <span className="text-[13px] font-bold text-white min-w-[26px] h-6 rounded-xl flex items-center justify-center px-2 flex-shrink-0" style={{ background: entradas.length > 0 ? "linear-gradient(90deg, #009AAC, #00B4C4)" : "#cbd5e1" }}>{entradas.length}</span>
             </div>
             {entradas.length === 0 ? (
-              <div className="px-[18px] py-8 text-center text-sm text-[#94a3b8]">Nenhuma entrada nova hoje.</div>
-            ) : naoConf.length === 0 ? (
-              <div className="px-[18px] py-6 text-center text-sm text-[#0F6E56]">Tudo conferido por hoje.</div>
-            ) : naoConf.map(e => (
-              <div key={e.key} className="flex items-center gap-3 px-[18px] py-2.5 border-b hover:bg-[#e6f6f8]/40" style={{ borderColor: "#e8edf0" }}>
-                <input type="checkbox" checked={false} onChange={() => conferirEntrada(e)} className="w-4 h-4 flex-shrink-0 cursor-pointer accent-[#009AAC]" title="Marcar como conferido" />
-                <span className="text-[10px] px-2 py-0.5 rounded-full flex-shrink-0" style={{ background: (cor[e.tipo] || cor.Cliente).bg, color: (cor[e.tipo] || cor.Cliente).fg }}>{e.tipo}</span>
-                <Link href={e.href} className="font-medium text-[13px] text-[#1e293b] hover:underline truncate">{e.nome}</Link>
-                {e.sub && <span className="text-xs text-[#64748b] truncate hidden sm:block">· {e.sub}</span>}
-                <span className="ml-auto text-[11px] text-[#94a3b8] flex-shrink-0">{hhmm(e.at)}</span>
-              </div>
-            ))}
-            {conf.length > 0 && (
-              <div>
-                <button onClick={() => setEntConfOpen(o => !o)} className="w-full text-left px-[18px] py-2 text-[11px] font-semibold text-[#94a3b8] hover:bg-[#f8fafb]">{entConfOpen ? "\u25be" : "\u25b8"} Conferidos hoje ({conf.length})</button>
-                {entConfOpen && conf.map(e => (
-                  <div key={e.key} className="flex items-center gap-3 px-[18px] py-2 border-t" style={{ borderColor: "#f1f5f9", background: "#f8fafb" }}>
-                    <input type="checkbox" checked readOnly onChange={() => desconferirEntrada(e)} className="w-4 h-4 flex-shrink-0 cursor-pointer accent-[#0F6E56]" title="Desmarcar" />
+              <div className="px-[18px] py-8 text-center text-sm text-[#94a3b8]">Nenhuma entrada pendente de baixa.</div>
+            ) : grupos.map((g) => (
+              <div key={g.dia}>
+                <div className="px-[18px] py-1.5 text-[11px] font-semibold text-[#64748b] bg-[#f8fafb] border-b" style={{ borderColor: "#eef2f4" }}>{fmtDia(g.itens[0].at)} ({g.itens.length})</div>
+                {g.itens.map((e: any) => (
+                  <div key={e.key} className="flex items-center gap-3 px-[18px] py-2.5 border-b hover:bg-[#e6f6f8]/40" style={{ borderColor: "#e8edf0" }}>
+                    <input type="checkbox" checked={false} onChange={() => baixarEntrada(e)} className="w-4 h-4 flex-shrink-0 cursor-pointer accent-[#009AAC]" title="Dar baixa (sai da lista, fica na ficha)" />
                     <span className="text-[10px] px-2 py-0.5 rounded-full flex-shrink-0" style={{ background: (cor[e.tipo] || cor.Cliente).bg, color: (cor[e.tipo] || cor.Cliente).fg }}>{e.tipo}</span>
-                    <Link href={e.href} className="text-[13px] text-[#64748b] line-through hover:underline truncate">{e.nome}</Link>
-                    <span className="ml-auto text-[11px] text-[#cbd5e1] flex-shrink-0">{hhmm(e.at)}</span>
+                    <Link href={e.href} className="font-medium text-[13px] text-[#1e293b] hover:underline truncate">{e.nome}</Link>
+                    {e.sub && <span className="text-xs text-[#64748b] truncate hidden sm:block">. {e.sub}</span>}
+                    <span className="ml-auto text-[11px] text-[#94a3b8] flex-shrink-0">{hhmm(e.at)}</span>
                   </div>
                 ))}
               </div>
-            )}
+            ))}
           </div>
         );
       })()}
