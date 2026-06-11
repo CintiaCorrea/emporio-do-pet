@@ -265,6 +265,14 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
     try {
       let hadError = false;
       const items: IncomingItem[] = [];
+      // Carrega todos os tutores de uma vez (evita N+1 e o sumico de cards por limite)
+      const tutorMap = new Map<string, any>();
+      try {
+        const rAllT = await fetch(`/api/tutors?take=10000`);
+        const dAllT = await safeJson<any>(rAllT, {});
+        const allT = Array.isArray(dAllT) ? dAllT : (dAllT.tutors || dAllT.data || []);
+        for (const t of allT) tutorMap.set(t.id, t);
+      } catch { /* segue sem map */ }
       // Últimas resoluções por lead/tutor (Interacao tipo RESOLVIDO)
       const resolvedByTutor = new Map<string, number>();
       const resolvedByLead = new Map<string, number>();
@@ -282,7 +290,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
       const temFollowupFuturo = (x: any) =>
         !!x?.proximoFollowupAt && new Date(x.proximoFollowupAt).getTime() > Date.now();
       // Leads recentes (não-convertidos, não-resolvidos, sem follow-up futuro)
-      const rL = await fetch(`/api/leads?source=WHATSAPP&limit=${incomingLimit}`);
+      const rL = await fetch(`/api/leads?source=WHATSAPP&limit=1000`);
       if (!rL.ok) hadError = true;
       const dL = await safeJson<any>(rL, {});
       const arrL = Array.isArray(dL) ? dL : (dL.leads || dL.data || []);
@@ -308,7 +316,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
       });
       // Tutores (clientes) com Interacao BC mais recente que a última resolução
       try {
-        const rI = await fetch(`/api/interacoes?canal=${encodeURIComponent("WhatsApp BC")}&limit=${incomingLimit}`);
+        const rI = await fetch(`/api/interacoes?canal=${encodeURIComponent("WhatsApp BC")}&limit=1000`);
         if (!rI.ok) hadError = true;
         const arrI = await safeJson<any[]>(rI, []);
         const seenTutorIds = new Set<string>();
@@ -320,8 +328,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
           const lastResolved = resolvedByTutor.get(it.tutorId) || 0;
           if (lastResolved >= bcTs) continue; // resolvido depois da última conversa
           try {
-            const rT = await fetch(`/api/tutors/${it.tutorId}`);
-            const t = await safeJson<any>(rT, null);
+            const t = tutorMap.get(it.tutorId);
             if (!t || !t.id) continue;
             if (temFollowupFuturo(t)) continue; // em follow-up/sequência
             const phone = (t.contacts || [])[0]?.number || "";
@@ -357,7 +364,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
     const id = setInterval(loadIncoming, 30000); // refetch a cada 30s
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [incomingLimit]);
+  }, []);
 
   // === Busca por texto/telefone ===
   useEffect(() => {

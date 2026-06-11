@@ -167,6 +167,26 @@ export default function HojePage() {
           const ent: any[] = [];
           for (const t of tutorArr) if (isToday(t.createdAt)) ent.push({ key: `cli:${t.id}`, tipo: "Cliente", nome: t.name || "Cliente", sub: t.phone || "", at: t.createdAt, href: `/dashboard/erp/tutores/${t.id}` });
           for (const l of leadNew) if (isToday(l.createdAt)) ent.push({ key: `lead:${l.id}`, tipo: "Lead", nome: l.name || "Lead", sub: l.origem || l.canal || "", at: l.createdAt, href: `/dashboard/crm/leads/${l.id}` });
+          // Tambem: quem teve contato no Inbox (BC) hoje, mesmo ja cadastrado antes
+          try {
+            const riBC = await safeJson<any>(await fetch(`/api/interacoes?canal=${encodeURIComponent("WhatsApp BC")}&limit=1000`), []);
+            const bcArr = Array.isArray(riBC) ? riBC : (riBC.interacoes || riBC.data || []);
+            const tById: Record<string, any> = {}; for (const t of tutorArr) tById[t.id] = t;
+            const lById: Record<string, any> = {}; for (const l of leadNew) lById[l.id] = l;
+            const jaTem = new Set(ent.map((e) => e.key));
+            for (const it of bcArr) {
+              if (!isToday(it.createdAt)) continue;
+              if (it.tutorId) {
+                const k = `cli:${it.tutorId}`; if (jaTem.has(k)) continue; jaTem.add(k);
+                const t = tById[it.tutorId];
+                ent.push({ key: k, tipo: "Cliente", nome: t?.name || "Cliente", sub: (t?.contacts?.[0]?.number) || t?.phone || "WhatsApp BC", at: it.createdAt, href: `/dashboard/erp/tutores/${it.tutorId}` });
+              } else if (it.leadId) {
+                const k = `lead:${it.leadId}`; if (jaTem.has(k)) continue; jaTem.add(k);
+                const l = lById[it.leadId];
+                ent.push({ key: k, tipo: "Lead", nome: l?.name || "Lead", sub: "WhatsApp BC", at: it.createdAt, href: `/dashboard/crm/leads/${it.leadId}` });
+              }
+            }
+          } catch {}
           ent.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
           setEntradas(ent);
           const confMap: Record<string, string> = {};
