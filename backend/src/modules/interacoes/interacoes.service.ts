@@ -32,12 +32,46 @@ export class InteracoesService {
 
   async findAll(params: { leadId?: string; tutorId?: string; petId?: string; canal?: string; tipo?: string; limit?: number }) {
     const { leadId, tutorId, petId, canal, tipo, limit = 50 } = params;
+
+    // Filtros AND aplicados por cima do escopo da pessoa
+    const and: any[] = [];
+    if (canal) and.push({ canal });
+    if (tipo) and.push({ tipo });
+
+    // Histórico unificado por "pessoa": tutor <-> seus pets <-> lead de origem.
+    // A ficha do cliente passa a enxergar o que foi registrado nos pets dele
+    // (e no lead que originou o cliente); a ficha do lead enxerga o que veio do
+    // cliente convertido e dos pets dele. Sem alterar a gravação.
+    let or: any[] | null = null;
+
+    if (tutorId) {
+      const tutor = await (this.prisma as any).tutor.findUnique({
+        where: { id: tutorId },
+        select: { convertedFromLeadId: true, pets: { select: { id: true } } },
+      });
+      or = [{ tutorId }];
+      const petIds = (tutor?.pets ?? []).map((p: any) => p.id);
+      if (petIds.length) or.push({ petId: { in: petIds } });
+      if (tutor?.convertedFromLeadId) or.push({ leadId: tutor.convertedFromLeadId });
+    } else if (leadId) {
+      const tutor = await (this.prisma as any).tutor.findFirst({
+        where: { convertedFromLeadId: leadId },
+        select: { id: true, pets: { select: { id: true } } },
+      });
+      or = [{ leadId }];
+      if (tutor?.id) {
+        or.push({ tutorId: tutor.id });
+        const petIds = (tutor.pets ?? []).map((p: any) => p.id);
+        if (petIds.length) or.push({ petId: { in: petIds } });
+      }
+    } else if (petId) {
+      or = [{ petId }];
+    }
+
     const where: any = {};
-    if (leadId) where.leadId = leadId;
-    if (tutorId) where.tutorId = tutorId;
-    if (petId) where.petId = petId;
-    if (canal) where.canal = canal;
-    if (tipo) where.tipo = tipo;
+    if (or) and.push({ OR: or });
+    if (and.length) where.AND = and;
+
     return (this.prisma as any).interacao.findMany({
       where,
       include: { autor: { select: { id: true, name: true } } },
