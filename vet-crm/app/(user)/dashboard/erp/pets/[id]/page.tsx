@@ -14,7 +14,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   LuArrowLeft, LuPencil, LuTrash, LuPlus, LuFlaskConical,
-  LuPackage, LuMessageSquare, LuShare2, LuTag, LuClock, LuCalendar, LuX,
+  LuPackage, LuMessageSquare, LuShare2, LuTag, LuClock, LuCalendar, LuX, LuCheck,
 } from "react-icons/lu";
 import toast from "react-hot-toast";
 import ConfirmDeleteModal from "@/components/common/ConfirmDeleteModal";
@@ -80,6 +80,9 @@ export default function PetDetailPage() {
   const [editObs, setEditObs] = useState(false);
   const [obsVal, setObsVal] = useState("");
   const [savingObs, setSavingObs] = useState(false);
+  const [editName, setEditName] = useState(false);
+  const [nameVal, setNameVal] = useState("");
+  const [savingName, setSavingName] = useState(false);
   const [fuDate, setFuDate] = useState("");
   const [savingFu, setSavingFu] = useState(false);
   const [pipes, setPipes] = useState<{ clinico: string[]; fisio: string[] }>({ clinico: [], fisio: [] });
@@ -178,6 +181,12 @@ export default function PetDetailPage() {
   async function saveObs() {
     setSavingObs(true);
     try { await patchPet({ observations: obsVal }); toast.success("Observa\u00e7\u00e3o salva"); setEditObs(false); await load(); } catch { toast.error("Erro ao salvar"); } finally { setSavingObs(false); }
+  }
+  async function saveName() {
+    const novo = nameVal.trim();
+    if (!novo) { toast.error("O nome n\u00e3o pode ficar vazio"); return; }
+    setSavingName(true);
+    try { await patchPet({ name: novo }); toast.success("Nome atualizado"); setEditName(false); await load(); } catch { toast.error("Erro ao salvar"); } finally { setSavingName(false); }
   }
   async function savePipe(field: "pipelineClinicoEtapa" | "pipelineFisioEtapa", value: string) {
     setSavingPipe(true);
@@ -309,7 +318,31 @@ export default function PetDetailPage() {
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-xl font-bold" style={{ color: "#014D5E" }}>{pet.name}</h2>
+                {editName ? (
+                  <span className="flex items-center gap-1">
+                    <input
+                      autoFocus
+                      value={nameVal}
+                      onChange={(e) => setNameVal(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") saveName(); if (e.key === "Escape") setEditName(false); }}
+                      className="text-xl font-bold px-2 py-0.5 border rounded-lg"
+                      style={{ color: "#014D5E", borderColor: "#009AAC" }}
+                    />
+                    <button onClick={saveName} disabled={savingName} className="p-1 rounded-lg text-white disabled:opacity-50" style={{ background: "#009AAC" }} title="Salvar">
+                      <LuCheck size={14} />
+                    </button>
+                    <button onClick={() => setEditName(false)} className="p-1 rounded-lg border" style={{ borderColor: "#E8DFC8", color: "#64748b" }} title="Cancelar">
+                      <LuX size={14} />
+                    </button>
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1.5 group">
+                    <h2 className="text-xl font-bold" style={{ color: "#014D5E" }}>{pet.name}</h2>
+                    <button onClick={() => { setNameVal(pet.name || ""); setEditName(true); }} className="p-1 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-[#009AAC]" title="Editar nome">
+                      <LuPencil size={13} />
+                    </button>
+                  </span>
+                )}
                 <span className="px-2 py-0.5 rounded-md text-[11px] font-medium" style={{ background: "#eef2f4", color: "#64748b" }}>
                   {speciesLabel(pet.species)}
                 </span>
