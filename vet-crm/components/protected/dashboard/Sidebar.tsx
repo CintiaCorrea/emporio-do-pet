@@ -113,8 +113,10 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
       } catch {}
     };
     load();
-    const id = setInterval(load, 30000);
-    return () => { alive = false; clearInterval(id); };
+    const id = setInterval(load, 10000);
+    const onChanged = () => load();
+    window.addEventListener("internas:changed", onChanged);
+    return () => { alive = false; clearInterval(id); window.removeEventListener("internas:changed", onChanged); };
   }, [pathname, meId]);
 
   const isActive = (it: Item) => {

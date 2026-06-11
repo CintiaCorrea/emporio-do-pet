@@ -390,6 +390,7 @@ export default function InboxUnificadoPage() {
     if (naoLidas.length) {
       try { await Promise.all(naoLidas.map((m: any) => fetch(`/api/internal-notes/${m.id}/read`, { method: "PATCH" }))); } catch {}
       setInternasRecebidas((prev: any[]) => prev.map((x: any) => naoLidas.some((m: any) => m.id === x.id) ? { ...x, readAt: new Date().toISOString() } : x));
+      window.dispatchEvent(new Event("internas:changed"));
     }
   };
 
@@ -416,6 +417,7 @@ export default function InboxUnificadoPage() {
       try {
         await fetch(`/api/internal-notes/${n.id}/read`, { method: "PATCH" });
         setInternasRecebidas((prev) => prev.map((x) => x.id === n.id ? { ...x, readAt: new Date().toISOString() } : x));
+        window.dispatchEvent(new Event("internas:changed"));
       } catch {}
     }
   };
