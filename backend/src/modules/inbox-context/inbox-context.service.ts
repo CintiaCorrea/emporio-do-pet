@@ -101,15 +101,50 @@ export class InboxContextService {
 
   async resolve(body: { tutorId?: string; leadId?: string; texto?: string }) {
     const txt = body.texto || `Conversa resolvida em ${new Date().toLocaleString('pt-BR')}`;
-    const interacao = await (this.prisma as any).interacao.create({
-      data: {
-        tipo: 'RESOLVIDO',
-        texto: txt,
-        tutorId: body.tutorId || null,
-        leadId: body.leadId || null,
-        canal: 'Sistema',
-      },
-    });
+    const tutorId = body.tutorId || null;
+    const leadId = body.leadId || null;
+
+    // 1 registro por dia: se já houve uma resolução hoje para este tutor/lead,
+    // atualiza o registro do dia em vez de criar outro (evita acúmulo). Um texto
+    // explícito (ex.: resumo vindo do BotConversa) sobrescreve o do dia.
+    const inicioDia = new Date();
+    inicioDia.setHours(0, 0, 0, 0);
+    const fimDia = new Date();
+    fimDia.setHours(23, 59, 59, 999);
+
+    const existente =
+      tutorId || leadId
+        ? await (this.prisma as any).interacao.findFirst({
+            where: {
+              tipo: 'RESOLVIDO',
+              canal: 'Sistema',
+              ...(tutorId ? { tutorId } : { leadId }),
+              createdAt: { gte: inicioDia, lte: fimDia },
+            },
+            orderBy: { createdAt: 'desc' },
+          })
+        : null;
+
+    let interacao;
+    if (existente) {
+      interacao =
+        body.texto && body.texto !== existente.texto
+          ? await (this.prisma as any).interacao.update({
+              where: { id: existente.id },
+              data: { texto: body.texto },
+            })
+          : existente;
+    } else {
+      interacao = await (this.prisma as any).interacao.create({
+        data: {
+          tipo: 'RESOLVIDO',
+          texto: txt,
+          tutorId,
+          leadId,
+          canal: 'Sistema',
+        },
+      });
+    }
 
     // Nao atualiza lastActivityAt: a Caixa de Entrada compara o horario da
     // resolucao com a ultima atividade pra decidir se o item ainda aparece.
