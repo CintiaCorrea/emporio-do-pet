@@ -306,6 +306,8 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
           <button onClick={() => openWhatsAppMeta(phone)} className="bg-white border border-[#009AAC] text-[#00798A] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5"><LuStickyNote className="w-3.5 h-3.5" />WhatsApp</button>
           <button onClick={() => setEmailOpen(true)} className="bg-white border border-[#cfd8e0] text-[#4d5a66] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5"><span style={{fontSize:"14px"}}>✉️</span>Email</button>
           <button className="bg-white border border-[#FCD194] text-[#BA7517] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5" onClick={marcarRecuperar}><LuTriangleAlert className="w-3.5 h-3.5" />Marcar a recuperar</button>
+          <button onClick={() => saveClassificacao("Fornecedor")} className="bg-white border border-[#0F6E56] text-[#0F6E56] px-3 py-1.5 rounded-lg text-xs">Fornecedor</button>
+          <button onClick={() => saveClassificacao("Parceiro")} className="bg-white border border-[#0F6E56] text-[#0F6E56] px-3 py-1.5 rounded-lg text-xs">Parceiro</button>
           <button className="bg-white border border-[#cfd8e0] text-[#0C447C] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5" onClick={encaminhar}><span style={{fontSize:"13px"}}>↔</span>Encaminhar</button>
           <button className="bg-white border border-[#cfd8e0] text-[#009AAC] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5" onClick={retomarComoLead}><span style={{fontSize:"13px"}}>↺</span>Retomar como Lead</button>
           <button onClick={() => setDelOpen(true)} className="bg-[#fbe6e6] border border-[#f4baba] text-[#A32D2D] px-2.5 py-1.5 rounded-lg text-xs"><LuTrash className="w-3.5 h-3.5" /></button>
