@@ -30,7 +30,7 @@ export class ListLeadsQueryDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  @Max(100)
+  @Max(10000)
   limit?: number = 20;
 
   @ApiPropertyOptional({ description: 'Busca por nome ou email' })
