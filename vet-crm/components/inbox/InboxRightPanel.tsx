@@ -6,7 +6,7 @@ import Link from "next/link";
 import {
   LuSearch, LuPhone, LuPlus, LuExternalLink, LuShare2, LuCheckCheck,
   LuMessageSquare, LuSparkles, LuCalendar, LuFileText, LuFlaskConical, LuStickyNote,
-  LuX, LuArrowUpRight, LuInbox, LuMessageCircle, LuTrash,
+  LuX, LuArrowUpRight, LuInbox, LuMessageCircle, LuTrash, LuArrowLeft,
 } from "react-icons/lu";
 import toast from "react-hot-toast";
 import PetIcon from "@/components/profile/PetIcon";
@@ -1096,6 +1096,9 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
         {/* Aba CONTEXTO */}
         {activeTab === "contexto" && (
           <>
+            <button onClick={reset} className="w-full flex items-center gap-1.5 mb-2 px-2.5 py-2 text-[11.5px] font-semibold rounded-lg border" style={{ borderColor: "#bfe3e8", color: "#00798A", background: "#f0fdfa" }}>
+              <LuArrowLeft size={14} /> Voltar para a Caixa de entrada
+            </button>
             {/* Cadastro inline */}
             {cadastroOpen && (
               <section className={SECTION} style={SECTION_STYLE}>
