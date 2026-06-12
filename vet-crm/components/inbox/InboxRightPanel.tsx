@@ -65,6 +65,7 @@ interface IncomingItem {
   createdAt: string;
   canal?: "BC" | "Meta";
   canais?: string[];
+  classificacao?: string;
   raw: Lead | Tutor;
 }
 
@@ -342,6 +343,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
               phone,
               createdAt: it.updatedAt || it.createdAt || it.dataHora || new Date().toISOString(),
               canal: "BC",
+              classificacao: t?.classificacao,
               raw: t,
             });
           } catch { /* ignora tutor individual */ }
@@ -371,6 +373,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
             phone,
             createdAt: c.lastMessageAt || c.updatedAt || new Date().toISOString(),
             canal: "Meta",
+            classificacao: tutorId ? tutorMap.get(tutorId)?.classificacao : undefined,
             raw: (tutorMap.get(tutorId) || c) as any,
           });
         }
@@ -1042,6 +1045,11 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
               <>
                 {incoming.slice(0, incomingLimit).map(item => {
                   const isLead = item.kind === "LEAD";
+                  const _cls = item.classificacao;
+                  let tagLabel = isLead ? "Lead" : "Cliente"; let tagBg = isLead ? "#FEF3C7" : "#CCFBF1"; let tagFg = isLead ? "#92611A" : "#0E7490";
+                  if (!isLead && _cls === "Fornecedor") { tagLabel = "Fornecedor"; tagBg = "#EDE9FE"; tagFg = "#6D28D9"; }
+                  else if (!isLead && _cls === "Parceiro") { tagLabel = "Parceiro"; tagBg = "#FCE7F3"; tagFg = "#BE185D"; }
+                  else if (!isLead && _cls === "Ex_cliente") { tagLabel = "Ex-cliente"; tagBg = "#FEE2E2"; tagFg = "#B91C1C"; }
                   return (
                     <button
                       key={item.id}
@@ -1060,7 +1068,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                       <div className="flex-1 min-w-0">
                         <div className="text-[11.5px] font-semibold flex items-center gap-1.5 flex-wrap" style={{ color: "#014D5E" }}>
                           {item.name}
-                          <span className="text-[8.5px] font-bold px-1.5 py-0.5 rounded uppercase" style={{ background: isLead ? "#FEF3C7" : "#CCFBF1", color: isLead ? "#92611A" : "#0E7490" }}>{isLead ? "Lead" : "Cliente"}</span>
+                          <span className="text-[8.5px] font-bold px-1.5 py-0.5 rounded uppercase" style={{ background: tagBg, color: tagFg }}>{tagLabel}</span>
                           {(item.canais || ["BC"]).map((c) => (
                             <span key={c} className="text-[7.5px] font-bold px-1 rounded text-white" style={{ background: c === "Meta" ? "#1877F2" : "#009AAC" }}>{c}</span>
                           ))}
