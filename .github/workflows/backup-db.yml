@@ -3,35 +3,47 @@ name: Backup do banco (pg_dump diário)
 on:
   schedule:
     - cron: '0 7 * * *'   # ~04:00 horário de Brasília
-  workflow_dispatch:        # permite rodar manualmente
+  workflow_dispatch:        # roda manualmente pelo botao "Run workflow"
 
 jobs:
   dump:
     runs-on: ubuntu-latest
     steps:
-      - name: Conferir secret DATABASE_URL
+      - name: Conferir secret FLY_API_TOKEN
         id: check
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
-          if [ -z "${DATABASE_URL}" ]; then
-            echo "::warning::Secret DATABASE_URL nao configurado — backup pulado. Adicione em Settings > Secrets and variables > Actions."
+          if [ -z "$FLY_API_TOKEN" ]; then
+            echo "::warning::Secret FLY_API_TOKEN nao configurado — backup pulado. Adicione em Settings > Secrets and variables > Actions."
             echo "skip=true" >> "$GITHUB_OUTPUT"
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Gerar dump (pg_dump 16)
+      - name: Instalar flyctl
+        if: steps.check.outputs.skip != 'true'
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Gerar dump via tunel do Fly
         if: steps.check.outputs.skip != 'true'
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
+          set -e
+          echo "Descobrindo a string de conexao do banco..."
+          DBURL=$(flyctl ssh console -a emporio-pet-api -C "printenv DATABASE_URL" 2>/dev/null | tr -d '\r' | grep -Eo 'postgres(ql)?://[^[:space:]]+' | head -1)
+          if [ -z "$DBURL" ]; then echo "ERRO: nao obtive a DATABASE_URL"; exit 1; fi
+          echo "Abrindo tunel para o Postgres interno (emporio-pet-db)..."
+          flyctl proxy 15432:5432 -a emporio-pet-db &
+          PROXY_PID=$!
+          for i in $(seq 1 20); do (echo > /dev/tcp/127.0.0.1/15432) 2>/dev/null && { echo "tunel pronto"; break; }; sleep 2; done
+          LOCALURL=$(echo "$DBURL" | sed -E 's#@[^/]+/#@127.0.0.1:15432/#')
           mkdir -p out
           ARQ="out/emporio-db-$(date +%Y-%m-%d-%H%M).sql.gz"
-          docker run --rm -e PGCONN="$DATABASE_URL" postgres:16 \
-            sh -c 'pg_dump --no-owner --no-privileges "$PGCONN"' | gzip > "$ARQ"
-          echo "Gerado: $ARQ"
-          ls -lh out
+          docker run --rm --network host -e U="$LOCALURL" postgres:17 sh -c 'pg_dump --no-owner --no-privileges "$U"' | gzip > "$ARQ"
+          kill $PROXY_PID 2>/dev/null || true
+          echo "Gerado:"; ls -lh out
 
       - name: Guardar backup (artefato, 90 dias)
         if: steps.check.outputs.skip != 'true'
