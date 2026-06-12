@@ -769,9 +769,12 @@ export default function InboxUnificadoPage() {
                   </select>
                 </div>
                 <textarea value={internalNote} onChange={(e) => setInternalNote(e.target.value)} rows={6} placeholder="Escreva a mensagem..." className="w-full px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm focus:outline-none focus:border-[#009AAC] resize-none mb-3" />
-                <div className="flex justify-end gap-2">
+                <div className="flex items-center justify-between gap-2">
+                  <EmojiPicker onPick={(em) => setInternalNote((v) => v + em)} />
+                  <div className="flex gap-2">
                   <button onClick={() => { setInternasCompose(false); setInternalSelected(null); setInternalNote(""); }} className="px-3 py-1.5 text-xs text-[#5F5E5A]">Cancelar</button>
                   <button onClick={salvarNotaInterna} className="bg-[#009AAC] text-white px-4 py-1.5 rounded-lg text-xs font-medium">Enviar</button>
+                  </div>
                 </div>
               </div>
             ) : internasConvSel ? (() => {
@@ -796,6 +799,7 @@ export default function InboxUnificadoPage() {
                   </div>
                   <div className="border-t border-[#e8e1d2] p-3 flex items-end gap-2 flex-shrink-0">
                     <textarea value={internasReply} onChange={(e) => setInternasReply(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); enviarRespostaInterna(); } }} rows={1} placeholder="Escreva uma mensagem..." className="flex-1 px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm focus:outline-none focus:border-[#009AAC] resize-none" />
+                    <EmojiPicker onPick={(em) => setInternasReply((v) => v + em)} />
                     <button onClick={() => enviarRespostaInterna()} disabled={!internasReply.trim()} className="bg-[#009AAC] text-white px-4 py-2 rounded-lg text-xs font-medium disabled:opacity-50">Enviar</button>
                   </div>
                 </>
