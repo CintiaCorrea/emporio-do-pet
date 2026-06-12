@@ -29,6 +29,7 @@ const ITEMS: Item[] = [
   { href: "/dashboard/configuracoes/etiquetas", title: "Etiquetas", description: "Tags pra Lead, Cliente e Pet", Icon: LuTag, group: "CADASTROS" },
   { href: "/dashboard/configuracoes/servicos", title: "Serviços e Produtos", description: "Catálogo com preço, custo e comissão", Icon: LuPackage, group: "CADASTROS" },
   { href: "/dashboard/configuracoes/racas", title: "Raças", description: "Lista de raças por espécie", Icon: LuPawPrint, group: "CADASTROS" },
+  { href: "/dashboard/configuracoes/atendimento", title: "Atendimento", description: "Tipos e status do atendimento", Icon: LuPawPrint, group: "CADASTROS" },
   { href: "/dashboard/configuracoes/listas", title: "Listas customizáveis", description: "Canais, origens, motivos, status", Icon: LuList, group: "CADASTROS" },
   { href: "/dashboard/configuracoes/exames", title: "Exames e Fornecedores", description: "Catálogo + laboratórios parceiros", Icon: LuFlaskConical, group: "CADASTROS" },
   { href: "/dashboard/legacy", title: "Sistema antigo (comparar)", description: "Telas originais do dev — mesmo banco, só comparação", Icon: LuList, group: "CADASTROS" },

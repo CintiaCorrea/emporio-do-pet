@@ -63,6 +63,8 @@ function speciesEnum(sp: string): string {
   return "OTHER";
 }
 
+const ATD_TIPOS_DEFAULT: [string, string][] = [["CONSULTA","Consulta"],["RETORNO","Retorno"],["AVALIACAO","Avaliação"],["EMERGENCIA","Emergência"],["PROCEDIMENTO","Procedimento"],["VACINACAO","Vacinação"],["CIRURGIA","Cirurgia"],["SESSAO_FISIO","Sessão de fisio"],["OUTRO","Outro"]];
+const ATD_STATUS_DEFAULT = ["Realizado","Agendado","Cancelado","Faltou"];
 const ATD_TIPO_LABEL = (t?: string) => (({ CONSULTA: "Consulta", RETORNO: "Retorno", AVALIACAO: "Avaliação", EMERGENCIA: "Emergência", PROCEDIMENTO: "Procedimento", VACINACAO: "Vacinação", SESSAO_FISIO: "Sessão de fisio", CIRURGIA: "Cirurgia", OUTRO: "Outro" } as any)[t || ""] || t || "Atendimento");
 
 export default function PetDetailPage() {
@@ -110,6 +112,8 @@ export default function PetDetailPage() {
   const ATD0 = { date: "", userId: "", type: "CONSULTA", status: "Realizado", duration: "30", chiefComplaint: "", anamnesis: "", physicalExam: "", petWeight: "", temperature: "", diagnosis: "", conduct: "", prescription: "", examsRequested: "", nextReturnDate: "", paymentMethod: "", followUpNotes: "", notes: "" };
   const [atd, setAtd] = useState<any>(ATD0);
   const [items, setItems] = useState<any[]>([]);
+  const [atdTipos, setAtdTipos] = useState<{ v: string; l: string }[]>(ATD_TIPOS_DEFAULT.map(([v, l]) => ({ v, l })));
+  const [atdStatus, setAtdStatus] = useState<string[]>(ATD_STATUS_DEFAULT);
   const [servicosCat, setServicosCat] = useState<any[]>([]);
   const [petInteracoes, setPetInteracoes] = useState<any[]>([]);
   const [intTipo, setIntTipo] = useState("NOTA");
@@ -139,7 +143,7 @@ export default function PetDetailPage() {
       setExamFases(pick("exame"));
     } catch {}
   }
-  useEffect(() => { if (petId) { load(); loadPipes(); loadPetColecoes(); loadCatalogos(); loadInteracoesPet(); loadAtendimentos(); } /* eslint-disable-next-line */ }, [petId]);
+  useEffect(() => { if (petId) { load(); loadPipes(); loadPetColecoes(); loadCatalogos(); loadInteracoesPet(); loadAtendimentos(); loadAtdConfig(); } /* eslint-disable-next-line */ }, [petId]);
 
   async function handleDelete() {
     const res = await fetch(`/api/pets/${petId}`, { method: "DELETE" });
@@ -283,6 +287,17 @@ export default function PetDetailPage() {
   function pickServico(i: number, servicoId: string) { const sv = servicosCat.find((x: any) => x.id === servicoId); updItem(i, { servicoId, descricao: sv?.nome || "", valorUnitario: sv?.valorPadrao ?? 0, custoUnitario: sv?.custoPadrao ?? 0 }); }
   async function loadInteracoesPet() { try { const r = await fetch(`/api/interacoes?petId=${petId}&limit=100`, { cache: "no-store" }); const d = await r.json(); setPetInteracoes(Array.isArray(d) ? d : (d.interacoes || d.data || [])); } catch {} }
   async function addInteracaoPet() { if (!intTexto.trim()) { toast.error("Escreva algo"); return; } setSavingInt(true); try { const r = await fetch(`/api/interacoes`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ petId, tipo: intTipo, texto: intTexto.trim(), canal: "Sistema" }) }); if (!r.ok) throw new Error(); toast.success("Registrado"); setIntTexto(""); await loadInteracoesPet(); } catch { toast.error("Erro ao registrar"); } finally { setSavingInt(false); } }
+  async function loadAtdConfig() {
+    try {
+      const [rt, rs] = await Promise.all([fetch(`/api/listas?lista=atendimento_tipo`, { cache: "no-store" }), fetch(`/api/listas?lista=atendimento_status`, { cache: "no-store" })]);
+      const dt = await rt.json(); const at = Array.isArray(dt) ? dt : (dt.itens || dt.data || []);
+      const tipos = at.map((i: any) => { try { const o = JSON.parse(i.valor); return { v: o.v, l: o.l }; } catch { return { v: i.valor, l: i.valor }; } }).filter((x: any) => x.v);
+      if (tipos.length) setAtdTipos(tipos);
+      const ds = await rs.json(); const as = Array.isArray(ds) ? ds : (ds.itens || ds.data || []);
+      const status = as.map((i: any) => i.valor).filter(Boolean);
+      if (status.length) setAtdStatus(status);
+    } catch {}
+  }
   async function loadAtendimentos() { try { const r = await fetch(`/api/appointments?petId=${petId}`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.appointments || d.data || []); setAtendimentos(arr.slice().sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())); } catch {} }
   async function abrirAtd(id: string) { try { const a = await fetch(`/api/appointments/${id}`, { cache: "no-store" }).then(r => r.json()); setVerAtd(a); setEditAtd(false); } catch { toast.error("Erro ao abrir atendimento"); } }
   async function excluirAtendimento(id: string) {
@@ -760,9 +775,9 @@ export default function PetDetailPage() {
             <div className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Dados básicos</div>
             <div className="grid grid-cols-2 gap-2 mb-3 text-xs">
               <div><label className="text-gray-500">Data e hora *</label><input type="datetime-local" value={atd.date} onChange={(e) => setAtd((a: any) => ({ ...a, date: e.target.value }))} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg" style={{ borderColor: "#E8DFC8" }} /></div>
-              <div><label className="text-gray-500">Tipo</label><select value={atd.type} onChange={(e) => setAtd((a: any) => ({ ...a, type: e.target.value }))} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg" style={{ borderColor: "#E8DFC8" }}>{[["CONSULTA", "Consulta"], ["RETORNO", "Retorno"], ["AVALIACAO", "Avaliação"], ["EMERGENCIA", "Emergência"], ["PROCEDIMENTO", "Procedimento"], ["VACINACAO", "Vacinação"], ["CIRURGIA", "Cirurgia"], ["SESSAO_FISIO", "Sessão de fisio"], ["OUTRO", "Outro"]].map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></div>
+              <div><label className="text-gray-500">Tipo</label><select value={atd.type} onChange={(e) => setAtd((a: any) => ({ ...a, type: e.target.value }))} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg" style={{ borderColor: "#E8DFC8" }}>{atdTipos.map((t) => <option key={t.v} value={t.v}>{t.l}</option>)}</select></div>
               <div><label className="text-gray-500">Profissional responsável *</label><select value={atd.userId} onChange={(e) => setAtd((a: any) => ({ ...a, userId: e.target.value }))} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg" style={{ borderColor: "#E8DFC8" }}><option value="">Selecionar...</option>{vets.map((u: any) => <option key={u.id} value={u.id}>{u.name}</option>)}</select></div>
-              <div><label className="text-gray-500">Status</label><select value={atd.status} onChange={(e) => setAtd((a: any) => ({ ...a, status: e.target.value }))} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg" style={{ borderColor: "#E8DFC8" }}>{["Realizado", "Agendado", "Cancelado", "Faltou"].map(v => <option key={v} value={v}>{v}</option>)}</select></div>
+              <div><label className="text-gray-500">Status</label><select value={atd.status} onChange={(e) => setAtd((a: any) => ({ ...a, status: e.target.value }))} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg" style={{ borderColor: "#E8DFC8" }}>{atdStatus.map((v) => <option key={v} value={v}>{v}</option>)}</select></div>
               <div><label className="text-gray-500">Duração (min)</label><input type="number" value={atd.duration} onChange={(e) => setAtd((a: any) => ({ ...a, duration: e.target.value }))} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg" style={{ borderColor: "#E8DFC8" }} /></div>
             </div>
             <div className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Anamnese e exame</div>
@@ -829,8 +844,8 @@ export default function PetDetailPage() {
             </div>
             <div className="text-xs space-y-2">
               <div className="grid grid-cols-2 gap-1">
-                <div><span className="text-gray-400">Tipo:</span> {editAtd ? <select value={editAtdForm.type} onChange={(e) => setEditAtdForm((f: any) => ({ ...f, type: e.target.value }))} className="ml-1 px-1.5 py-0.5 border rounded" style={{ borderColor: "#E8DFC8" }}>{([["CONSULTA","Consulta"],["RETORNO","Retorno"],["AVALIACAO","Avaliação"],["EMERGENCIA","Emergência"],["PROCEDIMENTO","Procedimento"],["VACINACAO","Vacinação"],["CIRURGIA","Cirurgia"],["SESSAO_FISIO","Sessão de fisio"],["OUTRO","Outro"]] as [string,string][]).map(([v,l]) => <option key={v} value={v}>{l}</option>)}</select> : ATD_TIPO_LABEL(verAtd.type)}</div>
-                <div><span className="text-gray-400">Status:</span> {editAtd ? <select value={editAtdForm.status} onChange={(e) => setEditAtdForm((f: any) => ({ ...f, status: e.target.value }))} className="ml-1 px-1.5 py-0.5 border rounded" style={{ borderColor: "#E8DFC8" }}>{["Realizado","Agendado","Cancelado","Faltou"].map((v) => <option key={v} value={v}>{v}</option>)}</select> : (verAtd.status || "—")}</div>
+                <div><span className="text-gray-400">Tipo:</span> {editAtd ? <select value={editAtdForm.type} onChange={(e) => setEditAtdForm((f: any) => ({ ...f, type: e.target.value }))} className="ml-1 px-1.5 py-0.5 border rounded" style={{ borderColor: "#E8DFC8" }}>{atdTipos.map((t) => <option key={t.v} value={t.v}>{t.l}</option>)}</select> : ATD_TIPO_LABEL(verAtd.type)}</div>
+                <div><span className="text-gray-400">Status:</span> {editAtd ? <select value={editAtdForm.status} onChange={(e) => setEditAtdForm((f: any) => ({ ...f, status: e.target.value }))} className="ml-1 px-1.5 py-0.5 border rounded" style={{ borderColor: "#E8DFC8" }}>{atdStatus.map((v) => <option key={v} value={v}>{v}</option>)}</select> : (verAtd.status || "—")}</div>
                 <div><span className="text-gray-400">Profissional:</span> {verAtd.user?.name || "—"}</div>
                 <div><span className="text-gray-400">Duração:</span> {verAtd.duration ? `${verAtd.duration} min` : "—"}</div>
                 {verAtd.petWeight != null && <div><span className="text-gray-400">Peso:</span> {verAtd.petWeight} kg</div>}

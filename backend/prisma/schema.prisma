@@ -495,7 +495,7 @@ model Appointment {
   paymentStatus PaymentStatus @default(PENDING)
 
   // Campos clínicos (ficha de atendimento)
-  type              AppointmentType @default(CONSULTA)
+  type              String          @default("CONSULTA")
   chiefComplaint    String? // motivo_consulta — queixa principal
   anamnesis         String? // anamnese
   physicalExam      String? // exame físico
