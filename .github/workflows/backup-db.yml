@@ -12,10 +12,10 @@ jobs:
       - name: Conferir secret FLY_API_TOKEN
         id: check
         env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          FLY_API_TOKEN: ${{ secrets.FLY_BACKUP_TOKEN }}
         run: |
           if [ -z "$FLY_API_TOKEN" ]; then
-            echo "::warning::Secret FLY_API_TOKEN nao configurado — backup pulado. Adicione em Settings > Secrets and variables > Actions."
+            echo "::warning::Secret FLY_BACKUP_TOKEN nao configurado — backup pulado. Adicione em Settings > Secrets and variables > Actions."
             echo "skip=true" >> "$GITHUB_OUTPUT"
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
@@ -28,7 +28,7 @@ jobs:
       - name: Gerar dump via tunel do Fly
         if: steps.check.outputs.skip != 'true'
         env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          FLY_API_TOKEN: ${{ secrets.FLY_BACKUP_TOKEN }}
         run: |
           set -e
           echo "Descobrindo a string de conexao do banco..."
