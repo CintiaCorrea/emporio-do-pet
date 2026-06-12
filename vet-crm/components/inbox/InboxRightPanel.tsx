@@ -528,7 +528,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
       );
     }
     const Tag: any = h.href ? Link : "div";
-    const tagProps: any = h.href ? { href: h.href, target: "_blank" } : {};
+    const tagProps: any = h.href ? { href: h.href } : {};
     return (
       <Tag key={h.id} {...tagProps} className="flex items-start gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 transition border group" style={{ borderColor: "#F0EBE0" }}>
         <div className="flex-1 min-w-0">
@@ -1188,7 +1188,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                       <button className="px-2 py-0.5 text-[9px] font-bold rounded-full uppercase" style={{ background: "#CCFBF1", color: "#0E7490" }}>Cliente</button>
                     </span>
                   </span>
-                  <Link href={`/dashboard/erp/tutores/${tutor.id}`} target="_blank" className={LINK} style={{ color: "#009AAC" }}>Ficha <LuExternalLink size={9} className="inline -mt-0.5" /></Link>
+                  <Link href={`/dashboard/erp/tutores/${tutor.id}`} className={LINK} style={{ color: "#009AAC" }}>Ficha <LuExternalLink size={9} className="inline -mt-0.5" /></Link>
                 </div>
                 <div className="flex items-start gap-2">
                   <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-semibold flex-shrink-0" style={{ background: "linear-gradient(135deg,#009AAC,#014D5E)" }}>{initials(tutor.name)}</div>
@@ -1244,7 +1244,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                       <button onClick={handleConverter} className="px-2 py-0.5 text-[9px] font-bold rounded-full uppercase text-[#5F5E5A] hover:bg-teal-100 hover:text-[#0E7490]">Cliente</button>
                     </span>
                   </span>
-                  <Link href={`/dashboard/crm/leads/${lead.id}`} target="_blank" className={LINK} style={{ color: "#009AAC" }}>Ficha <LuExternalLink size={9} className="inline -mt-0.5" /></Link>
+                  <Link href={`/dashboard/crm/leads/${lead.id}`} className={LINK} style={{ color: "#009AAC" }}>Ficha <LuExternalLink size={9} className="inline -mt-0.5" /></Link>
                 </div>
                 <div className="flex items-start gap-2">
                   <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-semibold flex-shrink-0" style={{ background: "linear-gradient(135deg,#D97706,#92611A)" }}>{initials(lead.name || "?")}</div>
@@ -1430,8 +1430,8 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                                   </div>
                                 )}
                               </div>
-                              <button onClick={() => window.open(`/dashboard/erp/pets/${p.id}/atendimentos/novo`, "_blank")} className="w-full px-2 py-1.5 rounded text-[10.5px] text-white font-semibold flex items-center justify-center gap-1 mb-1.5" style={{ background: "#009AAC" }} type="button"><LuPlus size={11} /> Registrar atendimento</button>
-                              <button onClick={() => window.open(`/dashboard/erp/pets/${p.id}`, "_blank")} className="w-full text-[10px] py-1 border rounded font-medium bg-white hover:bg-gray-50" style={{ borderColor: "#009AAC", color: "#009AAC" }} type="button">Abrir ficha completa ↗</button>
+                              <button onClick={() => window.open(`/dashboard/erp/pets/${p.id}/atendimentos/novo`, "_self")} className="w-full px-2 py-1.5 rounded text-[10.5px] text-white font-semibold flex items-center justify-center gap-1 mb-1.5" style={{ background: "#009AAC" }} type="button"><LuPlus size={11} /> Registrar atendimento</button>
+                              <button onClick={() => window.open(`/dashboard/erp/pets/${p.id}`, "_self")} className="w-full text-[10px] py-1 border rounded font-medium bg-white hover:bg-gray-50" style={{ borderColor: "#009AAC", color: "#009AAC" }} type="button">Abrir ficha completa ↗</button>
                             </div>
                           )}
                         </div>
@@ -1482,7 +1482,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                 <div className={LBL}>
                   <span><span className={NUM}>5</span>Últimos atendimentos{historico.length > 0 && ` (${historico.length})`}</span>
                   {tutor && selectedPet && (
-                    <Link href={`/dashboard/erp/pets/${selectedPet.id}/atendimentos/novo`} target="_blank" className={LINK} style={{ color: "#009AAC" }}><LuPlus size={10} className="inline" /> novo</Link>
+                    <Link href={`/dashboard/erp/pets/${selectedPet.id}/atendimentos/novo`} className={LINK} style={{ color: "#009AAC" }}><LuPlus size={10} className="inline" /> novo</Link>
                   )}
                 </div>
                 {historico.length === 0 ? (
