@@ -34,7 +34,7 @@ jobs:
           mkdir -p out
           ARQ="out/emporio-db-$(date +%Y-%m-%d-%H%M).sql.gz"
           # roda o pg_dumpall DENTRO da maquina do Postgres (acesso local) e traz o resultado por ssh
-          flyctl ssh console -a emporio-pet-db -C 'sh -lc "PGPASSWORD=${OPERATOR_PASSWORD:-$SU_PASSWORD} pg_dumpall -U postgres --no-role-passwords"' > dump.sql 2> err.log || true
+          flyctl ssh console -a emporio-pet-db -C 'sh -lc "PGPASSWORD=${OPERATOR_PASSWORD:-$SU_PASSWORD} pg_dumpall -h 127.0.0.1 -U postgres --no-role-passwords"' > dump.sql 2> err.log || true
           SIZE=$(stat -c%s dump.sql 2>/dev/null || echo 0)
           echo "Tamanho do dump: $SIZE bytes"
           if [ "$SIZE" -lt 1000 ]; then
