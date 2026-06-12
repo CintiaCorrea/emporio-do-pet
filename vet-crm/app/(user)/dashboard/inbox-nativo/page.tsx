@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import {
   LuPlus, LuSearch, LuUserPlus, LuPencil, LuPhone, LuCalendar, LuInbox, LuTrash} from "react-icons/lu";
+import EmojiPicker from "@/components/inbox/EmojiPicker";
   import InboxRightPanel from "@/components/inbox/InboxRightPanel";
   import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 type Tab = "conversas" | "internas" | "encaminhadas";
@@ -709,6 +710,7 @@ export default function InboxUnificadoPage() {
                       onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendMessage()}
                       placeholder="Digite uma mensagem..."
                       className="flex-1 px-3 py-1.5 border border-[#e8e1d2] rounded-lg text-xs focus:outline-none focus:border-[#009AAC]" />
+                    <EmojiPicker onPick={(em) => setMessageInput((v) => v + em)} />
                     <button onClick={() => sendMessage()} className="bg-[#009AAC] text-white w-8 h-8 rounded-lg flex items-center justify-center" title="Enviar">
                       <span style={{fontSize:"13px"}}>➤</span>
                     </button>
