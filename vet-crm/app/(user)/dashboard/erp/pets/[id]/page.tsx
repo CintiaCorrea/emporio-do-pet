@@ -279,6 +279,14 @@ export default function PetDetailPage() {
       const r = await fetch("/api/appointments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (!r.ok) throw new Error(await r.text());
       toast.success("Atendimento registrado"); setAtdOpen(false); setAtd(ATD0); setItems([]); await load(); await loadAtendimentos();
+      // Venda de fisioterapia: abre o pacote pra lancar as sessoes
+      const fisioItem = itensValidos.find((it: any) => it.servicoId && fisioSrv.some((sv: any) => String(sv.id) === String(it.servicoId)));
+      if (fisioItem) {
+        const sv = fisioSrv.find((x: any) => String(x.id) === String(fisioItem.servicoId));
+        setTab("PACOTES");
+        setPacForm({ open: true, serviceId: String(fisioItem.servicoId), total: String(Number(fisioItem.quantidade) || 4), jaFeitas: "0" });
+        toast(`Fisioterapia vendida (${sv?.nome || sv?.titulo || "sessão"}) — defina o total de sessões do pacote`, { icon: "🩺", duration: 6000 });
+      }
     } catch { toast.error("Erro ao registrar atendimento"); } finally { setSavingAtd(false); }
   }
   function addItem() { setItems(prev => [...prev, { servicoId: "", descricao: "", quantidade: 1, valorUnitario: 0, custoUnitario: 0, executorUserId: "", comissaoValor: 0 }]); }
