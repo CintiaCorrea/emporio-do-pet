@@ -62,10 +62,11 @@ function isRealPetName(s?: string): boolean {
   if (!v) return false;
   // placeholder não resolvido do BC (ex.: "{Pet}", "{Espécie}")
   if (v.includes('{') || v.includes('}')) return false;
-  // mensagem/frase no lugar do nome: muito longa, com pontuação ou muitas palavras
-  if (v.length > 40) return false;
-  if (/[.!?]/.test(v)) return false;
-  if (v.split(/\s+/).length > 4) return false;
+  // mensagem/frase no lugar do nome: muito longa, com pontuação, emoji ou muitas palavras
+  if (v.length > 30) return false;
+  if (/[.!?:;*@/\\|#\n\r]/.test(v)) return false;
+  if (/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}\u{2B00}-\u{2BFF}]/u.test(v)) return false;
+  if (v.split(/\s+/).length > 3) return false;
   // valores genéricos que não são nome de pet
   if (/^(sem nome|sem|n\/a|na|nao sei|não sei|teste|test|pet|none|null)$/i.test(v)) return false;
   return true;
@@ -132,6 +133,11 @@ export class BotConversaController {
       p => (p.name || '').trim().toLowerCase() === alvo,
     );
     if (jaExiste) return false;
+    // Dedup robusta: confere no banco (existingPets pode estar desatualizado entre webhooks)
+    const noBanco = await this.prisma.pet.findFirst({
+      where: { tutorId: opts.tutorId, name: { equals: opts.petName.trim(), mode: 'insensitive' } },
+    });
+    if (noBanco) return false;
     try {
       await this.prisma.pet.create({
         data: {
