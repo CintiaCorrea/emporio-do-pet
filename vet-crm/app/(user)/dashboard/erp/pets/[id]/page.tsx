@@ -117,6 +117,8 @@ export default function PetDetailPage() {
   const [savingInt, setSavingInt] = useState(false);
   const [atendimentos, setAtendimentos] = useState<any[]>([]);
   const [verAtd, setVerAtd] = useState<any>(null);
+  const [editAtd, setEditAtd] = useState(false);
+  const [editAtdForm, setEditAtdForm] = useState<any>({});
 
   usePageTitle(pet ? pet.name : "Pet", pet?.tutor ? `Tutor: ${pet.tutor.name}` : undefined);
 
@@ -282,7 +284,15 @@ export default function PetDetailPage() {
   async function loadInteracoesPet() { try { const r = await fetch(`/api/interacoes?petId=${petId}&limit=100`, { cache: "no-store" }); const d = await r.json(); setPetInteracoes(Array.isArray(d) ? d : (d.interacoes || d.data || [])); } catch {} }
   async function addInteracaoPet() { if (!intTexto.trim()) { toast.error("Escreva algo"); return; } setSavingInt(true); try { const r = await fetch(`/api/interacoes`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ petId, tipo: intTipo, texto: intTexto.trim(), canal: "Sistema" }) }); if (!r.ok) throw new Error(); toast.success("Registrado"); setIntTexto(""); await loadInteracoesPet(); } catch { toast.error("Erro ao registrar"); } finally { setSavingInt(false); } }
   async function loadAtendimentos() { try { const r = await fetch(`/api/appointments?petId=${petId}`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.appointments || d.data || []); setAtendimentos(arr.slice().sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())); } catch {} }
-  async function abrirAtd(id: string) { try { const a = await fetch(`/api/appointments/${id}`, { cache: "no-store" }).then(r => r.json()); setVerAtd(a); } catch { toast.error("Erro ao abrir atendimento"); } }
+  async function abrirAtd(id: string) { try { const a = await fetch(`/api/appointments/${id}`, { cache: "no-store" }).then(r => r.json()); setVerAtd(a); setEditAtd(false); } catch { toast.error("Erro ao abrir atendimento"); } }
+  async function excluirAtendimento(id: string) {
+    if (!window.confirm("Excluir este atendimento?")) return;
+    try { const r = await fetch(`/api/appointments/${id}`, { method: "DELETE" }); if (!r.ok) throw new Error(); toast.success("Atendimento excluído"); setVerAtd(null); await loadAtendimentos(); } catch { toast.error("Erro ao excluir"); }
+  }
+  async function salvarEditAtd() {
+    if (!verAtd) return;
+    try { const r = await fetch(`/api/appointments/${verAtd.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: editAtdForm.type, status: editAtdForm.status }) }); if (!r.ok) throw new Error(); toast.success("Atendimento atualizado"); setVerAtd({ ...verAtd, type: editAtdForm.type, status: editAtdForm.status }); setEditAtd(false); await loadAtendimentos(); } catch { toast.error("Erro ao salvar"); }
+  }
 
   const tutorWhats = useMemo(() => {
     if (!pet?.tutor?.contacts) return null;
@@ -819,8 +829,8 @@ export default function PetDetailPage() {
             </div>
             <div className="text-xs space-y-2">
               <div className="grid grid-cols-2 gap-1">
-                <div><span className="text-gray-400">Tipo:</span> {ATD_TIPO_LABEL(verAtd.type)}</div>
-                <div><span className="text-gray-400">Status:</span> {verAtd.status || "—"}</div>
+                <div><span className="text-gray-400">Tipo:</span> {editAtd ? <select value={editAtdForm.type} onChange={(e) => setEditAtdForm((f: any) => ({ ...f, type: e.target.value }))} className="ml-1 px-1.5 py-0.5 border rounded" style={{ borderColor: "#E8DFC8" }}>{([["CONSULTA","Consulta"],["RETORNO","Retorno"],["AVALIACAO","Avaliação"],["EMERGENCIA","Emergência"],["PROCEDIMENTO","Procedimento"],["VACINACAO","Vacinação"],["CIRURGIA","Cirurgia"],["SESSAO_FISIO","Sessão de fisio"],["OUTRO","Outro"]] as [string,string][]).map(([v,l]) => <option key={v} value={v}>{l}</option>)}</select> : ATD_TIPO_LABEL(verAtd.type)}</div>
+                <div><span className="text-gray-400">Status:</span> {editAtd ? <select value={editAtdForm.status} onChange={(e) => setEditAtdForm((f: any) => ({ ...f, status: e.target.value }))} className="ml-1 px-1.5 py-0.5 border rounded" style={{ borderColor: "#E8DFC8" }}>{["Realizado","Agendado","Cancelado","Faltou"].map((v) => <option key={v} value={v}>{v}</option>)}</select> : (verAtd.status || "—")}</div>
                 <div><span className="text-gray-400">Profissional:</span> {verAtd.user?.name || "—"}</div>
                 <div><span className="text-gray-400">Duração:</span> {verAtd.duration ? `${verAtd.duration} min` : "—"}</div>
                 {verAtd.petWeight != null && <div><span className="text-gray-400">Peso:</span> {verAtd.petWeight} kg</div>}
@@ -848,7 +858,22 @@ export default function PetDetailPage() {
               {verAtd.followUpNotes && <div><span className="text-gray-400">Verificar:</span> {verAtd.followUpNotes}</div>}
               {verAtd.notes && <div><span className="text-gray-400">Obs.:</span> {verAtd.notes}</div>}
             </div>
-            <div className="flex justify-end mt-4"><button onClick={() => setVerAtd(null)} className="px-4 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8", color: "#475569" }}>Fechar</button></div>
+            <div className="flex items-center justify-between mt-4">
+              <button onClick={() => excluirAtendimento(verAtd.id)} className="px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#f4baba", color: "#A32D2D", background: "#fbe6e6" }}>Excluir</button>
+              <div className="flex gap-2">
+                {editAtd ? (
+                  <>
+                    <button onClick={salvarEditAtd} className="px-4 py-2 rounded-lg text-sm text-white" style={{ background: "#009AAC" }}>Salvar</button>
+                    <button onClick={() => setEditAtd(false)} className="px-4 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8", color: "#475569" }}>Cancelar</button>
+                  </>
+                ) : (
+                  <>
+                    <button onClick={() => { setEditAtdForm({ type: verAtd.type, status: verAtd.status }); setEditAtd(true); }} className="px-4 py-2 border rounded-lg text-sm" style={{ borderColor: "#009AAC", color: "#00798A" }}>Editar</button>
+                    <button onClick={() => setVerAtd(null)} className="px-4 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8", color: "#475569" }}>Fechar</button>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}
