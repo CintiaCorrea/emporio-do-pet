@@ -1,0 +1,42 @@
+name: Backup do banco (pg_dump diário)
+
+on:
+  schedule:
+    - cron: '0 7 * * *'   # ~04:00 horário de Brasília
+  workflow_dispatch:        # permite rodar manualmente
+
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Conferir secret DATABASE_URL
+        id: check
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [ -z "${DATABASE_URL}" ]; then
+            echo "::warning::Secret DATABASE_URL nao configurado — backup pulado. Adicione em Settings > Secrets and variables > Actions."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Gerar dump (pg_dump 16)
+        if: steps.check.outputs.skip != 'true'
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          mkdir -p out
+          ARQ="out/emporio-db-$(date +%Y-%m-%d-%H%M).sql.gz"
+          docker run --rm -e PGCONN="$DATABASE_URL" postgres:16 \
+            sh -c 'pg_dump --no-owner --no-privileges "$PGCONN"' | gzip > "$ARQ"
+          echo "Gerado: $ARQ"
+          ls -lh out
+
+      - name: Guardar backup (artefato, 90 dias)
+        if: steps.check.outputs.skip != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: emporio-db-backup-${{ github.run_number }}
+          path: out/*.sql.gz
+          retention-days: 90
