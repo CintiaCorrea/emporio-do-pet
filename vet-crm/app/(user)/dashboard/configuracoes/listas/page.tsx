@@ -44,14 +44,15 @@ export default function ListasPage() {
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [showInactive]);
 
   const filtered = useMemo(() => {
-    let arr = itens;
+    // mostra so itens de uma lista de verdade (categoria definida); esconde dados internos do sistema
+    let arr = itens.filter(i => tipos.some(t => t.nome === i.lista));
     if (filterLista !== "ALL") arr = arr.filter(i => i.lista === filterLista);
     if (search) {
       const q = search.toLowerCase();
       arr = arr.filter(i => i.valor.toLowerCase().includes(q));
     }
     return arr;
-  }, [itens, filterLista, search]);
+  }, [itens, filterLista, search, tipos]);
 
   function openINew() { setIEditId(null); setIForm({ ...EMPTY_I, lista: filterLista !== "ALL" ? filterLista : (tipos[0]?.nome || "") }); setIModalOpen(true); }
   function openIEdit(i: ListaItem) { setIEditId(i.id); setIForm({ ...i }); setIModalOpen(true); }
