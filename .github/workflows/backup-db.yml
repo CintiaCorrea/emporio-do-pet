@@ -3,19 +3,19 @@ name: Backup do banco (pg_dump diário)
 on:
   schedule:
     - cron: '0 7 * * *'   # ~04:00 horário de Brasília
-  workflow_dispatch:        # roda manualmente pelo botao "Run workflow"
+  workflow_dispatch:
 
 jobs:
   dump:
     runs-on: ubuntu-latest
     steps:
-      - name: Conferir secret FLY_API_TOKEN
+      - name: Conferir secret FLY_BACKUP_TOKEN
         id: check
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_BACKUP_TOKEN }}
         run: |
           if [ -z "$FLY_API_TOKEN" ]; then
-            echo "::warning::Secret FLY_BACKUP_TOKEN nao configurado — backup pulado. Adicione em Settings > Secrets and variables > Actions."
+            echo "::warning::Secret FLY_BACKUP_TOKEN nao configurado."
             echo "skip=true" >> "$GITHUB_OUTPUT"
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
@@ -25,25 +25,25 @@ jobs:
         if: steps.check.outputs.skip != 'true'
         uses: superfly/flyctl-actions/setup-flyctl@master
 
-      - name: Gerar dump via tunel do Fly
+      - name: Gerar dump (pg_dumpall na maquina do banco)
         if: steps.check.outputs.skip != 'true'
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_BACKUP_TOKEN }}
         run: |
-          set -e
-          echo "Descobrindo a string de conexao do banco..."
-          DBURL=$(flyctl ssh console -a emporio-pet-api -C "printenv DATABASE_URL" 2>/dev/null | tr -d '\r' | grep -Eo 'postgres(ql)?://[^[:space:]]+' | head -1)
-          if [ -z "$DBURL" ]; then echo "ERRO: nao obtive a DATABASE_URL"; exit 1; fi
-          echo "Abrindo tunel para o Postgres interno (emporio-pet-db)..."
-          flyctl proxy 15432:5432 -a emporio-pet-db &
-          PROXY_PID=$!
-          for i in $(seq 1 20); do (echo > /dev/tcp/127.0.0.1/15432) 2>/dev/null && { echo "tunel pronto"; break; }; sleep 2; done
-          LOCALURL=$(echo "$DBURL" | sed -E 's#@[^/]+/#@127.0.0.1:15432/#')
+          set -o pipefail
           mkdir -p out
           ARQ="out/emporio-db-$(date +%Y-%m-%d-%H%M).sql.gz"
-          docker run --rm --network host -e U="$LOCALURL" postgres:17 sh -c 'pg_dump --no-owner --no-privileges "$U"' | gzip > "$ARQ"
-          kill $PROXY_PID 2>/dev/null || true
-          echo "Gerado:"; ls -lh out
+          # roda o pg_dumpall DENTRO da maquina do Postgres (acesso local) e traz o resultado por ssh
+          flyctl ssh console -a emporio-pet-db -C 'sh -lc "PGPASSWORD=${OPERATOR_PASSWORD:-$SU_PASSWORD} pg_dumpall -U postgres --no-role-passwords"' > dump.sql 2> err.log || true
+          SIZE=$(stat -c%s dump.sql 2>/dev/null || echo 0)
+          echo "Tamanho do dump: $SIZE bytes"
+          if [ "$SIZE" -lt 1000 ]; then
+            echo "=== FALHOU. Log do flyctl/ssh: ==="; cat err.log 2>/dev/null || true
+            echo "=== Primeiros bytes do dump (debug): ==="; head -c 800 dump.sql 2>/dev/null || true
+            exit 1
+          fi
+          gzip -c dump.sql > "$ARQ"
+          echo "OK:"; ls -lh out
 
       - name: Guardar backup (artefato, 90 dias)
         if: steps.check.outputs.skip != 'true'
