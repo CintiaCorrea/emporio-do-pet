@@ -514,7 +514,7 @@ export default function PetDetailPage() {
                       <div><label className="text-gray-500">Espécie</label><select value={clinForm.species ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, species: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border rounded" style={{ borderColor: "#E8DFC8" }}><option value="">—</option>{["CANINE", "FELINE", "BIRD", "RODENT", "REPTILE", "OTHER"].map(sp => <option key={sp} value={sp}>{speciesLabel(sp)}</option>)}</select></div>
                       <div><label className="text-gray-500">Raça</label><input value={clinForm.breed ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, breed: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border rounded" style={{ borderColor: "#E8DFC8" }} /></div>
                       <div><label className="text-gray-500">Sexo</label><select value={clinForm.gender ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, gender: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border rounded" style={{ borderColor: "#E8DFC8" }}><option value="">—</option><option value="MALE">Macho</option><option value="FEMALE">Fêmea</option><option value="OTHER">Outro</option></select></div>
-                      <div><label className="text-gray-500">Esterilização</label><input value={clinForm.sterilization ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, sterilization: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border rounded" style={{ borderColor: "#E8DFC8" }} /></div>
+                      <div><label className="text-gray-500">Esterilização</label><select value={clinForm.sterilization ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, sterilization: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border rounded" style={{ borderColor: "#E8DFC8" }}><option value="">—</option><option value="NOT_STERILIZED">Não esterilizado</option><option value="STERILIZED">Esterilizado</option></select></div>
                       <div><label className="text-gray-500">Nascimento</label><input type="date" value={clinForm.birthDate ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, birthDate: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border rounded" style={{ borderColor: "#E8DFC8" }} /></div>
                       <div><label className="text-gray-500">Peso (kg)</label><input type="number" step="0.1" value={clinForm.weight ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, weight: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border rounded" style={{ borderColor: "#E8DFC8" }} /></div>
                       <div><label className="text-gray-500">Pelagem</label><input value={clinForm.coat ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, coat: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border rounded" style={{ borderColor: "#E8DFC8" }} /></div>
@@ -530,10 +530,9 @@ export default function PetDetailPage() {
                     <Field label="Raça" value={pet.breed} />
                     <Field label="Sexo" value={genderLabel(pet.gender)} />
                     <Field label="Esterilização" value={
-                      !pet.sterilization ? "—" :
-                      pet.sterilization.toLowerCase().includes("steril") || pet.sterilization.toLowerCase().includes("castr") ? "Sim" :
-                      pet.sterilization.toLowerCase().includes("not") ? "Não" :
-                      pet.sterilization
+                      pet.sterilization === "STERILIZED" ? "Esterilizado" :
+                      pet.sterilization === "NOT_STERILIZED" ? "Não esterilizado" :
+                      !pet.sterilization ? "—" : pet.sterilization
                     } />
                     <Field label="Idade" value={ageFromBirth(pet.birthDate)} />
                     <Field label="Peso" value={pet.weight ? `${pet.weight} kg` : null} />
