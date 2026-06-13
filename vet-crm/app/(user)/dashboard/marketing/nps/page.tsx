@@ -1,4 +1,5 @@
 "use client";
+import { confirmDelete } from "@/lib/ui/confirmDelete";
 // [EMP-COWORK] NPS — avaliações via Listas npsava_<id> (Cintia 07/06, Marketing)
 import { useEffect, useMemo, useState } from "react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
@@ -58,7 +59,7 @@ export default function NpsPage() {
       setOpen(false); setForm({ tutorId: "", tutorNome: "", petNome: "", categoria: "Consulta", profissional: "", score: "", canal: "WhatsApp", data: new Date().toISOString().slice(0, 10), comentario: "" }); load();
     } catch { alert("Erro ao salvar."); } finally { setSaving(false); }
   };
-  const excluir = async (id: string) => { if (!confirm("Excluir esta avaliação?")) return; try { await fetch(`/api/listas/${id}`, { method: "DELETE", credentials: "include" }); load(); } catch {} };
+  const excluir = async (id: string) => { if (!(await confirmDelete({ entityLabel: "avaliação", itemName: "esta avaliação" }))) return; try { await fetch(`/api/listas/${id}`, { method: "DELETE", credentials: "include" }); load(); } catch {} };
 
   const FILTROS: { k: any; l: string }[] = [{ k: "todas", l: "Todas" }, { k: "Promotor", l: "Promotores" }, { k: "Neutro", l: "Neutros" }, { k: "Detrator", l: "Detratores" }];
 

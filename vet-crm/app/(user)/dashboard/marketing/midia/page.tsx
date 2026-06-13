@@ -1,4 +1,5 @@
 "use client";
+import { confirmDelete } from "@/lib/ui/confirmDelete";
 // [EMP-COWORK] Mídia — lançamentos de investimento (Listas midia_<id>), ligados a campanhas (Cintia 07/06, Marketing)
 import { useEffect, useMemo, useState } from "react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
@@ -40,7 +41,7 @@ export default function MidiaPage() {
       setForm({ ...EMPTY }); load();
     } catch { alert("Erro ao registrar."); } finally { setSaving(false); }
   };
-  const excluir = async (id: string) => { if (!confirm("Excluir este lançamento?")) return; try { await fetch(`/api/listas/${id}`, { method: "DELETE", credentials: "include" }); load(); } catch {} };
+  const excluir = async (id: string) => { if (!(await confirmDelete({ entityLabel: "lançamento", itemName: "este lançamento" }))) return; try { await fetch(`/api/listas/${id}`, { method: "DELETE", credentials: "include" }); load(); } catch {} };
 
   const totalInv = useMemo(() => rows.reduce((s, r) => s + (Number(r.investimento) || 0), 0), [rows]);
 

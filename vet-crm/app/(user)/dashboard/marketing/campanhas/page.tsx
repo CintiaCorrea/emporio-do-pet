@@ -1,4 +1,5 @@
 "use client";
+import { confirmDelete } from "@/lib/ui/confirmDelete";
 // [EMP-COWORK] Campanhas — Listas campanha_<id>; Leads/Conv. auto por Tag Origem (match nos leads do CRM) (Cintia 07/06, Marketing)
 import { useEffect, useMemo, useState } from "react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
@@ -61,7 +62,7 @@ export default function CampanhasPage() {
     } catch { alert("Erro ao salvar."); } finally { setSaving(false); }
   };
   const editar = (c: any) => { setEditId(c.id); setForm({ nome: c.nome || "", plataforma: c.plataforma || "Meta Ads", tipo: c.tipo || "Aquisição", tagOrigem: c.tagOrigem || "", investimento: c.investimento ?? "", receita: c.receita ?? "", inicio: c.inicio || "", fim: c.fim || "", status: c.status || "Ativa" }); setOpen(true); };
-  const excluir = async (id: string) => { if (!confirm("Excluir esta campanha?")) return; try { await fetch(`/api/listas/${id}`, { method: "DELETE", credentials: "include" }); load(); } catch {} };
+  const excluir = async (id: string) => { if (!(await confirmDelete({ entityLabel: "campanha", itemName: "esta campanha" }))) return; try { await fetch(`/api/listas/${id}`, { method: "DELETE", credentials: "include" }); load(); } catch {} };
 
   return (
     <div className="p-6 max-w-7xl mx-auto">

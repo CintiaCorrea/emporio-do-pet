@@ -1,4 +1,5 @@
 "use client";
+import { confirmDelete } from "@/lib/ui/confirmDelete";
 // [EMP-COWORK] Emails — log dos emails enviados (Listas emaillog_, gravado em /api/email/send) (Cintia 07/06, Marketing)
 import { useEffect, useMemo, useState } from "react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
@@ -25,7 +26,7 @@ export default function EmailsPage() {
 
   const lista = useMemo(() => fStatus === "todos" ? rows : rows.filter((r) => r.status === fStatus), [rows, fStatus]);
   const kpis = useMemo(() => ({ total: rows.length, enviados: rows.filter((r) => r.status === "enviado").length, falhados: rows.filter((r) => r.status === "falhou").length }), [rows]);
-  const excluir = async (id: string) => { if (!confirm("Excluir este registro?")) return; try { await fetch(`/api/listas/${id}`, { method: "DELETE", credentials: "include" }); load(); } catch {} };
+  const excluir = async (id: string) => { if (!(await confirmDelete({ entityLabel: "registro", itemName: "este registro" }))) return; try { await fetch(`/api/listas/${id}`, { method: "DELETE", credentials: "include" }); load(); } catch {} };
 
   return (
     <div className="p-6 max-w-7xl mx-auto">

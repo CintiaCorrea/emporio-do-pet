@@ -1,4 +1,5 @@
 "use client";
+import { confirmDelete } from "@/lib/ui/confirmDelete";
 // [EMP-COWORK] Avaliações Google — fluxo de solicitação via Listas googleava_<id> + link em cfg_googlelink (Cintia 07/06, Marketing)
 import { useEffect, useMemo, useState } from "react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
@@ -75,7 +76,7 @@ export default function AvaliacoesGooglePage() {
     if (nota === null) return; const n = Math.max(1, Math.min(5, Number(nota) || 5));
     try { await fetch(`/api/listas/${r.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ valor: JSON.stringify({ ...r, id: undefined, status: "votou", nota: n }) }) }); load(); } catch {}
   };
-  const excluir = async (id: string) => { if (!confirm("Excluir esta solicitação?")) return; try { await fetch(`/api/listas/${id}`, { method: "DELETE", credentials: "include" }); load(); } catch {} };
+  const excluir = async (id: string) => { if (!(await confirmDelete({ entityLabel: "solicitação", itemName: "esta solicitação" }))) return; try { await fetch(`/api/listas/${id}`, { method: "DELETE", credentials: "include" }); load(); } catch {} };
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
