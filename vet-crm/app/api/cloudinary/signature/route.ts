@@ -126,6 +126,11 @@ export async function POST(request: NextRequest) {
     public_id = `pet_${userId}_${petKey}`;
   }
 
+  if (body && typeof body === 'object' && body.kind === 'internalDoc') {
+    folder = 'emporio-do-pet/internal-docs';
+    public_id = `doc_${userId}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  }
+
   // Params to be signed (excluding file, api_key, resource_type, etc.)
   const signParams: Record<string, string> = {
     folder,

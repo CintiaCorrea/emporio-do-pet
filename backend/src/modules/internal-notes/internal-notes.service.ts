@@ -5,14 +5,16 @@ import { PrismaService } from '../prisma/prisma.service';
 export class InternalNotesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(fromUserId: string, dto: { toUserId: string; content: string; conversationId?: string | null }) {
+  async create(fromUserId: string, dto: { toUserId: string; content: string; conversationId?: string | null; attachmentUrl?: string | null; attachmentName?: string | null }) {
     return this.prisma.internalNote.create({
       data: {
         fromUserId,
         toUserId: dto.toUserId,
         content: dto.content,
         conversationId: dto.conversationId || null,
-      },
+        attachmentUrl: dto.attachmentUrl || null,
+        attachmentName: dto.attachmentName || null,
+      } as any,
     });
   }
 

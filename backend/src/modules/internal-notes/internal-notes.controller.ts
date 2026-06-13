@@ -14,7 +14,7 @@ export class InternalNotesController {
   @Post()
   create(
     @CurrentUser() user: any,
-    @Body() body: { toUserId: string; content: string; conversationId?: string },
+    @Body() body: { toUserId: string; content: string; conversationId?: string; attachmentUrl?: string; attachmentName?: string },
   ) {
     return this.service.create(user.id, body);
   }

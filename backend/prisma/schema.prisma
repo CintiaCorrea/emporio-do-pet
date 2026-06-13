@@ -1429,6 +1429,8 @@ model InternalNote {
   fromUserId     String
   toUserId       String
   content        String    @db.Text
+  attachmentUrl  String?
+  attachmentName String?
   conversationId String?   // Opcional — se a nota refere a uma conversa do WhatsApp
   readAt         DateTime?
   createdAt      DateTime  @default(now())

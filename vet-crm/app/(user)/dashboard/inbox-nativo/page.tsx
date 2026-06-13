@@ -124,6 +124,8 @@ export default function InboxUnificadoPage() {
   const [internalUsers, setInternalUsers] = useState<Array<{id: string; name: string; email: string; role: string}>>([]);
   const [internalSelected, setInternalSelected] = useState<string | null>(null);
   const [internalNote, setInternalNote] = useState("");
+  const [internasAnexo, setInternasAnexo] = useState<{ url: string; name: string } | null>(null);
+  const [anexandoDoc, setAnexandoDoc] = useState(false);
   const [internasRecebidas, setInternasRecebidas] = useState<any[]>([]);
   const [internasNoteSel, setInternasNoteSel] = useState<string | null>(null);
   const [internasConvSel, setInternasConvSel] = useState<string | null>(null);
@@ -396,13 +398,26 @@ export default function InboxUnificadoPage() {
     }
   };
 
+  async function uploadDocInterno(file: File) {
+    setAnexandoDoc(true);
+    try {
+      const sig = await fetch("/api/cloudinary/signature", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind: "internalDoc" }) }).then((r) => r.json());
+      if (!sig?.signature) throw new Error(sig?.error || "Erro ao preparar upload");
+      const form = new FormData();
+      form.append("file", file); form.append("api_key", sig.apiKey); form.append("timestamp", String(sig.timestamp)); form.append("signature", sig.signature); form.append("folder", sig.folder); form.append("public_id", sig.publicId); form.append("overwrite", String(Boolean(sig.overwrite))); form.append("invalidate", String(Boolean(sig.invalidate)));
+      const up = await fetch(`https://api.cloudinary.com/v1_1/${sig.cloudName}/auto/upload`, { method: "POST", body: form }).then((r) => r.json());
+      if (!up?.secure_url) throw new Error(up?.error?.message || "Falha no upload");
+      setInternasAnexo({ url: up.secure_url, name: file.name });
+    } catch (e: any) { window.alert("Erro ao anexar: " + (e?.message || "")); }
+    finally { setAnexandoDoc(false); }
+  }
   const enviarRespostaInterna = async (toUserId?: string | null) => {
     const alvo = toUserId || internasConvSel;
     const txt = internasReply.trim();
-    if (!txt || !alvo) return;
+    if ((!txt && !internasAnexo) || !alvo) return;
     try {
-      await fetch("/api/internal-notes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ toUserId: alvo, content: txt }) });
-      setInternasReply("");
+      await fetch("/api/internal-notes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ toUserId: alvo, content: txt, attachmentUrl: internasAnexo?.url, attachmentName: internasAnexo?.name }) });
+      setInternasReply(""); setInternasAnexo(null);
       setRefreshTick((t) => t + 1);
     } catch { window.alert("Erro ao enviar. Tente novamente."); }
   };
@@ -426,8 +441,8 @@ export default function InboxUnificadoPage() {
 
   // Salvar nota interna
   const salvarNotaInterna = async () => {
-    if (!internalSelected || !internalNote.trim()) {
-      alert("Selecione uma pessoa e digite a mensagem.");
+    if (!internalSelected || (!internalNote.trim() && !internasAnexo)) {
+      alert("Selecione uma pessoa e digite a mensagem (ou anexe um documento).");
       return;
     }
     try {
@@ -437,9 +452,11 @@ export default function InboxUnificadoPage() {
         body: JSON.stringify({
           toUserId: internalSelected,
           content: internalNote.trim(),
+          attachmentUrl: internasAnexo?.url,
+          attachmentName: internasAnexo?.name,
           conversationId: selectedId || null})});
       const alvo = internalSelected;
-      setInternalNote("");
+      setInternalNote(""); setInternasAnexo(null);
       setInternalSelected(null);
       setInternasCompose(false);
       setInternasConvSel(alvo);
@@ -769,9 +786,13 @@ export default function InboxUnificadoPage() {
                     {internalUsers.map((u) => (<option key={u.id} value={u.id} disabled={u.hasLogin === false}>{u.name}{u.role ? ` · ${u.role}` : ""}{u.hasLogin === false ? " · sem login" : ""}</option>))}
                   </select>
                 </div>
+                {internasAnexo && (<div className="mb-2 flex items-center gap-2 text-[11px] bg-[#f0f3f4] rounded px-2 py-1 w-fit"><span>📎 {internasAnexo.name}</span><button onClick={() => setInternasAnexo(null)} className="text-[#A32D2D] font-semibold">remover</button></div>)}
                 <textarea value={internalNote} onChange={(e) => setInternalNote(e.target.value)} rows={6} placeholder="Escreva a mensagem..." className="w-full px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm focus:outline-none focus:border-[#009AAC] resize-none mb-3" />
                 <div className="flex items-center justify-between gap-2">
-                  <EmojiPicker onPick={(em) => setInternalNote((v) => v + em)} />
+                  <div className="flex items-center gap-1">
+                    <EmojiPicker onPick={(em) => setInternalNote((v) => v + em)} />
+                    <label className="cursor-pointer flex items-center justify-center w-8 h-8 rounded-lg hover:bg-[#f0f0ea]" title="Anexar documento"><input type="file" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadDocInterno(f); e.currentTarget.value = ""; }} /><span style={{ fontSize: "15px" }}>{anexandoDoc ? "…" : "📎"}</span></label>
+                  </div>
                   <div className="flex gap-2">
                   <button onClick={() => { setInternasCompose(false); setInternalSelected(null); setInternalNote(""); }} className="px-3 py-1.5 text-xs text-[#5F5E5A]">Cancelar</button>
                   <button onClick={salvarNotaInterna} className="bg-[#009AAC] text-white px-4 py-1.5 rounded-lg text-xs font-medium">Enviar</button>
@@ -790,7 +811,7 @@ export default function InboxUnificadoPage() {
                   <div className="flex-1 overflow-y-auto px-5 py-4 flex flex-col gap-2.5 min-h-0">
                     {c.msgs.map((m: any) => (
                       <div key={m.id} className={`max-w-[75%] ${m.mine ? "self-end" : "self-start"}`}>
-                        <div className={`px-3 py-2 rounded-xl text-sm whitespace-pre-wrap ${m.mine ? "bg-[#009AAC] text-white rounded-br-sm" : "bg-[#f0f3f4] text-[#0E2244] rounded-bl-sm"}`}>{m.content}</div>
+                        <div className={`px-3 py-2 rounded-xl text-sm whitespace-pre-wrap ${m.mine ? "bg-[#009AAC] text-white rounded-br-sm" : "bg-[#f0f3f4] text-[#0E2244] rounded-bl-sm"}`}>{m.content}{m.attachmentUrl && (<a href={m.attachmentUrl} target="_blank" rel="noopener noreferrer" className={`mt-1 flex items-center gap-1 text-[12px] underline ${m.mine ? "text-white" : "text-[#0C447C]"}`}>📎 {m.attachmentName || "documento"}</a>)}</div>
                         <div className={`text-[9.5px] text-[#94a3b8] mt-0.5 flex items-center gap-1.5 ${m.mine ? "justify-end" : ""}`}>
                           <span>{(() => { try { return new Date(m.createdAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }); } catch { return ""; } })()}</span>
                           {String(m.id || "").indexOf("local_") !== 0 && <button onClick={() => excluirNotaInterna(m.id)} title="Excluir" className="text-[#cbd5e1] hover:text-[#A32D2D]"><LuTrash className="w-2.5 h-2.5" /></button>}
@@ -798,10 +819,14 @@ export default function InboxUnificadoPage() {
                       </div>
                     ))}
                   </div>
-                  <div className="border-t border-[#e8e1d2] p-3 flex items-end gap-2 flex-shrink-0">
+                  <div className="border-t border-[#e8e1d2] p-3 flex-shrink-0">
+                    {internasAnexo && (<div className="mb-2 flex items-center gap-2 text-[11px] bg-[#f0f3f4] rounded px-2 py-1 w-fit"><span>📎 {internasAnexo.name}</span><button onClick={() => setInternasAnexo(null)} className="text-[#A32D2D] font-semibold">remover</button></div>)}
+                    <div className="flex items-end gap-2">
+                    <label className="cursor-pointer flex items-center justify-center w-8 h-8 rounded-lg hover:bg-[#f0f0ea]" title="Anexar documento"><input type="file" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadDocInterno(f); e.currentTarget.value = ""; }} /><span style={{ fontSize: "15px" }}>{anexandoDoc ? "…" : "📎"}</span></label>
                     <textarea value={internasReply} onChange={(e) => setInternasReply(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); enviarRespostaInterna(); } }} rows={1} placeholder="Escreva uma mensagem..." className="flex-1 px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm focus:outline-none focus:border-[#009AAC] resize-none" />
                     <EmojiPicker onPick={(em) => setInternasReply((v) => v + em)} />
-                    <button onClick={() => enviarRespostaInterna()} disabled={!internasReply.trim()} className="bg-[#009AAC] text-white px-4 py-2 rounded-lg text-xs font-medium disabled:opacity-50">Enviar</button>
+                    <button onClick={() => enviarRespostaInterna()} disabled={!internasReply.trim() && !internasAnexo} className="bg-[#009AAC] text-white px-4 py-2 rounded-lg text-xs font-medium disabled:opacity-50">Enviar</button>
+                    </div>
                   </div>
                 </>
               );
