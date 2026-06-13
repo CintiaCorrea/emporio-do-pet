@@ -127,6 +127,10 @@ export class BotConversaController {
     petName: string;
     especieEnum: string;
   }): Promise<boolean> {
+    // DESATIVADO (a pedido): nao criar pet automaticamente a partir da conversa do
+    // BotConversa, porque o campo pet_nome chega com o TEXTO da mensagem (ex.: "Obrigada").
+    // Cliente e historico continuam entrando normal; pet so via cadastro manual.
+    return false;
     if (!isRealPetName(opts.petName)) return false;
     const alvo = opts.petName.trim().toLowerCase();
     const jaExiste = (opts.existingPets || []).some(
