@@ -108,7 +108,7 @@ export default function WhatsAppCampaignsPage() {
   };
 
   const deleteCampaign = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir esta campanha?')) return;
+    if (!(await confirmDelete({ entityLabel: "campanha", itemName: "esta campanha" }))) return;
 
     try {
       const response = await fetch(`/api/whatsapp/campaigns/${id}`, {

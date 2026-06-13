@@ -140,7 +140,7 @@ export default function ContactsPage() {
   }, [contacts]);
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir este contato?')) return;
+    if (!(await confirmDelete({ entityLabel: "contato", itemName: "este contato" }))) return;
     try {
       const res = await fetch(`/api/contacts/${id}`, { method: 'DELETE' });
       if (!res.ok) {

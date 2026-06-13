@@ -135,7 +135,7 @@ export default function KnowledgeBaseDetailPage() {
   };
 
   const handleDeleteDoc = async (docId: string) => {
-    if (!confirm('Excluir este documento e todos os seus chunks?')) return;
+    if (!(await confirmDelete({ entityLabel: "documento", itemName: "este documento", consequenceText: "Todos os chunks dele também serão removidos." }))) return;
     try {
       const res = await fetch(`/api/knowledge-bases/${id}/documents/${docId}`, {
         method: 'DELETE'});

@@ -196,7 +196,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   };
 
   const handleDelete = async () => {
-    if (!confirm('Tem certeza que deseja excluir esta campanha?')) return;
+    if (!(await confirmDelete({ entityLabel: "campanha", itemName: "esta campanha" }))) return;
 
     setActionLoading('delete');
     try {

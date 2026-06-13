@@ -295,7 +295,7 @@ export default function EditAgentPage({ params }: { params: Promise<{ id: string
 
   // Delete agent
   const handleDelete = async () => {
-    if (!confirm('Tem certeza que deseja excluir este agente? Esta ação não pode ser desfeita.')) {
+    if (!(await confirmDelete({ entityLabel: "agente", itemName: "este agente" }))) {
       return;
     }
 

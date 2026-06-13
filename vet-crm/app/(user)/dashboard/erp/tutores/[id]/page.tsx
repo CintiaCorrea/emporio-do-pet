@@ -1,4 +1,5 @@
 "use client";
+import { confirmDelete } from "@/lib/ui/confirmDelete";
 /* ─────────────────────────────────────────────────────────────
    EMPÓRIO DO PET · versão Cintia + Claude (Cowork)   [EMP-COWORK]
    Tela........: Ficha do Tutor  (erp/tutores/[id])
@@ -185,7 +186,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
     try { const r = await fetch(`/api/interacoes`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tutorId: id, tipo: intTipo, texto: intTexto.trim(), canal: "Sistema" }) }); if (!r.ok) throw new Error(); toast.success("Registrado"); setIntTexto(""); await loadInteracoes(); } catch { toast.error("Erro ao registrar"); } finally { setSavingInt(false); }
   }
   async function deleteInteracao(itId: string) {
-    if (!window.confirm("Excluir esta interação?")) return;
+    if (!(await confirmDelete({ entityLabel: "interação", itemName: "esta interação" }))) return;
     try { const r = await fetch(`/api/interacoes/${itId}`, { method: "DELETE" }); if (!r.ok) throw new Error(); setInteracoes((prev) => prev.filter((x) => x.id !== itId)); toast.success("Interação excluída"); } catch { toast.error("Erro ao excluir"); }
   }
   async function saveEditInteracao() {

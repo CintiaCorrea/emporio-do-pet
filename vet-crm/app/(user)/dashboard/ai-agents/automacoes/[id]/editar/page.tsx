@@ -245,7 +245,7 @@ export default function EditarAutomacaoPage({ params }: { params: Promise<{ id: 
   };
 
   const handleDelete = async () => {
-    if (!confirm('Tem certeza que deseja excluir esta automação? Esta ação não pode ser desfeita.')) {
+    if (!(await confirmDelete({ entityLabel: "automação", itemName: "esta automação" }))) {
       return;
     }
 

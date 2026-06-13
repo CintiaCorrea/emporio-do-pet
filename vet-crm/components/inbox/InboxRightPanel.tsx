@@ -1,4 +1,5 @@
 "use client";
+import { confirmDelete } from "@/lib/ui/confirmDelete";
 
 import { useEffect, useState, useMemo } from "react";
 import { criarPetEAbrir } from "@/lib/actions/pets";
@@ -885,7 +886,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
   }
 
   async function excluirHistorico(h: any) {
-    if (!window.confirm("Excluir este atendimento? Esta ação não pode ser desfeita.")) return;
+    if (!(await confirmDelete({ entityLabel: "atendimento", itemName: "este atendimento" }))) return;
     const isInt = h.type === "INTERACAO";
     const realId = String(h.id || "").replace(/^(it-|il-|i-|at-)/, "");
     const url = isInt ? `/api/interacoes/${realId}` : `/api/appointments/${realId}`;

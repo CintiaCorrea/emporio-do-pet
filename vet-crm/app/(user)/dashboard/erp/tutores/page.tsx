@@ -1,4 +1,5 @@
 "use client";
+import { confirmDelete } from "@/lib/ui/confirmDelete";
 /* ─────────────────────────────────────────────────────────────
    EMPÓRIO DO PET · versão Cintia + Claude (Cowork)   [EMP-COWORK]
    Tela........: Lista de Clientes/Tutores  (erp/tutores)
@@ -166,7 +167,7 @@ export default function ClientesPage() {
   const handleDeleteTutor = async (tutor: Tutor) => {
     if (deletingId) return;
     const label = tutor.name || "este cliente";
-    if (!window.confirm(`Excluir ${label}? Os pets vinculados tambem serao removidos. Esta acao nao pode ser desfeita.`)) return;
+    if (!(await confirmDelete({ entityLabel: "cliente", itemName: label, consequenceText: "Os pets vinculados também serão removidos." }))) return;
     setDeletingId(tutor.id);
     try {
       const res = await fetch(`/api/tutors/${tutor.id}`, { method: "DELETE" });

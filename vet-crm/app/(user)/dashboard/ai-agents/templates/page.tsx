@@ -140,7 +140,7 @@ export default function TemplatesPage() {
   }, [loadTemplates]);
 
   const handleDeleteTemplate = async (templateName: string) => {
-    if (!confirm('Tem certeza que deseja excluir este template?')) return;
+    if (!(await confirmDelete({ entityLabel: "template", itemName: "este template" }))) return;
 
     setActionLoading(templateName);
     try {

@@ -1,4 +1,5 @@
 "use client";
+import { confirmDelete } from "@/lib/ui/confirmDelete";
 /* ─────────────────────────────────────────────────────────────
    EMPÓRIO DO PET · versão Cintia + Claude (Cowork)   [EMP-COWORK]
    Tela........: Ficha do Pet  (pets/[id])
@@ -309,7 +310,7 @@ export default function PetDetailPage() {
   async function loadAtendimentos() { try { const r = await fetch(`/api/appointments?petId=${petId}`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.appointments || d.data || []); setAtendimentos(arr.slice().sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())); } catch {} }
   async function abrirAtd(id: string) { try { const a = await fetch(`/api/appointments/${id}`, { cache: "no-store" }).then(r => r.json()); setVerAtd(a); setEditAtd(false); } catch { toast.error("Erro ao abrir atendimento"); } }
   async function excluirAtendimento(id: string) {
-    if (!window.confirm("Excluir este atendimento?")) return;
+    if (!(await confirmDelete({ entityLabel: "atendimento", itemName: "este atendimento" }))) return;
     try { const r = await fetch(`/api/appointments/${id}`, { method: "DELETE" }); if (!r.ok) throw new Error(); toast.success("Atendimento excluído"); setVerAtd(null); await loadAtendimentos(); } catch { toast.error("Erro ao excluir"); }
   }
   async function salvarEditAtd() {

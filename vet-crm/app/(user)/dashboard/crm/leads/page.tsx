@@ -1,4 +1,5 @@
 "use client";
+import { confirmDelete } from "@/lib/ui/confirmDelete";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
@@ -212,7 +213,7 @@ export default function LeadsPage() {
   const handleDeleteLead = async (lead: Lead) => {
     if (deletingId) return;
     const label = lead.name || lead.phone || "este lead";
-    if (!window.confirm(`Excluir ${label}? Esta acao nao pode ser desfeita.`)) return;
+    if (!(await confirmDelete({ entityLabel: "lead", itemName: label }))) return;
     setDeletingId(lead.id);
     try {
       const res = await fetch(`/api/leads/${lead.id}`, { method: "DELETE" });

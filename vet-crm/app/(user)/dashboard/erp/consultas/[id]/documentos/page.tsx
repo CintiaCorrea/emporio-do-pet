@@ -83,7 +83,7 @@ export default function DocumentosConsultaPage({ params }: { params: Promise<{ i
   };
 
   const deleteDocument = async (docId: string) => {
-    if (!confirm('Tem certeza que deseja excluir este documento?')) return;
+    if (!(await confirmDelete({ entityLabel: "documento", itemName: "este documento" }))) return;
 
     try {
       const res = await fetch(`/api/clinical-documents/${docId}`, { method: 'DELETE' });

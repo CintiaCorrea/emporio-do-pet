@@ -1,4 +1,5 @@
 "use client";
+import { confirmDelete } from "@/lib/ui/confirmDelete";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -97,7 +98,7 @@ export default function PetsListPage() {
   const handleDeletePet = async (pet: Pet) => {
     if (deletingId) return;
     const label = pet.name || "este pet";
-    if (!window.confirm(`Excluir ${label}? Esta acao nao pode ser desfeita.`)) return;
+    if (!(await confirmDelete({ entityLabel: "pet", itemName: label }))) return;
     setDeletingId(pet.id);
     try {
       const res = await fetch(`/api/pets/${pet.id}`, { method: "DELETE" });
