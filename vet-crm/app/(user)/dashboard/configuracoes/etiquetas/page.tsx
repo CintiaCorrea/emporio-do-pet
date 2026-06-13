@@ -1,4 +1,5 @@
 "use client";
+import { confirmDelete } from "@/lib/ui/confirmDelete";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -120,7 +121,7 @@ export default function EtiquetasPage() {
     } catch (er) { alert(`Erro: ${er}`); }
   }
   async function deleteE(e: Etiqueta) {
-    if (!confirm(`Excluir etiqueta "${e.texto}"?`)) return;
+    if (!(await confirmDelete({ entityLabel: "etiqueta", itemName: e.texto }))) return;
     const res = await fetch(`/api/etiquetas/templates/${e.id}`, { method: "DELETE" });
     if (!res.ok) { alert(`Erro: ${res.status}`); return; }
     await load();
@@ -152,7 +153,7 @@ export default function EtiquetasPage() {
     } catch (er) { alert(`Erro: ${er}`); }
   }
   async function deleteC(c: Bloco) {
-    if (!confirm(`Excluir bloco "${c.nome}"? As etiquetas ficam sem bloco.`)) return;
+    if (!(await confirmDelete({ entityLabel: "bloco", itemName: c.nome, consequenceText: "As etiquetas ficam sem bloco." }))) return;
     const res = await fetch(`/api/etiquetas/categorias/${c.id}`, { method: "DELETE" });
     if (!res.ok) { alert(`Erro: ${res.status}`); return; }
     if (filterBloco === c.id) setFilterBloco("ALL");

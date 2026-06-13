@@ -1,4 +1,5 @@
 "use client";
+import { confirmDelete } from "@/lib/ui/confirmDelete";
 
 import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
@@ -407,7 +408,7 @@ export default function InboxUnificadoPage() {
   };
 
   const excluirNotaInterna = async (id: string) => {
-    if (!window.confirm("Excluir esta mensagem interna?")) return;
+    if (!(await confirmDelete({ entityLabel: "mensagem", itemName: "esta mensagem interna" }))) return;
     try { await fetch(`/api/internal-notes/${id}`, { method: "DELETE" }); setRefreshTick((t) => t + 1); } catch { window.alert("Erro ao excluir."); }
   };
 

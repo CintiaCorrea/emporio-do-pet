@@ -1,4 +1,5 @@
 "use client";
+import { confirmDelete } from "@/lib/ui/confirmDelete";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -67,7 +68,7 @@ export default function ListasPage() {
     } catch (e) { alert(`Erro: ${e}`); }
   }
   async function removeI(i: ListaItem) {
-    if (!confirm(`Excluir item "${i.valor}"?`)) return;
+    if (!(await confirmDelete({ entityLabel: "item", itemName: i.valor }))) return;
     const res = await fetch(`/api/listas/${i.id}`, { method: "DELETE" });
     if (!res.ok) { alert(`Erro: ${res.status}`); return; }
     await load();
@@ -91,7 +92,7 @@ export default function ListasPage() {
     } catch (e) { alert(`Erro: ${e}`); }
   }
   async function removeT(t: ListaTipo) {
-    if (!confirm(`Excluir lista "${t.label || t.nome}" e todos seus itens?`)) return;
+    if (!(await confirmDelete({ entityLabel: "lista", itemName: t.label || t.nome, consequenceText: "Todos os itens dessa lista também serão removidos." }))) return;
     const res = await fetch(`/api/listas/tipos/${t.id}`, { method: "DELETE" });
     if (!res.ok) { alert(`Erro: ${res.status}`); return; }
     if (filterLista === t.nome) setFilterLista("ALL");
