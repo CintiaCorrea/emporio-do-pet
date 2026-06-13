@@ -1,4 +1,5 @@
 "use client";
+import { confirmDelete } from "@/lib/ui/confirmDelete";
 import { useEffect, useState } from "react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 
@@ -49,7 +50,7 @@ export default function ConfigAtendimentoPage() {
     setNovoStatus(""); await load();
   }
   async function remover(id: string) {
-    if (!window.confirm("Remover esta opção?")) return;
+    if (!(await confirmDelete({ entityLabel: "opção", itemName: "esta opção" }))) return;
     await fetch(`/api/listas/${id}`, { method: "DELETE" }); await load();
   }
 

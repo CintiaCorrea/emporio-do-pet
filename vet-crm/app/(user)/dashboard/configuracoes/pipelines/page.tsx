@@ -1,4 +1,5 @@
 "use client";
+import { confirmDelete } from "@/lib/ui/confirmDelete";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -65,7 +66,7 @@ export default function PipelinesPage() {
     } catch (e) { alert(`Erro: ${e}`); }
   }
   async function removeP(p: Pipeline) {
-    if (!confirm(`Excluir pipeline "${p.nome}"?`)) return;
+    if (!(await confirmDelete({ entityLabel: "pipeline", itemName: p.nome }))) return;
     const res = await fetch(`/api/pipelines/${p.id}`, { method: "DELETE" });
     if (!res.ok) { alert(`Erro: ${res.status}`); return; }
     await load();
@@ -90,7 +91,7 @@ export default function PipelinesPage() {
     } catch (e) { alert(`Erro: ${e}`); }
   }
   async function removeE(e: Estagio) {
-    if (!confirm(`Excluir estágio "${e.nome}"?`)) return;
+    if (!(await confirmDelete({ entityLabel: "estágio", itemName: e.nome }))) return;
     const res = await fetch(`/api/pipelines/estagios/${e.id}`, { method: "DELETE" });
     if (!res.ok) { alert(`Erro: ${res.status}`); return; }
     await load();

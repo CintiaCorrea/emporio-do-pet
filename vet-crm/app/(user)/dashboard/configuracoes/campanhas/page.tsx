@@ -1,4 +1,5 @@
 "use client";
+import { confirmDelete } from "@/lib/ui/confirmDelete";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -74,7 +75,7 @@ export default function CampanhasPage() {
     } catch (e) { alert(`Erro: ${e}`); }
   }
   async function remove(c: Campanha) {
-    if (!confirm(`Excluir "${c.nome}"?`)) return;
+    if (!(await confirmDelete({ entityLabel: "campanha", itemName: c.nome }))) return;
     const res = await fetch(`/api/campanhas/${c.id}`, { method: "DELETE" });
     if (!res.ok) { alert(`Erro: ${res.status}`); return; }
     await load();

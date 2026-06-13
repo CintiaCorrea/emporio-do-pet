@@ -1,4 +1,5 @@
 "use client";
+import { confirmDelete } from "@/lib/ui/confirmDelete";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -77,7 +78,7 @@ export default function ProfissionaisPage() {
     } catch (e) { alert(`Erro: ${e}`); }
   }
   async function remove(p: Profissional) {
-    if (!confirm(`Excluir "${p.nomeCompleto}"?`)) return;
+    if (!(await confirmDelete({ entityLabel: "profissional", itemName: p.nomeCompleto }))) return;
     const res = await fetch(`/api/profissionais/${p.id}`, { method: "DELETE" });
     if (!res.ok) { alert(`Erro: ${res.status}`); return; }
     await load();

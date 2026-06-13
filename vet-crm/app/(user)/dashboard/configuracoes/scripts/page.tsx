@@ -1,4 +1,5 @@
 "use client";
+import { confirmDelete } from "@/lib/ui/confirmDelete";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -77,7 +78,7 @@ export default function ScriptsPage() {
     } catch (e) { alert(`Erro: ${e}`); }
   }
   async function removeS(s: Script) {
-    if (!confirm(`Excluir script "${s.nome}"?`)) return;
+    if (!(await confirmDelete({ entityLabel: "script", itemName: s.nome }))) return;
     const res = await fetch(`/api/scripts/${s.id}`, { method: "DELETE" });
     if (!res.ok) { alert(`Erro: ${res.status}`); return; }
     await load();
@@ -110,7 +111,7 @@ export default function ScriptsPage() {
     } catch (e) { alert(`Erro: ${e}`); }
   }
   async function removeC(c: Category) {
-    if (!confirm(`Excluir categoria "${c.nome}"?`)) return;
+    if (!(await confirmDelete({ entityLabel: "categoria", itemName: c.nome }))) return;
     const res = await fetch(`/api/scripts/categories/${c.id}`, { method: "DELETE" });
     if (!res.ok) { alert(`Erro: ${res.status}`); return; }
     if (filterCat === c.id) setFilterCat("ALL");

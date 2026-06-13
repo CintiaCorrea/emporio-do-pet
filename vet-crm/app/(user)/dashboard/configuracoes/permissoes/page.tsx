@@ -1,4 +1,5 @@
 "use client";
+import { confirmDelete } from "@/lib/ui/confirmDelete";
 /* ─────────────────────────────────────────────────────────────
    EMPÓRIO DO PET · versão Cintia + Claude (Cowork)   [EMP-COWORK]
    Tela........: Perfis e Permissões  (configuracoes/permissoes)
@@ -145,7 +146,7 @@ export default function PermissoesPage() {
 
   async function removerPerfil(p: Perfil) {
     if (p.sistema) { toast.error("Perfil do sistema não pode ser excluído"); return; }
-    if (!window.confirm(`Excluir o perfil "${p.nome}"?`)) return;
+    if (!(await confirmDelete({ entityLabel: "perfil", itemName: p.nome }))) return;
     try {
       await fetch(`/api/listas/${p.id}`, { method: "DELETE" });
       if (permIds[p.nome]) await fetch(`/api/listas/${permIds[p.nome]}`, { method: "DELETE" });

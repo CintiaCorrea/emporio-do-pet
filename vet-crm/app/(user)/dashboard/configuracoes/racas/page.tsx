@@ -1,4 +1,5 @@
 "use client";
+import { confirmDelete } from "@/lib/ui/confirmDelete";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -67,7 +68,7 @@ export default function RacasPage() {
     } catch (e) { alert(`Erro: ${e}`); }
   }
   async function remove(r: Raca) {
-    if (!confirm(`Excluir raça "${r.nome}"?`)) return;
+    if (!(await confirmDelete({ entityLabel: "raça", itemName: r.nome }))) return;
     const res = await fetch(`/api/racas/${r.id}`, { method: "DELETE" });
     if (!res.ok) { alert(`Erro: ${res.status}`); return; }
     await load();

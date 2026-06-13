@@ -1,4 +1,5 @@
 "use client";
+import { confirmDelete } from "@/lib/ui/confirmDelete";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -80,7 +81,7 @@ export default function EmailTemplatesPage() {
     } catch (e) { alert(`Erro: ${e}`); }
   }
   async function removeT(t: Template) {
-    if (!confirm(`Excluir template "${t.nome}"?`)) return;
+    if (!(await confirmDelete({ entityLabel: "template", itemName: t.nome }))) return;
     const res = await fetch(`/api/email-templates/${t.id}`, { method: "DELETE" });
     if (!res.ok) { alert(`Erro: ${res.status}`); return; }
     await load();
@@ -104,7 +105,7 @@ export default function EmailTemplatesPage() {
     } catch (e) { alert(`Erro: ${e}`); }
   }
   async function removeVar(v: Variable) {
-    if (!confirm(`Excluir variável "${v.label}"?`)) return;
+    if (!(await confirmDelete({ entityLabel: "variável", itemName: v.label }))) return;
     const res = await fetch(`/api/email-templates/variables/${v.id}`, { method: "DELETE" });
     if (!res.ok) { alert(`Erro: ${res.status}`); return; }
     await load();

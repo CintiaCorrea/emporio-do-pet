@@ -1,4 +1,5 @@
 "use client";
+import { confirmDelete } from "@/lib/ui/confirmDelete";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -76,7 +77,7 @@ export default function ServicosPage() {
     } catch (e) { alert(`Erro: ${e}`); }
   }
   async function removeS(s: Servico) {
-    if (!confirm(`Excluir serviço "${s.nome}"?`)) return;
+    if (!(await confirmDelete({ entityLabel: "serviço", itemName: s.nome }))) return;
     const res = await fetch(`/api/servicos/itens/${s.id}`, { method: "DELETE" });
     if (!res.ok) { alert(`Erro: ${res.status}`); return; }
     await load();
@@ -100,7 +101,7 @@ export default function ServicosPage() {
     } catch (e) { alert(`Erro: ${e}`); }
   }
   async function removeC(c: Categoria) {
-    if (!confirm(`Excluir categoria "${c.nome}"?`)) return;
+    if (!(await confirmDelete({ entityLabel: "categoria", itemName: c.nome }))) return;
     const res = await fetch(`/api/servicos/categorias/${c.id}`, { method: "DELETE" });
     if (!res.ok) { alert(`Erro: ${res.status}`); return; }
     if (filterCat === c.id) setFilterCat("ALL");

@@ -1,4 +1,5 @@
 "use client";
+import { confirmDelete } from "@/lib/ui/confirmDelete";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -74,7 +75,7 @@ export default function CadenciasPage() {
     } catch (e) { alert(`Erro: ${e}`); }
   }
   async function removeC(c: Cadencia) {
-    if (!confirm(`Excluir cadência "${c.nome}" e seus passos?`)) return;
+    if (!(await confirmDelete({ entityLabel: "cadência", itemName: c.nome, consequenceText: "Os passos dela também serão removidos." }))) return;
     const res = await fetch(`/api/cadencias/${c.id}`, { method: "DELETE" });
     if (!res.ok) { alert(`Erro: ${res.status}`); return; }
     await load();
@@ -99,7 +100,7 @@ export default function CadenciasPage() {
     } catch (e) { alert(`Erro: ${e}`); }
   }
   async function removeP(p: Passo) {
-    if (!confirm(`Excluir passo ${p.ordem}?`)) return;
+    if (!(await confirmDelete({ entityLabel: "passo", itemName: String(p.ordem) }))) return;
     const res = await fetch(`/api/cadencias/passos/${p.id}`, { method: "DELETE" });
     if (!res.ok) { alert(`Erro: ${res.status}`); return; }
     await load();

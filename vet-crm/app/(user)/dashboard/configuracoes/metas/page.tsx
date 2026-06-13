@@ -1,4 +1,5 @@
 "use client";
+import { confirmDelete } from "@/lib/ui/confirmDelete";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -74,7 +75,7 @@ export default function MetasPage() {
     } catch (e) { alert(`Erro: ${e}`); }
   }
   async function remove(m: Meta) {
-    if (!confirm(`Excluir meta "${m.titulo}"?`)) return;
+    if (!(await confirmDelete({ entityLabel: "meta", itemName: m.titulo }))) return;
     const res = await fetch(`/api/metas/${m.id}`, { method: "DELETE" });
     if (!res.ok) { alert(`Erro: ${res.status}`); return; }
     await load();

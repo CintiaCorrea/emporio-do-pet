@@ -1,4 +1,5 @@
 "use client";
+import { confirmDelete } from "@/lib/ui/confirmDelete";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -112,13 +113,13 @@ export default function AvaliacoesPage() {
     } catch (e) { alert(`Erro: ${e}`); }
   }
   async function removeNPS(r: NPS) {
-    if (!confirm(`Excluir avaliação?`)) return;
+    if (!(await confirmDelete({ entityLabel: "avaliação", itemName: "esta avaliação" }))) return;
     const res = await fetch(`/api/avaliacoes/nps/${r.id}`, { method: "DELETE" });
     if (!res.ok) { alert(`Erro: ${res.status}`); return; }
     await load();
   }
   async function removeG(r: Google) {
-    if (!confirm(`Excluir pergunta Google?`)) return;
+    if (!(await confirmDelete({ entityLabel: "pergunta", itemName: "esta pergunta do Google" }))) return;
     const res = await fetch(`/api/avaliacoes/google/${r.id}`, { method: "DELETE" });
     if (!res.ok) { alert(`Erro: ${res.status}`); return; }
     await load();

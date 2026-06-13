@@ -1,4 +1,5 @@
 "use client";
+import { confirmDelete } from "@/lib/ui/confirmDelete";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
@@ -106,7 +107,7 @@ export default function ExamesConfigPage() {
     } catch (er) { alert(`Erro: ${er}`); }
   }
   async function deleteEx(ex: Exame) {
-    if (!confirm(`Excluir exame "${ex.nome}"?`)) return;
+    if (!(await confirmDelete({ entityLabel: "exame", itemName: ex.nome }))) return;
     try {
       const res = await fetch(`/api/fornecedores/exames/${ex.id}`, { method: "DELETE" });
       if (!res.ok) { alert(`Erro: ${res.status}`); return; }
@@ -142,7 +143,7 @@ export default function ExamesConfigPage() {
     } catch (e) { alert(`Erro: ${e}`); }
   }
   async function deleteForn(f: Fornecedor) {
-    if (!confirm(`Excluir fornecedor "${f.nome}" e todos os ${f._count?.exames || 0} exames vinculados?`)) return;
+    if (!(await confirmDelete({ entityLabel: "fornecedor", itemName: f.nome, consequenceText: `Os ${f._count?.exames || 0} exames vinculados também serão removidos.` }))) return;
     try {
       const res = await fetch(`/api/fornecedores/${f.id}`, { method: "DELETE" });
       if (!res.ok) { alert(`Erro: ${res.status}`); return; }
