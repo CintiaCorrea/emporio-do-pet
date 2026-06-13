@@ -719,6 +719,19 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
     loadIncoming();
     reset();
   }
+  async function dismissIncoming(item: IncomingItem) {
+    try {
+      if (item.id.startsWith("M-")) {
+        await fetch(`/api/whatsapp/conversations/${item.id.slice(2)}/close`, { method: "POST" });
+      } else if (item.id.startsWith("L-")) {
+        await fetch("/api/inbox/context/resolve", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ leadId: item.id.slice(2) }) });
+      } else if (item.id.startsWith("T-")) {
+        await fetch("/api/inbox/context/resolve", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tutorId: item.id.slice(2) }) });
+      }
+      setIncoming((prev) => prev.filter((x) => x.id !== item.id));
+      toast.success("Removido da caixa");
+    } catch { toast.error("Erro ao remover"); }
+  }
   async function handleResolve() {
     if (!confirm("Marcar essa conversa como resolvida?")) return;
     const res = await fetch("/api/inbox/context/resolve", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tutorId: tutor?.id, leadId: lead?.id }) });
@@ -1051,8 +1064,8 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                   else if (!isLead && _cls === "Parceiro") { tagLabel = "Parceiro"; tagBg = "#FCE7F3"; tagFg = "#BE185D"; }
                   else if (!isLead && _cls === "Ex_cliente") { tagLabel = "Ex-cliente"; tagBg = "#FEE2E2"; tagFg = "#B91C1C"; }
                   return (
+                    <div key={item.id} className="relative">
                     <button
-                      key={item.id}
                       onClick={() => selectFromIncoming(item)}
                       className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg border text-left transition hover:translate-x-[2px] hover:shadow-sm"
                       style={{
@@ -1081,6 +1094,8 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                       </div>
                       <div className="text-[9px] text-gray-400 flex-shrink-0">{fmtRelative(item.createdAt)}</div>
                     </button>
+                    <button onClick={(e) => { e.stopPropagation(); dismissIncoming(item); }} title="Resolver / remover da caixa" className="absolute top-1 right-1 w-5 h-5 rounded-full bg-white border flex items-center justify-center text-[11px] text-gray-400 hover:text-[#0F6E56] hover:border-[#0F6E56]" style={{ borderColor: "#E8DFC8" }}>✓</button>
+                    </div>
                   );
                 })}
                 {incoming.length >= incomingLimit && (
