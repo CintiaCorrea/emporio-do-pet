@@ -4,7 +4,12 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { LuArrowLeft, LuCheck, LuLoader } from 'react-icons/lu';
+import {
+  LuArrowLeft,
+  LuCheck,
+  LuLoader,
+  LuPhone
+} from 'react-icons/lu';
 import { CategorySelector } from './components/CategorySelector';
 import { StepIndicator } from './components/StepIndicator';
 import { StandardTemplateEditor } from './components/StandardTemplateEditor';
@@ -292,7 +297,7 @@ export default function NovoTemplatePage() {
             <div className="sticky top-6">
               <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-6">
                 <div className="flex items-center gap-2 mb-4">
-                  <span style={{fontSize:"14px"}}>📱</span>
+                  <LuPhone className="w-4 h-4" />
                   <h3 className="font-semibold text-gray-900 dark:text-white">Previa do modelo</h3>
                 </div>
                 <PhonePreview formData={formData} />

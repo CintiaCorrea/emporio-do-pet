@@ -5,12 +5,17 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import ConfirmDeleteModal from '@/components/common/ConfirmDeleteModal';
 import {
-  LuSearch,
-  LuPlus,
-  LuPencil,
-  LuTrash,
+  LuActivity,
+  LuClock,
   LuFileText,
-  LuLoader
+  LuLoader,
+  LuMessageCircle,
+  LuPencil,
+  LuPlus,
+  LuSearch,
+  LuSettings,
+  LuSparkles,
+  LuTrash
 } from 'react-icons/lu';
 import { toast } from 'sonner';
 import { usePageTitle } from '@/lib/ui/PageHeaderContext';
@@ -184,10 +189,10 @@ export default function AgentsPage() {
 
   const getTypeIcon = (type: AgentType) => {
     switch (type) {
-      case 'CHATBOT': return <span style={{fontSize:"14px"}}>💬</span>;
-      case 'AUTOMATION': return <span style={{fontSize:"14px"}}>⚡</span>;
-      case 'ASSISTANT': return <span style={{fontSize:"14px"}}>🤖</span>;
-      case 'SCHEDULER': return <span style={{fontSize:"14px"}}>⏱</span>;
+      case 'CHATBOT': return <LuMessageCircle className="w-4 h-4" />;
+      case 'AUTOMATION': return <LuActivity className="w-4 h-4" />;
+      case 'ASSISTANT': return <LuSparkles className="w-4 h-4" />;
+      case 'SCHEDULER': return <LuClock className="w-4 h-4" />;
     }
   };
 
@@ -305,7 +310,7 @@ export default function AgentsPage() {
             {/* Lista de Agentes */}
             {filteredAgents.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 bg-white rounded-xl border border-[#d8d0bc]">
-                <span style={{fontSize:"14px"}}>🤖</span>
+                <LuSparkles className="w-4 h-4" />
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">Nenhum agente encontrado</h3>
                 <p className="text-gray-500 text-center max-w-md">
                   {searchTerm || statusFilter !== 'all' || typeFilter !== 'all'
@@ -545,14 +550,14 @@ export default function AgentsPage() {
                   href={`/dashboard/ai-agents/agents/${selectedAgent.id}/testar`}
                   className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[#009AAC] hover:bg-[#00798A] text-white rounded-xl font-semibold transition-all"
                 >
-                  <span style={{fontSize:"14px"}}>💬</span>
+                  <LuMessageCircle className="w-4 h-4" />
                   Testar Agente
                 </Link>
                 <button
                   onClick={() => router.push(`/dashboard/ai-agents/agents/${selectedAgent.id}/editar`)}
                   className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-all"
                 >
-                  <span style={{fontSize:"14px"}}>⚙</span>
+                  <LuSettings className="w-4 h-4" />
                   Configurações Avançadas
                 </button>
               </div>

@@ -4,13 +4,20 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
+  LuActivity,
   LuArrowLeft,
+  LuBell,
+  LuBook,
+  LuCalendar,
+  LuClock,
   LuLoader,
+  LuMessageCircle,
   LuSave,
   LuSparkles,
-  LuUserPlus,
   LuTarget,
-  LuCalendar} from 'react-icons/lu';
+  LuUserPlus,
+  LuUsers
+} from 'react-icons/lu';
 import { SiWhatsapp } from 'react-icons/si';
 import { toast } from 'sonner';
 
@@ -301,10 +308,10 @@ export default function NovoAgentePage() {
 
   const getTypeIcon = (type: AgentType) => {
     switch (type) {
-      case 'CHATBOT': return <span style={{fontSize:"14px"}}>💬</span>;
-      case 'AUTOMATION': return <span style={{fontSize:"14px"}}>⚡</span>;
-      case 'ASSISTANT': return <span style={{fontSize:"14px"}}>🤖</span>;
-      case 'SCHEDULER': return <span style={{fontSize:"14px"}}>⏱</span>;
+      case 'CHATBOT': return <LuMessageCircle className="w-4 h-4" />;
+      case 'AUTOMATION': return <LuActivity className="w-4 h-4" />;
+      case 'ASSISTANT': return <LuSparkles className="w-4 h-4" />;
+      case 'SCHEDULER': return <LuClock className="w-4 h-4" />;
     }
   };
 
@@ -313,9 +320,9 @@ export default function NovoAgentePage() {
       <div className="max-w-4xl mx-auto">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-gray-500 mb-6">
-          <Link href="/dashboard/ai-agents" className="hover:text-gray-700">AI Agents</Link>
+          <Link href="/dashboard/ai-agents" className="hover:text-gray-700">IA / Atendimento</Link>
           <span style={{fontSize:"14px"}}>▶</span>
-          <Link href="/dashboard/ai-agents/agents" className="hover:text-gray-700">Agents</Link>
+          <Link href="/dashboard/ai-agents/agents" className="hover:text-gray-700">Agentes</Link>
           <span style={{fontSize:"14px"}}>▶</span>
           <span className="text-gray-900 font-medium">Novo Agente</span>
         </div>
@@ -342,7 +349,7 @@ export default function NovoAgentePage() {
         {agentTemplates.length > 0 && (
           <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-8">
             <h2 className="text-lg font-semibold text-gray-900 mb-2 flex items-center gap-2">
-              <LuSparkles className="w-5 h-5 text-violet-600" />
+              <LuSparkles className="w-5 h-5 text-[#009AAC]" />
               Começar com um Template
             </h2>
             <p className="text-sm text-gray-500 mb-4">
@@ -354,11 +361,11 @@ export default function NovoAgentePage() {
                   key={tmpl.id}
                   type="button"
                   onClick={() => handleSelectAgentTemplate(tmpl)}
-                  className="text-left p-4 border border-gray-200 hover:border-violet-300 hover:bg-violet-50 rounded-xl transition-all group"
+                  className="text-left p-4 border border-gray-200 hover:border-[#7FD0D9] hover:bg-[#E0F4F6] rounded-xl transition-all group"
                 >
                   <div className="flex items-start gap-3">
-                    <div className="p-2 bg-violet-50 rounded-lg group-hover:bg-violet-100">
-                      <span style={{fontSize:"14px"}}>🤖</span>
+                    <div className="p-2 bg-[#E0F4F6] rounded-lg group-hover:bg-[#CDEBEF]">
+                      <LuSparkles className="w-4 h-4" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-gray-900 text-sm truncate">{tmpl.name}</p>
@@ -373,7 +380,7 @@ export default function NovoAgentePage() {
 
         {loadingAgentTemplates && (
           <div className="text-center py-4 mb-8">
-            <LuLoader className="w-5 h-5 animate-spin text-violet-600 mx-auto" />
+            <LuLoader className="w-5 h-5 animate-spin text-[#009AAC] mx-auto" />
             <p className="text-sm text-gray-500 mt-1">Carregando templates...</p>
           </div>
         )}
@@ -383,7 +390,7 @@ export default function NovoAgentePage() {
           {/* Informações Básicas */}
           <div className="bg-white rounded-2xl border border-gray-100 p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-6 flex items-center gap-2">
-              <span style={{fontSize:"14px"}}>🤖</span>
+              <LuSparkles className="w-4 h-4" />
               Informações Básicas
             </h2>
             
@@ -397,7 +404,7 @@ export default function NovoAgentePage() {
                   placeholder="Ex: Assistente de Vendas"
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#009AAC]/50 focus:border-[#009AAC]"
                 />
               </div>
 
@@ -410,7 +417,7 @@ export default function NovoAgentePage() {
                   rows={3}
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 resize-none"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#009AAC]/50 focus:border-[#009AAC] resize-none"
                 />
               </div>
 
@@ -432,14 +439,14 @@ export default function NovoAgentePage() {
                       onClick={() => handleTypeChange(item.type)}
                       className={`p-4 rounded-xl border-2 transition-all text-left ${
                         form.type === item.type
-                          ? 'border-violet-500 bg-violet-50'
+                          ? 'border-[#009AAC] bg-[#E0F4F6]'
                           : 'border-gray-200 hover:border-gray-300 bg-white'
                       }`}
                     >
-                      <div className={`mb-2 ${form.type === item.type ? 'text-violet-600' : 'text-gray-400'}`}>
+                      <div className={`mb-2 ${form.type === item.type ? 'text-[#009AAC]' : 'text-gray-400'}`}>
                         {getTypeIcon(item.type)}
                       </div>
-                      <p className={`font-medium ${form.type === item.type ? 'text-violet-900' : 'text-gray-900'}`}>
+                      <p className={`font-medium ${form.type === item.type ? 'text-[#014D5E]' : 'text-gray-900'}`}>
                         {item.label}
                       </p>
                       <p className="text-xs text-gray-500 mt-0.5">{item.desc}</p>
@@ -453,7 +460,7 @@ export default function NovoAgentePage() {
           {/* Configuração de IA */}
           <div className="bg-white rounded-2xl border border-gray-100 p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-6 flex items-center gap-2">
-              <LuSparkles className="w-5 h-5 text-violet-600" />
+              <LuSparkles className="w-5 h-5 text-[#009AAC]" />
               Configuração de IA
             </h2>
 
@@ -466,7 +473,7 @@ export default function NovoAgentePage() {
                   <select
                     value={form.provider}
                     onChange={(e) => handleProviderChange(e.target.value as AIProvider)}
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 cursor-pointer"
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#009AAC]/50 focus:border-[#009AAC] cursor-pointer"
                   >
                     <option value="OPENAI">OpenAI</option>
                     <option value="GEMINI">Google Gemini</option>
@@ -481,7 +488,7 @@ export default function NovoAgentePage() {
                   <select
                     value={form.model}
                     onChange={(e) => setForm({ ...form, model: e.target.value })}
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 cursor-pointer"
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#009AAC]/50 focus:border-[#009AAC] cursor-pointer"
                   >
                     {form.provider === 'OPENAI' && (
                       <>
@@ -523,7 +530,7 @@ export default function NovoAgentePage() {
                     step="0.1"
                     value={form.temperature}
                     onChange={(e) => setForm({ ...form, temperature: parseFloat(e.target.value) })}
-                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-violet-600"
+                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#009AAC]"
                   />
                   <div className="flex justify-between text-xs text-gray-400 mt-1">
                     <span>0 (Determinístico)</span>
@@ -538,7 +545,7 @@ export default function NovoAgentePage() {
                   <select
                     value={form.maxTokens}
                     onChange={(e) => setForm({ ...form, maxTokens: parseInt(e.target.value) })}
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 cursor-pointer"
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#009AAC]/50 focus:border-[#009AAC] cursor-pointer"
                   >
                     <option value="1024">1.024 (Respostas curtas)</option>
                     <option value="2048">2.048 (Respostas médias)</option>
@@ -560,7 +567,7 @@ export default function NovoAgentePage() {
                     rows={8}
                     value={form.systemPrompt}
                     onChange={(e) => setForm({ ...form, systemPrompt: e.target.value })}
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 resize-none font-mono text-sm"
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#009AAC]/50 focus:border-[#009AAC] resize-none font-mono text-sm"
                   />
                 </div>
                 <div className="mt-2 p-3 bg-blue-50 rounded-lg flex gap-2">
@@ -709,7 +716,7 @@ export default function NovoAgentePage() {
           <div className="bg-white rounded-2xl border border-gray-100 p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <span style={{fontSize:"14px"}}>👥</span>
+                <LuUsers className="w-4 h-4" />
                 Configurações CRM
               </h2>
               <label className="relative inline-flex items-center cursor-pointer">
@@ -784,7 +791,7 @@ export default function NovoAgentePage() {
                         <p className="font-medium text-gray-900">Notificar Lead Quente</p>
                         <p className="text-xs text-gray-500">Alertar equipe quando lead atingir score alto</p>
                       </div>
-                      <span style={{fontSize:"14px"}}>🔔</span>
+                      <LuBell className="w-4 h-4" />
                     </div>
                   </label>
                 </div>
@@ -839,7 +846,7 @@ export default function NovoAgentePage() {
                   onChange={(e) => setForm({ ...form, voiceEnabled: e.target.checked })}
                   className="sr-only peer"
                 />
-                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-violet-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-violet-600"></div>
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[#7FD0D9] rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#009AAC]"></div>
               </label>
             </div>
 
@@ -853,7 +860,7 @@ export default function NovoAgentePage() {
                     <select
                       value={form.voiceId}
                       onChange={(e) => setForm({ ...form, voiceId: e.target.value })}
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 cursor-pointer"
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#009AAC]/50 focus:border-[#009AAC] cursor-pointer"
                     >
                       <option value="alloy">Alloy (Neutra)</option>
                       <option value="echo">Echo (Masculina)</option>
@@ -875,7 +882,7 @@ export default function NovoAgentePage() {
                       step="0.1"
                       value={form.voiceSpeed}
                       onChange={(e) => setForm({ ...form, voiceSpeed: parseFloat(e.target.value) })}
-                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-violet-600 mt-3"
+                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#009AAC] mt-3"
                     />
                   </div>
 
@@ -886,7 +893,7 @@ export default function NovoAgentePage() {
                     <select
                       value={form.voiceModel}
                       onChange={(e) => setForm({ ...form, voiceModel: e.target.value })}
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 cursor-pointer"
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#009AAC]/50 focus:border-[#009AAC] cursor-pointer"
                     >
                       <option value="tts-1">Padrão (tts-1)</option>
                       <option value="tts-1-hd">Alta Definição (tts-1-hd)</option>
@@ -908,7 +915,7 @@ export default function NovoAgentePage() {
           {/* Base de Conhecimento (RAG) */}
           <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-              <span style={{fontSize:"14px"}}>🗄</span>
+              <LuBook className="w-4 h-4" />
               Base de Conhecimento (RAG)
             </h3>
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
@@ -1042,7 +1049,7 @@ export default function NovoAgentePage() {
             <button
               type="submit"
               disabled={loading}
-              className="flex items-center gap-2 px-8 py-3 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-semibold shadow-lg shadow-violet-500/20 transition-all hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-2 px-8 py-3 bg-[#009AAC] hover:bg-[#00798A] text-white rounded-xl font-semibold shadow-lg shadow-[#009AAC]/20 transition-all hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <>

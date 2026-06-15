@@ -5,9 +5,14 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   LuArrowLeft,
-  LuSave,
+  LuBook,
   LuLoader,
-  LuTrash} from 'react-icons/lu';
+  LuMessageCircle,
+  LuSave,
+  LuSettings,
+  LuSparkles,
+  LuTrash
+} from 'react-icons/lu';
 import { toast } from 'sonner';
 
 type AgentStatus = 'ACTIVE' | 'PAUSED' | 'DRAFT' | 'ERROR';
@@ -338,7 +343,7 @@ export default function EditAgentPage({ params }: { params: Promise<{ id: string
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-8rem)]">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-violet-100 border-t-violet-600 rounded-full animate-spin"></div>
+          <div className="w-12 h-12 border-4 border-[#CDEBEF] border-t-[#009AAC] rounded-full animate-spin"></div>
           <p className="text-gray-500 font-medium">Carregando agente...</p>
         </div>
       </div>
@@ -349,11 +354,11 @@ export default function EditAgentPage({ params }: { params: Promise<{ id: string
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-8rem)]">
         <div className="text-center">
-          <span style={{fontSize:"14px"}}>🤖</span>
+          <LuSparkles className="w-4 h-4" />
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Agente não encontrado</h2>
           <Link
             href="/dashboard/ai-agents/agents"
-            className="text-violet-600 hover:text-violet-700"
+            className="text-[#009AAC] hover:text-[#00798A]"
           >
             Voltar para lista de agentes
           </Link>
@@ -367,12 +372,12 @@ export default function EditAgentPage({ params }: { params: Promise<{ id: string
       <div className="max-w-4xl mx-auto">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-gray-500 mb-6">
-          <Link href="/dashboard/ai-agents/agents" className="hover:text-violet-600">
-            AI Agents
+          <Link href="/dashboard/ai-agents/agents" className="hover:text-[#009AAC]">
+            IA / Atendimento
           </Link>
           <span style={{fontSize:"14px"}}>▶</span>
-          <Link href="/dashboard/ai-agents/agents" className="hover:text-violet-600">
-            Agents
+          <Link href="/dashboard/ai-agents/agents" className="hover:text-[#009AAC]">
+            Agentes
           </Link>
           <span style={{fontSize:"14px"}}>▶</span>
           <span className="text-gray-900 font-medium">Editar</span>
@@ -418,9 +423,9 @@ export default function EditAgentPage({ params }: { params: Promise<{ id: string
 
             <Link
               href={`/dashboard/ai-agents/agents/${id}/testar`}
-              className="flex items-center gap-2 px-4 py-2 bg-violet-50 hover:bg-violet-100 text-violet-700 rounded-lg transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-[#E0F4F6] hover:bg-[#CDEBEF] text-[#00798A] rounded-lg transition-colors"
             >
-              <span style={{fontSize:"14px"}}>💬</span>
+              <LuMessageCircle className="w-4 h-4" />
               Testar
             </Link>
           </div>
@@ -431,7 +436,7 @@ export default function EditAgentPage({ params }: { params: Promise<{ id: string
           {/* Basic Info */}
           <div className="bg-white rounded-2xl border border-gray-100 p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <span style={{fontSize:"14px"}}>🤖</span>
+              <LuSparkles className="w-4 h-4" />
               Informações Básicas
             </h2>
 
@@ -444,7 +449,7 @@ export default function EditAgentPage({ params }: { params: Promise<{ id: string
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#009AAC]/50 focus:border-[#009AAC]"
                   placeholder="Ex: Assistente de Vendas"
                 />
               </div>
@@ -457,7 +462,7 @@ export default function EditAgentPage({ params }: { params: Promise<{ id: string
                   value={formData.description}
                   onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                   rows={2}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 resize-none"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#009AAC]/50 focus:border-[#009AAC] resize-none"
                   placeholder="Descreva a função do agente..."
                 />
               </div>
@@ -470,7 +475,7 @@ export default function EditAgentPage({ params }: { params: Promise<{ id: string
                   <select
                     value={formData.type}
                     onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value as AgentType }))}
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 cursor-pointer"
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#009AAC]/50 focus:border-[#009AAC] cursor-pointer"
                   >
                     <option value="CHATBOT">Chatbot</option>
                     <option value="AUTOMATION">Automação</option>
@@ -486,7 +491,7 @@ export default function EditAgentPage({ params }: { params: Promise<{ id: string
                   <select
                     value={formData.templateId}
                     onChange={(e) => handleTemplateSelect(e.target.value)}
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 cursor-pointer"
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#009AAC]/50 focus:border-[#009AAC] cursor-pointer"
                   >
                     <option value="">Sem template</option>
                     {templates.map((template) => (
@@ -503,7 +508,7 @@ export default function EditAgentPage({ params }: { params: Promise<{ id: string
           {/* AI Configuration */}
           <div className="bg-white rounded-2xl border border-gray-100 p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <span style={{fontSize:"14px"}}>⚙</span>
+              <LuSettings className="w-4 h-4" />
               Configuração de IA
             </h2>
 
@@ -516,7 +521,7 @@ export default function EditAgentPage({ params }: { params: Promise<{ id: string
                   <select
                     value={formData.provider}
                     onChange={(e) => handleProviderChange(e.target.value as AIProvider)}
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 cursor-pointer"
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#009AAC]/50 focus:border-[#009AAC] cursor-pointer"
                   >
                     <option value="OPENAI">OpenAI</option>
                     <option value="GEMINI">Google Gemini</option>
@@ -531,7 +536,7 @@ export default function EditAgentPage({ params }: { params: Promise<{ id: string
                   <select
                     value={formData.model}
                     onChange={(e) => setFormData(prev => ({ ...prev, model: e.target.value }))}
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 cursor-pointer"
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#009AAC]/50 focus:border-[#009AAC] cursor-pointer"
                   >
                     {MODELS[formData.provider].map((model) => (
                       <option key={model.value} value={model.value}>
@@ -550,7 +555,7 @@ export default function EditAgentPage({ params }: { params: Promise<{ id: string
                   value={formData.systemPrompt}
                   onChange={(e) => setFormData(prev => ({ ...prev, systemPrompt: e.target.value }))}
                   rows={8}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 resize-none font-mono text-sm"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#009AAC]/50 focus:border-[#009AAC] resize-none font-mono text-sm"
                   placeholder="Defina o comportamento do agente..."
                 />
                 <p className="text-xs text-gray-500 mt-1">
@@ -586,7 +591,7 @@ export default function EditAgentPage({ params }: { params: Promise<{ id: string
                     step="0.1"
                     value={formData.temperature}
                     onChange={(e) => setFormData(prev => ({ ...prev, temperature: parseFloat(e.target.value) }))}
-                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-violet-600"
+                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#009AAC]"
                   />
                   <div className="flex justify-between text-xs text-gray-500 mt-1">
                     <span>Mais preciso</span>
@@ -605,7 +610,7 @@ export default function EditAgentPage({ params }: { params: Promise<{ id: string
                     step="256"
                     value={formData.maxTokens}
                     onChange={(e) => setFormData(prev => ({ ...prev, maxTokens: parseInt(e.target.value) }))}
-                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-violet-600"
+                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#009AAC]"
                   />
                   <div className="flex justify-between text-xs text-gray-500 mt-1">
                     <span>Respostas curtas</span>
@@ -651,7 +656,7 @@ export default function EditAgentPage({ params }: { params: Promise<{ id: string
                       onChange={(e) => setFormData(prev => ({ ...prev, voiceEnabled: e.target.checked }))}
                       className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-violet-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-violet-600"></div>
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[#7FD0D9] rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#009AAC]"></div>
                   </label>
                 </div>
 
@@ -670,7 +675,7 @@ export default function EditAgentPage({ params }: { params: Promise<{ id: string
                             onClick={() => setFormData(prev => ({ ...prev, voiceId: voice.value }))}
                             className={`p-4 rounded-xl border-2 text-left transition-all ${
                               formData.voiceId === voice.value
-                                ? 'border-violet-500 bg-violet-50'
+                                ? 'border-[#009AAC] bg-[#E0F4F6]'
                                 : 'border-gray-200 hover:border-gray-300'
                             }`}
                           >
@@ -697,7 +702,7 @@ export default function EditAgentPage({ params }: { params: Promise<{ id: string
                         step="0.1"
                         value={formData.voiceSpeed}
                         onChange={(e) => setFormData(prev => ({ ...prev, voiceSpeed: parseFloat(e.target.value) }))}
-                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-violet-600"
+                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#009AAC]"
                       />
                       <div className="flex justify-between text-xs text-gray-500 mt-1">
                         <span>Mais lento (0.5x)</span>
@@ -717,7 +722,7 @@ export default function EditAgentPage({ params }: { params: Promise<{ id: string
                           onClick={() => setFormData(prev => ({ ...prev, voiceModel: 'tts-1' }))}
                           className={`p-4 rounded-xl border-2 text-left transition-all ${
                             formData.voiceModel === 'tts-1'
-                              ? 'border-violet-500 bg-violet-50'
+                              ? 'border-[#009AAC] bg-[#E0F4F6]'
                               : 'border-gray-200 hover:border-gray-300'
                           }`}
                         >
@@ -729,7 +734,7 @@ export default function EditAgentPage({ params }: { params: Promise<{ id: string
                           onClick={() => setFormData(prev => ({ ...prev, voiceModel: 'tts-1-hd' }))}
                           className={`p-4 rounded-xl border-2 text-left transition-all ${
                             formData.voiceModel === 'tts-1-hd'
-                              ? 'border-violet-500 bg-violet-50'
+                              ? 'border-[#009AAC] bg-[#E0F4F6]'
                               : 'border-gray-200 hover:border-gray-300'
                           }`}
                         >
@@ -759,7 +764,7 @@ export default function EditAgentPage({ params }: { params: Promise<{ id: string
           {/* Base de Conhecimento (RAG) */}
           <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-              <span style={{fontSize:"14px"}}>🗄</span>
+              <LuBook className="w-4 h-4" />
               Base de Conhecimento (RAG)
             </h3>
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
@@ -903,7 +908,7 @@ export default function EditAgentPage({ params }: { params: Promise<{ id: string
             <button
               onClick={handleSave}
               disabled={saving}
-              className="flex items-center justify-center gap-2 px-8 py-3 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-semibold shadow-lg shadow-violet-500/20 transition-all disabled:opacity-50"
+              className="flex items-center justify-center gap-2 px-8 py-3 bg-[#009AAC] hover:bg-[#00798A] text-white rounded-xl font-semibold shadow-lg shadow-[#009AAC]/20 transition-all disabled:opacity-50"
             >
               {saving ? (
                 <>

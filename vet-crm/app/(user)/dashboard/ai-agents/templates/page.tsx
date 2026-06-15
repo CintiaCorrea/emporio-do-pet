@@ -2,15 +2,16 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { 
-  LuFileText,
-  LuSearch,
-  LuPlus,
-  LuTrash,
+import {
   LuCheck,
-  LuSparkles,
+  LuFileText,
   LuLoader,
-  LuPhone
+  LuMessageCircle,
+  LuPhone,
+  LuPlus,
+  LuSearch,
+  LuSparkles,
+  LuTrash
 } from 'react-icons/lu';
 import { AiOutlineWarning } from 'react-icons/ai';
 import { toast } from 'sonner';
@@ -190,7 +191,7 @@ export default function TemplatesPage() {
   const getCategoryIcon = (category: WhatsAppTemplateCategory) => {
     switch (category) {
       case 'MARKETING': return <LuSparkles className="w-4 h-4" />;
-      case 'UTILITY': return <span style={{fontSize:"14px"}}>💬</span>;
+      case 'UTILITY': return <LuMessageCircle className="w-4 h-4" />;
       case 'AUTHENTICATION': return <span style={{fontSize:"14px"}}>🛡</span>;
     }
   };
@@ -249,11 +250,11 @@ export default function TemplatesPage() {
       switch (format) {
         case 'IMAGE': return <span style={{fontSize:"14px"}}>🖼</span>;
         case 'VIDEO': return <span style={{fontSize:"14px"}}>🎥</span>;
-        case 'DOCUMENT': return <span style={{fontSize:"14px"}}>📄</span>;
+        case 'DOCUMENT': return <LuFileText className="w-4 h-4" />;
         default: return <LuFileText className="w-4 h-4" />;
       }
     }
-    return <span style={{fontSize:"14px"}}>💬</span>;
+    return <LuMessageCircle className="w-4 h-4" />;
   };
 
   const extractTemplateText = (template: WhatsAppTemplate) => {
@@ -383,7 +384,7 @@ export default function TemplatesPage() {
                       template.status === 'PENDING' ? 'bg-orange-50 dark:bg-orange-900/30' : 
                       template.status === 'REJECTED' ? 'bg-red-50 dark:bg-red-900/30' : 'bg-gray-50 dark:bg-gray-800'
                     }`}>
-                      <span style={{fontSize:"14px"}}>💬</span>
+                      <LuMessageCircle className="w-4 h-4" />
                     </div>
                     <div>
                       <h3 className="font-semibold text-gray-900 dark:text-white group-hover:text-[#009AAC] dark:group-hover:text-[#009AAC] transition-colors">
@@ -437,7 +438,7 @@ export default function TemplatesPage() {
                     selectedTemplate.status === 'PENDING' ? 'bg-orange-50 dark:bg-orange-900/30' : 
                     selectedTemplate.status === 'REJECTED' ? 'bg-red-50 dark:bg-red-900/30' : 'bg-gray-50 dark:bg-gray-800'
                   }`}>
-                    <span style={{fontSize:"14px"}}>💬</span>
+                    <LuMessageCircle className="w-4 h-4" />
                   </div>
                   <div>
                     <h2 className="text-xl font-bold text-gray-900 dark:text-white">{selectedTemplate.name}</h2>
@@ -531,7 +532,7 @@ export default function TemplatesPage() {
                             >
                               {button.type === 'PHONE_NUMBER' && <LuPhone className="w-4 h-4 text-gray-500" />}
                               {button.type === 'URL' && <span style={{fontSize:"14px"}}>↗</span>}
-                              {button.type === 'QUICK_REPLY' && <span style={{fontSize:"14px"}}>💬</span>}
+                              {button.type === 'QUICK_REPLY' && <LuMessageCircle className="w-4 h-4" />}
                               <span className="text-sm text-gray-700 dark:text-gray-300">{button.text}</span>
                             </div>
                           ))}
@@ -561,7 +562,7 @@ export default function TemplatesPage() {
                     href={`/dashboard/ai-agents/agents?whatsappTemplate=${selectedTemplate.name}`}
                     className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[#009AAC] hover:bg-[#00798A] text-white rounded-xl font-semibold transition-all"
                   >
-                    <span style={{fontSize:"14px"}}>🤖</span>
+                    <LuSparkles className="w-4 h-4" />
                     Usar com Agente de IA
                   </Link>
                 </div>

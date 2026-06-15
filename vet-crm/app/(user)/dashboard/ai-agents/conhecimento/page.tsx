@@ -5,11 +5,14 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import ConfirmDeleteModal from '@/components/common/ConfirmDeleteModal';
 import {
-  LuPlus,
-  LuTrash,
+  LuBook,
   LuFileText,
   LuLoader,
-  LuSearch} from 'react-icons/lu';
+  LuPlus,
+  LuSearch,
+  LuSparkles,
+  LuTrash
+} from 'react-icons/lu';
 import { toast } from 'sonner';
 
 interface KnowledgeBase {
@@ -131,7 +134,7 @@ export default function KnowledgeBasesPage() {
         </div>
       ) : filtered.length === 0 ? (
         <div className="rounded-xl border border-gray-200 bg-white px-4 py-12 text-center dark:border-gray-700 dark:bg-gray-800 sm:px-6 sm:py-16">
-          <span style={{fontSize:"14px"}}>🗄</span>
+          <LuBook className="w-4 h-4" />
           <h3 className="mb-2 text-base font-medium text-gray-900 dark:text-white sm:text-lg">
             {search ? 'Nenhuma base encontrada' : 'Nenhuma base de conhecimento'}
           </h3>
@@ -164,7 +167,7 @@ export default function KnowledgeBasesPage() {
                 >
                   <div className="mb-2 flex items-start gap-3">
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#E0F4F6] dark:bg-[#E0F4F6]">
-                      <span style={{fontSize:"14px"}}>🗄</span>
+                      <LuBook className="w-4 h-4" />
                     </div>
                     <div className="min-w-0">
                       <h3 className="flex items-start gap-1 break-words font-semibold text-gray-900 transition-colors group-hover:text-[#009AAC] dark:text-white">
@@ -192,7 +195,7 @@ export default function KnowledgeBasesPage() {
                     </span>
                     {kb._count?.agents ? (
                       <span className="flex items-center gap-1.5 rounded-full bg-gray-100 px-3 py-1 dark:bg-gray-700/60">
-                        <span style={{fontSize:"14px"}}>🤖</span>
+                        <LuSparkles className="w-4 h-4" />
                         {kb._count.agents} agente{kb._count.agents !== 1 ? 's' : ''}
                       </span>
                     ) : null}
