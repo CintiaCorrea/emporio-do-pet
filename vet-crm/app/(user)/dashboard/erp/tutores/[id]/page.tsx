@@ -23,6 +23,8 @@ import {
   LuArrowLeft, LuStickyNote, LuPencil, LuTriangleAlert,
   LuTrash, LuPhone, LuCalendar, LuUser, LuPlus, LuCheck, LuX} from "react-icons/lu";
 
+const CONTATO_TIPO_LABEL: Record<string, string> = { MOBILE: "Celular", PHONE: "Fixo", BUSINESS: "Comercial" };
+
 interface TutorDetail {
   id: string;
   name: string | null;
@@ -48,7 +50,7 @@ interface TutorDetail {
   estadoRelacionamento?: string | null;
   createdAt: string;
   pets?: { id: string; name: string; species: string; breed?: string; birthDate?: string }[];
-  contacts?: { id: string; number: string; type: string; isPrimary: boolean; isWhatsApp: boolean }[];
+  contacts?: { id: string; number: string; type: string; isPrimary: boolean; isWhatsApp: boolean; observations?: string | null }[];
   score?: {
     total: number; label: string;
     dimensions: {
@@ -130,6 +132,10 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
   const [estagios, setEstagios] = useState<string[]>([]);
   const [pipelineNome, setPipelineNome] = useState("");
   const [savingEstagio, setSavingEstagio] = useState(false);
+  const [contatoForm, setContatoForm] = useState<any>({ number: "", type: "MOBILE", isWhatsApp: false, observations: "" });
+  const [addingContato, setAddingContato] = useState(false);
+  const [editContatoId, setEditContatoId] = useState<string | null>(null);
+  const [savingContato, setSavingContato] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -282,6 +288,45 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
     }
   }
 
+  const resetContato = () => { setContatoForm({ number: "", type: "MOBILE", isWhatsApp: false, observations: "" }); setEditContatoId(null); setAddingContato(false); };
+
+  const salvarContato = async () => {
+    if (!contatoForm.number?.trim()) { toast.error("Informe o n\u00famero"); return; }
+    setSavingContato(true);
+    try {
+      const payload: any = { number: contatoForm.number.trim(), type: contatoForm.type, isWhatsApp: !!contatoForm.isWhatsApp, observations: contatoForm.observations?.trim() || null };
+      if (editContatoId) {
+        const r = await fetch(`/api/contacts/${editContatoId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+        if (!r.ok) throw new Error();
+      } else {
+        const semPrincipal = !(tutor?.contacts || []).some((c) => c.isPrimary);
+        const r = await fetch(`/api/contacts`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...payload, tutorId: id, isPrimary: semPrincipal }) });
+        if (!r.ok) throw new Error();
+      }
+      toast.success("Contato salvo");
+      resetContato();
+      await load();
+    } catch { toast.error("Erro ao salvar contato"); } finally { setSavingContato(false); }
+  };
+
+  const editarContato = (c: any) => { setEditContatoId(c.id); setContatoForm({ number: c.number || "", type: c.type || "MOBILE", isWhatsApp: !!c.isWhatsApp, observations: c.observations || "" }); setAddingContato(true); };
+
+  const excluirContato = async (c: any) => {
+    if (!(await confirmDelete({ entityLabel: "Contato", itemName: c.number }))) return;
+    try { const r = await fetch(`/api/contacts/${c.id}`, { method: "DELETE" }); if (!r.ok) throw new Error(); toast.success("Contato removido"); await load(); } catch { toast.error("Erro ao remover"); }
+  };
+
+  const marcarPrincipal = async (c: any) => {
+    try {
+      const outros = (tutor?.contacts || []).filter((x) => x.isPrimary && x.id !== c.id);
+      for (const o of outros) { await fetch(`/api/contacts/${o.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ isPrimary: false }) }); }
+      const r = await fetch(`/api/contacts/${c.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ isPrimary: true }) });
+      if (!r.ok) throw new Error();
+      toast.success("Telefone principal atualizado");
+      await load();
+    } catch { toast.error("Erro ao atualizar principal"); }
+  };
+
   if (loading) return <div className="p-6 text-center text-gray-500">Carregando...</div>;
   if (!tutor) return <div className="p-6 text-center text-gray-500">Cliente não encontrado</div>;
 
@@ -381,6 +426,58 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
             {tutor.convertedFromLeadId && (
               <div className="mt-2 pt-2 border-t border-[#f0e8d4] text-[11px] text-[#5b6470]">
                 <strong className="text-[#0E2244] font-medium">Origem:</strong> Lead convertido · <Link href={`/dashboard/crm/leads/${tutor.convertedFromLeadId}`} className="text-[#00798A]">Ver lead →</Link>
+              </div>
+            )}
+          </div>
+
+          {/* Telefones / Contatos */}
+          <div className="bg-white border border-[#d8d0bc] rounded-xl p-3.5">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-[13px] text-[#0E2244] font-medium flex items-center gap-1.5"><LuPhone className="w-3.5 h-3.5 text-[#0C447C]" /> Telefones / Contatos</h3>
+              <button onClick={() => { resetContato(); setAddingContato(true); }} className="text-[11px] flex items-center gap-1" style={{ color: "#009AAC" }}><LuPlus className="w-3 h-3" /> Adicionar</button>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              {(tutor.contacts || []).length === 0 && !addingContato && (
+                <p className="text-[11px] text-gray-400">Nenhum telefone cadastrado.</p>
+              )}
+              {(tutor.contacts || []).map((c) => (
+                <div key={c.id} className="flex items-start gap-1.5 text-[11px] border-b border-[#f0e8d4] pb-1.5 last:border-0">
+                  <button onClick={() => marcarPrincipal(c)} title="Marcar como principal" className="mt-0.5" style={{ color: c.isPrimary ? "#E0A300" : "#cfd8e0", fontSize: "13px", lineHeight: 1 }}>\u2605</button>
+                  <div className="flex-1">
+                    <div className="text-[#0E2244] font-medium flex items-center gap-1.5 flex-wrap">
+                      {c.number}
+                      {c.isWhatsApp && <span className="bg-[#E0F4F6] text-[#00798A] px-1 py-px rounded text-[9px]">WhatsApp</span>}
+                      <span className="text-[#9aa6b2] text-[10px]">{CONTATO_TIPO_LABEL[c.type] || c.type}</span>
+                    </div>
+                    {c.observations && <div className="text-[#5b6470] text-[10px]">{c.observations}</div>}
+                  </div>
+                  <button onClick={() => editarContato(c)} className="text-[#009AAC] mt-0.5"><LuPencil className="w-3 h-3" /></button>
+                  <button onClick={() => excluirContato(c)} className="text-[#A32D2D] mt-0.5"><LuTrash className="w-3 h-3" /></button>
+                </div>
+              ))}
+            </div>
+            {addingContato && (
+              <div className="mt-2 pt-2 border-t border-[#f0e8d4] flex flex-col gap-1.5 text-[11px]">
+                <div>
+                  <label className="text-[#5b6470]">N\u00famero</label>
+                  <input value={contatoForm.number} onChange={(e) => setContatoForm((f: any) => ({ ...f, number: e.target.value }))} placeholder="(85) 99999-9999" className="w-full mt-0.5 px-2 py-1 border border-[#d8d0bc] rounded text-[12px] text-[#0E2244]" />
+                </div>
+                <div>
+                  <label className="text-[#5b6470]">Identifica\u00e7\u00e3o (ex: Esposo, Trabalho, Filha)</label>
+                  <input value={contatoForm.observations} onChange={(e) => setContatoForm((f: any) => ({ ...f, observations: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#d8d0bc] rounded text-[12px] text-[#0E2244]" />
+                </div>
+                <div className="flex items-center gap-3">
+                  <select value={contatoForm.type} onChange={(e) => setContatoForm((f: any) => ({ ...f, type: e.target.value }))} className="px-2 py-1 border border-[#d8d0bc] rounded text-[12px] text-[#0E2244]">
+                    <option value="MOBILE">Celular</option>
+                    <option value="PHONE">Fixo</option>
+                    <option value="BUSINESS">Comercial</option>
+                  </select>
+                  <label className="flex items-center gap-1.5 text-[#5b6470]"><input type="checkbox" checked={!!contatoForm.isWhatsApp} onChange={(e) => setContatoForm((f: any) => ({ ...f, isWhatsApp: e.target.checked }))} /> \u00c9 WhatsApp</label>
+                </div>
+                <div className="flex gap-2 mt-1">
+                  <button onClick={salvarContato} disabled={savingContato} className="px-3 py-1 rounded text-[11px] text-white disabled:opacity-50 flex items-center gap-1" style={{ background: "#009AAC" }}><LuCheck className="w-3 h-3" />{savingContato ? "Salvando..." : "Salvar"}</button>
+                  <button onClick={resetContato} className="px-3 py-1 rounded text-[11px] border border-[#cfd8e0] text-[#5b6470] flex items-center gap-1"><LuX className="w-3 h-3" /> Cancelar</button>
+                </div>
               </div>
             )}
           </div>
