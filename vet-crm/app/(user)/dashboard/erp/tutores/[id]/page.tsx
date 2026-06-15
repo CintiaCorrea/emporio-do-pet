@@ -442,7 +442,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
               )}
               {(tutor.contacts || []).map((c) => (
                 <div key={c.id} className="flex items-start gap-1.5 text-[11px] border-b border-[#f0e8d4] pb-1.5 last:border-0">
-                  <button onClick={() => marcarPrincipal(c)} title="Marcar como principal" className="mt-0.5" style={{ color: c.isPrimary ? "#E0A300" : "#cfd8e0", fontSize: "13px", lineHeight: 1 }}>\u2605</button>
+                  <button onClick={() => marcarPrincipal(c)} title="Marcar como principal" className="mt-0.5" style={{ color: c.isPrimary ? "#E0A300" : "#cfd8e0", fontSize: "13px", lineHeight: 1 }}>★</button>
                   <div className="flex-1">
                     <div className="text-[#0E2244] font-medium flex items-center gap-1.5 flex-wrap">
                       {c.number}
@@ -459,11 +459,11 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
             {addingContato && (
               <div className="mt-2 pt-2 border-t border-[#f0e8d4] flex flex-col gap-1.5 text-[11px]">
                 <div>
-                  <label className="text-[#5b6470]">N\u00famero</label>
+                  <label className="text-[#5b6470]">Número</label>
                   <input value={contatoForm.number} onChange={(e) => setContatoForm((f: any) => ({ ...f, number: e.target.value }))} placeholder="(85) 99999-9999" className="w-full mt-0.5 px-2 py-1 border border-[#d8d0bc] rounded text-[12px] text-[#0E2244]" />
                 </div>
                 <div>
-                  <label className="text-[#5b6470]">Identifica\u00e7\u00e3o (ex: Esposo, Trabalho, Filha)</label>
+                  <label className="text-[#5b6470]">Identificação (ex: Esposo, Trabalho, Filha)</label>
                   <input value={contatoForm.observations} onChange={(e) => setContatoForm((f: any) => ({ ...f, observations: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#d8d0bc] rounded text-[12px] text-[#0E2244]" />
                 </div>
                 <div className="flex items-center gap-3">
@@ -472,7 +472,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
                     <option value="PHONE">Fixo</option>
                     <option value="BUSINESS">Comercial</option>
                   </select>
-                  <label className="flex items-center gap-1.5 text-[#5b6470]"><input type="checkbox" checked={!!contatoForm.isWhatsApp} onChange={(e) => setContatoForm((f: any) => ({ ...f, isWhatsApp: e.target.checked }))} /> \u00c9 WhatsApp</label>
+                  <label className="flex items-center gap-1.5 text-[#5b6470]"><input type="checkbox" checked={!!contatoForm.isWhatsApp} onChange={(e) => setContatoForm((f: any) => ({ ...f, isWhatsApp: e.target.checked }))} /> É WhatsApp</label>
                 </div>
                 <div className="flex gap-2 mt-1">
                   <button onClick={salvarContato} disabled={savingContato} className="px-3 py-1 rounded text-[11px] text-white disabled:opacity-50 flex items-center gap-1" style={{ background: "#009AAC" }}><LuCheck className="w-3 h-3" />{savingContato ? "Salvando..." : "Salvar"}</button>
