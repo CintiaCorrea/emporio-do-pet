@@ -3,9 +3,10 @@
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { 
+import {
   LuArrowLeft,
-  LuLoader
+  LuLoader,
+  LuSettings
 } from 'react-icons/lu';
 import { toast } from 'sonner';
 import AgentChatTest from '@/components/protected/ai-agents/AgentChatTest';
@@ -63,7 +64,7 @@ export default function AgentTestPage({ params }: { params: Promise<{ id: string
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-8rem)]">
         <div className="flex flex-col items-center gap-4">
-          <LuLoader className="w-12 h-12 text-violet-600 animate-spin" />
+          <LuLoader className="w-12 h-12 text-[#009AAC] animate-spin" />
           <p className="text-gray-500 font-medium">Carregando agente...</p>
         </div>
       </div>
@@ -78,7 +79,7 @@ export default function AgentTestPage({ params }: { params: Promise<{ id: string
           <p className="text-gray-500 mb-4">O agente solicitado não existe ou foi removido.</p>
           <Link
             href="/dashboard/ai-agents/agents"
-            className="text-violet-600 hover:text-violet-700 font-medium"
+            className="text-[#009AAC] hover:text-[#00798A] font-medium"
           >
             Voltar para lista de agentes
           </Link>
@@ -92,12 +93,12 @@ export default function AgentTestPage({ params }: { params: Promise<{ id: string
       {/* Header */}
       <div className="flex-shrink-0 px-6 py-4 border-b border-gray-100 bg-white">
         <div className="flex items-center gap-2 text-sm text-gray-500 mb-3">
-          <Link href="/dashboard/ai-agents/agents" className="hover:text-violet-600">
-            AI Agents
+          <Link href="/dashboard/ai-agents/agents" className="hover:text-[#009AAC]">
+            IA / Atendimento
           </Link>
           <span style={{fontSize:"14px"}}>▶</span>
-          <Link href="/dashboard/ai-agents/agents" className="hover:text-violet-600">
-            Agents
+          <Link href="/dashboard/ai-agents/agents" className="hover:text-[#009AAC]">
+            Agentes
           </Link>
           <span style={{fontSize:"14px"}}>▶</span>
           <span className="text-gray-900 font-medium">Testar</span>
@@ -131,7 +132,7 @@ export default function AgentTestPage({ params }: { params: Promise<{ id: string
               href={`/dashboard/ai-agents/agents`}
               className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
             >
-              <span style={{fontSize:"14px"}}>⚙</span>
+              <LuSettings className="w-4 h-4" />
               Configurações
             </Link>
           </div>

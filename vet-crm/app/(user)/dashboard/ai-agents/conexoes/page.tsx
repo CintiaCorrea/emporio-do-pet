@@ -3,12 +3,16 @@
 // Página de Integrações - AI Agents
 import { useState, useEffect } from 'react';
 import {
+  LuActivity,
   LuCheck,
   LuEye,
   LuEyeOff,
-  LuSparkles,
+  LuFlaskConical,
+  LuMessageCircle,
   LuSave,
-  LuTrash
+  LuSparkles,
+  LuTrash,
+  LuTriangleAlert
 } from 'react-icons/lu';
 import Link from 'next/link';
 
@@ -94,7 +98,7 @@ export default function IntegracoesPage() {
       id: 'whatsapp',
       name: 'WhatsApp Business API',
       description: 'API oficial do WhatsApp para envio de mensagens, notificações e atendimento automatizado',
-      icon: <span style={{fontSize:"14px"}}>💬</span>,
+      icon: <LuMessageCircle className="w-6 h-6" />,
       color: 'text-green-600',
       bgColor: 'bg-green-50',
       status: 'disconnected',
@@ -104,7 +108,7 @@ export default function IntegracoesPage() {
       id: 'openai',
       name: 'OpenAI',
       description: 'GPT-4, GPT-3.5 Turbo e outros modelos para geração de texto e análise',
-      icon: <span style={{fontSize:"14px"}}>🧠</span>,
+      icon: <LuSparkles className="w-6 h-6" />,
       color: 'text-[#009AAC]',
       bgColor: 'bg-[#E1F5EE]',
       status: 'disconnected',
@@ -124,7 +128,7 @@ export default function IntegracoesPage() {
       id: 'deepseek',
       name: 'DeepSeek',
       description: 'Modelo de IA avançado com excelente custo-benefício para chat e código',
-      icon: <span style={{fontSize:"14px"}}>⚡</span>,
+      icon: <LuActivity className="w-6 h-6" />,
       color: 'text-[#009AAC]',
       bgColor: 'bg-[#E0F4F6]',
       status: 'disconnected',
@@ -294,8 +298,8 @@ export default function IntegracoesPage() {
 
   const getStatusIcon = (status: IntegrationStatus) => {
     switch (status) {
-      case 'connected': return <span style={{fontSize:"14px"}}>✓</span>;
-      case 'error': return <span style={{fontSize:"14px"}}>⚠</span>;
+      case 'connected': return <LuCheck className="w-4 h-4" />;
+      case 'error': return <LuTriangleAlert className="w-4 h-4" />;
       case 'testing': return <span style={{fontSize:"14px"}}>↻</span>;
       default: return <span style={{fontSize:"14px"}}>○</span>;
     }
@@ -384,7 +388,7 @@ export default function IntegracoesPage() {
                 <div className="p-4 sm:p-6">
                   <div className="flex flex-col md:flex-row md:items-center gap-4 mb-6">
                     <div className="p-3 rounded-xl bg-green-50">
-                      <span style={{fontSize:"14px"}}>💬</span>
+                      <LuMessageCircle className="w-4 h-4" />
                     </div>
                     <div className="flex-1">
                       <h2 className="text-xl font-bold text-gray-900">WhatsApp Business API</h2>
@@ -540,9 +544,9 @@ export default function IntegracoesPage() {
                       <div className={`p-4 rounded-xl ${testResults['whatsapp'].success ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
                         <div className="flex items-center gap-2">
                           {testResults['whatsapp'].success ? (
-                            <span style={{fontSize:"14px"}}>✓</span>
+                            <LuCheck className="w-4 h-4" />
                           ) : (
-                            <span style={{fontSize:"14px"}}>⚠</span>
+                            <LuTriangleAlert className="w-4 h-4" />
                           )}
                           <span className={testResults['whatsapp'].success ? 'text-green-700' : 'text-red-700'}>
                             {testResults['whatsapp'].message}
@@ -561,7 +565,7 @@ export default function IntegracoesPage() {
                         {testing === 'whatsapp' ? (
                           <span style={{fontSize:"14px"}}>↻</span>
                         ) : (
-                          <span style={{fontSize:"14px"}}>🧪</span>
+                          <LuFlaskConical className="w-4 h-4" />
                         )}
                         Testar Conexão
                       </button>
@@ -596,7 +600,7 @@ export default function IntegracoesPage() {
                 <div className="p-4 sm:p-6">
                   <div className="flex flex-col md:flex-row md:items-center gap-4 mb-6">
                     <div className="p-3 rounded-xl bg-[#E1F5EE]">
-                      <span style={{fontSize:"14px"}}>🧠</span>
+                      <LuSparkles className="w-4 h-4" />
                     </div>
                     <div className="flex-1">
                       <h2 className="text-xl font-bold text-gray-900">OpenAI</h2>
@@ -685,9 +689,9 @@ export default function IntegracoesPage() {
                       <div className={`p-4 rounded-xl ${testResults['openai'].success ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
                         <div className="flex items-center gap-2">
                           {testResults['openai'].success ? (
-                            <span style={{fontSize:"14px"}}>✓</span>
+                            <LuCheck className="w-4 h-4" />
                           ) : (
-                            <span style={{fontSize:"14px"}}>⚠</span>
+                            <LuTriangleAlert className="w-4 h-4" />
                           )}
                           <span className={testResults['openai'].success ? 'text-green-700' : 'text-red-700'}>
                             {testResults['openai'].message}
@@ -706,7 +710,7 @@ export default function IntegracoesPage() {
                         {testing === 'openai' ? (
                           <span style={{fontSize:"14px"}}>↻</span>
                         ) : (
-                          <span style={{fontSize:"14px"}}>🧪</span>
+                          <LuFlaskConical className="w-4 h-4" />
                         )}
                         Testar Conexão
                       </button>
@@ -811,9 +815,9 @@ export default function IntegracoesPage() {
                       <div className={`p-4 rounded-xl ${testResults['gemini'].success ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
                         <div className="flex items-center gap-2">
                           {testResults['gemini'].success ? (
-                            <span style={{fontSize:"14px"}}>✓</span>
+                            <LuCheck className="w-4 h-4" />
                           ) : (
-                            <span style={{fontSize:"14px"}}>⚠</span>
+                            <LuTriangleAlert className="w-4 h-4" />
                           )}
                           <span className={testResults['gemini'].success ? 'text-green-700' : 'text-red-700'}>
                             {testResults['gemini'].message}
@@ -832,7 +836,7 @@ export default function IntegracoesPage() {
                         {testing === 'gemini' ? (
                           <span style={{fontSize:"14px"}}>↻</span>
                         ) : (
-                          <span style={{fontSize:"14px"}}>🧪</span>
+                          <LuFlaskConical className="w-4 h-4" />
                         )}
                         Testar Conexão
                       </button>
@@ -867,7 +871,7 @@ export default function IntegracoesPage() {
                 <div className="p-4 sm:p-6">
                   <div className="flex flex-col md:flex-row md:items-center gap-4 mb-6">
                     <div className="p-3 rounded-xl bg-[#E0F4F6]">
-                      <span style={{fontSize:"14px"}}>⚡</span>
+                      <LuActivity className="w-4 h-4" />
                     </div>
                     <div className="flex-1">
                       <h2 className="text-xl font-bold text-gray-900">DeepSeek</h2>
@@ -952,9 +956,9 @@ export default function IntegracoesPage() {
                       <div className={`p-4 rounded-xl ${testResults['deepseek'].success ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
                         <div className="flex items-center gap-2">
                           {testResults['deepseek'].success ? (
-                            <span style={{fontSize:"14px"}}>✓</span>
+                            <LuCheck className="w-4 h-4" />
                           ) : (
-                            <span style={{fontSize:"14px"}}>⚠</span>
+                            <LuTriangleAlert className="w-4 h-4" />
                           )}
                           <span className={testResults['deepseek'].success ? 'text-green-700' : 'text-red-700'}>
                             {testResults['deepseek'].message}
@@ -973,7 +977,7 @@ export default function IntegracoesPage() {
                         {testing === 'deepseek' ? (
                           <span style={{fontSize:"14px"}}>↻</span>
                         ) : (
-                          <span style={{fontSize:"14px"}}>🧪</span>
+                          <LuFlaskConical className="w-4 h-4" />
                         )}
                         Testar Conexão
                       </button>

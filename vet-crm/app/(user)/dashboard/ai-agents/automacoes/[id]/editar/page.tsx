@@ -3,10 +3,12 @@
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { 
-  LuArrowLeft, 
-  LuSave,
+import {
+  LuActivity,
+  LuArrowLeft,
+  LuClock,
   LuLoader,
+  LuSave,
   LuTrash
 } from 'react-icons/lu';
 import { toast } from 'sonner';
@@ -71,8 +73,8 @@ const CATEGORIES = [
 
 const TRIGGERS = [
   { value: 'MANUAL', label: 'Manual', description: 'Executar manualmente', icon: <span style={{fontSize:"14px"}}>✋</span> },
-  { value: 'SCHEDULE', label: 'Agendado', description: 'Executar em horários específicos', icon: <span style={{fontSize:"14px"}}>⏱</span> },
-  { value: 'EVENT', label: 'Evento', description: 'Executar quando um evento ocorrer', icon: <span style={{fontSize:"14px"}}>⚡</span> },
+  { value: 'SCHEDULE', label: 'Agendado', description: 'Executar em horários específicos', icon: <LuClock className="w-4 h-4" /> },
+  { value: 'EVENT', label: 'Evento', description: 'Executar quando um evento ocorrer', icon: <LuActivity className="w-4 h-4" /> },
   { value: 'WEBHOOK', label: 'Webhook', description: 'Executar via chamada HTTP', icon: <span style={{fontSize:"14px"}}>🌐</span> },
 ];
 
@@ -288,7 +290,7 @@ export default function EditarAutomacaoPage({ params }: { params: Promise<{ id: 
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-8rem)]">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-violet-100 border-t-violet-600 rounded-full animate-spin"></div>
+          <div className="w-12 h-12 border-4 border-[#CDEBEF] border-t-[#009AAC] rounded-full animate-spin"></div>
           <p className="text-gray-500 font-medium">Carregando automação...</p>
         </div>
       </div>
@@ -299,11 +301,11 @@ export default function EditarAutomacaoPage({ params }: { params: Promise<{ id: 
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-8rem)]">
         <div className="text-center">
-          <span style={{fontSize:"14px"}}>⚡</span>
+          <LuActivity className="w-4 h-4" />
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Automação não encontrada</h2>
           <Link
             href="/dashboard/ai-agents/automacoes"
-            className="text-violet-600 hover:text-violet-700"
+            className="text-[#009AAC] hover:text-[#00798A]"
           >
             Voltar para lista de automações
           </Link>
@@ -317,11 +319,11 @@ export default function EditarAutomacaoPage({ params }: { params: Promise<{ id: 
       <div className="max-w-4xl mx-auto">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
-          <Link href="/dashboard/ai-agents/automacoes" className="hover:text-violet-600">
-            AI Agents
+          <Link href="/dashboard/ai-agents/automacoes" className="hover:text-[#009AAC]">
+            IA / Atendimento
           </Link>
           <span style={{fontSize:"14px"}}>▶</span>
-          <Link href="/dashboard/ai-agents/automacoes" className="hover:text-violet-600">
+          <Link href="/dashboard/ai-agents/automacoes" className="hover:text-[#009AAC]">
             Automações
           </Link>
           <span style={{fontSize:"14px"}}>▶</span>
@@ -368,16 +370,16 @@ export default function EditarAutomacaoPage({ params }: { params: Promise<{ id: 
 
             <button
               onClick={handleExecute}
-              className="flex items-center gap-2 px-4 py-2 bg-violet-50 hover:bg-violet-100 text-violet-700 rounded-lg transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-[#E0F4F6] hover:bg-[#CDEBEF] text-[#00798A] rounded-lg transition-colors"
             >
-              <span style={{fontSize:"14px"}}>⚡</span>
+              <LuActivity className="w-4 h-4" />
               Executar
             </button>
 
             <button
               onClick={handleSave}
               disabled={saving}
-              className="flex items-center gap-2 px-6 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-lg font-semibold transition-colors disabled:opacity-50"
+              className="flex items-center gap-2 px-6 py-2 bg-[#009AAC] hover:bg-[#00798A] text-white rounded-lg font-semibold transition-colors disabled:opacity-50"
             >
               {saving ? (
                 <>
@@ -434,7 +436,7 @@ export default function EditarAutomacaoPage({ params }: { params: Promise<{ id: 
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                   placeholder="Ex: Lembrete de Consultas"
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#009AAC]/50 focus:border-[#009AAC]"
                 />
               </div>
 
@@ -447,7 +449,7 @@ export default function EditarAutomacaoPage({ params }: { params: Promise<{ id: 
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
                   placeholder="Descreva o que essa automação faz..."
                   rows={2}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 resize-none"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#009AAC]/50 focus:border-[#009AAC] resize-none"
                 />
               </div>
 
@@ -459,11 +461,11 @@ export default function EditarAutomacaoPage({ params }: { params: Promise<{ id: 
                   <select
                     value={form.category}
                     onChange={(e) => setForm({ ...form, category: e.target.value as AutomationCategory })}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#009AAC]/50 focus:border-[#009AAC]"
                   >
                     {CATEGORIES.map((cat) => (
                       <option key={cat.value} value={cat.value}>
-                        {cat.icon} {cat.label}
+                        {cat.label}
                       </option>
                     ))}
                   </select>
@@ -476,7 +478,7 @@ export default function EditarAutomacaoPage({ params }: { params: Promise<{ id: 
                   <select
                     value={form.agentId || ''}
                     onChange={(e) => setForm({ ...form, agentId: e.target.value || undefined })}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#009AAC]/50 focus:border-[#009AAC]"
                   >
                     <option value="">Sem agente vinculado</option>
                     {agents.map((agent) => (
@@ -501,7 +503,7 @@ export default function EditarAutomacaoPage({ params }: { params: Promise<{ id: 
                   onClick={() => setForm({ ...form, trigger: trigger.value as AutomationTrigger })}
                   className={`flex flex-col items-center gap-2 p-4 border rounded-xl transition-all ${
                     form.trigger === trigger.value
-                      ? 'border-violet-500 bg-violet-50 text-violet-700'
+                      ? 'border-[#009AAC] bg-[#E0F4F6] text-[#00798A]'
                       : 'border-gray-200 hover:border-gray-300 text-gray-600'
                   }`}
                 >
@@ -527,7 +529,7 @@ export default function EditarAutomacaoPage({ params }: { params: Promise<{ id: 
                       triggerConfig: { ...form.triggerConfig, cron: e.target.value }
                     })}
                     placeholder="0 8 * * * (todos os dias às 8h)"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500/50"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#009AAC]/50"
                   />
                   <p className="text-xs text-gray-500 mt-1">
                     Formato: minuto hora dia mês dia-semana
@@ -543,7 +545,7 @@ export default function EditarAutomacaoPage({ params }: { params: Promise<{ id: 
                       ...form, 
                       triggerConfig: { ...form.triggerConfig, timezone: e.target.value }
                     })}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500/50"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#009AAC]/50"
                   >
                     <option value="America/Sao_Paulo">São Paulo (GMT-3)</option>
                     <option value="America/Fortaleza">Fortaleza (GMT-3)</option>
@@ -566,7 +568,7 @@ export default function EditarAutomacaoPage({ params }: { params: Promise<{ id: 
                       ...form, 
                       triggerConfig: { ...form.triggerConfig, eventType: e.target.value }
                     })}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500/50"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#009AAC]/50"
                   >
                     <option value="">Selecione um evento</option>
                     {eventTypes.map((event) => (
@@ -620,7 +622,7 @@ export default function EditarAutomacaoPage({ params }: { params: Promise<{ id: 
               href={`/api/automations/${id}/logs`}
               className="flex items-center justify-center gap-2 px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-colors"
             >
-              <span style={{fontSize:"14px"}}>⏳</span>
+              <LuClock className="w-4 h-4" />
               Ver Logs
             </Link>
 
@@ -636,7 +638,7 @@ export default function EditarAutomacaoPage({ params }: { params: Promise<{ id: 
             <button
               onClick={handleSave}
               disabled={saving}
-              className="flex items-center justify-center gap-2 px-8 py-3 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-semibold shadow-lg shadow-violet-500/20 transition-all disabled:opacity-50"
+              className="flex items-center justify-center gap-2 px-8 py-3 bg-[#009AAC] hover:bg-[#00798A] text-white rounded-xl font-semibold shadow-lg shadow-[#009AAC]/20 transition-all disabled:opacity-50"
             >
               {saving ? (
                 <>

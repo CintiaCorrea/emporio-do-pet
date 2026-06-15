@@ -3,11 +3,16 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
-  LuSearch,
-  LuPlus,
-  LuPencil,
+  LuActivity,
+  LuBell,
   LuCalendar,
-  LuLoader
+  LuClock,
+  LuLoader,
+  LuMail,
+  LuMessageCircle,
+  LuPencil,
+  LuPlus,
+  LuSearch
 } from 'react-icons/lu';
 import { toast } from 'sonner';
 
@@ -212,9 +217,9 @@ export default function AutomacoesPage() {
 
   const getCategoryIcon = (category: AutomationCategory) => {
     switch (category) {
-      case 'ATENDIMENTO': return <span style={{fontSize:"14px"}}>💬</span>;
-      case 'MARKETING': return <span style={{fontSize:"14px"}}>✉</span>;
-      case 'NOTIFICACAO': return <span style={{fontSize:"14px"}}>🔔</span>;
+      case 'ATENDIMENTO': return <LuMessageCircle className="w-4 h-4" />;
+      case 'MARKETING': return <LuMail className="w-4 h-4" />;
+      case 'NOTIFICACAO': return <LuBell className="w-4 h-4" />;
       case 'INTEGRACAO': return <span style={{fontSize:"14px"}}>🌿</span>;
       case 'AGENDAMENTO': return <LuCalendar className="w-4 h-4" />;
     }
@@ -232,9 +237,9 @@ export default function AutomacoesPage() {
 
   const getTriggerIcon = (trigger: AutomationTrigger) => {
     switch (trigger) {
-      case 'SCHEDULE': return <span style={{fontSize:"14px"}}>⏱</span>;
-      case 'WEBHOOK': return <span style={{fontSize:"14px"}}>⚡</span>;
-      case 'EVENT': return <span style={{fontSize:"14px"}}>⚡</span>;
+      case 'SCHEDULE': return <LuClock className="w-4 h-4" />;
+      case 'WEBHOOK': return <LuActivity className="w-4 h-4" />;
+      case 'EVENT': return <LuActivity className="w-4 h-4" />;
       case 'MANUAL': return <span style={{fontSize:"14px"}}>▶</span>;
     }
   };
@@ -337,7 +342,7 @@ export default function AutomacoesPage() {
             {/* Lista de Automações */}
             {filteredAutomations.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 bg-white rounded-xl border border-[#d8d0bc]">
-                <span style={{fontSize:"14px"}}>🔀</span>
+                <LuActivity className="w-4 h-4" />
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">Nenhuma automação encontrada</h3>
                 <p className="text-gray-500 text-center max-w-md">
                   {searchTerm || statusFilter !== 'all' || categoryFilter !== 'all'
@@ -353,7 +358,7 @@ export default function AutomacoesPage() {
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center gap-3">
                         <div className={`p-2.5 rounded-xl ${automation.status === 'ACTIVE' ? 'bg-[#E1F5EE]' : automation.status === 'PAUSED' ? 'bg-orange-50' : automation.status === 'ERROR' ? 'bg-red-50' : 'bg-gray-50'}`}>
-                          <span style={{fontSize:"14px"}}>🔀</span>
+                          <LuActivity className="w-4 h-4" />
                         </div>
                         <div>
                           <h3 className="font-semibold text-gray-900 group-hover:text-[#009AAC] transition-colors">{automation.name}</h3>
@@ -397,7 +402,7 @@ export default function AutomacoesPage() {
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-4">
                   <div className={`p-3 rounded-xl ${selectedAutomation.status === 'ACTIVE' ? 'bg-[#E1F5EE]' : selectedAutomation.status === 'PAUSED' ? 'bg-orange-50' : selectedAutomation.status === 'ERROR' ? 'bg-red-50' : 'bg-gray-50'}`}>
-                    <span style={{fontSize:"14px"}}>🔀</span>
+                    <LuActivity className="w-4 h-4" />
                   </div>
                   <div>
                     <h2 className="text-xl font-bold text-gray-900">{selectedAutomation.name}</h2>

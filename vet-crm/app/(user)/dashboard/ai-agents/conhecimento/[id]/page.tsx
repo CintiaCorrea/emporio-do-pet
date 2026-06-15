@@ -5,11 +5,15 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   LuArrowLeft,
-  LuUpload,
-  LuTrash,
+  LuBook,
+  LuCheck,
+  LuClock,
   LuFileText,
   LuLoader,
-  LuPencil
+  LuPencil,
+  LuSettings,
+  LuTrash,
+  LuUpload
 } from 'react-icons/lu';
 import { toast } from 'sonner';
 
@@ -37,9 +41,9 @@ interface KnowledgeBaseDetail {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
-  READY: { label: 'Pronto', color: 'text-green-600 bg-green-50 dark:bg-green-900/20', icon: <span style={{fontSize:"14px"}}>✓</span> },
+  READY: { label: 'Pronto', color: 'text-green-600 bg-green-50 dark:bg-green-900/20', icon: <LuCheck className="w-4 h-4" /> },
   PROCESSING: { label: 'Processando', color: 'text-orange-600 bg-orange-50 dark:bg-orange-900/20', icon: <LuLoader className="w-3.5 h-3.5 animate-spin" /> },
-  PENDING: { label: 'Pendente', color: 'text-gray-500 bg-gray-50 dark:bg-gray-700', icon: <span style={{fontSize:"14px"}}>⏱</span> },
+  PENDING: { label: 'Pendente', color: 'text-gray-500 bg-gray-50 dark:bg-gray-700', icon: <LuClock className="w-4 h-4" /> },
   ERROR: { label: 'Erro', color: 'text-red-600 bg-red-50 dark:bg-red-900/20', icon: <span style={{fontSize:"14px"}}>✗</span> }};
 
 export default function KnowledgeBaseDetailPage() {
@@ -250,7 +254,7 @@ export default function KnowledgeBaseDetailPage() {
           ) : (
             <div className="min-w-0">
               <h1 className="flex items-start gap-2 text-xl font-bold text-gray-900 dark:text-white sm:text-2xl">
-                <span style={{fontSize:"14px"}}>🗄</span>
+                <LuBook className="w-4 h-4" />
                 <span className="min-w-0 break-words">{kb.name}</span>
                 <button
                   onClick={() => setEditing(true)}
@@ -271,9 +275,9 @@ export default function KnowledgeBaseDetailPage() {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {[
           { label: 'Documentos', value: kb.totalDocuments, icon: <LuFileText className="w-5 h-5 text-indigo-600" /> },
-          { label: 'Chunks', value: kb.totalChunks, icon: <span style={{fontSize:"14px"}}>🗄</span> },
-          { label: 'Tamanho', value: formatBytes(kb.totalSizeBytes), icon: <span style={{fontSize:"14px"}}>📄</span> },
-          { label: 'Agentes', value: kb._count?.agents || 0, icon: <span style={{fontSize:"14px"}}>⚙</span> },
+          { label: 'Chunks', value: kb.totalChunks, icon: <LuBook className="w-4 h-4" /> },
+          { label: 'Tamanho', value: formatBytes(kb.totalSizeBytes), icon: <LuFileText className="w-4 h-4" /> },
+          { label: 'Agentes', value: kb._count?.agents || 0, icon: <LuSettings className="w-4 h-4" /> },
         ].map((stat) => (
           <div
             key={stat.label}
