@@ -11,6 +11,7 @@ import { TutorsModule } from './modules/tutors/tutors.module';
 import { InboxModule } from './modules/inbox/inbox.module';
 import { HojeModule } from './modules/hoje/hoje.module';
 import { BotconversaWebhookModule } from './modules/webhooks/botconversa/botconversa-webhook.module';
+import { GoogleAdsWebhookModule } from './modules/webhooks/google-ads/google-ads-webhook.module';
 import { PetsModule } from './modules/pets/pets.module';
 import { BreedsModule } from './modules/breeds/breeds.module';
 import { AppointmentsModule } from './modules/appointments/appointments.module';
@@ -135,6 +136,7 @@ import configuration from './config/configuration';
     InboxModule,
     HojeModule,
     BotconversaWebhookModule,
+    GoogleAdsWebhookModule,
     PetsModule,
     BreedsModule,
     AppointmentsModule,
