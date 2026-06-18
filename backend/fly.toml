@@ -13,6 +13,7 @@ primary_region = "gru"  # São Paulo, Brasil
   dockerfile = "Dockerfile"
 
 [env]
+  META_PAGE_ID = "264757673573802"
   NODE_ENV = "production"
   PORT = "8080"
   AI_SERVICE_URL = "http://emporio-pet-ai.internal:8080"

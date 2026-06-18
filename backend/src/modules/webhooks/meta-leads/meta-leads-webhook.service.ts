@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { LeadSource, LeadStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
@@ -23,11 +23,59 @@ import {
  * - Guarda ad_id / form_id / campaign_id em LeadEvent (usado nas conversões).
  */
 @Injectable()
-export class MetaLeadsWebhookService {
+export class MetaLeadsWebhookService implements OnModuleInit {
   private readonly logger = new Logger(MetaLeadsWebhookService.name);
   private readonly graphVersion = process.env.META_GRAPH_VERSION || 'v21.0';
 
   constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * Garante que a Página esteja inscrita no app para receber eventos leadgen.
+   * Idempotente: pode rodar a cada boot sem efeito colateral.
+   */
+  async onModuleInit() {
+    const token = process.env.META_LEADS_TOKEN;
+    const pageId = process.env.META_PAGE_ID;
+    if (!token || !pageId) {
+      this.logger.warn(
+        'Auto-inscricao de Pagina pulada (META_LEADS_TOKEN ou META_PAGE_ID ausente)',
+      );
+      return;
+    }
+    try {
+      const ptRes = await fetch(
+        `https://graph.facebook.com/${this.graphVersion}/${encodeURIComponent(
+          pageId,
+        )}?fields=access_token&access_token=${encodeURIComponent(token)}`,
+      );
+      const ptJson: any = await ptRes.json();
+      if (!ptRes.ok || !ptJson?.access_token) {
+        this.logger.warn(
+          `Auto-inscricao: nao obteve page token de ${pageId}: ${ptRes.status} ${JSON.stringify(ptJson)}`,
+        );
+        return;
+      }
+      const pageToken = ptJson.access_token as string;
+      const subRes = await fetch(
+        `https://graph.facebook.com/${this.graphVersion}/${encodeURIComponent(
+          pageId,
+        )}/subscribed_apps?subscribed_fields=leadgen&access_token=${encodeURIComponent(
+          pageToken,
+        )}`,
+        { method: 'POST' },
+      );
+      const subBody = await subRes.text();
+      if (subRes.ok) {
+        this.logger.log(`Auto-inscricao: Pagina ${pageId} inscrita p/ leadgen: ${subBody}`);
+      } else {
+        this.logger.warn(
+          `Auto-inscricao: falha ao inscrever Pagina ${pageId}: ${subRes.status} ${subBody}`,
+        );
+      }
+    } catch (e) {
+      this.logger.warn(`Auto-inscricao: erro inesperado: ${e}`);
+    }
+  }
 
   /** Ponto de entrada: itera as entries/changes e processa cada leadgen. */
   async handlePayload(payload: MetaLeadgenPayload) {
