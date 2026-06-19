@@ -17,7 +17,7 @@ async function bootstrap() {
   const frontendUrl = configService.get<string>('frontendUrl', 'http://localhost:3000');
 
   // Global prefix para todas as rotas da API
-  app.setGlobalPrefix('api');
+  app.setGlobalPrefix('api', { exclude: ['privacidade.html', 'exclusao-de-dados.html'] });
 
   // Configuração de CORS - aceita frontend em produção e desenvolvimento
   const allowedOrigins = [frontendUrl, 'http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002'].filter(

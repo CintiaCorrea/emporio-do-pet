@@ -13,6 +13,7 @@ import { HojeModule } from './modules/hoje/hoje.module';
 import { BotconversaWebhookModule } from './modules/webhooks/botconversa/botconversa-webhook.module';
 import { GoogleAdsModule } from './modules/google-ads/google-ads.module';
 import { MetaLeadsWebhookModule } from './modules/webhooks/meta-leads/meta-leads-webhook.module';
+import { LegalModule } from './modules/legal/legal.module';
 import { PetsModule } from './modules/pets/pets.module';
 import { BreedsModule } from './modules/breeds/breeds.module';
 import { AppointmentsModule } from './modules/appointments/appointments.module';
@@ -139,6 +140,7 @@ import configuration from './config/configuration';
     BotconversaWebhookModule,
     GoogleAdsModule,
     MetaLeadsWebhookModule,
+    LegalModule,
     PetsModule,
     BreedsModule,
     AppointmentsModule,
