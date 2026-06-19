@@ -65,6 +65,7 @@ const NAV: Entry[] = [
     group: true, key: "marketing", label: "Marketing", Icon: LuMegaphone, roles: ["ADMIN"],
     children: [
       { href: "/dashboard/marketing/funil-semana", label: "Funil Semana", Icon: LuList, roles: ["ADMIN"] },
+      { href: "/dashboard/marketing/google-ads", label: "Google Ads", Icon: LuMegaphone, roles: ["ADMIN"] },
       { href: "/dashboard/marketing/nps", label: "NPS", Icon: LuStar, roles: ["ADMIN"] },
       { href: "/dashboard/marketing/avaliacoes-google", label: "Aval. Google", Icon: LuStar, roles: ["ADMIN"] },
       { href: "/dashboard/marketing/campanhas", label: "Campanhas", Icon: LuMegaphone, roles: ["ADMIN"] },

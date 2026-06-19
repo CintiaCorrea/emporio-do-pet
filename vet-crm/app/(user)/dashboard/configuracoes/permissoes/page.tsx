@@ -34,6 +34,7 @@ const TELAS: { key: string; label: string }[] = [
   { key: "internacao", label: "Internação" },
   { key: "financeiro", label: "Financeiro (Fin. Terceiros)" },
   { key: "mkt-funil", label: "Marketing · Funil Semana" },
+  { key: "mkt-googleads", label: "Marketing · Google Ads" },
   { key: "mkt-nps", label: "Marketing · NPS" },
   { key: "mkt-google", label: "Marketing · Aval. Google" },
   { key: "mkt-campanhas", label: "Marketing · Campanhas" },
