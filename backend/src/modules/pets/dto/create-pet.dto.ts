@@ -139,4 +139,14 @@ export class CreatePetDto {
   @IsArray()
   @IsString({ each: true })
   documents?: string[];
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  insurancePlan?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  temperament?: string;
 }
