@@ -30,6 +30,7 @@ interface Pet {
   observations: string;
   insurancePlan: string;
   temperament: string;
+  secondaryTutorId: string;
   documents: string[]; // IDs dos templates de documentos selecionados
   owner: string;
   tutorId?: string;
@@ -250,6 +251,7 @@ const emptyPet: Pet = {
   observations: "",
   insurancePlan: "",
   temperament: "",
+  secondaryTutorId: "",
   documents: [],
   owner: "",
   avatar: ""};
@@ -381,6 +383,7 @@ export default function EditPetPage() {
           observations: petData.observations || "",
           insurancePlan: petData.insurancePlan || "",
           temperament: petData.temperament || "",
+          secondaryTutorId: petData.secondaryTutorId || "",
           documents: Array.isArray(petData.documents) ? petData.documents : [],
           owner: petData.tutor?.name || "",
           tutorId: petData.tutorId || "",
@@ -532,6 +535,7 @@ export default function EditPetPage() {
         observations: sanitize(pet.observations),
         insurancePlan: sanitize(pet.insurancePlan),
         temperament: sanitize(pet.temperament),
+        secondaryTutorId: pet.secondaryTutorId || null,
         documents: pet.documents,
         avatar: sanitize(pet.avatar)};
 
@@ -1050,6 +1054,21 @@ export default function EditPetPage() {
                         ))}
                       </select>
                     )}
+                  </div>
+
+                  <div className="space-y-2 mt-6">
+                    <label className="flex items-center text-sm font-semibold text-gray-700">2º Responsável (opcional)</label>
+                    <select
+                      name="secondaryTutorId"
+                      value={pet.secondaryTutorId || ''}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                    >
+                      <option value="">Nenhum</option>
+                      {Array.isArray(tutors) && tutors.map((t) => (
+                        <option key={t.id} value={t.id}>{t.name}</option>
+                      ))}
+                    </select>
                   </div>
 
                   {/* Botões de ação */}

@@ -149,4 +149,10 @@ export class CreatePetDto {
   @IsOptional()
   @IsString()
   temperament?: string;
+}  temperament?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  secondaryTutorId?: string;
 }
