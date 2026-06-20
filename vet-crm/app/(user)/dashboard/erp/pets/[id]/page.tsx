@@ -21,6 +21,7 @@ import toast from "react-hot-toast";
 import FeedTimeline from "@/components/pets/FeedTimeline";
 import WeightChart from "@/components/pets/WeightChart";
 import PetVendaPanel from "@/components/pets/PetVendaPanel";
+import PetClinicaTabela from "@/components/pets/PetClinicaTabela";
 import ConfirmDeleteModal from "@/components/common/ConfirmDeleteModal";
 import EncaminharBox from "@/components/inbox/EncaminharBox";
 import PetProfilePanel from "@/components/profile/PetProfilePanel";
@@ -80,7 +81,7 @@ export default function PetDetailPage() {
 
   const [pet, setPet] = useState<Pet | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"HISTORICO" | "CLINICA" | "PACOTES" | "EXAMES">("HISTORICO");
+  const [tab, setTab] = useState<"HISTORICO" | "TIMELINE" | "AGENDA" | "VENDAS" | "CLINICA" | "PACOTES" | "EXAMES">("HISTORICO");
   const [delOpen, setDelOpen] = useState(false);
   const [tagsOpen, setTagsOpen] = useState(false);
   const [editClin, setEditClin] = useState(false);
@@ -490,6 +491,9 @@ export default function PetDetailPage() {
               {(
                 [
                   { k: "HISTORICO", label: "Histórico" },
+                  { k: "TIMELINE", label: "Linha do tempo" },
+                  { k: "AGENDA", label: "Agenda" },
+                  { k: "VENDAS", label: "Vendas" },
                   { k: "CLINICA", label: "Clínica" },
                   { k: "PACOTES", label: "Pacotes" },
                   { k: "EXAMES", label: "Exames" },
@@ -517,6 +521,15 @@ export default function PetDetailPage() {
               <div className="mb-3"><WeightChart atendimentos={atendimentos} current={pet?.weight ?? null} /></div>
               <FeedTimeline atendimentos={atendimentos} clinDocs={clinDocs} />
             </div>
+          )}
+          {tab === "TIMELINE" && (
+            <div className="p-5"><FeedTimeline atendimentos={atendimentos} clinDocs={clinDocs} /></div>
+          )}
+          {tab === "AGENDA" && (
+            <div className="p-5"><PetClinicaTabela view="agenda" atendimentos={atendimentos} tipoLabel={ATD_TIPO_LABEL} /></div>
+          )}
+          {tab === "VENDAS" && (
+            <div className="p-5"><PetClinicaTabela view="vendas" atendimentos={atendimentos} tipoLabel={ATD_TIPO_LABEL} /></div>
           )}
           {tab === "CLINICA" && (
             <div className="p-5">
