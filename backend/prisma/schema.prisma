@@ -2021,6 +2021,12 @@ model Lead {
   utmMedium    String?
   utmCampaign  String?
   utmContent   String?
+  metaCampaignId String?
+  metaAdsetId    String?
+  metaAdId       String?
+  metaPageId     String?
+  ctwaClid       String?
+  segmento       String?
   referrer     String? // URL de referência
   landingPage  String? // Página de entrada
 
