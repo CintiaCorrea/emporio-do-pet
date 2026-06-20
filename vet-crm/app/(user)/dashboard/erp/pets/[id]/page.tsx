@@ -19,6 +19,7 @@ import {
 } from "react-icons/lu";
 import toast from "react-hot-toast";
 import FeedTimeline from "@/components/pets/FeedTimeline";
+import WeightChart from "@/components/pets/WeightChart";
 import ConfirmDeleteModal from "@/components/common/ConfirmDeleteModal";
 import EncaminharBox from "@/components/inbox/EncaminharBox";
 import PetProfilePanel from "@/components/profile/PetProfilePanel";
@@ -512,6 +513,7 @@ export default function PetDetailPage() {
               <div className="flex justify-end mb-3">
                 <button onClick={() => { setAtd(ATD0); setItems([]); setAtdOpen(true); }} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white flex items-center gap-1.5" style={{ background: "#009AAC" }}><LuPlus size={13} /> Novo atendimento</button>
               </div>
+              <div className="mb-3"><WeightChart atendimentos={atendimentos} current={pet?.weight ?? null} /></div>
               <FeedTimeline atendimentos={atendimentos} clinDocs={clinDocs} />
             </div>
           )}
