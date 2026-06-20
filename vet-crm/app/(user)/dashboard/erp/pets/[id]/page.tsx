@@ -18,6 +18,7 @@ import {
   LuPackage, LuMessageSquare, LuShare2, LuTag, LuClock, LuCalendar, LuX, LuCheck,
 } from "react-icons/lu";
 import toast from "react-hot-toast";
+import FeedTimeline from "@/components/pets/FeedTimeline";
 import ConfirmDeleteModal from "@/components/common/ConfirmDeleteModal";
 import EncaminharBox from "@/components/inbox/EncaminharBox";
 import PetProfilePanel from "@/components/profile/PetProfilePanel";
@@ -77,7 +78,7 @@ export default function PetDetailPage() {
 
   const [pet, setPet] = useState<Pet | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"CLINICA" | "PACOTES" | "EXAMES">("CLINICA");
+  const [tab, setTab] = useState<"HISTORICO" | "CLINICA" | "PACOTES" | "EXAMES">("HISTORICO");
   const [delOpen, setDelOpen] = useState(false);
   const [tagsOpen, setTagsOpen] = useState(false);
   const [editClin, setEditClin] = useState(false);
@@ -123,6 +124,7 @@ export default function PetDetailPage() {
   const [intTexto, setIntTexto] = useState("");
   const [savingInt, setSavingInt] = useState(false);
   const [atendimentos, setAtendimentos] = useState<any[]>([]);
+  const [clinDocs, setClinDocs] = useState<any[]>([]);
   const [verAtd, setVerAtd] = useState<any>(null);
   const [editAtd, setEditAtd] = useState(false);
   const [editAtdForm, setEditAtdForm] = useState<any>({});
@@ -146,7 +148,7 @@ export default function PetDetailPage() {
       setExamFases(pick("exame"));
     } catch {}
   }
-  useEffect(() => { if (petId) { load(); loadPipes(); loadPetColecoes(); loadCatalogos(); loadInteracoesPet(); loadAtendimentos(); loadAtdConfig(); } /* eslint-disable-next-line */ }, [petId]);
+  useEffect(() => { if (petId) { load(); loadPipes(); loadPetColecoes(); loadCatalogos(); loadInteracoesPet(); loadAtendimentos(); loadClinDocs(); loadAtdConfig(); } /* eslint-disable-next-line */ }, [petId]);
 
   async function handleDelete() {
     const res = await fetch(`/api/pets/${petId}`, { method: "DELETE" });
@@ -310,6 +312,7 @@ export default function PetDetailPage() {
     } catch {}
   }
   async function loadAtendimentos() { try { const r = await fetch(`/api/appointments?petId=${petId}`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.appointments || d.data || []); setAtendimentos(arr.slice().sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())); } catch {} }
+  async function loadClinDocs() { try { const r = await fetch(`/api/clinical-documents/pet/${petId}`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.documents || d.data || []); setClinDocs(arr); } catch {} }
   async function abrirAtd(id: string) { try { const a = await fetch(`/api/appointments/${id}`, { cache: "no-store" }).then(r => r.json()); setVerAtd(a); setEditAtd(false); } catch { toast.error("Erro ao abrir atendimento"); } }
   async function excluirAtendimento(id: string) {
     if (!(await confirmDelete({ entityLabel: "atendimento", itemName: "este atendimento" }))) return;
@@ -484,6 +487,7 @@ export default function PetDetailPage() {
             <div className="flex border-b" style={{ borderColor: "#E8DFC8" }}>
               {(
                 [
+                  { k: "HISTORICO", label: "Histórico" },
                   { k: "CLINICA", label: "Clínica" },
                   { k: "PACOTES", label: "Pacotes" },
                   { k: "EXAMES", label: "Exames" },
@@ -503,6 +507,9 @@ export default function PetDetailPage() {
                 </button>
               ))}
             </div>
+          {tab === "HISTORICO" && (
+            <div className="p-5"><FeedTimeline atendimentos={atendimentos} clinDocs={clinDocs} /></div>
+          )}
           {tab === "CLINICA" && (
             <div className="p-5">
                 <section>
