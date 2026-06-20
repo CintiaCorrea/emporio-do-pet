@@ -14,6 +14,7 @@ primary_region = "gru"  # São Paulo, Brasil
 
 [env]
   META_PAGE_ID = "264757673573802"
+  META_AD_ACCOUNT_ID = "act_1540879966657176"
   NODE_ENV = "production"
   PORT = "8080"
   AI_SERVICE_URL = "http://emporio-pet-ai.internal:8080"
