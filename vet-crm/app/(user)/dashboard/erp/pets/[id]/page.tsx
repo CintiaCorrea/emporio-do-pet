@@ -42,6 +42,8 @@ interface Pet {
   observations?: string | null;
   allergies?: string[];
   medicalNotes?: string | null;
+  insurancePlan?: string | null;
+  temperament?: string | null;
   pipelineClinicoEtapa?: string | null;
   pipelineFisioEtapa?: string | null;
   proximoFollowupAt?: string | null;
@@ -540,6 +542,8 @@ export default function PetDetailPage() {
                     <Field label="Pelagem" value={pet.coat} />
                     <Field label="Cor" value={pet.coatColor} />
                     <Field label="Microchip" value={pet.microchip} />
+                    <Field label="Convênio / Plano" value={pet.insurancePlan} />
+                    <Field label="Comportamento" value={pet.temperament} />
                   </div>
                 </section>
             </div>

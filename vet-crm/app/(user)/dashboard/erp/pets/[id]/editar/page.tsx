@@ -28,6 +28,9 @@ interface Pet {
   allergies: string;
   medicalNotes: string;
   observations: string;
+  insurancePlan: string;
+  temperament: string;
+  secondaryTutorId: string;
   documents: string[]; // IDs dos templates de documentos selecionados
   owner: string;
   tutorId?: string;
@@ -246,6 +249,9 @@ const emptyPet: Pet = {
   allergies: "",
   medicalNotes: "",
   observations: "",
+  insurancePlan: "",
+  temperament: "",
+  secondaryTutorId: "",
   documents: [],
   owner: "",
   avatar: ""};
@@ -375,6 +381,9 @@ export default function EditPetPage() {
           allergies: Array.isArray(petData.allergies) ? petData.allergies.join("\n") : "",
           medicalNotes: petData.medicalNotes || "",
           observations: petData.observations || "",
+          insurancePlan: petData.insurancePlan || "",
+          temperament: petData.temperament || "",
+          secondaryTutorId: petData.secondaryTutorId || "",
           documents: Array.isArray(petData.documents) ? petData.documents : [],
           owner: petData.tutor?.name || "",
           tutorId: petData.tutorId || "",
@@ -524,6 +533,9 @@ export default function EditPetPage() {
         allergies: parseAllergies(pet.allergies),
         medicalNotes: sanitize(pet.medicalNotes),
         observations: sanitize(pet.observations),
+        insurancePlan: sanitize(pet.insurancePlan),
+        temperament: sanitize(pet.temperament),
+        secondaryTutorId: pet.secondaryTutorId || null,
         documents: pet.documents,
         avatar: sanitize(pet.avatar)};
 
@@ -1044,6 +1056,21 @@ export default function EditPetPage() {
                     )}
                   </div>
 
+                  <div className="space-y-2 mt-6">
+                    <label className="flex items-center text-sm font-semibold text-gray-700">2º Responsável (opcional)</label>
+                    <select
+                      name="secondaryTutorId"
+                      value={pet.secondaryTutorId || ''}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                    >
+                      <option value="">Nenhum</option>
+                      {Array.isArray(tutors) && tutors.map((t) => (
+                        <option key={t.id} value={t.id}>{t.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
                   {/* Botões de ação */}
                   <div className="flex gap-4 mt-8 pt-8 border-t border-white/20">
                     <button
@@ -1189,6 +1216,31 @@ export default function EditPetPage() {
                           rows={3}
                           className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500/40 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm resize-none"
                           placeholder={"Uma por linha (ou separadas por vírgula)\nEx.: Frango\nEx.: Pólen"}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                      <div className="space-y-2">
+                        <label className="text-sm font-semibold text-gray-700">Convênio / Plano</label>
+                        <input
+                          type="text"
+                          name="insurancePlan"
+                          value={pet.insurancePlan}
+                          onChange={handleChange}
+                          className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500/40 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                          placeholder="Ex.: Dog Life, convênio X"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-semibold text-gray-700">Comportamento / Temperamento</label>
+                        <input
+                          type="text"
+                          name="temperament"
+                          value={pet.temperament}
+                          onChange={handleChange}
+                          className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500/40 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                          placeholder="Ex.: dócil, ansioso, reativo a outros cães"
                         />
                       </div>
                     </div>
