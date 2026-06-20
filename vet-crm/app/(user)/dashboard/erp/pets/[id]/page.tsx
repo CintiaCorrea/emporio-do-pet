@@ -508,7 +508,12 @@ export default function PetDetailPage() {
               ))}
             </div>
           {tab === "HISTORICO" && (
-            <div className="p-5"><FeedTimeline atendimentos={atendimentos} clinDocs={clinDocs} /></div>
+            <div className="p-5">
+              <div className="flex justify-end mb-3">
+                <button onClick={() => { setAtd(ATD0); setItems([]); setAtdOpen(true); }} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white flex items-center gap-1.5" style={{ background: "#009AAC" }}><LuPlus size={13} /> Novo atendimento</button>
+              </div>
+              <FeedTimeline atendimentos={atendimentos} clinDocs={clinDocs} />
+            </div>
           )}
           {tab === "CLINICA" && (
             <div className="p-5">
