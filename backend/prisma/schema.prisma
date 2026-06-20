@@ -246,6 +246,7 @@ model User {
   boards              Board[]
   newsletters         Newsletter[]
   appointments        Appointment[] // NOVO: Relacionamento com agendamentos
+  orcamentosCriados   Orcamento[]   @relation("OrcamentoCriadoPor")
   appointmentItemsExecuted AppointmentItem[] @relation("AppointmentItemExecutor")
   financeEntries      FinanceEntry[]
   integrationSettings IntegrationSettings?
@@ -390,6 +391,8 @@ model Tutor {
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
 
+  orcamentos    Orcamento[]
+
   @@map("tutors")
 }
 
@@ -466,6 +469,8 @@ model Pet {
   createdAt     DateTime             @default(now())
   updatedAt     DateTime             @updatedAt
 
+  orcamentos    Orcamento[]
+
   @@map("pets")
 }
 
@@ -518,6 +523,7 @@ model Appointment {
   user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   treatments Treatment[]
   items      AppointmentItem[]
+  orcamento  Orcamento?        @relation("OrcamentoVenda")
   kanbanCard KanbanCard?
   boardId    String?
   board      Board?      @relation(fields: [boardId], references: [id], onDelete: SetNull)
@@ -1562,6 +1568,7 @@ model Servico {
   id                   String           @id @default(uuid())
   nome                 String
   appointmentItems     AppointmentItem[]
+  orcamentoItens       OrcamentoItem[]
   valorPadrao          Float?           // R$
   custoPadrao          Float?           // R$ (medicamentos/vacinas/produtos)
   comissaoBaseDefault  ComissaoBase     @default(HERDAR)
@@ -2633,4 +2640,47 @@ model Interacao {
   @@index([petId])
   @@index([createdAt])
   @@map("interacoes")
+}
+
+
+model Orcamento {
+  id            String          @id @default(uuid())
+  petId         String
+  pet           Pet             @relation(fields: [petId], references: [id], onDelete: Cascade)
+  tutorId       String?
+  tutor         Tutor?          @relation(fields: [tutorId], references: [id], onDelete: SetNull)
+  status        String          @default("RASCUNHO") // RASCUNHO | APROVADO | RECUSADO | EXPIRADO
+  validade      DateTime?
+  valorTotal    Float           @default(0)
+  observacao    String?
+  createdById   String?
+  createdBy     User?           @relation("OrcamentoCriadoPor", fields: [createdById], references: [id], onDelete: SetNull)
+  appointmentId String?         @unique
+  appointment   Appointment?    @relation("OrcamentoVenda", fields: [appointmentId], references: [id], onDelete: SetNull)
+  itens         OrcamentoItem[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([petId])
+  @@index([status])
+  @@map("orcamentos")
+}
+
+model OrcamentoItem {
+  id            String     @id @default(uuid())
+  orcamentoId   String
+  orcamento     Orcamento  @relation(fields: [orcamentoId], references: [id], onDelete: Cascade)
+  servicoId     String?
+  servico       Servico?   @relation(fields: [servicoId], references: [id], onDelete: SetNull)
+  descricao     String?
+  quantidade    Float      @default(1)
+  valorUnitario Float      @default(0)
+  desconto      Float      @default(0)
+  valorTotal    Float      @default(0)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@index([orcamentoId])
+  @@index([servicoId])
+  @@map("orcamento_itens")
 }
