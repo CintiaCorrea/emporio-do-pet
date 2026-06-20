@@ -252,7 +252,8 @@ model Tutor {
   contacts         Contact[]
   // Relacionamentos
   recipients       Recipient[]
-  pets             Pet[]
+  pets             Pet[]             @relation("PetTutor")
+  secondaryPets    Pet[]             @relation("PetSecondaryTutor")
   appointments     Appointment[]
   clinicalDocuments ClinicalDocument[]
   // WhatsApp
@@ -300,10 +301,14 @@ model Pet {
   observations    String?           // Observações gerais
   allergies       String[]          // Lista de alergias
   medicalNotes    String?           // Notas médicas importantes
+  insurancePlan    String?          // Convênio/plano de saúde
+  temperament      String?          // Comportamento/temperamento
+  secondaryTutorId String?          // 2º responsável (opcional)
   documents       String[]          @default([]) // Lista de documentos (URLs/nomes)
   // Relacionamentos
   tutorId         String
-  tutor           Tutor             @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+  tutor           Tutor             @relation("PetTutor", fields: [tutorId], references: [id], onDelete: Cascade)
+  secondaryTutor  Tutor?            @relation("PetSecondaryTutor", fields: [secondaryTutorId], references: [id], onDelete: SetNull)
   appointments    Appointment[]
   treatments      Treatment[]
   clinicalDocuments ClinicalDocument[]
