@@ -1,0 +1,37 @@
+name: CI - Build check
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  backend:
+    name: Backend build (nest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install -g pnpm
+      - run: pnpm install --no-frozen-lockfile
+      - run: npx prisma generate
+      - run: pnpm run build
+
+  frontend:
+    name: Frontend type-check (tsc)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: vet-crm
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install
+      - run: npx prisma generate
+      - run: npx tsc --noEmit
