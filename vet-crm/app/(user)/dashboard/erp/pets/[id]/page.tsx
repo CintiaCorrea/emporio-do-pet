@@ -20,6 +20,7 @@ import {
 import toast from "react-hot-toast";
 import FeedTimeline from "@/components/pets/FeedTimeline";
 import WeightChart from "@/components/pets/WeightChart";
+import PetVendaPanel from "@/components/pets/PetVendaPanel";
 import ConfirmDeleteModal from "@/components/common/ConfirmDeleteModal";
 import EncaminharBox from "@/components/inbox/EncaminharBox";
 import PetProfilePanel from "@/components/profile/PetProfilePanel";
@@ -482,8 +483,8 @@ export default function PetDetailPage() {
       </div>
 
       {/* 3 colunas: Clínica/Pacotes/Exames | Pipelines+Cadência | Painel do pet */}
-      <div className="max-w-7xl mx-auto px-6 pt-3 grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-5 items-start">
-        <div className="space-y-4">
+      <div className="max-w-7xl mx-auto px-6 pt-3 grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-5 items-start">
+        <div className="space-y-4 lg:order-2">
         <div className="bg-white border rounded-xl overflow-hidden" style={{ borderColor: "#E8DFC8" }}>
             <div className="flex border-b" style={{ borderColor: "#E8DFC8" }}>
               {(
@@ -700,7 +701,8 @@ export default function PetDetailPage() {
           </div>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-4 lg:order-1">
+          <PetVendaPanel pacotes={pacotes} />
           <PetProfilePanel petId={pet.id} />
         </div>
       </div>
