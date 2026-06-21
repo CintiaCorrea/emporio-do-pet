@@ -15,3 +15,12 @@
 - **Mantido:** a seta de voltar e as ações (WhatsApp / Encaminhar / Excluir).
 - **Função preservada:** edição do nome do pet continua em `/pets/[id]/editar`.
 - **Restaurar:** remover o `{false && ( ... )}` que envolve o `<div className="flex-1 flex items-center gap-3">`.
+
+### LIXEIRA-F2 — Box "Histórico de Atendimentos" duplicado
+- **Arquivo:** `vet-crm/app/(user)/dashboard/erp/pets/[id]/page.tsx`
+- **O que é:** box "Histórico de Atendimentos" (com "+ Novo Atendimento") em linha cheia — duplicava o feed clínico/timeline e tinha um 2º ponto de entrada de atendimento.
+- **Substituído por:** o feed clínico único (aba Histórico) + o "Atendimento" da grade.
+- **Restaurar:** remover o `{false && ( ... )}` com marca `LIXEIRA-F2`.
+
+### Movido (não lixeira) — blocos de relacionamento → aba "Relacionamento"
+- Pipelines do Pet, Cadência de acompanhamento, Follow-up + Interações foram MOVIDOS pra a nova aba "Relacionamento" da ficha do pet (CRM é por pet). Não estão na lixeira; só mudaram de lugar.
