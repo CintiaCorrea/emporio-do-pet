@@ -191,10 +191,10 @@ export default function PetVendaPanel({ petId, pacotes = [], servicos = [], aten
         )}
       </Box>
 
-      <Box title="Carteira do cliente" icon={<LuCircleDollarSign size={13} />}>
+      <Box title="Crédito do pet" icon={<LuCircleDollarSign size={13} />}>
         <div className="text-xs" style={{ color: "#64748b" }}>
           <span className="inline-block px-2 py-0.5 rounded-md text-[10px] font-semibold mb-1.5" style={{ background: "#fef3c7", color: "#92400e" }}>Em construção</span>
-          <div>Saldo de crédito/caução do tutor. Vira receita só na baixa da venda (chega com o módulo Caixa).</div>
+          <div>Saldo a favor <b>deste pet</b> — transferível para outro pet do mesmo tutor. Vira receita só na baixa da venda (chega com o módulo Caixa). Faturamento e fechamentos ficam no módulo Caixa.</div>
         </div>
       </Box>
     </div>
