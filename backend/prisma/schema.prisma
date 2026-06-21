@@ -247,6 +247,8 @@ model User {
   newsletters         Newsletter[]
   appointments        Appointment[] // NOVO: Relacionamento com agendamentos
   orcamentosCriados   Orcamento[]   @relation("OrcamentoCriadoPor")
+  protocolosCriados   ProtocoloAplicado[] @relation("ProtocoloCriadoPor")
+  dosesAplicadas      ProtocoloDose[]     @relation("DoseAplicadaPor")
   appointmentItemsExecuted AppointmentItem[] @relation("AppointmentItemExecutor")
   financeEntries      FinanceEntry[]
   integrationSettings IntegrationSettings?
@@ -392,6 +394,7 @@ model Tutor {
   updatedAt             DateTime               @updatedAt
 
   orcamentos    Orcamento[]
+  protocolos    ProtocoloAplicado[]
 
   @@map("tutors")
 }
@@ -470,6 +473,7 @@ model Pet {
   updatedAt     DateTime             @updatedAt
 
   orcamentos    Orcamento[]
+  protocolos    ProtocoloAplicado[]
 
   @@map("pets")
 }
@@ -524,6 +528,7 @@ model Appointment {
   treatments Treatment[]
   items      AppointmentItem[]
   orcamento  Orcamento?        @relation("OrcamentoVenda")
+  protocolos ProtocoloAplicado[] @relation("ProtocoloAtendimento")
   kanbanCard KanbanCard?
   boardId    String?
   board      Board?      @relation(fields: [boardId], references: [id], onDelete: SetNull)
@@ -2683,4 +2688,74 @@ model OrcamentoItem {
   @@index([orcamentoId])
   @@index([servicoId])
   @@map("orcamento_itens")
+}
+
+
+// ===== Protocolos (vacinas, vermifugos, ectoparasitas) =====
+model ProtocoloTemplate {
+  id             String              @id @default(uuid())
+  nome           String              // ex: "V10", "Antirrabica"
+  tipo           String              // VACINA | VERMIFUGO | ECTOPARASITA
+  variante       String?             // ex: "Anual", "Filhote (3 x 30 dias)"
+  doses          Int                 @default(1)  // nº de doses da serie inicial
+  intervaloDias  Int?                // intervalo entre doses da serie
+  reforcoMeses   Int?                // reforco periodico (ex: 12 = anual)
+  indicacaoIdade String?             // ex: "A partir de 45 dias"
+  idadeMinDias   Int?                // p/ sugerir pela idade do pet
+  ativo          Boolean             @default(true)
+  ordem          Int                 @default(0)
+  aplicados      ProtocoloAplicado[]
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  @@index([tipo])
+  @@map("protocolo_templates")
+}
+
+model ProtocoloAplicado {
+  id            String             @id @default(uuid())
+  petId         String
+  pet           Pet                @relation(fields: [petId], references: [id], onDelete: Cascade)
+  tutorId       String?
+  tutor         Tutor?             @relation(fields: [tutorId], references: [id], onDelete: SetNull)
+  tipo          String             // VACINA | VERMIFUGO | ECTOPARASITA (snapshot)
+  templateId    String?
+  template      ProtocoloTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  nomeProtocolo String             // snapshot do nome (ex: "V10 - Filhote (3 x 30 dias)")
+  dataInicial   DateTime
+  status        String             @default("EM_ANDAMENTO") // EM_ANDAMENTO | CONCLUIDO | CANCELADO
+  observacao    String?
+  createdById   String?
+  createdBy     User?              @relation("ProtocoloCriadoPor", fields: [createdById], references: [id], onDelete: SetNull)
+  appointmentId String?
+  appointment   Appointment?       @relation("ProtocoloAtendimento", fields: [appointmentId], references: [id], onDelete: SetNull)
+  doses         ProtocoloDose[]
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  @@index([petId])
+  @@index([status])
+  @@map("protocolos_aplicados")
+}
+
+model ProtocoloDose {
+  id            String            @id @default(uuid())
+  protocoloId   String
+  protocolo     ProtocoloAplicado @relation(fields: [protocoloId], references: [id], onDelete: Cascade)
+  numero        Int               @default(1)  // ordem da dose na serie
+  dataPrevista  DateTime
+  status        String            @default("PENDENTE") // PENDENTE | APLICADA | CANCELADA | SEM_RESPOSTA
+  dataAplicada  DateTime?
+  lote          String?
+  fabricante    String?
+  aplicadaPorId String?
+  aplicadaPor   User?             @relation("DoseAplicadaPor", fields: [aplicadaPorId], references: [id], onDelete: SetNull)
+  observacao    String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@index([protocoloId])
+  @@index([dataPrevista])
+  @@index([status])
+  @@map("protocolo_doses")
 }
