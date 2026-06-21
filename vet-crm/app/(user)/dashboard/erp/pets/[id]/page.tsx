@@ -139,7 +139,7 @@ export default function PetDetailPage() {
   const [editAtd, setEditAtd] = useState(false);
   const [editAtdForm, setEditAtdForm] = useState<any>({});
 
-  usePageTitle(pet ? pet.name : "Pet", pet?.tutor ? `Tutor: ${pet.tutor.name}` : undefined);
+  usePageTitle("", undefined); // F1-rev: barra global minima (info fica no sub-header da pagina)
 
   async function load() {
     setLoading(true);
@@ -364,9 +364,6 @@ export default function PetDetailPage() {
           <Link href="/dashboard/erp/pets" className="p-2 rounded-lg hover:bg-gray-100">
             <LuArrowLeft size={18} />
           </Link>
-          <div className="flex-1" />
-          {/* LIXEIRA-F1: cabecalho duplicado (info ja esta no PetFichaHeaderCard); editar nome em /pets/[id]/editar */}
-          {false && (
           <div className="flex-1 flex items-center gap-3">
             <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: "#e6f6f8", color: "#009AAC" }}>
               {pet.avatar ? <img src={pet.avatar} alt={pet.name} className="w-12 h-12 rounded-full object-cover" /> : <PetIcon species={pet.species} size={28} />}
@@ -418,7 +415,6 @@ export default function PetDetailPage() {
               )}
             </div>
           </div>
-          )}
           <div className="flex items-center gap-2">
             {tutorWhats && (
               <a
@@ -442,7 +438,10 @@ export default function PetDetailPage() {
         </div>
       </div>
 
+      {/* LIXEIRA-F1rev: card estilo SimplesVet removido; o cabecalho volta a ser o sub-header editavel do dev */}
+      {false && (
       <PetFichaHeaderCard pet={pet} tutorWhats={tutorWhats} ltv={ltvPet} ultimaVisita={ultimaVisita} petTags={petTags} tagTpls={tagTpls} />
+      )}
 
       {/* Sobre (1 linha) */}
       <div className="max-w-7xl mx-auto px-6 pt-5">
