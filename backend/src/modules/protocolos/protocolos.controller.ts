@@ -72,6 +72,13 @@ export class ProtocolosController {
   }
 
   // ----- Doses -----
+  @Get('doses/pendentes')
+  @ApiOperation({ summary: 'Doses pendentes (vencidas + proximos N dias) p/ Hoje/Calendario' })
+  @ApiQuery({ name: 'dias', required: false })
+  dosesPendentes(@Query('dias') dias?: string) {
+    return this.service.dosesPendentes(dias ? Number(dias) : 7);
+  }
+
   @Patch('doses/:doseId')
   @ApiOperation({ summary: 'Registrar/atualizar dose (aplicar com lote/fabricante, cancelar, etc.)' })
   registrarDose(@Param('doseId') doseId: string, @Body() dto: RegistrarDoseDto) {

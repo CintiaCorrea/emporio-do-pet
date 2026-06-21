@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import {
   LuRefreshCcw, LuPhone, LuPackage,
-  LuFlaskConical, LuCake, LuChevronRight, LuClipboardCheck, LuShare2,
+  LuFlaskConical, LuPill, LuCake, LuChevronRight, LuClipboardCheck, LuShare2,
 } from "react-icons/lu";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { useRolePreview } from "@/lib/ui/RolePreview";
@@ -61,6 +61,7 @@ export default function HojePage() {
   const [data, setData] = useState<HojeData | null>(null);
   const [loading, setLoading] = useState(true);
   const [examesPend, setExamesPend] = useState<any[]>([]);
+  const [dosesPend, setDosesPend] = useState<any[]>([]);
   const [examesOpen, setExamesOpen] = useState(false);
   const [fuDue, setFuDue] = useState<any[]>([]);
   const [fuDueOpen, setFuDueOpen] = useState(false);
@@ -137,6 +138,7 @@ export default function HojePage() {
           }
         }
         setExamesPend(ex);
+        try { const dz = await safeJson<any>(await fetch("/api/protocolos/doses/pendentes?dias=7"), []); setDosesPend(Array.isArray(dz) ? dz : []); } catch {}
         const tutorArr = Array.isArray(tts) ? tts : (tts.tutors || tts.data || []);
         const leadArr = Array.isArray(lds) ? lds : (lds.leads || lds.data || []);
         const tutorMap: Record<string, string> = {};
@@ -246,6 +248,11 @@ export default function HojePage() {
     } catch {}
   }
 
+  const dosesView = useMemo(() => {
+    const arr = Array.isArray(dosesPend) ? dosesPend : [];
+    return (effectiveRole === "VET" && meId) ? arr.filter((d: any) => d.vetId === meId) : arr;
+  }, [dosesPend, effectiveRole, meId]);
+
   const items: Pendencia[] = useMemo(() => {
     if (!data) return [];
     return [
@@ -286,6 +293,15 @@ export default function HojePage() {
         Icon: LuFlaskConical,
       },
       {
+        key: "doses",
+        title: "Doses a aplicar",
+        sub: "Vacinas/protocolos vencidos e dos próximos 7 dias",
+        count: dosesView.length,
+        link: "Calendário",
+        href: "/dashboard/erp/agendamentos/clinico",
+        Icon: LuPill,
+      },
+      {
         key: "aniversariantes",
         title: "Aniversariantes do dia",
         sub: "Clientes e pets que fazem aniversário hoje",
@@ -295,7 +311,7 @@ export default function HojePage() {
         Icon: LuCake,
       },
     ];
-  }, [data, examesPend, fuDue, toques, aniv, pacRisco]);
+  }, [data, examesPend, dosesView, fuDue, toques, aniv, pacRisco]);
 
   const total = items.reduce((s, t) => s + t.count, 0);
 
