@@ -22,6 +22,7 @@ import FeedTimeline from "@/components/pets/FeedTimeline";
 import WeightChart from "@/components/pets/WeightChart";
 import HistoricoAddGrid from "@/components/pets/HistoricoAddGrid";
 import PetFichaHeaderCard from "@/components/pets/PetFichaHeaderCard";
+import { LuChevronDown } from "react-icons/lu";
 import PetVendaPanel from "@/components/pets/PetVendaPanel";
 import PetClinicaTabela from "@/components/pets/PetClinicaTabela";
 import ConfirmDeleteModal from "@/components/common/ConfirmDeleteModal";
@@ -83,7 +84,8 @@ export default function PetDetailPage() {
 
   const [pet, setPet] = useState<Pet | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"HISTORICO" | "TIMELINE" | "AGENDA" | "VENDAS" | "CLINICA" | "PACOTES" | "EXAMES">("HISTORICO");
+  const [tab, setTab] = useState<"HISTORICO" | "PROTOCOLOS" | "TIMELINE" | "AGENDA" | "VENDAS" | "CLINICA" | "PACOTES" | "EXAMES">("HISTORICO");
+  const [maisOpen, setMaisOpen] = useState(false);
   const [delOpen, setDelOpen] = useState(false);
   const [tagsOpen, setTagsOpen] = useState(false);
   const [editClin, setEditClin] = useState(false);
@@ -493,31 +495,26 @@ export default function PetDetailPage() {
       <div className="max-w-7xl mx-auto px-6 pt-3 grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-5 items-start">
         <div className="space-y-4 lg:order-2">
         <div className="bg-white border rounded-xl overflow-hidden" style={{ borderColor: "#E8DFC8" }}>
-            <div className="flex border-b" style={{ borderColor: "#E8DFC8" }}>
-              {(
-                [
-                  { k: "HISTORICO", label: "Histórico" },
-                  { k: "TIMELINE", label: "Linha do tempo" },
-                  { k: "AGENDA", label: "Agenda" },
-                  { k: "VENDAS", label: "Vendas" },
-                  { k: "CLINICA", label: "Clínica" },
-                  { k: "PACOTES", label: "Pacotes" },
-                  { k: "EXAMES", label: "Exames" },
-                ] as const
-              ).map(t => (
-                <button
-                  key={t.k}
-                  onClick={() => setTab(t.k)}
-                  className="flex-1 px-4 py-3 text-sm font-medium border-b-2 transition"
-                  style={{
-                    borderColor: tab === t.k ? "#009AAC" : "transparent",
-                    color: tab === t.k ? "#009AAC" : "#6B7280",
-                    background: tab === t.k ? "#f6fdfd" : "transparent",
-                  }}
-                >
-                  {t.label}
-                </button>
+            <div className="flex border-b items-stretch" style={{ borderColor: "#E8DFC8" }}>
+              {([
+                { k: "HISTORICO", label: "Histórico" },
+                { k: "PROTOCOLOS", label: "Protocolos" },
+                { k: "TIMELINE", label: "Linha do tempo" },
+                { k: "AGENDA", label: "Agenda" },
+                { k: "VENDAS", label: "Vendas" },
+              ] as const).map(t => (
+                <button key={t.k} onClick={() => setTab(t.k)} className="flex-1 px-4 py-3 text-sm font-medium border-b-2 transition" style={{ borderColor: tab === t.k ? "#009AAC" : "transparent", color: tab === t.k ? "#009AAC" : "#6B7280", background: tab === t.k ? "#f6fdfd" : "transparent" }}>{t.label}</button>
               ))}
+              <div className="relative">
+                <button onClick={() => setMaisOpen((v) => !v)} className="h-full px-4 py-3 text-sm font-medium border-b-2 transition flex items-center gap-1" style={{ borderColor: ["CLINICA", "PACOTES", "EXAMES"].includes(tab) ? "#009AAC" : "transparent", color: ["CLINICA", "PACOTES", "EXAMES"].includes(tab) ? "#009AAC" : "#6B7280" }}>Mais <LuChevronDown size={14} /></button>
+                {maisOpen && (
+                  <div className="absolute right-0 top-full z-20 mt-px bg-white border rounded-lg shadow-lg py-1 min-w-[140px]" style={{ borderColor: "#E8DFC8" }}>
+                    {([{ k: "CLINICA", label: "Clínica" }, { k: "PACOTES", label: "Pacotes" }, { k: "EXAMES", label: "Exames" }] as const).map(t => (
+                      <button key={t.k} onClick={() => { setTab(t.k); setMaisOpen(false); }} className="block w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50" style={{ color: tab === t.k ? "#009AAC" : "#475569" }}>{t.label}</button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           {tab === "HISTORICO" && (
             <div className="p-5">
@@ -534,6 +531,14 @@ export default function PetDetailPage() {
           )}
           {tab === "VENDAS" && (
             <div className="p-5"><PetClinicaTabela view="vendas" atendimentos={atendimentos} tipoLabel={ATD_TIPO_LABEL} /></div>
+          )}
+          {tab === "PROTOCOLOS" && (
+            <div className="p-5">
+              <div className="border rounded-xl p-6 text-center" style={{ borderColor: "#E8DFC8" }}>
+                <span className="inline-block px-2 py-0.5 rounded-md text-[11px] font-semibold mb-2" style={{ background: "#fef3c7", color: "#92400e" }}>Em construção</span>
+                <div className="text-sm text-gray-500">Protocolos de vacina/vermífugo programados (tipo, protocolo, início, próxima dose, status) — chega com o backend de Protocolos.</div>
+              </div>
+            </div>
           )}
           {tab === "CLINICA" && (
             <div className="p-5">
