@@ -1,7 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOrcamentoDto } from './dto/create-orcamento.dto';
 import { UpdateOrcamentoDto } from './dto/update-orcamento.dto';
+import { AppointmentsService } from '../appointments/appointments.service';
 
 function calcItemTotal(it: any): number {
   const q = Number(it.quantidade ?? 1);
@@ -23,7 +24,10 @@ function mapItens(itens: any[] | undefined) {
 
 @Injectable()
 export class OrcamentosService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly appointmentsService: AppointmentsService,
+  ) {}
 
   async findByPet(petId: string) {
     return this.prisma.orcamento.findMany({
@@ -94,5 +98,39 @@ export class OrcamentosService {
     await this.findOne(id);
     await this.prisma.orcamento.delete({ where: { id } });
     return { ok: true };
+  }
+
+  async converter(id: string, dto: { userId?: string; date?: string } = {}, currentUserId?: string) {
+    const orc = await this.prisma.orcamento.findUnique({ where: { id }, include: { itens: true } });
+    if (!orc) throw new NotFoundException('Orçamento não encontrado');
+    if (orc.appointmentId) throw new BadRequestException('Orçamento já convertido em venda');
+
+    const pet = await this.prisma.pet.findUnique({ where: { id: orc.petId }, select: { tutorId: true } });
+    const tutorId = orc.tutorId ?? pet?.tutorId;
+    if (!tutorId) throw new BadRequestException('Tutor do pet não encontrado');
+    const userId = dto.userId ?? currentUserId;
+    if (!userId) throw new BadRequestException('Profissional (userId) é obrigatório');
+
+    const appointment = await this.appointmentsService.create({
+      tutorId,
+      petId: orc.petId,
+      userId,
+      date: dto.date ?? new Date().toISOString(),
+      value: orc.valorTotal,
+      items: orc.itens.map((it) => ({
+        servicoId: it.servicoId ?? undefined,
+        descricao: it.descricao ?? undefined,
+        quantidade: it.quantidade,
+        valorUnitario: it.valorUnitario,
+        desconto: it.desconto,
+        valorTotal: it.valorTotal,
+      })),
+    } as any);
+
+    await this.prisma.orcamento.update({
+      where: { id },
+      data: { appointmentId: (appointment as any).id, status: 'APROVADO' },
+    });
+    return appointment;
   }
 }

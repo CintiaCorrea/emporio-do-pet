@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger'
 import { OrcamentosService } from './orcamentos.service';
 import { CreateOrcamentoDto } from './dto/create-orcamento.dto';
 import { UpdateOrcamentoDto } from './dto/update-orcamento.dto';
+import { ConverterOrcamentoDto } from './dto/converter-orcamento.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 
@@ -42,6 +43,12 @@ export class OrcamentosController {
   @ApiOperation({ summary: 'Aprovar orçamento' })
   aprovar(@Param('id') id: string) {
     return this.orcamentosService.aprovar(id);
+  }
+
+  @Post(':id/converter')
+  @ApiOperation({ summary: 'Converter orçamento em venda (cria atendimento com os itens)' })
+  converter(@Param('id') id: string, @Body() dto: ConverterOrcamentoDto, @CurrentUser('id') userId: string) {
+    return this.orcamentosService.converter(id, dto, userId);
   }
 
   @Delete(':id')
