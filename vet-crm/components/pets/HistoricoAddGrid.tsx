@@ -15,7 +15,7 @@ const TIPOS: any[] = [
   { k: "Internação", c: "#9b2c3a", I: LuClipboardList },
 ];
 
-export default function HistoricoAddGrid({ onAtendimento, onPendente }: { onAtendimento?: () => void; onPendente?: (t: string) => void }) {
+export default function HistoricoAddGrid({ onAtendimento, onVacina, onPendente }: { onAtendimento?: () => void; onVacina?: () => void; onPendente?: (t: string) => void }) {
   return (
     <div>
       <div className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: "#94a3b8" }}>Adicionar ao histórico</div>
@@ -25,10 +25,10 @@ export default function HistoricoAddGrid({ onAtendimento, onPendente }: { onAten
           return (
             <button
               key={t.k}
-              onClick={() => (t.ready ? onAtendimento?.() : onPendente?.(t.k))}
-              title={t.ready ? t.k : `${t.k} — em construção`}
+              onClick={() => (t.k === "Atendimento" ? onAtendimento?.() : t.k === "Vacina" ? onVacina?.() : onPendente?.(t.k))}
+              title={t.ready || t.k === "Vacina" ? t.k : `${t.k} — em construção`}
               className="flex flex-col items-center justify-center gap-1 rounded-xl text-white text-[11px] font-medium py-2.5 transition hover:opacity-90"
-              style={{ background: t.c, opacity: t.ready ? 1 : 0.55 }}
+              style={{ background: t.c, opacity: t.ready || t.k === "Vacina" ? 1 : 0.55 }}
             >
               <Icon size={16} />
               {t.k}
