@@ -86,7 +86,7 @@ export default function PetDetailPage() {
 
   const [pet, setPet] = useState<Pet | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"HISTORICO" | "PROTOCOLOS" | "TIMELINE" | "AGENDA" | "VENDAS" | "CLINICA" | "PACOTES" | "EXAMES">("HISTORICO");
+  const [tab, setTab] = useState<"HISTORICO" | "PROTOCOLOS" | "TIMELINE" | "AGENDA" | "VENDAS" | "CLINICA" | "PACOTES" | "EXAMES" | "RELACIONAMENTO">("HISTORICO");
   const [protoAuto, setProtoAuto] = useState(false);
   const [maisOpen, setMaisOpen] = useState(false);
   const [delOpen, setDelOpen] = useState(false);
@@ -512,6 +512,7 @@ export default function PetDetailPage() {
                 { k: "TIMELINE", label: "Linha do tempo" },
                 { k: "AGENDA", label: "Agenda" },
                 { k: "VENDAS", label: "Vendas" },
+                { k: "RELACIONAMENTO", label: "Relacionamento" },
               ] as const).map(t => (
                 <button key={t.k} onClick={() => setTab(t.k)} className="flex-1 px-4 py-3 text-sm font-medium border-b-2 transition" style={{ borderColor: tab === t.k ? "#009AAC" : "transparent", color: tab === t.k ? "#009AAC" : "#6B7280", background: tab === t.k ? "#f6fdfd" : "transparent" }}>{t.label}</button>
               ))}
@@ -673,8 +674,8 @@ export default function PetDetailPage() {
                 )}
               </div>
             )}
-            </>)}
-        </div>
+          {tab === "RELACIONAMENTO" && (
+            <div className="p-5 space-y-4">
           <div className="bg-white border rounded-xl p-4" style={{ borderColor: "#E8DFC8" }}>
                 <section>
                   <h3 className="text-sm font-semibold mb-2" style={{ color: "#0E2244" }}>Pipelines do Pet</h3>
@@ -729,16 +730,6 @@ export default function PetDetailPage() {
                   </div>
                 </section>
           </div>
-        </div>
-
-        <div className="space-y-4 lg:order-1">
-          <PetVendaPanel petId={pet.id} pacotes={pacotes} servicos={servicosCat} atendimentos={atendimentos} onNovoAtendimento={() => { setAtd(ATD0); setItems([]); setAtdOpen(true); }} onChanged={() => { loadAtendimentos(); }} />
-          <PetProfilePanel petId={pet.id} />
-        </div>
-      </div>
-
-      {/* Follow-up — linha toda */}
-      <div className="max-w-7xl mx-auto px-6 pt-3">
         <div className="bg-white border rounded-xl p-4" style={{ borderColor: "#E8DFC8" }}>
                 <section>
                   <h3 className="text-sm font-semibold mb-2 flex items-center gap-2" style={{ color: "#0E2244" }}>
@@ -777,8 +768,21 @@ export default function PetDetailPage() {
                   </div>
                 </section>
         </div>
+            </div>
+          )}
+            </>)}
+        </div>
+        </div>
+
+        <div className="space-y-4 lg:order-1">
+          <PetVendaPanel petId={pet.id} pacotes={pacotes} servicos={servicosCat} atendimentos={atendimentos} onNovoAtendimento={() => { setAtd(ATD0); setItems([]); setAtdOpen(true); }} onChanged={() => { loadAtendimentos(); }} />
+          <PetProfilePanel petId={pet.id} />
+        </div>
       </div>
 
+
+      {/* LIXEIRA-F2: Historico de Atendimentos duplicado (o feed clinico/timeline ja mostra) */}
+      {false && (
       {/* Histórico de Atendimentos — linha toda */}
       <div className="max-w-7xl mx-auto px-6 pt-3">
         <div className="bg-white border rounded-xl p-4" style={{ borderColor: "#E8DFC8" }}>
@@ -810,6 +814,7 @@ export default function PetDetailPage() {
                 </section>
         </div>
       </div>
+      )}
 
       <div className="max-w-7xl mx-auto px-6 pt-3 pb-5">
           <div className="flex items-center gap-3 pt-2">
