@@ -416,6 +416,13 @@ export default function PetDetailPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <Link
+              href={`/dashboard/erp/tutores/${pet.tutorId}/editar?ret=pet&petId=${petId}`}
+              className="px-3 py-1.5 rounded-lg text-sm border flex items-center gap-1.5"
+              style={{ borderColor: "#009AAC", color: "#00798A" }}
+            >
+              <LuPencil size={14} /> Editar cadastro
+            </Link>
             {tutorWhats && (
               <a
                 href={`https://wa.me/${tutorWhats.replace(/\D/g, "")}`}

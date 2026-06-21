@@ -45,6 +45,7 @@ export default function EditTutorPage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [pets, setPets] = useState<PetInline[]>([]);
   const [petsLoading, setPetsLoading] = useState(true);
+  const [returnPetId, setReturnPetId] = useState<string | null>(null);
 
   const tutorId = params.id as string;
   const { 
@@ -58,6 +59,13 @@ export default function EditTutorPage() {
     removeContact, 
     setPrimaryContact 
   } = useTutorEdit(tutorId);
+
+  useEffect(() => {
+    try {
+      const p = new URLSearchParams(window.location.search);
+      if (p.get('ret') === 'pet') setReturnPetId(p.get('petId'));
+    } catch {}
+  }, []);
 
   useEffect(() => {
     const fetchPets = async () => {
@@ -251,7 +259,11 @@ export default function EditTutorPage() {
 
       setSuccess(true);
       toast.success('Tutor e pets atualizados com sucesso!');
-      router.push(`/dashboard/erp/tutores/${tutor.id}`);
+      if (returnPetId) {
+        router.push(`/dashboard/erp/pets/${returnPetId}`);
+      } else {
+        router.push(`/dashboard/erp/tutores/${tutor.id}`);
+      }
 
     } catch (error) {
       console.error('Erro ao atualizar tutor:', error);
