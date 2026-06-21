@@ -417,7 +417,7 @@ export default function PetDetailPage() {
           </div>
           <div className="flex items-center gap-2">
             <Link
-              href={`/dashboard/erp/tutores/${pet.tutorId}/editar?ret=pet&petId=${petId}`}
+              href={`/dashboard/erp/tutores/${pet.tutorId}`}
               className="px-3 py-1.5 rounded-lg text-sm border flex items-center gap-1.5"
               style={{ borderColor: "#009AAC", color: "#00798A" }}
             >
