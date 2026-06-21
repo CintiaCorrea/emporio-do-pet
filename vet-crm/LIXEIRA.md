@@ -24,3 +24,9 @@
 
 ### Movido (não lixeira) — blocos de relacionamento → aba "Relacionamento"
 - Pipelines do Pet, Cadência de acompanhamento, Follow-up + Interações foram MOVIDOS pra a nova aba "Relacionamento" da ficha do pet (CRM é por pet). Não estão na lixeira; só mudaram de lugar.
+
+### LIXEIRA-F1rev — Card de cabeçalho estilo SimplesVet (PetFichaHeaderCard)
+- **Arquivo:** `vet-crm/app/(user)/dashboard/erp/pets/[id]/page.tsx`
+- **O que é:** o card 3 colunas (tutor|pet|foto) que criei. A Cintia decidiu voltar ao sub-header editável do dev como cabeçalho único.
+- **Reverso da F1:** o sub-header do dev foi RESTAURADO (saiu da lixeira). Agora é o card que está na lixeira.
+- **Restaurar:** remover o `{false && ( ... )}` com marca `LIXEIRA-F1rev`.
