@@ -21,6 +21,7 @@ import toast from "react-hot-toast";
 import FeedTimeline from "@/components/pets/FeedTimeline";
 import WeightChart from "@/components/pets/WeightChart";
 import HistoricoAddGrid from "@/components/pets/HistoricoAddGrid";
+import PetFichaHeaderCard from "@/components/pets/PetFichaHeaderCard";
 import PetVendaPanel from "@/components/pets/PetVendaPanel";
 import PetClinicaTabela from "@/components/pets/PetClinicaTabela";
 import ConfirmDeleteModal from "@/components/common/ConfirmDeleteModal";
@@ -347,6 +348,8 @@ export default function PetDetailPage() {
 
   const pipelineClinico = pet.pipelineClinicoEtapa || "—";
   const pipelineFisio = pet.pipelineFisioEtapa || "—";
+  const ltvPet = (atendimentos || []).reduce((acc: number, a: any) => acc + Number(a.value || 0), 0);
+  const ultimaVisita = (atendimentos || [])[0]?.date || null;
 
   return (
     <div className="min-h-screen bg-white">
@@ -429,6 +432,8 @@ export default function PetDetailPage() {
           </div>
         </div>
       </div>
+
+      <PetFichaHeaderCard pet={pet} tutorWhats={tutorWhats} ltv={ltvPet} ultimaVisita={ultimaVisita} petTags={petTags} tagTpls={tagTpls} />
 
       {/* Sobre (1 linha) */}
       <div className="max-w-7xl mx-auto px-6 pt-5">
