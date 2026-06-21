@@ -20,6 +20,7 @@ import {
 import toast from "react-hot-toast";
 import FeedTimeline from "@/components/pets/FeedTimeline";
 import WeightChart from "@/components/pets/WeightChart";
+import HistoricoAddGrid from "@/components/pets/HistoricoAddGrid";
 import PetVendaPanel from "@/components/pets/PetVendaPanel";
 import PetClinicaTabela from "@/components/pets/PetClinicaTabela";
 import ConfirmDeleteModal from "@/components/common/ConfirmDeleteModal";
@@ -515,9 +516,7 @@ export default function PetDetailPage() {
             </div>
           {tab === "HISTORICO" && (
             <div className="p-5">
-              <div className="flex justify-end mb-3">
-                <button onClick={() => { setAtd(ATD0); setItems([]); setAtdOpen(true); }} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white flex items-center gap-1.5" style={{ background: "#009AAC" }}><LuPlus size={13} /> Novo atendimento</button>
-              </div>
+              <div className="mb-4"><HistoricoAddGrid onAtendimento={() => { setAtd(ATD0); setItems([]); setAtdOpen(true); }} onPendente={(t) => toast(`${t} — em construção (chega numa próxima fatia)`)} /></div>
               <div className="mb-3"><WeightChart atendimentos={atendimentos} current={pet?.weight ?? null} /></div>
               <FeedTimeline atendimentos={atendimentos} clinDocs={clinDocs} />
             </div>
