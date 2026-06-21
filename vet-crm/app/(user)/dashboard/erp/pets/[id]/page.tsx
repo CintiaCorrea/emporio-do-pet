@@ -21,6 +21,7 @@ import toast from "react-hot-toast";
 import FeedTimeline from "@/components/pets/FeedTimeline";
 import WeightChart from "@/components/pets/WeightChart";
 import HistoricoAddGrid from "@/components/pets/HistoricoAddGrid";
+import PetProtocolosPanel from "@/components/pets/PetProtocolosPanel";
 import PetFichaHeaderCard from "@/components/pets/PetFichaHeaderCard";
 import { LuChevronDown } from "react-icons/lu";
 import PetVendaPanel from "@/components/pets/PetVendaPanel";
@@ -85,6 +86,7 @@ export default function PetDetailPage() {
   const [pet, setPet] = useState<Pet | null>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"HISTORICO" | "PROTOCOLOS" | "TIMELINE" | "AGENDA" | "VENDAS" | "CLINICA" | "PACOTES" | "EXAMES">("HISTORICO");
+  const [protoAuto, setProtoAuto] = useState(false);
   const [maisOpen, setMaisOpen] = useState(false);
   const [delOpen, setDelOpen] = useState(false);
   const [tagsOpen, setTagsOpen] = useState(false);
@@ -518,7 +520,7 @@ export default function PetDetailPage() {
             </div>
           {tab === "HISTORICO" && (
             <div className="p-5">
-              <div className="mb-4"><HistoricoAddGrid onAtendimento={() => { setAtd(ATD0); setItems([]); setAtdOpen(true); }} onPendente={(t) => toast(`${t} — em construção (chega numa próxima fatia)`)} /></div>
+              <div className="mb-4"><HistoricoAddGrid onAtendimento={() => { setAtd(ATD0); setItems([]); setAtdOpen(true); }} onVacina={() => { setTab("PROTOCOLOS"); setProtoAuto(true); }} onPendente={(t) => toast(`${t} — em construção (chega numa próxima fatia)`)} /></div>
               <div className="mb-3"><WeightChart atendimentos={atendimentos} current={pet?.weight ?? null} /></div>
               <FeedTimeline atendimentos={atendimentos} clinDocs={clinDocs} />
             </div>
@@ -534,10 +536,7 @@ export default function PetDetailPage() {
           )}
           {tab === "PROTOCOLOS" && (
             <div className="p-5">
-              <div className="border rounded-xl p-6 text-center" style={{ borderColor: "#E8DFC8" }}>
-                <span className="inline-block px-2 py-0.5 rounded-md text-[11px] font-semibold mb-2" style={{ background: "#fef3c7", color: "#92400e" }}>Em construção</span>
-                <div className="text-sm text-gray-500">Protocolos de vacina/vermífugo programados (tipo, protocolo, início, próxima dose, status) — chega com o backend de Protocolos.</div>
-              </div>
+              <PetProtocolosPanel petId={pet.id} autoOpen={protoAuto} onAutoOpened={() => setProtoAuto(false)} />
             </div>
           )}
           {tab === "CLINICA" && (
