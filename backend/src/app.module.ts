@@ -40,6 +40,7 @@ import { ProfissionaisModule } from './modules/profissionais/profissionais.modul
 import { EtiquetasModule } from './modules/etiquetas/etiquetas.module';
 import { ServicosModule } from './modules/servicos/servicos.module';
 import { OrcamentosModule } from './modules/orcamentos/orcamentos.module';
+import { ProtocolosModule } from './modules/protocolos/protocolos.module';
 import { RacasModule } from './modules/racas/racas.module';
 import { ListasModule } from './modules/listas/listas.module';
 import { FornecedoresModule } from './modules/fornecedores/fornecedores.module';
@@ -169,6 +170,7 @@ import configuration from './config/configuration';
     EtiquetasModule,
     ServicosModule,
     OrcamentosModule,
+    ProtocolosModule,
     RacasModule,
     ListasModule,
     FornecedoresModule,
