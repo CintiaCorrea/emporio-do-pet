@@ -159,6 +159,41 @@ export class ProtocolosService {
   }
 
   // ----- Doses -----
+  async dosesPendentes(dias = 7) {
+    const limite = new Date();
+    limite.setDate(limite.getDate() + dias);
+    limite.setHours(23, 59, 59, 999);
+    const doses = await this.prisma.protocoloDose.findMany({
+      where: { status: 'PENDENTE', dataPrevista: { lte: limite } },
+      orderBy: { dataPrevista: 'asc' },
+      include: {
+        protocolo: {
+          include: {
+            pet: { select: { id: true, name: true } },
+            tutor: { select: { id: true, name: true } },
+          },
+        },
+      },
+      take: 500,
+    });
+    const hoje0 = new Date();
+    hoje0.setHours(0, 0, 0, 0);
+    return doses.map((d: any) => ({
+      id: d.id,
+      doseNumero: d.numero,
+      dataPrevista: d.dataPrevista,
+      vencida: new Date(d.dataPrevista) < hoje0,
+      protocoloId: d.protocolo.id,
+      protocolo: d.protocolo.nomeProtocolo,
+      tipo: d.protocolo.tipo,
+      petId: d.protocolo.petId,
+      petNome: d.protocolo.pet?.name || 'Pet',
+      tutorId: d.protocolo.tutorId || null,
+      tutorNome: d.protocolo.tutor?.name || null,
+      vetId: d.protocolo.createdById || null,
+    }));
+  }
+
   async registrarDose(doseId: string, dto: RegistrarDoseDto) {
     const dose = await this.prisma.protocoloDose.findUnique({ where: { id: doseId } });
     if (!dose) throw new NotFoundException('Dose nao encontrada');
