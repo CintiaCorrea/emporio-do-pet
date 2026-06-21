@@ -530,7 +530,7 @@ export default function PetDetailPage() {
             <div className="p-5"><PetClinicaTabela view="agenda" atendimentos={atendimentos} tipoLabel={ATD_TIPO_LABEL} /></div>
           )}
           {tab === "VENDAS" && (
-            <div className="p-5"><PetClinicaTabela view="vendas" atendimentos={atendimentos} tipoLabel={ATD_TIPO_LABEL} /></div>
+            <div className="p-5"><PetClinicaTabela view="vendas" atendimentos={atendimentos} tipoLabel={ATD_TIPO_LABEL} /><div className="mt-3 text-[11px] rounded-lg p-2.5" style={{ background: "#f0fbfc", border: "1px solid #cdeef1", color: "#0E5560" }}><b>Pacote:</b> a venda de pacote entra como receita diferida — cada sessão baixada reconhece sua fração (chega com o módulo Caixa).</div></div>
           )}
           {tab === "PROTOCOLOS" && (
             <div className="p-5">
@@ -724,7 +724,7 @@ export default function PetDetailPage() {
         </div>
 
         <div className="space-y-4 lg:order-1">
-          <PetVendaPanel petId={pet.id} pacotes={pacotes} servicos={servicosCat} onChanged={() => { loadAtendimentos(); }} />
+          <PetVendaPanel petId={pet.id} pacotes={pacotes} servicos={servicosCat} atendimentos={atendimentos} onNovoAtendimento={() => { setAtd(ATD0); setItems([]); setAtdOpen(true); }} onChanged={() => { loadAtendimentos(); }} />
           <PetProfilePanel petId={pet.id} />
         </div>
       </div>
