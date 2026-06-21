@@ -715,7 +715,7 @@ export default function PetDetailPage() {
         </div>
 
         <div className="space-y-4 lg:order-1">
-          <PetVendaPanel pacotes={pacotes} />
+          <PetVendaPanel petId={pet.id} pacotes={pacotes} servicos={servicosCat} onChanged={() => { loadAtendimentos(); }} />
           <PetProfilePanel petId={pet.id} />
         </div>
       </div>
