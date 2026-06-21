@@ -783,7 +783,6 @@ export default function PetDetailPage() {
 
       {/* LIXEIRA-F2: Historico de Atendimentos duplicado (o feed clinico/timeline ja mostra) */}
       {false && (
-      {/* Histórico de Atendimentos — linha toda */}
       <div className="max-w-7xl mx-auto px-6 pt-3">
         <div className="bg-white border rounded-xl p-4" style={{ borderColor: "#E8DFC8" }}>
                 <section>
