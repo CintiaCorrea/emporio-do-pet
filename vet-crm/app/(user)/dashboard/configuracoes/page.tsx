@@ -32,6 +32,7 @@ const ITEMS: Item[] = [
   { href: "/dashboard/configuracoes/atendimento", title: "Atendimento", description: "Tipos e status do atendimento", Icon: LuPawPrint, group: "CADASTROS" },
   { href: "/dashboard/configuracoes/listas", title: "Listas customizáveis", description: "Canais, origens, motivos, status", Icon: LuList, group: "CADASTROS" },
   { href: "/dashboard/configuracoes/exames", title: "Exames e Fornecedores", description: "Catálogo + laboratórios parceiros", Icon: LuFlaskConical, group: "CADASTROS" },
+  { href: "/dashboard/configuracoes/protocolos", title: "Protocolos", description: "Vacinas, vermífugos e ectoparasitas (cronograma de doses)", Icon: LuFlaskConical, group: "CADASTROS" },
   { href: "/dashboard/legacy", title: "Sistema antigo (comparar)", description: "Telas originais do dev — mesmo banco, só comparação", Icon: LuList, group: "CADASTROS" },
   // Comunicação
   { href: "/dashboard/configuracoes/scripts", title: "Scripts", description: "Roteiros de mensagem (áudio/texto/email)", Icon: LuMessageSquare, group: "COMUNICACAO" },
