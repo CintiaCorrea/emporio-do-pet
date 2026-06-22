@@ -37,3 +37,10 @@
 - **Por quê:** edição/cadastro do pet centralizada na ficha de Cliente (F4). A ficha clínica do pet continua acessível clicando no nome do pet na lista de Clientes.
 - **Mantido:** rotas `/dashboard/erp/pets/*` (ficha clínica, editar, atendimentos) intactas; só saiu do menu.
 - **Restaurar:** descomentar a linha do item na array `NAV` (marca `LIXEIRA-PETS-MENU`).
+
+### LIXEIRA-PETS-FICHA — Coluna de resumo + barra "Ficha do Tutor" (ficha do pet)
+- **Arquivo:** `vet-crm/app/(user)/dashboard/erp/pets/[id]/page.tsx`
+- **O que é:** (1) `<PetProfilePanel>` da coluna esquerda — 4 cards (Consultas realizadas / Última visita / Próxima consulta / Idade) + gráfico "Frequência de consultas" + box "Financeiro"; (2) barra "Ficha do Tutor" no rodapé.
+- **Por quê (Cintia 22/06):** cards/financeiro poluíam a ficha; o acesso ao tutor já é feito clicando no nome do tutor.
+- **Mantido:** boxes "Venda · Orçamentos", "Pacote ativo" e "Crédito do pet" (continuam na coluna); o componente `PetProfilePanel` e o endpoint `profile-stats` permanecem no código.
+- **Restaurar:** remover os `{false && ...}` com marca `LIXEIRA-PETS-FICHA`.
