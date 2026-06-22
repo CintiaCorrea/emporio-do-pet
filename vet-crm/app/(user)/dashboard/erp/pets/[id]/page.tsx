@@ -564,10 +564,10 @@ export default function PetDetailPage() {
                 <button key={t.k} onClick={() => setTab(t.k)} className="flex-1 px-4 py-3 text-sm font-medium border-b-2 transition" style={{ borderColor: tab === t.k ? "#009AAC" : "transparent", color: tab === t.k ? "#009AAC" : "#6B7280", background: tab === t.k ? "#f6fdfd" : "transparent" }}>{t.label}</button>
               ))}
               <div className="relative">
-                <button onClick={() => setMaisOpen((v) => !v)} className="h-full px-4 py-3 text-sm font-medium border-b-2 transition flex items-center gap-1" style={{ borderColor: ["CLINICA", "PACOTES", "EXAMES"].includes(tab) ? "#009AAC" : "transparent", color: ["CLINICA", "PACOTES", "EXAMES"].includes(tab) ? "#009AAC" : "#6B7280" }}>Mais <LuChevronDown size={14} /></button>
+                <button onClick={() => setMaisOpen((v) => !v)} className="h-full px-4 py-3 text-sm font-medium border-b-2 transition flex items-center gap-1" style={{ borderColor: ["PACOTES"].includes(tab) ? "#009AAC" : "transparent", color: ["PACOTES"].includes(tab) ? "#009AAC" : "#6B7280" }}>Mais <LuChevronDown size={14} /></button>
                 {maisOpen && (
                   <div className="absolute right-0 top-full z-20 mt-px bg-white border rounded-lg shadow-lg py-1 min-w-[140px]" style={{ borderColor: "#E8DFC8" }}>
-                    {([{ k: "CLINICA", label: "Clínica" }, { k: "PACOTES", label: "Pacotes" }, { k: "EXAMES", label: "Exames" }] as const).map(t => (
+                    {([{ k: "PACOTES", label: "Pacotes" }] as const).map(t => (
                       <button key={t.k} onClick={() => { setTab(t.k); setMaisOpen(false); }} className="block w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50" style={{ color: tab === t.k ? "#009AAC" : "#475569" }}>{t.label}</button>
                     ))}
                   </div>
@@ -637,10 +637,9 @@ export default function PetDetailPage() {
                       <p className="text-[11px] text-gray-400 mt-2">Ao salvar, entra na timeline como atendimento "Receitas". Modelos editáveis em Configurações › Modelos de Receita.</p>
                     </div>
                   ) : (
-                    <HistoricoAddGrid ready={["Atendimento", "Peso", "Vacina", "Exame", "Internação", "Observação", "Receita"]} onPick={(k) => {
+                    <HistoricoAddGrid ready={["Atendimento", "Peso", "Vacina", "Internação", "Observação", "Receita"]} onPick={(k) => {
                       if (k === "Atendimento") { setArtefato(null); setAtd(ATD0); setItems([]); setAtdOpen(true); }
                       else if (k === "Vacina") { setTab("PROTOCOLOS"); setProtoAuto(true); }
-                      else if (k === "Exame") { setTab("EXAMES"); }
                       else if (k === "Internação") { router.push("/dashboard/erp/internacoes"); }
                       else if (k === "Peso") { setPesoVal(pet?.weight ? String(pet.weight) : ""); setAtdOpen(false); setArtefato("PESO"); }
                       else if (k === "Observação") { setObsVal(pet?.observations || ""); setAtdOpen(false); setArtefato("OBS"); }
@@ -666,7 +665,7 @@ export default function PetDetailPage() {
               <PetProtocolosPanel petId={pet.id} autoOpen={protoAuto} onAutoOpened={() => setProtoAuto(false)} />
             </div>
           )}
-          {tab === "CLINICA" && (
+          {false && tab === "CLINICA" && (
             <div className="p-5">
                 <section>
                   <div className="flex items-center justify-between mb-2">
@@ -758,7 +757,7 @@ export default function PetDetailPage() {
                 )}
               </div>
             )}
-            {tab === "EXAMES" && (
+            {false && tab === "EXAMES" && (
               <div className="p-5">
                 <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
                   <h3 className="text-sm font-semibold" style={{ color: "#0E2244" }}>Exames e Serviços Externos</h3>
