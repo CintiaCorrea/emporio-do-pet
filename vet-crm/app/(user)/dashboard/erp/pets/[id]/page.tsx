@@ -515,9 +515,7 @@ export default function PetDetailPage() {
       <div className="max-w-7xl mx-auto px-6 pt-3 grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-5 items-start">
         <div className="space-y-4 lg:order-2">
         <div className="bg-white border rounded-xl overflow-hidden" style={{ borderColor: "#E8DFC8" }}>
-            {atdOpen ? (
-              <PetAtendimentoPanel pet={pet} atd={atd} setAtd={setAtd} atdTipos={atdTipos} atdStatus={atdStatus} vets={vets} items={items} servicosCat={servicosCat} pickServico={pickServico} addItem={addItem} updItem={updItem} rmItem={rmItem} saving={savingAtd} onSalvar={criarAtendimento} onFechar={() => setAtdOpen(false)} />
-            ) : (<>
+            <>
             <div className="flex border-b items-stretch" style={{ borderColor: "#E8DFC8" }}>
               {([
                 { k: "HISTORICO", label: "Histórico" },
@@ -542,9 +540,19 @@ export default function PetDetailPage() {
             </div>
           {tab === "HISTORICO" && (
             <div className="p-5">
-              <div className="mb-4"><HistoricoAddGrid onAtendimento={() => { setAtd(ATD0); setItems([]); setAtdOpen(true); }} onVacina={() => { setTab("PROTOCOLOS"); setProtoAuto(true); }} onPendente={(t) => toast(`${t} — em construção (chega numa próxima fatia)`)} /></div>
-              <div className="mb-3"><WeightChart atendimentos={atendimentos} current={pet?.weight ?? null} /></div>
-              <FeedTimeline atendimentos={atendimentos} clinDocs={clinDocs} />
+              <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-5 items-start">
+                <div className="lg:order-1">
+                  <div className="mb-3"><WeightChart atendimentos={atendimentos} current={pet?.weight ?? null} /></div>
+                  <FeedTimeline atendimentos={atendimentos} clinDocs={clinDocs} />
+                </div>
+                <div className="lg:order-2">
+                  {atdOpen ? (
+                    <PetAtendimentoPanel pet={pet} atd={atd} setAtd={setAtd} atdTipos={atdTipos} atdStatus={atdStatus} vets={vets} items={items} servicosCat={servicosCat} pickServico={pickServico} addItem={addItem} updItem={updItem} rmItem={rmItem} saving={savingAtd} onSalvar={criarAtendimento} onFechar={() => setAtdOpen(false)} />
+                  ) : (
+                    <HistoricoAddGrid onAtendimento={() => { setAtd(ATD0); setItems([]); setAtdOpen(true); }} onVacina={() => { setTab("PROTOCOLOS"); setProtoAuto(true); }} onPendente={(t) => toast(`${t} — em construção (chega numa próxima fatia)`)} />
+                  )}
+                </div>
+              </div>
             </div>
           )}
           {tab === "TIMELINE" && (
@@ -787,12 +795,12 @@ export default function PetDetailPage() {
         </div>
             </div>
           )}
-            </>)}
+            </>
         </div>
         </div>
 
         <div className="space-y-4 lg:order-1">
-          <PetVendaPanel petId={pet.id} pacotes={pacotes} servicos={servicosCat} atendimentos={atendimentos} onNovoAtendimento={() => { setAtd(ATD0); setItems([]); setAtdOpen(true); }} onChanged={() => { loadAtendimentos(); }} />
+          <PetVendaPanel petId={pet.id} pacotes={pacotes} servicos={servicosCat} atendimentos={atendimentos} onNovoAtendimento={() => { setAtd(ATD0); setItems([]); setTab("HISTORICO"); setAtdOpen(true); }} onChanged={() => { loadAtendimentos(); }} />
           {/* LIXEIRA-PETS-FICHA (Cintia 22/06): coluna de resumo do pet removida (4 cards Consultas/Ultima visita/Proxima consulta/Idade + Frequencia de consultas + Financeiro). Restaurar = remover o "false &&". */}
           {false && <PetProfilePanel petId={pet.id} />}
         </div>
