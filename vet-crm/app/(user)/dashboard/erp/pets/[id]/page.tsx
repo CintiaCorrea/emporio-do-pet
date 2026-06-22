@@ -293,6 +293,7 @@ export default function PetDetailPage() {
       }
       const r = await fetch("/api/appointments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (!r.ok) throw new Error(await r.text());
+      if (atd.petWeight) { try { await patchPet({ weight: Number(atd.petWeight) }); } catch {} } // F5.1: peso do atendimento atualiza o peso atual do pet
       toast.success("Atendimento registrado"); setAtdOpen(false); setAtd(ATD0); setItems([]); await load(); await loadAtendimentos();
       // Venda de fisioterapia: abre o pacote pra lancar as sessoes
       const fisioItem = itensValidos.find((it: any) => it.servicoId && fisioSrv.some((sv: any) => String(sv.id) === String(it.servicoId)));
