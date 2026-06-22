@@ -103,7 +103,7 @@ export default function PetDetailPage() {
   const [fuDate, setFuDate] = useState("");
   const [savingFu, setSavingFu] = useState(false);
   const [pipes, setPipes] = useState<{ clinico: string[]; fisio: string[] }>({ clinico: [], fisio: [] });
-  const [examFases, setExamFases] = useState<string[]>([]);
+  const [examFases, setExamFases] = useState<string[]>(["Solicitado", "Coleta realizada", "Resultado recebido", "Resultado entregue ao tutor"]);
   const [savingPipe, setSavingPipe] = useState(false);
   const [petTags, setPetTags] = useState<{ id: string; texto: string }[]>([]);
   const [tagTpls, setTagTpls] = useState<any[]>([]);
@@ -320,6 +320,12 @@ export default function PetDetailPage() {
       const ds = await rs.json(); const as = Array.isArray(ds) ? ds : (ds.itens || ds.data || []);
       const status = as.map((i: any) => i.valor).filter(Boolean);
       if (status.length) setAtdStatus(status);
+      try {
+        const rf = await fetch(`/api/listas?lista=exame_fases`, { cache: "no-store" });
+        const df = await rf.json(); const af = Array.isArray(df) ? df : (df.itens || df.data || []);
+        const fases = af.map((i: any) => i.valor).filter(Boolean);
+        if (fases.length) setExamFases(fases);
+      } catch {}
     } catch {}
   }
   async function loadAtendimentos() { try { const r = await fetch(`/api/appointments?petId=${petId}`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.appointments || d.data || []); setAtendimentos(arr.slice().sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())); } catch {} }
@@ -661,22 +667,26 @@ export default function PetDetailPage() {
                   <div className="border rounded-xl p-6 text-center text-sm text-gray-400" style={{ borderColor: "#E8DFC8" }}>Nenhum exame ou serviço externo registrado.</div>
                 ) : (
                   <div className="space-y-2">
-                    {exames.map(x => (
-                      <div key={x.id} className="border rounded-xl p-3 flex items-center justify-between" style={{ borderColor: "#E8DFC8" }}>
-                        <div>
-                          <span className="text-sm font-medium" style={{ color: "#0E2244" }}>{x.data.nome}</span>
-                          <span className="text-xs text-gray-400 ml-2">{x.data.date ? new Date(x.data.date).toLocaleDateString("pt-BR") : ""}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <select value={x.data.status || ""} onChange={(e) => updExameStatus(x.id, x.data, e.target.value)} className="text-[11px] px-2 py-1 border rounded-lg" style={{ borderColor: "#E8DFC8", color: "#00798A" }}>
-                            {x.data.status && !examFases.includes(x.data.status) && <option value={x.data.status}>{x.data.status}</option>}
-                            {examFases.length === 0 && <option value="Solicitado">Solicitado</option>}
-                            {examFases.map((f) => <option key={f} value={f}>{f}</option>)}
-                          </select>
+                    {exames.map(x => {
+                      const fases = examFases.length ? examFases : ["Solicitado"];
+                      const cur = Math.max(0, fases.indexOf(x.data.status || fases[0]));
+                      return (
+                      <div key={x.id} className="border rounded-xl p-3" style={{ borderColor: "#E8DFC8" }}>
+                        <div className="flex items-center justify-between mb-2">
+                          <div>
+                            <span className="text-sm font-medium" style={{ color: "#0E2244" }}>{x.data.nome}</span>
+                            <span className="text-xs text-gray-400 ml-2">{x.data.date ? new Date(x.data.date).toLocaleDateString("pt-BR") : ""}</span>
+                          </div>
                           <button onClick={() => delExame(x.id)} className="text-xs" style={{ color: "#ef4444" }}>Excluir</button>
                         </div>
+                        <div className="flex items-center gap-1 flex-wrap">
+                          {fases.map((f, fi) => (
+                            <button key={f} onClick={() => updExameStatus(x.id, x.data, f)} title={f} className="text-[11px] px-2.5 py-1 rounded-full border transition" style={fi <= cur ? { background: "#009AAC", color: "#fff", borderColor: "#009AAC" } : { background: "#fff", color: "#64748b", borderColor: "#E8DFC8" }}>{f}</button>
+                          ))}
+                        </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
