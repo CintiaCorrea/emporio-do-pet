@@ -3,7 +3,7 @@ import { confirmDelete } from "@/lib/ui/confirmDelete";
 import { useEffect, useState } from "react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 
-const MODELOS_DEFAULT: string[] = ["Hepatopata","Modelo padrão com Logo","Modelo padrão sem logo","Orientação Alimentação Natural","Gel Cicatrizante e Antifúngico Natural","Nutracêuticos - Erliquiose","Prescrição para Erliquiose","Receituário de Controle Especial","Spray antifúngico e bactericida","Spray de Mupirocina - Alergia","Tratamento Otológico"];
+const MODELOS_DEFAULT: { nome: string; corpo: string }[] = [{"nome": "Hepatopata", "corpo": "MANDAR AVIAR\nUSO ORAL:\n\n- N – acetilcisteína: 100mg/ 10kg\n- Arginina: 70mg/ 10 Kg\n- Ornitina: 60 mg/ 10 Kg\n- Taurina: 70 mg/ 10 Kg\n- Silimarina: 100mg/ 10Kg\n- Glicina: 50 mg/ 10Kg\n- Ácido lipóico: 15 – 25 mg/ 10kg\n- Extrato chá verde: 20 mg/ 10Kg"}, {"nome": "Modelo padrão com Logo", "corpo": "@USUARIO_ASSINATURA@\n@CLINICA_CIDADE@, @CLINICA_ESTADO@, @GERAL_DATA@\n@USUARIO_TRATAMENTO@ @USUARIO_NOMEPUBLICO@\n@USUARIO_CRMV@"}, {"nome": "Modelo padrão sem logo", "corpo": ""}, {"nome": "Orientação Alimentação Natural", "corpo": "- CARBOIDRATO - ARROZ PARBORIZADO OU ARROZ BRANCO, BATATA DOCE.\n- PROTEÍNA - CARNE BOVINA MAGRA SEM GORDURA, PEITO DE FRANGO, ATUM EM ÁGUA.\n- LEGUMES - ABOBRINHA, CHUCHU, VAGEM, ABÓBORA, INHAME, CENOURA.\n\n___ GRS DE CARBOIDRATO / 2 VEZES AO DIA.\n___ GRS DE PROTEÍNA / 2 VEZES AO DIA.\n___ GRS DE LEGUMES / 2 VEZES AO DIA.\nTOTAL DE ___ GRS POR REFEIÇÃO.\n\nTODOS OS INGREDIENTES DEVEM SER PESADOS COZIDOS.\nCozinhar os legumes, carboidratos e proteínas em panelas diferentes e após o preparo misturá-los."}, {"nome": "Gel Cicatrizante e Antifúngico Natural", "corpo": ""}, {"nome": "Nutracêuticos - Erliquiose", "corpo": ""}, {"nome": "Prescrição para Erliquiose", "corpo": ""}, {"nome": "Receituário de Controle Especial", "corpo": ""}, {"nome": "Spray antifúngico e bactericida", "corpo": ""}, {"nome": "Spray de Mupirocina - Alergia", "corpo": ""}, {"nome": "Tratamento Otológico", "corpo": ""}];
 
 export default function ConfigModelosReceitaPage() {
   usePageTitle("Modelos de Receita", "Modelos que aparecem ao criar uma receita na ficha do pet");
@@ -18,14 +18,29 @@ export default function ConfigModelosReceitaPage() {
     const d = await r.json();
     return Array.isArray(d) ? d : (d.itens || d.data || []);
   }
+  async function postModelo(nome: string, corpo: string) {
+    await fetch(`/api/listas`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lista: "receita_modelo", valor: JSON.stringify({ nome, corpo }) }) });
+  }
+  async function patchModelo(id: string, nome: string, corpo: string) {
+    await fetch(`/api/listas/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ valor: JSON.stringify({ nome, corpo }) }) });
+  }
   async function load() {
     setLoading(true);
     try {
       let ms = await fetchLista("receita_modelo");
       if (ms.length === 0) {
-        for (const nome of MODELOS_DEFAULT) await fetch(`/api/listas`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lista: "receita_modelo", valor: JSON.stringify({ nome, corpo: "" }) }) });
-        ms = await fetchLista("receita_modelo");
+        for (const m of MODELOS_DEFAULT) await postModelo(m.nome, m.corpo);
+      } else {
+        for (const i of ms) {
+          let o: any = {}; try { o = JSON.parse(i.valor); } catch { o = { nome: i.valor, corpo: "" }; }
+          const nm = o.nome || i.valor;
+          if (!o.corpo) {
+            const def = MODELOS_DEFAULT.find(d => d.nome === nm);
+            if (def && def.corpo) await patchModelo(i.id, nm, def.corpo);
+          }
+        }
       }
+      ms = await fetchLista("receita_modelo");
       const parsed = ms.map((i: any) => { let o: any = {}; try { o = JSON.parse(i.valor); } catch { o = { nome: i.valor, corpo: "" }; } return { id: i.id, nome: o.nome || i.valor, corpo: o.corpo || "" }; });
       setModelos(parsed);
       setDraft(Object.fromEntries(parsed.map((m: any) => [m.id, m.corpo])));
@@ -36,12 +51,11 @@ export default function ConfigModelosReceitaPage() {
 
   async function addModelo() {
     const nome = novo.trim(); if (!nome) return;
-    await fetch(`/api/listas`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lista: "receita_modelo", valor: JSON.stringify({ nome, corpo: "" }) }) });
-    setNovo(""); await load();
+    await postModelo(nome, ""); setNovo(""); await load();
   }
   async function salvarCorpo(m: { id: string; nome: string }) {
     setSavingId(m.id);
-    try { await fetch(`/api/listas/${m.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ valor: JSON.stringify({ nome: m.nome, corpo: draft[m.id] || "" }) }) }); await load(); } catch {} finally { setSavingId(null); }
+    try { await patchModelo(m.id, m.nome, draft[m.id] || ""); await load(); } catch {} finally { setSavingId(null); }
   }
   async function remover(id: string) {
     if (!(await confirmDelete({ entityLabel: "modelo", itemName: "este modelo" }))) return;
