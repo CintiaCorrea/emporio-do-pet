@@ -12,7 +12,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import {
-  LuUsers, LuTag, LuPackage, LuPawPrint, LuList,
+  LuUsers, LuTag, LuPackage, LuPawPrint, LuList, LuFileText,
   LuMessageSquare, LuClock, LuFlaskConical, LuMail, LuLayoutGrid,
   LuMegaphone, LuTarget, LuStar, LuArrowRight, LuSearch,
 } from "react-icons/lu";
@@ -30,6 +30,7 @@ const ITEMS: Item[] = [
   { href: "/dashboard/configuracoes/servicos", title: "Serviços e Produtos", description: "Catálogo com preço, custo e comissão", Icon: LuPackage, group: "CADASTROS" },
   { href: "/dashboard/configuracoes/racas", title: "Raças", description: "Lista de raças por espécie", Icon: LuPawPrint, group: "CADASTROS" },
   { href: "/dashboard/configuracoes/atendimento", title: "Atendimento", description: "Tipos e status do atendimento", Icon: LuPawPrint, group: "CADASTROS" },
+  { href: "/dashboard/configuracoes/modelos-receita", title: "Modelos de Receita", description: "Modelos de receita da ficha do pet (editáveis)", Icon: LuFileText, group: "CADASTROS" },
   { href: "/dashboard/configuracoes/listas", title: "Listas customizáveis", description: "Canais, origens, motivos, status", Icon: LuList, group: "CADASTROS" },
   { href: "/dashboard/configuracoes/exames", title: "Exames e Fornecedores", description: "Catálogo + laboratórios parceiros", Icon: LuFlaskConical, group: "CADASTROS" },
   { href: "/dashboard/configuracoes/protocolos", title: "Protocolos", description: "Vacinas, vermífugos e ectoparasitas (cronograma de doses)", Icon: LuFlaskConical, group: "CADASTROS" },
