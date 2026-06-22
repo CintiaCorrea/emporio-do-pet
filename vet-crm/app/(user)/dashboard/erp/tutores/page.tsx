@@ -333,9 +333,9 @@ export default function ClientesPage() {
                     <td className="py-2.5 px-3">
                       <div className="flex gap-1 flex-wrap">
                         {(t.pets || []).map((p) => (
-                          <span key={p.id} className="inline-flex items-center gap-1 bg-[#E0F4F6] text-[#00798A] text-[10px] px-2 py-0.5 rounded-full">
+                          <Link key={p.id} href={`/dashboard/erp/pets/${p.id}`} title={`Abrir ficha de ${p.name}`} className="inline-flex items-center gap-1 bg-[#E0F4F6] text-[#00798A] text-[10px] px-2 py-0.5 rounded-full hover:bg-[#00798A] hover:text-white transition-colors">
                             {PET_EMOJI(p.species)} {p.name}
-                          </span>
+                          </Link>
                         ))}
                         {(t.pets?.length || 0) === 0 && <span className="text-[10px] text-gray-400">sem pet</span>}
                       </div>
