@@ -123,8 +123,12 @@ export default function PetDetailPage() {
   const [vets, setVets] = useState<any[]>([]);
   const [atdOpen, setAtdOpen] = useState(false);
   const [savingAtd, setSavingAtd] = useState(false);
-  const [artefato, setArtefato] = useState<null | "PESO" | "OBS">(null);
+  const [artefato, setArtefato] = useState<null | "PESO" | "OBS" | "RECEITA">(null);
   const [pesoVal, setPesoVal] = useState("");
+  const [recModelos, setRecModelos] = useState<{ nome: string; corpo: string }[]>([]);
+  const [recModeloNome, setRecModeloNome] = useState("");
+  const [recCorpo, setRecCorpo] = useState("");
+  const [recVetId, setRecVetId] = useState("");
   const [savingArt, setSavingArt] = useState(false);
   const ATD0 = { date: "", userId: "", type: "CONSULTA", status: "Realizado", duration: "30", chiefComplaint: "", anamnesis: "", physicalExam: "", petWeight: "", temperature: "", diagnosis: "", conduct: "", prescription: "", examsRequested: "", nextReturnDate: "", paymentMethod: "", followUpNotes: "", notes: "" };
   const [atd, setAtd] = useState<any>(ATD0);
@@ -216,6 +220,25 @@ export default function PetDetailPage() {
   async function salvarObsArt() {
     setSavingArt(true);
     try { await patchPet({ observations: obsVal }); toast.success("Observação salva"); setArtefato(null); await load(); } catch { toast.error("Erro ao salvar"); } finally { setSavingArt(false); }
+  }
+  async function abrirReceita() {
+    setAtdOpen(false); setRecModeloNome(""); setRecCorpo("");
+    setRecVetId((v) => v || (vets[0]?.id || ""));
+    try { const ms = await listasGet("receita_modelo"); const parsed = ms.map((i: any) => { let o: any = {}; try { o = JSON.parse(i.valor); } catch { o = { nome: i.valor, corpo: "" }; } return { nome: o.nome || i.valor, corpo: o.corpo || "" }; }); setRecModelos(parsed); } catch {}
+    setArtefato("RECEITA");
+  }
+  async function salvarReceita() {
+    if (!pet) return;
+    if (!recCorpo.trim()) { toast.error("Escreva ou escolha um modelo de receita"); return; }
+    if (!recVetId) { toast.error("Selecione o profissional"); return; }
+    setSavingArt(true);
+    try {
+      const body: any = { tutorId: pet.tutorId, petId: pet.id, userId: recVetId, date: new Date().toISOString(), type: "Receitas", status: "Realizado", prescription: recCorpo };
+      if (recModeloNome) body.chiefComplaint = recModeloNome;
+      const r = await fetch("/api/appointments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (!r.ok) throw new Error(await r.text());
+      toast.success("Receita registrada"); setArtefato(null); setRecModeloNome(""); setRecCorpo(""); await loadAtendimentos();
+    } catch { toast.error("Erro ao salvar receita"); } finally { setSavingArt(false); }
   }
   async function saveName() {
     const novo = nameVal.trim();
@@ -585,14 +608,43 @@ export default function PetDetailPage() {
                       </div>
                       <textarea value={obsVal} onChange={(e) => setObsVal(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8", minHeight: "120px" }} placeholder="Anote algo sobre o pet…" />
                     </div>
+                  ) : artefato === "RECEITA" ? (
+                    <div className="bg-white">
+                      <div className="flex items-center justify-between border-b pb-2.5 mb-3" style={{ borderColor: "#E8DFC8" }}>
+                        <h3 className="text-sm font-semibold" style={{ color: "#0E2244" }}>Receita</h3>
+                        <div className="flex gap-2">
+                          <button onClick={salvarReceita} disabled={savingArt} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingArt ? "..." : "Salvar"}</button>
+                          <button onClick={() => setArtefato(null)} className="px-3 py-1.5 rounded-lg text-xs border" style={{ borderColor: "#E8DFC8", color: "#475569" }}>Fechar</button>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 mb-2">
+                        <div>
+                          <label className="text-xs text-gray-500">Modelo</label>
+                          <select value={recModeloNome} onChange={(e) => { const nm = e.target.value; setRecModeloNome(nm); const m = recModelos.find((x) => x.nome === nm); if (m && m.corpo) setRecCorpo(m.corpo); }} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }}>
+                            <option value="">Selecione o modelo…</option>
+                            {recModelos.map((m) => <option key={m.nome} value={m.nome}>{m.nome}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-500">Profissional</label>
+                          <select value={recVetId} onChange={(e) => setRecVetId(e.target.value)} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }}>
+                            <option value="">Selecionar...</option>
+                            {vets.map((u: any) => <option key={u.id} value={u.id}>{u.name}</option>)}
+                          </select>
+                        </div>
+                      </div>
+                      <textarea value={recCorpo} onChange={(e) => setRecCorpo(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8", minHeight: "160px" }} placeholder="Corpo da receita (escolha um modelo ou escreva)…" />
+                      <p className="text-[11px] text-gray-400 mt-2">Ao salvar, entra na timeline como atendimento "Receitas". Modelos editáveis em Configurações › Modelos de Receita.</p>
+                    </div>
                   ) : (
-                    <HistoricoAddGrid ready={["Atendimento", "Peso", "Vacina", "Exame", "Internação", "Observação"]} onPick={(k) => {
+                    <HistoricoAddGrid ready={["Atendimento", "Peso", "Vacina", "Exame", "Internação", "Observação", "Receita"]} onPick={(k) => {
                       if (k === "Atendimento") { setArtefato(null); setAtd(ATD0); setItems([]); setAtdOpen(true); }
                       else if (k === "Vacina") { setTab("PROTOCOLOS"); setProtoAuto(true); }
                       else if (k === "Exame") { setTab("EXAMES"); }
                       else if (k === "Internação") { router.push("/dashboard/erp/internacoes"); }
                       else if (k === "Peso") { setPesoVal(pet?.weight ? String(pet.weight) : ""); setAtdOpen(false); setArtefato("PESO"); }
                       else if (k === "Observação") { setObsVal(pet?.observations || ""); setAtdOpen(false); setArtefato("OBS"); }
+                      else if (k === "Receita") { abrirReceita(); }
                       else { toast(`${k} — em construção (chega numa próxima fatia)`); }
                     }} />
                   )}
