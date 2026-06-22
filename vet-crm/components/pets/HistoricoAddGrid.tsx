@@ -1,8 +1,8 @@
 "use client";
 import { LuStethoscope, LuActivity, LuTriangleAlert, LuFileText, LuFlaskConical, LuCamera, LuPill, LuPencil, LuMessageSquare, LuClipboardList } from "react-icons/lu";
 
-const TIPOS: any[] = [
-  { k: "Atendimento", c: "#2f80c4", I: LuStethoscope, ready: true },
+const TIPOS: { k: string; c: string; I: any }[] = [
+  { k: "Atendimento", c: "#2f80c4", I: LuStethoscope },
   { k: "Peso", c: "#b8860b", I: LuActivity },
   { k: "Patologia", c: "#7c3aed", I: LuTriangleAlert },
   { k: "Documento", c: "#2e9e5b", I: LuFileText },
@@ -15,20 +15,20 @@ const TIPOS: any[] = [
   { k: "Internação", c: "#9b2c3a", I: LuClipboardList },
 ];
 
-export default function HistoricoAddGrid({ onAtendimento, onVacina, onPendente }: { onAtendimento?: () => void; onVacina?: () => void; onPendente?: (t: string) => void }) {
+export default function HistoricoAddGrid({ onPick, ready = [] }: { onPick: (k: string) => void; ready?: string[] }) {
   return (
     <div>
       <div className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: "#94a3b8" }}>Adicionar ao histórico</div>
       <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
         {TIPOS.map((t) => {
-          const Icon = t.I;
+          const Icon = t.I; const on = ready.includes(t.k);
           return (
             <button
               key={t.k}
-              onClick={() => (t.k === "Atendimento" ? onAtendimento?.() : t.k === "Vacina" ? onVacina?.() : onPendente?.(t.k))}
-              title={t.ready || t.k === "Vacina" ? t.k : `${t.k} — em construção`}
+              onClick={() => onPick(t.k)}
+              title={on ? t.k : `${t.k} — em construção`}
               className="flex flex-col items-center justify-center gap-1 rounded-xl text-white text-[11px] font-medium py-2.5 transition hover:opacity-90"
-              style={{ background: t.c, opacity: t.ready || t.k === "Vacina" ? 1 : 0.55 }}
+              style={{ background: t.c, opacity: on ? 1 : 0.55 }}
             >
               <Icon size={16} />
               {t.k}
