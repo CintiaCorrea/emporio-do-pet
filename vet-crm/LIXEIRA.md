@@ -30,3 +30,10 @@
 - **O que é:** o card 3 colunas (tutor|pet|foto) que criei. A Cintia decidiu voltar ao sub-header editável do dev como cabeçalho único.
 - **Reverso da F1:** o sub-header do dev foi RESTAURADO (saiu da lixeira). Agora é o card que está na lixeira.
 - **Restaurar:** remover o `{false && ( ... )}` com marca `LIXEIRA-F1rev`.
+
+### LIXEIRA-PETS-MENU — Item "Pets" do menu lateral
+- **Arquivo:** `vet-crm/components/protected/dashboard/Sidebar.tsx` (array `NAV`)
+- **O que é:** entrada de menu "Pets" (`/dashboard/erp/pets`) que abria a listagem geral de pets.
+- **Por quê:** edição/cadastro do pet centralizada na ficha de Cliente (F4). A ficha clínica do pet continua acessível clicando no nome do pet na lista de Clientes.
+- **Mantido:** rotas `/dashboard/erp/pets/*` (ficha clínica, editar, atendimentos) intactas; só saiu do menu.
+- **Restaurar:** descomentar a linha do item na array `NAV` (marca `LIXEIRA-PETS-MENU`).
