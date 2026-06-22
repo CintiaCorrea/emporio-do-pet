@@ -94,8 +94,8 @@ export default function PetVendaPanel({ petId, pacotes = [], servicos = [], aten
             ) : (
               <div>
                 <div className="text-[10px] text-gray-500 mb-1">Última venda · {new Date(ultima.date).toLocaleDateString("pt-BR")}</div>
-                {(ultima.treatments || []).slice(0, 8).map((t: any, i: number) => (
-                  <div key={i} className="flex justify-between text-xs py-0.5"><span className="truncate pr-2" style={{ color: "#0E2244" }}>{t.product?.name || t.descricao || "Serviço"}</span><span className="text-gray-500 shrink-0">{BRL(t.product?.price)}</span></div>
+                {(((ultima.items && ultima.items.length) ? ultima.items : ultima.treatments) || []).slice(0, 8).map((t: any, i: number) => (
+                  <div key={i} className="flex justify-between text-xs py-0.5"><span className="truncate pr-2" style={{ color: "#0E2244" }}>{t.descricao || t.product?.name || "Serviço"}{t.quantidade && t.quantidade > 1 ? ` x${t.quantidade}` : ""}</span><span className="text-gray-500 shrink-0">{BRL(t.valorTotal != null ? t.valorTotal : t.product?.price)}</span></div>
                 ))}
                 <div className="flex justify-between text-xs font-semibold border-t mt-1 pt-1" style={{ borderColor: "#E8DFC8" }}><span>Total</span><span style={{ color: "#0F6E56" }}>{BRL(ultima.value)}</span></div>
               </div>
