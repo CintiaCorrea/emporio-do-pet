@@ -63,10 +63,7 @@ export default function PetAtendimentoPanel(props: any) {
 
       <div className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mt-4 mb-1.5">Pós-atendimento</div>
       <div className="space-y-2 text-xs">
-        <div className="grid grid-cols-2 gap-2">
-          <div><label className="text-gray-500">Próximo retorno</label><input type="date" value={atd.nextReturnDate} onChange={(e) => sa({ nextReturnDate: e.target.value })} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg" style={{ borderColor: "#E8DFC8" }} /></div>
-          <div><label className="text-gray-500">Forma de pagamento</label><select value={atd.paymentMethod} onChange={(e) => sa({ paymentMethod: e.target.value })} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg" style={{ borderColor: "#E8DFC8" }}><option value="">Selecionar...</option>{["Dinheiro", "PIX", "Cartão de crédito", "Cartão de débito", "Transferência", "Boleto"].map(v => <option key={v} value={v}>{v}</option>)}</select></div>
-        </div>
+        <div><label className="text-gray-500">Próximo retorno</label><input type="date" value={atd.nextReturnDate} onChange={(e) => sa({ nextReturnDate: e.target.value })} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg" style={{ borderColor: "#E8DFC8" }} /></div>
         <div><label className="text-gray-500">O que verificar com o cliente (guia pro próximo toque)</label><textarea value={atd.followUpNotes} onChange={(e) => sa({ followUpNotes: e.target.value })} rows={2} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg" style={{ borderColor: "#E8DFC8" }} /></div>
         <div><label className="text-gray-500">Observações</label><textarea value={atd.notes} onChange={(e) => sa({ notes: e.target.value })} rows={2} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg" style={{ borderColor: "#E8DFC8" }} /></div>
       </div>
