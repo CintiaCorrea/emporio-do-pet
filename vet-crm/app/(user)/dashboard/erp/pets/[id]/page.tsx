@@ -793,7 +793,8 @@ export default function PetDetailPage() {
 
         <div className="space-y-4 lg:order-1">
           <PetVendaPanel petId={pet.id} pacotes={pacotes} servicos={servicosCat} atendimentos={atendimentos} onNovoAtendimento={() => { setAtd(ATD0); setItems([]); setAtdOpen(true); }} onChanged={() => { loadAtendimentos(); }} />
-          <PetProfilePanel petId={pet.id} />
+          {/* LIXEIRA-PETS-FICHA (Cintia 22/06): coluna de resumo do pet removida (4 cards Consultas/Ultima visita/Proxima consulta/Idade + Frequencia de consultas + Financeiro). Restaurar = remover o "false &&". */}
+          {false && <PetProfilePanel petId={pet.id} />}
         </div>
       </div>
 
@@ -832,6 +833,8 @@ export default function PetDetailPage() {
       </div>
       )}
 
+      {/* LIXEIRA-PETS-FICHA (Cintia 22/06): barra "Ficha do Tutor" removida - basta clicar no nome do tutor. Restaurar = remover o "false &&". */}
+      {false && (
       <div className="max-w-7xl mx-auto px-6 pt-3 pb-5">
           <div className="flex items-center gap-3 pt-2">
             <Link
@@ -843,6 +846,7 @@ export default function PetDetailPage() {
             </Link>
           </div>
       </div>
+      )}
 
 
       {verAtd && (
