@@ -75,7 +75,7 @@ function speciesEnum(sp: string): string {
   return "OTHER";
 }
 
-const ATD_TIPOS_DEFAULT: [string, string][] = [["CONSULTA","Consulta"],["RETORNO","Retorno"],["AVALIACAO","Avaliação"],["EMERGENCIA","Emergência"],["PROCEDIMENTO","Procedimento"],["VACINACAO","Vacinação"],["CIRURGIA","Cirurgia"],["SESSAO_FISIO","Sessão de fisio"],["OUTRO","Outro"]];
+const ATD_TIPOS_DEFAULT: [string, string][] = [["Acupuntura","Acupuntura"],["Alta da internação","Alta da internação"],["Atendimento pelo WhatsApp","Atendimento pelo WhatsApp"],["Atendimento telefônico/email","Atendimento telefônico/email"],["Avaliação Cirúrgica","Avaliação Cirúrgica"],["Avaliação Cirúrgica - DogLife","Avaliação Cirúrgica - DogLife"],["Avaliação de fisioterapia","Avaliação de fisioterapia"],["Bloqueada","Bloqueada"],["Boletim da Internação","Boletim da Internação"],["Cirurgia","Cirurgia"],["Cirurgia - DogLife","Cirurgia - DogLife"],["Consulta Alimentação Natural","Consulta Alimentação Natural"],["Consulta Cardiologista","Consulta Cardiologista"],["Consulta Clínica","Consulta Clínica"],["Consulta Fisioterapia","Consulta Fisioterapia"],["Consulta Integrativa","Consulta Integrativa"],["Consulta Neurologia","Consulta Neurologia"],["Consulta Odontológica","Consulta Odontológica"],["Consulta Oftalmológica","Consulta Oftalmológica"],["Consulta Ortopédica","Consulta Ortopédica"],["Consulta Plantão","Consulta Plantão"],["CRM","CRM"],["Curso integral","Curso integral"],["DogLife - Consulta Clínica","DogLife - Consulta Clínica"],["Exames","Exames"],["Hidroterapia","Hidroterapia"],["Hospedagem","Hospedagem"],["Internamento","Internamento"],["Laserterapia","Laserterapia"],["MAP","MAP"],["Ozônioterapia","Ozônioterapia"],["Peso","Peso"],["Receitas","Receitas"],["Renovação Pacote Map","Renovação Pacote Map"],["Resultado de exames","Resultado de exames"],["Retorno","Retorno"],["Retorno Alimentação Natural","Retorno Alimentação Natural"],["Retorno Vídeo Chamada","Retorno Vídeo Chamada"],["Soroterapia Subcutânea","Soroterapia Subcutânea"],["Terapia neural","Terapia neural"],["Tratamento Ortomolecular Injetável","Tratamento Ortomolecular Injetável"],["Vacinação","Vacinação"],["Vermifugação/Ectoparasitas","Vermifugação/Ectoparasitas"]];
 const ATD_STATUS_DEFAULT = ["Realizado","Agendado","Cancelado","Faltou"];
 const ATD_TIPO_LABEL = (t?: string) => (({ CONSULTA: "Consulta", RETORNO: "Retorno", AVALIACAO: "Avaliação", EMERGENCIA: "Emergência", PROCEDIMENTO: "Procedimento", VACINACAO: "Vacinação", SESSAO_FISIO: "Sessão de fisio", CIRURGIA: "Cirurgia", OUTRO: "Outro" } as any)[t || ""] || t || "Atendimento");
 
@@ -123,6 +123,9 @@ export default function PetDetailPage() {
   const [vets, setVets] = useState<any[]>([]);
   const [atdOpen, setAtdOpen] = useState(false);
   const [savingAtd, setSavingAtd] = useState(false);
+  const [artefato, setArtefato] = useState<null | "PESO" | "OBS">(null);
+  const [pesoVal, setPesoVal] = useState("");
+  const [savingArt, setSavingArt] = useState(false);
   const ATD0 = { date: "", userId: "", type: "CONSULTA", status: "Realizado", duration: "30", chiefComplaint: "", anamnesis: "", physicalExam: "", petWeight: "", temperature: "", diagnosis: "", conduct: "", prescription: "", examsRequested: "", nextReturnDate: "", paymentMethod: "", followUpNotes: "", notes: "" };
   const [atd, setAtd] = useState<any>(ATD0);
   const [items, setItems] = useState<any[]>([]);
@@ -203,6 +206,16 @@ export default function PetDetailPage() {
   async function saveObs() {
     setSavingObs(true);
     try { await patchPet({ observations: obsVal }); toast.success("Observa\u00e7\u00e3o salva"); setEditObs(false); await load(); } catch { toast.error("Erro ao salvar"); } finally { setSavingObs(false); }
+  }
+  async function salvarPeso() {
+    const w = parseFloat(String(pesoVal).replace(",", "."));
+    if (!w || w <= 0) { toast.error("Informe o peso"); return; }
+    setSavingArt(true);
+    try { await patchPet({ weight: w }); toast.success("Peso atualizado"); setArtefato(null); await load(); await loadAtendimentos(); } catch { toast.error("Erro ao salvar peso"); } finally { setSavingArt(false); }
+  }
+  async function salvarObsArt() {
+    setSavingArt(true);
+    try { await patchPet({ observations: obsVal }); toast.success("Observação salva"); setArtefato(null); await load(); } catch { toast.error("Erro ao salvar"); } finally { setSavingArt(false); }
   }
   async function saveName() {
     const novo = nameVal.trim();
@@ -548,8 +561,40 @@ export default function PetDetailPage() {
                 <div className="lg:order-2">
                   {atdOpen ? (
                     <PetAtendimentoPanel pet={pet} atd={atd} setAtd={setAtd} atdTipos={atdTipos} atdStatus={atdStatus} vets={vets} items={items} servicosCat={servicosCat} pickServico={pickServico} addItem={addItem} updItem={updItem} rmItem={rmItem} saving={savingAtd} onSalvar={criarAtendimento} onFechar={() => setAtdOpen(false)} />
+                  ) : artefato === "PESO" ? (
+                    <div className="bg-white">
+                      <div className="flex items-center justify-between border-b pb-2.5 mb-3" style={{ borderColor: "#E8DFC8" }}>
+                        <h3 className="text-sm font-semibold" style={{ color: "#0E2244" }}>Peso</h3>
+                        <div className="flex gap-2">
+                          <button onClick={salvarPeso} disabled={savingArt} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingArt ? "..." : "Salvar"}</button>
+                          <button onClick={() => setArtefato(null)} className="px-3 py-1.5 rounded-lg text-xs border" style={{ borderColor: "#E8DFC8", color: "#475569" }}>Fechar</button>
+                        </div>
+                      </div>
+                      <label className="text-xs text-gray-500">Peso atual (kg)</label>
+                      <input type="number" step="0.01" value={pesoVal} onChange={(e) => setPesoVal(e.target.value)} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }} placeholder="Ex.: 6.25" />
+                      <p className="text-[11px] text-gray-400 mt-2">Atualiza o peso atual do pet e entra no gráfico de peso.</p>
+                    </div>
+                  ) : artefato === "OBS" ? (
+                    <div className="bg-white">
+                      <div className="flex items-center justify-between border-b pb-2.5 mb-3" style={{ borderColor: "#E8DFC8" }}>
+                        <h3 className="text-sm font-semibold" style={{ color: "#0E2244" }}>Observação</h3>
+                        <div className="flex gap-2">
+                          <button onClick={salvarObsArt} disabled={savingArt} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingArt ? "..." : "Salvar"}</button>
+                          <button onClick={() => setArtefato(null)} className="px-3 py-1.5 rounded-lg text-xs border" style={{ borderColor: "#E8DFC8", color: "#475569" }}>Fechar</button>
+                        </div>
+                      </div>
+                      <textarea value={obsVal} onChange={(e) => setObsVal(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8", minHeight: "120px" }} placeholder="Anote algo sobre o pet…" />
+                    </div>
                   ) : (
-                    <HistoricoAddGrid onAtendimento={() => { setAtd(ATD0); setItems([]); setAtdOpen(true); }} onVacina={() => { setTab("PROTOCOLOS"); setProtoAuto(true); }} onPendente={(t) => toast(`${t} — em construção (chega numa próxima fatia)`)} />
+                    <HistoricoAddGrid ready={["Atendimento", "Peso", "Vacina", "Exame", "Internação", "Observação"]} onPick={(k) => {
+                      if (k === "Atendimento") { setArtefato(null); setAtd(ATD0); setItems([]); setAtdOpen(true); }
+                      else if (k === "Vacina") { setTab("PROTOCOLOS"); setProtoAuto(true); }
+                      else if (k === "Exame") { setTab("EXAMES"); }
+                      else if (k === "Internação") { router.push("/dashboard/erp/internacoes"); }
+                      else if (k === "Peso") { setPesoVal(pet?.weight ? String(pet.weight) : ""); setAtdOpen(false); setArtefato("PESO"); }
+                      else if (k === "Observação") { setObsVal(pet?.observations || ""); setAtdOpen(false); setArtefato("OBS"); }
+                      else { toast(`${k} — em construção (chega numa próxima fatia)`); }
+                    }} />
                   )}
                 </div>
               </div>
