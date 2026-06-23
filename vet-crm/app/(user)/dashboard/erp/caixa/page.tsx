@@ -1,6 +1,6 @@
 // DESTINO NO REPO: vet-crm/app/(user)/dashboard/erp/caixa/page.tsx
 // Tela do Caixa — abas Resumo / Lista de recebimentos. Padrao turquesa #009AAC / #014D5E.
-// Botoes sem backend (Log, Sangria, Despesa, Transferencia, Reabrir, Suprimento avulso) ficam inertes ("em breve").
+// Movimentos: Suprimento, Sangria, Despesa, Transferencia (entre contas) + Saldo em dinheiro.
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -15,6 +15,17 @@ const TEAL_DARK = '#014D5E';
 const ORANGE = '#D85A30';
 
 type Forma = { forma: string; valor: number; parcelas: number; nsu: string };
+
+interface Movimento {
+  id: string;
+  tipo: string;
+  valor: number;
+  forma?: string | null;
+  conta?: string | null;
+  descricao?: string | null;
+  observacao?: string | null;
+  data: string;
+}
 
 interface Recebimento {
   id: string;
@@ -38,6 +49,7 @@ interface Caixa {
   observacao?: string | null;
   user?: { id: string; name: string } | null;
   recebimentos: Recebimento[];
+  movimentos?: Movimento[];
 }
 
 interface Appointment {
@@ -50,12 +62,18 @@ interface Appointment {
 }
 
 const FORMAS_PADRAO = ['Dinheiro', 'Pix', 'Cartão crédito', 'Cartão débito', 'Crédito do pet'];
-const ehDinheiro = (f: string) => /dinheiro/i.test(f);
+const CONTAS = ['Caixa', 'Banco', 'Cofre'];
+const ehDinheiro = (f?: string | null) => /dinheiro/i.test(f || '');
+const ehEntrada = (tipo: string) => tipo === 'SUPRIMENTO';
+const tipoLabel: Record<string, string> = {
+  SUPRIMENTO: 'Suprimento', SANGRIA: 'Sangria', DESPESA: 'Despesa', TRANSFERENCIA: 'Transferência',
+};
 
 const brl = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number.isFinite(v) ? v : 0);
 const hora = (s?: string | null) => (s ? new Date(s).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '—');
-const dataHora = (s?: string | null) => (s ? new Date(s).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).replace(',', '') : '—');
+const dataHora = (s?: string | null) =>
+  s ? new Date(s).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).replace(',', '') : '—';
 const hojeStr = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -82,6 +100,10 @@ export default function CaixaPage() {
   const [formas, setFormas] = useState<Forma[]>([{ forma: 'Dinheiro', valor: 0, parcelas: 1, nsu: '' }]);
   const [desconto, setDesconto] = useState(0);
   const [obsReceb, setObsReceb] = useState('');
+  // Modal de movimento
+  const [movOpen, setMovOpen] = useState(false);
+  const [movTipo, setMovTipo] = useState('SUPRIMENTO');
+  const [movForm, setMovForm] = useState({ valor: '', forma: 'Dinheiro', conta: 'Banco', descricao: '', observacao: '' });
 
   const inert = (label: string) => toast(`${label}: em breve`);
 
@@ -151,6 +173,7 @@ export default function CaixaPage() {
       (rec.formas || []).forEach((f) => add(f.forma || 'Outros', 'vendas', Number(f.valor || 0))),
     );
     if (detail?.suprimento) add('Dinheiro', 'sup', Number(detail.suprimento));
+    (detail?.movimentos || []).filter((m) => m.tipo === 'SUPRIMENTO').forEach((m) => add(m.forma || 'Dinheiro', 'sup', Number(m.valor || 0)));
     const linhas = Array.from(map.entries()).map(([forma, v]) => ({
       forma, vendas: v.vendas, sup: v.sup, resultado: v.vendas + v.sup,
     }));
@@ -159,6 +182,19 @@ export default function CaixaPage() {
       { vendas: 0, sup: 0, resultado: 0 },
     );
     return { linhas, tot };
+  }, [detail]);
+
+  // ---- Saldo em dinheiro (gaveta) ----
+  const saldoDinheiro = useMemo(() => {
+    if (!detail) return 0;
+    const cashRecebido = (detail.recebimentos || []).reduce(
+      (s, r) => s + (r.formas || []).filter((f) => ehDinheiro(f.forma)).reduce((a, f) => a + Number(f.valor || 0), 0),
+      0,
+    );
+    const movs = detail.movimentos || [];
+    const entradas = movs.filter((m) => m.tipo === 'SUPRIMENTO').reduce((s, m) => s + Number(m.valor || 0), 0);
+    const saidas = movs.filter((m) => m.tipo !== 'SUPRIMENTO').reduce((s, m) => s + Number(m.valor || 0), 0);
+    return Number(detail.suprimento || 0) + cashRecebido + entradas - saidas;
   }, [detail]);
 
   // ---- Recebimentos + saldo/status por venda ----
@@ -176,6 +212,21 @@ export default function CaixaPage() {
     if (pago > 0.001) return { label: 'Baixa parcial', bg: '#fdf6e3', fg: '#854F0B', saldo };
     return { label: 'Em atendimento', bg: '#fef0e8', fg: '#993C1D', saldo };
   };
+
+  // ---- Linhas de Movimentações (abertura + movimentos) ----
+  const movLinhas = useMemo(() => {
+    const linhas: { data: string; tipo: string; descricao: string; conta: string; forma: string; valor: number; entrada: boolean }[] = [];
+    if (detail?.suprimento && detail.suprimento > 0) {
+      linhas.push({ data: detail.abertura, tipo: 'Suprimento', descricao: `Abertura de caixa${detail.observacao ? ' — ' + detail.observacao : ''}`, conta: 'Caixa', forma: 'Dinheiro', valor: Number(detail.suprimento), entrada: true });
+    }
+    (detail?.movimentos || []).forEach((m) =>
+      linhas.push({
+        data: m.data, tipo: tipoLabel[m.tipo] || m.tipo, descricao: m.descricao || '—',
+        conta: m.conta || 'Caixa', forma: m.forma || '—', valor: Number(m.valor || 0), entrada: ehEntrada(m.tipo),
+      }),
+    );
+    return linhas.sort((a, b) => +new Date(b.data) - +new Date(a.data));
+  }, [detail]);
 
   // ---- Modal abrir ----
   const abrirCaixa = async () => {
@@ -239,9 +290,7 @@ export default function CaixaPage() {
         body: JSON.stringify({
           appointmentId: vendaSel.id,
           valorTotal: valorAplicado,
-          desconto,
-          troco,
-          formas,
+          desconto, troco, formas,
           observacao: obsReceb || null,
         }),
       });
@@ -252,6 +301,39 @@ export default function CaixaPage() {
       await fetchAppointments();
     } catch (e: any) {
       toast.error(e.message || 'Erro ao registrar recebimento');
+    }
+  };
+
+  // ---- Modal movimento ----
+  const abrirMov = (tipo: string) => {
+    setMovTipo(tipo);
+    setMovForm({ valor: '', forma: 'Dinheiro', conta: 'Banco', descricao: '', observacao: '' });
+    setMovOpen(true);
+  };
+
+  const registrarMovimento = async () => {
+    if (!detail) return;
+    const valor = Number(String(movForm.valor).replace(',', '.')) || 0;
+    if (valor <= 0) { toast.error('Informe o valor'); return; }
+    try {
+      const r = await fetch(`/api/caixa/${detail.id}/movimento`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tipo: movTipo,
+          valor,
+          forma: movForm.forma || null,
+          conta: movTipo === 'TRANSFERENCIA' ? movForm.conta : null,
+          descricao: movForm.descricao || null,
+          observacao: movForm.observacao || null,
+        }),
+      });
+      if (!r.ok) throw new Error('Erro ao registrar movimento');
+      toast.success(`${tipoLabel[movTipo]} registrada!`);
+      setMovOpen(false);
+      await fetchDetail(detail.id);
+    } catch (e: any) {
+      toast.error(e.message || 'Erro ao registrar movimento');
     }
   };
 
@@ -356,7 +438,7 @@ export default function CaixaPage() {
             {tab === 'resumo' && (
               <>
                 <div className="text-[15px] mb-2" style={{ color: '#0f2b32' }}>Valores recebidos no caixa</div>
-                <table className="w-full text-sm mb-6" style={{ borderCollapse: 'collapse' }}>
+                <table className="w-full text-sm mb-5" style={{ borderCollapse: 'collapse' }}>
                   <thead>
                     <tr className="text-slate-500" style={{ borderBottom: '0.5px solid #e1e8ea' }}>
                       <th className="text-left font-medium py-1.5 px-2">Forma de recebimento</th>
@@ -388,28 +470,38 @@ export default function CaixaPage() {
                   </tbody>
                 </table>
 
+                {/* Saldo em dinheiro */}
+                <div className="flex items-center justify-between rounded-lg px-3 py-2.5 mb-6" style={{ background: '#e8f7f9' }}>
+                  <span className="text-sm" style={{ color: '#0f6e7a' }}>Saldo em dinheiro (gaveta)</span>
+                  <span className="text-lg font-semibold" style={{ color: TEAL_DARK }}>{brl(saldoDinheiro)}</span>
+                </div>
+
                 <div className="text-[15px] mb-2" style={{ color: '#0f2b32' }}>Movimentações</div>
-                <table className="w-full text-sm mb-2" style={{ borderCollapse: 'collapse' }}>
+                <table className="w-full text-sm mb-3" style={{ borderCollapse: 'collapse' }}>
                   <thead>
                     <tr className="text-slate-500" style={{ borderBottom: '0.5px solid #e1e8ea' }}>
                       <th className="text-left font-medium py-1.5 px-2">Data</th>
                       <th className="text-left font-medium py-1.5 px-2">Tipo</th>
                       <th className="text-left font-medium py-1.5 px-2">Descrição</th>
+                      <th className="text-left font-medium py-1.5 px-2">Conta</th>
                       <th className="text-right font-medium py-1.5 px-2">Valor</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {detail.suprimento > 0 && (
-                      <tr style={{ borderBottom: '0.5px solid #f1f5f6' }}>
-                        <td className="py-2 px-2 text-slate-600">{dataHora(detail.abertura)}</td>
-                        <td className="py-2 px-2" style={{ color: '#0f6e7a' }}>Suprimento</td>
-                        <td className="py-2 px-2 text-slate-600">Abertura de caixa · fundo de troco{detail.observacao ? ` — ${detail.observacao}` : ''}</td>
-                        <td className="py-2 px-2 text-right">{brl(detail.suprimento)}</td>
+                    {movLinhas.length === 0 && (
+                      <tr><td colSpan={5} className="py-4 px-2 text-slate-400 text-center">Sem movimentações.</td></tr>
+                    )}
+                    {movLinhas.map((m, i) => (
+                      <tr key={i} style={{ borderBottom: '0.5px solid #f1f5f6' }}>
+                        <td className="py-2 px-2 text-slate-600">{dataHora(m.data)}</td>
+                        <td className="py-2 px-2" style={{ color: m.entrada ? '#0f6e56' : ORANGE }}>{m.tipo}</td>
+                        <td className="py-2 px-2 text-slate-600">{m.descricao}</td>
+                        <td className="py-2 px-2 text-slate-500">{m.conta}</td>
+                        <td className="py-2 px-2 text-right font-medium" style={{ color: m.entrada ? '#0f6e56' : ORANGE }}>
+                          {m.entrada ? '' : '− '}{brl(m.valor)}
+                        </td>
                       </tr>
-                    )}
-                    {detail.suprimento <= 0 && (
-                      <tr><td colSpan={4} className="py-4 px-2 text-slate-400 text-center">Sem movimentações.</td></tr>
-                    )}
+                    ))}
                   </tbody>
                 </table>
 
@@ -418,7 +510,7 @@ export default function CaixaPage() {
                   Crédito do pet ainda não disponível (depende de backend).
                 </div>
                 <div className="text-[11px] mt-3 rounded-lg px-3 py-2" style={{ background: '#fdf6e3', color: '#b08900' }}>
-                  Sangria, Despesa, Transferência, Reabrir e Créditos utilizados dependem de backend ainda não construído.
+                  Reabrir e Créditos utilizados dependem de backend ainda não construído.
                 </div>
               </>
             )}
@@ -491,10 +583,10 @@ export default function CaixaPage() {
             {/* Barra de ações */}
             <div className="flex gap-2 flex-wrap border-t pt-4 mt-5" style={{ borderColor: '#e1e8ea' }}>
               <button onClick={() => inert('Log')} className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-lg border" style={{ borderColor: '#d7e0e2', color: '#475569', background: '#fff' }}><LuHistory size={14} /> Log</button>
-              <button onClick={() => inert('Suprimento')} className="text-xs px-3 py-2 rounded-lg border" style={{ borderColor: '#d7e0e2', color: '#94a3b8', background: '#fff' }}>Suprimento</button>
-              <button onClick={() => inert('Sangria')} className="text-xs px-3 py-2 rounded-lg border" style={{ borderColor: '#d7e0e2', color: '#94a3b8', background: '#fff' }}>Sangria</button>
-              <button onClick={() => inert('Despesa')} className="text-xs px-3 py-2 rounded-lg border" style={{ borderColor: '#d7e0e2', color: '#94a3b8', background: '#fff' }}>Despesa</button>
-              <button onClick={() => inert('Transferência')} className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg border" style={{ borderColor: '#d7e0e2', color: '#94a3b8', background: '#fff' }}><LuArrowRightLeft size={14} /> Transferência</button>
+              <button onClick={() => abrirMov('SUPRIMENTO')} disabled={!aberto} className="text-xs font-medium px-3 py-2 rounded-lg text-white disabled:opacity-40" style={{ background: TEAL }}>Suprimento</button>
+              <button onClick={() => abrirMov('SANGRIA')} disabled={!aberto} className="text-xs font-medium px-3 py-2 rounded-lg border disabled:opacity-40" style={{ borderColor: ORANGE, color: ORANGE, background: '#fff' }}>Sangria</button>
+              <button onClick={() => abrirMov('DESPESA')} disabled={!aberto} className="text-xs font-medium px-3 py-2 rounded-lg border disabled:opacity-40" style={{ borderColor: ORANGE, color: ORANGE, background: '#fff' }}>Despesa</button>
+              <button onClick={() => abrirMov('TRANSFERENCIA')} disabled={!aberto} className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-lg border disabled:opacity-40" style={{ borderColor: TEAL_DARK, color: TEAL_DARK, background: '#fff' }}><LuArrowRightLeft size={14} /> Transferência</button>
               {!aberto && <button onClick={() => inert('Reabrir')} className="text-xs px-3 py-2 rounded-lg border" style={{ borderColor: '#d7e0e2', color: '#94a3b8', background: '#fff' }}>Reabrir</button>}
               <button onClick={() => window.print()} className="ml-auto flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-lg border" style={{ borderColor: TEAL_DARK, color: TEAL_DARK, background: '#fff' }}><LuPrinter size={14} /> Imprimir</button>
               {aberto && (
@@ -530,6 +622,58 @@ export default function CaixaPage() {
             <div className="flex justify-end gap-3 p-5 border-t" style={{ borderColor: '#eef2f3' }}>
               <button onClick={() => setAbrirOpen(false)} className="px-4 py-2.5 rounded-lg border text-slate-600" style={{ borderColor: '#d7e0e2' }}>Cancelar</button>
               <button onClick={abrirCaixa} className="px-5 py-2.5 rounded-lg text-white font-medium" style={{ background: TEAL }}>Abrir caixa</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL MOVIMENTO */}
+      {movOpen && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+            <div className="flex items-center justify-between p-5 border-b" style={{ borderColor: '#eef2f3' }}>
+              <h3 className="text-lg font-semibold" style={{ color: '#0f2b32' }}>{tipoLabel[movTipo]}</h3>
+              <button onClick={() => setMovOpen(false)}><LuX size={18} className="text-slate-400" /></button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="block text-sm text-slate-600 mb-1.5">Valor</label>
+                <input value={movForm.valor} onChange={(e) => setMovForm({ ...movForm, valor: e.target.value })}
+                  inputMode="decimal" placeholder="0,00"
+                  className="w-full px-3 py-2.5 border rounded-lg" style={{ borderColor: '#d7e0e2' }} />
+              </div>
+              {movTipo === 'TRANSFERENCIA' ? (
+                <div>
+                  <label className="block text-sm text-slate-600 mb-1.5">Conta destino</label>
+                  <select value={movForm.conta} onChange={(e) => setMovForm({ ...movForm, conta: e.target.value })}
+                    className="w-full px-3 py-2.5 border rounded-lg" style={{ borderColor: '#d7e0e2' }}>
+                    {CONTAS.filter((c) => c !== 'Caixa').map((c) => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-sm text-slate-600 mb-1.5">Forma</label>
+                  <select value={movForm.forma} onChange={(e) => setMovForm({ ...movForm, forma: e.target.value })}
+                    className="w-full px-3 py-2.5 border rounded-lg" style={{ borderColor: '#d7e0e2' }}>
+                    {FORMAS_PADRAO.map((f) => <option key={f} value={f}>{f}</option>)}
+                  </select>
+                </div>
+              )}
+              <div>
+                <label className="block text-sm text-slate-600 mb-1.5">Descrição</label>
+                <input value={movForm.descricao} onChange={(e) => setMovForm({ ...movForm, descricao: e.target.value })}
+                  placeholder={movTipo === 'DESPESA' ? 'Ex: Pagamento fornecedor' : movTipo === 'TRANSFERENCIA' ? 'Ex: Depósito no banco' : ''}
+                  className="w-full px-3 py-2.5 border rounded-lg" style={{ borderColor: '#d7e0e2' }} />
+              </div>
+              <div>
+                <label className="block text-sm text-slate-600 mb-1.5">Observação</label>
+                <input value={movForm.observacao} onChange={(e) => setMovForm({ ...movForm, observacao: e.target.value })}
+                  className="w-full px-3 py-2.5 border rounded-lg" style={{ borderColor: '#d7e0e2' }} />
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 p-5 border-t" style={{ borderColor: '#eef2f3' }}>
+              <button onClick={() => setMovOpen(false)} className="px-4 py-2.5 rounded-lg border text-slate-600" style={{ borderColor: '#d7e0e2' }}>Cancelar</button>
+              <button onClick={registrarMovimento} className="px-5 py-2.5 rounded-lg text-white font-medium" style={{ background: ehEntrada(movTipo) ? TEAL : TEAL_DARK }}>Confirmar</button>
             </div>
           </div>
         </div>

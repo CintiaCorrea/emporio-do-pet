@@ -2774,6 +2774,7 @@ model CaixaSessao {
   observacao   String?
   user         User          @relation("CaixaOperador", fields: [userId], references: [id])
   recebimentos Recebimento[]
+  movimentos   CaixaMovimento[]
   createdAt    DateTime      @default(now())
 
   @@index([status])
@@ -2797,4 +2798,22 @@ model Recebimento {
 
   @@index([caixaSessaoId])
   @@map("recebimentos")
+}
+
+model CaixaMovimento {
+  id            String      @id @default(uuid())
+  caixaSessaoId String
+  tipo          String
+  valor         Float       @default(0)
+  forma         String?
+  conta         String?
+  descricao     String?
+  observacao    String?
+  createdById   String?
+  data          DateTime    @default(now())
+  caixaSessao   CaixaSessao @relation(fields: [caixaSessaoId], references: [id], onDelete: Cascade)
+  createdAt     DateTime    @default(now())
+
+  @@index([caixaSessaoId])
+  @@map("caixa_movimentos")
 }
