@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import NovoAgendamentoModal from "@/components/agendamentos/NovoAgendamentoModal";
-import { LuChevronLeft, LuChevronRight, LuPlus, LuClock, LuUsers, LuFilter, LuCheck } from "react-icons/lu";
+import { LuChevronLeft, LuChevronRight, LuPlus, LuClock, LuUsers, LuFilter, LuCheck, LuSettings } from "react-icons/lu";
 import toast from "react-hot-toast";
 
 const HORAS = Array.from({ length: 12 }, (_, i) => i + 8);
@@ -13,7 +13,7 @@ const STATUS_COR: Record<string, { c: string; bg: string }> = {
   "Realizado": { c: "#3B6D11", bg: "#EAF3DE" }, "Atrasado": { c: "#A32D2D", bg: "#FCEBEB" },
   "Cancelado": { c: "#5F5E5A", bg: "#F1EFE8" }, "Faltou": { c: "#A32D2D", bg: "#FCEBEB" },
 };
-function corDe(st?: string) { return STATUS_COR[st || ""] || { c: "#5F5E5A", bg: "#F1EFE8" }; }
+function corDe(st?: string, cores?: any) { const base = STATUS_COR[st || ""] || { c: "#5F5E5A", bg: "#F1EFE8" }; return { c: base.c, bg: (cores && cores[st || ""]) || base.bg }; }
 function ymd(d: Date) { const p = (n: number) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`; }
 function hm(d: Date) { const p = (n: number) => String(n).padStart(2, "0"); return `${p(d.getHours())}:${p(d.getMinutes())}`; }
 function brl(v: number) { return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }); }
@@ -32,6 +32,7 @@ export default function AgendaPage() {
   const [novoDefaults, setNovoDefaults] = useState<any>(null);
   const [editAppt, setEditAppt] = useState<any>(null);
   const [hidden, setHidden] = useState<Set<string>>(new Set());
+  const [cfg, setCfg] = useState<any>(null);
 
   useEffect(() => { try { const s = localStorage.getItem("agenda_filas_hidden"); if (s) setHidden(new Set(JSON.parse(s))); } catch {} }, []);
   function persist(s: Set<string>) { try { localStorage.setItem("agenda_filas_hidden", JSON.stringify([...s])); } catch {} }
@@ -39,18 +40,23 @@ export default function AgendaPage() {
   async function load() {
     setLoading(true);
     try {
-      const [a, p] = await Promise.all([
+      const [a, p, c] = await Promise.all([
         fetch("/api/appointments?limit=1000", { cache: "no-store" }).then((r) => r.json()).catch(() => []),
         fetch("/api/profissionais", { cache: "no-store" }).then((r) => r.json()).catch(() => []),
+        fetch("/api/listas?lista=agenda_config", { cache: "no-store" }).then((r) => r.json()).catch(() => []),
       ]);
       setAppts(Array.isArray(a) ? a : (a.data || a.appointments || a.items || []));
       setProfs(Array.isArray(p) ? p : (p.data || p.items || []));
+      try { const arr = Array.isArray(c) ? c : (c.itens || c.data || []); if (arr[0]?.valor) setCfg(JSON.parse(arr[0].valor)); } catch {}
     } catch {}
     setLoading(false);
   }
   useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
 
-  const profsAtende = useMemo(() => profs.filter((p: any) => p.ativo !== false && !["RECEPCIONISTA", "GERENTE"].includes(p.tipo)), [profs]);
+  const profsAtende = useMemo(() => profs.filter((p: any) => p.ativo !== false && !["RECEPCIONISTA", "GERENTE"].includes(p.tipo) && !((cfg?.profsOcultos || []).includes(p.id))), [profs, cfg]);
+  const hIni = Number(cfg?.horaInicio ?? 8); const hFim = Number(cfg?.horaFim ?? 19);
+  const horas = useMemo(() => Array.from({ length: Math.max(hFim - hIni + 1, 1) }, (_, i) => i + hIni), [hIni, hFim]);
+  const slots = useMemo(() => (Number(cfg?.intervalo) === 30 ? [0, 30] : [0, 15, 30, 45]), [cfg]);
   const visiveis = useMemo(() => profsAtende.filter((p: any) => !hidden.has(p.id)), [profsAtende, hidden]);
 
   const diaStr = ymd(dia);
@@ -91,7 +97,8 @@ export default function AgendaPage() {
           <button onClick={() => toast("Visão semana chega numa próxima fatia")} className="text-[12px] px-3 py-1.5 rounded-md text-gray-500">Semana</button>
           <button onClick={() => toast("Visão mês chega numa próxima fatia")} className="text-[12px] px-3 py-1.5 rounded-md text-gray-500">Mês</button>
         </div>
-        <button onClick={() => { setEditAppt(null); setNovoDefaults({ date: diaStr }); setNovoOpen(true); }} className="text-[13px] px-3 py-1.5 rounded-lg text-white flex items-center gap-1.5" style={{ background: "#009AAC" }}><LuPlus size={15} /> Agendar</button>
+        <a href="/dashboard/erp/agendamentos/configuracoes" title="Configurações da agenda" className="w-8 h-8 rounded-lg border flex items-center justify-center text-gray-500 hover:text-[#009AAC]" style={{ borderColor: "#E8DFC8" }}><LuSettings size={16} /></a>
+        <button onClick={() => { setEditAppt(null); setNovoDefaults({ date: diaStr, duration: cfg?.duracaoPadrao }); setNovoOpen(true); }} className="text-[13px] px-3 py-1.5 rounded-lg text-white flex items-center gap-1.5" style={{ background: "#009AAC" }}><LuPlus size={15} /> Agendar</button>
       </div>
 
       {profsAtende.length > 0 ? (
@@ -130,12 +137,12 @@ export default function AgendaPage() {
                     </div>
                   ))}
                 </div>
-                {HORAS.flatMap((h) => [0, 15, 30, 45].map((m) => (
-                  <div key={`${h}-${m}`} className="grid" style={{ gridTemplateColumns: cols, borderBottom: m === 45 ? "0.5px solid #e2e6e0" : "0.5px dashed #f1f3ef", minHeight: "22px" }}>
+                {horas.flatMap((h) => slots.map((m) => (
+                  <div key={`${h}-${m}`} className="grid" style={{ gridTemplateColumns: cols, borderBottom: m === slots[slots.length - 1] ? "0.5px solid #e2e6e0" : "0.5px dashed #f1f3ef", minHeight: "22px" }}>
                     <div className="text-[10px] text-right pr-2 pt-0.5" style={{ color: m === 0 ? "#94a3b8" : "#cbd2cb" }}>{m === 0 ? `${String(h).padStart(2, "0")}:00` : `:${m}`}</div>
                     {visiveis.map((p: any) => (
-                      <div key={p.id} onClick={() => { if (!p.userId) { toast("Profissional sem login — cadastre o acesso em Configurações › Profissionais"); return; } setEditAppt(null); setNovoDefaults({ date: diaStr, time: `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`, userId: p.userId }); setNovoOpen(true); }} className="border-l p-0.5 cursor-pointer hover:bg-[#f9fbfb]" style={{ borderColor: "#eef0ec" }}>
-                        {apptsDe(p, h, m).map((a: any) => { const cor = corDe(a.status); const v = valorDe(a); const quem = a.pet?.name ? `${a.pet.name}${a.tutor?.name ? ` · ${a.tutor.name}` : ""}` : (a.tutor?.name || "Agendamento"); return (
+                      <div key={p.id} onClick={() => { if (!p.userId) { toast("Profissional sem login — cadastre o acesso em Configurações › Profissionais"); return; } setEditAppt(null); setNovoDefaults({ date: diaStr, time: `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`, userId: p.userId, duration: cfg?.duracaoPadrao }); setNovoOpen(true); }} className="border-l p-0.5 cursor-pointer hover:bg-[#f9fbfb]" style={{ borderColor: "#eef0ec" }}>
+                        {apptsDe(p, h, m).map((a: any) => { const cor = corDe(a.status, cfg?.cores); const v = valorDe(a); const quem = a.pet?.name ? `${a.pet.name}${a.tutor?.name ? ` · ${a.tutor.name}` : ""}` : (a.tutor?.name || "Agendamento"); return (
                           <div key={a.id} onClick={(e) => { e.stopPropagation(); setNovoDefaults(null); setEditAppt(a); setNovoOpen(true); }} title="Clique para editar" className="rounded-r-md px-2 py-1 mb-0.5 cursor-pointer" style={{ borderLeft: `3px solid ${cor.c}`, background: cor.bg }}>
                             <div className="flex items-center justify-between gap-1">
                               <span className="text-[11px] font-medium" style={{ color: cor.c }}>{hm(new Date(a.date))}</span>
