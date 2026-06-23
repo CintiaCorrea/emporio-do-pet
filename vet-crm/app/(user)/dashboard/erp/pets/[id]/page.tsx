@@ -23,7 +23,7 @@ import HistoricoAddGrid from "@/components/pets/HistoricoAddGrid";
 import PetProtocolosPanel from "@/components/pets/PetProtocolosPanel";
 import PetAtendimentoPanel from "@/components/pets/PetAtendimentoPanel";
 import PetFichaHeaderCard from "@/components/pets/PetFichaHeaderCard";
-import { LuPrinter, LuX } from "react-icons/lu";
+import { LuPrinter } from "react-icons/lu";
 import PetVendaPanel from "@/components/pets/PetVendaPanel";
 import PetClinicaTabela from "@/components/pets/PetClinicaTabela";
 import ConfirmDeleteModal from "@/components/common/ConfirmDeleteModal";
