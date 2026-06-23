@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import NovoAgendamentoModal from "@/components/agendamentos/NovoAgendamentoModal";
-import { LuChevronLeft, LuChevronRight, LuPlus, LuClock, LuUsers, LuFilter, LuCheck, LuSettings } from "react-icons/lu";
+import { LuChevronLeft, LuChevronRight, LuPlus, LuClock, LuUsers, LuFilter, LuCheck, LuSettings, LuCalendar } from "react-icons/lu";
 import toast from "react-hot-toast";
 
 const HORAS = Array.from({ length: 12 }, (_, i) => i + 8);
@@ -57,6 +57,9 @@ export default function AgendaPage() {
   const hIni = Number(cfg?.horaInicio ?? 8); const hFim = Number(cfg?.horaFim ?? 19);
   const horas = useMemo(() => Array.from({ length: Math.max(hFim - hIni + 1, 1) }, (_, i) => i + hIni), [hIni, hFim]);
   const slots = useMemo(() => (Number(cfg?.intervalo) === 30 ? [0, 30] : [0, 15, 30, 45]), [cfg]);
+  const wdAtual = dia.getDay();
+  function escDe(p: any) { let o: any = p?.escala; if (typeof o === "string") { try { o = JSON.parse(o); } catch { o = null; } } return o && typeof o === "object" ? o : null; }
+  function foraDoHorario(p: any, h: number, m: number) { const e = escDe(p); if (!e || !e.semana) return false; if (Array.isArray(e.bloqueios) && e.bloqueios.some((b: any) => b.inicio && diaStr >= b.inicio && (!b.fim || diaStr <= b.fim))) return true; const js = e.semana[String(wdAtual)] || []; if (js.length === 0) return true; const t = h * 60 + m; return !js.some((par: any) => { const a = (par[0] || "0:0").split(":"); const b = (par[1] || "0:0").split(":"); return t >= (+a[0]) * 60 + (+a[1]) && t < (+b[0]) * 60 + (+b[1]); }); }
   const visiveis = useMemo(() => profsAtende.filter((p: any) => !hidden.has(p.id)), [profsAtende, hidden]);
 
   const diaStr = ymd(dia);
@@ -97,6 +100,7 @@ export default function AgendaPage() {
           <button onClick={() => toast("Visão semana chega numa próxima fatia")} className="text-[12px] px-3 py-1.5 rounded-md text-gray-500">Semana</button>
           <button onClick={() => toast("Visão mês chega numa próxima fatia")} className="text-[12px] px-3 py-1.5 rounded-md text-gray-500">Mês</button>
         </div>
+        <a href="/dashboard/erp/agendamentos/escala" title="Escala" className="w-8 h-8 rounded-lg border flex items-center justify-center text-gray-500 hover:text-[#009AAC]" style={{ borderColor: "#E8DFC8" }}><LuCalendar size={16} /></a>
         <a href="/dashboard/erp/agendamentos/configuracoes" title="Configurações da agenda" className="w-8 h-8 rounded-lg border flex items-center justify-center text-gray-500 hover:text-[#009AAC]" style={{ borderColor: "#E8DFC8" }}><LuSettings size={16} /></a>
         <button onClick={() => { setEditAppt(null); setNovoDefaults({ date: diaStr, duration: cfg?.duracaoPadrao }); setNovoOpen(true); }} className="text-[13px] px-3 py-1.5 rounded-lg text-white flex items-center gap-1.5" style={{ background: "#009AAC" }}><LuPlus size={15} /> Agendar</button>
       </div>
@@ -141,7 +145,7 @@ export default function AgendaPage() {
                   <div key={`${h}-${m}`} className="grid" style={{ gridTemplateColumns: cols, borderBottom: m === slots[slots.length - 1] ? "0.5px solid #e2e6e0" : "0.5px dashed #f1f3ef", minHeight: "22px" }}>
                     <div className="text-[10px] text-right pr-2 pt-0.5" style={{ color: m === 0 ? "#94a3b8" : "#cbd2cb" }}>{m === 0 ? `${String(h).padStart(2, "0")}:00` : `:${m}`}</div>
                     {visiveis.map((p: any) => (
-                      <div key={p.id} onClick={() => { if (!p.userId) { toast("Profissional sem login — cadastre o acesso em Configurações › Profissionais"); return; } setEditAppt(null); setNovoDefaults({ date: diaStr, time: `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`, userId: p.userId, duration: cfg?.duracaoPadrao }); setNovoOpen(true); }} className="border-l p-0.5 cursor-pointer hover:bg-[#f9fbfb]" style={{ borderColor: "#eef0ec" }}>
+                      <div key={p.id} onClick={() => { if (!p.userId) { toast("Profissional sem login — cadastre o acesso em Configurações › Profissionais"); return; } setEditAppt(null); setNovoDefaults({ date: diaStr, time: `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`, userId: p.userId, duration: cfg?.duracaoPadrao }); setNovoOpen(true); }} className="border-l p-0.5 cursor-pointer hover:bg-[#f9fbfb]" style={{ borderColor: "#eef0ec", background: foraDoHorario(p, h, m) ? "repeating-linear-gradient(45deg,#f5f6f4,#f5f6f4 4px,#e9ebe6 4px,#e9ebe6 8px)" : undefined }}>
                         {apptsDe(p, h, m).map((a: any) => { const cor = corDe(a.status, cfg?.cores); const v = valorDe(a); const quem = a.pet?.name ? `${a.pet.name}${a.tutor?.name ? ` · ${a.tutor.name}` : ""}` : (a.tutor?.name || "Agendamento"); return (
                           <div key={a.id} onClick={(e) => { e.stopPropagation(); setNovoDefaults(null); setEditAppt(a); setNovoOpen(true); }} title="Clique para editar" className="rounded-r-md px-2 py-1 mb-0.5 cursor-pointer" style={{ borderLeft: `3px solid ${cor.c}`, background: cor.bg }}>
                             <div className="flex items-center justify-between gap-1">

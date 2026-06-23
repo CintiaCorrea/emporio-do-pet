@@ -43,6 +43,7 @@ export default function AgendaConfigPage() {
     <div className="p-4 max-w-3xl">
       <div className="flex items-center gap-4 border-b pb-2.5 mb-4" style={{ borderColor: "#E8DFC8" }}>
         <a href="/dashboard/erp/agendamentos/agenda" className="text-[14px] text-gray-500 flex items-center gap-1 hover:text-[#009AAC]"><LuArrowLeft size={15} /> Dia</a>
+        <a href="/dashboard/erp/agendamentos/escala" className="text-[14px] text-gray-500 hover:text-[#009AAC]">Escala</a>
         <span className="text-[14px] text-[#0F6E56] font-medium border-b-2 pb-2.5 -mb-2.5" style={{ borderColor: "#009AAC" }}>Configurações</span>
       </div>
 
