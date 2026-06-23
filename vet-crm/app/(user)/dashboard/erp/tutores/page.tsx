@@ -105,6 +105,7 @@ export default function ClientesPage() {
   const [apptStats, setApptStats] = useState<Record<string, { last?: string; ltv: number }>>({});
   const [filter, setFilter] = useState<Filter>("Cliente");
   const [search, setSearch] = useState("");
+  useEffect(() => { const q = new URLSearchParams(window.location.search).get("q"); if (q) setSearch(q); }, []);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
