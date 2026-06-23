@@ -3,6 +3,7 @@ import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { CaixaService } from './caixa.service';
 import { AbrirCaixaDto } from './dto/abrir-caixa.dto';
 import { RecebimentoDto } from './dto/recebimento.dto';
+import { MovimentoDto } from './dto/movimento.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 
@@ -36,5 +37,10 @@ export class CaixaController {
   @Post(':id/recebimento')
   receber(@Param('id') id: string, @Body() dto: RecebimentoDto, @CurrentUser('id') userId: string) {
     return this.service.registrarRecebimento(id, dto, userId);
+  }
+
+  @Post(':id/movimento')
+  movimento(@Param('id') id: string, @Body() dto: MovimentoDto, @CurrentUser('id') userId: string) {
+    return this.service.registrarMovimento(id, dto, userId);
   }
 }

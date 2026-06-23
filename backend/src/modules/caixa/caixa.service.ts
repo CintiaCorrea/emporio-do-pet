@@ -30,6 +30,7 @@ export class CaixaService {
           orderBy: { data: 'desc' },
           include: { appointment: { select: { id: true, value: true, pet: { select: { name: true } }, tutor: { select: { name: true } } } } },
         },
+        movimentos: { orderBy: { data: 'desc' } },
       },
     });
     if (!c) throw new NotFoundException('Caixa nao encontrado');
@@ -82,5 +83,22 @@ export class CaixaService {
       }
     }
     return rec;
+  }
+
+  async registrarMovimento(caixaId: string, dto: any, userId: string) {
+    const caixa = await this.prisma.caixaSessao.findUnique({ where: { id: caixaId } });
+    if (!caixa) throw new NotFoundException('Caixa nao encontrado');
+    return this.prisma.caixaMovimento.create({
+      data: {
+        caixaSessaoId: caixaId,
+        tipo: String(dto.tipo || 'SANGRIA').toUpperCase(),
+        valor: Number(dto.valor || 0),
+        forma: dto.forma || null,
+        conta: dto.conta || null,
+        descricao: dto.descricao || null,
+        observacao: dto.observacao || null,
+        createdById: userId,
+      },
+    });
   }
 }
