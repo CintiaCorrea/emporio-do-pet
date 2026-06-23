@@ -24,7 +24,7 @@ import HistoricoAddGrid from "@/components/pets/HistoricoAddGrid";
 import PetProtocolosPanel from "@/components/pets/PetProtocolosPanel";
 import PetAtendimentoPanel from "@/components/pets/PetAtendimentoPanel";
 import PetFichaHeaderCard from "@/components/pets/PetFichaHeaderCard";
-import { LuChevronDown } from "react-icons/lu";
+import { LuPrinter } from "react-icons/lu";
 import PetVendaPanel from "@/components/pets/PetVendaPanel";
 import PetClinicaTabela from "@/components/pets/PetClinicaTabela";
 import ConfirmDeleteModal from "@/components/common/ConfirmDeleteModal";
@@ -88,7 +88,6 @@ export default function PetDetailPage() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"HISTORICO" | "PROTOCOLOS" | "TIMELINE" | "AGENDA" | "VENDAS" | "CLINICA" | "PACOTES" | "EXAMES" | "RELACIONAMENTO">("HISTORICO");
   const [protoAuto, setProtoAuto] = useState(false);
-  const [maisOpen, setMaisOpen] = useState(false);
   const [delOpen, setDelOpen] = useState(false);
   const [tagsOpen, setTagsOpen] = useState(false);
   const [editClin, setEditClin] = useState(false);
@@ -123,12 +122,18 @@ export default function PetDetailPage() {
   const [vets, setVets] = useState<any[]>([]);
   const [atdOpen, setAtdOpen] = useState(false);
   const [savingAtd, setSavingAtd] = useState(false);
-  const [artefato, setArtefato] = useState<null | "PESO" | "OBS" | "RECEITA">(null);
+  const [artefato, setArtefato] = useState<null | "PESO" | "OBS" | "RECEITA" | "DOCUMENTO" | "VIDEO">(null);
   const [pesoVal, setPesoVal] = useState("");
   const [recModelos, setRecModelos] = useState<{ nome: string; corpo: string }[]>([]);
   const [recModeloNome, setRecModeloNome] = useState("");
   const [recCorpo, setRecCorpo] = useState("");
   const [recVetId, setRecVetId] = useState("");
+  const [docModelos, setDocModelos] = useState<{ nome: string; corpo: string }[]>([]);
+  const [docModeloNome, setDocModeloNome] = useState("");
+  const [docCorpo, setDocCorpo] = useState("");
+  const [docVetId, setDocVetId] = useState("");
+  const [vidUrl, setVidUrl] = useState("");
+  const [vidVetId, setVidVetId] = useState("");
   const [savingArt, setSavingArt] = useState(false);
   const ATD0 = { date: "", userId: "", type: "CONSULTA", status: "Realizado", duration: "30", chiefComplaint: "", anamnesis: "", physicalExam: "", petWeight: "", temperature: "", diagnosis: "", conduct: "", prescription: "", examsRequested: "", nextReturnDate: "", paymentMethod: "", followUpNotes: "", notes: "" };
   const [atd, setAtd] = useState<any>(ATD0);
@@ -220,6 +225,44 @@ export default function PetDetailPage() {
   async function salvarObsArt() {
     setSavingArt(true);
     try { await patchPet({ observations: obsVal }); toast.success("Observação salva"); setArtefato(null); await load(); } catch { toast.error("Erro ao salvar"); } finally { setSavingArt(false); }
+  }
+  async function abrirDocumento() {
+    setAtdOpen(false); setArtefato("DOCUMENTO"); setDocModeloNome(""); setDocCorpo(""); setDocVetId(vets[0]?.id || "");
+    try { const ms = await listasGet("documento_modelo"); const parsed = ms.map((i: any) => { let o: any = {}; try { o = JSON.parse(i.valor); } catch { o = { nome: i.valor, corpo: "" }; } return { nome: o.nome || i.valor, corpo: o.corpo || "" }; }); setDocModelos(parsed); } catch {}
+  }
+  async function salvarDocumento() {
+    if (!pet) return;
+    if (!docCorpo.trim()) { toast.error("Escreva ou escolha um modelo de documento"); return; }
+    if (!docVetId) { toast.error("Selecione o profissional"); return; }
+    setSavingArt(true);
+    try {
+      const body: any = { tutorId: pet.tutorId, petId: pet.id, userId: docVetId, date: new Date().toISOString(), type: "Documento", status: "Realizado", prescription: docCorpo };
+      if (docModeloNome) body.chiefComplaint = docModeloNome;
+      const r = await fetch("/api/appointments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (!r.ok) throw new Error(await r.text());
+      toast.success("Documento salvo"); setArtefato(null); await loadAtendimentos();
+    } catch { toast.error("Erro ao salvar documento"); } finally { setSavingArt(false); }
+  }
+  function abrirVideo() { setAtdOpen(false); setArtefato("VIDEO"); setVidUrl(""); setVidVetId(vets[0]?.id || ""); }
+  async function salvarVideo() {
+    if (!pet) return;
+    if (!vidUrl.trim()) { toast.error("Cole o link do vídeo"); return; }
+    setSavingArt(true);
+    try {
+      const body: any = { tutorId: pet.tutorId, petId: pet.id, userId: vidVetId || vets[0]?.id, date: new Date().toISOString(), type: "Video", status: "Realizado", prescription: vidUrl };
+      const r = await fetch("/api/appointments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (!r.ok) throw new Error(await r.text());
+      toast.success("Vídeo anexado"); setArtefato(null); await loadAtendimentos();
+    } catch { toast.error("Erro ao anexar vídeo"); } finally { setSavingArt(false); }
+  }
+  function imprimirFolha(titulo: string, corpo: string, vetNome: string) {
+    const tutorNome = (pet?.tutor?.name || pet?.tutorName || "");
+    const w = window.open("", "_blank", "width=800,height=900");
+    if (!w) { toast.error("Permita pop-ups para imprimir"); return; }
+    const esc = (t: string) => String(t || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const dt = new Date().toLocaleDateString("pt-BR");
+    w.document.write('<html><head><title>' + esc(titulo) + '</title><style>body{font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#0E2244;padding:40px;max-width:720px;margin:0 auto}h1{color:#014D5E;font-size:20px;margin:0 0 4px}.sub{color:#6B7280;font-size:12px;margin-bottom:18px}.who{font-size:13px;color:#475569;margin-bottom:14px}.box{white-space:pre-wrap;font-size:14px;line-height:1.6;border-top:2px solid #009AAC;padding-top:16px}.ft{margin-top:48px;font-size:12px;color:#6B7280;border-top:1px solid #ddd;padding-top:10px}</style></head><body><h1>Empório do Pet</h1><div class="sub">' + esc(titulo) + ' — ' + esc(dt) + '</div><div class="who">Pet: <b>' + esc(pet?.name || "") + '</b>' + (tutorNome ? ' · Tutor: ' + esc(tutorNome) : '') + (vetNome ? ' · Profissional: ' + esc(vetNome) : '') + '</div><div class="box">' + esc(corpo) + '</div><div class="ft">Documento gerado pelo sistema Empório do Pet</div></body></html>');
+    w.document.close(); w.focus(); setTimeout(function () { w.print(); }, 300);
   }
   async function abrirReceita() {
     setAtdOpen(false); setRecModeloNome(""); setRecCorpo("");
@@ -559,20 +602,12 @@ export default function PetDetailPage() {
                 { k: "TIMELINE", label: "Linha do tempo" },
                 { k: "AGENDA", label: "Agenda" },
                 { k: "VENDAS", label: "Vendas" },
+                { k: "PACOTES", label: "Pacotes" },
                 { k: "RELACIONAMENTO", label: "Relacionamento" },
               ] as const).map(t => (
                 <button key={t.k} onClick={() => setTab(t.k)} className="flex-1 px-4 py-3 text-sm font-medium border-b-2 transition" style={{ borderColor: tab === t.k ? "#009AAC" : "transparent", color: tab === t.k ? "#009AAC" : "#6B7280", background: tab === t.k ? "#f6fdfd" : "transparent" }}>{t.label}</button>
               ))}
-              <div className="relative">
-                <button onClick={() => setMaisOpen((v) => !v)} className="h-full px-4 py-3 text-sm font-medium border-b-2 transition flex items-center gap-1" style={{ borderColor: ["PACOTES"].includes(tab) ? "#009AAC" : "transparent", color: ["PACOTES"].includes(tab) ? "#009AAC" : "#6B7280" }}>Mais <LuChevronDown size={14} /></button>
-                {maisOpen && (
-                  <div className="absolute right-0 top-full z-20 mt-px bg-white border rounded-lg shadow-lg py-1 min-w-[140px]" style={{ borderColor: "#E8DFC8" }}>
-                    {([{ k: "PACOTES", label: "Pacotes" }] as const).map(t => (
-                      <button key={t.k} onClick={() => { setTab(t.k); setMaisOpen(false); }} className="block w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50" style={{ color: tab === t.k ? "#009AAC" : "#475569" }}>{t.label}</button>
-                    ))}
-                  </div>
-                )}
-              </div>
+
             </div>
           {tab === "HISTORICO" && (
             <div className="p-5">
@@ -613,6 +648,7 @@ export default function PetDetailPage() {
                       <div className="flex items-center justify-between border-b pb-2.5 mb-3" style={{ borderColor: "#E8DFC8" }}>
                         <h3 className="text-sm font-semibold" style={{ color: "#0E2244" }}>Receita</h3>
                         <div className="flex gap-2">
+                          <button onClick={() => imprimirFolha(recModeloNome || "Receita", recCorpo, vets.find((u: any) => u.id === recVetId)?.name || "")} className="px-3 py-1.5 rounded-lg text-xs border flex items-center gap-1" style={{ borderColor: "#E8DFC8", color: "#475569" }}><LuPrinter size={13} /> Imprimir</button>
                           <button onClick={salvarReceita} disabled={savingArt} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingArt ? "..." : "Salvar"}</button>
                           <button onClick={() => setArtefato(null)} className="px-3 py-1.5 rounded-lg text-xs border" style={{ borderColor: "#E8DFC8", color: "#475569" }}>Fechar</button>
                         </div>
@@ -636,14 +672,58 @@ export default function PetDetailPage() {
                       <textarea value={recCorpo} onChange={(e) => setRecCorpo(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8", minHeight: "160px" }} placeholder="Corpo da receita (escolha um modelo ou escreva)…" />
                       <p className="text-[11px] text-gray-400 mt-2">Ao salvar, entra na timeline como atendimento "Receitas". Modelos editáveis em Configurações › Modelos de Receita.</p>
                     </div>
+                  ) : artefato === "DOCUMENTO" ? (
+                    <div className="bg-white">
+                      <div className="flex items-center justify-between border-b pb-2.5 mb-3" style={{ borderColor: "#E8DFC8" }}>
+                        <h3 className="text-sm font-semibold" style={{ color: "#0E2244" }}>Documento</h3>
+                        <div className="flex gap-2">
+                          <button onClick={() => imprimirFolha(docModeloNome || "Documento", docCorpo, vets.find((u: any) => u.id === docVetId)?.name || "")} className="px-3 py-1.5 rounded-lg text-xs border flex items-center gap-1" style={{ borderColor: "#E8DFC8", color: "#475569" }}><LuPrinter size={13} /> Imprimir</button>
+                          <button onClick={salvarDocumento} disabled={savingArt} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingArt ? "..." : "Salvar"}</button>
+                          <button onClick={() => setArtefato(null)} className="px-3 py-1.5 rounded-lg text-xs border" style={{ borderColor: "#E8DFC8", color: "#475569" }}>Fechar</button>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 mb-2">
+                        <div>
+                          <label className="text-xs text-gray-500">Modelo</label>
+                          <select value={docModeloNome} onChange={(e) => { const nm = e.target.value; setDocModeloNome(nm); const m = docModelos.find((x) => x.nome === nm); if (m && m.corpo) setDocCorpo(m.corpo); }} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }}>
+                            <option value="">Selecione o modelo…</option>
+                            {docModelos.map((m) => <option key={m.nome} value={m.nome}>{m.nome}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-500">Profissional</label>
+                          <select value={docVetId} onChange={(e) => setDocVetId(e.target.value)} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }}>
+                            <option value="">Selecionar...</option>
+                            {vets.map((u: any) => <option key={u.id} value={u.id}>{u.name}</option>)}
+                          </select>
+                        </div>
+                      </div>
+                      <textarea value={docCorpo} onChange={(e) => setDocCorpo(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8", minHeight: "160px" }} placeholder="Corpo do documento (escolha um modelo ou escreva)…" />
+                      <p className="text-[11px] text-gray-400 mt-2">Ao salvar, entra na timeline como "Documento". Modelos editáveis em Configurações › Modelos de Documento.</p>
+                    </div>
+                  ) : artefato === "VIDEO" ? (
+                    <div className="bg-white">
+                      <div className="flex items-center justify-between border-b pb-2.5 mb-3" style={{ borderColor: "#E8DFC8" }}>
+                        <h3 className="text-sm font-semibold" style={{ color: "#0E2244" }}>Vídeo (link)</h3>
+                        <div className="flex gap-2">
+                          <button onClick={salvarVideo} disabled={savingArt} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingArt ? "..." : "Salvar"}</button>
+                          <button onClick={() => setArtefato(null)} className="px-3 py-1.5 rounded-lg text-xs border" style={{ borderColor: "#E8DFC8", color: "#475569" }}>Fechar</button>
+                        </div>
+                      </div>
+                      <label className="text-xs text-gray-500">Link do vídeo (YouTube, Drive, etc.)</label>
+                      <input value={vidUrl} onChange={(e) => setVidUrl(e.target.value)} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }} placeholder="https://…" />
+                      <p className="text-[11px] text-gray-400 mt-2">Cole o link do vídeo. Upload de arquivo (Exame/Fotos) entra quando o Cloudinary estiver ativo.</p>
+                    </div>
                   ) : (
-                    <HistoricoAddGrid ready={["Atendimento", "Peso", "Vacina", "Internação", "Observação", "Receita"]} onPick={(k) => {
+                    <HistoricoAddGrid ready={["Atendimento", "Peso", "Vacina", "Documento", "Receita", "Vídeo", "Internação", "Observação"]} onPick={(k) => {
                       if (k === "Atendimento") { setArtefato(null); setAtd(ATD0); setItems([]); setAtdOpen(true); }
                       else if (k === "Vacina") { setTab("PROTOCOLOS"); setProtoAuto(true); }
                       else if (k === "Internação") { router.push("/dashboard/erp/internacoes"); }
                       else if (k === "Peso") { setPesoVal(pet?.weight ? String(pet.weight) : ""); setAtdOpen(false); setArtefato("PESO"); }
                       else if (k === "Observação") { setObsVal(pet?.observations || ""); setAtdOpen(false); setArtefato("OBS"); }
                       else if (k === "Receita") { abrirReceita(); }
+                      else if (k === "Documento") { abrirDocumento(); }
+                      else if (k === "Vídeo") { abrirVideo(); }
                       else { toast(`${k} — em construção (chega numa próxima fatia)`); }
                     }} />
                   )}
