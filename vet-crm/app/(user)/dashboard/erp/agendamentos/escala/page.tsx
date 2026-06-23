@@ -56,7 +56,7 @@ export default function EscalaPage() {
     <div className="p-4">
       <div className="flex items-center gap-4 border-b pb-2.5 mb-4" style={{ borderColor: "#E8DFC8" }}>
         <a href="/dashboard/erp/agendamentos/agenda" className="text-[14px] text-gray-500 flex items-center gap-1 hover:text-[#009AAC]"><LuArrowLeft size={15} /> Dia</a>
-        <span className="text-[14px] text-[#0F6E56] font-medium border-b-2 pb-2.5 -mb-2.5" style={{ borderColor: "#009AAC" }}>Escala</span>
+        <span className="text-[14px] text-[#014D5E] font-medium border-b-2 pb-2.5 -mb-2.5" style={{ borderColor: "#009AAC" }}>Escala</span>
         <a href="/dashboard/erp/agendamentos/configuracoes" className="text-[14px] text-gray-500 flex items-center gap-1 hover:text-[#009AAC]"><LuSettings size={14} /> Configurações</a>
       </div>
 
@@ -64,7 +64,7 @@ export default function EscalaPage() {
         <div className={card} style={{ borderColor: "#E8DFC8" }}>
           <p className="text-[12px] text-gray-400 mb-2">Profissionais</p>
           {profs.length === 0 ? <p className="text-[13px] text-gray-400">Cadastre em Configurações › Profissionais.</p> : profs.map((p) => (
-            <button key={p.id} onClick={() => escolher(p)} className="w-full text-left px-2.5 py-2 rounded-lg text-[14px] mb-0.5" style={sel === p.id ? { background: "#E1F5EE", color: "#0F6E56", fontWeight: 500 } : { color: "#475569" }}>
+            <button key={p.id} onClick={() => escolher(p)} className="w-full text-left px-2.5 py-2 rounded-lg text-[14px] mb-0.5" style={sel === p.id ? { background: "#E1F3F5", color: "#014D5E", fontWeight: 500 } : { color: "#475569" }}>
               {p.nomeExibicao || p.nomeCompleto}
             </button>
           ))}
@@ -80,11 +80,11 @@ export default function EscalaPage() {
                   <div key={wd} className="flex items-center gap-2 flex-wrap">
                     <span className="w-9 text-[13px] text-gray-500">{lbl}</span>
                     {js.length === 0 ? <span className="text-[12px] text-gray-400 italic">Folga</span> : js.map((par, i) => (
-                      <span key={i} className="inline-flex items-center gap-1 bg-[#E1F5EE] rounded-lg px-2 py-1">
+                      <span key={i} className="inline-flex items-center gap-1 bg-[#E1F3F5] rounded-lg px-2 py-1">
                         <input type="time" step={900} value={par[0]} onChange={(e) => setJanela(wd, i, 0, e.target.value)} className={inpT + " bg-transparent border-0 px-0 py-0"} />
-                        <span className="text-[#0F6E56]">–</span>
+                        <span className="text-[#014D5E]">–</span>
                         <input type="time" step={900} value={par[1]} onChange={(e) => setJanela(wd, i, 1, e.target.value)} className={inpT + " bg-transparent border-0 px-0 py-0"} />
-                        <button onClick={() => rmJanela(wd, i)} className="text-[#0F6E56]"><LuTrash2 size={13} /></button>
+                        <button onClick={() => rmJanela(wd, i)} className="text-[#014D5E]"><LuTrash2 size={13} /></button>
                       </span>
                     ))}
                     <button onClick={() => addJanela(wd)} className="text-[12px] text-[#009AAC] inline-flex items-center gap-0.5"><LuPlus size={13} /> janela</button>
