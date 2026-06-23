@@ -44,7 +44,7 @@ export default function AgendaConfigPage() {
       <div className="flex items-center gap-4 border-b pb-2.5 mb-4" style={{ borderColor: "#E8DFC8" }}>
         <a href="/dashboard/erp/agendamentos/agenda" className="text-[14px] text-gray-500 flex items-center gap-1 hover:text-[#009AAC]"><LuArrowLeft size={15} /> Dia</a>
         <a href="/dashboard/erp/agendamentos/escala" className="text-[14px] text-gray-500 hover:text-[#009AAC]">Escala</a>
-        <span className="text-[14px] text-[#0F6E56] font-medium border-b-2 pb-2.5 -mb-2.5" style={{ borderColor: "#009AAC" }}>Configurações</span>
+        <span className="text-[14px] text-[#014D5E] font-medium border-b-2 pb-2.5 -mb-2.5" style={{ borderColor: "#009AAC" }}>Configurações</span>
       </div>
 
       <div className={card} style={{ borderColor: "#E8DFC8" }}>
@@ -65,7 +65,7 @@ export default function AgendaConfigPage() {
           return (
             <div key={p.id} className="flex items-center justify-between py-2 border-b last:border-0" style={{ borderColor: "#eef0ec" }}>
               <span className="text-[14px]">{p.nomeExibicao || p.nomeCompleto}{p.especialidade ? <span className="text-[12px] text-gray-400"> · {p.especialidade}</span> : null}{!p.userId ? <span className="text-[12px] text-amber-600"> · sem login</span> : null}</span>
-              <button onClick={() => toggleProf(p.id)} aria-label="Alternar" className="w-[38px] h-[22px] rounded-full relative transition" style={{ background: on ? "#1D9E75" : "#d8d0bc" }}><span className="absolute top-[2px] w-[18px] h-[18px] rounded-full bg-white transition-all" style={{ left: on ? "18px" : "2px" }} /></button>
+              <button onClick={() => toggleProf(p.id)} aria-label="Alternar" className="w-[38px] h-[22px] rounded-full relative transition" style={{ background: on ? "#009AAC" : "#d8d0bc" }}><span className="absolute top-[2px] w-[18px] h-[18px] rounded-full bg-white transition-all" style={{ left: on ? "18px" : "2px" }} /></button>
             </div>
           );
         })}
