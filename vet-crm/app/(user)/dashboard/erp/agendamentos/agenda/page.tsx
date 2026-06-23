@@ -30,6 +30,7 @@ export default function AgendaPage() {
   const [loading, setLoading] = useState(true);
   const [novoOpen, setNovoOpen] = useState(false);
   const [novoDefaults, setNovoDefaults] = useState<any>(null);
+  const [editAppt, setEditAppt] = useState<any>(null);
   const [hidden, setHidden] = useState<Set<string>>(new Set());
 
   useEffect(() => { try { const s = localStorage.getItem("agenda_filas_hidden"); if (s) setHidden(new Set(JSON.parse(s))); } catch {} }, []);
@@ -61,7 +62,7 @@ export default function AgendaPage() {
     if (!profUserIds.has(a.userId)) { const an = norm(a.user?.name); if (an && (an === norm(prof.nomeCompleto) || an === norm(prof.nomeExibicao))) return true; }
     return false;
   }
-  function apptsDe(prof: any, hora: number) { return doDia.filter((a: any) => ehDoProf(a, prof) && new Date(a.date).getHours() === hora); }
+  function apptsDe(prof: any, hora: number, minuto: number) { return doDia.filter((a: any) => { if (!ehDoProf(a, prof)) return false; const d = new Date(a.date); return d.getHours() === hora && Math.floor(d.getMinutes() / 15) * 15 === minuto; }); }
   const doDiaVis = useMemo(() => doDia.filter((a: any) => visiveis.some((p: any) => ehDoProf(a, p))), [doDia, visiveis, profUserIds]);
   const previsao = useMemo(() => doDiaVis.reduce((s: number, a: any) => s + valorDe(a), 0), [doDiaVis]);
   const espera = useMemo(() => doDiaVis.filter((a: any) => ["Em espera", "Aguardando", "Em atendimento"].includes(a.status)), [doDiaVis]);
@@ -90,7 +91,7 @@ export default function AgendaPage() {
           <button onClick={() => toast("Visão semana chega numa próxima fatia")} className="text-[12px] px-3 py-1.5 rounded-md text-gray-500">Semana</button>
           <button onClick={() => toast("Visão mês chega numa próxima fatia")} className="text-[12px] px-3 py-1.5 rounded-md text-gray-500">Mês</button>
         </div>
-        <button onClick={() => { setNovoDefaults({ date: diaStr }); setNovoOpen(true); }} className="text-[13px] px-3 py-1.5 rounded-lg text-white flex items-center gap-1.5" style={{ background: "#009AAC" }}><LuPlus size={15} /> Agendar</button>
+        <button onClick={() => { setEditAppt(null); setNovoDefaults({ date: diaStr }); setNovoOpen(true); }} className="text-[13px] px-3 py-1.5 rounded-lg text-white flex items-center gap-1.5" style={{ background: "#009AAC" }}><LuPlus size={15} /> Agendar</button>
       </div>
 
       {profsAtende.length > 0 ? (
@@ -129,25 +130,25 @@ export default function AgendaPage() {
                     </div>
                   ))}
                 </div>
-                {HORAS.map((h) => (
-                  <div key={h} className="grid border-b" style={{ gridTemplateColumns: cols, borderColor: "#eef0ec", minHeight: "56px" }}>
-                    <div className="text-[11px] text-gray-400 text-right pr-2 pt-1.5">{String(h).padStart(2, "0")}:00</div>
+                {HORAS.flatMap((h) => [0, 15, 30, 45].map((m) => (
+                  <div key={`${h}-${m}`} className="grid" style={{ gridTemplateColumns: cols, borderBottom: m === 45 ? "0.5px solid #e2e6e0" : "0.5px dashed #f1f3ef", minHeight: "22px" }}>
+                    <div className="text-[10px] text-right pr-2 pt-0.5" style={{ color: m === 0 ? "#94a3b8" : "#cbd2cb" }}>{m === 0 ? `${String(h).padStart(2, "0")}:00` : `:${m}`}</div>
                     {visiveis.map((p: any) => (
-                      <div key={p.id} onClick={() => { if (!p.userId) { toast("Profissional sem login — cadastre o acesso em Configurações › Profissionais"); return; } setNovoDefaults({ date: diaStr, time: `${String(h).padStart(2, "0")}:00`, userId: p.userId }); setNovoOpen(true); }} className="border-l p-1 cursor-pointer hover:bg-[#f9fbfb]" style={{ borderColor: "#eef0ec" }}>
-                        {apptsDe(p, h).map((a: any) => { const cor = corDe(a.status); const v = valorDe(a); return (
-                          <div key={a.id} onClick={(e) => e.stopPropagation()} className="rounded-r-md px-2 py-1.5 mb-1" style={{ borderLeft: `3px solid ${cor.c}`, background: cor.bg }}>
+                      <div key={p.id} onClick={() => { if (!p.userId) { toast("Profissional sem login — cadastre o acesso em Configurações › Profissionais"); return; } setEditAppt(null); setNovoDefaults({ date: diaStr, time: `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`, userId: p.userId }); setNovoOpen(true); }} className="border-l p-0.5 cursor-pointer hover:bg-[#f9fbfb]" style={{ borderColor: "#eef0ec" }}>
+                        {apptsDe(p, h, m).map((a: any) => { const cor = corDe(a.status); const v = valorDe(a); const quem = a.pet?.name ? `${a.pet.name}${a.tutor?.name ? ` · ${a.tutor.name}` : ""}` : (a.tutor?.name || "Agendamento"); return (
+                          <div key={a.id} onClick={(e) => { e.stopPropagation(); setNovoDefaults(null); setEditAppt(a); setNovoOpen(true); }} title="Clique para editar" className="rounded-r-md px-2 py-1 mb-0.5 cursor-pointer" style={{ borderLeft: `3px solid ${cor.c}`, background: cor.bg }}>
                             <div className="flex items-center justify-between gap-1">
                               <span className="text-[11px] font-medium" style={{ color: cor.c }}>{hm(new Date(a.date))}</span>
                               {v > 0 ? <span className="text-[10px] font-medium" style={{ color: "#0F6E56" }}>{brl(v)}</span> : null}
                             </div>
-                            <div className="text-[12px] font-medium truncate" style={{ color: "#0E2244" }}>{a.pet?.name || a.tutor?.name || "Agendamento"}</div>
+                            <div className="text-[12px] font-medium truncate" style={{ color: "#0E2244" }}>{quem}</div>
                             <div className="text-[10px] truncate" style={{ color: cor.c }}>{a.type || "Atendimento"}{a.status ? ` · ${a.status}` : ""}</div>
                           </div>
                         ); })}
                       </div>
                     ))}
                   </div>
-                ))}
+                )))}
               </div>
             </div>
           )}
@@ -173,7 +174,7 @@ export default function AgendaPage() {
               {espera.map((a: any) => (
                 <div key={a.id} className="rounded-lg px-2.5 py-2" style={{ background: "#FAEEDA" }}>
                   <div className="flex items-center justify-between">
-                    <span className="text-[12px] font-medium" style={{ color: "#0E2244" }}>{a.pet?.name || a.tutor?.name || "—"}</span>
+                    <span className="text-[12px] font-medium" style={{ color: "#0E2244" }}>{a.pet?.name ? `${a.pet.name}${a.tutor?.name ? ` · ${a.tutor.name}` : ""}` : (a.tutor?.name || "—")}</span>
                     <span className="text-[10px] flex items-center gap-1" style={{ color: "#854F0B" }}><LuClock size={11} /> {esperaDesde(a)}</span>
                   </div>
                   <div className="text-[10px]" style={{ color: "#854F0B" }}>{a.type || "Atendimento"} · {a.user?.name || ""}</div>
@@ -184,7 +185,7 @@ export default function AgendaPage() {
         </aside>
       </div>
 
-      <NovoAgendamentoModal open={novoOpen} defaults={novoDefaults} onClose={() => { setNovoOpen(false); setNovoDefaults(null); }} onCreated={() => { setNovoOpen(false); setNovoDefaults(null); load(); }} />
+      <NovoAgendamentoModal open={novoOpen} defaults={novoDefaults} editAppt={editAppt} onClose={() => { setNovoOpen(false); setNovoDefaults(null); setEditAppt(null); }} onCreated={() => { setNovoOpen(false); setNovoDefaults(null); setEditAppt(null); load(); }} />
     </div>
   );
 }

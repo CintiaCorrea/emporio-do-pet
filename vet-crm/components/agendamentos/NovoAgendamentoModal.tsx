@@ -1,10 +1,9 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { LuX, LuSearch, LuRepeat, LuPlus, LuTrash2, LuCheck, LuUserPlus } from "react-icons/lu";
 
 type Defaults = { date?: string; time?: string; userId?: string } | null;
-type Props = { open: boolean; onClose: () => void; onCreated?: () => void; defaults?: Defaults };
+type Props = { open: boolean; onClose: () => void; onCreated?: () => void; defaults?: Defaults; editAppt?: any };
 
 const STATUS = ["Agendado", "Confirmado", "Em espera", "Em atendimento", "Atendido", "Animal pronto", "Atrasado", "Cancelado"];
 const DURACOES = [10, 15, 20, 30, 40, 45, 60, 90, 120];
@@ -14,7 +13,7 @@ const TIPOS_FALLBACK = ["Consulta Clínica", "Consulta Integrativa", "Consulta F
 const lbl = "text-[11px] text-[#6b7280] block mb-1";
 const inp = "w-full border border-[#d8d0bc] rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]";
 
-export default function NovoAgendamentoModal({ open, onClose, onCreated, defaults }: Props) {
+export default function NovoAgendamentoModal({ open, onClose, onCreated, defaults, editAppt }: Props) {
   const [step, setStep] = useState(1);
   const [tutors, setTutors] = useState<any[]>([]);
   const [profs, setProfs] = useState<any[]>([]);
@@ -36,6 +35,11 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
   const [dias, setDias] = useState<string[]>([]);
   const [ate, setAte] = useState("");
   const [saving, setSaving] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [novoCli, setNovoCli] = useState(false);
+  const [nNome, setNNome] = useState("");
+  const [nTel, setNTel] = useState("");
+  const [savingCli, setSavingCli] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -51,18 +55,30 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
     })();
   }, [open]);
 
-  useEffect(() => { if (open && defaults) { if (defaults.date) setDate(defaults.date); if (defaults.time) setTime(defaults.time); if (defaults.userId) setUserId(defaults.userId); } }, [open, defaults]);
+  useEffect(() => {
+    if (!open) return;
+    if (editAppt) {
+      const dd = new Date(editAppt.date); const z = (n: number) => String(n).padStart(2, "0");
+      setEditId(editAppt.id); setStep(2);
+      setTutor(editAppt.tutor || { id: editAppt.tutorId, name: editAppt.tutor?.name || "Cliente" });
+      setPetId(editAppt.pet?.id || editAppt.petId || ""); setUserId(editAppt.userId || "");
+      setType(editAppt.type || ""); setStatus(editAppt.status || "Agendado");
+      setDate(`${dd.getFullYear()}-${z(dd.getMonth() + 1)}-${z(dd.getDate())}`); setTime(`${z(dd.getHours())}:${z(dd.getMinutes())}`);
+      setDuration(editAppt.duration || 30); setObs(editAppt.notes || "");
+    } else if (defaults) { if (defaults.date) setDate(defaults.date); if (defaults.time) setTime(defaults.time); if (defaults.userId) setUserId(defaults.userId); }
+  }, [open, editAppt, defaults]);
 
   useEffect(() => {
     if (!tutor) { setPets([]); setPetId(""); return; }
-    (async () => { try { const r = await fetch(`/api/tutors/${tutor.id}/pets`); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.pets || d.data || []); setPets(arr); setPetId(arr.length === 1 ? arr[0].id : ""); } catch { setPets([]); } })();
+    (async () => { try { const r = await fetch(`/api/tutors/${tutor.id}/pets`); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.pets || d.data || []); setPets(arr); setPetId((cur) => cur || (arr.length === 1 ? arr[0].id : "")); } catch { setPets([]); } })();
   }, [tutor]);
 
-  const telOf = (t: any) => (t?.contacts?.[0]?.value) || t?.phone || "";
-  const resultados = useMemo(() => { const q = busca.trim().toLowerCase(); if (q.length < 2) return []; const qn = busca.replace(/\D/g, ""); return tutors.filter((t: any) => (t.name || "").toLowerCase().includes(q) || (qn && telOf(t).replace(/\D/g, "").includes(qn))).slice(0, 25); }, [busca, tutors]);
+  const telOf = (t: any) => (t?.contacts?.[0]?.number) || (t?.contacts?.[0]?.value) || t?.phone || "";
+  const petNomes = (t: any) => (t?.pets || []).map((p: any) => p.name).filter(Boolean);
+  const resultados = useMemo(() => { const q = busca.trim().toLowerCase(); if (q.length < 2) return []; const qn = busca.replace(/\D/g, ""); return tutors.filter((t: any) => (t.name || "").toLowerCase().includes(q) || (qn && telOf(t).replace(/\D/g, "").includes(qn)) || petNomes(t).some((n: string) => n.toLowerCase().includes(q))).slice(0, 25); }, [busca, tutors]);
   const previsao = itens.reduce((s, it) => s + (Number(it.valor) || 0), 0);
 
-  function reset() { setStep(1); setBusca(""); setTutor(null); setPets([]); setPetId(""); setUserId(""); setType(""); setDate(""); setTime(""); setDuration(30); setStatus("Agendado"); setObs(""); setItens([]); setRecOn(false); setFreq("7"); setDias([]); setAte(""); }
+  function reset() { setStep(1); setEditId(null); setNovoCli(false); setNNome(""); setNTel(""); setBusca(""); setTutor(null); setPets([]); setPetId(""); setUserId(""); setType(""); setDate(""); setTime(""); setDuration(30); setStatus("Agendado"); setObs(""); setItens([]); setRecOn(false); setFreq("7"); setDias([]); setAte(""); }
   function fechar() { reset(); onClose(); }
   function escolherTutor(t: any) { setTutor(t); setStep(2); }
   function toggleDia(d: string) { setDias((p) => p.includes(d) ? p.filter((x) => x !== d) : [...p, d]); }
@@ -94,17 +110,38 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
     if (!tutor || !petId || !userId || !date || !time) { alert("Preencha cliente, pet, profissional, data e horário."); return; }
     setSaving(true);
     try {
-      const datas = datasRecorrentes();
-      for (const d of datas) {
-        const body: any = { tutorId: tutor.id, petId, userId, date: d.toISOString(), type: type || "Consulta", status, duration: Number(duration) || 30 };
-        if (obs) body.notes = obs;
-        const its = itens.filter((i) => i.descricao || i.valor).map((i) => ({ descricao: i.descricao || "Item", quantidade: 1, valorUnitario: Number(i.valor) || 0 }));
-        if (its.length) body.items = its;
-        const res = await fetch("/api/appointments", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(body) });
+      if (editId) {
+        const body: any = { petId, userId, date: new Date(`${date}T${time}`).toISOString(), type: type || "Consulta", status, duration: Number(duration) || 30, notes: obs };
+        const res = await fetch(`/api/appointments/${editId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(body) });
         if (!res.ok) throw new Error();
+      } else {
+        for (const d of datasRecorrentes()) {
+          const body: any = { tutorId: tutor.id, petId, userId, date: d.toISOString(), type: type || "Consulta", status, duration: Number(duration) || 30 };
+          if (obs) body.notes = obs;
+          const its = itens.filter((i) => i.descricao || i.valor).map((i) => ({ descricao: i.descricao || "Item", quantidade: 1, valorUnitario: Number(i.valor) || 0 }));
+          if (its.length) body.items = its;
+          const res = await fetch("/api/appointments", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(body) });
+          if (!res.ok) throw new Error();
+        }
       }
       fechar(); if (onCreated) onCreated();
     } catch { alert("Erro ao criar agendamento. Tente novamente."); } finally { setSaving(false); }
+  };
+
+  const excluir = async () => {
+    if (!editId || !confirm("Excluir este agendamento?")) return;
+    setSaving(true);
+    try { const res = await fetch(`/api/appointments/${editId}`, { method: "DELETE", credentials: "include" }); if (!res.ok) throw new Error(); fechar(); if (onCreated) onCreated(); }
+    catch { alert("Erro ao excluir."); } finally { setSaving(false); }
+  };
+  const cadastrarCli = async () => {
+    if (!nNome.trim() || nTel.replace(/\D/g, "").length < 8) { alert("Informe nome e telefone."); return; }
+    setSavingCli(true);
+    try {
+      const res = await fetch("/api/tutors", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ name: nNome.trim(), contacts: [{ type: "MOBILE", number: nTel.replace(/\D/g, ""), isPrimary: true, isWhatsApp: true }] }) });
+      const novo = await res.json(); if (!res.ok || !novo?.id) throw new Error();
+      setTutors((p) => [novo, ...p]); setNovoCli(false); setNNome(""); setNTel(""); escolherTutor(novo);
+    } catch { alert("Erro ao cadastrar cliente."); } finally { setSavingCli(false); }
   };
 
   if (!open) return null;
@@ -113,37 +150,49 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50" onClick={fechar}>
       <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="px-5 py-4 border-b flex items-center gap-2" style={{ borderColor: "#eef0e6" }}>
-          <h3 className="text-base font-semibold text-[#014D5E]">Novo agendamento</h3>
-          {step === 2 ? <span className="text-[11px] text-[#0F6E56] bg-[#E1F5EE] px-2 py-0.5 rounded-full">passo 2 · preencher</span> : <span className="text-[11px] text-[#6b7280]">passo 1 · localizar cliente</span>}
+          <h3 className="text-base font-semibold text-[#014D5E]">{editId ? "Editar agendamento" : "Novo agendamento"}</h3>
+          {editId ? null : step === 2 ? <span className="text-[11px] text-[#0F6E56] bg-[#E1F5EE] px-2 py-0.5 rounded-full">passo 2 · preencher</span> : <span className="text-[11px] text-[#6b7280]">passo 1 · localizar cliente</span>}
           <button onClick={fechar} className="ml-auto text-[#94a3b8] hover:text-[#5b6470]"><LuX size={18} /></button>
         </div>
 
-        {step === 1 ? (
+        {step === 1 && !editId ? (
           <div className="p-5">
             <div className="flex items-center gap-2 border border-[#d8d0bc] rounded-lg px-3 py-2 mb-3">
               <LuSearch size={16} className="text-[#94a3b8]" />
-              <input autoFocus value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar cliente por nome ou telefone…" className="flex-1 text-[13px] focus:outline-none" />
+              <input autoFocus value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por cliente ou pet…" className="flex-1 text-[13px] focus:outline-none" />
             </div>
             <div className="space-y-1 max-h-[320px] overflow-y-auto">
               {busca.trim().length < 2 ? (
-                <div className="text-center text-[12px] text-[#94a3b8] py-8">Digite ao menos 2 letras pra buscar.</div>
+                <div className="text-center text-[12px] text-[#94a3b8] py-8">Digite ao menos 2 letras (cliente ou pet).</div>
               ) : resultados.length === 0 ? (
                 <div className="text-center text-[12px] text-[#94a3b8] py-8">Nenhum cliente encontrado.</div>
               ) : resultados.map((t: any) => (
                 <button key={t.id} onClick={() => escolherTutor(t)} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[#f6fdfd] text-left">
                   <span className="w-8 h-8 rounded-full bg-[#E1F3F5] text-[#014D5E] text-[11px] font-medium flex items-center justify-center shrink-0">{(t.name || "?").split(" ").slice(0, 2).map((x: string) => x[0]).join("").toUpperCase()}</span>
-                  <span className="flex-1 min-w-0"><span className="block text-[13px] font-medium text-[#0E2244] truncate">{t.name}</span><span className="block text-[11px] text-[#94a3b8]">{telOf(t)}</span></span>
+                  <span className="flex-1 min-w-0"><span className="block text-[13px] font-medium text-[#0E2244] truncate">{t.name}</span><span className="block text-[11px] text-[#94a3b8] truncate">{petNomes(t).length ? petNomes(t).join(", ") : telOf(t)}</span></span>
                 </button>
               ))}
             </div>
-            <Link href="/dashboard/erp/tutores" className="text-[12px] text-[#009AAC] mt-3 inline-flex items-center gap-1"><LuUserPlus size={13} /> Cadastrar novo cliente</Link>
+            {novoCli ? (
+              <div className="border border-[#e8e3d4] rounded-lg p-3 mt-3 space-y-2">
+                <div className="text-[12px] font-medium text-[#0E2244]">Novo cliente</div>
+                <input value={nNome} onChange={(e) => setNNome(e.target.value)} placeholder="Nome do cliente" className={inp} />
+                <input value={nTel} onChange={(e) => setNTel(e.target.value)} placeholder="Telefone (WhatsApp)" inputMode="tel" className={inp} />
+                <div className="flex justify-end gap-2">
+                  <button onClick={() => setNovoCli(false)} className="px-3 py-1.5 text-[12px] text-[#5b6470] bg-[#f3f1ea] rounded-lg">Cancelar</button>
+                  <button onClick={cadastrarCli} disabled={savingCli} className="px-3 py-1.5 text-[12px] text-white rounded-lg disabled:opacity-60" style={{ background: "#009AAC" }}>{savingCli ? "Salvando..." : "Cadastrar e usar"}</button>
+                </div>
+              </div>
+            ) : (
+              <button onClick={() => setNovoCli(true)} className="text-[12px] text-[#009AAC] mt-3 inline-flex items-center gap-1"><LuUserPlus size={13} /> Cadastrar novo cliente</button>
+            )}
           </div>
         ) : (
           <div className="p-5 space-y-3 text-[13px]">
             <div className="flex items-center gap-3 bg-[#f6f7f4] rounded-lg px-3 py-2">
               <span className="w-8 h-8 rounded-full bg-[#E1F3F5] text-[#014D5E] text-[11px] font-medium flex items-center justify-center shrink-0">{(tutor?.name || "?").split(" ").slice(0, 2).map((x: string) => x[0]).join("").toUpperCase()}</span>
               <span className="flex-1 min-w-0"><span className="block text-[13px] font-medium text-[#0E2244] truncate">{tutor?.name}</span><span className="block text-[11px] text-[#94a3b8]">{telOf(tutor)}</span></span>
-              <button onClick={() => { setStep(1); setTutor(null); }} className="text-[12px] text-[#009AAC]">Trocar</button>
+              {editId ? null : <button onClick={() => { setStep(1); setTutor(null); setPetId(""); }} className="text-[12px] text-[#009AAC]">Trocar</button>}
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -206,8 +255,8 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
               </div>
               {itens.map((it, i) => (
                 <div key={i} className="flex items-center gap-2 mt-2">
-                  <input value={it.descricao} onChange={(e) => setItens((p) => p.map((x, idx) => idx === i ? { ...x, descricao: e.target.value } : x))} placeholder="Serviço/produto" className={inp + " flex-1"} />
-                  <input value={it.valor} onChange={(e) => setItens((p) => p.map((x, idx) => idx === i ? { ...x, valor: e.target.value } : x))} placeholder="0,00" inputMode="decimal" className={inp + " w-24"} />
+                  <input value={it.descricao} onChange={(e) => setItens((p) => p.map((x, idx) => idx === i ? { ...x, descricao: e.target.value } : x))} placeholder="Serviço/produto" className="flex-1 min-w-0 border border-[#d8d0bc] rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" />
+                  <input value={it.valor} onChange={(e) => setItens((p) => p.map((x, idx) => idx === i ? { ...x, valor: e.target.value } : x))} placeholder="0,00" inputMode="decimal" className="w-24 flex-none border border-[#d8d0bc] rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ width: "96px" }} />
                   <button onClick={() => setItens((p) => p.filter((_, idx) => idx !== i))} className="text-[#94a3b8] hover:text-[#E24B4A]"><LuTrash2 size={15} /></button>
                 </div>
               ))}
@@ -216,9 +265,12 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
           </div>
         )}
 
-        <div className="px-5 py-4 border-t flex justify-end gap-2" style={{ borderColor: "#eef0e6" }}>
-          <button onClick={fechar} className="px-4 py-2 text-[13px] text-[#5b6470] bg-[#f3f1ea] rounded-lg hover:bg-[#ece8dd]">Cancelar</button>
-          {step === 2 ? <button onClick={salvar} disabled={saving} className="px-4 py-2 text-[13px] text-white rounded-lg disabled:opacity-60 inline-flex items-center gap-1.5" style={{ background: "#009AAC" }}><LuCheck size={15} /> {saving ? "Salvando..." : "Salvar agendamento"}</button> : null}
+        <div className="px-5 py-4 border-t flex items-center gap-2" style={{ borderColor: "#eef0e6" }}>
+          {editId ? <button onClick={excluir} disabled={saving} className="px-3 py-2 text-[13px] text-[#9b2c3a] inline-flex items-center gap-1.5"><LuTrash2 size={15} /> Excluir</button> : null}
+          <div className="ml-auto flex gap-2">
+            <button onClick={fechar} className="px-4 py-2 text-[13px] text-[#5b6470] bg-[#f3f1ea] rounded-lg hover:bg-[#ece8dd]">Cancelar</button>
+            {(step === 2 || editId) ? <button onClick={salvar} disabled={saving} className="px-4 py-2 text-[13px] text-white rounded-lg disabled:opacity-60 inline-flex items-center gap-1.5" style={{ background: "#009AAC" }}><LuCheck size={15} /> {saving ? "Salvando..." : (editId ? "Salvar" : "Salvar agendamento")}</button> : null}
+          </div>
         </div>
       </div>
     </div>
