@@ -9,7 +9,7 @@ import {
   LuSun, LuLayoutDashboard, LuMessageSquare, LuList, LuUsers, LuPawPrint,
   LuCalendar, LuBuilding2, LuSettings, LuChevronLeft, LuChevronRight, LuChevronDown,
   LuCircleDollarSign, LuMegaphone, LuUserCog, LuEye, LuCircleHelp, LuStar,
-  LuSparkles, LuFileText, LuRefreshCcw, LuExternalLink,
+  LuSparkles, LuFileText, LuRefreshCcw, LuExternalLink, LuWallet,
 } from "react-icons/lu";
 import { roleLabel, AppRole } from "@/lib/ui/role";
 import { useRolePreview } from "@/lib/ui/RolePreview";
@@ -57,6 +57,7 @@ const NAV: Entry[] = [
     href: "/dashboard/erp/internacoes", label: "Internação", Icon: LuBuilding2,
     roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"],
   },
+  { href: "/dashboard/erp/caixa", label: "Caixa", Icon: LuWallet, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
   {
     group: true, key: "financeiro", label: "Financeiro", Icon: LuCircleDollarSign, roles: ["ADMIN"],
     children: [
