@@ -62,6 +62,7 @@ const ROUTE_TITLES: Array<{ match: string; exact?: boolean; title: string; subti
   { match: "/dashboard/marketing/emails", title: "Emails", subtitle: "Histórico de emails enviados" },
   { match: "/dashboard/marketing", title: "Marketing" },
   { match: "/dashboard/marketing", title: "Marketing" },
+  { match: "/dashboard/erp/agendamentos/agenda", title: "Agenda", subtitle: "Agendamentos do dia por profissional" },
   { match: "/dashboard/erp/agendamentos", title: "Agendamentos" },
   { match: "/dashboard/erp/leads", title: "Leads" },
   { match: "/dashboard/erp", title: "ERP" },
