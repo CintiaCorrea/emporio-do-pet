@@ -60,6 +60,10 @@ export class CreateProfissionalDto {
   observacoes?: string;
 
   @ApiPropertyOptional()
+  @IsOptional()
+  escala?: any;
+
+  @ApiPropertyOptional()
   @IsOptional() @IsBoolean()
   ativo?: boolean;
 
