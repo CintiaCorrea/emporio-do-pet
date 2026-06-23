@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { LuX, LuSearch, LuRepeat, LuPlus, LuTrash2, LuCheck, LuUserPlus } from "react-icons/lu";
+import { useRouter } from "next/navigation";
+import { LuX, LuSearch, LuRepeat, LuPlus, LuTrash2, LuCheck, LuUserPlus, LuExternalLink } from "react-icons/lu";
 
 type Defaults = { date?: string; time?: string; userId?: string } | null;
 type Props = { open: boolean; onClose: () => void; onCreated?: () => void; defaults?: Defaults; editAppt?: any };
@@ -10,10 +11,11 @@ const DURACOES = [10, 15, 20, 30, 40, 45, 60, 90, 120];
 const FREQS: [string, string][] = [["7", "Semanal"], ["14", "Quinzenal"], ["30", "Mensal"], ["90", "Trimestral"], ["180", "Semestral"], ["365", "Anual"]];
 const DIAS: [string, string][] = [["1", "seg"], ["2", "ter"], ["3", "qua"], ["4", "qui"], ["5", "sex"], ["6", "sáb"], ["0", "dom"]];
 const TIPOS_FALLBACK = ["Consulta Clínica", "Consulta Integrativa", "Consulta Fisioterapia", "MAP", "Retorno", "Vacinação", "Acupuntura", "Cirurgia"];
-const lbl = "text-[11px] text-[#6b7280] block mb-1";
-const inp = "w-full border border-[#d8d0bc] rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]";
+const lbl = "text-[12px] text-[#6b7280] block mb-1";
+const inp = "w-full border border-[#d8d0bc] rounded-lg px-3 py-2 text-[15px] focus:outline-none focus:border-[#009AAC]";
 
 export default function NovoAgendamentoModal({ open, onClose, onCreated, defaults, editAppt }: Props) {
+  const router = useRouter();
   const [step, setStep] = useState(1);
   const [tutors, setTutors] = useState<any[]>([]);
   const [profs, setProfs] = useState<any[]>([]);
@@ -29,7 +31,7 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
   const [duration, setDuration] = useState(30);
   const [status, setStatus] = useState("Agendado");
   const [obs, setObs] = useState("");
-  const [itens, setItens] = useState<{ descricao: string; valor: string }[]>([]);
+  const [itens, setItens] = useState<{ descricao: string; qtd: string; valor: string }[]>([]);
   const [recOn, setRecOn] = useState(false);
   const [freq, setFreq] = useState("7");
   const [dias, setDias] = useState<string[]>([]);
@@ -76,7 +78,7 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
   const telOf = (t: any) => (t?.contacts?.[0]?.number) || (t?.contacts?.[0]?.value) || t?.phone || "";
   const petNomes = (t: any) => (t?.pets || []).map((p: any) => p.name).filter(Boolean);
   const resultados = useMemo(() => { const q = busca.trim().toLowerCase(); if (q.length < 2) return []; const qn = busca.replace(/\D/g, ""); return tutors.filter((t: any) => (t.name || "").toLowerCase().includes(q) || (qn && telOf(t).replace(/\D/g, "").includes(qn)) || petNomes(t).some((n: string) => n.toLowerCase().includes(q))).slice(0, 25); }, [busca, tutors]);
-  const previsao = itens.reduce((s, it) => s + (Number(it.valor) || 0), 0);
+  const previsao = itens.reduce((s, it) => s + ((Number(it.qtd) || 1) * (Number(it.valor) || 0)), 0);
 
   function reset() { setStep(1); setEditId(null); setNovoCli(false); setNNome(""); setNTel(""); setBusca(""); setTutor(null); setPets([]); setPetId(""); setUserId(""); setType(""); setDate(""); setTime(""); setDuration(30); setStatus("Agendado"); setObs(""); setItens([]); setRecOn(false); setFreq("7"); setDias([]); setAte(""); }
   function fechar() { reset(); onClose(); }
@@ -118,7 +120,7 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
         for (const d of datasRecorrentes()) {
           const body: any = { tutorId: tutor.id, petId, userId, date: d.toISOString(), type: type || "Consulta", status, duration: Number(duration) || 30 };
           if (obs) body.notes = obs;
-          const its = itens.filter((i) => i.descricao || i.valor).map((i) => ({ descricao: i.descricao || "Item", quantidade: 1, valorUnitario: Number(i.valor) || 0 }));
+          const its = itens.filter((i) => i.descricao || i.valor).map((i) => ({ descricao: i.descricao || "Item", quantidade: Number(i.qtd) || 1, valorUnitario: Number(i.valor) || 0 }));
           if (its.length) body.items = its;
           const res = await fetch("/api/appointments", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(body) });
           if (!res.ok) throw new Error();
@@ -140,7 +142,7 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
     try {
       const res = await fetch("/api/tutors", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ name: nNome.trim(), contacts: [{ type: "MOBILE", number: nTel.replace(/\D/g, ""), isPrimary: true, isWhatsApp: true }] }) });
       const novo = await res.json(); if (!res.ok || !novo?.id) throw new Error();
-      setTutors((p) => [novo, ...p]); setNovoCli(false); setNNome(""); setNTel(""); escolherTutor(novo);
+      setNovoCli(false); setNNome(""); setNTel(""); onClose(); router.push(`/dashboard/erp/tutores/${novo.id}`);
     } catch { alert("Erro ao cadastrar cliente."); } finally { setSavingCli(false); }
   };
 
@@ -159,7 +161,7 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
           <div className="p-5">
             <div className="flex items-center gap-2 border border-[#d8d0bc] rounded-lg px-3 py-2 mb-3">
               <LuSearch size={16} className="text-[#94a3b8]" />
-              <input autoFocus value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por cliente ou pet…" className="flex-1 text-[13px] focus:outline-none" />
+              <input autoFocus value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por cliente ou pet…" className="flex-1 text-[15px] focus:outline-none" />
             </div>
             <div className="space-y-1 max-h-[320px] overflow-y-auto">
               {busca.trim().length < 2 ? (
@@ -169,29 +171,30 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
               ) : resultados.map((t: any) => (
                 <button key={t.id} onClick={() => escolherTutor(t)} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[#f6fdfd] text-left">
                   <span className="w-8 h-8 rounded-full bg-[#E1F3F5] text-[#014D5E] text-[11px] font-medium flex items-center justify-center shrink-0">{(t.name || "?").split(" ").slice(0, 2).map((x: string) => x[0]).join("").toUpperCase()}</span>
-                  <span className="flex-1 min-w-0"><span className="block text-[13px] font-medium text-[#0E2244] truncate">{t.name}</span><span className="block text-[11px] text-[#94a3b8] truncate">{petNomes(t).length ? petNomes(t).join(", ") : telOf(t)}</span></span>
+                  <span className="flex-1 min-w-0"><span className="block text-[14px] font-medium text-[#0E2244] truncate">{t.name}</span><span className="block text-[12px] text-[#94a3b8] truncate">{petNomes(t).length ? petNomes(t).join(", ") : telOf(t)}</span></span>
                 </button>
               ))}
             </div>
             {novoCli ? (
-              <div className="border border-[#e8e3d4] rounded-lg p-3 mt-3 space-y-2">
-                <div className="text-[12px] font-medium text-[#0E2244]">Novo cliente</div>
-                <input value={nNome} onChange={(e) => setNNome(e.target.value)} placeholder="Nome do cliente" className={inp} />
-                <input value={nTel} onChange={(e) => setNTel(e.target.value)} placeholder="Telefone (WhatsApp)" inputMode="tel" className={inp} />
-                <div className="flex justify-end gap-2">
-                  <button onClick={() => setNovoCli(false)} className="px-3 py-1.5 text-[12px] text-[#5b6470] bg-[#f3f1ea] rounded-lg">Cancelar</button>
-                  <button onClick={cadastrarCli} disabled={savingCli} className="px-3 py-1.5 text-[12px] text-white rounded-lg disabled:opacity-60" style={{ background: "#009AAC" }}>{savingCli ? "Salvando..." : "Cadastrar e usar"}</button>
+              <div className="border border-[#e8e3d4] rounded-lg p-4 mt-3 space-y-2">
+                <div className="text-[15px] font-semibold text-[#0E2244]">Novo cliente</div>
+                <div><label className={lbl}>Nome *</label><input value={nNome} onChange={(e) => setNNome(e.target.value)} placeholder="Nome completo" className={inp} /></div>
+                <div><label className={lbl}>Telefone</label><input value={nTel} onChange={(e) => setNTel(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") cadastrarCli(); }} placeholder="(85) 9 9999-9999" inputMode="tel" className={inp} /></div>
+                <p className="text-[12px] text-gray-400">Depois de criar, você completa o resto (CPF, endereço, pet…) direto na ficha.</p>
+                <div className="flex justify-end gap-2 pt-1">
+                  <button onClick={() => setNovoCli(false)} className="px-4 py-2 text-[14px] text-[#5b6470] bg-[#f3f1ea] rounded-lg">Cancelar</button>
+                  <button onClick={cadastrarCli} disabled={savingCli} className="px-4 py-2 text-[14px] text-white rounded-lg disabled:opacity-60 inline-flex items-center gap-1.5" style={{ background: "#009AAC" }}><LuExternalLink size={15} /> {savingCli ? "Criando…" : "Criar e abrir ficha"}</button>
                 </div>
               </div>
             ) : (
-              <button onClick={() => setNovoCli(true)} className="text-[12px] text-[#009AAC] mt-3 inline-flex items-center gap-1"><LuUserPlus size={13} /> Cadastrar novo cliente</button>
+              <button onClick={() => setNovoCli(true)} className="text-[14px] text-[#009AAC] mt-3 inline-flex items-center gap-1"><LuUserPlus size={14} /> Cadastrar novo cliente</button>
             )}
           </div>
         ) : (
-          <div className="p-5 space-y-3 text-[13px]">
+          <div className="p-5 space-y-3 text-[15px]">
             <div className="flex items-center gap-3 bg-[#f6f7f4] rounded-lg px-3 py-2">
               <span className="w-8 h-8 rounded-full bg-[#E1F3F5] text-[#014D5E] text-[11px] font-medium flex items-center justify-center shrink-0">{(tutor?.name || "?").split(" ").slice(0, 2).map((x: string) => x[0]).join("").toUpperCase()}</span>
-              <span className="flex-1 min-w-0"><span className="block text-[13px] font-medium text-[#0E2244] truncate">{tutor?.name}</span><span className="block text-[11px] text-[#94a3b8]">{telOf(tutor)}</span></span>
+              <span className="flex-1 min-w-0"><span className="block text-[14px] font-medium text-[#0E2244] truncate">{tutor?.name}</span><span className="block text-[12px] text-[#94a3b8]">{telOf(tutor)}</span></span>
               {editId ? null : <button onClick={() => { setStep(1); setTutor(null); setPetId(""); }} className="text-[12px] text-[#009AAC]">Trocar</button>}
             </div>
 
@@ -243,20 +246,21 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
                   {(freq === "7" || freq === "14") ? (
                     <div className="flex gap-1.5 flex-wrap">{DIAS.map(([v, l]) => { const on = dias.includes(v); return <button key={v} onClick={() => toggleDia(v)} className="text-[11px] rounded-md px-2.5 py-1 border" style={on ? { background: "#009AAC", color: "#fff", borderColor: "#009AAC" } : { color: "#475569", borderColor: "#d8d0bc" }}>{l}</button>; })}</div>
                   ) : null}
-                  <p className="text-[11px] text-[#94a3b8]">Ao salvar, cria um agendamento pra cada data.</p>
+                  <p className="text-[12px] text-[#94a3b8]">Ao salvar, cria um agendamento pra cada data.</p>
                 </div>
               ) : null}
             </div>
 
             <div className="border border-[#e8e3d4] rounded-lg p-3">
               <div className="flex items-center justify-between">
-                <span className="text-[13px] text-[#0E2244]">Produtos / serviços <span className="text-[11px] text-[#94a3b8]">(opcional)</span></span>
-                <button onClick={() => setItens((p) => [...p, { descricao: "", valor: "" }])} className="text-[12px] text-[#009AAC] inline-flex items-center gap-1"><LuPlus size={13} /> Adicionar</button>
+                <span className="text-[13px] text-[#0E2244]">Produtos / serviços <span className="text-[12px] text-[#94a3b8]">(opcional)</span></span>
+                <button onClick={() => setItens((p) => [...p, { descricao: "", qtd: "1", valor: "" }])} className="text-[12px] text-[#009AAC] inline-flex items-center gap-1"><LuPlus size={13} /> Adicionar</button>
               </div>
               {itens.map((it, i) => (
                 <div key={i} className="flex items-center gap-2 mt-2">
-                  <input value={it.descricao} onChange={(e) => setItens((p) => p.map((x, idx) => idx === i ? { ...x, descricao: e.target.value } : x))} placeholder="Serviço/produto" className="flex-1 min-w-0 border border-[#d8d0bc] rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" />
-                  <input value={it.valor} onChange={(e) => setItens((p) => p.map((x, idx) => idx === i ? { ...x, valor: e.target.value } : x))} placeholder="0,00" inputMode="decimal" className="w-24 flex-none border border-[#d8d0bc] rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ width: "96px" }} />
+                  <input value={it.descricao} onChange={(e) => setItens((p) => p.map((x, idx) => idx === i ? { ...x, descricao: e.target.value } : x))} placeholder="Serviço/produto" className="flex-1 min-w-0 border border-[#d8d0bc] rounded-lg px-3 py-2 text-[15px] focus:outline-none focus:border-[#009AAC]" />
+                  <input value={it.qtd} onChange={(e) => setItens((p) => p.map((x, idx) => idx === i ? { ...x, qtd: e.target.value } : x))} placeholder="Qtd" inputMode="numeric" title="Quantidade" className="flex-none border border-[#d8d0bc] rounded-lg px-2 py-2 text-[15px] text-center focus:outline-none focus:border-[#009AAC]" style={{ width: "58px" }} />
+                  <input value={it.valor} onChange={(e) => setItens((p) => p.map((x, idx) => idx === i ? { ...x, valor: e.target.value } : x))} placeholder="Valor un." inputMode="decimal" title="Valor unitário" className="flex-none border border-[#d8d0bc] rounded-lg px-3 py-2 text-[15px] focus:outline-none focus:border-[#009AAC]" style={{ width: "96px" }} />
                   <button onClick={() => setItens((p) => p.filter((_, idx) => idx !== i))} className="text-[#94a3b8] hover:text-[#E24B4A]"><LuTrash2 size={15} /></button>
                 </div>
               ))}
