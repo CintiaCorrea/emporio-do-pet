@@ -145,8 +145,8 @@ export default function PetProtocolosPanel({ petId, autoOpen, onAutoOpened, onCh
       </div>
 
       {applyOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={() => setApplyOpen(false)}>
-          <div className="bg-white rounded-xl w-full max-w-md p-5" onClick={e => e.stopPropagation()}>
+        <div className="mb-4">
+          <div className="bg-white rounded-xl border p-5" style={{ borderColor: "#E8DFC8" }}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold" style={{ color: "#0E2244" }}>Aplicar protocolo</h2>
               <button onClick={() => setApplyOpen(false)} className="p-1.5 rounded hover:bg-gray-100"><LuX size={18} /></button>

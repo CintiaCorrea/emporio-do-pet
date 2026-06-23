@@ -19,12 +19,11 @@ import {
 } from "react-icons/lu";
 import toast from "react-hot-toast";
 import FeedTimeline from "@/components/pets/FeedTimeline";
-import WeightChart from "@/components/pets/WeightChart";
 import HistoricoAddGrid from "@/components/pets/HistoricoAddGrid";
 import PetProtocolosPanel from "@/components/pets/PetProtocolosPanel";
 import PetAtendimentoPanel from "@/components/pets/PetAtendimentoPanel";
 import PetFichaHeaderCard from "@/components/pets/PetFichaHeaderCard";
-import { LuPrinter } from "react-icons/lu";
+import { LuPrinter, LuX } from "react-icons/lu";
 import PetVendaPanel from "@/components/pets/PetVendaPanel";
 import PetClinicaTabela from "@/components/pets/PetClinicaTabela";
 import ConfirmDeleteModal from "@/components/common/ConfirmDeleteModal";
@@ -121,6 +120,7 @@ export default function PetDetailPage() {
   const [savingEx, setSavingEx] = useState(false);
   const [vets, setVets] = useState<any[]>([]);
   const [atdOpen, setAtdOpen] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
   const [savingAtd, setSavingAtd] = useState(false);
   const [artefato, setArtefato] = useState<null | "PESO" | "OBS" | "RECEITA" | "DOCUMENTO" | "VIDEO">(null);
   const [pesoVal, setPesoVal] = useState("");
@@ -226,8 +226,38 @@ export default function PetDetailPage() {
     setSavingArt(true);
     try { await patchPet({ observations: obsVal }); toast.success("Observação salva"); setArtefato(null); await load(); } catch { toast.error("Erro ao salvar"); } finally { setSavingArt(false); }
   }
+  function fmtLocal(d: any) { const x = new Date(d); const p = (n: number) => String(n).padStart(2, "0"); return `${x.getFullYear()}-${p(x.getMonth() + 1)}-${p(x.getDate())}T${p(x.getHours())}:${p(x.getMinutes())}`; }
+  async function editarEntrada(it: any) {
+    if (it.src !== "atd") { toast("Edite pelo atendimento de origem"); return; }
+    const ap = it.raw; setEditId(ap.id); setTab("HISTORICO"); setAtdOpen(false);
+    const t = ap.type;
+    if (t === "Receitas") {
+      setRecModeloNome(ap.chiefComplaint || ""); setRecCorpo(ap.prescription || ""); setRecVetId(ap.userId || "");
+      try { const ms = await listasGet("receita_modelo"); setRecModelos(ms.map((i: any) => { let o: any = {}; try { o = JSON.parse(i.valor); } catch { o = { nome: i.valor, corpo: "" }; } return { nome: o.nome || i.valor, corpo: o.corpo || "" }; })); } catch {}
+      setArtefato("RECEITA");
+    } else if (t === "Documento") {
+      setDocModeloNome(ap.chiefComplaint || ""); setDocCorpo(ap.prescription || ""); setDocVetId(ap.userId || "");
+      try { const ms = await listasGet("documento_modelo"); setDocModelos(ms.map((i: any) => { let o: any = {}; try { o = JSON.parse(i.valor); } catch { o = { nome: i.valor, corpo: "" }; } return { nome: o.nome || i.valor, corpo: o.corpo || "" }; })); } catch {}
+      setArtefato("DOCUMENTO");
+    } else if (t === "Video") {
+      setVidUrl(ap.prescription || ""); setVidVetId(ap.userId || ""); setArtefato("VIDEO");
+    } else {
+      setArtefato(null);
+      setAtd({ ...ATD0, date: ap.date ? fmtLocal(ap.date) : "", userId: ap.userId || "", type: ap.type || "CONSULTA", status: ap.status || "Realizado", chiefComplaint: ap.chiefComplaint || "", anamnesis: ap.anamnesis || "", physicalExam: ap.physicalExam || "", diagnosis: ap.diagnosis || "", conduct: ap.conduct || "", prescription: ap.prescription || "", notes: ap.notes || "" });
+      setItems([]); setAtdOpen(true);
+    }
+  }
+  async function excluirEntrada(it: any) {
+    if (!(await confirmDelete({ entityLabel: "registro", itemName: it.title || "este registro" }))) return;
+    try {
+      const url = it.src === "doc" ? `/api/clinical-documents/${it.rawId}` : `/api/appointments/${it.rawId}`;
+      const r = await fetch(url, { method: "DELETE" });
+      if (!r.ok) throw new Error();
+      toast.success("Registro excluído"); await loadAtendimentos(); await loadClinDocs();
+    } catch { toast.error("Erro ao excluir"); }
+  }
   async function abrirDocumento() {
-    setAtdOpen(false); setArtefato("DOCUMENTO"); setDocModeloNome(""); setDocCorpo(""); setDocVetId(vets[0]?.id || "");
+    setEditId(null); setAtdOpen(false); setArtefato("DOCUMENTO"); setDocModeloNome(""); setDocCorpo(""); setDocVetId(vets[0]?.id || "");
     try { const ms = await listasGet("documento_modelo"); const parsed = ms.map((i: any) => { let o: any = {}; try { o = JSON.parse(i.valor); } catch { o = { nome: i.valor, corpo: "" }; } return { nome: o.nome || i.valor, corpo: o.corpo || "" }; }); setDocModelos(parsed); } catch {}
   }
   async function salvarDocumento() {
@@ -238,19 +268,19 @@ export default function PetDetailPage() {
     try {
       const body: any = { tutorId: pet.tutorId, petId: pet.id, userId: docVetId, date: new Date().toISOString(), type: "Documento", status: "Realizado", prescription: docCorpo };
       if (docModeloNome) body.chiefComplaint = docModeloNome;
-      const r = await fetch("/api/appointments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const r = await fetch(editId ? `/api/appointments/${editId}` : "/api/appointments", { method: editId ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (!r.ok) throw new Error(await r.text());
       toast.success("Documento salvo"); setArtefato(null); await loadAtendimentos();
     } catch { toast.error("Erro ao salvar documento"); } finally { setSavingArt(false); }
   }
-  function abrirVideo() { setAtdOpen(false); setArtefato("VIDEO"); setVidUrl(""); setVidVetId(vets[0]?.id || ""); }
+  function abrirVideo() { setEditId(null); setAtdOpen(false); setArtefato("VIDEO"); setVidUrl(""); setVidVetId(vets[0]?.id || ""); }
   async function salvarVideo() {
     if (!pet) return;
     if (!vidUrl.trim()) { toast.error("Cole o link do vídeo"); return; }
     setSavingArt(true);
     try {
       const body: any = { tutorId: pet.tutorId, petId: pet.id, userId: vidVetId || vets[0]?.id, date: new Date().toISOString(), type: "Video", status: "Realizado", prescription: vidUrl };
-      const r = await fetch("/api/appointments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const r = await fetch(editId ? `/api/appointments/${editId}` : "/api/appointments", { method: editId ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (!r.ok) throw new Error(await r.text());
       toast.success("Vídeo anexado"); setArtefato(null); await loadAtendimentos();
     } catch { toast.error("Erro ao anexar vídeo"); } finally { setSavingArt(false); }
@@ -265,7 +295,7 @@ export default function PetDetailPage() {
     w.document.close(); w.focus(); setTimeout(function () { w.print(); }, 300);
   }
   async function abrirReceita() {
-    setAtdOpen(false); setRecModeloNome(""); setRecCorpo("");
+    setEditId(null); setAtdOpen(false); setRecModeloNome(""); setRecCorpo("");
     setRecVetId((v) => v || (vets[0]?.id || ""));
     try { const ms = await listasGet("receita_modelo"); const parsed = ms.map((i: any) => { let o: any = {}; try { o = JSON.parse(i.valor); } catch { o = { nome: i.valor, corpo: "" }; } return { nome: o.nome || i.valor, corpo: o.corpo || "" }; }); setRecModelos(parsed); } catch {}
     setArtefato("RECEITA");
@@ -278,7 +308,7 @@ export default function PetDetailPage() {
     try {
       const body: any = { tutorId: pet.tutorId, petId: pet.id, userId: recVetId, date: new Date().toISOString(), type: "Receitas", status: "Realizado", prescription: recCorpo };
       if (recModeloNome) body.chiefComplaint = recModeloNome;
-      const r = await fetch("/api/appointments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const r = await fetch(editId ? `/api/appointments/${editId}` : "/api/appointments", { method: editId ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (!r.ok) throw new Error(await r.text());
       toast.success("Receita registrada"); setArtefato(null); setRecModeloNome(""); setRecCorpo(""); await loadAtendimentos();
     } catch { toast.error("Erro ao salvar receita"); } finally { setSavingArt(false); }
@@ -370,7 +400,7 @@ export default function PetDetailPage() {
         body.items = itensValidos.map((it: any) => ({ ...(it.servicoId ? { servicoId: it.servicoId } : {}), ...(it.descricao ? { descricao: it.descricao } : {}), ...(it.executorUserId ? { executorUserId: it.executorUserId } : {}), quantidade: Number(it.quantidade) || 1, valorUnitario: Number(it.valorUnitario) || 0, custoUnitario: Number(it.custoUnitario) || 0, valorTotal: (Number(it.quantidade) || 0) * (Number(it.valorUnitario) || 0), ...(it.comissaoValor ? { comissaoTipo: "PERCENTUAL", comissaoValor: Number(it.comissaoValor) } : {}) }));
         body.value = body.items.reduce((sm: number, it: any) => sm + (it.valorTotal || 0), 0);
       }
-      const r = await fetch("/api/appointments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const r = await fetch(editId ? `/api/appointments/${editId}` : "/api/appointments", { method: editId ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (!r.ok) throw new Error(await r.text());
       if (atd.petWeight) { try { await patchPet({ weight: Number(atd.petWeight) }); } catch {} } // F5.1: peso do atendimento atualiza o peso atual do pet
       toast.success("Atendimento registrado"); setAtdOpen(false); setAtd(ATD0); setItems([]); await load(); await loadAtendimentos();
@@ -607,14 +637,14 @@ export default function PetDetailPage() {
               ] as const).map(t => (
                 <button key={t.k} onClick={() => setTab(t.k)} className="flex-1 px-4 py-3 text-sm font-medium border-b-2 transition" style={{ borderColor: tab === t.k ? "#009AAC" : "transparent", color: tab === t.k ? "#009AAC" : "#6B7280", background: tab === t.k ? "#f6fdfd" : "transparent" }}>{t.label}</button>
               ))}
+              {tab !== "HISTORICO" ? <button onClick={() => setTab("HISTORICO")} title="Fechar e voltar ao histórico" className="px-3 text-gray-400 hover:text-[#E24B4A] flex items-center border-b-2 border-transparent"><LuX size={16} /></button> : null}
 
             </div>
           {tab === "HISTORICO" && (
             <div className="p-5">
               <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-5 items-start">
                 <div className="lg:order-1">
-                  <div className="mb-3"><WeightChart atendimentos={atendimentos} current={pet?.weight ?? null} /></div>
-                  <FeedTimeline atendimentos={atendimentos} clinDocs={clinDocs} />
+                  <FeedTimeline atendimentos={atendimentos} clinDocs={clinDocs} onEditar={editarEntrada} onExcluir={excluirEntrada} />
                 </div>
                 <div className="lg:order-2">
                   {atdOpen ? (
@@ -716,7 +746,7 @@ export default function PetDetailPage() {
                     </div>
                   ) : (
                     <HistoricoAddGrid ready={["Atendimento", "Peso", "Vacina", "Documento", "Receita", "Vídeo", "Internação", "Observação"]} onPick={(k) => {
-                      if (k === "Atendimento") { setArtefato(null); setAtd(ATD0); setItems([]); setAtdOpen(true); }
+                      if (k === "Atendimento") { setEditId(null); setArtefato(null); setAtd(ATD0); setItems([]); setAtdOpen(true); }
                       else if (k === "Vacina") { setTab("PROTOCOLOS"); setProtoAuto(true); }
                       else if (k === "Internação") { router.push("/dashboard/erp/internacoes"); }
                       else if (k === "Peso") { setPesoVal(pet?.weight ? String(pet.weight) : ""); setAtdOpen(false); setArtefato("PESO"); }
