@@ -1,135 +1,224 @@
 "use client";
-// [EMP-COWORK] Modal Novo Agendamento (Cliente -> Pet -> data/hora) — substitui a tela antiga do dev (Cintia 07/06)
-
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { LuX, LuSearch, LuRepeat, LuPlus, LuTrash2, LuCheck, LuUserPlus } from "react-icons/lu";
 
-type Props = { open: boolean; onClose: () => void; onCreated?: () => void };
+type Defaults = { date?: string; time?: string; userId?: string } | null;
+type Props = { open: boolean; onClose: () => void; onCreated?: () => void; defaults?: Defaults };
 
-const TIPOS = [
-  { v: "CONSULTA", l: "Consulta" },
-  { v: "RETORNO", l: "Retorno" },
-  { v: "AVALIACAO", l: "Avaliação" },
-  { v: "VACINACAO", l: "Vacinação" },
-  { v: "PROCEDIMENTO", l: "Procedimento" },
-  { v: "SESSAO_FISIO", l: "Sessão de fisioterapia" },
-  { v: "CIRURGIA", l: "Cirurgia" },
-  { v: "EMERGENCIA", l: "Emergência" },
-  { v: "OUTRO", l: "Outro" },
-];
+const STATUS = ["Agendado", "Confirmado", "Em espera", "Em atendimento", "Atendido", "Animal pronto", "Atrasado", "Cancelado"];
+const DURACOES = [10, 15, 20, 30, 40, 45, 60, 90, 120];
+const FREQS: [string, string][] = [["7", "Semanal"], ["14", "Quinzenal"], ["30", "Mensal"], ["90", "Trimestral"], ["180", "Semestral"], ["365", "Anual"]];
+const DIAS: [string, string][] = [["1", "seg"], ["2", "ter"], ["3", "qua"], ["4", "qui"], ["5", "sex"], ["6", "sáb"], ["0", "dom"]];
+const TIPOS_FALLBACK = ["Consulta Clínica", "Consulta Integrativa", "Consulta Fisioterapia", "MAP", "Retorno", "Vacinação", "Acupuntura", "Cirurgia"];
+const lbl = "text-[11px] text-[#6b7280] block mb-1";
+const inp = "w-full border border-[#d8d0bc] rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]";
 
-export default function NovoAgendamentoModal({ open, onClose, onCreated }: Props) {
+export default function NovoAgendamentoModal({ open, onClose, onCreated, defaults }: Props) {
+  const [step, setStep] = useState(1);
   const [tutors, setTutors] = useState<any[]>([]);
-  const [users, setUsers] = useState<any[]>([]);
+  const [profs, setProfs] = useState<any[]>([]);
+  const [tipos, setTipos] = useState<string[]>([]);
+  const [busca, setBusca] = useState("");
+  const [tutor, setTutor] = useState<any>(null);
   const [pets, setPets] = useState<any[]>([]);
-  const [tutorId, setTutorId] = useState("");
   const [petId, setPetId] = useState("");
   const [userId, setUserId] = useState("");
+  const [type, setType] = useState("");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [duration, setDuration] = useState(30);
-  const [type, setType] = useState("CONSULTA");
+  const [status, setStatus] = useState("Agendado");
+  const [obs, setObs] = useState("");
+  const [itens, setItens] = useState<{ descricao: string; valor: string }[]>([]);
+  const [recOn, setRecOn] = useState(false);
+  const [freq, setFreq] = useState("7");
+  const [dias, setDias] = useState<string[]>([]);
+  const [ate, setAte] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     (async () => {
-      try {
-        const [t, u] = await Promise.all([
-          fetch("/api/tutors?limit=1000").then((r) => r.json()).catch(() => []),
-          fetch("/api/users").then((r) => r.json()).catch(() => []),
-        ]);
-        setTutors(Array.isArray(t) ? t : (t.tutors || t.data || []));
-        setUsers(Array.isArray(u) ? u : (u.users || u.data || []));
-      } catch {}
+      const [t, p] = await Promise.all([
+        fetch("/api/tutors?limit=1000").then((r) => r.json()).catch(() => []),
+        fetch("/api/profissionais").then((r) => r.json()).catch(() => []),
+      ]);
+      setTutors(Array.isArray(t) ? t : (t.tutors || t.data || []));
+      const pl = Array.isArray(p) ? p : (p.data || []);
+      setProfs(pl.filter((x: any) => x.ativo !== false && x.userId && !["RECEPCIONISTA", "GERENTE"].includes(x.tipo)));
+      try { const r = await fetch("/api/listas?lista=atendimento_tipo", { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.itens || d.data || []); const ts = arr.map((i: any) => i.valor).filter(Boolean); setTipos(ts.length ? ts : TIPOS_FALLBACK); } catch { setTipos(TIPOS_FALLBACK); }
     })();
   }, [open]);
 
+  useEffect(() => { if (open && defaults) { if (defaults.date) setDate(defaults.date); if (defaults.time) setTime(defaults.time); if (defaults.userId) setUserId(defaults.userId); } }, [open, defaults]);
+
   useEffect(() => {
-    if (!tutorId) { setPets([]); setPetId(""); return; }
-    (async () => {
-      try {
-        const r = await fetch(`/api/tutors/${tutorId}/pets`);
-        const d = await r.json();
-        const arr = Array.isArray(d) ? d : (d.pets || d.data || []);
-        setPets(arr); setPetId(arr.length === 1 ? arr[0].id : "");
-      } catch { setPets([]); }
-    })();
-  }, [tutorId]);
+    if (!tutor) { setPets([]); setPetId(""); return; }
+    (async () => { try { const r = await fetch(`/api/tutors/${tutor.id}/pets`); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.pets || d.data || []); setPets(arr); setPetId(arr.length === 1 ? arr[0].id : ""); } catch { setPets([]); } })();
+  }, [tutor]);
+
+  const telOf = (t: any) => (t?.contacts?.[0]?.value) || t?.phone || "";
+  const resultados = useMemo(() => { const q = busca.trim().toLowerCase(); if (q.length < 2) return []; const qn = busca.replace(/\D/g, ""); return tutors.filter((t: any) => (t.name || "").toLowerCase().includes(q) || (qn && telOf(t).replace(/\D/g, "").includes(qn))).slice(0, 25); }, [busca, tutors]);
+  const previsao = itens.reduce((s, it) => s + (Number(it.valor) || 0), 0);
+
+  function reset() { setStep(1); setBusca(""); setTutor(null); setPets([]); setPetId(""); setUserId(""); setType(""); setDate(""); setTime(""); setDuration(30); setStatus("Agendado"); setObs(""); setItens([]); setRecOn(false); setFreq("7"); setDias([]); setAte(""); }
+  function fechar() { reset(); onClose(); }
+  function escolherTutor(t: any) { setTutor(t); setStep(2); }
+  function toggleDia(d: string) { setDias((p) => p.includes(d) ? p.filter((x) => x !== d) : [...p, d]); }
+
+  function datasRecorrentes(): Date[] {
+    const base = new Date(`${date}T${time || "09:00"}`);
+    const out: Date[] = [base];
+    if (!recOn || !ate) return out;
+    const fim = new Date(`${ate}T23:59:59`);
+    const stepDays = Number(freq);
+    if (stepDays === 7 || stepDays === 14) {
+      const wd = dias.length ? dias.map(Number) : [base.getDay()];
+      const cursor = new Date(base); cursor.setDate(cursor.getDate() + 1);
+      while (cursor.getTime() <= fim.getTime() && out.length < 120) {
+        if (wd.includes(cursor.getDay())) {
+          if (stepDays === 7) out.push(new Date(cursor));
+          else { const wIdx = Math.floor((cursor.getTime() - base.getTime()) / (7 * 864e5)); if (wIdx % 2 === 0) out.push(new Date(cursor)); }
+        }
+        cursor.setDate(cursor.getDate() + 1);
+      }
+    } else {
+      const cursor = new Date(base);
+      while (out.length < 120) { cursor.setDate(cursor.getDate() + stepDays); if (cursor.getTime() > fim.getTime()) break; out.push(new Date(cursor)); }
+    }
+    return out;
+  }
+
+  const salvar = async () => {
+    if (!tutor || !petId || !userId || !date || !time) { alert("Preencha cliente, pet, profissional, data e horário."); return; }
+    setSaving(true);
+    try {
+      const datas = datasRecorrentes();
+      for (const d of datas) {
+        const body: any = { tutorId: tutor.id, petId, userId, date: d.toISOString(), type: type || "Consulta", status, duration: Number(duration) || 30 };
+        if (obs) body.notes = obs;
+        const its = itens.filter((i) => i.descricao || i.valor).map((i) => ({ descricao: i.descricao || "Item", quantidade: 1, valorUnitario: Number(i.valor) || 0 }));
+        if (its.length) body.items = its;
+        const res = await fetch("/api/appointments", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(body) });
+        if (!res.ok) throw new Error();
+      }
+      fechar(); if (onCreated) onCreated();
+    } catch { alert("Erro ao criar agendamento. Tente novamente."); } finally { setSaving(false); }
+  };
 
   if (!open) return null;
 
-  const salvar = async () => {
-    if (!tutorId || !petId || !userId || !date || !time) { alert("Preencha cliente, pet, profissional, data e horário."); return; }
-    setSaving(true);
-    try {
-      const dateTime = new Date(`${date}T${time}`);
-      const res = await fetch("/api/appointments", {
-        method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
-        body: JSON.stringify({ tutorId, petId, userId, date: dateTime.toISOString(), type, status: "SCHEDULED", duration: Number(duration) || 30 }),
-      });
-      if (!res.ok) throw new Error();
-      setTutorId(""); setPetId(""); setUserId(""); setDate(""); setTime(""); setType("CONSULTA"); setDuration(30);
-      onClose(); if (onCreated) onCreated();
-    } catch { alert("Erro ao criar agendamento. Tente novamente."); }
-    finally { setSaving(false); }
-  };
-
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "#eef0e6" }}>
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50" onClick={fechar}>
+      <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="px-5 py-4 border-b flex items-center gap-2" style={{ borderColor: "#eef0e6" }}>
           <h3 className="text-base font-semibold text-[#014D5E]">Novo agendamento</h3>
-          <button onClick={onClose} className="text-[#94a3b8] hover:text-[#5b6470] text-sm">✕</button>
+          {step === 2 ? <span className="text-[11px] text-[#0F6E56] bg-[#E1F5EE] px-2 py-0.5 rounded-full">passo 2 · preencher</span> : <span className="text-[11px] text-[#6b7280]">passo 1 · localizar cliente</span>}
+          <button onClick={fechar} className="ml-auto text-[#94a3b8] hover:text-[#5b6470]"><LuX size={18} /></button>
         </div>
-        <div className="p-5 space-y-3 text-[13px]">
-          <div>
-            <label className="text-[11px] text-[#6b7280] block mb-1">Cliente *</label>
-            <select value={tutorId} onChange={(e) => setTutorId(e.target.value)} className="w-full border border-[#d8d0bc] rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]">
-              <option value="">Selecione um cliente...</option>
-              {tutors.map((t: any) => (<option key={t.id} value={t.id}>{t.name}</option>))}
-            </select>
-            <Link href="/dashboard/erp/tutores" className="text-[11px] text-[#009AAC] mt-1 inline-block">+ Cadastrar cliente</Link>
+
+        {step === 1 ? (
+          <div className="p-5">
+            <div className="flex items-center gap-2 border border-[#d8d0bc] rounded-lg px-3 py-2 mb-3">
+              <LuSearch size={16} className="text-[#94a3b8]" />
+              <input autoFocus value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar cliente por nome ou telefone…" className="flex-1 text-[13px] focus:outline-none" />
+            </div>
+            <div className="space-y-1 max-h-[320px] overflow-y-auto">
+              {busca.trim().length < 2 ? (
+                <div className="text-center text-[12px] text-[#94a3b8] py-8">Digite ao menos 2 letras pra buscar.</div>
+              ) : resultados.length === 0 ? (
+                <div className="text-center text-[12px] text-[#94a3b8] py-8">Nenhum cliente encontrado.</div>
+              ) : resultados.map((t: any) => (
+                <button key={t.id} onClick={() => escolherTutor(t)} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[#f6fdfd] text-left">
+                  <span className="w-8 h-8 rounded-full bg-[#E1F3F5] text-[#014D5E] text-[11px] font-medium flex items-center justify-center shrink-0">{(t.name || "?").split(" ").slice(0, 2).map((x: string) => x[0]).join("").toUpperCase()}</span>
+                  <span className="flex-1 min-w-0"><span className="block text-[13px] font-medium text-[#0E2244] truncate">{t.name}</span><span className="block text-[11px] text-[#94a3b8]">{telOf(t)}</span></span>
+                </button>
+              ))}
+            </div>
+            <Link href="/dashboard/erp/tutores" className="text-[12px] text-[#009AAC] mt-3 inline-flex items-center gap-1"><LuUserPlus size={13} /> Cadastrar novo cliente</Link>
           </div>
-          <div>
-            <label className="text-[11px] text-[#6b7280] block mb-1">Pet *</label>
-            <select value={petId} onChange={(e) => setPetId(e.target.value)} disabled={!tutorId} className="w-full border border-[#d8d0bc] rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC] disabled:bg-[#f6f5f0] disabled:text-[#94a3b8]">
-              <option value="">{tutorId ? (pets.length ? "Selecione o pet..." : "Cliente sem pets") : "Selecione um cliente primeiro"}</option>
-              {pets.map((p: any) => (<option key={p.id} value={p.id}>{p.name}{p.species ? ` · ${p.species}` : ""}</option>))}
-            </select>
-            {tutorId && (<Link href="/dashboard/erp/pets" className="text-[11px] text-[#009AAC] mt-1 inline-block">+ Cadastrar pet</Link>)}
+        ) : (
+          <div className="p-5 space-y-3 text-[13px]">
+            <div className="flex items-center gap-3 bg-[#f6f7f4] rounded-lg px-3 py-2">
+              <span className="w-8 h-8 rounded-full bg-[#E1F3F5] text-[#014D5E] text-[11px] font-medium flex items-center justify-center shrink-0">{(tutor?.name || "?").split(" ").slice(0, 2).map((x: string) => x[0]).join("").toUpperCase()}</span>
+              <span className="flex-1 min-w-0"><span className="block text-[13px] font-medium text-[#0E2244] truncate">{tutor?.name}</span><span className="block text-[11px] text-[#94a3b8]">{telOf(tutor)}</span></span>
+              <button onClick={() => { setStep(1); setTutor(null); }} className="text-[12px] text-[#009AAC]">Trocar</button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className={lbl}>Animal *</label>
+                <select value={petId} onChange={(e) => setPetId(e.target.value)} className={inp}>
+                  <option value="">{pets.length ? "Selecione o pet..." : "Cliente sem pets"}</option>
+                  {pets.map((p: any) => <option key={p.id} value={p.id}>{p.name}{p.species ? ` · ${p.species}` : ""}</option>)}
+                </select>
+              </div>
+              <div><label className={lbl}>Tipo de atendimento *</label>
+                <input list="ag-tipos" value={type} onChange={(e) => setType(e.target.value)} placeholder="Selecione…" className={inp} />
+                <datalist id="ag-tipos">{tipos.map((t) => <option key={t} value={t} />)}</datalist>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              <div className="col-span-1"><label className={lbl}>Profissional *</label>
+                <select value={userId} onChange={(e) => setUserId(e.target.value)} className={inp}>
+                  <option value="">Selecione...</option>
+                  {profs.map((p: any) => <option key={p.id} value={p.userId}>{p.nomeExibicao || p.nomeCompleto}</option>)}
+                </select>
+              </div>
+              <div><label className={lbl}>Data *</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={inp} /></div>
+              <div><label className={lbl}>Início *</label><input type="time" value={time} onChange={(e) => setTime(e.target.value)} className={inp} /></div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className={lbl}>Duração</label>
+                <select value={duration} onChange={(e) => setDuration(Number(e.target.value))} className={inp}>{DURACOES.map((d) => <option key={d} value={d}>{d >= 60 ? `${Math.floor(d / 60)}h${d % 60 ? ` ${d % 60}min` : ""}` : `${d} min`}</option>)}</select>
+              </div>
+              <div><label className={lbl}>Status</label>
+                <select value={status} onChange={(e) => setStatus(e.target.value)} className={inp}>{STATUS.map((s) => <option key={s} value={s}>{s}</option>)}</select>
+              </div>
+            </div>
+
+            {profs.length === 0 ? <p className="text-[11px] text-amber-600">Nenhum profissional com login cadastrado. Cadastre/vincule em Configurações › Profissionais.</p> : null}
+
+            <div><label className={lbl}>Observações</label><textarea value={obs} onChange={(e) => setObs(e.target.value)} placeholder="Anotações do agendamento…" className={inp} style={{ minHeight: "48px" }} /></div>
+
+            <div className="border border-[#e8e3d4] rounded-lg p-3">
+              <label className="flex items-center gap-2 text-[13px] text-[#0E2244] cursor-pointer"><input type="checkbox" checked={recOn} onChange={(e) => setRecOn(e.target.checked)} /> <LuRepeat size={14} className="text-[#009AAC]" /> Repetir (recorrência)</label>
+              {recOn ? (
+                <div className="mt-3 space-y-2">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div><label className={lbl}>Frequência</label><select value={freq} onChange={(e) => setFreq(e.target.value)} className={inp}>{FREQS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></div>
+                    <div><label className={lbl}>Repetir até</label><input type="date" value={ate} onChange={(e) => setAte(e.target.value)} className={inp} /></div>
+                  </div>
+                  {(freq === "7" || freq === "14") ? (
+                    <div className="flex gap-1.5 flex-wrap">{DIAS.map(([v, l]) => { const on = dias.includes(v); return <button key={v} onClick={() => toggleDia(v)} className="text-[11px] rounded-md px-2.5 py-1 border" style={on ? { background: "#009AAC", color: "#fff", borderColor: "#009AAC" } : { color: "#475569", borderColor: "#d8d0bc" }}>{l}</button>; })}</div>
+                  ) : null}
+                  <p className="text-[11px] text-[#94a3b8]">Ao salvar, cria um agendamento pra cada data.</p>
+                </div>
+              ) : null}
+            </div>
+
+            <div className="border border-[#e8e3d4] rounded-lg p-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[13px] text-[#0E2244]">Produtos / serviços <span className="text-[11px] text-[#94a3b8]">(opcional)</span></span>
+                <button onClick={() => setItens((p) => [...p, { descricao: "", valor: "" }])} className="text-[12px] text-[#009AAC] inline-flex items-center gap-1"><LuPlus size={13} /> Adicionar</button>
+              </div>
+              {itens.map((it, i) => (
+                <div key={i} className="flex items-center gap-2 mt-2">
+                  <input value={it.descricao} onChange={(e) => setItens((p) => p.map((x, idx) => idx === i ? { ...x, descricao: e.target.value } : x))} placeholder="Serviço/produto" className={inp + " flex-1"} />
+                  <input value={it.valor} onChange={(e) => setItens((p) => p.map((x, idx) => idx === i ? { ...x, valor: e.target.value } : x))} placeholder="0,00" inputMode="decimal" className={inp + " w-24"} />
+                  <button onClick={() => setItens((p) => p.filter((_, idx) => idx !== i))} className="text-[#94a3b8] hover:text-[#E24B4A]"><LuTrash2 size={15} /></button>
+                </div>
+              ))}
+              {itens.length ? <div className="flex justify-between text-[13px] mt-2 pt-2 border-t" style={{ borderColor: "#eef0e6" }}><span className="text-[#6b7280]">Previsão de receita</span><span className="font-medium text-[#0F6E56]">{previsao.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span></div> : null}
+            </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-[11px] text-[#6b7280] block mb-1">Profissional *</label>
-              <select value={userId} onChange={(e) => setUserId(e.target.value)} className="w-full border border-[#d8d0bc] rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]">
-                <option value="">Selecione...</option>
-                {users.map((u: any) => (<option key={u.id} value={u.id}>{u.name}</option>))}
-              </select>
-            </div>
-            <div>
-              <label className="text-[11px] text-[#6b7280] block mb-1">Tipo</label>
-              <select value={type} onChange={(e) => setType(e.target.value)} className="w-full border border-[#d8d0bc] rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]">
-                {TIPOS.map((t) => (<option key={t.v} value={t.v}>{t.l}</option>))}
-              </select>
-            </div>
-            <div>
-              <label className="text-[11px] text-[#6b7280] block mb-1">Data *</label>
-              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full border border-[#d8d0bc] rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" />
-            </div>
-            <div>
-              <label className="text-[11px] text-[#6b7280] block mb-1">Horário *</label>
-              <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className="w-full border border-[#d8d0bc] rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" />
-            </div>
-            <div>
-              <label className="text-[11px] text-[#6b7280] block mb-1">Duração (min)</label>
-              <input type="number" min={5} step={5} value={duration} onChange={(e) => setDuration(parseInt(e.target.value) || 30)} className="w-full border border-[#d8d0bc] rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" />
-            </div>
-          </div>
-        </div>
+        )}
+
         <div className="px-5 py-4 border-t flex justify-end gap-2" style={{ borderColor: "#eef0e6" }}>
-          <button onClick={onClose} className="px-4 py-2 text-[13px] text-[#5b6470] bg-[#f3f1ea] rounded-lg hover:bg-[#ece8dd]">Cancelar</button>
-          <button onClick={salvar} disabled={saving} className="px-4 py-2 text-[13px] text-white rounded-lg disabled:opacity-60" style={{ background: "#009AAC" }}>{saving ? "Salvando..." : "Agendar"}</button>
+          <button onClick={fechar} className="px-4 py-2 text-[13px] text-[#5b6470] bg-[#f3f1ea] rounded-lg hover:bg-[#ece8dd]">Cancelar</button>
+          {step === 2 ? <button onClick={salvar} disabled={saving} className="px-4 py-2 text-[13px] text-white rounded-lg disabled:opacity-60 inline-flex items-center gap-1.5" style={{ background: "#009AAC" }}><LuCheck size={15} /> {saving ? "Salvando..." : "Salvar agendamento"}</button> : null}
         </div>
       </div>
     </div>
