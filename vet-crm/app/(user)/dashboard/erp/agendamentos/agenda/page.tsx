@@ -20,6 +20,7 @@ function brl(v: number) { return v.toLocaleString("pt-BR", { style: "currency", 
 function cap(s: string) { return s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : s; }
 function nomeCurto(p: any) { if (p.nomeExibicao && p.nomeExibicao.trim()) return p.nomeExibicao; const w = (p.nomeCompleto || "Profissional").trim().split(/\s+/); return w.slice(0, 2).map(cap).join(" "); }
 function inic(p: any) { if (p.iniciais && p.iniciais.trim()) return p.iniciais.slice(0, 2).toUpperCase(); const w = (p.nomeCompleto || "").trim().split(/\s+/).filter(Boolean); return ((w[0]?.[0] || "") + (w[1]?.[0] || "")).toUpperCase() || "—"; }
+function norm(s?: string) { return (s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\b(dra?|dr)\.?\b/g, "").replace(/\s+/g, " ").trim(); }
 
 export default function AgendaPage() {
   usePageTitle("Agenda", "Agendamentos do dia por profissional");
@@ -53,9 +54,14 @@ export default function AgendaPage() {
   const diaStr = ymd(dia);
   const doDia = useMemo(() => appts.filter((a: any) => a.date && ymd(new Date(a.date)) === diaStr), [appts, diaStr]);
   function valorDe(a: any) { const tr = a.treatments || []; return tr.reduce((s: number, t: any) => s + (Number(t.product?.price) || Number(t.valorUnitario) || 0) * (Number(t.quantidade) || 1), 0); }
-  function apptsDe(prof: any, hora: number) { return doDia.filter((a: any) => prof.userId && a.userId === prof.userId && new Date(a.date).getHours() === hora); }
-  const visibIds = useMemo(() => new Set(visiveis.map((p: any) => p.userId).filter(Boolean)), [visiveis]);
-  const doDiaVis = useMemo(() => doDia.filter((a: any) => visibIds.has(a.userId)), [doDia, visibIds]);
+  const profUserIds = useMemo(() => new Set(profsAtende.map((p: any) => p.userId).filter(Boolean)), [profsAtende]);
+  function ehDoProf(a: any, prof: any) {
+    if (prof.userId && a.userId === prof.userId) return true;
+    if (!profUserIds.has(a.userId)) { const an = norm(a.user?.name); if (an && (an === norm(prof.nomeCompleto) || an === norm(prof.nomeExibicao))) return true; }
+    return false;
+  }
+  function apptsDe(prof: any, hora: number) { return doDia.filter((a: any) => ehDoProf(a, prof) && new Date(a.date).getHours() === hora); }
+  const doDiaVis = useMemo(() => doDia.filter((a: any) => visiveis.some((p: any) => ehDoProf(a, p))), [doDia, visiveis, profUserIds]);
   const previsao = useMemo(() => doDiaVis.reduce((s: number, a: any) => s + valorDe(a), 0), [doDiaVis]);
   const espera = useMemo(() => doDiaVis.filter((a: any) => ["Em espera", "Aguardando", "Em atendimento"].includes(a.status)), [doDiaVis]);
 
