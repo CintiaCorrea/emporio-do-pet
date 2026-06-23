@@ -29,6 +29,7 @@ export default function AgendaPage() {
   const [profs, setProfs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [novoOpen, setNovoOpen] = useState(false);
+  const [novoDefaults, setNovoDefaults] = useState<any>(null);
   const [hidden, setHidden] = useState<Set<string>>(new Set());
 
   useEffect(() => { try { const s = localStorage.getItem("agenda_filas_hidden"); if (s) setHidden(new Set(JSON.parse(s))); } catch {} }, []);
@@ -89,7 +90,7 @@ export default function AgendaPage() {
           <button onClick={() => toast("Visão semana chega numa próxima fatia")} className="text-[12px] px-3 py-1.5 rounded-md text-gray-500">Semana</button>
           <button onClick={() => toast("Visão mês chega numa próxima fatia")} className="text-[12px] px-3 py-1.5 rounded-md text-gray-500">Mês</button>
         </div>
-        <button onClick={() => setNovoOpen(true)} className="text-[13px] px-3 py-1.5 rounded-lg text-white flex items-center gap-1.5" style={{ background: "#009AAC" }}><LuPlus size={15} /> Agendar</button>
+        <button onClick={() => { setNovoDefaults({ date: diaStr }); setNovoOpen(true); }} className="text-[13px] px-3 py-1.5 rounded-lg text-white flex items-center gap-1.5" style={{ background: "#009AAC" }}><LuPlus size={15} /> Agendar</button>
       </div>
 
       {profsAtende.length > 0 ? (
@@ -132,9 +133,9 @@ export default function AgendaPage() {
                   <div key={h} className="grid border-b" style={{ gridTemplateColumns: cols, borderColor: "#eef0ec", minHeight: "56px" }}>
                     <div className="text-[11px] text-gray-400 text-right pr-2 pt-1.5">{String(h).padStart(2, "0")}:00</div>
                     {visiveis.map((p: any) => (
-                      <div key={p.id} className="border-l p-1" style={{ borderColor: "#eef0ec" }}>
+                      <div key={p.id} onClick={() => { if (!p.userId) { toast("Profissional sem login — cadastre o acesso em Configurações › Profissionais"); return; } setNovoDefaults({ date: diaStr, time: `${String(h).padStart(2, "0")}:00`, userId: p.userId }); setNovoOpen(true); }} className="border-l p-1 cursor-pointer hover:bg-[#f9fbfb]" style={{ borderColor: "#eef0ec" }}>
                         {apptsDe(p, h).map((a: any) => { const cor = corDe(a.status); const v = valorDe(a); return (
-                          <div key={a.id} className="rounded-r-md px-2 py-1.5 mb-1" style={{ borderLeft: `3px solid ${cor.c}`, background: cor.bg }}>
+                          <div key={a.id} onClick={(e) => e.stopPropagation()} className="rounded-r-md px-2 py-1.5 mb-1" style={{ borderLeft: `3px solid ${cor.c}`, background: cor.bg }}>
                             <div className="flex items-center justify-between gap-1">
                               <span className="text-[11px] font-medium" style={{ color: cor.c }}>{hm(new Date(a.date))}</span>
                               {v > 0 ? <span className="text-[10px] font-medium" style={{ color: "#0F6E56" }}>{brl(v)}</span> : null}
@@ -183,7 +184,7 @@ export default function AgendaPage() {
         </aside>
       </div>
 
-      <NovoAgendamentoModal open={novoOpen} onClose={() => setNovoOpen(false)} onCreated={() => { setNovoOpen(false); load(); }} />
+      <NovoAgendamentoModal open={novoOpen} defaults={novoDefaults} onClose={() => { setNovoOpen(false); setNovoDefaults(null); }} onCreated={() => { setNovoOpen(false); setNovoDefaults(null); load(); }} />
     </div>
   );
 }
