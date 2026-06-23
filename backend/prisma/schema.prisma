@@ -281,6 +281,7 @@ model User {
 
   // Landing Pages
   landingPages LandingPage[]
+  caixasOperados CaixaSessao[] @relation("CaixaOperador")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -528,6 +529,7 @@ model Appointment {
   treatments Treatment[]
   items      AppointmentItem[]
   orcamento  Orcamento?        @relation("OrcamentoVenda")
+  recebimentos Recebimento[]
   protocolos ProtocoloAplicado[] @relation("ProtocoloAtendimento")
   kanbanCard KanbanCard?
   boardId    String?
@@ -2759,4 +2761,40 @@ model ProtocoloDose {
   @@index([dataPrevista])
   @@index([status])
   @@map("protocolo_doses")
+}
+
+model CaixaSessao {
+  id           String        @id @default(uuid())
+  numero       Int           @default(0)
+  userId       String
+  abertura     DateTime      @default(now())
+  suprimento   Float         @default(0)
+  fechamento   DateTime?
+  status       String        @default("ABERTO")
+  observacao   String?
+  user         User          @relation("CaixaOperador", fields: [userId], references: [id])
+  recebimentos Recebimento[]
+  createdAt    DateTime      @default(now())
+
+  @@index([status])
+  @@map("caixa_sessoes")
+}
+
+model Recebimento {
+  id            String       @id @default(uuid())
+  caixaSessaoId String
+  appointmentId String?
+  data          DateTime     @default(now())
+  valorTotal    Float
+  desconto      Float        @default(0)
+  troco         Float        @default(0)
+  formas        Json
+  observacao    String?
+  createdById   String?
+  caixaSessao   CaixaSessao  @relation(fields: [caixaSessaoId], references: [id], onDelete: Cascade)
+  appointment   Appointment? @relation(fields: [appointmentId], references: [id])
+  createdAt     DateTime     @default(now())
+
+  @@index([caixaSessaoId])
+  @@map("recebimentos")
 }
