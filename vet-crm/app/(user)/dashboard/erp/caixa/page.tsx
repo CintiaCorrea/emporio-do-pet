@@ -55,7 +55,7 @@ const ehDinheiro = (f: string) => /dinheiro/i.test(f);
 const brl = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number.isFinite(v) ? v : 0);
 const hora = (s?: string | null) => (s ? new Date(s).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '—');
-const dataHora = (s?: string | null) => (s ? new Date(s).toLocaleString('pt-BR') : '—');
+const dataHora = (s?: string | null) => (s ? new Date(s).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).replace(',', '') : '—');
 const hojeStr = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -265,7 +265,7 @@ export default function CaixaPage() {
 
   return (
     <div className="min-h-screen w-full" style={{ background: '#f6fafb' }}>
-      <div className="p-6 max-w-6xl mx-auto">
+      <div className="p-6 max-w-2xl mx-auto">
 
         {/* Cabeçalho */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
