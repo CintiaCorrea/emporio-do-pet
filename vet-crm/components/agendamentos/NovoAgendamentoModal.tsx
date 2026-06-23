@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { LuX, LuSearch, LuRepeat, LuPlus, LuTrash2, LuCheck, LuUserPlus, LuExternalLink } from "react-icons/lu";
 
-type Defaults = { date?: string; time?: string; userId?: string } | null;
+type Defaults = { date?: string; time?: string; userId?: string; duration?: number } | null;
 type Props = { open: boolean; onClose: () => void; onCreated?: () => void; defaults?: Defaults; editAppt?: any };
 
 const STATUS = ["Agendado", "Confirmado", "Em espera", "Em atendimento", "Atendido", "Animal pronto", "Atrasado", "Cancelado"];
@@ -67,7 +67,7 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
       setType(editAppt.type || ""); setStatus(editAppt.status || "Agendado");
       setDate(`${dd.getFullYear()}-${z(dd.getMonth() + 1)}-${z(dd.getDate())}`); setTime(`${z(dd.getHours())}:${z(dd.getMinutes())}`);
       setDuration(editAppt.duration || 30); setObs(editAppt.notes || "");
-    } else if (defaults) { if (defaults.date) setDate(defaults.date); if (defaults.time) setTime(defaults.time); if (defaults.userId) setUserId(defaults.userId); }
+    } else if (defaults) { if (defaults.date) setDate(defaults.date); if (defaults.time) setTime(defaults.time); if (defaults.userId) setUserId(defaults.userId); if (defaults.duration) setDuration(Number(defaults.duration)); }
   }, [open, editAppt, defaults]);
 
   useEffect(() => {
