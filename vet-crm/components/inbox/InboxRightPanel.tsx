@@ -8,10 +8,10 @@ import {
   LuSearch, LuPhone, LuPlus, LuExternalLink, LuShare2, LuCheckCheck,
   LuMessageSquare, LuSparkles, LuCalendar, LuFileText, LuFlaskConical, LuStickyNote,
   LuX, LuArrowUpRight, LuInbox, LuMessageCircle, LuTrash, LuArrowLeft,
+  LuStethoscope, LuClock, LuDollarSign, LuRepeat, LuMail,
 } from "react-icons/lu";
 import toast from "react-hot-toast";
-import PetIcon from "@/components/profile/PetIcon";
-import { speciesLabel, speciesKey, ageFromBirth } from "@/lib/pets/labels";
+import { speciesKey, ageFromBirth } from "@/lib/pets/labels";
 
 interface Contact { id: string; number: string; isPrimary?: boolean; isWhatsApp?: boolean; }
 interface Tutor {
@@ -99,6 +99,8 @@ const sourceMap: Record<string, string> = {
   "Landing Page": "LANDING_PAGE", "WhatsApp": "WHATSAPP", "Email": "EMAIL", "Orgânico": "ORGANIC",
 };
 
+const SPECIES_EMOJI: Record<string, string> = { CANINE: "🐶", FELINE: "🐱", BIRD: "🐦", RODENT: "🐹", REPTILE: "🦎", FISH: "🐟", OTHER: "🐾" };
+function speciesEmoji(s?: string | null): string { return SPECIES_EMOJI[speciesKey(s)] || "🐾"; }
 function onlyDigits(s: string): string { return (s || "").replace(/\D/g, ""); }
 function last9(s: string): string { const d = onlyDigits(s); return d.length > 9 ? d.slice(-9) : d; }
 function normalizePhone(raw: string): string {
@@ -221,6 +223,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
   const [histWaOpen, setHistWaOpen] = useState<Record<string, boolean>>({});
   const [staff, setStaff] = useState<Staff[]>([]);
   const [forwardOpen, setForwardOpen] = useState(false);
+  const [petActForward, setPetActForward] = useState(false);
 
   const [cadastroOpen, setCadastroOpen] = useState(false);
   const [cadastroAs, setCadastroAs] = useState<"LEAD" | "CLIENTE">("LEAD");
@@ -1329,10 +1332,12 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                       return (
                         <div key={p.id} className={`rounded-lg border ${active ? "" : "hover:brightness-[0.97]"}`} style={active ? { background: "#cdebef", borderColor: "#009AAC" } : { background: "#e0f4f6", borderColor: "#9fd0d7" }}>
                           <button onClick={() => setSelectedPet(active ? null : p)} className="w-full flex items-center gap-2 px-2 py-1.5 text-left">
-                            <PetIcon species={p.species} size={20} />
+                            <span className="text-[18px] leading-none flex-shrink-0" aria-hidden>{speciesEmoji(p.species)}</span>
                             <div className="min-w-0 flex-1">
                               <div className="text-[11.5px] font-semibold truncate" style={{ color: "#014D5E" }}>{p.name}</div>
-                              <div className="text-[10px] text-gray-500 truncate">{speciesLabel(p.species)}{p.breed ? ` · ${p.breed}` : ""}{p.birthDate ? ` · ${ageFromBirth(p.birthDate)}` : ""}</div>
+                              {(p.breed || p.birthDate) && (
+                                <div className="text-[10px] text-gray-500 truncate">{[p.breed, p.birthDate ? ageFromBirth(p.birthDate) : null].filter(Boolean).join(" · ")}</div>
+                              )}
                             </div>
                             <span className="text-[10px] text-gray-400">{active ? "▴" : "▾"}</span>
                           </button>
@@ -1458,6 +1463,38 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                   <div className="rounded-lg p-3 text-center text-[11px] text-gray-400" style={{ background: "#fafafa", border: "1px dashed #E8DFC8" }}>
                     Nenhum pet cadastrado ainda<br />
                     <button onClick={() => criarPetEAbrir(tutor.id, true)} className="font-semibold mt-1" style={{ color: "#009AAC" }} type="button">+ Cadastrar pet</button>
+                  </div>
+                )}
+              </section>
+            )}
+
+            {/* BLOCO 3.5: ACOES DO PET (F1 - barra de icones) */}
+            {tutor && selectedPet && (
+              <section className={SECTION} style={SECTION_STYLE}>
+                <div className={LBL}><span>Ações · {selectedPet.name}</span></div>
+                <button type="button" onClick={() => window.open(`/dashboard/erp/pets/${selectedPet.id}/atendimentos/novo`, "_self")} title="Iniciar atendimento" className="w-full flex items-center justify-center gap-2 rounded-lg py-2.5 mb-2 text-white font-semibold text-[12px]" style={{ background: "#0E5560" }}>
+                  <LuStethoscope size={16} /> Atendimento
+                </button>
+                <div className="grid grid-cols-4 gap-1.5">
+                  <button type="button" disabled title="Agenda · em breve" className="flex items-center justify-center h-11 rounded-lg border cursor-not-allowed opacity-50" style={{ borderColor: "#E8DFC8", background: "#fafafa" }}><LuCalendar size={18} style={{ color: "#9aa0a8" }} /></button>
+                  <button type="button" disabled title="Follow-up · em breve" className="flex items-center justify-center h-11 rounded-lg border cursor-not-allowed opacity-50" style={{ borderColor: "#E8DFC8", background: "#fafafa" }}><LuClock size={18} style={{ color: "#9aa0a8" }} /></button>
+                  <button type="button" onClick={() => { setPetActForward(false); setInteracaoOpen(true); }} title="Registrar interação" className="flex items-center justify-center h-11 rounded-lg border hover:bg-[#E1F2F4]" style={{ borderColor: "#009AAC", background: "white" }}><LuMessageSquare size={18} style={{ color: "#009AAC" }} /></button>
+                  <button type="button" disabled title="Venda · em breve" className="flex items-center justify-center h-11 rounded-lg border cursor-not-allowed opacity-50" style={{ borderColor: "#E8DFC8", background: "#fafafa" }}><LuDollarSign size={18} style={{ color: "#9aa0a8" }} /></button>
+                  <button type="button" disabled title="Sequência · em breve" className="flex items-center justify-center h-11 rounded-lg border cursor-not-allowed opacity-50" style={{ borderColor: "#E8DFC8", background: "#fafafa" }}><LuRepeat size={18} style={{ color: "#9aa0a8" }} /></button>
+                  <button type="button" disabled title="E-mail · em breve" className="flex items-center justify-center h-11 rounded-lg border cursor-not-allowed opacity-50" style={{ borderColor: "#E8DFC8", background: "#fafafa" }}><LuMail size={18} style={{ color: "#9aa0a8" }} /></button>
+                  <button type="button" onClick={() => setPetActForward(o => !o)} title="Encaminhar" className="flex items-center justify-center h-11 rounded-lg border hover:bg-[#E1F2F4]" style={{ borderColor: "#009AAC", background: "white" }}><LuShare2 size={18} style={{ color: "#009AAC" }} /></button>
+                  <button type="button" disabled title="Exames · em breve" className="flex items-center justify-center h-11 rounded-lg border cursor-not-allowed opacity-50" style={{ borderColor: "#E8DFC8", background: "#fafafa" }}><LuFlaskConical size={18} style={{ color: "#9aa0a8" }} /></button>
+                </div>
+                {petActForward && (
+                  <div className="mt-2 border rounded-lg overflow-hidden" style={{ borderColor: "#E8DFC8" }}>
+                    {staff.length === 0 ? (
+                      <div className="px-3 py-2 text-[10.5px] text-gray-400">Carregando...</div>
+                    ) : staff.map(s => (
+                      <button key={s.id} onClick={() => { setPetActForward(false); handleForward(s.id, s.name || ""); }} className="w-full text-left px-3 py-1.5 text-[11px] hover:bg-gray-50 border-b last:border-b-0" style={{ borderColor: "#F0EBE0" }}>
+                        <div className="font-medium" style={{ color: "#014D5E" }}>{s.name || "Sem nome"}</div>
+                        <div className="text-[9.5px] text-gray-400 uppercase">{s.role}</div>
+                      </button>
+                    ))}
                   </div>
                 )}
               </section>
