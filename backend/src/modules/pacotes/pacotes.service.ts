@@ -5,32 +5,54 @@ import { PrismaService } from '../prisma/prisma.service';
 export class PacotesService {
   constructor(private readonly prisma: PrismaService) {}
 
+  // Anexa nomes de pet/tutor (FKs sao String simples, sem relation).
+  private async enrich(pacotes: any[]) {
+    const petIds = Array.from(new Set(pacotes.map((p) => p.petId).filter(Boolean)));
+    const tutorIds = Array.from(new Set(pacotes.map((p) => p.tutorId).filter(Boolean)));
+    const pets = petIds.length
+      ? await this.prisma.pet.findMany({ where: { id: { in: petIds } }, select: { id: true, name: true } })
+      : [];
+    const tutors = tutorIds.length
+      ? await this.prisma.tutor.findMany({ where: { id: { in: tutorIds } }, select: { id: true, name: true } })
+      : [];
+    const petMap = new Map(pets.map((p) => [p.id, p]));
+    const tutorMap = new Map(tutors.map((t) => [t.id, t]));
+    return pacotes.map((p) => ({
+      ...p,
+      pet: petMap.get(p.petId) || null,
+      tutor: p.tutorId ? tutorMap.get(p.tutorId) || null : null,
+    }));
+  }
+
   async findAll(query: any = {}) {
     const where: any = {};
     if (query.status) where.status = query.status;
     if (query.petId) where.petId = query.petId;
     if (query.tutorId) where.tutorId = query.tutorId;
-    return this.prisma.pacote.findMany({
+    const pacotes = await this.prisma.pacote.findMany({
       where,
       include: { sessoes: { orderBy: { numero: 'asc' } } },
       orderBy: { createdAt: 'desc' },
     });
+    return this.enrich(pacotes);
   }
 
   async findByPet(petId: string) {
-    return this.prisma.pacote.findMany({
+    const pacotes = await this.prisma.pacote.findMany({
       where: { petId },
       include: { sessoes: { orderBy: { numero: 'asc' } } },
       orderBy: { createdAt: 'desc' },
     });
+    return this.enrich(pacotes);
   }
 
   async findByTutor(tutorId: string) {
-    return this.prisma.pacote.findMany({
+    const pacotes = await this.prisma.pacote.findMany({
       where: { tutorId },
       include: { sessoes: { orderBy: { numero: 'asc' } } },
       orderBy: { createdAt: 'desc' },
     });
+    return this.enrich(pacotes);
   }
 
   async findOne(id: string) {
@@ -39,22 +61,36 @@ export class PacotesService {
       include: { sessoes: { orderBy: { numero: 'asc' } } },
     });
     if (!p) throw new NotFoundException('Pacote nao encontrado');
-    return p;
+    const [enriched] = await this.enrich([p]);
+    return enriched;
   }
 
   async create(dto: any, userId?: string) {
-    if (!dto.petId) throw new BadRequestException('petId obrigatorio');
+    let petId = dto.petId ?? null;
+    let tutorId = dto.tutorId ?? null;
+
+    if (!petId && dto.appointmentId) {
+      const ap = await this.prisma.appointment.findUnique({
+        where: { id: dto.appointmentId },
+        select: { petId: true, tutorId: true },
+      });
+      if (ap) {
+        petId = ap.petId;
+        tutorId = tutorId ?? ap.tutorId;
+      }
+    }
+    if (!petId) throw new BadRequestException('petId (ou appointmentId) obrigatorio');
     if (!dto.totalSessoes || Number(dto.totalSessoes) <= 0) {
       throw new BadRequestException('totalSessoes deve ser maior que zero');
     }
-    let tutorId = dto.tutorId ?? null;
     if (!tutorId) {
-      const pet = await this.prisma.pet.findUnique({ where: { id: dto.petId }, select: { tutorId: true } });
+      const pet = await this.prisma.pet.findUnique({ where: { id: petId }, select: { tutorId: true } });
       tutorId = pet?.tutorId ?? null;
     }
-    return this.prisma.pacote.create({
+
+    const novo = await this.prisma.pacote.create({
       data: {
-        petId: dto.petId,
+        petId,
         tutorId,
         orcamentoId: dto.orcamentoId ?? null,
         servico: dto.servico || 'Fisioterapia',
@@ -67,6 +103,7 @@ export class PacotesService {
       },
       include: { sessoes: true },
     });
+    return this.findOne(novo.id);
   }
 
   private async aplicarBaixa(pacote: any, opts: { appointmentId?: string; profissional?: string; observacao?: string; userId?: string }) {
@@ -101,14 +138,7 @@ export class PacotesService {
     });
   }
 
-  // ============================================================
   // PONTO CENTRAL DE DISPARO — "confirmar comparecimento".
-  // Ao confirmar o comparecimento de um agendamento, baixamos a
-  // sessao do(s) pacote(s) ativo(s) do pet. Este é o unico lugar
-  // a partir do qual as demais areas conectadas (pipeline da
-  // fisioterapia, financeiro, notificacoes) devem ser acionadas.
-  // A fiacao dessas areas sera feita posteriormente.
-  // ============================================================
   async registrarComparecimento(dto: any, userId?: string) {
     const appointmentId = dto?.appointmentId;
     if (!appointmentId) throw new BadRequestException('appointmentId obrigatorio');
@@ -119,13 +149,11 @@ export class PacotesService {
     });
     if (!appt) throw new NotFoundException('Agendamento nao encontrado');
 
-    // Evita baixa duplicada para o mesmo agendamento.
     const jaBaixado = await this.prisma.pacoteSessao.findFirst({ where: { appointmentId } });
     if (jaBaixado) {
       return { ok: true, jaRegistrado: true, pacote: await this.findOne(jaBaixado.pacoteId) };
     }
 
-    // Pacote ativo mais antigo do pet, com sessoes restantes.
     const pacote = await this.prisma.pacote.findFirst({
       where: { petId: appt.petId, status: 'ATIVO' },
       orderBy: { createdAt: 'asc' },
@@ -133,16 +161,14 @@ export class PacotesService {
     if (!pacote) return { ok: false, motivo: 'Nenhum pacote ativo para este pet' };
 
     const atualizado = await this.aplicarBaixa(pacote, { appointmentId, userId });
-
-    // TODO (conexao futura): a partir daqui, disparar para pipeline
-    // da fisioterapia e demais areas conectadas.
-
+    // TODO (conexao futura): disparar para pipeline da fisioterapia e demais areas.
     return { ok: true, pacote: atualizado };
   }
 
   async cancelar(id: string) {
     await this.findOne(id);
-    return this.prisma.pacote.update({ where: { id }, data: { status: 'CANCELADO' } });
+    await this.prisma.pacote.update({ where: { id }, data: { status: 'CANCELADO' } });
+    return this.findOne(id);
   }
 
   async remove(id: string) {
