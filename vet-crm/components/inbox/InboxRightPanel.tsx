@@ -8,7 +8,7 @@ import {
   LuSearch, LuPhone, LuPlus, LuExternalLink, LuShare2, LuCheckCheck,
   LuMessageSquare, LuSparkles, LuCalendar, LuFileText, LuFlaskConical, LuStickyNote,
   LuX, LuArrowUpRight, LuInbox, LuMessageCircle, LuTrash, LuArrowLeft,
-  LuStethoscope, LuClock, LuDollarSign, LuRepeat, LuMail,
+  LuStethoscope, LuClock, LuDollarSign, LuRepeat, LuMail, LuActivity,
 } from "react-icons/lu";
 import toast from "react-hot-toast";
 import { speciesKey, ageFromBirth } from "@/lib/pets/labels";
@@ -1545,6 +1545,31 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                     ))}
                   </div>
                 )}
+              </section>
+            )}
+
+            {/* BLOCO 3.45: PACOTES DE FISIOTERAPIA (F4 - patinhas) */}
+            {tutor && selectedPet && pacotesInbox.length > 0 && (
+              <section className={SECTION} style={SECTION_STYLE}>
+                <div className={LBL}><span>Pacotes de fisioterapia</span></div>
+                <div className="space-y-2">
+                  {pacotesInbox.map(pk => {
+                    const used = pk.data.used || 0; const total = pk.data.total || 0; const done = total > 0 && used >= total;
+                    return (
+                      <div key={pk.id} className="border rounded-lg p-2.5" style={{ borderColor: done ? "#0F6E56" : "#E8DFC8", background: done ? "#F3FBF7" : "#fff" }}>
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <LuActivity size={14} style={{ color: "#0E5560" }} />
+                          <span className="text-[11.5px] font-medium truncate" style={{ color: "#014D5E" }}>{done ? "🏆 " : ""}{pk.data.nome || "Pacote de fisioterapia"}</span>
+                          <span className="ml-auto text-[12px] font-semibold flex-shrink-0" style={{ color: done ? "#0F6E56" : "#0E5560" }}>{used}/{total}</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {Array.from({ length: Math.min(total, 20) }).map((_, i) => <span key={i} style={{ fontSize: "13px" }} title={`Sessão ${i + 1}`}>{i < used ? "🐾" : "⚪"}</span>)}
+                        </div>
+                        <div className="text-[9.5px] text-gray-400 mt-1.5">As sessões são lançadas pela Agenda e atualizam aqui.</div>
+                      </div>
+                    );
+                  })}
+                </div>
               </section>
             )}
 
