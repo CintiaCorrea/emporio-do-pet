@@ -12,6 +12,12 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 export class CreditoController {
   constructor(private readonly service: CreditoService) {}
 
+  // Saldo de todos os clientes (rota estatica antes de tutor/:tutorId).
+  @Get('saldos')
+  saldos() {
+    return this.service.listSaldos();
+  }
+
   @Get('tutor/:tutorId')
   extrato(@Param('tutorId') tutorId: string) {
     return this.service.extrato(tutorId);

@@ -8,6 +8,16 @@ function dayRange(dateStr?: string) {
   return { ini, fim };
 }
 
+function rangeFromQuery(query: any) {
+  const where: any = {};
+  if (query?.from || query?.to) {
+    where.data = {};
+    if (query.from) where.data.gte = new Date(String(query.from) + 'T00:00:00');
+    if (query.to) where.data.lte = new Date(String(query.to) + 'T23:59:59');
+  }
+  return where;
+}
+
 @Injectable()
 export class CaixaService {
   constructor(private readonly prisma: PrismaService) {}
@@ -23,6 +33,27 @@ export class CaixaService {
       where: { abertura: { gte: ini, lte: fim } },
       include: { user: { select: { id: true, name: true } }, recebimentos: true },
       orderBy: { abertura: 'asc' },
+    });
+  }
+
+  async listRecebimentos(query: any = {}) {
+    const where = rangeFromQuery(query);
+    return this.prisma.recebimento.findMany({
+      where,
+      include: {
+        appointment: { select: { id: true, value: true, pet: { select: { name: true } }, tutor: { select: { name: true } } } },
+      },
+      orderBy: { data: 'desc' },
+      take: 500,
+    });
+  }
+
+  async listMovimentos(query: any = {}) {
+    const where = rangeFromQuery(query);
+    return this.prisma.caixaMovimento.findMany({
+      where,
+      orderBy: { data: 'desc' },
+      take: 500,
     });
   }
 

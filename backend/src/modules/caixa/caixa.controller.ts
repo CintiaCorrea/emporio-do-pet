@@ -20,6 +20,16 @@ export class CaixaController {
     return this.service.findDoDia(date);
   }
 
+  @Get('recebimentos')
+  listRecebimentos(@Query() query: any) {
+    return this.service.listRecebimentos(query);
+  }
+
+  @Get('movimentos')
+  listMovimentos(@Query() query: any) {
+    return this.service.listMovimentos(query);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.service.findOne(id);

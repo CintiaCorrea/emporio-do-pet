@@ -21,6 +21,26 @@ export class CreditoService {
     return { saldo: CreditoService.saldoFrom(movimentos as any), movimentos };
   }
 
+  // Saldo consolidado por cliente (tutor). Retorna apenas quem tem saldo != 0.
+  async listSaldos() {
+    const movs = await this.prisma.creditoMovimento.findMany({ select: { tutorId: true, tipo: true, valor: true } });
+    const map = new Map<string, number>();
+    for (const m of movs) {
+      if (!m.tutorId) continue;
+      const cur = map.get(m.tutorId) || 0;
+      map.set(m.tutorId, cur + (m.tipo === 'USO' ? -Number(m.valor) : Number(m.valor)));
+    }
+    const tutorIds = Array.from(map.keys());
+    const tutors = tutorIds.length
+      ? await this.prisma.tutor.findMany({ where: { id: { in: tutorIds } }, select: { id: true, name: true } })
+      : [];
+    const tmap = new Map(tutors.map((t) => [t.id, t.name]));
+    return tutorIds
+      .map((id) => ({ tutorId: id, nome: tmap.get(id) || 'Cliente', saldo: Number((map.get(id) || 0).toFixed(2)) }))
+      .filter((x) => Math.abs(x.saldo) > 0.001)
+      .sort((a, b) => b.saldo - a.saldo);
+  }
+
   async adicionar(dto: any, userId: string) {
     const tipo = String(dto.tipo || 'RECARGA').toUpperCase();
     if (!['RECARGA', 'ESTORNO'].includes(tipo)) throw new BadRequestException('Tipo de credito invalido');
