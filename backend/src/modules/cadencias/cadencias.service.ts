@@ -1,10 +1,16 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateCadenciaDto, UpdateCadenciaDto, CreatePassoDto, UpdatePassoDto } from './dto/cadencia.dto';
+import { WhatsAppService } from '../whatsapp/whatsapp.service';
+import { CreateCadenciaDto, UpdateCadenciaDto, CreatePassoDto, UpdatePassoDto, InscreverDto } from './dto/cadencia.dto';
 
 @Injectable()
 export class CadenciasService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(CadenciasService.name);
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly whatsapp: WhatsAppService,
+  ) {}
 
   async list(includeInactive = false) {
     return this.prisma.cadenciaTemplate.findMany({
@@ -142,5 +148,118 @@ export class CadenciasService {
       }
     }
     return { criados, atualizados, ignorados };
+  }
+
+  // ===== Execucao (engine de sequencia) =====
+  private atrasoMs(valor: number, unidade: string): number {
+    const v = Math.max(0, valor || 0);
+    if (unidade === 'MINUTOS') return v * 60_000;
+    if (unidade === 'HORAS') return v * 3_600_000;
+    return v * 86_400_000;
+  }
+  private render(text: string, vars: any): string {
+    if (!text) return '';
+    const v = vars || {};
+    return text.replace(/\{(\w+)\}/g, (_m, k) => (v[k] != null ? String(v[k]) : `{${k}}`));
+  }
+
+  async inscrever(cadenciaId: string, dto: InscreverDto) {
+    const tpl = await this.prisma.cadenciaTemplate.findUnique({
+      where: { id: cadenciaId },
+      include: { passos: { where: { ativo: true }, orderBy: { ordem: 'asc' } } },
+    });
+    if (!tpl) throw new NotFoundException('Cadencia nao encontrada');
+    if (!tpl.ativo) throw new NotFoundException('Cadencia inativa');
+    const primeiro = tpl.passos[0];
+    if (!primeiro) throw new NotFoundException('Cadencia sem passos ativos');
+    const phone = (dto.phone || '').replace(/\D/g, '');
+    if (!phone) throw new NotFoundException('Telefone obrigatorio');
+    const proximoEm = new Date(Date.now() + this.atrasoMs(primeiro.atrasoValor, primeiro.atrasoUnidade));
+    return this.prisma.cadenciaInscricao.create({
+      data: {
+        cadenciaId,
+        tutorId: dto.tutorId || null,
+        petId: dto.petId || null,
+        phone,
+        status: 'ATIVA',
+        passoOrdem: primeiro.ordem,
+        proximoEm,
+        vars: dto.vars || {},
+      },
+    });
+  }
+
+  async listInscricoes(tutorId?: string) {
+    return this.prisma.cadenciaInscricao.findMany({
+      where: { ...(tutorId ? { tutorId } : {}) },
+      include: { cadencia: { select: { nome: true, gatilho: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+  }
+  async cancelarInscricao(id: string) {
+    return this.prisma.cadenciaInscricao.update({ where: { id }, data: { status: 'CANCELADA' } });
+  }
+  async pausarPorResposta(tutorId: string) {
+    if (!tutorId) return { paused: 0 };
+    const r = await this.prisma.cadenciaInscricao.updateMany({
+      where: { tutorId, status: 'ATIVA' },
+      data: { status: 'PAUSADA', pausadaEm: new Date() },
+    });
+    return { paused: r.count };
+  }
+
+  private async tutorRespondeu(insc: { tutorId: string | null; iniciadaEm: Date }): Promise<boolean> {
+    if (!insc.tutorId) return false;
+    const resp = await this.prisma.whatsAppMessage.findFirst({
+      where: { direction: 'INBOUND' as any, createdAt: { gt: insc.iniciadaEm }, conversation: { tutorId: insc.tutorId } },
+      select: { id: true },
+    });
+    return !!resp;
+  }
+
+  @Cron(CronExpression.EVERY_MINUTE)
+  async processarInscricoes() {
+    const due = await this.prisma.cadenciaInscricao.findMany({
+      where: { status: 'ATIVA', proximoEm: { lte: new Date() } },
+      take: 20,
+    });
+    for (const insc of due) {
+      try {
+        if (await this.tutorRespondeu(insc)) {
+          await this.prisma.cadenciaInscricao.update({ where: { id: insc.id }, data: { status: 'PAUSADA', pausadaEm: new Date() } });
+          continue;
+        }
+        const tpl = await this.prisma.cadenciaTemplate.findUnique({
+          where: { id: insc.cadenciaId },
+          include: { passos: { where: { ativo: true }, orderBy: { ordem: 'asc' } } },
+        });
+        if (!tpl) { await this.prisma.cadenciaInscricao.update({ where: { id: insc.id }, data: { status: 'CANCELADA' } }); continue; }
+        const passos = tpl.passos;
+        const atual = passos.find((p) => p.ordem === insc.passoOrdem) || passos.find((p) => p.ordem >= insc.passoOrdem);
+        if (!atual) { await this.prisma.cadenciaInscricao.update({ where: { id: insc.id }, data: { status: 'CONCLUIDA', concluidaEm: new Date() } }); continue; }
+        if (atual.tipo === 'WHATSAPP') {
+          const msg = this.render(atual.conteudo, insc.vars);
+          try {
+            const res: any = await this.whatsapp.sendMessage({ to: insc.phone, message: msg } as any);
+            if (res && res.success === false) this.logger.warn(`Cadencia ${insc.id} passo ${atual.ordem}: envio falhou (${res.error || 'erro'})`);
+          } catch (err: any) {
+            this.logger.warn(`Cadencia ${insc.id} passo ${atual.ordem}: ${err?.message || err}`);
+          }
+        }
+        const proximo = passos.filter((p) => p.ordem > atual.ordem).sort((a, b) => a.ordem - b.ordem)[0];
+        if (proximo) {
+          await this.prisma.cadenciaInscricao.update({
+            where: { id: insc.id },
+            data: { passoOrdem: proximo.ordem, proximoEm: new Date(Date.now() + this.atrasoMs(proximo.atrasoValor, proximo.atrasoUnidade)) },
+          });
+        } else {
+          await this.prisma.cadenciaInscricao.update({ where: { id: insc.id }, data: { status: 'CONCLUIDA', concluidaEm: new Date() } });
+        }
+      } catch (e: any) {
+        this.logger.warn(`Cadencia inscricao ${insc.id}: ${e?.message || e}`);
+      }
+    }
+    if (due.length) this.logger.log(`Cadencias: processadas ${due.length} inscricoes`);
   }
 }

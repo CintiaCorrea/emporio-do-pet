@@ -2,7 +2,7 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } f
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CadenciasService } from './cadencias.service';
-import { CreateCadenciaDto, UpdateCadenciaDto, CreatePassoDto, UpdatePassoDto } from './dto/cadencia.dto';
+import { CreateCadenciaDto, UpdateCadenciaDto, CreatePassoDto, UpdatePassoDto, InscreverDto } from './dto/cadencia.dto';
 
 @ApiTags('cadencias')
 @ApiBearerAuth()
@@ -36,4 +36,11 @@ export class CadenciasController {
   importBatch(@Body() body: { rows: any[]; upsert?: boolean }) {
     return this.service.importBatch(body.rows, body.upsert);
   }
+
+  @Get('inscricoes')
+  inscricoes(@Query('tutorId') tutorId?: string) { return this.service.listInscricoes(tutorId); }
+  @Post(':id/inscrever')
+  inscrever(@Param('id') id: string, @Body() dto: InscreverDto) { return this.service.inscrever(id, dto); }
+  @Patch('inscricoes/:id/cancelar')
+  cancelarInscricao(@Param('id') id: string) { return this.service.cancelarInscricao(id); }
 }
