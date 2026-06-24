@@ -225,6 +225,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
   const [staff, setStaff] = useState<Staff[]>([]);
   const [forwardOpen, setForwardOpen] = useState(false);
   const [petActForward, setPetActForward] = useState(false);
+  const [vacPend, setVacPend] = useState<{ id: string; nome: string; numero: number; dataPrevista: string; vencida: boolean; dias: number }[]>([]);
 
   const [cadastroOpen, setCadastroOpen] = useState(false);
   const [cadastroAs, setCadastroAs] = useState<"LEAD" | "CLIENTE">("LEAD");
@@ -266,6 +267,32 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
   useEffect(() => {
     fetch("/api/inbox/context/staff").then(r => r.json()).then(d => setStaff(Array.isArray(d) ? d : [])).catch(() => {});
   }, []);
+
+  // Vacinas a resolver (doses pendentes vencidas ou <=7 dias) do pet selecionado
+  useEffect(() => {
+    if (!selectedPet?.id) { setVacPend([]); return; }
+    let cancel = false;
+    (async () => {
+      try {
+        const r = await fetch(`/api/protocolos?petId=${selectedPet.id}`, { cache: "no-store" });
+        const arr = await safeJson<any[]>(r, []);
+        const now = new Date(); now.setHours(0, 0, 0, 0);
+        const out: { id: string; nome: string; numero: number; dataPrevista: string; vencida: boolean; dias: number }[] = [];
+        (Array.isArray(arr) ? arr : []).forEach((a: any) => {
+          (a.doses || []).forEach((d: any) => {
+            if (d.status !== "PENDENTE") return;
+            const dp = new Date(d.dataPrevista); if (Number.isNaN(dp.getTime())) return;
+            const dias = Math.round((dp.getTime() - now.getTime()) / 86400000);
+            if (dias <= 7) out.push({ id: d.id, nome: a.nomeProtocolo, numero: d.numero, dataPrevista: d.dataPrevista, vencida: dias < 0, dias });
+          });
+        });
+        out.sort((x, y) => new Date(x.dataPrevista).getTime() - new Date(y.dataPrevista).getTime());
+        if (!cancel) setVacPend(out);
+      } catch { if (!cancel) setVacPend([]); }
+    })();
+    return () => { cancel = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedPet?.id]);
 
   // === Caixa de Entrada: carrega Leads recentes não-resolvidos + Tutores com conversa BC ativa ===
   async function loadIncoming() {
@@ -1493,6 +1520,29 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                   <div className="rounded-lg p-3 text-center text-[11px] text-gray-400" style={{ background: "#fafafa", border: "1px dashed #E8DFC8" }}>
                     Nenhum pet cadastrado ainda<br />
                     <button onClick={() => criarPetEAbrir(tutor.id, true)} className="font-semibold mt-1" style={{ color: "#009AAC" }} type="button">+ Cadastrar pet</button>
+                  </div>
+                )}
+              </section>
+            )}
+
+            {/* BLOCO 3.4: VACINAS A RESOLVER (F3) */}
+            {tutor && selectedPet && (
+              <section className={SECTION} style={SECTION_STYLE}>
+                <div className={LBL}><span>Vacinas a resolver</span></div>
+                {vacPend.length === 0 ? (
+                  <div className="flex items-center gap-2 text-[11px]" style={{ color: "#0E5560" }}><span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: "#22c55e" }} /> Vacinas em dia.</div>
+                ) : (
+                  <div className="space-y-1.5">
+                    {vacPend.map(v => (
+                      <div key={v.id} className="flex items-center gap-2 border rounded-lg px-2.5 py-1.5" style={{ borderColor: v.vencida ? "#F3D0C4" : "#EBD9A8", background: v.vencida ? "#FFF7F4" : "#FFFDF5" }}>
+                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: v.vencida ? "#C2410C" : "#9a6b00" }} />
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[11.5px] font-medium truncate" style={{ color: "#014D5E" }}>{v.nome} · dose {v.numero}</div>
+                          <div className="text-[10px] text-gray-500">{v.vencida ? `venceu ${fmtDate(v.dataPrevista)}` : (v.dias === 0 ? "vence hoje" : `vence em ${v.dias}d · ${fmtDate(v.dataPrevista)}`)}</div>
+                        </div>
+                        <span className="text-[9.5px] font-bold px-1.5 py-0.5 rounded flex-shrink-0" style={{ background: v.vencida ? "#FBE6DF" : "#FCF1DD", color: v.vencida ? "#C2410C" : "#9a6b00" }}>{v.vencida ? "Vencida" : "A vencer"}</span>
+                      </div>
+                    ))}
                   </div>
                 )}
               </section>
