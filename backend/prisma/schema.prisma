@@ -1814,6 +1814,7 @@ model CadenciaTemplate {
   ordem       Int             @default(0)
 
   passos      CadenciaPasso[]
+  inscricoes  CadenciaInscricao[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1839,6 +1840,35 @@ model CadenciaPasso {
 
   @@index([cadenciaId, ordem])
   @@map("cadencia_passos")
+}
+
+enum StatusInscricaoCadencia {
+  ATIVA
+  PAUSADA
+  CONCLUIDA
+  CANCELADA
+}
+
+model CadenciaInscricao {
+  id          String                  @id @default(uuid())
+  cadenciaId  String
+  cadencia    CadenciaTemplate        @relation(fields: [cadenciaId], references: [id], onDelete: Cascade)
+  tutorId     String?
+  petId       String?
+  phone       String
+  status      StatusInscricaoCadencia @default(ATIVA)
+  passoOrdem  Int                     @default(1)
+  proximoEm   DateTime
+  vars        Json?
+  iniciadaEm  DateTime                @default(now())
+  pausadaEm   DateTime?
+  concluidaEm DateTime?
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+
+  @@index([status, proximoEm])
+  @@index([tutorId])
+  @@map("cadencia_inscricoes")
 }
 
 // ============================================

@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { CadenciaGatilho, TipoPasso, UnidadeTempo } from '@prisma/client';
-import { IsBoolean, IsEnum, IsInt, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsEnum, IsInt, IsObject, IsOptional, IsString } from 'class-validator';
 
 export class CreateCadenciaDto {
   @ApiProperty() @IsString() nome!: string;
@@ -22,3 +22,10 @@ export class CreatePassoDto {
   @ApiPropertyOptional() @IsOptional() @IsBoolean() ativo?: boolean;
 }
 export class UpdatePassoDto extends PartialType(CreatePassoDto) {}
+
+export class InscreverDto {
+  @ApiPropertyOptional() @IsOptional() @IsString() tutorId?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() petId?: string;
+  @ApiProperty() @IsString() phone!: string;
+  @ApiPropertyOptional() @IsOptional() @IsObject() vars?: Record<string, any>;
+}
