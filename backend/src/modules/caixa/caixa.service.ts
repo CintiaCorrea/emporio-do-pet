@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 function dayRange(dateStr?: string) {
@@ -11,6 +11,11 @@ function dayRange(dateStr?: string) {
 @Injectable()
 export class CaixaService {
   constructor(private readonly prisma: PrismaService) {}
+
+  private async saldoTutor(tutorId: string) {
+    const movs = await this.prisma.creditoMovimento.findMany({ where: { tutorId } });
+    return movs.reduce((s: number, m: any) => s + (m.tipo === 'USO' ? -Number(m.valor) : Number(m.valor)), 0);
+  }
 
   async findDoDia(dateStr?: string) {
     const { ini, fim } = dayRange(dateStr);
@@ -34,7 +39,12 @@ export class CaixaService {
       },
     });
     if (!c) throw new NotFoundException('Caixa nao encontrado');
-    return c;
+    const creditosUtilizados = await this.prisma.creditoMovimento.findMany({
+      where: { caixaSessaoId: id, tipo: 'USO' },
+      orderBy: { data: 'desc' },
+      include: { tutor: { select: { id: true, name: true } } },
+    });
+    return { ...c, creditosUtilizados };
   }
 
   async abrir(dto: any, userId: string) {
@@ -58,10 +68,28 @@ export class CaixaService {
   }
 
   async registrarRecebimento(caixaId: string, dto: any, userId: string) {
+    const appointmentId = dto.appointmentId || null;
+    const formas = Array.isArray(dto.formas) ? dto.formas : [];
+    const creditoUsado = formas
+      .filter((f: any) => /cr[eé]dito/i.test(f.forma || ''))
+      .reduce((s: number, f: any) => s + Number(f.valor || 0), 0);
+
+    let tutorId: string | null = null;
+    if (appointmentId) {
+      const ap = await this.prisma.appointment.findUnique({ where: { id: appointmentId }, select: { tutorId: true } });
+      tutorId = ap?.tutorId || null;
+    }
+
+    if (creditoUsado > 0.001) {
+      if (!tutorId) throw new BadRequestException('Venda sem cliente para debitar credito');
+      const saldo = await this.saldoTutor(tutorId);
+      if (saldo < creditoUsado - 0.001) throw new BadRequestException('Credito insuficiente do cliente');
+    }
+
     const rec = await this.prisma.recebimento.create({
       data: {
         caixaSessaoId: caixaId,
-        appointmentId: dto.appointmentId || null,
+        appointmentId,
         valorTotal: Number(dto.valorTotal || 0),
         desconto: Number(dto.desconto || 0),
         troco: Number(dto.troco || 0),
@@ -70,9 +98,20 @@ export class CaixaService {
         createdById: userId,
       },
     });
-    if (dto.appointmentId) {
+
+    if (creditoUsado > 0.001 && tutorId) {
+      await this.prisma.creditoMovimento.create({
+        data: {
+          tutorId, tipo: 'USO', valor: creditoUsado,
+          descricao: 'Uso em recebimento',
+          caixaSessaoId: caixaId, appointmentId, recebimentoId: rec.id, createdById: userId,
+        },
+      });
+    }
+
+    if (appointmentId) {
       const ap = await this.prisma.appointment.findUnique({
-        where: { id: dto.appointmentId },
+        where: { id: appointmentId },
         include: { recebimentos: true },
       });
       if (ap) {
