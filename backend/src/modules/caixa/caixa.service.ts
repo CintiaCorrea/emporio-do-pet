@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AppointmentsService } from '../appointments/appointments.service';
 
 function dayRange(dateStr?: string) {
   const d = dateStr ? new Date(dateStr + 'T00:00:00') : new Date();
@@ -20,7 +21,10 @@ function rangeFromQuery(query: any) {
 
 @Injectable()
 export class CaixaService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly appointmentsService: AppointmentsService,
+  ) {}
 
   private async saldoTutor(tutorId: string) {
     const movs = await this.prisma.creditoMovimento.findMany({ where: { tutorId } });
@@ -188,6 +192,78 @@ export class CaixaService {
         createdById: userId,
       },
     });
+  }
+
+  // ============================================================
+  // PONTO DE VENDA (PDV): cria a venda (appointment) com os itens
+  // e registra o recebimento no caixa aberto, de uma vez.
+  // ============================================================
+  async vendaDireta(dto: any, userId: string) {
+    if (!dto?.tutorId) throw new BadRequestException('Cliente obrigatorio');
+    if (!dto?.petId) throw new BadRequestException('Pet obrigatorio');
+
+    const itensRaw = Array.isArray(dto.itens) ? dto.itens : [];
+    if (itensRaw.length === 0) throw new BadRequestException('Adicione ao menos um item');
+
+    const items = itensRaw.map((it: any) => {
+      const quantidade = Number(it.quantidade || 1);
+      const valorUnitario = Number(it.valorUnitario || 0);
+      const desconto = Number(it.desconto || 0);
+      const valorTotal = Math.max(0, quantidade * valorUnitario - desconto);
+      return {
+        servicoId: it.servicoId ?? undefined,
+        descricao: it.descricao ?? undefined,
+        quantidade,
+        valorUnitario,
+        desconto,
+        valorTotal,
+      };
+    });
+    const itensTotal = items.reduce((s: number, it: any) => s + it.valorTotal, 0);
+    const descontoGlobal = Number(dto.desconto || 0);
+    const valorVenda = Math.max(0, Number((itensTotal - descontoGlobal).toFixed(2)));
+
+    // Caixa aberto (o informado, ou o mais recente aberto).
+    let caixaId = dto.caixaId || null;
+    if (!caixaId) {
+      const aberto = await this.prisma.caixaSessao.findFirst({
+        where: { status: 'ABERTO' },
+        orderBy: { abertura: 'desc' },
+      });
+      if (!aberto) throw new BadRequestException('Nenhum caixa aberto. Abra o caixa antes de vender.');
+      caixaId = aberto.id;
+    }
+
+    // Cria a venda (appointment) com os itens.
+    const appointment: any = await this.appointmentsService.create({
+      tutorId: dto.tutorId,
+      petId: dto.petId,
+      userId: dto.userId || userId,
+      date: dto.date || new Date().toISOString(),
+      value: valorVenda,
+      items,
+    } as any);
+
+    // Calcula pagamento.
+    const formas = Array.isArray(dto.formas) ? dto.formas : [];
+    const somaFormas = formas.reduce((s: number, f: any) => s + Number(f.valor || 0), 0);
+    const temDinheiro = formas.some((f: any) => /dinheiro/i.test(f.forma || ''));
+    const troco = temDinheiro && somaFormas > valorVenda ? Number((somaFormas - valorVenda).toFixed(2)) : 0;
+    const valorAplicado = Math.max(0, Number((somaFormas - troco).toFixed(2)));
+
+    let recebimento: any = null;
+    if (somaFormas > 0.001) {
+      recebimento = await this.registrarRecebimento(caixaId, {
+        appointmentId: appointment.id,
+        valorTotal: valorAplicado,
+        desconto: descontoGlobal,
+        troco,
+        formas,
+        observacao: dto.observacao || 'Venda PDV',
+      }, userId);
+    }
+
+    return { ok: true, appointment, recebimento, valorVenda, valorAplicado, troco };
   }
 
   async deleteMovimento(caixaId: string, itemId: string) {

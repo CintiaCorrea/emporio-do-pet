@@ -30,6 +30,12 @@ export class CaixaController {
     return this.service.listMovimentos(query);
   }
 
+  // Ponto de venda: cria a venda (appointment) e o recebimento de uma vez.
+  @Post('pdv')
+  pdv(@Body() dto: any, @CurrentUser('id') userId: string) {
+    return this.service.vendaDireta(dto, userId);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.service.findOne(id);
