@@ -226,6 +226,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
   const [forwardOpen, setForwardOpen] = useState(false);
   const [petActForward, setPetActForward] = useState(false);
   const [tutorScore, setTutorScore] = useState<{ total: number; label: string; dimensions: any } | null>(null);
+  const [inscricoes, setInscricoes] = useState<any[]>([]);
   const [vacPend, setVacPend] = useState<{ id: string; nome: string; numero: number; dataPrevista: string; vencida: boolean; dias: number }[]>([]);
 
   const [cadastroOpen, setCadastroOpen] = useState(false);
@@ -283,6 +284,29 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
     return () => { cancel = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tutor?.id]);
+
+  // Sequencias (inscricoes em cadencia) do tutor selecionado
+  useEffect(() => {
+    if (!tutor?.id) { setInscricoes([]); return; }
+    let cancel = false;
+    (async () => {
+      try {
+        const r = await fetch(`/api/cadencias/inscricoes?tutorId=${tutor.id}`);
+        const arr = await safeJson<any[]>(r, []);
+        if (!cancel) setInscricoes((Array.isArray(arr) ? arr : []).filter((i: any) => i.status === "ATIVA" || i.status === "PAUSADA"));
+      } catch { if (!cancel) setInscricoes([]); }
+    })();
+    return () => { cancel = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tutor?.id]);
+
+  async function cancelarInscricaoSeq(id: string) {
+    if (!confirm("Cancelar essa sequencia? Os proximos passos nao serao enviados.")) return;
+    const r = await fetch(`/api/cadencias/inscricoes/${id}/cancelar`, { method: "PATCH" });
+    if (!r.ok) { toast.error("Erro ao cancelar"); return; }
+    toast.success("Sequencia cancelada");
+    setInscricoes(list => list.filter(x => x.id !== id));
+  }
 
   // Vacinas a resolver (doses pendentes vencidas ou <=7 dias) do pet selecionado
   useEffect(() => {
@@ -1380,6 +1404,29 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                       <span className="inline-flex items-center gap-1 text-[10.5px] text-gray-600"><span className="w-1.5 h-1.5 rounded-full" style={{ background: "#D85A30" }} />NPS <b style={{ color: "#0E2244" }}>{tutorScore.dimensions?.nps?.score ?? 0}</b></span>
                     </div>
                   </div>
+                </div>
+              </section>
+            )}
+
+            {/* BLOCO 2.6: SEQUENCIAS (S3) */}
+            {tutor && inscricoes.length > 0 && (
+              <section className={SECTION} style={SECTION_STYLE}>
+                <div className={LBL}><span>Sequencias em andamento</span></div>
+                <div className="space-y-1.5">
+                  {inscricoes.map(i => {
+                    const pausada = i.status === "PAUSADA";
+                    return (
+                      <div key={i.id} className="flex items-center gap-2 border rounded-lg px-2.5 py-1.5" style={{ borderColor: pausada ? "#EBD9A8" : "#D6E9EC", background: pausada ? "#FFFDF5" : "#FAFEFE" }}>
+                        <LuRepeat size={14} style={{ color: pausada ? "#9a6b00" : "#0E5560", flexShrink: 0 }} />
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[11.5px] font-medium truncate" style={{ color: "#014D5E" }}>{i.cadencia?.nome || "Sequencia"}</div>
+                          <div className="text-[10px] text-gray-500 truncate">{pausada ? "Pausada - tutor respondeu" : `Passo ${i.passoOrdem}${i.proximoEm ? ` - proximo ${fmtDate(i.proximoEm)}` : ""}`}</div>
+                        </div>
+                        <span className="text-[9.5px] font-bold px-1.5 py-0.5 rounded flex-shrink-0" style={{ background: pausada ? "#FCF1DD" : "#E1F2F4", color: pausada ? "#9a6b00" : "#0E5560" }}>{pausada ? "Pausada" : "Ativa"}</span>
+                        <button onClick={() => cancelarInscricaoSeq(i.id)} title="Cancelar sequencia" className="text-gray-300 hover:text-[#C2410C] flex-shrink-0" type="button"><LuX size={13} /></button>
+                      </div>
+                    );
+                  })}
                 </div>
               </section>
             )}
