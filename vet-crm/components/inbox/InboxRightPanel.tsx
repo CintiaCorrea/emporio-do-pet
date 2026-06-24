@@ -225,6 +225,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
   const [staff, setStaff] = useState<Staff[]>([]);
   const [forwardOpen, setForwardOpen] = useState(false);
   const [petActForward, setPetActForward] = useState(false);
+  const [tutorScore, setTutorScore] = useState<{ total: number; label: string; dimensions: any } | null>(null);
   const [vacPend, setVacPend] = useState<{ id: string; nome: string; numero: number; dataPrevista: string; vencida: boolean; dias: number }[]>([]);
 
   const [cadastroOpen, setCadastroOpen] = useState(false);
@@ -267,6 +268,21 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
   useEffect(() => {
     fetch("/api/inbox/context/staff").then(r => r.json()).then(d => setStaff(Array.isArray(d) ? d : [])).catch(() => {});
   }, []);
+
+  // Score do cliente (formula no backend, vem em GET /api/tutors/[id].score)
+  useEffect(() => {
+    if (!tutor?.id) { setTutorScore(null); return; }
+    let cancel = false;
+    (async () => {
+      try {
+        const r = await fetch(`/api/tutors/${tutor.id}`);
+        const d = await safeJson<any>(r, null);
+        if (!cancel) setTutorScore(d?.score || null);
+      } catch { if (!cancel) setTutorScore(null); }
+    })();
+    return () => { cancel = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tutor?.id]);
 
   // Vacinas a resolver (doses pendentes vencidas ou <=7 dias) do pet selecionado
   useEffect(() => {
@@ -1343,6 +1359,28 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                 <button onClick={handleConverter} className="mt-2 w-full text-[10.5px] py-1.5 border rounded font-semibold hover:bg-white flex items-center justify-center gap-1" style={{ borderColor: "#009AAC", color: "#009AAC" }}>
                   <LuArrowUpRight size={12} /> Converter em cliente
                 </button>
+              </section>
+            )}
+
+            {/* BLOCO 2.5: SCORE DO CLIENTE (F5) */}
+            {tutor && tutorScore && (
+              <section className={SECTION} style={SECTION_STYLE}>
+                <div className="flex items-center gap-3">
+                  <svg width="46" height="46" viewBox="0 0 64 64" style={{ flexShrink: 0 }}>
+                    <circle cx="32" cy="32" r="27" fill="none" stroke="#EEEBE3" strokeWidth="6" />
+                    <circle cx="32" cy="32" r="27" fill="none" stroke="#009AAC" strokeWidth="6" strokeLinecap="round" strokeDasharray="169.6" strokeDashoffset={169.6 - (Math.max(0, Math.min(100, tutorScore.total)) / 100) * 169.6} transform="rotate(-90 32 32)" />
+                    <text x="32" y="38" textAnchor="middle" fontSize="18" fontWeight="600" fill="#0E2244">{tutorScore.total}</text>
+                  </svg>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[12px] font-medium" style={{ color: "#0E5560" }}>🏅 Cliente {(tutorScore.label || "").toLowerCase()} <span className="text-[10px] text-gray-400 font-normal">· {tutorScore.total}/100</span></div>
+                    <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1.5">
+                      <span className="inline-flex items-center gap-1 text-[10.5px] text-gray-600"><span className="w-1.5 h-1.5 rounded-full" style={{ background: "#009AAC" }} />Visitas <b style={{ color: "#0E2244" }}>{tutorScore.dimensions?.visitas?.score ?? 0}</b></span>
+                      <span className="inline-flex items-center gap-1 text-[10.5px] text-gray-600"><span className="w-1.5 h-1.5 rounded-full" style={{ background: "#B8860B" }} />LTV <b style={{ color: "#0E2244" }}>{tutorScore.dimensions?.ltv?.score ?? 0}</b></span>
+                      <span className="inline-flex items-center gap-1 text-[10.5px] text-gray-600"><span className="w-1.5 h-1.5 rounded-full" style={{ background: "#2f80c4" }} />Recência <b style={{ color: "#0E2244" }}>{tutorScore.dimensions?.recencia?.score ?? 0}</b></span>
+                      <span className="inline-flex items-center gap-1 text-[10.5px] text-gray-600"><span className="w-1.5 h-1.5 rounded-full" style={{ background: "#D85A30" }} />NPS <b style={{ color: "#0E2244" }}>{tutorScore.dimensions?.nps?.score ?? 0}</b></span>
+                    </div>
+                  </div>
+                </div>
               </section>
             )}
 
