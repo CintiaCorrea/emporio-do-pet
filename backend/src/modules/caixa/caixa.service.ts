@@ -61,6 +61,40 @@ export class CaixaService {
     });
   }
 
+  // Lista de vendas (atendimentos) para o painel lateral do PDV.
+  async listVendas(query: any = {}) {
+    const where: any = {};
+    if (query?.from || query?.to) {
+      where.date = {};
+      if (query.from) where.date.gte = new Date(String(query.from) + 'T00:00:00');
+      if (query.to) where.date.lte = new Date(String(query.to) + 'T23:59:59');
+    }
+    const appts = await this.prisma.appointment.findMany({
+      where,
+      include: {
+        pet: { select: { name: true } },
+        tutor: { select: { name: true } },
+        recebimentos: { select: { valorTotal: true } },
+      },
+      orderBy: { date: 'desc' },
+      take: 60,
+    });
+    return appts.map((a: any) => {
+      const pago = (a.recebimentos || []).reduce((s: number, r: any) => s + Number(r.valorTotal), 0);
+      const valor = Number(a.value || 0);
+      return {
+        id: a.id,
+        tutor: a.tutor?.name || 'Cliente',
+        pet: a.pet?.name || '',
+        valor,
+        pago,
+        status: a.paymentStatus,
+        pagoTotal: pago >= valor - 0.001 && valor > 0,
+        date: a.date,
+      };
+    });
+  }
+
   async findOne(id: string) {
     const c = await this.prisma.caixaSessao.findUnique({
       where: { id },
@@ -196,7 +230,8 @@ export class CaixaService {
 
   // ============================================================
   // PONTO DE VENDA (PDV): cria a venda (appointment) com os itens
-  // e registra o recebimento no caixa aberto, de uma vez.
+  // e, se houver pagamento, registra o recebimento no caixa aberto.
+  // tipo: 'VENDA' (padrao) ou 'ORCAMENTO' (nunca cobra).
   // ============================================================
   async vendaDireta(dto: any, userId: string) {
     if (!dto?.tutorId) throw new BadRequestException('Cliente obrigatorio');
@@ -223,16 +258,7 @@ export class CaixaService {
     const descontoGlobal = Number(dto.desconto || 0);
     const valorVenda = Math.max(0, Number((itensTotal - descontoGlobal).toFixed(2)));
 
-    // Caixa aberto (o informado, ou o mais recente aberto).
-    let caixaId = dto.caixaId || null;
-    if (!caixaId) {
-      const aberto = await this.prisma.caixaSessao.findFirst({
-        where: { status: 'ABERTO' },
-        orderBy: { abertura: 'desc' },
-      });
-      if (!aberto) throw new BadRequestException('Nenhum caixa aberto. Abra o caixa antes de vender.');
-      caixaId = aberto.id;
-    }
+    const orcamento = String(dto.tipo || 'VENDA').toUpperCase() === 'ORCAMENTO';
 
     // Cria a venda (appointment) com os itens.
     const appointment: any = await this.appointmentsService.create({
@@ -244,8 +270,8 @@ export class CaixaService {
       items,
     } as any);
 
-    // Calcula pagamento.
-    const formas = Array.isArray(dto.formas) ? dto.formas : [];
+    // Pagamento (apenas para vendas, nunca para orcamento).
+    const formas = orcamento ? [] : (Array.isArray(dto.formas) ? dto.formas : []);
     const somaFormas = formas.reduce((s: number, f: any) => s + Number(f.valor || 0), 0);
     const temDinheiro = formas.some((f: any) => /dinheiro/i.test(f.forma || ''));
     const troco = temDinheiro && somaFormas > valorVenda ? Number((somaFormas - valorVenda).toFixed(2)) : 0;
@@ -253,6 +279,16 @@ export class CaixaService {
 
     let recebimento: any = null;
     if (somaFormas > 0.001) {
+      // Caixa aberto so e exigido quando ha pagamento.
+      let caixaId = dto.caixaId || null;
+      if (!caixaId) {
+        const aberto = await this.prisma.caixaSessao.findFirst({
+          where: { status: 'ABERTO' },
+          orderBy: { abertura: 'desc' },
+        });
+        if (!aberto) throw new BadRequestException('Nenhum caixa aberto. Abra o caixa antes de receber.');
+        caixaId = aberto.id;
+      }
       recebimento = await this.registrarRecebimento(caixaId, {
         appointmentId: appointment.id,
         valorTotal: valorAplicado,
@@ -263,7 +299,7 @@ export class CaixaService {
       }, userId);
     }
 
-    return { ok: true, appointment, recebimento, valorVenda, valorAplicado, troco };
+    return { ok: true, orcamento, appointment, recebimento, valorVenda, valorAplicado, troco };
   }
 
   async deleteMovimento(caixaId: string, itemId: string) {
