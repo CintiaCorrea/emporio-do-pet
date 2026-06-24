@@ -1860,6 +1860,8 @@ model CadenciaInscricao {
   passoOrdem  Int                     @default(1)
   proximoEm   DateTime
   vars        Json?
+  origemId    String?
+  gatilho     CadenciaGatilho?
   iniciadaEm  DateTime                @default(now())
   pausadaEm   DateTime?
   concluidaEm DateTime?
@@ -1868,6 +1870,7 @@ model CadenciaInscricao {
 
   @@index([status, proximoEm])
   @@index([tutorId])
+  @@index([origemId])
   @@map("cadencia_inscricoes")
 }
 

@@ -1,5 +1,6 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { OnEvent } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
 import { CreateCadenciaDto, UpdateCadenciaDto, CreatePassoDto, UpdatePassoDto, InscreverDto } from './dto/cadencia.dto';
@@ -261,5 +262,128 @@ export class CadenciasService {
       }
     }
     if (due.length) this.logger.log(`Cadencias: processadas ${due.length} inscricoes`);
+  }
+
+  // ===== Auto-disparo por gatilho (S2) =====
+  private bestPhone(contacts: any[]): string | null {
+    const c = (contacts || []).slice().sort(
+      (x: any, y: any) => (Number(!!y.isWhatsApp) - Number(!!x.isWhatsApp)) || (Number(!!y.isPrimary) - Number(!!x.isPrimary)),
+    )[0];
+    const n = c?.number ? String(c.number).replace(/\D/g, '') : '';
+    return n || null;
+  }
+
+  async dispararGatilho(
+    gatilho: string,
+    ctx: { tutorId?: string | null; petId?: string | null; phone: string; vars?: any; origemId?: string | null },
+  ) {
+    const phone = (ctx.phone || '').replace(/\D/g, '');
+    if (!phone) return { enrolled: 0 };
+    const cads = await this.prisma.cadenciaTemplate.findMany({
+      where: { ativo: true, gatilho: gatilho as any },
+      include: { passos: { where: { ativo: true }, orderBy: { ordem: 'asc' } } },
+    });
+    let enrolled = 0;
+    for (const cad of cads) {
+      const primeiro = cad.passos[0];
+      if (!primeiro) continue;
+      if (ctx.origemId) {
+        const ja = await this.prisma.cadenciaInscricao.findFirst({ where: { cadenciaId: cad.id, origemId: ctx.origemId } });
+        if (ja) continue;
+      }
+      await this.prisma.cadenciaInscricao.create({
+        data: {
+          cadenciaId: cad.id,
+          tutorId: ctx.tutorId || null,
+          petId: ctx.petId || null,
+          phone,
+          status: 'ATIVA',
+          passoOrdem: primeiro.ordem,
+          proximoEm: new Date(Date.now() + this.atrasoMs(primeiro.atrasoValor, primeiro.atrasoUnidade)),
+          vars: ctx.vars || {},
+          origemId: ctx.origemId || null,
+          gatilho: gatilho as any,
+        },
+      });
+      enrolled++;
+    }
+    return { enrolled };
+  }
+
+  // LEAD_NOVO: usa o evento ja emitido pelo modulo de leads (zero acoplamento)
+  @OnEvent('crm.lead.created')
+  async onLeadCreated(payload: { leadId: string }) {
+    try {
+      const lead = await this.prisma.lead.findUnique({ where: { id: payload.leadId } });
+      if (!lead || !lead.phone) return;
+      await this.dispararGatilho('LEAD_NOVO', {
+        phone: lead.phone,
+        vars: { tutor: lead.name || '' },
+        origemId: `lead:${lead.id}`,
+      });
+    } catch (e: any) {
+      this.logger.warn(`onLeadCreated: ${e?.message || e}`);
+    }
+  }
+
+  // Polling: atendimentos finalizados / agendamentos confirmados recentes
+  @Cron(CronExpression.EVERY_5_MINUTES)
+  async varrerAtendimentos() {
+    const desde = new Date(Date.now() - 16 * 60_000);
+    const apps = await this.prisma.appointment.findMany({
+      where: { updatedAt: { gte: desde }, status: { in: ['COMPLETED', 'DONE', 'CONFIRMED'] } },
+      include: { tutor: { include: { contacts: true } }, pet: true },
+      take: 50,
+    });
+    for (const a of apps) {
+      try {
+        const phone = this.bestPhone((a as any).tutor?.contacts || []);
+        if (!phone) continue;
+        const gat = a.status === 'CONFIRMED' ? 'AGENDAMENTO_CONFIRMADO' : 'ATENDIMENTO_FINALIZADO';
+        const d = new Date(a.date);
+        const vars = {
+          tutor: (a as any).tutor?.name || '',
+          pet: (a as any).pet?.name || '',
+          data: d.toLocaleDateString('pt-BR'),
+          hora: d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+        };
+        await this.dispararGatilho(gat, { tutorId: a.tutorId, petId: a.petId, phone, vars, origemId: `appt:${a.id}:${a.status}` });
+      } catch (e: any) {
+        this.logger.warn(`varrerAtendimentos ${a.id}: ${e?.message || e}`);
+      }
+    }
+  }
+
+  // Polling: aniversario do pet (uma vez por ano por pet)
+  @Cron(CronExpression.EVERY_6_HOURS)
+  async varrerNiverPets() {
+    const temCad = await this.prisma.cadenciaTemplate.count({ where: { ativo: true, gatilho: 'NIVER_PET' as any } });
+    if (!temCad) return;
+    const hoje = new Date();
+    const mm = hoje.getMonth() + 1;
+    const dd = hoje.getDate();
+    const yyyy = hoje.getFullYear();
+    const pets = await this.prisma.pet.findMany({
+      where: { birthDate: { not: null }, status: 'ACTIVE' as any },
+      include: { tutor: { include: { contacts: true } } },
+      take: 500,
+    });
+    for (const p of pets) {
+      try {
+        const b = p.birthDate ? new Date(p.birthDate) : null;
+        if (!b || b.getMonth() + 1 !== mm || b.getDate() !== dd) continue;
+        const phone = this.bestPhone((p as any).tutor?.contacts || []);
+        if (!phone) continue;
+        await this.dispararGatilho('NIVER_PET', {
+          tutorId: p.tutorId,
+          petId: p.id,
+          phone,
+          vars: { tutor: (p as any).tutor?.name || '', pet: p.name },
+          origemId: `niver:${p.id}:${yyyy}`,
+        });
+      } catch (e: any) {
+        this.logger.warn(`varrerNiverPets ${p.id}: ${e?.message || e}`);
+      }
+    }
   }
 }
