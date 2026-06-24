@@ -398,6 +398,7 @@ model Tutor {
   protocolos    ProtocoloAplicado[]
 
   @@map("tutors")
+  creditos      CreditoMovimento[]
 }
 
 model Contact {
@@ -2816,4 +2817,22 @@ model CaixaMovimento {
 
   @@index([caixaSessaoId])
   @@map("caixa_movimentos")
+}
+
+model CreditoMovimento {
+  id            String   @id @default(uuid())
+  tutorId       String
+  tipo          String
+  valor         Float    @default(0)
+  descricao     String?
+  caixaSessaoId String?
+  appointmentId String?
+  recebimentoId String?
+  createdById   String?
+  data          DateTime @default(now())
+  tutor         Tutor    @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+
+  @@index([tutorId])
+  @@index([caixaSessaoId])
+  @@map("credito_movimentos")
 }
