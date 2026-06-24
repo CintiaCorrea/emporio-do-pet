@@ -40,6 +40,7 @@ interface Lead {
 interface Pet {
   id: string; name: string; species: string; breed?: string | null;
   birthDate?: string | null; observations?: string | null; avatar?: string | null; gender?: string | null;
+  weight?: number | null; sterilization?: string | null; coatColor?: string | null; microchip?: string | null; insurancePlan?: string | null;
   pipelineClinicoEtapa?: string | null;
   pipelineFisioEtapa?: string | null;
 }
@@ -1382,6 +1383,35 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                                   <span className="text-gray-400 w-12 flex-shrink-0">Nasc.</span>
                                   <input type="date" defaultValue={p.birthDate ? String(p.birthDate).slice(0, 10) : ""} onChange={e => savePetField(p.id, { birthDate: e.target.value ? new Date(e.target.value).toISOString() : null })} className="flex-1 text-[10.5px] px-2 py-1 border rounded" style={{ borderColor: "#cfe8eb", color: "#014D5E", background: "white" }} />
                                   <span className="text-[9.5px] text-gray-400 flex-shrink-0 w-12">{p.birthDate ? ageFromBirth(p.birthDate) : ""}</span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-gray-400 w-12 flex-shrink-0">Peso</span>
+                                  <input type="number" step="0.1" defaultValue={p.weight ?? ""} placeholder="kg" onBlur={e => { const v = e.target.value.trim(); savePetField(p.id, { weight: v ? Number(v.replace(",", ".")) : null }); }} className="flex-1 text-[10.5px] px-2 py-1 border rounded" style={{ borderColor: "#cfe8eb", color: "#014D5E", background: "white" }} />
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-gray-400 w-12 flex-shrink-0">Castr.</span>
+                                  <select value={p.sterilization || ""} onChange={e => savePetField(p.id, { sterilization: e.target.value || null })} className="flex-1 text-[10.5px] px-2 py-1 border rounded" style={{ borderColor: "#cfe8eb", color: "#014D5E", background: "white" }}>
+                                    <option value="">—</option>
+                                    <option value="STERILIZED">Castrado</option>
+                                    <option value="NOT_STERILIZED">Inteiro</option>
+                                    <option value="SCHEDULED">Agendado</option>
+                                  </select>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-gray-400 w-12 flex-shrink-0">Pelagem</span>
+                                  <input defaultValue={p.coatColor || ""} placeholder="cor / pelagem" onBlur={e => { const v = e.target.value.trim(); if (v !== (p.coatColor || "")) savePetField(p.id, { coatColor: v || null }); }} className="flex-1 text-[10.5px] px-2 py-1 border rounded" style={{ borderColor: "#cfe8eb", color: "#014D5E", background: "white" }} />
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-gray-400 w-12 flex-shrink-0">Microchip</span>
+                                  <input defaultValue={p.microchip || ""} placeholder="número" onBlur={e => { const v = e.target.value.trim(); if (v !== (p.microchip || "")) savePetField(p.id, { microchip: v || null }); }} className="flex-1 text-[10.5px] px-2 py-1 border rounded" style={{ borderColor: "#cfe8eb", color: "#014D5E", background: "white" }} />
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-gray-400 w-12 flex-shrink-0">Plano</span>
+                                  <input defaultValue={p.insurancePlan || ""} placeholder="convênio / plano" onBlur={e => { const v = e.target.value.trim(); if (v !== (p.insurancePlan || "")) savePetField(p.id, { insurancePlan: v || null }); }} className="flex-1 text-[10.5px] px-2 py-1 border rounded" style={{ borderColor: "#cfe8eb", color: "#014D5E", background: "white" }} />
+                                </div>
+                                <div className="flex items-start gap-1.5">
+                                  <span className="text-gray-400 w-12 flex-shrink-0 mt-1">Obs.</span>
+                                  <textarea defaultValue={p.observations || ""} placeholder="Alergias / observações clínicas" rows={2} onBlur={e => { const v = e.target.value.trim(); if (v !== (p.observations || "")) savePetField(p.id, { observations: v || null }); }} className="flex-1 text-[10.5px] px-2 py-1 border rounded" style={{ borderColor: "#cfe8eb", color: "#014D5E", background: "white" }} />
                                 </div>
                               </div>)}
                               </>); })()}
