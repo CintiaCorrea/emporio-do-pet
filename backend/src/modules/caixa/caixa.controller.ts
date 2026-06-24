@@ -4,6 +4,7 @@ import { CaixaService } from './caixa.service';
 import { AbrirCaixaDto } from './dto/abrir-caixa.dto';
 import { RecebimentoDto } from './dto/recebimento.dto';
 import { MovimentoDto } from './dto/movimento.dto';
+import { FecharCaixaDto } from './dto/fechar-caixa.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 
@@ -30,8 +31,13 @@ export class CaixaController {
   }
 
   @Patch(':id/fechar')
-  fechar(@Param('id') id: string) {
-    return this.service.fechar(id);
+  fechar(@Param('id') id: string, @Body() dto: FecharCaixaDto) {
+    return this.service.fechar(id, dto);
+  }
+
+  @Patch(':id/reabrir')
+  reabrir(@Param('id') id: string) {
+    return this.service.reabrir(id);
   }
 
   @Post(':id/recebimento')
