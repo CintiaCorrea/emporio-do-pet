@@ -158,4 +158,39 @@ export class CaixaService {
       },
     });
   }
+
+  async deleteMovimento(caixaId: string, itemId: string) {
+    const mov = await this.prisma.caixaMovimento.findUnique({ where: { id: itemId } });
+    if (!mov || mov.caixaSessaoId !== caixaId) throw new NotFoundException('Movimento nao encontrado');
+    await this.prisma.caixaMovimento.delete({ where: { id: itemId } });
+    return { ok: true };
+  }
+
+  async deleteRecebimento(caixaId: string, itemId: string) {
+    const rec = await this.prisma.recebimento.findUnique({ where: { id: itemId } });
+    if (!rec || rec.caixaSessaoId !== caixaId) throw new NotFoundException('Recebimento nao encontrado');
+    await this.prisma.creditoMovimento.deleteMany({ where: { recebimentoId: itemId } });
+    await this.prisma.recebimento.delete({ where: { id: itemId } });
+    if (rec.appointmentId) {
+      const ap = await this.prisma.appointment.findUnique({
+        where: { id: rec.appointmentId },
+        include: { recebimentos: true },
+      });
+      if (ap) {
+        const pago = ap.recebimentos.reduce((s: number, r: any) => s + Number(r.valorTotal), 0);
+        await this.prisma.appointment.update({
+          where: { id: ap.id },
+          data: { paymentStatus: pago >= Number(ap.value) - 0.001 ? 'PAID' : 'PENDING' },
+        });
+      }
+    }
+    return { ok: true };
+  }
+
+  async deleteCredito(caixaId: string, itemId: string) {
+    const c = await this.prisma.creditoMovimento.findUnique({ where: { id: itemId } });
+    if (!c || c.caixaSessaoId !== caixaId) throw new NotFoundException('Credito nao encontrado');
+    await this.prisma.creditoMovimento.delete({ where: { id: itemId } });
+    return { ok: true };
+  }
 }

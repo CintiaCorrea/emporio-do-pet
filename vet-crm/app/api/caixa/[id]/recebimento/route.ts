@@ -6,3 +6,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const body = await request.text().catch(() => '');
   return proxyToBackend(request, `/caixa/${encodeURIComponent(id)}/recebimento`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body || '{}' });
 }
+
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const itemId = request.nextUrl.searchParams.get('itemId') || '';
+  return proxyToBackend(request, `/caixa/${encodeURIComponent(id)}/recebimento?itemId=${encodeURIComponent(itemId)}`, { method: 'DELETE' });
+}

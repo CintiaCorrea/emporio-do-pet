@@ -1,12 +1,14 @@
 // DESTINO NO REPO: vet-crm/app/(user)/dashboard/erp/caixa/page.tsx
-// Caixa no PADRAO DO SISTEMA: 2 colunas (cards a esquerda + abas a direita).
+// Caixa no PADRAO DO SISTEMA: 2 colunas, largura total, titulo "Caixa",
+// botao de esconder valores e exclusao de registros.
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import toast from 'react-hot-toast';
+import { usePageTitle } from '@/lib/ui/PageHeaderContext';
 import {
   LuPlus, LuLock, LuLockOpen, LuPrinter, LuChevronLeft, LuChevronRight,
-  LuX, LuWallet, LuArrowRightLeft, LuTrash2, LuGift, LuSettings, LuCircleDollarSign,
+  LuX, LuWallet, LuTrash2, LuGift, LuSettings, LuCircleDollarSign, LuEye, LuEyeOff,
 } from 'react-icons/lu';
 
 const TEAL = '#009AAC';
@@ -38,6 +40,8 @@ const thStyle: React.CSSProperties = { color: '#64748b', fontWeight: 500, paddin
 const tdStyle: React.CSSProperties = { padding: '9px 8px', borderBottom: '1px solid #f1f5f6' };
 
 export default function CaixaPage() {
+  usePageTitle('Caixa', 'Controle de recebimentos do dia');
+
   const [date, setDate] = useState(hojeStr());
   const [caixas, setCaixas] = useState<Caixa[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -45,6 +49,10 @@ export default function CaixaPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [tab, setTab] = useState<'resumo' | 'receb' | 'mov' | 'cred'>('resumo');
   const [loading, setLoading] = useState(true);
+  const [ocultar, setOcultar] = useState(false);
+
+  // money(): respeita o botao de esconder valores
+  const money = (v: number) => (ocultar ? 'R$ ••••••' : brl(v));
 
   const [abrirOpen, setAbrirOpen] = useState(false);
   const [abrirForm, setAbrirForm] = useState({ suprimento: '', observacao: '' });
@@ -127,9 +135,9 @@ export default function CaixaPage() {
   };
 
   const movLinhas = useMemo(() => {
-    const linhas: { data: string; tipo: string; descricao: string; conta: string; valor: number; entrada: boolean }[] = [];
+    const linhas: { id?: string; data: string; tipo: string; descricao: string; conta: string; valor: number; entrada: boolean }[] = [];
     if (detail?.suprimento && detail.suprimento > 0) linhas.push({ data: detail.abertura, tipo: 'Suprimento', descricao: `Abertura de caixa${detail.observacao ? ' — ' + detail.observacao : ''}`, conta: 'Caixa', valor: Number(detail.suprimento), entrada: true });
-    (detail?.movimentos || []).forEach((m) => linhas.push({ data: m.data, tipo: tipoLabel[m.tipo] || m.tipo, descricao: m.descricao || '—', conta: m.conta || 'Caixa', valor: Number(m.valor || 0), entrada: ehEntrada(m.tipo) }));
+    (detail?.movimentos || []).forEach((m) => linhas.push({ id: m.id, data: m.data, tipo: tipoLabel[m.tipo] || m.tipo, descricao: m.descricao || '—', conta: m.conta || 'Caixa', valor: Number(m.valor || 0), entrada: ehEntrada(m.tipo) }));
     return linhas.sort((a, b) => +new Date(b.data) - +new Date(a.data));
   }, [detail]);
 
@@ -159,6 +167,26 @@ export default function CaixaPage() {
     setVendaSel(venda); setFormas([{ forma: 'Dinheiro', valor: 0, parcelas: 1, nsu: '' }]); setDesconto(0); setObsReceb(''); setTutorSaldo(null); setReceberOpen(true);
     const tid = tutorIdDe(venda);
     if (tid) { try { const r = await fetch(`/api/credito/tutor/${tid}`, { cache: 'no-store' }); if (r.ok) { const d = await r.json(); setTutorSaldo(Number(d.saldo || 0)); } } catch { /* ignore */ } }
+  };
+
+  // ---- exclusoes (apenas com caixa ABERTO) ----
+  const delMov = async (movId: string) => {
+    if (!detail || !confirm('Excluir esta movimentação?')) return;
+    const r = await fetch(`/api/caixa/${detail.id}/movimento?itemId=${encodeURIComponent(movId)}`, { method: 'DELETE' });
+    if (!r.ok) { toast.error('Erro ao excluir'); return; }
+    toast.success('Movimentação excluída'); await fetchDetail(detail.id);
+  };
+  const delRec = async (recId: string) => {
+    if (!detail || !confirm('Excluir este recebimento? A baixa da venda será revertida.')) return;
+    const r = await fetch(`/api/caixa/${detail.id}/recebimento?itemId=${encodeURIComponent(recId)}`, { method: 'DELETE' });
+    if (!r.ok) { toast.error('Erro ao excluir'); return; }
+    toast.success('Recebimento excluído'); await fetchDetail(detail.id); await fetchAppointments();
+  };
+  const delCred = async (credId: string) => {
+    if (!detail || !confirm('Excluir este lançamento de crédito?')) return;
+    const r = await fetch(`/api/caixa/${detail.id}/credito?itemId=${encodeURIComponent(credId)}`, { method: 'DELETE' });
+    if (!r.ok) { toast.error('Erro ao excluir'); return; }
+    toast.success('Crédito excluído'); await fetchDetail(detail.id);
   };
 
   const somaFormas = formas.reduce((s, f) => s + Number(f.valor || 0), 0);
@@ -216,26 +244,28 @@ export default function CaixaPage() {
     const on = tab === id;
     return <button onClick={() => setTab(id)} style={{ fontSize: 13.5, color: on ? TEAL_DARK : '#64748b', fontWeight: on ? 600 : 400, padding: '10px 2px', cursor: 'pointer', background: 'none', border: 'none', borderBottom: `2px solid ${on ? TEAL : 'transparent'}`, whiteSpace: 'nowrap' }}>{label}</button>;
   };
+  const delBtn = (fn: () => void) => (
+    <button onClick={fn} title="Excluir" className="no-print" style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 4, lineHeight: 0 }}>
+      <LuTrash2 size={15} color="#b0408a" style={{ opacity: .7 }} />
+    </button>
+  );
 
   return (
-    <div style={{ minHeight: '100vh', width: '100%', background: '#f7f9fa' }}>
+    <div style={{ width: '100%', background: '#f7f9fa', minHeight: '100%' }}>
       <style>{`@media print { .no-print { display:none !important; } body { background:#fff; } }`}</style>
-      <div style={{ maxWidth: 1040, margin: '0 auto', padding: '22px 18px 60px' }}>
+      <div style={{ width: '100%', padding: '20px 26px 60px', boxSizing: 'border-box' }}>
 
-        {/* topbar */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 18 }}>
-          <div>
-            <h1 style={{ fontSize: 21, fontWeight: 600, margin: 0, color: '#1f2d33' }}>Caixa</h1>
-            <p className="no-print" style={{ fontSize: 13, color: '#64748b', margin: '2px 0 0' }}>Controle de recebimentos do dia</p>
+        {/* barra de acoes (titulo vem do cabecalho global) */}
+        <div className="no-print" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
+          <button onClick={() => setOcultar((v) => !v)} title={ocultar ? 'Mostrar valores' : 'Esconder valores'} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 500, padding: '8px 12px', borderRadius: 9, cursor: 'pointer', border: '1px solid #d7e0e2', background: '#fff', color: TEAL_DARK }}>
+            {ocultar ? <LuEyeOff size={15} /> : <LuEye size={15} />}{ocultar ? 'Mostrar valores' : 'Esconder valores'}
+          </button>
+          <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #d7e0e2', borderRadius: 9, overflow: 'hidden' }}>
+            <button onClick={() => mudarDia(-1)} style={{ border: 'none', background: '#fff', padding: '8px 11px', color: TEAL_DARK, cursor: 'pointer' }} aria-label="Dia anterior"><LuChevronLeft size={16} /></button>
+            <span style={{ fontSize: 13, fontWeight: 500, padding: '0 12px' }}>{date === hojeStr() ? 'Hoje · ' : ''}{fmtDataLabel(date)}</span>
+            <button onClick={() => mudarDia(1)} style={{ border: 'none', background: '#fff', padding: '8px 11px', color: TEAL_DARK, cursor: 'pointer' }} aria-label="Próximo dia"><LuChevronRight size={16} /></button>
           </div>
-          <div className="no-print" style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #d7e0e2', borderRadius: 9, overflow: 'hidden' }}>
-              <button onClick={() => mudarDia(-1)} style={{ border: 'none', background: '#fff', padding: '8px 11px', color: TEAL_DARK, cursor: 'pointer' }} aria-label="Dia anterior"><LuChevronLeft size={16} /></button>
-              <span style={{ fontSize: 13, fontWeight: 500, padding: '0 12px' }}>{date === hojeStr() ? 'Hoje · ' : ''}{fmtDataLabel(date)}</span>
-              <button onClick={() => mudarDia(1)} style={{ border: 'none', background: '#fff', padding: '8px 11px', color: TEAL_DARK, cursor: 'pointer' }} aria-label="Próximo dia"><LuChevronRight size={16} /></button>
-            </div>
-            <button onClick={() => setAbrirOpen(true)} style={{ background: TEAL, color: '#fff', border: 'none', fontSize: 12.5, fontWeight: 500, padding: '9px 14px', borderRadius: 9, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}><LuPlus size={15} /> Abrir caixa</button>
-          </div>
+          <button onClick={() => setAbrirOpen(true)} style={{ background: TEAL, color: '#fff', border: 'none', fontSize: 12.5, fontWeight: 500, padding: '9px 14px', borderRadius: 9, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}><LuPlus size={15} /> Abrir caixa</button>
         </div>
 
         {loading && <p style={{ color: '#64748b' }}>Carregando…</p>}
@@ -251,7 +281,7 @@ export default function CaixaPage() {
           <div style={{ display: 'flex', gap: 18, alignItems: 'flex-start', flexWrap: 'wrap' }}>
 
             {/* COLUNA ESQUERDA */}
-            <div style={{ width: 266, flex: '1 1 266px', maxWidth: 320, display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ width: 280, flex: '0 0 280px', display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div style={cardStyle}>
                 {cardH(<LuWallet size={15} />, `Caixa nº ${detail.numero}`)}
                 <div style={{ fontSize: 12.5, lineHeight: 1.95 }}>
@@ -274,18 +304,18 @@ export default function CaixaPage() {
               {aberto ? (
                 <div style={cardStyle}>
                   {cardH(<LuCircleDollarSign size={15} />, 'Saldo em dinheiro')}
-                  <div style={{ fontSize: 22, fontWeight: 600, color: TEAL_DARK }}>{brl(saldoDinheiro)}</div>
+                  <div style={{ fontSize: 22, fontWeight: 600, color: TEAL_DARK }}>{money(saldoDinheiro)}</div>
                   <div style={{ fontSize: 12, color: '#64748b', marginTop: 3 }}>Suprimento + dinheiro − saídas</div>
                 </div>
               ) : (
                 <div style={cardStyle}>
                   {cardH(<LuCircleDollarSign size={15} />, 'Conferência')}
                   <div style={{ fontSize: 12.5, lineHeight: 1.95 }}>
-                    <div><span style={{ color: '#0f6e7a', fontWeight: 500 }}>Esperado:</span> {brl(Number(detail.valorEsperado ?? saldoDinheiro))}</div>
-                    <div><span style={{ color: '#0f6e7a', fontWeight: 500 }}>Contado:</span> {detail.valorContado != null ? brl(Number(detail.valorContado)) : '—'}</div>
+                    <div><span style={{ color: '#0f6e7a', fontWeight: 500 }}>Esperado:</span> {money(Number(detail.valorEsperado ?? saldoDinheiro))}</div>
+                    <div><span style={{ color: '#0f6e7a', fontWeight: 500 }}>Contado:</span> {detail.valorContado != null ? money(Number(detail.valorContado)) : '—'}</div>
                     <div><span style={{ color: '#0f6e7a', fontWeight: 500 }}>Diferença:</span>{' '}
                       <b style={{ color: detail.diferenca == null ? '#94a3b8' : Math.abs(Number(detail.diferenca)) < 0.005 ? GREEN : Number(detail.diferenca) > 0 ? GREEN : ORANGE }}>
-                        {detail.diferenca == null ? '—' : (Number(detail.diferenca) > 0 ? 'Sobra ' : Number(detail.diferenca) < 0 ? 'Falta ' : '') + brl(Math.abs(Number(detail.diferenca)))}
+                        {detail.diferenca == null ? '—' : (Number(detail.diferenca) > 0 ? 'Sobra ' : Number(detail.diferenca) < 0 ? 'Falta ' : '') + money(Math.abs(Number(detail.diferenca)))}
                       </b>
                     </div>
                   </div>
@@ -307,11 +337,12 @@ export default function CaixaPage() {
                     <button onClick={reabrirCaixa} style={{ gridColumn: '1 / -1', background: '#fff', color: '#475569', border: '1px solid #d7e0e2', fontSize: 12, fontWeight: 500, padding: '9px', borderRadius: 9, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><LuLockOpen size={14} /> Reabrir caixa</button>
                   )}
                 </div>
+                {!aberto && <p style={{ fontSize: 11, color: '#94a3b8', margin: '8px 0 0' }}>Reabra o caixa para lançar ou excluir registros.</p>}
               </div>
             </div>
 
             {/* AREA PRINCIPAL */}
-            <div style={{ flex: '999 1 360px', minWidth: 0 }}>
+            <div style={{ flex: '1 1 480px', minWidth: 0 }}>
               <div className="no-print" style={{ display: 'flex', gap: 26, borderBottom: `1px solid ${LINE}`, overflowX: 'auto' }}>
                 {tabBtn('resumo', 'Resumo')}{tabBtn('receb', 'Recebimentos')}{tabBtn('mov', 'Movimentações')}{tabBtn('cred', 'Créditos')}
               </div>
@@ -327,17 +358,17 @@ export default function CaixaPage() {
                         {resumo.linhas.map((l) => (
                           <tr key={l.forma}>
                             <td style={{ ...tdStyle, color: '#0f6e7a' }}>{l.forma}</td>
-                            <td style={{ ...tdStyle, textAlign: 'right' }}>{l.vendas ? brl(l.vendas) : '—'}</td>
-                            <td style={{ ...tdStyle, textAlign: 'right' }}>{l.sup ? brl(l.sup) : '—'}</td>
-                            <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 500 }}>{brl(l.resultado)}</td>
+                            <td style={{ ...tdStyle, textAlign: 'right' }}>{l.vendas ? money(l.vendas) : '—'}</td>
+                            <td style={{ ...tdStyle, textAlign: 'right' }}>{l.sup ? money(l.sup) : '—'}</td>
+                            <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 500 }}>{money(l.resultado)}</td>
                           </tr>
                         ))}
                         {resumo.linhas.length > 0 && (
                           <tr style={{ borderTop: '1px solid #d7e0e2' }}>
                             <td style={{ ...tdStyle, fontWeight: 600 }}>Total</td>
-                            <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600 }}>{brl(resumo.tot.vendas)}</td>
-                            <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600 }}>{brl(resumo.tot.sup)}</td>
-                            <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600, color: TEAL_DARK }}>{brl(resumo.tot.resultado)}</td>
+                            <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600 }}>{money(resumo.tot.vendas)}</td>
+                            <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600 }}>{money(resumo.tot.sup)}</td>
+                            <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600, color: TEAL_DARK }}>{money(resumo.tot.resultado)}</td>
                           </tr>
                         )}
                       </tbody>
@@ -357,7 +388,7 @@ export default function CaixaPage() {
                                 <div key={v.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderBottom: '1px solid #f1f5f6' }}>
                                   <span style={{ color: '#1f2d33' }}>{v.tutor?.name || 'Cliente'} · {v.pet?.name || 'Pet'}</span>
                                   <span style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                    <span style={{ color: ORANGE, fontWeight: 500 }}>{brl(Number(v.value) - (pagoPorAppt.get(v.id) || 0))}</span>
+                                    <span style={{ color: ORANGE, fontWeight: 500 }}>{money(Number(v.value) - (pagoPorAppt.get(v.id) || 0))}</span>
                                     <button onClick={() => abrirReceber(v)} style={{ background: TEAL, color: '#fff', border: 'none', fontSize: 12, padding: '6px 12px', borderRadius: 8, cursor: 'pointer' }}>Receber</button>
                                   </span>
                                 </div>
@@ -368,9 +399,9 @@ export default function CaixaPage() {
                       </div>
                     )}
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                      <thead><tr><th style={thStyle}>Hora</th><th style={thStyle}>Cliente · Pet</th><th style={thStyle}>Formas</th><th style={{ ...thStyle, textAlign: 'right' }}>Valor</th><th style={{ ...thStyle, textAlign: 'right' }}>Status</th></tr></thead>
+                      <thead><tr><th style={thStyle}>Hora</th><th style={thStyle}>Cliente · Pet</th><th style={thStyle}>Formas</th><th style={{ ...thStyle, textAlign: 'right' }}>Valor</th><th style={{ ...thStyle, textAlign: 'right' }}>Status</th>{aberto && <th style={{ ...thStyle, textAlign: 'right' }} className="no-print"></th>}</tr></thead>
                       <tbody>
-                        {(detail.recebimentos || []).length === 0 && (<tr><td colSpan={5} style={{ ...tdStyle, textAlign: 'center', color: '#94a3b8', padding: 16 }}>Nenhum recebimento registrado.</td></tr>)}
+                        {(detail.recebimentos || []).length === 0 && (<tr><td colSpan={aberto ? 6 : 5} style={{ ...tdStyle, textAlign: 'center', color: '#94a3b8', padding: 16 }}>Nenhum recebimento registrado.</td></tr>)}
                         {(detail.recebimentos || []).map((rec) => {
                           const value = Number(rec.appointment?.value || 0);
                           const pago = rec.appointmentId ? pagoPorAppt.get(rec.appointmentId) || 0 : 0;
@@ -380,8 +411,9 @@ export default function CaixaPage() {
                               <td style={{ ...tdStyle, color: '#64748b' }}>{hora(rec.data)}</td>
                               <td style={{ ...tdStyle, color: '#1f2d33' }}>{rec.appointment?.tutor?.name || 'Cliente'} · {rec.appointment?.pet?.name || 'Pet'}</td>
                               <td style={{ ...tdStyle, color: '#94a3b8' }}>{(rec.formas || []).map((f) => f.forma).join(' + ') || '—'}</td>
-                              <td style={{ ...tdStyle, textAlign: 'right' }}>{brl(Number(rec.valorTotal))}</td>
+                              <td style={{ ...tdStyle, textAlign: 'right' }}>{money(Number(rec.valorTotal))}</td>
                               <td style={{ ...tdStyle, textAlign: 'right' }}><span style={{ fontSize: 11, padding: '3px 9px', borderRadius: 20, background: st.bg, color: st.fg }}>{st.label}</span></td>
+                              {aberto && <td style={{ ...tdStyle, textAlign: 'right' }} className="no-print">{delBtn(() => delRec(rec.id))}</td>}
                             </tr>
                           );
                         })}
@@ -392,16 +424,17 @@ export default function CaixaPage() {
 
                 {tab === 'mov' && (
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                    <thead><tr><th style={thStyle}>Data</th><th style={thStyle}>Tipo</th><th style={thStyle}>Descrição</th><th style={thStyle}>Conta</th><th style={{ ...thStyle, textAlign: 'right' }}>Valor</th></tr></thead>
+                    <thead><tr><th style={thStyle}>Data</th><th style={thStyle}>Tipo</th><th style={thStyle}>Descrição</th><th style={thStyle}>Conta</th><th style={{ ...thStyle, textAlign: 'right' }}>Valor</th>{aberto && <th style={{ ...thStyle }} className="no-print"></th>}</tr></thead>
                     <tbody>
-                      {movLinhas.length === 0 && (<tr><td colSpan={5} style={{ ...tdStyle, textAlign: 'center', color: '#94a3b8', padding: 16 }}>Sem movimentações.</td></tr>)}
+                      {movLinhas.length === 0 && (<tr><td colSpan={aberto ? 6 : 5} style={{ ...tdStyle, textAlign: 'center', color: '#94a3b8', padding: 16 }}>Sem movimentações.</td></tr>)}
                       {movLinhas.map((m, i) => (
-                        <tr key={i}>
+                        <tr key={m.id || i}>
                           <td style={{ ...tdStyle, color: '#64748b' }}>{dataHora(m.data)}</td>
                           <td style={{ ...tdStyle, color: m.entrada ? GREEN : ORANGE }}>{m.tipo}</td>
                           <td style={{ ...tdStyle, color: '#64748b' }}>{m.descricao}</td>
                           <td style={{ ...tdStyle, color: '#94a3b8' }}>{m.conta}</td>
-                          <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 500, color: m.entrada ? GREEN : ORANGE }}>{m.entrada ? '' : '− '}{brl(m.valor)}</td>
+                          <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 500, color: m.entrada ? GREEN : ORANGE }}>{m.entrada ? '' : '− '}{money(m.valor)}</td>
+                          {aberto && <td style={{ ...tdStyle, textAlign: 'right' }} className="no-print">{m.id ? delBtn(() => delMov(m.id!)) : null}</td>}
                         </tr>
                       ))}
                     </tbody>
@@ -410,15 +443,16 @@ export default function CaixaPage() {
 
                 {tab === 'cred' && (
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                    <thead><tr><th style={thStyle}>Data</th><th style={thStyle}>Cliente</th><th style={thStyle}>Descrição</th><th style={{ ...thStyle, textAlign: 'right' }}>Valor</th></tr></thead>
+                    <thead><tr><th style={thStyle}>Data</th><th style={thStyle}>Cliente</th><th style={thStyle}>Descrição</th><th style={{ ...thStyle, textAlign: 'right' }}>Valor</th>{aberto && <th style={{ ...thStyle }} className="no-print"></th>}</tr></thead>
                     <tbody>
-                      {(detail.creditosUtilizados || []).length === 0 && (<tr><td colSpan={4} style={{ ...tdStyle, textAlign: 'center', color: '#94a3b8', padding: 16 }}>Nenhum crédito utilizado.</td></tr>)}
+                      {(detail.creditosUtilizados || []).length === 0 && (<tr><td colSpan={aberto ? 5 : 4} style={{ ...tdStyle, textAlign: 'center', color: '#94a3b8', padding: 16 }}>Nenhum crédito utilizado.</td></tr>)}
                       {(detail.creditosUtilizados || []).map((c) => (
                         <tr key={c.id}>
                           <td style={{ ...tdStyle, color: '#64748b' }}>{dataHora(c.data)}</td>
                           <td style={{ ...tdStyle, color: '#1f2d33' }}>{c.tutor?.name || 'Cliente'}</td>
                           <td style={{ ...tdStyle, color: '#94a3b8' }}>{c.descricao || '—'}</td>
-                          <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 500, color: ORANGE }}>− {brl(Number(c.valor))}</td>
+                          <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 500, color: ORANGE }}>− {money(Number(c.valor))}</td>
+                          {aberto && <td style={{ ...tdStyle, textAlign: 'right' }} className="no-print">{delBtn(() => delCred(c.id))}</td>}
                         </tr>
                       ))}
                     </tbody>
@@ -431,7 +465,7 @@ export default function CaixaPage() {
         )}
       </div>
 
-      {/* MODAIS (iguais, padrao do sistema) */}
+      {/* MODAIS */}
       {abrirOpen && (
         <Modal title="Abrir caixa" onClose={() => setAbrirOpen(false)} onConfirm={abrirCaixa} confirmLabel="Abrir caixa">
           <Field label="Suprimento (fundo de troco)"><input value={abrirForm.suprimento} onChange={(e) => setAbrirForm({ ...abrirForm, suprimento: e.target.value })} inputMode="decimal" placeholder="0,00" style={inp} /></Field>

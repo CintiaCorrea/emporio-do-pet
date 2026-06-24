@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { CaixaService } from './caixa.service';
 import { AbrirCaixaDto } from './dto/abrir-caixa.dto';
@@ -48,5 +48,20 @@ export class CaixaController {
   @Post(':id/movimento')
   movimento(@Param('id') id: string, @Body() dto: MovimentoDto, @CurrentUser('id') userId: string) {
     return this.service.registrarMovimento(id, dto, userId);
+  }
+
+  @Delete(':id/movimento')
+  deleteMovimento(@Param('id') id: string, @Query('itemId') itemId: string) {
+    return this.service.deleteMovimento(id, itemId);
+  }
+
+  @Delete(':id/recebimento')
+  deleteRecebimento(@Param('id') id: string, @Query('itemId') itemId: string) {
+    return this.service.deleteRecebimento(id, itemId);
+  }
+
+  @Delete(':id/credito')
+  deleteCredito(@Param('id') id: string, @Query('itemId') itemId: string) {
+    return this.service.deleteCredito(id, itemId);
   }
 }
