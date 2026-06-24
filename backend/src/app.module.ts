@@ -41,6 +41,7 @@ import { EtiquetasModule } from './modules/etiquetas/etiquetas.module';
 import { ServicosModule } from './modules/servicos/servicos.module';
 import { OrcamentosModule } from './modules/orcamentos/orcamentos.module';
 import { CaixaModule } from './modules/caixa/caixa.module';
+import { PacotesModule } from './modules/pacotes/pacotes.module';
 import { CreditoModule } from './modules/credito/credito.module';
 import { ProtocolosModule } from './modules/protocolos/protocolos.module';
 import { RacasModule } from './modules/racas/racas.module';
@@ -173,6 +174,7 @@ import configuration from './config/configuration';
     ServicosModule,
     OrcamentosModule,
     CaixaModule,
+    PacotesModule,
     CreditoModule,
     ProtocolosModule,
     RacasModule,
@@ -188,7 +190,7 @@ import configuration from './config/configuration';
     EnrichmentModule,
     ScoringModule,
     InsightsModule,
-    
+
     // CRM Integration (Lead/Client conversions, automations)
     CrmModule,
 

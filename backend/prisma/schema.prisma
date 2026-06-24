@@ -2840,3 +2840,53 @@ model CreditoMovimento {
   @@index([caixaSessaoId])
   @@map("credito_movimentos")
 }
+
+// ============================================
+// Pacotes de sessões (ex: Fisioterapia) — Etapa 3
+// Aditivo: não altera modelos existentes (FKs como String simples).
+// ============================================
+enum PacoteStatus {
+  ATIVO
+  CONCLUIDO
+  CANCELADO
+  EXPIRADO
+}
+
+model Pacote {
+  id            String        @id @default(uuid())
+  petId         String
+  tutorId       String?
+  orcamentoId   String?
+  servico       String        @default("Fisioterapia")
+  descricao     String?
+  totalSessoes  Int
+  sessoesUsadas Int           @default(0)
+  valor         Float         @default(0)
+  validade      DateTime?
+  status        PacoteStatus  @default(ATIVO)
+  observacao    String?
+  createdById   String?
+  sessoes       PacoteSessao[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([petId])
+  @@index([tutorId, status])
+  @@map("pacotes")
+}
+
+model PacoteSessao {
+  id            String   @id @default(uuid())
+  pacoteId      String
+  pacote        Pacote   @relation(fields: [pacoteId], references: [id], onDelete: Cascade)
+  numero        Int
+  appointmentId String?
+  profissional  String?
+  observacao    String?
+  data          DateTime @default(now())
+  createdById   String?
+
+  @@index([pacoteId])
+  @@index([appointmentId])
+  @@map("pacote_sessoes")
+}
