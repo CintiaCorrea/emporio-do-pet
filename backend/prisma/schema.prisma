@@ -2780,6 +2780,10 @@ model CaixaSessao {
 
   @@index([status])
   @@map("caixa_sessoes")
+  valorEsperado Float?
+  valorContado  Float?
+  diferenca     Float?
+  obsFechamento String?
 }
 
 model Recebimento {

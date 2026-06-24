@@ -1,17 +1,18 @@
 // DESTINO NO REPO: vet-crm/app/(user)/dashboard/erp/caixa/page.tsx
-// Caixa — abas Resumo / Lista de recebimentos. Movimentos + Credito do pet (por tutor).
+// Caixa — Resumo / Lista de recebimentos. Movimentos + Credito do pet + Fechamento (conferencia) / Reabrir / Impressao.
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import {
-  LuPlus, LuLock, LuPrinter, LuHistory, LuChevronLeft, LuChevronRight,
+  LuPlus, LuLock, LuLockOpen, LuPrinter, LuHistory, LuChevronLeft, LuChevronRight,
   LuX, LuWallet, LuArrowRightLeft, LuTrash2, LuGift,
 } from 'react-icons/lu';
 
 const TEAL = '#009AAC';
 const TEAL_DARK = '#014D5E';
 const ORANGE = '#D85A30';
+const GREEN = '#0f6e56';
 
 type Forma = { forma: string; valor: number; parcelas: number; nsu: string };
 
@@ -19,25 +20,22 @@ interface Movimento {
   id: string; tipo: string; valor: number;
   forma?: string | null; conta?: string | null; descricao?: string | null; observacao?: string | null; data: string;
 }
-
 interface CreditoUtil {
   id: string; tipo: string; valor: number; descricao?: string | null; data: string;
   appointmentId?: string | null; tutor?: { id: string; name: string } | null;
 }
-
 interface Recebimento {
   id: string; valorTotal: number; desconto: number; troco: number; formas: Forma[];
   observacao?: string | null; data: string; appointmentId?: string | null;
   appointment?: { id: string; value: number; pet?: { name: string }; tutor?: { name: string } } | null;
 }
-
 interface Caixa {
   id: string; numero: number; status: 'ABERTO' | 'FECHADO';
   abertura: string; fechamento?: string | null; suprimento: number; observacao?: string | null;
+  valorEsperado?: number | null; valorContado?: number | null; diferenca?: number | null; obsFechamento?: string | null;
   user?: { id: string; name: string } | null;
   recebimentos: Recebimento[]; movimentos?: Movimento[]; creditosUtilizados?: CreditoUtil[];
 }
-
 interface Appointment {
   id: string; value: number; paymentStatus?: string; tutorId?: string;
   pet?: { name: string } | null; tutor?: { id?: string; name: string } | null; start?: string;
@@ -48,19 +46,13 @@ const CONTAS = ['Caixa', 'Banco', 'Cofre'];
 const ehDinheiro = (f?: string | null) => /dinheiro/i.test(f || '');
 const ehCredito = (f?: string | null) => /cr[eé]dito do pet/i.test(f || '');
 const ehEntrada = (tipo: string) => tipo === 'SUPRIMENTO';
-const tipoLabel: Record<string, string> = {
-  SUPRIMENTO: 'Suprimento', SANGRIA: 'Sangria', DESPESA: 'Despesa', TRANSFERENCIA: 'Transferência',
-};
+const tipoLabel: Record<string, string> = { SUPRIMENTO: 'Suprimento', SANGRIA: 'Sangria', DESPESA: 'Despesa', TRANSFERENCIA: 'Transferência' };
 
-const brl = (v: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number.isFinite(v) ? v : 0);
+const brl = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number.isFinite(v) ? v : 0);
 const hora = (s?: string | null) => (s ? new Date(s).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '—');
 const dataHora = (s?: string | null) =>
   s ? new Date(s).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).replace(',', '') : '—';
-const hojeStr = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-};
+const hojeStr = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const fmtDataLabel = (iso: string) => { const [y, m, d] = iso.split('-'); return `${d}/${m}/${y}`; };
 
 export default function CaixaPage() {
@@ -85,6 +77,8 @@ export default function CaixaPage() {
   const [movForm, setMovForm] = useState({ valor: '', forma: 'Dinheiro', conta: 'Banco', descricao: '', observacao: '' });
   const [credOpen, setCredOpen] = useState(false);
   const [credForm, setCredForm] = useState({ appointmentId: '', tipo: 'RECARGA', valor: '', descricao: '' });
+  const [fecharOpen, setFecharOpen] = useState(false);
+  const [fecharForm, setFecharForm] = useState({ valorContado: '', observacao: '' });
 
   const inert = (label: string) => toast(`${label}: em breve`);
 
@@ -139,8 +133,7 @@ export default function CaixaPage() {
     const add = (forma: string, campo: 'vendas' | 'sup', valor: number) => {
       const cur = map.get(forma) || { vendas: 0, sup: 0 }; cur[campo] += valor; map.set(forma, cur);
     };
-    (detail?.recebimentos || []).forEach((rec) =>
-      (rec.formas || []).forEach((f) => add(f.forma || 'Outros', 'vendas', Number(f.valor || 0))));
+    (detail?.recebimentos || []).forEach((rec) => (rec.formas || []).forEach((f) => add(f.forma || 'Outros', 'vendas', Number(f.valor || 0))));
     if (detail?.suprimento) add('Dinheiro', 'sup', Number(detail.suprimento));
     (detail?.movimentos || []).filter((m) => m.tipo === 'SUPRIMENTO').forEach((m) => add(m.forma || 'Dinheiro', 'sup', Number(m.valor || 0)));
     const linhas = Array.from(map.entries()).map(([forma, v]) => ({ forma, vendas: v.vendas, sup: v.sup, resultado: v.vendas + v.sup }));
@@ -160,15 +153,13 @@ export default function CaixaPage() {
 
   const pagoPorAppt = useMemo(() => {
     const m = new Map<string, number>();
-    (detail?.recebimentos || []).forEach((r) => {
-      if (r.appointmentId) m.set(r.appointmentId, (m.get(r.appointmentId) || 0) + Number(r.valorTotal || 0));
-    });
+    (detail?.recebimentos || []).forEach((r) => { if (r.appointmentId) m.set(r.appointmentId, (m.get(r.appointmentId) || 0) + Number(r.valorTotal || 0)); });
     return m;
   }, [detail]);
 
   const statusVenda = (value: number, pago: number) => {
     const saldo = value - pago;
-    if (saldo <= 0.001) return { label: 'Baixado', bg: '#e1f5ee', fg: '#0f6e56', saldo: 0 };
+    if (saldo <= 0.001) return { label: 'Baixado', bg: '#e1f5ee', fg: GREEN, saldo: 0 };
     if (pago > 0.001) return { label: 'Baixa parcial', bg: '#fdf6e3', fg: '#854F0B', saldo };
     return { label: 'Em atendimento', bg: '#fef0e8', fg: '#993C1D', saldo };
   };
@@ -192,27 +183,36 @@ export default function CaixaPage() {
     } catch (e: any) { toast.error(e.message || 'Erro ao abrir caixa'); }
   };
 
+  const abrirFechar = () => { setFecharForm({ valorContado: '', observacao: '' }); setFecharOpen(true); };
+
   const fecharCaixa = async () => {
     if (!detail) return;
-    if (!confirm(`Revisar e encerrar o Caixa nº ${detail.numero}?`)) return;
+    const valorContado = fecharForm.valorContado === '' ? null : Number(String(fecharForm.valorContado).replace(',', '.'));
     try {
-      const r = await fetch(`/api/caixa/${detail.id}/fechar`, { method: 'PATCH' });
-      if (!r.ok) throw new Error('Erro ao fechar caixa');
-      toast.success('Caixa encerrado!'); await fetchCaixas(); await fetchDetail(detail.id);
-    } catch (e: any) { toast.error(e.message || 'Erro ao fechar caixa'); }
+      const r = await fetch(`/api/caixa/${detail.id}/fechar`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ valorEsperado: Number(saldoDinheiro.toFixed(2)), valorContado, observacao: fecharForm.observacao || null }),
+      });
+      if (!r.ok) throw new Error('Erro ao encerrar caixa');
+      toast.success('Caixa encerrado!'); setFecharOpen(false); await fetchCaixas(); await fetchDetail(detail.id);
+    } catch (e: any) { toast.error(e.message || 'Erro ao encerrar caixa'); }
+  };
+
+  const reabrirCaixa = async () => {
+    if (!detail) return;
+    if (!confirm(`Reabrir o Caixa nº ${detail.numero}?`)) return;
+    try {
+      const r = await fetch(`/api/caixa/${detail.id}/reabrir`, { method: 'PATCH' });
+      if (!r.ok) throw new Error('Erro ao reabrir caixa');
+      toast.success('Caixa reaberto!'); await fetchCaixas(); await fetchDetail(detail.id);
+    } catch (e: any) { toast.error(e.message || 'Erro ao reabrir caixa'); }
   };
 
   const abrirReceber = async (venda: Appointment) => {
-    setVendaSel(venda);
-    setFormas([{ forma: 'Dinheiro', valor: 0, parcelas: 1, nsu: '' }]);
+    setVendaSel(venda); setFormas([{ forma: 'Dinheiro', valor: 0, parcelas: 1, nsu: '' }]);
     setDesconto(0); setObsReceb(''); setTutorSaldo(null); setReceberOpen(true);
     const tid = tutorIdDe(venda);
-    if (tid) {
-      try {
-        const r = await fetch(`/api/credito/tutor/${tid}`, { cache: 'no-store' });
-        if (r.ok) { const d = await r.json(); setTutorSaldo(Number(d.saldo || 0)); }
-      } catch { /* ignore */ }
-    }
+    if (tid) { try { const r = await fetch(`/api/credito/tutor/${tid}`, { cache: 'no-store' }); if (r.ok) { const d = await r.json(); setTutorSaldo(Number(d.saldo || 0)); } } catch { /* ignore */ } }
   };
 
   const somaFormas = formas.reduce((s, f) => s + Number(f.valor || 0), 0);
@@ -238,9 +238,7 @@ export default function CaixaPage() {
     } catch (e: any) { toast.error(e.message || 'Erro ao registrar recebimento'); }
   };
 
-  const abrirMov = (tipo: string) => {
-    setMovTipo(tipo); setMovForm({ valor: '', forma: 'Dinheiro', conta: 'Banco', descricao: '', observacao: '' }); setMovOpen(true);
-  };
+  const abrirMov = (tipo: string) => { setMovTipo(tipo); setMovForm({ valor: '', forma: 'Dinheiro', conta: 'Banco', descricao: '', observacao: '' }); setMovOpen(true); };
 
   const registrarMovimento = async () => {
     if (!detail) return;
@@ -256,9 +254,7 @@ export default function CaixaPage() {
     } catch (e: any) { toast.error(e.message || 'Erro ao registrar movimento'); }
   };
 
-  const abrirCredito = () => {
-    setCredForm({ appointmentId: appointments[0]?.id || '', tipo: 'RECARGA', valor: '', descricao: '' }); setCredOpen(true);
-  };
+  const abrirCredito = () => { setCredForm({ appointmentId: appointments[0]?.id || '', tipo: 'RECARGA', valor: '', descricao: '' }); setCredOpen(true); };
 
   const adicionarCredito = async () => {
     if (!detail) return;
@@ -275,22 +271,23 @@ export default function CaixaPage() {
     } catch (e: any) { toast.error(e.message || 'Erro ao adicionar crédito'); }
   };
 
-  const vendasEmAberto = appointments.filter((a) => {
-    const pago = pagoPorAppt.get(a.id) || 0; return Number(a.value) - pago > 0.001;
-  });
-
+  const vendasEmAberto = appointments.filter((a) => { const pago = pagoPorAppt.get(a.id) || 0; return Number(a.value) - pago > 0.001; });
   const aberto = detail?.status === 'ABERTO';
+
+  const contado = fecharForm.valorContado === '' ? null : Number(String(fecharForm.valorContado).replace(',', '.'));
+  const difPrevia = contado === null ? null : Number((contado - saldoDinheiro).toFixed(2));
 
   return (
     <div className="min-h-screen w-full" style={{ background: '#f6fafb' }}>
+      <style>{`@media print { .no-print { display: none !important; } body { background: #fff; } .caixa-card { box-shadow: none !important; border: none !important; } }`}</style>
       <div className="p-6 max-w-2xl mx-auto">
 
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
           <div>
             <h1 className="text-2xl font-semibold" style={{ color: '#0f2b32' }}>Caixa</h1>
-            <p className="text-sm text-slate-500">Controle de recebimentos do dia</p>
+            <p className="text-sm text-slate-500 no-print">Controle de recebimentos do dia</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 no-print">
             <div className="flex items-center border rounded-[9px] overflow-hidden" style={{ borderColor: '#d7e0e2' }}>
               <button onClick={() => mudarDia(-1)} className="px-3 py-2" style={{ color: TEAL_DARK }} aria-label="Dia anterior"><LuChevronLeft size={16} /></button>
               <span className="text-sm font-medium px-3" style={{ color: '#0f2b32' }}>{date === hojeStr() ? 'Hoje · ' : ''}{fmtDataLabel(date)}</span>
@@ -311,7 +308,7 @@ export default function CaixaPage() {
         )}
 
         {caixas.length > 0 && (
-          <div className="flex gap-2 mb-4 flex-wrap">
+          <div className="flex gap-2 mb-4 flex-wrap no-print">
             {caixas.map((c) => {
               const on = c.id === selectedId;
               return (
@@ -326,24 +323,21 @@ export default function CaixaPage() {
         )}
 
         {detail && (
-          <div className="bg-white border rounded-xl p-5" style={{ borderColor: '#e1e8ea' }}>
+          <div className="bg-white border rounded-xl p-5 caixa-card" style={{ borderColor: '#e1e8ea' }}>
             <div className="text-sm leading-7 mb-4">
               <div><span style={{ color: '#0f6e7a', fontWeight: 500 }}>Caixa:</span> <span style={{ color: '#0f2b32' }}>{detail.numero}</span></div>
               <div><span style={{ color: '#0f6e7a', fontWeight: 500 }}>Usuário:</span> <span style={{ color: '#0f2b32' }}>{detail.user?.name || '—'}</span></div>
               <div><span style={{ color: '#0f6e7a', fontWeight: 500 }}>Abertura:</span> <span style={{ color: '#0f2b32' }}>{dataHora(detail.abertura)}</span></div>
               {detail.fechamento && <div><span style={{ color: '#0f6e7a', fontWeight: 500 }}>Fechamento:</span> <span style={{ color: '#0f2b32' }}>{dataHora(detail.fechamento)}</span></div>}
               <div><span style={{ color: '#0f6e7a', fontWeight: 500 }}>Status:</span>{' '}
-                <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-full" style={aberto ? { background: '#e1f5ee', color: '#0f6e56' } : { background: '#eef2f3', color: '#64748b' }}>{aberto ? 'ABERTO' : 'FECHADO'}</span>
+                <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-full" style={aberto ? { background: '#e1f5ee', color: GREEN } : { background: '#eef2f3', color: '#64748b' }}>{aberto ? 'ABERTO' : 'FECHADO'}</span>
               </div>
             </div>
 
-            <div className="flex gap-6 border-b mb-4" style={{ borderColor: '#e1e8ea' }}>
+            <div className="flex gap-6 border-b mb-4 no-print" style={{ borderColor: '#e1e8ea' }}>
               {(['resumo', 'recebimentos'] as const).map((t) => {
                 const on = tab === t;
-                return (
-                  <button key={t} onClick={() => setTab(t)} className="text-sm pb-2"
-                    style={on ? { color: TEAL, fontWeight: 500, borderBottom: `2px solid ${TEAL}` } : { color: '#94a3b8' }}>{t === 'resumo' ? 'Resumo' : 'Lista de recebimentos'}</button>
-                );
+                return (<button key={t} onClick={() => setTab(t)} className="text-sm pb-2" style={on ? { color: TEAL, fontWeight: 500, borderBottom: `2px solid ${TEAL}` } : { color: '#94a3b8' }}>{t === 'resumo' ? 'Resumo' : 'Lista de recebimentos'}</button>);
               })}
             </div>
 
@@ -380,19 +374,33 @@ export default function CaixaPage() {
                   </tbody>
                 </table>
 
-                <div className="flex items-center justify-between rounded-lg px-3 py-2.5 mb-6" style={{ background: '#e8f7f9' }}>
-                  <span className="text-sm" style={{ color: '#0f6e7a' }}>Saldo em dinheiro (gaveta)</span>
-                  <span className="text-lg font-semibold" style={{ color: TEAL_DARK }}>{brl(saldoDinheiro)}</span>
-                </div>
+                {/* Saldo / Conferência */}
+                {aberto ? (
+                  <div className="flex items-center justify-between rounded-lg px-3 py-2.5 mb-6" style={{ background: '#e8f7f9' }}>
+                    <span className="text-sm" style={{ color: '#0f6e7a' }}>Saldo em dinheiro (gaveta)</span>
+                    <span className="text-lg font-semibold" style={{ color: TEAL_DARK }}>{brl(saldoDinheiro)}</span>
+                  </div>
+                ) : (
+                  <div className="rounded-lg px-3 py-3 mb-6" style={{ background: '#f8fafb', border: '0.5px solid #e1e8ea' }}>
+                    <div className="text-[13px] font-medium mb-1.5" style={{ color: '#0f2b32' }}>Conferência de fechamento</div>
+                    <div className="flex justify-between text-sm py-0.5"><span className="text-slate-500">Esperado em dinheiro</span><span>{brl(Number(detail.valorEsperado ?? saldoDinheiro))}</span></div>
+                    <div className="flex justify-between text-sm py-0.5"><span className="text-slate-500">Contado</span><span>{detail.valorContado != null ? brl(Number(detail.valorContado)) : '—'}</span></div>
+                    <div className="flex justify-between text-sm py-0.5 font-medium">
+                      <span style={{ color: '#0f2b32' }}>Diferença</span>
+                      <span style={{ color: detail.diferenca == null ? '#94a3b8' : Math.abs(Number(detail.diferenca)) < 0.005 ? GREEN : Number(detail.diferenca) > 0 ? GREEN : ORANGE }}>
+                        {detail.diferenca == null ? '—' : (Number(detail.diferenca) > 0 ? 'Sobra ' : Number(detail.diferenca) < 0 ? 'Falta ' : '') + brl(Math.abs(Number(detail.diferenca)))}
+                      </span>
+                    </div>
+                    {detail.obsFechamento && <div className="text-[12px] text-slate-500 mt-1">Obs.: {detail.obsFechamento}</div>}
+                  </div>
+                )}
 
                 <div className="text-[15px] mb-2" style={{ color: '#0f2b32' }}>Movimentações</div>
                 <table className="w-full text-sm mb-6" style={{ borderCollapse: 'collapse' }}>
                   <thead>
                     <tr className="text-slate-500" style={{ borderBottom: '0.5px solid #e1e8ea' }}>
-                      <th className="text-left font-medium py-1.5 px-2">Data</th>
-                      <th className="text-left font-medium py-1.5 px-2">Tipo</th>
-                      <th className="text-left font-medium py-1.5 px-2">Descrição</th>
-                      <th className="text-left font-medium py-1.5 px-2">Conta</th>
+                      <th className="text-left font-medium py-1.5 px-2">Data</th><th className="text-left font-medium py-1.5 px-2">Tipo</th>
+                      <th className="text-left font-medium py-1.5 px-2">Descrição</th><th className="text-left font-medium py-1.5 px-2">Conta</th>
                       <th className="text-right font-medium py-1.5 px-2">Valor</th>
                     </tr>
                   </thead>
@@ -401,10 +409,10 @@ export default function CaixaPage() {
                     {movLinhas.map((m, i) => (
                       <tr key={i} style={{ borderBottom: '0.5px solid #f1f5f6' }}>
                         <td className="py-2 px-2 text-slate-600">{dataHora(m.data)}</td>
-                        <td className="py-2 px-2" style={{ color: m.entrada ? '#0f6e56' : ORANGE }}>{m.tipo}</td>
+                        <td className="py-2 px-2" style={{ color: m.entrada ? GREEN : ORANGE }}>{m.tipo}</td>
                         <td className="py-2 px-2 text-slate-600">{m.descricao}</td>
                         <td className="py-2 px-2 text-slate-500">{m.conta}</td>
-                        <td className="py-2 px-2 text-right font-medium" style={{ color: m.entrada ? '#0f6e56' : ORANGE }}>{m.entrada ? '' : '− '}{brl(m.valor)}</td>
+                        <td className="py-2 px-2 text-right font-medium" style={{ color: m.entrada ? GREEN : ORANGE }}>{m.entrada ? '' : '− '}{brl(m.valor)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -414,10 +422,8 @@ export default function CaixaPage() {
                 <table className="w-full text-sm" style={{ borderCollapse: 'collapse' }}>
                   <thead>
                     <tr className="text-slate-500" style={{ borderBottom: '0.5px solid #e1e8ea' }}>
-                      <th className="text-left font-medium py-1.5 px-2">Data</th>
-                      <th className="text-left font-medium py-1.5 px-2">Cliente</th>
-                      <th className="text-left font-medium py-1.5 px-2">Descrição</th>
-                      <th className="text-right font-medium py-1.5 px-2">Valor</th>
+                      <th className="text-left font-medium py-1.5 px-2">Data</th><th className="text-left font-medium py-1.5 px-2">Cliente</th>
+                      <th className="text-left font-medium py-1.5 px-2">Descrição</th><th className="text-right font-medium py-1.5 px-2">Valor</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -438,7 +444,7 @@ export default function CaixaPage() {
             {tab === 'recebimentos' && (
               <>
                 {aberto && (
-                  <div className="mb-3">
+                  <div className="mb-3 no-print">
                     {vendasEmAberto.length > 0 ? (
                       <details className="text-sm">
                         <summary className="cursor-pointer font-medium" style={{ color: TEAL }}>+ Registrar recebimento ({vendasEmAberto.length} venda(s) em aberto)</summary>
@@ -461,10 +467,8 @@ export default function CaixaPage() {
                 <table className="w-full text-sm" style={{ borderCollapse: 'collapse' }}>
                   <thead>
                     <tr className="text-slate-500" style={{ borderBottom: '0.5px solid #e1e8ea' }}>
-                      <th className="text-left font-medium py-1.5 px-2">Hora</th>
-                      <th className="text-left font-medium py-1.5 px-2">Cliente · Pet</th>
-                      <th className="text-left font-medium py-1.5 px-2">Formas</th>
-                      <th className="text-right font-medium py-1.5 px-2">Valor</th>
+                      <th className="text-left font-medium py-1.5 px-2">Hora</th><th className="text-left font-medium py-1.5 px-2">Cliente · Pet</th>
+                      <th className="text-left font-medium py-1.5 px-2">Formas</th><th className="text-right font-medium py-1.5 px-2">Valor</th>
                       <th className="text-right font-medium py-1.5 px-2">Status</th>
                     </tr>
                   </thead>
@@ -489,16 +493,16 @@ export default function CaixaPage() {
               </>
             )}
 
-            <div className="flex gap-2 flex-wrap border-t pt-4 mt-5" style={{ borderColor: '#e1e8ea' }}>
+            <div className="flex gap-2 flex-wrap border-t pt-4 mt-5 no-print" style={{ borderColor: '#e1e8ea' }}>
               <button onClick={() => inert('Log')} className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-lg border" style={{ borderColor: '#d7e0e2', color: '#475569', background: '#fff' }}><LuHistory size={14} /> Log</button>
               <button onClick={() => abrirMov('SUPRIMENTO')} disabled={!aberto} className="text-xs font-medium px-3 py-2 rounded-lg text-white disabled:opacity-40" style={{ background: TEAL }}>Suprimento</button>
               <button onClick={() => abrirMov('SANGRIA')} disabled={!aberto} className="text-xs font-medium px-3 py-2 rounded-lg border disabled:opacity-40" style={{ borderColor: ORANGE, color: ORANGE, background: '#fff' }}>Sangria</button>
               <button onClick={() => abrirMov('DESPESA')} disabled={!aberto} className="text-xs font-medium px-3 py-2 rounded-lg border disabled:opacity-40" style={{ borderColor: ORANGE, color: ORANGE, background: '#fff' }}>Despesa</button>
               <button onClick={() => abrirMov('TRANSFERENCIA')} disabled={!aberto} className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-lg border disabled:opacity-40" style={{ borderColor: TEAL_DARK, color: TEAL_DARK, background: '#fff' }}><LuArrowRightLeft size={14} /> Transferência</button>
               <button onClick={abrirCredito} disabled={!aberto} className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-lg border disabled:opacity-40" style={{ borderColor: TEAL, color: TEAL, background: '#fff' }}><LuGift size={14} /> Crédito</button>
-              {!aberto && <button onClick={() => inert('Reabrir')} className="text-xs px-3 py-2 rounded-lg border" style={{ borderColor: '#d7e0e2', color: '#94a3b8', background: '#fff' }}>Reabrir</button>}
+              {!aberto && <button onClick={reabrirCaixa} className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-lg border" style={{ borderColor: '#d7e0e2', color: '#475569', background: '#fff' }}><LuLockOpen size={14} /> Reabrir</button>}
               <button onClick={() => window.print()} className="ml-auto flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-lg border" style={{ borderColor: TEAL_DARK, color: TEAL_DARK, background: '#fff' }}><LuPrinter size={14} /> Imprimir</button>
-              {aberto && (<button onClick={fecharCaixa} className="flex items-center gap-1.5 text-xs font-medium px-3.5 py-2 rounded-lg text-white" style={{ background: TEAL_DARK }}><LuLock size={14} /> Revisar e encerrar</button>)}
+              {aberto && (<button onClick={abrirFechar} className="flex items-center gap-1.5 text-xs font-medium px-3.5 py-2 rounded-lg text-white" style={{ background: TEAL_DARK }}><LuLock size={14} /> Revisar e encerrar</button>)}
             </div>
           </div>
         )}
@@ -525,6 +529,42 @@ export default function CaixaPage() {
             <div className="flex justify-end gap-3 p-5 border-t" style={{ borderColor: '#eef2f3' }}>
               <button onClick={() => setAbrirOpen(false)} className="px-4 py-2.5 rounded-lg border text-slate-600" style={{ borderColor: '#d7e0e2' }}>Cancelar</button>
               <button onClick={abrirCaixa} className="px-5 py-2.5 rounded-lg text-white font-medium" style={{ background: TEAL }}>Abrir caixa</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL FECHAR (CONFERÊNCIA) */}
+      {fecharOpen && detail && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+            <div className="flex items-center justify-between p-5 border-b" style={{ borderColor: '#eef2f3' }}>
+              <h3 className="text-lg font-semibold" style={{ color: '#0f2b32' }}>Revisar e encerrar</h3>
+              <button onClick={() => setFecharOpen(false)}><LuX size={18} className="text-slate-400" /></button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="flex justify-between items-center rounded-lg px-3 py-2.5" style={{ background: '#e8f7f9' }}>
+                <span className="text-sm" style={{ color: '#0f6e7a' }}>Esperado em dinheiro (gaveta)</span>
+                <b className="text-base" style={{ color: TEAL_DARK, fontWeight: 600 }}>{brl(saldoDinheiro)}</b>
+              </div>
+              <div>
+                <label className="block text-sm text-slate-600 mb-1.5">Dinheiro contado</label>
+                <input value={fecharForm.valorContado} onChange={(e) => setFecharForm({ ...fecharForm, valorContado: e.target.value })} inputMode="decimal" placeholder="0,00" className="w-full px-3 py-2.5 border rounded-lg" style={{ borderColor: '#d7e0e2' }} />
+              </div>
+              {difPrevia !== null && (
+                <div className="flex justify-between items-center rounded-lg px-3 py-2.5" style={{ background: Math.abs(difPrevia) < 0.005 ? '#e1f5ee' : '#fef0e8' }}>
+                  <span className="text-sm" style={{ color: difPrevia >= 0 ? GREEN : '#993C1D' }}>{Math.abs(difPrevia) < 0.005 ? 'Caixa confere' : difPrevia > 0 ? 'Sobra' : 'Falta'}</span>
+                  <b className="text-sm" style={{ color: difPrevia >= 0 ? GREEN : ORANGE }}>{brl(Math.abs(difPrevia))}</b>
+                </div>
+              )}
+              <div>
+                <label className="block text-sm text-slate-600 mb-1.5">Observação</label>
+                <input value={fecharForm.observacao} onChange={(e) => setFecharForm({ ...fecharForm, observacao: e.target.value })} className="w-full px-3 py-2.5 border rounded-lg" style={{ borderColor: '#d7e0e2' }} />
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 p-5 border-t" style={{ borderColor: '#eef2f3' }}>
+              <button onClick={() => setFecharOpen(false)} className="px-4 py-2.5 rounded-lg border text-slate-600" style={{ borderColor: '#d7e0e2' }}>Cancelar</button>
+              <button onClick={fecharCaixa} className="px-5 py-2.5 rounded-lg text-white font-medium" style={{ background: TEAL_DARK }}>Encerrar caixa</button>
             </div>
           </div>
         </div>
@@ -631,14 +671,12 @@ export default function CaixaPage() {
                 <span className="text-sm" style={{ color: '#0f2b32' }}>{vendaSel.tutor?.name || 'Cliente'} · {vendaSel.pet?.name || 'Pet'}</span>
                 <span className="text-xs text-slate-500">Total {brl(Number(vendaSel.value))} · Saldo <b style={{ color: ORANGE, fontWeight: 500 }}>{brl(valorDevido)}</b></span>
               </div>
-
               {tutorSaldo !== null && (
                 <div className="flex justify-between items-center rounded-lg px-3 py-2" style={{ background: '#e8f7f9' }}>
                   <span className="text-xs" style={{ color: '#0f6e7a' }}>Crédito disponível do cliente</span>
                   <b className="text-sm" style={{ color: TEAL_DARK, fontWeight: 500 }}>{brl(tutorSaldo)}</b>
                 </div>
               )}
-
               <div>
                 <div className="text-xs text-slate-500 font-medium mb-2">Formas de pagamento</div>
                 {formas.map((f, i) => (
@@ -654,7 +692,6 @@ export default function CaixaPage() {
                 <button onClick={() => setFormas([...formas, { forma: 'Pix', valor: 0, parcelas: 1, nsu: '' }])} className="flex items-center gap-1 text-xs font-medium mt-1" style={{ color: TEAL }}><LuPlus size={13} /> adicionar forma</button>
                 {creditoExcede && <p className="text-[11px] mt-1.5" style={{ color: ORANGE }}>Crédito usado ({brl(creditoNasFormas)}) maior que o disponível ({brl(tutorSaldo || 0)}).</p>}
               </div>
-
               <div className="flex gap-3">
                 <div className="flex-1">
                   <label className="block text-xs text-slate-500 mb-1">Desconto</label>
@@ -665,12 +702,10 @@ export default function CaixaPage() {
                   <div className="px-2.5 py-2 border rounded-lg text-sm text-slate-400" style={{ borderColor: '#eef2f3', background: '#f8fafb' }}>{brl(troco)}</div>
                 </div>
               </div>
-
               <div className="flex justify-between rounded-lg px-3 py-2.5" style={{ background: '#e8f7f9' }}>
                 <span className="text-sm" style={{ color: '#0f6e7a' }}>Total pago <b style={{ color: TEAL_DARK, fontWeight: 500 }}>{brl(somaFormas)}</b></span>
-                <span className="text-sm" style={{ color: '#0f6e7a' }}>Saldo restante <b style={{ color: saldoRestante <= 0.001 ? '#0f6e56' : ORANGE, fontWeight: 500 }}>{brl(saldoRestante)}</b></span>
+                <span className="text-sm" style={{ color: '#0f6e7a' }}>Saldo restante <b style={{ color: saldoRestante <= 0.001 ? GREEN : ORANGE, fontWeight: 500 }}>{brl(saldoRestante)}</b></span>
               </div>
-
               <div>
                 <label className="block text-xs text-slate-500 mb-1">Observação</label>
                 <input value={obsReceb} onChange={(e) => setObsReceb(e.target.value)} className="w-full px-2.5 py-2 border rounded-lg text-sm" style={{ borderColor: '#d7e0e2' }} />

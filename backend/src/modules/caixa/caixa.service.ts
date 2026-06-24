@@ -60,10 +60,28 @@ export class CaixaService {
     });
   }
 
-  async fechar(id: string) {
+  async fechar(id: string, dto: any = {}) {
+    const valorEsperado = dto.valorEsperado != null ? Number(dto.valorEsperado) : null;
+    const valorContado = dto.valorContado != null ? Number(dto.valorContado) : null;
+    const diferenca = (valorEsperado != null && valorContado != null)
+      ? Number((valorContado - valorEsperado).toFixed(2)) : null;
     return this.prisma.caixaSessao.update({
       where: { id },
-      data: { status: 'FECHADO', fechamento: new Date() },
+      data: {
+        status: 'FECHADO',
+        fechamento: new Date(),
+        valorEsperado,
+        valorContado,
+        diferenca,
+        obsFechamento: dto.observacao || null,
+      },
+    });
+  }
+
+  async reabrir(id: string) {
+    return this.prisma.caixaSessao.update({
+      where: { id },
+      data: { status: 'ABERTO', fechamento: null },
     });
   }
 
