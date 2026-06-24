@@ -57,7 +57,17 @@ const NAV: Entry[] = [
     href: "/dashboard/erp/internacoes", label: "Internação", Icon: LuBuilding2,
     roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"],
   },
-  { href: "/dashboard/erp/caixa", label: "Caixa", Icon: LuWallet, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
+  {
+    group: true, key: "vendas", label: "Vendas", Icon: LuWallet, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"],
+    children: [
+      { href: "/dashboard/erp/caixa", label: "Caixa", Icon: LuWallet, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
+      { href: "/dashboard/erp/pacotes", label: "Pacotes", Icon: LuLayoutDashboard, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
+      { href: "/dashboard/erp/recebimentos", label: "Recebimentos", Icon: LuCircleDollarSign, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
+      { href: "/dashboard/erp/movimentos-caixa", label: "Movimentos de caixa", Icon: LuRefreshCcw, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
+      { href: "/dashboard/erp/saldo-clientes", label: "Saldo dos clientes", Icon: LuUsers, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
+      { href: "/dashboard/erp/lista-precos", label: "Lista de preços", Icon: LuList, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
+    ],
+  },
   {
     group: true, key: "financeiro", label: "Financeiro", Icon: LuCircleDollarSign, roles: ["ADMIN"],
     children: [
