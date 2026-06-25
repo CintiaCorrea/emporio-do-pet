@@ -1245,52 +1245,13 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
               </div>
             )}
 
-            {/* BLOCO 1: RESUMO IA + SERVICO */}
-            {(tutor || lead) && (
-              <section className={SECTION} style={SECTION_STYLE}>
-                <div className={LBL}>
-                  <span><span className={NUM}>1</span><LuSparkles size={11} className="inline -mt-0.5 mr-1" />Resumo da conversa (IA){resumoWhen && <span className="font-normal text-gray-400 normal-case ml-1 text-[9.5px]">{fmtRelative(resumoWhen)}</span>}</span>
-                </div>
-                {editingResumo ? (
-                  <div className="rounded-lg p-2 border" style={{ background: "#f0fdfa", borderColor: "#99e9d8" }}>
-                    <textarea value={resumoDraft} onChange={e => setResumoDraft(e.target.value)} rows={4} className="w-full px-2 py-1.5 text-[11.5px] border rounded resize-none" style={{ borderColor: "#99e9d8", color: "#0c4a6e" }} placeholder="Resumo da conversa..." />
-                    <div className="flex gap-1.5 mt-1.5">
-                      <button onClick={() => setResumoDraft("")} className="px-2 py-1 text-[10.5px] border rounded text-gray-500" style={{ borderColor: "#E8DFC8" }} title="Limpar">🗑 limpar</button>
-                      <button onClick={() => setEditingResumo(false)} className="flex-1 px-2 py-1 text-[10.5px] border rounded" style={{ borderColor: "#E8DFC8" }}>Cancelar</button>
-                      <button onClick={saveResumo} className="flex-1 px-2 py-1 text-[10.5px] text-white rounded font-semibold" style={{ background: "#009AAC" }}>Salvar</button>
-                    </div>
-                  </div>
-                ) : resumo ? (
-                  <>
-                    <div onClick={() => { setEditingResumo(true); setResumoDraft(resumo); }} className="rounded-lg p-2.5 text-[11.5px] leading-relaxed cursor-pointer hover:opacity-90 group" style={{ background: "linear-gradient(135deg,#f0fdfa,#e0f4f6)", border: "1px solid #99e9d8", color: "#0c4a6e" }} title="Clique para editar">
-                      <div className="text-[9.5px] font-bold uppercase mb-1 flex items-center gap-1" style={{ color: "#0e7490" }}>
-                        <span className="px-1 rounded text-white" style={{ background: "#14b8a6" }}>IA</span> via BotConversa
-                        <span className="ml-auto text-gray-400 opacity-0 group-hover:opacity-100 normal-case font-normal">✏ editar</span>
-                      </div>
-                      {resumo}
-                    </div>
-                    {servicoSolicitado && (
-                      <div className="mt-1.5 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg" style={{ background: "#009AAC", color: "white" }}>
-                        <span className="text-[10px] font-bold">🎯 Serviço:</span>
-                        <span className="text-[11.5px] font-semibold">{servicoSolicitado}</span>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div onClick={() => { setEditingResumo(true); setResumoDraft(""); }} className="rounded-lg p-2.5 text-[11px] text-center italic cursor-pointer hover:bg-gray-100" style={{ background: "#fafafa", border: "1px dashed #E8DFC8", color: "#94a3b8" }}>
-                    Sem resumo ainda · ✏ clique para adicionar
-                  </div>
-                )}
-              </section>
-            )}
-
             {/* BLOCO 2: CLIENTE com toggle Lead↔Cliente */}
             {tutor && (
               <section className={SECTION} style={SECTION_STYLE}>
                 <div className="flex items-center gap-1.5 mb-2.5" style={{ color: "#0E5560" }}><LuStore size={14} /><span className="text-[11px] font-medium">Empório do Pet</span></div>
                 <div className={LBL}>
                   <span>
-                    <span className={NUM}>2</span>Cliente
+                    Cliente
                     {/* TOGGLE Lead/Cliente */}
                     <span className="inline-flex ml-1.5 rounded-full p-0.5 border" style={{ background: "#FAFAF7", borderColor: "#E8DFC8" }}>
                       <button onClick={handleDesconverter} className="px-2 py-0.5 text-[9px] font-bold rounded-full uppercase text-[#5F5E5A] hover:bg-amber-100 hover:text-[#92611A]">Lead</button>
@@ -1347,7 +1308,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
               <section className={SECTION} style={{ ...SECTION_STYLE, background: "#FFFBEB" }}>
                 <div className={LBL}>
                   <span>
-                    <span className={NUM}>2</span>Lead
+                    Lead
                     <span className="inline-flex ml-1.5 rounded-full p-0.5 border" style={{ background: "#FAFAF7", borderColor: "#E8DFC8" }}>
                       <button className="px-2 py-0.5 text-[9px] font-bold rounded-full uppercase" style={{ background: "#FEF3C7", color: "#92611A" }}>Lead</button>
                       <button onClick={handleConverter} className="px-2 py-0.5 text-[9px] font-bold rounded-full uppercase text-[#5F5E5A] hover:bg-teal-100 hover:text-[#0E7490]">Cliente</button>
@@ -1457,7 +1418,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
             {tutor && (
               <section className={SECTION} style={SECTION_STYLE}>
                 <div className={LBL}>
-                  <span><span className={NUM}>3</span>Pets {pets.length > 0 && `(${pets.length})`}{pets.length > 1 ? " · clique pra expandir" : ""}</span>
+                  <span>Pets {pets.length > 0 && `(${pets.length})`}{pets.length > 1 ? " · clique pra expandir" : ""}</span>
                   <button onClick={() => criarPetEAbrir(tutor.id, true)} className={LINK} style={{ color: "#009AAC" }} type="button"><LuPlus size={10} className="inline" /> cadastrar</button>
                 </div>
                 {pets.length > 0 ? (
@@ -1717,11 +1678,50 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
               </section>
             )}
 
+            {/* BLOCO 1: RESUMO IA + SERVICO */}
+            {(tutor || lead) && (
+              <section className={SECTION} style={SECTION_STYLE}>
+                <div className={LBL}>
+                  <span><LuSparkles size={11} className="inline -mt-0.5 mr-1" />Resumo da conversa (IA){resumoWhen && <span className="font-normal text-gray-400 normal-case ml-1 text-[9.5px]">{fmtRelative(resumoWhen)}</span>}</span>
+                </div>
+                {editingResumo ? (
+                  <div className="rounded-lg p-2 border" style={{ background: "#f0fdfa", borderColor: "#99e9d8" }}>
+                    <textarea value={resumoDraft} onChange={e => setResumoDraft(e.target.value)} rows={4} className="w-full px-2 py-1.5 text-[11.5px] border rounded resize-none" style={{ borderColor: "#99e9d8", color: "#0c4a6e" }} placeholder="Resumo da conversa..." />
+                    <div className="flex gap-1.5 mt-1.5">
+                      <button onClick={() => setResumoDraft("")} className="px-2 py-1 text-[10.5px] border rounded text-gray-500" style={{ borderColor: "#E8DFC8" }} title="Limpar">🗑 limpar</button>
+                      <button onClick={() => setEditingResumo(false)} className="flex-1 px-2 py-1 text-[10.5px] border rounded" style={{ borderColor: "#E8DFC8" }}>Cancelar</button>
+                      <button onClick={saveResumo} className="flex-1 px-2 py-1 text-[10.5px] text-white rounded font-semibold" style={{ background: "#009AAC" }}>Salvar</button>
+                    </div>
+                  </div>
+                ) : resumo ? (
+                  <>
+                    <div onClick={() => { setEditingResumo(true); setResumoDraft(resumo); }} className="rounded-lg p-2.5 text-[11.5px] leading-relaxed cursor-pointer hover:opacity-90 group" style={{ background: "linear-gradient(135deg,#f0fdfa,#e0f4f6)", border: "1px solid #99e9d8", color: "#0c4a6e" }} title="Clique para editar">
+                      <div className="text-[9.5px] font-bold uppercase mb-1 flex items-center gap-1" style={{ color: "#0e7490" }}>
+                        <span className="px-1 rounded text-white" style={{ background: "#14b8a6" }}>IA</span> via BotConversa
+                        <span className="ml-auto text-gray-400 opacity-0 group-hover:opacity-100 normal-case font-normal">✏ editar</span>
+                      </div>
+                      {resumo}
+                    </div>
+                    {servicoSolicitado && (
+                      <div className="mt-1.5 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg" style={{ background: "#009AAC", color: "white" }}>
+                        <span className="text-[10px] font-bold">🎯 Serviço:</span>
+                        <span className="text-[11.5px] font-semibold">{servicoSolicitado}</span>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div onClick={() => { setEditingResumo(true); setResumoDraft(""); }} className="rounded-lg p-2.5 text-[11px] text-center italic cursor-pointer hover:bg-gray-100" style={{ background: "#fafafa", border: "1px dashed #E8DFC8", color: "#94a3b8" }}>
+                    Sem resumo ainda · ✏ clique para adicionar
+                  </div>
+                )}
+              </section>
+            )}
+
             {/* BLOCO 4: REGISTRAR INTERACAO */}
             {(tutor || lead) && (
               <section className={SECTION} style={SECTION_STYLE}>
                 <div className={LBL}>
-                  <span><span className={NUM}>4</span><LuMessageSquare size={11} className="inline -mt-0.5 mr-1" />Registrar interação</span>
+                  <span><LuMessageSquare size={11} className="inline -mt-0.5 mr-1" />Registrar interação</span>
                   {!interacaoOpen && (<button onClick={() => setInteracaoOpen(true)} className={LINK} style={{ color: "#009AAC" }}><LuPlus size={10} className="inline" /> nova</button>)}
                 </div>
                 {interacaoOpen && (
@@ -1750,7 +1750,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
             {(tutor || lead) && (
               <section className="px-3 py-2.5">
                 <div className={LBL}>
-                  <span><span className={NUM}>5</span>Últimos atendimentos{historico.length > 0 && ` (${historico.length})`}</span>
+                  <span>Últimos atendimentos{historico.length > 0 && ` (${historico.length})`}</span>
                   {tutor && selectedPet && (
                     <Link href={`/dashboard/erp/pets/${selectedPet.id}/atendimentos/novo`} className={LINK} style={{ color: "#009AAC" }}><LuPlus size={10} className="inline" /> novo</Link>
                   )}
