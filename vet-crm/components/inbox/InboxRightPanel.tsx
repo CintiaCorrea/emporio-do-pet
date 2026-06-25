@@ -1297,7 +1297,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                   <Link href={`/dashboard/erp/tutores/${tutor.id}`} className={LINK} style={{ color: "#009AAC" }}>Ficha <LuExternalLink size={9} className="inline -mt-0.5" /></Link>
                 </div>
                 <div className="flex items-start gap-2">
-                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-semibold flex-shrink-0" style={{ background: "linear-gradient(135deg,#009AAC,#014D5E)" }}>{initials(tutor.name)}</div>
+                  <div className="w-11 h-11 rounded-full flex items-center justify-center text-white text-[13px] font-semibold flex-shrink-0" style={{ background: "linear-gradient(135deg,#009AAC,#014D5E)" }}>{initials(tutor.name)}</div>
                   <div className="min-w-0 flex-1">
                     {editingName ? (
                       <div className="flex gap-1 mb-1">
@@ -1307,7 +1307,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                         <button onClick={() => setEditingName(false)} className="px-1.5 text-[10px] border rounded" style={{ borderColor: "#E8DFC8" }}>✕</button>
                       </div>
                     ) : (
-                      <div onClick={() => { setEditingName(true); setNameDraft(tutor.name); }} className="text-[12.5px] font-semibold truncate cursor-pointer hover:underline" style={{ color: "#014D5E" }} title="Clique para editar">{tutor.name}</div>
+                      <div onClick={() => { setEditingName(true); setNameDraft(tutor.name); }} className="text-[15px] font-semibold truncate cursor-pointer hover:underline" style={{ color: "#014D5E" }} title="Clique para editar">{tutor.name}</div>
                     )}
                     <div className="text-[10.5px] text-gray-500 leading-snug">
                       {editingPhone ? (
