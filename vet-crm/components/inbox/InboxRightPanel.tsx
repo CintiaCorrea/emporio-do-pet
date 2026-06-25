@@ -9,7 +9,9 @@ import {
   LuMessageSquare, LuSparkles, LuCalendar, LuFileText, LuFlaskConical, LuStickyNote,
   LuX, LuArrowUpRight, LuInbox, LuMessageCircle, LuTrash, LuArrowLeft,
   LuStethoscope, LuClock, LuDollarSign, LuRepeat, LuMail, LuActivity,
+  LuPencil, LuStore,
 } from "react-icons/lu";
+import { FaWhatsapp } from "react-icons/fa";
 import toast from "react-hot-toast";
 import { speciesKey, ageFromBirth } from "@/lib/pets/labels";
 
@@ -1285,6 +1287,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
             {/* BLOCO 2: CLIENTE com toggle Lead↔Cliente */}
             {tutor && (
               <section className={SECTION} style={SECTION_STYLE}>
+                <div className="flex items-center gap-1.5 mb-2.5" style={{ color: "#0E5560" }}><LuStore size={14} /><span className="text-[11px] font-medium">Empório do Pet</span></div>
                 <div className={LBL}>
                   <span>
                     <span className={NUM}>2</span>Cliente
@@ -1307,7 +1310,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                         <button onClick={() => setEditingName(false)} className="px-1.5 text-[10px] border rounded" style={{ borderColor: "#E8DFC8" }}>✕</button>
                       </div>
                     ) : (
-                      <div onClick={() => { setEditingName(true); setNameDraft(tutor.name); }} className="text-[15px] font-semibold truncate cursor-pointer hover:underline" style={{ color: "#014D5E" }} title="Clique para editar">{tutor.name}</div>
+                      <div onClick={() => { setEditingName(true); setNameDraft(tutor.name); }} className="text-[15px] font-semibold truncate cursor-pointer hover:underline" style={{ color: "#014D5E" }} title="Clique para editar">{tutor.name} <LuPencil className="inline -mt-0.5 text-gray-300" size={12} /></div>
                     )}
                     <div className="text-[10.5px] text-gray-500 leading-snug">
                       {editingPhone ? (
@@ -1319,7 +1322,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                         </span>
                       ) : (
                         <span onClick={() => { setEditingPhone(true); setPhoneDraft(tutorPrimaryPhone || ""); }} className="cursor-pointer hover:underline" title="Clique para editar">
-                          <LuPhone size={9} className="inline -mt-0.5" /> {tutorPrimaryPhone ? formatPhone(tutorPrimaryPhone) : "+ adicionar telefone"}
+                          <FaWhatsapp size={12} className="inline -mt-0.5" style={{ color: "#0F9D58" }} /> {tutorPrimaryPhone ? formatPhone(tutorPrimaryPhone) : "+ adicionar telefone"}
                         </span>
                       )}
                       {ltv && <> · LTV {ltv}</>}
@@ -1375,7 +1378,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                         </span>
                       ) : (
                         <span onClick={() => { setEditingPhone(true); setPhoneDraft(lead.phone || ""); }} className="cursor-pointer hover:underline" title="Clique para editar">
-                          <LuPhone size={9} className="inline -mt-0.5" /> {lead.phone ? formatPhone(lead.phone) : "+ adicionar telefone"}
+                          <FaWhatsapp size={12} className="inline -mt-0.5" style={{ color: "#0F9D58" }} /> {lead.phone ? formatPhone(lead.phone) : "+ adicionar telefone"}
                         </span>
                       )}
                       {lead.source && <> · via {lead.source}</>}

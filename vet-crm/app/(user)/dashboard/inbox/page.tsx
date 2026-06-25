@@ -80,7 +80,7 @@ export default function InboxBcPage() {
           title="BotConversa"
         />
         <aside
-          className="w-[300px] border-l flex-shrink-0 overflow-hidden"
+          className="w-[372px] border-l flex-shrink-0 overflow-hidden"
           style={{ borderColor: "#E8DFC8" }}
         >
           <InboxRightPanel canal="WhatsApp BC" />
