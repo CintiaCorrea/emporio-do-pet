@@ -13,6 +13,25 @@ import {
 import toast from "react-hot-toast";
 import { speciesKey, ageFromBirth } from "@/lib/pets/labels";
 
+function scorePie(score: number, max: number, color: string) {
+  const f = Math.max(0, Math.min(1, max ? score / max : 0));
+  const ang = -Math.PI / 2 + 2 * Math.PI * f;
+  const x = 12 + 10 * Math.cos(ang);
+  const y = 12 + 10 * Math.sin(ang);
+  const large = f > 0.5 ? 1 : 0;
+  return (
+    <svg width="10" height="10" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
+      <circle cx="12" cy="12" r="10" fill="#EBE8DF" />
+      {f >= 0.999 ? (
+        <circle cx="12" cy="12" r="10" fill={color} />
+      ) : (
+        <path d={`M12 12 L12 2 A10 10 0 ${large} 1 ${x.toFixed(2)} ${y.toFixed(2)} Z`} fill={color} />
+      )}
+    </svg>
+  );
+}
+
+
 interface Contact { id: string; number: string; isPrimary?: boolean; isWhatsApp?: boolean; }
 interface Tutor {
   id: string; name: string; email?: string | null;
@@ -1397,11 +1416,11 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                   </svg>
                   <div className="flex-1 min-w-0">
                     <div className="text-[12px] font-medium" style={{ color: "#0E5560" }}>🏅 Cliente {(tutorScore.label || "").toLowerCase()} <span className="text-[10px] text-gray-400 font-normal">· {tutorScore.total}/100</span></div>
-                    <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1.5">
-                      <span className="inline-flex items-center gap-1 text-[10.5px] text-gray-600"><span className="w-1.5 h-1.5 rounded-full" style={{ background: "#009AAC" }} />Visitas <b style={{ color: "#0E2244" }}>{tutorScore.dimensions?.visitas?.score ?? 0}</b></span>
-                      <span className="inline-flex items-center gap-1 text-[10.5px] text-gray-600"><span className="w-1.5 h-1.5 rounded-full" style={{ background: "#B8860B" }} />LTV <b style={{ color: "#0E2244" }}>{tutorScore.dimensions?.ltv?.score ?? 0}</b></span>
-                      <span className="inline-flex items-center gap-1 text-[10.5px] text-gray-600"><span className="w-1.5 h-1.5 rounded-full" style={{ background: "#2f80c4" }} />Recência <b style={{ color: "#0E2244" }}>{tutorScore.dimensions?.recencia?.score ?? 0}</b></span>
-                      <span className="inline-flex items-center gap-1 text-[10.5px] text-gray-600"><span className="w-1.5 h-1.5 rounded-full" style={{ background: "#D85A30" }} />NPS <b style={{ color: "#0E2244" }}>{tutorScore.dimensions?.nps?.score ?? 0}</b></span>
+                    <div className="flex flex-nowrap gap-x-2 mt-1.5">
+                      <span className="inline-flex items-center gap-1 text-[10.5px] text-gray-600">{scorePie(tutorScore.dimensions?.visitas?.score ?? 0, 30, "#009AAC")} Visitas <b style={{ color: "#0E2244" }}>{tutorScore.dimensions?.visitas?.score ?? 0}</b></span>
+                      <span className="inline-flex items-center gap-1 text-[10.5px] text-gray-600">{scorePie(tutorScore.dimensions?.ltv?.score ?? 0, 30, "#B8860B")} LTV <b style={{ color: "#0E2244" }}>{tutorScore.dimensions?.ltv?.score ?? 0}</b></span>
+                      <span className="inline-flex items-center gap-1 text-[10.5px] text-gray-600">{scorePie(tutorScore.dimensions?.recencia?.score ?? 0, 25, "#2f80c4")} Recência <b style={{ color: "#0E2244" }}>{tutorScore.dimensions?.recencia?.score ?? 0}</b></span>
+                      <span className="inline-flex items-center gap-1 text-[10.5px] text-gray-600">{scorePie(tutorScore.dimensions?.nps?.score ?? 0, 15, "#D85A30")} NPS <b style={{ color: "#0E2244" }}>{tutorScore.dimensions?.nps?.score ?? 0}</b></span>
                     </div>
                   </div>
                 </div>
