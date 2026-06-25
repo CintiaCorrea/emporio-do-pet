@@ -36,6 +36,11 @@ export class CaixaController {
     return this.service.listVendas(query);
   }
 
+  @Get('produtividade')
+  produtividade(@Query() query: any, @CurrentUser('id') userId: string) {
+    return this.service.produtividade(query, userId);
+  }
+
   @Post('pdv')
   pdv(@Body() dto: any, @CurrentUser('id') userId: string) {
     return this.service.vendaDireta(dto, userId);

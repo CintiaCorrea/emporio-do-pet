@@ -61,6 +61,7 @@ const NAV: Entry[] = [
     group: true, key: "vendas", label: "Vendas", Icon: LuWallet, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"],
     children: [
       { href: "/dashboard/erp/ponto-de-venda", label: "Ponto de venda", Icon: LuCircleDollarSign, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
+      { href: "/dashboard/erp/minhas-vendas", label: "Minhas vendas", Icon: LuStar, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
       { href: "/dashboard/erp/caixa", label: "Caixa", Icon: LuWallet, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
       { href: "/dashboard/erp/pacotes", label: "Pacotes", Icon: LuLayoutDashboard, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
       { href: "/dashboard/erp/recebimentos", label: "Recebimentos", Icon: LuCircleDollarSign, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
