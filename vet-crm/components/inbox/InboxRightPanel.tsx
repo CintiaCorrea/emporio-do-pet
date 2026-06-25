@@ -1461,11 +1461,11 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                   <button onClick={() => criarPetEAbrir(tutor.id, true)} className={LINK} style={{ color: "#009AAC" }} type="button"><LuPlus size={10} className="inline" /> cadastrar</button>
                 </div>
                 {pets.length > 0 ? (
-                  <div className="space-y-1.5">
+                  <div className="flex flex-wrap gap-2 items-start">
                     {pets.map(p => {
                       const active = selectedPet?.id === p.id;
                       return (
-                        <div key={p.id} className={`rounded-lg border ${active ? "" : "hover:brightness-[0.97]"}`} style={active ? { background: "#cdebef", borderColor: "#009AAC" } : { background: "#e0f4f6", borderColor: "#9fd0d7" }}>
+                        <div key={p.id} className={`border ${active ? "w-full order-last rounded-lg mt-1" : "rounded-full hover:brightness-[0.97]"}`} style={active ? { background: "#cdebef", borderColor: "#009AAC" } : { background: "#e0f4f6", borderColor: "#9fd0d7" }}>
                           <button onClick={() => setSelectedPet(active ? null : p)} className="w-full flex items-center gap-2 px-2 py-1.5 text-left">
                             <span className="text-[18px] leading-none flex-shrink-0" aria-hidden>{speciesEmoji(p.species)}</span>
                             <div className="min-w-0 flex-1">
@@ -1632,7 +1632,12 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
               </section>
             )}
 
-            {/* BLOCO 3.4: VACINAS A RESOLVER (F3) */}
+            {tutor && selectedPet && (
+            <div className="flex items-center gap-1.5 mb-2 px-2.5 py-1.5 rounded-lg text-[11px]" style={{ background: "#F2FAFB", color: "#0E5560" }}>
+              Tudo abaixo é do pet: <b style={{ fontWeight: 600 }}>{selectedPet.name}</b>
+            </div>
+          )}
+          {/* BLOCO 3.4: VACINAS A RESOLVER (F3) */}
             {tutor && selectedPet && (
               <section className={SECTION} style={SECTION_STYLE}>
                 <div className={LBL}><span>Vacinas a resolver</span></div>
