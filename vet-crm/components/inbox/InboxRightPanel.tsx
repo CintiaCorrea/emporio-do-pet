@@ -261,6 +261,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
   const [editingResumo, setEditingResumo] = useState(false);
   const [resumoDraft, setResumoDraft] = useState("");
   const [editingName, setEditingName] = useState(false);
+  const [fichaOpen, setFichaOpen] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
   const [editingPhone, setEditingPhone] = useState(false);
   const [phoneDraft, setPhoneDraft] = useState("");
@@ -1271,7 +1272,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                         <button onClick={() => setEditingName(false)} className="px-1.5 text-[10px] border rounded" style={{ borderColor: "#E8DFC8" }}>✕</button>
                       </div>
                     ) : (
-                      <div onClick={() => { setEditingName(true); setNameDraft(tutor.name); }} className="text-[15px] font-semibold truncate cursor-pointer hover:underline" style={{ color: "#014D5E" }} title="Clique para editar">{tutor.name} <LuPencil className="inline -mt-0.5 text-gray-300" size={12} /></div>
+                      <div onClick={() => setFichaOpen((o) => !o)} className="text-[15px] font-semibold truncate cursor-pointer hover:underline" style={{ color: "#014D5E" }} title="Clique para editar">{tutor.name} <LuPencil className="inline -mt-0.5 text-gray-300" size={12} /></div>
                     )}
                     <div className="text-[10.5px] text-gray-500 leading-snug">
                       {editingPhone ? (
@@ -1303,7 +1304,28 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                 </div>
               </section>
             )}
-            {/* BLOCO 2: LEAD com toggle Lead↔Cliente + PET DE INTERESSE */}
+            {tutor && fichaOpen && (
+            <section className={SECTION} style={{ ...SECTION_STYLE, border: "1px solid #D6E9EC", background: "#FAFEFE" }}>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[11px] font-medium" style={{ color: "#0E5560" }}>Ficha do cliente</span>
+                <button onClick={() => setFichaOpen(false)} className="text-[10px] text-gray-400">fechar</button>
+              </div>
+              <div className="flex items-center justify-between text-[12.5px] py-1.5 border-b" style={{ borderColor: "#EFEAE0" }}>
+                <span><span className="text-gray-400 text-[10px] mr-2">Nome</span>{tutor.name}</span>
+                <button onClick={() => { setNameDraft(tutor.name); setEditingName(true); setFichaOpen(false); }} className="text-[11px]" style={{ color: "#009AAC" }}>editar</button>
+              </div>
+              <div className="flex items-center justify-between text-[12.5px] py-1.5 border-b" style={{ borderColor: "#EFEAE0" }}>
+                <span><span className="text-gray-400 text-[10px] mr-2">Telefone</span>{tutorPrimaryPhone ? formatPhone(tutorPrimaryPhone) : "—"}</span>
+                <button onClick={() => { setEditingPhone(true); setFichaOpen(false); }} className="text-[11px]" style={{ color: "#009AAC" }}>editar</button>
+              </div>
+              <label className="block text-[10px] text-gray-500 mt-2 mb-1">Estado do relacionamento</label>
+              <select value={tutor.estadoRelacionamento || ""} onChange={(e) => updateTutorEstado(e.target.value)} className="w-full text-[12.5px] px-2 py-1 border rounded" style={{ borderColor: "#cfe8eb", background: "white" }}>
+                <option value="">— selecionar —</option>
+                {ESTADO_RELACIONAMENTO.map((opt) => (<option key={opt.v} value={opt.v}>{opt.label}</option>))}
+              </select>
+            </section>
+          )}
+          {/* BLOCO 2: LEAD com toggle Lead↔Cliente + PET DE INTERESSE */}
             {!tutor && lead && (
               <section className={SECTION} style={{ ...SECTION_STYLE, background: "#FFFBEB" }}>
                 <div className={LBL}>
