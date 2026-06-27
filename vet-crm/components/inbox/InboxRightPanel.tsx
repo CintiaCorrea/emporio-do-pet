@@ -1413,7 +1413,18 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
               </section>
             )}
 
-            {/* BLOCO 2.6: SEQUENCIAS (S3) */}
+            {/* BLOCO 2.55: AVALIACAO GOOGLE */}
+          {tutor && (
+            <section className={SECTION} style={{ ...SECTION_STYLE, background: "#FFFDF5", borderColor: "#F0E6C8" }}>
+              <div className="flex items-center gap-2">
+                <span className="text-[15px]">⭐</span>
+                <span className="text-[12.5px] font-medium">Avaliação Google</span>
+                <button disabled title="em breve" className="ml-auto text-[10px] px-2 py-1 rounded-lg text-white opacity-60" style={{ background: "#009AAC" }}>Solicitar</button>
+              </div>
+              <div className="text-[11px] text-gray-400 mt-2">Nenhuma avaliação solicitada.</div>
+            </section>
+          )}
+          {/* BLOCO 2.6: SEQUENCIAS (S3) */}
             {tutor && inscricoes.length > 0 && (
               <section className={SECTION} style={SECTION_STYLE}>
                 <div className={LBL}><span>Sequencias em andamento</span></div>
