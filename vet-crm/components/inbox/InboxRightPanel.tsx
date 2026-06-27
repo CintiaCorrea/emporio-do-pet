@@ -219,6 +219,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
   const [leadHistorico, setLeadHistorico] = useState<Lead | null>(null);
   const [pets, setPets] = useState<Pet[]>([]);
   const [selectedPet, setSelectedPet] = useState<Pet | null>(null);
+  useEffect(() => { if (pets.length && !pets.some((p) => p.id === selectedPet?.id)) setSelectedPet(pets[0]); }, [pets]);
   const [breedOptions, setBreedOptions] = useState<string[]>([]);
   const [pacotesInbox, setPacotesInbox] = useState<{ id: string; data: any }[]>([]);
   const [fisioSrvInbox, setFisioSrvInbox] = useState<any[]>([]);
@@ -1294,13 +1295,6 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                       {clienteDesde && <> · cliente desde {clienteDesde}</>}
                     </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-2 mt-2">
-                  <span className="text-[9.5px] font-bold uppercase text-gray-400 whitespace-nowrap">Estado relac.</span>
-                  <select value={tutor.estadoRelacionamento || ""} onChange={e => updateTutorEstado(e.target.value)} className="flex-1 text-[10.5px] px-2 py-1 border rounded-lg font-medium" style={{ borderColor: "#009AAC", color: "#014D5E", background: "white" }}>
-                    <option value="">— selecionar —</option>
-                    {ESTADO_RELACIONAMENTO.map(e => <option key={e.v} value={e.v}>{e.label}</option>)}
-                  </select>
                 </div>
               </section>
             )}
