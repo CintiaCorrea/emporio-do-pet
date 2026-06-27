@@ -606,7 +606,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
       }
     } catch { /* ignore */ }
     items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    return items.slice(0, 10);
+    return items.slice(0, 1);
   }
   function renderHistItem(h: HistoricoItem) {
     const isInteracao = h.type === "INTERACAO";
@@ -1555,54 +1555,6 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                                     {(pipeDyn.fisio.length ? pipeDyn.fisio : PIPELINE_FISIO).map(et => <option key={et} value={et}>{et}</option>)}
                                   </select>
                                 </div>
-                              </div>
-                              <div className="mb-2">
-                                <div className="flex items-center justify-between mb-1">
-                                  <span className="text-[9.5px] font-bold uppercase text-gray-400">Pacotes de fisio</span>
-                                  <button type="button" onClick={() => setPacFormInbox(fm => ({ ...fm, open: !fm.open }))} className="text-[10px] font-medium" style={{ color: "#009AAC" }}><LuPlus size={9} className="inline" /> pacote</button>
-                                </div>
-                                {pacFormInbox.open && (
-                                  <div className="border rounded-lg p-2 mb-1.5" style={{ borderColor: "#009AAC", background: "#f5fdfe" }}>
-                                    <div className="text-[9px] font-bold uppercase mb-1" style={{ color: "#009AAC" }}>Novo pacote</div>
-                                    <select value={pacFormInbox.serviceId} onChange={e => setPacFormInbox(fm => ({ ...fm, serviceId: e.target.value }))} className="w-full text-[10px] px-1.5 py-1 border rounded mb-1.5" style={{ borderColor: "#cfe2e6", background: "white" }}>
-                                      <option value="">— serviço de fisioterapia —</option>
-                                      {fisioSrvInbox.map((srv: any) => <option key={srv.id} value={srv.id}>{srv.nome || srv.titulo || srv.descricao}</option>)}
-                                    </select>
-                                    <div className="flex gap-1.5 mb-1.5">
-                                      <div className="flex-1">
-                                        <div className="text-[8.5px] text-gray-500 mb-0.5">Total de sessões</div>
-                                        <input type="number" min="1" value={pacFormInbox.total} onChange={e => setPacFormInbox(fm => ({ ...fm, total: e.target.value }))} className="w-full text-[10px] px-1.5 py-1 border rounded" style={{ borderColor: "#cfe2e6", background: "white" }} />
-                                      </div>
-                                      <div className="flex-1">
-                                        <div className="text-[8.5px] text-gray-500 mb-0.5">Já feitas</div>
-                                        <input type="number" min="0" value={pacFormInbox.jaFeitas} onChange={e => setPacFormInbox(fm => ({ ...fm, jaFeitas: e.target.value }))} className="w-full text-[10px] px-1.5 py-1 border rounded" style={{ borderColor: "#1D9E75", background: "white", color: "#0F6E56" }} />
-                                      </div>
-                                    </div>
-                                    <button onClick={addPacoteInbox} disabled={savingPacInbox} className="w-full px-2 py-1.5 rounded text-[10.5px] text-white font-semibold" style={{ background: "#009AAC" }}>{savingPacInbox ? "Criando..." : "Criar pacote"}</button>
-                                  </div>
-                                )}
-                                {pacotesInbox.length === 0 ? (
-                                  <div className="text-[10px] text-gray-400 italic px-1 py-1">Nenhum pacote ainda.</div>
-                                ) : (
-                                  <div className="space-y-1.5">
-                                    {pacotesInbox.map(pk => { const used = pk.data.used || 0; const total = pk.data.total || 0; const done = used >= total; return (
-                                      <div key={pk.id} className="border rounded-lg p-2" style={{ borderColor: done ? "#0F6E56" : (total > 1 && used === total - 1 ? "#BA7517" : "#E8DFC8"), background: done ? "#F3FBF7" : "#fff" }}>
-                                        <div className="flex items-center justify-between">
-                                          <span className="text-[10.5px] font-medium" style={{ color: "#0E2244" }}>{done ? "🏆 " : "🐾 "}{pk.data.nome}</span>
-                                          <button onClick={() => delPacoteInbox(pk.id)} className="text-[9.5px]" style={{ color: "#ef4444" }}>excluir</button>
-                                        </div>
-                                        <div className="flex flex-wrap gap-0.5 mt-1">
-                                          {Array.from({ length: Math.min(total, 20) }).map((_, i) => <span key={i} style={{ fontSize: "12px" }} title={`Sessão ${i + 1}`}>{i < used ? "🐾" : "⚪"}</span>)}
-                                        </div>
-                                        <div className="flex items-center gap-1.5 mt-1">
-                                          <div className="flex-1 h-1.5 rounded-full bg-gray-100 overflow-hidden"><div className="h-full" style={{ width: `${total ? Math.min(100, (used / total) * 100) : 0}%`, background: done ? "#0F6E56" : "#009AAC" }} /></div>
-                                          <span className="text-[10px] font-medium" style={{ color: done ? "#0F6E56" : "#0E2244" }}>{used}/{total}</span>
-                                          <button onClick={() => usarSessaoInbox(pk)} disabled={done} className="px-1.5 py-0.5 rounded text-[10px] border disabled:opacity-40" style={{ borderColor: "#E8DFC8", color: "#009AAC" }}>{done ? "✓" : "+1"}</button>
-                                        </div>
-                                      </div>
-                                    ); })}
-                                  </div>
-                                )}
                               </div>
                               
                               
