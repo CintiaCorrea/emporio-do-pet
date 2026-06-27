@@ -226,6 +226,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
   const [pacFormInbox, setPacFormInbox] = useState<{ open: boolean; serviceId: string; total: string; jaFeitas: string }>({ open: false, serviceId: "", total: "4", jaFeitas: "0" });
   const [savingPacInbox, setSavingPacInbox] = useState(false);
   const [cadAberto, setCadAberto] = useState<Record<string, boolean>>({});
+  const [fichaPet, setFichaPet] = useState<Record<string, boolean>>({});
   useEffect(() => {
     if (!selectedPet) { setBreedOptions([]); return; }
     let cancelled = false;
@@ -1462,8 +1463,151 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                                 <div className="text-[10px] text-gray-500 truncate">{[p.breed, p.birthDate ? ageFromBirth(p.birthDate) : null].filter(Boolean).join(" · ")}</div>
                               )}
                             </div>
-                            <span onClick={(e) => { e.stopPropagation(); window.open(`/dashboard/erp/pets/${p.id}`, "_self"); }} title="Abrir ficha completa" className="text-gray-300 hover:text-[#009AAC] flex-shrink-0 cursor-pointer"><LuPencil size={13} /></span>
+                            <span onClick={(e) => { e.stopPropagation(); setSelectedPet(p); setFichaPet(st => ({ ...st, [p.id]: !st[p.id] })); }} title="Ficha do pet" className="text-gray-300 hover:text-[#009AAC] flex-shrink-0 cursor-pointer"><LuPencil size={13} /></span>
                           </button>
+                          {active && fichaPet[p.id] && (
+                            <div className="px-2 pb-2 pt-1 border-t" style={{ borderColor: "#cfe8eb" }}>
+                              {(() => { const cadCompleto = !!(p.gender && p.breed && p.birthDate); const aberto = cadAberto[p.id] ?? !cadCompleto; return (<>
+                              <button type="button" onClick={() => setCadAberto(st => ({ ...st, [p.id]: !(st[p.id] ?? !cadCompleto) }))} className="w-full flex items-center justify-between text-[9.5px] font-bold uppercase text-gray-400 mb-1 mt-1"><span>Dados do pet{cadCompleto ? "" : " · completar"}</span><span>{aberto ? "▴" : "▾"}</span></button>
+                              {aberto && (<div className="space-y-1 text-[10.5px] mb-2">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-gray-400 w-12 flex-shrink-0">Nome</span>
+                                  <input defaultValue={p.name === "Sem nome" ? "" : p.name} placeholder="Nome do pet" onBlur={e => { const v = e.target.value.trim(); if (v && v !== p.name) savePetField(p.id, { name: v }); }} className="flex-1 text-[10.5px] px-2 py-1 border rounded" style={{ borderColor: "#cfe8eb", color: "#014D5E" }} />
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-gray-400 w-12 flex-shrink-0">Espécie</span>
+                                  <select value={speciesKey(p.species)} onChange={e => savePetField(p.id, { species: e.target.value, breed: null })} className="flex-1 text-[10.5px] px-2 py-1 border rounded" style={{ borderColor: "#cfe8eb", color: "#014D5E", background: "white" }}>
+                                    <option value="CANINE">Cão</option>
+                                    <option value="FELINE">Gato</option>
+                                    <option value="BIRD">Ave</option>
+                                    <option value="RODENT">Roedor</option>
+                                    <option value="REPTILE">Réptil</option>
+                                    <option value="OTHER">Outro</option>
+                                  </select>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-gray-400 w-12 flex-shrink-0">Sexo</span>
+                                  <select value={p.gender || ""} onChange={e => savePetField(p.id, { gender: e.target.value || null })} className="flex-1 text-[10.5px] px-2 py-1 border rounded" style={{ borderColor: "#cfe8eb", color: "#014D5E", background: "white" }}>
+                                    <option value="">—</option>
+                                    <option value="MALE">Macho</option>
+                                    <option value="FEMALE">Fêmea</option>
+                                    <option value="OTHER">Outro</option>
+                                  </select>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-gray-400 w-12 flex-shrink-0">Raça</span>
+                                  <select value={p.breed || ""} onChange={e => savePetField(p.id, { breed: e.target.value || null })} className="flex-1 text-[10.5px] px-2 py-1 border rounded" style={{ borderColor: "#cfe8eb", color: "#014D5E", background: "white" }}>
+                                    <option value="">— selecione —</option>
+                                    {p.breed && !breedOptions.includes(p.breed) && <option value={p.breed}>{p.breed}</option>}
+                                    {breedOptions.map(b => <option key={b} value={b}>{b}</option>)}
+                                  </select>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-gray-400 w-12 flex-shrink-0">Nasc.</span>
+                                  <input type="date" defaultValue={p.birthDate ? String(p.birthDate).slice(0, 10) : ""} onChange={e => savePetField(p.id, { birthDate: e.target.value ? new Date(e.target.value).toISOString() : null })} className="flex-1 text-[10.5px] px-2 py-1 border rounded" style={{ borderColor: "#cfe8eb", color: "#014D5E", background: "white" }} />
+                                  <span className="text-[9.5px] text-gray-400 flex-shrink-0 w-12">{p.birthDate ? ageFromBirth(p.birthDate) : ""}</span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-gray-400 w-12 flex-shrink-0">Peso</span>
+                                  <input type="number" step="0.1" defaultValue={p.weight ?? ""} placeholder="kg" onBlur={e => { const v = e.target.value.trim(); savePetField(p.id, { weight: v ? Number(v.replace(",", ".")) : null }); }} className="flex-1 text-[10.5px] px-2 py-1 border rounded" style={{ borderColor: "#cfe8eb", color: "#014D5E", background: "white" }} />
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-gray-400 w-12 flex-shrink-0">Castr.</span>
+                                  <select value={p.sterilization || ""} onChange={e => savePetField(p.id, { sterilization: e.target.value || null })} className="flex-1 text-[10.5px] px-2 py-1 border rounded" style={{ borderColor: "#cfe8eb", color: "#014D5E", background: "white" }}>
+                                    <option value="">—</option>
+                                    <option value="STERILIZED">Castrado</option>
+                                    <option value="NOT_STERILIZED">Inteiro</option>
+                                    <option value="SCHEDULED">Agendado</option>
+                                  </select>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-gray-400 w-12 flex-shrink-0">Pelagem</span>
+                                  <input defaultValue={p.coatColor || ""} placeholder="cor / pelagem" onBlur={e => { const v = e.target.value.trim(); if (v !== (p.coatColor || "")) savePetField(p.id, { coatColor: v || null }); }} className="flex-1 text-[10.5px] px-2 py-1 border rounded" style={{ borderColor: "#cfe8eb", color: "#014D5E", background: "white" }} />
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-gray-400 w-12 flex-shrink-0">Microchip</span>
+                                  <input defaultValue={p.microchip || ""} placeholder="número" onBlur={e => { const v = e.target.value.trim(); if (v !== (p.microchip || "")) savePetField(p.id, { microchip: v || null }); }} className="flex-1 text-[10.5px] px-2 py-1 border rounded" style={{ borderColor: "#cfe8eb", color: "#014D5E", background: "white" }} />
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-gray-400 w-12 flex-shrink-0">Plano</span>
+                                  <input defaultValue={p.insurancePlan || ""} placeholder="convênio / plano" onBlur={e => { const v = e.target.value.trim(); if (v !== (p.insurancePlan || "")) savePetField(p.id, { insurancePlan: v || null }); }} className="flex-1 text-[10.5px] px-2 py-1 border rounded" style={{ borderColor: "#cfe8eb", color: "#014D5E", background: "white" }} />
+                                </div>
+                                <div className="flex items-start gap-1.5">
+                                  <span className="text-gray-400 w-12 flex-shrink-0 mt-1">Obs.</span>
+                                  <textarea defaultValue={p.observations || ""} placeholder="Alergias / observações clínicas" rows={2} onBlur={e => { const v = e.target.value.trim(); if (v !== (p.observations || "")) savePetField(p.id, { observations: v || null }); }} className="flex-1 text-[10.5px] px-2 py-1 border rounded" style={{ borderColor: "#cfe8eb", color: "#014D5E", background: "white" }} />
+                                </div>
+                              </div>)}
+                              </>); })()}
+                              <div className="space-y-1.5 mb-2">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-[8.5px] font-bold px-1.5 py-0.5 rounded" style={{ background: "#fef3c7", color: "#92400e", minWidth: 28, textAlign: "center" }}>CLI</span>
+                                  <select value={p.pipelineClinicoEtapa || ""} onChange={e => updatePetEtapa("pipelineClinicoEtapa", e.target.value)} className="flex-1 text-[10.5px] px-2 py-1 border rounded font-medium" style={{ borderColor: "#fef3c7", color: "#014D5E", background: "white" }}>
+                                    <option value="">— sem etapa —</option>
+                                    {p.pipelineClinicoEtapa && !(pipeDyn.clinico.length ? pipeDyn.clinico : PIPELINE_CLINICO).includes(p.pipelineClinicoEtapa) && <option value={p.pipelineClinicoEtapa}>{p.pipelineClinicoEtapa}</option>}
+                                    {(pipeDyn.clinico.length ? pipeDyn.clinico : PIPELINE_CLINICO).map(et => <option key={et} value={et}>{et}</option>)}
+                                  </select>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-[8.5px] font-bold px-1.5 py-0.5 rounded" style={{ background: "#ede9fe", color: "#5b21b6", minWidth: 28, textAlign: "center" }}>FIS</span>
+                                  <select value={p.pipelineFisioEtapa || ""} onChange={e => updatePetEtapa("pipelineFisioEtapa", e.target.value)} className="flex-1 text-[10.5px] px-2 py-1 border rounded font-medium" style={{ borderColor: "#ede9fe", color: "#014D5E", background: "white" }}>
+                                    <option value="">— sem etapa —</option>
+                                    {p.pipelineFisioEtapa && !(pipeDyn.fisio.length ? pipeDyn.fisio : PIPELINE_FISIO).includes(p.pipelineFisioEtapa) && <option value={p.pipelineFisioEtapa}>{p.pipelineFisioEtapa}</option>}
+                                    {(pipeDyn.fisio.length ? pipeDyn.fisio : PIPELINE_FISIO).map(et => <option key={et} value={et}>{et}</option>)}
+                                  </select>
+                                </div>
+                              </div>
+                              <div className="mb-2">
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="text-[9.5px] font-bold uppercase text-gray-400">Pacotes de fisio</span>
+                                  <button type="button" onClick={() => setPacFormInbox(fm => ({ ...fm, open: !fm.open }))} className="text-[10px] font-medium" style={{ color: "#009AAC" }}><LuPlus size={9} className="inline" /> pacote</button>
+                                </div>
+                                {pacFormInbox.open && (
+                                  <div className="border rounded-lg p-2 mb-1.5" style={{ borderColor: "#009AAC", background: "#f5fdfe" }}>
+                                    <div className="text-[9px] font-bold uppercase mb-1" style={{ color: "#009AAC" }}>Novo pacote</div>
+                                    <select value={pacFormInbox.serviceId} onChange={e => setPacFormInbox(fm => ({ ...fm, serviceId: e.target.value }))} className="w-full text-[10px] px-1.5 py-1 border rounded mb-1.5" style={{ borderColor: "#cfe2e6", background: "white" }}>
+                                      <option value="">— serviço de fisioterapia —</option>
+                                      {fisioSrvInbox.map((srv: any) => <option key={srv.id} value={srv.id}>{srv.nome || srv.titulo || srv.descricao}</option>)}
+                                    </select>
+                                    <div className="flex gap-1.5 mb-1.5">
+                                      <div className="flex-1">
+                                        <div className="text-[8.5px] text-gray-500 mb-0.5">Total de sessões</div>
+                                        <input type="number" min="1" value={pacFormInbox.total} onChange={e => setPacFormInbox(fm => ({ ...fm, total: e.target.value }))} className="w-full text-[10px] px-1.5 py-1 border rounded" style={{ borderColor: "#cfe2e6", background: "white" }} />
+                                      </div>
+                                      <div className="flex-1">
+                                        <div className="text-[8.5px] text-gray-500 mb-0.5">Já feitas</div>
+                                        <input type="number" min="0" value={pacFormInbox.jaFeitas} onChange={e => setPacFormInbox(fm => ({ ...fm, jaFeitas: e.target.value }))} className="w-full text-[10px] px-1.5 py-1 border rounded" style={{ borderColor: "#1D9E75", background: "white", color: "#0F6E56" }} />
+                                      </div>
+                                    </div>
+                                    <button onClick={addPacoteInbox} disabled={savingPacInbox} className="w-full px-2 py-1.5 rounded text-[10.5px] text-white font-semibold" style={{ background: "#009AAC" }}>{savingPacInbox ? "Criando..." : "Criar pacote"}</button>
+                                  </div>
+                                )}
+                                {pacotesInbox.length === 0 ? (
+                                  <div className="text-[10px] text-gray-400 italic px-1 py-1">Nenhum pacote ainda.</div>
+                                ) : (
+                                  <div className="space-y-1.5">
+                                    {pacotesInbox.map(pk => { const used = pk.data.used || 0; const total = pk.data.total || 0; const done = used >= total; return (
+                                      <div key={pk.id} className="border rounded-lg p-2" style={{ borderColor: done ? "#0F6E56" : (total > 1 && used === total - 1 ? "#BA7517" : "#E8DFC8"), background: done ? "#F3FBF7" : "#fff" }}>
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-[10.5px] font-medium" style={{ color: "#0E2244" }}>{done ? "🏆 " : "🐾 "}{pk.data.nome}</span>
+                                          <button onClick={() => delPacoteInbox(pk.id)} className="text-[9.5px]" style={{ color: "#ef4444" }}>excluir</button>
+                                        </div>
+                                        <div className="flex flex-wrap gap-0.5 mt-1">
+                                          {Array.from({ length: Math.min(total, 20) }).map((_, i) => <span key={i} style={{ fontSize: "12px" }} title={`Sessão ${i + 1}`}>{i < used ? "🐾" : "⚪"}</span>)}
+                                        </div>
+                                        <div className="flex items-center gap-1.5 mt-1">
+                                          <div className="flex-1 h-1.5 rounded-full bg-gray-100 overflow-hidden"><div className="h-full" style={{ width: `${total ? Math.min(100, (used / total) * 100) : 0}%`, background: done ? "#0F6E56" : "#009AAC" }} /></div>
+                                          <span className="text-[10px] font-medium" style={{ color: done ? "#0F6E56" : "#0E2244" }}>{used}/{total}</span>
+                                          <button onClick={() => usarSessaoInbox(pk)} disabled={done} className="px-1.5 py-0.5 rounded text-[10px] border disabled:opacity-40" style={{ borderColor: "#E8DFC8", color: "#009AAC" }}>{done ? "✓" : "+1"}</button>
+                                        </div>
+                                      </div>
+                                    ); })}
+                                  </div>
+                                )}
+                              </div>
+                              
+                              
+                            </div>
+                          )}
                         </div>
                       );
                     })}
