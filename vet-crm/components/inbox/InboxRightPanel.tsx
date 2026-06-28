@@ -115,6 +115,7 @@ const ESTADO_RELACIONAMENTO = [
   { v: "INATIVO", label: "Inativo há muito", cls: "bg-slate-100 text-slate-600" },
 ];
 
+const GOOGLE_REVIEW_LINK = "https://g.page/r/CctbNjVipnY8EAI/review";
 const sourceMap: Record<string, string> = {
   "Direto": "DIRECT", "Google Ads": "GOOGLE_ADS", "Instagram": "INSTAGRAM",
   "Facebook": "FACEBOOK", "TikTok": "TIKTOK", "Indicação": "REFERRAL",
@@ -153,6 +154,16 @@ function fmtMonthYear(s?: string | null) {
   const d = new Date(s);
   if (Number.isNaN(d.getTime())) return "—";
   return d.toLocaleDateString("pt-BR", { month: "short", year: "2-digit" }).replace(".", "");
+}
+function fmtConsultaDateTime(s?: string | null, duration?: number) {
+  if (!s) return "—";
+  const d = new Date(s);
+  if (Number.isNaN(d.getTime())) return "—";
+  const dia = d.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" }).replace(".", "");
+  const hi = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }).replace(":", "h");
+  const end = new Date(d.getTime() + (duration && duration > 0 ? duration : 30) * 60000);
+  const hf = end.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }).replace(":", "h");
+  return `${dia} · ${hi}–${hf}`;
 }
 function fmtRelative(s?: string | null) {
   if (!s) return "";
@@ -257,6 +268,19 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
   const [cadForm, setCadForm] = useState({ nome: "", telefone: "", email: "", canalLead: "WhatsApp", origem: "Direto", petNome: "", petEspecie: "Cão", petIdade: "", notas: "" });
 
   const [interacaoOpen, setInteracaoOpen] = useState(false);
+  const [classifOpen, setClassifOpen] = useState(false);
+  const [classifCats, setClassifCats] = useState<string[]>(["Cliente", "Fornecedor", "Parceiro"]);
+  useEffect(() => {
+    fetch(`/api/listas?lista=classificacao_tutor`, { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => {
+        const arr = Array.isArray(d) ? d : (d.itens || d.data || []);
+        const extras = arr.map((i: any) => i.valor).filter(Boolean);
+        const base = ["Cliente", "Fornecedor", "Parceiro"];
+        setClassifCats([...base, ...extras.filter((v: string) => !base.includes(v))]);
+      })
+      .catch(() => {});
+  }, []);
   const [interacaoForm, setInteracaoForm] = useState({ texto: "", tipo: "NOTA", proximaAcao: "", proximoFollowupAt: "" });
 
   // Inline edit
@@ -799,6 +823,69 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
     else { setPacotesInbox([]); setPacFormInbox({ open: false, serviceId: "", total: "4", jaFeitas: "0" }); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPet?.id]);
+  const [proximasConsultas, setProximasConsultas] = useState<any[]>([]);
+  useEffect(() => {
+    if (!selectedPet?.id) { setProximasConsultas([]); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await fetch(`/api/appointments?petId=${selectedPet.id}&startDate=${new Date().toISOString()}&limit=20`, { cache: "no-store" });
+        const d = await safeJson<any>(r, {});
+        const arr = Array.isArray(d) ? d : (d.appointments || d.data || []);
+        const futuras = (arr as any[])
+          .filter((a) => a && a.date && new Date(a.date).getTime() >= Date.now() && a.status !== "CANCELED" && a.status !== "CANCELLED")
+          .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        if (!cancelled) setProximasConsultas(futuras);
+      } catch { if (!cancelled) setProximasConsultas([]); }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedPet?.id]);
+  const [avGoogle, setAvGoogle] = useState<any>(null);
+  const [notaGoogleOpen, setNotaGoogleOpen] = useState(false);
+  useEffect(() => {
+    if (!tutor?.id) { setAvGoogle(null); setNotaGoogleOpen(false); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await fetch(`/api/avaliacoes/google`, { cache: "no-store" });
+        const d = await safeJson<any>(r, []);
+        const arr = Array.isArray(d) ? d : (d.data || d.avaliacoes || []);
+        const mine = (arr as any[]).filter((a) => a.tutorId === tutor.id);
+        if (!cancelled) setAvGoogle(mine[0] || null);
+      } catch { if (!cancelled) setAvGoogle(null); }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tutor?.id]);
+  async function avaliarNotaGoogle(n: number) {
+    if (!tutor) return;
+    setNotaGoogleOpen(false);
+    const gostou = n >= 4;
+    const body: any = { tutorId: tutor.id, notaDada: n, gostou, status: gostou ? "LINK_ENVIADO" : "NAO_GOSTOU" };
+    if (gostou) { body.linkEnviado = GOOGLE_REVIEW_LINK; body.canalEnvio = "WhatsApp"; }
+    try {
+      const r = await fetch(`/api/avaliacoes/google`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const novo = await safeJson<any>(r, null);
+      if (!r.ok || !novo) throw new Error();
+      setAvGoogle(novo);
+      toast.success(gostou ? `Nota ${n}/5 — pode enviar o Google!` : `Feedback interno registrado (${n}/5)`);
+    } catch { toast.error("Erro ao registrar avaliação"); }
+  }
+  async function enviarLinkGoogle() {
+    try { await navigator.clipboard.writeText(GOOGLE_REVIEW_LINK); toast.success("Link do Google copiado — cole no WhatsApp do cliente"); } catch {}
+    window.open(GOOGLE_REVIEW_LINK, "_blank");
+  }
+  async function marcarAvaliouGoogle() {
+    if (!avGoogle?.id) return;
+    try {
+      const r = await fetch(`/api/avaliacoes/google/${avGoogle.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ votoConfirmado: true, status: "VOTOU" }) });
+      const upd = await safeJson<any>(r, null);
+      if (!r.ok) throw new Error();
+      setAvGoogle(upd || { ...avGoogle, votoConfirmado: true, status: "VOTOU" });
+      toast.success("Avaliação recebida 🎉");
+    } catch { toast.error("Erro ao atualizar"); }
+  }
   async function updateTutorEstado(value: string) {
     if (!tutor) return;
     const res = await fetch(`/api/tutors/${tutor.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ estadoRelacionamento: value }) });
@@ -836,9 +923,10 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
     loadIncoming();
     reset();
   }
-  async function handleConverter() {
+  async function handleConverter(classif?: any) {
     if (!lead) return;
-    if (!confirm(`Converter ${lead.name || "esse lead"} em cliente?`)) return;
+    const classificacao = typeof classif === "string" ? classif : undefined;
+    if (!confirm(`Converter ${lead.name || "esse lead"} em cliente${classificacao ? " (" + classificacao + ")" : ""}?`)) return;
     // Inclui pet de interesse no payload da conversão
     const body: any = {};
     if (leadPetNome) {
@@ -854,10 +942,24 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
     const data = await res.json();
     toast.success(data.linked ? "Vinculado ao cliente existente" : "Cliente criado");
     if (data.tutorId) {
+      if (classificacao) {
+        try { await fetch(`/api/tutors/${data.tutorId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ classificacao }) }); } catch {}
+      }
       const rT = await fetch(`/api/tutors/${data.tutorId}`);
       const t = await safeJson<any>(rT, null);
       if (t) await selectTutor(t);
     }
+  }
+  async function addClassifCatLead() {
+    const nome = window.prompt("Nova categoria de classificacao:");
+    if (!nome || !nome.trim()) return;
+    const v = nome.trim();
+    setClassifOpen(false);
+    try {
+      await fetch(`/api/listas`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lista: "classificacao_tutor", valor: v }) });
+      setClassifCats((cs) => (cs.includes(v) ? cs : [...cs, v]));
+      await handleConverter(v);
+    } catch { toast.error("Erro ao adicionar categoria"); }
   }
   // NOVO: desconverter cliente em lead (toggle Lead/Cliente)
   async function handleDesconverter() {
@@ -870,6 +972,27 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
     loadIncoming();
   }
 
+  const classifColor = (c?: string) => c === "Fornecedor" ? "#6D28D9" : c === "Parceiro" ? "#BE185D" : c === "Cliente" ? "#0E5560" : "#64748b";
+  async function saveClassificacao(valor: string) {
+    if (!tutor) return;
+    setClassifOpen(false);
+    try {
+      const r = await fetch(`/api/tutors/${tutor.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ classificacao: valor }) });
+      if (!r.ok) throw new Error();
+      setTutor({ ...tutor, classificacao: valor } as any);
+      toast.success("Classificacao: " + valor);
+    } catch { toast.error("Erro ao classificar"); }
+  }
+  async function addClassifCat() {
+    const nome = window.prompt("Nova categoria de classificacao:");
+    if (!nome || !nome.trim()) return;
+    const v = nome.trim();
+    try {
+      await fetch(`/api/listas`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lista: "classificacao_tutor", valor: v }) });
+      setClassifCats((cs) => (cs.includes(v) ? cs : [...cs, v]));
+      await saveClassificacao(v);
+    } catch { toast.error("Erro ao adicionar categoria"); }
+  }
   async function handleCadastro() {
     if (!cadForm.nome || !cadForm.telefone) { toast.error("Nome e telefone obrigatórios"); return; }
     const endpoint = cadastroAs === "LEAD" ? "/api/leads" : "/api/tutors";
@@ -1253,14 +1376,31 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
               <section className={SECTION} style={SECTION_STYLE}>
                 <div className="flex items-center gap-1.5 mb-2.5" style={{ color: "#0E5560" }}><LuStore size={14} /><span className="text-[11px] font-medium">Empório do Pet</span></div>
                 <div className={LBL}>
-                  <span>
-                    Cliente
-                    {/* TOGGLE Lead/Cliente */}
-                    <span className="inline-flex ml-1.5 rounded-full p-0.5 border" style={{ background: "#FAFAF7", borderColor: "#E8DFC8" }}>
-                      <button onClick={handleDesconverter} className="px-2 py-0.5 text-[9px] font-bold rounded-full uppercase text-[#5F5E5A] hover:bg-amber-100 hover:text-[#92611A]">Lead</button>
-                      <button className="px-2 py-0.5 text-[9px] font-bold rounded-full uppercase" style={{ background: "#CCFBF1", color: "#0E7490" }}>Cliente</button>
-                    </span>
-                  </span>
+                  <div className="relative inline-flex ml-1" style={{ verticalAlign: "middle" }}>
+                    <button type="button" onClick={() => setClassifOpen((o) => !o)} className="inline-flex items-center gap-1 text-[10px] font-bold uppercase rounded-full px-2 py-0.5" style={{ background: "#FAFAF7", border: "1px solid #E8DFC8", color: classifColor(tutor.classificacao || "Cliente") }}>
+                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: classifColor(tutor.classificacao || "Cliente"), display: "inline-block" }} />
+                      {tutor.classificacao || "Cliente"} ▾
+                    </button>
+                    {classifOpen && (
+                      <div className="absolute left-0 z-30 bg-white rounded-lg p-1" style={{ top: 22, border: "1px solid #E3E0D7", boxShadow: "0 8px 22px rgba(0,0,0,.13)", minWidth: 158 }}>
+                        {classifCats.map((c) => (
+                          <div key={c} onClick={() => saveClassificacao(c)} className="flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer hover:bg-gray-50" style={{ color: "#0E2244", textTransform: "none" }}>
+                            <span style={{ width: 9, height: 9, borderRadius: "50%", background: classifColor(c), display: "inline-block", flexShrink: 0 }} />
+                            <span className="text-[12px] font-normal normal-case">{c}</span>
+                            {(tutor.classificacao || "Cliente") === c && <span className="ml-auto text-[12px] font-bold" style={{ color: "#009AAC" }}>✓</span>}
+                          </div>
+                        ))}
+                        <div style={{ height: 1, background: "#EEEBE3", margin: "4px 6px" }} />
+                        <div onClick={() => { setClassifOpen(false); handleDesconverter(); }} className="flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer hover:bg-gray-50" style={{ color: "#B45309" }}>
+                          <span style={{ width: 9, height: 9, borderRadius: "50%", background: "#D97706", display: "inline-block", flexShrink: 0 }} />
+                          <span className="text-[12px] font-normal normal-case">Voltar a Lead</span>
+                        </div>
+                        <div onClick={addClassifCat} className="flex items-center gap-1.5 px-2 py-1.5 rounded cursor-pointer hover:bg-gray-50" style={{ color: "#009AAC", fontWeight: 600 }}>
+                          <LuPlus size={12} /> <span className="text-[12px] normal-case">adicionar categoria</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                   <Link href={`/dashboard/erp/tutores/${tutor.id}`} className={LINK} style={{ color: "#009AAC" }}>Ficha <LuExternalLink size={9} className="inline -mt-0.5" /></Link>
                 </div>
                 <div className="flex items-start gap-2">
@@ -1324,13 +1464,27 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
             {!tutor && lead && (
               <section className={SECTION} style={{ ...SECTION_STYLE, background: "#FFFBEB" }}>
                 <div className={LBL}>
-                  <span>
-                    Lead
-                    <span className="inline-flex ml-1.5 rounded-full p-0.5 border" style={{ background: "#FAFAF7", borderColor: "#E8DFC8" }}>
-                      <button className="px-2 py-0.5 text-[9px] font-bold rounded-full uppercase" style={{ background: "#FEF3C7", color: "#92611A" }}>Lead</button>
-                      <button onClick={handleConverter} className="px-2 py-0.5 text-[9px] font-bold rounded-full uppercase text-[#5F5E5A] hover:bg-teal-100 hover:text-[#0E7490]">Cliente</button>
-                    </span>
-                  </span>
+                  <div className="relative inline-flex" style={{ verticalAlign: "middle" }}>
+                    <button type="button" onClick={() => setClassifOpen((o) => !o)} className="inline-flex items-center gap-1 text-[10px] font-bold uppercase rounded-full px-2 py-0.5" style={{ background: "#FFFBEB", border: "1px solid #FDE68A", color: "#D97706" }}>
+                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#D97706", display: "inline-block" }} />
+                      Lead ▾
+                    </button>
+                    {classifOpen && (
+                      <div className="absolute left-0 z-30 bg-white rounded-lg p-1" style={{ top: 22, border: "1px solid #E3E0D7", boxShadow: "0 8px 22px rgba(0,0,0,.13)", minWidth: 172 }}>
+                        <div className="px-2 py-1 text-[10px] font-bold" style={{ color: "#92611A" }}>Converter em cliente:</div>
+                        {classifCats.map((c) => (
+                          <div key={c} onClick={() => { setClassifOpen(false); handleConverter(c); }} className="flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer hover:bg-gray-50" style={{ color: "#0E2244", textTransform: "none" }}>
+                            <span style={{ width: 9, height: 9, borderRadius: "50%", background: classifColor(c), display: "inline-block", flexShrink: 0 }} />
+                            <span className="text-[12px] font-normal normal-case">{c}</span>
+                          </div>
+                        ))}
+                        <div style={{ height: 1, background: "#EEEBE3", margin: "4px 6px" }} />
+                        <div onClick={addClassifCatLead} className="flex items-center gap-1.5 px-2 py-1.5 rounded cursor-pointer hover:bg-gray-50" style={{ color: "#009AAC", fontWeight: 600 }}>
+                          <LuPlus size={12} /> <span className="text-[12px] normal-case">adicionar categoria</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                   <Link href={`/dashboard/crm/leads/${lead.id}`} className={LINK} style={{ color: "#009AAC" }}>Ficha <LuExternalLink size={9} className="inline -mt-0.5" /></Link>
                 </div>
                 <div className="flex items-start gap-2">
@@ -1414,9 +1568,39 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
               <div className="flex items-center gap-2">
                 <span className="text-[15px]">⭐</span>
                 <span className="text-[12.5px] font-medium">Avaliação Google</span>
-                <button disabled title="em breve" className="ml-auto text-[10px] px-2 py-1 rounded-lg text-white opacity-60" style={{ background: "#009AAC" }}>Solicitar</button>
+                {(!avGoogle || avGoogle.status === "NAO_GOSTOU" || avGoogle.status === "PERGUNTA_ENVIADA") && (
+                  <button type="button" onClick={() => setNotaGoogleOpen((o) => !o)} className="ml-auto text-[10px] px-2 py-1 rounded-lg text-white" style={{ background: "#009AAC" }}>{avGoogle ? "Refazer" : "Solicitar"}</button>
+                )}
               </div>
-              <div className="text-[11px] text-gray-400 mt-2">Nenhuma avaliação solicitada.</div>
+              {notaGoogleOpen && (
+                <div className="mt-2">
+                  <div className="text-[10.5px] text-gray-500 mb-1">Que nota o cliente daria? (1 a 5)</div>
+                  <div className="flex gap-1">
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <button key={n} type="button" onClick={() => avaliarNotaGoogle(n)} className="w-8 h-8 rounded-lg border text-[12px] font-bold hover:bg-amber-50" style={{ borderColor: "#E8DFC8", color: n >= 4 ? "#0F6E56" : "#B45309" }}>{n}</button>
+                    ))}
+                  </div>
+                  <div className="text-[9.5px] text-gray-400 mt-1">4–5 envia o Google · 1–3 fica como feedback interno.</div>
+                </div>
+              )}
+              {!avGoogle && !notaGoogleOpen && (
+                <div className="text-[11px] text-gray-400 mt-2">Nenhuma avaliação solicitada.</div>
+              )}
+              {avGoogle && avGoogle.status === "NAO_GOSTOU" && !notaGoogleOpen && (
+                <div className="text-[11px] mt-2" style={{ color: "#B45309" }}>Feedback interno: {avGoogle.notaDada}/5 — não enviado ao Google.</div>
+              )}
+              {avGoogle && avGoogle.status === "LINK_ENVIADO" && (
+                <div className="mt-2">
+                  <div className="text-[11px] mb-1.5" style={{ color: "#0F6E56" }}>👍 Gostou ({avGoogle.notaDada}/5) · solicitação enviada · aguardando avaliação</div>
+                  <div className="flex gap-1.5">
+                    <button type="button" onClick={enviarLinkGoogle} className="text-[10.5px] px-2 py-1 rounded-lg text-white font-semibold" style={{ background: "#009AAC" }}>Copiar/abrir link</button>
+                    <button type="button" onClick={marcarAvaliouGoogle} className="text-[10.5px] px-2 py-1 rounded-lg border font-semibold" style={{ borderColor: "#0F6E56", color: "#0F6E56" }}>Marcar como avaliou</button>
+                  </div>
+                </div>
+              )}
+              {avGoogle && (avGoogle.status === "VOTOU" || avGoogle.votoConfirmado) && (
+                <div className="text-[12px] mt-2" style={{ color: "#0F6E56" }}>★★★★★ Avaliação recebida 🎉</div>
+              )}
             </section>
           )}
           {/* BLOCO 2.6: SEQUENCIAS (S3) */}
@@ -1626,6 +1810,28 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
               </section>
             )}
 
+            {/* BLOCO 3.46: PROXIMAS CONSULTAS DO PET */}
+            {tutor && selectedPet && (
+              <section className={SECTION} style={SECTION_STYLE}>
+                <div className={LBL}><span>📅 Próximo agendamento · {selectedPet.name}</span></div>
+                {proximasConsultas.length === 0 ? (
+                  <div className="text-[11px] text-gray-400 py-1">Nenhuma consulta agendada.</div>
+                ) : (
+                  <div className="space-y-1.5">
+                    {proximasConsultas.slice(0, 1).map((a: any) => (
+                      <Link key={a.id} href={`/dashboard/erp/atendimentos/${a.id}`} className="flex items-start gap-2 border rounded-lg p-2 hover:bg-gray-50" style={{ borderColor: "#E8DFC8" }}>
+                        <LuCalendar size={13} style={{ color: "#009AAC", marginTop: 1, flexShrink: 0 }} />
+                        <div className="min-w-0">
+                          <div className="text-[11.5px] font-medium" style={{ color: "#014D5E" }}>{fmtConsultaDateTime(a.date, a.duration)}</div>
+                          <div className="text-[10.5px] text-gray-500 truncate">{TYPE_LABEL[a.type] || a.type || "Consulta"}{a.user?.name ? ` · ${a.user.name}` : ""}</div>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </section>
+            )}
+
             {/* BLOCO 3.5: ACOES DO PET (F1 - barra de icones) */}
             {tutor && selectedPet && (
               <section className={SECTION} style={SECTION_STYLE}>
@@ -1730,7 +1936,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
             {(tutor || lead) && (
               <section className="px-3 py-2.5">
                 <div className={LBL}>
-                  <span>Últimos atendimentos{historico.length > 0 && ` (${historico.length})`}</span>
+                  <span>Último atendimento{historico.length > 0 && ` (${historico.length})`}</span>
                   {tutor && selectedPet && (
                     <Link href={`/dashboard/erp/pets/${selectedPet.id}/atendimentos/novo`} className={LINK} style={{ color: "#009AAC" }}><LuPlus size={10} className="inline" /> novo</Link>
                   )}
