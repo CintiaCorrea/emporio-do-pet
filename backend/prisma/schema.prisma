@@ -376,7 +376,7 @@ model Tutor {
   inclusionDate         DateTime? // Inclusão
   // Status comercial (unificado de Client)
   status                TutorStatus            @default(ACTIVE)
-  classificacao         TutorClassificacao     @default(Cliente)
+  classificacao String @default("Cliente")
   companyName           String?
   cnpj                  String?                @unique
   convertedFromLeadId   String?
