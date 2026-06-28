@@ -8,6 +8,9 @@ import { WhatsAppAnalyticsController } from './whatsapp-analytics.controller';
 import { WhatsAppWebhooksController } from './whatsapp-webhooks.controller';
 import { WhatsAppAIConfigController } from './whatsapp-ai-config.controller';
 import { WhatsAppAgentListener } from './whatsapp-agent.listener';
+import { SurveyAvaliacaoController } from './survey-avaliacao.controller';
+import { SurveyAvaliacaoService } from './survey-avaliacao.service';
+import { SurveyAvaliacaoListener } from './survey-avaliacao.listener';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AgentsModule } from '../agents/agents.module';
 import { AudioModule } from '../audio/audio.module';
@@ -33,10 +36,13 @@ import {
     WhatsAppAnalyticsController,
     WhatsAppWebhooksController,
     WhatsAppAIConfigController,
+    SurveyAvaliacaoController,
   ],
   providers: [
     WhatsAppService,
     WhatsAppAgentListener,
+    SurveyAvaliacaoService,
+    SurveyAvaliacaoListener,
     WebhookReplayService,
     WhatsAppAnalyticsService,
     PhoneFormatterService,

@@ -886,6 +886,16 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
       toast.success("Avaliação recebida 🎉");
     } catch { toast.error("Erro ao atualizar"); }
   }
+  async function enviarPesquisaWhatsApp() {
+    if (!tutor) return;
+    try {
+      const r = await fetch(`/api/survey-avaliacao/enviar`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tutorId: tutor.id }) });
+      const d = await safeJson<any>(r, null);
+      if (!r.ok || !d?.success) throw new Error(d?.error || "Falha ao enviar");
+      toast.success("Pesquisa enviada no WhatsApp 📲");
+      setAvGoogle({ status: "PERGUNTA_ENVIADA", tutorId: tutor.id });
+    } catch (e: any) { toast.error(e?.message || "Erro ao enviar pesquisa"); }
+  }
   async function updateTutorEstado(value: string) {
     if (!tutor) return;
     const res = await fetch(`/api/tutors/${tutor.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ estadoRelacionamento: value }) });
@@ -1568,9 +1578,14 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
               <div className="flex items-center gap-2">
                 <span className="text-[15px]">⭐</span>
                 <span className="text-[12.5px] font-medium">Avaliação Google</span>
-                {(!avGoogle || avGoogle.status === "NAO_GOSTOU" || avGoogle.status === "PERGUNTA_ENVIADA") && (
-                  <button type="button" onClick={() => setNotaGoogleOpen((o) => !o)} className="ml-auto text-[10px] px-2 py-1 rounded-lg text-white" style={{ background: "#009AAC" }}>{avGoogle ? "Refazer" : "Solicitar"}</button>
-                )}
+                <div className="ml-auto flex items-center gap-1">
+                  {(!avGoogle || avGoogle.status === "NAO_GOSTOU") && (
+                    <button type="button" onClick={enviarPesquisaWhatsApp} title="Enviar pesquisa de satisfação pelo WhatsApp" className="text-[10px] px-2 py-1 rounded-lg font-semibold" style={{ background: "#DCFCE7", color: "#0F6E56" }}>📲 WhatsApp</button>
+                  )}
+                  {(!avGoogle || avGoogle.status === "NAO_GOSTOU" || avGoogle.status === "PERGUNTA_ENVIADA") && (
+                    <button type="button" onClick={() => setNotaGoogleOpen((o) => !o)} className="text-[10px] px-2 py-1 rounded-lg text-white" style={{ background: "#009AAC" }}>{avGoogle ? "Refazer" : "Solicitar"}</button>
+                  )}
+                </div>
               </div>
               {notaGoogleOpen && (
                 <div className="mt-2">
@@ -1585,6 +1600,9 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
               )}
               {!avGoogle && !notaGoogleOpen && (
                 <div className="text-[11px] text-gray-400 mt-2">Nenhuma avaliação solicitada.</div>
+              )}
+              {avGoogle && avGoogle.status === "PERGUNTA_ENVIADA" && !notaGoogleOpen && (
+                <div className="text-[11px] mt-2" style={{ color: "#0E5560" }}>📲 Pesquisa enviada no WhatsApp · aguardando a resposta do cliente.</div>
               )}
               {avGoogle && avGoogle.status === "NAO_GOSTOU" && !notaGoogleOpen && (
                 <div className="text-[11px] mt-2" style={{ color: "#B45309" }}>Feedback interno: {avGoogle.notaDada}/5 — não enviado ao Google.</div>
