@@ -58,6 +58,7 @@ export class LeadsService {
       ];
     }
 
+    if (!status) where.status = { not: 'CONVERTED' as any }; // esconde convertidos do funil
     if (status) where.status = status;
     if (source) where.source = source;
     if (tag) where.tags = { has: tag };
@@ -761,6 +762,11 @@ export class LeadsService {
       });
     }
 
+    await this.prisma.interacao.updateMany({
+      where: { leadId: lead.id },
+      data: { leadId: null, tutorId: tutor.id },
+    });
+    // marca o lead como convertido e tira do funil
     await this.prisma.lead.update({
       where: { id: lead.id },
       data: {
