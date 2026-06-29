@@ -43,14 +43,18 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
   const [nNome, setNNome] = useState("");
   const [nTel, setNTel] = useState("");
   const [savingCli, setSavingCli] = useState(false);
+  const [cfgAgenda, setCfgAgenda] = useState<any>({});
+  const [dayAppts, setDayAppts] = useState<any[]>([]);
 
   useEffect(() => {
     if (!open) return;
     (async () => {
-      const [t, p] = await Promise.all([
+      const [t, p, c] = await Promise.all([
         fetch("/api/tutors?limit=1000").then((r) => r.json()).catch(() => []),
         fetch("/api/profissionais").then((r) => r.json()).catch(() => []),
+        fetch("/api/listas?lista=agenda_config", { cache: "no-store" }).then((r) => r.json()).catch(() => []),
       ]);
+      try { const ca = Array.isArray(c) ? c : (c.itens || c.data || []); if (ca[0]?.valor) setCfgAgenda(JSON.parse(ca[0].valor)); } catch {}
       setTutors(Array.isArray(t) ? t : (t.tutors || t.data || []));
       const pl = Array.isArray(p) ? p : (p.data || []);
       setProfs(pl.filter((x: any) => x.ativo !== false && x.userId && !["RECEPCIONISTA", "GERENTE"].includes(x.tipo)));
@@ -76,10 +80,53 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
     (async () => { try { const r = await fetch(`/api/tutors/${tutor.id}/pets`); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.pets || d.data || []); setPets(arr); setPetId((cur) => cur || (arr.length === 1 ? arr[0].id : "")); } catch { setPets([]); } })();
   }, [tutor]);
 
+  useEffect(() => {
+    if (!userId || !date) { setDayAppts([]); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await fetch(`/api/appointments?userId=${userId}&startDate=${date}T00:00:00&endDate=${date}T23:59:59&limit=200`, { cache: "no-store" });
+        const d = await r.json();
+        const arr = Array.isArray(d) ? d : (d.appointments || d.data || []);
+        if (!cancelled) setDayAppts(arr);
+      } catch { if (!cancelled) setDayAppts([]); }
+    })();
+    return () => { cancelled = true; };
+  }, [userId, date]);
+
   const telOf = (t: any) => (t?.contacts?.[0]?.number) || (t?.contacts?.[0]?.value) || t?.phone || "";
   const petNomes = (t: any) => (t?.pets || []).map((p: any) => p.name).filter(Boolean);
   const resultados = useMemo(() => { const q = busca.trim().toLowerCase(); if (q.length < 2) return []; const qn = busca.replace(/\D/g, ""); return tutors.filter((t: any) => (t.name || "").toLowerCase().includes(q) || (qn && telOf(t).replace(/\D/g, "").includes(qn)) || petNomes(t).some((n: string) => n.toLowerCase().includes(q))).slice(0, 25); }, [busca, tutors]);
   const previsao = itens.reduce((s, it) => s + ((Number(it.qtd) || 1) * (Number(it.valor) || 0)), 0);
+  function escDe(p: any) { let o: any = p?.escala; if (typeof o === "string") { try { o = JSON.parse(o); } catch { o = null; } } return o && typeof o === "object" ? o : null; }
+  const fmtMin = (t: number) => `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`;
+  const slotsLivres = useMemo(() => {
+    if (!userId || !date) return [] as number[];
+    const prof = profs.find((p: any) => p.userId === userId);
+    const wd = new Date(`${date}T00:00:00`).getDay();
+    const hm = (s: string) => { const [a, b] = (s || "0:0").split(":"); return (+a) * 60 + (+b); };
+    let windows: number[][] = [];
+    const e = escDe(prof);
+    if (e && e.semana) {
+      if (Array.isArray(e.bloqueios) && e.bloqueios.some((b: any) => b.inicio && date >= b.inicio && (!b.fim || date <= b.fim))) return [];
+      const js = e.semana[String(wd)] || [];
+      if (js.length === 0) return [];
+      windows = js.map((par: any) => [hm(par[0]), hm(par[1])]);
+    } else {
+      const hi = Number(cfgAgenda?.horaInicio ?? 8), hf = Number(cfgAgenda?.horaFim ?? 19);
+      windows = [[hi * 60, hf * 60]];
+    }
+    const step = Number(cfgAgenda?.intervalo) === 30 ? 30 : 15;
+    const dur = Number(duration) || 30;
+    const busy = dayAppts.filter((a: any) => a.id !== editId && a.date).map((a: any) => { const d = new Date(a.date); const s = d.getHours() * 60 + d.getMinutes(); return [s, s + (Number(a.duration) || 30)]; });
+    const out: number[] = [];
+    for (const win of windows) {
+      for (let t = win[0]; t + dur <= win[1]; t += step) {
+        if (!busy.some((b: number[]) => t < b[1] && t + dur > b[0])) out.push(t);
+      }
+    }
+    return out;
+  }, [userId, date, duration, profs, cfgAgenda, dayAppts, editId]);
 
   function reset() { setStep(1); setEditId(null); setNovoCli(false); setNNome(""); setNTel(""); setBusca(""); setTutor(null); setPets([]); setPetId(""); setUserId(""); setType(""); setDate(""); setTime(""); setDuration(30); setStatus("Agendado"); setObs(""); setItens([]); setRecOn(false); setFreq("7"); setDias([]); setAte(""); }
   function fechar() { reset(); onClose(); }
@@ -216,15 +263,42 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
               </div>
             </div>
 
-            <div className={inline ? "space-y-2.5" : "grid grid-cols-3 gap-3"}>
-              <div className="col-span-1"><label className={lbl}>Profissional *</label>
+            <div className={inline ? "grid grid-cols-2 gap-2" : "grid grid-cols-2 gap-3"}>
+              <div><label className={lbl}>Profissional *</label>
                 <select value={userId} onChange={(e) => setUserId(e.target.value)} className={inp}>
                   <option value="">Selecione...</option>
                   {profs.map((p: any) => <option key={p.id} value={p.userId}>{p.nomeExibicao || p.nomeCompleto}</option>)}
                 </select>
               </div>
               <div><label className={lbl}>Data *</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={inp} /></div>
-              <div><label className={lbl}>Início *</label><input type="time" value={time} onChange={(e) => setTime(e.target.value)} className={inp} /></div>
+            </div>
+            <div>
+              <label className={lbl}>Horário livre *</label>
+              {(!userId || !date) ? (
+                <div className="text-[11px] text-gray-400">Escolha o profissional e a data para ver os horários livres.</div>
+              ) : slotsLivres.length === 0 ? (
+                <div className="space-y-1">
+                  <div className="text-[11px]" style={{ color: "#B45309" }}>Sem horários livres nesse dia — defina manualmente:</div>
+                  <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className={inp} />
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {([["Manhã", 0, 720], ["Tarde", 720, 1440]] as [string, number, number][]).map(([rotulo, ini, fim]) => {
+                    const ps = slotsLivres.filter((t) => t >= ini && t < fim);
+                    if (!ps.length) return null;
+                    return (
+                      <div key={rotulo}>
+                        <div className="text-[10px] uppercase tracking-wide text-gray-400 mb-1">{rotulo}</div>
+                        <div className="flex flex-wrap gap-1">
+                          {ps.map((t) => { const on = time === fmtMin(t); return (
+                            <button key={t} type="button" title={`${fmtMin(t)}–${fmtMin(t + (Number(duration) || 30))}`} onClick={() => setTime(fmtMin(t))} className="text-[11px] rounded-md px-2 py-1 border" style={on ? { background: "#009AAC", color: "#fff", borderColor: "#009AAC" } : { color: "#475569", borderColor: "#E3DEC9", background: "white" }}>{fmtMin(t)}</button>
+                          ); })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-3">
