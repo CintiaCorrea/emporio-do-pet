@@ -19,6 +19,25 @@ export class SurveyAvaliacaoService {
     private readonly whatsapp: WhatsAppService,
   ) {}
 
+  /** Envia um texto livre para o WhatsApp do cliente (ex.: confirmacao de agendamento). */
+  async enviarTextoParaTutor(tutorId: string, texto: string): Promise<{ success: boolean; error?: string }> {
+    if (!tutorId || !texto) return { success: false, error: 'tutorId e texto obrigatórios' };
+    const tutor = await this.prisma.tutor.findUnique({
+      where: { id: tutorId },
+      include: { contacts: true },
+    });
+    if (!tutor) return { success: false, error: 'Cliente não encontrado' };
+    const contato = tutor.contacts.find((c) => c.isPrimary) || tutor.contacts[0];
+    const phone = contato?.number;
+    if (!phone) return { success: false, error: 'Cliente sem telefone cadastrado' };
+    const res = await this.whatsapp.sendMessage({ to: phone, message: texto });
+    if (!res.success) {
+      this.logger.error(`Falha ao enviar texto p/ tutor ${tutorId}: ${res.error}`);
+      return { success: false, error: res.error || 'Falha ao enviar WhatsApp' };
+    }
+    return { success: true };
+  }
+
   async enviarPesquisa(tutorId: string): Promise<{ success: boolean; error?: string }> {
     if (!tutorId) return { success: false, error: 'tutorId obrigatório' };
 

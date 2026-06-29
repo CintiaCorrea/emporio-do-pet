@@ -45,6 +45,7 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
   const [savingCli, setSavingCli] = useState(false);
   const [cfgAgenda, setCfgAgenda] = useState<any>({});
   const [dayAppts, setDayAppts] = useState<any[]>([]);
+  const [confirmarWa, setConfirmarWa] = useState(true);
 
   useEffect(() => {
     if (!open) return;
@@ -172,6 +173,16 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
           if (its.length) body.items = its;
           const res = await fetch("/api/appointments", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(body) });
           if (!res.ok) throw new Error();
+        }
+        if (confirmarWa && tutor) {
+          try {
+            const profNome = (profs.find((p: any) => p.userId === userId)?.nomeExibicao) || "nossa equipe";
+            const [yy, mm, dd] = date.split("-");
+            const texto = `Olá ${(tutor.name || "").split(" ")[0] || ""}! 🐾 Sua consulta no Empório do Pet está agendada para ${dd}/${mm}/${yy} às ${time}, com ${profNome}. Qualquer dúvida, responda por aqui. Até breve! 💙`;
+            const rc = await fetch(`/api/survey-avaliacao/mensagem-tutor`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tutorId: tutor.id, texto }) });
+            const dc = await rc.json().catch(() => null);
+            if (!rc.ok || !dc?.success) alert("Agendamento salvo! Mas a confirmação por WhatsApp não saiu agora (a Meta só permite mensagem fora da janela de 24h com um modelo aprovado).");
+          } catch {}
         }
       }
       fechar(); if (onCreated) onCreated();
@@ -348,6 +359,13 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
           </div>
         )}
 
+        {!editId && step === 2 && (
+          <div className={inline ? "px-3 pb-1" : "px-5 pb-1"}>
+            <label className="flex items-center gap-2 cursor-pointer" style={{ fontSize: inline ? "11.5px" : "13px", color: "#0E2244" }}>
+              <input type="checkbox" checked={confirmarWa} onChange={(e) => setConfirmarWa(e.target.checked)} /> Enviar confirmação por WhatsApp
+            </label>
+          </div>
+        )}
         <div className="px-5 py-4 border-t flex items-center gap-2" style={{ borderColor: "#eef0e6" }}>
           {editId ? <button onClick={excluir} disabled={saving} className="px-3 py-2 text-[13px] text-[#9b2c3a] inline-flex items-center gap-1.5"><LuTrash2 size={15} /> Excluir</button> : null}
           <div className="ml-auto flex gap-2">
