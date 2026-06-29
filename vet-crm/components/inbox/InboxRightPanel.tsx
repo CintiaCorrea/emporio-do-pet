@@ -14,6 +14,7 @@ import {
 import { FaWhatsapp } from "react-icons/fa";
 import toast from "react-hot-toast";
 import { speciesKey, ageFromBirth } from "@/lib/pets/labels";
+import NovoAgendamentoModal from "@/components/agendamentos/NovoAgendamentoModal";
 
 function scorePie(score: number, max: number, color: string) {
   const f = Math.max(0, Math.min(1, max ? score / max : 0));
@@ -824,6 +825,9 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPet?.id]);
   const [proximasConsultas, setProximasConsultas] = useState<any[]>([]);
+  const [agendaOpen, setAgendaOpen] = useState(false);
+  const [proximasTick, setProximasTick] = useState(0);
+  const agendaDefaults = useMemo(() => (tutor && selectedPet ? { tutor, petId: selectedPet.id } : undefined), [tutor?.id, selectedPet?.id]);
   useEffect(() => {
     if (!selectedPet?.id) { setProximasConsultas([]); return; }
     let cancelled = false;
@@ -840,7 +844,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedPet?.id]);
+  }, [selectedPet?.id, proximasTick]);
   const [avGoogle, setAvGoogle] = useState<any>(null);
   const [notaGoogleOpen, setNotaGoogleOpen] = useState(false);
   useEffect(() => {
@@ -1858,7 +1862,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                   <LuStethoscope size={16} /> Atendimento
                 </button>
                 <div className="grid grid-cols-4 gap-1.5">
-                  <button type="button" disabled title="Agenda · em breve" className="flex items-center justify-center h-11 rounded-lg border cursor-not-allowed opacity-50" style={{ borderColor: "#E8DFC8", background: "#fafafa" }}><LuCalendar size={18} style={{ color: "#9aa0a8" }} /></button>
+                  <button type="button" onClick={() => setAgendaOpen(true)} title="Agendar para este pet" className="flex items-center justify-center h-11 rounded-lg border hover:bg-[#E1F2F4]" style={{ borderColor: "#009AAC", background: "white" }}><LuCalendar size={18} style={{ color: "#009AAC" }} /></button>
                   <button type="button" disabled title="Follow-up · em breve" className="flex items-center justify-center h-11 rounded-lg border cursor-not-allowed opacity-50" style={{ borderColor: "#E8DFC8", background: "#fafafa" }}><LuClock size={18} style={{ color: "#9aa0a8" }} /></button>
                   <button type="button" onClick={() => { setPetActForward(false); setInteracaoOpen(true); }} title="Registrar interação" className="flex items-center justify-center h-11 rounded-lg border hover:bg-[#E1F2F4]" style={{ borderColor: "#009AAC", background: "white" }}><LuMessageSquare size={18} style={{ color: "#009AAC" }} /></button>
                   <button type="button" disabled title="Venda · em breve" className="flex items-center justify-center h-11 rounded-lg border cursor-not-allowed opacity-50" style={{ borderColor: "#E8DFC8", background: "#fafafa" }}><LuDollarSign size={18} style={{ color: "#9aa0a8" }} /></button>
@@ -1880,6 +1884,10 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                   </div>
                 )}
               </section>
+            )}
+
+            {tutor && selectedPet && (
+              <NovoAgendamentoModal open={agendaOpen} onClose={() => setAgendaOpen(false)} defaults={agendaDefaults} onCreated={() => setProximasTick((t) => t + 1)} />
             )}
 
             {/* BLOCO 1: RESUMO IA + SERVICO */}
