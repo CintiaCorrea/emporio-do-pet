@@ -347,6 +347,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
           </Link>
           <span style={{fontSize:"18px"}}>👤</span>
           <h1 className="text-xl text-[#0E2244] font-medium">{tutor.name || "Sem nome"}</h1>
+          {tutor.codigo ? <span className="text-[12px] text-gray-400 font-medium" title="Código do cliente">#{tutor.codigo}</span> : null}
           <span style={{ background: status.bg, color: status.color }} className="text-[11px] font-medium px-2 py-0.5 rounded-full">{status.label}</span>
         </div>
         <div className="flex gap-1.5 flex-wrap">

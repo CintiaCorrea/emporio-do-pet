@@ -334,6 +334,7 @@ model LandingPage {
 // NOVOS MODELS: Tutor e Contact
 model Tutor {
   id                    String                 @id @default(uuid())
+  codigo                Int?                   @unique // Codigo sequencial curto (estilo SimplesVet)
   // Pipeline & Follow-up (Inbox v3)
   estadoRelacionamento  String?  // Em dia / Pet em tratamento / Precisa de atenção / A recuperar / Inativo
   proximoFollowupAt     DateTime?
@@ -440,6 +441,7 @@ enum TutorClassificacao {
 // ATUALIZADO: Pet agora relaciona com Tutor e tem campos expandidos
 model Pet {
   id            String               @id @default(uuid())
+  codigo        Int?                 @unique // Codigo sequencial curto (estilo SimplesVet)
   name          String
   species       PetSpecies           @default(CANINE)
   breed         String?

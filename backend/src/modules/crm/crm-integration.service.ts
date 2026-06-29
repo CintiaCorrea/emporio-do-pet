@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { LeadStatus, LeadSource } from '@prisma/client';
 import { findExistingTutor } from '../../common/tutor-match';
 import { last8, onlyDigits } from '../../common/phone';
+import { proximoCodigo } from '../../common/codigo';
 
 export interface WhatsAppLeadData {
   conversationId: string;
@@ -149,6 +150,26 @@ export class CrmIntegrationService {
   /**
    * Convert a Lead to a Client
    */
+  /**
+   * Numera (codigo sequencial) clientes e pets que ainda nao tem codigo, na ordem de
+   * cadastro (createdAt). Idempotente: roda quantas vezes quiser; so preenche os vazios.
+   */
+  async backfillCodigos() {
+    const fazer = async (entidade: 'tutor' | 'pet') => {
+      const repo: any = entidade === 'tutor' ? this.prisma.tutor : this.prisma.pet;
+      const semCodigo = await repo.findMany({ where: { codigo: null }, select: { id: true }, orderBy: { createdAt: 'asc' } });
+      let prox = await proximoCodigo(this.prisma, entidade);
+      for (const r of semCodigo) {
+        await repo.update({ where: { id: r.id }, data: { codigo: prox } });
+        prox++;
+      }
+      return semCodigo.length;
+    };
+    const tutoresNumerados = await fazer('tutor');
+    const petsNumerados = await fazer('pet');
+    return { tutoresNumerados, petsNumerados };
+  }
+
   /**
    * Varredura SOMENTE-LEITURA de duplicidade, na prioridade telefone(8) -> CPF -> email.
    * Lista (a) leads que batem com um cliente existente e (b) clientes duplicados entre si.

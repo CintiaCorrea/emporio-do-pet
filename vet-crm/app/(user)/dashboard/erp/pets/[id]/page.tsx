@@ -511,6 +511,7 @@ export default function PetDetailPage() {
                     </button>
                   </span>
                 )}
+                {pet.codigo ? <span className="text-[12px] text-gray-400 font-medium" title="Código do pet">#{pet.codigo}</span> : null}
                 <span className="px-2 py-0.5 rounded-md text-[11px] font-medium" style={{ background: "#eef2f4", color: "#64748b" }}>
                   {speciesLabel(pet.species)}
                 </span>

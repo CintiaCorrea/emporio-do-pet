@@ -6,6 +6,7 @@ import { TutorStatus } from '@prisma/client';
 import { CreateTutorDto } from './dto/create-tutor.dto';
 import { UpdateTutorDto } from './dto/update-tutor.dto';
 import { normalizePhone, last9 } from '../../common/phone';
+import { proximoCodigo, isColisaoCodigo } from '../../common/codigo';
 
 @Injectable()
 export class TutorsService {
@@ -63,18 +64,28 @@ export class TutorsService {
       });
     }
 
-    const tutor = await this.prisma.tutor.create({
-      data: {
-        ...tutorData,
-        contacts: {
-          create: contactCreates,
-        },
-      },
-      include: {
-        contacts: true,
-        pets: true,
-      },
-    });
+    let tutor: any;
+    for (let tentativa = 0; ; tentativa++) {
+      try {
+        tutor = await this.prisma.tutor.create({
+          data: {
+            ...tutorData,
+            codigo: await proximoCodigo(this.prisma, 'tutor'),
+            contacts: {
+              create: contactCreates,
+            },
+          },
+          include: {
+            contacts: true,
+            pets: true,
+          },
+        });
+        break;
+      } catch (e) {
+        if (isColisaoCodigo(e) && tentativa < 4) continue;
+        throw e;
+      }
+    }
 
     // Emit tutor created event for automations
     // Note: userId would need to be passed from controller if multi-tenant

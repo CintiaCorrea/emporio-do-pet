@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { CreatePetDto } from './dto/create-pet.dto';
 import { UpdatePetDto } from './dto/update-pet.dto';
+import { proximoCodigo, isColisaoCodigo } from '../../common/codigo';
 
 @Injectable()
 export class PetsService {
@@ -12,12 +13,21 @@ export class PetsService {
   ) {}
 
   async create(createPetDto: CreatePetDto) {
-    const pet = await this.prisma.pet.create({
-      data: createPetDto,
-      include: {
-        tutor: true,
-      },
-    });
+    let pet: any;
+    for (let tentativa = 0; ; tentativa++) {
+      try {
+        pet = await this.prisma.pet.create({
+          data: { ...createPetDto, codigo: await proximoCodigo(this.prisma, 'pet') },
+          include: {
+            tutor: true,
+          },
+        });
+        break;
+      } catch (e) {
+        if (isColisaoCodigo(e) && tentativa < 4) continue;
+        throw e;
+      }
+    }
 
     // Emit pet created event (find userId from tutor's appointments or skip)
     try {

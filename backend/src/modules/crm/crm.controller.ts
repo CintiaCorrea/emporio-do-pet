@@ -62,6 +62,13 @@ export class CrmController {
     return this.crmService.escanearDuplicados();
   }
 
+  @Post('backfill-codigos')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Numera clientes/pets sem codigo sequencial (idempotente)' })
+  async backfillCodigos() {
+    return this.crmService.backfillCodigos();
+  }
+
   @Post('leads/:id/convert')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Convert a lead to a client' })
