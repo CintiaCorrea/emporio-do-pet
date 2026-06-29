@@ -1579,8 +1579,8 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                 <span className="text-[15px]">⭐</span>
                 <span className="text-[12.5px] font-medium">Avaliação Google</span>
                 <div className="ml-auto flex items-center gap-1">
-                  {(!avGoogle || avGoogle.status === "NAO_GOSTOU") && (
-                    <button type="button" onClick={enviarPesquisaWhatsApp} title="Enviar pesquisa de satisfação pelo WhatsApp" className="text-[10px] px-2 py-1 rounded-lg font-semibold" style={{ background: "#DCFCE7", color: "#0F6E56" }}>📲 WhatsApp</button>
+                  {(!avGoogle || avGoogle.status === "NAO_GOSTOU" || avGoogle.status === "PERGUNTA_ENVIADA") && (
+                    <button type="button" onClick={enviarPesquisaWhatsApp} title="Enviar/reenviar a pesquisa de satisfação pelo WhatsApp" className="text-[10px] px-2 py-1 rounded-lg font-semibold" style={{ background: "#DCFCE7", color: "#0F6E56" }}>📲 {avGoogle && avGoogle.status === "PERGUNTA_ENVIADA" ? "Reenviar" : "WhatsApp"}</button>
                   )}
                   {(!avGoogle || avGoogle.status === "NAO_GOSTOU" || avGoogle.status === "PERGUNTA_ENVIADA") && (
                     <button type="button" onClick={() => setNotaGoogleOpen((o) => !o)} className="text-[10px] px-2 py-1 rounded-lg text-white" style={{ background: "#009AAC" }}>{avGoogle ? "Refazer" : "Solicitar"}</button>
