@@ -21,6 +21,9 @@ function cap(s: string) { return s ? s.charAt(0).toUpperCase() + s.slice(1).toLo
 function nomeCurto(p: any) { if (p.nomeExibicao && p.nomeExibicao.trim()) return p.nomeExibicao; const w = (p.nomeCompleto || "Profissional").trim().split(/\s+/); return w.slice(0, 2).map(cap).join(" "); }
 function inic(p: any) { if (p.iniciais && p.iniciais.trim()) return p.iniciais.slice(0, 2).toUpperCase(); const w = (p.nomeCompleto || "").trim().split(/\s+/).filter(Boolean); return ((w[0]?.[0] || "") + (w[1]?.[0] || "")).toUpperCase() || "—"; }
 function norm(s?: string) { return (s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\b(dra?|dr)\.?\b/g, "").replace(/\s+/g, " ").trim(); }
+function startOfWeek(d: Date) { const x = new Date(d); x.setHours(0, 0, 0, 0); x.setDate(x.getDate() - x.getDay()); return x; }
+function addD(d: Date, n: number) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
+const DIAS_SEM = ["dom", "seg", "ter", "qua", "qui", "sex", "s\u00e1b"];
 
 export default function AgendaPage() {
   usePageTitle("Agenda", "Agendamentos do dia por profissional");
@@ -33,6 +36,7 @@ export default function AgendaPage() {
   const [editAppt, setEditAppt] = useState<any>(null);
   const [hidden, setHidden] = useState<Set<string>>(new Set());
   const [cfg, setCfg] = useState<any>(null);
+  const [view, setView] = useState<"dia" | "semana" | "mes">("dia");
 
   useEffect(() => { try { const s = localStorage.getItem("agenda_filas_hidden"); if (s) setHidden(new Set(JSON.parse(s))); } catch {} }, []);
   function persist(s: Set<string>) { try { localStorage.setItem("agenda_filas_hidden", JSON.stringify([...s])); } catch {} }
@@ -76,12 +80,13 @@ export default function AgendaPage() {
   const previsao = useMemo(() => doDiaVis.reduce((s: number, a: any) => s + valorDe(a), 0), [doDiaVis]);
   const espera = useMemo(() => doDiaVis.filter((a: any) => ["Em espera", "Aguardando", "Em atendimento"].includes(a.status)), [doDiaVis]);
 
-  function addDays(n: number) { const d = new Date(dia); d.setDate(d.getDate() + n); setDia(d); }
+  function addDays(n: number) { const d = new Date(dia); if (view === "mes") d.setMonth(d.getMonth() + n); else if (view === "semana") d.setDate(d.getDate() + n * 7); else d.setDate(d.getDate() + n); setDia(d); }
   function toggleFila(id: string) { const s = new Set(hidden); s.has(id) ? s.delete(id) : s.add(id); setHidden(s); persist(s); }
   function soEste(id: string) { const s = new Set(profsAtende.filter((p: any) => p.id !== id).map((p: any) => p.id)); setHidden(s); persist(s); }
   function esperaDesde(a: any) { const diff = Math.round((Date.now() - new Date(a.date).getTime()) / 60000); return diff > 0 ? `há ${diff} min` : hm(new Date(a.date)); }
   const label = dia.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "short" });
   const labelCap = label.charAt(0).toUpperCase() + label.slice(1);
+  const tituloView = view === "mes" ? cap(dia.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })) : view === "semana" ? (() => { const i = startOfWeek(dia); const f = addD(i, 6); return `${i.getDate()}/${i.getMonth() + 1} – ${f.getDate()}/${f.getMonth() + 1}`; })() : labelCap;
   const cols = `52px repeat(${Math.max(visiveis.length, 1)}, minmax(120px, 1fr))`;
 
   return (
@@ -91,14 +96,14 @@ export default function AgendaPage() {
           <button onClick={() => addDays(-1)} aria-label="Dia anterior" className="w-8 h-8 rounded-lg border flex items-center justify-center text-gray-500 hover:text-[#009AAC]" style={{ borderColor: "#E8DFC8" }}><LuChevronLeft size={16} /></button>
           <button onClick={() => setDia(new Date())} className="px-3 h-8 rounded-lg border text-[13px] text-gray-600" style={{ borderColor: "#E8DFC8" }}>Hoje</button>
           <button onClick={() => addDays(1)} aria-label="Próximo dia" className="w-8 h-8 rounded-lg border flex items-center justify-center text-gray-500 hover:text-[#009AAC]" style={{ borderColor: "#E8DFC8" }}><LuChevronRight size={16} /></button>
-          <span className="text-[14px] font-medium ml-2" style={{ color: "#0E2244" }}>{labelCap}</span>
+          <span className="text-[14px] font-medium ml-2" style={{ color: "#0E2244" }}>{tituloView}</span>
         </div>
         <div className="flex-1" />
         <input type="date" value={diaStr} onChange={(e) => { if (e.target.value) setDia(new Date(e.target.value + "T12:00:00")); }} className="text-[13px] px-2 py-1.5 rounded-lg border" style={{ borderColor: "#E8DFC8" }} />
         <div className="flex gap-0.5 border rounded-lg p-0.5" style={{ borderColor: "#E8DFC8" }}>
-          <span className="text-[12px] px-3 py-1.5 rounded-md text-white" style={{ background: "#009AAC" }}>Dia</span>
-          <button onClick={() => toast("Visão semana chega numa próxima fatia")} className="text-[12px] px-3 py-1.5 rounded-md text-gray-500">Semana</button>
-          <button onClick={() => toast("Visão mês chega numa próxima fatia")} className="text-[12px] px-3 py-1.5 rounded-md text-gray-500">Mês</button>
+          {(([["dia", "Dia"], ["semana", "Semana"], ["mes", "Mês"]]) as [any, string][]).map(([v, lbl]) => (
+            <button key={v} onClick={() => setView(v)} className="text-[12px] px-3 py-1.5 rounded-md" style={view === v ? { background: "#009AAC", color: "#fff" } : { color: "#64748b" }}>{lbl}</button>
+          ))}
         </div>
         <a href="/dashboard/erp/agendamentos/escala" title="Escala" className="w-8 h-8 rounded-lg border flex items-center justify-center text-gray-500 hover:text-[#009AAC]" style={{ borderColor: "#E8DFC8" }}><LuCalendar size={16} /></a>
         <a href="/dashboard/erp/agendamentos/configuracoes" title="Configurações da agenda" className="w-8 h-8 rounded-lg border flex items-center justify-center text-gray-500 hover:text-[#009AAC]" style={{ borderColor: "#E8DFC8" }}><LuSettings size={16} /></a>
@@ -117,6 +122,7 @@ export default function AgendaPage() {
         </div>
       ) : null}
 
+      {view === "dia" && (<>
       <div className="flex gap-2.5 mb-3">
         <div className="rounded-lg px-3.5 py-2.5" style={{ background: "#F1F5F9" }}><div className="text-[11px] text-gray-500">Agendamentos</div><div className="text-[18px] font-medium" style={{ color: "#0E2244" }}>{doDiaVis.length}</div></div>
         <div className="rounded-lg px-3.5 py-2.5" style={{ background: "#F1F5F9" }}><div className="text-[11px] text-gray-500">Previsão do dia</div><div className="text-[18px] font-medium" style={{ color: "#0F6E56" }}>{brl(previsao)}</div></div>
@@ -195,6 +201,60 @@ export default function AgendaPage() {
           )}
         </aside>
       </div>
+
+      </>)}
+
+      {view === "semana" && (
+        <div className="bg-white border rounded-2xl overflow-x-auto" style={{ borderColor: "#e8edf0" }}>
+          <div className="grid" style={{ gridTemplateColumns: "repeat(7,minmax(120px,1fr))" }}>
+            {Array.from({ length: 7 }, (_, i) => addD(startOfWeek(dia), i)).map((d) => {
+              const ds = ymd(d); const hoje = ds === ymd(new Date());
+              const list = appts.filter((a: any) => a.date && ymd(new Date(a.date)) === ds).sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
+              return (
+                <div key={ds} className="border-l first:border-l-0 min-h-[360px]" style={{ borderColor: "#eef0ec" }}>
+                  <button onClick={() => { setDia(d); setView("dia"); }} className="w-full text-center py-2 border-b hover:bg-[#f6fdfd]" style={{ borderColor: "#eef0ec", background: hoje ? "#E1F3F5" : "#fafbfa" }}>
+                    <div className="text-[10px] uppercase text-gray-400">{DIAS_SEM[d.getDay()]}</div>
+                    <div className="text-[13px] font-medium" style={{ color: hoje ? "#014D5E" : "#0E2244" }}>{d.getDate()}</div>
+                  </button>
+                  <div className="p-1 space-y-1">
+                    {list.length === 0 ? <div className="text-[10px] text-gray-300 text-center py-3">—</div> : list.map((a: any) => { const cor = corDe(a.status, cfg?.cores); return (
+                      <div key={a.id} onClick={() => { setNovoDefaults(null); setEditAppt(a); setNovoOpen(true); }} title="Clique para editar" className="rounded-r-md px-1.5 py-1 cursor-pointer" style={{ borderLeft: `3px solid ${cor.c}`, background: cor.bg }}>
+                        <div className="text-[10px] font-medium" style={{ color: cor.c }}>{hm(new Date(a.date))}</div>
+                        <div className="text-[11px] truncate" style={{ color: "#0E2244" }}>{a.pet?.name || a.tutor?.name || "Agendamento"}</div>
+                      </div>
+                    ); })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {view === "mes" && (
+        <div className="bg-white border rounded-2xl overflow-hidden" style={{ borderColor: "#e8edf0" }}>
+          <div className="grid text-center text-[10px] uppercase text-gray-400 border-b" style={{ gridTemplateColumns: "repeat(7,1fr)", borderColor: "#eef0ec", background: "#fafbfa" }}>
+            {DIAS_SEM.map((d) => <div key={d} className="py-1.5">{d}</div>)}
+          </div>
+          <div className="grid" style={{ gridTemplateColumns: "repeat(7,1fr)" }}>
+            {Array.from({ length: 42 }, (_, i) => addD(startOfWeek(new Date(dia.getFullYear(), dia.getMonth(), 1)), i)).map((d) => {
+              const ds = ymd(d); const inMonth = d.getMonth() === dia.getMonth(); const hoje = ds === ymd(new Date());
+              const list = appts.filter((a: any) => a.date && ymd(new Date(a.date)) === ds).sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
+              return (
+                <div key={ds} onClick={() => { setDia(d); setView("dia"); }} className="border-l border-t p-1 min-h-[92px] cursor-pointer hover:bg-[#f9fbfb]" style={{ borderColor: "#eef0ec", opacity: inMonth ? 1 : 0.4, background: hoje ? "#F2FBFC" : undefined }}>
+                  <div className="text-[11px] font-medium mb-0.5" style={{ color: hoje ? "#014D5E" : "#475569" }}>{d.getDate()}</div>
+                  <div className="space-y-0.5">
+                    {list.slice(0, 3).map((a: any) => { const cor = corDe(a.status, cfg?.cores); return (
+                      <div key={a.id} onClick={(e) => { e.stopPropagation(); setNovoDefaults(null); setEditAppt(a); setNovoOpen(true); }} className="rounded px-1 truncate text-[9.5px]" style={{ background: cor.bg, color: cor.c }}>{hm(new Date(a.date))} {a.pet?.name || a.tutor?.name || ""}</div>
+                    ); })}
+                    {list.length > 3 ? <div className="text-[9px] text-gray-400">+{list.length - 3}</div> : null}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <NovoAgendamentoModal open={novoOpen} defaults={novoDefaults} editAppt={editAppt} onClose={() => { setNovoOpen(false); setNovoDefaults(null); setEditAppt(null); }} onCreated={() => { setNovoOpen(false); setNovoDefaults(null); setEditAppt(null); load(); }} />
     </div>
