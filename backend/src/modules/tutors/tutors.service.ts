@@ -109,15 +109,19 @@ export class TutorsService {
     const tail9 = onlyDigits.length > 9 ? onlyDigits.slice(-9) : onlyDigits;
     const where = search
       ? {
-          OR: [
-            { name: { contains: search, mode: 'insensitive' as const } },
-            { email: { contains: search, mode: 'insensitive' as const } },
-            { cpf: { contains: search } },
-            // Codigo sequencial: so quando o termo for um numero curto (1 a 6 digitos)
-            ...(/^\d{1,6}$/.test(search.trim()) ? [{ codigo: Number(search.trim()) }] : []),
-            // Telefone: so casa fragmento com 4+ digitos (evita que "38" puxe telefones que contem 38)
-            ...(onlyDigits.length >= 4 ? [{ contacts: { some: { number: { contains: tail9 } } } }] : []),
-          ],
+          OR: /^\d{1,6}$/.test(search.trim())
+            ? [
+                // Termo e um numero curto -> busca por CODIGO (e telefone se 4+ digitos)
+                { codigo: Number(search.trim()) },
+                ...(onlyDigits.length >= 4 ? [{ contacts: { some: { number: { contains: tail9 } } } }] : []),
+              ]
+            : [
+                // Termo com letras -> nome / email / CPF / telefone
+                { name: { contains: search, mode: 'insensitive' as const } },
+                { email: { contains: search, mode: 'insensitive' as const } },
+                { cpf: { contains: search } },
+                ...(onlyDigits.length >= 4 ? [{ contacts: { some: { number: { contains: tail9 } } } }] : []),
+              ],
         }
       : {};
 
