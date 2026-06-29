@@ -72,6 +72,12 @@ export class PetsController {
     return this.petsService.update(id, updatePetDto);
   }
 
+  @Patch(':id/transferir')
+  @ApiOperation({ summary: 'Transferir pet para outro cliente (mesclagem de duplicados)' })
+  transferir(@Param('id') id: string, @Body() body: { tutorId: string }) {
+    return this.petsService.transferir(id, body?.tutorId);
+  }
+
   @Delete(':id')
   @ApiOperation({ summary: 'Remover pet' })
   remove(@Param('id') id: string) {

@@ -151,6 +151,19 @@ export class PetsService {
     });
   }
 
+  /** Transfere o pet para outro cliente (usado na mesclagem de clientes duplicados). */
+  async transferir(id: string, tutorId: string) {
+    await this.findById(id);
+    if (!tutorId) throw new NotFoundException('Cliente destino obrigatório');
+    const tutor = await this.prisma.tutor.findUnique({ where: { id: tutorId }, select: { id: true } });
+    if (!tutor) throw new NotFoundException('Cliente destino não encontrado');
+    return this.prisma.pet.update({
+      where: { id },
+      data: { tutorId },
+      include: { tutor: true },
+    });
+  }
+
   async profileStats(petId: string) {
     const pet = await this.prisma.pet.findUnique({ where: { id: petId }, include: { tutor: true } });
     if (!pet) throw new NotFoundException('Pet não encontrado');
