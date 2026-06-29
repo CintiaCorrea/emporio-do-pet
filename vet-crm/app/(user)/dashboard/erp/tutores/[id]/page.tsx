@@ -108,6 +108,7 @@ function AccordionCard({
 export default function TutorDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
+  const [tab, setTab] = useState<"CADASTRO" | "ANIMAIS" | "RELACIONAMENTO">("CADASTRO");
   const [emailOpen, setEmailOpen] = useState(false);
   const [delOpen, setDelOpen] = useState(false);
   const [tutor, setTutor] = useState<TutorDetail | null>(null);
@@ -384,7 +385,26 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
         {pets.length} {pets.length === 1 ? "pet" : "pets"} · <strong className="text-[#0E2244] font-medium">R$ {ltv} LTV</strong> · cliente desde {new Date(tutor.createdAt).toLocaleDateString("pt-BR", { month: "short", year: "numeric" })}
       </p>
 
-      <div className="grid grid-cols-[280px_1fr_320px] gap-3 mb-3">
+      {/* Barra de abas */}
+      <div className="flex border-b border-[#d8d0bc] mb-3">
+        {([
+          { k: "CADASTRO", label: "📋 Cadastro" },
+          { k: "ANIMAIS", label: "🐾 Animais" },
+          { k: "RELACIONAMENTO", label: "💬 Relacionamento" },
+        ] as const).map((t) => (
+          <button
+            key={t.k}
+            onClick={() => setTab(t.k)}
+            className="px-4 py-2 text-sm font-medium border-b-2 transition -mb-px"
+            style={{ borderColor: tab === t.k ? "#009AAC" : "transparent", color: tab === t.k ? "#009AAC" : "#6B7280" }}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "CADASTRO" && (
+      <div className="grid grid-cols-2 gap-3 items-start mb-3">
 
         {/* Coluna esquerda */}
         <div className="flex flex-col gap-2.5">
@@ -484,6 +504,83 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
           </div>
 
           <div className="bg-white border border-[#d8d0bc] rounded-xl p-3.5">
+            <h3 className="text-[13px] text-[#0E2244] font-medium mb-2">Etiquetas</h3>
+            {(tutor.tags?.length || 0) === 0 && <p className="text-[11px] text-gray-400 mb-2">Sem etiquetas</p>}
+            <div className="flex flex-wrap gap-1 items-center">
+              {tutor.tags?.map((t) => {
+                const tpl = tplTags.find((x: any) => x.texto === t);
+                const cor = tpl?.cor || "#009AAC";
+                return (
+                  <span key={t} className="text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1" style={{ background: cor + "22", color: cor }}>
+                    ● {t}
+                    <button onClick={() => removeTag(t)} title="Remover" className="hover:opacity-60 font-bold">×</button>
+                  </span>
+                );
+              })}
+              <button onClick={() => setTagPicker((v) => !v)} className="border border-dashed border-[#cfd8e0] text-gray-400 text-[10px] px-2 py-0.5 rounded-full">+ tag</button>
+            </div>
+            {tagPicker && (
+              <div className="mt-2 pt-2 border-t border-[#f0e8d4]">
+                {tplTags.filter((t: any) => !(tutor.tags || []).includes(t.texto)).length === 0 ? (
+                  <p className="text-[10px] text-gray-400">Nenhuma etiqueta de Cliente disponível. Cadastre em Configurações → Etiquetas.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-1">
+                    {tplTags.filter((t: any) => !(tutor.tags || []).includes(t.texto)).map((t: any) => (
+                      <button key={t.texto} disabled={savingTag} onClick={() => addTag(t.texto)} className="text-[10px] px-2 py-0.5 rounded-full border disabled:opacity-50" style={{ borderColor: (t.cor || "#009AAC") + "66", color: t.cor || "#009AAC" }}>+ {t.texto}</button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+      )}
+
+      {tab === "ANIMAIS" && (
+      <div className="mb-3">
+        <div className="bg-white border border-[#d8d0bc] rounded-xl p-3">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <h3 className="text-[13px] text-[#0E2244] font-medium">Pets</h3>
+              <span className="bg-[#E0F4F6] text-[#00798A] text-[10px] font-medium px-1.5 py-0.5 rounded-full">{pets.length}</span>
+            </div>
+            <button onClick={() => criarPetEAbrir(tutor.id)}
+              className="bg-white border border-[#cfd8e0] text-[#4d5a66] px-2.5 py-1 rounded text-[11px]">
+              <LuPlus className="inline w-3 h-3" /> Adicionar Pet
+            </button>
+          </div>
+          {pets.length === 0 ? (
+            <p className="text-center text-[11px] text-gray-400 py-3">Nenhum pet cadastrado</p>
+          ) : (
+            <div className="flex flex-col gap-1">
+              {pets.map((pet) => (
+                <div key={pet.id} className="flex items-center justify-between bg-[#fbfaf6] rounded-lg px-2.5 py-2 hover:bg-[#FBEED8] transition">
+                  <Link href={`/dashboard/erp/pets/${pet.id}`} className="flex items-center gap-2 flex-1">
+                    <span className="text-base">{PET_EMOJI(pet.species)}</span>
+                    <div className="flex-1">
+                      <span className="text-[#0E2244] font-medium text-xs">{pet.name}</span>
+                      <span className="text-[10px] text-[#5b6470] ml-1">{pet.species}{pet.breed ? ` · ${pet.breed}` : ""}</span>
+                    </div>
+                  </Link>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[9px] bg-[#f0e8d4] text-[#5b6470] px-1.5 py-0.5 rounded">Sem trat. ativo</span>
+                    <Link href={`/dashboard/erp/pets/${pet.id}`} title="Abrir ficha" className="text-[#5F5E5A] hover:text-[#009AAC] text-[12px]">↗</Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+      )}
+
+      {tab === "RELACIONAMENTO" && (
+      <div className="grid grid-cols-3 gap-3 items-start mb-3">
+
+        {/* Coluna esquerda — Follow-up + Score + Avaliações */}
+        <div className="flex flex-col gap-2.5">
+          <div className="bg-white border border-[#d8d0bc] rounded-xl p-3.5">
             <div className="flex items-center gap-2 mb-2">
               <LuCalendar className="w-3.5 h-3.5" />
               <h3 className="text-[13px] text-[#0E2244] font-medium">Follow-up</h3>
@@ -542,37 +639,6 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
           )}
 
           <div className="bg-white border border-[#d8d0bc] rounded-xl p-3.5">
-            <h3 className="text-[13px] text-[#0E2244] font-medium mb-2">Etiquetas</h3>
-            {(tutor.tags?.length || 0) === 0 && <p className="text-[11px] text-gray-400 mb-2">Sem etiquetas</p>}
-            <div className="flex flex-wrap gap-1 items-center">
-              {tutor.tags?.map((t) => {
-                const tpl = tplTags.find((x: any) => x.texto === t);
-                const cor = tpl?.cor || "#009AAC";
-                return (
-                  <span key={t} className="text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1" style={{ background: cor + "22", color: cor }}>
-                    ● {t}
-                    <button onClick={() => removeTag(t)} title="Remover" className="hover:opacity-60 font-bold">×</button>
-                  </span>
-                );
-              })}
-              <button onClick={() => setTagPicker((v) => !v)} className="border border-dashed border-[#cfd8e0] text-gray-400 text-[10px] px-2 py-0.5 rounded-full">+ tag</button>
-            </div>
-            {tagPicker && (
-              <div className="mt-2 pt-2 border-t border-[#f0e8d4]">
-                {tplTags.filter((t: any) => !(tutor.tags || []).includes(t.texto)).length === 0 ? (
-                  <p className="text-[10px] text-gray-400">Nenhuma etiqueta de Cliente disponível. Cadastre em Configurações → Etiquetas.</p>
-                ) : (
-                  <div className="flex flex-wrap gap-1">
-                    {tplTags.filter((t: any) => !(tutor.tags || []).includes(t.texto)).map((t: any) => (
-                      <button key={t.texto} disabled={savingTag} onClick={() => addTag(t.texto)} className="text-[10px] px-2 py-0.5 rounded-full border disabled:opacity-50" style={{ borderColor: (t.cor || "#009AAC") + "66", color: t.cor || "#009AAC" }}>+ {t.texto}</button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          <div className="bg-white border border-[#d8d0bc] rounded-xl p-3.5">
             <div className="flex items-center justify-between mb-1.5">
               <div className="flex items-center gap-2">
                 <span style={{fontSize:"13px"}}>⭐</span>
@@ -584,42 +650,8 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
           </div>
         </div>
 
-        {/* Coluna meio — Pets (compacto) + Histórico de Interações (grande, cresce com uso) */}
+        {/* Coluna meio — Histórico de Interações (grande, cresce com uso) */}
         <div className="flex flex-col gap-2.5">
-          <div className="bg-white border border-[#d8d0bc] rounded-xl p-3">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <h3 className="text-[13px] text-[#0E2244] font-medium">Pets</h3>
-                <span className="bg-[#E0F4F6] text-[#00798A] text-[10px] font-medium px-1.5 py-0.5 rounded-full">{pets.length}</span>
-              </div>
-              <button onClick={() => criarPetEAbrir(tutor.id)}
-                className="bg-white border border-[#cfd8e0] text-[#4d5a66] px-2.5 py-1 rounded text-[11px]">
-                <LuPlus className="inline w-3 h-3" /> Adicionar Pet
-              </button>
-            </div>
-            {pets.length === 0 ? (
-              <p className="text-center text-[11px] text-gray-400 py-3">Nenhum pet cadastrado</p>
-            ) : (
-              <div className="flex flex-col gap-1">
-                {pets.map((pet) => (
-                  <div key={pet.id} className="flex items-center justify-between bg-[#fbfaf6] rounded-lg px-2.5 py-2 hover:bg-[#FBEED8] transition">
-                    <Link href={`/dashboard/erp/pets/${pet.id}`} className="flex items-center gap-2 flex-1">
-                      <span className="text-base">{PET_EMOJI(pet.species)}</span>
-                      <div className="flex-1">
-                        <span className="text-[#0E2244] font-medium text-xs">{pet.name}</span>
-                        <span className="text-[10px] text-[#5b6470] ml-1">{pet.species}{pet.breed ? ` · ${pet.breed}` : ""}</span>
-                      </div>
-                    </Link>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[9px] bg-[#f0e8d4] text-[#5b6470] px-1.5 py-0.5 rounded">Sem trat. ativo</span>
-                      <Link href={`/dashboard/erp/pets/${pet.id}`} title="Abrir ficha" className="text-[#5F5E5A] hover:text-[#009AAC] text-[12px]">↗</Link>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
           {/* Histórico de Interações — observações pros próximos atendentes (cresce com uso) */}
           <AccordionCard icon={() => <span style={{fontSize:"14px"}}>💬</span>} title="Histórico de interações" count={interacoes.length}>
             <div className="flex gap-2 mb-2">
@@ -688,6 +720,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
           </AccordionCard>
         </div>
       </div>
+      )}
 
       <SendEmailModal
         open={emailOpen}
