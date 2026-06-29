@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { LuX, LuSearch, LuRepeat, LuPlus, LuTrash2, LuCheck, LuUserPlus, LuExternalLink } from "react-icons/lu";
 
 type Defaults = { date?: string; time?: string; userId?: string; duration?: number; tutor?: any; petId?: string } | null;
-type Props = { open: boolean; onClose: () => void; onCreated?: () => void; defaults?: Defaults; editAppt?: any };
+type Props = { open: boolean; onClose: () => void; onCreated?: () => void; defaults?: Defaults; editAppt?: any; inline?: boolean };
 
 const STATUS = ["Agendado", "Confirmado", "Em espera", "Em atendimento", "Atendido", "Animal pronto", "Atrasado", "Cancelado"];
 const DURACOES = [10, 15, 20, 30, 40, 45, 60, 90, 120];
@@ -14,7 +14,7 @@ const TIPOS_FALLBACK = ["Consulta Clínica", "Consulta Integrativa", "Consulta F
 const lbl = "text-[13px] text-[#334155] font-medium block mb-1";
 const inp = "w-full border border-[#d8d0bc] rounded-lg px-3 py-2 text-[16px] text-[#14253a] focus:outline-none focus:border-[#009AAC]";
 
-export default function NovoAgendamentoModal({ open, onClose, onCreated, defaults, editAppt }: Props) {
+export default function NovoAgendamentoModal({ open, onClose, onCreated, defaults, editAppt, inline }: Props) {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [tutors, setTutors] = useState<any[]>([]);
@@ -149,8 +149,8 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50" onClick={fechar}>
-      <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+    <div className={inline ? "mt-2" : "fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50"} onClick={inline ? undefined : fechar}>
+      <div className={inline ? "bg-white border rounded-xl w-full overflow-y-auto" : "bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[92vh] overflow-y-auto"} style={inline ? { borderColor: "#E8DFC8", maxHeight: 520 } : undefined} onClick={(e) => e.stopPropagation()}>
         <div className="px-5 py-4 border-b flex items-center gap-2" style={{ borderColor: "#eef0e6" }}>
           <h3 className="text-base font-semibold text-[#014D5E]">{editId ? "Editar agendamento" : "Novo agendamento"}</h3>
           {editId ? null : step === 2 ? <span className="text-[11px] text-[#0F6E56] bg-[#E1F5EE] px-2 py-0.5 rounded-full">passo 2 · preencher</span> : <span className="text-[11px] text-[#6b7280]">passo 1 · localizar cliente</span>}

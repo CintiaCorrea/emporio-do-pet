@@ -1862,7 +1862,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                   <LuStethoscope size={16} /> Atendimento
                 </button>
                 <div className="grid grid-cols-4 gap-1.5">
-                  <button type="button" onClick={() => setAgendaOpen(true)} title="Agendar para este pet" className="flex items-center justify-center h-11 rounded-lg border hover:bg-[#E1F2F4]" style={{ borderColor: "#009AAC", background: "white" }}><LuCalendar size={18} style={{ color: "#009AAC" }} /></button>
+                  <button type="button" onClick={() => setAgendaOpen((o) => !o)} title="Agendar para este pet" className="flex items-center justify-center h-11 rounded-lg border hover:bg-[#E1F2F4]" style={{ borderColor: "#009AAC", background: agendaOpen ? "#E1F2F4" : "white" }}><LuCalendar size={18} style={{ color: "#009AAC" }} /></button>
                   <button type="button" disabled title="Follow-up · em breve" className="flex items-center justify-center h-11 rounded-lg border cursor-not-allowed opacity-50" style={{ borderColor: "#E8DFC8", background: "#fafafa" }}><LuClock size={18} style={{ color: "#9aa0a8" }} /></button>
                   <button type="button" onClick={() => { setPetActForward(false); setInteracaoOpen(true); }} title="Registrar interação" className="flex items-center justify-center h-11 rounded-lg border hover:bg-[#E1F2F4]" style={{ borderColor: "#009AAC", background: "white" }}><LuMessageSquare size={18} style={{ color: "#009AAC" }} /></button>
                   <button type="button" disabled title="Venda · em breve" className="flex items-center justify-center h-11 rounded-lg border cursor-not-allowed opacity-50" style={{ borderColor: "#E8DFC8", background: "#fafafa" }}><LuDollarSign size={18} style={{ color: "#9aa0a8" }} /></button>
@@ -1871,6 +1871,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                   <button type="button" onClick={() => setPetActForward(o => !o)} title="Encaminhar" className="flex items-center justify-center h-11 rounded-lg border hover:bg-[#E1F2F4]" style={{ borderColor: "#009AAC", background: "white" }}><LuShare2 size={18} style={{ color: "#009AAC" }} /></button>
                   <button type="button" disabled title="Exames · em breve" className="flex items-center justify-center h-11 rounded-lg border cursor-not-allowed opacity-50" style={{ borderColor: "#E8DFC8", background: "#fafafa" }}><LuFlaskConical size={18} style={{ color: "#9aa0a8" }} /></button>
                 </div>
+                <NovoAgendamentoModal inline open={agendaOpen} onClose={() => setAgendaOpen(false)} defaults={agendaDefaults} onCreated={() => setProximasTick((t) => t + 1)} />
                 {petActForward && (
                   <div className="mt-2 border rounded-lg overflow-hidden" style={{ borderColor: "#E8DFC8" }}>
                     {staff.length === 0 ? (
@@ -1884,10 +1885,6 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                   </div>
                 )}
               </section>
-            )}
-
-            {tutor && selectedPet && (
-              <NovoAgendamentoModal open={agendaOpen} onClose={() => setAgendaOpen(false)} defaults={agendaDefaults} onCreated={() => setProximasTick((t) => t + 1)} />
             )}
 
             {/* BLOCO 1: RESUMO IA + SERVICO */}
