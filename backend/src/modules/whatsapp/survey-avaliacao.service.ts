@@ -68,7 +68,8 @@ export class SurveyAvaliacaoService {
 
     let tid = tutorId;
     if (!tid) {
-      const tail = this.last9(phone);
+      // Match robusto ao 9o digito do Brasil: compara pelos ultimos 8 digitos.
+      const tail = this.last8(phone);
       if (tail.length >= 8) {
         const contato = await this.prisma.contact.findFirst({
           where: { number: { endsWith: tail } },
@@ -124,8 +125,8 @@ export class SurveyAvaliacaoService {
     return null;
   }
 
-  private last9(s: string): string {
+  private last8(s: string): string {
     const d = (s || '').replace(/\D/g, '');
-    return d.length > 9 ? d.slice(-9) : d;
+    return d.length > 8 ? d.slice(-8) : d;
   }
 }
