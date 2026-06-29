@@ -68,6 +68,29 @@ const PET_EMOJI = (species: string) => {
   if (s === "CANINE" || s === "CACHORRO") return "🐶";
   return "🐾";
 };
+const ESPECIE_LABEL = (species: string) => {
+  const s = (species || "").toUpperCase();
+  if (s === "FELINE" || s === "GATO") return "Gato";
+  if (s === "CANINE" || s === "CACHORRO") return "Cão";
+  if (s === "BIRD") return "Ave";
+  if (s === "RODENT") return "Roedor";
+  if (s === "REPTILE") return "Réptil";
+  if (s === "OTHER") return "Outro";
+  return species || "";
+};
+const PET_IDADE = (birthDate?: string) => {
+  if (!birthDate) return null;
+  const d = new Date(birthDate);
+  if (isNaN(d.getTime())) return null;
+  const anos = new Date().getFullYear() - d.getFullYear();
+  if (anos < 0 || anos > 40) return null;
+  return anos === 0 ? "filhote" : `${anos} ${anos === 1 ? "ano" : "anos"}`;
+};
+const HUMANIZAR = (s?: string | null) => {
+  if (!s) return null;
+  const t = s.replace(/_/g, " ").trim();
+  return t.charAt(0).toUpperCase() + t.slice(1).toLowerCase();
+};
 
 const STATUS_BADGE = (status: string) => {
   const s = (status || "").toUpperCase();
@@ -570,7 +593,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
               <div className="w-[46px] h-[46px] rounded-[14px] bg-[#E0F4F6] flex items-center justify-center text-[22px] shrink-0">{PET_EMOJI(pet.species)}</div>
               <div className="flex-1 min-w-0">
                 <div className="text-[14px] text-[#014D5E] font-medium truncate">{pet.name}</div>
-                <div className="text-[12px] text-[#5C6B70] truncate">{[pet.species, pet.breed, pet.birthDate ? `${Math.max(0, new Date().getFullYear() - new Date(pet.birthDate).getFullYear())} anos` : null].filter(Boolean).join(" · ")}</div>
+                <div className="text-[12px] text-[#5C6B70] truncate">{[ESPECIE_LABEL(pet.species), pet.breed, PET_IDADE(pet.birthDate)].filter(Boolean).join(" · ")}</div>
                 {pet.codigo ? <div className="text-[10px] text-[#8A989D]">#{pet.codigo}</div> : null}
               </div>
               <span className="text-[#8A989D] text-[18px]">›</span>
@@ -601,7 +624,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
                 </div>
                 <div className="bg-[#FBF9F4] border border-[#F0EBE0] rounded-[11px] px-2 py-2 text-center">
                   <div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Situação</div>
-                  <div className="text-[13px] text-[#1F2A2E] font-medium mt-0.5">{tutor.estadoRelacionamento || status.label || "—"}</div>
+                  <div className="text-[13px] text-[#1F2A2E] font-medium mt-0.5">{HUMANIZAR(tutor.estadoRelacionamento) || status.label || "—"}</div>
                 </div>
                 <div className="bg-[#FBF9F4] border border-[#F0EBE0] rounded-[11px] px-2 py-2 text-center">
                   <div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Cliente desde</div>
