@@ -3,6 +3,7 @@ import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
 import { LeadStatus, LeadSource } from '@prisma/client';
 import { findExistingTutor } from '../../common/tutor-match';
+import { last8, onlyDigits } from '../../common/phone';
 
 export interface WhatsAppLeadData {
   conversationId: string;
@@ -148,6 +149,74 @@ export class CrmIntegrationService {
   /**
    * Convert a Lead to a Client
    */
+  /**
+   * Varredura SOMENTE-LEITURA de duplicidade, na prioridade telefone(8) -> CPF -> email.
+   * Lista (a) leads que batem com um cliente existente e (b) clientes duplicados entre si.
+   * Nao altera nada — serve para revisao antes da migracao.
+   */
+  async escanearDuplicados() {
+    const [tutores, leads] = await Promise.all([
+      this.prisma.tutor.findMany({
+        select: { id: true, name: true, cpf: true, email: true, updatedAt: true, contacts: { select: { number: true } } },
+      }),
+      this.prisma.lead.findMany({
+        where: { status: { not: LeadStatus.CONVERTED } },
+        select: { id: true, name: true, phone: true, email: true, status: true, createdAt: true },
+      }),
+    ]);
+
+    const add = (m: Map<string, any[]>, k: string, v: any) => { const a = m.get(k); if (a) a.push(v); else m.set(k, [v]); };
+    const recente = (arr: any[]) => arr.slice().sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0];
+
+    const porTel = new Map<string, any[]>();
+    const porCpf = new Map<string, any[]>();
+    const porEmail = new Map<string, any[]>();
+    for (const t of tutores) {
+      for (const c of t.contacts) { const k = last8(c.number); if (k.length >= 8) add(porTel, k, t); }
+      const cpf = onlyDigits(t.cpf); if (cpf.length === 11) add(porCpf, cpf, t);
+      if (t.email) add(porEmail, t.email.toLowerCase(), t);
+    }
+
+    // (a) Leads que batem com um cliente existente
+    const leadsDuplicados: any[] = [];
+    for (const l of leads) {
+      const tail = last8(l.phone);
+      let match = tail.length >= 8 ? porTel.get(tail) : undefined;
+      let por: 'telefone' | 'email' = 'telefone';
+      if ((!match || !match.length) && l.email) { match = porEmail.get(l.email.toLowerCase()); por = 'email'; }
+      if (match && match.length) {
+        const cli = recente(match);
+        leadsDuplicados.push({ lead: { id: l.id, name: l.name, phone: l.phone, status: l.status }, cliente: { id: cli.id, name: cli.name }, por });
+      }
+    }
+
+    // (b) Clientes duplicados entre si (mesmo telefone8 ou mesmo CPF)
+    const clientesDuplicados: any[] = [];
+    const vistos = new Set<string>();
+    const coletar = (mapa: Map<string, any[]>, por: 'telefone' | 'cpf') => {
+      for (const [chave, arr] of mapa) {
+        const distintos = [...new Map(arr.map((t) => [t.id, t])).values()];
+        if (distintos.length > 1) {
+          const id = por + ':' + distintos.map((t) => t.id).sort().join(',');
+          if (!vistos.has(id)) { vistos.add(id); clientesDuplicados.push({ por, chave, clientes: distintos.map((t) => ({ id: t.id, name: t.name, updatedAt: t.updatedAt })) }); }
+        }
+      }
+    };
+    coletar(porTel, 'telefone');
+    coletar(porCpf, 'cpf');
+
+    return {
+      resumo: {
+        totalClientes: tutores.length,
+        totalLeads: leads.length,
+        leadsDuplicados: leadsDuplicados.length,
+        gruposClientesDuplicados: clientesDuplicados.length,
+      },
+      leadsDuplicados,
+      clientesDuplicados,
+    };
+  }
+
   async convertLeadToTutor(data: LeadConversionData): Promise<string | null> {
     try {
       const lead = await this.prisma.lead.findUnique({

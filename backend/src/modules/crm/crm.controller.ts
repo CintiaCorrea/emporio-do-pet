@@ -55,6 +55,13 @@ export class CrmController {
     return this.crmService.getStats(user.userId);
   }
 
+  @Get('duplicados')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Varredura (so leitura) de clientes/leads duplicados' })
+  async duplicados() {
+    return this.crmService.escanearDuplicados();
+  }
+
   @Post('leads/:id/convert')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Convert a lead to a client' })
