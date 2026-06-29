@@ -11,11 +11,12 @@ const DURACOES = [10, 15, 20, 30, 40, 45, 60, 90, 120];
 const FREQS: [string, string][] = [["7", "Semanal"], ["14", "Quinzenal"], ["30", "Mensal"], ["90", "Trimestral"], ["180", "Semestral"], ["365", "Anual"]];
 const DIAS: [string, string][] = [["1", "seg"], ["2", "ter"], ["3", "qua"], ["4", "qui"], ["5", "sex"], ["6", "sáb"], ["0", "dom"]];
 const TIPOS_FALLBACK = ["Consulta Clínica", "Consulta Integrativa", "Consulta Fisioterapia", "MAP", "Retorno", "Vacinação", "Acupuntura", "Cirurgia"];
-const lbl = "text-[13px] text-[#334155] font-medium block mb-1";
-const inp = "w-full border border-[#d8d0bc] rounded-lg px-3 py-2 text-[16px] text-[#14253a] focus:outline-none focus:border-[#009AAC]";
+// lbl/inp movidos para dentro do componente (variante "inline" mais delicada)
 
 export default function NovoAgendamentoModal({ open, onClose, onCreated, defaults, editAppt, inline }: Props) {
   const router = useRouter();
+  const lbl = inline ? "text-[10.5px] text-[#5b6470] font-medium block mb-0.5" : "text-[13px] text-[#334155] font-medium block mb-1";
+  const inp = inline ? "w-full border border-[#E3DEC9] rounded-lg px-2 py-1.5 text-[12.5px] text-[#14253a] focus:outline-none focus:border-[#009AAC]" : "w-full border border-[#d8d0bc] rounded-lg px-3 py-2 text-[16px] text-[#14253a] focus:outline-none focus:border-[#009AAC]";
   const [step, setStep] = useState(1);
   const [tutors, setTutors] = useState<any[]>([]);
   const [profs, setProfs] = useState<any[]>([]);
@@ -191,27 +192,31 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
             )}
           </div>
         ) : (
-          <div className="p-5 space-y-3 text-[16px] text-[#14253a]">
+          <div className={inline ? "p-3 space-y-2.5 text-[12.5px] text-[#14253a]" : "p-5 space-y-3 text-[16px] text-[#14253a]"}>
+            {!inline && (
             <div className="flex items-center gap-3 bg-[#f6f7f4] rounded-lg px-3 py-2">
               <span className="w-8 h-8 rounded-full bg-[#E1F3F5] text-[#014D5E] text-[11px] font-medium flex items-center justify-center shrink-0">{(tutor?.name || "?").split(" ").slice(0, 2).map((x: string) => x[0]).join("").toUpperCase()}</span>
               <span className="flex-1 min-w-0"><span className="block text-[15px] font-semibold text-[#0E2244] truncate">{tutor?.name}</span><span className="block text-[13px] text-[#475569]">{telOf(tutor)}</span></span>
               {editId ? null : <button onClick={() => { setStep(1); setTutor(null); setPetId(""); }} className="text-[12px] text-[#009AAC]">Trocar</button>}
             </div>
+            )}
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className={inline ? "" : "grid grid-cols-2 gap-3"}>
+              {!inline && (
               <div><label className={lbl}>Animal *</label>
                 <select value={petId} onChange={(e) => setPetId(e.target.value)} className={inp}>
                   <option value="">{pets.length ? "Selecione o pet..." : "Cliente sem pets"}</option>
                   {pets.map((p: any) => <option key={p.id} value={p.id}>{p.name}{p.species ? ` · ${p.species}` : ""}</option>)}
                 </select>
               </div>
+              )}
               <div><label className={lbl}>Tipo de atendimento *</label>
                 <input list="ag-tipos" value={type} onChange={(e) => setType(e.target.value)} placeholder="Selecione…" className={inp} />
                 <datalist id="ag-tipos">{tipos.map((t) => <option key={t} value={t} />)}</datalist>
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className={inline ? "space-y-2.5" : "grid grid-cols-3 gap-3"}>
               <div className="col-span-1"><label className={lbl}>Profissional *</label>
                 <select value={userId} onChange={(e) => setUserId(e.target.value)} className={inp}>
                   <option value="">Selecione...</option>
