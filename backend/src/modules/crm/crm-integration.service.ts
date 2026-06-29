@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
 import { LeadStatus, LeadSource } from '@prisma/client';
+import { findExistingTutor } from '../../common/tutor-match';
 
 export interface WhatsAppLeadData {
   conversationId: string;
@@ -165,10 +166,12 @@ export class CrmIntegrationService {
         return lead.convertedToTutorId;
       }
 
-      // Check if tutor with same email exists (tutor = cliente unificado)
-      const existingTutor = lead.email
-        ? await this.prisma.tutor.findUnique({ where: { email: lead.email } })
-        : null;
+      // Reconhece cliente ja existente pela prioridade: telefone(8 digitos) -> CPF -> email.
+      // (Antes so conferia email, o que deixava passar duplicados por telefone.)
+      const existingTutor = await findExistingTutor(this.prisma, {
+        phone: lead.phone,
+        email: lead.email,
+      });
 
       if (existingTutor) {
         // Link to existing tutor and ensure classificacao=Cliente
@@ -185,7 +188,7 @@ export class CrmIntegrationService {
           },
         });
 
-        this.logger.log(`Lead ${lead.id} linked to existing tutor ${existingTutor.id}`);
+        this.logger.log(`Lead ${lead.id} vinculado ao cliente ${existingTutor.id} (por ${existingTutor.matchedBy})`);
         return existingTutor.id;
       }
 

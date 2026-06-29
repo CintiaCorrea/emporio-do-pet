@@ -41,6 +41,15 @@ export function normalizePhone(raw?: string | null): string {
   return d;
 }
 
+/**
+ * Retorna os ULTIMOS 8 DIGITOS — base do casamento de cliente (ignora o 9o
+ * digito que varia entre cadastros). Ex: 5585986018111 -> '86018111'.
+ */
+export function last8(raw?: string | null): string {
+  const d = onlyDigits(raw);
+  return d.length > 8 ? d.slice(-8) : d;
+}
+
 /** Exibe 55 (85) 98601-8111. Se nao for 13 digitos, retorna a string original. */
 export function formatPhone(raw?: string | null): string {
   const d = normalizePhone(raw);
