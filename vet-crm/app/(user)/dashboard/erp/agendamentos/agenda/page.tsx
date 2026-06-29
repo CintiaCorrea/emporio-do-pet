@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import NovoAgendamentoModal from "@/components/agendamentos/NovoAgendamentoModal";
-import { LuChevronLeft, LuChevronRight, LuPlus, LuClock, LuUsers, LuFilter, LuCheck, LuSettings, LuCalendar } from "react-icons/lu";
+import { LuChevronLeft, LuChevronRight, LuPlus, LuClock, LuUsers, LuFilter, LuCheck, LuSettings, LuCalendar, LuPencil, LuStethoscope } from "react-icons/lu";
 import toast from "react-hot-toast";
 
 const HORAS = Array.from({ length: 12 }, (_, i) => i + 8);
@@ -37,6 +37,7 @@ export default function AgendaPage() {
   const [hidden, setHidden] = useState<Set<string>>(new Set());
   const [cfg, setCfg] = useState<any>(null);
   const [view, setView] = useState<"dia" | "semana" | "mes">("dia");
+  const [menuAppt, setMenuAppt] = useState<{ a: any; x: number; y: number } | null>(null);
 
   useEffect(() => { try { const s = localStorage.getItem("agenda_filas_hidden"); if (s) setHidden(new Set(JSON.parse(s))); } catch {} }, []);
   function persist(s: Set<string>) { try { localStorage.setItem("agenda_filas_hidden", JSON.stringify([...s])); } catch {} }
@@ -81,6 +82,7 @@ export default function AgendaPage() {
   const espera = useMemo(() => doDiaVis.filter((a: any) => ["Em espera", "Aguardando", "Em atendimento"].includes(a.status)), [doDiaVis]);
 
   function addDays(n: number) { const d = new Date(dia); if (view === "mes") d.setMonth(d.getMonth() + n); else if (view === "semana") d.setDate(d.getDate() + n * 7); else d.setDate(d.getDate() + n); setDia(d); }
+  function cardMenu(e: any, a: any) { e.stopPropagation(); setMenuAppt({ a, x: e.clientX, y: e.clientY }); }
   function toggleFila(id: string) { const s = new Set(hidden); s.has(id) ? s.delete(id) : s.add(id); setHidden(s); persist(s); }
   function soEste(id: string) { const s = new Set(profsAtende.filter((p: any) => p.id !== id).map((p: any) => p.id)); setHidden(s); persist(s); }
   function esperaDesde(a: any) { const diff = Math.round((Date.now() - new Date(a.date).getTime()) / 60000); return diff > 0 ? `há ${diff} min` : hm(new Date(a.date)); }
@@ -153,7 +155,7 @@ export default function AgendaPage() {
                     {visiveis.map((p: any) => (
                       <div key={p.id} onClick={() => { if (!p.userId) { toast("Profissional sem login — cadastre o acesso em Configurações › Profissionais"); return; } setEditAppt(null); setNovoDefaults({ date: diaStr, time: `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`, userId: p.userId, duration: cfg?.duracaoPadrao }); setNovoOpen(true); }} className="border-l p-0.5 cursor-pointer hover:bg-[#f9fbfb]" style={{ borderColor: "#eef0ec", background: foraDoHorario(p, h, m) ? "repeating-linear-gradient(45deg,#f5f6f4,#f5f6f4 4px,#e9ebe6 4px,#e9ebe6 8px)" : undefined }}>
                         {apptsDe(p, h, m).map((a: any) => { const cor = corDe(a.status, cfg?.cores); const v = valorDe(a); const quem = a.pet?.name ? `${a.pet.name}${a.tutor?.name ? ` · ${a.tutor.name}` : ""}` : (a.tutor?.name || "Agendamento"); return (
-                          <div key={a.id} onClick={(e) => { e.stopPropagation(); setNovoDefaults(null); setEditAppt(a); setNovoOpen(true); }} title="Clique para editar" className="rounded-r-md px-2 py-1 mb-0.5 cursor-pointer" style={{ borderLeft: `3px solid ${cor.c}`, background: cor.bg }}>
+                          <div key={a.id} onClick={(e) => cardMenu(e, a)} title="Clique para editar" className="rounded-r-md px-2 py-1 mb-0.5 cursor-pointer" style={{ borderLeft: `3px solid ${cor.c}`, background: cor.bg }}>
                             <div className="flex items-center justify-between gap-1">
                               <span className="text-[11px] font-medium" style={{ color: cor.c }}>{hm(new Date(a.date))}</span>
                               {v > 0 ? <span className="text-[10px] font-medium" style={{ color: "#0F6E56" }}>{brl(v)}</span> : null}
@@ -218,7 +220,7 @@ export default function AgendaPage() {
                   </button>
                   <div className="p-1 space-y-1">
                     {list.length === 0 ? <div className="text-[10px] text-gray-300 text-center py-3">—</div> : list.map((a: any) => { const cor = corDe(a.status, cfg?.cores); return (
-                      <div key={a.id} onClick={() => { setNovoDefaults(null); setEditAppt(a); setNovoOpen(true); }} title="Clique para editar" className="rounded-r-md px-1.5 py-1 cursor-pointer" style={{ borderLeft: `3px solid ${cor.c}`, background: cor.bg }}>
+                      <div key={a.id} onClick={(e) => cardMenu(e, a)} title="Clique para ações" className="rounded-r-md px-1.5 py-1 cursor-pointer" style={{ borderLeft: `3px solid ${cor.c}`, background: cor.bg }}>
                         <div className="text-[10px] font-medium" style={{ color: cor.c }}>{hm(new Date(a.date))}</div>
                         <div className="text-[11px] truncate" style={{ color: "#0E2244" }}>{a.pet?.name || a.tutor?.name || "Agendamento"}</div>
                       </div>
@@ -245,7 +247,7 @@ export default function AgendaPage() {
                   <div className="text-[11px] font-medium mb-0.5" style={{ color: hoje ? "#014D5E" : "#475569" }}>{d.getDate()}</div>
                   <div className="space-y-0.5">
                     {list.slice(0, 3).map((a: any) => { const cor = corDe(a.status, cfg?.cores); return (
-                      <div key={a.id} onClick={(e) => { e.stopPropagation(); setNovoDefaults(null); setEditAppt(a); setNovoOpen(true); }} className="rounded px-1 truncate text-[9.5px]" style={{ background: cor.bg, color: cor.c }}>{hm(new Date(a.date))} {a.pet?.name || a.tutor?.name || ""}</div>
+                      <div key={a.id} onClick={(e) => cardMenu(e, a)} className="rounded px-1 truncate text-[9.5px]" style={{ background: cor.bg, color: cor.c }}>{hm(new Date(a.date))} {a.pet?.name || a.tutor?.name || ""}</div>
                     ); })}
                     {list.length > 3 ? <div className="text-[9px] text-gray-400">+{list.length - 3}</div> : null}
                   </div>
@@ -254,6 +256,17 @@ export default function AgendaPage() {
             })}
           </div>
         </div>
+      )}
+
+      {menuAppt && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setMenuAppt(null)} />
+          <div className="fixed z-50 bg-white border rounded-lg shadow-lg py-1 text-[13px]" style={{ left: Math.min(menuAppt.x, (typeof window !== "undefined" ? window.innerWidth : 1200) - 230), top: Math.min(menuAppt.y, (typeof window !== "undefined" ? window.innerHeight : 800) - 160), minWidth: 208, borderColor: "#E3DEC9" }}>
+            <div className="px-3 py-1.5 text-[11px] text-gray-400 border-b truncate" style={{ borderColor: "#eef0ec" }}>{menuAppt.a.pet?.name || menuAppt.a.tutor?.name || "Agendamento"}</div>
+            <button onClick={() => { const a = menuAppt.a; setMenuAppt(null); setNovoDefaults(null); setEditAppt(a); setNovoOpen(true); }} className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center gap-2"><LuPencil size={14} style={{ color: "#009AAC" }} /> Editar agendamento</button>
+            <button onClick={() => { const id = menuAppt.a.id; setMenuAppt(null); window.location.href = `/dashboard/erp/atendimentos/${id}`; }} className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center gap-2"><LuStethoscope size={14} style={{ color: "#0E5560" }} /> Abrir atendimento</button>
+          </div>
+        </>
       )}
 
       <NovoAgendamentoModal open={novoOpen} defaults={novoDefaults} editAppt={editAppt} onClose={() => { setNovoOpen(false); setNovoDefaults(null); setEditAppt(null); }} onCreated={() => { setNovoOpen(false); setNovoDefaults(null); setEditAppt(null); load(); }} />
