@@ -115,7 +115,8 @@ export class TutorsService {
             { cpf: { contains: search } },
             // Codigo sequencial: so quando o termo for um numero curto (1 a 6 digitos)
             ...(/^\d{1,6}$/.test(search.trim()) ? [{ codigo: Number(search.trim()) }] : []),
-            ...(onlyDigits ? [{ contacts: { some: { number: { contains: tail9 } } } }] : []),
+            // Telefone: so casa fragmento com 4+ digitos (evita que "38" puxe telefones que contem 38)
+            ...(onlyDigits.length >= 4 ? [{ contacts: { some: { number: { contains: tail9 } } } }] : []),
           ],
         }
       : {};
