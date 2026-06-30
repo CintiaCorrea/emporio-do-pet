@@ -11,7 +11,7 @@ import {
   LuCircleDollarSign, LuMegaphone, LuUserCog, LuEye, LuCircleHelp, LuStar,
   LuSparkles, LuFileText, LuRefreshCcw, LuExternalLink, LuWallet,
 } from "react-icons/lu";
-import { roleLabel, AppRole } from "@/lib/ui/role";
+import { roleLabel, roleShort, AppRole } from "@/lib/ui/role";
 import { useRolePreview } from "@/lib/ui/RolePreview";
 import { useSession } from "next-auth/react";
 
@@ -19,6 +19,8 @@ interface SidebarProps {
   isOpen: boolean;
   toggleSidebar: () => void;
 }
+
+type Section = "OP" | "GESTAO";
 
 type Item = {
   href: string;
@@ -28,6 +30,7 @@ type Item = {
   badge?: number;
   tag?: { admin?: string; vet?: string; recep?: string };
   exact?: boolean;
+  section?: Section;
 };
 
 type Group = {
@@ -37,28 +40,28 @@ type Group = {
   Icon: React.ComponentType<{ size?: number; className?: string }>;
   roles: AppRole[];
   children: Item[];
+  section?: Section;
 };
 
 type Entry = Item | Group;
 const isGroup = (e: Entry): e is Group => (e as Group).group === true;
 
 const NAV: Entry[] = [
-  { href: "/dashboard/hoje", label: "Hoje", Icon: LuSun, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
-  { href: "/dashboard", label: "Dashboard", Icon: LuLayoutDashboard, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"], exact: true },
-  { href: "/dashboard/inbox", label: "Inbox BC", Icon: LuMessageSquare, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
-  { href: "/dashboard/inbox-nativo", label: "Inbox Meta", Icon: LuMessageSquare, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
-  { href: "/dashboard/crm/leads", label: "Leads", Icon: LuList, roles: ["ADMIN", "RECEPTIONIST"] },
-  { href: "/dashboard/erp/tutores", label: "Clientes", Icon: LuUsers, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
+  { href: "/dashboard/hoje", label: "Hoje", Icon: LuSun, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"], section: "OP" },
+  { href: "/dashboard", label: "Dashboard", Icon: LuLayoutDashboard, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"], exact: true, section: "OP" },
+  { href: "/dashboard/inbox", label: "Inbox BC", Icon: LuMessageSquare, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"], section: "OP" },
+  { href: "/dashboard/inbox-nativo", label: "Inbox Meta", Icon: LuMessageSquare, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"], section: "OP" },
+  { href: "/dashboard/crm/leads", label: "Comercial", Icon: LuList, roles: ["ADMIN", "RECEPTIONIST"], section: "OP" },
+  { href: "/dashboard/erp/tutores", label: "Clientes", Icon: LuUsers, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"], section: "OP" },
   // LIXEIRA-PETS-MENU (Cintia 22/06): aba "Pets" removida do menu. Edicao do pet centralizada na ficha de Cliente; ficha clinica acessivel pelo nome do pet na lista de Clientes. Restaurar = descomentar a linha abaixo.
   // { href: "/dashboard/erp/pets", label: "Pets", Icon: LuPawPrint, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
-  { href: "/dashboard/erp/agendamentos/agenda", label: "Agenda", Icon: LuCalendar, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
-  { href: "/dashboard/erp/agendamentos/clinico", label: "Calendário", Icon: LuCalendar, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
+  { href: "/dashboard/erp/agendamentos/agenda", label: "Agenda", Icon: LuCalendar, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"], section: "OP" },
   {
     href: "/dashboard/erp/internacoes", label: "Internação", Icon: LuBuilding2,
-    roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"],
+    roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"], section: "OP",
   },
   {
-    group: true, key: "vendas", label: "Vendas", Icon: LuWallet, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"],
+    group: true, key: "vendas", label: "Vendas", Icon: LuWallet, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"], section: "GESTAO",
     children: [
       { href: "/dashboard/erp/ponto-de-venda", label: "Ponto de venda", Icon: LuCircleDollarSign, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
       { href: "/dashboard/erp/minhas-vendas", label: "Minhas vendas", Icon: LuStar, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
@@ -71,13 +74,13 @@ const NAV: Entry[] = [
     ],
   },
   {
-    group: true, key: "financeiro", label: "Financeiro", Icon: LuCircleDollarSign, roles: ["ADMIN"],
+    group: true, key: "financeiro", label: "Financeiro", Icon: LuCircleDollarSign, roles: ["ADMIN"], section: "GESTAO",
     children: [
       { href: "/dashboard/erp/financeiro-terceiros", label: "Fin. Terceiros", Icon: LuCircleDollarSign, roles: ["ADMIN"] },
     ],
   },
   {
-    group: true, key: "marketing", label: "Marketing", Icon: LuMegaphone, roles: ["ADMIN"],
+    group: true, key: "marketing", label: "Marketing", Icon: LuMegaphone, roles: ["ADMIN"], section: "GESTAO",
     children: [
       { href: "/dashboard/marketing/funil-semana", label: "Funil Semana", Icon: LuList, roles: ["ADMIN"] },
       { href: "/dashboard/marketing/google-ads", label: "Google Ads", Icon: LuMegaphone, roles: ["ADMIN"] },
@@ -90,7 +93,7 @@ const NAV: Entry[] = [
     ],
   },
   {
-    group: true, key: "ia", label: "IA / Atendimento", Icon: LuSparkles, roles: ["ADMIN"],
+    group: true, key: "ia", label: "IA / Atendimento", Icon: LuSparkles, roles: ["ADMIN"], section: "GESTAO",
     children: [
       { href: "/dashboard/ai-agents/agents", label: "Agentes", Icon: LuSparkles, roles: ["ADMIN"] },
       { href: "/dashboard/ai-agents/conhecimento", label: "Conhecimento", Icon: LuFileText, roles: ["ADMIN"] },
@@ -99,7 +102,7 @@ const NAV: Entry[] = [
       { href: "/dashboard/ai-agents/templates", label: "Templates", Icon: LuList, roles: ["ADMIN"] },
     ],
   },
-  { href: "/dashboard/configuracoes", label: "Configurações", Icon: LuSettings, roles: ["ADMIN"] },
+  { href: "/dashboard/configuracoes", label: "Configurações", Icon: LuSettings, roles: ["ADMIN"], section: "GESTAO" },
 ];
 
 const FUTURE = [
@@ -114,6 +117,10 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
   const { data: __session } = useSession();
   const meId = (__session as any)?.user?.id as string | undefined;
   const role = effectiveRole;
+  const userName = (__session?.user?.name as string | undefined) || "";
+  const userInitials = userName
+    ? userName.trim().split(/\s+/).slice(0, 2).map((p) => p[0]?.toUpperCase() ?? "").join("")
+    : "";
 
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
@@ -179,8 +186,8 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
         className={`flex items-center ${collapsed ? "justify-center" : "gap-3"} px-3 py-[9px] rounded-[9px] ${indented ? "text-[12.5px]" : "text-[13.5px]"} transition relative`}
         style={
           active
-            ? { background: "linear-gradient(90deg, #009AAC, #00B4C4)", color: "#FFFFFF", fontWeight: 600, boxShadow: "0 4px 12px -2px rgba(0,154,172,.45)" }
-            : { color: "#475569" }
+            ? { background: "#E0F4F6", color: "#014D5E", fontWeight: 500 }
+            : { color: "#5C6B70" }
         }
       >
         <it.Icon size={indented ? 16 : 18} className="flex-shrink-0" />
@@ -203,7 +210,7 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
                 className="text-[9px] font-bold tracking-wide px-1.5 py-[2px] rounded-[6px] uppercase"
                 style={
                   active
-                    ? { background: "rgba(255,255,255,.25)", color: "white" }
+                    ? { background: "rgba(1,77,94,.12)", color: "#014D5E" }
                     : { background: "#eef2f4", color: "#64748b" }
                 }
               >
@@ -215,6 +222,41 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
       </Link>
     );
   };
+
+  const renderEntry = (entry: Entry) => {
+    if (!isGroup(entry)) return renderLink(entry);
+
+    const kids = entry.children.filter(visible);
+    if (kids.length === 0) return null;
+
+    // recolhido: mostra os filhos como ícones soltos
+    if (collapsed) return <div key={entry.key} className="flex flex-col gap-[2px]">{kids.map((it) => renderLink(it))}</div>;
+
+    const childActive = kids.some(isActive);
+    const open = openGroups[entry.key] ?? childActive;
+    return (
+      <div key={entry.key}>
+        <button
+          onClick={() => setOpenGroups((s) => ({ ...s, [entry.key]: !(s[entry.key] ?? childActive) }))}
+          className="flex items-center gap-3 w-full px-3 py-[9px] rounded-[9px] text-[13.5px] transition"
+          style={{ color: childActive ? "#014D5E" : "#5C6B70", fontWeight: childActive ? 600 : 500 }}
+        >
+          <entry.Icon size={18} className="flex-shrink-0" />
+          <span className="flex-1 truncate text-left">{entry.label}</span>
+          {open ? <LuChevronDown size={14} className="text-[#94a3b8]" /> : <LuChevronRight size={14} className="text-[#94a3b8]" />}
+        </button>
+        {open && (
+          <div className="flex flex-col gap-[2px] mt-[2px] ml-[15px] pl-[11px]" style={{ borderLeft: "1px solid #eef2f4" }}>
+            {kids.map((it) => renderLink(it, true))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const opEntries = NAV.filter((e) => e.section === "OP");
+  const gestaoEntries = NAV.filter((e) => e.section === "GESTAO");
+  const sectionLabelCls = "text-[9.5px] font-bold tracking-wide text-[#8A989D] uppercase px-3 py-1.5";
 
   return (
     <aside
@@ -230,13 +272,21 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
         {collapsed ? <LuChevronRight size={11} /> : <LuChevronLeft size={11} />}
       </button>
 
-      <div className={`px-4 ${collapsed ? "py-4" : "py-[18px]"} border-b flex items-center justify-center`} style={{ borderColor: "#e8edf0" }}>
+      <div className={`px-4 ${collapsed ? "py-4 justify-center" : "py-[18px]"} border-b flex items-center`} style={{ borderColor: "#e8edf0" }}>
         {collapsed ? (
           <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#009AAC] to-[#014D5E] flex items-center justify-center">
             <LuPawPrint className="text-white" size={18} />
           </div>
         ) : (
-          <img src="https://emporiodopet.com.br/wp-content/uploads/2022/04/logo-emporio-do-pet-padrao.png" alt="Empório do Pet" style={{ height: 46, width: "auto" }} />
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "#E0F4F6" }}>
+              <LuPawPrint size={18} style={{ color: "#014D5E" }} />
+            </div>
+            <div className="flex flex-col leading-tight">
+              <span className="text-[13px] font-medium text-[#014D5E]">Empório do Pet</span>
+              <span className="text-[9.5px] text-[#8A989D]">CRM &amp; gestão</span>
+            </div>
+          </div>
         )}
       </div>
 
@@ -275,36 +325,11 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
 
       <nav className="flex-1 px-3 pt-2 pb-4 overflow-y-auto">
         <div className="flex flex-col gap-[2px]">
-          {NAV.map((entry) => {
-            if (!isGroup(entry)) return renderLink(entry);
+          {!collapsed && <div className={sectionLabelCls}>Operação</div>}
+          {opEntries.map((entry) => renderEntry(entry))}
 
-            const kids = entry.children.filter(visible);
-            if (kids.length === 0) return null;
-
-            // recolhido: mostra os filhos como ícones soltos
-            if (collapsed) return <div key={entry.key} className="flex flex-col gap-[2px]">{kids.map((it) => renderLink(it))}</div>;
-
-            const childActive = kids.some(isActive);
-            const open = openGroups[entry.key] ?? childActive;
-            return (
-              <div key={entry.key}>
-                <button
-                  onClick={() => setOpenGroups((s) => ({ ...s, [entry.key]: !(s[entry.key] ?? childActive) }))}
-                  className="flex items-center gap-3 w-full px-3 py-[9px] rounded-[9px] text-[13.5px] transition"
-                  style={{ color: childActive ? "#0E2244" : "#475569", fontWeight: childActive ? 600 : 500 }}
-                >
-                  <entry.Icon size={18} className="flex-shrink-0" />
-                  <span className="flex-1 truncate text-left">{entry.label}</span>
-                  {open ? <LuChevronDown size={14} className="text-[#94a3b8]" /> : <LuChevronRight size={14} className="text-[#94a3b8]" />}
-                </button>
-                {open && (
-                  <div className="flex flex-col gap-[2px] mt-[2px] ml-[15px] pl-[11px]" style={{ borderLeft: "1px solid #eef2f4" }}>
-                    {kids.map((it) => renderLink(it, true))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+          {!collapsed && <div className={`${sectionLabelCls} mt-2`}>Gestão</div>}
+          {gestaoEntries.map((entry) => renderEntry(entry))}
         </div>
 
         {!collapsed && (
@@ -323,8 +348,22 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
         )}
       </nav>
 
-      {/* Rodapé enxuto: só Ajuda */}
+      {/* Rodapé: usuário logado + Ajuda */}
       <div className={`border-t ${collapsed ? "px-2 py-3" : "px-3 py-3"}`} style={{ borderColor: "#e8edf0" }}>
+        {!collapsed && userName && (
+          <div className="flex items-center gap-2.5 px-2 pb-2 mb-1.5" style={{ borderBottom: "1px dashed #e8edf0" }}>
+            <div
+              className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-[10px] font-semibold text-white"
+              style={{ background: "#014D5E" }}
+            >
+              {userInitials}
+            </div>
+            <div className="flex flex-col leading-tight min-w-0">
+              <span className="text-[12px] font-medium text-[#014D5E] truncate">{userName}</span>
+              <span className="text-[9px] text-[#8A989D]">{roleShort(realRole)}</span>
+            </div>
+          </div>
+        )}
         <Link
           href="/dashboard/ajuda"
           className={`flex items-center ${collapsed ? "justify-center" : "gap-2.5"} px-3 py-2 rounded-[9px] text-[12.5px] text-[#64748b] hover:bg-[#f6f8f9] transition`}

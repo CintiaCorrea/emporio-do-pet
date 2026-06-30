@@ -75,6 +75,8 @@ export default function HojePage() {
   const [entConf, setEntConf] = useState<Record<string, string>>({});
   const [entConfOpen, setEntConfOpen] = useState(false);
   const [encMine, setEncMine] = useState<any[]>([]);
+  const [caixaVisivel, setCaixaVisivel] = useState(false);
+  const [orcamentos, setOrcamentos] = useState(0);
 
   useEffect(() => {
     if (!meId) return;
@@ -141,6 +143,7 @@ export default function HojePage() {
         try { const dz = await safeJson<any>(await fetch("/api/protocolos/doses/pendentes?dias=7"), []); setDosesPend(Array.isArray(dz) ? dz : []); } catch {}
         const tutorArr = Array.isArray(tts) ? tts : (tts.tutors || tts.data || []);
         const leadArr = Array.isArray(lds) ? lds : (lds.leads || lds.data || []);
+        setOrcamentos((Array.isArray(leadArr) ? leadArr : []).filter((l: any) => /or[çc]amento/i.test(l.pipelineComercialEtapa || "")).length);
         const tutorMap: Record<string, string> = {};
         tutorArr.forEach((t: any) => { tutorMap[t.id] = t.name; });
         const startToday = new Date(); startToday.setHours(0, 0, 0, 0);
@@ -315,195 +318,246 @@ export default function HojePage() {
 
   const total = items.reduce((s, t) => s + t.count, 0);
 
-  return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <div className="flex items-center gap-3 mb-4">
-        <h2 className="text-[15px] font-bold" style={{ color: "#014D5E" }}>{effectiveRole === "ADMIN" ? "O que a clínica precisa de atenção hoje" : "O que você precisa atender hoje"}</h2>
-        <span
-          className="text-xs font-semibold px-3 py-1 rounded-full"
-          style={{ background: "#e6f6f8", color: "#009AAC" }}
-        >
-          {loading ? "carregando..." : `${total} pendências`}
-        </span>
-        <span className="ml-auto text-[11px] text-[#94a3b8]">
-          Perfil: {roleShort(effectiveRole)}{isPreviewing && <span className="text-[#d97706]"> · preview</span>}
-        </span>
-      </div>
+  const isAdmin = effectiveRole === "ADMIN";
+  const isVet = effectiveRole === "VETERINARIAN";
+  const isRecep = effectiveRole === "RECEPTIONIST";
+  const novosLeads = entradas.filter((e: any) => e.tipo === "Lead").length;
 
-      <div className="bg-white border rounded-2xl overflow-hidden" style={{ borderColor: "#e8edf0" }}>
-        {loading ? (
-          <div className="px-6 py-10 text-center text-sm text-[#94a3b8]">Carregando seu dia...</div>
-        ) : items.length === 0 ? (
-          <div className="px-6 py-10 text-center text-sm text-[#94a3b8]">Tudo em ordem por aqui. 🎉</div>
-        ) : (
-          items.map((p, i) => {
-            const inner = (
-              <>
-                <div className="w-[38px] h-[38px] rounded-[10px] flex items-center justify-center flex-shrink-0" style={{ background: "#e6f6f8", color: "#009AAC" }}>
-                  <p.Icon size={19} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-[13.5px] font-semibold text-[#1e293b]">{p.title}</div>
-                  <div className="text-xs text-[#64748b]">{p.sub}</div>
-                </div>
-                <span className="text-[10px] font-bold uppercase tracking-wide text-[#009AAC] hidden sm:block">{p.link}</span>
-                <span className="text-[13px] font-bold text-white min-w-[26px] h-6 rounded-xl flex items-center justify-center px-2 flex-shrink-0" style={{ background: p.count > 0 ? "linear-gradient(90deg, #009AAC, #00B4C4)" : "#cbd5e1" }}>{p.count}</span>
-                <LuChevronRight size={16} className="text-[#94a3b8] flex-shrink-0" />
-              </>
-            );
-            const rowCls = "flex items-center gap-3.5 px-[18px] py-[13px] border-b hover:bg-[#e6f6f8]/60 transition cursor-pointer";
-            const rowStyle = { borderColor: i === items.length - 1 && !(p.key === "exames" && examesOpen) ? "transparent" : "#e8edf0" } as any;
-            if (p.key === "pacotes") {
-              return (
-                <div key={p.key}>
-                  <div className={rowCls} style={{ borderColor: "#e8edf0" }} onClick={() => setPacOpen(o => !o)}>{inner}</div>
-                  {pacOpen && (
-                    <div style={{ background: "#f8fafb" }}>
-                      {pacRisco.length === 0 ? (
-                        <div className="px-[58px] py-3 text-xs text-[#94a3b8] border-b" style={{ borderColor: "#e8edf0" }}>Nenhum pacote perto de acabar.</div>
-                      ) : pacRisco.map((e: any) => { const done = e.remaining <= 0; return (
-                        <Link key={e.id} href={`/dashboard/erp/pets/${e.petId}`} className="flex items-center gap-2 px-[58px] py-2.5 border-b hover:bg-[#e6f6f8]/60 text-xs" style={{ borderColor: "#e8edf0" }}>
-                          <span className="font-medium text-[#1e293b]">{e.petName}</span>
-                          <span className="text-[#64748b] truncate max-w-[120px]">· {e.nome}</span>
-                          <div className="flex items-center gap-1 ml-auto">
-                            <div className="w-16 h-1.5 rounded-full bg-gray-200 overflow-hidden"><div className="h-full" style={{ width: `${e.total ? Math.min(100, (e.used / e.total) * 100) : 0}%`, background: done ? "#0F6E56" : "#BA7517" }} /></div>
-                            <span className="text-[10px] text-[#64748b]">{e.used}/{e.total}</span>
-                            <span className="text-[10px] px-2 py-0.5 rounded-full" style={done ? { background: "#E1F5EE", color: "#0F6E56" } : { background: "#FCE5C8", color: "#8A5A0F" }}>{done ? "Concluído" : "Penúltima"}</span>
-                          </div>
-                        </Link>
-                      ); })}
-                    </div>
-                  )}
-                </div>
-              );
-            }
-            const tcor: Record<string, { bg: string; fg: string }> = { Cliente: { bg: "#E0F4F6", fg: "#00798A" }, Pet: { bg: "#E1F5EE", fg: "#0F6E56" }, Lead: { bg: "#E6F1FB", fg: "#0C447C" } };
-            const fuExpand = (list: any[], open: boolean, setOpen: (f: (o: boolean) => boolean) => void, emptyMsg: string) => (
-              <div key={p.key}>
-                <div className={rowCls} style={{ borderColor: "#e8edf0" }} onClick={() => setOpen(o => !o)}>{inner}</div>
-                {open && (
-                  <div style={{ background: "#f8fafb" }}>
-                    {list.length === 0 ? (
-                      <div className="px-[58px] py-3 text-xs text-[#94a3b8] border-b" style={{ borderColor: "#e8edf0" }}>{emptyMsg}</div>
-                    ) : list.map((e: any) => (
-                      <Link key={e.id} href={e.href} className="flex items-center gap-2 px-[58px] py-2.5 border-b hover:bg-[#e6f6f8]/60 text-xs" style={{ borderColor: "#e8edf0" }}>
-                        <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: (tcor[e.tipo] || tcor.Cliente).bg, color: (tcor[e.tipo] || tcor.Cliente).fg }}>{e.tipo}</span>
-                        <span className="font-medium text-[#1e293b]">{e.nome}</span>
-                        {e.date && <span className="ml-auto text-[#64748b]">{new Date(e.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}</span>}
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-            if (p.key === "retornos") return fuExpand(fuDue, fuDueOpen, setFuDueOpen, "Nenhum follow-up vencido ou de hoje.");
-            if (p.key === "aniversariantes") return fuExpand(aniv, anivOpen, setAnivOpen, "Ninguém faz aniversário hoje.");
-            if (p.key === "toques") return (
-              <div key={p.key}>
-                <div className={rowCls} style={{ borderColor: "#e8edf0" }} onClick={() => setToquesOpen(o => !o)}>{inner}</div>
-                {toquesOpen && (
-                  <div style={{ background: "#f8fafb" }}>
-                    {toques.length === 0 ? (
-                      <div className="px-[58px] py-3 text-xs text-[#94a3b8] border-b" style={{ borderColor: "#e8edf0" }}>Nenhum toque de cadência para hoje.</div>
-                    ) : toques.map((e: any) => (
-                      <Link key={e.id} href={e.href} className="flex items-center gap-2 px-[58px] py-2.5 border-b hover:bg-[#e6f6f8]/60 text-xs" style={{ borderColor: "#e8edf0" }}>
-                        <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: (tcor[e.tipo] || tcor.Cliente).bg, color: (tcor[e.tipo] || tcor.Cliente).fg }}>{e.tipo}</span>
-                        <span className="font-medium text-[#1e293b]">{e.nome}</span>
-                        <span className="text-[#64748b] truncate max-w-[200px]">· {e.cadencia} — {e.passo}</span>
-                        {e.canal && <span className="ml-auto text-[10px] text-[#009AAC] font-semibold">{e.canal}</span>}
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-            if (p.key === "exames") {
-              return (
-                <div key={p.key}>
-                  <div className={rowCls} style={rowStyle} onClick={() => setExamesOpen(o => !o)}>{inner}</div>
-                  {examesOpen && (
-                    <div style={{ background: "#f8fafb" }}>
-                      {examesPend.length === 0 ? (
-                        <div className="px-[58px] py-3 text-xs text-[#94a3b8] border-b" style={{ borderColor: "#e8edf0" }}>Nenhum exame em acompanhamento.</div>
-                      ) : examesPend.map((e: any) => (
-                        <Link key={e.id} href={`/dashboard/erp/pets/${e.petId}`} className="flex items-center gap-2 px-[58px] py-2.5 border-b hover:bg-[#e6f6f8]/60 text-xs" style={{ borderColor: "#e8edf0" }}>
-                          <span className="font-medium text-[#1e293b]">{e.petName}</span>
-                          <span className="text-[#64748b]">· {e.nome}</span>
-                          <span className="ml-auto text-[11px] px-2 py-0.5 rounded-full" style={{ background: "#E0F4F6", color: "#00798A" }}>{e.status}</span>
-                        </Link>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            }
-            return (
-              <Link key={p.key} href={p.href} className={rowCls} style={{ borderColor: i === items.length - 1 ? "transparent" : "#e8edf0" }}>{inner}</Link>
-            );
-          })
-        )}
+  // ---- Sub-componentes locais (Base44) ----
+  const Kpi = ({ emoji, label, value, sub, soon, turquesa }: { emoji: string; label: string; value: any; sub: string; soon?: boolean; turquesa?: boolean }) => (
+    <div className={`bg-white rounded-[12px] p-3 ${turquesa ? "border border-[#009AAC]" : "border border-[#E8E2D6]"}`}>
+      <div className="flex items-center gap-1.5 mb-1">
+        <span className="text-[11px] text-[#8A989D]">{emoji} {label}</span>
+        {soon && <span className="text-[8.5px] bg-[#F3F1EC] text-[#9a948a] px-1.5 rounded-full">em breve</span>}
       </div>
+      <div className="text-[22px] font-medium text-[#014D5E] leading-tight">{value}</div>
+      <div className={`text-[9.5px] ${soon ? "text-[#8A989D]" : "text-[#1c7a47]"}`}>{sub}</div>
+    </div>
+  );
 
-      {!loading && effectiveRole === "ADMIN" && (() => {
-        const cor: Record<string, { bg: string; fg: string }> = { Cliente: { bg: "#E0F4F6", fg: "#00798A" }, Lead: { bg: "#E6F1FB", fg: "#0C447C" } };
-        const hhmm = (dt: any) => { try { return new Date(dt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }); } catch { return ""; } };
-        const fmtDia = (dt: any) => { const d = new Date(dt), h = new Date(), o = new Date(); o.setDate(h.getDate() - 1); const k = (x: Date) => x.toDateString(); if (k(d) === k(h)) return "Hoje"; if (k(d) === k(o)) return "Ontem"; return d.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" }); };
-        const grupos: { dia: string; itens: any[] }[] = [];
-        for (const e of entradas) { const dk = new Date(e.at).toDateString(); let g = grupos.find(x => x.dia === dk); if (!g) { g = { dia: dk, itens: [] }; grupos.push(g); } g.itens.push(e); }
-        return (
-          <div className="mt-6 bg-white border rounded-2xl overflow-hidden" style={{ borderColor: "#e8edf0" }}>
-            <div className="flex items-center gap-3.5 px-[18px] py-[13px] border-b" style={{ borderColor: "#e8edf0" }}>
-              <div className="w-[38px] h-[38px] rounded-[10px] flex items-center justify-center flex-shrink-0" style={{ background: "#e6f6f8", color: "#009AAC" }}><LuClipboardCheck size={19} /></div>
-              <div className="flex-1 min-w-0">
-                <div className="text-[13.5px] font-semibold text-[#1e293b]">Acompanhamento de entradas</div>
-                <div className="text-xs text-[#64748b]">Leads e clientes que entraram — dê baixa ao conferir o atendimento</div>
-              </div>
-              <span className="text-[13px] font-bold text-white min-w-[26px] h-6 rounded-xl flex items-center justify-center px-2 flex-shrink-0" style={{ background: entradas.length > 0 ? "linear-gradient(90deg, #009AAC, #00B4C4)" : "#cbd5e1" }}>{entradas.length}</span>
-            </div>
-            {entradas.length === 0 ? (
-              <div className="px-[18px] py-8 text-center text-sm text-[#94a3b8]">Nenhuma entrada pendente de baixa.</div>
-            ) : grupos.map((g) => (
-              <div key={g.dia}>
-                <div className="px-[18px] py-1.5 text-[11px] font-semibold text-[#64748b] bg-[#f8fafb] border-b" style={{ borderColor: "#eef2f4" }}>{fmtDia(g.itens[0].at)} ({g.itens.length})</div>
-                {g.itens.map((e: any) => (
-                  <div key={e.key} className="flex items-center gap-3 px-[18px] py-2.5 border-b hover:bg-[#e6f6f8]/40" style={{ borderColor: "#e8edf0" }}>
-                    <input type="checkbox" checked={false} onChange={() => baixarEntrada(e)} className="w-4 h-4 flex-shrink-0 cursor-pointer accent-[#009AAC]" title="Dar baixa (sai da lista, fica na ficha)" />
-                    <span className="text-[10px] px-2 py-0.5 rounded-full flex-shrink-0" style={{ background: (cor[e.tipo] || cor.Cliente).bg, color: (cor[e.tipo] || cor.Cliente).fg }}>{e.tipo}</span>
-                    <Link href={e.href} className="font-medium text-[13px] text-[#1e293b] hover:underline truncate">{e.nome}</Link>
-                    {e.sub && <span className="text-xs text-[#64748b] truncate hidden sm:block">. {e.sub}</span>}
-                    <span className="ml-auto text-[11px] text-[#94a3b8] flex-shrink-0">{hhmm(e.at)}</span>
-                  </div>
-                ))}
+  const Painel = ({ titulo, soon, children }: { titulo: string; soon?: boolean; children: any }) => (
+    <div className="bg-white border border-[#E8E2D6] rounded-[12px] p-4">
+      <div className="flex items-center gap-2 mb-3">
+        <span className="text-[13px] font-semibold text-[#014D5E]">{titulo}</span>
+        {soon && <span className="text-[8.5px] bg-[#F3F1EC] text-[#9a948a] px-1.5 rounded-full">em breve</span>}
+      </div>
+      {children}
+    </div>
+  );
+
+  const SoonPlaceholder = ({ texto }: { texto: string }) => (
+    <div className="py-8 text-center text-[12px] text-[#8A989D]">{texto}</div>
+  );
+
+  const LinhaAtencao = ({ emoji, cor, titulo, sub }: { emoji: string; cor: string; titulo: string; sub: string }) => (
+    <div className="flex items-center gap-2.5 py-2">
+      <span className="w-8 h-8 rounded-[8px] flex items-center justify-center text-[15px] flex-shrink-0" style={{ background: cor }}>{emoji}</span>
+      <div className="min-w-0">
+        <div className="text-[13px] font-medium text-[#1F2A2E]">{titulo}</div>
+        <div className="text-[11px] text-[#8A989D]">{sub}</div>
+      </div>
+    </div>
+  );
+
+  const BarraProgresso = ({ label, pct, valor }: { label: string; pct: number; valor: string }) => (
+    <div className="mb-2.5">
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-[11px] text-[#5C6B70]">{label}</span>
+        <span className="text-[11px] text-[#8A989D]">{valor}</span>
+      </div>
+      <div className="h-1.5 rounded-full bg-[#EAE3D4] overflow-hidden">
+        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: "#009AAC" }} />
+      </div>
+    </div>
+  );
+
+  // ---- Painéis reaproveitados (JSX original) ----
+  const PainelEntradas = () => (!loading && isAdmin ? (() => {
+    const cor: Record<string, { bg: string; fg: string }> = { Cliente: { bg: "#E0F4F6", fg: "#00798A" }, Lead: { bg: "#E6F1FB", fg: "#0C447C" } };
+    const hhmm = (dt: any) => { try { return new Date(dt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }); } catch { return ""; } };
+    const fmtDia = (dt: any) => { const d = new Date(dt), h = new Date(), o = new Date(); o.setDate(h.getDate() - 1); const k = (x: Date) => x.toDateString(); if (k(d) === k(h)) return "Hoje"; if (k(d) === k(o)) return "Ontem"; return d.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" }); };
+    const grupos: { dia: string; itens: any[] }[] = [];
+    for (const e of entradas) { const dk = new Date(e.at).toDateString(); let g = grupos.find(x => x.dia === dk); if (!g) { g = { dia: dk, itens: [] }; grupos.push(g); } g.itens.push(e); }
+    return (
+      <div className="bg-white border border-[#E8E2D6] rounded-[12px] overflow-hidden">
+        <div className="flex items-center gap-3.5 px-[18px] py-[13px] border-b" style={{ borderColor: "#E8E2D6" }}>
+          <div className="w-[38px] h-[38px] rounded-[10px] flex items-center justify-center flex-shrink-0" style={{ background: "#E0F4F6", color: "#009AAC" }}><LuClipboardCheck size={19} /></div>
+          <div className="flex-1 min-w-0">
+            <div className="text-[13.5px] font-semibold text-[#014D5E]">📥 Acompanhamento de entradas</div>
+            <div className="text-xs text-[#8A989D]">Leads e clientes que entraram — dê baixa ao conferir o atendimento</div>
+          </div>
+          <span className="text-[13px] font-bold text-white min-w-[26px] h-6 rounded-xl flex items-center justify-center px-2 flex-shrink-0" style={{ background: entradas.length > 0 ? "linear-gradient(90deg, #009AAC, #00B4C4)" : "#cbd5e1" }}>{entradas.length}</span>
+        </div>
+        {entradas.length === 0 ? (
+          <div className="px-[18px] py-8 text-center text-sm text-[#8A989D]">Nenhuma entrada pendente de baixa.</div>
+        ) : grupos.map((g) => (
+          <div key={g.dia}>
+            <div className="px-[18px] py-1.5 text-[11px] font-semibold text-[#5C6B70] bg-[#F6F2EA] border-b" style={{ borderColor: "#eef2f4" }}>{fmtDia(g.itens[0].at)} ({g.itens.length})</div>
+            {g.itens.map((e: any) => (
+              <div key={e.key} className="flex items-center gap-3 px-[18px] py-2.5 border-b hover:bg-[#E0F4F6]/40" style={{ borderColor: "#E8E2D6" }}>
+                <input type="checkbox" checked={false} onChange={() => baixarEntrada(e)} className="w-4 h-4 flex-shrink-0 cursor-pointer accent-[#009AAC]" title="Dar baixa (sai da lista, fica na ficha)" />
+                <span className="text-[10px] px-2 py-0.5 rounded-full flex-shrink-0" style={{ background: (cor[e.tipo] || cor.Cliente).bg, color: (cor[e.tipo] || cor.Cliente).fg }}>{e.tipo}</span>
+                <Link href={e.href} className="font-medium text-[13px] text-[#1F2A2E] hover:underline truncate">{e.nome}</Link>
+                {e.sub && <span className="text-xs text-[#8A989D] truncate hidden sm:block">. {e.sub}</span>}
+                <span className="ml-auto text-[11px] text-[#8A989D] flex-shrink-0">{hhmm(e.at)}</span>
               </div>
             ))}
           </div>
-        );
-      })()}
-      {!loading && encMine.length > 0 && (
-        <div className="mt-6 bg-white border rounded-2xl overflow-hidden" style={{ borderColor: "#e8edf0" }}>
-          <div className="flex items-center gap-3.5 px-[18px] py-[13px] border-b" style={{ borderColor: "#e8edf0" }}>
-            <div className="w-[38px] h-[38px] rounded-[10px] flex items-center justify-center flex-shrink-0" style={{ background: "#fef3c7", color: "#92611A" }}><LuShare2 size={19} /></div>
-            <div className="flex-1 min-w-0">
-              <div className="text-[13.5px] font-semibold text-[#1e293b]">Encaminhados para mim</div>
-              <div className="text-xs text-[#64748b]">Clientes, pets e leads que precisam do seu atendimento</div>
-            </div>
-            <span className="text-[13px] font-bold text-white min-w-[26px] h-6 rounded-xl flex items-center justify-center px-2 flex-shrink-0" style={{ background: "linear-gradient(90deg,#D97706,#92611A)" }}>{encMine.length}</span>
-          </div>
-          {encMine.map((e) => (
-            <div key={e.entryId} className="flex items-center gap-3 px-[18px] py-2.5 border-b hover:bg-[#fef9ec]" style={{ borderColor: "#e8edf0" }}>
-              <span className="text-[10px] px-2 py-0.5 rounded-full flex-shrink-0 capitalize" style={{ background: "#FEF3C7", color: "#92611A" }}>{e.tipo}</span>
-              <Link href={encHref(e)} className="font-medium text-[13px] text-[#1e293b] hover:underline truncate">{e.nome}</Link>
-              {e.obs && <span className="text-xs text-[#64748b] truncate hidden sm:block">. {e.obs}</span>}
-              {e.byName && <span className="text-[11px] text-[#94a3b8] flex-shrink-0">por {e.byName}</span>}
-              <button onClick={() => concluirEnc(e)} className="ml-auto text-[11px] font-semibold text-[#0F6E56] hover:underline flex-shrink-0">Concluir</button>
-            </div>
-          ))}
-        </div>
-      )}
-      <div className="mt-6 text-xs text-[#94a3b8] text-center">
-        Métricas e relatórios ficam no <Link href="/dashboard" className="underline">Dashboard</Link>.
-        Conversas no <Link href="/dashboard/inbox" className="underline">Inbox</Link>.
+        ))}
       </div>
+    );
+  })() : null);
+
+  const PainelEncaminhados = () => (!loading && encMine.length > 0 ? (
+    <div className="bg-white border border-[#E8E2D6] rounded-[12px] overflow-hidden">
+      <div className="flex items-center gap-3.5 px-[18px] py-[13px] border-b" style={{ borderColor: "#E8E2D6" }}>
+        <div className="w-[38px] h-[38px] rounded-[10px] flex items-center justify-center flex-shrink-0" style={{ background: "#fef3c7", color: "#92611A" }}><LuShare2 size={19} /></div>
+        <div className="flex-1 min-w-0">
+          <div className="text-[13.5px] font-semibold text-[#014D5E]">📨 Encaminhados para mim</div>
+          <div className="text-xs text-[#8A989D]">Clientes, pets e leads que precisam do seu atendimento</div>
+        </div>
+        <span className="text-[13px] font-bold text-white min-w-[26px] h-6 rounded-xl flex items-center justify-center px-2 flex-shrink-0" style={{ background: "linear-gradient(90deg,#D97706,#92611A)" }}>{encMine.length}</span>
+      </div>
+      {encMine.map((e) => (
+        <div key={e.entryId} className="flex items-center gap-3 px-[18px] py-2.5 border-b hover:bg-[#fef9ec]" style={{ borderColor: "#E8E2D6" }}>
+          <span className="text-[10px] px-2 py-0.5 rounded-full flex-shrink-0 capitalize" style={{ background: "#FEF3C7", color: "#92611A" }}>{e.tipo}</span>
+          <Link href={encHref(e)} className="font-medium text-[13px] text-[#1F2A2E] hover:underline truncate">{e.nome}</Link>
+          {e.obs && <span className="text-xs text-[#8A989D] truncate hidden sm:block">. {e.obs}</span>}
+          {e.byName && <span className="text-[11px] text-[#8A989D] flex-shrink-0">por {e.byName}</span>}
+          <button onClick={() => concluirEnc(e)} className="ml-auto text-[11px] font-semibold text-[#0F6E56] hover:underline flex-shrink-0">Concluir</button>
+        </div>
+      ))}
+    </div>
+  ) : null);
+
+  return (
+    <div className="p-6 min-h-screen bg-[#F6F2EA]">
+      {loading ? (
+        <div className="py-16 text-center text-sm text-[#8A989D]">Carregando seu dia...</div>
+      ) : (
+        <>
+          {/* ===================== ADMIN ===================== */}
+          {isAdmin && (
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                <Kpi emoji="📋" label="Atendimentos hoje" value={0} soon sub="chega com a Fase 2" />
+                <Kpi emoji="🎯" label="Novos leads" value={novosLeads} sub="dado real" />
+                <div className="bg-white rounded-[12px] p-3 border border-[#009AAC]">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[11px] text-[#8A989D]">💰 Caixa do dia</span>
+                    <button onClick={() => setCaixaVisivel(v => !v)} className="text-[13px] leading-none" title="Mostrar/ocultar">👁️</button>
+                  </div>
+                  <div className="text-[22px] font-medium text-[#014D5E] leading-tight">{caixaVisivel ? "R$ 0" : "R$ ••••"}</div>
+                  <div className="text-[9.5px] text-[#8A989D]">só admin · em breve</div>
+                </div>
+                <Kpi emoji="💵" label="Faturamento do mês" value="—" soon sub="chega com a Fase 2" />
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                <Painel titulo="📅 Próximos atendimentos" soon>
+                  <SoonPlaceholder texto="A agenda de atendimentos aparece aqui na Fase 2." />
+                </Painel>
+
+                <Painel titulo="⚠️ Precisa de atenção">
+                  <div className="divide-y divide-[#F1ECE0]">
+                    <LinhaAtencao emoji="💉" cor="#FFE2D2" titulo={`${dosesView.length} vacinas vencendo`} sub="doses a aplicar" />
+                    <LinhaAtencao emoji="📞" cor="#E0F4F6" titulo={`${fuDue.length} follow-ups`} sub="tutores para tocar" />
+                    <LinhaAtencao emoji="📄" cor="#E1F5EE" titulo={`${orcamentos} orçamentos`} sub="aguardando resposta" />
+                  </div>
+                </Painel>
+
+                <Painel titulo="🏆 Metas da clínica" soon>
+                  <BarraProgresso label="Atendimentos" pct={0} valor="0%" />
+                  <BarraProgresso label="Novos leads" pct={0} valor="0%" />
+                  <BarraProgresso label="Faturamento" pct={0} valor="0%" />
+                </Painel>
+
+                <PainelEntradas />
+                <PainelEncaminhados />
+              </div>
+            </>
+          )}
+
+          {/* ===================== VETERINARIAN ===================== */}
+          {isVet && (
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                <Kpi emoji="📋" label="Meus atendimentos hoje" value={0} soon sub="chega com a Fase 2" />
+                <Kpi emoji="🎯" label="Minha meta do mês" value="0%" soon sub="chega com a Fase 2" />
+                <Kpi emoji="💉" label="Doses a aplicar" value={dosesView.length} sub="dado real" />
+                <Kpi emoji="🔬" label="Exames a entregar" value={examesPend.length} sub="dado real" />
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                <Painel titulo="📅 Minha agenda de hoje" soon>
+                  <SoonPlaceholder texto="Sua agenda de atendimentos aparece aqui na Fase 2." />
+                </Painel>
+
+                <Painel titulo="🔁 Retornos a dar">
+                  <div className="divide-y divide-[#F1ECE0]">
+                    <LinhaAtencao emoji="🩺" cor="#E0F4F6" titulo="Consultas de retorno" sub="em breve" />
+                    <LinhaAtencao emoji="💉" cor="#FFE2D2" titulo={`${dosesView.length} vacinas`} sub="doses a aplicar" />
+                    <LinhaAtencao emoji="🔬" cor="#E1F5EE" titulo={`${examesPend.length} exames`} sub="resultados a entregar" />
+                  </div>
+                </Painel>
+
+                <Painel titulo="🎖️ Conquistas" soon>
+                  <div className="flex flex-wrap gap-2">
+                    <span className="text-[11px] px-2.5 py-1 rounded-full" style={{ background: "#FFE2D2", color: "#993C1D" }}>🔥 7 dias seguidos</span>
+                    <span className="text-[11px] px-2.5 py-1 rounded-full" style={{ background: "#E1F5EE", color: "#0F6E56" }}>🏅 Meta do mês</span>
+                    <span className="text-[11px] px-2.5 py-1 rounded-full opacity-60" style={{ background: "#F0EBE0", color: "#9a948a" }}>🔒 100 atend.</span>
+                  </div>
+                </Painel>
+
+                <PainelEncaminhados />
+              </div>
+            </>
+          )}
+
+          {/* ===================== RECEPTIONIST ===================== */}
+          {isRecep && (
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                <Kpi emoji="🎯" label="Novos leads" value={novosLeads} sub="dado real" />
+                <Kpi emoji="📞" label="Follow-ups hoje" value={fuDue.length} sub="dado real" />
+                <Kpi emoji="📅" label="Agendamentos do dia" value={0} soon sub="chega com a Fase 2" />
+                <Kpi emoji="🎂" label="Aniversariantes" value={aniv.length} sub="dado real" />
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                <Painel titulo="⚠️ Precisa de atenção">
+                  <div className="divide-y divide-[#F1ECE0]">
+                    <LinhaAtencao emoji="📞" cor="#E0F4F6" titulo={`${fuDue.length} follow-ups`} sub="tutores para tocar" />
+                    <LinhaAtencao emoji="📄" cor="#E1F5EE" titulo={`${orcamentos} orçamentos`} sub="aguardando resposta" />
+                    <LinhaAtencao emoji="🎂" cor="#FFE2D2" titulo={`${aniv.length} aniversariantes`} sub="parabenizar hoje" />
+                  </div>
+                </Painel>
+
+                <Painel titulo="🎯 Conversão de leads" soon>
+                  <BarraProgresso label="Conversão do mês" pct={0} valor="0%" />
+                  <div className="mt-2">
+                    <span className="text-[11px] px-2.5 py-1 rounded-full" style={{ background: "#FFE2D2", color: "#993C1D" }}>🔥 follow-ups em dia</span>
+                  </div>
+                </Painel>
+
+                <PainelEncaminhados />
+              </div>
+            </>
+          )}
+
+          {/* Fallback: perfil sem layout dedicado (mostra encaminhados) */}
+          {!isAdmin && !isVet && !isRecep && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+              <PainelEncaminhados />
+            </div>
+          )}
+
+          <div className="mt-6 text-xs text-[#8A989D] text-center">
+            Métricas e relatórios ficam no <Link href="/dashboard" className="underline">Dashboard</Link>.
+            Conversas no <Link href="/dashboard/inbox" className="underline">Inbox</Link>.
+          </div>
+        </>
+      )}
     </div>
   );
 }
