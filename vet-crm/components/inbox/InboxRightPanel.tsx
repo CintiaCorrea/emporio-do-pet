@@ -695,12 +695,13 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
     setHistorico(hist);
   }
 
-  async function selectLead(l: Lead, phoneHint?: string) {
+  async function selectLead(l: Lead, phoneHint?: string, createIfMissing?: { name?: string; phone?: string }) {
     setResults({ tutors: [], leads: [] });
     setSearch(l.name || l.phone || "");
     setActiveTab("contexto"); // ABRE aba contexto
 
     const phone = l.phone || phoneHint || (l as any).contactPhone || "";
+    let achouLead = false;
     if (phone) {
       const tail = last9(phone);
       const resT = await fetch(`/api/tutors?search=${encodeURIComponent(tail)}&limit=3`);
@@ -712,14 +713,35 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
       }
       // Resolve o Lead REAL do CRM pelo telefone. Conversas do Meta (WhatsApp oficial) carregam
       // o id da CONVERSA, nao de um Lead — entao os botoes (pipeline/converter) bateriam em 404.
-      // Buscando pelo telefone, garantimos que `l` seja o Lead de verdade (id correto).
       try {
         const resL = await fetch(`/api/leads?search=${encodeURIComponent(tail)}&limit=5`);
         const dL = await safeJson<any>(resL, {});
         const arrL = Array.isArray(dL) ? dL : (dL.leads || dL.data || []);
-        const real = arrL.find((x: any) => x.id === l.id) || arrL.find((x: any) => last9(x.phone || "") === tail) || arrL[0];
-        if (real) l = real;
+        const real = arrL.find((x: any) => x.id === l.id) || arrL.find((x: any) => last9(x.phone || "") === tail);
+        if (real) { l = real; achouLead = true; }
       } catch { /* mantem o lead recebido */ }
+    }
+    // Conversa do Meta sem cliente/lead -> cria o Lead automaticamente (escolha da Cintia),
+    // para que os botoes (pipeline/converter/registrar) tenham um Lead real para agir.
+    if (!achouLead && createIfMissing) {
+      const cleanPhone = normalizePhone(createIfMissing.phone || phone) || (createIfMissing.phone || phone) || "";
+      const emailFallback = cleanPhone ? `contato+${cleanPhone}@emporiodopet.crm` : undefined;
+      try {
+        const res = await fetch("/api/leads", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
+          name: createIfMissing.name || l.name || "Sem nome",
+          phone: cleanPhone || undefined,
+          email: emailFallback,
+          source: "WHATSAPP",
+          customFields: { canal: "Meta" },
+        }) });
+        if (res.ok) { l = await res.json(); achouLead = true; toast.success("Lead criado a partir da conversa"); }
+        else if (res.status === 409 && cleanPhone) {
+          const r = await fetch(`/api/inbox/context/lookup?phone=${encodeURIComponent(cleanPhone)}`);
+          const d = await safeJson<any>(r, {});
+          if (d?.unified?.tutor) { await selectTutor(d.unified.tutor); return; }
+          if (d?.unified?.lead) { l = d.unified.lead; achouLead = true; }
+        }
+      } catch { /* segue com o que tem */ }
     }
     setLead(l);
     setTutor(null);
@@ -736,7 +758,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
 
   async function selectFromIncoming(item: IncomingItem) {
     if (item.kind === "LEAD") {
-      await selectLead(item.raw as Lead, item.phone);
+      await selectLead(item.raw as Lead, item.phone, item.canal === "Meta" ? { name: item.name, phone: item.phone } : undefined);
     } else {
       await selectTutor(item.raw as Tutor);
     }
