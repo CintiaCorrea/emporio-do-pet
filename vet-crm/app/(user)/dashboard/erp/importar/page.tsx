@@ -120,11 +120,11 @@ export default function ImportarPage() {
     if (!all.length) return;
     if (!dryRun && !window.confirm(`Importar de verdade ${all.length} clientes e seus pets para a produção?\n\nIsso vai limpar os códigos provisórios e gravar os dados reais do SimplesVet (sem duplicar os que já existem).`)) return;
     setRunning(true); setReport(null); setProgress(0); setErro(null);
-    const TAM = 50;
+    const TAM = 25;
     const acc: any = { clientesNovos: 0, clientesAtualizados: 0, petsNovos: 0, petsAtualizados: 0, contatosCriados: 0, avisos: [] };
     for (let i = 0; i < all.length; i += TAM) {
       const lote = all.slice(i, i + TAM);
-      const body = { dryRun, limparCodigos: !dryRun && i === 0, clientes: lote };
+      const body = { dryRun, limparCodigos: false, clientes: lote };
       try {
         const r = await fetch("/api/crm/importar-simplesvet", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
         if (!r.ok) throw new Error("HTTP " + r.status);
@@ -137,7 +137,7 @@ export default function ImportarPage() {
       }
       setProgress(Math.round(Math.min(100, ((i + TAM) / all.length) * 100)));
       setReport({ ...acc, dryRun });
-      await new Promise((r) => setTimeout(r, 250));
+      await new Promise((r) => setTimeout(r, 2000));
     }
     setProgress(100); setRunning(false);
   }
