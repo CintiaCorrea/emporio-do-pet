@@ -367,7 +367,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
   const pets = tutor.pets || [];
 
   return (
-    <div className="p-4 max-w-7xl mx-auto">
+    <div className="p-4 min-h-screen bg-[#F6F2EA]">
       <Toaster position="top-right" />
 
       {/* Breadcrumb */}
@@ -497,8 +497,8 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
               </div>
             )}
             <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
-              {phone && <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">📞 Telefone</div><div className="text-[13px] text-[#009AAC]">{phone}</div></div>}
-              {tutor.email && <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">✉️ Email</div><div className="text-[13px] text-[#009AAC]">{tutor.email}</div></div>}
+              {phone && <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">📞 Telefone</div><div className="text-[13px] text-[#1F2A2E]">{phone}</div></div>}
+              {tutor.email && <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">✉️ Email</div><div className="text-[13px] text-[#1F2A2E] break-all">{tutor.email}</div></div>}
               {tutor.cpf && <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">🪪 CPF</div><div className="text-[13px] text-[#1F2A2E]">{tutor.cpf}</div></div>}
               <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">📅 Primeira visita</div><div className="text-[13px] text-[#1F2A2E]">{new Date(tutor.createdAt).toLocaleDateString("pt-BR")}</div></div>
               <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Tipo</div>
