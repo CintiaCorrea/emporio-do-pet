@@ -640,9 +640,9 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
       return (
         <div key={h.id} className="rounded-lg p-2 border" style={{ background: "#f6fdfd", borderColor: "#E8DFC8" }}>
           <div className="text-[10px] font-semibold mb-1" style={{ color: "#014D5E" }}>{h.tipoLabel || h.title}</div>
-          <textarea autoFocus value={interacaoDraft} onChange={e => setInteracaoDraft(e.target.value)} rows={3} className="w-full px-2 py-1 text-[11px] border rounded" style={SECTION_STYLE} />
+          <textarea autoFocus value={interacaoDraft} onChange={e => setInteracaoDraft(e.target.value)} rows={3} className="w-full px-2 py-1 text-[11px] border rounded" style={BORDER_STYLE} />
           <div className="flex gap-1.5 mt-1.5">
-            <button onClick={() => setEditingInteracaoId(null)} className="flex-1 px-2 py-1 text-[10.5px] border rounded" style={SECTION_STYLE}>Cancelar</button>
+            <button onClick={() => setEditingInteracaoId(null)} className="flex-1 px-2 py-1 text-[10.5px] border rounded" style={BORDER_STYLE}>Cancelar</button>
             <button onClick={() => saveInteracaoEdit(h.id)} className="flex-1 px-2 py-1 text-[10.5px] text-white rounded font-semibold" style={{ background: "#009AAC" }}>Salvar</button>
           </div>
         </div>
@@ -1163,10 +1163,13 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
     return extrairServico(resumo, cf.servicoInteresse || cf.servico_interesse);
   }, [resumo, lead]);
 
-  const SECTION = "px-3 py-2.5 border-b";
-  const SECTION_STYLE: React.CSSProperties = { borderColor: "#E8DFC8" };
+  const SECTION = "rounded-xl border bg-white mb-2";
+  const SECTION_STYLE: React.CSSProperties = { borderColor: "#E8E2D6", padding: 11 };
+  // estilo só de borda (usado em inputs, busca, dropdowns) — NÃO leva padding de card
+  const BORDER_STYLE: React.CSSProperties = { borderColor: "#E8DFC8" };
   const NUM = "inline-flex items-center justify-center w-4 h-4 rounded-full bg-amber-100 text-amber-800 text-[9px] font-bold mr-1.5";
-  const LBL = "text-[10px] font-bold tracking-wide text-gray-500 uppercase mb-1.5 flex items-center justify-between";
+  const LBL = "text-[10px] font-bold tracking-wide uppercase mb-1.5 flex items-center justify-between";
+  const LBL_STYLE: React.CSSProperties = { color: "#8A989D" };
   const LINK = "text-[10.5px] font-semibold normal-case cursor-pointer";
 
   return (
@@ -1203,13 +1206,13 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
       </div>
 
       {/* ========== Busca + ações (mesma linha) ========== */}
-      <div className="px-3 py-2 border-b flex-shrink-0 flex items-center gap-1.5" style={SECTION_STYLE}>
+      <div className="px-3 py-2 border-b flex-shrink-0 flex items-center gap-1.5" style={BORDER_STYLE}>
         {/* BUSCA */}
         <div className="relative flex-1 min-w-0">
           <LuSearch size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input value={search} onChange={e => { setSearch(e.target.value); if (!e.target.value && !tutor && !lead) { /* mantém aba */ } }} placeholder="Telefone, nome ou email..." className="w-full pl-8 pr-3 py-1.5 border rounded-lg text-sm bg-white" style={SECTION_STYLE} />
+          <input value={search} onChange={e => { setSearch(e.target.value); if (!e.target.value && !tutor && !lead) { /* mantém aba */ } }} placeholder="Telefone, nome ou email..." className="w-full pl-8 pr-3 py-1.5 border rounded-lg text-sm bg-white" style={BORDER_STYLE} />
           {(results.tutors.length > 0 || results.leads.length > 0) && (
-            <div className="absolute left-0 right-0 top-full mt-1 bg-white border rounded-lg shadow-lg z-30 max-h-72 overflow-y-auto" style={SECTION_STYLE}>
+            <div className="absolute left-0 right-0 top-full mt-1 bg-white border rounded-lg shadow-lg z-30 max-h-72 overflow-y-auto" style={BORDER_STYLE}>
               {results.tutors.map(t => {
                 const phone = t.contacts?.find(c => c.isPrimary)?.number || t.contacts?.[0]?.number || "";
                 return (
@@ -1332,7 +1335,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                   );
                 })}
                 {incoming.length >= incomingLimit && (
-                  <button onClick={() => setIncomingLimit(l => l + 20)} className="w-full py-2 text-[10.5px] font-semibold border rounded text-[#014D5E]" style={SECTION_STYLE}>
+                  <button onClick={() => setIncomingLimit(l => l + 20)} className="w-full py-2 text-[10.5px] font-semibold border rounded text-[#014D5E]" style={BORDER_STYLE}>
                     ver mais ({incoming.length - incomingLimit}+)
                   </button>
                 )}
@@ -1343,8 +1346,8 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
 
         {/* Aba CONTEXTO */}
         {activeTab === "contexto" && (
-          <>
-            <button onClick={reset} className="w-full flex items-center gap-1.5 mb-2 px-2.5 py-2 text-[11.5px] font-semibold rounded-lg border" style={{ borderColor: "#bfe3e8", color: "#00798A", background: "#f0fdfa" }}>
+          <div className="p-2.5" style={{ background: "#F6F2EA", minHeight: "100%" }}>
+            <button onClick={reset} className="w-full flex items-center gap-1.5 mb-2 px-2.5 py-2 text-[11.5px] font-semibold rounded-lg border" style={{ borderColor: "#bfe3e8", color: "#00798A", background: "#E0F4F6" }}>
               <LuArrowLeft size={14} /> Voltar para a Caixa de entrada
             </button>
             {/* Cadastro inline */}
@@ -1359,16 +1362,16 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                   <button onClick={() => setCadastroAs("CLIENTE")} className={`flex-1 px-2 py-1 text-[11px] rounded ${cadastroAs === "CLIENTE" ? "text-white" : "border text-gray-600"}`} style={cadastroAs === "CLIENTE" ? { background: "#009AAC" } : { borderColor: "#E8DFC8" }}>Cliente</button>
                 </div>
                 <div className="space-y-1.5">
-                  <input value={cadForm.nome} onChange={e => setCadForm({ ...cadForm, nome: e.target.value })} placeholder="Nome *" className="w-full px-2 py-1 text-xs border rounded" style={SECTION_STYLE} />
-                  <input value={cadForm.telefone} onChange={e => setCadForm({ ...cadForm, telefone: e.target.value })} placeholder="Telefone *" className="w-full px-2 py-1 text-xs border rounded" style={SECTION_STYLE} />
-                  <input value={cadForm.email} onChange={e => setCadForm({ ...cadForm, email: e.target.value })} placeholder="Email (opcional)" className="w-full px-2 py-1 text-xs border rounded" style={SECTION_STYLE} />
-                  <select value={cadForm.origem} onChange={e => setCadForm({ ...cadForm, origem: e.target.value })} className="w-full px-2 py-1 text-xs border rounded" style={SECTION_STYLE}>
+                  <input value={cadForm.nome} onChange={e => setCadForm({ ...cadForm, nome: e.target.value })} placeholder="Nome *" className="w-full px-2 py-1 text-xs border rounded" style={BORDER_STYLE} />
+                  <input value={cadForm.telefone} onChange={e => setCadForm({ ...cadForm, telefone: e.target.value })} placeholder="Telefone *" className="w-full px-2 py-1 text-xs border rounded" style={BORDER_STYLE} />
+                  <input value={cadForm.email} onChange={e => setCadForm({ ...cadForm, email: e.target.value })} placeholder="Email (opcional)" className="w-full px-2 py-1 text-xs border rounded" style={BORDER_STYLE} />
+                  <select value={cadForm.origem} onChange={e => setCadForm({ ...cadForm, origem: e.target.value })} className="w-full px-2 py-1 text-xs border rounded" style={BORDER_STYLE}>
                     {Object.keys(sourceMap).map(o => <option key={o} value={o}>{o}</option>)}
                   </select>
                   {cadastroAs === "CLIENTE" && (
                     <>
-                      <input value={cadForm.petNome} onChange={e => setCadForm({ ...cadForm, petNome: e.target.value })} placeholder="Pet (opcional)" className="w-full px-2 py-1 text-xs border rounded" style={SECTION_STYLE} />
-                      <select value={cadForm.petEspecie} onChange={e => setCadForm({ ...cadForm, petEspecie: e.target.value })} className="w-full px-2 py-1 text-xs border rounded" style={SECTION_STYLE}>
+                      <input value={cadForm.petNome} onChange={e => setCadForm({ ...cadForm, petNome: e.target.value })} placeholder="Pet (opcional)" className="w-full px-2 py-1 text-xs border rounded" style={BORDER_STYLE} />
+                      <select value={cadForm.petEspecie} onChange={e => setCadForm({ ...cadForm, petEspecie: e.target.value })} className="w-full px-2 py-1 text-xs border rounded" style={BORDER_STYLE}>
                         <option>Cão</option><option>Gato</option><option>Outro</option>
                       </select>
                     </>
@@ -1388,7 +1391,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
             {/* BLOCO 2: CLIENTE com toggle Lead↔Cliente */}
             {tutor && (
               <section className={SECTION} style={SECTION_STYLE}>
-                <div className="flex items-center gap-1.5 mb-2.5" style={{ color: "#0E5560" }}><LuStore size={14} /><span className="text-[11px] font-medium">Empório do Pet</span></div>
+                <div className="flex items-center gap-1.5 mb-2.5" style={{ color: "#8A989D" }}><span className="text-[13px] leading-none" aria-hidden>🏪</span><span className="text-[11px] font-medium">Empório do Pet</span></div>
                 <div className={LBL}>
                   <div className="relative inline-flex ml-1" style={{ verticalAlign: "middle" }}>
                     <button type="button" onClick={() => setClassifOpen((o) => !o)} className="inline-flex items-center gap-1 text-[10px] font-bold uppercase rounded-full px-2 py-0.5" style={{ background: "#FAFAF7", border: "1px solid #E8DFC8", color: classifColor(tutor.classificacao || "Cliente") }}>
@@ -1418,7 +1421,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                   <Link href={`/dashboard/erp/tutores/${tutor.id}`} className={LINK} style={{ color: "#009AAC" }}>Ficha <LuExternalLink size={9} className="inline -mt-0.5" /></Link>
                 </div>
                 <div className="flex items-start gap-2">
-                  <div className="w-11 h-11 rounded-full flex items-center justify-center text-white text-[13px] font-semibold flex-shrink-0" style={{ background: "linear-gradient(135deg,#009AAC,#014D5E)" }}>{initials(tutor.name)}</div>
+                  <div className="w-11 h-11 rounded-full flex items-center justify-center text-[13px] font-semibold flex-shrink-0" style={{ background: "#E0F4F6", color: "#014D5E" }}>{initials(tutor.name)}</div>
                   <div className="min-w-0 flex-1">
                     {editingName ? (
                       <div className="flex gap-1 mb-1">
@@ -1477,6 +1480,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
           {/* BLOCO 2: LEAD com toggle Lead↔Cliente + PET DE INTERESSE */}
             {!tutor && lead && (
               <section className={SECTION} style={{ ...SECTION_STYLE, background: "#FFFBEB" }}>
+                <div className="flex items-center gap-1.5 mb-2.5" style={{ color: "#8A989D" }}><span className="text-[13px] leading-none" aria-hidden>🎯</span><span className="text-[11px] font-medium">Lead</span></div>
                 <div className={LBL}>
                   <div className="relative inline-flex" style={{ verticalAlign: "middle" }}>
                     <button type="button" onClick={() => setClassifOpen((o) => !o)} className="inline-flex items-center gap-1 text-[10px] font-bold uppercase rounded-full px-2 py-0.5" style={{ background: "#FFFBEB", border: "1px solid #FDE68A", color: "#D97706" }}>
@@ -1564,13 +1568,25 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                     <text x="32" y="38" textAnchor="middle" fontSize="18" fontWeight="600" fill="#0E2244">{tutorScore.total}</text>
                   </svg>
                   <div className="flex-1 min-w-0">
-                    <div className="text-[12px] font-medium" style={{ color: "#0E5560" }}>🏅 Cliente {(tutorScore.label || "").toLowerCase()} <span className="text-[10px] text-gray-400 font-normal">· {tutorScore.total}/100</span></div>
-                    <div className="flex flex-nowrap gap-x-2 mt-1.5">
-                      <span className="inline-flex items-center gap-1 text-[10.5px] text-gray-600">{scorePie(tutorScore.dimensions?.visitas?.score ?? 0, 30, "#009AAC")} Visitas <b style={{ color: "#0E2244" }}>{tutorScore.dimensions?.visitas?.score ?? 0}</b></span>
-                      <span className="inline-flex items-center gap-1 text-[10.5px] text-gray-600">{scorePie(tutorScore.dimensions?.ltv?.score ?? 0, 30, "#B8860B")} LTV <b style={{ color: "#0E2244" }}>{tutorScore.dimensions?.ltv?.score ?? 0}</b></span>
-                      <span className="inline-flex items-center gap-1 text-[10.5px] text-gray-600">{scorePie(tutorScore.dimensions?.recencia?.score ?? 0, 25, "#2f80c4")} Recência <b style={{ color: "#0E2244" }}>{tutorScore.dimensions?.recencia?.score ?? 0}</b></span>
-                      <span className="inline-flex items-center gap-1 text-[10.5px] text-gray-600">{scorePie(tutorScore.dimensions?.nps?.score ?? 0, 15, "#D85A30")} NPS <b style={{ color: "#0E2244" }}>{tutorScore.dimensions?.nps?.score ?? 0}</b></span>
-                    </div>
+                    <div className="text-[12px] font-medium" style={{ color: "#014D5E" }}>📊 Cliente {(tutorScore.label || "").toLowerCase()} <span className="text-[10px] text-gray-400 font-normal">· score {tutorScore.total}/100</span></div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-4 gap-1.5 mt-2.5">
+                  <div className="rounded-lg text-center px-1 py-1.5" style={{ background: "#FBF9F4", border: "1px solid #F0EBE0" }}>
+                    <div className="text-[15px] font-bold leading-none" style={{ color: "#014D5E" }}>{tutorScore.dimensions?.visitas?.score ?? 0}</div>
+                    <div className="text-[8.5px] mt-1" style={{ color: "#8A989D" }}>Visitas</div>
+                  </div>
+                  <div className="rounded-lg text-center px-1 py-1.5" style={{ background: "#FBF9F4", border: "1px solid #F0EBE0" }}>
+                    <div className="text-[15px] font-bold leading-none" style={{ color: "#014D5E" }}>{tutorScore.dimensions?.ltv?.score ?? 0}</div>
+                    <div className="text-[8.5px] mt-1" style={{ color: "#8A989D" }}>LTV</div>
+                  </div>
+                  <div className="rounded-lg text-center px-1 py-1.5" style={{ background: "#FBF9F4", border: "1px solid #F0EBE0" }}>
+                    <div className="text-[15px] font-bold leading-none" style={{ color: "#014D5E" }}>{tutorScore.dimensions?.recencia?.score ?? 0}</div>
+                    <div className="text-[8.5px] mt-1" style={{ color: "#8A989D" }}>Recência</div>
+                  </div>
+                  <div className="rounded-lg text-center px-1 py-1.5" style={{ background: "#FBF9F4", border: "1px solid #F0EBE0" }}>
+                    <div className="text-[15px] font-bold leading-none" style={{ color: "#014D5E" }}>{tutorScore.dimensions?.nps?.score ?? 0}</div>
+                    <div className="text-[8.5px] mt-1" style={{ color: "#8A989D" }}>NPS</div>
                   </div>
                 </div>
               </section>
@@ -1628,7 +1644,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
           {/* BLOCO 2.6: SEQUENCIAS (S3) */}
             {tutor && inscricoes.length > 0 && (
               <section className={SECTION} style={SECTION_STYLE}>
-                <div className={LBL}><span>Sequencias em andamento</span></div>
+                <div className={LBL} style={LBL_STYLE}><span>🔁 Sequencias em andamento</span></div>
                 <div className="space-y-1.5">
                   {inscricoes.map(i => {
                     const pausada = i.status === "PAUSADA";
@@ -1651,8 +1667,8 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
             {/* BLOCO 3: PETS */}
             {tutor && (
               <section className={SECTION} style={SECTION_STYLE}>
-                <div className={LBL}>
-                  <span>Pets {pets.length > 0 && `(${pets.length})`}{pets.length > 1 ? " · clique pra expandir" : ""}</span>
+                <div className={LBL} style={LBL_STYLE}>
+                  <span>🐾 Pets {pets.length > 0 && `(${pets.length})`}{pets.length > 1 ? " · clique pra expandir" : ""}</span>
                   <button onClick={() => criarPetEAbrir(tutor.id, true)} className={LINK} style={{ color: "#009AAC" }} type="button"><LuPlus size={10} className="inline" /> cadastrar</button>
                 </div>
                 {pets.length > 0 ? (
@@ -1787,9 +1803,9 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
           {/* BLOCO 3.4: VACINAS A RESOLVER (F3) */}
             {tutor && selectedPet && (
               <section className={SECTION} style={SECTION_STYLE}>
-                <div className={LBL}><span>Vacinas a resolver</span></div>
+                <div className={LBL} style={LBL_STYLE}><span>💉 Vacinas a resolver</span></div>
                 {vacPend.length === 0 ? (
-                  <div className="flex items-center gap-2 text-[11px]" style={{ color: "#0E5560" }}><span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: "#22c55e" }} /> Vacinas em dia.</div>
+                  <div className="flex items-center gap-2 text-[11px]" style={{ color: "#1c7a47" }}><span aria-hidden>✅</span> Vacinas em dia.</div>
                 ) : (
                   <div className="space-y-1.5">
                     {vacPend.map(v => (
@@ -1810,7 +1826,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
             {/* BLOCO 3.45: PACOTES DE FISIOTERAPIA (F4 - patinhas) */}
             {tutor && selectedPet && pacotesInbox.length > 0 && (
               <section className={SECTION} style={SECTION_STYLE}>
-                <div className={LBL}><span>Pacotes de fisioterapia</span></div>
+                <div className={LBL} style={LBL_STYLE}><span>🏥 Pacotes de fisioterapia</span></div>
                 <div className="space-y-2">
                   {pacotesInbox.map(pk => {
                     const used = pk.data.used || 0; const total = pk.data.total || 0; const done = total > 0 && used >= total;
@@ -1835,7 +1851,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
             {/* BLOCO 3.46: PROXIMAS CONSULTAS DO PET */}
             {tutor && selectedPet && (
               <section className={SECTION} style={SECTION_STYLE}>
-                <div className={LBL}><span>📅 Próximo agendamento · {selectedPet.name}</span></div>
+                <div className={LBL} style={LBL_STYLE}><span>📅 Próximo agendamento · {selectedPet.name}</span></div>
                 {proximasConsultas.length === 0 ? (
                   <div className="text-[11px] text-gray-400 py-1">Nenhuma consulta agendada.</div>
                 ) : (
@@ -1857,7 +1873,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
             {/* BLOCO 3.5: ACOES DO PET (F1 - barra de icones) */}
             {tutor && selectedPet && (
               <section className={SECTION} style={SECTION_STYLE}>
-                <div className={LBL}><span>Ações · {selectedPet.name}</span></div>
+                <div className={LBL} style={LBL_STYLE}><span>⚡ Ações · {selectedPet.name}</span></div>
                 <button type="button" onClick={() => window.open(`/dashboard/erp/pets/${selectedPet.id}/atendimentos/novo`, "_self")} title="Iniciar atendimento" className="w-full flex items-center justify-center gap-2 rounded-lg py-2.5 mb-2 text-white font-semibold text-[12px]" style={{ background: "#0E5560" }}>
                   <LuStethoscope size={16} /> Atendimento
                 </button>
@@ -1890,8 +1906,8 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
             {/* BLOCO 1: RESUMO IA + SERVICO */}
             {(tutor || lead) && (
               <section className={SECTION} style={SECTION_STYLE}>
-                <div className={LBL}>
-                  <span><LuSparkles size={11} className="inline -mt-0.5 mr-1" />Resumo da conversa (IA){resumoWhen && <span className="font-normal text-gray-400 normal-case ml-1 text-[9.5px]">{fmtRelative(resumoWhen)}</span>}</span>
+                <div className={LBL} style={LBL_STYLE}>
+                  <span><span className="mr-1" aria-hidden>✨</span>Resumo da conversa (IA){resumoWhen && <span className="font-normal text-gray-400 normal-case ml-1 text-[9.5px]">{fmtRelative(resumoWhen)}</span>}</span>
                 </div>
                 {editingResumo ? (
                   <div className="rounded-lg p-2 border" style={{ background: "#f0fdfa", borderColor: "#99e9d8" }}>
@@ -1929,13 +1945,13 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
             {/* BLOCO 4: REGISTRAR INTERACAO */}
             {(tutor || lead) && (
               <section className={SECTION} style={SECTION_STYLE}>
-                <div className={LBL}>
-                  <span><LuMessageSquare size={11} className="inline -mt-0.5 mr-1" />Registrar interação</span>
+                <div className={LBL} style={LBL_STYLE}>
+                  <span><span className="mr-1" aria-hidden>📝</span>Registrar interação</span>
                   {!interacaoOpen && (<button onClick={() => setInteracaoOpen(true)} className={LINK} style={{ color: "#009AAC" }}><LuPlus size={10} className="inline" /> nova</button>)}
                 </div>
                 {interacaoOpen && (
                   <div className="space-y-2 rounded-lg p-2 border" style={{ background: "#f6fdfd", borderColor: "#E8DFC8" }}>
-                    <select value={interacaoForm.tipo} onChange={e => setInteracaoForm({ ...interacaoForm, tipo: e.target.value })} className="w-full px-2 py-1 text-xs border rounded" style={SECTION_STYLE}>
+                    <select value={interacaoForm.tipo} onChange={e => setInteracaoForm({ ...interacaoForm, tipo: e.target.value })} className="w-full px-2 py-1 text-xs border rounded" style={BORDER_STYLE}>
                       <option value="NOTA">Nota</option>
                       <option value="WHATSAPP_ENVIADO">WhatsApp enviado</option>
                       <option value="LIGACAO">Ligação</option>
@@ -1943,11 +1959,11 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                       <option value="PRESENCIAL">Presencial</option>
                       <option value="ENCAMINHAMENTO">Encaminhamento</option>
                     </select>
-                    <textarea value={interacaoForm.texto} onChange={e => setInteracaoForm({ ...interacaoForm, texto: e.target.value })} placeholder="Resumo da conversa..." rows={3} className="w-full px-2 py-1 text-xs border rounded" style={SECTION_STYLE} />
-                    <input value={interacaoForm.proximaAcao} onChange={e => setInteracaoForm({ ...interacaoForm, proximaAcao: e.target.value })} placeholder="Próxima ação (opcional)" className="w-full px-2 py-1 text-xs border rounded" style={SECTION_STYLE} />
-                    <input type="date" value={interacaoForm.proximoFollowupAt} onChange={e => setInteracaoForm({ ...interacaoForm, proximoFollowupAt: e.target.value })} className="w-full px-2 py-1 text-xs border rounded" style={SECTION_STYLE} />
+                    <textarea value={interacaoForm.texto} onChange={e => setInteracaoForm({ ...interacaoForm, texto: e.target.value })} placeholder="Resumo da conversa..." rows={3} className="w-full px-2 py-1 text-xs border rounded" style={BORDER_STYLE} />
+                    <input value={interacaoForm.proximaAcao} onChange={e => setInteracaoForm({ ...interacaoForm, proximaAcao: e.target.value })} placeholder="Próxima ação (opcional)" className="w-full px-2 py-1 text-xs border rounded" style={BORDER_STYLE} />
+                    <input type="date" value={interacaoForm.proximoFollowupAt} onChange={e => setInteracaoForm({ ...interacaoForm, proximoFollowupAt: e.target.value })} className="w-full px-2 py-1 text-xs border rounded" style={BORDER_STYLE} />
                     <div className="flex gap-2">
-                      <button onClick={() => setInteracaoOpen(false)} className="flex-1 px-2 py-1 text-xs border rounded" style={SECTION_STYLE}>Cancelar</button>
+                      <button onClick={() => setInteracaoOpen(false)} className="flex-1 px-2 py-1 text-xs border rounded" style={BORDER_STYLE}>Cancelar</button>
                       <button onClick={handleInteracao} className="flex-1 px-2 py-1 text-xs text-white rounded font-semibold" style={{ background: "#009AAC" }}>Salvar na ficha</button>
                     </div>
                   </div>
@@ -1957,9 +1973,9 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
 
             {/* BLOCO 5: ULTIMOS ATENDIMENTOS */}
             {(tutor || lead) && (
-              <section className="px-3 py-2.5">
-                <div className={LBL}>
-                  <span>Último atendimento{historico.length > 0 && ` (${historico.length})`}</span>
+              <section className={SECTION} style={SECTION_STYLE}>
+                <div className={LBL} style={LBL_STYLE}>
+                  <span>💬 Último atendimento{historico.length > 0 && ` (${historico.length})`}</span>
                   {tutor && selectedPet && (
                     <Link href={`/dashboard/erp/pets/${selectedPet.id}/atendimentos/novo`} className={LINK} style={{ color: "#009AAC" }}><LuPlus size={10} className="inline" /> novo</Link>
                   )}
@@ -2008,7 +2024,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
               </section>
             )}
 
-          </>
+          </div>
         )}
       </div>
     </div>
