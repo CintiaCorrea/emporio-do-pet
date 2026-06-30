@@ -69,6 +69,13 @@ export class CrmController {
     return this.crmService.backfillCodigos();
   }
 
+  @Post('importar-simplesvet')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Importa um lote de clientes/pets do SimplesVet (com dryRun)' })
+  async importarSimplesvet(@Body() body: { dryRun?: boolean; limparCodigos?: boolean; clientes: any[] }) {
+    return this.crmService.importarSimplesvet(body);
+  }
+
   @Post('leads/:id/convert')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Convert a lead to a client' })

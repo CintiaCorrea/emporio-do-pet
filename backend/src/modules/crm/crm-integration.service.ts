@@ -3,7 +3,7 @@ import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
 import { LeadStatus, LeadSource } from '@prisma/client';
 import { findExistingTutor } from '../../common/tutor-match';
-import { last8, onlyDigits } from '../../common/phone';
+import { last8, onlyDigits, normalizePhone } from '../../common/phone';
 import { proximoCodigo } from '../../common/codigo';
 
 export interface WhatsAppLeadData {
@@ -236,6 +236,98 @@ export class CrmIntegrationService {
       leadsDuplicados,
       clientesDuplicados,
     };
+  }
+
+  /**
+   * Importa um LOTE de clientes (com seus pets) vindos do SimplesVet.
+   * - dryRun: só conta, não grava.
+   * - limparCodigos: na 1a chamada real, zera os códigos provisórios (evita colisão de unique).
+   * - Anti-duplicado: casa por código -> telefone(8)/CPF (findExistingTutor). Casou = atualiza; senão = cria.
+   * - Preserva os códigos reais do SimplesVet (cliente e pet).
+   */
+  async importarSimplesvet(body: { dryRun?: boolean; limparCodigos?: boolean; clientes: any[] }) {
+    const dry = !!body.dryRun;
+    const res: any = { lote: (body.clientes || []).length, clientesNovos: 0, clientesAtualizados: 0, petsNovos: 0, petsAtualizados: 0, contatosCriados: 0, avisos: [] as string[] };
+
+    if (body.limparCodigos && !dry) {
+      await this.prisma.pet.updateMany({ data: { codigo: null } });
+      await this.prisma.tutor.updateMany({ data: { codigo: null } });
+    }
+
+    const G = (s: any) => (typeof s === 'string' && s.trim() !== '' ? s.trim() : undefined);
+    const D = (s: any) => { const v = G(s); if (!v) return undefined; const d = new Date(v); return isNaN(d.getTime()) ? undefined : d; };
+    const N = (s: any) => (s === null || s === undefined || s === '' ? undefined : Number(s));
+
+    for (const c of body.clientes || []) {
+      try {
+        let tutorId: string | null = null;
+        let achou = false;
+        if (c.codigo != null) {
+          const porCod = await this.prisma.tutor.findUnique({ where: { codigo: c.codigo }, select: { id: true } });
+          if (porCod) { tutorId = porCod.id; achou = true; }
+        }
+        if (!tutorId) {
+          const m = await findExistingTutor(this.prisma, { phone: c.telefones?.[0], cpf: c.cpf, email: c.email });
+          if (m) { tutorId = m.id; achou = true; }
+        }
+
+        const dataTutor: any = {
+          name: G(c.nome) || 'Cliente sem nome',
+          codigo: c.codigo ?? undefined,
+          cpf: G(c.cpf), rg: G(c.rg), gender: G(c.sexo), birthDate: D(c.nascimento), email: G(c.email),
+          howFoundUs: G(c.origem),
+          cep: G(c.cep), address: G(c.endereco), neighborhood: G(c.bairro), city: G(c.cidade), state: G(c.uf),
+          tags: Array.isArray(c.tags) && c.tags.length ? c.tags : undefined,
+          rankingAbc: G(c.rankingAbc), nps: N(c.nps), ticketMedio: N(c.ticketMedio),
+          primeiraCompraAt: D(c.primeiraCompra), ultimaVendaAt: D(c.ultimaVenda),
+          classificacao: 'Cliente', status: 'ACTIVE',
+        };
+
+        if (dry) {
+          achou ? res.clientesAtualizados++ : res.clientesNovos++;
+          for (const p of c.pets || []) {
+            const ex = p.codigo != null ? await this.prisma.pet.findUnique({ where: { codigo: p.codigo }, select: { id: true } }) : null;
+            ex ? res.petsAtualizados++ : res.petsNovos++;
+          }
+          continue;
+        }
+
+        if (tutorId) {
+          await this.prisma.tutor.update({ where: { id: tutorId }, data: dataTutor });
+          res.clientesAtualizados++;
+        } else {
+          const criado = await this.prisma.tutor.create({ data: dataTutor });
+          tutorId = criado.id;
+          res.clientesNovos++;
+        }
+
+        for (const tel of c.telefones || []) {
+          const num = normalizePhone(tel); const tail = last8(tel);
+          if (!num || tail.length < 8) continue;
+          const existe = await this.prisma.contact.findFirst({ where: { tutorId, number: { endsWith: tail } }, select: { id: true } });
+          if (!existe) {
+            const qtd = await this.prisma.contact.count({ where: { tutorId } });
+            await this.prisma.contact.create({ data: { tutorId, number: num, type: 'MOBILE', isWhatsApp: true, isPrimary: qtd === 0 } });
+            res.contatosCriados++;
+          }
+        }
+
+        for (const p of c.pets || []) {
+          const dataPet: any = {
+            name: G(p.nome) || 'Sem nome', codigo: p.codigo ?? undefined,
+            species: G(p.especie) || 'CANINE', breed: G(p.raca), coatColor: G(p.pelagem),
+            sterilization: G(p.esterilizacao), birthDate: D(p.nascimento), gender: G(p.sexo),
+            microchip: G(p.microchip), pedigree: G(p.pedigree), status: G(p.status) || 'ACTIVE', tutorId,
+          };
+          const ex = p.codigo != null ? await this.prisma.pet.findUnique({ where: { codigo: p.codigo }, select: { id: true } }) : null;
+          if (ex) { await this.prisma.pet.update({ where: { id: ex.id }, data: dataPet }); res.petsAtualizados++; }
+          else { await this.prisma.pet.create({ data: dataPet }); res.petsNovos++; }
+        }
+      } catch (e: any) {
+        res.avisos.push(`Cliente ${c.codigo || c.nome || '?'}: ${e?.message || 'erro'}`);
+      }
+    }
+    return res;
   }
 
   async convertLeadToTutor(data: LeadConversionData): Promise<string | null> {
