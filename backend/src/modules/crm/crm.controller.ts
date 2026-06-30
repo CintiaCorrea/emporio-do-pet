@@ -76,6 +76,13 @@ export class CrmController {
     return this.crmService.importarSimplesvet(body);
   }
 
+  @Post('limpar-pets-sem-codigo')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Apaga pets sem codigo (residuos da importacao); lote de 300, com dryRun' })
+  async limparPetsSemCodigo(@Body() body: { dryRun?: boolean }) {
+    return this.crmService.limparPetsSemCodigo(!!body?.dryRun);
+  }
+
   @Post('leads/:id/convert')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Convert a lead to a client' })

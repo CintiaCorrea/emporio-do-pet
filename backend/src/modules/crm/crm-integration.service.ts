@@ -356,6 +356,28 @@ export class CrmIntegrationService {
     return out;
   }
 
+  /**
+   * Limpeza: apaga pets SEM codigo (residuos da 1a tentativa de import que travou + pets de teste antigos).
+   * Todo pet real importado tem codigo. Em lotes de 300 por chamada; pets com vinculos (FK) sao contados em bloqueados.
+   */
+  async limparPetsSemCodigo(dryRun: boolean) {
+    const semCodigo = await this.comRetry(() => this.prisma.pet.count({ where: { codigo: null } }));
+    if (dryRun) return { dryRun: true, petsSemCodigo: semCodigo };
+    const lote = await this.comRetry(() => this.prisma.pet.findMany({ where: { codigo: null }, select: { id: true }, take: 300 }));
+    let apagados = 0;
+    let bloqueados = 0;
+    for (const p of lote) {
+      try {
+        await this.comRetry(() => this.prisma.pet.delete({ where: { id: p.id } }));
+        apagados++;
+      } catch {
+        bloqueados++;
+      }
+    }
+    const restantes = await this.comRetry(() => this.prisma.pet.count({ where: { codigo: null } }));
+    return { dryRun: false, apagados, bloqueados, restantes };
+  }
+
   async convertLeadToTutor(data: LeadConversionData): Promise<string | null> {
     try {
       const lead = await this.prisma.lead.findUnique({
