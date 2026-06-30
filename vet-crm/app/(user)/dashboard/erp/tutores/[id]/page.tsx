@@ -67,6 +67,7 @@ interface TutorDetail {
   proximoFollowupAt?: string | null;
   estadoRelacionamento?: string | null;
   createdAt: string;
+  primeiraCompraAt?: string | null;
   pets?: { id: string; name: string; species: string; breed?: string; birthDate?: string }[];
   contacts?: { id: string; number: string; type: string; isPrimary: boolean; isWhatsApp: boolean; observations?: string | null }[];
   score?: {
@@ -406,7 +407,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
               <span style={{ background: status.bg, color: status.color }} className="text-[11px] font-medium px-2 py-0.5 rounded-full">{status.label}</span>
             </div>
             <p className="text-[12.5px] text-[#5C6B70] mt-0.5">
-              Cliente desde {new Date(tutor.createdAt).toLocaleDateString("pt-BR", { month: "short", year: "numeric" })} · {pets.length} {pets.length === 1 ? "pet" : "pets"}
+              Cliente desde {new Date(tutor.primeiraCompraAt || tutor.createdAt).toLocaleDateString("pt-BR", { month: "short", year: "numeric" })} · {pets.length} {pets.length === 1 ? "pet" : "pets"}
             </p>
           </div>
         </div>
@@ -773,7 +774,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
                 </div>
                 <div className="bg-[#FBF9F4] border border-[#F0EBE0] rounded-[11px] px-2 py-2 text-center">
                   <div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Cliente desde</div>
-                  <div className="text-[13px] text-[#1F2A2E] font-medium mt-0.5">{tutor.createdAt ? new Date(tutor.createdAt).toLocaleDateString("pt-BR", { month: "short", year: "numeric" }) : "—"}</div>
+                  <div className="text-[13px] text-[#1F2A2E] font-medium mt-0.5">{(tutor.primeiraCompraAt || tutor.createdAt) ? new Date(tutor.primeiraCompraAt || tutor.createdAt).toLocaleDateString("pt-BR", { month: "short", year: "numeric" }) : "—"}</div>
                 </div>
               </div>
               <p className="text-[11px] text-[#8A989D] mt-2">Somado dos atendimentos dos pets · alimenta o relatório</p>
