@@ -703,7 +703,10 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
     const phone = l.phone || phoneHint || (l as any).contactPhone || "";
     let achouLead = false;
     if (phone) {
-      const tail = last9(phone);
+      // Normaliza ANTES de buscar: conversas do Meta trazem o telefone SEM o 9 do celular
+      // (ex.: 558586018111), entao o last9 do telefone cru nao bate com o cliente/lead (que tem o 9).
+      // normalizePhone adiciona o 9 -> a busca acha o registro existente (e evita criar duplicata/colisao).
+      const tail = last9(normalizePhone(phone) || phone);
       const resT = await fetch(`/api/tutors?search=${encodeURIComponent(tail)}&limit=3`);
       const dT = await safeJson<any>(resT, {});
       const arr = Array.isArray(dT) ? dT : (dT.tutors || dT.data || []);
