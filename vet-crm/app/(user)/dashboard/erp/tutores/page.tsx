@@ -128,6 +128,7 @@ export default function ClientesPage() {
   const [pets, setPets] = useState<PetSimples[] | null>(null);
   const [petsLoading, setPetsLoading] = useState(false);
   const [petSearch, setPetSearch] = useState("");
+  const [petOrdem, setPetOrdem] = useState<"AZ" | "ZA">("AZ");
   const [apptStats, setApptStats] = useState<Record<string, { last?: string; ltv: number }>>({});
   const [filter, setFilter] = useState<Filter>("Cliente");
   const [search, setSearch] = useState("");
@@ -267,15 +268,16 @@ export default function ClientesPage() {
   }, [aba, pets, petsLoading]);
 
   const petsFiltrados = useMemo(() => {
-    const list = pets || [];
+    let list = pets || [];
     const q = semAcento(petSearch.trim());
-    if (!q) return list;
-    return list.filter((p) =>
+    if (q) list = list.filter((p) =>
       semAcento(p.name || "").includes(q) ||
       semAcento(p.breed || "").includes(q) ||
       semAcento(p.tutor?.name || "").includes(q)
     );
-  }, [pets, petSearch]);
+    if (petOrdem === "ZA") list = [...list].reverse();
+    return list;
+  }, [pets, petSearch, petOrdem]);
 
   const statusPetPill = (status: string) => {
     const s = (status || "").toUpperCase();
@@ -290,7 +292,7 @@ export default function ClientesPage() {
     const linhas = petsFiltrados.map((p) => {
       const st = statusPetPill(p.status);
       return `<tr>
-        <td>${PET_EMOJI(p.species)} ${esc(p.name)}</td>
+        <td>${PET_EMOJI(p.species)} ${esc(p.name && p.name.replace(/[.\s]+/g, "") ? p.name : "Sem nome")}</td>
         <td>${esc(especieLabel(p.species))}${p.breed ? " · " + esc(p.breed) : ""}</td>
         <td>#${esc(p.codigo)}</td>
         <td>${esc(p.tutor?.name || "—")}</td>
@@ -333,7 +335,7 @@ export default function ClientesPage() {
     const rows = petsFiltrados.map((p) => {
       const st = statusPetPill(p.status);
       return [
-        sanitize(p.name),
+        sanitize(p.name && p.name.replace(/[.\s]+/g, "") ? p.name : "Sem nome"),
         sanitize(p.codigo),
         sanitize(especieLabel(p.species)),
         sanitize(p.breed || ""),
@@ -423,7 +425,7 @@ export default function ClientesPage() {
       {aba === "CLIENTES" && (<>
 
       <div className="flex gap-2 mb-3 flex-wrap">
-        {(["Cliente", "Fornecedor", "Parceiro", "Ex_cliente", "Todos"] as Filter[]).map((f) => (
+        {(["Cliente", "Fornecedor", "Parceiro", "Todos"] as Filter[]).map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
@@ -534,6 +536,13 @@ export default function ClientesPage() {
               />
             </div>
             <button
+              onClick={() => setPetOrdem((o) => (o === "AZ" ? "ZA" : "AZ"))}
+              className="bg-white border border-[#E8E2D6] px-3 py-2 rounded-lg text-xs text-[#014D5E] flex items-center gap-1.5 hover:bg-[#FBF9F4]"
+              title="Alternar ordem alfabética"
+            >
+              🔤 {petOrdem === "AZ" ? "A → Z" : "Z → A"}
+            </button>
+            <button
               onClick={handleImprimirPets}
               className="bg-white border border-[#E8E2D6] px-3 py-2 rounded-lg text-xs text-[#014D5E] flex items-center gap-1.5 hover:bg-[#FBF9F4]"
             >
@@ -575,7 +584,7 @@ export default function ClientesPage() {
                               {PET_EMOJI(p.species)}
                             </div>
                             <div className="min-w-0">
-                              <div className="text-[#014D5E] font-medium truncate">{p.name}</div>
+                              <div className="text-[#014D5E] font-medium truncate">{p.name && p.name.replace(/[.\s]+/g, "") ? p.name : "Sem nome"}</div>
                               <div className="text-[11px] text-[#9a948a] truncate">
                                 {especieLabel(p.species)}{p.breed ? ` · ${p.breed}` : ""}
                               </div>
