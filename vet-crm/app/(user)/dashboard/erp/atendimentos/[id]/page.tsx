@@ -115,7 +115,7 @@ export default function AtendimentoDetailPage() {
   const st = STATUS_LABEL[data.status] || { label: data.status, bg: "#eef2f4", color: "#64748b" };
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen" style={{ background: "#F6F2EA" }}>
       <div className="bg-white border-b" style={{ borderColor: "#E8DFC8" }}>
         <div className="max-w-5xl mx-auto px-6 py-3 flex items-center gap-3">
           <Link href={`/dashboard/erp/pets/${data.petId}`} className="p-2 rounded-lg hover:bg-gray-100"><LuArrowLeft size={18} /></Link>
@@ -143,11 +143,11 @@ export default function AtendimentoDetailPage() {
       <div className="max-w-5xl mx-auto px-6 py-5 space-y-4">
         {data.description && (
           <div className="rounded-xl border px-4 py-3 text-sm" style={{ background: "#f6fdfd", borderColor: "#bae6fd", color: "#0c4a6e" }}>
-            <span className="font-semibold">Resumo: </span>{data.description}
+            <span className="font-semibold">📝 Resumo: </span>{data.description}
           </div>
         )}
 
-        <Section title="Cabeçalho" Icon={LuClipboardList}>
+        <Section title="Cabeçalho" emoji="📋">
           <Grid cols={3}>
             <KV label="Tipo" value={TYPE_LABEL[data.type] || data.type} />
             <KV label="Veterinário" value={data.user?.name || "—"} />
@@ -158,7 +158,7 @@ export default function AtendimentoDetailPage() {
           </Grid>
         </Section>
 
-        <Section title="Anamnese & exame físico" Icon={LuStethoscope}>
+        <Section title="Anamnese & exame físico" emoji="🩺">
           <KV label="Queixa principal" value={data.chiefComplaint} block />
           <KV label="Anamnese" value={data.anamnesis} block />
           <KV label="Exame físico" value={data.physicalExam} block />
@@ -168,23 +168,23 @@ export default function AtendimentoDetailPage() {
           </Grid>
         </Section>
 
-        <Section title="Diagnóstico & conduta" Icon={LuActivity}>
+        <Section title="Diagnóstico & conduta" emoji="🔬">
           <KV label="Diagnóstico" value={data.diagnosis} block />
           <KV label="Conduta / tratamento" value={data.conduct} block />
         </Section>
 
-        <Section title="Prescrição & exames" Icon={LuPill}>
+        <Section title="Prescrição & exames" emoji="💊">
           <KV label="Prescrição" value={data.prescription} block />
           <KV label="Exames solicitados" value={data.examsRequested} block />
         </Section>
 
-        <Section title="Próximo passo" Icon={LuCalendar}>
+        <Section title="Próximo passo" emoji="📅">
           <KV label="Acompanhamento (recepção)" value={data.followUpNotes} block />
           <KV label="Próximo retorno sugerido" value={fmtDate(data.nextReturnDate)} />
         </Section>
 
-        {data.items && data.items.length > 0 && (
-          <Section title="Serviços e Valores" Icon={LuDollarSign}>
+        <Section title="Serviços e Valores" emoji="💰">
+          {data.items && data.items.length > 0 ? (
             <div className="border rounded-lg overflow-hidden" style={{ borderColor: "#E8DFC8" }}>
               <table className="w-full text-sm">
                 <thead className="border-b" style={{ background: "#FAFAFA", borderColor: "#E8DFC8" }}>
@@ -217,10 +217,12 @@ export default function AtendimentoDetailPage() {
                 </tfoot>
               </table>
             </div>
-          </Section>
-        )}
+          ) : (
+            <div className="text-sm" style={{ color: "#8A989D" }}>Sem serviços registrados.</div>
+          )}
+        </Section>
 
-        <Section title="Cobrança" Icon={LuDollarSign}>
+        <Section title="Cobrança" emoji="💰">
           <Grid cols={3}>
             <KV label="Valor total" value={data.value ? `R$ ${Number(data.value).toFixed(2)}` : "—"} />
             <KV label="Forma de pagamento" value={data.paymentMethod} />
@@ -228,21 +230,17 @@ export default function AtendimentoDetailPage() {
           {data.notes && <KV label="Observações administrativas" value={data.notes} block />}
         </Section>
 
-        <div className="flex items-center justify-end pb-8">
-          <Link href={`/dashboard/erp/atendimentos/${data.id}/editar`} className="px-4 py-2 rounded-lg text-sm border flex items-center gap-2" style={{ borderColor: "#E8DFC8", color: "#475569" }}>
-            <LuPencil size={14} /> Editar Atendimento
-          </Link>
-        </div>
+        <div className="pb-8" />
       </div>
     </div>
   );
 }
 
-function Section({ title, Icon, children }: { title: string; Icon?: any; children: React.ReactNode }) {
+function Section({ title, emoji, Icon, children }: { title: string; emoji?: string; Icon?: any; children: React.ReactNode }) {
   return (
     <section className="bg-white border rounded-2xl p-5 space-y-3" style={{ borderColor: "#E8DFC8" }}>
       <h3 className="text-sm font-semibold flex items-center gap-2" style={{ color: "#014D5E" }}>
-        {Icon && <Icon size={15} />} {title}
+        {emoji ? <span className="text-base leading-none">{emoji}</span> : (Icon && <Icon size={15} />)} {title}
       </h3>
       {children}
     </section>

@@ -695,13 +695,14 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
     setHistorico(hist);
   }
 
-  async function selectLead(l: Lead) {
+  async function selectLead(l: Lead, phoneHint?: string) {
     setResults({ tutors: [], leads: [] });
     setSearch(l.name || l.phone || "");
     setActiveTab("contexto"); // ABRE aba contexto
 
-    if (l.phone) {
-      const tail = last9(l.phone);
+    const phone = l.phone || phoneHint || (l as any).contactPhone || "";
+    if (phone) {
+      const tail = last9(phone);
       const resT = await fetch(`/api/tutors?search=${encodeURIComponent(tail)}&limit=3`);
       const dT = await safeJson<any>(resT, {});
       const arr = Array.isArray(dT) ? dT : (dT.tutors || dT.data || []);
@@ -709,6 +710,16 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
         await selectTutor(arr[0]);
         return;
       }
+      // Resolve o Lead REAL do CRM pelo telefone. Conversas do Meta (WhatsApp oficial) carregam
+      // o id da CONVERSA, nao de um Lead — entao os botoes (pipeline/converter) bateriam em 404.
+      // Buscando pelo telefone, garantimos que `l` seja o Lead de verdade (id correto).
+      try {
+        const resL = await fetch(`/api/leads?search=${encodeURIComponent(tail)}&limit=5`);
+        const dL = await safeJson<any>(resL, {});
+        const arrL = Array.isArray(dL) ? dL : (dL.leads || dL.data || []);
+        const real = arrL.find((x: any) => x.id === l.id) || arrL.find((x: any) => last9(x.phone || "") === tail) || arrL[0];
+        if (real) l = real;
+      } catch { /* mantem o lead recebido */ }
     }
     setLead(l);
     setTutor(null);
@@ -725,7 +736,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
 
   async function selectFromIncoming(item: IncomingItem) {
     if (item.kind === "LEAD") {
-      await selectLead(item.raw as Lead);
+      await selectLead(item.raw as Lead, item.phone);
     } else {
       await selectTutor(item.raw as Tutor);
     }
