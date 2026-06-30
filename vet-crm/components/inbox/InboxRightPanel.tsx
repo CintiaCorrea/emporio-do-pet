@@ -228,6 +228,8 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
   const [searching, setSearching] = useState(false);
   const [tutor, setTutor] = useState<Tutor | null>(null);
   const [lead, setLead] = useState<Lead | null>(null);
+  // Conversa do Meta ainda NAO materializada como Lead (so vira Lead ao usar um botao). null = lead ja e real.
+  const [leadConversa, setLeadConversa] = useState<{ name?: string; phone?: string } | null>(null);
   const [leadHistorico, setLeadHistorico] = useState<Lead | null>(null);
   const [pets, setPets] = useState<Pet[]>([]);
   const [selectedPet, setSelectedPet] = useState<Pet | null>(null);
@@ -670,6 +672,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
   async function selectTutor(t: Tutor) {
     setTutor(t);
     setLead(null);
+    setLeadConversa(null);
     setResults({ tutors: [], leads: [] });
     setSearch(t.name);
     setActiveTab("contexto"); // ABRE aba contexto
@@ -724,27 +727,14 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
         if (real) { l = real; achouLead = true; }
       } catch { /* mantem o lead recebido */ }
     }
-    // Conversa do Meta sem cliente/lead -> cria o Lead automaticamente (escolha da Cintia),
-    // para que os botoes (pipeline/converter/registrar) tenham um Lead real para agir.
+    // Conversa do Meta sem cliente/lead: NAO cria agora. Mostra como lead PROVISORIO
+    // (com nome/telefone da conversa) e marca como pendente; o Lead so vira real quando a
+    // Cintia usar um botao (mudar etapa, registrar, converter, salvar pet) -> ver materializarLead().
     if (!achouLead && createIfMissing) {
-      const cleanPhone = normalizePhone(createIfMissing.phone || phone) || (createIfMissing.phone || phone) || "";
-      const emailFallback = cleanPhone ? `contato+${cleanPhone}@emporiodopet.crm` : undefined;
-      try {
-        const res = await fetch("/api/leads", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
-          name: createIfMissing.name || l.name || "Sem nome",
-          phone: cleanPhone || undefined,
-          email: emailFallback,
-          source: "WHATSAPP",
-          customFields: { canal: "Meta" },
-        }) });
-        if (res.ok) { l = await res.json(); achouLead = true; toast.success("Lead criado a partir da conversa"); }
-        else if (res.status === 409 && cleanPhone) {
-          const r = await fetch(`/api/inbox/context/lookup?phone=${encodeURIComponent(cleanPhone)}`);
-          const d = await safeJson<any>(r, {});
-          if (d?.unified?.tutor) { await selectTutor(d.unified.tutor); return; }
-          if (d?.unified?.lead) { l = d.unified.lead; achouLead = true; }
-        }
-      } catch { /* segue com o que tem */ }
+      l = { ...l, name: createIfMissing.name || l.name || "Sem nome", phone: createIfMissing.phone || (l as any).contactPhone || l.phone } as Lead;
+      setLeadConversa({ name: createIfMissing.name, phone: createIfMissing.phone });
+    } else {
+      setLeadConversa(null);
     }
     setLead(l);
     setTutor(null);
@@ -768,27 +758,62 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
   }
 
   function reset() {
-    setSearch(""); setTutor(null); setLead(null); setLeadHistorico(null);
+    setSearch(""); setTutor(null); setLead(null); setLeadConversa(null); setLeadHistorico(null);
     setResults({ tutors: [], leads: [] }); setPets([]); setSelectedPet(null);
     setHistorico([]);
     setCadastroOpen(false); setInteracaoOpen(false); setForwardOpen(false);
     setActiveTab("inbox"); // volta pra Caixa
   }
 
+  // Garante um Lead REAL antes de uma acao. Se a conversa do Meta ainda nao virou Lead,
+  // cria agora (so quando a Cintia clica num botao). Retorna o lead real ou null se falhar.
+  async function materializarLead(): Promise<Lead | null> {
+    if (!lead) return null;
+    if (!leadConversa) return lead; // ja e um lead real
+    const cleanPhone = normalizePhone(leadConversa.phone || lead.phone || "") || (leadConversa.phone || lead.phone || "") || "";
+    const emailFallback = cleanPhone ? `contato+${cleanPhone}@emporiodopet.crm` : undefined;
+    try {
+      const res = await fetch("/api/leads", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
+        name: leadConversa.name || lead.name || "Sem nome",
+        phone: cleanPhone || undefined,
+        email: emailFallback,
+        source: "WHATSAPP",
+        customFields: { canal: "Meta" },
+      }) });
+      if (res.ok) { const novo = await res.json(); setLead(novo); setLeadConversa(null); toast.success("Lead criado"); return novo; }
+      if (res.status === 409) {
+        const body = await safeJson<any>(res, {});
+        if (body?.tutorId) { // telefone ja e de um cliente -> abre o cliente
+          const t = await safeJson<any>(await fetch(`/api/tutors/${body.tutorId}`), null);
+          if (t) { await selectTutor(t); toast("Esse telefone ja e de um cliente."); return null; }
+        }
+        if (cleanPhone) { // tenta achar lead existente
+          const d = await safeJson<any>(await fetch(`/api/inbox/context/lookup?phone=${encodeURIComponent(cleanPhone)}`), {});
+          if (d?.unified?.lead) { setLead(d.unified.lead); setLeadConversa(null); return d.unified.lead; }
+        }
+      }
+      toast.error("Nao foi possivel criar o lead");
+      return null;
+    } catch { toast.error("Erro ao criar o lead"); return null; }
+  }
   async function updateLeadEtapa(value: string) {
     if (!lead) return;
-    const res = await fetch(`/api/leads/${lead.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pipelineComercialEtapa: value }) });
+    const real = await materializarLead();
+    if (!real) return;
+    const res = await fetch(`/api/leads/${real.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pipelineComercialEtapa: value }) });
     if (!res.ok) { toast.error("Erro ao atualizar"); return; }
     toast.success("Etapa atualizada");
-    setLead({ ...lead, pipelineComercialEtapa: value });
+    setLead({ ...real, pipelineComercialEtapa: value });
   }
   async function salvarPetInteresse(nome: string, especie: string) {
     if (!lead) return;
-    const cf = { ...((lead.customFields || {}) as any), petName: nome, especie };
+    const real = await materializarLead();
+    if (!real) return;
+    const cf = { ...((real.customFields || {}) as any), petName: nome, especie };
     try {
-      const res = await fetch(`/api/leads/${lead.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ customFields: cf }) });
+      const res = await fetch(`/api/leads/${real.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ customFields: cf }) });
       if (!res.ok) { toast.error("Erro ao salvar pet de interesse"); return; }
-      setLead({ ...lead, customFields: cf } as Lead);
+      setLead({ ...real, customFields: cf } as Lead);
       toast.success("Pet de interesse salvo");
     } catch { toast.error("Erro ao salvar"); }
   }
@@ -977,13 +1002,15 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
     if (!lead) return;
     const classificacao = typeof classif === "string" ? classif : undefined;
     if (!confirm(`Converter ${lead.name || "esse lead"} em cliente${classificacao ? " (" + classificacao + ")" : ""}?`)) return;
+    const real = await materializarLead();
+    if (!real) return;
     // Inclui pet de interesse no payload da conversão
     const body: any = {};
     if (leadPetNome) {
       body.petName = leadPetNome;
       body.petEspecie = leadPetEspecie;
     }
-    const res = await fetch(`/api/leads/${lead.id}/convert`, {
+    const res = await fetch(`/api/leads/${real.id}/convert`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
@@ -1089,6 +1116,8 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
 
   async function handleInteracao() {
     if (!interacaoForm.texto.trim()) { toast.error("Escreva o resumo"); return; }
+    let leadIdReal: string | undefined = undefined;
+    if (lead) { const real = await materializarLead(); if (!real) return; leadIdReal = real.id; }
     const payload: any = {
       tipo: interacaoForm.tipo,
       texto: interacaoForm.texto,
@@ -1096,7 +1125,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
       proximoFollowupAt: interacaoForm.proximoFollowupAt ? new Date(interacaoForm.proximoFollowupAt).toISOString() : undefined,
       canal,
       ...(tutor && { tutorId: tutor.id }),
-      ...(lead && { leadId: lead.id }),
+      ...(leadIdReal && { leadId: leadIdReal }),
       ...(selectedPet && { petId: selectedPet.id }),
     };
     const res = await fetch("/api/interacoes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
@@ -1104,16 +1133,18 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
     toast.success("Interação registrada");
     setInteracaoOpen(false);
     setInteracaoForm({ texto: "", tipo: "NOTA", proximaAcao: "", proximoFollowupAt: "" });
-    const hist = await carregarHistorico(tutor?.id, lead?.id, leadHistorico?.id);
+    const hist = await carregarHistorico(tutor?.id, leadIdReal, leadHistorico?.id);
     setHistorico(hist);
   }
 
   async function saveResumo() {
     const txt = resumoDraft.trim();
     if (lead) {
-      const r = await fetch(`/api/leads/${lead.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ resumoIa: txt, resumoIaUpdatedAt: new Date().toISOString() }) });
+      const real = await materializarLead();
+      if (!real) return;
+      const r = await fetch(`/api/leads/${real.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ resumoIa: txt, resumoIaUpdatedAt: new Date().toISOString() }) });
       if (!r.ok) { toast.error("Erro ao salvar resumo"); return; }
-      setLead({ ...lead, resumoIa: txt, resumoIaUpdatedAt: new Date().toISOString() });
+      setLead({ ...real, resumoIa: txt, resumoIaUpdatedAt: new Date().toISOString() });
     } else if (tutor) {
       const r = await fetch(`/api/tutors/${tutor.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ resumoIa: txt, resumoIaUpdatedAt: new Date().toISOString() }) });
       if (!r.ok) { toast.error("Erro ao salvar resumo"); return; }
@@ -1134,9 +1165,11 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
       if (!r.ok) { toast.error("Erro"); return; }
       setTutor({ ...tutor, name: v });
     } else if (lead) {
-      const r = await fetch(`/api/leads/${lead.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: v }) });
+      const real = await materializarLead();
+      if (!real) return;
+      const r = await fetch(`/api/leads/${real.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: v }) });
       if (!r.ok) { toast.error("Erro"); return; }
-      setLead({ ...lead, name: v });
+      setLead({ ...real, name: v });
     }
     toast.success("Nome salvo");
     setEditingName(false);
@@ -1179,9 +1212,11 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
       if (!r.ok) { toast.error("Erro"); return; }
       setTutor({ ...tutor, contacts: newContacts });
     } else if (lead) {
-      const r = await fetch(`/api/leads/${lead.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ phone: v }) });
+      const real = await materializarLead();
+      if (!real) return;
+      const r = await fetch(`/api/leads/${real.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ phone: v }) });
       if (!r.ok) { toast.error("Erro"); return; }
-      setLead({ ...lead, phone: v });
+      setLead({ ...real, phone: v });
     }
     toast.success("Telefone salvo");
     setEditingPhone(false);
@@ -1539,7 +1574,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                       </div>
                     )}
                   </div>
-                  <Link href={`/dashboard/crm/leads/${lead.id}`} className={LINK} style={{ color: "#009AAC" }}>Ficha <LuExternalLink size={9} className="inline -mt-0.5" /></Link>
+                  {!leadConversa && <Link href={`/dashboard/crm/leads/${lead.id}`} className={LINK} style={{ color: "#009AAC" }}>Ficha <LuExternalLink size={9} className="inline -mt-0.5" /></Link>}
                 </div>
                 <div className="flex items-start gap-2">
                   <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-semibold flex-shrink-0" style={{ background: "linear-gradient(135deg,#D97706,#92611A)" }}>{initials(lead.name || "?")}</div>
