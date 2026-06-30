@@ -111,6 +111,17 @@ export class PetsService {
     };
   }
 
+  /** Lista LEVE de todos os pets em ordem alfabetica (para a aba Pets / impressao / Excel). */
+  async listaSimples() {
+    return this.prisma.pet.findMany({
+      select: {
+        id: true, name: true, codigo: true, species: true, breed: true, status: true,
+        tutor: { select: { id: true, name: true, codigo: true, contacts: { where: { isPrimary: true }, take: 1, select: { number: true } } } },
+      },
+      orderBy: { name: 'asc' },
+    });
+  }
+
   async findById(id: string) {
     const pet = await this.prisma.pet.findUnique({
       where: { id },

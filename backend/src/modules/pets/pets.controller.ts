@@ -60,6 +60,12 @@ export class PetsController {
     });
   }
 
+  @Get('lista-simples')
+  @ApiOperation({ summary: 'Lista leve de todos os pets em ordem alfabetica' })
+  listaSimples() {
+    return this.petsService.listaSimples();
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Buscar pet por ID' })
   findOne(@Param('id') id: string) {

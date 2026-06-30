@@ -99,9 +99,35 @@ function pickField(row: Record<string, string>, keys: string[]): string {
   return "";
 }
 
+// [EMP-COWORK] Aba Pets — endpoint /api/pets/lista-simples
+interface PetSimples {
+  id: string;
+  name: string;
+  codigo: string;
+  species: string;
+  breed: string | null;
+  status: string;
+  tutor: { id: string; name: string | null; codigo: string; contacts?: { number: string }[] } | null;
+}
+
+const especieLabel = (species: string) => {
+  const s = (species || "").toUpperCase();
+  if (s === "CANINE") return "Cão";
+  if (s === "FELINE") return "Gato";
+  if (!s) return "—";
+  return s.charAt(0) + s.slice(1).toLowerCase();
+};
+
+const semAcento = (s: string) =>
+  (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+
 export default function ClientesPage() {
   const [tutores, setTutores] = useState<Tutor[]>([]);
   const [loading, setLoading] = useState(true);
+  const [aba, setAba] = useState<"CLIENTES" | "PETS">("CLIENTES");
+  const [pets, setPets] = useState<PetSimples[] | null>(null);
+  const [petsLoading, setPetsLoading] = useState(false);
+  const [petSearch, setPetSearch] = useState("");
   const [apptStats, setApptStats] = useState<Record<string, { last?: string; ltv: number }>>({});
   const [filter, setFilter] = useState<Filter>("Cliente");
   const [search, setSearch] = useState("");
@@ -222,6 +248,112 @@ export default function ClientesPage() {
     })();
   }, []);
 
+  // [EMP-COWORK] Carrega pets quando a aba Pets é ativada pela 1ª vez
+  useEffect(() => {
+    if (aba !== "PETS" || pets !== null || petsLoading) return;
+    (async () => {
+      setPetsLoading(true);
+      try {
+        const res = await fetch("/api/pets/lista-simples", { credentials: "include" });
+        const data = await res.json();
+        setPets(Array.isArray(data) ? data : (data?.pets || data?.data || []));
+      } catch (e) {
+        console.error(e);
+        setPets([]);
+      } finally {
+        setPetsLoading(false);
+      }
+    })();
+  }, [aba, pets, petsLoading]);
+
+  const petsFiltrados = useMemo(() => {
+    const list = pets || [];
+    const q = semAcento(petSearch.trim());
+    if (!q) return list;
+    return list.filter((p) =>
+      semAcento(p.name || "").includes(q) ||
+      semAcento(p.breed || "").includes(q) ||
+      semAcento(p.tutor?.name || "").includes(q)
+    );
+  }, [pets, petSearch]);
+
+  const statusPetPill = (status: string) => {
+    const s = (status || "").toUpperCase();
+    if (s === "ACTIVE") return { label: "Vivo", bg: "#E7F6EE", color: "#1c7a47" };
+    if (s === "DECEASED") return { label: "Óbito", bg: "#F3F1EC", color: "#9a948a" };
+    return { label: status || "—", bg: "#F3F1EC", color: "#9a948a" };
+  };
+
+  const handleImprimirPets = () => {
+    const hoje = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+    const esc = (v: unknown) => String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const linhas = petsFiltrados.map((p) => {
+      const st = statusPetPill(p.status);
+      return `<tr>
+        <td>${PET_EMOJI(p.species)} ${esc(p.name)}</td>
+        <td>${esc(especieLabel(p.species))}${p.breed ? " · " + esc(p.breed) : ""}</td>
+        <td>#${esc(p.codigo)}</td>
+        <td>${esc(p.tutor?.name || "—")}</td>
+        <td>${esc(p.tutor?.contacts?.[0]?.number || "—")}</td>
+        <td>${esc(st.label)}</td>
+      </tr>`;
+    }).join("");
+    const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
+      <title>Lista de Pets — Empório do Pet</title>
+      <style>
+        body{font-family:Arial,Helvetica,sans-serif;color:#014D5E;padding:24px;}
+        h1{font-size:18px;margin:0 0 4px;color:#014D5E;}
+        .sub{color:#5b6470;font-size:12px;margin:0 0 16px;}
+        table{width:100%;border-collapse:collapse;font-size:12px;}
+        th{text-align:left;background:#FBF9F4;color:#5b6470;text-transform:uppercase;font-size:10px;padding:6px 8px;border-bottom:1px solid #d8d0bc;}
+        td{padding:6px 8px;border-bottom:1px solid #F0EBE0;color:#014D5E;}
+      </style></head><body>
+      <h1>🐾 Lista de Pets — Empório do Pet</h1>
+      <p class="sub">Gerado em ${hoje} · ${petsFiltrados.length} pet(s)</p>
+      <table>
+        <thead><tr><th>Pet</th><th>Espécie/Raça</th><th>Código</th><th>Tutor</th><th>Telefone</th><th>Status</th></tr></thead>
+        <tbody>${linhas || '<tr><td colspan="6">Nenhum pet.</td></tr>'}</tbody>
+      </table>
+      <script>window.onload=function(){window.print();}</script>
+      </body></html>`;
+    const win = window.open("", "_blank");
+    if (!win) { window.alert("Não foi possível abrir a janela de impressão. Verifique o bloqueador de pop-ups."); return; }
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
+  };
+
+  const handleExcelPets = () => {
+    const sep = ";";
+    const sanitize = (v: unknown) => {
+      const s = String(v ?? "");
+      return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const header = ["Pet", "Codigo", "Especie", "Raca", "Status", "Tutor", "Telefone"].join(sep);
+    const rows = petsFiltrados.map((p) => {
+      const st = statusPetPill(p.status);
+      return [
+        sanitize(p.name),
+        sanitize(p.codigo),
+        sanitize(especieLabel(p.species)),
+        sanitize(p.breed || ""),
+        sanitize(st.label),
+        sanitize(p.tutor?.name || ""),
+        sanitize(p.tutor?.contacts?.[0]?.number || ""),
+      ].join(sep);
+    });
+    const csv = "﻿" + [header, ...rows].join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "pets_emporio.csv";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const filtered = useMemo(() => {
     let arr = [...tutores];
     if (filter !== "Todos") arr = arr.filter((t) => filter === "Cliente" ? (t.classificacao === "Cliente" || !t.classificacao) : t.classificacao === filter);
@@ -265,6 +397,30 @@ export default function ClientesPage() {
           </button>
         </div>
       </header>
+
+      {/* [EMP-COWORK] Barra de abas Base44 */}
+      <div className="flex gap-6 border-b border-[#E8E2D6] mb-4">
+        {([
+          { key: "CLIENTES" as const, emoji: "👥", label: "Clientes", count: counts.total },
+          { key: "PETS" as const, emoji: "🐾", label: "Pets", count: pets === null ? "…" : pets.length },
+        ]).map((t) => {
+          const ativo = aba === t.key;
+          return (
+            <button
+              key={t.key}
+              onClick={() => setAba(t.key)}
+              className={`relative -mb-px pb-2.5 text-sm font-medium flex items-center gap-1.5 border-b-2 transition-colors ${
+                ativo ? "border-[#009AAC] text-[#014D5E]" : "border-transparent text-[#9a948a] hover:text-[#5b6470]"
+              }`}
+            >
+              <span>{t.emoji}</span>
+              {t.label} ({t.count})
+            </button>
+          );
+        })}
+      </div>
+
+      {aba === "CLIENTES" && (<>
 
       <div className="flex gap-2 mb-3 flex-wrap">
         {(["Cliente", "Fornecedor", "Parceiro", "Ex_cliente", "Todos"] as Filter[]).map((f) => (
@@ -361,6 +517,92 @@ export default function ClientesPage() {
           </tbody>
         </table>
       </div>
+
+      </>)}
+
+      {aba === "PETS" && (
+        <div>
+          {/* Toolbar */}
+          <div className="flex gap-2 mb-3 flex-wrap items-center">
+            <div className="relative flex-1 min-w-[220px]">
+              <LuSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                value={petSearch}
+                onChange={(e) => setPetSearch(e.target.value)}
+                placeholder="Buscar por pet, raça ou tutor…"
+                className="w-full bg-white border border-[#E8E2D6] rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-[#009AAC]"
+              />
+            </div>
+            <button
+              onClick={handleImprimirPets}
+              className="bg-white border border-[#E8E2D6] px-3 py-2 rounded-lg text-xs text-[#014D5E] flex items-center gap-1.5 hover:bg-[#FBF9F4]"
+            >
+              🖨️ Imprimir
+            </button>
+            <button
+              onClick={handleExcelPets}
+              className="bg-white border border-[#E8E2D6] px-3 py-2 rounded-lg text-xs text-[#014D5E] flex items-center gap-1.5 hover:bg-[#FBF9F4]"
+            >
+              📊 Excel
+            </button>
+          </div>
+
+          {/* Tabela de pets Base44 */}
+          <div className="bg-white rounded-xl border border-[#E8E2D6] overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-[#FBF9F4] border-b border-[#E8E2D6] text-[11px] uppercase tracking-wide text-[#9a948a] font-medium">
+                  <th className="text-left py-2.5 px-3">Pet</th>
+                  <th className="text-left py-2.5 px-3">Código</th>
+                  <th className="text-left py-2.5 px-3">Tutor</th>
+                  <th className="text-left py-2.5 px-3">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {petsLoading ? (
+                  <tr><td colSpan={4} className="py-12 text-center text-gray-400">Carregando pets…</td></tr>
+                ) : petsFiltrados.length === 0 ? (
+                  <tr><td colSpan={4} className="py-12 text-center text-gray-400">Nenhum pet encontrado.</td></tr>
+                ) : (
+                  petsFiltrados.map((p) => {
+                    const st = statusPetPill(p.status);
+                    const tel = p.tutor?.contacts?.[0]?.number;
+                    return (
+                      <tr key={p.id} className="border-b border-[#F0EBE0] hover:bg-[#FBF9F4]">
+                        <td className="py-2.5 px-3">
+                          <Link href={`/dashboard/erp/pets/${p.id}`} className="flex items-center gap-2.5">
+                            <div className="w-[38px] h-[38px] rounded-[12px] bg-[#E0F4F6] flex items-center justify-center text-lg shrink-0">
+                              {PET_EMOJI(p.species)}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="text-[#014D5E] font-medium truncate">{p.name}</div>
+                              <div className="text-[11px] text-[#9a948a] truncate">
+                                {especieLabel(p.species)}{p.breed ? ` · ${p.breed}` : ""}
+                              </div>
+                            </div>
+                          </Link>
+                        </td>
+                        <td className="py-2.5 px-3 text-[#9a948a]">#{p.codigo}</td>
+                        <td className="py-2.5 px-3">
+                          {p.tutor ? (
+                            <Link href={`/dashboard/erp/tutores/${p.tutor.id}`} className="block">
+                              <div className="text-[#014D5E] hover:text-[#009AAC] transition-colors">{p.tutor.name || "Sem nome"}</div>
+                              {tel && <div className="text-[11px] text-[#9a948a]">{tel}</div>}
+                            </Link>
+                          ) : <span className="text-[11px] text-gray-400">—</span>}
+                        </td>
+                        <td className="py-2.5 px-3">
+                          <span style={{ background: st.bg, color: st.color }} className="text-[10px] font-medium px-2 py-0.5 rounded-full">{st.label}</span>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {novoOpen && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center pt-24" onClick={() => setNovoOpen(false)}>
