@@ -420,6 +420,42 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
         </div>
       </div>
 
+      {/* Etiquetas — destaque, logo abaixo da caixinha lembrar */}
+      <div className="bg-white border border-[#E8E2D6] rounded-[13px] mb-3">
+        <div className="border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
+          <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">🏷️ Etiquetas <span className="text-[11px] text-[#8A989D] font-normal">· p/ campanha</span></h3>
+        </div>
+        <div style={{ padding: "13px 14px" }}>
+          {(tutor.tags?.length || 0) === 0 && <p className="text-[12px] text-[#8A989D] mb-2">Sem etiquetas</p>}
+          <div className="flex flex-wrap gap-1 items-center">
+            {tutor.tags?.map((t) => {
+              const tpl = tplTags.find((x: any) => x.texto === t);
+              const cor = tpl?.cor || "#009AAC";
+              return (
+                <span key={t} className="text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1" style={{ background: cor + "22", color: cor }}>
+                  ● {t}
+                  <button onClick={() => removeTag(t)} title="Remover" className="hover:opacity-60 font-bold">×</button>
+                </span>
+              );
+            })}
+            <button onClick={() => setTagPicker((v) => !v)} className="border border-dashed border-[#E8E2D6] text-[#8A989D] text-[10px] px-2 py-0.5 rounded-full">+ tag</button>
+          </div>
+          {tagPicker && (
+            <div className="mt-2 pt-2 border-t border-[#F0EBE0]">
+              {tplTags.filter((t: any) => !(tutor.tags || []).includes(t.texto)).length === 0 ? (
+                <p className="text-[10px] text-[#8A989D]">Nenhuma etiqueta de Cliente disponível. Cadastre em Configurações → Etiquetas.</p>
+              ) : (
+                <div className="flex flex-wrap gap-1">
+                  {tplTags.filter((t: any) => !(tutor.tags || []).includes(t.texto)).map((t: any) => (
+                    <button key={t.texto} disabled={savingTag} onClick={() => addTag(t.texto)} className="text-[10px] px-2 py-0.5 rounded-full border disabled:opacity-50" style={{ borderColor: (t.cor || "#009AAC") + "66", color: t.cor || "#009AAC" }}>+ {t.texto}</button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Barra de abas */}
       <div className="flex border-b border-[#E8E2D6] mb-3">
         {([
@@ -439,10 +475,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
       </div>
 
       {tab === "CADASTRO" && (
-      <div className="grid grid-cols-2 gap-3 items-start mb-3">
-
-        {/* Coluna esquerda */}
-        <div className="flex flex-col gap-2.5">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start mb-3">
           <div className="bg-white border border-[#E8E2D6] rounded-[13px]">
             <div className="flex items-center justify-between border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
               <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">👤 Dados pessoais</h3>
@@ -547,41 +580,6 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
             </div>
           </div>
 
-          <div className="bg-white border border-[#E8E2D6] rounded-[13px]">
-            <div className="border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
-              <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">🏷️ Etiquetas <span className="text-[11px] text-[#8A989D] font-normal">· p/ campanha</span></h3>
-            </div>
-            <div style={{ padding: "13px 14px" }}>
-            {(tutor.tags?.length || 0) === 0 && <p className="text-[12px] text-[#8A989D] mb-2">Sem etiquetas</p>}
-            <div className="flex flex-wrap gap-1 items-center">
-              {tutor.tags?.map((t) => {
-                const tpl = tplTags.find((x: any) => x.texto === t);
-                const cor = tpl?.cor || "#009AAC";
-                return (
-                  <span key={t} className="text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1" style={{ background: cor + "22", color: cor }}>
-                    ● {t}
-                    <button onClick={() => removeTag(t)} title="Remover" className="hover:opacity-60 font-bold">×</button>
-                  </span>
-                );
-              })}
-              <button onClick={() => setTagPicker((v) => !v)} className="border border-dashed border-[#E8E2D6] text-[#8A989D] text-[10px] px-2 py-0.5 rounded-full">+ tag</button>
-            </div>
-            {tagPicker && (
-              <div className="mt-2 pt-2 border-t border-[#F0EBE0]">
-                {tplTags.filter((t: any) => !(tutor.tags || []).includes(t.texto)).length === 0 ? (
-                  <p className="text-[10px] text-[#8A989D]">Nenhuma etiqueta de Cliente disponível. Cadastre em Configurações → Etiquetas.</p>
-                ) : (
-                  <div className="flex flex-wrap gap-1">
-                    {tplTags.filter((t: any) => !(tutor.tags || []).includes(t.texto)).map((t: any) => (
-                      <button key={t.texto} disabled={savingTag} onClick={() => addTag(t.texto)} className="text-[10px] px-2 py-0.5 rounded-full border disabled:opacity-50" style={{ borderColor: (t.cor || "#009AAC") + "66", color: t.cor || "#009AAC" }}>+ {t.texto}</button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-            </div>
-          </div>
-        </div>
       </div>
       )}
 
