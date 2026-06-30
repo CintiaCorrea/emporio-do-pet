@@ -24,18 +24,34 @@ import {
   LuTrash, LuPhone, LuCalendar, LuUser, LuPlus, LuCheck, LuX} from "react-icons/lu";
 
 const CONTATO_TIPO_LABEL: Record<string, string> = { MOBILE: "Celular", PHONE: "Fixo", BUSINESS: "Comercial" };
+const TIPO_PESSOA_LABEL: Record<string, string> = { INDIVIDUAL: "Pessoa física", LEGAL_ENTITY: "Pessoa jurídica" };
+const GENERO_LABEL: Record<string, string> = { MALE: "Masculino", FEMALE: "Feminino", OTHER: "Outro" };
+const fmtDataBR = (v?: string | null) => {
+  if (!v) return "—";
+  const d = new Date(v);
+  return isNaN(d.getTime()) ? "—" : d.toLocaleDateString("pt-BR");
+};
+const ouTraco = (v?: string | null) => (v && String(v).trim() ? String(v) : "—");
 
 interface TutorDetail {
   id: string;
   name: string | null;
   email: string | null;
+  type: string | null;
   cpf: string | null;
   rg: string | null;
   birthDate: string | null;
+  gender: string | null;
+  nationality: string | null;
+  howFoundUs: string | null;
+  profession: string | null;
   status: string;
   classificacao: string;
   cep: string | null;
   address: string | null;
+  addressNumber: string | null;
+  complement: string | null;
+  referencePoint: string | null;
   neighborhood: string | null;
   city: string | null;
   state: string | null;
@@ -45,7 +61,9 @@ interface TutorDetail {
   acceptsEmail: boolean;
   acceptsWhatsApp: boolean;
   acceptsSMS: boolean;
+  acceptsSmsCampaign: boolean;
   convertedFromLeadId: string | null;
+  codigo?: string | null;
   proximoFollowupAt?: string | null;
   estadoRelacionamento?: string | null;
   createdAt: string;
@@ -420,40 +438,35 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
         </div>
       </div>
 
-      {/* Etiquetas — destaque, logo abaixo da caixinha lembrar */}
-      <div className="bg-white border border-[#E8E2D6] rounded-[13px] mb-3">
-        <div className="border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
-          <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">🏷️ Etiquetas <span className="text-[11px] text-[#8A989D] font-normal">· p/ campanha</span></h3>
+      {/* Etiquetas — barra slim, logo abaixo da caixinha lembrar */}
+      <div className="bg-[#FBF9F4] border border-[#F0EBE0] rounded-[11px] mb-3" style={{ padding: "7px 12px" }}>
+        <div className="flex flex-wrap gap-1.5 items-center">
+          <span className="text-[12px] text-[#5C6B70] flex items-center gap-1">🏷️ Etiquetas</span>
+          {tutor.tags?.map((t) => {
+            const tpl = tplTags.find((x: any) => x.texto === t);
+            const cor = tpl?.cor || "#009AAC";
+            return (
+              <span key={t} className="text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1" style={{ background: cor + "22", color: cor }}>
+                ● {t}
+                <button onClick={() => removeTag(t)} title="Remover" className="hover:opacity-60 font-bold">×</button>
+              </span>
+            );
+          })}
+          <button onClick={() => setTagPicker((v) => !v)} className="border border-dashed border-[#E8E2D6] text-[#8A989D] text-[10px] px-2 py-0.5 rounded-full">+ tag</button>
         </div>
-        <div style={{ padding: "13px 14px" }}>
-          {(tutor.tags?.length || 0) === 0 && <p className="text-[12px] text-[#8A989D] mb-2">Sem etiquetas</p>}
-          <div className="flex flex-wrap gap-1 items-center">
-            {tutor.tags?.map((t) => {
-              const tpl = tplTags.find((x: any) => x.texto === t);
-              const cor = tpl?.cor || "#009AAC";
-              return (
-                <span key={t} className="text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1" style={{ background: cor + "22", color: cor }}>
-                  ● {t}
-                  <button onClick={() => removeTag(t)} title="Remover" className="hover:opacity-60 font-bold">×</button>
-                </span>
-              );
-            })}
-            <button onClick={() => setTagPicker((v) => !v)} className="border border-dashed border-[#E8E2D6] text-[#8A989D] text-[10px] px-2 py-0.5 rounded-full">+ tag</button>
+        {tagPicker && (
+          <div className="mt-2 pt-2 border-t border-[#F0EBE0]">
+            {tplTags.filter((t: any) => !(tutor.tags || []).includes(t.texto)).length === 0 ? (
+              <p className="text-[10px] text-[#8A989D]">Nenhuma etiqueta de Cliente disponível. Cadastre em Configurações → Etiquetas.</p>
+            ) : (
+              <div className="flex flex-wrap gap-1">
+                {tplTags.filter((t: any) => !(tutor.tags || []).includes(t.texto)).map((t: any) => (
+                  <button key={t.texto} disabled={savingTag} onClick={() => addTag(t.texto)} className="text-[10px] px-2 py-0.5 rounded-full border disabled:opacity-50" style={{ borderColor: (t.cor || "#009AAC") + "66", color: t.cor || "#009AAC" }}>+ {t.texto}</button>
+                ))}
+              </div>
+            )}
           </div>
-          {tagPicker && (
-            <div className="mt-2 pt-2 border-t border-[#F0EBE0]">
-              {tplTags.filter((t: any) => !(tutor.tags || []).includes(t.texto)).length === 0 ? (
-                <p className="text-[10px] text-[#8A989D]">Nenhuma etiqueta de Cliente disponível. Cadastre em Configurações → Etiquetas.</p>
-              ) : (
-                <div className="flex flex-wrap gap-1">
-                  {tplTags.filter((t: any) => !(tutor.tags || []).includes(t.texto)).map((t: any) => (
-                    <button key={t.texto} disabled={savingTag} onClick={() => addTag(t.texto)} className="text-[10px] px-2 py-0.5 rounded-full border disabled:opacity-50" style={{ borderColor: (t.cor || "#009AAC") + "66", color: t.cor || "#009AAC" }}>+ {t.texto}</button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+        )}
       </div>
 
       {/* Barra de abas */}
@@ -475,64 +488,161 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
       </div>
 
       {tab === "CADASTRO" && (
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start mb-3">
-          <div className="bg-white border border-[#E8E2D6] rounded-[13px]">
-            <div className="flex items-center justify-between border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
-              <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">👤 Dados pessoais</h3>
-              <button onClick={() => { setDadosForm({ name: tutor.name || "", email: tutor.email || "", cpf: tutor.cpf || "", address: tutor.address || "", neighborhood: tutor.neighborhood || "", city: tutor.city || "" }); setEditDados(v => !v); }} className="text-[11px] text-[#009AAC] hover:underline">{editDados ? "Fechar" : "Editar"}</button>
-            </div>
-            <div style={{ padding: "13px 14px" }}>
-            {editDados && (
-              <div className="mb-3 pb-3 border-b border-[#F0EBE0] flex flex-col gap-1.5 text-[11px]">
-                {(([["name", "Nome"], ["email", "Email"], ["cpf", "CPF"], ["address", "Endereço"], ["neighborhood", "Bairro"], ["city", "Cidade"]]) as [string, string][]).map(([k, label]) => (
-                  <div key={k}>
-                    <label className="text-[10px] uppercase tracking-wide text-[#8A989D]">{label}</label>
-                    <input value={dadosForm[k] ?? ""} onChange={e => setDadosForm((f: any) => ({ ...f, [k]: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[13px] text-[#1F2A2E]" />
-                  </div>
-                ))}
-                <div className="flex gap-2 mt-1">
-                  <button onClick={saveDados} disabled={savingDados} className="px-3 py-1 rounded text-[11px] text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingDados ? "Salvando..." : "Salvar"}</button>
-                  <button onClick={() => setEditDados(false)} className="px-3 py-1 rounded text-[11px] border border-[#E8E2D6] text-[#5C6B70]">Cancelar</button>
+      <div className="mb-3">
+        <div className="bg-white border border-[#E8E2D6] rounded-[13px]">
+          {/* Cabeçalho do box único */}
+          <div className="flex items-center justify-between border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
+            <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">👤 Dados do cliente</h3>
+            <button onClick={() => { setDadosForm({ name: tutor.name || "", email: tutor.email || "", type: tutor.type || "", cpf: tutor.cpf || "", rg: tutor.rg || "", birthDate: tutor.birthDate ? String(tutor.birthDate).slice(0, 10) : "", gender: tutor.gender || "", nationality: tutor.nationality || "", howFoundUs: tutor.howFoundUs || "", profession: tutor.profession || "", cep: tutor.cep || "", address: tutor.address || "", addressNumber: tutor.addressNumber || "", complement: tutor.complement || "", referencePoint: tutor.referencePoint || "", neighborhood: tutor.neighborhood || "", city: tutor.city || "", state: tutor.state || "", acceptsEmail: !!tutor.acceptsEmail, acceptsWhatsApp: !!tutor.acceptsWhatsApp, acceptsSMS: !!tutor.acceptsSMS, acceptsSmsCampaign: !!tutor.acceptsSmsCampaign }); setEditDados(v => !v); }} className="text-[11px] text-[#009AAC] hover:underline">{editDados ? "✖️ Fechar" : "✏️ Editar"}</button>
+          </div>
+
+          <div style={{ padding: "13px 14px" }}>
+
+          {/* Formulário de edição completo */}
+          {editDados && (
+            <div className="mb-4 pb-4 border-b border-[#F0EBE0] flex flex-col gap-2.5">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-x-3 gap-y-2">
+                <div>
+                  <label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Nome</label>
+                  <input value={dadosForm.name ?? ""} onChange={e => setDadosForm((f: any) => ({ ...f, name: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[13px] text-[#1F2A2E]" />
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Email</label>
+                  <input value={dadosForm.email ?? ""} onChange={e => setDadosForm((f: any) => ({ ...f, email: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[13px] text-[#1F2A2E]" />
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Tipo</label>
+                  <select value={dadosForm.type ?? ""} onChange={e => setDadosForm((f: any) => ({ ...f, type: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[13px] text-[#1F2A2E]">
+                    <option value="">—</option>
+                    <option value="INDIVIDUAL">Pessoa física</option>
+                    <option value="LEGAL_ENTITY">Pessoa jurídica</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase tracking-wide text-[#8A989D]">CPF</label>
+                  <input value={dadosForm.cpf ?? ""} onChange={e => setDadosForm((f: any) => ({ ...f, cpf: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[13px] text-[#1F2A2E]" />
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase tracking-wide text-[#8A989D]">RG</label>
+                  <input value={dadosForm.rg ?? ""} onChange={e => setDadosForm((f: any) => ({ ...f, rg: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[13px] text-[#1F2A2E]" />
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Nascimento</label>
+                  <input type="date" value={dadosForm.birthDate ?? ""} onChange={e => setDadosForm((f: any) => ({ ...f, birthDate: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[13px] text-[#1F2A2E]" />
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Sexo</label>
+                  <select value={dadosForm.gender ?? ""} onChange={e => setDadosForm((f: any) => ({ ...f, gender: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[13px] text-[#1F2A2E]">
+                    <option value="">—</option>
+                    <option value="MALE">Masculino</option>
+                    <option value="FEMALE">Feminino</option>
+                    <option value="OTHER">Outro</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Nacionalidade</label>
+                  <input value={dadosForm.nationality ?? ""} onChange={e => setDadosForm((f: any) => ({ ...f, nationality: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[13px] text-[#1F2A2E]" />
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Como conheceu</label>
+                  <input value={dadosForm.howFoundUs ?? ""} onChange={e => setDadosForm((f: any) => ({ ...f, howFoundUs: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[13px] text-[#1F2A2E]" />
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Profissão</label>
+                  <input value={dadosForm.profession ?? ""} onChange={e => setDadosForm((f: any) => ({ ...f, profession: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[13px] text-[#1F2A2E]" />
                 </div>
               </div>
-            )}
-            <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
-              {phone && <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">📞 Telefone</div><div className="text-[13px] text-[#1F2A2E]">{phone}</div></div>}
-              {tutor.email && <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">✉️ Email</div><div className="text-[13px] text-[#1F2A2E] break-all">{tutor.email}</div></div>}
-              {tutor.cpf && <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">🪪 CPF</div><div className="text-[13px] text-[#1F2A2E]">{tutor.cpf}</div></div>}
-              <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">📅 Primeira visita</div><div className="text-[13px] text-[#1F2A2E]">{new Date(tutor.createdAt).toLocaleDateString("pt-BR")}</div></div>
-              <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Tipo</div>
-                <select value={tutor.classificacao || "Cliente"} onChange={(e) => saveClassificacao(e.target.value)} className="bg-[#E0F4F6] text-[#009AAC] text-[12px] px-1.5 py-0.5 rounded border border-[#bfe3e8] mt-0.5">
-                  <option value="Cliente">Cliente</option>
-                  <option value="Fornecedor">Fornecedor</option>
-                  <option value="Parceiro">Parceiro</option>
-                  <option value="Ex_cliente">Ex-cliente</option>
-                </select>
+
+              {/* Endereço (edição) */}
+              <div className="text-[12px] font-medium uppercase tracking-wide text-[#014D5E] mt-1">📍 Endereço</div>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-x-3 gap-y-2">
+                <div>
+                  <label className="text-[10px] uppercase tracking-wide text-[#8A989D]">CEP</label>
+                  <input value={dadosForm.cep ?? ""} onChange={e => setDadosForm((f: any) => ({ ...f, cep: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[13px] text-[#1F2A2E]" />
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Logradouro</label>
+                  <input value={dadosForm.address ?? ""} onChange={e => setDadosForm((f: any) => ({ ...f, address: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[13px] text-[#1F2A2E]" />
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Número</label>
+                  <input value={dadosForm.addressNumber ?? ""} onChange={e => setDadosForm((f: any) => ({ ...f, addressNumber: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[13px] text-[#1F2A2E]" />
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Complemento</label>
+                  <input value={dadosForm.complement ?? ""} onChange={e => setDadosForm((f: any) => ({ ...f, complement: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[13px] text-[#1F2A2E]" />
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Ponto de referência</label>
+                  <input value={dadosForm.referencePoint ?? ""} onChange={e => setDadosForm((f: any) => ({ ...f, referencePoint: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[13px] text-[#1F2A2E]" />
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Bairro</label>
+                  <input value={dadosForm.neighborhood ?? ""} onChange={e => setDadosForm((f: any) => ({ ...f, neighborhood: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[13px] text-[#1F2A2E]" />
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Cidade</label>
+                  <input value={dadosForm.city ?? ""} onChange={e => setDadosForm((f: any) => ({ ...f, city: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[13px] text-[#1F2A2E]" />
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Estado</label>
+                  <input value={dadosForm.state ?? ""} onChange={e => setDadosForm((f: any) => ({ ...f, state: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[13px] text-[#1F2A2E]" />
+                </div>
+              </div>
+
+              {/* Privacidade (edição) */}
+              <div className="text-[12px] font-medium uppercase tracking-wide text-[#014D5E] mt-1">🔔 Privacidade</div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-x-3 gap-y-2">
+                {(([["acceptsEmail", "E-mail"], ["acceptsWhatsApp", "WhatsApp"], ["acceptsSMS", "SMS"], ["acceptsSmsCampaign", "Campanha SMS"]]) as [string, string][]).map(([k, label]) => (
+                  <div key={k}>
+                    <label className="text-[10px] uppercase tracking-wide text-[#8A989D]">{label}</label>
+                    <select value={dadosForm[k] ? "1" : "0"} onChange={e => setDadosForm((f: any) => ({ ...f, [k]: e.target.value === "1" }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[13px] text-[#1F2A2E]">
+                      <option value="1">Sim</option>
+                      <option value="0">Não</option>
+                    </select>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex gap-2 mt-1">
+                <button onClick={saveDados} disabled={savingDados} className="px-3 py-1 rounded text-[11px] text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingDados ? "Salvando..." : "Salvar"}</button>
+                <button onClick={() => setEditDados(false)} className="px-3 py-1 rounded text-[11px] border border-[#E8E2D6] text-[#5C6B70]">Cancelar</button>
               </div>
             </div>
-            {(tutor.address || tutor.neighborhood || tutor.city) && (
-              <div className="mt-3 pt-3 border-t border-[#F0EBE0]">
-                <div className="text-[10px] uppercase tracking-wide text-[#8A989D] mb-0.5">📍 Endereço</div>
-                {tutor.address && <div className="text-[13px] text-[#1F2A2E]">{tutor.address}</div>}
-                {tutor.neighborhood && <div className="text-[13px] text-[#5C6B70]">Bairro: {tutor.neighborhood}</div>}
-                {tutor.city && <div className="text-[13px] text-[#5C6B70]">Cidade: {tutor.city}</div>}
-              </div>
-            )}
-            {tutor.convertedFromLeadId && (
-              <div className="mt-2 pt-2 border-t border-[#F0EBE0] text-[12px] text-[#5C6B70]">
-                <strong className="text-[#1F2A2E] font-medium">Origem:</strong> Lead convertido · <Link href={`/dashboard/crm/leads/${tutor.convertedFromLeadId}`} className="text-[#009AAC]">Ver lead →</Link>
-              </div>
-            )}
+          )}
+
+          {/* SEÇÃO a) DADOS */}
+          <div className="text-[12px] font-medium uppercase tracking-wide text-[#014D5E] mb-2">Dados</div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-3">
+            <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Tipo</div><div className="text-[13px] text-[#1F2A2E]">{tutor.type ? (TIPO_PESSOA_LABEL[tutor.type] || tutor.type) : "—"}</div></div>
+            <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">CPF</div><div className="text-[13px] text-[#1F2A2E]">{ouTraco(tutor.cpf)}</div></div>
+            <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">RG</div><div className="text-[13px] text-[#1F2A2E]">{ouTraco(tutor.rg)}</div></div>
+            <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Nascimento</div><div className="text-[13px] text-[#1F2A2E]">{fmtDataBR(tutor.birthDate)}</div></div>
+            <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Sexo</div><div className="text-[13px] text-[#1F2A2E]">{tutor.gender ? (GENERO_LABEL[tutor.gender] || tutor.gender) : "—"}</div></div>
+            <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Nacionalidade</div><div className="text-[13px] text-[#1F2A2E]">{ouTraco(tutor.nationality)}</div></div>
+            <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Como conheceu</div><div className="text-[13px] text-[#1F2A2E]">{ouTraco(tutor.howFoundUs)}</div></div>
+            <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Profissão</div><div className="text-[13px] text-[#1F2A2E]">{ouTraco(tutor.profession)}</div></div>
+            <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Primeira visita</div><div className="text-[13px] text-[#1F2A2E]">{fmtDataBR(tutor.createdAt)}</div></div>
+            <div>
+              <div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Tipo de relacionamento</div>
+              <select value={tutor.classificacao || "Cliente"} onChange={(e) => saveClassificacao(e.target.value)} className="bg-[#E0F4F6] text-[#009AAC] text-[12px] px-1.5 py-0.5 rounded border border-[#bfe3e8] mt-0.5">
+                <option value="Cliente">Cliente</option>
+                <option value="Fornecedor">Fornecedor</option>
+                <option value="Parceiro">Parceiro</option>
+                <option value="Ex_cliente">Ex-cliente</option>
+              </select>
             </div>
           </div>
 
-          {/* Telefones / Contatos */}
-          <div className="bg-white border border-[#E8E2D6] rounded-[13px]">
-            <div className="flex items-center justify-between border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
-              <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">📞 Telefones / Contatos</h3>
-              <button onClick={() => { resetContato(); setAddingContato(true); }} className="text-[11px] text-[#009AAC] hover:underline">+ Adicionar</button>
+          {/* SEÇÃO b) CONTATOS */}
+          <div className="border-t border-[#F0EBE0] pt-3 mt-4">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-[12px] font-medium uppercase tracking-wide text-[#014D5E]">📞 Contatos</div>
+              <button onClick={() => { resetContato(); setAddingContato(true); }} className="text-[11px] text-[#009AAC] hover:underline">➕ Adicionar</button>
             </div>
-            <div style={{ padding: "13px 14px" }}>
+            {tutor.email && (
+              <div className="mb-2 text-[13px] text-[#1F2A2E] flex items-center gap-1.5 break-all">✉️ {tutor.email}</div>
+            )}
             <div className="flex flex-col gap-1.5">
               {(tutor.contacts || []).length === 0 && !addingContato && (
                 <p className="text-[12px] text-[#8A989D]">Nenhum telefone cadastrado.</p>
@@ -577,9 +687,46 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
                 </div>
               </div>
             )}
+          </div>
+
+          {/* SEÇÃO c) PRIVACIDADE */}
+          <div className="border-t border-[#F0EBE0] pt-3 mt-4">
+            <div className="text-[12px] font-medium uppercase tracking-wide text-[#014D5E] mb-2">🔔 Privacidade</div>
+            <div className="flex flex-wrap gap-1.5">
+              {(([["E-mail", tutor.acceptsEmail], ["WhatsApp", tutor.acceptsWhatsApp], ["SMS", tutor.acceptsSMS], ["Campanha SMS", tutor.acceptsSmsCampaign]]) as [string, boolean][]).map(([label, ok]) => (
+                <span key={label} className={`text-[11px] px-2 py-0.5 rounded-full ${ok ? "bg-[#E7F6EE] text-[#1c7a47]" : "bg-[#F3F1EC] text-[#9a948a]"}`}>{ok ? "✓" : "✗"} {label}</span>
+              ))}
             </div>
           </div>
 
+          {/* SEÇÃO d) ENDEREÇO */}
+          <div className="border-t border-[#F0EBE0] pt-3 mt-4">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-[12px] font-medium uppercase tracking-wide text-[#014D5E]">📍 Endereço</div>
+              <button onClick={() => { setDadosForm({ name: tutor.name || "", email: tutor.email || "", type: tutor.type || "", cpf: tutor.cpf || "", rg: tutor.rg || "", birthDate: tutor.birthDate ? String(tutor.birthDate).slice(0, 10) : "", gender: tutor.gender || "", nationality: tutor.nationality || "", howFoundUs: tutor.howFoundUs || "", profession: tutor.profession || "", cep: tutor.cep || "", address: tutor.address || "", addressNumber: tutor.addressNumber || "", complement: tutor.complement || "", referencePoint: tutor.referencePoint || "", neighborhood: tutor.neighborhood || "", city: tutor.city || "", state: tutor.state || "", acceptsEmail: !!tutor.acceptsEmail, acceptsWhatsApp: !!tutor.acceptsWhatsApp, acceptsSMS: !!tutor.acceptsSMS, acceptsSmsCampaign: !!tutor.acceptsSmsCampaign }); setEditDados(true); }} className="text-[11px] text-[#009AAC] hover:underline">✏️ Editar</button>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-3">
+              {tutor.cep && <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">CEP</div><div className="text-[13px] text-[#1F2A2E]">{tutor.cep}</div></div>}
+              {(tutor.address || tutor.addressNumber) && <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Logradouro</div><div className="text-[13px] text-[#1F2A2E]">{(tutor.address || "") + (tutor.addressNumber ? ", " + tutor.addressNumber : "")}</div></div>}
+              {tutor.complement && <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Complemento</div><div className="text-[13px] text-[#1F2A2E]">{tutor.complement}</div></div>}
+              {tutor.referencePoint && <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Ponto de referência</div><div className="text-[13px] text-[#1F2A2E]">{tutor.referencePoint}</div></div>}
+              {tutor.neighborhood && <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Bairro</div><div className="text-[13px] text-[#1F2A2E]">{tutor.neighborhood}</div></div>}
+              {tutor.city && <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Cidade</div><div className="text-[13px] text-[#1F2A2E]">{tutor.city}</div></div>}
+              {tutor.state && <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Estado</div><div className="text-[13px] text-[#1F2A2E]">{tutor.state}</div></div>}
+              {!(tutor.cep || tutor.address || tutor.addressNumber || tutor.complement || tutor.referencePoint || tutor.neighborhood || tutor.city || tutor.state) && (
+                <p className="text-[12px] text-[#8A989D]">Endereço não cadastrado.</p>
+              )}
+            </div>
+          </div>
+
+          {tutor.convertedFromLeadId && (
+            <div className="mt-4 pt-3 border-t border-[#F0EBE0] text-[12px] text-[#5C6B70]">
+              <strong className="text-[#1F2A2E] font-medium">Origem:</strong> Lead convertido · <Link href={`/dashboard/crm/leads/${tutor.convertedFromLeadId}`} className="text-[#009AAC]">Ver lead →</Link>
+            </div>
+          )}
+
+          </div>
+        </div>
       </div>
       )}
 
