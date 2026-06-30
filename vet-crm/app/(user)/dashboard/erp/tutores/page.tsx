@@ -564,7 +564,7 @@ export default function ClientesPage() {
                 ) : petsFiltrados.length === 0 ? (
                   <tr><td colSpan={4} className="py-12 text-center text-gray-400">Nenhum pet encontrado.</td></tr>
                 ) : (
-                  petsFiltrados.map((p) => {
+                  petsFiltrados.slice(0, 200).map((p) => {
                     const st = statusPetPill(p.status);
                     const tel = p.tutor?.contacts?.[0]?.number;
                     return (
@@ -600,6 +600,9 @@ export default function ClientesPage() {
                 )}
               </tbody>
             </table>
+            {petsFiltrados.length > 200 && (
+              <p className="text-[11px] text-[#9a948a] text-center py-2.5">Mostrando 200 de {petsFiltrados.length.toLocaleString("pt-BR")} pets. Use a busca para refinar — Imprimir e Excel levam a lista completa.</p>
+            )}
           </div>
         </div>
       )}
