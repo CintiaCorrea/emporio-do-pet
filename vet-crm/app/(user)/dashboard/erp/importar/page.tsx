@@ -120,7 +120,7 @@ export default function ImportarPage() {
     if (!all.length) return;
     if (!dryRun && !window.confirm(`Importar de verdade ${all.length} clientes e seus pets para a produção?\n\nIsso vai limpar os códigos provisórios e gravar os dados reais do SimplesVet (sem duplicar os que já existem).`)) return;
     setRunning(true); setReport(null); setProgress(0); setErro(null);
-    const TAM = 100;
+    const TAM = 50;
     const acc: any = { clientesNovos: 0, clientesAtualizados: 0, petsNovos: 0, petsAtualizados: 0, contatosCriados: 0, avisos: [] };
     for (let i = 0; i < all.length; i += TAM) {
       const lote = all.slice(i, i + TAM);
@@ -137,6 +137,7 @@ export default function ImportarPage() {
       }
       setProgress(Math.round(Math.min(100, ((i + TAM) / all.length) * 100)));
       setReport({ ...acc, dryRun });
+      await new Promise((r) => setTimeout(r, 250));
     }
     setProgress(100); setRunning(false);
   }
