@@ -335,6 +335,11 @@ model LandingPage {
 model Tutor {
   id                    String                 @id @default(uuid())
   codigo                Int?                   @unique // Codigo sequencial curto (estilo SimplesVet)
+  rankingAbc            String?                // Ranking ABC: A/B/C (importado do SimplesVet)
+  nps                   Int?                   // NPS do cliente (importado do SimplesVet)
+  ticketMedio           Float?                 // Ticket medio (snapshot SimplesVet)
+  primeiraCompraAt      DateTime?              // Data da primeira compra (SimplesVet)
+  ultimaVendaAt         DateTime?              // Data da ultima venda (SimplesVet)
   // Pipeline & Follow-up (Inbox v3)
   estadoRelacionamento  String?  // Em dia / Pet em tratamento / Precisa de atenção / A recuperar / Inativo
   proximoFollowupAt     DateTime?
@@ -442,6 +447,7 @@ enum TutorClassificacao {
 model Pet {
   id            String               @id @default(uuid())
   codigo        Int?                 @unique // Codigo sequencial curto (estilo SimplesVet)
+  pedigree      String?              // Pedigree (importado do SimplesVet)
   name          String
   species       PetSpecies           @default(CANINE)
   breed         String?
