@@ -217,8 +217,13 @@ export class LeadsService {
           include: { contacts: true, pets: true },
         });
         if (existingTutor) {
-          // Lead nao deve duplicar Tutor existente — retorna como Lead "convertido"
-          throw new Error(`PHONE_BELONGS_TO_TUTOR:${existingTutor.id}`);
+          // Lead nao deve duplicar Tutor existente. Retorna 409 (nao 500) com o tutorId,
+          // para o front redirecionar ao cliente em vez de criar duplicata.
+          throw new ConflictException({
+            message: `Telefone ja pertence ao cliente ${existingTutor.name || existingTutor.id}`,
+            code: 'PHONE_BELONGS_TO_TUTOR',
+            tutorId: existingTutor.id,
+          });
         }
         dto.phone = normalized;
       }
@@ -235,14 +240,24 @@ export class LeadsService {
     }
 
     // Criar lead
-    const lead = await this.prisma.lead.create({
-      data: {
-        ...dto,
-        email,
-        status: 'NEW',
-        customFields: dto.customFields ? JSON.parse(JSON.stringify(dto.customFields)) : undefined,
-      },
-    });
+    let lead;
+    try {
+      lead = await this.prisma.lead.create({
+        data: {
+          ...dto,
+          email,
+          status: 'NEW',
+          customFields: dto.customFields ? JSON.parse(JSON.stringify(dto.customFields)) : undefined,
+        },
+      });
+    } catch (e: any) {
+      // Colisao de campo unico (email/telefone) numa corrida -> 409 em vez de 500
+      if (e?.code === 'P2002') {
+        const campo = (e?.meta?.target ?? []).toString() || 'email/telefone';
+        throw new ConflictException(`Lead ja existe (campo unico duplicado: ${campo})`);
+      }
+      throw e;
+    }
 
     // Registrar no histórico
     await this.createHistory(lead.id, 'lead_created', null, null, null, {
