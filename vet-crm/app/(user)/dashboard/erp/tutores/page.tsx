@@ -26,6 +26,8 @@ interface Tutor {
   name: string | null;
   email: string | null;
   cpf: string | null;
+  codigo?: string | null;
+  city?: string | null;
   classificacao: string;
   status: string;
   pets?: Pet[];
@@ -129,8 +131,9 @@ export default function ClientesPage() {
   const [petsLoading, setPetsLoading] = useState(false);
   const [petSearch, setPetSearch] = useState("");
   const [petOrdem, setPetOrdem] = useState<"AZ" | "ZA">("AZ");
+  const [cliOrdem, setCliOrdem] = useState<"AZ" | "ZA">("AZ");
   const [apptStats, setApptStats] = useState<Record<string, { last?: string; ltv: number }>>({});
-  const [filter, setFilter] = useState<Filter>("Cliente");
+  const [filter] = useState<Filter>("Cliente"); void filter;
   const [search, setSearch] = useState("");
   useEffect(() => { const q = new URLSearchParams(window.location.search).get("q"); if (q) setSearch(q); }, []);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -356,9 +359,79 @@ export default function ClientesPage() {
     URL.revokeObjectURL(url);
   };
 
+  const handleImprimirClientes = () => {
+    const hoje = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+    const esc = (v: unknown) => String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const linhas = filtered.map((t) => {
+      const tel = t.contacts?.find((c) => c.isPrimary)?.number || t.contacts?.[0]?.number || "";
+      const petsNomes = (t.pets || []).map((p) => p.name).join(", ");
+      return `<tr>
+        <td>${esc(t.name || "Sem nome")}</td>
+        <td>#${esc(t.codigo || "—")}</td>
+        <td>${esc(t.cpf || "—")}</td>
+        <td>${esc(tel || "—")}</td>
+        <td>${esc(t.city || "—")}</td>
+        <td>${esc(petsNomes || "—")}</td>
+      </tr>`;
+    }).join("");
+    const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
+      <title>Lista de Clientes — Empório do Pet</title>
+      <style>
+        body{font-family:Arial,Helvetica,sans-serif;color:#014D5E;padding:24px;}
+        h1{font-size:18px;margin:0 0 4px;color:#014D5E;}
+        .sub{color:#5b6470;font-size:12px;margin:0 0 16px;}
+        table{width:100%;border-collapse:collapse;font-size:12px;}
+        th{text-align:left;background:#FBF9F4;color:#5b6470;text-transform:uppercase;font-size:10px;padding:6px 8px;border-bottom:1px solid #d8d0bc;}
+        td{padding:6px 8px;border-bottom:1px solid #F0EBE0;color:#014D5E;}
+      </style></head><body>
+      <h1>👥 Lista de Clientes — Empório do Pet</h1>
+      <p class="sub">Gerado em ${hoje} · ${filtered.length} cliente(s)</p>
+      <table>
+        <thead><tr><th>Nome</th><th>Código</th><th>CPF</th><th>Telefone</th><th>Cidade</th><th>Pets</th></tr></thead>
+        <tbody>${linhas || '<tr><td colspan="6">Nenhum cliente.</td></tr>'}</tbody>
+      </table>
+      <script>window.onload=function(){window.print();}</script>
+      </body></html>`;
+    const win = window.open("", "_blank");
+    if (!win) { window.alert("Não foi possível abrir a janela de impressão. Verifique o bloqueador de pop-ups."); return; }
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
+  };
+
+  const handleExcelClientes = () => {
+    const sep = ";";
+    const sanitize = (v: unknown) => {
+      const s = String(v ?? "");
+      return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const header = ["Nome", "Codigo", "CPF", "Telefone", "Cidade", "Pets"].join(sep);
+    const rows = filtered.map((t) => {
+      const tel = t.contacts?.find((c) => c.isPrimary)?.number || t.contacts?.[0]?.number || "";
+      const petsNomes = (t.pets || []).map((p) => p.name).join(", ");
+      return [
+        sanitize(t.name || "Sem nome"),
+        sanitize(t.codigo || ""),
+        sanitize(t.cpf || ""),
+        sanitize(tel),
+        sanitize(t.city || ""),
+        sanitize(petsNomes),
+      ].join(sep);
+    });
+    const csv = "﻿" + [header, ...rows].join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "clientes_emporio.csv";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const filtered = useMemo(() => {
-    let arr = [...tutores];
-    if (filter !== "Todos") arr = arr.filter((t) => filter === "Cliente" ? (t.classificacao === "Cliente" || !t.classificacao) : t.classificacao === filter);
+    let arr = tutores.filter((t) => t.classificacao === "Cliente" || !t.classificacao);
     if (search.trim()) {
       const q = search.toLowerCase();
       arr = arr.filter((t) =>
@@ -368,8 +441,10 @@ export default function ClientesPage() {
         t.pets?.some((p) => p.name?.toLowerCase().includes(q))
       );
     }
+    arr.sort((a, b) => (a.name || "").localeCompare(b.name || "", "pt-BR"));
+    if (cliOrdem === "ZA") arr.reverse();
     return arr;
-  }, [tutores, filter, search]);
+  }, [tutores, search, cliOrdem]);
 
   const counts = useMemo(() => {
     const c = tutores.filter((t) => t.classificacao === "Cliente" || !t.classificacao);
@@ -424,30 +499,36 @@ export default function ClientesPage() {
 
       {aba === "CLIENTES" && (<>
 
-      <div className="flex gap-2 mb-3 flex-wrap">
-        {(["Cliente", "Fornecedor", "Parceiro", "Todos"] as Filter[]).map((f) => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-medium ${
-              filter === f
-                ? "bg-[#009AAC] text-white"
-                : "bg-white text-[#4d5a66] border border-[#cfd8e0]"
-            }`}
-          >
-            {f === "Ex_cliente" ? "Ex-clientes" : f === "Cliente" ? "Clientes" : f === "Fornecedor" ? "Fornecedores" : f === "Parceiro" ? "Parceiros" : "Todos"}
-          </button>
-        ))}
-      </div>
-
-      <div className="relative mb-3">
-        <LuSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Buscar nome, pet, telefone ou email…"
-          className="w-full bg-white border border-[#d8d0bc] rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-[#009AAC]"
-        />
+      {/* Toolbar */}
+      <div className="flex gap-2 mb-3 flex-wrap items-center">
+        <div className="relative flex-1 min-w-[220px]">
+          <LuSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar nome, pet, telefone ou email…"
+            className="w-full bg-white border border-[#E8E2D6] rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-[#009AAC]"
+          />
+        </div>
+        <button
+          onClick={() => setCliOrdem((o) => (o === "AZ" ? "ZA" : "AZ"))}
+          className="bg-white border border-[#E8E2D6] px-3 py-2 rounded-lg text-xs text-[#014D5E] flex items-center gap-1.5 hover:bg-[#FBF9F4]"
+          title="Alternar ordem alfabética"
+        >
+          🔤 {cliOrdem === "AZ" ? "A → Z" : "Z → A"}
+        </button>
+        <button
+          onClick={handleImprimirClientes}
+          className="bg-white border border-[#E8E2D6] px-3 py-2 rounded-lg text-xs text-[#014D5E] flex items-center gap-1.5 hover:bg-[#FBF9F4]"
+        >
+          🖨️ Imprimir
+        </button>
+        <button
+          onClick={handleExcelClientes}
+          className="bg-white border border-[#E8E2D6] px-3 py-2 rounded-lg text-xs text-[#014D5E] flex items-center gap-1.5 hover:bg-[#FBF9F4]"
+        >
+          📊 Excel
+        </button>
       </div>
 
       <div className="bg-white rounded-xl border border-[#d8d0bc] overflow-hidden">
@@ -469,7 +550,7 @@ export default function ClientesPage() {
             ) : filtered.length === 0 ? (
               <tr><td colSpan={7} className="py-12 text-center text-gray-400">Nenhum cliente nesse filtro</td></tr>
             ) : (
-              filtered.map((t) => {
+              filtered.slice(0, 200).map((t) => {
                 const phone = t.contacts?.find((c) => c.isPrimary)?.number || t.contacts?.[0]?.number;
                 const rel = REL_BADGE(t.estadoRelacionamento);
                 const isAniv = isAniversariante(t.birthDate);
@@ -518,6 +599,9 @@ export default function ClientesPage() {
             )}
           </tbody>
         </table>
+        {filtered.length > 200 && (
+          <p className="text-[11px] text-[#9a948a] text-center py-2.5">Mostrando 200 de {filtered.length.toLocaleString("pt-BR")}. Use a busca para refinar — Imprimir e Excel levam a lista completa.</p>
+        )}
       </div>
 
       </>)}
