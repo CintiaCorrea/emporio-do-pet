@@ -455,7 +455,7 @@ export default function ClientesPage() {
   }, [tutores]);
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-6 min-h-screen bg-[#F6F2EA]">
       <header className="flex justify-between items-start mb-4">
         <div>
           <p className="text-sm text-[#5b6470] mt-0.5">
@@ -466,11 +466,11 @@ export default function ClientesPage() {
         </div>
         <div className="flex gap-2">
           <input ref={importInputRef} type="file" accept=".csv,text/csv" className="hidden" onChange={handleImportTutores} />
-          <button onClick={() => importInputRef.current?.click()} className="bg-white border border-[#cfd8e0] px-3 py-1.5 rounded-lg text-xs text-[#4d5a66] flex items-center gap-1.5">
-            <LuUpload className="w-3.5 h-3.5" />Importar CSV
+          <button onClick={() => importInputRef.current?.click()} className="bg-white border border-[#E8E2D6] px-3 py-1.5 rounded-lg text-xs text-[#5C6B70] flex items-center gap-1.5 hover:border-[#009AAC] hover:text-[#009AAC]">
+            📥 Importar CSV
           </button>
           <button onClick={() => { setNovoNome(""); setNovoTel(""); setNovoOpen(true); }} className="bg-[#009AAC] text-white px-3.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5">
-            <LuPlus className="w-3.5 h-3.5" />Novo cliente
+            ➕ Novo cliente
           </button>
         </div>
       </header>
