@@ -81,11 +81,11 @@ export class CrmController {
   @ApiOperation({ summary: 'Importa vendas do SimplesVet como Appointments (venda por venda), com dryRun' })
   async importarVendas(
     @Body() body: { linhas: any[]; dryRun?: boolean; mapaMarca?: Record<string, string>; importadorUserId?: string },
-    @CurrentUser() user: { userId: string },
+    @CurrentUser() user: { id: string; userId?: string },
   ) {
     return this.crmService.importarVendas({
       ...body,
-      importadorUserId: body.importadorUserId || user?.userId,
+      importadorUserId: body.importadorUserId || user?.id || user?.userId,
     });
   }
 
