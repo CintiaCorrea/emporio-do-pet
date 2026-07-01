@@ -241,10 +241,18 @@ export default function ImportarVendasPage() {
       else porVenda.set(k, [l]);
     });
     const gruposVenda = [...porVenda.values()];
-    const VENDAS_POR_LOTE = 100;
+    // Lotes por nº de LINHAS (~80 ≈ 45KB) — bem abaixo do limite padrão do backend, mantendo vendas inteiras.
+    const LINHAS_POR_LOTE = 80;
     const lotes: Linha[][] = [];
-    for (let i = 0; i < gruposVenda.length; i += VENDAS_POR_LOTE)
-      lotes.push(gruposVenda.slice(i, i + VENDAS_POR_LOTE).flat());
+    let atual: Linha[] = [];
+    for (const gv of gruposVenda) {
+      atual = atual.concat(gv);
+      if (atual.length >= LINHAS_POR_LOTE) {
+        lotes.push(atual);
+        atual = [];
+      }
+    }
+    if (atual.length) lotes.push(atual);
 
     setRunning(true);
     setErro(null);

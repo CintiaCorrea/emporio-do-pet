@@ -3,7 +3,6 @@ import { ValidationPipe, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
-import { json, urlencoded } from 'express';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -11,10 +10,6 @@ async function bootstrap() {
     // Enable rawBody for webhook signature validation (WhatsApp, Stripe, etc.)
     rawBody: true,
   });
-
-  // Aumenta o limite do body (importacoes grandes de CSV -> JSON)
-  app.use(json({ limit: '25mb' }));
-  app.use(urlencoded({ extended: true, limit: '25mb' }));
 
   const configService = app.get(ConfigService);
   // ConfigModule carrega `configuration.ts` (chaves em camelCase)
