@@ -50,7 +50,7 @@ const NAV: Entry[] = [
   { href: "/dashboard", label: "Dashboard", emoji: "📊", roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"], exact: true, section: "OP" },
   { href: "/dashboard/inbox", label: "Inbox BC", emoji: "💬", roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"], section: "OP" },
   { href: "/dashboard/inbox-nativo", label: "Inbox Meta", emoji: "📲", roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"], section: "OP" },
-  { href: "/dashboard/crm/leads", label: "Comercial", emoji: "🎯", roles: ["ADMIN", "RECEPTIONIST"], section: "OP" },
+  { href: "/dashboard/comercial", label: "Comercial", emoji: "🎯", roles: ["ADMIN", "RECEPTIONIST"], section: "OP" },
   { href: "/dashboard/erp/tutores", label: "Clientes", emoji: "👥", roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"], section: "OP" },
   // LIXEIRA-PETS-MENU (Cintia 22/06): aba "Pets" removida do menu. Edicao do pet centralizada na ficha de Cliente; ficha clinica acessivel pelo nome do pet na lista de Clientes. Restaurar = descomentar a linha abaixo.
   // { href: "/dashboard/erp/pets", label: "Pets", emoji: "🐾", roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
@@ -271,21 +271,13 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
         {collapsed ? <LuChevronRight size={11} /> : <LuChevronLeft size={11} />}
       </button>
 
-      <div className={`px-4 ${collapsed ? "py-4 justify-center" : "py-[18px]"} border-b flex items-center`} style={{ borderColor: "#e8edf0" }}>
+      <div className={`px-4 ${collapsed ? "py-4" : "py-[18px]"} border-b flex items-center justify-center`} style={{ borderColor: "#e8edf0" }}>
         {collapsed ? (
           <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#009AAC] to-[#014D5E] flex items-center justify-center">
             <LuPawPrint className="text-white" size={18} />
           </div>
         ) : (
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "#E0F4F6" }}>
-              <LuPawPrint size={18} style={{ color: "#014D5E" }} />
-            </div>
-            <div className="flex flex-col leading-tight">
-              <span className="text-[13px] font-medium text-[#014D5E]">Empório do Pet</span>
-              <span className="text-[9.5px] text-[#8A989D]">CRM &amp; gestão</span>
-            </div>
-          </div>
+          <img src="https://emporiodopet.com.br/wp-content/uploads/2022/04/logo-emporio-do-pet-padrao.png" alt="Empório do Pet" style={{ height: 46, width: "auto" }} />
         )}
       </div>
 

@@ -93,7 +93,7 @@ export default function Header({ sidebarOpen }: Props) {
           style={{ borderColor: "#e8edf0" }}
           title="Notificacoes"
         >
-          <LuBell size={17} />
+          <span style={{ fontSize: "17px", lineHeight: 1 }}>🔔</span>
           <span className="absolute top-2 right-[9px] w-[7px] h-[7px] rounded-full bg-[#ef4444] border-2 border-white" />
         </button>
 
