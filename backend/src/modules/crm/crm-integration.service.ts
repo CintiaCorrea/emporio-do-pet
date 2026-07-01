@@ -268,6 +268,360 @@ export class CrmIntegrationService {
     return res;
   }
 
+  /**
+   * Importa um LOTE de VENDAS do SimplesVet (cada venda = 1 Appointment; cada linha = 1 AppointmentItem).
+   *
+   * ENTRADA: body.linhas = linhas do CSV ja parseadas (chaves: DataHora, Venda, Status, DataBaixa,
+   * FormaPagamento, Funcionario, Cliente, Codigo, CPF, Celular, Email, Animal, Especie, Raca, TipoItem,
+   * Grupo, ProdutoServico, ValorUnitario, Quantidade, Bruto, Desconto, Liquido, Observacoes).
+   *
+   * LOGICA: agrupa por `Venda`; resolve tutor (por Codigo -> findExistingTutor -> cria); resolve pet
+   * (por nome, senao cria); resolve funcionario (User por nome normalizado, senao importadorUserId);
+   * marca = mapaMarca[Grupo]; dedup por codigoExterno. Dry-run so conta; efetivar grava venda a venda
+   * dentro de comRetry (nao aborta o lote em erro pontual). Ao fim, snapshot por tutor.
+   */
+  async importarVendas(body: {
+    linhas: any[];
+    dryRun?: boolean;
+    mapaMarca?: Record<string, string>;
+    importadorUserId?: string;
+  }) {
+    const dry = !!body.dryRun;
+    const linhas = body.linhas || [];
+    const mapaMarca = body.mapaMarca || {};
+
+    // Helpers de parsing
+    const brl = (s: any): number => parseFloat((String(s ?? '0') || '0').replace(/\./g, '').replace(',', '.')) || 0;
+    const G = (s: any): string | undefined => (typeof s === 'string' && s.trim() !== '' ? s.trim() : s != null && s !== '' ? String(s) : undefined);
+    // Data BR "dd/mm/aaaa hh:mm:ss" -> Date
+    const parseDataBR = (s: any): Date => {
+      const v = G(s);
+      if (!v) return new Date();
+      const m = v.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+      if (m) {
+        const [, dd, mm, aa, hh, mi, ss] = m;
+        const ano = aa.length === 2 ? 2000 + Number(aa) : Number(aa);
+        const d = new Date(ano, Number(mm) - 1, Number(dd), Number(hh || 0), Number(mi || 0), Number(ss || 0));
+        if (!isNaN(d.getTime())) return d;
+      }
+      const d = new Date(v);
+      return isNaN(d.getTime()) ? new Date() : d;
+    };
+    const semAcento = (s: any): string =>
+      String(s ?? '')
+        .normalize('NFD')
+        .replace(/[̀-ͯ]/g, '')
+        .trim()
+        .toLowerCase();
+    const especieEnum = (esp: any): 'CANINE' | 'FELINE' | 'OTHER' => {
+      const e = semAcento(esp);
+      if (e.includes('fel')) return 'FELINE';
+      if (e.includes('can')) return 'CANINE';
+      return 'OTHER';
+    };
+
+    // 1) Agrupa por Venda
+    const grupos = new Map<string, any[]>();
+    for (const l of linhas) {
+      const venda = G(l.Venda);
+      if (!venda) continue;
+      const arr = grupos.get(venda);
+      if (arr) arr.push(l);
+      else grupos.set(venda, [l]);
+    }
+
+    // Cache de Users (funcionarios) por nome normalizado
+    const users = await this.prisma.user.findMany({ select: { id: true, name: true } });
+    const userPorNome = new Map<string, string>();
+    for (const u of users) if (u.name) userPorNome.set(semAcento(u.name), u.id);
+
+    // Contadores / acumuladores
+    let vendas = 0;
+    let itens = 0;
+    let novosClientes = 0;
+    let novosPets = 0;
+    let jaImportadas = 0;
+    let criadas = 0;
+    let puladas = 0;
+    let valorTotalLiquido = 0;
+    const funcSet = new Set<string>();
+    const porMarca: Record<string, number> = {};
+    const avisos: string[] = [];
+    const tutoresTocados = new Set<string>();
+
+    for (const [venda, linhasVenda] of grupos) {
+      try {
+        const r = await this.comRetry(() =>
+          this.importarUmaVenda(venda, linhasVenda, {
+            dry,
+            mapaMarca,
+            importadorUserId: body.importadorUserId,
+            userPorNome,
+            brl,
+            G,
+            parseDataBR,
+            especieEnum,
+            semAcento,
+          }),
+        );
+
+        if (r.jaImportada) {
+          jaImportadas++;
+          puladas++;
+          continue;
+        }
+
+        vendas++;
+        criadas++;
+        itens += r.itens;
+        valorTotalLiquido += r.valorLiquido;
+        if (r.novoCliente) novosClientes++;
+        if (r.novoPet) novosPets++;
+        if (r.funcionarioNaoEncontrado) funcSet.add(r.funcionarioNaoEncontrado);
+        for (const [mk, mv] of Object.entries(r.porMarca)) porMarca[mk] = (porMarca[mk] || 0) + mv;
+        if (r.tutorId) tutoresTocados.add(r.tutorId);
+      } catch (e: any) {
+        puladas++;
+        avisos.push(`Venda ${venda}: ${e?.message || 'erro'}`);
+      }
+    }
+
+    // Avisos de funcionario nao encontrado (um por funcionario)
+    for (const f of funcSet) avisos.push(`Funcionario nao encontrado: "${f}" (usado importador como fallback)`);
+
+    // 9) Snapshot por tutor (so ao efetivar)
+    if (!dry) {
+      for (const tutorId of tutoresTocados) {
+        try {
+          await this.comRetry(async () => {
+            const vendasTutor = await this.prisma.appointment.findMany({
+              where: { tutorId, type: 'VENDA' },
+              select: { date: true, value: true },
+            });
+            if (!vendasTutor.length) return;
+            const datas = vendasTutor.map((v) => v.date.getTime());
+            const valores = vendasTutor.map((v) => v.value || 0);
+            const ticketMedio = valores.reduce((a, b) => a + b, 0) / valores.length;
+            await this.prisma.tutor.update({
+              where: { id: tutorId },
+              data: {
+                primeiraCompraAt: new Date(Math.min(...datas)),
+                ultimaVendaAt: new Date(Math.max(...datas)),
+                ticketMedio,
+              },
+            });
+          });
+        } catch (e: any) {
+          avisos.push(`Snapshot tutor ${tutorId}: ${e?.message || 'erro'}`);
+        }
+      }
+    }
+
+    const base = {
+      vendas,
+      itens,
+      novosClientes,
+      novosPets,
+      jaImportadas,
+      valorTotalLiquido,
+      funcionariosNaoEncontrados: [...funcSet],
+      porMarca,
+      amostraAvisos: avisos.slice(0, 50),
+    };
+
+    if (dry) return { dryRun: true, ...base };
+    return { dryRun: false, ...base, criadas, puladas };
+  }
+
+  /**
+   * Processa UMA venda (grupo de linhas). Idempotente pela checagem de codigoExterno.
+   * Retorna contadores; no dry-run nao grava nada (mas ainda resolve tutor/pet como "novo?" para contagem).
+   */
+  private async importarUmaVenda(
+    venda: string,
+    linhasVenda: any[],
+    ctx: {
+      dry: boolean;
+      mapaMarca: Record<string, string>;
+      importadorUserId?: string;
+      userPorNome: Map<string, string>;
+      brl: (s: any) => number;
+      G: (s: any) => string | undefined;
+      parseDataBR: (s: any) => Date;
+      especieEnum: (esp: any) => 'CANINE' | 'FELINE' | 'OTHER';
+      semAcento: (s: any) => string;
+    },
+  ): Promise<{
+    jaImportada?: boolean;
+    itens: number;
+    valorLiquido: number;
+    novoCliente: boolean;
+    novoPet: boolean;
+    funcionarioNaoEncontrado?: string;
+    porMarca: Record<string, number>;
+    tutorId?: string;
+  }> {
+    const { dry, mapaMarca, importadorUserId, userPorNome, brl, G, parseDataBR, especieEnum, semAcento } = ctx;
+    const primeira = linhasVenda[0] || {};
+
+    // 2) Dedup por codigoExterno
+    const existente = await this.prisma.appointment.findFirst({
+      where: { codigoExterno: String(venda) },
+      select: { id: true },
+    });
+    if (existente) return { jaImportada: true, itens: 0, valorLiquido: 0, novoCliente: false, novoPet: false, porMarca: {} };
+
+    // 3) Resolver tutor
+    let novoCliente = false;
+    let tutorId: string | null = null;
+    const codigoCli = G(primeira.Codigo);
+    if (codigoCli != null && !isNaN(Number(codigoCli))) {
+      const porCod = await this.prisma.tutor.findFirst({ where: { codigo: Number(codigoCli) }, select: { id: true } });
+      if (porCod) tutorId = porCod.id;
+    }
+    if (!tutorId) {
+      const m = await findExistingTutor(this.prisma, { phone: primeira.Celular, cpf: primeira.CPF, email: primeira.Email });
+      if (m) tutorId = m.id;
+    }
+    novoCliente = !tutorId;
+
+    // 4/5) Resolver funcionario
+    const funcNome = G(primeira.Funcionario);
+    let funcUserId: string | undefined;
+    let funcionarioNaoEncontrado: string | undefined;
+    if (funcNome) {
+      funcUserId = userPorNome.get(semAcento(funcNome));
+      if (!funcUserId) funcionarioNaoEncontrado = funcNome;
+    }
+    const userId = funcUserId || importadorUserId;
+    if (!userId) throw new Error('Sem userId: funcionario nao encontrado e importadorUserId ausente');
+    const executorUserId = funcUserId; // undefined -> item sem executor
+
+    // 4) Resolver pet
+    const animalNome = G(primeira.Animal);
+    let novoPet = false;
+    let petId: string | null = null;
+
+    // 7) Status / pagamento
+    const status = G(primeira.Status) || '';
+    const st = semAcento(status);
+    let paymentStatus: 'PAID' | 'PENDING' = 'PENDING';
+    if (st.includes('baixado') && !st.includes('parcial')) paymentStatus = 'PAID';
+    const appointmentStatus = paymentStatus === 'PAID' ? 'COMPLETED' : 'SCHEDULED';
+
+    // Monta itens e valores
+    const porMarca: Record<string, number> = {};
+    let valorLiquido = 0;
+    const itensData = linhasVenda.map((l) => {
+      const liquido = brl(l.Liquido);
+      valorLiquido += liquido;
+      const grupo = G(l.Grupo);
+      const marca = (grupo && mapaMarca[grupo]) || null;
+      if (marca) porMarca[marca] = (porMarca[marca] || 0) + liquido;
+      return {
+        descricao: G(l.ProdutoServico),
+        quantidade: Number(l.Quantidade) || 1,
+        valorUnitario: brl(l.ValorUnitario),
+        custoUnitario: 0,
+        desconto: brl(l.Desconto),
+        valorTotal: liquido,
+        grupo,
+        marca,
+        executorUserId,
+        observacoes: G(l.Observacoes),
+      };
+    });
+
+    // DRY-RUN: nao grava; ainda conta pet novo (sem criar)
+    if (dry) {
+      if (tutorId && animalNome) {
+        const pet = await this.prisma.pet.findFirst({
+          where: { tutorId, name: { equals: animalNome, mode: 'insensitive' } },
+          select: { id: true },
+        });
+        novoPet = !pet;
+      } else {
+        novoPet = !!animalNome; // sem tutor ainda -> pet seria criado junto
+      }
+      return { itens: itensData.length, valorLiquido, novoCliente, novoPet, funcionarioNaoEncontrado, porMarca, tutorId: tutorId || undefined };
+    }
+
+    // EFETIVAR — criar tutor se necessario
+    if (!tutorId) {
+      let codigoTutor: number | undefined = codigoCli != null && !isNaN(Number(codigoCli)) ? Number(codigoCli) : undefined;
+      if (codigoTutor != null) {
+        const jaUsado = await this.prisma.tutor.findFirst({ where: { codigo: codigoTutor }, select: { id: true } });
+        if (jaUsado) codigoTutor = await proximoCodigo(this.prisma, 'tutor');
+      } else {
+        codigoTutor = await proximoCodigo(this.prisma, 'tutor');
+      }
+      const numero = normalizePhone(primeira.Celular);
+      const criado = await this.prisma.tutor.create({
+        data: {
+          name: G(primeira.Cliente) || 'Cliente sem nome',
+          codigo: codigoTutor,
+          cpf: G(primeira.CPF),
+          email: G(primeira.Email),
+          classificacao: 'Cliente',
+          status: 'ACTIVE',
+          contacts: numero
+            ? { create: [{ number: numero, type: 'MOBILE', isPrimary: true, isWhatsApp: true }] }
+            : undefined,
+        },
+        select: { id: true },
+      });
+      tutorId = criado.id;
+    }
+
+    // Resolver/criar pet
+    let pet = animalNome
+      ? await this.prisma.pet.findFirst({ where: { tutorId, name: { equals: animalNome, mode: 'insensitive' } }, select: { id: true } })
+      : await this.prisma.pet.findFirst({ where: { tutorId }, select: { id: true } });
+    if (!pet) {
+      const criadoPet = await this.prisma.pet.create({
+        data: {
+          name: animalNome || 'Sem nome',
+          species: especieEnum(primeira.Especie),
+          breed: G(primeira.Raca),
+          status: 'ACTIVE',
+          tutorId,
+        },
+        select: { id: true },
+      });
+      pet = criadoPet;
+      novoPet = true;
+    }
+    petId = pet.id;
+
+    // 8) Criar Appointment + itens
+    await this.prisma.appointment.create({
+      data: {
+        tutorId,
+        petId,
+        userId,
+        date: parseDataBR(primeira.DataHora),
+        value: valorLiquido,
+        status: appointmentStatus,
+        paymentStatus,
+        type: 'VENDA',
+        paymentMethod: G(primeira.FormaPagamento),
+        codigoExterno: String(venda),
+        origem: 'SIMPLESVET',
+        items: { create: itensData },
+      },
+    });
+
+    return {
+      itens: itensData.length,
+      valorLiquido,
+      novoCliente,
+      novoPet,
+      funcionarioNaoEncontrado,
+      porMarca,
+      tutorId,
+    };
+  }
+
   /** Repete a operacao reconectando quando a conexao com o banco cai (P1017 etc.). */
   private async comRetry<T>(fn: () => Promise<T>, tentativas = 4): Promise<T> {
     for (let i = 0; ; i++) {

@@ -530,6 +530,8 @@ model Appointment {
   petWeight         Float? // peso_pet (kg)
   temperature       Float? // temperatura (ºC)
   paymentMethod     String? // forma_pagamento livre
+  codigoExterno     String? // id da venda no SimplesVet (idempotencia na importacao)
+  origem            String? // SIMPLESVET | PDV | AGENDA
 
   // Relacionamentos
   tutor      Tutor       @relation(fields: [tutorId], references: [id], onDelete: Cascade)
@@ -555,6 +557,7 @@ model Appointment {
   @@index([date])
   @@index([status])
   @@index([userId])
+  @@index([codigoExterno])
 }
 
 model Treatment {
@@ -2645,6 +2648,10 @@ model AppointmentItem {
   comissaoCalculada Float?
 
   observacoes     String?
+
+  // Origem SimplesVet (importacao de vendas)
+  grupo           String?      // grupo do servico no SimplesVet (Consultas, Cirurgias, Laboratorio...)
+  marca           String?      // marca de negocio derivada do grupo: EMPORIO | MUNDO_A_PARTE | DRA_VIVIAN
 
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt

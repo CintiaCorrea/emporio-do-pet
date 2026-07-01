@@ -76,6 +76,19 @@ export class CrmController {
     return this.crmService.importarSimplesvet(body);
   }
 
+  @Post('importar-vendas')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Importa vendas do SimplesVet como Appointments (venda por venda), com dryRun' })
+  async importarVendas(
+    @Body() body: { linhas: any[]; dryRun?: boolean; mapaMarca?: Record<string, string>; importadorUserId?: string },
+    @CurrentUser() user: { userId: string },
+  ) {
+    return this.crmService.importarVendas({
+      ...body,
+      importadorUserId: body.importadorUserId || user?.userId,
+    });
+  }
+
   @Post('limpar-pets-sem-codigo')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Apaga pets sem codigo (residuos da importacao); lote de 300, com dryRun' })
