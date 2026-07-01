@@ -154,4 +154,14 @@ export class CreatePetDto {
   @IsOptional()
   @IsString()
   secondaryTutorId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Etiquetas do pet',
+    type: [String],
+    example: ['Manso', 'Alergia a frango'],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  tags?: string[];
 }

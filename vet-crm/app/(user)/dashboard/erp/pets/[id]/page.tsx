@@ -32,6 +32,36 @@ import PetProfilePanel from "@/components/profile/PetProfilePanel";
 import PetIcon from "@/components/profile/PetIcon";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { speciesLabel, ageFromBirth, genderLabel } from "@/lib/pets/labels";
+import { openWhatsAppMeta } from "@/lib/actions/whatsapp";
+
+// Emoji da espécie (avatar do cabeçalho — padrão Base44)
+const PET_EMOJI = (species: string) => {
+  const s = (species || "").toUpperCase();
+  if (s.includes("FELIN") || s.includes("GAT") || s === "FELINE") return "🐱";
+  if (s.includes("CANIN") || s.includes("CACHORR") || s === "CANINE") return "🐶";
+  return "🐾";
+};
+const fmtDataBR = (v?: string | null) => {
+  if (!v) return "—";
+  const d = new Date(v);
+  return isNaN(d.getTime()) ? "—" : d.toLocaleDateString("pt-BR");
+};
+const diasTxt = (d: number | null | undefined) =>
+  d == null ? "—" : d === 0 ? "hoje" : d < 30 ? `${d}d` : d < 365 ? `${Math.floor(d / 30)}m` : `${Math.floor(d / 365)}a`;
+const sterilLabel = (s?: string | null) =>
+  s === "STERILIZED" ? "Castrado" : s === "NOT_STERILIZED" ? "Não castrado" : s === "SCHEDULED" ? "Castração agendada" : "—";
+
+// Status de saúde derivado das pipelines clínica/fisio (pill do cabeçalho)
+const healthStatus = (clin?: string | null, fisio?: string | null): { label: string; bg: string; color: string } => {
+  const c = (clin || "").toLowerCase();
+  const f = (fisio || "").toLowerCase();
+  const txt = c + " " + f;
+  if (txt.includes("alta")) return { label: "🟢 Saudável", bg: "#E1F5EE", color: "#0F6E56" };
+  if (txt.includes("manuten")) return { label: "🩺 Em manutenção", bg: "#FBF3E3", color: "#8a6400" };
+  if (txt.includes("exame")) return { label: "🔬 Aguardando exames", bg: "#EDE9FA", color: "#3C3489" };
+  if (clin || fisio) return { label: "🩺 Em tratamento", bg: "#FBEFD6", color: "#8A5A0B" };
+  return { label: "🟢 Saudável", bg: "#E1F5EE", color: "#0F6E56" };
+};
 
 interface Pet {
   id: string;
@@ -55,6 +85,9 @@ interface Pet {
   pipelineClinicoEtapa?: string | null;
   pipelineFisioEtapa?: string | null;
   proximoFollowupAt?: string | null;
+  tags?: string[];
+  codigo?: number | null;
+  tutorName?: string | null;
   tutorId: string;
   tutor?: { id: string; name: string; contacts?: { number: string; isPrimary?: boolean; isWhatsApp?: boolean }[] };
   createdAt: string;
@@ -150,6 +183,17 @@ export default function PetDetailPage() {
   const [verAtd, setVerAtd] = useState<any>(null);
   const [editAtd, setEditAtd] = useState(false);
   const [editAtdForm, setEditAtdForm] = useState<any>({});
+  // Nova estrutura Base44: 5 abas de topo + cabeçalho estilo ficha do cliente
+  const [mainTab, setMainTab] = useState<"GERAL" | "CADASTRO" | "PRONTUARIO" | "VACINAS" | "COMPRAS">("GERAL");
+  const [showValues, setShowValues] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [statusOpen, setStatusOpen] = useState(false);
+  const [notaOpen, setNotaOpen] = useState(false);
+  const [notaVal, setNotaVal] = useState("");
+  const [savingNota, setSavingNota] = useState(false);
+  const [fuOpen, setFuOpen] = useState(false);
+  const [tagPickerOpen, setTagPickerOpen] = useState(false);
+  const [tagLivre, setTagLivre] = useState("");
 
   usePageTitle("", undefined); // F1-rev: barra global minima (info fica no sub-header da pagina)
 
@@ -331,6 +375,23 @@ export default function PetDetailPage() {
   async function clearFu() {
     try { await patchPet({ proximoFollowupAt: null }); toast.success("Follow-up removido"); await load(); } catch { toast.error("Erro"); }
   }
+  // ❤️ Nota médica (medicalNotes) — popup do cabeçalho
+  async function saveNotaMedica() {
+    setSavingNota(true);
+    try { await patchPet({ medicalNotes: notaVal }); toast.success("Nota médica salva"); setNotaOpen(false); await load(); } catch { toast.error("Erro ao salvar"); } finally { setSavingNota(false); }
+  }
+  // 🏷️ Etiquetas no campo pet.tags (novo campo do schema)
+  async function addPetTag(texto: string) {
+    if (!pet || !texto.trim()) return;
+    const novas = Array.from(new Set([...(pet.tags || []), texto.trim()]));
+    setSavingTag(true);
+    try { await patchPet({ tags: novas }); toast.success("Etiqueta adicionada"); setTagLivre(""); setTagPickerOpen(false); await load(); } catch { toast.error("Erro ao adicionar"); } finally { setSavingTag(false); }
+  }
+  async function removePetTag(texto: string) {
+    if (!pet) return;
+    const novas = (pet.tags || []).filter((t) => t !== texto);
+    try { await patchPet({ tags: novas }); await load(); } catch { toast.error("Erro ao remover"); }
+  }
 
   async function listasGet(lista: string) { try { const r = await fetch(`/api/listas?lista=${encodeURIComponent(lista)}`, { cache: "no-store" }); const d = await r.json(); return Array.isArray(d) ? d : (d.itens || d.data || []); } catch { return []; } }
   async function listasAdd(lista: string, valor: string) { const r = await fetch(`/api/listas`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lista, valor }) }); if (!r.ok) throw new Error(String(r.status)); return r.json(); }
@@ -472,597 +533,712 @@ export default function PetDetailPage() {
   const ltvPet = (atendimentos || []).reduce((acc: number, a: any) => acc + Number(a.value || 0), 0);
   const ultimaVisita = (atendimentos || [])[0]?.date || null;
 
+  // ── Derivados para o padrão Base44 ──────────────────────────────
+  const emoji = PET_EMOJI(pet.species);
+  const saude = healthStatus(pet.pipelineClinicoEtapa, pet.pipelineFisioEtapa);
+  const money = (v?: number | null) =>
+    v == null ? "—" : !showValues ? "R$ ••••" : "R$ " + Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const diasDesdeUltima = ultimaVisita ? Math.floor((Date.now() - new Date(ultimaVisita).getTime()) / 86400000) : null;
+  // Vacinas em dia: existe pelo menos um protocolo/atendimento de vacinação
+  const temVacina = (atendimentos || []).some((a: any) => /vacin/i.test(a.type || "") || /vacin/i.test(a.description || ""));
+  const castrado = pet.sterilization === "STERILIZED";
+  const pesoOk = pet.weight != null && pet.weight > 0;
+  const emTratamento = /trat|manut|exame|avali/i.test(saude.label + " " + pipelineClinico + " " + pipelineFisio);
+  // Índice de saúde 0–100 (honesto: vacina + peso + castração + tratamento controlado)
+  const selosSaude: { txt: string; ok: boolean }[] = [
+    { txt: "💉 Vacinas em dia", ok: temVacina },
+    { txt: "✅ Castrado", ok: castrado },
+    { txt: "⚖️ Peso ok", ok: pesoOk },
+    { txt: "🩺 Tratamento em dia", ok: !pet.pipelineClinicoEtapa || emTratamento },
+  ];
+  const healthIndex = Math.round((selosSaude.filter((s) => s.ok).length / selosSaude.length) * 100);
+  const R = 26, C = 2 * Math.PI * R;
+  // Pacote de fisioterapia ativo (patinhas)
+  const pacFisio = (pacotes || []).find((p) => (p.data?.total || 0) > 0);
+  const pacUsed = pacFisio?.data?.used || 0;
+  const pacTotal = pacFisio?.data?.total || 0;
+
   return (
-    <div className="min-h-screen bg-white">
-      {/* Top bar */}
-      <div className="bg-white border-b" style={{ borderColor: "#E8DFC8" }}>
-        <div className="max-w-7xl mx-auto px-6 py-3 flex items-center gap-3">
-          <Link href="/dashboard/erp/pets" className="p-2 rounded-lg hover:bg-gray-100">
-            <LuArrowLeft size={18} />
-          </Link>
-          <div className="flex-1 flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: "#e6f6f8", color: "#009AAC" }}>
-              {pet.avatar ? <img src={pet.avatar} alt={pet.name} className="w-12 h-12 rounded-full object-cover" /> : <PetIcon species={pet.species} size={28} />}
-            </div>
-            <div>
+    <div className="p-4 min-h-screen bg-[#F6F2EA]">
+      {/* Breadcrumb */}
+      <div className="text-[12px] text-[#8A989D] mb-2 px-1">
+        <Link href="/dashboard/erp/pets" className="hover:text-[#009AAC]">Pets</Link> / <b className="text-[#009AAC] font-medium">{pet.name}</b>
+      </div>
+
+      {/* ── Cabeçalho em card branco (padrão ficha do cliente) ── */}
+      <div className="bg-white border border-[#E8E2D6] rounded-[14px] mb-3" style={{ padding: "14px 16px" }}>
+        <div className="flex justify-between items-start flex-wrap gap-3">
+          <div className="flex items-start gap-3 flex-1" style={{ minWidth: "220px" }}>
+            <div className="w-[50px] h-[50px] rounded-[13px] bg-[#FBF3E3] flex items-center justify-center text-[26px] shrink-0">{emoji}</div>
+            <div className="flex-1">
               <div className="flex items-center gap-2 flex-wrap">
                 {editName ? (
                   <span className="flex items-center gap-1">
-                    <input
-                      autoFocus
-                      value={nameVal}
-                      onChange={(e) => setNameVal(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter") saveName(); if (e.key === "Escape") setEditName(false); }}
-                      className="text-xl font-bold px-2 py-0.5 border rounded-lg"
-                      style={{ color: "#014D5E", borderColor: "#009AAC" }}
-                    />
-                    <button onClick={saveName} disabled={savingName} className="p-1 rounded-lg text-white disabled:opacity-50" style={{ background: "#009AAC" }} title="Salvar">
-                      <LuCheck size={14} />
-                    </button>
-                    <button onClick={() => setEditName(false)} className="p-1 rounded-lg border" style={{ borderColor: "#E8DFC8", color: "#64748b" }} title="Cancelar">
-                      <LuX size={14} />
-                    </button>
+                    <input autoFocus value={nameVal} onChange={(e) => setNameVal(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") saveName(); if (e.key === "Escape") setEditName(false); }} className="text-[19px] px-2 py-0.5 border rounded-lg text-[#014D5E]" style={{ borderColor: "#009AAC" }} />
+                    <button onClick={saveName} disabled={savingName} className="p-1 rounded-lg text-white disabled:opacity-50" style={{ background: "#009AAC" }} title="Salvar"><LuCheck size={14} /></button>
+                    <button onClick={() => setEditName(false)} className="p-1 rounded-lg border" style={{ borderColor: "#E8E2D6", color: "#64748b" }} title="Cancelar"><LuX size={14} /></button>
                   </span>
                 ) : (
                   <span className="flex items-center gap-1.5 group">
-                    <h2 className="text-xl font-bold" style={{ color: "#014D5E" }}>{pet.name}</h2>
-                    <button onClick={() => { setNameVal(pet.name || ""); setEditName(true); }} className="p-1 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-[#009AAC]" title="Editar nome">
-                      <LuPencil size={13} />
-                    </button>
+                    <h1 className="text-[19px] leading-tight text-[#014D5E] font-medium">{pet.name}</h1>
+                    <button onClick={() => { setNameVal(pet.name || ""); setEditName(true); }} className="p-0.5 rounded text-[#c8d0d4] hover:text-[#009AAC]" title="Editar nome"><LuPencil size={12} /></button>
                   </span>
                 )}
-                {pet.codigo ? <span className="text-[12px] text-gray-400 font-medium" title="Código do pet">#{pet.codigo}</span> : null}
-                <span className="px-2 py-0.5 rounded-md text-[11px] font-medium" style={{ background: "#eef2f4", color: "#64748b" }}>
-                  {speciesLabel(pet.species)}
-                </span>
-                {pet.birthDate && (
-                  <span className="px-2 py-0.5 rounded-md text-[11px] font-medium" style={{ background: "#eef2f4", color: "#64748b" }}>
-                    {ageFromBirth(pet.birthDate)}
-                  </span>
-                )}
-                <span className="px-2 py-0.5 rounded-md text-[11px] font-medium" style={{ background: "#fef3c7", color: "#92400e" }}>
-                  {pipelineClinico}
-                </span>
+                {pet.codigo ? <span className="text-[13px] text-[#8A989D] font-medium" title="Código do pet">#{pet.codigo}</span> : null}
+                <button onClick={() => setStatusOpen(true)} title="Status de saúde — clique para alterar" className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: saude.bg, color: saude.color }}>{saude.label} ▾</button>
+                <button onClick={() => { setNotaVal(pet.medicalNotes || ""); setNotaOpen(true); }} title={pet.medicalNotes ? `Nota médica: ${pet.medicalNotes}` : "Adicionar nota médica"} className="text-[15px] leading-none">{(pet.medicalNotes || pet.observations) ? "❤️" : "🤍"}</button>
               </div>
+              <p className="text-[12.5px] text-[#5C6B70] mt-0.5">
+                {[speciesLabel(pet.species), pet.breed, genderLabel(pet.gender), pet.birthDate ? ageFromBirth(pet.birthDate) : null, sterilLabel(pet.sterilization)].filter((x) => x && x !== "—").join(" · ")}
+              </p>
               {pet.tutor && (
-                <div className="text-xs text-gray-500 mt-0.5">
-                  Tutor: <Link href={`/dashboard/erp/tutores/${pet.tutorId}`} className="hover:underline" style={{ color: "#009AAC" }}>{pet.tutor.name}</Link>
-                  {tutorWhats && <span> · {tutorWhats}</span>}
+                <p className="text-[12.5px] text-[#5C6B70] mt-0.5">
+                  🧑 Tutor(a): <Link href={`/dashboard/erp/tutores/${pet.tutorId}`} className="text-[#009AAC] hover:underline">{pet.tutor.name} →</Link>
+                </p>
+              )}
+              {/* Etiquetas (chips + tag) */}
+              <div className="flex flex-wrap gap-1.5 items-center mt-2">
+                <span className="text-[11.5px] text-[#8A989D]">🏷️</span>
+                {(pet.tags || []).map((t) => {
+                  const tpl = tagTpls.find((x: any) => x.texto === t);
+                  const cor = tpl?.cor || "#009AAC";
+                  return (
+                    <span key={t} className="text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1" style={{ background: cor + "22", color: cor }}>
+                      ● {t}
+                      <button onClick={() => removePetTag(t)} title="Remover" className="hover:opacity-60 font-bold">×</button>
+                    </span>
+                  );
+                })}
+                <button onClick={() => setTagPickerOpen((v) => !v)} className="border border-dashed border-[#E8E2D6] text-[#8A989D] text-[10px] px-2 py-0.5 rounded-full">+ tag</button>
+              </div>
+              {tagPickerOpen && (
+                <div className="mt-2 pt-2 border-t border-[#F0EBE0]">
+                  <div className="flex flex-wrap gap-1 mb-2">
+                    {tagTpls.filter((t: any) => !(pet.tags || []).includes(t.texto)).map((t: any) => (
+                      <button key={t.texto} disabled={savingTag} onClick={() => addPetTag(t.texto)} className="text-[10px] px-2 py-0.5 rounded-full border disabled:opacity-50" style={{ borderColor: (t.cor || "#009AAC") + "66", color: t.cor || "#009AAC" }}>+ {t.texto}</button>
+                    ))}
+                  </div>
+                  <div className="flex gap-1.5 items-center">
+                    <input value={tagLivre} onChange={(e) => setTagLivre(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addPetTag(tagLivre); }} placeholder="Nova etiqueta livre…" className="flex-1 border border-[#E8E2D6] rounded px-2 py-1 text-[11px]" />
+                    <button onClick={() => addPetTag(tagLivre)} disabled={savingTag || !tagLivre.trim()} className="bg-[#009AAC] text-white px-2.5 py-1 rounded text-[11px] disabled:opacity-50">Adicionar</button>
+                  </div>
                 </div>
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Link
-              href={`/dashboard/erp/tutores/${pet.tutorId}`}
-              className="px-3 py-1.5 rounded-lg text-sm border flex items-center gap-1.5"
-              style={{ borderColor: "#009AAC", color: "#00798A" }}
-            >
-              <LuPencil size={14} /> Editar cadastro
-            </Link>
-            {tutorWhats && (
-              <a
-                href={`https://wa.me/${tutorWhats.replace(/\D/g, "")}`}
-                target="_blank" rel="noopener"
-                className="px-3 py-1.5 rounded-lg text-sm border flex items-center gap-1.5"
-                style={{ borderColor: "#22C55E", color: "#16a34a" }}
-              >
-                <LuMessageSquare size={14} /> WhatsApp
-              </a>
-            )}
-            <EncaminharBox tipo="pet" id={petId} nome={pet?.name || ""} onChange={loadInteracoesPet} />
-            <button
-              onClick={() => setDelOpen(true)}
-              className="px-3 py-1.5 rounded-lg text-sm border flex items-center gap-1.5"
-              style={{ borderColor: "#fecaca", color: "#ef4444" }}
-            >
-              <LuTrash size={14} /> Excluir
-            </button>
+          <div className="flex gap-1.5 flex-wrap items-center">
+            <button onClick={() => setShowValues((v) => !v)} className="border border-[#EAD9B6] bg-[#FBF6EC] rounded-[9px] px-3 py-2 text-[12.5px] text-[#8A5A0B] hover:border-[#E0A100] flex items-center gap-1.5">{showValues ? "🙈 Ocultar valores" : "👁️ Mostrar valores"}</button>
+            <button onClick={() => openWhatsAppMeta(tutorWhats || undefined)} className="bg-[#009AAC] text-white rounded-[9px] px-3.5 py-2 text-[12.5px] hover:bg-[#00808f] flex items-center gap-1.5">💬 WhatsApp</button>
+            <div className="relative">
+              <button onClick={() => setMoreOpen((v) => !v)} className="border border-[#E8E2D6] bg-white rounded-[9px] px-3 py-2 text-[12.5px] text-[#5C6B70] hover:border-[#009AAC] hover:text-[#009AAC]">⋯ Mais</button>
+              {moreOpen && (
+                <div className="absolute right-0 top-[42px] bg-white border border-[#E0DACB] rounded-[11px] shadow-lg p-1.5 z-20 min-w-[200px]" onMouseLeave={() => setMoreOpen(false)}>
+                  <Link href={`/dashboard/erp/tutores/${pet.tutorId}`} onClick={() => setMoreOpen(false)} className="block text-left text-[12.5px] px-3 py-2 rounded-[7px] hover:bg-[#FBF9F4] text-[#5C6B70]">✏️ Editar cadastro do tutor</Link>
+                  <div className="px-1.5 py-1"><EncaminharBox tipo="pet" id={petId} nome={pet?.name || ""} onChange={loadInteracoesPet} /></div>
+                  <button onClick={() => { setDelOpen(true); setMoreOpen(false); }} className="w-full text-left text-[12.5px] px-3 py-2 rounded-[7px] hover:bg-[#FDECEC] text-[#b23b39] border-t border-[#F0EBE0] mt-1">🗑️ Excluir pet</button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* LIXEIRA-F1rev: card estilo SimplesVet removido; o cabecalho volta a ser o sub-header editavel do dev */}
-      {false && (
-      <PetFichaHeaderCard pet={pet} tutorWhats={tutorWhats} ltv={ltvPet} ultimaVisita={ultimaVisita} petTags={petTags} tagTpls={tagTpls} />
-      )}
+      {/* ── Barra de abas ── */}
+      <div className="flex border-b border-[#E8E2D6] mb-3 flex-wrap">
+        {([
+          { k: "GERAL", label: "👤 Visão geral" },
+          { k: "CADASTRO", label: "📋 Cadastro" },
+          { k: "PRONTUARIO", label: "🩺 Prontuário" },
+          { k: "VACINAS", label: "💉 Vacinas & meds" },
+          { k: "COMPRAS", label: "🧾 Compras" },
+        ] as const).map((t) => (
+          <button key={t.k} onClick={() => setMainTab(t.k)} className="px-4 py-2 text-sm font-medium border-b-2 transition -mb-px" style={{ borderColor: mainTab === t.k ? "#009AAC" : "transparent", color: mainTab === t.k ? "#009AAC" : "#8A989D" }}>{t.label}</button>
+        ))}
+      </div>
 
-      {/* Sobre (1 linha) */}
-      <div className="max-w-7xl mx-auto px-6 pt-5">
-          <div className="rounded-xl border px-4 py-3 text-sm" style={{ background: "#fffbeb", borderColor: "#fde68a", color: "#92611a" }}>
-            <div className="flex items-start justify-between gap-2">
-              <span className="font-semibold">💭 Sobre {pet.name}:</span>
-              <button onClick={() => { setObsVal(pet.observations || ""); setEditObs(v => !v); }} className="text-xs whitespace-nowrap" style={{ color: "#009AAC" }}>{editObs ? "Fechar" : "Editar"}</button>
+      {/* ═══════════ ABA 👤 VISÃO GERAL ═══════════ */}
+      {mainTab === "GERAL" && (
+      <div className="mb-3 flex flex-col gap-3">
+        {/* 1. Barra de saúde — 2 cards espelhados (anel + status/selos/patinhas) */}
+        <div className="grid gap-3" style={{ gridTemplateColumns: "minmax(0,auto) minmax(0,1fr)" }}>
+          <div className="bg-white border border-[#E8E2D6] rounded-[14px] flex items-center gap-3.5" style={{ padding: "13px 16px" }}>
+            <div className="relative w-[62px] h-[62px] shrink-0">
+              <svg viewBox="0 0 62 62" className="w-full h-full -rotate-90">
+                <circle cx="31" cy="31" r={R} fill="none" stroke="#F0EBE0" strokeWidth="6" />
+                <circle cx="31" cy="31" r={R} fill="none" stroke="#009AAC" strokeWidth="6" strokeLinecap="round" strokeDasharray={C} strokeDashoffset={C - (healthIndex / 100) * C} />
+              </svg>
+              <div className="absolute inset-0 flex items-center justify-center text-[18px] font-medium text-[#014D5E]">{healthIndex}</div>
             </div>
-            {editObs ? (
-              <div className="mt-2">
-                <textarea value={obsVal} onChange={(e) => setObsVal(e.target.value)} maxLength={140} rows={2} placeholder="Apelido, comportamento, medo, preferência (até 140)" className="w-full px-2 py-1.5 border rounded-lg text-sm" style={{ borderColor: "#fde68a", color: "#0E2244" }} />
-                <div className="flex gap-2 mt-1">
-                  <button onClick={saveObs} disabled={savingObs} className="px-3 py-1 rounded-lg text-xs text-white" style={{ background: "#009AAC" }}>{savingObs ? "..." : "Salvar"}</button>
-                  <button onClick={() => setEditObs(false)} className="px-3 py-1 rounded-lg text-xs border" style={{ borderColor: "#fde68a", color: "#92611a" }}>Cancelar</button>
+            <div>
+              <div className="text-[13.5px] font-medium text-[#014D5E]">🐾 Saúde</div>
+              <div className="text-[11.5px] text-[#8A989D]">Índice {healthIndex}/100</div>
+            </div>
+          </div>
+          <div className="bg-white border border-[#E8E2D6] rounded-[14px]" style={{ padding: "13px 16px" }}>
+            <div className="flex justify-between items-center text-[13px] mb-1.5">
+              <span className="font-medium" style={{ color: saude.color }}>{saude.label}</span>
+              <button onClick={() => setStatusOpen(true)} className="text-[#8A989D] hover:text-[#009AAC] text-[11.5px]">alterar ▾</button>
+            </div>
+            {/* Selos reais */}
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {selosSaude.map((s) => (
+                <span key={s.txt} className="text-[11px] px-2 py-0.5 rounded-full" style={s.ok ? { background: "#E1F5EE", color: "#0F6E56" } : { background: "#F3F1EC", color: "#9a948a" }}>{s.ok ? s.txt : "○ " + s.txt.replace(/^\S+\s/, "")}</span>
+              ))}
+            </div>
+            {/* Fisioterapia = patinhas */}
+            {pacFisio ? (
+              <div className="pt-2 border-t border-[#F0EBE0]">
+                <div className="flex justify-between text-[11.5px] mb-1">
+                  <span className="text-[#5C6B70]">🐾 Fisioterapia <span className="text-[#8A989D]">(ligado à venda)</span></span>
+                  <span className="text-[#014D5E] font-medium">{pacUsed}/{pacTotal}</span>
+                </div>
+                <div className="flex flex-wrap gap-0.5">
+                  {Array.from({ length: Math.min(pacTotal, 30) }).map((_, i) => (
+                    <span key={i} style={{ fontSize: "15px" }} title={`Sessão ${i + 1}`}>{i < pacUsed ? "🐾" : "⚪"}</span>
+                  ))}
                 </div>
               </div>
             ) : (
-              <span> {pet.observations || <span className="italic opacity-70">Adicionar algo que vale lembrar sobre o pet — apelido, comportamento, medo, preferência (até 140 caracteres).</span>}</span>
+              <div className="pt-2 border-t border-[#F0EBE0] text-[11.5px] text-[#8A989D]">Sem pacote de fisioterapia ativo.</div>
             )}
           </div>
-      </div>
+        </div>
 
-      {/* Etiquetas (linha) */}
-      <div className="max-w-7xl mx-auto px-6 pt-3">
-          <div className="bg-white border rounded-xl p-4" style={{ borderColor: "#E8DFC8" }}>
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-semibold flex items-center gap-2" style={{ color: "#0E2244" }}>
-                <LuTag size={14} /> Etiquetas
-              </h3>
-              <button onClick={() => setTagsOpen(o => !o)} className="text-xs flex items-center gap-1" style={{ color: "#009AAC" }}>
-                <LuPlus size={12} /> Adicionar
-              </button>
+        {/* 2. Sinais vitais (KPIs) */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-2.5">
+          {[
+            { emoji: "⚖️", label: "Peso", value: pet.weight ? `${pet.weight} kg` : "—" },
+            { emoji: "🎂", label: "Idade", value: pet.birthDate ? ageFromBirth(pet.birthDate) : "—" },
+            { emoji: "📏", label: "Porte", value: pet.weight ? (pet.weight < 10 ? "Pequeno" : pet.weight < 25 ? "Médio" : "Grande") : "—" },
+            { emoji: "🩺", label: "Última visita", value: diasTxt(diasDesdeUltima) },
+            { emoji: "🧾", label: "Gasto no pet", value: money(ltvPet) },
+          ].map((k) => (
+            <div key={k.label} className="bg-white border border-[#E8E2D6] rounded-[13px]" style={{ padding: "11px 13px" }}>
+              <div className="text-[11px] text-[#8A989D]">{k.emoji} {k.label}</div>
+              <div className="text-[19px] text-[#014D5E] font-medium mt-0.5">{k.value}</div>
             </div>
-            <div className="flex flex-wrap gap-1.5 items-center">
-              {petTags.length === 0 && <span className="text-sm text-gray-400">Sem etiquetas. Use pra agrupar pets por temperamento, restrição, dieta, etc.</span>}
-              {petTags.map(t => { const tpl = tagTpls.find((x: any) => x.texto === t.texto); const cor = tpl?.cor || "#009AAC"; return (
-                <span key={t.id} className="text-[11px] px-2 py-0.5 rounded-full flex items-center gap-1" style={{ background: cor + "22", color: cor }}>● {t.texto}<button onClick={() => delTag(t.id)} title="Remover" className="font-bold hover:opacity-60">×</button></span>
+          ))}
+        </div>
+
+        {/* 3. Alertas médicos (só se houver) */}
+        {((pet.allergies && pet.allergies.length > 0) || pet.medicalNotes) && (
+          <div className="bg-[#FDECEC] border border-[#f4baba] rounded-[13px]" style={{ padding: "12px 15px" }}>
+            <h3 className="text-[13px] text-[#A32D2D] font-medium flex items-center gap-1.5 mb-1">⚠️ Alertas médicos</h3>
+            {pet.allergies && pet.allergies.length > 0 && <div className="text-[12.5px] text-[#8a3232]">🚫 Alergias: <b>{pet.allergies.join(", ")}</b></div>}
+            {pet.medicalNotes && <div className="text-[12.5px] text-[#8a3232] mt-0.5">📝 {pet.medicalNotes}</div>}
+          </div>
+        )}
+
+        {/* 4. Tutor + Próximos cuidados */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
+          <div className="bg-white border border-[#E8E2D6] rounded-[13px]">
+            <div className="border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
+              <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">🧑 Tutora</h3>
+            </div>
+            <div style={{ padding: "12px 14px" }}>
+              {pet.tutor ? (
+                <Link href={`/dashboard/erp/tutores/${pet.tutorId}`} className="flex items-center gap-3 hover:bg-[#FBF9F4] rounded-[9px] -mx-1 px-1 py-1">
+                  <div className="w-[38px] h-[38px] rounded-[12px] bg-[#E0F4F6] text-[#014D5E] flex items-center justify-center text-[14px] font-medium shrink-0">
+                    {(pet.tutor.name || "?").trim().split(/\s+/).slice(0, 2).map((p) => p[0]).join("").toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[13.5px] text-[#014D5E] font-medium truncate">{pet.tutor.name}</div>
+                    {tutorWhats && <div className="text-[12px] text-[#5C6B70]">📞 {tutorWhats}</div>}
+                  </div>
+                  <span className="text-[#8A989D] text-[16px]">›</span>
+                </Link>
+              ) : <p className="text-[12px] text-[#8A989D]">Sem tutor vinculado.</p>}
+            </div>
+          </div>
+          <div className="bg-[#FBF3E3] border border-[#F0DCB0] rounded-[13px]" style={{ padding: "12px 15px" }}>
+            <div className="flex items-center justify-between mb-1.5">
+              <h3 className="text-[13px] text-[#8a6400] font-medium flex items-center gap-1.5">🔔 Próximos cuidados</h3>
+              <button onClick={() => { setFuDate(pet.proximoFollowupAt ? String(pet.proximoFollowupAt).slice(0, 10) : ""); setFuOpen(true); }} className="text-[11.5px] text-[#8a6400] underline">📞 {pet.proximoFollowupAt ? "Alterar" : "Agendar"}</button>
+            </div>
+            <div className="text-[12.5px] text-[#7a6330] flex flex-col gap-1">
+              {pet.proximoFollowupAt && <div>📞 Follow-up em <b>{fmtDataBR(pet.proximoFollowupAt).slice(0, 5)}</b></div>}
+              {pet.birthDate && <div>🎂 Aniversário em <b>{fmtDataBR(pet.birthDate).slice(0, 5)}</b></div>}
+              {pacFisio && pacUsed < pacTotal && <div>🐾 Fisio: {pacTotal - pacUsed} sessão(ões) restante(s)</div>}
+              {!pet.proximoFollowupAt && !pet.birthDate && !pacFisio && <div className="text-[#a99a72]">Nenhum cuidado agendado no momento.</div>}
+            </div>
+          </div>
+        </div>
+
+        {/* 5. Últimos atendimentos */}
+        <div className="bg-white border border-[#E8E2D6] rounded-[13px]">
+          <div className="flex items-center justify-between border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
+            <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">🩺 Últimos atendimentos</h3>
+            <button onClick={() => setMainTab("PRONTUARIO")} className="text-[11px] text-[#009AAC] hover:underline">ver prontuário →</button>
+          </div>
+          <div style={{ padding: "6px 15px" }}>
+            {(atendimentos || []).length === 0 && <p className="text-[12.5px] text-[#8A989D] py-3 text-center">Nenhum atendimento registrado ainda.</p>}
+            {(atendimentos || []).slice(0, 3).map((a: any, i: number) => (
+              <button key={a.id} onClick={() => abrirAtd(a.id)} className="w-full flex items-center gap-2.5 py-2.5 text-left" style={{ borderBottom: i < Math.min(3, atendimentos.length) - 1 ? "1px solid #F0EBE0" : "none" }}>
+                <span className="text-[11.5px] text-[#8A989D] w-[46px] shrink-0">{fmtDataBR(a.date).slice(0, 5)}</span>
+                <span className="flex-1 text-[12.5px] text-[#1F2A2E] truncate">{ATD_TIPO_LABEL(a.type)}{a.chiefComplaint ? ` · ${a.chiefComplaint}` : ""}</span>
+                <span className="text-[12.5px] text-[#014D5E] font-medium shrink-0">{money(a.value)}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 6. Relacionamento / tratamento */}
+        <div className="text-[11px] text-[#8A989D] uppercase tracking-wide mb-1 mt-1 px-1">💬 Relacionamento / tratamento</div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
+          {/* Tratamento em andamento (steppers de pipeline) */}
+          <div className="bg-white border border-[#E8E2D6] rounded-[13px]">
+            <div className="border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
+              <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">🔄 Tratamento em andamento</h3>
+            </div>
+            <div style={{ padding: "12px 14px" }} className="flex flex-col gap-3">
+              <div>
+                <div className="text-[10px] uppercase tracking-wide text-[#8A989D] mb-1">Clínico</div>
+                <div className="flex flex-wrap gap-1">
+                  {(pipes.clinico.length ? pipes.clinico : (pet.pipelineClinicoEtapa ? [pet.pipelineClinicoEtapa] : [])).map((e) => (
+                    <button key={e} onClick={() => savePipe("pipelineClinicoEtapa", e)} disabled={savingPipe} className="text-[11px] px-2.5 py-1 rounded-full border transition disabled:opacity-50" style={pet.pipelineClinicoEtapa === e ? { background: "#009AAC", color: "#fff", borderColor: "#009AAC" } : { background: "#fff", color: "#5C6B70", borderColor: "#E8E2D6" }}>{e}</button>
+                  ))}
+                  {pipes.clinico.length === 0 && !pet.pipelineClinicoEtapa && <span className="text-[12px] text-[#8A989D]">Nenhuma etapa configurada.</span>}
+                </div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase tracking-wide text-[#8A989D] mb-1">Fisioterapia</div>
+                <div className="flex flex-wrap gap-1">
+                  {(pipes.fisio.length ? pipes.fisio : (pet.pipelineFisioEtapa ? [pet.pipelineFisioEtapa] : [])).map((e) => (
+                    <button key={e} onClick={() => savePipe("pipelineFisioEtapa", e)} disabled={savingPipe} className="text-[11px] px-2.5 py-1 rounded-full border transition disabled:opacity-50" style={pet.pipelineFisioEtapa === e ? { background: "#009AAC", color: "#fff", borderColor: "#009AAC" } : { background: "#fff", color: "#5C6B70", borderColor: "#E8E2D6" }}>{e}</button>
+                  ))}
+                  {pipes.fisio.length === 0 && !pet.pipelineFisioEtapa && <span className="text-[12px] text-[#8A989D]">Nenhuma etapa configurada.</span>}
+                </div>
+              </div>
+            </div>
+          </div>
+          {/* Follow-up + Sequências */}
+          <div className="flex flex-col gap-3">
+            <div className="bg-white border border-[#E8E2D6] rounded-[13px]">
+              <div className="border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
+                <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">📞 Follow-up do tratamento</h3>
+              </div>
+              <div style={{ padding: "12px 14px" }}>
+                {pet.proximoFollowupAt ? (
+                  <div className="text-[12.5px] text-[#5C6B70]">Próximo em <b className="text-[#014D5E]">{fmtDataBR(pet.proximoFollowupAt)}</b></div>
+                ) : <div className="text-[12.5px] text-[#8A989D]">Nenhum follow-up agendado.</div>}
+                <div className="flex gap-1.5 mt-2.5">
+                  <button onClick={() => { setFuDate(pet.proximoFollowupAt ? String(pet.proximoFollowupAt).slice(0, 10) : ""); setFuOpen(true); }} className="bg-[#E0F4F6] text-[#014D5E] text-[11px] px-2.5 py-1 rounded-[8px]">{pet.proximoFollowupAt ? "Reagendar" : "Agendar"}</button>
+                  {pet.proximoFollowupAt && <button onClick={clearFu} className="bg-[#FBF9F4] text-[#5C6B70] text-[11px] px-2.5 py-1 rounded-[8px] border border-[#F0EBE0]">Concluir</button>}
+                </div>
+              </div>
+            </div>
+            <div className="bg-white border border-[#E8E2D6] rounded-[13px]">
+              <div className="flex items-center justify-between border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
+                <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">⚡ Sequências</h3>
+                <button onClick={() => setCadPick((v) => !v)} className="text-[11px] text-[#009AAC] hover:underline">+ iniciar</button>
+              </div>
+              <div style={{ padding: "10px 14px" }} className="flex flex-col gap-1.5">
+                {cadAtivas.length === 0 && !cadPick && <p className="text-[12px] text-[#8A989D]">Nenhuma cadência ativa.</p>}
+                {cadAtivas.map((c) => (
+                  <div key={c.id} className="bg-[#FBF9F4] border border-[#F0EBE0] rounded-[10px] px-2.5 py-1.5 flex items-center justify-between text-[11.5px]">
+                    <span className="text-[#1F2A2E]">⚡ {c.data?.nome || "Cadência"}</span>
+                    <button onClick={() => delCad(c.id)} className="text-[#b23b39] text-[10px]">encerrar</button>
+                  </div>
+                ))}
+                {cadPick && (
+                  <div className="pt-1.5 border-t border-[#F0EBE0] flex flex-wrap gap-1.5">
+                    {cadOpts.length === 0 ? <p className="text-[11px] text-[#8A989D]">Nenhuma cadência cadastrada em Configurações.</p> :
+                      cadOpts.map((c: any) => (<button key={c.id} disabled={savingCad} onClick={() => addCad(c)} className="text-[11px] px-2 py-1 rounded-lg border disabled:opacity-50" style={{ borderColor: "#E8E2D6", color: "#009AAC" }}>+ {c.nome || c.titulo}</button>))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Acompanhamento (interações ligadas ao follow-up) */}
+        <div className="bg-white border border-[#E8E2D6] rounded-[13px]">
+          <div className="border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
+            <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">🕓 Acompanhamento <span className="bg-[#E7F6EE] text-[#1c7a47] text-[10px] font-medium px-1.5 py-0.5 rounded-full">{petInteracoes.length}</span></h3>
+          </div>
+          <div style={{ padding: "12px 14px" }}>
+            <div className="flex gap-2 mb-2">
+              <select value={intTipo} onChange={(e) => setIntTipo(e.target.value)} className="border border-[#E8E2D6] rounded px-2 py-1 text-[11px]">
+                <option value="NOTA">Nota</option>
+                <option value="LIGACAO">Ligação</option>
+                <option value="WHATSAPP_ENVIADO">WhatsApp</option>
+                <option value="PRESENCIAL">Presencial</option>
+              </select>
+              <input value={intTexto} onChange={(e) => setIntTexto(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addInteracaoPet(); }} placeholder="Registrar a evolução do tratamento..." className="flex-1 border border-[#E8E2D6] rounded px-2 py-1 text-[11px]" />
+              <button onClick={addInteracaoPet} disabled={savingInt} className="bg-[#009AAC] text-white px-2.5 py-1 rounded text-[11px] font-medium disabled:opacity-50">{savingInt ? "..." : "Salvar"}</button>
+            </div>
+            {petInteracoes.length === 0 ? (
+              <p className="text-center text-[12px] text-[#8A989D] py-4">Nenhuma interação ainda</p>
+            ) : (
+              <div className="flex flex-col gap-1.5 max-h-72 overflow-auto">
+                {petInteracoes.map((it: any) => (
+                  <div key={it.id} className="bg-[#FBF9F4] border border-[#F0EBE0] rounded-[11px] px-2.5 py-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-medium text-[#009AAC]">{it.tipo}{it.canal ? ` · ${it.canal}` : ""}</span>
+                      <span className="text-[10px] text-[#8A989D]">{new Date(it.createdAt).toLocaleDateString("pt-BR")}</span>
+                    </div>
+                    <p className="text-[12px] text-[#1F2A2E] mt-0.5">{it.texto}</p>
+                    {it.autor?.name && <p className="text-[10px] text-[#8A989D] mt-0.5">por {it.autor.name}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+      )}
+
+      {/* ═══════════ ABA 📋 CADASTRO ═══════════ */}
+      {mainTab === "CADASTRO" && (
+      <div className="mb-3">
+        <div className="bg-white border border-[#E8E2D6] rounded-[13px]">
+          <div className="flex items-center justify-between border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
+            <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">🐾 Dados do pet</h3>
+            <button onClick={() => { setClinForm({ species: pet.species || "", breed: pet.breed || "", gender: pet.gender || "", sterilization: pet.sterilization || "", birthDate: pet.birthDate ? String(pet.birthDate).slice(0, 10) : "", weight: pet.weight ?? "", coat: pet.coat || "", coatColor: pet.coatColor || "", microchip: pet.microchip || "", allergies: (pet.allergies || []).join(", "), medicalNotes: pet.medicalNotes || "" }); setEditClin((v) => !v); }} className="text-[11px] text-[#009AAC] hover:underline">{editClin ? "✖️ Fechar" : "✏️ Editar"}</button>
+          </div>
+          <div style={{ padding: "13px 14px" }}>
+            {editClin && (
+              <div className="mb-4 pb-4 border-b border-[#F0EBE0] grid grid-cols-2 md:grid-cols-3 gap-x-3 gap-y-2 text-[13px]">
+                <div><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Espécie</label><select value={clinForm.species ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, species: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[#1F2A2E]"><option value="">—</option>{["CANINE", "FELINE", "BIRD", "RODENT", "REPTILE", "OTHER"].map((sp) => <option key={sp} value={sp}>{speciesLabel(sp)}</option>)}</select></div>
+                <div><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Raça</label><input value={clinForm.breed ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, breed: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[#1F2A2E]" /></div>
+                <div><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Sexo</label><select value={clinForm.gender ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, gender: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[#1F2A2E]"><option value="">—</option><option value="MALE">Macho</option><option value="FEMALE">Fêmea</option><option value="OTHER">Outro</option></select></div>
+                <div><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Castração</label><select value={clinForm.sterilization ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, sterilization: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[#1F2A2E]"><option value="">—</option><option value="NOT_STERILIZED">Não castrado</option><option value="STERILIZED">Castrado</option><option value="SCHEDULED">Agendada</option></select></div>
+                <div><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Nascimento</label><input type="date" value={clinForm.birthDate ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, birthDate: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[#1F2A2E]" /></div>
+                <div><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Peso (kg)</label><input type="number" step="0.1" value={clinForm.weight ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, weight: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[#1F2A2E]" /></div>
+                <div><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Pelagem</label><input value={clinForm.coat ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, coat: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[#1F2A2E]" /></div>
+                <div><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Cor</label><input value={clinForm.coatColor ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, coatColor: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[#1F2A2E]" /></div>
+                <div><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Microchip</label><input value={clinForm.microchip ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, microchip: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[#1F2A2E]" /></div>
+                <div className="col-span-2 md:col-span-3"><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Alergias (vírgula)</label><input value={clinForm.allergies ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, allergies: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[#1F2A2E]" /></div>
+                <div className="col-span-2 md:col-span-3"><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Notas médicas</label><textarea value={clinForm.medicalNotes ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, medicalNotes: e.target.value }))} rows={2} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[#1F2A2E]" /></div>
+                <div className="col-span-2 md:col-span-3 flex gap-2"><button onClick={saveClin} disabled={savingClin} className="px-3 py-1 rounded text-[11px] text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingClin ? "Salvando..." : "Salvar"}</button><button onClick={() => setEditClin(false)} className="px-3 py-1 rounded text-[11px] border border-[#E8E2D6] text-[#5C6B70]">Cancelar</button></div>
+              </div>
+            )}
+            {/* Dados */}
+            <div className="text-[12px] font-medium uppercase tracking-wide text-[#014D5E] mb-2">Dados do pet</div>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-3">
+              <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Espécie</div><div className="text-[13px] text-[#1F2A2E]">{speciesLabel(pet.species)}</div></div>
+              <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Raça</div><div className="text-[13px] text-[#1F2A2E]">{pet.breed || "—"}</div></div>
+              <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Sexo</div><div className="text-[13px] text-[#1F2A2E]">{genderLabel(pet.gender)}</div></div>
+              <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Nascimento</div><div className="text-[13px] text-[#1F2A2E]">{fmtDataBR(pet.birthDate)}</div></div>
+              <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Porte</div><div className="text-[13px] text-[#1F2A2E]">{pet.weight ? (pet.weight < 10 ? "Pequeno" : pet.weight < 25 ? "Médio" : "Grande") : "—"}</div></div>
+              <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Castração</div><div className="text-[13px] text-[#1F2A2E]">{sterilLabel(pet.sterilization)}</div></div>
+              <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Pelagem / cor</div><div className="text-[13px] text-[#1F2A2E]">{[pet.coat, pet.coatColor].filter(Boolean).join(" · ") || "—"}</div></div>
+              <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Peso</div><div className="text-[13px] text-[#1F2A2E]">{pet.weight ? `${pet.weight} kg` : "—"}</div></div>
+              <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Microchip</div><div className="text-[13px] text-[#1F2A2E]">{pet.microchip || "—"}</div></div>
+            </div>
+            {/* Saúde */}
+            <div className="border-t border-[#F0EBE0] pt-3 mt-4">
+              <div className="text-[12px] font-medium uppercase tracking-wide text-[#014D5E] mb-2">🩺 Saúde</div>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-3">
+                <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Alergias</div><div className="text-[13px] text-[#1F2A2E]">{(pet.allergies && pet.allergies.length) ? pet.allergies.join(", ") : "—"}</div></div>
+                <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Convênio / plano</div><div className="text-[13px] text-[#1F2A2E]">{pet.insurancePlan || "—"}</div></div>
+                <div className="col-span-2 md:col-span-1"><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Notas médicas</div><div className="text-[13px] text-[#1F2A2E]">{pet.medicalNotes || "—"}</div></div>
+              </div>
+            </div>
+            {/* Extras */}
+            <div className="border-t border-[#F0EBE0] pt-3 mt-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-[12px] font-medium uppercase tracking-wide text-[#014D5E]">✨ Extras</div>
+                <button onClick={() => { setObsVal(pet.observations || ""); setEditObs((v) => !v); }} className="text-[11px] text-[#009AAC] hover:underline">{editObs ? "✖️ Fechar" : "✏️ Editar observações"}</button>
+              </div>
+              {editObs && (
+                <div className="mb-3">
+                  <textarea value={obsVal} onChange={(e) => setObsVal(e.target.value)} maxLength={280} rows={2} placeholder="Apelido, comportamento, medo, preferência…" className="w-full px-2 py-1.5 border border-[#E8E2D6] rounded text-[13px] text-[#1F2A2E]" />
+                  <div className="flex gap-2 mt-1"><button onClick={saveObs} disabled={savingObs} className="px-3 py-1 rounded text-[11px] text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingObs ? "..." : "Salvar"}</button><button onClick={() => setEditObs(false)} className="px-3 py-1 rounded text-[11px] border border-[#E8E2D6] text-[#5C6B70]">Cancelar</button></div>
+                </div>
+              )}
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-3">
+                <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Temperamento</div><div className="text-[13px] text-[#1F2A2E]">{pet.temperament || "—"}</div></div>
+                <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">2º responsável</div><div className="text-[13px] text-[#1F2A2E]">{pet.secondaryTutorId || "—"}</div></div>
+                <div className="col-span-2 md:col-span-1"><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Observações</div><div className="text-[13px] text-[#1F2A2E]">{pet.observations || "—"}</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      )}
+
+      {/* ═══════════ ABA 🩺 PRONTUÁRIO ═══════════ */}
+      {mainTab === "PRONTUARIO" && (
+      <div className="mb-3 bg-white border border-[#E8E2D6] rounded-[13px] overflow-hidden">
+        {/* barra interna: Histórico / Linha do tempo / Agenda */}
+        <div className="flex border-b border-[#E8E2D6] items-stretch flex-wrap">
+          {([
+            { k: "HISTORICO", label: "Histórico" },
+            { k: "TIMELINE", label: "Linha do tempo" },
+            { k: "AGENDA", label: "Agenda" },
+          ] as const).map((t) => (
+            <button key={t.k} onClick={() => setTab(t.k)} className="px-4 py-3 text-sm font-medium border-b-2 transition -mb-px" style={{ borderColor: tab === t.k ? "#009AAC" : "transparent", color: tab === t.k ? "#014D5E" : "#8A989D" }}>{t.label}</button>
+          ))}
+        </div>
+        {(tab === "HISTORICO" || !["TIMELINE", "AGENDA"].includes(tab)) && (
+          <div className="p-5">
+            <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-5 items-start">
+              <div className="lg:order-1">
+                <FeedTimeline atendimentos={atendimentos} clinDocs={clinDocs} onEditar={editarEntrada} onExcluir={excluirEntrada} />
+              </div>
+              <div className="lg:order-2">
+                {atdOpen ? (
+                  <PetAtendimentoPanel pet={pet} atd={atd} setAtd={setAtd} atdTipos={atdTipos} atdStatus={atdStatus} vets={vets} items={items} servicosCat={servicosCat} pickServico={pickServico} addItem={addItem} updItem={updItem} rmItem={rmItem} saving={savingAtd} onSalvar={criarAtendimento} onFechar={() => setAtdOpen(false)} />
+                ) : artefato === "PESO" ? (
+                  <div className="bg-white">
+                    <div className="flex items-center justify-between border-b pb-2.5 mb-3" style={{ borderColor: "#E8DFC8" }}>
+                      <h3 className="text-sm font-semibold" style={{ color: "#0E2244" }}>Peso</h3>
+                      <div className="flex gap-2">
+                        <button onClick={salvarPeso} disabled={savingArt} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingArt ? "..." : "Salvar"}</button>
+                        <button onClick={() => setArtefato(null)} className="px-3 py-1.5 rounded-lg text-xs border" style={{ borderColor: "#E8DFC8", color: "#475569" }}>Fechar</button>
+                      </div>
+                    </div>
+                    <label className="text-xs text-gray-500">Peso atual (kg)</label>
+                    <input type="number" step="0.01" value={pesoVal} onChange={(e) => setPesoVal(e.target.value)} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }} placeholder="Ex.: 6.25" />
+                    <p className="text-[11px] text-gray-400 mt-2">Atualiza o peso atual do pet e entra no gráfico de peso.</p>
+                  </div>
+                ) : artefato === "OBS" ? (
+                  <div className="bg-white">
+                    <div className="flex items-center justify-between border-b pb-2.5 mb-3" style={{ borderColor: "#E8DFC8" }}>
+                      <h3 className="text-sm font-semibold" style={{ color: "#0E2244" }}>Observação</h3>
+                      <div className="flex gap-2">
+                        <button onClick={salvarObsArt} disabled={savingArt} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingArt ? "..." : "Salvar"}</button>
+                        <button onClick={() => setArtefato(null)} className="px-3 py-1.5 rounded-lg text-xs border" style={{ borderColor: "#E8DFC8", color: "#475569" }}>Fechar</button>
+                      </div>
+                    </div>
+                    <textarea value={obsVal} onChange={(e) => setObsVal(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8", minHeight: "120px" }} placeholder="Anote algo sobre o pet…" />
+                  </div>
+                ) : artefato === "RECEITA" ? (
+                  <div className="bg-white">
+                    <div className="flex items-center justify-between border-b pb-2.5 mb-3" style={{ borderColor: "#E8DFC8" }}>
+                      <h3 className="text-sm font-semibold" style={{ color: "#0E2244" }}>Receita</h3>
+                      <div className="flex gap-2">
+                        <button onClick={() => imprimirFolha(recModeloNome || "Receita", recCorpo, vets.find((u: any) => u.id === recVetId)?.name || "")} className="px-3 py-1.5 rounded-lg text-xs border flex items-center gap-1" style={{ borderColor: "#E8DFC8", color: "#475569" }}><LuPrinter size={13} /> Imprimir</button>
+                        <button onClick={salvarReceita} disabled={savingArt} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingArt ? "..." : "Salvar"}</button>
+                        <button onClick={() => setArtefato(null)} className="px-3 py-1.5 rounded-lg text-xs border" style={{ borderColor: "#E8DFC8", color: "#475569" }}>Fechar</button>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 mb-2">
+                      <div>
+                        <label className="text-xs text-gray-500">Modelo</label>
+                        <select value={recModeloNome} onChange={(e) => { const nm = e.target.value; setRecModeloNome(nm); const m = recModelos.find((x) => x.nome === nm); if (m && m.corpo) setRecCorpo(m.corpo); }} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }}>
+                          <option value="">Selecione o modelo…</option>
+                          {recModelos.map((m) => <option key={m.nome} value={m.nome}>{m.nome}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500">Profissional</label>
+                        <select value={recVetId} onChange={(e) => setRecVetId(e.target.value)} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }}>
+                          <option value="">Selecionar...</option>
+                          {vets.map((u: any) => <option key={u.id} value={u.id}>{u.name}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    <textarea value={recCorpo} onChange={(e) => setRecCorpo(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8", minHeight: "160px" }} placeholder="Corpo da receita (escolha um modelo ou escreva)…" />
+                    <p className="text-[11px] text-gray-400 mt-2">Ao salvar, entra na timeline como atendimento "Receitas". Modelos editáveis em Configurações › Modelos de Receita.</p>
+                  </div>
+                ) : artefato === "DOCUMENTO" ? (
+                  <div className="bg-white">
+                    <div className="flex items-center justify-between border-b pb-2.5 mb-3" style={{ borderColor: "#E8DFC8" }}>
+                      <h3 className="text-sm font-semibold" style={{ color: "#0E2244" }}>Documento</h3>
+                      <div className="flex gap-2">
+                        <button onClick={() => imprimirFolha(docModeloNome || "Documento", docCorpo, vets.find((u: any) => u.id === docVetId)?.name || "")} className="px-3 py-1.5 rounded-lg text-xs border flex items-center gap-1" style={{ borderColor: "#E8DFC8", color: "#475569" }}><LuPrinter size={13} /> Imprimir</button>
+                        <button onClick={salvarDocumento} disabled={savingArt} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingArt ? "..." : "Salvar"}</button>
+                        <button onClick={() => setArtefato(null)} className="px-3 py-1.5 rounded-lg text-xs border" style={{ borderColor: "#E8DFC8", color: "#475569" }}>Fechar</button>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 mb-2">
+                      <div>
+                        <label className="text-xs text-gray-500">Modelo</label>
+                        <select value={docModeloNome} onChange={(e) => { const nm = e.target.value; setDocModeloNome(nm); const m = docModelos.find((x) => x.nome === nm); if (m && m.corpo) setDocCorpo(m.corpo); }} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }}>
+                          <option value="">Selecione o modelo…</option>
+                          {docModelos.map((m) => <option key={m.nome} value={m.nome}>{m.nome}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500">Profissional</label>
+                        <select value={docVetId} onChange={(e) => setDocVetId(e.target.value)} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }}>
+                          <option value="">Selecionar...</option>
+                          {vets.map((u: any) => <option key={u.id} value={u.id}>{u.name}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    <textarea value={docCorpo} onChange={(e) => setDocCorpo(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8", minHeight: "160px" }} placeholder="Corpo do documento (escolha um modelo ou escreva)…" />
+                    <p className="text-[11px] text-gray-400 mt-2">Ao salvar, entra na timeline como "Documento". Modelos editáveis em Configurações › Modelos de Documento.</p>
+                  </div>
+                ) : artefato === "VIDEO" ? (
+                  <div className="bg-white">
+                    <div className="flex items-center justify-between border-b pb-2.5 mb-3" style={{ borderColor: "#E8DFC8" }}>
+                      <h3 className="text-sm font-semibold" style={{ color: "#0E2244" }}>Vídeo (link)</h3>
+                      <div className="flex gap-2">
+                        <button onClick={salvarVideo} disabled={savingArt} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingArt ? "..." : "Salvar"}</button>
+                        <button onClick={() => setArtefato(null)} className="px-3 py-1.5 rounded-lg text-xs border" style={{ borderColor: "#E8DFC8", color: "#475569" }}>Fechar</button>
+                      </div>
+                    </div>
+                    <label className="text-xs text-gray-500">Link do vídeo (YouTube, Drive, etc.)</label>
+                    <input value={vidUrl} onChange={(e) => setVidUrl(e.target.value)} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }} placeholder="https://…" />
+                    <p className="text-[11px] text-gray-400 mt-2">Cole o link do vídeo. Upload de arquivo (Exame/Fotos) entra quando o Cloudinary estiver ativo.</p>
+                  </div>
+                ) : (
+                  <HistoricoAddGrid ready={["Atendimento", "Peso", "Vacina", "Documento", "Receita", "Vídeo", "Internação", "Observação"]} onPick={(k) => {
+                    if (k === "Atendimento") { setEditId(null); setArtefato(null); setAtd(ATD0); setItems([]); setAtdOpen(true); }
+                    else if (k === "Vacina") { setMainTab("VACINAS"); setProtoAuto(true); }
+                    else if (k === "Internação") { router.push("/dashboard/erp/internacoes"); }
+                    else if (k === "Peso") { setPesoVal(pet?.weight ? String(pet.weight) : ""); setAtdOpen(false); setArtefato("PESO"); }
+                    else if (k === "Observação") { setObsVal(pet?.observations || ""); setAtdOpen(false); setArtefato("OBS"); }
+                    else if (k === "Receita") { abrirReceita(); }
+                    else if (k === "Documento") { abrirDocumento(); }
+                    else if (k === "Vídeo") { abrirVideo(); }
+                    else { toast(`${k} — em construção (chega numa próxima fatia)`); }
+                  }} />
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+        {tab === "TIMELINE" && <div className="p-5"><FeedTimeline atendimentos={atendimentos} clinDocs={clinDocs} /></div>}
+        {tab === "AGENDA" && <div className="p-5"><PetClinicaTabela view="agenda" atendimentos={atendimentos} tipoLabel={ATD_TIPO_LABEL} /></div>}
+      </div>
+      )}
+
+      {/* ═══════════ ABA 💉 VACINAS & MEDS ═══════════ */}
+      {mainTab === "VACINAS" && (
+      <div className="mb-3 flex flex-col gap-3">
+        <div className="bg-white border border-[#E8E2D6] rounded-[13px] p-5">
+          <PetProtocolosPanel petId={pet.id} autoOpen={protoAuto} onAutoOpened={() => setProtoAuto(false)} />
+        </div>
+        {/* Medicamentos periódicos (consome protocolos existentes) */}
+        <div className="bg-white border border-[#E8E2D6] rounded-[13px]">
+          <div className="border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
+            <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">💊 Medicamentos periódicos</h3>
+          </div>
+          <div style={{ padding: "12px 14px" }} className="flex flex-col gap-2">
+            {[
+              { nome: "🦟 Antipulgas / carrapaticida", periodo: "mensal" },
+              { nome: "🪱 Vermífugo", periodo: "trimestral" },
+              { nome: "❤️ Vermífugo cardíaco", periodo: "mensal" },
+            ].map((m) => (
+              <div key={m.nome} className="bg-[#FBF9F4] border border-[#F0EBE0] rounded-[10px] px-3 py-2 flex items-center justify-between">
+                <div>
+                  <div className="text-[12.5px] text-[#1F2A2E]">{m.nome}</div>
+                  <div className="text-[11px] text-[#8A989D]">Aplicação {m.periodo}</div>
+                </div>
+                <div className="text-right text-[11px] text-[#8A989D]">
+                  <div>última: —</div>
+                  <div>próxima: —</div>
+                </div>
+              </div>
+            ))}
+            <p className="text-[11px] text-[#8A989D] mt-1">Registre a aplicação como protocolo/dose acima para preencher "última" e "próxima". Cadastre os protocolos em Protocolos.</p>
+          </div>
+        </div>
+      </div>
+      )}
+
+      {/* ═══════════ ABA 🧾 COMPRAS ═══════════ */}
+      {mainTab === "COMPRAS" && (
+      <div className="mb-3 flex flex-col gap-3">
+        {!showValues && <div className="text-[12px] text-[#8A989D]">🔒 Valores ocultos — use o 👁️ no topo para mostrar.</div>}
+        <PetVendaPanel petId={pet.id} pacotes={pacotes} servicos={servicosCat} atendimentos={atendimentos} onNovoAtendimento={() => { setAtd(ATD0); setItems([]); setMainTab("PRONTUARIO"); setTab("HISTORICO"); setAtdOpen(true); }} onChanged={() => { loadAtendimentos(); }} />
+        {/* Pacotes de sessões (patinhas) */}
+        <div className="bg-white border border-[#E8E2D6] rounded-[13px]" style={{ padding: "14px 16px" }}>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">📦 Pacotes de sessões</h3>
+            <button onClick={() => setPacForm((f) => ({ ...f, open: !f.open }))} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white flex items-center gap-1.5" style={{ background: "#009AAC" }}><LuPackage size={12} /> Criar pacote</button>
+          </div>
+          {pacForm.open && (
+            <div className="border border-[#E8E2D6] rounded-xl p-4 mb-3 flex flex-wrap items-end gap-2">
+              <div className="flex-1 min-w-[180px]"><label className="text-xs text-[#8A989D]">Serviço de fisioterapia</label>
+                <select value={pacForm.serviceId} onChange={(e) => setPacForm((f) => ({ ...f, serviceId: e.target.value }))} className="w-full mt-0.5 px-2 py-1.5 border border-[#E8E2D6] rounded-lg text-xs">
+                  <option value="">— selecionar —</option>
+                  {fisioSrv.map((srv: any) => <option key={srv.id} value={srv.id}>{srv.nome || srv.titulo || srv.descricao}</option>)}
+                </select>
+              </div>
+              <div className="w-20"><label className="text-xs text-[#8A989D]">Total</label><input type="number" min="1" value={pacForm.total} onChange={(e) => setPacForm((f) => ({ ...f, total: e.target.value }))} className="w-full mt-0.5 px-2 py-1.5 border border-[#E8E2D6] rounded-lg text-xs" /></div>
+              <div className="w-24"><label className="text-xs text-[#8A989D]">Já feitas</label><input type="number" min="0" value={pacForm.jaFeitas} onChange={(e) => setPacForm((f) => ({ ...f, jaFeitas: e.target.value }))} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg text-xs" style={{ borderColor: "#1D9E75", color: "#0F6E56" }} /></div>
+              <button onClick={addPacote} disabled={savingPac} className="px-3 py-1.5 rounded-lg text-xs text-white" style={{ background: "#009AAC" }}>{savingPac ? "..." : "Criar"}</button>
+            </div>
+          )}
+          {pacotes.length === 0 ? (
+            <div className="border border-[#E8E2D6] rounded-xl p-6 text-center text-sm text-[#8A989D]">Nenhum pacote criado ainda.</div>
+          ) : (
+            <div className="space-y-2">
+              {pacotes.map((p) => { const used = p.data.used || 0; const total = p.data.total || 0; const done = used >= total; return (
+                <div key={p.id} className="border rounded-xl p-3" style={{ borderColor: done ? "#0F6E56" : (total > 1 && used === total - 1 ? "#BA7517" : "#E8E2D6"), background: done ? "#F3FBF7" : "#fff" }}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium" style={{ color: "#0E2244" }}>{done ? "🏆 " : "🐾 "}{p.data.nome}</span>
+                    <button onClick={() => delPacote(p.id)} className="text-xs" style={{ color: "#ef4444" }}>Excluir</button>
+                  </div>
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {Array.from({ length: Math.min(total, 30) }).map((_, i) => <span key={i} style={{ fontSize: "15px" }} title={`Sessão ${i + 1}`}>{i < used ? "🐾" : "⚪"}</span>)}
+                  </div>
+                  <div className="flex items-center gap-3 mt-2">
+                    <div className="flex-1 h-2 rounded-full bg-gray-100 overflow-hidden"><div className="h-full transition-all" style={{ width: `${total ? Math.min(100, (used / total) * 100) : 0}%`, background: done ? "#0F6E56" : "#009AAC" }} /></div>
+                    <span className="text-xs font-medium" style={{ color: done ? "#0F6E56" : "#0E2244" }}>{used}/{total}</span>
+                    <button onClick={() => usarSessao(p)} disabled={done} className="px-2 py-1 rounded-lg text-xs border disabled:opacity-40" style={{ borderColor: "#E8E2D6", color: "#009AAC" }}>{done ? "🎉 Concluído" : "+1 sessão"}</button>
+                  </div>
+                  {!done && total > 1 && used === total - 1 && <p className="text-[11px] mt-2" style={{ color: "#BA7517" }}>⏳ Penúltima sessão — avaliar renovação com o cliente.</p>}
+                  {done && <p className="text-[11px] mt-2" style={{ color: "#0F6E56" }}>🎉 Pacote concluído! Criamos um lembrete pra verificar renovação.</p>}
+                </div>
               ); })}
             </div>
-            {tagsOpen && (
-              <div className="mt-3 pt-3 border-t" style={{ borderColor: "#F0EBE0" }}>
-                {tagTpls.filter((t: any) => !petTags.some(p => p.texto === t.texto)).length === 0 ? (
-                  <p className="text-xs text-gray-400">Nenhuma etiqueta de Pet disponível. Cadastre em Configurações → Etiquetas.</p>
-                ) : (
-                  <div className="flex flex-wrap gap-1.5">
-                    {tagTpls.filter((t: any) => !petTags.some(p => p.texto === t.texto)).map((t: any) => (
-                      <button key={t.texto} disabled={savingTag} onClick={() => addTag(t.texto)} className="text-[11px] px-2 py-0.5 rounded-full border disabled:opacity-50" style={{ borderColor: (t.cor || "#009AAC") + "66", color: t.cor || "#009AAC" }}>+ {t.texto}</button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
+          )}
+        </div>
+        {/* Crédito do pet (em construção) */}
+        <div className="bg-white border border-[#E8E2D6] rounded-[13px]" style={{ padding: "14px 16px" }}>
+          <div className="flex items-center justify-between">
+            <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">💳 Crédito do pet</h3>
+            <span className="bg-[#E0F4F6] text-[#009AAC] text-[10px] px-2 py-0.5 rounded-full">Em construção</span>
           </div>
+          <div className="text-[19px] text-[#014D5E] font-medium mt-1">{money(0)}</div>
+          <p className="text-[11px] text-[#8A989D] mt-1">Saldo de crédito/adiantamentos chega com o módulo Caixa.</p>
+        </div>
       </div>
+      )}
 
-      {/* 3 colunas: Clínica/Pacotes/Exames | Pipelines+Cadência | Painel do pet */}
-      <div className="max-w-7xl mx-auto px-6 pt-3 grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-5 items-start">
-        <div className="space-y-4 lg:order-2">
-        <div className="bg-white border rounded-xl overflow-hidden" style={{ borderColor: "#E8DFC8" }}>
-            <>
-            <div className="flex border-b items-stretch" style={{ borderColor: "#E8DFC8" }}>
-              {([
-                { k: "HISTORICO", label: "Histórico" },
-                { k: "PROTOCOLOS", label: "Protocolos" },
-                { k: "TIMELINE", label: "Linha do tempo" },
-                { k: "AGENDA", label: "Agenda" },
-                { k: "VENDAS", label: "Vendas" },
-                { k: "PACOTES", label: "Pacotes" },
-                { k: "RELACIONAMENTO", label: "Relacionamento" },
-              ] as const).map(t => (
-                <button key={t.k} onClick={() => setTab(t.k)} className="flex-1 px-4 py-3 text-sm font-medium border-b-2 transition" style={{ borderColor: tab === t.k ? "#009AAC" : "transparent", color: tab === t.k ? "#009AAC" : "#6B7280", background: tab === t.k ? "#f6fdfd" : "transparent" }}>{t.label}</button>
+      {/* ── Popups (padrão bege) ── */}
+      {statusOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.45)" }} onClick={() => setStatusOpen(false)}>
+          <div className="bg-[#FBF9F4] rounded-[16px] w-full max-w-[360px] p-5" style={{ border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-[15px] font-medium text-[#014D5E] mb-1">🩺 Status de saúde</h3>
+            <p className="text-[12px] text-[#8A989D] mb-3">Atualize a etapa clínica de {pet.name}.</p>
+            <div className="flex flex-col gap-1.5">
+              {(pipes.clinico.length ? pipes.clinico : (pet.pipelineClinicoEtapa ? [pet.pipelineClinicoEtapa] : [])).map((e) => (
+                <button key={e} onClick={async () => { await savePipe("pipelineClinicoEtapa", e); setStatusOpen(false); }} className="text-left text-[12.5px] px-3 py-2 rounded-[9px] border border-[#E8E2D6] hover:border-[#009AAC]" style={{ background: pet.pipelineClinicoEtapa === e ? "#E0F4F6" : "#fff", color: pet.pipelineClinicoEtapa === e ? "#014D5E" : "#1F2A2E" }}>{e}</button>
               ))}
-              {tab !== "HISTORICO" ? <button onClick={() => setTab("HISTORICO")} title="Fechar e voltar ao histórico" className="px-3 text-gray-400 hover:text-[#E24B4A] flex items-center border-b-2 border-transparent"><LuX size={16} /></button> : null}
-
+              {pipes.clinico.length === 0 && !pet.pipelineClinicoEtapa && <p className="text-[12px] text-[#8A989D]">Nenhuma etapa configurada. Cadastre em Configurações → Pipelines.</p>}
             </div>
-          {tab === "HISTORICO" && (
-            <div className="p-5">
-              <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-5 items-start">
-                <div className="lg:order-1">
-                  <FeedTimeline atendimentos={atendimentos} clinDocs={clinDocs} onEditar={editarEntrada} onExcluir={excluirEntrada} />
-                </div>
-                <div className="lg:order-2">
-                  {atdOpen ? (
-                    <PetAtendimentoPanel pet={pet} atd={atd} setAtd={setAtd} atdTipos={atdTipos} atdStatus={atdStatus} vets={vets} items={items} servicosCat={servicosCat} pickServico={pickServico} addItem={addItem} updItem={updItem} rmItem={rmItem} saving={savingAtd} onSalvar={criarAtendimento} onFechar={() => setAtdOpen(false)} />
-                  ) : artefato === "PESO" ? (
-                    <div className="bg-white">
-                      <div className="flex items-center justify-between border-b pb-2.5 mb-3" style={{ borderColor: "#E8DFC8" }}>
-                        <h3 className="text-sm font-semibold" style={{ color: "#0E2244" }}>Peso</h3>
-                        <div className="flex gap-2">
-                          <button onClick={salvarPeso} disabled={savingArt} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingArt ? "..." : "Salvar"}</button>
-                          <button onClick={() => setArtefato(null)} className="px-3 py-1.5 rounded-lg text-xs border" style={{ borderColor: "#E8DFC8", color: "#475569" }}>Fechar</button>
-                        </div>
-                      </div>
-                      <label className="text-xs text-gray-500">Peso atual (kg)</label>
-                      <input type="number" step="0.01" value={pesoVal} onChange={(e) => setPesoVal(e.target.value)} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }} placeholder="Ex.: 6.25" />
-                      <p className="text-[11px] text-gray-400 mt-2">Atualiza o peso atual do pet e entra no gráfico de peso.</p>
-                    </div>
-                  ) : artefato === "OBS" ? (
-                    <div className="bg-white">
-                      <div className="flex items-center justify-between border-b pb-2.5 mb-3" style={{ borderColor: "#E8DFC8" }}>
-                        <h3 className="text-sm font-semibold" style={{ color: "#0E2244" }}>Observação</h3>
-                        <div className="flex gap-2">
-                          <button onClick={salvarObsArt} disabled={savingArt} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingArt ? "..." : "Salvar"}</button>
-                          <button onClick={() => setArtefato(null)} className="px-3 py-1.5 rounded-lg text-xs border" style={{ borderColor: "#E8DFC8", color: "#475569" }}>Fechar</button>
-                        </div>
-                      </div>
-                      <textarea value={obsVal} onChange={(e) => setObsVal(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8", minHeight: "120px" }} placeholder="Anote algo sobre o pet…" />
-                    </div>
-                  ) : artefato === "RECEITA" ? (
-                    <div className="bg-white">
-                      <div className="flex items-center justify-between border-b pb-2.5 mb-3" style={{ borderColor: "#E8DFC8" }}>
-                        <h3 className="text-sm font-semibold" style={{ color: "#0E2244" }}>Receita</h3>
-                        <div className="flex gap-2">
-                          <button onClick={() => imprimirFolha(recModeloNome || "Receita", recCorpo, vets.find((u: any) => u.id === recVetId)?.name || "")} className="px-3 py-1.5 rounded-lg text-xs border flex items-center gap-1" style={{ borderColor: "#E8DFC8", color: "#475569" }}><LuPrinter size={13} /> Imprimir</button>
-                          <button onClick={salvarReceita} disabled={savingArt} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingArt ? "..." : "Salvar"}</button>
-                          <button onClick={() => setArtefato(null)} className="px-3 py-1.5 rounded-lg text-xs border" style={{ borderColor: "#E8DFC8", color: "#475569" }}>Fechar</button>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 mb-2">
-                        <div>
-                          <label className="text-xs text-gray-500">Modelo</label>
-                          <select value={recModeloNome} onChange={(e) => { const nm = e.target.value; setRecModeloNome(nm); const m = recModelos.find((x) => x.nome === nm); if (m && m.corpo) setRecCorpo(m.corpo); }} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }}>
-                            <option value="">Selecione o modelo…</option>
-                            {recModelos.map((m) => <option key={m.nome} value={m.nome}>{m.nome}</option>)}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="text-xs text-gray-500">Profissional</label>
-                          <select value={recVetId} onChange={(e) => setRecVetId(e.target.value)} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }}>
-                            <option value="">Selecionar...</option>
-                            {vets.map((u: any) => <option key={u.id} value={u.id}>{u.name}</option>)}
-                          </select>
-                        </div>
-                      </div>
-                      <textarea value={recCorpo} onChange={(e) => setRecCorpo(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8", minHeight: "160px" }} placeholder="Corpo da receita (escolha um modelo ou escreva)…" />
-                      <p className="text-[11px] text-gray-400 mt-2">Ao salvar, entra na timeline como atendimento "Receitas". Modelos editáveis em Configurações › Modelos de Receita.</p>
-                    </div>
-                  ) : artefato === "DOCUMENTO" ? (
-                    <div className="bg-white">
-                      <div className="flex items-center justify-between border-b pb-2.5 mb-3" style={{ borderColor: "#E8DFC8" }}>
-                        <h3 className="text-sm font-semibold" style={{ color: "#0E2244" }}>Documento</h3>
-                        <div className="flex gap-2">
-                          <button onClick={() => imprimirFolha(docModeloNome || "Documento", docCorpo, vets.find((u: any) => u.id === docVetId)?.name || "")} className="px-3 py-1.5 rounded-lg text-xs border flex items-center gap-1" style={{ borderColor: "#E8DFC8", color: "#475569" }}><LuPrinter size={13} /> Imprimir</button>
-                          <button onClick={salvarDocumento} disabled={savingArt} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingArt ? "..." : "Salvar"}</button>
-                          <button onClick={() => setArtefato(null)} className="px-3 py-1.5 rounded-lg text-xs border" style={{ borderColor: "#E8DFC8", color: "#475569" }}>Fechar</button>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 mb-2">
-                        <div>
-                          <label className="text-xs text-gray-500">Modelo</label>
-                          <select value={docModeloNome} onChange={(e) => { const nm = e.target.value; setDocModeloNome(nm); const m = docModelos.find((x) => x.nome === nm); if (m && m.corpo) setDocCorpo(m.corpo); }} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }}>
-                            <option value="">Selecione o modelo…</option>
-                            {docModelos.map((m) => <option key={m.nome} value={m.nome}>{m.nome}</option>)}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="text-xs text-gray-500">Profissional</label>
-                          <select value={docVetId} onChange={(e) => setDocVetId(e.target.value)} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }}>
-                            <option value="">Selecionar...</option>
-                            {vets.map((u: any) => <option key={u.id} value={u.id}>{u.name}</option>)}
-                          </select>
-                        </div>
-                      </div>
-                      <textarea value={docCorpo} onChange={(e) => setDocCorpo(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8", minHeight: "160px" }} placeholder="Corpo do documento (escolha um modelo ou escreva)…" />
-                      <p className="text-[11px] text-gray-400 mt-2">Ao salvar, entra na timeline como "Documento". Modelos editáveis em Configurações › Modelos de Documento.</p>
-                    </div>
-                  ) : artefato === "VIDEO" ? (
-                    <div className="bg-white">
-                      <div className="flex items-center justify-between border-b pb-2.5 mb-3" style={{ borderColor: "#E8DFC8" }}>
-                        <h3 className="text-sm font-semibold" style={{ color: "#0E2244" }}>Vídeo (link)</h3>
-                        <div className="flex gap-2">
-                          <button onClick={salvarVideo} disabled={savingArt} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingArt ? "..." : "Salvar"}</button>
-                          <button onClick={() => setArtefato(null)} className="px-3 py-1.5 rounded-lg text-xs border" style={{ borderColor: "#E8DFC8", color: "#475569" }}>Fechar</button>
-                        </div>
-                      </div>
-                      <label className="text-xs text-gray-500">Link do vídeo (YouTube, Drive, etc.)</label>
-                      <input value={vidUrl} onChange={(e) => setVidUrl(e.target.value)} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }} placeholder="https://…" />
-                      <p className="text-[11px] text-gray-400 mt-2">Cole o link do vídeo. Upload de arquivo (Exame/Fotos) entra quando o Cloudinary estiver ativo.</p>
-                    </div>
-                  ) : (
-                    <HistoricoAddGrid ready={["Atendimento", "Peso", "Vacina", "Documento", "Receita", "Vídeo", "Internação", "Observação"]} onPick={(k) => {
-                      if (k === "Atendimento") { setEditId(null); setArtefato(null); setAtd(ATD0); setItems([]); setAtdOpen(true); }
-                      else if (k === "Vacina") { setTab("PROTOCOLOS"); setProtoAuto(true); }
-                      else if (k === "Internação") { router.push("/dashboard/erp/internacoes"); }
-                      else if (k === "Peso") { setPesoVal(pet?.weight ? String(pet.weight) : ""); setAtdOpen(false); setArtefato("PESO"); }
-                      else if (k === "Observação") { setObsVal(pet?.observations || ""); setAtdOpen(false); setArtefato("OBS"); }
-                      else if (k === "Receita") { abrirReceita(); }
-                      else if (k === "Documento") { abrirDocumento(); }
-                      else if (k === "Vídeo") { abrirVideo(); }
-                      else { toast(`${k} — em construção (chega numa próxima fatia)`); }
-                    }} />
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-          {tab === "TIMELINE" && (
-            <div className="p-5"><FeedTimeline atendimentos={atendimentos} clinDocs={clinDocs} /></div>
-          )}
-          {tab === "AGENDA" && (
-            <div className="p-5"><PetClinicaTabela view="agenda" atendimentos={atendimentos} tipoLabel={ATD_TIPO_LABEL} /></div>
-          )}
-          {tab === "VENDAS" && (
-            <div className="p-5"><PetClinicaTabela view="vendas" atendimentos={atendimentos} tipoLabel={ATD_TIPO_LABEL} /><div className="mt-3 text-[11px] rounded-lg p-2.5" style={{ background: "#f0fbfc", border: "1px solid #cdeef1", color: "#0E5560" }}><b>Pacote:</b> a venda de pacote entra como receita diferida — cada sessão baixada reconhece sua fração (chega com o módulo Caixa).</div></div>
-          )}
-          {tab === "PROTOCOLOS" && (
-            <div className="p-5">
-              <PetProtocolosPanel petId={pet.id} autoOpen={protoAuto} onAutoOpened={() => setProtoAuto(false)} />
-            </div>
-          )}
-          {false && tab === "CLINICA" && (
-            <div className="p-5">
-                <section>
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-sm font-semibold" style={{ color: "#0E2244" }}>Dados Clínicos</h3>
-                    <button onClick={() => { setClinForm({ species: pet.species || "", breed: pet.breed || "", gender: pet.gender || "", sterilization: pet.sterilization || "", birthDate: pet.birthDate ? String(pet.birthDate).slice(0, 10) : "", weight: pet.weight ?? "", coat: pet.coat || "", coatColor: pet.coatColor || "", microchip: pet.microchip || "", allergies: (pet.allergies || []).join(", "), medicalNotes: pet.medicalNotes || "" }); setEditClin(v => !v); }} className="text-xs flex items-center gap-1" style={{ color: "#009AAC" }}>
-                      <LuPencil size={12} /> {editClin ? "Fechar" : "Editar"}
-                    </button>
-                  </div>
-                  {editClin && (
-                    <div className="mb-4 grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
-                      <div><label className="text-gray-500">Espécie</label><select value={clinForm.species ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, species: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border rounded" style={{ borderColor: "#E8DFC8" }}><option value="">—</option>{["CANINE", "FELINE", "BIRD", "RODENT", "REPTILE", "OTHER"].map(sp => <option key={sp} value={sp}>{speciesLabel(sp)}</option>)}</select></div>
-                      <div><label className="text-gray-500">Raça</label><input value={clinForm.breed ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, breed: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border rounded" style={{ borderColor: "#E8DFC8" }} /></div>
-                      <div><label className="text-gray-500">Sexo</label><select value={clinForm.gender ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, gender: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border rounded" style={{ borderColor: "#E8DFC8" }}><option value="">—</option><option value="MALE">Macho</option><option value="FEMALE">Fêmea</option><option value="OTHER">Outro</option></select></div>
-                      <div><label className="text-gray-500">Esterilização</label><select value={clinForm.sterilization ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, sterilization: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border rounded" style={{ borderColor: "#E8DFC8" }}><option value="">—</option><option value="NOT_STERILIZED">Não esterilizado</option><option value="STERILIZED">Esterilizado</option></select></div>
-                      <div><label className="text-gray-500">Nascimento</label><input type="date" value={clinForm.birthDate ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, birthDate: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border rounded" style={{ borderColor: "#E8DFC8" }} /></div>
-                      <div><label className="text-gray-500">Peso (kg)</label><input type="number" step="0.1" value={clinForm.weight ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, weight: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border rounded" style={{ borderColor: "#E8DFC8" }} /></div>
-                      <div><label className="text-gray-500">Pelagem</label><input value={clinForm.coat ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, coat: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border rounded" style={{ borderColor: "#E8DFC8" }} /></div>
-                      <div><label className="text-gray-500">Cor</label><input value={clinForm.coatColor ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, coatColor: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border rounded" style={{ borderColor: "#E8DFC8" }} /></div>
-                      <div><label className="text-gray-500">Microchip</label><input value={clinForm.microchip ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, microchip: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border rounded" style={{ borderColor: "#E8DFC8" }} /></div>
-                      <div className="col-span-2 md:col-span-3"><label className="text-gray-500">Alergias (vírgula)</label><input value={clinForm.allergies ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, allergies: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border rounded" style={{ borderColor: "#E8DFC8" }} /></div>
-                      <div className="col-span-2 md:col-span-3"><label className="text-gray-500">Notas médicas</label><textarea value={clinForm.medicalNotes ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, medicalNotes: e.target.value }))} rows={2} className="w-full mt-0.5 px-2 py-1 border rounded" style={{ borderColor: "#E8DFC8" }} /></div>
-                      <div className="col-span-2 md:col-span-3 flex gap-2"><button onClick={saveClin} disabled={savingClin} className="px-3 py-1 rounded text-white" style={{ background: "#009AAC" }}>{savingClin ? "Salvando..." : "Salvar"}</button><button onClick={() => setEditClin(false)} className="px-3 py-1 rounded border" style={{ borderColor: "#E8DFC8", color: "#475569" }}>Cancelar</button></div>
-                    </div>
-                  )}
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
-                    <Field label="Espécie" value={speciesLabel(pet.species)} />
-                    <Field label="Raça" value={pet.breed} />
-                    <Field label="Sexo" value={genderLabel(pet.gender)} />
-                    <Field label="Esterilização" value={
-                      pet.sterilization === "STERILIZED" ? "Esterilizado" :
-                      pet.sterilization === "NOT_STERILIZED" ? "Não esterilizado" :
-                      !pet.sterilization ? "—" : pet.sterilization
-                    } />
-                    <Field label="Idade" value={ageFromBirth(pet.birthDate)} />
-                    <Field label="Peso" value={pet.weight ? `${pet.weight} kg` : null} />
-                    <Field label="Pelagem" value={pet.coat} />
-                    <Field label="Cor" value={pet.coatColor} />
-                    <Field label="Microchip" value={pet.microchip} />
-                    <Field label="Convênio / Plano" value={pet.insurancePlan} />
-                    <Field label="Comportamento" value={pet.temperament} />
-                  </div>
-                </section>
-            </div>
-          )}
-            {tab === "PACOTES" && (
-              <div className="p-5">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold" style={{ color: "#0E2244" }}>Pacotes de Sessões de {pet.name}</h3>
-                  <button onClick={() => setPacForm(f => ({ ...f, open: !f.open }))} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white flex items-center gap-1.5" style={{ background: "#009AAC" }}>
-                    <LuPackage size={12} /> Criar Pacote
-                  </button>
-                </div>
-                {pacForm.open && (
-                  <div className="border rounded-xl p-4 mb-3 flex flex-wrap items-end gap-2" style={{ borderColor: "#E8DFC8" }}>
-                    <div className="flex-1 min-w-[180px]"><label className="text-xs text-gray-500">Serviço de fisioterapia</label>
-                      <select value={pacForm.serviceId} onChange={(e) => setPacForm(f => ({ ...f, serviceId: e.target.value }))} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg text-xs" style={{ borderColor: "#E8DFC8" }}>
-                        <option value="">— selecionar —</option>
-                        {fisioSrv.map((srv: any) => <option key={srv.id} value={srv.id}>{srv.nome || srv.titulo || srv.descricao}</option>)}
-                      </select>
-                    </div>
-                    <div className="w-20"><label className="text-xs text-gray-500">Total</label><input type="number" min="1" value={pacForm.total} onChange={(e) => setPacForm(f => ({ ...f, total: e.target.value }))} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg text-xs" style={{ borderColor: "#E8DFC8" }} /></div>
-                    <div className="w-24"><label className="text-xs text-gray-500">Já feitas</label><input type="number" min="0" value={pacForm.jaFeitas} onChange={(e) => setPacForm(f => ({ ...f, jaFeitas: e.target.value }))} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg text-xs" style={{ borderColor: "#1D9E75", color: "#0F6E56" }} /></div>
-                    <button onClick={addPacote} disabled={savingPac} className="px-3 py-1.5 rounded-lg text-xs text-white" style={{ background: "#009AAC" }}>{savingPac ? "..." : "Criar"}</button>
-                  </div>
-                )}
-                {pacotes.length === 0 ? (
-                  <div className="border rounded-xl p-6 text-center text-sm text-gray-400" style={{ borderColor: "#E8DFC8" }}>Nenhum pacote criado ainda.</div>
-                ) : (
-                  <div className="space-y-2">
-                    {pacotes.map(p => { const used = p.data.used || 0; const total = p.data.total || 0; const done = used >= total; return (
-                      <div key={p.id} className="border rounded-xl p-3" style={{ borderColor: done ? "#0F6E56" : (total > 1 && used === total - 1 ? "#BA7517" : "#E8DFC8"), background: done ? "#F3FBF7" : "#fff" }}>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium" style={{ color: "#0E2244" }}>{done ? "🏆 " : "🐾 "}{p.data.nome}</span>
-                          <button onClick={() => delPacote(p.id)} className="text-xs" style={{ color: "#ef4444" }}>Excluir</button>
-                        </div>
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {Array.from({ length: Math.min(total, 30) }).map((_, i) => <span key={i} style={{ fontSize: "15px" }} title={`Sessão ${i + 1}`}>{i < used ? "🐾" : "⚪"}</span>)}
-                        </div>
-                        <div className="flex items-center gap-3 mt-2">
-                          <div className="flex-1 h-2 rounded-full bg-gray-100 overflow-hidden"><div className="h-full transition-all" style={{ width: `${total ? Math.min(100, (used / total) * 100) : 0}%`, background: done ? "#0F6E56" : "#009AAC" }} /></div>
-                          <span className="text-xs font-medium" style={{ color: done ? "#0F6E56" : "#0E2244" }}>{used}/{total}</span>
-                          <button onClick={() => usarSessao(p)} disabled={done} className="px-2 py-1 rounded-lg text-xs border disabled:opacity-40" style={{ borderColor: "#E8DFC8", color: "#009AAC" }}>{done ? "🎉 Concluído" : "+1 sessão"}</button>
-                        </div>
-                        {!done && total > 1 && used === total - 1 && <p className="text-[11px] mt-2" style={{ color: "#BA7517" }}>⏳ Penúltima sessão — avaliar renovação com o cliente.</p>}
-                        {done && <p className="text-[11px] mt-2" style={{ color: "#0F6E56" }}>🎉 Pacote concluído! Criamos um lembrete pra verificar renovação.</p>}
-                      </div>
-                    ); })}
-                  </div>
-                )}
-              </div>
-            )}
-            {false && tab === "EXAMES" && (
-              <div className="p-5">
-                <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
-                  <h3 className="text-sm font-semibold" style={{ color: "#0E2244" }}>Exames e Serviços Externos</h3>
-                  <div className="flex items-center gap-2">
-                    <input list="exames-catalogo" value={exPick} onChange={(e) => setExPick(e.target.value)} placeholder="Buscar exame..." className="px-2 py-1.5 border rounded-lg text-xs" style={{ borderColor: "#E8DFC8", minWidth: "180px" }} />
-                    <datalist id="exames-catalogo">{exCat.slice(0, 1000).map((e: any, i: number) => <option key={i} value={e.nome || e.titulo || e.descricao} />)}</datalist>
-                    <button onClick={addExame} disabled={savingEx} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white flex items-center gap-1.5" style={{ background: "#009AAC" }}><LuFlaskConical size={12} /> {savingEx ? "..." : "Solicitar"}</button>
-                  </div>
-                </div>
-                {exames.length === 0 ? (
-                  <div className="border rounded-xl p-6 text-center text-sm text-gray-400" style={{ borderColor: "#E8DFC8" }}>Nenhum exame ou serviço externo registrado.</div>
-                ) : (
-                  <div className="space-y-2">
-                    {exames.map(x => {
-                      const fases = examFases.length ? examFases : ["Solicitado"];
-                      const cur = Math.max(0, fases.indexOf(x.data.status || fases[0]));
-                      return (
-                      <div key={x.id} className="border rounded-xl p-3" style={{ borderColor: "#E8DFC8" }}>
-                        <div className="flex items-center justify-between mb-2">
-                          <div>
-                            <span className="text-sm font-medium" style={{ color: "#0E2244" }}>{x.data.nome}</span>
-                            <span className="text-xs text-gray-400 ml-2">{x.data.date ? new Date(x.data.date).toLocaleDateString("pt-BR") : ""}</span>
-                          </div>
-                          <button onClick={() => delExame(x.id)} className="text-xs" style={{ color: "#ef4444" }}>Excluir</button>
-                        </div>
-                        <div className="flex items-center gap-1 flex-wrap">
-                          {fases.map((f, fi) => (
-                            <button key={f} onClick={() => updExameStatus(x.id, x.data, f)} title={f} className="text-[11px] px-2.5 py-1 rounded-full border transition" style={fi <= cur ? { background: "#009AAC", color: "#fff", borderColor: "#009AAC" } : { background: "#fff", color: "#64748b", borderColor: "#E8DFC8" }}>{f}</button>
-                          ))}
-                        </div>
-                      </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
-          {tab === "RELACIONAMENTO" && (
-            <div className="p-5 space-y-4">
-          <div className="bg-white border rounded-xl p-4" style={{ borderColor: "#E8DFC8" }}>
-                <section>
-                  <h3 className="text-sm font-semibold mb-2" style={{ color: "#0E2244" }}>Pipelines do Pet</h3>
-                  <div className="border rounded-xl divide-y" style={{ borderColor: "#E8DFC8" }}>
-                    <div className="flex items-center justify-between px-4 py-3 gap-3">
-                      <span className="font-semibold text-xs tracking-wide" style={{ color: "#0E2244" }}>CLÍNICO — TRATAMENTO</span>
-                      <select value={pet.pipelineClinicoEtapa || ""} onChange={(e) => savePipe("pipelineClinicoEtapa", e.target.value)} disabled={savingPipe} className="px-2 py-1 border rounded-lg text-xs" style={{ borderColor: "#E8DFC8" }}>
-                        <option value="">— selecionar —</option>
-                        {pet.pipelineClinicoEtapa && !pipes.clinico.includes(pet.pipelineClinicoEtapa) && <option value={pet.pipelineClinicoEtapa}>{pet.pipelineClinicoEtapa}</option>}
-                        {pipes.clinico.map((e) => <option key={e} value={e}>{e}</option>)}
-                      </select>
-                    </div>
-                    <div className="flex items-center justify-between px-4 py-3 gap-3">
-                      <span className="font-semibold text-xs tracking-wide" style={{ color: "#0E2244" }}>FISIOTERAPIA</span>
-                      <select value={pet.pipelineFisioEtapa || ""} onChange={(e) => savePipe("pipelineFisioEtapa", e.target.value)} disabled={savingPipe} className="px-2 py-1 border rounded-lg text-xs" style={{ borderColor: "#E8DFC8" }}>
-                        <option value="">— selecionar —</option>
-                        {pet.pipelineFisioEtapa && !pipes.fisio.includes(pet.pipelineFisioEtapa) && <option value={pet.pipelineFisioEtapa}>{pet.pipelineFisioEtapa}</option>}
-                        {pipes.fisio.map((e) => <option key={e} value={e}>{e}</option>)}
-                      </select>
-                    </div>
-                  </div>
-                </section>
+            <div className="flex justify-end mt-4"><button onClick={() => setStatusOpen(false)} className="text-[12.5px] px-3 py-2 rounded-[9px] text-[#5C6B70]">Fechar</button></div>
           </div>
-          <div className="bg-white border rounded-xl p-4" style={{ borderColor: "#E8DFC8" }}>
-                <section>
-                  <h3 className="text-sm font-semibold mb-2 flex items-center gap-2" style={{ color: "#0E2244" }}>
-                    <LuClock size={14} /> Cadência de acompanhamento
-                  </h3>
-                  <div className="border rounded-xl p-4" style={{ borderColor: "#E8DFC8" }}>
-                    {cadAtivas.length === 0 ? (
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-400">Nenhuma cadência ativa.</span>
-                        <button onClick={() => setCadPick(v => !v)} className="px-3 py-1.5 rounded-lg text-xs border flex items-center gap-1.5" style={{ borderColor: "#E8DFC8", color: "#009AAC" }}><LuPlus size={12} /> Iniciar cadência</button>
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        {cadAtivas.map(c => (
-                          <div key={c.id} className="flex items-center justify-between">
-                            <span className="text-sm" style={{ color: "#0E2244" }}>{c.data?.nome || "Cadência"} <span className="text-xs text-gray-400">· desde {c.data?.startedAt ? new Date(c.data.startedAt).toLocaleDateString("pt-BR") : "—"}</span></span>
-                            <button onClick={() => delCad(c.id)} className="text-xs" style={{ color: "#ef4444" }}>Encerrar</button>
-                          </div>
-                        ))}
-                        <button onClick={() => setCadPick(v => !v)} className="text-xs flex items-center gap-1" style={{ color: "#009AAC" }}><LuPlus size={12} /> Iniciar outra</button>
-                      </div>
-                    )}
-                    {cadPick && (
-                      <div className="mt-3 pt-3 border-t flex flex-wrap gap-1.5" style={{ borderColor: "#F0EBE0" }}>
-                        {cadOpts.length === 0 ? <p className="text-xs text-gray-400">Nenhuma cadência cadastrada em Configurações.</p> :
-                          cadOpts.map((c: any) => (<button key={c.id} disabled={savingCad} onClick={() => addCad(c)} className="text-[11px] px-2 py-1 rounded-lg border disabled:opacity-50" style={{ borderColor: "#E8DFC8", color: "#009AAC" }}>+ {c.nome || c.titulo}</button>))}
-                      </div>
-                    )}
-                  </div>
-                </section>
-          </div>
-        <div className="bg-white border rounded-xl p-4" style={{ borderColor: "#E8DFC8" }}>
-                <section>
-                  <h3 className="text-sm font-semibold mb-2 flex items-center gap-2" style={{ color: "#0E2244" }}>
-                    <LuCalendar size={14} /> Follow-up
-                  </h3>
-                  <div className="border rounded-xl p-4" style={{ borderColor: "#E8DFC8" }}>
-                    {pet.proximoFollowupAt ? (
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm" style={{ color: "#0E2244" }}><LuCalendar size={12} className="inline" /> {new Date(pet.proximoFollowupAt).toLocaleDateString("pt-BR")}</span>
-                        <button onClick={clearFu} className="text-xs" style={{ color: "#ef4444" }}>Remover</button>
-                      </div>
-                    ) : <p className="text-sm text-gray-400 mb-2">Sem follow-up agendado</p>}
-                    <div className="flex gap-2">
-                      <input type="date" value={fuDate} onChange={(e) => setFuDate(e.target.value)} className="flex-1 px-2 py-1.5 border rounded-lg text-xs" style={{ borderColor: "#E8DFC8" }} />
-                      <button onClick={saveFu} disabled={savingFu} className="px-3 py-1.5 rounded-lg text-xs text-white" style={{ background: "#009AAC" }}>{savingFu ? "..." : "Agendar"}</button>
-                    </div>
-                    <div className="mt-3 pt-3 border-t" style={{ borderColor: "#f0e8d4" }}>
-                      <div className="flex items-center gap-1.5 mb-2"><span style={{ fontSize: "13px" }}>💬</span><h4 className="text-xs font-semibold" style={{ color: "#0E2244" }}>Interações <span className="text-[10px] text-gray-400">({petInteracoes.length})</span></h4></div>
-                      <div className="flex gap-1.5 mb-2">
-                        <select value={intTipo} onChange={(e) => setIntTipo(e.target.value)} className="border rounded px-1.5 py-1 text-[11px]" style={{ borderColor: "#E8DFC8" }}><option value="NOTA">Nota</option><option value="LIGACAO">Ligação</option><option value="WHATSAPP_ENVIADO">WhatsApp</option><option value="PRESENCIAL">Presencial</option></select>
-                        <input value={intTexto} onChange={(e) => setIntTexto(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addInteracaoPet(); }} placeholder="Registrar..." className="flex-1 min-w-0 border rounded px-2 py-1 text-[11px]" style={{ borderColor: "#E8DFC8" }} />
-                        <button onClick={addInteracaoPet} disabled={savingInt} className="text-white px-2.5 py-1 rounded text-[11px] font-medium disabled:opacity-50" style={{ background: "#009AAC" }}>{savingInt ? "..." : "+"}</button>
-                      </div>
-                      {petInteracoes.length === 0 ? <p className="text-center text-[11px] text-gray-400 py-2">Nenhuma interação ainda</p> : (
-                        <div className="flex flex-col gap-1.5 max-h-60 overflow-auto">
-                          {petInteracoes.map((it: any) => (
-                            <div key={it.id} className="bg-[#fbfaf6] rounded px-2.5 py-1.5">
-                              <div className="flex items-center justify-between"><span className="text-[10px] font-medium" style={{ color: "#00798A" }}>{it.tipo}{it.canal ? ` · ${it.canal}` : ""}</span><span className="text-[10px] text-gray-400">{new Date(it.createdAt).toLocaleDateString("pt-BR")}</span></div>
-                              <p className="text-[11px] mt-0.5" style={{ color: "#0E2244" }}>{it.texto}</p>
-                              {it.autor?.name && <p className="text-[10px] text-gray-400 mt-0.5">por {it.autor.name}</p>}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </section>
         </div>
-            </div>
-          )}
-            </>
-        </div>
-        </div>
-
-        <div className="space-y-4 lg:order-1">
-          <PetVendaPanel petId={pet.id} pacotes={pacotes} servicos={servicosCat} atendimentos={atendimentos} onNovoAtendimento={() => { setAtd(ATD0); setItems([]); setTab("HISTORICO"); setAtdOpen(true); }} onChanged={() => { loadAtendimentos(); }} />
-          {/* LIXEIRA-PETS-FICHA (Cintia 22/06): coluna de resumo do pet removida (4 cards Consultas/Ultima visita/Proxima consulta/Idade + Frequencia de consultas + Financeiro). Restaurar = remover o "false &&". */}
-          {false && <PetProfilePanel petId={pet.id} />}
-        </div>
-      </div>
-
-
-      {/* LIXEIRA-F2: Historico de Atendimentos duplicado (o feed clinico/timeline ja mostra) */}
-      {false && (
-      <div className="max-w-7xl mx-auto px-6 pt-3">
-        <div className="bg-white border rounded-xl p-4" style={{ borderColor: "#E8DFC8" }}>
-                <section>
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-sm font-semibold" style={{ color: "#0E2244" }}>Histórico de Atendimentos</h3>
-                    <button onClick={() => { setAtd(ATD0); setItems([]); setAtdOpen(true); }} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white flex items-center gap-1.5" style={{ background: "#009AAC" }}>
-                      <LuPlus size={12} /> Novo Atendimento
-                    </button>
-                  </div>
-                  {atendimentos.length === 0 ? (
-                    <div className="border rounded-xl p-5 text-center text-sm text-gray-400" style={{ borderColor: "#E8DFC8" }}>Nenhum atendimento registrado.</div>
-                  ) : (
-                    <div className="space-y-2">
-                      {atendimentos.map((a: any) => (
-                        <button key={a.id} onClick={() => abrirAtd(a.id)} className="w-full text-left border rounded-xl px-3 py-2 hover:bg-gray-50/60 flex items-center justify-between" style={{ borderColor: "#E8DFC8" }}>
-                          <div>
-                            <div className="text-sm font-medium" style={{ color: "#0E2244" }}>{ATD_TIPO_LABEL(a.type)} <span className="text-[11px] text-gray-400">{new Date(a.date).toLocaleDateString("pt-BR")}</span></div>
-                            <div className="text-[11px] text-gray-500">{a.user?.name || "—"}{a.chiefComplaint ? ` · ${a.chiefComplaint}` : ""}</div>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-sm font-medium" style={{ color: "#0F6E56" }}>{Number(a.value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</div>
-                            <div className="text-[10px] text-gray-400">{a.status || ""}</div>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </section>
-        </div>
-      </div>
       )}
 
-      {/* LIXEIRA-PETS-FICHA (Cintia 22/06): barra "Ficha do Tutor" removida - basta clicar no nome do tutor. Restaurar = remover o "false &&". */}
-      {false && (
-      <div className="max-w-7xl mx-auto px-6 pt-3 pb-5">
-          <div className="flex items-center gap-3 pt-2">
-            <Link
-              href={`/dashboard/erp/tutores/${pet.tutorId}`}
-              className="flex-1 px-4 py-2.5 rounded-lg text-sm border flex items-center justify-center gap-2"
-              style={{ borderColor: "#E8DFC8", color: "#475569" }}
-            >
-              Ficha do Tutor <LuArrowLeft size={14} className="rotate-180" />
-            </Link>
+      {notaOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.45)" }} onClick={() => setNotaOpen(false)}>
+          <div className="bg-[#FBF9F4] rounded-[16px] w-full max-w-[400px] p-5" style={{ border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-[15px] font-medium text-[#014D5E] mb-1">❤️ Nota médica</h3>
+            <p className="text-[12px] text-[#8A989D] mb-3">Algo clínico que vale lembrar sobre {pet.name}.</p>
+            <textarea value={notaVal} onChange={(e) => setNotaVal(e.target.value)} rows={3} placeholder="Ex.: sopro cardíaco grau II, sensível a anestesia…" className="w-full px-3 py-2 border border-[#E8E2D6] rounded-[9px] text-[13px] bg-white" />
+            <div className="flex justify-end gap-2 mt-4">
+              <button onClick={() => setNotaOpen(false)} className="text-[12.5px] px-3 py-2 rounded-[9px] text-[#5C6B70]">Cancelar</button>
+              <button onClick={saveNotaMedica} disabled={savingNota} className="text-[12.5px] px-4 py-2 rounded-[9px] text-white" style={{ background: "#009AAC", opacity: savingNota ? 0.5 : 1 }}>{savingNota ? "Salvando…" : "Salvar"}</button>
+            </div>
           </div>
-      </div>
+        </div>
       )}
 
+      {fuOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.45)" }} onClick={() => setFuOpen(false)}>
+          <div className="bg-[#FBF9F4] rounded-[16px] w-full max-w-[360px] p-5" style={{ border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-[15px] font-medium text-[#014D5E] mb-1">📞 Agendar follow-up</h3>
+            <p className="text-[12px] text-[#8A989D] mb-3">Quando acompanhar o tratamento de {pet.name}?</p>
+            <input type="date" value={fuDate} onChange={(e) => setFuDate(e.target.value)} className="w-full px-3 py-2 border border-[#E8E2D6] rounded-[9px] text-[13px] bg-white" />
+            <div className="flex justify-between items-center mt-4">
+              {pet.proximoFollowupAt ? <button onClick={async () => { await clearFu(); setFuOpen(false); }} className="text-[12px] text-[#b23b39]">Remover</button> : <span />}
+              <div className="flex gap-2">
+                <button onClick={() => setFuOpen(false)} className="text-[12.5px] px-3 py-2 rounded-[9px] text-[#5C6B70]">Cancelar</button>
+                <button onClick={async () => { await saveFu(); setFuOpen(false); }} disabled={savingFu || !fuDate} className="text-[12.5px] px-4 py-2 rounded-[9px] text-white" style={{ background: "#009AAC", opacity: savingFu || !fuDate ? 0.5 : 1 }}>{savingFu ? "Salvando..." : "Salvar"}</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {verAtd && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center overflow-y-auto py-10" onClick={() => setVerAtd(null)}>

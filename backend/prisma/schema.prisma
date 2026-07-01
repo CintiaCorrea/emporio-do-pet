@@ -466,6 +466,7 @@ model Pet {
   insurancePlan String? // Convênio/plano de saúde
   temperament   String? // Comportamento/temperamento
   secondaryTutorId String? // 2º responsável (opcional)
+  tags          String[]             @default([]) // Etiquetas do pet
   documents     String[]             @default([]) // Lista de documentos (URLs/nomes)
   // Pipeline & Follow-up (Inbox v3)
   pipelineClinicoEtapa String?  // Diagnóstico inicial / Em tratamento / Aguardando exames / Retorno agendado / Em manutenção / Alta clínica / Abandonou
