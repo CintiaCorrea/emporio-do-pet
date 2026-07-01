@@ -150,7 +150,7 @@ function AccordionCard({
   icon: any; title: string; count?: number; badge?: { label: string; color: string; bg: string };
   action?: React.ReactNode; children: React.ReactNode;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
   return (
     <div className="bg-white border border-[#E8E2D6] rounded-[13px] overflow-hidden">
       <button onClick={() => setOpen(!open)} className="w-full flex items-center justify-between border-b border-[#F0EBE0] hover:bg-[#FBF9F4]" style={{ padding: "11px 14px" }}>
@@ -971,7 +971,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
       {tab === "GERAL" && (
       <>
         <div className="text-[11px] text-[#8A989D] uppercase tracking-wide mb-2 mt-1 px-1">💬 Relacionamento</div>
-        <div className="grid grid-cols-3 gap-3 items-start mb-3">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-start mb-3">
 
         {/* Coluna esquerda — Ciclo + Score + Avaliações */}
         <div className="flex flex-col gap-2.5">
