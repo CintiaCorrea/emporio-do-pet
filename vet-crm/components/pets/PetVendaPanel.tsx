@@ -171,25 +171,7 @@ export default function PetVendaPanel({ petId, pacotes = [], servicos = [], aten
         )}
       </Box>
 
-      <Box title="Pacote ativo" icon={<LuPackage size={13} />}>
-        {ativos.length === 0 ? (
-          <div className="text-xs text-gray-400">Sem pacote ativo.</div>
-        ) : (
-          <div className="space-y-3">
-            {ativos.map((p) => {
-              const used = p.data?.used || 0, totalP = p.data?.total || 0;
-              const pct = totalP ? Math.min(100, (used / totalP) * 100) : 0;
-              return (
-                <div key={p.id}>
-                  <div className="text-xs font-medium" style={{ color: "#0E2244" }}>{p.data?.nome || "Pacote"}</div>
-                  <div className="h-2 rounded-full bg-gray-100 overflow-hidden my-1"><div className="h-full" style={{ width: `${pct}%`, background: "#009AAC" }} /></div>
-                  <div className="text-[11px] text-gray-500">{used} de {totalP} consumidas{p.data?.validade ? ` · validade ${p.data.validade}` : ""}</div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </Box>
+      {/* "Pacote ativo" removido daqui — o pacote de fisioterapia aparece só na Visão geral (patinhas). */}
 
       <Box title="Crédito do pet" icon={<LuCircleDollarSign size={13} />}>
         <div className="text-xs" style={{ color: "#64748b" }}>

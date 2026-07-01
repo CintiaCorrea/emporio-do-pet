@@ -194,6 +194,7 @@ export default function PetDetailPage() {
   const [fuOpen, setFuOpen] = useState(false);
   const [tagPickerOpen, setTagPickerOpen] = useState(false);
   const [tagLivre, setTagLivre] = useState("");
+  const [pipeOpen, setPipeOpen] = useState<{ clinico: boolean; fisio: boolean }>({ clinico: false, fisio: false });
 
   usePageTitle("", undefined); // F1-rev: barra global minima (info fica no sub-header da pagina)
 
@@ -685,12 +686,15 @@ export default function PetDetailPage() {
                 <span key={s.txt} className="text-[11px] px-2 py-0.5 rounded-full" style={s.ok ? { background: "#E1F5EE", color: "#0F6E56" } : { background: "#F3F1EC", color: "#9a948a" }}>{s.ok ? s.txt : "○ " + s.txt.replace(/^\S+\s/, "")}</span>
               ))}
             </div>
-            {/* Fisioterapia = patinhas */}
+            {/* Fisioterapia = patinhas (único lugar do pacote) */}
             {pacFisio ? (
               <div className="pt-2 border-t border-[#F0EBE0]">
-                <div className="flex justify-between text-[11.5px] mb-1">
+                <div className="flex justify-between items-center text-[11.5px] mb-1">
                   <span className="text-[#5C6B70]">🐾 Fisioterapia <span className="text-[#8A989D]">(ligado à venda)</span></span>
-                  <span className="text-[#014D5E] font-medium">{pacUsed}/{pacTotal}</span>
+                  <span className="flex items-center gap-2">
+                    <span className="text-[#014D5E] font-medium">{pacUsed}/{pacTotal}</span>
+                    <button onClick={() => usarSessao(pacFisio)} disabled={pacUsed >= pacTotal} className="text-[10.5px] px-2 py-0.5 rounded-full border disabled:opacity-40" style={{ borderColor: "#E8E2D6", color: "#009AAC" }}>{pacUsed >= pacTotal ? "🎉 concluído" : "usar sessão"}</button>
+                  </span>
                 </div>
                 <div className="flex flex-wrap gap-0.5">
                   {Array.from({ length: Math.min(pacTotal, 30) }).map((_, i) => (
@@ -699,7 +703,25 @@ export default function PetDetailPage() {
                 </div>
               </div>
             ) : (
-              <div className="pt-2 border-t border-[#F0EBE0] text-[11.5px] text-[#8A989D]">Sem pacote de fisioterapia ativo.</div>
+              <div className="pt-2 border-t border-[#F0EBE0]">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11.5px] text-[#8A989D]">Sem pacote de fisioterapia ativo.</span>
+                  <button onClick={() => setPacForm((f) => ({ ...f, open: !f.open }))} className="text-[10.5px] px-2 py-0.5 rounded-full border" style={{ borderColor: "#E8E2D6", color: "#009AAC" }}>＋ pacote</button>
+                </div>
+                {pacForm.open && (
+                  <div className="mt-2 pt-2 border-t border-[#F0EBE0] flex flex-wrap items-end gap-2">
+                    <div className="flex-1 min-w-[150px]"><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Serviço de fisioterapia</label>
+                      <select value={pacForm.serviceId} onChange={(e) => setPacForm((f) => ({ ...f, serviceId: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[12px]">
+                        <option value="">— selecionar —</option>
+                        {fisioSrv.map((srv: any) => <option key={srv.id} value={srv.id}>{srv.nome || srv.titulo || srv.descricao}</option>)}
+                      </select>
+                    </div>
+                    <div className="w-16"><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Total</label><input type="number" min="1" value={pacForm.total} onChange={(e) => setPacForm((f) => ({ ...f, total: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[12px]" /></div>
+                    <div className="w-16"><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Feitas</label><input type="number" min="0" value={pacForm.jaFeitas} onChange={(e) => setPacForm((f) => ({ ...f, jaFeitas: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[12px]" /></div>
+                    <button onClick={addPacote} disabled={savingPac} className="px-3 py-1 rounded text-[12px] text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingPac ? "..." : "Criar"}</button>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>
@@ -784,105 +806,120 @@ export default function PetDetailPage() {
 
         {/* 6. Relacionamento / tratamento */}
         <div className="text-[11px] text-[#8A989D] uppercase tracking-wide mb-1 mt-1 px-1">💬 Relacionamento / tratamento</div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
-          {/* Tratamento em andamento (steppers de pipeline) */}
-          <div className="bg-white border border-[#E8E2D6] rounded-[13px]">
-            <div className="border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
-              <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">🔄 Tratamento em andamento</h3>
-            </div>
-            <div style={{ padding: "12px 14px" }} className="flex flex-col gap-3">
-              <div>
-                <div className="text-[10px] uppercase tracking-wide text-[#8A989D] mb-1">Clínico</div>
-                <div className="flex flex-wrap gap-1">
-                  {(pipes.clinico.length ? pipes.clinico : (pet.pipelineClinicoEtapa ? [pet.pipelineClinicoEtapa] : [])).map((e) => (
-                    <button key={e} onClick={() => savePipe("pipelineClinicoEtapa", e)} disabled={savingPipe} className="text-[11px] px-2.5 py-1 rounded-full border transition disabled:opacity-50" style={pet.pipelineClinicoEtapa === e ? { background: "#009AAC", color: "#fff", borderColor: "#009AAC" } : { background: "#fff", color: "#5C6B70", borderColor: "#E8E2D6" }}>{e}</button>
-                  ))}
-                  {pipes.clinico.length === 0 && !pet.pipelineClinicoEtapa && <span className="text-[12px] text-[#8A989D]">Nenhuma etapa configurada.</span>}
-                </div>
-              </div>
-              <div>
-                <div className="text-[10px] uppercase tracking-wide text-[#8A989D] mb-1">Fisioterapia</div>
-                <div className="flex flex-wrap gap-1">
-                  {(pipes.fisio.length ? pipes.fisio : (pet.pipelineFisioEtapa ? [pet.pipelineFisioEtapa] : [])).map((e) => (
-                    <button key={e} onClick={() => savePipe("pipelineFisioEtapa", e)} disabled={savingPipe} className="text-[11px] px-2.5 py-1 rounded-full border transition disabled:opacity-50" style={pet.pipelineFisioEtapa === e ? { background: "#009AAC", color: "#fff", borderColor: "#009AAC" } : { background: "#fff", color: "#5C6B70", borderColor: "#E8E2D6" }}>{e}</button>
-                  ))}
-                  {pipes.fisio.length === 0 && !pet.pipelineFisioEtapa && <span className="text-[12px] text-[#8A989D]">Nenhuma etapa configurada.</span>}
-                </div>
-              </div>
-            </div>
+
+        {/* Tratamento em andamento — pipelines como ROLL-UP colapsável */}
+        <div className="bg-white border border-[#E8E2D6] rounded-[13px]">
+          <div className="border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
+            <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">🔄 Tratamento em andamento</h3>
           </div>
-          {/* Follow-up + Sequências */}
-          <div className="flex flex-col gap-3">
-            <div className="bg-white border border-[#E8E2D6] rounded-[13px]">
-              <div className="border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
-                <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">📞 Follow-up do tratamento</h3>
-              </div>
-              <div style={{ padding: "12px 14px" }}>
-                {pet.proximoFollowupAt ? (
-                  <div className="text-[12.5px] text-[#5C6B70]">Próximo em <b className="text-[#014D5E]">{fmtDataBR(pet.proximoFollowupAt)}</b></div>
-                ) : <div className="text-[12.5px] text-[#8A989D]">Nenhum follow-up agendado.</div>}
-                <div className="flex gap-1.5 mt-2.5">
-                  <button onClick={() => { setFuDate(pet.proximoFollowupAt ? String(pet.proximoFollowupAt).slice(0, 10) : ""); setFuOpen(true); }} className="bg-[#E0F4F6] text-[#014D5E] text-[11px] px-2.5 py-1 rounded-[8px]">{pet.proximoFollowupAt ? "Reagendar" : "Agendar"}</button>
-                  {pet.proximoFollowupAt && <button onClick={clearFu} className="bg-[#FBF9F4] text-[#5C6B70] text-[11px] px-2.5 py-1 rounded-[8px] border border-[#F0EBE0]">Concluir</button>}
+          <div className="divide-y divide-[#F0EBE0]">
+            {([
+              { key: "clinico" as const, label: "Clínico", field: "pipelineClinicoEtapa" as const, etapas: pipes.clinico, atual: pet.pipelineClinicoEtapa },
+              { key: "fisio" as const, label: "Fisioterapia", field: "pipelineFisioEtapa" as const, etapas: pipes.fisio, atual: pet.pipelineFisioEtapa },
+            ]).map((row) => {
+              const lista = row.etapas.length ? row.etapas : (row.atual ? [row.atual] : []);
+              const aberto = pipeOpen[row.key];
+              return (
+                <div key={row.key} style={{ padding: "10px 14px" }}>
+                  <button onClick={() => setPipeOpen((o) => ({ ...o, [row.key]: !o[row.key] }))} className="w-full flex items-center justify-between gap-2">
+                    <span className="text-[10px] uppercase tracking-wide text-[#8A989D]">{row.label}</span>
+                    <span className="flex items-center gap-2">
+                      {row.atual ? (
+                        <span className="text-[11px] px-2.5 py-1 rounded-full font-medium" style={{ background: "#009AAC", color: "#fff" }}>{row.atual}</span>
+                      ) : (
+                        <span className="text-[11.5px] text-[#8A989D]">— sem etapa —</span>
+                      )}
+                      <span className="text-[11px] text-[#8A989D]">{aberto ? "▴" : "▾"}</span>
+                    </span>
+                  </button>
+                  {aberto && (
+                    <div className="flex flex-wrap gap-1 mt-2 pt-2 border-t border-[#F0EBE0]">
+                      {lista.length === 0 && <span className="text-[12px] text-[#8A989D]">Nenhuma etapa configurada.</span>}
+                      {lista.map((e) => (
+                        <button key={e} onClick={async () => { await savePipe(row.field, e); setPipeOpen((o) => ({ ...o, [row.key]: false })); }} disabled={savingPipe} className="text-[11px] px-2.5 py-1 rounded-full border transition disabled:opacity-50" style={row.atual === e ? { background: "#009AAC", color: "#fff", borderColor: "#009AAC" } : { background: "#fff", color: "#5C6B70", borderColor: "#E8E2D6" }}>{e}</button>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              </div>
-            </div>
-            <div className="bg-white border border-[#E8E2D6] rounded-[13px]">
-              <div className="flex items-center justify-between border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
-                <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">⚡ Sequências</h3>
-                <button onClick={() => setCadPick((v) => !v)} className="text-[11px] text-[#009AAC] hover:underline">+ iniciar</button>
-              </div>
-              <div style={{ padding: "10px 14px" }} className="flex flex-col gap-1.5">
-                {cadAtivas.length === 0 && !cadPick && <p className="text-[12px] text-[#8A989D]">Nenhuma cadência ativa.</p>}
-                {cadAtivas.map((c) => (
-                  <div key={c.id} className="bg-[#FBF9F4] border border-[#F0EBE0] rounded-[10px] px-2.5 py-1.5 flex items-center justify-between text-[11.5px]">
-                    <span className="text-[#1F2A2E]">⚡ {c.data?.nome || "Cadência"}</span>
-                    <button onClick={() => delCad(c.id)} className="text-[#b23b39] text-[10px]">encerrar</button>
-                  </div>
-                ))}
-                {cadPick && (
-                  <div className="pt-1.5 border-t border-[#F0EBE0] flex flex-wrap gap-1.5">
-                    {cadOpts.length === 0 ? <p className="text-[11px] text-[#8A989D]">Nenhuma cadência cadastrada em Configurações.</p> :
-                      cadOpts.map((c: any) => (<button key={c.id} disabled={savingCad} onClick={() => addCad(c)} className="text-[11px] px-2 py-1 rounded-lg border disabled:opacity-50" style={{ borderColor: "#E8E2D6", color: "#009AAC" }}>+ {c.nome || c.titulo}</button>))}
-                  </div>
-                )}
-              </div>
-            </div>
+              );
+            })}
           </div>
         </div>
 
-        {/* Acompanhamento (interações ligadas ao follow-up) */}
-        <div className="bg-white border border-[#E8E2D6] rounded-[13px]">
-          <div className="border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
-            <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">🕓 Acompanhamento <span className="bg-[#E7F6EE] text-[#1c7a47] text-[10px] font-medium px-1.5 py-0.5 rounded-full">{petInteracoes.length}</span></h3>
-          </div>
-          <div style={{ padding: "12px 14px" }}>
-            <div className="flex gap-2 mb-2">
-              <select value={intTipo} onChange={(e) => setIntTipo(e.target.value)} className="border border-[#E8E2D6] rounded px-2 py-1 text-[11px]">
-                <option value="NOTA">Nota</option>
-                <option value="LIGACAO">Ligação</option>
-                <option value="WHATSAPP_ENVIADO">WhatsApp</option>
-                <option value="PRESENCIAL">Presencial</option>
-              </select>
-              <input value={intTexto} onChange={(e) => setIntTexto(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addInteracaoPet(); }} placeholder="Registrar a evolução do tratamento..." className="flex-1 border border-[#E8E2D6] rounded px-2 py-1 text-[11px]" />
-              <button onClick={addInteracaoPet} disabled={savingInt} className="bg-[#009AAC] text-white px-2.5 py-1 rounded text-[11px] font-medium disabled:opacity-50">{savingInt ? "..." : "Salvar"}</button>
+        {/* 3 blocos iguais lado a lado (como na ficha do cliente): Follow-up | Sequências | Acompanhamento */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-start">
+          {/* Follow-up */}
+          <div className="bg-white border border-[#E8E2D6] rounded-[13px]">
+            <div className="border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
+              <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">📞 Follow-up do tratamento</h3>
             </div>
-            {petInteracoes.length === 0 ? (
-              <p className="text-center text-[12px] text-[#8A989D] py-4">Nenhuma interação ainda</p>
-            ) : (
-              <div className="flex flex-col gap-1.5 max-h-72 overflow-auto">
-                {petInteracoes.map((it: any) => (
-                  <div key={it.id} className="bg-[#FBF9F4] border border-[#F0EBE0] rounded-[11px] px-2.5 py-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-medium text-[#009AAC]">{it.tipo}{it.canal ? ` · ${it.canal}` : ""}</span>
-                      <span className="text-[10px] text-[#8A989D]">{new Date(it.createdAt).toLocaleDateString("pt-BR")}</span>
-                    </div>
-                    <p className="text-[12px] text-[#1F2A2E] mt-0.5">{it.texto}</p>
-                    {it.autor?.name && <p className="text-[10px] text-[#8A989D] mt-0.5">por {it.autor.name}</p>}
-                  </div>
-                ))}
+            <div style={{ padding: "12px 14px" }}>
+              {pet.proximoFollowupAt ? (
+                <div className="text-[12.5px] text-[#5C6B70]">Próximo em <b className="text-[#014D5E]">{fmtDataBR(pet.proximoFollowupAt)}</b></div>
+              ) : <div className="text-[12.5px] text-[#8A989D]">Nenhum follow-up agendado.</div>}
+              <div className="flex gap-1.5 mt-2.5">
+                <button onClick={() => { setFuDate(pet.proximoFollowupAt ? String(pet.proximoFollowupAt).slice(0, 10) : ""); setFuOpen(true); }} className="bg-[#E0F4F6] text-[#014D5E] text-[11px] px-2.5 py-1 rounded-[8px]">{pet.proximoFollowupAt ? "Reagendar" : "Agendar"}</button>
+                {pet.proximoFollowupAt && <button onClick={clearFu} className="bg-[#FBF9F4] text-[#5C6B70] text-[11px] px-2.5 py-1 rounded-[8px] border border-[#F0EBE0]">Concluir</button>}
               </div>
-            )}
+            </div>
+          </div>
+          {/* Sequências */}
+          <div className="bg-white border border-[#E8E2D6] rounded-[13px]">
+            <div className="flex items-center justify-between border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
+              <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">⚡ Sequências</h3>
+              <button onClick={() => setCadPick((v) => !v)} className="text-[11px] text-[#009AAC] hover:underline">+ iniciar</button>
+            </div>
+            <div style={{ padding: "10px 14px" }} className="flex flex-col gap-1.5">
+              {cadAtivas.length === 0 && !cadPick && <p className="text-[12px] text-[#8A989D]">Nenhuma cadência ativa.</p>}
+              {cadAtivas.map((c) => (
+                <div key={c.id} className="bg-[#FBF9F4] border border-[#F0EBE0] rounded-[10px] px-2.5 py-1.5 flex items-center justify-between text-[11.5px]">
+                  <span className="text-[#1F2A2E]">⚡ {c.data?.nome || "Cadência"}</span>
+                  <button onClick={() => delCad(c.id)} className="text-[#b23b39] text-[10px]">encerrar</button>
+                </div>
+              ))}
+              {cadPick && (
+                <div className="pt-1.5 border-t border-[#F0EBE0] flex flex-wrap gap-1.5">
+                  {cadOpts.length === 0 ? <p className="text-[11px] text-[#8A989D]">Nenhuma cadência cadastrada em Configurações.</p> :
+                    cadOpts.map((c: any) => (<button key={c.id} disabled={savingCad} onClick={() => addCad(c)} className="text-[11px] px-2 py-1 rounded-lg border disabled:opacity-50" style={{ borderColor: "#E8E2D6", color: "#009AAC" }}>+ {c.nome || c.titulo}</button>))}
+                </div>
+              )}
+            </div>
+          </div>
+          {/* Acompanhamento (interações ligadas ao follow-up) */}
+          <div className="bg-white border border-[#E8E2D6] rounded-[13px]">
+            <div className="border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
+              <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">🕓 Acompanhamento <span className="bg-[#E7F6EE] text-[#1c7a47] text-[10px] font-medium px-1.5 py-0.5 rounded-full">{petInteracoes.length}</span></h3>
+            </div>
+            <div style={{ padding: "12px 14px" }}>
+              <div className="flex flex-col gap-1.5 mb-2">
+                <div className="flex gap-1.5">
+                  <select value={intTipo} onChange={(e) => setIntTipo(e.target.value)} className="border border-[#E8E2D6] rounded px-2 py-1 text-[11px]">
+                    <option value="NOTA">Nota</option>
+                    <option value="LIGACAO">Ligação</option>
+                    <option value="WHATSAPP_ENVIADO">WhatsApp</option>
+                    <option value="PRESENCIAL">Presencial</option>
+                  </select>
+                  <button onClick={addInteracaoPet} disabled={savingInt} className="bg-[#009AAC] text-white px-2.5 py-1 rounded text-[11px] font-medium disabled:opacity-50">{savingInt ? "..." : "Salvar"}</button>
+                </div>
+                <input value={intTexto} onChange={(e) => setIntTexto(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addInteracaoPet(); }} placeholder="Registrar a evolução..." className="w-full border border-[#E8E2D6] rounded px-2 py-1 text-[11px]" />
+              </div>
+              {petInteracoes.length === 0 ? (
+                <p className="text-center text-[12px] text-[#8A989D] py-4">Nenhuma interação ainda</p>
+              ) : (
+                <div className="flex flex-col gap-1.5 max-h-60 overflow-auto">
+                  {petInteracoes.map((it: any) => (
+                    <div key={it.id} className="bg-[#FBF9F4] border border-[#F0EBE0] rounded-[11px] px-2.5 py-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-medium text-[#009AAC]">{it.tipo}{it.canal ? ` · ${it.canal}` : ""}</span>
+                        <span className="text-[10px] text-[#8A989D]">{new Date(it.createdAt).toLocaleDateString("pt-BR")}</span>
+                      </div>
+                      <p className="text-[12px] text-[#1F2A2E] mt-0.5">{it.texto}</p>
+                      {it.autor?.name && <p className="text-[10px] text-[#8A989D] mt-0.5">por {it.autor.name}</p>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -1076,17 +1113,26 @@ export default function PetDetailPage() {
                     <p className="text-[11px] text-gray-400 mt-2">Cole o link do vídeo. Upload de arquivo (Exame/Fotos) entra quando o Cloudinary estiver ativo.</p>
                   </div>
                 ) : (
-                  <HistoricoAddGrid ready={["Atendimento", "Peso", "Vacina", "Documento", "Receita", "Vídeo", "Internação", "Observação"]} onPick={(k) => {
-                    if (k === "Atendimento") { setEditId(null); setArtefato(null); setAtd(ATD0); setItems([]); setAtdOpen(true); }
-                    else if (k === "Vacina") { setMainTab("VACINAS"); setProtoAuto(true); }
-                    else if (k === "Internação") { router.push("/dashboard/erp/internacoes"); }
-                    else if (k === "Peso") { setPesoVal(pet?.weight ? String(pet.weight) : ""); setAtdOpen(false); setArtefato("PESO"); }
-                    else if (k === "Observação") { setObsVal(pet?.observations || ""); setAtdOpen(false); setArtefato("OBS"); }
-                    else if (k === "Receita") { abrirReceita(); }
-                    else if (k === "Documento") { abrirDocumento(); }
-                    else if (k === "Vídeo") { abrirVideo(); }
-                    else { toast(`${k} — em construção (chega numa próxima fatia)`); }
-                  }} />
+                  <div className="bg-white">
+                    <button onClick={() => { setEditId(null); setArtefato(null); setAtd(ATD0); setItems([]); setAtdOpen(true); }} className="w-full bg-[#009AAC] text-white rounded-[10px] px-3.5 py-2.5 text-[13px] font-medium hover:bg-[#00808f] flex items-center justify-center gap-1.5">
+                      ＋ Novo atendimento
+                    </button>
+                    <div className="mt-3">
+                      <div className="text-[11px] text-[#8A989D] mb-1.5">adicionar:</div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {([
+                          { label: "⚖️ Peso", act: () => { setPesoVal(pet?.weight ? String(pet.weight) : ""); setAtdOpen(false); setArtefato("PESO"); } },
+                          { label: "💊 Receita", act: () => abrirReceita() },
+                          { label: "📄 Documento", act: () => abrirDocumento() },
+                          { label: "🎥 Vídeo", act: () => abrirVideo() },
+                          { label: "📝 Observação", act: () => { setObsVal(pet?.observations || ""); setAtdOpen(false); setArtefato("OBS"); } },
+                          { label: "💉 Vacina", act: () => { setMainTab("VACINAS"); setProtoAuto(true); } },
+                        ] as const).map((c) => (
+                          <button key={c.label} onClick={c.act} className="text-[12px] px-3 py-1.5 rounded-full border border-[#E8E2D6] bg-white text-[#5C6B70] hover:border-[#009AAC] hover:text-[#009AAC] transition">{c.label}</button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
@@ -1136,59 +1182,7 @@ export default function PetDetailPage() {
       <div className="mb-3 flex flex-col gap-3">
         {!showValues && <div className="text-[12px] text-[#8A989D]">🔒 Valores ocultos — use o 👁️ no topo para mostrar.</div>}
         <PetVendaPanel petId={pet.id} pacotes={pacotes} servicos={servicosCat} atendimentos={atendimentos} onNovoAtendimento={() => { setAtd(ATD0); setItems([]); setMainTab("PRONTUARIO"); setTab("HISTORICO"); setAtdOpen(true); }} onChanged={() => { loadAtendimentos(); }} />
-        {/* Pacotes de sessões (patinhas) */}
-        <div className="bg-white border border-[#E8E2D6] rounded-[13px]" style={{ padding: "14px 16px" }}>
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">📦 Pacotes de sessões</h3>
-            <button onClick={() => setPacForm((f) => ({ ...f, open: !f.open }))} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white flex items-center gap-1.5" style={{ background: "#009AAC" }}><LuPackage size={12} /> Criar pacote</button>
-          </div>
-          {pacForm.open && (
-            <div className="border border-[#E8E2D6] rounded-xl p-4 mb-3 flex flex-wrap items-end gap-2">
-              <div className="flex-1 min-w-[180px]"><label className="text-xs text-[#8A989D]">Serviço de fisioterapia</label>
-                <select value={pacForm.serviceId} onChange={(e) => setPacForm((f) => ({ ...f, serviceId: e.target.value }))} className="w-full mt-0.5 px-2 py-1.5 border border-[#E8E2D6] rounded-lg text-xs">
-                  <option value="">— selecionar —</option>
-                  {fisioSrv.map((srv: any) => <option key={srv.id} value={srv.id}>{srv.nome || srv.titulo || srv.descricao}</option>)}
-                </select>
-              </div>
-              <div className="w-20"><label className="text-xs text-[#8A989D]">Total</label><input type="number" min="1" value={pacForm.total} onChange={(e) => setPacForm((f) => ({ ...f, total: e.target.value }))} className="w-full mt-0.5 px-2 py-1.5 border border-[#E8E2D6] rounded-lg text-xs" /></div>
-              <div className="w-24"><label className="text-xs text-[#8A989D]">Já feitas</label><input type="number" min="0" value={pacForm.jaFeitas} onChange={(e) => setPacForm((f) => ({ ...f, jaFeitas: e.target.value }))} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg text-xs" style={{ borderColor: "#1D9E75", color: "#0F6E56" }} /></div>
-              <button onClick={addPacote} disabled={savingPac} className="px-3 py-1.5 rounded-lg text-xs text-white" style={{ background: "#009AAC" }}>{savingPac ? "..." : "Criar"}</button>
-            </div>
-          )}
-          {pacotes.length === 0 ? (
-            <div className="border border-[#E8E2D6] rounded-xl p-6 text-center text-sm text-[#8A989D]">Nenhum pacote criado ainda.</div>
-          ) : (
-            <div className="space-y-2">
-              {pacotes.map((p) => { const used = p.data.used || 0; const total = p.data.total || 0; const done = used >= total; return (
-                <div key={p.id} className="border rounded-xl p-3" style={{ borderColor: done ? "#0F6E56" : (total > 1 && used === total - 1 ? "#BA7517" : "#E8E2D6"), background: done ? "#F3FBF7" : "#fff" }}>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium" style={{ color: "#0E2244" }}>{done ? "🏆 " : "🐾 "}{p.data.nome}</span>
-                    <button onClick={() => delPacote(p.id)} className="text-xs" style={{ color: "#ef4444" }}>Excluir</button>
-                  </div>
-                  <div className="flex flex-wrap gap-1 mt-2">
-                    {Array.from({ length: Math.min(total, 30) }).map((_, i) => <span key={i} style={{ fontSize: "15px" }} title={`Sessão ${i + 1}`}>{i < used ? "🐾" : "⚪"}</span>)}
-                  </div>
-                  <div className="flex items-center gap-3 mt-2">
-                    <div className="flex-1 h-2 rounded-full bg-gray-100 overflow-hidden"><div className="h-full transition-all" style={{ width: `${total ? Math.min(100, (used / total) * 100) : 0}%`, background: done ? "#0F6E56" : "#009AAC" }} /></div>
-                    <span className="text-xs font-medium" style={{ color: done ? "#0F6E56" : "#0E2244" }}>{used}/{total}</span>
-                    <button onClick={() => usarSessao(p)} disabled={done} className="px-2 py-1 rounded-lg text-xs border disabled:opacity-40" style={{ borderColor: "#E8E2D6", color: "#009AAC" }}>{done ? "🎉 Concluído" : "+1 sessão"}</button>
-                  </div>
-                  {!done && total > 1 && used === total - 1 && <p className="text-[11px] mt-2" style={{ color: "#BA7517" }}>⏳ Penúltima sessão — avaliar renovação com o cliente.</p>}
-                  {done && <p className="text-[11px] mt-2" style={{ color: "#0F6E56" }}>🎉 Pacote concluído! Criamos um lembrete pra verificar renovação.</p>}
-                </div>
-              ); })}
-            </div>
-          )}
-        </div>
-        {/* Crédito do pet (em construção) */}
-        <div className="bg-white border border-[#E8E2D6] rounded-[13px]" style={{ padding: "14px 16px" }}>
-          <div className="flex items-center justify-between">
-            <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">💳 Crédito do pet</h3>
-            <span className="bg-[#E0F4F6] text-[#009AAC] text-[10px] px-2 py-0.5 rounded-full">Em construção</span>
-          </div>
-          <div className="text-[19px] text-[#014D5E] font-medium mt-1">{money(0)}</div>
-          <p className="text-[11px] text-[#8A989D] mt-1">Saldo de crédito/adiantamentos chega com o módulo Caixa.</p>
-        </div>
+        <p className="text-[11px] text-[#8A989D] px-1">🐾 O pacote de fisioterapia aparece na aba <b>Visão geral</b> (patinhas).</p>
       </div>
       )}
 
