@@ -145,7 +145,7 @@ export default function PetDetailPage() {
   const [savingCad, setSavingCad] = useState(false);
   const [pacotes, setPacotes] = useState<{ id: string; data: any }[]>([]);
   const [fisioSrv, setFisioSrv] = useState<any[]>([]);
-  const [pacForm, setPacForm] = useState<{ open: boolean; serviceId: string; total: string; jaFeitas: string }>({ open: false, serviceId: "", total: "4", jaFeitas: "0" });
+  const [pacForm, setPacForm] = useState<{ open: boolean; serviceId: string; nome: string; total: string; jaFeitas: string }>({ open: false, serviceId: "", nome: "", total: "4", jaFeitas: "0" });
   const [savingPac, setSavingPac] = useState(false);
   const [exames, setExames] = useState<{ id: string; data: any }[]>([]);
   const [exCat, setExCat] = useState<any[]>([]);
@@ -175,6 +175,8 @@ export default function PetDetailPage() {
   const [atdStatus, setAtdStatus] = useState<string[]>(ATD_STATUS_DEFAULT);
   const [servicosCat, setServicosCat] = useState<any[]>([]);
   const [petInteracoes, setPetInteracoes] = useState<any[]>([]);
+  const [protocolos, setProtocolos] = useState<any[]>([]);
+  const [gerenciarProto, setGerenciarProto] = useState(false);
   const [intTipo, setIntTipo] = useState("NOTA");
   const [intTexto, setIntTexto] = useState("");
   const [savingInt, setSavingInt] = useState(false);
@@ -215,7 +217,8 @@ export default function PetDetailPage() {
       setExamFases(pick("exame"));
     } catch {}
   }
-  useEffect(() => { if (petId) { load(); loadPipes(); loadPetColecoes(); loadCatalogos(); loadInteracoesPet(); loadAtendimentos(); loadClinDocs(); loadAtdConfig(); } /* eslint-disable-next-line */ }, [petId]);
+  async function loadProtocolos() { try { const r = await fetch(`/api/protocolos?petId=${petId}`, { cache: "no-store" }); const d = await r.json(); setProtocolos(Array.isArray(d) ? d : (d.data || [])); } catch {} }
+  useEffect(() => { if (petId) { load(); loadPipes(); loadPetColecoes(); loadCatalogos(); loadInteracoesPet(); loadAtendimentos(); loadClinDocs(); loadAtdConfig(); loadProtocolos(); } /* eslint-disable-next-line */ }, [petId]);
 
   async function handleDelete() {
     const res = await fetch(`/api/pets/${petId}`, { method: "DELETE" });
@@ -417,10 +420,12 @@ export default function PetDetailPage() {
   async function delCad(id: string) { try { await listasDel(id); toast.success("Cadência encerrada"); await loadPetColecoes(); } catch { toast.error("Erro"); } }
   async function addPacote() {
     const srv = fisioSrv.find((s: any) => String(s.id) === pacForm.serviceId);
-    if (!srv) { toast.error("Escolha um serviço de fisioterapia"); return; }
+    // Aceita serviço do catálogo OU nome livre (migração de pacote já em andamento)
+    const nome = srv ? (srv.nome || srv.titulo || srv.descricao) : pacForm.nome.trim();
+    if (!nome) { toast.error("Escolha um serviço ou informe o nome do pacote"); return; }
     const total = Number(pacForm.total) || 0; if (total <= 0) { toast.error("Informe o total de sessões"); return; }
     setSavingPac(true);
-    try { await listasAdd(`petpac_${petId}`, JSON.stringify({ serviceId: srv.id, nome: srv.nome || srv.titulo || srv.descricao, total, used: Math.min(Math.max(Number(pacForm.jaFeitas) || 0, 0), total), createdAt: new Date().toISOString() })); toast.success("Pacote criado"); setPacForm({ open: false, serviceId: "", total: "4", jaFeitas: "0" }); await loadPetColecoes(); try { await patchPet({ pipelineFisioEtapa: "Pacote em andamento" }); await load(); } catch {} } catch { toast.error("Erro ao criar pacote"); } finally { setSavingPac(false); }
+    try { await listasAdd(`petpac_${petId}`, JSON.stringify({ serviceId: srv?.id || null, nome, total, used: Math.min(Math.max(Number(pacForm.jaFeitas) || 0, 0), total), createdAt: new Date().toISOString() })); toast.success("Pacote lançado"); setPacForm({ open: false, serviceId: "", nome: "", total: "4", jaFeitas: "0" }); await loadPetColecoes(); try { await patchPet({ pipelineFisioEtapa: "Pacote em andamento" }); await load(); } catch {} } catch { toast.error("Erro ao lançar pacote"); } finally { setSavingPac(false); }
   }
   async function usarSessao(p: { id: string; data: any }) {
     const total = p.data.total || 0;
@@ -471,7 +476,7 @@ export default function PetDetailPage() {
       if (fisioItem) {
         const sv = fisioSrv.find((x: any) => String(x.id) === String(fisioItem.servicoId));
         setTab("PACOTES");
-        setPacForm({ open: true, serviceId: String(fisioItem.servicoId), total: String(Number(fisioItem.quantidade) || 4), jaFeitas: "0" });
+        setPacForm({ open: true, serviceId: String(fisioItem.servicoId), nome: "", total: String(Number(fisioItem.quantidade) || 4), jaFeitas: "0" });
         toast(`Fisioterapia vendida (${sv?.nome || sv?.titulo || "sessão"}) — defina o total de sessões do pacote`, { icon: "🩺", duration: 6000 });
       }
     } catch { toast.error("Erro ao registrar atendimento"); } finally { setSavingAtd(false); }
@@ -558,6 +563,34 @@ export default function PetDetailPage() {
   const pacFisio = (pacotes || []).find((p) => (p.data?.total || 0) > 0);
   const pacUsed = pacFisio?.data?.used || 0;
   const pacTotal = pacFisio?.data?.total || 0;
+
+  // ── Vacinas (a partir dos protocolos reais) ──
+  const vacinasResumo = (protocolos || []).filter((p: any) => p.tipo === "VACINA").map((p: any) => {
+    const doses = (p.doses || []).slice().sort((a: any, b: any) => new Date(a.dataPrevista || 0).getTime() - new Date(b.dataPrevista || 0).getTime());
+    const aplicadas = doses.filter((d: any) => d.status === "APLICADA" && d.dataAplicada);
+    const ultima = aplicadas.length ? aplicadas[aplicadas.length - 1].dataAplicada : null;
+    const proxPend = doses.find((d: any) => d.status === "PENDENTE" && d.dataPrevista);
+    const prox = proxPend?.dataPrevista || null;
+    const venceu = prox ? new Date(prox).getTime() < Date.now() : false;
+    return { id: p.id, nome: p.nomeProtocolo, ultima, prox, venceu, temPend: !!proxPend };
+  });
+  // ── Medicamentos periódicos (a partir de vermífugo/ectoparasita reais) ──
+  const medFromProto = (kw: RegExp, tipo: string) => {
+    const cands = (protocolos || []).filter((p: any) => p.tipo === tipo || kw.test(p.nomeProtocolo || ""));
+    let ultima: string | null = null, prox: string | null = null;
+    for (const p of cands) {
+      for (const d of (p.doses || [])) {
+        if (d.status === "APLICADA" && d.dataAplicada && (!ultima || new Date(d.dataAplicada) > new Date(ultima))) ultima = d.dataAplicada;
+        if (d.status === "PENDENTE" && d.dataPrevista && (!prox || new Date(d.dataPrevista) < new Date(prox))) prox = d.dataPrevista;
+      }
+    }
+    return { ultima, prox };
+  };
+  const medsPeriodicos = [
+    { nome: "🦟 Antipulgas / carrapaticida", periodo: "mensal", ...medFromProto(/pulga|carrapat|ecto/i, "ECTOPARASITA") },
+    { nome: "🪱 Vermífugo", periodo: "trimestral", ...medFromProto(/verm[íi]fugo|verm/i, "VERMIFUGO") },
+    { nome: "❤️ Vermífugo cardíaco", periodo: "mensal", ...medFromProto(/card[íi]aco|dirofilar/i, "VERMIFUGO") },
+  ];
 
   return (
     <div className="p-4 min-h-screen bg-[#F6F2EA]">
@@ -807,47 +840,43 @@ export default function PetDetailPage() {
         {/* 6. Relacionamento / tratamento */}
         <div className="text-[11px] text-[#8A989D] uppercase tracking-wide mb-1 mt-1 px-1">💬 Relacionamento / tratamento</div>
 
-        {/* Tratamento em andamento — pipelines como ROLL-UP colapsável */}
-        <div className="bg-white border border-[#E8E2D6] rounded-[13px]">
-          <div className="border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
-            <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">🔄 Tratamento em andamento</h3>
-          </div>
-          <div className="divide-y divide-[#F0EBE0]">
-            {([
-              { key: "clinico" as const, label: "Clínico", field: "pipelineClinicoEtapa" as const, etapas: pipes.clinico, atual: pet.pipelineClinicoEtapa },
-              { key: "fisio" as const, label: "Fisioterapia", field: "pipelineFisioEtapa" as const, etapas: pipes.fisio, atual: pet.pipelineFisioEtapa },
-            ]).map((row) => {
-              const lista = row.etapas.length ? row.etapas : (row.atual ? [row.atual] : []);
-              const aberto = pipeOpen[row.key];
-              return (
-                <div key={row.key} style={{ padding: "10px 14px" }}>
-                  <button onClick={() => setPipeOpen((o) => ({ ...o, [row.key]: !o[row.key] }))} className="w-full flex items-center justify-between gap-2">
-                    <span className="text-[10px] uppercase tracking-wide text-[#8A989D]">{row.label}</span>
-                    <span className="flex items-center gap-2">
-                      {row.atual ? (
-                        <span className="text-[11px] px-2.5 py-1 rounded-full font-medium" style={{ background: "#009AAC", color: "#fff" }}>{row.atual}</span>
-                      ) : (
-                        <span className="text-[11.5px] text-[#8A989D]">— sem etapa —</span>
-                      )}
-                      <span className="text-[11px] text-[#8A989D]">{aberto ? "▴" : "▾"}</span>
-                    </span>
-                  </button>
-                  {aberto && (
-                    <div className="flex flex-wrap gap-1 mt-2 pt-2 border-t border-[#F0EBE0]">
-                      {lista.length === 0 && <span className="text-[12px] text-[#8A989D]">Nenhuma etapa configurada.</span>}
-                      {lista.map((e) => (
-                        <button key={e} onClick={async () => { await savePipe(row.field, e); setPipeOpen((o) => ({ ...o, [row.key]: false })); }} disabled={savingPipe} className="text-[11px] px-2.5 py-1 rounded-full border transition disabled:opacity-50" style={row.atual === e ? { background: "#009AAC", color: "#fff", borderColor: "#009AAC" } : { background: "#fff", color: "#5C6B70", borderColor: "#E8E2D6" }}>{e}</button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+        {/* Tratamento em andamento — pipelines roll-up LADO A LADO */}
+        <div className="text-[12px] text-[#014D5E] font-medium flex items-center gap-1.5 px-1">🔄 Tratamento em andamento</div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
+          {([
+            { key: "clinico" as const, label: "Clínico", field: "pipelineClinicoEtapa" as const, etapas: pipes.clinico, atual: pet.pipelineClinicoEtapa },
+            { key: "fisio" as const, label: "Fisioterapia", field: "pipelineFisioEtapa" as const, etapas: pipes.fisio, atual: pet.pipelineFisioEtapa },
+          ]).map((row) => {
+            const lista = row.etapas.length ? row.etapas : (row.atual ? [row.atual] : []);
+            const aberto = pipeOpen[row.key];
+            return (
+              <div key={row.key} className="bg-white border border-[#E8E2D6] rounded-[13px]" style={{ padding: "11px 14px" }}>
+                <button onClick={() => setPipeOpen((o) => ({ ...o, [row.key]: !o[row.key] }))} className="w-full flex items-center justify-between gap-2">
+                  <span className="text-[10px] uppercase tracking-wide text-[#8A989D]">{row.label}</span>
+                  <span className="flex items-center gap-2">
+                    {row.atual ? (
+                      <span className="text-[11px] px-2.5 py-1 rounded-full font-medium" style={{ background: "#009AAC", color: "#fff" }}>{row.atual}</span>
+                    ) : (
+                      <span className="text-[11.5px] text-[#8A989D]">— sem etapa —</span>
+                    )}
+                    <span className="text-[11px] text-[#8A989D]">{aberto ? "▴" : "▾"}</span>
+                  </span>
+                </button>
+                {aberto && (
+                  <div className="flex flex-wrap gap-1 mt-2 pt-2 border-t border-[#F0EBE0]">
+                    {lista.length === 0 && <span className="text-[12px] text-[#8A989D]">Nenhuma etapa configurada.</span>}
+                    {lista.map((e) => (
+                      <button key={e} onClick={async () => { await savePipe(row.field, e); setPipeOpen((o) => ({ ...o, [row.key]: false })); }} disabled={savingPipe} className="text-[11px] px-2.5 py-1 rounded-full border transition disabled:opacity-50" style={row.atual === e ? { background: "#009AAC", color: "#fff", borderColor: "#009AAC" } : { background: "#fff", color: "#5C6B70", borderColor: "#E8E2D6" }}>{e}</button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
 
-        {/* 3 blocos iguais lado a lado (como na ficha do cliente): Follow-up | Sequências | Acompanhamento */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-start">
+        {/* Follow-up | Sequências — 2 boxes lado a lado */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
           {/* Follow-up */}
           <div className="bg-white border border-[#E8E2D6] rounded-[13px]">
             <div className="border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
@@ -885,41 +914,40 @@ export default function PetDetailPage() {
               )}
             </div>
           </div>
-          {/* Acompanhamento (interações ligadas ao follow-up) */}
-          <div className="bg-white border border-[#E8E2D6] rounded-[13px]">
-            <div className="border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
-              <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">🕓 Acompanhamento <span className="bg-[#E7F6EE] text-[#1c7a47] text-[10px] font-medium px-1.5 py-0.5 rounded-full">{petInteracoes.length}</span></h3>
+        </div>
+
+        {/* Acompanhamento (interações) — LARGURA TOTAL, embaixo dos 2 boxes */}
+        <div className="bg-white border border-[#E8E2D6] rounded-[13px]">
+          <div className="border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
+            <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">🕓 Acompanhamento <span className="bg-[#E7F6EE] text-[#1c7a47] text-[10px] font-medium px-1.5 py-0.5 rounded-full">{petInteracoes.length}</span></h3>
+          </div>
+          <div style={{ padding: "12px 14px" }}>
+            <div className="flex gap-2 mb-2">
+              <select value={intTipo} onChange={(e) => setIntTipo(e.target.value)} className="border border-[#E8E2D6] rounded px-2 py-1 text-[11px]">
+                <option value="NOTA">Nota</option>
+                <option value="LIGACAO">Ligação</option>
+                <option value="WHATSAPP_ENVIADO">WhatsApp</option>
+                <option value="PRESENCIAL">Presencial</option>
+              </select>
+              <input value={intTexto} onChange={(e) => setIntTexto(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addInteracaoPet(); }} placeholder="Registrar a evolução do tratamento..." className="flex-1 border border-[#E8E2D6] rounded px-2 py-1 text-[11px]" />
+              <button onClick={addInteracaoPet} disabled={savingInt} className="bg-[#009AAC] text-white px-2.5 py-1 rounded text-[11px] font-medium disabled:opacity-50">{savingInt ? "..." : "Salvar"}</button>
             </div>
-            <div style={{ padding: "12px 14px" }}>
-              <div className="flex flex-col gap-1.5 mb-2">
-                <div className="flex gap-1.5">
-                  <select value={intTipo} onChange={(e) => setIntTipo(e.target.value)} className="border border-[#E8E2D6] rounded px-2 py-1 text-[11px]">
-                    <option value="NOTA">Nota</option>
-                    <option value="LIGACAO">Ligação</option>
-                    <option value="WHATSAPP_ENVIADO">WhatsApp</option>
-                    <option value="PRESENCIAL">Presencial</option>
-                  </select>
-                  <button onClick={addInteracaoPet} disabled={savingInt} className="bg-[#009AAC] text-white px-2.5 py-1 rounded text-[11px] font-medium disabled:opacity-50">{savingInt ? "..." : "Salvar"}</button>
-                </div>
-                <input value={intTexto} onChange={(e) => setIntTexto(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addInteracaoPet(); }} placeholder="Registrar a evolução..." className="w-full border border-[#E8E2D6] rounded px-2 py-1 text-[11px]" />
-              </div>
-              {petInteracoes.length === 0 ? (
-                <p className="text-center text-[12px] text-[#8A989D] py-4">Nenhuma interação ainda</p>
-              ) : (
-                <div className="flex flex-col gap-1.5 max-h-60 overflow-auto">
-                  {petInteracoes.map((it: any) => (
-                    <div key={it.id} className="bg-[#FBF9F4] border border-[#F0EBE0] rounded-[11px] px-2.5 py-1.5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-medium text-[#009AAC]">{it.tipo}{it.canal ? ` · ${it.canal}` : ""}</span>
-                        <span className="text-[10px] text-[#8A989D]">{new Date(it.createdAt).toLocaleDateString("pt-BR")}</span>
-                      </div>
-                      <p className="text-[12px] text-[#1F2A2E] mt-0.5">{it.texto}</p>
-                      {it.autor?.name && <p className="text-[10px] text-[#8A989D] mt-0.5">por {it.autor.name}</p>}
+            {petInteracoes.length === 0 ? (
+              <p className="text-center text-[12px] text-[#8A989D] py-4">Nenhuma interação ainda</p>
+            ) : (
+              <div className="flex flex-col gap-1.5 max-h-72 overflow-auto">
+                {petInteracoes.map((it: any) => (
+                  <div key={it.id} className="bg-[#FBF9F4] border border-[#F0EBE0] rounded-[11px] px-2.5 py-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-medium text-[#009AAC]">{it.tipo}{it.canal ? ` · ${it.canal}` : ""}</span>
+                      <span className="text-[10px] text-[#8A989D]">{new Date(it.createdAt).toLocaleDateString("pt-BR")}</span>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
+                    <p className="text-[12px] text-[#1F2A2E] mt-0.5">{it.texto}</p>
+                    {it.autor?.name && <p className="text-[10px] text-[#8A989D] mt-0.5">por {it.autor.name}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -998,15 +1026,14 @@ export default function PetDetailPage() {
       {/* ═══════════ ABA 🩺 PRONTUÁRIO ═══════════ */}
       {mainTab === "PRONTUARIO" && (
       <div className="mb-3 bg-white border border-[#E8E2D6] rounded-[13px] overflow-hidden">
-        {/* barra interna: Histórico / Linha do tempo / Agenda */}
-        <div className="flex border-b border-[#E8E2D6] items-stretch flex-wrap">
-          {([
-            { k: "HISTORICO", label: "Histórico" },
-            { k: "TIMELINE", label: "Linha do tempo" },
-            { k: "AGENDA", label: "Agenda" },
-          ] as const).map((t) => (
-            <button key={t.k} onClick={() => setTab(t.k)} className="px-4 py-3 text-sm font-medium border-b-2 transition -mb-px" style={{ borderColor: tab === t.k ? "#009AAC" : "transparent", color: tab === t.k ? "#014D5E" : "#8A989D" }}>{t.label}</button>
-          ))}
+        {/* header discreto: título + seletor pequeno de visão (sem 3 sub-abas destacadas) */}
+        <div className="flex items-center justify-between border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
+          <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">🩺 Prontuário</h3>
+          <select value={tab === "TIMELINE" || tab === "AGENDA" ? tab : "HISTORICO"} onChange={(e) => setTab(e.target.value as any)} className="border border-[#E8E2D6] rounded-full px-3 py-1 text-[11.5px] text-[#5C6B70] bg-white">
+            <option value="HISTORICO">Histórico</option>
+            <option value="TIMELINE">Linha do tempo</option>
+            <option value="AGENDA">Agenda</option>
+          </select>
         </div>
         {(tab === "HISTORICO" || !["TIMELINE", "AGENDA"].includes(tab)) && (
           <div className="p-5">
@@ -1126,11 +1153,28 @@ export default function PetDetailPage() {
                           { label: "📄 Documento", act: () => abrirDocumento() },
                           { label: "🎥 Vídeo", act: () => abrirVideo() },
                           { label: "📝 Observação", act: () => { setObsVal(pet?.observations || ""); setAtdOpen(false); setArtefato("OBS"); } },
-                          { label: "💉 Vacina", act: () => { setMainTab("VACINAS"); setProtoAuto(true); } },
                         ] as const).map((c) => (
                           <button key={c.label} onClick={c.act} className="text-[12px] px-3 py-1.5 rounded-full border border-[#E8E2D6] bg-white text-[#5C6B70] hover:border-[#009AAC] hover:text-[#009AAC] transition">{c.label}</button>
                         ))}
                       </div>
+                    </div>
+                    {/* Timeline dos atendimentos (data · tipo em pill · vet · resumo com rótulo em negrito) */}
+                    <div className="mt-4 pt-3 border-t border-[#F0EBE0] flex flex-col gap-1.5">
+                      {(atendimentos || []).length === 0 && <p className="text-[12px] text-[#8A989D] py-2 text-center">Nenhum atendimento registrado ainda.</p>}
+                      {(atendimentos || []).map((a: any) => {
+                        const resumo = a.conduct ? { l: "Conduta", v: a.conduct } : a.chiefComplaint ? { l: "Queixa", v: a.chiefComplaint } : a.diagnosis ? { l: "Diag.", v: a.diagnosis } : a.prescription ? { l: "Prescrição", v: a.prescription } : null;
+                        return (
+                          <button key={a.id} onClick={() => abrirAtd(a.id)} className="w-full text-left bg-[#FBF9F4] border border-[#F0EBE0] rounded-[11px] px-3 py-2 hover:border-[#009AAC] transition">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-[11px] text-[#8A989D]">{fmtDataBR(a.date)}</span>
+                              <span className="text-[10px] px-2 py-0.5 rounded-full font-medium" style={{ background: "#E0F4F6", color: "#014D5E" }}>{ATD_TIPO_LABEL(a.type)}</span>
+                              {a.user?.name && <span className="text-[11px] text-[#5C6B70]">🩺 {a.user.name}</span>}
+                              <span className="ml-auto text-[12px] text-[#014D5E] font-medium">{money(a.value)}</span>
+                            </div>
+                            {resumo && <div className="text-[12px] text-[#5C6B70] mt-1 truncate"><b className="text-[#1F2A2E]">{resumo.l}:</b> {resumo.v}</div>}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -1146,33 +1190,68 @@ export default function PetDetailPage() {
       {/* ═══════════ ABA 💉 VACINAS & MEDS ═══════════ */}
       {mainTab === "VACINAS" && (
       <div className="mb-3 flex flex-col gap-3">
-        <div className="bg-white border border-[#E8E2D6] rounded-[13px] p-5">
-          <PetProtocolosPanel petId={pet.id} autoOpen={protoAuto} onAutoOpened={() => setProtoAuto(false)} />
+        {/* 💉 Vacinas */}
+        <div className="bg-white border border-[#E8E2D6] rounded-[13px]">
+          <div className="flex items-center justify-between border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
+            <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">💉 Vacinas</h3>
+            <button onClick={() => { setProtoAuto(true); setGerenciarProto(true); }} className="text-[11px] text-[#009AAC] hover:underline">＋ Aplicar</button>
+          </div>
+          <div style={{ padding: "10px 14px" }} className="flex flex-col gap-2">
+            {vacinasResumo.length === 0 && <p className="text-[12px] text-[#8A989D]">Nenhuma vacina registrada. Use "＋ Aplicar" para iniciar um protocolo.</p>}
+            {vacinasResumo.map((v: any) => (
+              <div key={v.id} className="bg-[#FBF9F4] border border-[#F0EBE0] rounded-[10px] px-3 py-2 flex items-center justify-between gap-2 flex-wrap">
+                <div className="min-w-0">
+                  <div className="text-[12.5px] text-[#1F2A2E] truncate">{v.nome}</div>
+                  <div className="text-[11px] text-[#8A989D]">últ. {v.ultima ? fmtDataBR(v.ultima).slice(0, 5) : "—"}</div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {v.temPend ? (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full font-medium" style={v.venceu ? { background: "#FDECEC", color: "#A32D2D" } : { background: "#FBF3E3", color: "#8a6400" }}>{v.venceu ? "vencida" : "vence"} {v.prox ? fmtDataBR(v.prox).slice(0, 5) : ""}</span>
+                  ) : (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full font-medium" style={{ background: "#E1F5EE", color: "#0F6E56" }}>em dia</span>
+                  )}
+                  <button onClick={() => { setProtoAuto(true); setGerenciarProto(true); }} className="text-[11px] px-2 py-0.5 rounded-full border" style={{ borderColor: "#E8E2D6", color: "#009AAC" }}>＋ Aplicar</button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-        {/* Medicamentos periódicos (consome protocolos existentes) */}
+
+        {/* 💊 Medicamentos periódicos */}
         <div className="bg-white border border-[#E8E2D6] rounded-[13px]">
           <div className="border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
             <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">💊 Medicamentos periódicos</h3>
           </div>
-          <div style={{ padding: "12px 14px" }} className="flex flex-col gap-2">
-            {[
-              { nome: "🦟 Antipulgas / carrapaticida", periodo: "mensal" },
-              { nome: "🪱 Vermífugo", periodo: "trimestral" },
-              { nome: "❤️ Vermífugo cardíaco", periodo: "mensal" },
-            ].map((m) => (
-              <div key={m.nome} className="bg-[#FBF9F4] border border-[#F0EBE0] rounded-[10px] px-3 py-2 flex items-center justify-between">
-                <div>
+          <div style={{ padding: "10px 14px" }} className="flex flex-col gap-2">
+            {medsPeriodicos.map((m) => (
+              <div key={m.nome} className="bg-[#FBF9F4] border border-[#F0EBE0] rounded-[10px] px-3 py-2 flex items-center justify-between gap-2 flex-wrap">
+                <div className="min-w-0">
                   <div className="text-[12.5px] text-[#1F2A2E]">{m.nome}</div>
                   <div className="text-[11px] text-[#8A989D]">Aplicação {m.periodo}</div>
                 </div>
-                <div className="text-right text-[11px] text-[#8A989D]">
-                  <div>última: —</div>
-                  <div>próxima: —</div>
+                <div className="flex items-center gap-3 shrink-0">
+                  <div className="text-right text-[11px] text-[#8A989D]">
+                    <div>últ. {m.ultima ? fmtDataBR(m.ultima).slice(0, 5) : "—"}</div>
+                    <div>próx. {m.prox ? fmtDataBR(m.prox).slice(0, 5) : "—"}</div>
+                  </div>
+                  <button onClick={() => { setProtoAuto(true); setGerenciarProto(true); }} className="text-[11px] px-2 py-0.5 rounded-full border" style={{ borderColor: "#E8E2D6", color: "#009AAC" }}>＋ Adicionar</button>
                 </div>
               </div>
             ))}
-            <p className="text-[11px] text-[#8A989D] mt-1">Registre a aplicação como protocolo/dose acima para preencher "última" e "próxima". Cadastre os protocolos em Protocolos.</p>
           </div>
+        </div>
+
+        {/* Gerenciar protocolos (painel completo com todos os handlers reais) */}
+        <div className="bg-white border border-[#E8E2D6] rounded-[13px]">
+          <button onClick={() => setGerenciarProto((v) => !v)} className="w-full flex items-center justify-between border-b border-[#F0EBE0] hover:bg-[#FBF9F4]" style={{ padding: "11px 14px" }}>
+            <span className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">🗂️ Gerenciar protocolos (vacinas, vermífugos, doses)</span>
+            <span className="text-[11px] text-[#8A989D]">{gerenciarProto ? "▴" : "▾"}</span>
+          </button>
+          {gerenciarProto && (
+            <div className="p-5">
+              <PetProtocolosPanel petId={pet.id} autoOpen={protoAuto} onAutoOpened={() => setProtoAuto(false)} onChanged={loadProtocolos} />
+            </div>
+          )}
         </div>
       </div>
       )}
@@ -1181,8 +1260,51 @@ export default function PetDetailPage() {
       {mainTab === "COMPRAS" && (
       <div className="mb-3 flex flex-col gap-3">
         {!showValues && <div className="text-[12px] text-[#8A989D]">🔒 Valores ocultos — use o 👁️ no topo para mostrar.</div>}
+        {/* Venda/Orçamentos + Total gasto + lista + Pagamento + Crédito (1 card) — tudo no PetVendaPanel */}
         <PetVendaPanel petId={pet.id} pacotes={pacotes} servicos={servicosCat} atendimentos={atendimentos} onNovoAtendimento={() => { setAtd(ATD0); setItems([]); setMainTab("PRONTUARIO"); setTab("HISTORICO"); setAtdOpen(true); }} onChanged={() => { loadAtendimentos(); }} />
-        <p className="text-[11px] text-[#8A989D] px-1">🐾 O pacote de fisioterapia aparece na aba <b>Visão geral</b> (patinhas).</p>
+
+        {/* 📦 Pacotes em andamento — LANÇAMENTO/GESTÃO (progresso em patinhas fica na Visão geral) */}
+        <div className="bg-white border border-[#E8E2D6] rounded-[13px]" style={{ padding: "14px 16px" }}>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">📦 Pacotes em andamento</h3>
+            <button onClick={() => setPacForm((f) => ({ ...f, open: !f.open }))} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white flex items-center gap-1.5" style={{ background: "#009AAC" }}><LuPackage size={12} /> Lançar pacote</button>
+          </div>
+          <p className="text-[11px] text-[#8A989D] mb-3">Lance um pacote já em andamento (migração): informe o nome, o total de sessões e quantas já foram feitas. As sessões aparecem como 🐾 patinhas na aba <b>Visão geral</b>.</p>
+          {pacForm.open && (
+            <div className="border border-[#E8E2D6] rounded-xl p-4 mb-3 flex flex-wrap items-end gap-2">
+              <div className="flex-1 min-w-[160px]"><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Serviço de fisioterapia</label>
+                <select value={pacForm.serviceId} onChange={(e) => setPacForm((f) => ({ ...f, serviceId: e.target.value }))} className="w-full mt-0.5 px-2 py-1.5 border border-[#E8E2D6] rounded-lg text-xs">
+                  <option value="">— usar nome livre —</option>
+                  {fisioSrv.map((srv: any) => <option key={srv.id} value={srv.id}>{srv.nome || srv.titulo || srv.descricao}</option>)}
+                </select>
+              </div>
+              <div className="flex-1 min-w-[140px]"><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Nome do pacote (se sem serviço)</label>
+                <input value={pacForm.nome} onChange={(e) => setPacForm((f) => ({ ...f, nome: e.target.value }))} placeholder="Ex.: Pacote fisioterapia 10 sessões" className="w-full mt-0.5 px-2 py-1.5 border border-[#E8E2D6] rounded-lg text-xs" />
+              </div>
+              <div className="w-20"><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Total</label><input type="number" min="1" value={pacForm.total} onChange={(e) => setPacForm((f) => ({ ...f, total: e.target.value }))} className="w-full mt-0.5 px-2 py-1.5 border border-[#E8E2D6] rounded-lg text-xs" /></div>
+              <div className="w-24"><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Já feitas</label><input type="number" min="0" value={pacForm.jaFeitas} onChange={(e) => setPacForm((f) => ({ ...f, jaFeitas: e.target.value }))} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg text-xs" style={{ borderColor: "#1D9E75", color: "#0F6E56" }} /></div>
+              <button onClick={addPacote} disabled={savingPac} className="px-3 py-1.5 rounded-lg text-xs text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingPac ? "..." : "Lançar"}</button>
+            </div>
+          )}
+          {pacotes.length === 0 ? (
+            <div className="border border-[#E8E2D6] rounded-xl p-6 text-center text-sm text-[#8A989D]">Nenhum pacote em andamento.</div>
+          ) : (
+            <div className="space-y-2">
+              {pacotes.map((p) => { const used = p.data.used || 0; const total = p.data.total || 0; const done = used >= total; return (
+                <div key={p.id} className="border border-[#E8E2D6] rounded-xl px-3 py-2.5 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-[13px] font-medium text-[#014D5E] truncate">{done ? "🏆 " : "🐾 "}{p.data.nome}</div>
+                    <div className="text-[11px] text-[#8A989D]">{used}/{total} sessões{p.data.serviceId ? " · ligado à venda" : " · migração"}</div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button onClick={() => usarSessao(p)} disabled={done} className="px-2 py-1 rounded-lg text-xs border disabled:opacity-40" style={{ borderColor: "#E8E2D6", color: "#009AAC" }}>{done ? "🎉 Concluído" : "+1 sessão"}</button>
+                    <button onClick={() => delPacote(p.id)} className="px-2 py-1 rounded-lg text-xs border" style={{ borderColor: "#f4baba", color: "#A32D2D" }}>Excluir</button>
+                  </div>
+                </div>
+              ); })}
+            </div>
+          )}
+        </div>
       </div>
       )}
 
