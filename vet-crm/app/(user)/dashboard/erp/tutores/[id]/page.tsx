@@ -408,8 +408,6 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
 
   const status = STATUS_BADGE(tutor.status);
   const phone = tutor.contacts?.find((c) => c.isPrimary)?.number;
-  const ltv = tutor.score?.dimensions?.ltv?.value || 0;
-  const visitas = tutor.score?.dimensions?.visitas?.value || 0;
   const pets = tutor.pets || [];
   const compras = tutor.appointments || [];
   const porMarca: { marca: string; valor: number; pct: number }[] = stats?.porMarca || [];
@@ -576,6 +574,16 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
             {selos.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mt-2.5">
                 {selos.map((s) => (<span key={s.txt} className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: s.bg, color: s.fg }}>{s.txt}</span>))}
+              </div>
+            )}
+            {tutor.score && (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-3 gap-y-1.5 mt-3 pt-3 border-t border-[#F0EBE0]">
+                {[["Visitas", tutor.score.dimensions.visitas], ["LTV", tutor.score.dimensions.ltv], ["Recência", tutor.score.dimensions.recencia], ["NPS", tutor.score.dimensions.nps]].map(([label, d]: any) => (
+                  <div key={label}>
+                    <div className="flex justify-between text-[10px] mb-0.5"><span className="text-[#5C6B70]">{label}</span><span className="text-[#1F2A2E] font-medium">{d.score}/{d.max}</span></div>
+                    <div className="h-[3px] bg-[#F0EBE0] rounded-full overflow-hidden"><div className="h-full bg-[#009AAC] rounded-full" style={{ width: `${(d.score / d.max) * 100}%` }} /></div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -975,65 +983,23 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
 
         {/* Coluna esquerda — Ciclo + Score + Avaliações */}
         <div className="flex flex-col gap-2.5">
-          {/* Ciclo do cliente */}
+          {/* Situação do relacionamento (editável) */}
           <div className="bg-white border border-[#E8E2D6] rounded-[13px]">
             <div className="border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
-              <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">♻️ Ciclo do cliente</h3>
+              <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">♻️ Situação</h3>
             </div>
-            <div style={{ padding: "13px 14px" }}>
-              <div className="grid grid-cols-3 gap-2">
-                <div className="bg-[#FBF9F4] border border-[#F0EBE0] rounded-[11px] px-2 py-2 text-center">
-                  <div className="text-[10px] uppercase tracking-wide text-[#8A989D]">LTV</div>
-                  <div className="text-[14px] text-[#014D5E] font-medium mt-0.5">{ltv ? `R$ ${ltv}` : "—"}</div>
-                </div>
-                <div className="bg-[#FBF9F4] border border-[#F0EBE0] rounded-[11px] px-2 py-2 text-center">
-                  <div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Situação</div>
-                  <div className="text-[13px] text-[#1F2A2E] font-medium mt-0.5">{HUMANIZAR(tutor.estadoRelacionamento) || status.label || "—"}</div>
-                </div>
-                <div className="bg-[#FBF9F4] border border-[#F0EBE0] rounded-[11px] px-2 py-2 text-center">
-                  <div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Cliente desde</div>
-                  <div className="text-[13px] text-[#1F2A2E] font-medium mt-0.5">{(tutor.primeiraCompraAt || tutor.createdAt) ? new Date(tutor.primeiraCompraAt || tutor.createdAt).toLocaleDateString("pt-BR", { month: "short", year: "numeric" }) : "—"}</div>
-                </div>
-              </div>
-              <p className="text-[11px] text-[#8A989D] mt-2">Somado dos atendimentos dos pets · alimenta o relatório</p>
+            <div style={{ padding: "12px 14px" }}>
+              {estagios.length > 0 ? (
+                <select value={tutor.estadoRelacionamento || ""} onChange={(e) => saveEstagio(e.target.value)} disabled={savingEstagio} className="w-full bg-[#E0F4F6] text-[#009AAC] text-[12.5px] px-2 py-1.5 rounded-[9px] border border-[#bfe3e8]">
+                  <option value="">{status.label} (padrão)</option>
+                  {estagios.map((e) => (<option key={e} value={e}>{e}</option>))}
+                </select>
+              ) : (
+                <div className="text-[13px] text-[#1F2A2E] font-medium">{HUMANIZAR(tutor.estadoRelacionamento) || status.label}</div>
+              )}
+              <p className="text-[11px] text-[#8A989D] mt-2">Estágio do cliente no relacionamento.</p>
             </div>
           </div>
-
-          {tutor.score && (
-            <div className="bg-white border border-[#E8E2D6] rounded-[13px]">
-              <div className="border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
-                <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">📊 Score do cliente</h3>
-              </div>
-              <div style={{ padding: "13px 14px" }}>
-              <div className="flex items-center gap-3 mb-3">
-                <div className="relative w-14 h-14">
-                  <svg viewBox="0 0 56 56" className="w-full h-full -rotate-90">
-                    <circle cx="28" cy="28" r="24" fill="none" stroke="#F0EBE0" strokeWidth="5" />
-                    <circle cx="28" cy="28" r="24" fill="none" stroke="#009AAC" strokeWidth="5" strokeDasharray="150.8" strokeDashoffset={150.8 - (tutor.score.total / 100) * 150.8} />
-                  </svg>
-                  <div className="absolute inset-0 flex items-center justify-center text-base font-medium text-[#014D5E]">{tutor.score.total}</div>
-                </div>
-                <div>
-                  <div className="text-[13px] text-[#1F2A2E] font-medium">{tutor.score.label}</div>
-                  <div className="text-[11px] text-[#5C6B70]">Score {tutor.score.total}/100</div>
-                </div>
-              </div>
-              {[
-                ["Visitas", tutor.score.dimensions.visitas],
-                ["LTV", tutor.score.dimensions.ltv],
-                ["Recência", tutor.score.dimensions.recencia],
-                ["NPS", tutor.score.dimensions.nps],
-              ].map(([label, d]: any) => (
-                <div key={label} className="mb-1.5">
-                  <div className="flex justify-between text-[10px] mb-0.5"><span className="text-[#5C6B70]">{label}</span><span className="text-[#1F2A2E] font-medium">{d.score}/{d.max}</span></div>
-                  <div className="h-[3px] bg-[#F0EBE0] rounded-full overflow-hidden">
-                    <div className="h-full bg-[#009AAC] rounded-full" style={{ width: `${(d.score / d.max) * 100}%` }} />
-                  </div>
-                </div>
-              ))}
-              </div>
-            </div>
-          )}
 
           <div className="bg-white border border-[#E8E2D6] rounded-[13px]">
             <div className="flex items-center justify-between border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
