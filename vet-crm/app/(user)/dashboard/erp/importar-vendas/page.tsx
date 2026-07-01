@@ -140,6 +140,7 @@ export default function ImportarVendasPage() {
   const [sim, setSim] = useState<any>(null);
   const [efet, setEfet] = useState<any>(null);
   const [running, setRunning] = useState(false);
+  const [progresso, setProgresso] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
 
   function processarLinhas(linhas: Linha[], nomeArquivo: string) {
@@ -231,30 +232,69 @@ export default function ImportarVendasPage() {
       )
         return;
     }
+    // Envia em LOTES (vendas inteiras por lote) — evita "request entity too large" e timeout.
+    const porVenda = new Map<string, Linha[]>();
+    linhas.forEach((l, i) => {
+      const k = l.Venda || `__semvenda_${i}`;
+      const a = porVenda.get(k);
+      if (a) a.push(l);
+      else porVenda.set(k, [l]);
+    });
+    const gruposVenda = [...porVenda.values()];
+    const VENDAS_POR_LOTE = 100;
+    const lotes: Linha[][] = [];
+    for (let i = 0; i < gruposVenda.length; i += VENDAS_POR_LOTE)
+      lotes.push(gruposVenda.slice(i, i + VENDAS_POR_LOTE).flat());
+
     setRunning(true);
     setErro(null);
+    setProgresso(null);
     if (dryRun) setSim(null);
     else setEfet(null);
+
+    const acc: any = {
+      vendas: 0, itens: 0, novosClientes: 0, novosPets: 0, jaImportadas: 0,
+      criadas: 0, puladas: 0, valorTotalLiquido: 0, porMarca: {}, amostraAvisos: [],
+    };
+    const funcSet = new Set<string>();
     try {
-      const r = await fetch("/api/crm/importar-vendas", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ linhas, dryRun, mapaMarca }),
-      });
-      const d = await r.json().catch(() => null);
-      if (!r.ok) {
-        const msg =
-          (d && (d.error || (Array.isArray(d.message) ? d.message.join(", ") : d.message))) ||
-          `HTTP ${r.status}`;
-        toast.error("Falha: " + msg);
-        setErro(String(msg));
-        return;
+      for (let i = 0; i < lotes.length; i++) {
+        setProgresso(`Lote ${i + 1}/${lotes.length}…`);
+        const r = await fetch("/api/crm/importar-vendas", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ linhas: lotes[i], dryRun, mapaMarca }),
+        });
+        const d = await r.json().catch(() => null);
+        if (!r.ok) {
+          const msg =
+            (d && (d.error || (Array.isArray(d.message) ? d.message.join(", ") : d.message))) ||
+            `HTTP ${r.status}`;
+          toast.error(`Falha no lote ${i + 1}: ${msg}`);
+          setErro(String(msg));
+          return;
+        }
+        acc.vendas += d.vendas || 0;
+        acc.itens += d.itens || 0;
+        acc.novosClientes += d.novosClientes || 0;
+        acc.novosPets += d.novosPets || 0;
+        acc.jaImportadas += d.jaImportadas || 0;
+        acc.criadas += d.criadas || 0;
+        acc.puladas += d.puladas || 0;
+        acc.valorTotalLiquido += d.valorTotalLiquido || 0;
+        for (const [m, v] of Object.entries(d.porMarca || {}))
+          acc.porMarca[m] = (acc.porMarca[m] || 0) + (Number(v) || 0);
+        (d.funcionariosNaoEncontrados || []).forEach((f: string) => funcSet.add(f));
+        const av = d.amostraAvisos || d.avisos || [];
+        if (acc.amostraAvisos.length < 50) acc.amostraAvisos.push(...av.slice(0, 50 - acc.amostraAvisos.length));
+        if (!dryRun && i < lotes.length - 1) await new Promise((res) => setTimeout(res, 400));
       }
+      acc.funcionariosNaoEncontrados = [...funcSet];
       if (dryRun) {
-        setSim(d);
+        setSim(acc);
         toast.success("Simulação concluída — confira e efetive.");
       } else {
-        setEfet(d);
+        setEfet(acc);
         toast.success("Importação efetivada!");
       }
     } catch (e: any) {
@@ -263,6 +303,7 @@ export default function ImportarVendasPage() {
       setErro(msg);
     } finally {
       setRunning(false);
+      setProgresso(null);
     }
   }
 
@@ -394,7 +435,7 @@ export default function ImportarVendasPage() {
                     disabled={running}
                     className="text-[13px] px-4 py-2 rounded-[9px] border border-[#E8E2D6] bg-white text-[#5C6B70] hover:border-[#009AAC] hover:text-[#009AAC] disabled:opacity-50"
                   >
-                    {running ? "⏳ Processando…" : "🔍 Simular"}
+                    {running ? (progresso || "⏳ Processando…") : "🔍 Simular"}
                   </button>
                   {sim && (
                     <button
@@ -403,7 +444,7 @@ export default function ImportarVendasPage() {
                       className="text-[13px] px-4 py-2 rounded-[9px] text-white disabled:opacity-50"
                       style={{ background: "#009AAC" }}
                     >
-                      {running ? "⏳ Importando…" : "✅ Efetivar importação"}
+                      {running ? (progresso || "⏳ Importando…") : "✅ Efetivar importação"}
                     </button>
                   )}
                 </div>
