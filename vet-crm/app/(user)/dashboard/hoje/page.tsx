@@ -28,6 +28,7 @@ interface Pendencia {
   link: string;
   href: string;
   Icon: any;
+  emoji: string;
 }
 
 async function safeJson<T>(res: Response, fb: T): Promise<T> {
@@ -264,6 +265,7 @@ export default function HojePage() {
         link: "Follow-up",
         href: "#",
         Icon: LuRefreshCcw,
+        emoji: "🔁",
       },
       {
         key: "toques",
@@ -273,6 +275,7 @@ export default function HojePage() {
         link: "Cadências",
         href: "#",
         Icon: LuPhone,
+        emoji: "📞",
       },
       {
         key: "pacotes",
@@ -282,6 +285,7 @@ export default function HojePage() {
         link: "Pacotes",
         href: "/dashboard/erp/pacotes?risco=1",
         Icon: LuPackage,
+        emoji: "📦",
       },
       {
         key: "exames",
@@ -291,6 +295,7 @@ export default function HojePage() {
         link: "Pets",
         href: "/dashboard/erp/pets?exames=pendentes",
         Icon: LuFlaskConical,
+        emoji: "🔬",
       },
       {
         key: "doses",
@@ -300,6 +305,7 @@ export default function HojePage() {
         link: "Calendário",
         href: "/dashboard/erp/agendamentos/clinico",
         Icon: LuPill,
+        emoji: "💉",
       },
       {
         key: "aniversariantes",
@@ -309,6 +315,7 @@ export default function HojePage() {
         link: "Parabéns",
         href: "#",
         Icon: LuCake,
+        emoji: "🎂",
       },
     ];
   }, [data, examesPend, dosesView, fuDue, toques, aniv, pacRisco]);
@@ -316,58 +323,58 @@ export default function HojePage() {
   const total = items.reduce((s, t) => s + t.count, 0);
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-6 min-h-screen bg-[#F6F2EA]">
       <div className="flex items-center gap-3 mb-4">
         <h2 className="text-[15px] font-bold" style={{ color: "#014D5E" }}>{effectiveRole === "ADMIN" ? "O que a clínica precisa de atenção hoje" : "O que você precisa atender hoje"}</h2>
         <span
           className="text-xs font-semibold px-3 py-1 rounded-full"
-          style={{ background: "#e6f6f8", color: "#009AAC" }}
+          style={{ background: "#E0F4F6", color: "#00798A" }}
         >
           {loading ? "carregando..." : `${total} pendências`}
         </span>
-        <span className="ml-auto text-[11px] text-[#94a3b8]">
+        <span className="ml-auto text-[11px] text-[#8A989D]">
           Perfil: {roleShort(effectiveRole)}{isPreviewing && <span className="text-[#d97706]"> · preview</span>}
         </span>
       </div>
 
-      <div className="bg-white border rounded-2xl overflow-hidden" style={{ borderColor: "#e8edf0" }}>
+      <div className="bg-white border rounded-2xl overflow-hidden" style={{ borderColor: "#E8E2D6" }}>
         {loading ? (
-          <div className="px-6 py-10 text-center text-sm text-[#94a3b8]">Carregando seu dia...</div>
+          <div className="px-6 py-10 text-center text-sm text-[#8A989D]">Carregando seu dia...</div>
         ) : items.length === 0 ? (
-          <div className="px-6 py-10 text-center text-sm text-[#94a3b8]">Tudo em ordem por aqui. 🎉</div>
+          <div className="px-6 py-10 text-center text-sm text-[#8A989D]">Tudo em ordem por aqui. 🎉</div>
         ) : (
           items.map((p, i) => {
             const inner = (
               <>
-                <div className="w-[38px] h-[38px] rounded-[10px] flex items-center justify-center flex-shrink-0" style={{ background: "#e6f6f8", color: "#009AAC" }}>
-                  <p.Icon size={19} />
+                <div className="w-[38px] h-[38px] rounded-[10px] flex items-center justify-center flex-shrink-0" style={{ background: "#E0F4F6" }}>
+                  <span style={{ fontSize: "19px" }}>{p.emoji}</span>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-[13.5px] font-semibold text-[#1e293b]">{p.title}</div>
-                  <div className="text-xs text-[#64748b]">{p.sub}</div>
+                  <div className="text-[13.5px] font-semibold text-[#1F2A2E]">{p.title}</div>
+                  <div className="text-xs text-[#5C6B70]">{p.sub}</div>
                 </div>
                 <span className="text-[10px] font-bold uppercase tracking-wide text-[#009AAC] hidden sm:block">{p.link}</span>
                 <span className="text-[13px] font-bold text-white min-w-[26px] h-6 rounded-xl flex items-center justify-center px-2 flex-shrink-0" style={{ background: p.count > 0 ? "linear-gradient(90deg, #009AAC, #00B4C4)" : "#cbd5e1" }}>{p.count}</span>
-                <LuChevronRight size={16} className="text-[#94a3b8] flex-shrink-0" />
+                <span style={{ fontSize: "16px" }} className="text-[#8A989D] flex-shrink-0">›</span>
               </>
             );
-            const rowCls = "flex items-center gap-3.5 px-[18px] py-[13px] border-b hover:bg-[#e6f6f8]/60 transition cursor-pointer";
-            const rowStyle = { borderColor: i === items.length - 1 && !(p.key === "exames" && examesOpen) ? "transparent" : "#e8edf0" } as any;
+            const rowCls = "flex items-center gap-3.5 px-[18px] py-[13px] border-b hover:bg-[#E0F4F6]/60 transition cursor-pointer";
+            const rowStyle = { borderColor: i === items.length - 1 && !(p.key === "exames" && examesOpen) ? "transparent" : "#F0EBE0" } as any;
             if (p.key === "pacotes") {
               return (
                 <div key={p.key}>
-                  <div className={rowCls} style={{ borderColor: "#e8edf0" }} onClick={() => setPacOpen(o => !o)}>{inner}</div>
+                  <div className={rowCls} style={{ borderColor: "#F0EBE0" }} onClick={() => setPacOpen(o => !o)}>{inner}</div>
                   {pacOpen && (
-                    <div style={{ background: "#f8fafb" }}>
+                    <div style={{ background: "#FBF9F4" }}>
                       {pacRisco.length === 0 ? (
-                        <div className="px-[58px] py-3 text-xs text-[#94a3b8] border-b" style={{ borderColor: "#e8edf0" }}>Nenhum pacote perto de acabar.</div>
+                        <div className="px-[58px] py-3 text-xs text-[#8A989D] border-b" style={{ borderColor: "#F0EBE0" }}>Nenhum pacote perto de acabar.</div>
                       ) : pacRisco.map((e: any) => { const done = e.remaining <= 0; return (
-                        <Link key={e.id} href={`/dashboard/erp/pets/${e.petId}`} className="flex items-center gap-2 px-[58px] py-2.5 border-b hover:bg-[#e6f6f8]/60 text-xs" style={{ borderColor: "#e8edf0" }}>
-                          <span className="font-medium text-[#1e293b]">{e.petName}</span>
-                          <span className="text-[#64748b] truncate max-w-[120px]">· {e.nome}</span>
+                        <Link key={e.id} href={`/dashboard/erp/pets/${e.petId}`} className="flex items-center gap-2 px-[58px] py-2.5 border-b hover:bg-[#E0F4F6]/60 text-xs" style={{ borderColor: "#F0EBE0" }}>
+                          <span className="font-medium text-[#1F2A2E]">{e.petName}</span>
+                          <span className="text-[#5C6B70] truncate max-w-[120px]">· {e.nome}</span>
                           <div className="flex items-center gap-1 ml-auto">
                             <div className="w-16 h-1.5 rounded-full bg-gray-200 overflow-hidden"><div className="h-full" style={{ width: `${e.total ? Math.min(100, (e.used / e.total) * 100) : 0}%`, background: done ? "#0F6E56" : "#BA7517" }} /></div>
-                            <span className="text-[10px] text-[#64748b]">{e.used}/{e.total}</span>
+                            <span className="text-[10px] text-[#5C6B70]">{e.used}/{e.total}</span>
                             <span className="text-[10px] px-2 py-0.5 rounded-full" style={done ? { background: "#E1F5EE", color: "#0F6E56" } : { background: "#FCE5C8", color: "#8A5A0F" }}>{done ? "Concluído" : "Penúltima"}</span>
                           </div>
                         </Link>
@@ -380,16 +387,16 @@ export default function HojePage() {
             const tcor: Record<string, { bg: string; fg: string }> = { Cliente: { bg: "#E0F4F6", fg: "#00798A" }, Pet: { bg: "#E1F5EE", fg: "#0F6E56" }, Lead: { bg: "#E6F1FB", fg: "#0C447C" } };
             const fuExpand = (list: any[], open: boolean, setOpen: (f: (o: boolean) => boolean) => void, emptyMsg: string) => (
               <div key={p.key}>
-                <div className={rowCls} style={{ borderColor: "#e8edf0" }} onClick={() => setOpen(o => !o)}>{inner}</div>
+                <div className={rowCls} style={{ borderColor: "#F0EBE0" }} onClick={() => setOpen(o => !o)}>{inner}</div>
                 {open && (
-                  <div style={{ background: "#f8fafb" }}>
+                  <div style={{ background: "#FBF9F4" }}>
                     {list.length === 0 ? (
-                      <div className="px-[58px] py-3 text-xs text-[#94a3b8] border-b" style={{ borderColor: "#e8edf0" }}>{emptyMsg}</div>
+                      <div className="px-[58px] py-3 text-xs text-[#8A989D] border-b" style={{ borderColor: "#F0EBE0" }}>{emptyMsg}</div>
                     ) : list.map((e: any) => (
-                      <Link key={e.id} href={e.href} className="flex items-center gap-2 px-[58px] py-2.5 border-b hover:bg-[#e6f6f8]/60 text-xs" style={{ borderColor: "#e8edf0" }}>
+                      <Link key={e.id} href={e.href} className="flex items-center gap-2 px-[58px] py-2.5 border-b hover:bg-[#E0F4F6]/60 text-xs" style={{ borderColor: "#F0EBE0" }}>
                         <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: (tcor[e.tipo] || tcor.Cliente).bg, color: (tcor[e.tipo] || tcor.Cliente).fg }}>{e.tipo}</span>
-                        <span className="font-medium text-[#1e293b]">{e.nome}</span>
-                        {e.date && <span className="ml-auto text-[#64748b]">{new Date(e.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}</span>}
+                        <span className="font-medium text-[#1F2A2E]">{e.nome}</span>
+                        {e.date && <span className="ml-auto text-[#5C6B70]">{new Date(e.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}</span>}
                       </Link>
                     ))}
                   </div>
@@ -400,16 +407,16 @@ export default function HojePage() {
             if (p.key === "aniversariantes") return fuExpand(aniv, anivOpen, setAnivOpen, "Ninguém faz aniversário hoje.");
             if (p.key === "toques") return (
               <div key={p.key}>
-                <div className={rowCls} style={{ borderColor: "#e8edf0" }} onClick={() => setToquesOpen(o => !o)}>{inner}</div>
+                <div className={rowCls} style={{ borderColor: "#F0EBE0" }} onClick={() => setToquesOpen(o => !o)}>{inner}</div>
                 {toquesOpen && (
-                  <div style={{ background: "#f8fafb" }}>
+                  <div style={{ background: "#FBF9F4" }}>
                     {toques.length === 0 ? (
-                      <div className="px-[58px] py-3 text-xs text-[#94a3b8] border-b" style={{ borderColor: "#e8edf0" }}>Nenhum toque de cadência para hoje.</div>
+                      <div className="px-[58px] py-3 text-xs text-[#8A989D] border-b" style={{ borderColor: "#F0EBE0" }}>Nenhum toque de cadência para hoje.</div>
                     ) : toques.map((e: any) => (
-                      <Link key={e.id} href={e.href} className="flex items-center gap-2 px-[58px] py-2.5 border-b hover:bg-[#e6f6f8]/60 text-xs" style={{ borderColor: "#e8edf0" }}>
+                      <Link key={e.id} href={e.href} className="flex items-center gap-2 px-[58px] py-2.5 border-b hover:bg-[#E0F4F6]/60 text-xs" style={{ borderColor: "#F0EBE0" }}>
                         <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: (tcor[e.tipo] || tcor.Cliente).bg, color: (tcor[e.tipo] || tcor.Cliente).fg }}>{e.tipo}</span>
-                        <span className="font-medium text-[#1e293b]">{e.nome}</span>
-                        <span className="text-[#64748b] truncate max-w-[200px]">· {e.cadencia} — {e.passo}</span>
+                        <span className="font-medium text-[#1F2A2E]">{e.nome}</span>
+                        <span className="text-[#5C6B70] truncate max-w-[200px]">· {e.cadencia} — {e.passo}</span>
                         {e.canal && <span className="ml-auto text-[10px] text-[#009AAC] font-semibold">{e.canal}</span>}
                       </Link>
                     ))}
@@ -422,13 +429,13 @@ export default function HojePage() {
                 <div key={p.key}>
                   <div className={rowCls} style={rowStyle} onClick={() => setExamesOpen(o => !o)}>{inner}</div>
                   {examesOpen && (
-                    <div style={{ background: "#f8fafb" }}>
+                    <div style={{ background: "#FBF9F4" }}>
                       {examesPend.length === 0 ? (
-                        <div className="px-[58px] py-3 text-xs text-[#94a3b8] border-b" style={{ borderColor: "#e8edf0" }}>Nenhum exame em acompanhamento.</div>
+                        <div className="px-[58px] py-3 text-xs text-[#8A989D] border-b" style={{ borderColor: "#F0EBE0" }}>Nenhum exame em acompanhamento.</div>
                       ) : examesPend.map((e: any) => (
-                        <Link key={e.id} href={`/dashboard/erp/pets/${e.petId}`} className="flex items-center gap-2 px-[58px] py-2.5 border-b hover:bg-[#e6f6f8]/60 text-xs" style={{ borderColor: "#e8edf0" }}>
-                          <span className="font-medium text-[#1e293b]">{e.petName}</span>
-                          <span className="text-[#64748b]">· {e.nome}</span>
+                        <Link key={e.id} href={`/dashboard/erp/pets/${e.petId}`} className="flex items-center gap-2 px-[58px] py-2.5 border-b hover:bg-[#E0F4F6]/60 text-xs" style={{ borderColor: "#F0EBE0" }}>
+                          <span className="font-medium text-[#1F2A2E]">{e.petName}</span>
+                          <span className="text-[#5C6B70]">· {e.nome}</span>
                           <span className="ml-auto text-[11px] px-2 py-0.5 rounded-full" style={{ background: "#E0F4F6", color: "#00798A" }}>{e.status}</span>
                         </Link>
                       ))}
@@ -438,7 +445,7 @@ export default function HojePage() {
               );
             }
             return (
-              <Link key={p.key} href={p.href} className={rowCls} style={{ borderColor: i === items.length - 1 ? "transparent" : "#e8edf0" }}>{inner}</Link>
+              <Link key={p.key} href={p.href} className={rowCls} style={{ borderColor: i === items.length - 1 ? "transparent" : "#F0EBE0" }}>{inner}</Link>
             );
           })
         )}
@@ -451,27 +458,27 @@ export default function HojePage() {
         const grupos: { dia: string; itens: any[] }[] = [];
         for (const e of entradas) { const dk = new Date(e.at).toDateString(); let g = grupos.find(x => x.dia === dk); if (!g) { g = { dia: dk, itens: [] }; grupos.push(g); } g.itens.push(e); }
         return (
-          <div className="mt-6 bg-white border rounded-2xl overflow-hidden" style={{ borderColor: "#e8edf0" }}>
-            <div className="flex items-center gap-3.5 px-[18px] py-[13px] border-b" style={{ borderColor: "#e8edf0" }}>
-              <div className="w-[38px] h-[38px] rounded-[10px] flex items-center justify-center flex-shrink-0" style={{ background: "#e6f6f8", color: "#009AAC" }}><LuClipboardCheck size={19} /></div>
+          <div className="mt-6 bg-white border rounded-2xl overflow-hidden" style={{ borderColor: "#E8E2D6" }}>
+            <div className="flex items-center gap-3.5 px-[18px] py-[13px] border-b" style={{ borderColor: "#F0EBE0" }}>
+              <div className="w-[38px] h-[38px] rounded-[10px] flex items-center justify-center flex-shrink-0" style={{ background: "#E0F4F6" }}><span style={{ fontSize: "19px" }}>📋</span></div>
               <div className="flex-1 min-w-0">
-                <div className="text-[13.5px] font-semibold text-[#1e293b]">Acompanhamento de entradas</div>
-                <div className="text-xs text-[#64748b]">Leads e clientes que entraram — dê baixa ao conferir o atendimento</div>
+                <div className="text-[13.5px] font-semibold text-[#1F2A2E]">📋 Acompanhamento de entradas</div>
+                <div className="text-xs text-[#5C6B70]">Leads e clientes que entraram — dê baixa ao conferir o atendimento</div>
               </div>
               <span className="text-[13px] font-bold text-white min-w-[26px] h-6 rounded-xl flex items-center justify-center px-2 flex-shrink-0" style={{ background: entradas.length > 0 ? "linear-gradient(90deg, #009AAC, #00B4C4)" : "#cbd5e1" }}>{entradas.length}</span>
             </div>
             {entradas.length === 0 ? (
-              <div className="px-[18px] py-8 text-center text-sm text-[#94a3b8]">Nenhuma entrada pendente de baixa.</div>
+              <div className="px-[18px] py-8 text-center text-sm text-[#8A989D]">Nenhuma entrada pendente de baixa.</div>
             ) : grupos.map((g) => (
               <div key={g.dia}>
-                <div className="px-[18px] py-1.5 text-[11px] font-semibold text-[#64748b] bg-[#f8fafb] border-b" style={{ borderColor: "#eef2f4" }}>{fmtDia(g.itens[0].at)} ({g.itens.length})</div>
+                <div className="px-[18px] py-1.5 text-[11px] font-semibold text-[#5C6B70] border-b" style={{ background: "#FBF9F4", borderColor: "#F0EBE0" }}>{fmtDia(g.itens[0].at)} ({g.itens.length})</div>
                 {g.itens.map((e: any) => (
-                  <div key={e.key} className="flex items-center gap-3 px-[18px] py-2.5 border-b hover:bg-[#e6f6f8]/40" style={{ borderColor: "#e8edf0" }}>
+                  <div key={e.key} className="flex items-center gap-3 px-[18px] py-2.5 border-b hover:bg-[#E0F4F6]/40" style={{ borderColor: "#F0EBE0" }}>
                     <input type="checkbox" checked={false} onChange={() => baixarEntrada(e)} className="w-4 h-4 flex-shrink-0 cursor-pointer accent-[#009AAC]" title="Dar baixa (sai da lista, fica na ficha)" />
                     <span className="text-[10px] px-2 py-0.5 rounded-full flex-shrink-0" style={{ background: (cor[e.tipo] || cor.Cliente).bg, color: (cor[e.tipo] || cor.Cliente).fg }}>{e.tipo}</span>
-                    <Link href={e.href} className="font-medium text-[13px] text-[#1e293b] hover:underline truncate">{e.nome}</Link>
-                    {e.sub && <span className="text-xs text-[#64748b] truncate hidden sm:block">. {e.sub}</span>}
-                    <span className="ml-auto text-[11px] text-[#94a3b8] flex-shrink-0">{hhmm(e.at)}</span>
+                    <Link href={e.href} className="font-medium text-[13px] text-[#1F2A2E] hover:underline truncate">{e.nome}</Link>
+                    {e.sub && <span className="text-xs text-[#5C6B70] truncate hidden sm:block">. {e.sub}</span>}
+                    <span className="ml-auto text-[11px] text-[#8A989D] flex-shrink-0">{hhmm(e.at)}</span>
                   </div>
                 ))}
               </div>
@@ -480,27 +487,27 @@ export default function HojePage() {
         );
       })()}
       {!loading && encMine.length > 0 && (
-        <div className="mt-6 bg-white border rounded-2xl overflow-hidden" style={{ borderColor: "#e8edf0" }}>
-          <div className="flex items-center gap-3.5 px-[18px] py-[13px] border-b" style={{ borderColor: "#e8edf0" }}>
-            <div className="w-[38px] h-[38px] rounded-[10px] flex items-center justify-center flex-shrink-0" style={{ background: "#fef3c7", color: "#92611A" }}><LuShare2 size={19} /></div>
+        <div className="mt-6 bg-white border rounded-2xl overflow-hidden" style={{ borderColor: "#E8E2D6" }}>
+          <div className="flex items-center gap-3.5 px-[18px] py-[13px] border-b" style={{ borderColor: "#F0EBE0" }}>
+            <div className="w-[38px] h-[38px] rounded-[10px] flex items-center justify-center flex-shrink-0" style={{ background: "#fef3c7" }}><span style={{ fontSize: "19px" }}>↔️</span></div>
             <div className="flex-1 min-w-0">
-              <div className="text-[13.5px] font-semibold text-[#1e293b]">Encaminhados para mim</div>
-              <div className="text-xs text-[#64748b]">Clientes, pets e leads que precisam do seu atendimento</div>
+              <div className="text-[13.5px] font-semibold text-[#1F2A2E]">↔️ Encaminhados para mim</div>
+              <div className="text-xs text-[#5C6B70]">Clientes, pets e leads que precisam do seu atendimento</div>
             </div>
             <span className="text-[13px] font-bold text-white min-w-[26px] h-6 rounded-xl flex items-center justify-center px-2 flex-shrink-0" style={{ background: "linear-gradient(90deg,#D97706,#92611A)" }}>{encMine.length}</span>
           </div>
           {encMine.map((e) => (
-            <div key={e.entryId} className="flex items-center gap-3 px-[18px] py-2.5 border-b hover:bg-[#fef9ec]" style={{ borderColor: "#e8edf0" }}>
+            <div key={e.entryId} className="flex items-center gap-3 px-[18px] py-2.5 border-b hover:bg-[#fef9ec]" style={{ borderColor: "#F0EBE0" }}>
               <span className="text-[10px] px-2 py-0.5 rounded-full flex-shrink-0 capitalize" style={{ background: "#FEF3C7", color: "#92611A" }}>{e.tipo}</span>
-              <Link href={encHref(e)} className="font-medium text-[13px] text-[#1e293b] hover:underline truncate">{e.nome}</Link>
-              {e.obs && <span className="text-xs text-[#64748b] truncate hidden sm:block">. {e.obs}</span>}
-              {e.byName && <span className="text-[11px] text-[#94a3b8] flex-shrink-0">por {e.byName}</span>}
+              <Link href={encHref(e)} className="font-medium text-[13px] text-[#1F2A2E] hover:underline truncate">{e.nome}</Link>
+              {e.obs && <span className="text-xs text-[#5C6B70] truncate hidden sm:block">. {e.obs}</span>}
+              {e.byName && <span className="text-[11px] text-[#8A989D] flex-shrink-0">por {e.byName}</span>}
               <button onClick={() => concluirEnc(e)} className="ml-auto text-[11px] font-semibold text-[#0F6E56] hover:underline flex-shrink-0">Concluir</button>
             </div>
           ))}
         </div>
       )}
-      <div className="mt-6 text-xs text-[#94a3b8] text-center">
+      <div className="mt-6 text-xs text-[#8A989D] text-center">
         Métricas e relatórios ficam no <Link href="/dashboard" className="underline">Dashboard</Link>.
         Conversas no <Link href="/dashboard/inbox" className="underline">Inbox</Link>.
       </div>

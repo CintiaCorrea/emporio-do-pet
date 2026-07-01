@@ -77,14 +77,14 @@ export default function Header({ sidebarOpen }: Props) {
           </div>
         )}
 
-        <div className="hidden md:flex items-center gap-2 bg-[#f6f8f9] border rounded-[9px] px-3 py-2 w-[240px]" style={{ borderColor: "#e8edf0" }}>
-          <LuSearch size={15} className="text-[#94a3b8]" />
+        <div className="hidden md:flex items-center gap-2 bg-[#FBF9F4] border border-[#E8E2D6] rounded-full px-4 py-2 w-[260px] focus-within:border-[#009AAC] transition">
+          <span style={{ fontSize: "14px" }}>🔎</span>
           <input
             value={globalQ}
             onChange={(e) => setGlobalQ(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter" && globalQ.trim()) { router.push(`/dashboard/erp/tutores?q=${encodeURIComponent(globalQ.trim())}`); setGlobalQ(""); } }}
             placeholder="Buscar cliente, pet ou lead..."
-            className="bg-transparent outline-none text-[13px] text-[#1e293b] placeholder-[#94a3b8] flex-1"
+            className="bg-transparent outline-none text-[13px] text-[#1F2A2E] placeholder-[#8A989D] flex-1"
           />
         </div>
 
