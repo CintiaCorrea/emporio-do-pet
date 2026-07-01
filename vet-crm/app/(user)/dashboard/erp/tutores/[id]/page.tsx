@@ -68,7 +68,8 @@ interface TutorDetail {
   estadoRelacionamento?: string | null;
   createdAt: string;
   primeiraCompraAt?: string | null;
-  pets?: { id: string; name: string; species: string; breed?: string; birthDate?: string }[];
+  appointments?: { id: string; date: string; value?: number; description?: string | null; type?: string; pet?: { name?: string } | null }[];
+  pets?: { id: string; name: string; species: string; breed?: string; birthDate?: string; codigo?: string | null; status?: string; proximoFollowupAt?: string | null }[];
   contacts?: { id: string; number: string; type: string; isPrimary: boolean; isWhatsApp: boolean; observations?: string | null }[];
   score?: {
     total: number; label: string;
@@ -125,6 +126,15 @@ const initials = (name?: string | null) => {
   return parts.map((p) => p[0]).join("").toUpperCase();
 };
 
+const MARCA_INFO: Record<string, { label: string; emoji: string; bar: string }> = {
+  EMPORIO: { label: "Empório do Pet", emoji: "🏥", bar: "#009AAC" },
+  MUNDO_A_PARTE: { label: "Mundo à Parte", emoji: "🌿", bar: "#639922" },
+  DRA_VIVIAN: { label: "Dra. Vivian", emoji: "✨", bar: "#7F77DD" },
+};
+const marcaInfo = (m: string) => MARCA_INFO[m] || { label: m, emoji: "🏷️", bar: "#888780" };
+const diasTxt = (d: number | null | undefined) =>
+  d == null ? "—" : d === 0 ? "hoje" : d < 30 ? `${d}d` : d < 365 ? `${Math.floor(d / 30)}m` : `${Math.floor(d / 365)}a`;
+
 function AccordionCard({
   icon: Icon, title, count, badge, action, children
 }: {
@@ -156,7 +166,9 @@ function AccordionCard({
 export default function TutorDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
-  const [tab, setTab] = useState<"CADASTRO" | "ANIMAIS" | "RELACIONAMENTO">("CADASTRO");
+  const [tab, setTab] = useState<"GERAL" | "CADASTRO" | "ANIMAIS" | "RELACIONAMENTO">("GERAL");
+  const [stats, setStats] = useState<any>(null);
+  const [showValues, setShowValues] = useState(false);
   const [emailOpen, setEmailOpen] = useState(false);
   const [delOpen, setDelOpen] = useState(false);
   const [tutor, setTutor] = useState<TutorDetail | null>(null);
@@ -274,7 +286,10 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
       if (p) { setPipelineNome(p.nome); setEstagios((p.estagios || []).slice().sort((a: any, b: any) => (a.ordem || 0) - (b.ordem || 0)).map((e: any) => e.nome)); }
     } catch {}
   }
-  useEffect(() => { load(); loadInteracoes(); loadTemplates(); loadPipelineCliente(); }, [id]);
+  async function loadStats() {
+    try { const r = await fetch(`/api/tutors/${id}/profile-stats`); if (r.ok) setStats(await r.json()); } catch {}
+  }
+  useEffect(() => { load(); loadStats(); loadInteracoes(); loadTemplates(); loadPipelineCliente(); }, [id]);
 
   const saveNota = async () => {
     setNotaSaving(true);
@@ -384,6 +399,10 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
   const ltv = tutor.score?.dimensions?.ltv?.value || 0;
   const visitas = tutor.score?.dimensions?.visitas?.value || 0;
   const pets = tutor.pets || [];
+  const compras = tutor.appointments || [];
+  const porMarca: { marca: string; valor: number; pct: number }[] = stats?.porMarca || [];
+  const money = (v?: number | null) =>
+    v == null ? "—" : !showValues ? "R$ ••••" : "R$ " + Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   return (
     <div className="p-4 min-h-screen bg-[#F6F2EA]">
@@ -412,6 +431,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
           </div>
         </div>
         <div className="flex gap-1.5 flex-wrap">
+          <button onClick={() => setShowValues((v) => !v)} className="border border-[#EAD9B6] bg-[#FBF6EC] rounded-[9px] px-3 py-2 text-[12.5px] text-[#8A5A0B] hover:border-[#E0A100] flex items-center gap-1.5">{showValues ? "🙈 Ocultar valores" : "👁️ Mostrar valores"}</button>
           <button onClick={() => openWhatsAppMeta(phone)} className="border border-[#E8E2D6] bg-white rounded-[9px] px-3 py-2 text-[12.5px] text-[#5C6B70] hover:border-[#009AAC] hover:text-[#009AAC] flex items-center gap-1.5">📲 WhatsApp</button>
           <button onClick={() => setEmailOpen(true)} className="border border-[#E8E2D6] bg-white rounded-[9px] px-3 py-2 text-[12.5px] text-[#5C6B70] hover:border-[#009AAC] hover:text-[#009AAC] flex items-center gap-1.5">✉️ Email</button>
           <button onClick={marcarRecuperar} className="border border-[#E8E2D6] bg-white rounded-[9px] px-3 py-2 text-[12.5px] text-[#5C6B70] hover:border-[#009AAC] hover:text-[#009AAC] flex items-center gap-1.5">⚠️ A recuperar</button>
@@ -473,6 +493,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
       {/* Barra de abas */}
       <div className="flex border-b border-[#E8E2D6] mb-3">
         {([
+          { k: "GERAL", label: "👤 Visão geral" },
           { k: "CADASTRO", label: "📋 Cadastro" },
           { k: "ANIMAIS", label: "🐾 Animais" },
           { k: "RELACIONAMENTO", label: "💬 Relacionamento" },
@@ -487,6 +508,96 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
           </button>
         ))}
       </div>
+
+      {tab === "GERAL" && (
+      <div className="mb-3 flex flex-col gap-3">
+        {/* KPIs */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-2.5">
+          {[
+            { emoji: "💰", label: "Total gasto", value: money(stats?.valorTotal) },
+            { emoji: "🎯", label: "Ticket médio", value: money(stats?.ticketMedio) },
+            { emoji: "🛒", label: "Compras", value: String(stats?.totalAppointments ?? 0) },
+            { emoji: "📅", label: "Última visita", value: diasTxt(stats?.diasDesdeUltima) },
+            { emoji: "⏳", label: "A receber", value: money(stats?.valorAReceber) },
+          ].map((k) => (
+            <div key={k.label} className="bg-white border border-[#E8E2D6] rounded-[13px]" style={{ padding: "11px 13px" }}>
+              <div className="text-[11px] text-[#8A989D]">{k.emoji} {k.label}</div>
+              <div className="text-[19px] text-[#014D5E] font-medium mt-0.5">{k.value}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
+          {/* Pets */}
+          <div className="bg-white border border-[#E8E2D6] rounded-[13px]">
+            <div className="border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
+              <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">🐾 Pets {pets.length > 0 && <span className="text-[#8A989D] font-normal">({pets.length})</span>}</h3>
+            </div>
+            <div style={{ padding: "8px 14px" }}>
+              {pets.length === 0 && <p className="text-[12px] text-[#8A989D] py-1">Nenhum pet vinculado.</p>}
+              {pets.map((p, i) => (
+                <Link key={p.id} href={`/dashboard/erp/pets/${p.id}`} className="flex items-center gap-3 py-2 hover:bg-[#FBF9F4] rounded-[9px]" style={{ borderBottom: i < pets.length - 1 ? "1px solid #F0EBE0" : "none" }}>
+                  <div className="w-[38px] h-[38px] rounded-[12px] bg-[#E0F4F6] flex items-center justify-center text-[19px] shrink-0">{PET_EMOJI(p.species)}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[13.5px] text-[#014D5E] font-medium truncate">{p.name}{p.status && p.status !== "ACTIVE" && <span className="text-[10px] text-[#b23b39]"> · inativo</span>}</div>
+                    <div className="text-[12px] text-[#5C6B70] truncate">{[ESPECIE_LABEL(p.species), p.breed, PET_IDADE(p.birthDate)].filter(Boolean).join(" · ")}</div>
+                  </div>
+                  <span className="text-[#8A989D] text-[16px]">›</span>
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          {/* Share of wallet por marca */}
+          <div className="bg-white border border-[#E8E2D6] rounded-[13px]">
+            <div className="border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
+              <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">🎯 Onde gasta (por marca)</h3>
+            </div>
+            <div style={{ padding: "13px 14px" }}>
+              {porMarca.length === 0 && <p className="text-[12px] text-[#8A989D]">Aparece quando houver compras registradas.</p>}
+              {porMarca.map((s) => {
+                const mi = marcaInfo(s.marca);
+                return (
+                  <div key={s.marca} className="mb-2.5 last:mb-0">
+                    <div className="flex justify-between text-[12px] mb-1"><span className="text-[#1F2A2E]">{mi.emoji} {mi.label}</span><span className="text-[#8A989D]">{money(s.valor)} · {s.pct}%</span></div>
+                    <div className="h-2 bg-[#F0EBE0] rounded-full overflow-hidden"><div className="h-full rounded-full" style={{ width: `${s.pct}%`, background: mi.bar }} /></div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Últimas compras */}
+        <div className="bg-white border border-[#E8E2D6] rounded-[13px]">
+          <div className="border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
+            <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">🧾 Últimas compras</h3>
+          </div>
+          <div style={{ padding: "8px 14px" }}>
+            {compras.length === 0 && <p className="text-[12px] text-[#8A989D] py-1">Nenhuma compra registrada ainda.</p>}
+            {compras.slice(0, 6).map((a, i) => (
+              <div key={a.id} className="flex items-center gap-2.5 py-2" style={{ borderBottom: i < Math.min(compras.length, 6) - 1 ? "1px solid #F0EBE0" : "none" }}>
+                <span className="text-[11.5px] text-[#8A989D] w-[46px] shrink-0">{fmtDataBR(a.date).slice(0, 5)}</span>
+                <span className="flex-1 text-[12.5px] text-[#1F2A2E] truncate">{a.description || a.type || "Atendimento"}{a.pet?.name && <span className="text-[#8A989D]"> · {a.pet.name}</span>}</span>
+                <span className="text-[12.5px] text-[#014D5E] font-medium">{money(a.value)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Próximas ações */}
+        <div className="bg-[#FBF3E3] border border-[#F0DCB0] rounded-[13px]" style={{ padding: "12px 15px" }}>
+          <h3 className="text-[13px] text-[#8a6400] font-medium flex items-center gap-1.5 mb-1.5">🔔 Próximas ações</h3>
+          <div className="text-[12.5px] text-[#7a6330] flex flex-col gap-1">
+            {tutor.birthDate && <div>🎂 Aniversário em <b>{fmtDataBR(tutor.birthDate).slice(0, 5)}</b> — enviar mensagem</div>}
+            {tutor.proximoFollowupAt && <div>📞 Follow-up em <b>{fmtDataBR(tutor.proximoFollowupAt).slice(0, 5)}</b></div>}
+            {stats && stats.futurasAgendadas > 0 && <div>📅 {stats.futurasAgendadas} agendamento(s) futuro(s)</div>}
+            {stats && stats.valorAReceber > 0 && <div>⏳ Há valores a receber deste cliente</div>}
+            {!tutor.birthDate && !tutor.proximoFollowupAt && !(stats && stats.futurasAgendadas > 0) && !(stats && stats.valorAReceber > 0) && <div className="text-[#a99a72]">Nenhuma ação pendente no momento.</div>}
+          </div>
+        </div>
+      </div>
+      )}
 
       {tab === "CADASTRO" && (
       <div className="mb-3">
