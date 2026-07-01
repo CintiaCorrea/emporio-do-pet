@@ -145,6 +145,19 @@ export class TutorsService {
     return { tutors, total, skip, take };
   }
 
+  // Lista leve para a tela de Clientes (evita puxar todos os campos + contatos + agendamentos de ~3.6k tutores)
+  async listaSimples() {
+    return this.prisma.tutor.findMany({
+      select: {
+        id: true, name: true, codigo: true, status: true, estadoRelacionamento: true,
+        birthDate: true, proximoFollowupAt: true, rankingAbc: true,
+        contacts: { take: 1, orderBy: { isPrimary: 'desc' }, select: { number: true, isPrimary: true } },
+        pets: { select: { id: true, name: true, species: true } },
+      },
+      orderBy: { name: 'asc' },
+    });
+  }
+
   async findById(id: string) {
     const tutor = await this.prisma.tutor.findUnique({
       where: { id },

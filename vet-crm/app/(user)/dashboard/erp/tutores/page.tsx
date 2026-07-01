@@ -216,7 +216,7 @@ export default function ClientesPage() {
     (async () => {
       setLoading(true);
       try {
-        const res = await fetch("/api/tutors?take=10000");
+        const res = await fetch("/api/tutors/lista-simples");
         const data = await res.json();
         const arr = Array.isArray(data?.tutors) ? data.tutors : Array.isArray(data) ? data : [];
         setTutores(arr);

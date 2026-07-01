@@ -68,6 +68,12 @@ export class TutorsController {
     return this.tutorsService.getStats();
   }
 
+  @Get('lista-simples')
+  @ApiOperation({ summary: 'Lista leve de tutores para a tela de Clientes' })
+  listaSimples() {
+    return this.tutorsService.listaSimples();
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Buscar tutor por ID' })
   findOne(@Param('id') id: string) {
