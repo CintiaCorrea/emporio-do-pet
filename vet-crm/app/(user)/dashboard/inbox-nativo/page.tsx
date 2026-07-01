@@ -764,7 +764,7 @@ export default function InboxUnificadoPage() {
                     <div className="w-8 h-8 rounded-full bg-[#009AAC] text-white flex items-center justify-center text-[11px] font-medium flex-shrink-0">{getInitials(c.name)}</div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
-                        <span className={`text-xs text-[#0E2244] truncate ${c.unread ? "font-semibold" : "font-medium"}`}>{c.name}</span>
+                        <span className={`text-xs text-[#0E2244] truncate ${c.unread ? "font-medium" : "font-normal"}`}>{c.name}</span>
                         {c.unread > 0 && <span className="w-2 h-2 rounded-full bg-[#EAB308] flex-shrink-0" />}
                       </div>
                       <div className="text-[11px] text-[#888780] truncate">{last?.mine ? "Você: " : ""}{last?.content}</div>
@@ -786,7 +786,7 @@ export default function InboxUnificadoPage() {
                     {internalUsers.map((u) => (<option key={u.id} value={u.id} disabled={u.hasLogin === false}>{u.name}{u.role ? ` · ${u.role}` : ""}{u.hasLogin === false ? " · sem login" : ""}</option>))}
                   </select>
                 </div>
-                {internasAnexo && (<div className="mb-2 flex items-center gap-2 text-[11px] bg-[#f0f3f4] rounded px-2 py-1 w-fit"><span>📎 {internasAnexo.name}</span><button onClick={() => setInternasAnexo(null)} className="text-[#A32D2D] font-semibold">remover</button></div>)}
+                {internasAnexo && (<div className="mb-2 flex items-center gap-2 text-[11px] bg-[#F1EFE8] rounded px-2 py-1 w-fit"><span>📎 {internasAnexo.name}</span><button onClick={() => setInternasAnexo(null)} className="text-[#A32D2D] font-medium">remover</button></div>)}
                 <textarea value={internalNote} onChange={(e) => setInternalNote(e.target.value)} rows={6} placeholder="Escreva a mensagem..." className="w-full px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm focus:outline-none focus:border-[#009AAC] resize-none mb-3" />
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1">
@@ -811,16 +811,16 @@ export default function InboxUnificadoPage() {
                   <div className="flex-1 overflow-y-auto px-5 py-4 flex flex-col gap-2.5 min-h-0">
                     {c.msgs.map((m: any) => (
                       <div key={m.id} className={`max-w-[75%] ${m.mine ? "self-end" : "self-start"}`}>
-                        <div className={`px-3 py-2 rounded-xl text-sm whitespace-pre-wrap ${m.mine ? "bg-[#009AAC] text-white rounded-br-sm" : "bg-[#f0f3f4] text-[#0E2244] rounded-bl-sm"}`}>{m.content}{m.attachmentUrl && (<a href={m.attachmentUrl} target="_blank" rel="noopener noreferrer" className={`mt-1 flex items-center gap-1 text-[12px] underline ${m.mine ? "text-white" : "text-[#0C447C]"}`}>📎 {m.attachmentName || "documento"}</a>)}</div>
-                        <div className={`text-[9.5px] text-[#94a3b8] mt-0.5 flex items-center gap-1.5 ${m.mine ? "justify-end" : ""}`}>
+                        <div className={`px-3 py-2 rounded-xl text-sm whitespace-pre-wrap ${m.mine ? "bg-[#009AAC] text-white rounded-br-sm" : "bg-[#F1EFE8] text-[#0E2244] rounded-bl-sm"}`}>{m.content}{m.attachmentUrl && (<a href={m.attachmentUrl} target="_blank" rel="noopener noreferrer" className={`mt-1 flex items-center gap-1 text-[12px] underline ${m.mine ? "text-white" : "text-[#0C447C]"}`}>📎 {m.attachmentName || "documento"}</a>)}</div>
+                        <div className={`text-[9.5px] text-[#8A989D] mt-0.5 flex items-center gap-1.5 ${m.mine ? "justify-end" : ""}`}>
                           <span>{(() => { try { return new Date(m.createdAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }); } catch { return ""; } })()}</span>
-                          {String(m.id || "").indexOf("local_") !== 0 && <button onClick={() => excluirNotaInterna(m.id)} title="Excluir" className="text-[#cbd5e1] hover:text-[#A32D2D]"><LuTrash className="w-2.5 h-2.5" /></button>}
+                          {String(m.id || "").indexOf("local_") !== 0 && <button onClick={() => excluirNotaInterna(m.id)} title="Excluir" className="text-[#B4B2A9] hover:text-[#A32D2D]"><LuTrash className="w-2.5 h-2.5" /></button>}
                         </div>
                       </div>
                     ))}
                   </div>
                   <div className="border-t border-[#e8e1d2] p-3 flex-shrink-0">
-                    {internasAnexo && (<div className="mb-2 flex items-center gap-2 text-[11px] bg-[#f0f3f4] rounded px-2 py-1 w-fit"><span>📎 {internasAnexo.name}</span><button onClick={() => setInternasAnexo(null)} className="text-[#A32D2D] font-semibold">remover</button></div>)}
+                    {internasAnexo && (<div className="mb-2 flex items-center gap-2 text-[11px] bg-[#F1EFE8] rounded px-2 py-1 w-fit"><span>📎 {internasAnexo.name}</span><button onClick={() => setInternasAnexo(null)} className="text-[#A32D2D] font-medium">remover</button></div>)}
                     <div className="flex items-end gap-2">
                     <label className="cursor-pointer flex items-center justify-center w-8 h-8 rounded-lg hover:bg-[#f0f0ea]" title="Anexar documento"><input type="file" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadDocInterno(f); e.currentTarget.value = ""; }} /><span style={{ fontSize: "15px" }}>{anexandoDoc ? "…" : "📎"}</span></label>
                     <textarea value={internasReply} onChange={(e) => setInternasReply(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); enviarRespostaInterna(); } }} rows={1} placeholder="Escreva uma mensagem..." className="flex-1 px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm focus:outline-none focus:border-[#009AAC] resize-none" />

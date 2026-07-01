@@ -12,16 +12,16 @@ function InboxStats() {
   return (
     <div className="flex items-center gap-5">
       <div className="flex flex-col items-end leading-tight">
-        <div className="text-[13px] font-bold" style={{ color: "#014D5E" }}>+1h</div>
-        <div className="text-[9.5px] uppercase font-semibold text-[#94a3b8] tracking-wide">⏱ esperando</div>
+        <div className="text-[13px] font-medium" style={{ color: "#014D5E" }}>+1h</div>
+        <div className="text-[9.5px] uppercase font-medium text-[#8A989D] tracking-wide">⏱ esperando</div>
       </div>
       <div className="flex flex-col items-end leading-tight">
-        <div className="text-[13px] font-bold" style={{ color: "#014D5E" }}>—</div>
-        <div className="text-[9.5px] uppercase font-semibold text-[#94a3b8] tracking-wide">⌛ tempo méd.</div>
+        <div className="text-[13px] font-medium" style={{ color: "#014D5E" }}>—</div>
+        <div className="text-[9.5px] uppercase font-medium text-[#8A989D] tracking-wide">⌛ tempo méd.</div>
       </div>
       <div className="flex flex-col items-end leading-tight">
-        <div className="text-[13px] font-bold" style={{ color: "#014D5E" }}>—</div>
-        <div className="text-[9.5px] uppercase font-semibold text-[#94a3b8] tracking-wide">🏆 streak</div>
+        <div className="text-[13px] font-medium" style={{ color: "#014D5E" }}>—</div>
+        <div className="text-[9.5px] uppercase font-medium text-[#8A989D] tracking-wide">🏆 streak</div>
       </div>
     </div>
   );
@@ -38,22 +38,22 @@ export default function InboxBcPage() {
       {/* Banner Provisório — só no Inbox BC */}
       <div
         className="border-b px-4 py-2 flex items-center gap-3 flex-shrink-0"
-        style={{ background: "#FFFBEB", borderColor: "#FDE68A" }}
+        style={{ background: "#FBF3E3", borderColor: "#F0DCB0" }}
       >
         <span
-          className="px-2 py-0.5 rounded-md font-semibold uppercase tracking-wide text-[10px] flex-shrink-0"
-          style={{ background: "#FCD34D", color: "#78350F" }}
+          className="px-2 py-0.5 rounded-full font-medium uppercase tracking-wide text-[10px] flex-shrink-0"
+          style={{ background: "#FBEFD6", color: "#8A5A0B" }}
         >
           Provisório
         </span>
-        <span className="text-[11.5px] flex-1 min-w-0" style={{ color: "#92611A" }}>
+        <span className="text-[11.5px] flex-1 min-w-0" style={{ color: "#8a6400" }}>
           Veja o telefone no BotConversa, cole na busca à direita pra puxar contexto do CRM e registrar interação na ficha.
         </span>
         <div className="flex items-center gap-1.5 flex-shrink-0">
           <button
             onClick={() => setReloadKey(k => k + 1)}
-            className="px-2.5 py-1 rounded-lg text-xs border flex items-center gap-1.5 text-gray-600 hover:text-[#009AAC] bg-white"
-            style={{ borderColor: "#E8DFC8" }}
+            className="px-2.5 py-1 rounded-lg text-xs border flex items-center gap-1.5 text-[#5C6B70] hover:text-[#009AAC] bg-white"
+            style={{ borderColor: "#E8E2D6" }}
             title="Recarregar"
           >
             <LuRefreshCcw size={12} /> Atualizar
@@ -81,7 +81,7 @@ export default function InboxBcPage() {
         />
         <aside
           className="w-[372px] border-l flex-shrink-0 overflow-hidden"
-          style={{ borderColor: "#E8DFC8" }}
+          style={{ borderColor: "#E8E2D6" }}
         >
           <InboxRightPanel canal="WhatsApp BC" />
         </aside>
