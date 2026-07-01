@@ -10,6 +10,7 @@ import {
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { useRolePreview } from "@/lib/ui/RolePreview";
 import { roleShort } from "@/lib/ui/role";
+import AnaliseComercial from "@/components/protected/dashboard/AnaliseComercial";
 
 interface HojeData {
   retornosVencidos: { id: string }[];
@@ -556,6 +557,8 @@ export default function DashboardPage() {
             Métricas e relatórios ficam no <Link href="/dashboard" className="underline">Dashboard</Link>.
             Conversas no <Link href="/dashboard/inbox" className="underline">Inbox</Link>.
           </div>
+
+          <AnaliseComercial />
         </>
       )}
     </div>

@@ -101,7 +101,6 @@ const NAV: Entry[] = [
       { href: "/dashboard/ai-agents/templates", label: "Templates", emoji: "📋", roles: ["ADMIN"] },
     ],
   },
-  { href: "/dashboard/relatorios", label: "Relatórios", emoji: "📈", roles: ["ADMIN", "RECEPTIONIST"], section: "GESTAO" },
   { href: "/dashboard/configuracoes", label: "Configurações", emoji: "⚙️", roles: ["ADMIN"], section: "GESTAO" },
 ];
 
