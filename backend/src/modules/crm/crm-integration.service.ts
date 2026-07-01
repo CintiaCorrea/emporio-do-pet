@@ -908,6 +908,120 @@ export class CrmIntegrationService {
   }
 
   /**
+   * Consulta de vendas (relatorio): lista Appointments type='VENDA' com filtros e totais.
+   * Filtros opcionais: de/ate (date), status, marca (item.marca), funcionarioId (userId),
+   * busca (tutor.name / pet.name / items.descricao contains, insensitive), limit (default 200).
+   */
+  async consultaVendas(q: {
+    de?: string;
+    ate?: string;
+    status?: string;
+    marca?: string;
+    funcionarioId?: string;
+    busca?: string;
+    limit?: number;
+  }) {
+    const limit = Math.max(1, Math.min(Number(q.limit) || 200, 1000));
+
+    const where: any = { type: 'VENDA' };
+
+    // Periodo (de/ate em date) — ate inclui o dia inteiro
+    if (q.de || q.ate) {
+      where.date = {};
+      if (q.de) {
+        const d = new Date(`${q.de}T00:00:00`);
+        if (!isNaN(d.getTime())) where.date.gte = d;
+      }
+      if (q.ate) {
+        const d = new Date(`${q.ate}T23:59:59.999`);
+        if (!isNaN(d.getTime())) where.date.lte = d;
+      }
+    }
+
+    if (q.status && q.status.trim()) where.status = q.status.trim();
+
+    // Marca: pelo menos um item com essa marca
+    if (q.marca && q.marca.trim()) {
+      where.items = { some: { marca: q.marca.trim() } };
+    }
+
+    if (q.funcionarioId && q.funcionarioId.trim()) where.userId = q.funcionarioId.trim();
+
+    // Busca textual em cliente / pet / descricao do item
+    if (q.busca && q.busca.trim()) {
+      const b = q.busca.trim();
+      where.OR = [
+        { tutor: { name: { contains: b, mode: 'insensitive' } } },
+        { pet: { name: { contains: b, mode: 'insensitive' } } },
+        { items: { some: { descricao: { contains: b, mode: 'insensitive' } } } },
+      ];
+    }
+
+    const appts = await this.prisma.appointment.findMany({
+      where,
+      orderBy: { date: 'desc' },
+      take: limit,
+      include: {
+        tutor: { select: { name: true, codigo: true } },
+        pet: { select: { name: true, species: true } },
+        user: { select: { name: true } },
+        items: {
+          include: { executorUser: { select: { name: true } } },
+        },
+      },
+    });
+
+    let liquido = 0;
+    let descontos = 0;
+
+    const vendas = appts.map((a) => {
+      // Marca dominante: a que soma mais valorTotal entre os itens
+      const somaMarca: Record<string, number> = {};
+      let descontoVenda = 0;
+      for (const it of a.items) {
+        descontoVenda += it.desconto || 0;
+        if (it.marca) somaMarca[it.marca] = (somaMarca[it.marca] || 0) + (it.valorTotal || 0);
+      }
+      const marca =
+        Object.keys(somaMarca).length > 0
+          ? Object.entries(somaMarca).sort((x, y) => y[1] - x[1])[0][0]
+          : null;
+
+      liquido += a.value || 0;
+      descontos += descontoVenda;
+
+      return {
+        id: a.id,
+        codigoExterno: a.codigoExterno,
+        date: a.date,
+        status: a.status,
+        paymentStatus: a.paymentStatus,
+        paymentMethod: a.paymentMethod,
+        valor: a.value,
+        cliente: a.tutor?.name ?? null,
+        clienteId: a.tutorId,
+        pet: a.pet?.name ?? null,
+        funcionario: a.user?.name ?? null,
+        marca,
+        itens: a.items.map((it) => ({
+          descricao: it.descricao,
+          quantidade: it.quantidade,
+          valorUnitario: it.valorUnitario,
+          valorTotal: it.valorTotal,
+          grupo: it.grupo,
+          marca: it.marca,
+          executor: it.executorUser?.name ?? null,
+        })),
+      };
+    });
+
+    const qtd = vendas.length;
+    const ticket = qtd > 0 ? liquido / qtd : 0;
+
+    return { vendas, totais: { qtd, liquido, ticket, descontos } };
+  }
+
+  /**
    * Get CRM statistics
    */
   async getStats(userId?: string): Promise<{

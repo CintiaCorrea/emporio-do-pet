@@ -4,6 +4,7 @@ import {
   Post,
   Body,
   Param,
+  Query,
   UseGuards,
   HttpCode,
   HttpStatus,
@@ -47,6 +48,29 @@ class ConvertLeadDto {
 @UseGuards(JwtAuthGuard)
 export class CrmController {
   constructor(private readonly crmService: CrmIntegrationService) {}
+
+  @Get('consulta-vendas')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Relatorio: consulta de vendas (Appointments type=VENDA) com filtros e totais' })
+  async consultaVendas(
+    @Query('de') de?: string,
+    @Query('ate') ate?: string,
+    @Query('status') status?: string,
+    @Query('marca') marca?: string,
+    @Query('funcionarioId') funcionarioId?: string,
+    @Query('busca') busca?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.crmService.consultaVendas({
+      de,
+      ate,
+      status,
+      marca,
+      funcionarioId,
+      busca,
+      limit: limit ? Number(limit) : undefined,
+    });
+  }
 
   @Get('stats')
   @HttpCode(HttpStatus.OK)
