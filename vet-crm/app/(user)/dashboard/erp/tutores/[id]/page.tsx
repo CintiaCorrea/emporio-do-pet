@@ -135,6 +135,15 @@ const marcaInfo = (m: string) => MARCA_INFO[m] || { label: m, emoji: "🏷️", 
 const diasTxt = (d: number | null | undefined) =>
   d == null ? "—" : d === 0 ? "hoje" : d < 30 ? `${d}d` : d < 365 ? `${Math.floor(d / 30)}m` : `${Math.floor(d / 365)}a`;
 
+// Nível do cliente derivado do Score (0-100) — reaproveita o motor que já existe (LTV+visitas+recência+NPS)
+const nivelDoScore = (score?: number) => {
+  const s = Math.max(0, Math.min(100, score ?? 0));
+  if (s >= 80) return { nome: "Diamante", emoji: "💎", bar: "#7F77DD", bg: "#EDE9FA", fg: "#3C3489", min: 80, max: 100, prox: null as string | null, proxEmoji: "" };
+  if (s >= 60) return { nome: "Ouro", emoji: "🥇", bar: "#E0A100", bg: "#FBEFD6", fg: "#8A5A0B", min: 60, max: 80, prox: "Diamante", proxEmoji: "💎" };
+  if (s >= 40) return { nome: "Prata", emoji: "🥈", bar: "#9AA5AD", bg: "#EEF1F3", fg: "#49555C", min: 40, max: 60, prox: "Ouro", proxEmoji: "🥇" };
+  return { nome: "Bronze", emoji: "🥉", bar: "#B87333", bg: "#F6E7D8", fg: "#7A4A1E", min: 0, max: 40, prox: "Prata", proxEmoji: "🥈" };
+};
+
 function AccordionCard({
   icon: Icon, title, count, badge, action, children
 }: {
@@ -166,9 +175,12 @@ function AccordionCard({
 export default function TutorDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
-  const [tab, setTab] = useState<"GERAL" | "CADASTRO" | "ANIMAIS" | "RELACIONAMENTO">("GERAL");
+  const [tab, setTab] = useState<"GERAL" | "CADASTRO" | "ANIMAIS" | "COMPRAS">("GERAL");
   const [stats, setStats] = useState<any>(null);
   const [showValues, setShowValues] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [fuOpen, setFuOpen] = useState(false);
+  const [comprasPet, setComprasPet] = useState<string>("");
   const [emailOpen, setEmailOpen] = useState(false);
   const [delOpen, setDelOpen] = useState(false);
   const [tutor, setTutor] = useState<TutorDetail | null>(null);
@@ -403,6 +415,25 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
   const porMarca: { marca: string; valor: number; pct: number }[] = stats?.porMarca || [];
   const money = (v?: number | null) =>
     v == null ? "—" : !showValues ? "R$ ••••" : "R$ " + Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const scoreTotal = tutor.score?.total ?? 0;
+  const nivel = nivelDoScore(scoreTotal);
+  const nivelProg = Math.round(((Math.min(100, Math.max(0, scoreTotal)) - nivel.min) / (nivel.max - nivel.min)) * 100);
+  const faltamPts = Math.max(0, nivel.max - Math.round(scoreTotal));
+  // Compras agrupadas por pet (o pet é o centro de tudo)
+  const comprasPorPet: Record<string, ApptLite[]> = {};
+  for (const a of compras) {
+    const k = a.pet?.name || "Sem pet";
+    (comprasPorPet[k] = comprasPorPet[k] || []).push(a);
+  }
+  const comprasFiltradas = comprasPet && comprasPorPet[comprasPet] ? comprasPorPet[comprasPet] : compras;
+  // Selos de conquista (dados reais)
+  const anosCasa = Math.max(0, new Date().getFullYear() - new Date(tutor.primeiraCompraAt || tutor.createdAt).getFullYear());
+  const aniversarioNoMes = tutor.birthDate ? new Date(tutor.birthDate).getMonth() === new Date().getMonth() : false;
+  const selos: { txt: string; bg: string; fg: string }[] = [];
+  if (anosCasa >= 2) selos.push({ txt: `🏅 Fiel (${anosCasa} anos)`, bg: "#FBF3E3", fg: "#8a6400" });
+  if ((tutor as any).rankingAbc === "A") selos.push({ txt: "⭐ Top 20%", bg: "#E1F5EE", fg: "#0F6E56" });
+  if (stats && stats.diasDesdeUltima != null && stats.diasDesdeUltima < 45) selos.push({ txt: "🔁 Frequente", bg: "#EDE9FA", fg: "#3C3489" });
+  if (aniversarioNoMes) selos.push({ txt: "🎂 Aniversariante do mês", bg: "#FDECEC", fg: "#A32D2D" });
 
   return (
     <div className="p-4 min-h-screen bg-[#F6F2EA]">
@@ -430,14 +461,21 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
             </p>
           </div>
         </div>
-        <div className="flex gap-1.5 flex-wrap">
+        <div className="flex gap-1.5 flex-wrap items-center">
           <button onClick={() => setShowValues((v) => !v)} className="border border-[#EAD9B6] bg-[#FBF6EC] rounded-[9px] px-3 py-2 text-[12.5px] text-[#8A5A0B] hover:border-[#E0A100] flex items-center gap-1.5">{showValues ? "🙈 Ocultar valores" : "👁️ Mostrar valores"}</button>
           <button onClick={() => openWhatsAppMeta(phone)} className="border border-[#E8E2D6] bg-white rounded-[9px] px-3 py-2 text-[12.5px] text-[#5C6B70] hover:border-[#009AAC] hover:text-[#009AAC] flex items-center gap-1.5">📲 WhatsApp</button>
-          <button onClick={() => setEmailOpen(true)} className="border border-[#E8E2D6] bg-white rounded-[9px] px-3 py-2 text-[12.5px] text-[#5C6B70] hover:border-[#009AAC] hover:text-[#009AAC] flex items-center gap-1.5">✉️ Email</button>
-          <button onClick={marcarRecuperar} className="border border-[#E8E2D6] bg-white rounded-[9px] px-3 py-2 text-[12.5px] text-[#5C6B70] hover:border-[#009AAC] hover:text-[#009AAC] flex items-center gap-1.5">⚠️ A recuperar</button>
-          <EncaminharBox tipo="cliente" id={id} nome={tutor?.name || ""} onChange={loadInteracoes} />
-          <button onClick={retomarComoLead} className="border border-[#E8E2D6] bg-white rounded-[9px] px-3 py-2 text-[12.5px] text-[#5C6B70] hover:border-[#009AAC] hover:text-[#009AAC] flex items-center gap-1.5">🔄 Retomar lead</button>
-          <button onClick={() => setDelOpen(true)} className="border border-[#EAC3C1] bg-white rounded-[9px] px-3 py-2 text-[12.5px] text-[#b23b39] hover:border-[#b23b39] flex items-center gap-1.5">🗑️</button>
+          <div className="relative">
+            <button onClick={() => setMoreOpen((v) => !v)} className="border border-[#E8E2D6] bg-white rounded-[9px] px-3 py-2 text-[12.5px] text-[#5C6B70] hover:border-[#009AAC] hover:text-[#009AAC]">⋯ Mais</button>
+            {moreOpen && (
+              <div className="absolute right-0 top-[42px] bg-white border border-[#E0DACB] rounded-[11px] shadow-lg p-1.5 z-20 min-w-[190px]" onMouseLeave={() => setMoreOpen(false)}>
+                <button onClick={() => { setEmailOpen(true); setMoreOpen(false); }} className="w-full text-left text-[12.5px] px-3 py-2 rounded-[7px] hover:bg-[#FBF9F4] text-[#5C6B70]">✉️ Email</button>
+                <button onClick={() => { marcarRecuperar(); setMoreOpen(false); }} className="w-full text-left text-[12.5px] px-3 py-2 rounded-[7px] hover:bg-[#FBF9F4] text-[#5C6B70]">⚠️ A recuperar</button>
+                <div className="px-1.5 py-1"><EncaminharBox tipo="cliente" id={id} nome={tutor?.name || ""} onChange={loadInteracoes} /></div>
+                <button onClick={() => { retomarComoLead(); setMoreOpen(false); }} className="w-full text-left text-[12.5px] px-3 py-2 rounded-[7px] hover:bg-[#FBF9F4] text-[#5C6B70]">🔄 Retomar lead</button>
+                <button onClick={() => { setDelOpen(true); setMoreOpen(false); }} className="w-full text-left text-[12.5px] px-3 py-2 rounded-[7px] hover:bg-[#FDECEC] text-[#b23b39] border-t border-[#F0EBE0] mt-1">🗑️ Excluir</button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -494,9 +532,9 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
       <div className="flex border-b border-[#E8E2D6] mb-3">
         {([
           { k: "GERAL", label: "👤 Visão geral" },
+          { k: "ANIMAIS", label: "🐾 Pets" },
+          { k: "COMPRAS", label: "🧾 Compras" },
           { k: "CADASTRO", label: "📋 Cadastro" },
-          { k: "ANIMAIS", label: "🐾 Animais" },
-          { k: "RELACIONAMENTO", label: "💬 Relacionamento" },
         ] as const).map((t) => (
           <button
             key={t.k}
@@ -511,6 +549,37 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
 
       {tab === "GERAL" && (
       <div className="mb-3 flex flex-col gap-3">
+        {/* Gamificação: Score + Nível + selos */}
+        <div className="grid gap-3" style={{ gridTemplateColumns: "minmax(0,auto) minmax(0,1fr)" }}>
+          {tutor.score && (
+            <div className="bg-white border border-[#E8E2D6] rounded-[14px] flex items-center gap-3.5" style={{ padding: "13px 16px" }}>
+              <div className="relative w-[62px] h-[62px] shrink-0">
+                <svg viewBox="0 0 62 62" className="w-full h-full -rotate-90">
+                  <circle cx="31" cy="31" r="26" fill="none" stroke="#F0EBE0" strokeWidth="6" />
+                  <circle cx="31" cy="31" r="26" fill="none" stroke="#009AAC" strokeWidth="6" strokeLinecap="round" strokeDasharray="163.4" strokeDashoffset={163.4 - (scoreTotal / 100) * 163.4} />
+                </svg>
+                <div className="absolute inset-0 flex items-center justify-center text-[18px] font-medium text-[#014D5E]">{scoreTotal}</div>
+              </div>
+              <div>
+                <div className="text-[13.5px] font-medium text-[#014D5E]">{tutor.score.label || "Cliente"}</div>
+                <div className="text-[11.5px] text-[#8A989D]">Score {scoreTotal}/100</div>
+              </div>
+            </div>
+          )}
+          <div className="bg-white border border-[#E8E2D6] rounded-[14px]" style={{ padding: "13px 16px" }}>
+            <div className="flex justify-between items-center text-[13px] mb-1.5">
+              <span className="font-medium" style={{ color: nivel.fg }}>{nivel.emoji} Nível {nivel.nome}</span>
+              {nivel.prox && <span className="text-[#8A989D]">próximo: {nivel.proxEmoji} {nivel.prox}</span>}
+            </div>
+            <div className="h-[9px] bg-[#F0EBE0] rounded-full overflow-hidden"><div className="h-full rounded-full" style={{ width: `${nivelProg}%`, background: nivel.bar }} /></div>
+            <div className="text-[11px] text-[#8A989D] mt-1.5">{nivel.prox ? `Faltam ${faltamPts} pontos pra ${nivel.proxEmoji} ${nivel.prox}` : "Nível máximo alcançado 🎉"}</div>
+            {selos.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-2.5">
+                {selos.map((s) => (<span key={s.txt} className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: s.bg, color: s.fg }}>{s.txt}</span>))}
+              </div>
+            )}
+          </div>
+        </div>
         {/* KPIs */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-2.5">
           {[
@@ -587,7 +656,10 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
 
         {/* Próximas ações */}
         <div className="bg-[#FBF3E3] border border-[#F0DCB0] rounded-[13px]" style={{ padding: "12px 15px" }}>
-          <h3 className="text-[13px] text-[#8a6400] font-medium flex items-center gap-1.5 mb-1.5">🔔 Próximas ações</h3>
+          <div className="flex items-center justify-between mb-1.5">
+            <h3 className="text-[13px] text-[#8a6400] font-medium flex items-center gap-1.5">🔔 Próximas ações</h3>
+            <button onClick={() => { setFuDate(tutor.proximoFollowupAt ? String(tutor.proximoFollowupAt).slice(0, 10) : ""); setFuOpen(true); }} className="text-[11.5px] text-[#8a6400] underline">📞 {tutor.proximoFollowupAt ? "Alterar" : "Agendar"} follow-up</button>
+          </div>
           <div className="text-[12.5px] text-[#7a6330] flex flex-col gap-1">
             {tutor.birthDate && <div>🎂 Aniversário em <b>{fmtDataBR(tutor.birthDate).slice(0, 5)}</b> — enviar mensagem</div>}
             {tutor.proximoFollowupAt && <div>📞 Follow-up em <b>{fmtDataBR(tutor.proximoFollowupAt).slice(0, 5)}</b></div>}
@@ -863,8 +935,43 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
       </div>
       )}
 
-      {tab === "RELACIONAMENTO" && (
-      <div className="grid grid-cols-3 gap-3 items-start mb-3">
+      {tab === "COMPRAS" && (
+      <div className="mb-3">
+        <div className="text-[12px] text-[#8A989D] mb-2">🐾 Toda compra é registrada no pet. Filtre por pet ou veja tudo. Valores ocultos — use o 👁️ no topo.</div>
+        <div className="flex gap-1.5 flex-wrap mb-3">
+          <button onClick={() => setComprasPet("")} className="text-[12px] px-3 py-1 rounded-full border" style={{ borderColor: comprasPet === "" ? "#009AAC" : "#E8E2D6", color: comprasPet === "" ? "#009AAC" : "#5C6B70", background: comprasPet === "" ? "#E0F4F6" : "#fff" }}>Todos</button>
+          {pets.map((p) => (
+            <button key={p.id} onClick={() => setComprasPet(p.name)} className="text-[12px] px-3 py-1 rounded-full border flex items-center gap-1" style={{ borderColor: comprasPet === p.name ? "#009AAC" : "#E8E2D6", color: comprasPet === p.name ? "#009AAC" : "#5C6B70", background: comprasPet === p.name ? "#E0F4F6" : "#fff" }}>{PET_EMOJI(p.species)} {p.name}</button>
+          ))}
+        </div>
+        <div className="flex gap-2.5 mb-3 flex-wrap">
+          <div className="bg-white border border-[#E8E2D6] rounded-[12px] flex-1 min-w-[130px]" style={{ padding: "11px 14px" }}>
+            <div className="text-[11px] text-[#8A989D]">💰 Total {comprasPet ? `(${comprasPet})` : "gasto"}</div>
+            <div className="text-[19px] font-medium text-[#014D5E]" >{money(comprasFiltradas.reduce((s, a) => s + (a.value || 0), 0))}</div>
+          </div>
+          <div className="bg-white border border-[#E8E2D6] rounded-[12px] flex-1 min-w-[130px]" style={{ padding: "11px 14px" }}>
+            <div className="text-[11px] text-[#8A989D]">🛒 Nº de compras</div>
+            <div className="text-[19px] font-medium text-[#014D5E]">{comprasFiltradas.length}</div>
+          </div>
+        </div>
+        <div className="bg-white border border-[#E8E2D6] rounded-[13px]" style={{ padding: "6px 15px" }}>
+          {comprasFiltradas.length === 0 && <p className="text-[12.5px] text-[#8A989D] py-3 text-center">Nenhuma compra registrada{comprasPet ? ` para ${comprasPet}` : ""} ainda.</p>}
+          {comprasFiltradas.map((a, i) => (
+            <div key={a.id} className="flex items-center gap-2.5 py-2.5" style={{ borderBottom: i < comprasFiltradas.length - 1 ? "1px solid #F0EBE0" : "none" }}>
+              <span className="text-[11.5px] text-[#8A989D] w-[46px] shrink-0">{fmtDataBR(a.date).slice(0, 5)}</span>
+              <span className="flex-1 text-[12.5px] text-[#1F2A2E] truncate">{a.description || a.type || "Atendimento"}</span>
+              {a.pet?.name && <span className="text-[11px] text-[#8A989D] shrink-0">🐾 {a.pet.name}</span>}
+              <span className="text-[12.5px] text-[#014D5E] font-medium shrink-0">{money(a.value)}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      )}
+
+      {tab === "GERAL" && (
+      <>
+        <div className="text-[11px] text-[#8A989D] uppercase tracking-wide mb-2 mt-1 px-1">💬 Relacionamento</div>
+        <div className="grid grid-cols-3 gap-3 items-start mb-3">
 
         {/* Coluna esquerda — Ciclo + Score + Avaliações */}
         <div className="flex flex-col gap-2.5">
@@ -1009,6 +1116,24 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
           </AccordionCard>
         </div>
       </div>
+      </>
+      )}
+
+      {fuOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.45)" }} onClick={() => setFuOpen(false)}>
+          <div className="bg-[#FBF9F4] rounded-[16px] w-full max-w-[360px] p-5" style={{ border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-[15px] font-medium text-[#014D5E] mb-1">📞 Agendar follow-up</h3>
+            <p className="text-[12px] text-[#8A989D] mb-3">Quando falar de novo com {tutor.name?.split(" ")[0] || "o cliente"}?</p>
+            <input type="date" value={fuDate} onChange={(e) => setFuDate(e.target.value)} className="w-full px-3 py-2 border border-[#E8E2D6] rounded-[9px] text-[13px] bg-white" />
+            <div className="flex justify-between items-center mt-4">
+              {tutor.proximoFollowupAt ? <button onClick={async () => { await clearFollowup(); setFuOpen(false); }} className="text-[12px] text-[#b23b39]">Remover</button> : <span />}
+              <div className="flex gap-2">
+                <button onClick={() => setFuOpen(false)} className="text-[12.5px] px-3 py-2 rounded-[9px] text-[#5C6B70]">Cancelar</button>
+                <button onClick={async () => { await saveFollowup(); setFuOpen(false); }} disabled={savingFu || !fuDate} className="text-[12.5px] px-4 py-2 rounded-[9px] text-white" style={{ background: "#009AAC", opacity: savingFu || !fuDate ? 0.5 : 1 }}>{savingFu ? "Salvando..." : "Salvar"}</button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       <SendEmailModal
