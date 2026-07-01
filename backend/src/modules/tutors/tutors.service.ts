@@ -374,6 +374,25 @@ export class TutorsService {
     const diasDesdeUltima = ultima ? Math.floor((now.getTime() - new Date(ultima.date).getTime()) / 86400000) : null;
     const futurasAgendadas = apps.filter(a => new Date(a.date) >= now && a.status !== 'CANCELLED').length;
 
+    // Share of wallet — divisao do valor gasto por marca de negocio (EMPORIO / MUNDO_A_PARTE / DRA_VIVIAN)
+    const itens = await this.prisma.appointmentItem.findMany({
+      where: { appointment: { tutorId } },
+      select: { marca: true, valorTotal: true },
+    });
+    const marcaMap = new Map<string, number>();
+    for (const it of itens) {
+      const m = it.marca || 'EMPORIO';
+      marcaMap.set(m, (marcaMap.get(m) || 0) + (it.valorTotal || 0));
+    }
+    const totalMarca = Array.from(marcaMap.values()).reduce((s, v) => s + v, 0);
+    const porMarca = Array.from(marcaMap.entries())
+      .map(([marca, valor]) => ({
+        marca,
+        valor: +valor.toFixed(2),
+        pct: totalMarca > 0 ? Math.round((valor / totalMarca) * 100) : 0,
+      }))
+      .sort((a, b) => b.valor - a.valor);
+
     return {
       totalAppointments: realizadas.length,
       futurasAgendadas,
@@ -386,6 +405,7 @@ export class TutorsService {
       petsAtivos: pets.filter(p => p.status === 'ACTIVE').length,
       pets,
       frequenciaMensal: freq,
+      porMarca,
     };
   }
 }
