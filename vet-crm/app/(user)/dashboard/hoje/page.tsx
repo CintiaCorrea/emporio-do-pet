@@ -325,9 +325,9 @@ export default function HojePage() {
   return (
     <div className="p-6 min-h-screen bg-[#F6F2EA]">
       <div className="flex items-center gap-3 mb-4">
-        <h2 className="text-[15px] font-bold" style={{ color: "#014D5E" }}>{effectiveRole === "ADMIN" ? "O que a clínica precisa de atenção hoje" : "O que você precisa atender hoje"}</h2>
+        <h2 className="text-[15px] font-medium" style={{ color: "#014D5E" }}>{effectiveRole === "ADMIN" ? "O que a clínica precisa de atenção hoje" : "O que você precisa atender hoje"}</h2>
         <span
-          className="text-xs font-semibold px-3 py-1 rounded-full"
+          className="text-xs font-medium px-3 py-1 rounded-full"
           style={{ background: "#E0F4F6", color: "#00798A" }}
         >
           {loading ? "carregando..." : `${total} pendências`}
@@ -337,7 +337,7 @@ export default function HojePage() {
         </span>
       </div>
 
-      <div className="bg-white border rounded-2xl overflow-hidden" style={{ borderColor: "#E8E2D6" }}>
+      <div className="bg-white border rounded-[14px] overflow-hidden" style={{ borderColor: "#E8E2D6" }}>
         {loading ? (
           <div className="px-6 py-10 text-center text-sm text-[#8A989D]">Carregando seu dia...</div>
         ) : items.length === 0 ? (
@@ -350,11 +350,11 @@ export default function HojePage() {
                   <span style={{ fontSize: "19px" }}>{p.emoji}</span>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-[13.5px] font-semibold text-[#1F2A2E]">{p.title}</div>
+                  <div className="text-[13.5px] font-medium text-[#1F2A2E]">{p.title}</div>
                   <div className="text-xs text-[#5C6B70]">{p.sub}</div>
                 </div>
-                <span className="text-[10px] font-bold uppercase tracking-wide text-[#009AAC] hidden sm:block">{p.link}</span>
-                <span className="text-[13px] font-bold text-white min-w-[26px] h-6 rounded-xl flex items-center justify-center px-2 flex-shrink-0" style={{ background: p.count > 0 ? "linear-gradient(90deg, #009AAC, #00B4C4)" : "#cbd5e1" }}>{p.count}</span>
+                <span className="text-[10px] font-medium uppercase tracking-wide text-[#009AAC] hidden sm:block">{p.link}</span>
+                <span className="text-[13px] font-medium text-white min-w-[26px] h-6 rounded-xl flex items-center justify-center px-2 flex-shrink-0" style={{ background: p.count > 0 ? "#009AAC" : "#D3D1C7" }}>{p.count}</span>
                 <span style={{ fontSize: "16px" }} className="text-[#8A989D] flex-shrink-0">›</span>
               </>
             );
@@ -373,7 +373,7 @@ export default function HojePage() {
                           <span className="font-medium text-[#1F2A2E]">{e.petName}</span>
                           <span className="text-[#5C6B70] truncate max-w-[120px]">· {e.nome}</span>
                           <div className="flex items-center gap-1 ml-auto">
-                            <div className="w-16 h-1.5 rounded-full bg-gray-200 overflow-hidden"><div className="h-full" style={{ width: `${e.total ? Math.min(100, (e.used / e.total) * 100) : 0}%`, background: done ? "#0F6E56" : "#BA7517" }} /></div>
+                            <div className="w-16 h-1.5 rounded-full bg-[#F0EBE0] overflow-hidden"><div className="h-full" style={{ width: `${e.total ? Math.min(100, (e.used / e.total) * 100) : 0}%`, background: done ? "#0F6E56" : "#BA7517" }} /></div>
                             <span className="text-[10px] text-[#5C6B70]">{e.used}/{e.total}</span>
                             <span className="text-[10px] px-2 py-0.5 rounded-full" style={done ? { background: "#E1F5EE", color: "#0F6E56" } : { background: "#FCE5C8", color: "#8A5A0F" }}>{done ? "Concluído" : "Penúltima"}</span>
                           </div>
@@ -417,7 +417,7 @@ export default function HojePage() {
                         <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: (tcor[e.tipo] || tcor.Cliente).bg, color: (tcor[e.tipo] || tcor.Cliente).fg }}>{e.tipo}</span>
                         <span className="font-medium text-[#1F2A2E]">{e.nome}</span>
                         <span className="text-[#5C6B70] truncate max-w-[200px]">· {e.cadencia} — {e.passo}</span>
-                        {e.canal && <span className="ml-auto text-[10px] text-[#009AAC] font-semibold">{e.canal}</span>}
+                        {e.canal && <span className="ml-auto text-[10px] text-[#009AAC] font-medium">{e.canal}</span>}
                       </Link>
                     ))}
                   </div>
@@ -458,20 +458,20 @@ export default function HojePage() {
         const grupos: { dia: string; itens: any[] }[] = [];
         for (const e of entradas) { const dk = new Date(e.at).toDateString(); let g = grupos.find(x => x.dia === dk); if (!g) { g = { dia: dk, itens: [] }; grupos.push(g); } g.itens.push(e); }
         return (
-          <div className="mt-6 bg-white border rounded-2xl overflow-hidden" style={{ borderColor: "#E8E2D6" }}>
+          <div className="mt-6 bg-white border rounded-[14px] overflow-hidden" style={{ borderColor: "#E8E2D6" }}>
             <div className="flex items-center gap-3.5 px-[18px] py-[13px] border-b" style={{ borderColor: "#F0EBE0" }}>
               <div className="w-[38px] h-[38px] rounded-[10px] flex items-center justify-center flex-shrink-0" style={{ background: "#E0F4F6" }}><span style={{ fontSize: "19px" }}>📋</span></div>
               <div className="flex-1 min-w-0">
-                <div className="text-[13.5px] font-semibold text-[#1F2A2E]">📋 Acompanhamento de entradas</div>
+                <div className="text-[13.5px] font-medium text-[#1F2A2E]">📋 Acompanhamento de entradas</div>
                 <div className="text-xs text-[#5C6B70]">Leads e clientes que entraram — dê baixa ao conferir o atendimento</div>
               </div>
-              <span className="text-[13px] font-bold text-white min-w-[26px] h-6 rounded-xl flex items-center justify-center px-2 flex-shrink-0" style={{ background: entradas.length > 0 ? "linear-gradient(90deg, #009AAC, #00B4C4)" : "#cbd5e1" }}>{entradas.length}</span>
+              <span className="text-[13px] font-medium text-white min-w-[26px] h-6 rounded-xl flex items-center justify-center px-2 flex-shrink-0" style={{ background: entradas.length > 0 ? "#009AAC" : "#D3D1C7" }}>{entradas.length}</span>
             </div>
             {entradas.length === 0 ? (
               <div className="px-[18px] py-8 text-center text-sm text-[#8A989D]">Nenhuma entrada pendente de baixa.</div>
             ) : grupos.map((g) => (
               <div key={g.dia}>
-                <div className="px-[18px] py-1.5 text-[11px] font-semibold text-[#5C6B70] border-b" style={{ background: "#FBF9F4", borderColor: "#F0EBE0" }}>{fmtDia(g.itens[0].at)} ({g.itens.length})</div>
+                <div className="px-[18px] py-1.5 text-[11px] font-medium text-[#5C6B70] border-b" style={{ background: "#FBF9F4", borderColor: "#F0EBE0" }}>{fmtDia(g.itens[0].at)} ({g.itens.length})</div>
                 {g.itens.map((e: any) => (
                   <div key={e.key} className="flex items-center gap-3 px-[18px] py-2.5 border-b hover:bg-[#E0F4F6]/40" style={{ borderColor: "#F0EBE0" }}>
                     <input type="checkbox" checked={false} onChange={() => baixarEntrada(e)} className="w-4 h-4 flex-shrink-0 cursor-pointer accent-[#009AAC]" title="Dar baixa (sai da lista, fica na ficha)" />
@@ -487,14 +487,14 @@ export default function HojePage() {
         );
       })()}
       {!loading && encMine.length > 0 && (
-        <div className="mt-6 bg-white border rounded-2xl overflow-hidden" style={{ borderColor: "#E8E2D6" }}>
+        <div className="mt-6 bg-white border rounded-[14px] overflow-hidden" style={{ borderColor: "#E8E2D6" }}>
           <div className="flex items-center gap-3.5 px-[18px] py-[13px] border-b" style={{ borderColor: "#F0EBE0" }}>
             <div className="w-[38px] h-[38px] rounded-[10px] flex items-center justify-center flex-shrink-0" style={{ background: "#fef3c7" }}><span style={{ fontSize: "19px" }}>↔️</span></div>
             <div className="flex-1 min-w-0">
-              <div className="text-[13.5px] font-semibold text-[#1F2A2E]">↔️ Encaminhados para mim</div>
+              <div className="text-[13.5px] font-medium text-[#1F2A2E]">↔️ Encaminhados para mim</div>
               <div className="text-xs text-[#5C6B70]">Clientes, pets e leads que precisam do seu atendimento</div>
             </div>
-            <span className="text-[13px] font-bold text-white min-w-[26px] h-6 rounded-xl flex items-center justify-center px-2 flex-shrink-0" style={{ background: "linear-gradient(90deg,#D97706,#92611A)" }}>{encMine.length}</span>
+            <span className="text-[13px] font-medium text-white min-w-[26px] h-6 rounded-xl flex items-center justify-center px-2 flex-shrink-0" style={{ background: "#D97706" }}>{encMine.length}</span>
           </div>
           {encMine.map((e) => (
             <div key={e.entryId} className="flex items-center gap-3 px-[18px] py-2.5 border-b hover:bg-[#fef9ec]" style={{ borderColor: "#F0EBE0" }}>
@@ -502,7 +502,7 @@ export default function HojePage() {
               <Link href={encHref(e)} className="font-medium text-[13px] text-[#1F2A2E] hover:underline truncate">{e.nome}</Link>
               {e.obs && <span className="text-xs text-[#5C6B70] truncate hidden sm:block">. {e.obs}</span>}
               {e.byName && <span className="text-[11px] text-[#8A989D] flex-shrink-0">por {e.byName}</span>}
-              <button onClick={() => concluirEnc(e)} className="ml-auto text-[11px] font-semibold text-[#0F6E56] hover:underline flex-shrink-0">Concluir</button>
+              <button onClick={() => concluirEnc(e)} className="ml-auto text-[11px] font-medium text-[#0F6E56] hover:underline flex-shrink-0">Concluir</button>
             </div>
           ))}
         </div>
