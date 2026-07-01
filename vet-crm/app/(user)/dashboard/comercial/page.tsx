@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import toast, { Toaster } from "react-hot-toast";
+import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 
 const PIPELINE_STAGES = [
   "Aguardando triagem",
@@ -72,6 +73,7 @@ export default function ComercialPage() {
   const [stages, setStages] = useState<string[]>(PIPELINE_STAGES);
   const [loading, setLoading] = useState(true);
   const [aba, setAba] = useState<"funil" | "lista" | "orcamentos">("funil");
+  usePageTitle("Comercial", "funil de vendas e leads");
   const [menuLeadId, setMenuLeadId] = useState<string | null>(null);
 
   async function loadLeads() {
@@ -266,12 +268,7 @@ export default function ComercialPage() {
 
       {/* Cabeçalho */}
       <div className="flex justify-between items-start mb-3 flex-wrap gap-3">
-        <div>
-          <h1 className="text-xl font-medium text-[#014D5E] flex items-center gap-1.5">
-            🎯 Comercial
-          </h1>
-          <p className="text-sm text-[#5C6B70] mt-0.5">funil de vendas e leads</p>
-        </div>
+        <div></div>
         <Link
           href="/dashboard/crm/leads/novo"
           className="bg-[#0F6E56] text-white px-3.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 hover:opacity-90"
