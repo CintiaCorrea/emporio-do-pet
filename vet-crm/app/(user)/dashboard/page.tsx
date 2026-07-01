@@ -378,7 +378,8 @@ export default function DashboardPage() {
     const hhmm = (dt: any) => { try { return new Date(dt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }); } catch { return ""; } };
     const fmtDia = (dt: any) => { const d = new Date(dt), h = new Date(), o = new Date(); o.setDate(h.getDate() - 1); const k = (x: Date) => x.toDateString(); if (k(d) === k(h)) return "Hoje"; if (k(d) === k(o)) return "Ontem"; return d.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" }); };
     const grupos: { dia: string; itens: any[] }[] = [];
-    for (const e of entradas) { const dk = new Date(e.at).toDateString(); let g = grupos.find(x => x.dia === dk); if (!g) { g = { dia: dk, itens: [] }; grupos.push(g); } g.itens.push(e); }
+    const LIMITE = 40; const entradasView = entradas.slice(0, LIMITE);
+    for (const e of entradasView) { const dk = new Date(e.at).toDateString(); let g = grupos.find(x => x.dia === dk); if (!g) { g = { dia: dk, itens: [] }; grupos.push(g); } g.itens.push(e); }
     return (
       <div className="bg-white border border-[#E8E2D6] rounded-[12px] overflow-hidden">
         <div className="flex items-center gap-3.5 px-[18px] py-[13px] border-b" style={{ borderColor: "#E8E2D6" }}>
@@ -405,6 +406,9 @@ export default function DashboardPage() {
             ))}
           </div>
         ))}
+        {entradas.length > 40 ? (
+          <div className="px-[18px] py-2 text-center text-[11px] text-[#8A989D] border-t" style={{ borderColor: "#E8E2D6" }}>Mostrando 40 de {entradas.length} — dê baixa para limpar a lista.</div>
+        ) : null}
       </div>
     );
   })() : null);
@@ -473,7 +477,6 @@ export default function DashboardPage() {
                   <BarraProgresso label="Faturamento" pct={0} valor="0%" />
                 </Painel>
 
-                <PainelEntradas />
                 <PainelEncaminhados />
               </div>
             </>
@@ -553,12 +556,8 @@ export default function DashboardPage() {
             </div>
           )}
 
-          <div className="mt-6 text-xs text-[#8A989D] text-center">
-            Métricas e relatórios ficam no <Link href="/dashboard" className="underline">Dashboard</Link>.
-            Conversas no <Link href="/dashboard/inbox" className="underline">Inbox</Link>.
-          </div>
-
           <AnaliseComercial />
+          <PainelEntradas />
         </>
       )}
     </div>
