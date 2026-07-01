@@ -864,6 +864,7 @@ export default function PetDetailPage() {
                 </button>
                 {aberto && (
                   <div className="flex flex-wrap gap-1 mt-2 pt-2 border-t border-[#F0EBE0]">
+                    <button onClick={async () => { await savePipe(row.field, ""); setPipeOpen((o) => ({ ...o, [row.key]: false })); }} disabled={savingPipe} className="text-[11px] px-2.5 py-1 rounded-full border transition disabled:opacity-50" style={!row.atual ? { background: "#E0F4F6", color: "#014D5E", borderColor: "#009AAC" } : { background: "#fff", color: "#8A989D", borderColor: "#E8E2D6" }}>— sem etapa —</button>
                     {lista.length === 0 && <span className="text-[12px] text-[#8A989D]">Nenhuma etapa configurada.</span>}
                     {lista.map((e) => (
                       <button key={e} onClick={async () => { await savePipe(row.field, e); setPipeOpen((o) => ({ ...o, [row.key]: false })); }} disabled={savingPipe} className="text-[11px] px-2.5 py-1 rounded-full border transition disabled:opacity-50" style={row.atual === e ? { background: "#009AAC", color: "#fff", borderColor: "#009AAC" } : { background: "#fff", color: "#5C6B70", borderColor: "#E8E2D6" }}>{e}</button>
