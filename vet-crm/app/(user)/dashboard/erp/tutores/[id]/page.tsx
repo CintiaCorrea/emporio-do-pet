@@ -180,6 +180,8 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
   const [showValues, setShowValues] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [fuOpen, setFuOpen] = useState(false);
+  const [notaOpen, setNotaOpen] = useState(false);
+  const [situacaoOpen, setSituacaoOpen] = useState(false);
   const [comprasPet, setComprasPet] = useState<string>("");
   const [emailOpen, setEmailOpen] = useState(false);
   const [delOpen, setDelOpen] = useState(false);
@@ -442,88 +444,70 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
         <Link href="/dashboard/erp/tutores" className="hover:text-[#009AAC]">Clientes</Link> / <b className="text-[#009AAC] font-medium">{tutor.name || "Sem nome"}</b>
       </div>
 
-      {/* Cabeçalho leve */}
-      <div className="flex justify-between items-start mb-3 flex-wrap gap-3">
-        <div className="flex items-center gap-3">
-          <div className="w-[50px] h-[50px] rounded-[13px] bg-[#E0F4F6] text-[#014D5E] flex items-center justify-center text-[17px] font-semibold shrink-0">
-            {initials(tutor.name)}
-          </div>
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-[20px] leading-tight text-[#014D5E] font-medium">{tutor.name || "Sem nome"}</h1>
-              {tutor.codigo ? <span className="text-[13px] text-[#8A989D] font-medium" title="Código do cliente">#{tutor.codigo}</span> : null}
-              <span style={{ background: status.bg, color: status.color }} className="text-[11px] font-medium px-2 py-0.5 rounded-full">{status.label}</span>
+      {/* Cabeçalho em card */}
+      <div className="bg-white border border-[#E8E2D6] rounded-[14px] mb-3" style={{ padding: "14px 16px" }}>
+        <div className="flex justify-between items-start flex-wrap gap-3">
+          <div className="flex items-start gap-3 flex-1" style={{ minWidth: "220px" }}>
+            <div className="w-[50px] h-[50px] rounded-[13px] bg-[#E0F4F6] text-[#014D5E] flex items-center justify-center text-[17px] font-semibold shrink-0">
+              {initials(tutor.name)}
             </div>
-            <p className="text-[12.5px] text-[#5C6B70] mt-0.5">
-              Cliente desde {new Date(tutor.primeiraCompraAt || tutor.createdAt).toLocaleDateString("pt-BR", { month: "short", year: "numeric" })} · {pets.length} {pets.length === 1 ? "pet" : "pets"}
-            </p>
-          </div>
-        </div>
-        <div className="flex gap-1.5 flex-wrap items-center">
-          <button onClick={() => setShowValues((v) => !v)} className="border border-[#EAD9B6] bg-[#FBF6EC] rounded-[9px] px-3 py-2 text-[12.5px] text-[#8A5A0B] hover:border-[#E0A100] flex items-center gap-1.5">{showValues ? "🙈 Ocultar valores" : "👁️ Mostrar valores"}</button>
-          <button onClick={() => openWhatsAppMeta(phone)} className="border border-[#E8E2D6] bg-white rounded-[9px] px-3 py-2 text-[12.5px] text-[#5C6B70] hover:border-[#009AAC] hover:text-[#009AAC] flex items-center gap-1.5">📲 WhatsApp</button>
-          <div className="relative">
-            <button onClick={() => setMoreOpen((v) => !v)} className="border border-[#E8E2D6] bg-white rounded-[9px] px-3 py-2 text-[12.5px] text-[#5C6B70] hover:border-[#009AAC] hover:text-[#009AAC]">⋯ Mais</button>
-            {moreOpen && (
-              <div className="absolute right-0 top-[42px] bg-white border border-[#E0DACB] rounded-[11px] shadow-lg p-1.5 z-20 min-w-[190px]" onMouseLeave={() => setMoreOpen(false)}>
-                <button onClick={() => { setEmailOpen(true); setMoreOpen(false); }} className="w-full text-left text-[12.5px] px-3 py-2 rounded-[7px] hover:bg-[#FBF9F4] text-[#5C6B70]">✉️ Email</button>
-                <button onClick={() => { marcarRecuperar(); setMoreOpen(false); }} className="w-full text-left text-[12.5px] px-3 py-2 rounded-[7px] hover:bg-[#FBF9F4] text-[#5C6B70]">⚠️ A recuperar</button>
-                <div className="px-1.5 py-1"><EncaminharBox tipo="cliente" id={id} nome={tutor?.name || ""} onChange={loadInteracoes} /></div>
-                <button onClick={() => { retomarComoLead(); setMoreOpen(false); }} className="w-full text-left text-[12.5px] px-3 py-2 rounded-[7px] hover:bg-[#FBF9F4] text-[#5C6B70]">🔄 Retomar lead</button>
-                <button onClick={() => { setDelOpen(true); setMoreOpen(false); }} className="w-full text-left text-[12.5px] px-3 py-2 rounded-[7px] hover:bg-[#FDECEC] text-[#b23b39] border-t border-[#F0EBE0] mt-1">🗑️ Excluir</button>
+            <div className="flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-[19px] leading-tight text-[#014D5E] font-medium">{tutor.name || "Sem nome"}</h1>
+                {tutor.codigo ? <span className="text-[13px] text-[#8A989D] font-medium" title="Código do cliente">#{tutor.codigo}</span> : null}
+                {tutor.score && <span className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: nivel.bg, color: nivel.fg }}>{nivel.emoji} {nivel.nome}</span>}
+                <button onClick={() => setSituacaoOpen(true)} title="Situação — clique para alterar" className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: status.bg, color: status.color }}>{HUMANIZAR(tutor.estadoRelacionamento) || status.label} ▾</button>
+                <button onClick={() => { setNota(tutor.notaCliente || ""); setNotaOpen(true); }} title={tutor.notaCliente ? `Nota: ${tutor.notaCliente}` : "Adicionar nota"} className="text-[15px] leading-none">{tutor.notaCliente ? "❤️" : "🤍"}</button>
               </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Caixinha lembrar */}
-      <div className="bg-[#FBF3E3] border border-dashed border-[#E0A100] rounded-[11px] px-3.5 py-2 mb-3">
-        <div className="flex items-center gap-2">
-          <span style={{fontSize:"14px"}}>💗</span>
-          <input
-            value={nota}
-            onChange={(e) => setNota(e.target.value)}
-            placeholder={`Adicionar algo que vale lembrar sobre ${tutor.name?.split(" ")[0] || "este cliente"}...`}
-            className="flex-1 bg-transparent border-none outline-none text-xs text-[#8a6400] italic"
-          />
-          {nota !== (tutor.notaCliente || "") && (
-            <button onClick={saveNota} disabled={notaSaving} className="text-[#E0A100] text-[11px] font-medium">
-              {notaSaving ? "Salvando..." : "Salvar"}
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Etiquetas — barra slim, logo abaixo da caixinha lembrar */}
-      <div className="bg-[#FBF9F4] border border-[#F0EBE0] rounded-[11px] mb-3" style={{ padding: "7px 12px" }}>
-        <div className="flex flex-wrap gap-1.5 items-center">
-          <span className="text-[12px] text-[#5C6B70] flex items-center gap-1">🏷️ Etiquetas</span>
-          {tutor.tags?.map((t) => {
-            const tpl = tplTags.find((x: any) => x.texto === t);
-            const cor = tpl?.cor || "#009AAC";
-            return (
-              <span key={t} className="text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1" style={{ background: cor + "22", color: cor }}>
-                ● {t}
-                <button onClick={() => removeTag(t)} title="Remover" className="hover:opacity-60 font-bold">×</button>
-              </span>
-            );
-          })}
-          <button onClick={() => setTagPicker((v) => !v)} className="border border-dashed border-[#E8E2D6] text-[#8A989D] text-[10px] px-2 py-0.5 rounded-full">+ tag</button>
-        </div>
-        {tagPicker && (
-          <div className="mt-2 pt-2 border-t border-[#F0EBE0]">
-            {tplTags.filter((t: any) => !(tutor.tags || []).includes(t.texto)).length === 0 ? (
-              <p className="text-[10px] text-[#8A989D]">Nenhuma etiqueta de Cliente disponível. Cadastre em Configurações → Etiquetas.</p>
-            ) : (
-              <div className="flex flex-wrap gap-1">
-                {tplTags.filter((t: any) => !(tutor.tags || []).includes(t.texto)).map((t: any) => (
-                  <button key={t.texto} disabled={savingTag} onClick={() => addTag(t.texto)} className="text-[10px] px-2 py-0.5 rounded-full border disabled:opacity-50" style={{ borderColor: (t.cor || "#009AAC") + "66", color: t.cor || "#009AAC" }}>+ {t.texto}</button>
-                ))}
+              <p className="text-[12.5px] text-[#5C6B70] mt-0.5">
+                Cliente desde {new Date(tutor.primeiraCompraAt || tutor.createdAt).toLocaleDateString("pt-BR", { month: "short", year: "numeric" })} · {pets.length} {pets.length === 1 ? "pet" : "pets"}
+              </p>
+              <div className="flex flex-wrap gap-1.5 items-center mt-2">
+                <span className="text-[11.5px] text-[#8A989D]">🏷️</span>
+                {tutor.tags?.map((t) => {
+                  const tpl = tplTags.find((x: any) => x.texto === t);
+                  const cor = tpl?.cor || "#009AAC";
+                  return (
+                    <span key={t} className="text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1" style={{ background: cor + "22", color: cor }}>
+                      ● {t}
+                      <button onClick={() => removeTag(t)} title="Remover" className="hover:opacity-60 font-bold">×</button>
+                    </span>
+                  );
+                })}
+                <button onClick={() => setTagPicker((v) => !v)} className="border border-dashed border-[#E8E2D6] text-[#8A989D] text-[10px] px-2 py-0.5 rounded-full">+ tag</button>
               </div>
-            )}
+              {tagPicker && (
+                <div className="mt-2 pt-2 border-t border-[#F0EBE0]">
+                  {tplTags.filter((t: any) => !(tutor.tags || []).includes(t.texto)).length === 0 ? (
+                    <p className="text-[10px] text-[#8A989D]">Nenhuma etiqueta de Cliente disponível. Cadastre em Configurações → Etiquetas.</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-1">
+                      {tplTags.filter((t: any) => !(tutor.tags || []).includes(t.texto)).map((t: any) => (
+                        <button key={t.texto} disabled={savingTag} onClick={() => addTag(t.texto)} className="text-[10px] px-2 py-0.5 rounded-full border disabled:opacity-50" style={{ borderColor: (t.cor || "#009AAC") + "66", color: t.cor || "#009AAC" }}>+ {t.texto}</button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
-        )}
+          <div className="flex gap-1.5 flex-wrap items-center">
+            <button onClick={() => setShowValues((v) => !v)} className="border border-[#EAD9B6] bg-[#FBF6EC] rounded-[9px] px-3 py-2 text-[12.5px] text-[#8A5A0B] hover:border-[#E0A100] flex items-center gap-1.5">{showValues ? "🙈 Ocultar valores" : "👁️ Mostrar valores"}</button>
+            <button onClick={() => openWhatsAppMeta(phone)} className="bg-[#009AAC] text-white rounded-[9px] px-3.5 py-2 text-[12.5px] hover:bg-[#00808f] flex items-center gap-1.5">💬 WhatsApp</button>
+            <div className="relative">
+              <button onClick={() => setMoreOpen((v) => !v)} className="border border-[#E8E2D6] bg-white rounded-[9px] px-3 py-2 text-[12.5px] text-[#5C6B70] hover:border-[#009AAC] hover:text-[#009AAC]">⋯ Mais</button>
+              {moreOpen && (
+                <div className="absolute right-0 top-[42px] bg-white border border-[#E0DACB] rounded-[11px] shadow-lg p-1.5 z-20 min-w-[190px]" onMouseLeave={() => setMoreOpen(false)}>
+                  <button onClick={() => { setEmailOpen(true); setMoreOpen(false); }} className="w-full text-left text-[12.5px] px-3 py-2 rounded-[7px] hover:bg-[#FBF9F4] text-[#5C6B70]">✉️ Email</button>
+                  <button onClick={() => { marcarRecuperar(); setMoreOpen(false); }} className="w-full text-left text-[12.5px] px-3 py-2 rounded-[7px] hover:bg-[#FBF9F4] text-[#5C6B70]">⚠️ A recuperar</button>
+                  <div className="px-1.5 py-1"><EncaminharBox tipo="cliente" id={id} nome={tutor?.name || ""} onChange={loadInteracoes} /></div>
+                  <button onClick={() => { retomarComoLead(); setMoreOpen(false); }} className="w-full text-left text-[12.5px] px-3 py-2 rounded-[7px] hover:bg-[#FBF9F4] text-[#5C6B70]">🔄 Retomar lead</button>
+                  <button onClick={() => { setDelOpen(true); setMoreOpen(false); }} className="w-full text-left text-[12.5px] px-3 py-2 rounded-[7px] hover:bg-[#FDECEC] text-[#b23b39] border-t border-[#F0EBE0] mt-1">🗑️ Excluir</button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Barra de abas */}
@@ -645,37 +629,6 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
           </div>
         </div>
 
-        {/* Últimas compras */}
-        <div className="bg-white border border-[#E8E2D6] rounded-[13px]">
-          <div className="border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
-            <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">🧾 Últimas compras</h3>
-          </div>
-          <div style={{ padding: "8px 14px" }}>
-            {compras.length === 0 && <p className="text-[12px] text-[#8A989D] py-1">Nenhuma compra registrada ainda.</p>}
-            {compras.slice(0, 6).map((a, i) => (
-              <div key={a.id} className="flex items-center gap-2.5 py-2" style={{ borderBottom: i < Math.min(compras.length, 6) - 1 ? "1px solid #F0EBE0" : "none" }}>
-                <span className="text-[11.5px] text-[#8A989D] w-[46px] shrink-0">{fmtDataBR(a.date).slice(0, 5)}</span>
-                <span className="flex-1 text-[12.5px] text-[#1F2A2E] truncate">{a.description || a.type || "Atendimento"}{a.pet?.name && <span className="text-[#8A989D]"> · {a.pet.name}</span>}</span>
-                <span className="text-[12.5px] text-[#014D5E] font-medium">{money(a.value)}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Próximas ações */}
-        <div className="bg-[#FBF3E3] border border-[#F0DCB0] rounded-[13px]" style={{ padding: "12px 15px" }}>
-          <div className="flex items-center justify-between mb-1.5">
-            <h3 className="text-[13px] text-[#8a6400] font-medium flex items-center gap-1.5">🔔 Próximas ações</h3>
-            <button onClick={() => { setFuDate(tutor.proximoFollowupAt ? String(tutor.proximoFollowupAt).slice(0, 10) : ""); setFuOpen(true); }} className="text-[11.5px] text-[#8a6400] underline">📞 {tutor.proximoFollowupAt ? "Alterar" : "Agendar"} follow-up</button>
-          </div>
-          <div className="text-[12.5px] text-[#7a6330] flex flex-col gap-1">
-            {tutor.birthDate && <div>🎂 Aniversário em <b>{fmtDataBR(tutor.birthDate).slice(0, 5)}</b> — enviar mensagem</div>}
-            {tutor.proximoFollowupAt && <div>📞 Follow-up em <b>{fmtDataBR(tutor.proximoFollowupAt).slice(0, 5)}</b></div>}
-            {stats && stats.futurasAgendadas > 0 && <div>📅 {stats.futurasAgendadas} agendamento(s) futuro(s)</div>}
-            {stats && stats.valorAReceber > 0 && <div>⏳ Há valores a receber deste cliente</div>}
-            {!tutor.birthDate && !tutor.proximoFollowupAt && !(stats && stats.futurasAgendadas > 0) && !(stats && stats.valorAReceber > 0) && <div className="text-[#a99a72]">Nenhuma ação pendente no momento.</div>}
-          </div>
-        </div>
       </div>
       )}
 
@@ -980,42 +933,69 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
       <>
         <div className="text-[11px] text-[#8A989D] uppercase tracking-wide mb-2 mt-1 px-1">💬 Relacionamento</div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-start mb-3">
-
-        {/* Coluna esquerda — Ciclo + Score + Avaliações */}
-        <div className="flex flex-col gap-2.5">
-          {/* Situação do relacionamento (editável) */}
+          {/* Follow-up */}
           <div className="bg-white border border-[#E8E2D6] rounded-[13px]">
             <div className="border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
-              <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">♻️ Situação</h3>
+              <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">📞 Follow-up</h3>
             </div>
-            <div style={{ padding: "12px 14px" }}>
-              {estagios.length > 0 ? (
-                <select value={tutor.estadoRelacionamento || ""} onChange={(e) => saveEstagio(e.target.value)} disabled={savingEstagio} className="w-full bg-[#E0F4F6] text-[#009AAC] text-[12.5px] px-2 py-1.5 rounded-[9px] border border-[#bfe3e8]">
-                  <option value="">{status.label} (padrão)</option>
-                  {estagios.map((e) => (<option key={e} value={e}>{e}</option>))}
-                </select>
+            <div style={{ padding: "13px 14px" }}>
+              {tutor.proximoFollowupAt ? (
+                <div className="text-[12.5px] text-[#5C6B70]">Próximo em <b className="text-[#014D5E]">{fmtDataBR(tutor.proximoFollowupAt)}</b></div>
               ) : (
-                <div className="text-[13px] text-[#1F2A2E] font-medium">{HUMANIZAR(tutor.estadoRelacionamento) || status.label}</div>
+                <div className="text-[12.5px] text-[#8A989D]">Nenhum follow-up agendado.</div>
               )}
-              <p className="text-[11px] text-[#8A989D] mt-2">Estágio do cliente no relacionamento.</p>
+              <div className="flex gap-1.5 mt-2.5">
+                <button onClick={() => { setFuDate(tutor.proximoFollowupAt ? String(tutor.proximoFollowupAt).slice(0, 10) : ""); setFuOpen(true); }} className="bg-[#E0F4F6] text-[#014D5E] text-[11px] px-2.5 py-1 rounded-[8px]">{tutor.proximoFollowupAt ? "Reagendar" : "Agendar"}</button>
+                {tutor.proximoFollowupAt && <button onClick={clearFollowup} className="bg-[#FBF9F4] text-[#5C6B70] text-[11px] px-2.5 py-1 rounded-[8px] border border-[#F0EBE0]">Concluir</button>}
+              </div>
             </div>
           </div>
 
+          {/* Sequências */}
           <div className="bg-white border border-[#E8E2D6] rounded-[13px]">
             <div className="flex items-center justify-between border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
+              <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">⚡ Sequências</h3>
+              <span className="bg-[#E0F4F6] text-[#009AAC] text-[10px] px-2 py-0.5 rounded-full">Em breve</span>
+            </div>
+            <div style={{ padding: "10px 14px" }} className="flex flex-col gap-1.5">
+              <div className="bg-[#FBF9F4] border border-[#F0EBE0] rounded-[10px] px-2.5 py-1.5 flex items-center justify-between text-[11.5px]"><span className="text-[#1F2A2E]">📧 Boas-vindas</span><span className="bg-[#FBF3E3] text-[#8a6400] text-[9px] px-1.5 py-0.5 rounded-full">pendente</span></div>
+              <div className="bg-[#FBF9F4] border border-[#F0EBE0] rounded-[10px] px-2.5 py-1.5 flex items-center justify-between text-[11.5px]"><span className="text-[#1F2A2E]">🗒️ Retorno 30d</span><span className="bg-[#E0F4F6] text-[#009AAC] text-[9px] px-1.5 py-0.5 rounded-full">aguardando</span></div>
+            </div>
+          </div>
+
+          {/* Avaliações Google */}
+          <div className="bg-white border border-[#E8E2D6] rounded-[13px]">
+            <div className="border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
               <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">⭐ Avaliações Google</h3>
-              <button className="text-[11px] text-[#009AAC] hover:underline">+ Solicitar</button>
             </div>
             <div style={{ padding: "13px 14px" }}>
-              <p className="text-[12px] text-[#8A989D]">Nenhuma avaliação solicitada</p>
+              <p className="text-[12px] text-[#8A989D] mb-2">Nenhuma avaliação solicitada</p>
+              <button onClick={() => openWhatsAppMeta(phone)} className="bg-[#E0F4F6] text-[#014D5E] text-[11px] px-2.5 py-1 rounded-[8px]">+ Solicitar por WhatsApp</button>
             </div>
           </div>
         </div>
 
-        {/* Coluna meio — Histórico de Interações (grande, cresce com uso) */}
-        <div className="flex flex-col gap-2.5">
-          {/* Histórico de Interações — observações pros próximos atendentes (cresce com uso) */}
-          <AccordionCard icon={() => <span style={{fontSize:"14px"}}>🕓</span>} title="Histórico de interações" count={interacoes.length}>
+        {/* Próximas ações */}
+        <div className="bg-[#FBF3E3] border border-[#F0DCB0] rounded-[13px] mb-3" style={{ padding: "12px 15px" }}>
+          <div className="flex items-center justify-between mb-1.5">
+            <h3 className="text-[13px] text-[#8a6400] font-medium flex items-center gap-1.5">🔔 Próximas ações</h3>
+            <button onClick={() => { setFuDate(tutor.proximoFollowupAt ? String(tutor.proximoFollowupAt).slice(0, 10) : ""); setFuOpen(true); }} className="text-[11.5px] text-[#8a6400] underline">📞 {tutor.proximoFollowupAt ? "Alterar" : "Agendar"} follow-up</button>
+          </div>
+          <div className="text-[12.5px] text-[#7a6330] flex flex-col gap-1">
+            {tutor.birthDate && <div>🎂 Aniversário em <b>{fmtDataBR(tutor.birthDate).slice(0, 5)}</b> — enviar mensagem</div>}
+            {tutor.proximoFollowupAt && <div>📞 Follow-up em <b>{fmtDataBR(tutor.proximoFollowupAt).slice(0, 5)}</b></div>}
+            {stats && stats.futurasAgendadas > 0 && <div>📅 {stats.futurasAgendadas} agendamento(s) futuro(s)</div>}
+            {stats && stats.valorAReceber > 0 && <div>⏳ Há valores a receber deste cliente</div>}
+            {!tutor.birthDate && !tutor.proximoFollowupAt && !(stats && stats.futurasAgendadas > 0) && !(stats && stats.valorAReceber > 0) && <div className="text-[#a99a72]">Nenhuma ação pendente no momento.</div>}
+          </div>
+        </div>
+
+        {/* Histórico de interações (largura total) */}
+        <div className="bg-white border border-[#E8E2D6] rounded-[13px] mb-3">
+          <div className="border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
+            <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">🕓 Histórico de interações <span className="bg-[#E7F6EE] text-[#1c7a47] text-[10px] font-medium px-1.5 py-0.5 rounded-full">{interacoes.length}</span></h3>
+          </div>
+          <div style={{ padding: "12px 14px" }}>
             <div className="flex gap-2 mb-2">
               <select value={intTipo} onChange={(e) => setIntTipo(e.target.value)} className="border border-[#E8E2D6] rounded px-2 py-1 text-[11px]">
                 <option value="NOTA">Nota</option>
@@ -1058,30 +1038,19 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
                 ))}
               </div>
             )}
-          </AccordionCard>
+          </div>
         </div>
 
-        {/* Coluna direita — Atendimentos + Sequências + Emails (compactos) */}
-        <div className="flex flex-col gap-2.5">
-          <AccordionCard icon={() => <span style={{fontSize:"14px"}}>⚡</span>} title="Sequências" badge={{ label: "Em breve", color: "#009AAC", bg: "#E0F4F6" }}>
-            <div className="flex flex-col gap-1">
-              <div className="bg-[#FBF9F4] border border-[#F0EBE0] rounded-[11px] px-2 py-1.5 flex items-center justify-between text-[11px]">
-                <span className="text-[#1F2A2E] truncate">📧 Boas-vindas</span>
-                <span className="bg-[#FBF3E3] text-[#8a6400] text-[9px] px-1.5 py-0.5 rounded-full ml-1">pendente</span>
-              </div>
-              <div className="bg-[#FBF9F4] border border-[#F0EBE0] rounded-[11px] px-2 py-1.5 flex items-center justify-between text-[11px]">
-                <span className="text-[#1F2A2E] truncate">🗒️ Retorno 30d</span>
-                <span className="bg-[#E0F4F6] text-[#009AAC] text-[9px] px-1.5 py-0.5 rounded-full ml-1">aguardando</span>
-              </div>
-            </div>
-          </AccordionCard>
-
-          <AccordionCard icon={() => <span style={{fontSize:"14px"}}>✉️</span>} title="E-mails" count={0}
-            action={<button onClick={() => setEmailOpen(true)} className="text-[11px] text-[#009AAC] hover:underline">+ Enviar</button>}>
-            <p className="text-center text-[12px] text-[#8A989D] py-2">Nenhum email</p>
-          </AccordionCard>
+        {/* E-mails (largura total, no fim) */}
+        <div className="bg-white border border-[#E8E2D6] rounded-[13px] mb-3">
+          <div className="flex items-center justify-between border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
+            <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">✉️ E-mails <span className="text-[#8A989D] font-normal">(0)</span></h3>
+            <button onClick={() => setEmailOpen(true)} className="text-[11px] text-[#009AAC] hover:underline">+ Enviar</button>
+          </div>
+          <div style={{ padding: "12px 14px" }}>
+            <p className="text-center text-[12px] text-[#8A989D]">Nenhum email enviado.</p>
+          </div>
         </div>
-      </div>
       </>
       )}
 
@@ -1098,6 +1067,38 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
                 <button onClick={async () => { await saveFollowup(); setFuOpen(false); }} disabled={savingFu || !fuDate} className="text-[12.5px] px-4 py-2 rounded-[9px] text-white" style={{ background: "#009AAC", opacity: savingFu || !fuDate ? 0.5 : 1 }}>{savingFu ? "Salvando..." : "Salvar"}</button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {notaOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.45)" }} onClick={() => setNotaOpen(false)}>
+          <div className="bg-[#FBF9F4] rounded-[16px] w-full max-w-[400px] p-5" style={{ border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-[15px] font-medium text-[#014D5E] mb-1">💗 Nota do cliente</h3>
+            <p className="text-[12px] text-[#8A989D] mb-3">Algo que vale lembrar sobre {tutor.name?.split(" ")[0] || "o cliente"}.</p>
+            <textarea value={nota} onChange={(e) => setNota(e.target.value)} rows={3} placeholder="Ex.: prefere ser atendida à tarde…" className="w-full px-3 py-2 border border-[#E8E2D6] rounded-[9px] text-[13px] bg-white" />
+            <div className="flex justify-end gap-2 mt-4">
+              <button onClick={() => setNotaOpen(false)} className="text-[12.5px] px-3 py-2 rounded-[9px] text-[#5C6B70]">Cancelar</button>
+              <button onClick={async () => { await saveNota(); await load(); setNotaOpen(false); }} disabled={notaSaving} className="text-[12.5px] px-4 py-2 rounded-[9px] text-white" style={{ background: "#009AAC", opacity: notaSaving ? 0.5 : 1 }}>{notaSaving ? "Salvando…" : "Salvar"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {situacaoOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.45)" }} onClick={() => setSituacaoOpen(false)}>
+          <div className="bg-[#FBF9F4] rounded-[16px] w-full max-w-[340px] p-5" style={{ border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-[15px] font-medium text-[#014D5E] mb-3">♻️ Situação do cliente</h3>
+            {estagios.length > 0 ? (
+              <div className="flex flex-col gap-1.5">
+                {estagios.map((e) => (
+                  <button key={e} onClick={async () => { await saveEstagio(e); setSituacaoOpen(false); }} className="text-left text-[12.5px] px-3 py-2 rounded-[9px] border border-[#E8E2D6] hover:border-[#009AAC]" style={{ background: tutor.estadoRelacionamento === e ? "#E0F4F6" : "#fff", color: tutor.estadoRelacionamento === e ? "#014D5E" : "#1F2A2E" }}>{e}</button>
+                ))}
+              </div>
+            ) : (
+              <p className="text-[12px] text-[#8A989D]">Nenhum estágio configurado. Cadastre em Configurações → Pipelines.</p>
+            )}
+            <div className="flex justify-end mt-4"><button onClick={() => setSituacaoOpen(false)} className="text-[12.5px] px-3 py-2 rounded-[9px] text-[#5C6B70]">Fechar</button></div>
           </div>
         </div>
       )}
