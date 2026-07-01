@@ -142,23 +142,17 @@ export default function ImportarVendasPage() {
   const [running, setRunning] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
-  function processar(text: string, nomeArquivo: string) {
+  function processarLinhas(linhas: Linha[], nomeArquivo: string) {
     setErro(null);
     setSim(null);
     setEfet(null);
     setInfo(null);
+    setArquivo(nomeArquivo);
     try {
-      const rows = parseCSV(text);
-      if (rows.length < 2) {
-        setErro("Arquivo vazio ou sem linhas.");
-        return;
-      }
-      const linhas = montarLinhas(rows);
       if (!linhas.length) {
-        setErro("Não encontrei nenhuma venda no arquivo. É o export certo (Inteligência › Vendas)?");
+        setErro("Não encontrei nenhuma venda no(s) arquivo(s). É o export certo (Inteligência › Vendas)?");
         return;
       }
-      // grupos distintos → mapa de marca cobrindo todos
       const gruposSet = new Set<string>();
       const mapa: Record<string, string> = {};
       for (const l of linhas) {
@@ -177,17 +171,45 @@ export default function ImportarVendasPage() {
         grupos: [...gruposSet].sort(),
       });
     } catch (err: any) {
+      setErro("Erro ao processar: " + (err?.message || ""));
+    }
+  }
+
+  function processarTexto(text: string, nomeArquivo: string) {
+    try {
+      const rows = parseCSV(text);
+      if (rows.length < 2) {
+        setErro("Arquivo vazio ou sem linhas.");
+        return;
+      }
+      processarLinhas(montarLinhas(rows), nomeArquivo);
+    } catch (err: any) {
       setErro("Erro ao ler o conteúdo: " + (err?.message || ""));
     }
   }
 
   function onFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setArquivo(file.name);
-    const reader = new FileReader();
-    reader.onload = () => processar(String(reader.result || ""), file.name);
-    reader.readAsText(file, "utf-8");
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    const nomes = files.length === 1 ? files[0].name : `${files.length} arquivos`;
+    let combinado: Linha[] = [];
+    let pend = files.length;
+    const done = () => {
+      if (--pend === 0) processarLinhas(combinado, nomes);
+    };
+    files.forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          combinado = combinado.concat(montarLinhas(parseCSV(String(reader.result || ""))));
+        } catch {}
+        done();
+      };
+      reader.onerror = () => done();
+      reader.readAsText(file, "utf-8");
+    });
+    // permite reescolher o mesmo arquivo depois
+    e.target.value = "";
   }
 
   function onColar() {
@@ -195,8 +217,7 @@ export default function ImportarVendasPage() {
       setErro("Cole o conteúdo do CSV no campo antes de processar.");
       return;
     }
-    setArquivo("(colado)");
-    processar(texto, "(colado)");
+    processarTexto(texto, "(colado)");
   }
 
   async function rodar(dryRun: boolean) {
@@ -269,12 +290,13 @@ export default function ImportarVendasPage() {
               No SimplesVet: <b>Inteligência › Vendas › Exportar</b>. Envie o <b>CSV</b> abaixo — ou
               cole o conteúdo se os acentos vierem quebrados.
             </p>
-            <input
-              type="file"
-              accept=".csv,text/csv"
-              onChange={onFile}
-              className="text-[13px]"
-            />
+            <label
+              className="inline-flex items-center gap-2 text-[13px] px-4 py-2 rounded-[9px] text-white cursor-pointer hover:opacity-90"
+              style={{ background: "#009AAC" }}
+            >
+              📎 Escolher CSV (pode selecionar vários)
+              <input type="file" multiple onChange={onFile} className="hidden" />
+            </label>
             <details className="mt-2">
               <summary className="text-[12px] text-[#009AAC] cursor-pointer select-none">
                 ou colar o conteúdo do CSV
