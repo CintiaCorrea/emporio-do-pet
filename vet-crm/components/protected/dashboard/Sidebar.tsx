@@ -6,10 +6,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LuSun, LuLayoutDashboard, LuMessageSquare, LuList, LuUsers, LuPawPrint,
-  LuCalendar, LuBuilding2, LuSettings, LuChevronLeft, LuChevronRight, LuChevronDown,
-  LuCircleDollarSign, LuMegaphone, LuUserCog, LuEye, LuCircleHelp, LuStar,
-  LuSparkles, LuFileText, LuRefreshCcw, LuExternalLink, LuWallet,
+  LuPawPrint, LuChevronLeft, LuChevronRight, LuChevronDown, LuEye,
 } from "react-icons/lu";
 import { roleLabel, roleShort, AppRole } from "@/lib/ui/role";
 import { useRolePreview } from "@/lib/ui/RolePreview";
@@ -25,7 +22,8 @@ type Section = "OP" | "GESTAO";
 type Item = {
   href: string;
   label: string;
-  Icon: React.ComponentType<{ size?: number; className?: string }>;
+  emoji: string;
+  Icon?: React.ComponentType<{ size?: number; className?: string }>;
   roles: AppRole[];
   badge?: number;
   tag?: { admin?: string; vet?: string; recep?: string };
@@ -37,7 +35,8 @@ type Group = {
   group: true;
   key: string;
   label: string;
-  Icon: React.ComponentType<{ size?: number; className?: string }>;
+  emoji: string;
+  Icon?: React.ComponentType<{ size?: number; className?: string }>;
   roles: AppRole[];
   children: Item[];
   section?: Section;
@@ -47,67 +46,67 @@ type Entry = Item | Group;
 const isGroup = (e: Entry): e is Group => (e as Group).group === true;
 
 const NAV: Entry[] = [
-  { href: "/dashboard/hoje", label: "Hoje", Icon: LuSun, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"], section: "OP" },
-  { href: "/dashboard", label: "Dashboard", Icon: LuLayoutDashboard, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"], exact: true, section: "OP" },
-  { href: "/dashboard/inbox", label: "Inbox BC", Icon: LuMessageSquare, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"], section: "OP" },
-  { href: "/dashboard/inbox-nativo", label: "Inbox Meta", Icon: LuMessageSquare, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"], section: "OP" },
-  { href: "/dashboard/crm/leads", label: "Comercial", Icon: LuList, roles: ["ADMIN", "RECEPTIONIST"], section: "OP" },
-  { href: "/dashboard/erp/tutores", label: "Clientes", Icon: LuUsers, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"], section: "OP" },
+  { href: "/dashboard/hoje", label: "Hoje", emoji: "✨", roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"], section: "OP" },
+  { href: "/dashboard", label: "Dashboard", emoji: "📊", roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"], exact: true, section: "OP" },
+  { href: "/dashboard/inbox", label: "Inbox BC", emoji: "💬", roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"], section: "OP" },
+  { href: "/dashboard/inbox-nativo", label: "Inbox Meta", emoji: "📲", roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"], section: "OP" },
+  { href: "/dashboard/crm/leads", label: "Comercial", emoji: "🎯", roles: ["ADMIN", "RECEPTIONIST"], section: "OP" },
+  { href: "/dashboard/erp/tutores", label: "Clientes", emoji: "👥", roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"], section: "OP" },
   // LIXEIRA-PETS-MENU (Cintia 22/06): aba "Pets" removida do menu. Edicao do pet centralizada na ficha de Cliente; ficha clinica acessivel pelo nome do pet na lista de Clientes. Restaurar = descomentar a linha abaixo.
-  // { href: "/dashboard/erp/pets", label: "Pets", Icon: LuPawPrint, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
-  { href: "/dashboard/erp/agendamentos/agenda", label: "Agenda", Icon: LuCalendar, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"], section: "OP" },
+  // { href: "/dashboard/erp/pets", label: "Pets", emoji: "🐾", roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
+  { href: "/dashboard/erp/agendamentos/agenda", label: "Agenda", emoji: "📅", roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"], section: "OP" },
   {
-    href: "/dashboard/erp/internacoes", label: "Internação", Icon: LuBuilding2,
+    href: "/dashboard/erp/internacoes", label: "Internação", emoji: "🏥",
     roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"], section: "OP",
   },
   {
-    group: true, key: "vendas", label: "Vendas", Icon: LuWallet, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"], section: "GESTAO",
+    group: true, key: "vendas", label: "Vendas", emoji: "💰", roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"], section: "GESTAO",
     children: [
-      { href: "/dashboard/erp/ponto-de-venda", label: "Ponto de venda", Icon: LuCircleDollarSign, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
-      { href: "/dashboard/erp/minhas-vendas", label: "Minhas vendas", Icon: LuStar, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
-      { href: "/dashboard/erp/caixa", label: "Caixa", Icon: LuWallet, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
-      { href: "/dashboard/erp/pacotes", label: "Pacotes", Icon: LuLayoutDashboard, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
-      { href: "/dashboard/erp/recebimentos", label: "Recebimentos", Icon: LuCircleDollarSign, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
-      { href: "/dashboard/erp/movimentos-caixa", label: "Movimentos de caixa", Icon: LuRefreshCcw, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
-      { href: "/dashboard/erp/saldo-clientes", label: "Saldo dos clientes", Icon: LuUsers, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
-      { href: "/dashboard/erp/lista-precos", label: "Lista de preços", Icon: LuList, roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
+      { href: "/dashboard/erp/ponto-de-venda", label: "Ponto de venda", emoji: "🛒", roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
+      { href: "/dashboard/erp/minhas-vendas", label: "Minhas vendas", emoji: "⭐", roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
+      { href: "/dashboard/erp/caixa", label: "Caixa", emoji: "💵", roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
+      { href: "/dashboard/erp/pacotes", label: "Pacotes", emoji: "📦", roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
+      { href: "/dashboard/erp/recebimentos", label: "Recebimentos", emoji: "🧾", roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
+      { href: "/dashboard/erp/movimentos-caixa", label: "Movimentos de caixa", emoji: "🔄", roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
+      { href: "/dashboard/erp/saldo-clientes", label: "Saldo dos clientes", emoji: "👛", roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
+      { href: "/dashboard/erp/lista-precos", label: "Lista de preços", emoji: "🏷️", roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
     ],
   },
   {
-    group: true, key: "financeiro", label: "Financeiro", Icon: LuCircleDollarSign, roles: ["ADMIN"], section: "GESTAO",
+    group: true, key: "financeiro", label: "Financeiro", emoji: "💵", roles: ["ADMIN"], section: "GESTAO",
     children: [
-      { href: "/dashboard/erp/financeiro-terceiros", label: "Fin. Terceiros", Icon: LuCircleDollarSign, roles: ["ADMIN"] },
+      { href: "/dashboard/erp/financeiro-terceiros", label: "Fin. Terceiros", emoji: "💸", roles: ["ADMIN"] },
     ],
   },
   {
-    group: true, key: "marketing", label: "Marketing", Icon: LuMegaphone, roles: ["ADMIN"], section: "GESTAO",
+    group: true, key: "marketing", label: "Marketing", emoji: "📣", roles: ["ADMIN"], section: "GESTAO",
     children: [
-      { href: "/dashboard/marketing/funil-semana", label: "Funil Semana", Icon: LuList, roles: ["ADMIN"] },
-      { href: "/dashboard/marketing/google-ads", label: "Google Ads", Icon: LuMegaphone, roles: ["ADMIN"] },
-        { href: "/dashboard/marketing/meta-ads", label: "Meta Ads", Icon: LuMegaphone, roles: ["ADMIN"] },
-      { href: "/dashboard/marketing/nps", label: "NPS", Icon: LuStar, roles: ["ADMIN"] },
-      { href: "/dashboard/marketing/avaliacoes-google", label: "Aval. Google", Icon: LuStar, roles: ["ADMIN"] },
-      { href: "/dashboard/marketing/campanhas", label: "Campanhas", Icon: LuMegaphone, roles: ["ADMIN"] },
-      { href: "/dashboard/marketing/midia", label: "Mídia", Icon: LuCircleDollarSign, roles: ["ADMIN"] },
-      { href: "/dashboard/marketing/emails", label: "Emails", Icon: LuMessageSquare, roles: ["ADMIN"] },
+      { href: "/dashboard/marketing/funil-semana", label: "Funil Semana", emoji: "📊", roles: ["ADMIN"] },
+      { href: "/dashboard/marketing/google-ads", label: "Google Ads", emoji: "🔍", roles: ["ADMIN"] },
+        { href: "/dashboard/marketing/meta-ads", label: "Meta Ads", emoji: "📣", roles: ["ADMIN"] },
+      { href: "/dashboard/marketing/nps", label: "NPS", emoji: "⭐", roles: ["ADMIN"] },
+      { href: "/dashboard/marketing/avaliacoes-google", label: "Aval. Google", emoji: "🌟", roles: ["ADMIN"] },
+      { href: "/dashboard/marketing/campanhas", label: "Campanhas", emoji: "🎯", roles: ["ADMIN"] },
+      { href: "/dashboard/marketing/midia", label: "Mídia", emoji: "🎬", roles: ["ADMIN"] },
+      { href: "/dashboard/marketing/emails", label: "Emails", emoji: "✉️", roles: ["ADMIN"] },
     ],
   },
   {
-    group: true, key: "ia", label: "IA / Atendimento", Icon: LuSparkles, roles: ["ADMIN"], section: "GESTAO",
+    group: true, key: "ia", label: "IA / Atendimento", emoji: "🤖", roles: ["ADMIN"], section: "GESTAO",
     children: [
-      { href: "/dashboard/ai-agents/agents", label: "Agentes", Icon: LuSparkles, roles: ["ADMIN"] },
-      { href: "/dashboard/ai-agents/conhecimento", label: "Conhecimento", Icon: LuFileText, roles: ["ADMIN"] },
-      { href: "/dashboard/ai-agents/automacoes", label: "Automações", Icon: LuRefreshCcw, roles: ["ADMIN"] },
-      { href: "/dashboard/ai-agents/conexoes", label: "Conexões", Icon: LuExternalLink, roles: ["ADMIN"] },
-      { href: "/dashboard/ai-agents/templates", label: "Templates", Icon: LuList, roles: ["ADMIN"] },
+      { href: "/dashboard/ai-agents/agents", label: "Agentes", emoji: "🤖", roles: ["ADMIN"] },
+      { href: "/dashboard/ai-agents/conhecimento", label: "Conhecimento", emoji: "📚", roles: ["ADMIN"] },
+      { href: "/dashboard/ai-agents/automacoes", label: "Automações", emoji: "⚡", roles: ["ADMIN"] },
+      { href: "/dashboard/ai-agents/conexoes", label: "Conexões", emoji: "🔌", roles: ["ADMIN"] },
+      { href: "/dashboard/ai-agents/templates", label: "Templates", emoji: "📋", roles: ["ADMIN"] },
     ],
   },
-  { href: "/dashboard/configuracoes", label: "Configurações", Icon: LuSettings, roles: ["ADMIN"], section: "GESTAO" },
+  { href: "/dashboard/configuracoes", label: "Configurações", emoji: "⚙️", roles: ["ADMIN"], section: "GESTAO" },
 ];
 
 const FUTURE = [
-  { label: "RH", Icon: LuUserCog, soon: "depois" },
-  { label: "Academia", Icon: LuLayoutDashboard, soon: "depois" },
+  { label: "RH", emoji: "🧑‍💼", soon: "depois" },
+  { label: "Academia", emoji: "🎓", soon: "depois" },
 ];
 
 export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
@@ -190,7 +189,7 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
             : { color: "#5C6B70" }
         }
       >
-        <it.Icon size={indented ? 16 : 18} className="flex-shrink-0" />
+        <span className={`${indented ? "text-[14px]" : "text-[16px]"} leading-none flex-shrink-0 w-[18px] text-center`}>{it.emoji}</span>
         {collapsed && badge > 0 && (
           <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full" style={{ background: it.href === "/dashboard/inbox-nativo" ? "#EAB308" : "#E24B4A" }} />
         )}
@@ -241,7 +240,7 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
           className="flex items-center gap-3 w-full px-3 py-[9px] rounded-[9px] text-[13.5px] transition"
           style={{ color: childActive ? "#014D5E" : "#5C6B70", fontWeight: childActive ? 600 : 500 }}
         >
-          <entry.Icon size={18} className="flex-shrink-0" />
+          <span className="text-[16px] leading-none flex-shrink-0 w-[18px] text-center">{entry.emoji}</span>
           <span className="flex-1 truncate text-left">{entry.label}</span>
           {open ? <LuChevronDown size={14} className="text-[#94a3b8]" /> : <LuChevronRight size={14} className="text-[#94a3b8]" />}
         </button>
@@ -339,7 +338,7 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
             </div>
             {FUTURE.map((f) => (
               <div key={f.label} className="flex items-center gap-3 px-3 py-2 rounded-[9px] text-[#b6c1c9] text-[13px] cursor-not-allowed">
-                <f.Icon size={17} />
+                <span className="text-[16px] leading-none flex-shrink-0 w-[18px] text-center">{f.emoji}</span>
                 <span className="flex-1">{f.label}</span>
                 <span className="text-[8.5px] font-bold tracking-wide bg-[#f1f5f7] text-[#94a3b8] px-1.5 py-[2px] rounded-[6px] uppercase">{f.soon}</span>
               </div>
@@ -369,7 +368,7 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
           className={`flex items-center ${collapsed ? "justify-center" : "gap-2.5"} px-3 py-2 rounded-[9px] text-[12.5px] text-[#64748b] hover:bg-[#f6f8f9] transition`}
           title={collapsed ? "Ajuda" : undefined}
         >
-          <LuCircleHelp size={15} />
+          <span className="text-[15px] leading-none flex-shrink-0 w-[18px] text-center">❓</span>
           {!collapsed && <span>Ajuda</span>}
         </Link>
       </div>
