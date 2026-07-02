@@ -1348,57 +1348,64 @@ export default function PetDetailPage() {
       </div>
       )}
 
-      {/* ═══════════ ABA 🧾 COMPRAS ═══════════ */}
-      {mainTab === "COMPRAS" && (
-      <div className="mb-3 flex flex-col gap-3">
-        {!showValues && <div className="text-[12px] text-[#8A989D]">🔒 Valores ocultos — use o 👁️ no topo para mostrar.</div>}
-        {/* Venda/Orçamentos + Total gasto + lista + Pagamento + Crédito (1 card) — tudo no PetVendaPanel */}
-        <PetVendaPanel petId={pet.id} pacotes={pacotes} servicos={servicosCat} atendimentos={atendimentos} onNovoAtendimento={() => { setAtd(ATD0); setItems([]); setMainTab("PRONTUARIO"); setTab("HISTORICO"); setAtdOpen(true); }} onChanged={() => { loadAtendimentos(); }} />
+      {/* ═══════════ ABA 🧾 COMPRAS — HISTÓRICO (somente leitura) ═══════════ */}
+      {mainTab === "COMPRAS" && (() => {
+        const MARCA: Record<string, { emoji: string; label: string; bg: string; fg: string }> = {
+          EMPORIO: { emoji: "🏥", label: "Empório", bg: "#D9F0F3", fg: "#014D5E" },
+          MUNDO_A_PARTE: { emoji: "🌿", label: "Mundo à Parte", bg: "#EAF3DE", fg: "#3B6D11" },
+          DRA_VIVIAN: { emoji: "✨", label: "Dra. Vivian", bg: "#EDE9FA", fg: "#3C3489" },
+        };
+        const marcaDe = (a: any) => MARCA[(a.marca || a.brand || "EMPORIO") as string] || MARCA.EMPORIO;
+        const comMarca: Record<string, number> = {};
+        for (const a of atendimentos) { const m = marcaDe(a); comMarca[m.label] = (comMarca[m.label] || 0) + Number(a.value || 0); }
+        const totalGasto = atendimentos.reduce((s: number, a: any) => s + Number(a.value || 0), 0);
+        const resumoItens = (a: any) => {
+          if (Array.isArray(a.items) && a.items.length) return a.items.map((it: any) => `${it.descricao || "Serviço"}${it.quantidade > 1 ? ` x${it.quantidade}` : ""}`).join(", ");
+          return a.description || a.chiefComplaint || ATD_TIPO_LABEL(a.type);
+        };
+        return (
+          <div className="mb-3 flex flex-col gap-3">
+            {/* Total gasto (com olhinho) + resumo por marca */}
+            <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-3 items-start">
+              <div className="bg-white border border-[#E8E2D6] rounded-[13px]" style={{ padding: "13px 16px" }}>
+                <div className="text-[11px] text-[#8A989D]">🧾 Total gasto no pet</div>
+                <div className="text-[22px] text-[#014D5E] font-medium mt-0.5">{money(totalGasto)}</div>
+                <div className="text-[11px] text-[#8A989D] mt-0.5">{atendimentos.length} atendimento(s)</div>
+              </div>
+              <div className="bg-white border border-[#E8E2D6] rounded-[13px]" style={{ padding: "13px 16px" }}>
+                <div className="text-[11px] text-[#8A989D] mb-1.5">Por marca</div>
+                {Object.keys(comMarca).length === 0 ? <p className="text-[12px] text-[#8A989D]">Sem compras ainda.</p> : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {Object.entries(comMarca).map(([label, v]) => { const mi = Object.values(MARCA).find((m) => m.label === label) || MARCA.EMPORIO; return (
+                      <span key={label} className="text-[11.5px] px-2.5 py-1 rounded-full" style={{ background: mi.bg, color: mi.fg }}>{mi.emoji} {label}: {money(v)}</span>
+                    ); })}
+                  </div>
+                )}
+              </div>
+            </div>
 
-        {/* 📦 Pacotes em andamento — LANÇAMENTO/GESTÃO (progresso em patinhas fica na Visão geral) */}
-        <div className="bg-white border border-[#E8E2D6] rounded-[13px]" style={{ padding: "14px 16px" }}>
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">📦 Pacotes em andamento</h3>
-            <button onClick={() => setPacForm((f) => ({ ...f, open: !f.open }))} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white flex items-center gap-1.5" style={{ background: "#009AAC" }}><LuPackage size={12} /> Lançar pacote</button>
+            {/* Histórico de vendas/atendimentos (somente leitura) */}
+            <div className="bg-white border border-[#E8E2D6] rounded-[13px]">
+              <div className="flex items-center justify-between border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
+                <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">🧾 Histórico de compras</h3>
+                <span className="text-[11px] text-[#8A989D]">registre novas vendas pelo atendimento →</span>
+              </div>
+              <div style={{ padding: "6px 15px" }}>
+                {atendimentos.length === 0 && <p className="text-[12.5px] text-[#8A989D] py-4 text-center">Nenhuma compra registrada ainda.</p>}
+                {atendimentos.map((a: any, i: number) => { const mi = marcaDe(a); return (
+                  <button key={a.id} onClick={() => abrirAtd(a.id)} className="w-full flex items-center gap-2.5 py-2.5 text-left" style={{ borderBottom: i < atendimentos.length - 1 ? "1px solid #F0EBE0" : "none" }}>
+                    <span className="text-[11.5px] text-[#8A989D] w-[42px] shrink-0">{fmtDataBR(a.date).slice(0, 5)}</span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full shrink-0" style={{ background: mi.bg, color: mi.fg }}>{mi.emoji} {mi.label}</span>
+                    <span className="flex-1 text-[12.5px] text-[#1F2A2E] truncate">{resumoItens(a)}</span>
+                    <span className="text-[12.5px] text-[#014D5E] font-medium shrink-0">{money(a.value)}</span>
+                  </button>
+                ); })}
+              </div>
+            </div>
+            <p className="text-[11px] text-[#8A989D] px-1">Somente leitura. Novas vendas, crédito e pacotes são lançados na tela de <b>Novo atendimento</b>.</p>
           </div>
-          <p className="text-[11px] text-[#8A989D] mb-3">Lance um pacote já em andamento (migração): informe o nome, o total de sessões e quantas já foram feitas. As sessões aparecem como 🐾 patinhas na aba <b>Visão geral</b>.</p>
-          {pacForm.open && (
-            <div className="border border-[#E8E2D6] rounded-xl p-4 mb-3 flex flex-wrap items-end gap-2">
-              <div className="flex-1 min-w-[160px]"><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Serviço de fisioterapia</label>
-                <select value={pacForm.serviceId} onChange={(e) => setPacForm((f) => ({ ...f, serviceId: e.target.value }))} className="w-full mt-0.5 px-2 py-1.5 border border-[#E8E2D6] rounded-lg text-xs">
-                  <option value="">— usar nome livre —</option>
-                  {fisioSrv.map((srv: any) => <option key={srv.id} value={srv.id}>{srv.nome || srv.titulo || srv.descricao}</option>)}
-                </select>
-              </div>
-              <div className="flex-1 min-w-[140px]"><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Nome do pacote (se sem serviço)</label>
-                <input value={pacForm.nome} onChange={(e) => setPacForm((f) => ({ ...f, nome: e.target.value }))} placeholder="Ex.: Pacote fisioterapia 10 sessões" className="w-full mt-0.5 px-2 py-1.5 border border-[#E8E2D6] rounded-lg text-xs" />
-              </div>
-              <div className="w-20"><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Total</label><input type="number" min="1" value={pacForm.total} onChange={(e) => setPacForm((f) => ({ ...f, total: e.target.value }))} className="w-full mt-0.5 px-2 py-1.5 border border-[#E8E2D6] rounded-lg text-xs" /></div>
-              <div className="w-24"><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Já feitas</label><input type="number" min="0" value={pacForm.jaFeitas} onChange={(e) => setPacForm((f) => ({ ...f, jaFeitas: e.target.value }))} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg text-xs" style={{ borderColor: "#1D9E75", color: "#0F6E56" }} /></div>
-              <button onClick={addPacote} disabled={savingPac} className="px-3 py-1.5 rounded-lg text-xs text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingPac ? "..." : "Lançar"}</button>
-            </div>
-          )}
-          {pacotes.length === 0 ? (
-            <div className="border border-[#E8E2D6] rounded-xl p-6 text-center text-sm text-[#8A989D]">Nenhum pacote em andamento.</div>
-          ) : (
-            <div className="space-y-2">
-              {pacotes.map((p) => { const used = p.data.used || 0; const total = p.data.total || 0; const done = used >= total; return (
-                <div key={p.id} className="border border-[#E8E2D6] rounded-xl px-3 py-2.5 flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="text-[13px] font-medium text-[#014D5E] truncate">{done ? "🏆 " : "🐾 "}{p.data.nome}</div>
-                    <div className="text-[11px] text-[#8A989D]">{used}/{total} sessões{p.data.serviceId ? " · ligado à venda" : " · migração"}</div>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button onClick={() => usarSessao(p)} disabled={done} className="px-2 py-1 rounded-lg text-xs border disabled:opacity-40" style={{ borderColor: "#E8E2D6", color: "#009AAC" }}>{done ? "🎉 Concluído" : "+1 sessão"}</button>
-                    <button onClick={() => delPacote(p.id)} className="px-2 py-1 rounded-lg text-xs border" style={{ borderColor: "#f4baba", color: "#A32D2D" }}>Excluir</button>
-                  </div>
-                </div>
-              ); })}
-            </div>
-          )}
-        </div>
-      </div>
-      )}
+        );
+      })()}
 
       {/* ── Popups (padrão bege) ── */}
       {statusOpen && (
