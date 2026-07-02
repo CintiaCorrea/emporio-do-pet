@@ -155,7 +155,9 @@ export default function PetDetailPage() {
   const [atdOpen, setAtdOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [savingAtd, setSavingAtd] = useState(false);
-  const [artefato, setArtefato] = useState<null | "PESO" | "OBS" | "RECEITA" | "DOCUMENTO" | "VIDEO">(null);
+  const [artefato, setArtefato] = useState<null | "PESO" | "OBS" | "RECEITA" | "DOCUMENTO" | "VIDEO" | "FOTO">(null);
+  const [fotoUrl, setFotoUrl] = useState("");
+  const [fotoLegenda, setFotoLegenda] = useState("");
   const [pesoVal, setPesoVal] = useState("");
   const [recModelos, setRecModelos] = useState<{ nome: string; corpo: string }[]>([]);
   const [recModeloNome, setRecModeloNome] = useState("");
@@ -333,6 +335,19 @@ export default function PetDetailPage() {
       toast.success("Vídeo anexado"); setArtefato(null); await loadAtendimentos();
     } catch { toast.error("Erro ao anexar vídeo"); } finally { setSavingArt(false); }
   }
+  // 📷 Fotos — anexa por link/URL de imagem (mesmo padrão do Vídeo; upload de arquivo entra com Cloudinary na Fase B)
+  function abrirFoto() { setEditId(null); setAtdOpen(false); setArtefato("FOTO"); setFotoUrl(""); setFotoLegenda(""); }
+  async function salvarFoto() {
+    if (!pet) return;
+    if (!fotoUrl.trim()) { toast.error("Cole o link da imagem"); return; }
+    setSavingArt(true);
+    try {
+      const body: any = { tutorId: pet.tutorId, petId: pet.id, userId: vets[0]?.id, date: new Date().toISOString(), type: "Foto", status: "Realizado", prescription: fotoUrl, chiefComplaint: fotoLegenda || undefined };
+      const r = await fetch("/api/appointments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (!r.ok) throw new Error(await r.text());
+      toast.success("Foto anexada"); setArtefato(null); await loadAtendimentos();
+    } catch { toast.error("Erro ao anexar foto"); } finally { setSavingArt(false); }
+  }
   function imprimirFolha(titulo: string, corpo: string, vetNome: string) {
     const tutorNome = (pet?.tutor?.name || pet?.tutorName || "");
     const w = window.open("", "_blank", "width=800,height=900");
@@ -450,6 +465,19 @@ export default function PetDetailPage() {
   async function addExame() { if (!exPick.trim()) { toast.error("Escolha um exame"); return; } setSavingEx(true); try { const _cat = exCat.find((c: any) => (c.nome || "").trim().toLowerCase() === exPick.trim().toLowerCase()); const _snap = _cat ? { fornecedorId: _cat.fornecedorId || _cat.fornecedor?.id, fornecedorNome: _cat.fornecedor?.nome, custo: _cat.valorFornecedor ?? null, valor: _cat.valorClienteSugerido ?? null } : {}; await listasAdd(`petexa_${petId}`, JSON.stringify({ nome: exPick.trim(), status: examFases[0] || "Solicitado", date: new Date().toISOString(), ..._snap })); toast.success("Exame solicitado"); setExPick(""); await loadPetColecoes(); } catch { toast.error("Erro"); } finally { setSavingEx(false); } }
   async function updExameStatus(id: string, data: any, novoStatus: string) { try { const r = await fetch(`/api/listas/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ valor: JSON.stringify({ ...data, status: novoStatus }) }) }); if (!r.ok) throw new Error(); await loadPetColecoes(); } catch { toast.error("Erro ao atualizar fase"); } }
   async function delExame(id: string) { try { await listasDel(id); await loadPetColecoes(); } catch { toast.error("Erro"); } }
+  // 📎 Anexa o resultado (link) ao exame e avança o status para "Resultado"
+  async function anexarResultado(id: string, data: any) {
+    const url = window.prompt("Cole o link do resultado (Drive, PDF, imagem…):", data.resultadoUrl || "");
+    if (url == null) return;
+    try {
+      const novoStatus = (examFases.find((f) => /resultado/i.test(f)) || data.status);
+      const r = await fetch(`/api/listas/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ valor: JSON.stringify({ ...data, resultadoUrl: url.trim() || null, status: url.trim() ? novoStatus : data.status }) }) });
+      if (!r.ok) throw new Error();
+      // Registra tambem como documento na timeline
+      if (url.trim() && pet) { try { await fetch("/api/appointments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tutorId: pet.tutorId, petId: pet.id, userId: vets[0]?.id, date: new Date().toISOString(), type: "Resultado de exames", status: "Realizado", prescription: url.trim(), chiefComplaint: data.nome }) }); } catch {} }
+      toast.success("Resultado anexado"); await loadPetColecoes(); await loadAtendimentos();
+    } catch { toast.error("Erro ao anexar resultado"); }
+  }
   async function criarAtendimento() {
     if (!pet) return;
     if (!atd.date) { toast.error("Informe data e hora"); return; }
@@ -1030,13 +1058,14 @@ export default function PetDetailPage() {
         {/* header discreto: título + seletor pequeno de visão (sem 3 sub-abas destacadas) */}
         <div className="flex items-center justify-between border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
           <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">🩺 Prontuário</h3>
-          <select value={tab === "TIMELINE" || tab === "AGENDA" ? tab : "HISTORICO"} onChange={(e) => setTab(e.target.value as any)} className="border border-[#E8E2D6] rounded-full px-3 py-1 text-[11.5px] text-[#5C6B70] bg-white">
+          <select value={["TIMELINE", "AGENDA", "EXAMES"].includes(tab) ? tab : "HISTORICO"} onChange={(e) => setTab(e.target.value as any)} className="border border-[#E8E2D6] rounded-full px-3 py-1 text-[11.5px] text-[#5C6B70] bg-white">
             <option value="HISTORICO">Histórico</option>
+            <option value="EXAMES">🔬 Exames</option>
             <option value="TIMELINE">Linha do tempo</option>
             <option value="AGENDA">Agenda</option>
           </select>
         </div>
-        {(tab === "HISTORICO" || !["TIMELINE", "AGENDA"].includes(tab)) && (
+        {(tab === "HISTORICO" || !["TIMELINE", "AGENDA", "EXAMES"].includes(tab)) && (
           <div className="p-5">
             <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-5 items-start">
               <div className="lg:order-1">
@@ -1140,9 +1169,25 @@ export default function PetDetailPage() {
                     <input value={vidUrl} onChange={(e) => setVidUrl(e.target.value)} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }} placeholder="https://…" />
                     <p className="text-[11px] text-gray-400 mt-2">Cole o link do vídeo. Upload de arquivo (Exame/Fotos) entra quando o Cloudinary estiver ativo.</p>
                   </div>
+                ) : artefato === "FOTO" ? (
+                  <div className="bg-white">
+                    <div className="flex items-center justify-between border-b pb-2.5 mb-3" style={{ borderColor: "#E8DFC8" }}>
+                      <h3 className="text-sm font-semibold" style={{ color: "#0E2244" }}>📷 Foto</h3>
+                      <div className="flex gap-2">
+                        <button onClick={salvarFoto} disabled={savingArt} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingArt ? "..." : "Salvar"}</button>
+                        <button onClick={() => setArtefato(null)} className="px-3 py-1.5 rounded-lg text-xs border" style={{ borderColor: "#E8DFC8", color: "#475569" }}>Fechar</button>
+                      </div>
+                    </div>
+                    <label className="text-xs text-gray-500">Link da imagem (Drive, Cloudinary, etc.)</label>
+                    <input value={fotoUrl} onChange={(e) => setFotoUrl(e.target.value)} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }} placeholder="https://…" />
+                    <label className="text-xs text-gray-500 mt-2 block">Legenda (opcional)</label>
+                    <input value={fotoLegenda} onChange={(e) => setFotoLegenda(e.target.value)} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }} placeholder="Ex.: lesão na pata dianteira" />
+                    {fotoUrl.trim() && <img src={fotoUrl} alt="pré-visualização" className="mt-3 max-h-48 rounded-lg border" style={{ borderColor: "#E8DFC8" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />}
+                    <p className="text-[11px] text-gray-400 mt-2">Anexa por link de imagem e entra na timeline como "Foto". Upload direto de arquivo chega com o Cloudinary (Fase B).</p>
+                  </div>
                 ) : (
                   <div className="bg-white">
-                    <button onClick={() => { setEditId(null); setArtefato(null); setAtd(ATD0); setItems([]); setAtdOpen(true); }} className="w-full bg-[#009AAC] text-white rounded-[10px] px-3.5 py-2.5 text-[13px] font-medium hover:bg-[#00808f] flex items-center justify-center gap-1.5">
+                    <button onClick={() => router.push(`/dashboard/erp/pets/${petId}/atendimentos/novo`)} className="w-full bg-[#009AAC] text-white rounded-[10px] px-3.5 py-2.5 text-[13px] font-medium hover:bg-[#00808f] flex items-center justify-center gap-1.5">
                       ＋ Novo atendimento
                     </button>
                     <div className="mt-3">
@@ -1153,7 +1198,10 @@ export default function PetDetailPage() {
                           { label: "💊 Receita", act: () => abrirReceita() },
                           { label: "📄 Documento", act: () => abrirDocumento() },
                           { label: "🎥 Vídeo", act: () => abrirVideo() },
+                          { label: "📷 Fotos", act: () => abrirFoto() },
                           { label: "📝 Observação", act: () => { setObsVal(pet?.observations || ""); setAtdOpen(false); setArtefato("OBS"); } },
+                          { label: "🔬 Exame", act: () => setTab("EXAMES") },
+                          { label: "🦠 Patologia", act: async () => { await abrirDocumento(); setDocModeloNome("Laudo de patologia"); } },
                         ] as const).map((c) => (
                           <button key={c.label} onClick={c.act} className="text-[12px] px-3 py-1.5 rounded-full border border-[#E8E2D6] bg-white text-[#5C6B70] hover:border-[#009AAC] hover:text-[#009AAC] transition">{c.label}</button>
                         ))}
@@ -1185,6 +1233,49 @@ export default function PetDetailPage() {
         )}
         {tab === "TIMELINE" && <div className="p-5"><FeedTimeline atendimentos={atendimentos} clinDocs={clinDocs} /></div>}
         {tab === "AGENDA" && <div className="p-5"><PetClinicaTabela view="agenda" atendimentos={atendimentos} tipoLabel={ATD_TIPO_LABEL} /></div>}
+        {tab === "EXAMES" && (
+          <div className="p-5">
+            {/* Adicionar exame do catálogo */}
+            <div className="flex items-center gap-2 flex-wrap mb-3">
+              <input list="exames-catalogo-pet" value={exPick} onChange={(e) => setExPick(e.target.value)} placeholder="Buscar exame no catálogo…" className="flex-1 min-w-[180px] px-3 py-2 border border-[#E8E2D6] rounded-[9px] text-[13px]" />
+              <datalist id="exames-catalogo-pet">{exCat.slice(0, 1000).map((e: any, i: number) => <option key={i} value={e.nome || e.titulo || e.descricao} />)}</datalist>
+              <button onClick={addExame} disabled={savingEx} className="px-3 py-2 rounded-[9px] text-[13px] font-medium text-white flex items-center gap-1.5" style={{ background: "#009AAC" }}><LuFlaskConical size={13} /> {savingEx ? "..." : "Solicitar"}</button>
+            </div>
+            {exames.length === 0 ? (
+              <div className="border border-[#E8E2D6] rounded-[12px] p-6 text-center text-[13px] text-[#8A989D]">Nenhum exame do pet ainda. Solicite acima ou pelo formulário de atendimento.</div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {exames.map((x) => {
+                  const fases = examFases.length ? examFases : ["Solicitado"];
+                  const cur = Math.max(0, fases.indexOf(x.data.status || fases[0]));
+                  return (
+                    <div key={x.id} className="border border-[#E8E2D6] rounded-[12px]" style={{ padding: "11px 13px" }}>
+                      <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
+                        <div className="min-w-0">
+                          <span className="text-[13px] font-medium text-[#014D5E]">{x.data.nome}</span>
+                          {x.data.externo && <span className="ml-2 text-[10px] px-2 py-0.5 rounded-full" style={{ background: "#EDE9FA", color: "#3C3489" }}>externo</span>}
+                          <span className="text-[11px] text-[#8A989D] ml-2">{x.data.date ? fmtDataBR(x.data.date) : ""}</span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button onClick={() => anexarResultado(x.id, x.data)} className="text-[11px] px-2.5 py-1 rounded-full border border-[#E8E2D6] text-[#009AAC] hover:border-[#009AAC]">📎 {x.data.resultadoUrl ? "Ver/trocar resultado" : "Anexar resultado"}</button>
+                          <button onClick={() => delExame(x.id)} className="text-[11px] text-[#b23b39]">Excluir</button>
+                        </div>
+                      </div>
+                      {x.data.resultadoUrl && <a href={x.data.resultadoUrl} target="_blank" rel="noopener" className="text-[11.5px] text-[#009AAC] underline break-all block mb-2">📄 {x.data.resultadoUrl}</a>}
+                      {/* Status roll-up (mesmo formato do petexa_ que o Hoje lê) */}
+                      <div className="flex items-center gap-1 flex-wrap">
+                        {fases.map((f, fi) => (
+                          <button key={f} onClick={() => updExameStatus(x.id, x.data, f)} title={f} className="text-[11px] px-2.5 py-1 rounded-full border transition" style={fi <= cur ? { background: "#009AAC", color: "#fff", borderColor: "#009AAC" } : { background: "#fff", color: "#5C6B70", borderColor: "#E8E2D6" }}>{f}</button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            <p className="text-[11px] text-[#8A989D] mt-3">Os exames com status aparecem em "Exames a entregar" no Hoje até serem entregues ao tutor.</p>
+          </div>
+        )}
       </div>
       )}
 

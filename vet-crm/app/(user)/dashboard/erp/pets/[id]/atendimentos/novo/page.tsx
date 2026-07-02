@@ -1,74 +1,30 @@
 "use client";
-
-import { useEffect, useState } from "react";
+/* ─────────────────────────────────────────────────────────────
+   EMPÓRIO DO PET · Ficha de Atendimento (Fase A)   [EMP-COWORK]
+   Tela cheia — mockups: ficha_atendimento_mockup + exames_duas_caixas_mockup
+   Estética Base44 (bege/teal). Fase B (financeiro/caixa/terceiros) NÃO entra aqui.
+   ───────────────────────────────────────────────────────────── */
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { LuArrowLeft, LuSave, LuStethoscope, LuClipboardList, LuActivity, LuPill, LuFlaskConical, LuCalendar, LuDollarSign } from "react-icons/lu";
 import toast from "react-hot-toast";
-import PetIcon from "@/components/profile/PetIcon";
-import { usePageTitle } from "@/lib/ui/PageHeaderContext";
-import { speciesLabel } from "@/lib/pets/labels";
+import { speciesLabel, ageFromBirth, genderLabel } from "@/lib/pets/labels";
 
 interface Pet {
   id: string; name: string; species: string; breed?: string | null;
-  tutorId: string;
-  tutor?: { id: string; name: string };
+  gender?: string | null; birthDate?: string | null; weight?: number | null;
+  tutorId: string; tutor?: { id: string; name: string };
+  followUpNotes?: string | null; proximoFollowupAt?: string | null;
 }
+interface Prof { id: string; name: string; }
+interface ExameCat { id: string; nome: string; codigo?: string | null; categoria?: string | null; fornecedor?: { id: string; nome: string; tipo?: string } | null; }
 
-interface Profissional { id: string; name: string; }
-interface Servico { id: string; nome: string; valorPadrao: number | null; custoPadrao?: number | null; }
-interface Exame {
-  id: string;
-  nome: string;
-  codigo?: string | null;
-  categoria?: string | null;
-  valor_cliente_sugerido?: number | null;
-  valorClienteSugerido?: number | null;
-  valor_fornecedor?: number | null;
-  valorFornecedor?: number | null;
-  fornecedor_id?: string | null;
-  fornecedorId?: string | null;
-  fornecedor?: { id: string; nome: string } | null;
-}
-interface AppointmentItem {
-  servicoId?: string;
-  descricao?: string;
-  executorUserId?: string;
-  fornecedorId?: string;
-  quantidade: number;
-  valorUnitario: number;
-  custoUnitario: number;
-  desconto: number;
-  valorTotal: number;
-  comissaoValor?: number;
-}
+const PET_EMOJI = (s: string) => { const u = (s || "").toUpperCase(); if (u.includes("FELIN") || u.includes("GAT")) return "🐱"; if (u.includes("CANIN") || u.includes("CACHORR")) return "🐶"; return "🐾"; };
+const VIAS = ["Oral (VO)", "Subcutânea (SC)", "Intramuscular (IM)", "Intravenosa (IV)", "Tópica", "Ocular", "Auricular", "Inalatória", "Outra"];
+const EX_FASES_DEFAULT = ["Solicitar", "Retirado", "Aguardando", "Resultado", "Entregue"];
 
-const TYPES = [
-  { v: "CONSULTA", label: "Consulta" },
-  { v: "RETORNO", label: "Retorno" },
-  { v: "AVALIACAO", label: "Avaliação" },
-  { v: "EMERGENCIA", label: "Emergência" },
-  { v: "PROCEDIMENTO", label: "Procedimento" },
-  { v: "VACINACAO", label: "Vacinação" },
-  { v: "CIRURGIA", label: "Cirurgia" },
-  { v: "SESSAO_FISIO", label: "Sessão de Fisioterapia" },
-  { v: "OUTRO", label: "Outro" },
-];
-const STATUS = [
-  { v: "SCHEDULED", label: "Agendado" },
-  { v: "IN_PROGRESS", label: "Em andamento" },
-  { v: "COMPLETED", label: "Realizado" },
-  { v: "MISSED", label: "Faltou" },
-  { v: "CANCELED", label: "Cancelado" },
-];
-const PAYMENT_METHODS = [
-  "Dinheiro", "PIX", "Cartão Crédito", "Cartão Débito", "Transferência", "Pacote", "Cortesia", "Pendente",
-];
-
-async function safeJson<T>(res: Response, fb: T): Promise<T> {
-  try { if (!res.ok) return fb; const d = await res.json(); return d == null ? fb : d; } catch { return fb; }
-}
+async function safeJson<T>(res: Response, fb: T): Promise<T> { try { if (!res.ok) return fb; const d = await res.json(); return d == null ? fb : d; } catch { return fb; } }
 
 export default function NovoAtendimentoPage() {
   const params = useParams<{ id: string }>();
@@ -77,539 +33,371 @@ export default function NovoAtendimentoPage() {
   const petId = params?.id as string;
 
   const [pet, setPet] = useState<Pet | null>(null);
-  const [vets, setVets] = useState<Profissional[]>([]);
+  const [vets, setVets] = useState<Prof[]>([]);
   const [saving, setSaving] = useState(false);
+  const [pesos, setPesos] = useState<{ id?: string; data: string; kg: number }[]>([]);
+  const [exCat, setExCat] = useState<ExameCat[]>([]);
+  const [recModelos, setRecModelos] = useState<{ nome: string; corpo: string }[]>([]);
+  const [tipos, setTipos] = useState<{ v: string; l: string }[]>([{ v: "CONSULTA", l: "Consulta" }, { v: "RETORNO", l: "Retorno" }, { v: "AVALIACAO", l: "Avaliação" }, { v: "EMERGENCIA", l: "Emergência" }, { v: "VACINACAO", l: "Vacinação" }, { v: "PROCEDIMENTO", l: "Procedimento" }, { v: "SESSAO_FISIO", l: "Sessão de fisioterapia" }, { v: "CIRURGIA", l: "Cirurgia" }, { v: "OUTRO", l: "Outro" }]);
+  const [exFases, setExFases] = useState<string[]>(EX_FASES_DEFAULT);
 
-  // Items (serviços e valores)
-  const [items, setItems] = useState<AppointmentItem[]>([]);
-  const [servicos, setServicos] = useState<Servico[]>([]);
-  const [exames, setExames] = useState<Exame[]>([]);
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const [pickerTab, setPickerTab] = useState<"servicos" | "exames">("servicos");
-  const [pickerSearch, setPickerSearch] = useState("");
-
-  // Form state
   const [form, setForm] = useState({
-    type: "CONSULTA",
-    status: "COMPLETED",
-    date: new Date().toISOString().slice(0, 16), // datetime-local
-    duration: 30,
-    userId: "", // vet
-    description: "",
-    chiefComplaint: "",
-    anamnesis: "",
-    physicalExam: "",
-    diagnosis: "",
-    conduct: "",
-    prescription: "",
-    examsRequested: "",
-    followUpNotes: "",
-    nextReturnDate: "",
-    petWeight: "",
-    temperature: "",
-    value: "",
-    paymentMethod: "",
-    notes: "",
+    date: new Date().toISOString().slice(0, 16), type: "CONSULTA", userId: "", status: "Realizado",
+    peso: "", chiefComplaint: "", anamnesis: "", physicalExam: "", diagnosis: "", conduct: "",
+    recModelo: "", followUpNotes: "", followUpDate: "",
   });
+  const set = (k: keyof typeof form, v: any) => setForm((f) => ({ ...f, [k]: v }));
 
-  usePageTitle("Novo Atendimento", pet ? `${pet.name} · Tutor: ${pet.tutor?.name || ""}` : undefined);
+  // Prescrição estruturada
+  const [meds, setMeds] = useState<{ nome: string; posologia: string; via: string }[]>([]);
+  // Exames escolhidos (duas caixas)
+  const [exClinica, setExClinica] = useState<{ nome: string; status: string; codigo?: string }[]>([]);
+  const [exExterno, setExExterno] = useState<{ nome: string; codigo?: string }[]>([]);
+  const [pickClinica, setPickClinica] = useState(false);
+  const [pickExterno, setPickExterno] = useState(false);
+  const [buscaC, setBuscaC] = useState("");
+  const [buscaE, setBuscaE] = useState("");
 
   useEffect(() => {
     if (!petId) return;
     (async () => {
-      const r1 = await fetch(`/api/pets/${petId}`);
-      const p = await safeJson<Pet | null>(r1, null);
+      const p = await safeJson<Pet | null>(await fetch(`/api/pets/${petId}`), null);
       setPet(p);
-      // tentar puxar lista de vets
-      const r2 = await fetch(`/api/users?role=VETERINARIAN&limit=100`).catch(() => null);
-      const users = r2 ? await safeJson<any>(r2, []) : [];
+      if (p) setForm((f) => ({ ...f, peso: p.weight ? String(p.weight) : "", followUpNotes: p.followUpNotes || "", followUpDate: p.proximoFollowupAt ? String(p.proximoFollowupAt).slice(0, 10) : "" }));
+      const users = await safeJson<any>(await fetch(`/api/users`), []);
       const list = Array.isArray(users) ? users : (users.users || users.data || []);
       setVets(list);
-      // default vet = usuário logado se for veterinário
-      if (session?.user?.id && session?.user?.role === "VETERINARIAN") {
-        setForm(f => ({ ...f, userId: session.user.id! }));
-      } else if (list[0]?.id) {
-        setForm(f => ({ ...f, userId: list[0].id }));
-      }
-      // serviços (catálogo)
-      const r3 = await fetch("/api/servicos/itens?limit=500").catch(() => null);
-      const svc = r3 ? await safeJson<any>(r3, []) : [];
-      const svcList = Array.isArray(svc) ? svc : (svc.servicos || svc.itens || svc.data || []);
-      setServicos(svcList);
-      // exames (catálogo de fornecedores)
-      const r4 = await fetch("/api/fornecedores/exames?limit=2000").catch(() => null);
-      const exm = r4 ? await safeJson<any>(r4, []) : [];
-      const exmList = Array.isArray(exm) ? exm : (exm.exames || exm.itens || exm.data || []);
-      setExames(exmList);
+      if ((session as any)?.user?.id) setForm((f) => ({ ...f, userId: (session as any).user.id }));
+      else if (list[0]?.id) setForm((f) => ({ ...f, userId: list[0].id }));
+      // catálogo de exames (planilha config)
+      const exm = await safeJson<any>(await fetch(`/api/fornecedores/exames/lista`), []);
+      setExCat(Array.isArray(exm) ? exm : (exm.exames || exm.data || []));
+      // pesos já registrados
+      const lp = await safeJson<any>(await fetch(`/api/listas?lista=petpeso_${petId}`, { cache: "no-store" }), []);
+      const lpArr = Array.isArray(lp) ? lp : (lp.itens || lp.data || []);
+      const parsedP = lpArr.map((i: any) => { let o: any = {}; try { o = JSON.parse(i.valor); } catch {} return { id: i.id, data: o.data, kg: Number(o.kg) }; }).filter((x: any) => x.kg > 0).sort((a: any, b: any) => new Date(a.data).getTime() - new Date(b.data).getTime());
+      // semente: se não há histórico mas o pet tem peso atual, mostra o ponto atual
+      if (parsedP.length === 0 && p?.weight) parsedP.push({ data: new Date().toISOString(), kg: Number(p.weight) });
+      setPesos(parsedP);
+      // modelos de receita
+      const rm = await safeJson<any>(await fetch(`/api/listas?lista=receita_modelo`, { cache: "no-store" }), []);
+      const rmArr = Array.isArray(rm) ? rm : (rm.itens || rm.data || []);
+      setRecModelos(rmArr.map((i: any) => { let o: any = {}; try { o = JSON.parse(i.valor); } catch { o = { nome: i.valor, corpo: "" }; } return { nome: o.nome || i.valor, corpo: o.corpo || "" }; }));
+      // fases de exame (config) — se houver
+      const ef = await safeJson<any>(await fetch(`/api/listas?lista=exame_fases`, { cache: "no-store" }), []);
+      const efArr = (Array.isArray(ef) ? ef : (ef.itens || ef.data || [])).map((i: any) => i.valor).filter(Boolean);
+      if (efArr.length) setExFases(efArr);
+      // tipos de atendimento (config)
+      const rt = await safeJson<any>(await fetch(`/api/listas?lista=atendimento_tipo`, { cache: "no-store" }), []);
+      const rtArr = (Array.isArray(rt) ? rt : (rt.itens || rt.data || [])).map((i: any) => { try { const o = JSON.parse(i.valor); return { v: o.v, l: o.l }; } catch { return { v: i.valor, l: i.valor }; } }).filter((x: any) => x.v);
+      if (rtArr.length) setTipos(rtArr);
     })();
-  }, [petId, session?.user?.id, session?.user?.role]);
+  }, [petId, session]);
 
-  // Soma automática dos itens no campo "valor"
-  useEffect(() => {
-    const total = items.reduce((s, it) => s + (Number(it.valorTotal) || 0), 0);
-    setForm(f => ({ ...f, value: total > 0 ? total.toFixed(2) : "" }));
-  }, [items]);
+  // "Fazemos na clínica" = fornecedor PROFISSIONAL (in-house); externo = laboratório/parceiro.
+  // Fallback: se não houver PROFISSIONAL cadastrado, o catálogo inteiro fica disponível nas duas caixas.
+  const temProfissional = useMemo(() => exCat.some((e) => (e.fornecedor?.tipo || "") === "PROFISSIONAL"), [exCat]);
+  const catClinica = useMemo(() => temProfissional ? exCat.filter((e) => (e.fornecedor?.tipo || "") === "PROFISSIONAL") : exCat, [exCat, temProfissional]);
+  const catExterno = useMemo(() => temProfissional ? exCat.filter((e) => (e.fornecedor?.tipo || "") !== "PROFISSIONAL") : exCat, [exCat, temProfissional]);
 
-  function set<K extends keyof typeof form>(k: K, v: typeof form[K]) {
-    setForm({ ...form, [k]: v });
+  // Mini-gráfico de peso (polyline SVG)
+  const grafPeso = useMemo(() => {
+    const pts = pesos.slice(-12);
+    if (pts.length === 0) return null;
+    const W = 260, H = 70, pad = 8;
+    const kgs = pts.map((p) => p.kg);
+    const min = Math.min(...kgs), max = Math.max(...kgs);
+    const range = max - min || 1;
+    const stepX = pts.length > 1 ? (W - pad * 2) / (pts.length - 1) : 0;
+    const coords = pts.map((p, i) => {
+      const x = pad + i * stepX;
+      const y = H - pad - ((p.kg - min) / range) * (H - pad * 2);
+      return { x, y, kg: p.kg, data: p.data };
+    });
+    return { W, H, coords, poly: coords.map((c) => `${c.x},${c.y}`).join(" ") };
+  }, [pesos]);
+
+  function addMed() { setMeds((m) => [...m, { nome: "", posologia: "", via: "Oral (VO)" }]); }
+  function updMed(i: number, patch: any) { setMeds((m) => m.map((x, idx) => idx === i ? { ...x, ...patch } : x)); }
+  function rmMed(i: number) { setMeds((m) => m.filter((_, idx) => idx !== i)); }
+  function aplicarModeloReceita(nome: string) {
+    set("recModelo", nome);
+    const m = recModelos.find((x) => x.nome === nome);
+    if (m && m.corpo) {
+      // insere o corpo do modelo como um "medicamento" de texto livre (posologia = corpo), sem quebrar a estrutura
+      setMeds((prev) => [...prev, { nome: m.nome, posologia: m.corpo, via: "" }]);
+    }
+  }
+  // Texto compatível salvo em Appointment.prescription (retrocompatível com a timeline existente)
+  function prescricaoTexto() {
+    if (meds.length === 0) return "";
+    return meds.map((md) => {
+      const via = md.via ? ` — ${md.via}` : "";
+      return `• ${md.nome || "(medicamento)"}: ${md.posologia || ""}${via}`.trim();
+    }).join("\n");
   }
 
-  function updateItem(idx: number, patch: Partial<AppointmentItem>) {
-    const arr = [...items];
-    const it = { ...arr[idx], ...patch };
-    const qtd = Number(it.quantidade) || 1;
-    const unit = Number(it.valorUnitario) || 0;
-    const desc = Number(it.desconto) || 0;
-    it.valorTotal = qtd * unit - desc;
-    arr[idx] = it;
-    setItems(arr);
+  function pickExameClinica(ex: ExameCat) {
+    if (exClinica.some((x) => x.nome === ex.nome)) return;
+    setExClinica((a) => [...a, { nome: ex.nome, codigo: ex.codigo || undefined, status: exFases[0] || "Solicitar" }]);
+    setPickClinica(false); setBuscaC("");
   }
-  function addItem(svc?: Servico) {
-    setItems([...items, {
-      servicoId: svc?.id,
-      descricao: svc?.nome,
-      executorUserId: form.userId || undefined,
-      quantidade: 1,
-      valorUnitario: svc?.valorPadrao ?? 0,
-      custoUnitario: svc?.custoPadrao ?? 0,
-      desconto: 0,
-      valorTotal: svc?.valorPadrao ?? 0,
-    }]);
+  function pickExameExterno(ex: ExameCat) {
+    if (exExterno.some((x) => x.nome === ex.nome)) return;
+    setExExterno((a) => [...a, { nome: ex.nome, codigo: ex.codigo || undefined }]);
+    setPickExterno(false); setBuscaE("");
   }
-  function addExame(ex: Exame) {
-    const valor = Number(ex.valor_cliente_sugerido ?? ex.valorClienteSugerido ?? 0);
-    const custo = Number(ex.valor_fornecedor ?? ex.valorFornecedor ?? 0);
-    const fid = ex.fornecedor_id || ex.fornecedorId || ex.fornecedor?.id;
-    setItems([...items, {
-      descricao: ex.nome + (ex.codigo ? ` (${ex.codigo})` : ""),
-      fornecedorId: fid || undefined,
-      quantidade: 1,
-      valorUnitario: valor,
-      custoUnitario: custo,
-      desconto: 0,
-      valorTotal: valor,
-    }]);
+
+  function imprimirFolha(titulo: string, corpo: string) {
+    const w = window.open("", "_blank", "width=800,height=900");
+    if (!w) { toast.error("Permita pop-ups para imprimir"); return; }
+    const esc = (t: string) => String(t || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const dt = new Date().toLocaleDateString("pt-BR");
+    const vetNome = vets.find((u) => u.id === form.userId)?.name || "";
+    w.document.write('<html><head><title>' + esc(titulo) + '</title><style>body{font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#0E2244;padding:40px;max-width:720px;margin:0 auto}h1{color:#014D5E;font-size:20px;margin:0 0 4px}.sub{color:#6B7280;font-size:12px;margin-bottom:18px}.who{font-size:13px;color:#475569;margin-bottom:14px}.box{white-space:pre-wrap;font-size:14px;line-height:1.6;border-top:2px solid #009AAC;padding-top:16px}.ft{margin-top:48px;font-size:12px;color:#6B7280;border-top:1px solid #ddd;padding-top:10px}</style></head><body><h1>Empório do Pet</h1><div class="sub">' + esc(titulo) + ' — ' + esc(dt) + '</div><div class="who">Pet: <b>' + esc(pet?.name || "") + '</b>' + (pet?.tutor?.name ? ' · Tutor: ' + esc(pet.tutor.name) : '') + (vetNome ? ' · Profissional: ' + esc(vetNome) : '') + '</div><div class="box">' + esc(corpo) + '</div><div class="ft">Documento gerado pelo sistema Empório do Pet</div></body></html>');
+    w.document.close(); w.focus(); setTimeout(() => w.print(), 300);
   }
-  function removeItem(idx: number) {
-    setItems(items.filter((_, i) => i !== idx));
+  function imprimirReceita() { const t = prescricaoTexto(); if (!t) { toast.error("Adicione ao menos um medicamento"); return; } imprimirFolha("Receita", t); }
+  function imprimirSolicitacao() {
+    const linhas = [...exClinica.map((e) => `• ${e.nome} (fazemos na clínica)`), ...exExterno.map((e) => `• ${e.nome} (externo)`)];
+    if (linhas.length === 0) { toast.error("Escolha ao menos um exame"); return; }
+    imprimirFolha("Solicitação de exames", "Solicito os seguintes exames:\n\n" + linhas.join("\n"));
   }
+
+  async function listasAdd(lista: string, valor: string) { try { await fetch(`/api/listas`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lista, valor }) }); } catch {} }
 
   async function handleSave() {
     if (!pet) return;
-    if (!form.userId) { toast.error("Selecione o veterinário responsável"); return; }
-    if (!form.date) { toast.error("Defina a data e hora"); return; }
-
+    if (!form.userId) { toast.error("Selecione o profissional responsável"); return; }
+    if (!form.date) { toast.error("Informe data e hora"); return; }
     setSaving(true);
-    const payload: any = {
-      tutorId: pet.tutorId,
-      petId: pet.id,
-      userId: form.userId,
-      date: new Date(form.date).toISOString(),
-      duration: Number(form.duration) || 30,
-      type: form.type,
-      status: form.status,
-      description: form.description || null,
-      chiefComplaint: form.chiefComplaint || null,
-      anamnesis: form.anamnesis || null,
-      physicalExam: form.physicalExam || null,
-      diagnosis: form.diagnosis || null,
-      conduct: form.conduct || null,
-      prescription: form.prescription || null,
-      examsRequested: form.examsRequested || null,
-      followUpNotes: form.followUpNotes || null,
-      nextReturnDate: form.nextReturnDate ? new Date(form.nextReturnDate).toISOString() : null,
-      petWeight: form.petWeight ? Number(form.petWeight) : null,
-      temperature: form.temperature ? Number(form.temperature) : null,
-      value: form.value ? Number(form.value) : 0,
-      paymentMethod: form.paymentMethod || null,
-      notes: form.notes || null,
-      items: items.map(it => ({
-        servicoId: it.servicoId || undefined,
-        descricao: it.descricao || undefined,
-        executorUserId: it.executorUserId || undefined,
-        fornecedorId: it.fornecedorId || undefined,
-        quantidade: it.quantidade,
-        valorUnitario: it.valorUnitario,
-        custoUnitario: it.custoUnitario,
-        desconto: it.desconto,
-        valorTotal: it.valorTotal,
-        comissaoValor: it.comissaoValor,
-      })),
-    };
     try {
-      const res = await fetch("/api/atendimentos", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => null);
-        toast.error(`Erro: ${err?.message || res.status}`);
-        setSaving(false);
-        return;
+      const prescricao = prescricaoTexto();
+      const examsReq = [...exClinica.map((e) => e.nome), ...exExterno.map((e) => `${e.nome} (externo)`)].join(", ");
+      const payload: any = {
+        tutorId: pet.tutorId, petId: pet.id, userId: form.userId,
+        date: new Date(form.date).toISOString(), type: form.type, status: form.status,
+        chiefComplaint: form.chiefComplaint || null, anamnesis: form.anamnesis || null,
+        physicalExam: form.physicalExam || null, diagnosis: form.diagnosis || null, conduct: form.conduct || null,
+        prescription: prescricao || null, examsRequested: examsReq || null,
+        followUpNotes: form.followUpNotes || null,
+        petWeight: form.peso ? Number(String(form.peso).replace(",", ".")) : null,
+      };
+      const res = await fetch(`/api/atendimentos`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      if (!res.ok) { const err = await res.json().catch(() => null); toast.error(`Erro: ${err?.message || res.status}`); setSaving(false); return; }
+
+      // Peso: grava no pet + histórico petpeso_
+      const kg = form.peso ? Number(String(form.peso).replace(",", ".")) : 0;
+      if (kg > 0 && kg !== pet.weight) {
+        try { await fetch(`/api/pets/${pet.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ weight: kg }) }); } catch {}
       }
+      if (kg > 0) await listasAdd(`petpeso_${pet.id}`, JSON.stringify({ data: new Date(form.date).toISOString(), kg }));
+
+      // Exames: clínica (acompanhamos → status, aparece no Hoje) + externos (só solicitação)
+      for (const e of exClinica) await listasAdd(`petexa_${pet.id}`, JSON.stringify({ nome: e.nome, status: e.status || exFases[0] || "Solicitar", date: new Date().toISOString(), acompanha: true, externo: false }));
+      for (const e of exExterno) await listasAdd(`petexa_${pet.id}`, JSON.stringify({ nome: e.nome, status: "Solicitado (externo)", date: new Date().toISOString(), acompanha: false, externo: true }));
+
+      // Pós-atendimento → integra ao Follow-up do pet (mesmo FU da Visão geral)
+      const fuBody: any = {};
+      if (form.followUpNotes !== (pet.followUpNotes || "")) fuBody.followUpNotes = form.followUpNotes || null;
+      if (form.followUpDate) fuBody.proximoFollowupAt = new Date(form.followUpDate + "T12:00:00").toISOString();
+      if (Object.keys(fuBody).length) { try { await fetch(`/api/pets/${pet.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(fuBody) }); } catch {} }
+
       toast.success("Atendimento registrado");
       router.push(`/dashboard/erp/pets/${pet.id}`);
-    } catch (e) {
-      toast.error(`Erro: ${String(e)}`);
-      setSaving(false);
-    }
+    } catch (e) { toast.error("Erro ao salvar"); setSaving(false); }
   }
 
-  if (!pet) return <div className="p-10 text-center text-gray-400">Carregando...</div>;
+  if (!pet) return <div className="p-10 text-center text-[#8A989D]">Carregando ficha de atendimento...</div>;
+
+  const card = "bg-white border border-[#E8E2D6] rounded-[14px]";
+  const inp = "w-full mt-0.5 px-3 py-2 border border-[#E8E2D6] rounded-[9px] text-[13px] text-[#1F2A2E] bg-white";
+  const lbl = "text-[10px] uppercase tracking-wide text-[#8A989D]";
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Topo */}
-      <div className="bg-white border-b" style={{ borderColor: "#E8DFC8" }}>
-        <div className="max-w-5xl mx-auto px-6 py-3 flex items-center gap-3">
-          <Link href={`/dashboard/erp/pets/${pet.id}`} className="p-2 rounded-lg hover:bg-gray-100"><LuArrowLeft size={18} /></Link>
-          <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "#e6f6f8", color: "#009AAC" }}>
-            <PetIcon species={pet.species} size={22} />
+    <div className="p-4 min-h-screen bg-[#F6F2EA]">
+      {/* Breadcrumb */}
+      <div className="text-[12px] text-[#8A989D] mb-2 px-1">
+        <Link href="/dashboard/erp/pets" className="hover:text-[#009AAC]">Pets</Link> / <Link href={`/dashboard/erp/pets/${pet.id}`} className="hover:text-[#009AAC]">{pet.name}</Link> / <b className="text-[#009AAC] font-medium">Novo atendimento</b>
+      </div>
+
+      {/* Cabeçalho */}
+      <div className={`${card} mb-3`} style={{ padding: "13px 16px" }}>
+        <div className="flex items-center gap-3">
+          <div className="w-[46px] h-[46px] rounded-[13px] bg-[#FBF3E3] flex items-center justify-center text-[24px] shrink-0">{PET_EMOJI(pet.species)}</div>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-[18px] leading-tight text-[#014D5E] font-medium">🩺 Atendimento — {pet.name}</h1>
+            <p className="text-[12.5px] text-[#5C6B70]">{[speciesLabel(pet.species), pet.breed, genderLabel(pet.gender), pet.birthDate ? ageFromBirth(pet.birthDate) : null].filter((x) => x && x !== "—").join(" · ")} · Tutor(a): {pet.tutor?.name || "—"}</p>
           </div>
-          <div className="flex-1">
-            <div className="text-sm text-gray-500">Pet: <strong className="text-[#0E2244]">{pet.name}</strong> · {speciesLabel(pet.species)} · Tutor: <strong className="text-[#0E2244]">{pet.tutor?.name}</strong></div>
-          </div>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="px-4 py-2 rounded-lg text-sm font-medium text-white flex items-center gap-2 disabled:opacity-60"
-            style={{ background: "#009AAC" }}
-          >
-            <LuSave size={14} /> {saving ? "Salvando..." : "Salvar Atendimento"}
-          </button>
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-6 py-6 space-y-5">
-        {/* Seção: Cabeçalho do atendimento */}
-        <Section title="Cabeçalho" Icon={LuClipboardList}>
+      <div className="flex flex-col gap-3 max-w-[980px]">
+        {/* DADOS BÁSICOS — uma linha */}
+        <div className={card} style={{ padding: "13px 16px" }}>
+          <div className="text-[12px] font-medium uppercase tracking-wide text-[#014D5E] mb-2">Dados básicos</div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <Field label="Tipo *">
-              <select value={form.type} onChange={e => set("type", e.target.value)} className="input">
-                {TYPES.map(t => <option key={t.v} value={t.v}>{t.label}</option>)}
-              </select>
-            </Field>
-            <Field label="Data e hora *">
-              <input type="datetime-local" value={form.date} onChange={e => set("date", e.target.value)} className="input" />
-            </Field>
-            <Field label="Duração (min)">
-              <input type="number" min={5} step={5} value={form.duration} onChange={e => set("duration", Number(e.target.value) as any)} className="input" />
-            </Field>
-            <Field label="Veterinário *">
-              <select value={form.userId} onChange={e => set("userId", e.target.value)} className="input">
-                <option value="">Selecione...</option>
-                {vets.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
-              </select>
-            </Field>
-            <Field label="Status">
-              <select value={form.status} onChange={e => set("status", e.target.value)} className="input">
-                {STATUS.map(s => <option key={s.v} value={s.v}>{s.label}</option>)}
-              </select>
-            </Field>
-            <Field label="Resumo (1 linha)">
-              <input value={form.description} onChange={e => set("description", e.target.value)} placeholder="Ex: Avaliação dermatológica" className="input" />
-            </Field>
+            <div><label className={lbl}>📅 Data e hora</label><input type="datetime-local" value={form.date} onChange={(e) => set("date", e.target.value)} className={inp} /></div>
+            <div><label className={lbl}>🏷️ Tipo</label><select value={form.type} onChange={(e) => set("type", e.target.value)} className={inp}>{tipos.map((t) => <option key={t.v} value={t.v}>{t.l}</option>)}</select></div>
+            <div><label className={lbl}>🧑‍⚕️ Profissional</label><select value={form.userId} onChange={(e) => set("userId", e.target.value)} className={inp}><option value="">Selecionar...</option>{vets.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}</select></div>
           </div>
-        </Section>
-
-        {/* Seção: Anamnese e exame físico */}
-        <Section title="Anamnese & exame físico" Icon={LuStethoscope}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <Field label="Queixa principal" block>
-              <textarea rows={2} value={form.chiefComplaint} onChange={e => set("chiefComplaint", e.target.value)} className="input" placeholder="O que motivou a consulta hoje" />
-            </Field>
-            <Field label="Anamnese" block>
-              <textarea rows={4} value={form.anamnesis} onChange={e => set("anamnesis", e.target.value)} className="input" placeholder="Histórico relatado pelo tutor" />
-            </Field>
-            <Field label="Exame físico" block>
-              <textarea rows={4} value={form.physicalExam} onChange={e => set("physicalExam", e.target.value)} className="input" placeholder="Achados do exame realizado" />
-            </Field>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-3">
-            <Field label="Peso (kg)">
-              <input type="number" step="0.01" min={0} value={form.petWeight} onChange={e => set("petWeight", e.target.value)} className="input" />
-            </Field>
-            <Field label="Temperatura (ºC)">
-              <input type="number" step="0.1" value={form.temperature} onChange={e => set("temperature", e.target.value)} className="input" />
-            </Field>
-          </div>
-        </Section>
-
-        {/* Seção: Diagnóstico e conduta */}
-        <Section title="Diagnóstico & conduta" Icon={LuActivity}>
-          <div className="grid grid-cols-1 gap-3">
-            <Field label="Diagnóstico" block>
-              <textarea rows={2} value={form.diagnosis} onChange={e => set("diagnosis", e.target.value)} className="input" />
-            </Field>
-            <Field label="Conduta / tratamento" block>
-              <textarea rows={3} value={form.conduct} onChange={e => set("conduct", e.target.value)} className="input" />
-            </Field>
-          </div>
-        </Section>
-
-        {/* Seção: Prescrição e exames */}
-        <Section title="Prescrição & exames solicitados" Icon={LuPill}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <Field label="Prescrição" block>
-              <textarea rows={4} value={form.prescription} onChange={e => set("prescription", e.target.value)} className="input" placeholder="Medicamentos, doses, frequência" />
-            </Field>
-            <Field label="Exames solicitados" block>
-              <textarea rows={4} value={form.examsRequested} onChange={e => set("examsRequested", e.target.value)} className="input" placeholder="Lista de exames pedidos neste atendimento" />
-            </Field>
-          </div>
-        </Section>
-
-        {/* Seção: Serviços e Valores (de onde sai a venda) */}
-        <Section title="Serviços e Valores" Icon={LuDollarSign}>
-          <div className="border rounded-lg overflow-hidden" style={{ borderColor: "#E8DFC8" }}>
-            <table className="w-full text-sm">
-              <thead className="border-b" style={{ background: "#FAFAFA", borderColor: "#E8DFC8" }}>
-                <tr>
-                  <th className="text-left px-3 py-2 font-medium text-gray-500">Serviço / descrição</th>
-                  <th className="text-right px-3 py-2 font-medium text-gray-500 w-16">Qtd</th>
-                  <th className="text-right px-3 py-2 font-medium text-gray-500 w-24">Valor</th>
-                  <th className="text-right px-3 py-2 font-medium text-gray-500 w-24">Custo</th>
-                  <th className="text-left px-3 py-2 font-medium text-gray-500 w-40">Executado por</th>
-                  <th className="text-right px-3 py-2 font-medium text-gray-500 w-20">Com.%</th>
-                  <th className="text-right px-3 py-2 font-medium text-gray-500 w-24">Total</th>
-                  <th className="w-8"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.length === 0 && (
-                  <tr><td colSpan={8} className="text-center px-3 py-4 text-gray-400 text-xs">Nenhum serviço lançado.</td></tr>
-                )}
-                {items.map((it, idx) => {
-                  const svc = servicos.find(s => s.id === it.servicoId);
-                  return (
-                    <tr key={idx} className="border-b" style={{ borderColor: "#F0EBE0" }}>
-                      <td className="px-3 py-1.5">
-                        {svc ? (
-                          <span className="text-gray-700">{svc.nome}</span>
-                        ) : (
-                          <input
-                            value={it.descricao || ""}
-                            onChange={e => updateItem(idx, { descricao: e.target.value })}
-                            placeholder="Descrição..."
-                            className="w-full px-2 py-1 border rounded text-sm"
-                            style={{ borderColor: "#E8DFC8" }}
-                          />
-                        )}
-                      </td>
-                      <td className="px-2 py-1.5 text-right">
-                        <input type="number" min={0.01} step="0.5" value={it.quantidade}
-                          onChange={e => updateItem(idx, { quantidade: Number(e.target.value) || 1 })}
-                          className="w-14 px-1 py-1 border rounded text-sm text-right" style={{ borderColor: "#E8DFC8" }} />
-                      </td>
-                      <td className="px-2 py-1.5 text-right">
-                        <input type="number" min={0} step="0.01" value={it.valorUnitario}
-                          onChange={e => updateItem(idx, { valorUnitario: Number(e.target.value) || 0 })}
-                          className="w-20 px-1 py-1 border rounded text-sm text-right" style={{ borderColor: "#E8DFC8" }} />
-                      </td>
-                      <td className="px-2 py-1.5 text-right">
-                        <input type="number" min={0} step="0.01" value={it.custoUnitario}
-                          onChange={e => updateItem(idx, { custoUnitario: Number(e.target.value) || 0 })}
-                          className="w-20 px-1 py-1 border rounded text-sm text-right" style={{ borderColor: "#E8DFC8" }} />
-                      </td>
-                      <td className="px-2 py-1.5">
-                        <select value={it.executorUserId || ""}
-                          onChange={e => updateItem(idx, { executorUserId: e.target.value || undefined })}
-                          className="w-full px-1.5 py-1 border rounded text-xs" style={{ borderColor: "#E8DFC8" }}>
-                          <option value="">— vet padrão —</option>
-                          {vets.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
-                        </select>
-                      </td>
-                      <td className="px-2 py-1.5 text-right">
-                        <input type="number" min={0} step="0.1" value={it.comissaoValor ?? ""}
-                          onChange={e => updateItem(idx, { comissaoValor: e.target.value ? Number(e.target.value) : undefined })}
-                          placeholder="%" className="w-14 px-1 py-1 border rounded text-sm text-right" style={{ borderColor: "#E8DFC8" }} />
-                      </td>
-                      <td className="px-3 py-1.5 text-right font-semibold tabular-nums" style={{ color: "#014D5E" }}>
-                        R$ {Number(it.valorTotal || 0).toFixed(2)}
-                      </td>
-                      <td className="px-1 py-1.5 text-right">
-                        <button onClick={() => removeItem(idx)} className="text-gray-400 hover:text-red-500 text-sm">×</button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-              {items.length > 0 && (
-                <tfoot className="border-t" style={{ background: "#FAFAFA", borderColor: "#E8DFC8" }}>
-                  <tr>
-                    <td colSpan={6} className="px-3 py-2 text-right text-xs font-medium text-gray-500">Total geral</td>
-                    <td className="px-3 py-2 text-right font-bold tabular-nums" style={{ color: "#014D5E" }}>
-                      R$ {items.reduce((s, it) => s + (Number(it.valorTotal) || 0), 0).toFixed(2)}
-                    </td>
-                    <td></td>
-                  </tr>
-                </tfoot>
-              )}
-            </table>
-          </div>
-          <button
-            onClick={() => setPickerOpen(true)}
-            className="w-full mt-2 px-3 py-2 border border-dashed rounded-lg text-sm text-gray-500 hover:bg-gray-50 hover:text-[#009AAC] transition flex items-center justify-center gap-2"
-            style={{ borderColor: "#E8DFC8" }}
-          >
-            + Adicionar serviço
-          </button>
-        </Section>
-
-        {/* Seção: Pós-atendimento (próximo retorno + forma pagamento) */}
-        <Section title="Pós-atendimento" Icon={LuCalendar}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <Field label="Próximo retorno">
-              <input type="date" value={form.nextReturnDate} onChange={e => set("nextReturnDate", e.target.value)} className="input" />
-            </Field>
-            <Field label="Forma de pagamento">
-              <select value={form.paymentMethod} onChange={e => set("paymentMethod", e.target.value)} className="input">
-                <option value="">Selecione...</option>
-                {PAYMENT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
-              </select>
-            </Field>
-          </div>
-          <Field label="O que verificar com o cliente (guia para o próximo toque)" block>
-            <textarea rows={3} value={form.followUpNotes} onChange={e => set("followUpNotes", e.target.value)}
-              placeholder="Ex: verificar se o pet está tomando os remédios, perguntar se a coceira melhorou..." className="input" />
-          </Field>
-          <Field label="Observações administrativas (privado)" block>
-            <textarea rows={2} value={form.notes} onChange={e => set("notes", e.target.value)} className="input" />
-          </Field>
-        </Section>
-
-        <div className="flex items-center justify-end gap-2 pt-2 pb-8">
-          <Link href={`/dashboard/erp/pets/${pet.id}`} className="px-4 py-2 rounded-lg text-sm border" style={{ borderColor: "#E8DFC8" }}>Cancelar</Link>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="px-4 py-2 rounded-lg text-sm font-medium text-white flex items-center gap-2 disabled:opacity-60"
-            style={{ background: "#009AAC" }}
-          >
-            <LuSave size={14} /> {saving ? "Salvando..." : "Salvar Atendimento"}
-          </button>
         </div>
-      </div>
 
-      {/* Modal picker de serviço/exame */}
-      {pickerOpen && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setPickerOpen(false)}>
-          <div className="bg-white rounded-xl p-5 max-w-2xl w-full max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
-            <h3 className="text-sm font-semibold mb-3" style={{ color: "#014D5E" }}>Adicionar do catálogo</h3>
-            {/* Tabs */}
-            <div className="flex border-b mb-3" style={{ borderColor: "#E8DFC8" }}>
-              <button
-                onClick={() => setPickerTab("servicos")}
-                className="px-3 py-1.5 text-xs font-medium border-b-2 transition"
-                style={{ borderColor: pickerTab === "servicos" ? "#009AAC" : "transparent", color: pickerTab === "servicos" ? "#009AAC" : "#6B7280" }}
-              >
-                Serviços ({servicos.length})
-              </button>
-              <button
-                onClick={() => setPickerTab("exames")}
-                className="px-3 py-1.5 text-xs font-medium border-b-2 transition"
-                style={{ borderColor: pickerTab === "exames" ? "#009AAC" : "transparent", color: pickerTab === "exames" ? "#009AAC" : "#6B7280" }}
-              >
-                Exames ({exames.length})
-              </button>
+        {/* PESO + gráfico */}
+        <div className={card} style={{ padding: "13px 16px" }}>
+          <div className="flex flex-col md:flex-row gap-4 md:items-end">
+            <div className="md:w-[200px]">
+              <label className={lbl}>⚖️ Peso (kg)</label>
+              <input type="number" step="0.01" value={form.peso} onChange={(e) => set("peso", e.target.value)} placeholder="Ex.: 6.25" className={inp} />
+              <p className="text-[11px] text-[#8A989D] mt-1">Grava no peso do pet e no histórico de pesagens.</p>
             </div>
-            <input
-              value={pickerSearch}
-              onChange={e => setPickerSearch(e.target.value)}
-              placeholder={pickerTab === "servicos" ? "Buscar serviço..." : "Buscar exame..."}
-              className="w-full px-3 py-2 border rounded-lg text-sm mb-3"
-              style={{ borderColor: "#E8DFC8" }}
-              autoFocus
-            />
-            <div className="space-y-1 overflow-y-auto flex-1">
-              {pickerTab === "servicos" && (
-                <>
-                  {servicos.length === 0 && <div className="text-xs text-gray-400 py-4 text-center">Nenhum serviço cadastrado. <a href="/dashboard/configuracoes/servicos" className="underline" style={{color: "#009AAC"}}>Cadastrar</a></div>}
-                  {servicos.filter(s => !pickerSearch || s.nome.toLowerCase().includes(pickerSearch.toLowerCase())).map(s => (
-                    <button
-                      key={s.id}
-                      onClick={() => { addItem(s); setPickerOpen(false); setPickerSearch(""); }}
-                      className="w-full text-left px-3 py-2 rounded-lg border hover:bg-gray-50 flex items-center justify-between gap-2"
-                      style={{ borderColor: "#F0EBE0" }}
-                    >
-                      <span className="text-sm text-gray-700">{s.nome}</span>
-                      <span className="text-xs text-gray-500 tabular-nums">R$ {Number(s.valorPadrao || 0).toFixed(2)}</span>
-                    </button>
+            <div className="flex-1">
+              <div className="text-[11px] text-[#8A989D] mb-1">📈 Evolução do peso</div>
+              {grafPeso ? (
+                <svg viewBox={`0 0 ${grafPeso.W} ${grafPeso.H}`} className="w-full" style={{ maxHeight: 80 }}>
+                  <polyline fill="none" stroke="#009AAC" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" points={grafPeso.poly} />
+                  {grafPeso.coords.map((c, i) => (
+                    <g key={i}><circle cx={c.x} cy={c.y} r="2.5" fill="#014D5E" /><title>{`${c.kg} kg · ${new Date(c.data).toLocaleDateString("pt-BR")}`}</title></g>
                   ))}
-                </>
-              )}
-              {pickerTab === "exames" && (
-                <>
-                  {exames.length === 0 && <div className="text-xs text-gray-400 py-4 text-center">Nenhum exame cadastrado. <a href="/dashboard/configuracoes/exames" className="underline" style={{color: "#009AAC"}}>Cadastrar</a></div>}
-                  {exames.filter(e => !pickerSearch || e.nome.toLowerCase().includes(pickerSearch.toLowerCase()) || (e.codigo || "").toLowerCase().includes(pickerSearch.toLowerCase())).slice(0, 50).map(ex => {
-                    const v = Number(ex.valor_cliente_sugerido ?? ex.valorClienteSugerido ?? 0);
-                    const c = Number(ex.valor_fornecedor ?? ex.valorFornecedor ?? 0);
-                    const f = ex.fornecedor?.nome || "";
-                    return (
-                      <button
-                        key={ex.id}
-                        onClick={() => { addExame(ex); setPickerOpen(false); setPickerSearch(""); }}
-                        className="w-full text-left px-3 py-2 rounded-lg border hover:bg-gray-50"
-                        style={{ borderColor: "#F0EBE0" }}
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-sm text-gray-700 flex-1">{ex.nome}{ex.codigo ? ` (${ex.codigo})` : ""}</span>
-                          <span className="text-xs text-gray-500 tabular-nums">R$ {v.toFixed(2)}</span>
-                        </div>
-                        <div className="flex items-center justify-between gap-2 mt-0.5">
-                          <span className="text-[10.5px] text-gray-400">{f || "—"}{ex.categoria ? ` · ${ex.categoria}` : ""}</span>
-                          {c > 0 && <span className="text-[10.5px] text-gray-400">Custo: R$ {c.toFixed(2)}</span>}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </>
-              )}
-            </div>
-            <div className="mt-3 pt-3 border-t flex items-center justify-between" style={{ borderColor: "#F0EBE0" }}>
-              <button onClick={() => { addItem(); setPickerOpen(false); setPickerSearch(""); }} className="text-xs text-gray-500 hover:text-[#009AAC]">
-                + Linha em branco (descrição livre)
-              </button>
-              <button onClick={() => { setPickerOpen(false); setPickerSearch(""); }} className="px-3 py-1.5 text-xs rounded-lg border" style={{ borderColor: "#E8DFC8" }}>Fechar</button>
+                </svg>
+              ) : <div className="text-[12px] text-[#8A989D] py-4">Sem pesagens registradas ainda. A primeira pesagem começa o gráfico.</div>}
             </div>
           </div>
         </div>
-      )}
 
-      <style jsx>{`
-        .input {
-          width: 100%;
-          padding: 8px 12px;
-          border: 1px solid #E8DFC8;
-          border-radius: 8px;
-          font-size: 14px;
-          background: white;
-          outline: none;
-          color: #1e293b;
-        }
-        .input:focus { border-color: #009AAC; }
-      `}</style>
-    </div>
-  );
-}
+        {/* CLÍNICO */}
+        <div className={card} style={{ padding: "13px 16px" }}>
+          <div className="text-[12px] font-medium uppercase tracking-wide text-[#014D5E] mb-2">📋 Clínico</div>
+          <div className="flex flex-col gap-2.5">
+            <div><label className={lbl}>Queixa / motivo</label><input value={form.chiefComplaint} onChange={(e) => set("chiefComplaint", e.target.value)} className={inp} placeholder="O que motivou a consulta" /></div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div><label className={lbl}>Anamnese</label><textarea rows={3} value={form.anamnesis} onChange={(e) => set("anamnesis", e.target.value)} className={inp} /></div>
+              <div><label className={lbl}>Exame físico</label><textarea rows={3} value={form.physicalExam} onChange={(e) => set("physicalExam", e.target.value)} className={inp} /></div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div><label className={lbl}>Diagnóstico</label><textarea rows={2} value={form.diagnosis} onChange={(e) => set("diagnosis", e.target.value)} className={inp} /></div>
+              <div><label className={lbl}>Conduta</label><textarea rows={2} value={form.conduct} onChange={(e) => set("conduct", e.target.value)} className={inp} /></div>
+            </div>
+          </div>
+        </div>
 
-function Section({ title, Icon, children }: { title: string; Icon?: any; children: React.ReactNode }) {
-  return (
-    <section className="bg-white border rounded-2xl p-5" style={{ borderColor: "#E8DFC8" }}>
-      <h3 className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: "#014D5E" }}>
-        {Icon && <Icon size={15} />} {title}
-      </h3>
-      {children}
-    </section>
-  );
-}
+        {/* PRESCRIÇÃO estruturada */}
+        <div className={card} style={{ padding: "13px 16px" }}>
+          <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+            <div className="text-[12px] font-medium uppercase tracking-wide text-[#014D5E]">💊 Prescrição</div>
+            <div className="flex items-center gap-2">
+              <select value={form.recModelo} onChange={(e) => aplicarModeloReceita(e.target.value)} className="border border-[#E8E2D6] rounded-[9px] px-2 py-1.5 text-[12px] text-[#5C6B70] bg-white">
+                <option value="">Modelo (Normal/Especial)…</option>
+                {recModelos.map((m) => <option key={m.nome} value={m.nome}>{m.nome}</option>)}
+              </select>
+              <button onClick={imprimirReceita} className="text-[12px] px-3 py-1.5 rounded-[9px] border border-[#E8E2D6] text-[#5C6B70] hover:border-[#009AAC] hover:text-[#009AAC]">🖨️ Imprimir receita</button>
+            </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            {meds.length === 0 && <p className="text-[12px] text-[#8A989D]">Nenhum medicamento. Use "＋ adicionar medicamento" ou escolha um modelo.</p>}
+            {meds.map((md, i) => (
+              <div key={i} className="grid grid-cols-1 md:grid-cols-[1fr_1fr_150px_auto] gap-2 items-center">
+                <input value={md.nome} onChange={(e) => updMed(i, { nome: e.target.value })} placeholder="Medicamento" className="px-2 py-1.5 border border-[#E8E2D6] rounded-[9px] text-[13px]" />
+                <input value={md.posologia} onChange={(e) => updMed(i, { posologia: e.target.value })} placeholder="Posologia" className="px-2 py-1.5 border border-[#E8E2D6] rounded-[9px] text-[13px]" />
+                <select value={md.via} onChange={(e) => updMed(i, { via: e.target.value })} className="px-2 py-1.5 border border-[#E8E2D6] rounded-[9px] text-[13px] text-[#5C6B70]">
+                  <option value="">Via…</option>
+                  {VIAS.map((v) => <option key={v} value={v}>{v}</option>)}
+                </select>
+                <button onClick={() => rmMed(i)} title="Remover" className="text-[#b23b39] px-2 py-1.5 text-[14px]">✕</button>
+              </div>
+            ))}
+            <button onClick={addMed} className="self-start text-[12px] px-3 py-1.5 rounded-full border border-dashed border-[#E8E2D6] text-[#009AAC] hover:border-[#009AAC]">＋ adicionar medicamento</button>
+          </div>
+        </div>
 
-function Field({ label, children, block }: { label: string; children: React.ReactNode; block?: boolean }) {
-  return (
-    <div className={block ? "md:col-span-2" : ""}>
-      <label className="block text-[11px] text-gray-500 mb-1 font-medium">{label}</label>
-      {children}
+        {/* EXAMES — duas caixas */}
+        <div className={card} style={{ padding: "13px 16px" }}>
+          <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+            <div className="text-[12px] font-medium uppercase tracking-wide text-[#014D5E]">🔬 Exames</div>
+            <button onClick={imprimirSolicitacao} className="text-[12px] px-3 py-1.5 rounded-[9px] border border-[#E8E2D6] text-[#5C6B70] hover:border-[#009AAC] hover:text-[#009AAC]">🖨️ Imprimir solicitação</button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
+            {/* Fazemos na clínica */}
+            <div className="border border-[#E8E2D6] rounded-[12px]" style={{ padding: "11px 13px" }}>
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-[12.5px] text-[#014D5E] font-medium">🏥 Fazemos na clínica</h4>
+                <button onClick={() => setPickClinica((v) => !v)} className="text-[11px] px-2 py-0.5 rounded-full border border-[#E8E2D6] text-[#009AAC]">＋ escolher ▾</button>
+              </div>
+              <p className="text-[10.5px] text-[#8A989D] mb-2">Acompanhamos o resultado (entra no "Exames a entregar" do Hoje).</p>
+              {pickClinica && (
+                <div className="mb-2 border border-[#F0EBE0] rounded-[9px] p-2 bg-[#FBF9F4]">
+                  <input value={buscaC} onChange={(e) => setBuscaC(e.target.value)} placeholder="Buscar exame…" className="w-full mb-1 px-2 py-1 border border-[#E8E2D6] rounded text-[12px]" />
+                  <div className="max-h-40 overflow-auto flex flex-col gap-0.5">
+                    {catClinica.filter((e) => !buscaC || e.nome.toLowerCase().includes(buscaC.toLowerCase())).slice(0, 60).map((e) => (
+                      <button key={e.id} onClick={() => pickExameClinica(e)} className="text-left text-[12px] px-2 py-1 rounded hover:bg-white text-[#1F2A2E]">{e.nome}{e.fornecedor?.nome ? <span className="text-[#8A989D]"> · {e.fornecedor.nome}</span> : null}</button>
+                    ))}
+                    {catClinica.length === 0 && <span className="text-[11px] text-[#8A989D] px-2 py-1">Nada no catálogo. Cadastre em Configurações → Exames.</span>}
+                  </div>
+                </div>
+              )}
+              <div className="flex flex-col gap-1.5">
+                {exClinica.length === 0 && <span className="text-[11.5px] text-[#8A989D]">Nenhum exame da clínica.</span>}
+                {exClinica.map((e, i) => (
+                  <div key={i} className="bg-[#FBF9F4] border border-[#F0EBE0] rounded-[9px] px-2.5 py-1.5 flex items-center justify-between gap-2">
+                    <span className="text-[12px] text-[#1F2A2E] truncate">{e.nome}</span>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <select value={e.status} onChange={(ev) => setExClinica((a) => a.map((x, idx) => idx === i ? { ...x, status: ev.target.value } : x))} className="text-[10.5px] px-1.5 py-0.5 border border-[#E8E2D6] rounded-full text-[#5C6B70] bg-white">
+                        {exFases.map((f) => <option key={f} value={f}>{f}</option>)}
+                      </select>
+                      <button onClick={() => setExClinica((a) => a.filter((_, idx) => idx !== i))} className="text-[#b23b39] text-[12px]">✕</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* Solicitar externo */}
+            <div className="border border-[#E8E2D6] rounded-[12px]" style={{ padding: "11px 13px" }}>
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-[12.5px] text-[#014D5E] font-medium">🔗 Solicitar (externo)</h4>
+                <button onClick={() => setPickExterno((v) => !v)} className="text-[11px] px-2 py-0.5 rounded-full border border-[#E8E2D6] text-[#009AAC]">＋ escolher ▾</button>
+              </div>
+              <p className="text-[10.5px] text-[#8A989D] mb-2">Não acompanhamos — só entra na solicitação. {/* Fase B: exame externo → venda/caixa/terceiros entra depois */}</p>
+              {pickExterno && (
+                <div className="mb-2 border border-[#F0EBE0] rounded-[9px] p-2 bg-[#FBF9F4]">
+                  <input value={buscaE} onChange={(e) => setBuscaE(e.target.value)} placeholder="Buscar exame…" className="w-full mb-1 px-2 py-1 border border-[#E8E2D6] rounded text-[12px]" />
+                  <div className="max-h-40 overflow-auto flex flex-col gap-0.5">
+                    {catExterno.filter((e) => !buscaE || e.nome.toLowerCase().includes(buscaE.toLowerCase())).slice(0, 60).map((e) => (
+                      <button key={e.id} onClick={() => pickExameExterno(e)} className="text-left text-[12px] px-2 py-1 rounded hover:bg-white text-[#1F2A2E]">{e.nome}{e.fornecedor?.nome ? <span className="text-[#8A989D]"> · {e.fornecedor.nome}</span> : null}</button>
+                    ))}
+                    {catExterno.length === 0 && <span className="text-[11px] text-[#8A989D] px-2 py-1">Nada no catálogo. Cadastre em Configurações → Exames.</span>}
+                  </div>
+                </div>
+              )}
+              <div className="flex flex-col gap-1.5">
+                {exExterno.length === 0 && <span className="text-[11.5px] text-[#8A989D]">Nenhum exame externo.</span>}
+                {exExterno.map((e, i) => (
+                  <div key={i} className="bg-[#FBF9F4] border border-[#F0EBE0] rounded-[9px] px-2.5 py-1.5 flex items-center justify-between gap-2">
+                    <span className="text-[12px] text-[#1F2A2E] truncate">{e.nome}</span>
+                    <button onClick={() => setExExterno((a) => a.filter((_, idx) => idx !== i))} className="text-[#b23b39] text-[12px]">✕</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* PÓS-ATENDIMENTO → Follow-up */}
+        <div className={card} style={{ padding: "13px 16px" }}>
+          <div className="text-[12px] font-medium uppercase tracking-wide text-[#014D5E] mb-2">🔔 Pós-atendimento (follow-up)</div>
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_200px] gap-3">
+            <div><label className={lbl}>O que acompanhar</label><input value={form.followUpNotes} onChange={(e) => set("followUpNotes", e.target.value)} placeholder="Ex.: verificar se a coceira melhorou, se está tomando o remédio…" className={inp} /></div>
+            <div><label className={lbl}>Data do follow-up</label><input type="date" value={form.followUpDate} onChange={(e) => set("followUpDate", e.target.value)} className={inp} /></div>
+          </div>
+          <p className="text-[11px] text-[#8A989D] mt-1.5">Grava no follow-up do pet (aparece na Visão geral e no Hoje).</p>
+        </div>
+
+        {/* Rodapé */}
+        <div className="flex items-center justify-end gap-2 pb-8">
+          <Link href={`/dashboard/erp/pets/${pet.id}`} className="px-4 py-2 rounded-[9px] text-[13px] border border-[#E8E2D6] text-[#5C6B70]">Cancelar</Link>
+          <button onClick={handleSave} disabled={saving} className="px-5 py-2 rounded-[9px] text-[13px] font-medium text-white disabled:opacity-60" style={{ background: "#009AAC" }}>{saving ? "Salvando..." : "Salvar atendimento"}</button>
+        </div>
+        {/* Fase B (não incluída agora): faturamento/venda dos serviços e do exame externo fica na aba Compras / módulo Caixa. */}
+      </div>
     </div>
   );
 }
