@@ -115,10 +115,29 @@ export default function LeadsPage() {
       const digits = novoTel.replace(/\D/g, "");
       const email = novoEmail.trim() || `${digits || Date.now()}@whatsapp.lead`;
       const res = await fetch("/api/leads", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ name: novoNome.trim() || undefined, phone: digits || undefined, email, ...(novoPetNome.trim() ? { customFields: { petName: novoPetNome.trim(), especie: novoPetEspecie } } : {}) }) });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) {
+        // Tenta ler o corpo JSON do backend (o proxy repassa o body completo do 409).
+        let payload: any = null;
+        try { payload = await res.json(); } catch { /* corpo não-JSON */ }
+        // Telefone/e-mail já pertence a um CLIENTE (Tutor): não cria lead duplicado.
+        if (res.status === 409 && payload?.code === "PHONE_BELONGS_TO_TUTOR" && payload?.tutorId) {
+          const nome = (typeof payload.message === "string" && payload.message.replace(/^Telefone ja pertence ao cliente\s*/i, "").trim()) || "";
+          const abrir = window.confirm(
+            `Esse telefone já é do cliente${nome ? ` ${nome}` : ""}. Não vou criar um lead duplicado.\n\nDeseja abrir a ficha do cliente?`
+          );
+          if (abrir) router.push(`/dashboard/erp/tutores/${payload.tutorId}`);
+          return;
+        }
+        // Outros conflitos (ex.: e-mail já usado por outro lead).
+        if (res.status === 409) {
+          window.alert(payload?.message || "Já existe um lead com esse telefone ou e-mail.");
+          return;
+        }
+        throw new Error(payload?.message || (await res.text().catch(() => "")));
+      }
       const novo = await res.json();
       if (novo?.id) router.push(`/dashboard/crm/leads/${novo.id}`); else window.location.reload();
-    } catch { window.alert("Não foi possível criar o lead (o e-mail pode já existir)."); } finally { setSavingNovo(false); }
+    } catch { window.alert("Não foi possível criar o lead. Verifique os dados e tente novamente."); } finally { setSavingNovo(false); }
   };
   const importInputRef = useRef<HTMLInputElement>(null);
 

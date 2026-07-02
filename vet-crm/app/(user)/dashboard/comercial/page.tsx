@@ -55,6 +55,8 @@ function stageBadgeColors(stage: string) {
 
 const SEM_ETAPA = "Sem etapa";
 const ORCAMENTO_RE = /or[çc]amento/i;
+// Etapas que sinalizam "precisa de retorno" no Follow-up
+const FOLLOWUP_RE = /(retorno|retomar|reaproxim|aguard)/i;
 
 interface Lead {
   id: string;
@@ -62,6 +64,9 @@ interface Lead {
   phone: string | null;
   email?: string;
   pipelineComercialEtapa?: string | null;
+  proximoFollowupAt?: string | null;
+  lastActivityAt?: string | null;
+  createdAt?: string;
   currentScore?: number;
   status?: string;
   customFields?: any;
@@ -72,9 +77,74 @@ export default function ComercialPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [stages, setStages] = useState<string[]>(PIPELINE_STAGES);
   const [loading, setLoading] = useState(true);
-  const [aba, setAba] = useState<"funil" | "lista" | "orcamentos">("funil");
+  const [aba, setAba] = useState<"followup" | "leads" | "funil" | "orcamentos">("followup");
   usePageTitle("Comercial", "funil de vendas e leads");
   const [menuLeadId, setMenuLeadId] = useState<string | null>(null);
+
+  // ---- Cadastro de novo lead (modal reaproveitado da tela de Leads) ----
+  const [novoOpen, setNovoOpen] = useState(false);
+  const [novoNome, setNovoNome] = useState("");
+  const [novoTel, setNovoTel] = useState("");
+  const [novoEmail, setNovoEmail] = useState("");
+  const [novoPetNome, setNovoPetNome] = useState("");
+  const [novoPetEspecie, setNovoPetEspecie] = useState("Cão");
+  const [savingNovo, setSavingNovo] = useState(false);
+
+  function abrirNovoLead() {
+    setNovoNome(""); setNovoTel(""); setNovoEmail(""); setNovoPetNome(""); setNovoPetEspecie("Cão");
+    setNovoOpen(true);
+  }
+
+  const handleCriarLead = async () => {
+    if (!novoNome.trim() && !novoTel.trim()) { toast.error("Informe pelo menos nome ou telefone"); return; }
+    setSavingNovo(true);
+    try {
+      const digits = novoTel.replace(/\D/g, "");
+      const email = novoEmail.trim() || `${digits || Date.now()}@whatsapp.lead`;
+      const res = await fetch("/api/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          name: novoNome.trim() || undefined,
+          phone: digits || undefined,
+          email,
+          ...(novoPetNome.trim() ? { customFields: { petName: novoPetNome.trim(), especie: novoPetEspecie } } : {}),
+        }),
+      });
+      if (!res.ok) {
+        let payload: any = null;
+        try { payload = await res.json(); } catch { /* corpo não-JSON */ }
+        // Telefone/e-mail já é de um CLIENTE (Tutor): não cria lead duplicado.
+        if (res.status === 409 && payload?.code === "PHONE_BELONGS_TO_TUTOR" && payload?.tutorId) {
+          const nome = (typeof payload.message === "string" && payload.message.replace(/^Telefone ja pertence ao cliente\s*/i, "").trim()) || "";
+          const abrir = window.confirm(
+            `Esse telefone já é do cliente${nome ? ` ${nome}` : ""}. Não vou criar um lead duplicado.\n\nDeseja abrir a ficha do cliente?`
+          );
+          if (abrir) router.push(`/dashboard/erp/tutores/${payload.tutorId}`);
+          return;
+        }
+        if (res.status === 409) {
+          toast.error(payload?.message || "Já existe um lead com esse telefone ou e-mail.");
+          return;
+        }
+        throw new Error(payload?.message || (await res.text().catch(() => "")));
+      }
+      const novo = await res.json();
+      setNovoOpen(false);
+      toast.success("Lead cadastrado");
+      if (novo?.id) {
+        // Atualiza a lista local sem sair da tela
+        setLeads((prev) => [novo, ...prev.filter((l) => l.id !== novo.id)]);
+      } else {
+        await loadLeads();
+      }
+    } catch {
+      toast.error("Não foi possível criar o lead. Verifique os dados e tente novamente.");
+    } finally {
+      setSavingNovo(false);
+    }
+  };
 
   async function loadLeads() {
     try {
@@ -157,12 +227,10 @@ export default function ComercialPage() {
   // colunas a mostrar: etapas do pipeline + qualquer etapa com leads fora da lista + Sem etapa (se houver)
   const columns = useMemo(() => {
     const cols: string[] = [...stages];
-    // etapas presentes nos leads que não estão na lista canônica
     for (const key of Object.keys(byStage)) {
       if (key !== SEM_ETAPA && !cols.includes(key)) cols.push(key);
     }
     if (byStage[SEM_ETAPA]?.length) cols.unshift(SEM_ETAPA);
-    // remove duplicatas preservando ordem
     return cols.filter((c, i) => cols.indexOf(c) === i);
   }, [stages, byStage]);
 
@@ -170,6 +238,31 @@ export default function ComercialPage() {
     () => leads.filter((l) => ORCAMENTO_RE.test(l.pipelineComercialEtapa || "")),
     [leads]
   );
+
+  // ---- Follow-up: leads ativos que aguardam retorno ----
+  // Prioriza quem tem proximoFollowupAt; senão, quem está numa etapa de "aguardando/retomar/reaproximação".
+  // Ordena: follow-up vencido/mais próximo primeiro; depois por atividade mais recente.
+  const followupLeads = useMemo(() => {
+    const ativos = leads.filter(isAtivo);
+    const arr = ativos.filter(
+      (l) => l.proximoFollowupAt || FOLLOWUP_RE.test(l.pipelineComercialEtapa || "")
+    );
+    const ts = (l: Lead) =>
+      l.proximoFollowupAt ? new Date(l.proximoFollowupAt).getTime() : Number.POSITIVE_INFINITY;
+    const atividade = (l: Lead) =>
+      new Date(l.lastActivityAt || l.createdAt || 0).getTime();
+    return arr.sort((a, b) => {
+      const fa = ts(a);
+      const fb = ts(b);
+      if (fa !== fb) return fa - fb; // follow-up mais próximo/vencido primeiro
+      return atividade(b) - atividade(a); // depois, mais recentes
+    });
+  }, [leads]);
+
+  const followupVencidos = useMemo(() => {
+    const agora = Date.now();
+    return followupLeads.filter((l) => l.proximoFollowupAt && new Date(l.proximoFollowupAt).getTime() <= agora).length;
+  }, [followupLeads]);
 
   async function mudarEtapa(lead: Lead, novaEtapa: string) {
     const anterior = lead.pipelineComercialEtapa || null;
@@ -188,7 +281,6 @@ export default function ComercialPage() {
       if (!r.ok) throw new Error(String(r.status));
       toast.success("Etapa atualizada");
     } catch (e: any) {
-      // reverte
       setLeads((prev) =>
         prev.map((l) => (l.id === lead.id ? { ...l, pipelineComercialEtapa: anterior } : l))
       );
@@ -197,6 +289,8 @@ export default function ComercialPage() {
   }
 
   const cardKpi = "bg-white border border-[#E8E2D6] rounded-[11px] p-3";
+  const fmtData = (d?: string | null) =>
+    d ? new Date(d).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) : "";
 
   function LeadCard({ lead }: { lead: Lead }) {
     const temp = getTemp(lead.currentScore || 0);
@@ -269,31 +363,38 @@ export default function ComercialPage() {
       {/* Cabeçalho */}
       <div className="flex justify-between items-start mb-3 flex-wrap gap-3">
         <div></div>
-        <Link
-          href="/dashboard/crm/leads/novo"
+        <button
+          type="button"
+          onClick={abrirNovoLead}
           className="bg-[#0F6E56] text-white px-3.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 hover:opacity-90"
         >
           ➕ Novo lead
-        </Link>
+        </button>
       </div>
 
-      {/* Abas */}
-      <div className="flex gap-1.5 mb-4 flex-wrap">
+      {/* Abas (barra Base44) */}
+      <div className="flex gap-4 mb-4 border-b border-[#E8E2D6] flex-wrap">
         {([
+          ["followup", "📞 Follow-up"],
+          ["leads", "🧲 Leads"],
           ["funil", "🗂️ Funil"],
-          ["lista", "📋 Lista"],
           ["orcamentos", "📄 Orçamentos"],
         ] as [typeof aba, string][]).map(([key, label]) => (
           <button
             key={key}
             onClick={() => setAba(key)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${
+            className={`pb-2 -mb-px text-[13px] transition ${
               aba === key
-                ? "bg-[#009AAC] text-white border-[#009AAC]"
-                : "bg-white text-[#5C6B70] border-[#E8E2D6] hover:bg-[#FBF9F4]"
+                ? "border-b-2 border-[#009AAC] text-[#014D5E] font-medium"
+                : "text-[#8A989D] hover:text-[#5C6B70]"
             }`}
           >
             {label}
+            {key === "followup" && followupLeads.length > 0 && (
+              <span className="ml-1.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-[#FBEED8] text-[#B25C0A]">
+                {followupLeads.length}
+              </span>
+            )}
           </button>
         ))}
       </div>
@@ -325,46 +426,91 @@ export default function ComercialPage() {
         <div className="text-center text-[#8A989D] py-16">Carregando…</div>
       ) : (
         <>
-          {/* ABA FUNIL */}
-          {aba === "funil" && (
-            <div className="overflow-x-auto pb-2">
-              <div className="flex gap-2 min-w-min">
-                {columns.map((stage) => {
-                  const items = byStage[stage] || [];
-                  const badge = stageBadgeColors(stage);
-                  return (
-                    <div
-                      key={stage}
-                      className="min-w-[180px] w-[180px] bg-[#FBF9F4] border border-[#F0EBE0] rounded-[11px] p-2 flex-shrink-0"
-                    >
-                      <div className="flex items-center gap-1 mb-2">
-                        <span className="text-[11px] font-medium text-[#014D5E] truncate flex-1 min-w-0">
-                          {STAGE_EMOJI[stage] || "•"} {stage}
-                        </span>
+          {/* ABA FOLLOW-UP */}
+          {aba === "followup" && (
+            <div className="bg-white rounded-[12px] border border-[#E8E2D6] overflow-hidden">
+              <div className="flex items-center gap-2 px-3 py-2 border-b border-[#F0EBE0] bg-[#FBF9F4]">
+                <span className="text-[12px] font-medium text-[#014D5E]">📞 Quem contatar</span>
+                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-[#E0F4F6] text-[#00798A]">
+                  {followupLeads.length}
+                </span>
+                {followupVencidos > 0 && (
+                  <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-[#FCEBEB] text-[#A32D2D]">
+                    {followupVencidos} vencido{followupVencidos > 1 ? "s" : ""}
+                  </span>
+                )}
+                <span className="text-[10px] text-[#8A989D] ml-auto">follow-up pendente ou aguardando retorno</span>
+              </div>
+              {followupLeads.length === 0 ? (
+                <div className="py-12 text-center text-[#8A989D] text-[13px]">
+                  🎉 Ninguém aguardando retorno agora.
+                </div>
+              ) : (
+                <div>
+                  {followupLeads.map((l) => {
+                    const temp = getTemp(l.currentScore || 0);
+                    const fu = l.proximoFollowupAt ? new Date(l.proximoFollowupAt).getTime() : null;
+                    const vencido = fu !== null && fu <= Date.now();
+                    return (
+                      <div
+                        key={l.id}
+                        onClick={() => router.push(`/dashboard/crm/leads/${l.id}`)}
+                        className="flex items-center gap-2.5 px-3 py-2.5 border-b border-[#F0EBE0] hover:bg-[#FBF9F4] cursor-pointer transition"
+                      >
+                        <div className="w-8 h-8 rounded-full bg-[#E0F4F6] text-[#014D5E] flex items-center justify-center text-[11px] font-medium flex-shrink-0">
+                          {getInitials(l.name)}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[13px] text-[#014D5E] font-medium truncate">{l.name || "Sem nome"}</div>
+                          <div className="text-[11px] text-[#5C6B70] truncate">
+                            {l.phone || "sem telefone"}
+                            {l.pipelineComercialEtapa ? ` · ${l.pipelineComercialEtapa}` : ""}
+                          </div>
+                        </div>
+                        {l.proximoFollowupAt && (
+                          <span
+                            className="text-[10px] font-medium px-2 py-0.5 rounded-full flex-shrink-0"
+                            style={
+                              vencido
+                                ? { background: "#FCEBEB", color: "#A32D2D" }
+                                : { background: "#FBEED8", color: "#B25C0A" }
+                            }
+                          >
+                            {vencido ? "⚠️ " : "📅 "}{fmtData(l.proximoFollowupAt)}
+                          </span>
+                        )}
                         <span
-                          style={{ background: badge.bg, color: badge.color }}
-                          className="text-[10px] font-medium px-1.5 py-0.5 rounded-full flex-shrink-0"
+                          style={{ background: temp.bg, color: temp.color }}
+                          className="inline-flex items-center gap-0.5 text-[11px] font-medium px-2 py-0.5 rounded-full flex-shrink-0"
                         >
-                          {items.length}
+                          {temp.icon} {temp.label}
                         </span>
                       </div>
-                      {items.length === 0 ? (
-                        <p className="text-[10px] text-[#8A989D] py-2 text-center">—</p>
-                      ) : (
-                        items.map((lead) => <LeadCard key={lead.id} lead={lead} />)
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
-          {/* ABA LISTA */}
-          {aba === "lista" && (
+          {/* ABA LEADS (lista + cadastrar aqui mesmo) */}
+          {aba === "leads" && (
             <div className="bg-white rounded-[12px] border border-[#E8E2D6] overflow-hidden">
+              <div className="flex items-center gap-2 px-3 py-2 border-b border-[#F0EBE0] bg-[#FBF9F4]">
+                <span className="text-[12px] font-medium text-[#014D5E]">🧲 Todos os leads</span>
+                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-[#E0F4F6] text-[#00798A]">
+                  {leads.length}
+                </span>
+                <button
+                  type="button"
+                  onClick={abrirNovoLead}
+                  className="ml-auto text-[11px] font-medium px-2.5 py-1 rounded-full bg-[#009AAC] text-white hover:opacity-90"
+                >
+                  ➕ Novo lead
+                </button>
+              </div>
               {leads.length === 0 ? (
-                <div className="py-12 text-center text-[#8A989D]">Nenhum lead encontrado</div>
+                <div className="py-12 text-center text-[#8A989D]">Nenhum lead ainda. Clique em “Novo lead”.</div>
               ) : (
                 <table className="w-full text-sm">
                   <thead>
@@ -419,9 +565,45 @@ export default function ComercialPage() {
               )}
               {leads.length > 200 && (
                 <div className="px-3 py-2 text-[11px] text-[#8A989D] bg-[#FBF9F4] border-t border-[#F0EBE0]">
-                  Mostrando 200 de {leads.length} leads. Use o funil ou os filtros da tela de Leads para refinar.
+                  Mostrando 200 de {leads.length} leads.{" "}
+                  <Link href="/dashboard/crm/leads" className="text-[#009AAC]">Abra a tela de Leads</Link> para filtrar.
                 </div>
               )}
+            </div>
+          )}
+
+          {/* ABA FUNIL */}
+          {aba === "funil" && (
+            <div className="overflow-x-auto pb-2">
+              <div className="flex gap-2 min-w-min">
+                {columns.map((stage) => {
+                  const items = byStage[stage] || [];
+                  const badge = stageBadgeColors(stage);
+                  return (
+                    <div
+                      key={stage}
+                      className="min-w-[180px] w-[180px] bg-[#FBF9F4] border border-[#F0EBE0] rounded-[11px] p-2 flex-shrink-0"
+                    >
+                      <div className="flex items-center gap-1 mb-2">
+                        <span className="text-[11px] font-medium text-[#014D5E] truncate flex-1 min-w-0">
+                          {STAGE_EMOJI[stage] || "•"} {stage}
+                        </span>
+                        <span
+                          style={{ background: badge.bg, color: badge.color }}
+                          className="text-[10px] font-medium px-1.5 py-0.5 rounded-full flex-shrink-0"
+                        >
+                          {items.length}
+                        </span>
+                      </div>
+                      {items.length === 0 ? (
+                        <p className="text-[10px] text-[#8A989D] py-2 text-center">—</p>
+                      ) : (
+                        items.map((lead) => <LeadCard key={lead.id} lead={lead} />)
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
 
@@ -471,6 +653,36 @@ export default function ComercialPage() {
             </div>
           )}
         </>
+      )}
+
+      {/* Modal Novo Lead (reaproveitado da tela de Leads) */}
+      {novoOpen && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center pt-24" onClick={() => setNovoOpen(false)}>
+          <div className="bg-white rounded-2xl p-5 w-[420px] max-w-[92vw]" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-medium text-[#014D5E]">Novo Lead</h2>
+              <button onClick={() => setNovoOpen(false)} className="text-[#8A989D] hover:text-[#5C6B70] text-lg leading-none">✕</button>
+            </div>
+            <label className="text-[11px] text-[#8A989D]">Nome</label>
+            <input autoFocus value={novoNome} onChange={(e) => setNovoNome(e.target.value)} placeholder="Nome do lead" className="w-full h-9 mt-0.5 mb-3 px-3 border border-[#E8E2D6] rounded-lg text-sm focus:outline-none focus:border-[#009AAC]" />
+            <label className="text-[11px] text-[#8A989D]">Telefone</label>
+            <input value={novoTel} onChange={(e) => setNovoTel(e.target.value)} placeholder="(85) 9 9999-9999" className="w-full h-9 mt-0.5 mb-3 px-3 border border-[#E8E2D6] rounded-lg text-sm focus:outline-none focus:border-[#009AAC]" />
+            <label className="text-[11px] text-[#8A989D]">Email (opcional)</label>
+            <input value={novoEmail} onChange={(e) => setNovoEmail(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") handleCriarLead(); }} placeholder="email@exemplo.com" className="w-full h-9 mt-0.5 px-3 border border-[#E8E2D6] rounded-lg text-sm focus:outline-none focus:border-[#009AAC]" />
+            <p className="text-[10px] text-[#8A989D] mt-1.5">Sem email, geramos um provisório a partir do telefone.</p>
+            <label className="text-[11px] text-[#8A989D] block mt-3">Pet de interesse (opcional)</label>
+            <div className="flex gap-2 mt-0.5">
+              <input value={novoPetNome} onChange={(e) => setNovoPetNome(e.target.value)} placeholder="Nome do pet" className="flex-1 h-9 px-3 border border-[#E8E2D6] rounded-lg text-sm focus:outline-none focus:border-[#009AAC]" />
+              <select value={novoPetEspecie} onChange={(e) => setNovoPetEspecie(e.target.value)} className="h-9 px-2 border border-[#E8E2D6] rounded-lg text-sm w-[90px] focus:outline-none focus:border-[#009AAC]">
+                <option>Cão</option><option>Gato</option><option>Outro</option>
+              </select>
+            </div>
+            <div className="flex gap-2 justify-end mt-4">
+              <button onClick={() => setNovoOpen(false)} className="px-4 py-2 border border-[#E8E2D6] rounded-lg text-sm text-[#5C6B70]">Cancelar</button>
+              <button onClick={handleCriarLead} disabled={savingNovo} className="px-4 py-2 rounded-lg text-sm text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingNovo ? "Criando..." : "Cadastrar lead"}</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
