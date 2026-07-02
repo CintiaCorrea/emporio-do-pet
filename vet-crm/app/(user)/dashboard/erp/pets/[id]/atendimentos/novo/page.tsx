@@ -285,11 +285,13 @@ export default function NovoAtendimentoPage() {
       {/* Cabeçalho */}
       <div className={`${card} mb-3`} style={{ padding: "13px 16px" }}>
         <div className="flex items-center gap-3">
+          <button onClick={() => router.back()} title="Voltar" className="w-9 h-9 rounded-[10px] border border-[#E8E2D6] text-[#5C6B70] hover:border-[#009AAC] hover:text-[#009AAC] flex items-center justify-center shrink-0">←</button>
           <div className="w-[46px] h-[46px] rounded-[13px] bg-[#FBF3E3] flex items-center justify-center text-[24px] shrink-0">{PET_EMOJI(pet.species)}</div>
           <div className="flex-1 min-w-0">
             <h1 className="text-[18px] leading-tight text-[#014D5E] font-medium">🩺 Atendimento — {pet.name}</h1>
             <p className="text-[12.5px] text-[#5C6B70]">{[speciesLabel(pet.species), pet.breed, genderLabel(pet.gender), pet.birthDate ? ageFromBirth(pet.birthDate) : null].filter((x) => x && x !== "—").join(" · ")} · Tutor(a): {pet.tutor?.name || "—"}</p>
           </div>
+          <Link href={`/dashboard/erp/pets/${pet.id}`} title="Fechar" className="w-9 h-9 rounded-[10px] border border-[#E8E2D6] text-[#5C6B70] hover:border-[#009AAC] hover:text-[#009AAC] flex items-center justify-center shrink-0">✕</Link>
         </div>
       </div>
 

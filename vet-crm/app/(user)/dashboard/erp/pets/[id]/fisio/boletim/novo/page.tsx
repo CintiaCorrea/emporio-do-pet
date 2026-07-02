@@ -65,11 +65,18 @@ export default function BoletimFisioPage() {
         const row = arr.find((x: any) => x.id === boletimId);
         if (row) { let o: any = {}; try { o = JSON.parse(row.valor); } catch {} setB((prev) => ({ ...prev, ...o, equipamentos: o.equipamentos || {} })); }
       } else if (p) {
-        // novo: pré-preenche PACIENTE a partir do pet + tutor
+        // novo: pré-preenche PACIENTE a partir do pet + tutor + petfisio_
+        let fisio: any = {};
+        try {
+          const rf = await safeJson<any>(await fetch(`/api/listas?lista=petfisio_${petId}`, { cache: "no-store" }), []);
+          const rfArr = Array.isArray(rf) ? rf : (rf.itens || rf.data || []);
+          if (rfArr[0]) { try { fisio = JSON.parse(rfArr[0].valor); } catch {} }
+        } catch {}
         setB((prev) => ({
           ...prev,
           animal: p.name || "", raca: p.breed || "", sexo: genderLabel(p.gender), idade: p.birthDate ? ageFromBirth(p.birthDate) : "",
           tutor: p.tutor?.name || "", sessaoNumero: sessNum,
+          diagnostico: fisio.diagnostico || "", encaminhado: fisio.encaminhadoPor || fisio.encaminhado || "", examesData: fisio.ultimosExames || fisio.exames || "",
         }));
       }
     })();
@@ -144,11 +151,13 @@ export default function BoletimFisioPage() {
 
       <div className={`${card} mb-3`} style={{ padding: "13px 16px" }}>
         <div className="flex items-center gap-3">
+          <button onClick={() => router.back()} title="Voltar" className="w-9 h-9 rounded-[10px] border border-[#E8E2D6] text-[#5C6B70] hover:border-[#009AAC] hover:text-[#009AAC] flex items-center justify-center shrink-0">←</button>
           <div className="w-[46px] h-[46px] rounded-[13px] bg-[#EAF3DE] flex items-center justify-center text-[24px] shrink-0">{PET_EMOJI(pet.species)}</div>
           <div className="flex-1 min-w-0">
             <h1 className="text-[18px] leading-tight text-[#014D5E] font-medium">🌿 Boletim de Fisioterapia — {pet.name}</h1>
             <p className="text-[12.5px] text-[#5C6B70]">{[speciesLabel(pet.species), pet.breed, pet.birthDate ? ageFromBirth(pet.birthDate) : null].filter((x) => x && x !== "—").join(" · ")} · Tutor(a): {pet.tutor?.name || "—"}{sessaoDefault ? ` · Sessão ${sessaoDefault}` : ""}</p>
           </div>
+          <Link href={`/dashboard/erp/pets/${pet.id}`} title="Fechar" className="w-9 h-9 rounded-[10px] border border-[#E8E2D6] text-[#5C6B70] hover:border-[#009AAC] hover:text-[#009AAC] flex items-center justify-center shrink-0">✕</Link>
         </div>
       </div>
 

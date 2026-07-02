@@ -34,6 +34,7 @@ import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { speciesLabel, ageFromBirth, genderLabel } from "@/lib/pets/labels";
 import { openWhatsAppMeta } from "@/lib/actions/whatsapp";
 import { montarTextoBoletim } from "@/lib/pets/boletim";
+import BoletimModal from "@/components/pets/BoletimModal";
 
 // Emoji da espécie (avatar do cabeçalho — padrão Base44)
 const PET_EMOJI = (species: string) => {
@@ -187,6 +188,8 @@ export default function PetDetailPage() {
   const [editFisio, setEditFisio] = useState(false);
   const [fisioForm, setFisioForm] = useState<any>({ frequencia: "", diagnostico: "", encaminhadoPor: "", ultimosExames: "" });
   const [savingFisio, setSavingFisio] = useState(false);
+  const [boletimOpen, setBoletimOpen] = useState(false);
+  const [boletimEditId, setBoletimEditId] = useState<string | null>(null);
   const [intTipo, setIntTipo] = useState("NOTA");
   const [intTexto, setIntTexto] = useState("");
   const [savingInt, setSavingInt] = useState(false);
@@ -1448,7 +1451,7 @@ export default function PetDetailPage() {
             <div className="bg-white border border-[#E8E2D6] rounded-[13px]">
               <div className="flex items-center justify-between border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
                 <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">📋 Boletins de sessão <span className="bg-[#E7F6EE] text-[#1c7a47] text-[10px] font-medium px-1.5 py-0.5 rounded-full">{boletins.length}</span></h3>
-                <button onClick={() => router.push(`/dashboard/erp/pets/${petId}/fisio/boletim/novo`)} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white flex items-center gap-1.5" style={{ background: "#009AAC" }}>➕ Novo boletim</button>
+                <button onClick={() => { setBoletimEditId(null); setBoletimOpen(true); }} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white flex items-center gap-1.5" style={{ background: "#009AAC" }}>➕ Novo boletim</button>
               </div>
               <div style={{ padding: "6px 14px" }}>
                 {boletins.length === 0 && <p className="text-[12.5px] text-[#8A989D] py-4 text-center">Nenhum boletim registrado ainda.</p>}
@@ -1462,7 +1465,7 @@ export default function PetDetailPage() {
                       <span className="flex-1 text-[12.5px] text-[#1F2A2E] truncate">{resumo || <span className="text-[#8A989D]">sem observação</span>}</span>
                       {b.data.enviadoAt ? <span className="text-[10px] text-[#0F6E56] shrink-0" title="Enviado">✅</span> : <span className="text-[10px] text-[#8a6400] shrink-0" title="Não enviado">🕓</span>}
                       <div className="flex items-center gap-1.5 shrink-0">
-                        <button onClick={() => router.push(`/dashboard/erp/pets/${petId}/fisio/boletim/novo?id=${b.id}`)} title="Ver / editar" className="text-[13px] text-[#5C6B70] hover:text-[#009AAC]">👁️</button>
+                        <button onClick={() => { setBoletimEditId(b.id); setBoletimOpen(true); }} title="Ver / editar" className="text-[13px] text-[#5C6B70] hover:text-[#009AAC]">👁️</button>
                         <button onClick={() => imprimirBoletim(b)} title="Imprimir" className="text-[13px] text-[#5C6B70] hover:text-[#009AAC]">🖨️</button>
                         <button onClick={() => reenviarBoletim(b)} title="Reenviar por WhatsApp" className="text-[13px] text-[#5C6B70] hover:text-[#009AAC]">💬</button>
                         <button onClick={() => delBoletim(b.id)} title="Excluir" className="text-[13px] text-[#b23b39]">🗑️</button>
@@ -1665,6 +1668,17 @@ export default function PetDetailPage() {
         onConfirm={handleDelete}
         onClose={() => setDelOpen(false)}
       />
+
+      {/* Boletim de fisioterapia — POPUP (novo/editar) */}
+      {boletimOpen && pet && (
+        <BoletimModal
+          pet={pet as any}
+          boletimId={boletimEditId}
+          fisioRec={fisioRec.data}
+          onClose={() => setBoletimOpen(false)}
+          onSaved={async () => { setBoletimOpen(false); await loadBoletins(); }}
+        />
+      )}
     </div>
   );
 }
