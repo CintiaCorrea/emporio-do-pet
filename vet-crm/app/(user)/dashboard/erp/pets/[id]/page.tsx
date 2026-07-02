@@ -11,7 +11,7 @@ import { confirmDelete } from "@/lib/ui/confirmDelete";
    ───────────────────────────────────────────────────────────── */
 
 import { useEffect, useMemo, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   LuArrowLeft, LuPencil, LuTrash, LuPlus, LuFlaskConical,
@@ -33,6 +33,7 @@ import PetIcon from "@/components/profile/PetIcon";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { speciesLabel, ageFromBirth, genderLabel } from "@/lib/pets/labels";
 import { openWhatsAppMeta } from "@/lib/actions/whatsapp";
+import { montarTextoBoletim } from "@/lib/pets/boletim";
 
 // Emoji da espécie (avatar do cabeçalho — padrão Base44)
 const PET_EMOJI = (species: string) => {
@@ -89,7 +90,7 @@ interface Pet {
   codigo?: number | null;
   tutorName?: string | null;
   tutorId: string;
-  tutor?: { id: string; name: string; contacts?: { number: string; isPrimary?: boolean; isWhatsApp?: boolean }[] };
+  tutor?: { id: string; name: string; acceptsWhatsApp?: boolean; contacts?: { number: string; isPrimary?: boolean; isWhatsApp?: boolean }[] };
   createdAt: string;
   _count?: { appointments: number; treatments: number };
 }
@@ -114,6 +115,7 @@ const ATD_TIPO_LABEL = (t?: string) => (({ CONSULTA: "Consulta", RETORNO: "Retor
 export default function PetDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const petId = params?.id as string;
 
   const [pet, setPet] = useState<Pet | null>(null);
@@ -179,6 +181,12 @@ export default function PetDetailPage() {
   const [petInteracoes, setPetInteracoes] = useState<any[]>([]);
   const [protocolos, setProtocolos] = useState<any[]>([]);
   const [gerenciarProto, setGerenciarProto] = useState(false);
+  // 🌿 Fisioterapia: boletins + registro do tratamento (frequência/diagnóstico/encaminhado)
+  const [boletins, setBoletins] = useState<{ id: string; data: any }[]>([]);
+  const [fisioRec, setFisioRec] = useState<{ id?: string; data: any }>({ data: {} });
+  const [editFisio, setEditFisio] = useState(false);
+  const [fisioForm, setFisioForm] = useState<any>({ frequencia: "", diagnostico: "", encaminhadoPor: "", ultimosExames: "" });
+  const [savingFisio, setSavingFisio] = useState(false);
   const [intTipo, setIntTipo] = useState("NOTA");
   const [intTexto, setIntTexto] = useState("");
   const [savingInt, setSavingInt] = useState(false);
@@ -188,7 +196,7 @@ export default function PetDetailPage() {
   const [editAtd, setEditAtd] = useState(false);
   const [editAtdForm, setEditAtdForm] = useState<any>({});
   // Nova estrutura Base44: 5 abas de topo + cabeçalho estilo ficha do cliente
-  const [mainTab, setMainTab] = useState<"GERAL" | "CADASTRO" | "PRONTUARIO" | "VACINAS" | "COMPRAS">("GERAL");
+  const [mainTab, setMainTab] = useState<"GERAL" | "CADASTRO" | "PRONTUARIO" | "VACINAS" | "FISIO" | "COMPRAS">("GERAL");
   const [showValues, setShowValues] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [statusOpen, setStatusOpen] = useState(false);
@@ -220,7 +228,54 @@ export default function PetDetailPage() {
     } catch {}
   }
   async function loadProtocolos() { try { const r = await fetch(`/api/protocolos?petId=${petId}`, { cache: "no-store" }); const d = await r.json(); setProtocolos(Array.isArray(d) ? d : (d.data || [])); } catch {} }
-  useEffect(() => { if (petId) { load(); loadPipes(); loadPetColecoes(); loadCatalogos(); loadInteracoesPet(); loadAtendimentos(); loadClinDocs(); loadAtdConfig(); loadProtocolos(); } /* eslint-disable-next-line */ }, [petId]);
+  async function loadBoletins() {
+    try {
+      const r = await fetch(`/api/listas?lista=petboletim_${petId}`, { cache: "no-store" });
+      const d = await r.json(); const arr = Array.isArray(d) ? d : (d.itens || d.data || []);
+      const parsed = arr.map((i: any) => { let o: any = {}; try { o = JSON.parse(i.valor); } catch {} return { id: i.id, data: o }; }).sort((a: any, b: any) => new Date(b.data?.sessaoData || b.data?.createdAt || 0).getTime() - new Date(a.data?.sessaoData || a.data?.createdAt || 0).getTime());
+      setBoletins(parsed);
+    } catch {}
+  }
+  async function loadFisioRec() {
+    try {
+      const r = await fetch(`/api/listas?lista=petfisio_${petId}`, { cache: "no-store" });
+      const d = await r.json(); const arr = Array.isArray(d) ? d : (d.itens || d.data || []);
+      if (arr[0]) { let o: any = {}; try { o = JSON.parse(arr[0].valor); } catch {} setFisioRec({ id: arr[0].id, data: o }); setFisioForm({ frequencia: o.frequencia || "", diagnostico: o.diagnostico || "", encaminhadoPor: o.encaminhadoPor || "", ultimosExames: o.ultimosExames || "" }); }
+      else setFisioRec({ data: {} });
+    } catch {}
+  }
+  async function saveFisioRec() {
+    setSavingFisio(true);
+    try {
+      const valor = JSON.stringify({ ...fisioForm, updatedAt: new Date().toISOString() });
+      if (fisioRec.id) { const r = await fetch(`/api/listas/${fisioRec.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ valor }) }); if (!r.ok) throw new Error(); }
+      else { const r = await fetch(`/api/listas`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lista: `petfisio_${petId}`, valor }) }); if (!r.ok) throw new Error(); }
+      toast.success("Tratamento atualizado"); setEditFisio(false); await loadFisioRec();
+    } catch { toast.error("Erro ao salvar"); } finally { setSavingFisio(false); }
+  }
+  async function delBoletim(id: string) {
+    if (!(await confirmDelete({ entityLabel: "boletim", itemName: "este boletim" }))) return;
+    try { const r = await fetch(`/api/listas/${id}`, { method: "DELETE" }); if (!r.ok) throw new Error(); toast.success("Boletim excluído"); await loadBoletins(); } catch { toast.error("Erro ao excluir"); }
+  }
+  // 💬 Reenviar boletim: copia o texto e abre o WhatsApp (Meta) do tutor. Consentimento exigido.
+  async function reenviarBoletim(b: { id: string; data: any }) {
+    if (!pet?.tutor?.acceptsWhatsApp) { toast.error("O tutor ainda não autorizou receber por WhatsApp"); return; }
+    const texto = montarTextoBoletim(b.data);
+    try { await navigator.clipboard.writeText(texto); toast.success("Boletim copiado — cole no WhatsApp"); } catch {}
+    openWhatsAppMeta(tutorWhats || undefined);
+    // marca enviado
+    try { await fetch(`/api/listas/${b.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ valor: JSON.stringify({ ...b.data, enviadoAt: new Date().toISOString() }) }) }); await loadBoletins(); } catch {}
+    // Fase 2: envio automatico via WhatsApp API/template (opt-in + template Meta)
+  }
+  function imprimirBoletim(b: { id: string; data: any }) {
+    const w = window.open("", "_blank", "width=800,height=900");
+    if (!w) { toast.error("Permita pop-ups para imprimir"); return; }
+    const esc = (t: any) => String(t || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    w.document.write(`<html><head><title>Boletim de fisioterapia</title><style>body{font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#0E2244;padding:40px;max-width:720px;margin:0 auto;font-size:13px;line-height:1.55}h1{color:#014D5E;font-size:19px;margin:0 0 2px}.sub{color:#6B7280;font-size:12px;margin-bottom:16px}pre{white-space:pre-wrap;font-family:inherit;border-top:2px solid #009AAC;padding-top:14px}</style></head><body><h1>🌿 Boletim de Fisioterapia — Empório do Pet</h1><div class="sub">${esc(pet?.name || "")} · ${esc(new Date(b.data?.sessaoData || Date.now()).toLocaleDateString("pt-BR"))}</div><pre>${esc(montarTextoBoletim(b.data))}</pre></body></html>`);
+    w.document.close(); w.focus(); setTimeout(() => w.print(), 300);
+  }
+  useEffect(() => { if (petId) { load(); loadPipes(); loadPetColecoes(); loadCatalogos(); loadInteracoesPet(); loadAtendimentos(); loadClinDocs(); loadAtdConfig(); loadProtocolos(); loadBoletins(); loadFisioRec(); } /* eslint-disable-next-line */ }, [petId]);
+  useEffect(() => { const t = searchParams?.get("tab"); if (t === "fisio") setMainTab("FISIO"); /* eslint-disable-next-line */ }, [searchParams]);
 
   async function handleDelete() {
     const res = await fetch(`/api/pets/${petId}`, { method: "DELETE" });
@@ -712,6 +767,7 @@ export default function PetDetailPage() {
           { k: "CADASTRO", label: "📋 Cadastro" },
           { k: "PRONTUARIO", label: "🩺 Prontuário" },
           { k: "VACINAS", label: "💉 Vacinas & meds" },
+          { k: "FISIO", label: "🌿 Fisioterapia" },
           { k: "COMPRAS", label: "🧾 Compras" },
         ] as const).map((t) => (
           <button key={t.k} onClick={() => setMainTab(t.k)} className="px-4 py-2 text-sm font-medium border-b-2 transition -mb-px" style={{ borderColor: mainTab === t.k ? "#009AAC" : "transparent", color: mainTab === t.k ? "#009AAC" : "#8A989D" }}>{t.label}</button>
@@ -1347,6 +1403,94 @@ export default function PetDetailPage() {
         </div>
       </div>
       )}
+
+      {/* ═══════════ ABA 🌿 FISIOTERAPIA ═══════════ */}
+      {mainTab === "FISIO" && (() => {
+        const pacsFisio = (pacotes || []);
+        const ativo = pacsFisio.find((p) => (p.data?.total || 0) > 0 && (p.data?.used || 0) < (p.data?.total || 0));
+        const fechados = pacsFisio.filter((p) => (p.data?.total || 0) > 0 && (p.data?.used || 0) >= (p.data?.total || 0));
+        const aUsed = ativo?.data?.used || 0, aTotal = ativo?.data?.total || 0;
+        return (
+          <div className="mb-3 flex flex-col gap-3">
+            {/* 1. Cabeçalho do tratamento: patinhas + dados */}
+            <div className="bg-white border border-[#E8E2D6] rounded-[14px]" style={{ padding: "14px 16px" }}>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">🌿 Tratamento em andamento</h3>
+                <button onClick={() => setEditFisio((v) => !v)} className="text-[11px] text-[#009AAC] hover:underline">{editFisio ? "✖️ Fechar" : "✏️ Editar"}</button>
+              </div>
+              {/* Patinhas do pacote ativo */}
+              {ativo ? (
+                <div className="mb-3">
+                  <div className="flex justify-between text-[11.5px] mb-1"><span className="text-[#5C6B70]">🐾 {ativo.data.nome}</span><span className="text-[#014D5E] font-medium">{aUsed}/{aTotal} sessões</span></div>
+                  <div className="flex flex-wrap gap-0.5">{Array.from({ length: Math.min(aTotal, 40) }).map((_, i) => <span key={i} style={{ fontSize: "16px" }} title={`Sessão ${i + 1}`}>{i < aUsed ? "🐾" : "⚪"}</span>)}</div>
+                </div>
+              ) : <p className="text-[12px] text-[#8A989D] mb-3">Sem pacote de fisioterapia ativo. Lance um pacote pela tela de atendimento.</p>}
+              {/* Campos do tratamento */}
+              {editFisio ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-3 border-t border-[#F0EBE0]">
+                  <div><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Frequência das sessões</label><input value={fisioForm.frequencia} onChange={(e) => setFisioForm((f: any) => ({ ...f, frequencia: e.target.value }))} placeholder="Ex.: a cada 15 dias" className="w-full mt-0.5 px-2 py-1.5 border border-[#E8E2D6] rounded text-[13px]" /></div>
+                  <div><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Encaminhado por</label><input value={fisioForm.encaminhadoPor} onChange={(e) => setFisioForm((f: any) => ({ ...f, encaminhadoPor: e.target.value }))} className="w-full mt-0.5 px-2 py-1.5 border border-[#E8E2D6] rounded text-[13px]" /></div>
+                  <div><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Diagnóstico</label><input value={fisioForm.diagnostico} onChange={(e) => setFisioForm((f: any) => ({ ...f, diagnostico: e.target.value }))} className="w-full mt-0.5 px-2 py-1.5 border border-[#E8E2D6] rounded text-[13px]" /></div>
+                  <div><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Últimos exames</label><input value={fisioForm.ultimosExames} onChange={(e) => setFisioForm((f: any) => ({ ...f, ultimosExames: e.target.value }))} className="w-full mt-0.5 px-2 py-1.5 border border-[#E8E2D6] rounded text-[13px]" /></div>
+                  <div className="md:col-span-2 flex gap-2"><button onClick={saveFisioRec} disabled={savingFisio} className="px-3 py-1.5 rounded text-[12px] text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingFisio ? "Salvando..." : "Salvar"}</button><button onClick={() => setEditFisio(false)} className="px-3 py-1.5 rounded text-[12px] border border-[#E8E2D6] text-[#5C6B70]">Cancelar</button></div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-2 pt-3 border-t border-[#F0EBE0]">
+                  <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Frequência</div><div className="text-[13px] text-[#1F2A2E]">{fisioRec.data.frequencia || "—"}</div></div>
+                  <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Diagnóstico</div><div className="text-[13px] text-[#1F2A2E]">{fisioRec.data.diagnostico || "—"}</div></div>
+                  <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Encaminhado por</div><div className="text-[13px] text-[#1F2A2E]">{fisioRec.data.encaminhadoPor || "—"}</div></div>
+                  <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Últimos exames</div><div className="text-[13px] text-[#1F2A2E]">{fisioRec.data.ultimosExames || "—"}</div></div>
+                </div>
+              )}
+            </div>
+
+            {/* 2. Boletins de sessão */}
+            <div className="bg-white border border-[#E8E2D6] rounded-[13px]">
+              <div className="flex items-center justify-between border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
+                <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">📋 Boletins de sessão <span className="bg-[#E7F6EE] text-[#1c7a47] text-[10px] font-medium px-1.5 py-0.5 rounded-full">{boletins.length}</span></h3>
+                <button onClick={() => router.push(`/dashboard/erp/pets/${petId}/fisio/boletim/novo`)} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white flex items-center gap-1.5" style={{ background: "#009AAC" }}>➕ Novo boletim</button>
+              </div>
+              <div style={{ padding: "6px 14px" }}>
+                {boletins.length === 0 && <p className="text-[12.5px] text-[#8A989D] py-4 text-center">Nenhum boletim registrado ainda.</p>}
+                {boletins.map((b, i) => {
+                  const resumo = (b.data.obsMv || "").split("\n")[0] || (b.data.obsTutor || "").split("\n")[0] || "";
+                  return (
+                    <div key={b.id} className="flex items-center gap-2.5 py-2.5" style={{ borderBottom: i < boletins.length - 1 ? "1px solid #F0EBE0" : "none" }}>
+                      <span className="text-[11px] px-2 py-0.5 rounded-full shrink-0" style={{ background: "#EAF3DE", color: "#3B6D11" }}>#{b.data.sessaoNumero || "—"}</span>
+                      <span className="text-[11.5px] text-[#8A989D] w-[42px] shrink-0">{b.data.sessaoData ? fmtDataBR(b.data.sessaoData).slice(0, 5) : "—"}</span>
+                      <span className="text-[11.5px] text-[#5C6B70] shrink-0 hidden sm:block">🧑‍⚕️ {b.data.mvResponsavel || "—"}</span>
+                      <span className="flex-1 text-[12.5px] text-[#1F2A2E] truncate">{resumo || <span className="text-[#8A989D]">sem observação</span>}</span>
+                      {b.data.enviadoAt ? <span className="text-[10px] text-[#0F6E56] shrink-0" title="Enviado">✅</span> : <span className="text-[10px] text-[#8a6400] shrink-0" title="Não enviado">🕓</span>}
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button onClick={() => router.push(`/dashboard/erp/pets/${petId}/fisio/boletim/novo?id=${b.id}`)} title="Ver / editar" className="text-[13px] text-[#5C6B70] hover:text-[#009AAC]">👁️</button>
+                        <button onClick={() => imprimirBoletim(b)} title="Imprimir" className="text-[13px] text-[#5C6B70] hover:text-[#009AAC]">🖨️</button>
+                        <button onClick={() => reenviarBoletim(b)} title="Reenviar por WhatsApp" className="text-[13px] text-[#5C6B70] hover:text-[#009AAC]">💬</button>
+                        <button onClick={() => delBoletim(b.id)} title="Excluir" className="text-[13px] text-[#b23b39]">🗑️</button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 3. Pacotes fechados */}
+            <div className="bg-white border border-[#E8E2D6] rounded-[13px]">
+              <div className="border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
+                <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">🏆 Pacotes fechados</h3>
+              </div>
+              <div style={{ padding: "8px 14px" }}>
+                {fechados.length === 0 && <p className="text-[12px] text-[#8A989D] py-1">Nenhum pacote concluído ainda.</p>}
+                {fechados.map((p, i) => (
+                  <div key={p.id} className="flex items-center justify-between py-2" style={{ borderBottom: i < fechados.length - 1 ? "1px solid #F0EBE0" : "none" }}>
+                    <span className="text-[12.5px] text-[#1F2A2E]">🏆 {p.data.nome}</span>
+                    <span className="text-[11px] text-[#8A989D]">{p.data.used}/{p.data.total} sessões · concluído</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ═══════════ ABA 🧾 COMPRAS — HISTÓRICO (somente leitura) ═══════════ */}
       {mainTab === "COMPRAS" && (() => {

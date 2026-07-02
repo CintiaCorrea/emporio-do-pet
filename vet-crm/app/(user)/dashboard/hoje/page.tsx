@@ -64,6 +64,7 @@ export default function HojePage() {
   const [examesPend, setExamesPend] = useState<any[]>([]);
   const [dosesPend, setDosesPend] = useState<any[]>([]);
   const [examesOpen, setExamesOpen] = useState(false);
+  const [boletinsPend, setBoletinsPend] = useState<any[]>([]);
   const [fuDue, setFuDue] = useState<any[]>([]);
   const [fuDueOpen, setFuDueOpen] = useState(false);
   const [toques, setToques] = useState<any[]>([]);
@@ -139,6 +140,20 @@ export default function HojePage() {
           }
         }
         setExamesPend(ex);
+        // 📋 Boletins de fisio pendentes = salvos com enviadoAt === null (rascunhos/não enviados)
+        // Fase 2: detectar "sessao feita sem boletim" via agenda
+        const bol: any[] = [];
+        for (const it of listArr) {
+          if ((it.lista || "").startsWith("petboletim_")) {
+            let dd: any = {}; try { dd = JSON.parse(it.valor); } catch {}
+            if (!dd.enviadoAt) {
+              const petId = it.lista.replace("petboletim_", "");
+              bol.push({ id: it.id, petId, petName: petMap[petId] || dd.animal || "Pet", sessao: dd.sessaoNumero || "", mv: dd.mvResponsavel || "", date: dd.sessaoData || dd.createdAt });
+            }
+          }
+        }
+        bol.sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime());
+        setBoletinsPend(bol);
         try { const dz = await safeJson<any>(await fetch("/api/protocolos/doses/pendentes?dias=7"), []); setDosesPend(Array.isArray(dz) ? dz : []); } catch {}
         const tutorArr = Array.isArray(tts) ? tts : (tts.tutors || tts.data || []);
         const leadArr = Array.isArray(lds) ? lds : (lds.leads || lds.data || []);
@@ -450,6 +465,31 @@ export default function HojePage() {
           })
         )}
       </div>
+
+      {/* 📋 Boletins pendentes — VET e ADMIN */}
+      {!loading && (effectiveRole === "VET" || effectiveRole === "ADMIN") && (
+        <div className="mt-6 bg-white border rounded-[14px] overflow-hidden" style={{ borderColor: "#E8E2D6" }}>
+          <div className="flex items-center gap-3.5 px-[18px] py-[13px] border-b" style={{ borderColor: "#F0EBE0" }}>
+            <div className="w-[38px] h-[38px] rounded-[10px] flex items-center justify-center flex-shrink-0" style={{ background: "#EAF3DE" }}><span style={{ fontSize: "19px" }}>📋</span></div>
+            <div className="flex-1 min-w-0">
+              <div className="text-[13.5px] font-medium text-[#1F2A2E]">📋 Boletins pendentes</div>
+              <div className="text-xs text-[#5C6B70]">Boletins de fisioterapia salvos e ainda não enviados ao tutor</div>
+            </div>
+            <span className="text-[13px] font-medium text-white min-w-[26px] h-6 rounded-xl flex items-center justify-center px-2 flex-shrink-0" style={{ background: boletinsPend.length > 0 ? "#009AAC" : "#D3D1C7" }}>{boletinsPend.length}</span>
+          </div>
+          {boletinsPend.length === 0 ? (
+            <div className="px-[18px] py-8 text-center text-sm text-[#8A989D]">Nenhum boletim pendente. 🎉</div>
+          ) : boletinsPend.map((b) => (
+            <Link key={b.id} href={`/dashboard/erp/pets/${b.petId}/fisio/boletim/novo?id=${b.id}`} className="flex items-center gap-2.5 px-[18px] py-2.5 border-b hover:bg-[#E0F4F6]/40" style={{ borderColor: "#F0EBE0" }}>
+              {b.sessao && <span className="text-[10px] px-2 py-0.5 rounded-full flex-shrink-0" style={{ background: "#EAF3DE", color: "#3B6D11" }}>#{b.sessao}</span>}
+              <span className="font-medium text-[13px] text-[#1F2A2E] truncate">{b.petName}</span>
+              {b.mv && <span className="text-xs text-[#5C6B70] hidden sm:block truncate">· 🧑‍⚕️ {b.mv}</span>}
+              {b.date && <span className="ml-auto text-[11px] text-[#8A989D] flex-shrink-0">{new Date(b.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}</span>}
+              <span className="text-[11px] text-[#009AAC] flex-shrink-0">abrir / enviar →</span>
+            </Link>
+          ))}
+        </div>
+      )}
 
       {!loading && effectiveRole === "ADMIN" && (() => {
         const cor: Record<string, { bg: string; fg: string }> = { Cliente: { bg: "#E0F4F6", fg: "#00798A" }, Lead: { bg: "#E6F1FB", fg: "#0C447C" } };
