@@ -30,6 +30,7 @@ import { ContactsModule } from './modules/contacts/contacts.module';
 import { StockModule } from './modules/stock/stock.module';
 import { CommissionsModule } from './modules/commissions/commissions.module';
 import { HospitalizationsModule } from './modules/hospitalizations/hospitalizations.module';
+import { BoxesModule } from './modules/boxes/boxes.module';
 import { FinanceModule } from './modules/finance/finance.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 // CRM B2C Modules
@@ -162,6 +163,7 @@ import configuration from './config/configuration';
     StockModule,
     CommissionsModule,
     HospitalizationsModule,
+    BoxesModule,
     FinanceModule,
     DashboardModule,
 
