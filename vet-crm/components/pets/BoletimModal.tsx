@@ -109,11 +109,25 @@ export default function BoletimModal({ pet, boletimId, fisioRec, onClose, onSave
     if (!acceptsWA) { toast.error("O tutor ainda não autorizou receber por WhatsApp"); return; }
     setSaving(true);
     const ok = await persistir(true);
-    setSaving(false);
-    if (!ok) return;
-    try { await navigator.clipboard.writeText(textoPreview); toast.success("Boletim copiado — cole no WhatsApp"); } catch {}
-    openWhatsAppMeta(tutorPhone || undefined); // envio manual (1ª versão)
-    // Fase 2: envio automatico via WhatsApp API/template (opt-in + template Meta)
+    if (!ok) { setSaving(false); return; }
+    // Envio automático pela API oficial da Meta (mesmo caminho da pesquisa de avaliação do Google).
+    try {
+      const r = await fetch(`/api/survey-avaliacao/mensagem-tutor`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tutorId: pet.tutorId, texto: textoPreview }),
+      });
+      const d = await safeJson<any>(r, { success: false });
+      setSaving(false);
+      if (d?.success) { toast.success("Boletim enviado pelo WhatsApp ✅"); onSaved(); return; }
+      // Meta recusou (ex.: fora da janela de 24h) → fallback manual, sem travar
+      toast.error("Envio automático não deu certo" + (d?.error ? `: ${d.error}` : "") + ". Abrindo o WhatsApp pra enviar manual.");
+    } catch {
+      setSaving(false);
+      toast.error("Envio automático falhou. Abrindo o WhatsApp pra enviar manual.");
+    }
+    try { await navigator.clipboard.writeText(textoPreview); } catch {}
+    openWhatsAppMeta(tutorPhone || undefined);
     onSaved();
   }
 
@@ -148,7 +162,7 @@ export default function BoletimModal({ pet, boletimId, fisioRec, onClose, onSave
           </div>
           <div className="flex items-center gap-2 shrink-0">
             {/* Botão de envio no TOPO também (item 3) */}
-            <button onClick={handleSalvarEnviar} disabled={saving || !acceptsWA} title={!acceptsWA ? "Tutor sem consentimento de WhatsApp" : "Salvar e abrir o WhatsApp"} className="px-3 py-1.5 rounded-[9px] text-[12.5px] font-medium text-white disabled:opacity-50" style={{ background: "#009AAC" }}>💬 Salvar e enviar</button>
+            <button onClick={handleSalvarEnviar} disabled={saving || !acceptsWA} title={!acceptsWA ? "Tutor sem consentimento de WhatsApp" : "Salvar e enviar pelo WhatsApp"} className="px-3 py-1.5 rounded-[9px] text-[12.5px] font-medium text-white disabled:opacity-50" style={{ background: "#009AAC" }}>💬 Salvar e enviar</button>
             <button onClick={onClose} title="Fechar" className="w-8 h-8 rounded-[9px] border border-[#E8E2D6] text-[#5C6B70] hover:border-[#009AAC] hover:text-[#009AAC] flex items-center justify-center">✕</button>
           </div>
         </div>
@@ -236,7 +250,7 @@ export default function BoletimModal({ pet, boletimId, fisioRec, onClose, onSave
           <button onClick={imprimir} className="px-4 py-2 rounded-[9px] text-[13px] border border-[#E8E2D6] text-[#5C6B70]">🖨️ Imprimir</button>
           <button onClick={onClose} className="px-4 py-2 rounded-[9px] text-[13px] border border-[#E8E2D6] text-[#5C6B70]">Cancelar</button>
           <button onClick={handleSalvar} disabled={saving} className="px-4 py-2 rounded-[9px] text-[13px] font-medium text-white disabled:opacity-60" style={{ background: "#014D5E" }}>{saving ? "Salvando..." : "Salvar"}</button>
-          <button onClick={handleSalvarEnviar} disabled={saving || !acceptsWA} title={!acceptsWA ? "Tutor sem consentimento de WhatsApp" : "Salvar e abrir o WhatsApp"} className="px-4 py-2 rounded-[9px] text-[13px] font-medium text-white disabled:opacity-60" style={{ background: "#009AAC" }}>💬 Salvar e enviar (WhatsApp)</button>
+          <button onClick={handleSalvarEnviar} disabled={saving || !acceptsWA} title={!acceptsWA ? "Tutor sem consentimento de WhatsApp" : "Salvar e enviar pelo WhatsApp"} className="px-4 py-2 rounded-[9px] text-[13px] font-medium text-white disabled:opacity-60" style={{ background: "#009AAC" }}>💬 Salvar e enviar (WhatsApp)</button>
         </div>
       </div>
     </div>

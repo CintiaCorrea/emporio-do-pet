@@ -260,15 +260,20 @@ export default function PetDetailPage() {
     if (!(await confirmDelete({ entityLabel: "boletim", itemName: "este boletim" }))) return;
     try { const r = await fetch(`/api/listas/${id}`, { method: "DELETE" }); if (!r.ok) throw new Error(); toast.success("Boletim excluído"); await loadBoletins(); } catch { toast.error("Erro ao excluir"); }
   }
-  // 💬 Reenviar boletim: copia o texto e abre o WhatsApp (Meta) do tutor. Consentimento exigido.
+  // 💬 Reenviar boletim: envio automático pela API oficial da Meta; fallback manual se recusar. Consentimento exigido.
   async function reenviarBoletim(b: { id: string; data: any }) {
     if (!pet?.tutor?.acceptsWhatsApp) { toast.error("O tutor ainda não autorizou receber por WhatsApp"); return; }
     const texto = montarTextoBoletim(b.data);
-    try { await navigator.clipboard.writeText(texto); toast.success("Boletim copiado — cole no WhatsApp"); } catch {}
+    const marcarEnviado = async () => { try { await fetch(`/api/listas/${b.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ valor: JSON.stringify({ ...b.data, enviadoAt: new Date().toISOString() }) }) }); await loadBoletins(); } catch {} };
+    try {
+      const r = await fetch(`/api/survey-avaliacao/mensagem-tutor`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tutorId: (pet as any).tutorId || pet?.tutor?.id, texto }) });
+      const d = await r.json().catch(() => ({ success: false }));
+      if (d?.success) { toast.success("Boletim enviado pelo WhatsApp ✅"); await marcarEnviado(); return; }
+      toast.error("Envio automático não deu certo" + (d?.error ? `: ${d.error}` : "") + ". Abrindo o WhatsApp.");
+    } catch { toast.error("Envio automático falhou. Abrindo o WhatsApp."); }
+    try { await navigator.clipboard.writeText(texto); } catch {}
     openWhatsAppMeta(tutorWhats || undefined);
-    // marca enviado
-    try { await fetch(`/api/listas/${b.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ valor: JSON.stringify({ ...b.data, enviadoAt: new Date().toISOString() }) }) }); await loadBoletins(); } catch {}
-    // Fase 2: envio automatico via WhatsApp API/template (opt-in + template Meta)
+    await marcarEnviado();
   }
   function imprimirBoletim(b: { id: string; data: any }) {
     const w = window.open("", "_blank", "width=800,height=900");
