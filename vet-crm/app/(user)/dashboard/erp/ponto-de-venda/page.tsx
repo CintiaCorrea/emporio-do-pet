@@ -71,6 +71,7 @@ export default function PDVPage() {
 
   const [modal, setModal] = useState(false);
   const [formas, setFormas] = useState<Forma[]>([{ forma: 'Dinheiro', valor: 0 }]);
+  const [formasCfg, setFormasCfg] = useState<string[]>([]); // formas configuradas (Fase 2)
   const [salvando, setSalvando] = useState(false);
 
   const [vendas, setVendas] = useState<Venda[]>([]);
@@ -93,6 +94,10 @@ export default function PDVPage() {
         if (r.ok) { const d = await r.json(); const arr = Array.isArray(d) ? d : (d.data || []); setCaixaAberto(arr.some((c: any) => c.status === 'ABERTO')); }
         else setCaixaAberto(false);
       } catch { setCaixaAberto(false); }
+      try {
+        const r = await fetch('/api/listas?lista=formasrecebimento', { cache: 'no-store' });
+        if (r.ok) { const d = await r.json(); const arr = (Array.isArray(d) ? d : (d.itens || d.data || [])).map((x: any) => { try { return JSON.parse(x.valor); } catch { return null; } }).filter((v: any) => v && v.ativo !== false).map((v: any) => v.nome); setFormasCfg(arr); }
+      } catch { /* */ }
     })();
     loadVendas();
   }, [loadVendas]);
@@ -178,6 +183,7 @@ export default function PDVPage() {
   const salvar = () => enviar(payload({ tipo }), tipo === 'ORCAMENTO' ? 'Orçamento salvo!' : 'Venda salva (a receber)');
 
   const vendasFiltradas = vendas.filter((v) => vendaTab === 'PAGO' ? v.pagoTotal : !v.pagoTotal);
+  const formasList = formasCfg.length ? formasCfg : FORMAS;
 
   const card: React.CSSProperties = { background: '#fff', border: `1px solid ${LINE}`, borderRadius: 14, overflow: 'hidden' };
   const chLeve: React.CSSProperties = { padding: '13px 16px', borderBottom: `1px solid ${SOFT}`, display: 'flex', alignItems: 'center', gap: 9 };
@@ -406,7 +412,7 @@ export default function PDVPage() {
               </div>
               {formas.map((f, i) => (
                 <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 7 }}>
-                  <select value={f.forma} onChange={(e) => setFormas(formas.map((x, j) => j === i ? { ...x, forma: e.target.value } : x))} style={{ ...inp, flex: 1.3, padding: '8px' }}>{FORMAS.map((op) => <option key={op} value={op}>{op}</option>)}</select>
+                  <select value={f.forma} onChange={(e) => setFormas(formas.map((x, j) => j === i ? { ...x, forma: e.target.value } : x))} style={{ ...inp, flex: 1.3, padding: '8px' }}>{formasList.map((op) => <option key={op} value={op}>{op}</option>)}</select>
                   <input value={f.valor || ''} inputMode="decimal" placeholder="R$" onChange={(e) => setFormas(formas.map((x, j) => j === i ? { ...x, valor: num(e.target.value) } : x))} style={{ ...inp, flex: 1, padding: '8px' }} />
                   {formas.length > 1 && <button onClick={() => setFormas(formas.filter((_, j) => j !== i))} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 13 }}>🗑️</button>}
                 </div>

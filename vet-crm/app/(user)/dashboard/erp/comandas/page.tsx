@@ -23,6 +23,7 @@ export default function ComandasPage() {
   const [caixaAberto, setCaixaAberto] = useState<string | null>(null);
   const [baixadoHoje, setBaixadoHoje] = useState(0);
   const [olho, setOlho] = useState(false); // valores ocultos por padrão
+  const [formasCfg, setFormasCfg] = useState<string[]>([]); // formas configuradas (Fase 2)
 
   const [det, setDet] = useState<any | null>(null);
   const [detItens, setDetItens] = useState<any[]>([]);
@@ -35,10 +36,11 @@ export default function ComandasPage() {
     setLoading(true);
     try {
       const hoje = hojeISO();
-      const [c, cx, rec] = await Promise.all([
+      const [c, cx, rec, fm] = await Promise.all([
         fetch("/api/caixa/vendas?abertas=1").then((r) => r.json()).catch(() => []),
         fetch("/api/caixa").then((r) => r.json()).catch(() => []),
         fetch(`/api/caixa/recebimentos?from=${hoje}&to=${hoje}`).then((r) => r.json()).catch(() => []),
+        fetch("/api/listas?lista=formasrecebimento").then((r) => r.json()).catch(() => []),
       ]);
       setComandas(Array.isArray(c) ? c : (c.data || []));
       const caixas = Array.isArray(cx) ? cx : (cx.data || []);
@@ -46,6 +48,8 @@ export default function ComandasPage() {
       setCaixaAberto(aberto?.id || null);
       const recArr = Array.isArray(rec) ? rec : (rec.data || []);
       setBaixadoHoje(recArr.reduce((s: number, r: any) => s + Number(r.valorTotal || 0), 0));
+      const fmArr = (Array.isArray(fm) ? fm : (fm.itens || fm.data || [])).map((x: any) => { try { return JSON.parse(x.valor); } catch { return null; } }).filter((v: any) => v && v.ativo !== false).map((v: any) => v.nome);
+      setFormasCfg(fmArr);
     } catch {}
     setLoading(false);
   };
@@ -53,6 +57,7 @@ export default function ComandasPage() {
 
   const emAberto = useMemo(() => comandas.reduce((s, c) => s + Number(c.aberto || c.valor || 0), 0), [comandas]);
   const money = (v: number) => (olho ? fmtBRL(v) : "R$ •••");
+  const formasList = formasCfg.length ? formasCfg : FORMAS;
 
   const abrir = async (c: any) => {
     setDet(c); setForma("Dinheiro"); setDetItens([]); setDetLoading(true);
@@ -245,7 +250,7 @@ export default function ComandasPage() {
                 <div className="px-5 py-3 border-t" style={{ borderColor: "#F0EBE0" }}>
                   <div className="text-[10.5px] text-[#8A989D] uppercase tracking-wide mb-2">Forma de recebimento</div>
                   <div className="flex gap-2 flex-wrap">
-                    {FORMAS.map((f) => (
+                    {formasList.map((f) => (
                       <button key={f} onClick={() => setForma(f)} className="text-[12px] px-3 py-1.5 rounded-full border" style={forma === f ? { background: "#E0F4F6", borderColor: "#009AAC", color: "#014D5E" } : { background: "#fff", borderColor: "#E8E2D6", color: "#5C6B70" }}>{f}</button>
                     ))}
                   </div>
@@ -292,7 +297,7 @@ export default function ComandasPage() {
                 <div className="px-5 py-3 border-t" style={{ borderColor: "#F0EBE0" }}>
                   <div className="text-[10.5px] text-[#8A989D] uppercase tracking-wide mb-2">Forma de recebimento</div>
                   <div className="flex gap-2 flex-wrap">
-                    {FORMAS.map((f) => (
+                    {formasList.map((f) => (
                       <button key={f} onClick={() => setForma(f)} className="text-[12px] px-3 py-1.5 rounded-full border" style={forma === f ? { background: "#E0F4F6", borderColor: "#009AAC", color: "#014D5E" } : { background: "#fff", borderColor: "#E8E2D6", color: "#5C6B70" }}>{f}</button>
                     ))}
                   </div>
