@@ -6,6 +6,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { openWhatsAppMeta } from "@/lib/actions/whatsapp";
 
@@ -16,6 +17,13 @@ const ESTADOS = [
   { v: "Crítico", prio: "CRITICAL", bg: "#FCE9EF", fg: "#CC3366" },
 ];
 const PROGNOSTICOS = ["Bom", "Reservado", "Ruim", "Grave"];
+const VIAS = ["IV", "IM", "SC", "VO", "IV (BIC)", "SL", "IN", "Tópico", "Outro"];
+const STATUS_MED: Record<string, { lbl: string; bg: string; fg: string }> = {
+  atrasado: { lbl: "Atrasada", bg: "#FCE9EF", fg: "#CC3366" },
+  pendente: { lbl: "Pendente", bg: "#FDF4DD", fg: "#8a6400" },
+  feito: { lbl: "Feita", bg: "#E1F5EE", fg: "#0F6E56" },
+};
+const hojeISO = () => new Date().toISOString().slice(0, 10);
 const prioToEstado: Record<string, string> = { LOW: "Estável", MEDIUM: "Em observação", HIGH: "Instável", CRITICAL: "Crítico" };
 function estadoDe(h: any): string { return h?.vitalSigns?.estadoClinico || prioToEstado[h?.priority] || "Estável"; }
 function estadoStyle(e: string) { return ESTADOS.find((x) => x.v === e) || ESTADOS[0]; }
@@ -29,6 +37,8 @@ function idadeDe(bd?: string) { if (!bd) return null; try { const anos = Math.fl
 export default function FichaInternacaoPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const { data: session } = useSession();
+  const userName = session?.user?.name || "";
   usePageTitle("Ficha de internação", "Paciente internado");
 
   const [h, setH] = useState<any>(null);
@@ -42,19 +52,30 @@ export default function FichaInternacaoPage() {
   const [admForm, setAdmForm] = useState<any>({ pesoEntrada: "", tempEntrada: "", diagnosis: "", prognostico: "", estimatedDischargeDate: "" });
   const [admSaving, setAdmSaving] = useState(false);
 
+  // Prescrição & plantão (F3)
+  const [prescricoes, setPrescricoes] = useState<any[]>([]);
+  const [doses, setDoses] = useState<any[]>([]);
+  const [prescOpen, setPrescOpen] = useState(false);
+  const [prescForm, setPrescForm] = useState<any>({ id: "", medicamento: "", via: "IV", dose: "", frequencia: "", horarios: "", observacao: "" });
+  const [prescSaving, setPrescSaving] = useState(false);
+
   const load = async () => {
     setLoading(true);
     try {
-      const [d, m, ev] = await Promise.all([
+      const [d, m, ev, pr, ds] = await Promise.all([
         fetch(`/api/hospitalizations/${id}`).then((r) => r.json()).catch(() => null),
         fetch(`/api/boxes/mapa`).then((r) => r.json()).catch(() => ({})),
         fetch(`/api/listas?lista=intevo_${id}`).then((r) => r.json()).catch(() => []),
+        fetch(`/api/listas?lista=intpresc_${id}`).then((r) => r.json()).catch(() => []),
+        fetch(`/api/listas?lista=intmed_${id}`).then((r) => r.json()).catch(() => []),
       ]);
       setH(d && d.id ? d : null);
       const card = Array.isArray(m?.boxes) ? m.boxes.find((c: any) => c.internacao?.id === id) : null;
       setBoxCodigo(card?.box?.codigo || null);
-      const arr = Array.isArray(ev) ? ev : (ev.itens || ev.data || []);
-      setEvolucoes(arr.map((x: any) => { try { return { id: x.id, ...JSON.parse(x.valor) }; } catch { return { id: x.id }; } }));
+      const parse = (raw: any) => { const a = Array.isArray(raw) ? raw : (raw.itens || raw.data || []); return a.map((x: any) => { try { return { id: x.id, ...JSON.parse(x.valor) }; } catch { return { id: x.id }; } }); };
+      setEvolucoes(parse(ev));
+      setPrescricoes(parse(pr));
+      setDoses(parse(ds));
     } catch {}
     setLoading(false);
   };
@@ -110,6 +131,43 @@ export default function FichaInternacaoPage() {
     try { await fetch(`/api/listas/${evoId}`, { method: "DELETE", credentials: "include" }); load(); } catch {}
   };
 
+  // ── Prescrição & plantão (F3) ─────────────────────────────────────
+  const abrirPresc = (p?: any) => {
+    setPrescForm(p ? { id: p.id, medicamento: p.medicamento || "", via: p.via || "IV", dose: p.dose || "", frequencia: p.frequencia || "", horarios: (p.horarios || []).join(", "), observacao: p.observacao || "" } : { id: "", medicamento: "", via: "IV", dose: "", frequencia: "", horarios: "", observacao: "" });
+    setPrescOpen(true);
+  };
+  const salvarPresc = async () => {
+    if (!prescForm.medicamento.trim()) { alert("Informe a medicação."); return; }
+    setPrescSaving(true);
+    try {
+      const horarios = String(prescForm.horarios || "").split(",").map((s: string) => s.trim()).filter(Boolean);
+      const payload = { medicamento: prescForm.medicamento.trim(), via: prescForm.via, dose: prescForm.dose.trim(), frequencia: prescForm.frequencia.trim(), horarios, observacao: prescForm.observacao.trim() };
+      if (prescForm.id) {
+        await fetch(`/api/listas/${prescForm.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ valor: JSON.stringify(payload) }) });
+      } else {
+        await fetch("/api/listas", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ lista: `intpresc_${id}`, valor: JSON.stringify(payload) }) });
+      }
+      setPrescOpen(false); load();
+    } catch { alert("Erro ao salvar medicação."); }
+    finally { setPrescSaving(false); }
+  };
+  const excluirPresc = async (p: any) => {
+    if (!confirm(`Remover ${p.medicamento} da prescrição?`)) return;
+    try { await fetch(`/api/listas/${p.id}`, { method: "DELETE", credentials: "include" }); load(); } catch {}
+  };
+  const marcarDose = async (slot: any) => {
+    try {
+      if (slot.log) {
+        await fetch(`/api/listas/${slot.log.id}`, { method: "DELETE", credentials: "include" });
+      } else {
+        const now = new Date();
+        const valor = JSON.stringify({ prescId: slot.p.id, med: slot.p.medicamento, via: slot.p.via, dose: slot.p.dose, slot: slot.hhmm, date: hojeISO(), at: now.toISOString(), por: userName });
+        await fetch("/api/listas", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ lista: `intmed_${id}`, valor }) });
+      }
+      load();
+    } catch {}
+  };
+
   const darAlta = async () => {
     if (!confirm("Confirmar alta deste paciente? O box será liberado.")) return;
     try {
@@ -122,6 +180,21 @@ export default function FichaInternacaoPage() {
   };
 
   const evolucoesOrd = useMemo(() => [...evolucoes].sort((a, b) => new Date(b.at || 0).getTime() - new Date(a.at || 0).getTime()), [evolucoes]);
+  const plantao = useMemo(() => {
+    const now = new Date(); const hj = hojeISO(); const arr: any[] = [];
+    for (const p of prescricoes) {
+      for (const hhmm of (p.horarios || [])) {
+        const log = doses.find((d) => d.prescId === p.id && d.slot === hhmm && d.date === hj);
+        let status: "feito" | "atrasado" | "pendente";
+        if (log) status = "feito";
+        else { const [hh, mm] = String(hhmm).split(":").map(Number); const dt = new Date(); dt.setHours(hh || 0, mm || 0, 0, 0); status = dt < now ? "atrasado" : "pendente"; }
+        arr.push({ p, hhmm, status, log });
+      }
+    }
+    arr.sort((a, b) => { const da = a.status === "feito" ? 1 : 0, db = b.status === "feito" ? 1 : 0; if (da !== db) return da - db; return String(a.hhmm).localeCompare(String(b.hhmm)); });
+    return arr;
+  }, [prescricoes, doses]);
+  const contMed = useMemo(() => ({ atras: plantao.filter((s) => s.status === "atrasado").length, pend: plantao.filter((s) => s.status === "pendente").length, feito: plantao.filter((s) => s.status === "feito").length }), [plantao]);
 
   if (loading) return <div className="p-6 text-center text-sm text-[#8A989D]">Carregando ficha...</div>;
   if (!h) return (
@@ -257,9 +330,75 @@ export default function FichaInternacaoPage() {
               </div>
             </div>
 
-            {/* ganchos F3/F4/F5 */}
+            {/* Prescrição (F3) */}
+            <div className="bg-white border rounded-[13px]" style={{ borderColor: "#E8E2D6" }}>
+              <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "#F0EBE0" }}>
+                <h3 className="text-[13px] font-medium text-[#014D5E] flex items-center gap-2">💊 Prescrição ativa</h3>
+                {!alta && <button onClick={() => abrirPresc()} className="text-[12px] font-medium text-white bg-[#009AAC] px-3 py-1.5 rounded-lg">➕ Adicionar</button>}
+              </div>
+              {prescricoes.length === 0 ? (
+                <div className="px-4 py-6 text-center text-[12.5px] text-[#8A989D]">Nenhuma medicação prescrita ainda.</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-[13px]">
+                    <thead><tr className="text-[10.5px] text-[#8A989D] uppercase tracking-wide">
+                      <th className="text-left font-medium px-4 py-2">Medicação</th><th className="text-left font-medium px-2 py-2">Via</th><th className="text-left font-medium px-2 py-2">Dose</th><th className="text-left font-medium px-2 py-2">Freq.</th><th className="text-left font-medium px-2 py-2">Horários</th><th className="px-2 py-2"></th>
+                    </tr></thead>
+                    <tbody>
+                      {prescricoes.map((p) => (
+                        <tr key={p.id} className="border-t" style={{ borderColor: "#F0EBE0" }}>
+                          <td className="px-4 py-2 font-medium text-[#014D5E] whitespace-nowrap">{p.medicamento}</td>
+                          <td className="px-2 py-2"><span className="text-[11px] text-[#5C6B70] bg-[#FBF9F4] border rounded px-1.5 py-0.5 whitespace-nowrap" style={{ borderColor: "#E8E2D6" }}>{p.via}</span></td>
+                          <td className="px-2 py-2 tabular-nums whitespace-nowrap">{p.dose || "—"}</td>
+                          <td className="px-2 py-2 whitespace-nowrap">{p.frequencia || "—"}</td>
+                          <td className="px-2 py-2 tabular-nums text-[#5C6B70] whitespace-nowrap">{(p.horarios || []).join(" · ") || "contínuo"}</td>
+                          <td className="px-2 py-2 text-right whitespace-nowrap">{!alta && <><button onClick={() => abrirPresc(p)} className="text-[12px] px-1">✏️</button><button onClick={() => excluirPresc(p)} className="text-[12px] px-1">🗑️</button></>}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Plantão de hoje (F3) */}
+            <div className="bg-white border rounded-[13px]" style={{ borderColor: "#E8E2D6" }}>
+              <div className="flex items-center justify-between px-4 py-3 border-b flex-wrap gap-2" style={{ borderColor: "#F0EBE0" }}>
+                <h3 className="text-[13px] font-medium text-[#014D5E] flex items-center gap-2">📋 Plantão de hoje</h3>
+                <div className="flex gap-1.5">
+                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: "#FCE9EF", color: "#CC3366" }}>🔴 {contMed.atras}</span>
+                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: "#FDF4DD", color: "#8a6400" }}>🟡 {contMed.pend}</span>
+                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: "#E1F5EE", color: "#0F6E56" }}>🟢 {contMed.feito}</span>
+                </div>
+              </div>
+              {plantao.length === 0 ? (
+                <div className="px-4 py-6 text-center text-[12.5px] text-[#8A989D]">Sem doses com horário hoje. Adicione medicações com horários na prescrição.</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-[13px]">
+                    <thead><tr className="text-[10.5px] text-[#8A989D] uppercase tracking-wide">
+                      <th className="text-left font-medium px-4 py-2">Hora</th><th className="text-left font-medium px-2 py-2">Medicação</th><th className="text-left font-medium px-2 py-2">Dose</th><th className="text-left font-medium px-2 py-2">Status</th><th className="text-left font-medium px-2 py-2">Por</th><th className="px-2 py-2 text-center">Feita</th>
+                    </tr></thead>
+                    <tbody>
+                      {plantao.map((s) => { const stt = STATUS_MED[s.status]; const done = s.status === "feito"; return (
+                        <tr key={s.p.id + s.hhmm} className="border-t" style={{ borderColor: "#F0EBE0", opacity: done ? 0.6 : 1 }}>
+                          <td className="px-4 py-2 tabular-nums font-medium whitespace-nowrap">{s.hhmm}</td>
+                          <td className="px-2 py-2 whitespace-nowrap">{s.p.medicamento} <span className="text-[11px] text-[#8A989D]">{s.p.via}</span></td>
+                          <td className="px-2 py-2 tabular-nums whitespace-nowrap">{s.p.dose || "—"}</td>
+                          <td className="px-2 py-2"><span className="text-[10.5px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap" style={{ background: stt.bg, color: stt.fg }}>{stt.lbl}</span></td>
+                          <td className="px-2 py-2 text-[#5C6B70] whitespace-nowrap">{s.log?.por || "—"}</td>
+                          <td className="px-2 py-2 text-center"><button onClick={() => { if (!alta) marcarDose(s); }} disabled={alta} className="w-5 h-5 rounded-md border inline-flex items-center justify-center text-[12px] disabled:cursor-default" style={done ? { background: "#0F6E56", borderColor: "#0F6E56", color: "#fff" } : { background: "#fff", borderColor: "#E8E2D6", color: "transparent" }}>✓</button></td>
+                        </tr>
+                      ); })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              {!alta && <div className="px-4 py-2.5 text-[11px] text-[#8A989D] border-t" style={{ borderColor: "#F0EBE0" }}>Marcar a dose registra quem aplicou ({userName || "você"}) e a hora.</div>}
+            </div>
+
+            {/* ganchos F4 */}
             <GanchoCard emoji="🩺" titulo="Sinais vitais" desc="Aferições (FC, FR, temp, PA, dor) e tendência — entra na Fatia 4 (monitoramento)." />
-            <GanchoCard emoji="💊" titulo="Plantão de medicações" desc="Prescrição e checklist do turno (atrasado/pendente/feito) — entra na Fatia 3." />
             <GanchoCard emoji="💧" titulo="Fluidos, dejetos & alimentação" desc="Controle por turno — entra na Fatia 4 (monitoramento)." />
 
             {/* conta (resumo do que já temos, gancho pro financeiro completo) */}
@@ -321,6 +460,37 @@ export default function FichaInternacaoPage() {
             <div className="px-5 py-4 border-t flex justify-end gap-2" style={{ borderColor: "#E8E2D6" }}>
               <button onClick={() => setAdmOpen(false)} className="px-4 py-2 text-[13px] text-[#5C6B70] bg-[#f3f1ea] rounded-lg">Cancelar</button>
               <button onClick={salvarAdm} disabled={admSaving} className="px-4 py-2 text-[13px] text-white bg-[#009AAC] rounded-lg disabled:opacity-60">{admSaving ? "Salvando..." : "Salvar"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== POPUP MEDICAÇÃO (prescrição) ===== */}
+      {prescOpen && (
+        <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50 print:hidden" onClick={() => setPrescOpen(false)}>
+          <div className="rounded-2xl shadow-xl max-w-md w-full" style={{ background: "#FBF9F4", border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "#E8E2D6" }}>
+              <h3 className="text-base font-medium text-[#014D5E]">💊 {prescForm.id ? "Editar medicação" : "Adicionar medicação"}</h3>
+              <button onClick={() => setPrescOpen(false)} className="text-[#8A989D]">✕</button>
+            </div>
+            <div className="p-5 grid grid-cols-2 gap-3 text-[13px]">
+              <div className="col-span-2"><label className="text-[11px] text-[#8A989D] block mb-1">Medicação *</label>
+                <input value={prescForm.medicamento} onChange={(e) => setPrescForm({ ...prescForm, medicamento: e.target.value })} placeholder="Ex.: Tramadol" className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
+              <div><label className="text-[11px] text-[#8A989D] block mb-1">Via</label>
+                <select value={prescForm.via} onChange={(e) => setPrescForm({ ...prescForm, via: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }}>{VIAS.map((v) => <option key={v} value={v}>{v}</option>)}</select></div>
+              <div><label className="text-[11px] text-[#8A989D] block mb-1">Dose</label>
+                <input value={prescForm.dose} onChange={(e) => setPrescForm({ ...prescForm, dose: e.target.value })} placeholder="3 mg/kg" className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
+              <div><label className="text-[11px] text-[#8A989D] block mb-1">Frequência</label>
+                <input value={prescForm.frequencia} onChange={(e) => setPrescForm({ ...prescForm, frequencia: e.target.value })} placeholder="8/8h" className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
+              <div><label className="text-[11px] text-[#8A989D] block mb-1">Horários (HH:MM)</label>
+                <input value={prescForm.horarios} onChange={(e) => setPrescForm({ ...prescForm, horarios: e.target.value })} placeholder="06:00, 14:00, 22:00" className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
+              <div className="col-span-2 -mt-1 text-[10.5px] text-[#8A989D]">Deixe os horários vazios para medicação <b>contínua</b> (não gera doses no plantão).</div>
+              <div className="col-span-2"><label className="text-[11px] text-[#8A989D] block mb-1">Observação</label>
+                <input value={prescForm.observacao} onChange={(e) => setPrescForm({ ...prescForm, observacao: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
+            </div>
+            <div className="px-5 py-4 border-t flex justify-end gap-2" style={{ borderColor: "#E8E2D6" }}>
+              <button onClick={() => setPrescOpen(false)} className="px-4 py-2 text-[13px] text-[#5C6B70] bg-[#f3f1ea] rounded-lg">Cancelar</button>
+              <button onClick={salvarPresc} disabled={prescSaving} className="px-4 py-2 text-[13px] text-white bg-[#009AAC] rounded-lg disabled:opacity-60">{prescSaving ? "Salvando..." : "Salvar"}</button>
             </div>
           </div>
         </div>
