@@ -62,6 +62,7 @@ const NAV: Entry[] = [
   {
     group: true, key: "vendas", label: "Vendas", emoji: "💰", roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"], section: "GESTAO",
     children: [
+      { href: "/dashboard/erp/comandas", label: "Em atendimento", emoji: "🛎️", roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
       { href: "/dashboard/erp/ponto-de-venda", label: "Ponto de venda", emoji: "🛒", roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
       { href: "/dashboard/erp/minhas-vendas", label: "Minhas vendas", emoji: "⭐", roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
       { href: "/dashboard/erp/consulta-vendas", label: "Consulta de vendas", emoji: "🧾", roles: ["ADMIN", "RECEPTIONIST"] },

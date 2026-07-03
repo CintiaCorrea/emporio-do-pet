@@ -58,31 +58,46 @@ export class CaixaService {
   }
 
   async listVendas(query: any = {}) {
+    const abertas = ['1', 'true', true].includes(query?.abertas);
     const where: any = {};
     if (query?.from || query?.to) {
       where.date = {};
       if (query.from) where.date.gte = new Date(String(query.from) + 'T00:00:00');
       if (query.to) where.date.lte = new Date(String(query.to) + 'T23:59:59');
     }
+    if (abertas) {
+      where.paymentStatus = { not: 'PAID' };
+      where.value = { gt: 0 };
+    }
     const appts = await this.prisma.appointment.findMany({
       where,
       include: {
-        pet: { select: { name: true } },
-        tutor: { select: { name: true } },
+        pet: { select: { name: true, species: true } },
+        tutor: { select: { id: true, name: true } },
+        user: { select: { id: true, name: true } },
         recebimentos: { select: { valorTotal: true } },
       },
       orderBy: { date: 'desc' },
-      take: 60,
+      take: abertas ? 300 : 60,
     });
-    return appts.map((a: any) => {
+    let rows = appts.map((a: any) => {
       const pago = (a.recebimentos || []).reduce((s: number, r: any) => s + Number(r.valorTotal), 0);
       const valor = Number(a.value || 0);
+      const isInternacao = typeof a.notes === 'string' && a.notes.includes('HOSPITALIZATION');
+      const origem = isInternacao
+        ? 'INTERNACAO'
+        : (a.chiefComplaint || a.diagnosis || a.anamnesis ? 'ATENDIMENTO' : 'VENDA');
       return {
-        id: a.id, tutor: a.tutor?.name || 'Cliente', pet: a.pet?.name || '',
-        valor, pago, status: a.paymentStatus,
-        pagoTotal: pago >= valor - 0.001 && valor > 0, date: a.date,
+        id: a.id, tutorId: a.tutor?.id || null, tutor: a.tutor?.name || 'Cliente',
+        pet: a.pet?.name || '', petSpecies: a.pet?.species || null,
+        vet: a.user?.name || null,
+        valor, pago, aberto: Math.max(0, valor - pago), status: a.paymentStatus,
+        pagoTotal: pago >= valor - 0.001 && valor > 0, date: a.date, origem,
       };
     });
+    // "Comandas abertas": só o que ainda tem saldo e NÃO é internação (essa é faturada pela conta da F5)
+    if (abertas) rows = rows.filter((r) => !r.pagoTotal && r.origem !== 'INTERNACAO');
+    return rows;
   }
 
   // ============================================================
