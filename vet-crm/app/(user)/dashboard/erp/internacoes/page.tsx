@@ -4,6 +4,7 @@
 // Internação = appointment c/ metadata em notes. Box = recurso físico (CRUD em /api/boxes). Boletins via Listas intbol_<id>.
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { LuPlus, LuClipboardList, LuCalendar, LuCircleDollarSign, LuBell, LuX } from "react-icons/lu";
 
@@ -28,6 +29,7 @@ function ehHoje(s?: string) { if (!s) return false; try { return new Date(s).toD
 
 export default function InternacoesPage() {
   usePageTitle("Internações", "Mapa de boxes, pacientes internados e boletins");
+  const router = useRouter();
   const [tab, setTab] = useState<"mapa" | "ativas" | "historico">("mapa");
   const [loading, setLoading] = useState(true);
   const [hosps, setHosps] = useState<any[]>([]);
@@ -233,7 +235,7 @@ export default function InternacoesPage() {
     const i = c.internacao; const est = estadoStyle(estadoCard(c)); const h = hospById.get(i?.id);
     const pb = h ? proximoBoletim(h) : null;
     return (
-      <div className="rounded-[13px] border bg-white overflow-hidden cursor-pointer hover:border-[#009AAC] transition-colors" style={{ borderColor: "#E8E2D6" }} onClick={() => abrirDetalhes(i.id)}>
+      <div className="rounded-[13px] border bg-white overflow-hidden cursor-pointer hover:border-[#009AAC] transition-colors" style={{ borderColor: "#E8E2D6" }} onClick={() => router.push(`/dashboard/erp/internacoes/${i.id}`)}>
         <div style={{ height: 4, background: est.fg }} />
         <div className={big ? "p-4" : "p-3"}>
           <div className="flex items-center justify-between mb-1.5">
@@ -363,7 +365,7 @@ export default function InternacoesPage() {
                   )}
                   <div className="flex gap-2">
                     {tab === "ativas" && <button onClick={() => abrirDetalhes(h.id)} className="flex-1 text-[11.5px] text-white bg-[#009AAC] py-1.5 rounded-lg">+ Boletim</button>}
-                    <button onClick={() => abrirDetalhes(h.id)} className="flex-1 text-[11.5px] text-[#00798A] bg-[#E6F6F8] py-1.5 rounded-lg">Detalhes</button>
+                    <button onClick={() => router.push(`/dashboard/erp/internacoes/${h.id}`)} className="flex-1 text-[11.5px] text-[#00798A] bg-[#E6F6F8] py-1.5 rounded-lg">Ficha</button>
                     {tab === "ativas" && <button onClick={() => darAlta(h.id)} className="flex-1 text-[11.5px] text-[#0F6E56] bg-[#E1F5EE] py-1.5 rounded-lg">Dar alta</button>}
                   </div>
                 </div>
