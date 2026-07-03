@@ -29,6 +29,7 @@ export default function ComandasPage() {
   const [detLoading, setDetLoading] = useState(false);
   const [forma, setForma] = useState("Dinheiro");
   const [baixando, setBaixando] = useState(false);
+  const [detGrupo, setDetGrupo] = useState<any | null>(null); // baixar todas as comandas de um cliente (1B)
 
   const load = async () => {
     setLoading(true);
@@ -81,6 +82,36 @@ export default function ComandasPage() {
     finally { setBaixando(false); }
   };
 
+  // 1B — agrupa comandas abertas por cliente (uma linha por cliente; baixa tudo junto)
+  const grupos = useMemo(() => {
+    const m = new Map<string, any>();
+    for (const c of comandas) {
+      const key = c.tutorId || c.tutor || c.id;
+      if (!m.has(key)) m.set(key, { key, tutor: c.tutor, petSpecies: c.petSpecies, comandas: [] as any[], total: 0 });
+      const g = m.get(key); g.comandas.push(c); g.total += Number(c.aberto || c.valor || 0);
+    }
+    return [...m.values()];
+  }, [comandas]);
+
+  const baixarGrupo = async () => {
+    if (!detGrupo) return;
+    if (!caixaAberto) { alert("Não há caixa aberto. Abra um caixa antes de baixar."); return; }
+    if (!confirm(`Baixar TODAS as ${detGrupo.comandas.length} comandas de ${detGrupo.tutor} em ${forma}? (${fmtBRL(detGrupo.total)})`)) return;
+    setBaixando(true);
+    try {
+      for (const c of detGrupo.comandas) {
+        const valor = Number(c.aberto || c.valor || 0);
+        const res = await fetch(`/api/caixa/${caixaAberto}/recebimento`, {
+          method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
+          body: JSON.stringify({ appointmentId: c.id, valorTotal: valor, desconto: 0, troco: 0, formas: [{ forma, valor }] }),
+        });
+        if (!res.ok) { const dd = await res.json().catch(() => ({})); throw new Error(dd?.message || "Erro ao baixar"); }
+      }
+      setDetGrupo(null); load();
+    } catch (e: any) { alert(e?.message || "Erro ao baixar as comandas."); }
+    finally { setBaixando(false); }
+  };
+
   return (
     <div className="p-6 max-w-6xl mx-auto">
       <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
@@ -111,26 +142,55 @@ export default function ComandasPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {comandas.map((c) => {
-            const org = ORIGEM[c.origem] || ORIGEM.VENDA;
-            return (
-              <div key={c.id} className="bg-white border rounded-[13px] p-3.5 hover:border-[#009AAC] transition-colors" style={{ borderColor: "#E8E2D6" }}>
-                <div className="flex items-center gap-2.5 mb-2.5">
-                  <div className="w-9 h-9 rounded-lg flex items-center justify-center text-lg flex-shrink-0" style={{ background: "#E0F4F6" }}>{especieEmoji(c.petSpecies)}</div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[14px] font-medium text-[#014D5E] truncate">{c.tutor}</div>
-                    <div className="text-[11px] text-[#8A989D] truncate">{c.pet || "—"}{c.vet ? ` · ${c.vet}` : ""}</div>
+          {grupos.map((g) => {
+            // cliente com UMA comanda → card normal
+            if (g.comandas.length === 1) {
+              const c = g.comandas[0]; const org = ORIGEM[c.origem] || ORIGEM.VENDA;
+              return (
+                <div key={c.id} className="bg-white border rounded-[13px] p-3.5 hover:border-[#009AAC] transition-colors" style={{ borderColor: "#E8E2D6" }}>
+                  <div className="flex items-center gap-2.5 mb-2.5">
+                    <div className="w-9 h-9 rounded-lg flex items-center justify-center text-lg flex-shrink-0" style={{ background: "#E0F4F6" }}>{especieEmoji(c.petSpecies)}</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[14px] font-medium text-[#014D5E] truncate">{c.tutor}</div>
+                      <div className="text-[11px] text-[#8A989D] truncate">{c.pet || "—"}{c.vet ? ` · ${c.vet}` : ""}</div>
+                    </div>
+                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap" style={{ background: org.bg, color: org.fg }}>{org.lbl}</span>
                   </div>
-                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap" style={{ background: org.bg, color: org.fg }}>{org.lbl}</span>
+                  <div className="flex items-end justify-between mb-2.5">
+                    <div className="text-[17px] font-medium text-[#014D5E] tabular-nums">{money(Number(c.aberto || c.valor || 0))}</div>
+                    <div className="text-[10.5px] text-[#8A989D]">{tempoDe(c.date)}</div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => abrir(c)} className="flex-1 text-[11.5px] font-medium text-[#00798A] bg-[#E0F4F6] py-1.5 rounded-lg">Abrir</button>
+                    <button onClick={() => abrir(c)} className="flex-1 text-[11.5px] font-medium text-white bg-[#009AAC] py-1.5 rounded-lg">💰 Baixar</button>
+                  </div>
                 </div>
-                <div className="flex items-end justify-between mb-2.5">
-                  <div className="text-[17px] font-medium text-[#014D5E] tabular-nums">{money(Number(c.aberto || c.valor || 0))}</div>
-                  <div className="text-[10.5px] text-[#8A989D]">{tempoDe(c.date)}</div>
+              );
+            }
+            // cliente com 2+ comandas abertas → card agrupado (1B)
+            return (
+              <div key={g.key} className="bg-white border rounded-[13px] p-3.5" style={{ borderColor: "#009AAC" }}>
+                <div className="flex items-center gap-2.5 mb-2">
+                  <div className="w-9 h-9 rounded-lg flex items-center justify-center text-lg flex-shrink-0" style={{ background: "#E0F4F6" }}>{especieEmoji(g.petSpecies)}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[14px] font-medium text-[#014D5E] truncate">{g.tutor}</div>
+                    <div className="text-[11px] text-[#8A989D]">{g.comandas.length} comandas abertas hoje</div>
+                  </div>
+                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap" style={{ background: "#E0F4F6", color: "#00707E" }}>🧾 {g.comandas.length}</span>
                 </div>
-                <div className="flex gap-2">
-                  <button onClick={() => abrir(c)} className="flex-1 text-[11.5px] font-medium text-[#00798A] bg-[#E0F4F6] py-1.5 rounded-lg">Abrir</button>
-                  <button onClick={() => abrir(c)} className="flex-1 text-[11.5px] font-medium text-white bg-[#009AAC] py-1.5 rounded-lg">💰 Baixar</button>
+                <div className="mb-2 space-y-1">
+                  {g.comandas.map((c: any) => (
+                    <div key={c.id} className="flex items-center justify-between text-[11.5px]">
+                      <span className="text-[#5C6B70] truncate">{(ORIGEM[c.origem] || ORIGEM.VENDA).lbl} · {c.pet || "—"}</span>
+                      <span className="text-[#014D5E] tabular-nums flex-shrink-0 ml-2">{money(Number(c.aberto || c.valor || 0))}</span>
+                    </div>
+                  ))}
                 </div>
+                <div className="flex items-center justify-between mb-2.5 border-t pt-2" style={{ borderColor: "#F0EBE0" }}>
+                  <div className="text-[10.5px] text-[#8A989D] uppercase tracking-wide">Total</div>
+                  <div className="text-[17px] font-medium text-[#014D5E] tabular-nums">{money(g.total)}</div>
+                </div>
+                <button onClick={() => { setForma("Dinheiro"); setDetGrupo(g); }} className="w-full text-[11.5px] font-medium text-white bg-[#009AAC] py-1.5 rounded-lg">💰 Baixar tudo</button>
               </div>
             );
           })}
@@ -198,6 +258,53 @@ export default function ComandasPage() {
             ) : (
               <div className="px-5 py-4 border-t" style={{ borderColor: "#E8E2D6" }}>
                 <div className="text-[12.5px] text-[#b23b39] bg-[#FDECEC] border rounded-lg px-3 py-2" style={{ borderColor: "#F3D2D0" }}>⚠️ Não há caixa aberto. Abra um caixa em <b>Vendas → Caixa</b> para poder receber.</div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ===== GRUPO (baixar todas as comandas do cliente) ===== */}
+      {detGrupo && (
+        <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50" onClick={() => setDetGrupo(null)}>
+          <div className="rounded-2xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto" style={{ background: "#FBF9F4", border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "#E8E2D6" }}>
+              <div>
+                <h3 className="text-base font-medium text-[#014D5E]">{especieEmoji(detGrupo.petSpecies)} {detGrupo.tutor}</h3>
+                <div className="text-[11px] text-[#8A989D] mt-0.5">{detGrupo.comandas.length} comandas abertas · baixar tudo junto</div>
+              </div>
+              <button onClick={() => setDetGrupo(null)} className="text-[#8A989D] text-lg leading-none">✕</button>
+            </div>
+            <div className="px-5 py-3">
+              {detGrupo.comandas.map((c: any) => (
+                <div key={c.id} className="flex items-center justify-between py-1.5 border-b last:border-b-0 text-[12.5px]" style={{ borderColor: "#F0EBE0" }}>
+                  <span className="text-[#5C6B70] truncate">{(ORIGEM[c.origem] || ORIGEM.VENDA).lbl} · {c.pet || "—"}</span>
+                  <span className="text-[#1F2A2E] tabular-nums flex-shrink-0 ml-2">{money(Number(c.aberto || c.valor || 0))}</span>
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-between items-center px-5 py-3 border-t" style={{ borderColor: "#F0EBE0" }}>
+              <span className="text-[13px] text-[#5C6B70]">Total a receber</span>
+              <span className="text-[18px] font-medium text-[#014D5E] tabular-nums">{money(detGrupo.total)}</span>
+            </div>
+            {caixaAberto ? (
+              <>
+                <div className="px-5 py-3 border-t" style={{ borderColor: "#F0EBE0" }}>
+                  <div className="text-[10.5px] text-[#8A989D] uppercase tracking-wide mb-2">Forma de recebimento</div>
+                  <div className="flex gap-2 flex-wrap">
+                    {FORMAS.map((f) => (
+                      <button key={f} onClick={() => setForma(f)} className="text-[12px] px-3 py-1.5 rounded-full border" style={forma === f ? { background: "#E0F4F6", borderColor: "#009AAC", color: "#014D5E" } : { background: "#fff", borderColor: "#E8E2D6", color: "#5C6B70" }}>{f}</button>
+                    ))}
+                  </div>
+                </div>
+                <div className="px-5 py-4 border-t flex justify-end gap-2" style={{ borderColor: "#E8E2D6" }}>
+                  <button onClick={() => setDetGrupo(null)} className="px-4 py-2 text-[13px] text-[#5C6B70] bg-white border rounded-lg" style={{ borderColor: "#E8E2D6" }}>Fechar</button>
+                  <button onClick={baixarGrupo} disabled={baixando} className="px-5 py-2 text-[13px] font-medium text-white bg-[#009AAC] rounded-lg disabled:opacity-60">{baixando ? "Baixando..." : "💰 Baixar tudo"}</button>
+                </div>
+              </>
+            ) : (
+              <div className="px-5 py-4 border-t" style={{ borderColor: "#E8E2D6" }}>
+                <div className="text-[12.5px] text-[#b23b39] bg-[#FDECEC] border rounded-lg px-3 py-2" style={{ borderColor: "#F3D2D0" }}>⚠️ Não há caixa aberto. Abra um caixa em <b>Vendas → Caixa</b>.</div>
               </div>
             )}
           </div>
