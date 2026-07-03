@@ -36,6 +36,8 @@ function tendencia(cur: any, prev: any) {
   return d > 0 ? { dir: "up", ar: "▲", txt: "subindo" } : { dir: "down", ar: "▼", txt: "descendo" };
 }
 function tempForaFaixa(t: any) { const v = parseFloat(t); return !isNaN(v) && (v > 39.3 || v < 37.2); }
+const CAT_FATURAVEL = ["Procedimento", "Medicamento", "Material", "Serviço", "Exame"];
+const CAT_CONTA = [...CAT_FATURAVEL, "Insumo"]; // "Insumo" = não-faturável (só baixa estoque)
 const prioToEstado: Record<string, string> = { LOW: "Estável", MEDIUM: "Em observação", HIGH: "Instável", CRITICAL: "Crítico" };
 function estadoDe(h: any): string { return h?.vitalSigns?.estadoClinico || prioToEstado[h?.priority] || "Estável"; }
 function estadoStyle(e: string) { return ESTADOS.find((x) => x.v === e) || ESTADOS[0]; }
@@ -81,10 +83,24 @@ export default function FichaInternacaoPage() {
   const [fluidoForm, setFluidoForm] = useState<any>({ entradaFluido: "", agua: "", diurese: "", fezes: "", alimentacao: "", emese: "" });
   const [fluidoSaving, setFluidoSaving] = useState(false);
 
+  // Financeiro (F5)
+  const [conta, setConta] = useState<any[]>([]);
+  const [fechamentos, setFechamentos] = useState<any[]>([]);
+  const [servicos, setServicos] = useState<any[]>([]);
+  const [produtos, setProdutos] = useState<any[]>([]);
+  const [caucaoSaldo, setCaucaoSaldo] = useState(0);
+  const [caucaoAplicada, setCaucaoAplicada] = useState(0);
+  const [itemOpen, setItemOpen] = useState(false);
+  const [itemForm, setItemForm] = useState<any>({ id: "", descricao: "", categoria: "Procedimento", quantidade: "1", valorUnitario: "", servicoId: "", productId: "" });
+  const [itemSaving, setItemSaving] = useState(false);
+  const [caucaoOpen, setCaucaoOpen] = useState(false);
+  const [caucaoForm, setCaucaoForm] = useState<any>({ valor: "", descricao: "Caução de internação" });
+  const [finBusy, setFinBusy] = useState("");
+
   const load = async () => {
     setLoading(true);
     try {
-      const [d, m, ev, pr, ds, vt, fl] = await Promise.all([
+      const [d, m, ev, pr, ds, vt, fl, co, fe, sv, pd] = await Promise.all([
         fetch(`/api/hospitalizations/${id}`).then((r) => r.json()).catch(() => null),
         fetch(`/api/boxes/mapa`).then((r) => r.json()).catch(() => ({})),
         fetch(`/api/listas?lista=intevo_${id}`).then((r) => r.json()).catch(() => []),
@@ -92,6 +108,10 @@ export default function FichaInternacaoPage() {
         fetch(`/api/listas?lista=intmed_${id}`).then((r) => r.json()).catch(() => []),
         fetch(`/api/listas?lista=intvital_${id}`).then((r) => r.json()).catch(() => []),
         fetch(`/api/listas?lista=intfluido_${id}`).then((r) => r.json()).catch(() => []),
+        fetch(`/api/listas?lista=intconta_${id}`).then((r) => r.json()).catch(() => []),
+        fetch(`/api/listas?lista=intfechamento_${id}`).then((r) => r.json()).catch(() => []),
+        fetch(`/api/servicos/itens`).then((r) => r.json()).catch(() => []),
+        fetch(`/api/products`).then((r) => r.json()).catch(() => []),
       ]);
       setH(d && d.id ? d : null);
       const card = Array.isArray(m?.boxes) ? m.boxes.find((c: any) => c.internacao?.id === id) : null;
@@ -102,6 +122,12 @@ export default function FichaInternacaoPage() {
       setDoses(parse(ds));
       setVitais(parse(vt));
       setFluidos(parse(fl));
+      setConta(parse(co));
+      setFechamentos(parse(fe));
+      setServicos(Array.isArray(sv) ? sv : (sv.itens || sv.data || []));
+      setProdutos(Array.isArray(pd) ? pd : (pd.products || pd.data || []));
+      const tutorId = d?.tutor?.id;
+      if (tutorId) { try { const cr = await fetch(`/api/credito/tutor/${tutorId}`).then((r) => r.json()); setCaucaoSaldo(Number(cr?.saldo) || 0); } catch { setCaucaoSaldo(0); } }
     } catch {}
     setLoading(false);
   };
@@ -221,6 +247,116 @@ export default function FichaInternacaoPage() {
   };
   const excluirFluido = async (fId: string) => { if (!confirm("Excluir este registro?")) return; try { await fetch(`/api/listas/${fId}`, { method: "DELETE", credentials: "include" }); load(); } catch {} };
 
+  // ── Financeiro (F5) ───────────────────────────────────────────────
+  const contaCalc = () => {
+    const dias = diasInternado(h?.admissionDate);
+    const diariaVU = Number(h?.dailyRate) || 0;
+    const diariaTotal = dias * diariaVU;
+    const itensFat = conta.filter((i) => i.categoria !== "Insumo");
+    const itensInsumo = conta.filter((i) => i.categoria === "Insumo");
+    const totalItensFat = itensFat.reduce((s, i) => s + (Number(i.quantidade) || 0) * (Number(i.valorUnitario) || 0), 0);
+    const totalFaturavel = diariaTotal + totalItensFat;
+    return { dias, diariaVU, diariaTotal, itensFat, itensInsumo, totalFaturavel };
+  };
+  const abrirItem = (p?: any) => { setItemForm(p ? { id: p.id, descricao: p.descricao || "", categoria: p.categoria || "Procedimento", quantidade: String(p.quantidade || "1"), valorUnitario: String(p.valorUnitario ?? ""), servicoId: p.servicoId || "", productId: p.productId || "" } : { id: "", descricao: "", categoria: "Procedimento", quantidade: "1", valorUnitario: "", servicoId: "", productId: "" }); setItemOpen(true); };
+  const pickServico = (sid: string) => { const s = servicos.find((x) => x.id === sid); setItemForm((f: any) => ({ ...f, servicoId: sid, descricao: s?.nome || f.descricao, valorUnitario: s?.valorPadrao != null ? String(s.valorPadrao) : f.valorUnitario })); };
+  const pickProduto = (pid: string) => { const p = produtos.find((x) => x.id === pid); setItemForm((f: any) => ({ ...f, productId: pid, descricao: p?.name || f.descricao })); };
+  const salvarItem = async () => {
+    if (!itemForm.descricao.trim()) { alert("Informe a descrição do item."); return; }
+    setItemSaving(true);
+    try {
+      const insumo = itemForm.categoria === "Insumo";
+      const payload = { descricao: itemForm.descricao.trim(), categoria: itemForm.categoria, quantidade: Number(itemForm.quantidade) || 1, valorUnitario: insumo ? 0 : (Number(itemForm.valorUnitario) || 0), servicoId: itemForm.servicoId || "", productId: itemForm.productId || "", baixado: false };
+      if (itemForm.id) await fetch(`/api/listas/${itemForm.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ valor: JSON.stringify(payload) }) });
+      else await fetch("/api/listas", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ lista: `intconta_${id}`, valor: JSON.stringify(payload) }) });
+      setItemOpen(false); load();
+    } catch { alert("Erro ao salvar item."); }
+    finally { setItemSaving(false); }
+  };
+  const excluirItem = async (i: any) => { if (!confirm(`Remover ${i.descricao} da conta?`)) return; try { await fetch(`/api/listas/${i.id}`, { method: "DELETE", credentials: "include" }); load(); } catch {} };
+
+  const adicionarCaucao = async () => {
+    const valor = Number(caucaoForm.valor);
+    if (!valor || valor <= 0) { alert("Informe o valor da caução."); return; }
+    setFinBusy("caucao");
+    try {
+      const res = await fetch("/api/credito", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ tutorId: h.tutor?.id, appointmentId: id, tipo: "RECARGA", valor, descricao: caucaoForm.descricao || "Caução de internação" }) });
+      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e?.message || ""); }
+      setCaucaoOpen(false); setCaucaoForm({ valor: "", descricao: "Caução de internação" }); load();
+    } catch (e: any) { alert(e?.message || "Erro ao adicionar caução."); }
+    finally { setFinBusy(""); }
+  };
+  const aplicarCaucao = () => { const { totalFaturavel } = contaCalc(); setCaucaoAplicada(caucaoAplicada > 0 ? 0 : Math.min(caucaoSaldo, totalFaturavel)); };
+
+  const enviarCaixa = async () => {
+    const { dias, diariaVU, itensFat, totalFaturavel } = contaCalc();
+    if (totalFaturavel <= 0) { alert("Não há itens faturáveis para enviar."); return; }
+    const cauc = Math.min(caucaoAplicada, totalFaturavel);
+    if (!confirm(`Enviar pro Caixa a venda de ${fmtBRL(totalFaturavel)}${cauc > 0 ? ` (caução ${fmtBRL(cauc)} aplicada · saldo a receber ${fmtBRL(totalFaturavel - cauc)})` : ""}?`)) return;
+    setFinBusy("caixa");
+    try {
+      const itens = [
+        { descricao: `Diária internação (${dias}×)`, quantidade: dias, valorUnitario: diariaVU, desconto: 0 },
+        ...itensFat.map((i) => ({ servicoId: i.servicoId || undefined, descricao: i.descricao, quantidade: Number(i.quantidade) || 1, valorUnitario: Number(i.valorUnitario) || 0, desconto: 0 })),
+      ].filter((it) => it.quantidade > 0 && (it.valorUnitario > 0 || it.descricao));
+      const body = {
+        tutorId: h.tutor?.id, petId: h.pet?.id, userId: (session as any)?.user?.id || h.veterinarian?.id || undefined, date: new Date().toISOString(),
+        itens, tipo: "VENDA", observacao: `Internação${boxCodigo ? ` · Box ${boxCodigo}` : ""} · ${h.pet?.name}`,
+        formas: cauc > 0 ? [{ forma: "Crédito", valor: Number(cauc.toFixed(2)) }] : [],
+      };
+      const res = await fetch("/api/caixa/pdv", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(body) });
+      const dd = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(dd?.message || "Erro ao enviar pro Caixa");
+      const now = new Date();
+      await fetch("/api/listas", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ lista: `intfechamento_${id}`, valor: JSON.stringify({ at: now.toISOString(), tipo: "caixa", total: totalFaturavel, caucao: cauc, por: userName }) }) });
+      alert("Venda enviada pro Caixa! ✅");
+      setCaucaoAplicada(0); load();
+    } catch (e: any) { alert((e?.message || "Erro ao enviar pro Caixa.") + "\nConfira se há um caixa aberto."); }
+    finally { setFinBusy(""); }
+  };
+
+  const baixarInsumos = async () => {
+    const insumos = conta.filter((i) => i.categoria === "Insumo" && i.productId && !i.baixado);
+    if (insumos.length === 0) { alert("Nenhum insumo vinculado a produto para baixar (ou já baixados)."); return; }
+    if (!confirm(`Baixar do estoque ${insumos.length} insumo(s)?`)) return;
+    setFinBusy("estoque");
+    try {
+      for (const i of insumos) {
+        const r = await fetch("/api/stock/movements", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ productId: i.productId, type: "OUT", quantity: Number(i.quantidade) || 1, reason: `Internação ${h.pet?.name}${boxCodigo ? ` · Box ${boxCodigo}` : ""}` }) });
+        if (r.ok) {
+          const payload = { descricao: i.descricao, categoria: i.categoria, quantidade: Number(i.quantidade) || 1, valorUnitario: 0, servicoId: "", productId: i.productId, baixado: true };
+          await fetch(`/api/listas/${i.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ valor: JSON.stringify(payload) }) });
+        }
+      }
+      alert("Insumos baixados do estoque. 📦");
+      load();
+    } catch { alert("Erro ao baixar estoque."); }
+    finally { setFinBusy(""); }
+  };
+
+  const boletimFinanceiro = async () => {
+    const { dias, diariaTotal, itensFat, totalFaturavel } = contaCalc();
+    const linhas = [
+      `*Boletim financeiro — ${h.pet?.name}*`,
+      boxCodigo ? `Box ${boxCodigo} · ${dias}º dia de internação` : `${dias}º dia de internação`,
+      ``,
+      `Diárias (${dias}×): ${fmtBRL(diariaTotal)}`,
+      ...itensFat.map((i) => `${i.descricao}: ${fmtBRL((Number(i.quantidade) || 0) * (Number(i.valorUnitario) || 0))}`),
+      ``,
+      `*Total: ${fmtBRL(totalFaturavel)}*`,
+      caucaoSaldo > 0 ? `Caução em conta: ${fmtBRL(caucaoSaldo)}` : null,
+      `Saldo estimado: ${fmtBRL(Math.max(0, totalFaturavel - caucaoSaldo))}`,
+    ].filter((x) => x != null);
+    const texto = linhas.join("\n");
+    setFinBusy("boletim");
+    try {
+      const res = await fetch("/api/survey-avaliacao/mensagem-tutor", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ tutorId: h.tutor?.id, texto }) });
+      if (!res.ok) throw new Error();
+      alert("Boletim financeiro enviado pelo WhatsApp. ✅");
+    } catch { openWhatsAppMeta(h.tutor?.phone); }
+    finally { setFinBusy(""); }
+  };
+
   const darAlta = async () => {
     if (!confirm("Confirmar alta deste paciente? O box será liberado.")) return;
     try {
@@ -271,6 +407,11 @@ export default function FichaInternacaoPage() {
   const alta = h.status === "DISCHARGED";
   const ultVital = vitaisOrd[0]; const antVital = vitaisOrd[1]; const ultFluido = fluidosOrd[0];
   const VITAIS_BIG: [string, string, string][] = [["FC", "bpm", "fc"], ["FR", "mpm", "fr"], ["Temp", "°C", "temp"], ["Dor", "/4", "dor"]];
+  const cc = contaCalc();
+  const caucAplic = Math.min(caucaoAplicada, cc.totalFaturavel);
+  const saldoPagar = Math.max(0, cc.totalFaturavel - caucAplic);
+  const CAT_PILL: Record<string, { bg: string; fg: string }> = { Diária: { bg: "#E8F1F8", fg: "#1f5a82" }, Insumo: { bg: "#F0EBE0", fg: "#8A7B63" } };
+  const catStyle = (c: string) => CAT_PILL[c] || { bg: "#E0F4F6", fg: "#00707E" };
 
   const Ch = ({ children, editar }: { children: React.ReactNode; editar?: () => void }) => (
     <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "#F0EBE0" }}>
@@ -549,19 +690,82 @@ export default function FichaInternacaoPage() {
               )}
             </div>
 
-            {/* conta (resumo do que já temos, gancho pro financeiro completo) */}
+            {/* Conta da internação (F5) */}
             <div className="bg-white border rounded-[13px]" style={{ borderColor: "#E8E2D6" }}>
-              <Ch>🧾 Conta da internação</Ch>
+              <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "#F0EBE0" }}>
+                <h3 className="text-[13px] font-medium text-[#014D5E] flex items-center gap-2">🧾 Conta da internação</h3>
+                {!alta && <button onClick={() => abrirItem()} className="text-[12px] font-medium text-white bg-[#009AAC] px-3 py-1.5 rounded-lg">➕ Adicionar item</button>}
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-[13px]">
+                  <thead><tr className="text-[10.5px] text-[#8A989D] uppercase tracking-wide">
+                    <th className="text-left font-medium px-4 py-2">Item</th><th className="text-left font-medium px-2 py-2">Categoria</th><th className="text-right font-medium px-2 py-2">Qtd</th><th className="text-right font-medium px-2 py-2">Valor</th><th className="text-right font-medium px-2 py-2">Total</th><th className="px-2 py-2"></th>
+                  </tr></thead>
+                  <tbody>
+                    <tr className="border-t" style={{ borderColor: "#F0EBE0" }}>
+                      <td className="px-4 py-2 whitespace-nowrap">Diária internação</td>
+                      <td className="px-2 py-2"><span className="text-[10.5px] font-medium px-2 py-0.5 rounded-full" style={{ background: "#E8F1F8", color: "#1f5a82" }}>Diária · auto</span></td>
+                      <td className="px-2 py-2 text-right tabular-nums">{cc.dias}</td>
+                      <td className="px-2 py-2 text-right tabular-nums">{fmtBRL(cc.diariaVU)}</td>
+                      <td className="px-2 py-2 text-right tabular-nums">{fmtBRL(cc.diariaTotal)}</td>
+                      <td></td>
+                    </tr>
+                    {conta.map((i) => { const insumo = i.categoria === "Insumo"; const cs = catStyle(i.categoria); const tot = insumo ? 0 : (Number(i.quantidade) || 0) * (Number(i.valorUnitario) || 0); return (
+                      <tr key={i.id} className="border-t" style={{ borderColor: "#F0EBE0", opacity: insumo ? 0.75 : 1 }}>
+                        <td className="px-4 py-2 whitespace-nowrap">{i.descricao}{insumo && i.baixado ? <span className="text-[10px] text-[#0F6E56] ml-1">✓ baixado</span> : null}</td>
+                        <td className="px-2 py-2"><span className="text-[10.5px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap" style={{ background: cs.bg, color: cs.fg }}>{insumo ? "Insumo · só estoque" : i.categoria}</span></td>
+                        <td className="px-2 py-2 text-right tabular-nums">{i.quantidade}</td>
+                        <td className="px-2 py-2 text-right tabular-nums">{insumo ? "—" : fmtBRL(Number(i.valorUnitario) || 0)}</td>
+                        <td className="px-2 py-2 text-right tabular-nums">{insumo ? "—" : fmtBRL(tot)}</td>
+                        <td className="px-2 py-2 text-right whitespace-nowrap">{!alta && <><button onClick={() => abrirItem(i)} className="text-[12px] px-1">✏️</button><button onClick={() => excluirItem(i)} className="text-[12px] px-1">🗑️</button></>}</td>
+                      </tr>
+                    ); })}
+                  </tbody>
+                </table>
+              </div>
+              <div className="px-4 py-3 border-t flex flex-col gap-1.5" style={{ borderColor: "#F0EBE0" }}>
+                <div className="flex justify-between text-[13px] text-[#5C6B70]"><span>Total faturável</span><span className="tabular-nums font-medium text-[#1F2A2E]">{fmtBRL(cc.totalFaturavel)}</span></div>
+                {caucAplic > 0 && <div className="flex justify-between text-[13px] text-[#5a3b9b]"><span>Caução aplicada</span><span className="tabular-nums font-medium">− {fmtBRL(caucAplic)}</span></div>}
+                <div className="flex justify-between text-[15px] text-[#014D5E] border-t pt-2 mt-0.5" style={{ borderColor: "#F0EBE0" }}><span className="font-medium">Saldo a pagar</span><span className="tabular-nums font-medium">{fmtBRL(saldoPagar)}</span></div>
+              </div>
+              <div className="px-4 pb-3 text-[10.5px] text-[#8A989D]">Diárias entram automáticas (dias × valor/dia). Insumos “só estoque” não somam na conta.</div>
+            </div>
+
+            {/* Caução (F5) */}
+            <div className="bg-white border rounded-[13px]" style={{ borderColor: "#E8E2D6" }}>
+              <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "#F0EBE0" }}>
+                <h3 className="text-[13px] font-medium text-[#014D5E] flex items-center gap-2">💳 Caução (crédito do tutor)</h3>
+                {!alta && <button onClick={() => setCaucaoOpen(true)} className="text-[12px] font-medium text-[#5C6B70] bg-white border px-3 py-1.5 rounded-lg" style={{ borderColor: "#E8E2D6" }}>➕ Adicionar caução</button>}
+              </div>
+              <div className="px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+                <div>
+                  <div className="text-[10.5px] text-[#8A989D] uppercase tracking-wide">Saldo disponível de {h.tutor?.name || "tutor"}</div>
+                  <div className="text-[22px] font-medium tabular-nums" style={{ color: "#5a3b9b" }}>{fmtBRL(caucaoSaldo)}</div>
+                </div>
+                {caucaoSaldo > 0 && cc.totalFaturavel > 0 && !alta && (
+                  <button onClick={aplicarCaucao} className="text-[12.5px] font-medium px-3.5 py-2 rounded-lg" style={caucaoAplicada > 0 ? { background: "#EDE9FA", color: "#5a3b9b" } : { background: "#009AAC", color: "#fff" }}>{caucaoAplicada > 0 ? "✓ Caução aplicada — remover" : "Aplicar à conta"}</button>
+                )}
+              </div>
+            </div>
+
+            {/* Fechamento (F5) */}
+            <div className="bg-white border rounded-[13px]" style={{ borderColor: "#E8E2D6" }}>
+              <div className="px-4 py-3 border-b" style={{ borderColor: "#F0EBE0" }}><h3 className="text-[13px] font-medium text-[#014D5E] flex items-center gap-2">📤 Fechamento</h3></div>
               <div className="p-4">
-                <div className="flex items-center justify-between py-1.5 text-[13px]">
-                  <span className="text-[#5C6B70]">Diárias ({diasInternado(h.admissionDate)}× · {fmtBRL(h.dailyRate)}/dia)</span>
-                  <span className="font-medium text-[#1F2A2E]">{fmtBRL((h.dailyRate || 0) * diasInternado(h.admissionDate))}</span>
+                <div className="flex gap-2 flex-wrap">
+                  {!alta && <button onClick={enviarCaixa} disabled={!!finBusy} className="text-[13px] font-medium text-white bg-[#009AAC] px-4 py-2 rounded-lg disabled:opacity-60">{finBusy === "caixa" ? "Enviando..." : "📤 Enviar pro Caixa"}</button>}
+                  {!alta && <button onClick={baixarInsumos} disabled={!!finBusy} className="text-[13px] font-medium text-[#5C6B70] bg-white border px-4 py-2 rounded-lg disabled:opacity-60" style={{ borderColor: "#E8E2D6" }}>{finBusy === "estoque" ? "Baixando..." : "📦 Baixar insumos"}</button>}
+                  <button onClick={boletimFinanceiro} disabled={!!finBusy} className="text-[13px] font-medium text-[#5C6B70] bg-white border px-4 py-2 rounded-lg disabled:opacity-60" style={{ borderColor: "#E8E2D6" }}>{finBusy === "boletim" ? "Enviando..." : "🧾 Boletim financeiro"}</button>
+                  <button onClick={() => window.print()} className="text-[13px] font-medium text-[#5C6B70] bg-white border px-4 py-2 rounded-lg" style={{ borderColor: "#E8E2D6" }}>🖨️ Imprimir</button>
                 </div>
-                <div className="flex items-center justify-between py-1.5 border-t text-[13px]" style={{ borderColor: "#F0EBE0" }}>
-                  <span className="font-medium text-[#014D5E]">Total acumulado</span>
-                  <span className="font-medium text-[#014D5E]">{fmtBRL(h.totalCost)}</span>
-                </div>
-                <div className="text-[10.5px] text-[#8A989D] mt-2">🔒 Lançamento no Caixa, baixa de insumos e caução entram na Fatia 5 (financeiro).</div>
+                {fechamentos.length > 0 && (
+                  <div className="mt-3 space-y-1">
+                    {[...fechamentos].sort((a, b) => new Date(b.at || 0).getTime() - new Date(a.at || 0).getTime()).map((f) => (
+                      <div key={f.id} className="text-[11.5px] text-[#5C6B70] flex items-center gap-2"><span className="text-[#0F6E56]">✅</span> Enviado pro Caixa em {fmtDataHora(f.at)} · {fmtBRL(f.total)}{f.caucao > 0 ? ` (caução ${fmtBRL(f.caucao)})` : ""}{f.por ? ` · ${f.por}` : ""}</div>
+                    ))}
+                  </div>
+                )}
+                <div className="text-[10.5px] text-[#8A989D] mt-2.5">“Enviar pro Caixa” cria a venda (a receber) com os itens faturáveis e aplica a caução como pagamento. “Baixar insumos” dá saída no estoque dos itens vinculados a produto.</div>
               </div>
             </div>
           </div>
@@ -583,6 +787,15 @@ export default function FichaInternacaoPage() {
         {evolucoesOrd.length === 0 ? <div style={{ fontSize: 12, color: "#8A989D" }}>Sem registros.</div> : evolucoesOrd.slice().reverse().map((e) => (
           <div key={e.id} style={{ fontSize: 12.5, marginBottom: 6 }}><b style={{ color: "#5C6B70" }}>{fmtDataHora(e.at)}:</b> {e.texto}</div>
         ))}
+        <h2 style={{ fontSize: 14, color: "#014D5E", margin: "18px 0 6px" }}>Conta</h2>
+        <table style={{ width: "100%", fontSize: 12.5, borderCollapse: "collapse" }}>
+          <tbody>
+            <tr><td style={{ padding: "5px 8px", borderBottom: "1px solid #F0EBE0" }}>Diária internação ({cc.dias}×)</td><td style={{ padding: "5px 8px", textAlign: "right", borderBottom: "1px solid #F0EBE0" }}>{fmtBRL(cc.diariaTotal)}</td></tr>
+            {cc.itensFat.map((i) => (<tr key={i.id}><td style={{ padding: "5px 8px", borderBottom: "1px solid #F0EBE0" }}>{i.descricao} ({i.quantidade}×)</td><td style={{ padding: "5px 8px", textAlign: "right", borderBottom: "1px solid #F0EBE0" }}>{fmtBRL((Number(i.quantidade) || 0) * (Number(i.valorUnitario) || 0))}</td></tr>))}
+            <tr><td style={{ padding: "6px 8px", fontWeight: 600 }}>Total faturável</td><td style={{ padding: "6px 8px", textAlign: "right", fontWeight: 600 }}>{fmtBRL(cc.totalFaturavel)}</td></tr>
+            {caucaoSaldo > 0 && (<tr><td style={{ padding: "5px 8px", color: "#5a3b9b" }}>Caução em conta</td><td style={{ padding: "5px 8px", textAlign: "right", color: "#5a3b9b" }}>− {fmtBRL(caucaoSaldo)}</td></tr>)}
+          </tbody>
+        </table>
       </div>
 
       {/* ===== POPUP EDITAR ADMISSÃO ===== */}
@@ -699,6 +912,64 @@ export default function FichaInternacaoPage() {
             <div className="px-5 py-4 border-t flex justify-end gap-2" style={{ borderColor: "#E8E2D6" }}>
               <button onClick={() => setFluidoOpen(false)} className="px-4 py-2 text-[13px] text-[#5C6B70] bg-[#f3f1ea] rounded-lg">Cancelar</button>
               <button onClick={registrarFluido} disabled={fluidoSaving} className="px-4 py-2 text-[13px] text-white bg-[#009AAC] rounded-lg disabled:opacity-60">{fluidoSaving ? "Salvando..." : "Registrar"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== POPUP ITEM DA CONTA ===== */}
+      {itemOpen && (
+        <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50 print:hidden" onClick={() => setItemOpen(false)}>
+          <div className="rounded-2xl shadow-xl max-w-md w-full" style={{ background: "#FBF9F4", border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "#E8E2D6" }}>
+              <h3 className="text-base font-medium text-[#014D5E]">🧾 {itemForm.id ? "Editar item" : "Adicionar item"}</h3>
+              <button onClick={() => setItemOpen(false)} className="text-[#8A989D]">✕</button>
+            </div>
+            <div className="p-5 grid grid-cols-2 gap-3 text-[13px]">
+              <div className="col-span-2"><label className="text-[11px] text-[#8A989D] block mb-1">Categoria</label>
+                <select value={itemForm.categoria} onChange={(e) => setItemForm({ ...itemForm, categoria: e.target.value, servicoId: "", productId: "" })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }}>{CAT_CONTA.map((c) => <option key={c} value={c}>{c === "Insumo" ? "Insumo (só estoque, não cobra)" : c}</option>)}</select></div>
+              {itemForm.categoria !== "Insumo" ? (
+                <div className="col-span-2"><label className="text-[11px] text-[#8A989D] block mb-1">Serviço do catálogo (opcional)</label>
+                  <select value={itemForm.servicoId} onChange={(e) => pickServico(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }}><option value="">— digitar manualmente —</option>{servicos.map((s) => <option key={s.id} value={s.id}>{s.nome}{s.valorPadrao != null ? ` · ${fmtBRL(s.valorPadrao)}` : ""}</option>)}</select></div>
+              ) : (
+                <div className="col-span-2"><label className="text-[11px] text-[#8A989D] block mb-1">Produto (p/ baixar do estoque)</label>
+                  <select value={itemForm.productId} onChange={(e) => pickProduto(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }}><option value="">— sem vínculo (não baixa) —</option>{produtos.map((p) => <option key={p.id} value={p.id}>{p.name}{typeof p.stock === "number" ? ` · estoque ${p.stock}` : ""}</option>)}</select></div>
+              )}
+              <div className="col-span-2"><label className="text-[11px] text-[#8A989D] block mb-1">Descrição *</label>
+                <input value={itemForm.descricao} onChange={(e) => setItemForm({ ...itemForm, descricao: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
+              <div><label className="text-[11px] text-[#8A989D] block mb-1">Quantidade</label>
+                <input type="number" min={1} value={itemForm.quantidade} onChange={(e) => setItemForm({ ...itemForm, quantidade: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
+              {itemForm.categoria !== "Insumo" && (
+                <div><label className="text-[11px] text-[#8A989D] block mb-1">Valor unitário (R$)</label>
+                  <input type="number" min={0} step="0.01" value={itemForm.valorUnitario} onChange={(e) => setItemForm({ ...itemForm, valorUnitario: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
+              )}
+            </div>
+            <div className="px-5 py-4 border-t flex justify-end gap-2" style={{ borderColor: "#E8E2D6" }}>
+              <button onClick={() => setItemOpen(false)} className="px-4 py-2 text-[13px] text-[#5C6B70] bg-[#f3f1ea] rounded-lg">Cancelar</button>
+              <button onClick={salvarItem} disabled={itemSaving} className="px-4 py-2 text-[13px] text-white bg-[#009AAC] rounded-lg disabled:opacity-60">{itemSaving ? "Salvando..." : "Salvar"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== POPUP CAUÇÃO ===== */}
+      {caucaoOpen && (
+        <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50 print:hidden" onClick={() => setCaucaoOpen(false)}>
+          <div className="rounded-2xl shadow-xl max-w-sm w-full" style={{ background: "#FBF9F4", border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "#E8E2D6" }}>
+              <h3 className="text-base font-medium text-[#014D5E]">💳 Adicionar caução</h3>
+              <button onClick={() => setCaucaoOpen(false)} className="text-[#8A989D]">✕</button>
+            </div>
+            <div className="p-5 space-y-3 text-[13px]">
+              <div><label className="text-[11px] text-[#8A989D] block mb-1">Valor (R$) *</label>
+                <input type="number" min={0} step="0.01" value={caucaoForm.valor} onChange={(e) => setCaucaoForm({ ...caucaoForm, valor: e.target.value })} placeholder="0,00" className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
+              <div><label className="text-[11px] text-[#8A989D] block mb-1">Descrição</label>
+                <input value={caucaoForm.descricao} onChange={(e) => setCaucaoForm({ ...caucaoForm, descricao: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
+              <div className="text-[10.5px] text-[#8A989D]">Adiciona crédito ao tutor {h.tutor?.name}. Fica como saldo e pode abater da conta.</div>
+            </div>
+            <div className="px-5 py-4 border-t flex justify-end gap-2" style={{ borderColor: "#E8E2D6" }}>
+              <button onClick={() => setCaucaoOpen(false)} className="px-4 py-2 text-[13px] text-[#5C6B70] bg-[#f3f1ea] rounded-lg">Cancelar</button>
+              <button onClick={adicionarCaucao} disabled={finBusy === "caucao"} className="px-4 py-2 text-[13px] text-white bg-[#009AAC] rounded-lg disabled:opacity-60">{finBusy === "caucao" ? "Salvando..." : "Adicionar"}</button>
             </div>
           </div>
         </div>
