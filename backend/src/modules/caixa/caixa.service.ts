@@ -276,12 +276,34 @@ export class CaixaService {
       const ap = await this.prisma.appointment.findUnique({ where: { id: appointmentId }, include: { recebimentos: true } });
       if (ap) {
         const pago = ap.recebimentos.reduce((s: number, r: any) => s + Number(r.valorTotal), 0);
-        if (pago >= Number(ap.value) - 0.001) {
+        // baixa estoque só na TRANSIÇÃO para PAID (evita baixar 2x se registrar outro recebimento)
+        if (pago >= Number(ap.value) - 0.001 && ap.paymentStatus !== 'PAID') {
           await this.prisma.appointment.update({ where: { id: ap.id }, data: { paymentStatus: 'PAID' } });
+          await this.baixarEstoqueDaVenda(ap.id);
         }
       }
     }
     return rec;
+  }
+
+  // Fase 5 — quando a venda é paga, desconta o estoque dos itens que são PRODUTO estocável (serviço não baixa).
+  private async baixarEstoqueDaVenda(appointmentId: string) {
+    try {
+      const itens = await this.prisma.appointmentItem.findMany({
+        where: { appointmentId, productId: { not: null } },
+        select: { productId: true, quantidade: true },
+      });
+      for (const it of itens) {
+        if (!it.productId) continue;
+        const prod = await this.prisma.product.findUnique({ where: { id: it.productId }, select: { type: true } });
+        if (!prod || prod.type === 'SERVICE') continue; // serviço não movimenta estoque
+        const qtd = Math.max(1, Math.round(Number(it.quantidade) || 1));
+        await this.prisma.product.update({ where: { id: it.productId }, data: { stock: { decrement: qtd } } });
+      }
+    } catch (e: any) {
+      // não pode quebrar o recebimento (a venda já foi registrada)
+      console.error('baixarEstoqueDaVenda erro:', e?.message);
+    }
   }
 
   async registrarMovimento(caixaId: string, dto: any, userId: string) {
