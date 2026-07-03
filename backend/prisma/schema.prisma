@@ -575,15 +575,28 @@ model Treatment {
   updatedAt     DateTime    @updatedAt
 }
 
+// Catálogo UNIFICADO (absorve Servico): produtos têm estoque, serviços (type SERVICE) não.
 model Product {
   id         String      @id @default(uuid())
+  codigo     Int?        @unique // código SimplesVet — âncora p/ o import limpo futuro (como Tutor/Pet)
   name       String
   type       ProductType
   price      Float
   stock      Int         @default(0)
-  treatments Treatment[]
+  // campos vindos do catálogo de Serviços (Fase 1 da unificação)
+  categoryId          String?
+  category            ServiceCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  custoPadrao         Float?
+  comissaoBaseDefault ComissaoBase     @default(VALOR_CHEIO)
+  ativo               Boolean          @default(true)
+  treatments       Treatment[]
+  appointmentItems AppointmentItem[]
+  orcamentoItens   OrcamentoItem[]
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
+
+  @@index([ativo])
+  @@index([categoryId])
 }
 
 // ============================================
@@ -1577,6 +1590,7 @@ model ServiceCategory {
   comissaoBasePadrao    ComissaoBase  @default(VALOR_CHEIO)
   ativo                 Boolean       @default(true)
   servicos              Servico[]
+  produtos              Product[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2627,6 +2641,8 @@ model AppointmentItem {
   // Vinculação a catálogo (opcional — pode ser descrição livre)
   servicoId       String?
   servico         Servico?     @relation(fields: [servicoId], references: [id], onDelete: SetNull)
+  productId       String?      // catálogo unificado (Fase 1 da unificação; dual-write com servicoId)
+  product         Product?     @relation(fields: [productId], references: [id], onDelete: SetNull)
   descricao       String?
 
   // Executor: profissional interno OU fornecedor externo (lab)
@@ -2659,6 +2675,7 @@ model AppointmentItem {
 
   @@index([appointmentId])
   @@index([servicoId])
+  @@index([productId])
   @@index([fornecedorId])
   @@map("appointment_items")
 }
@@ -2730,6 +2747,8 @@ model OrcamentoItem {
   orcamento     Orcamento  @relation(fields: [orcamentoId], references: [id], onDelete: Cascade)
   servicoId     String?
   servico       Servico?   @relation(fields: [servicoId], references: [id], onDelete: SetNull)
+  productId     String?    // catálogo unificado (Fase 1 da unificação)
+  product       Product?   @relation(fields: [productId], references: [id], onDelete: SetNull)
   descricao     String?
   quantidade    Float      @default(1)
   valorUnitario Float      @default(0)
@@ -2740,6 +2759,7 @@ model OrcamentoItem {
 
   @@index([orcamentoId])
   @@index([servicoId])
+  @@index([productId])
   @@map("orcamento_itens")
 }
 
