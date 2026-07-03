@@ -24,6 +24,18 @@ const STATUS_MED: Record<string, { lbl: string; bg: string; fg: string }> = {
   feito: { lbl: "Feita", bg: "#E1F5EE", fg: "#0F6E56" },
 };
 const hojeISO = () => new Date().toISOString().slice(0, 10);
+const MUCOSAS = ["Rósea", "Pálida", "Congesta", "Cianótica", "Ictérica", "Porcelana"];
+const TREND_ST: Record<string, { bg: string; fg: string }> = {
+  up: { bg: "#FBEFE0", fg: "#B45309" }, down: { bg: "#E1F5EE", fg: "#0F6E56" }, flat: { bg: "#FBF9F4", fg: "#8A989D" },
+};
+function tendencia(cur: any, prev: any) {
+  const c = parseFloat(cur), p = parseFloat(prev);
+  if (isNaN(c) || isNaN(p)) return { dir: "flat", ar: "—", txt: "—" };
+  const d = c - p;
+  if (Math.abs(d) < 1e-9) return { dir: "flat", ar: "—", txt: "estável" };
+  return d > 0 ? { dir: "up", ar: "▲", txt: "subindo" } : { dir: "down", ar: "▼", txt: "descendo" };
+}
+function tempForaFaixa(t: any) { const v = parseFloat(t); return !isNaN(v) && (v > 39.3 || v < 37.2); }
 const prioToEstado: Record<string, string> = { LOW: "Estável", MEDIUM: "Em observação", HIGH: "Instável", CRITICAL: "Crítico" };
 function estadoDe(h: any): string { return h?.vitalSigns?.estadoClinico || prioToEstado[h?.priority] || "Estável"; }
 function estadoStyle(e: string) { return ESTADOS.find((x) => x.v === e) || ESTADOS[0]; }
@@ -59,15 +71,27 @@ export default function FichaInternacaoPage() {
   const [prescForm, setPrescForm] = useState<any>({ id: "", medicamento: "", via: "IV", dose: "", frequencia: "", horarios: "", observacao: "" });
   const [prescSaving, setPrescSaving] = useState(false);
 
+  // Sinais vitais & fluidos (F4)
+  const [vitais, setVitais] = useState<any[]>([]);
+  const [fluidos, setFluidos] = useState<any[]>([]);
+  const [vitalOpen, setVitalOpen] = useState(false);
+  const [vitalForm, setVitalForm] = useState<any>({ fc: "", fr: "", temp: "", pa: "", mucosa: "Rósea", dor: "0" });
+  const [vitalSaving, setVitalSaving] = useState(false);
+  const [fluidoOpen, setFluidoOpen] = useState(false);
+  const [fluidoForm, setFluidoForm] = useState<any>({ entradaFluido: "", agua: "", diurese: "", fezes: "", alimentacao: "", emese: "" });
+  const [fluidoSaving, setFluidoSaving] = useState(false);
+
   const load = async () => {
     setLoading(true);
     try {
-      const [d, m, ev, pr, ds] = await Promise.all([
+      const [d, m, ev, pr, ds, vt, fl] = await Promise.all([
         fetch(`/api/hospitalizations/${id}`).then((r) => r.json()).catch(() => null),
         fetch(`/api/boxes/mapa`).then((r) => r.json()).catch(() => ({})),
         fetch(`/api/listas?lista=intevo_${id}`).then((r) => r.json()).catch(() => []),
         fetch(`/api/listas?lista=intpresc_${id}`).then((r) => r.json()).catch(() => []),
         fetch(`/api/listas?lista=intmed_${id}`).then((r) => r.json()).catch(() => []),
+        fetch(`/api/listas?lista=intvital_${id}`).then((r) => r.json()).catch(() => []),
+        fetch(`/api/listas?lista=intfluido_${id}`).then((r) => r.json()).catch(() => []),
       ]);
       setH(d && d.id ? d : null);
       const card = Array.isArray(m?.boxes) ? m.boxes.find((c: any) => c.internacao?.id === id) : null;
@@ -76,6 +100,8 @@ export default function FichaInternacaoPage() {
       setEvolucoes(parse(ev));
       setPrescricoes(parse(pr));
       setDoses(parse(ds));
+      setVitais(parse(vt));
+      setFluidos(parse(fl));
     } catch {}
     setLoading(false);
   };
@@ -168,6 +194,33 @@ export default function FichaInternacaoPage() {
     } catch {}
   };
 
+  // ── Sinais vitais & fluidos (F4) ──────────────────────────────────
+  const registrarVital = async () => {
+    if (![vitalForm.fc, vitalForm.fr, vitalForm.temp, vitalForm.pa].some((x) => String(x).trim())) { alert("Preencha ao menos um sinal vital."); return; }
+    setVitalSaving(true);
+    try {
+      const now = new Date();
+      const valor = JSON.stringify({ at: now.toISOString(), hora: now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }), fc: vitalForm.fc, fr: vitalForm.fr, temp: vitalForm.temp, pa: vitalForm.pa, mucosa: vitalForm.mucosa, dor: vitalForm.dor, por: userName });
+      await fetch("/api/listas", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ lista: `intvital_${id}`, valor }) });
+      setVitalForm({ fc: "", fr: "", temp: "", pa: "", mucosa: "Rósea", dor: "0" }); setVitalOpen(false); load();
+    } catch { alert("Erro ao registrar aferição."); }
+    finally { setVitalSaving(false); }
+  };
+  const excluirVital = async (vId: string) => { if (!confirm("Excluir esta aferição?")) return; try { await fetch(`/api/listas/${vId}`, { method: "DELETE", credentials: "include" }); load(); } catch {} };
+
+  const registrarFluido = async () => {
+    if (![fluidoForm.entradaFluido, fluidoForm.agua, fluidoForm.diurese, fluidoForm.fezes, fluidoForm.alimentacao, fluidoForm.emese].some((x) => String(x).trim())) { alert("Preencha ao menos um campo."); return; }
+    setFluidoSaving(true);
+    try {
+      const now = new Date();
+      const valor = JSON.stringify({ at: now.toISOString(), hora: now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }), entradaFluido: fluidoForm.entradaFluido, agua: fluidoForm.agua, diurese: fluidoForm.diurese, fezes: fluidoForm.fezes, alimentacao: fluidoForm.alimentacao, emese: fluidoForm.emese, por: userName });
+      await fetch("/api/listas", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ lista: `intfluido_${id}`, valor }) });
+      setFluidoForm({ entradaFluido: "", agua: "", diurese: "", fezes: "", alimentacao: "", emese: "" }); setFluidoOpen(false); load();
+    } catch { alert("Erro ao registrar controle."); }
+    finally { setFluidoSaving(false); }
+  };
+  const excluirFluido = async (fId: string) => { if (!confirm("Excluir este registro?")) return; try { await fetch(`/api/listas/${fId}`, { method: "DELETE", credentials: "include" }); load(); } catch {} };
+
   const darAlta = async () => {
     if (!confirm("Confirmar alta deste paciente? O box será liberado.")) return;
     try {
@@ -195,6 +248,16 @@ export default function FichaInternacaoPage() {
     return arr;
   }, [prescricoes, doses]);
   const contMed = useMemo(() => ({ atras: plantao.filter((s) => s.status === "atrasado").length, pend: plantao.filter((s) => s.status === "pendente").length, feito: plantao.filter((s) => s.status === "feito").length }), [plantao]);
+  const vitaisOrd = useMemo(() => [...vitais].sort((a, b) => new Date(b.at || 0).getTime() - new Date(a.at || 0).getTime()), [vitais]);
+  const fluidosOrd = useMemo(() => [...fluidos].sort((a, b) => new Date(b.at || 0).getTime() - new Date(a.at || 0).getTime()), [fluidos]);
+  const sparkTemp = useMemo(() => {
+    const pts = [...vitais].sort((a, b) => new Date(a.at || 0).getTime() - new Date(b.at || 0).getTime()).map((v) => parseFloat(v.temp)).filter((n) => !isNaN(n)).slice(-8);
+    if (pts.length < 2) return null;
+    const min = Math.min(...pts), max = Math.max(...pts), range = max - min || 1, W = 240, H = 40, pad = 6;
+    const step = (W - pad * 2) / (pts.length - 1);
+    const coords = pts.map((t, i) => { const x = pad + i * step; const y = H - pad - ((t - min) / range) * (H - pad * 2); return `${x.toFixed(0)},${y.toFixed(0)}`; });
+    return { poly: coords.join(" "), last: coords[coords.length - 1].split(","), min, max, W, H };
+  }, [vitais]);
 
   if (loading) return <div className="p-6 text-center text-sm text-[#8A989D]">Carregando ficha...</div>;
   if (!h) return (
@@ -206,6 +269,8 @@ export default function FichaInternacaoPage() {
 
   const st = estadoStyle(estado);
   const alta = h.status === "DISCHARGED";
+  const ultVital = vitaisOrd[0]; const antVital = vitaisOrd[1]; const ultFluido = fluidosOrd[0];
+  const VITAIS_BIG: [string, string, string][] = [["FC", "bpm", "fc"], ["FR", "mpm", "fr"], ["Temp", "°C", "temp"], ["Dor", "/4", "dor"]];
 
   const Ch = ({ children, editar }: { children: React.ReactNode; editar?: () => void }) => (
     <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "#F0EBE0" }}>
@@ -397,9 +462,92 @@ export default function FichaInternacaoPage() {
               {!alta && <div className="px-4 py-2.5 text-[11px] text-[#8A989D] border-t" style={{ borderColor: "#F0EBE0" }}>Marcar a dose registra quem aplicou ({userName || "você"}) e a hora.</div>}
             </div>
 
-            {/* ganchos F4 */}
-            <GanchoCard emoji="🩺" titulo="Sinais vitais" desc="Aferições (FC, FR, temp, PA, dor) e tendência — entra na Fatia 4 (monitoramento)." />
-            <GanchoCard emoji="💧" titulo="Fluidos, dejetos & alimentação" desc="Controle por turno — entra na Fatia 4 (monitoramento)." />
+            {/* Sinais vitais (F4) */}
+            <div className="bg-white border rounded-[13px]" style={{ borderColor: "#E8E2D6" }}>
+              <div className="flex items-center justify-between px-4 py-3 border-b flex-wrap gap-2" style={{ borderColor: "#F0EBE0" }}>
+                <h3 className="text-[13px] font-medium text-[#014D5E] flex items-center gap-2">🩺 Sinais vitais{ultVital?.hora ? <span className="text-[11px] text-[#8A989D] font-normal">· última {ultVital.hora}</span> : null}</h3>
+                {!alta && <button onClick={() => setVitalOpen(true)} className="text-[12px] font-medium text-white bg-[#009AAC] px-3 py-1.5 rounded-lg">➕ Registrar aferição</button>}
+              </div>
+              {vitaisOrd.length === 0 ? (
+                <div className="px-4 py-6 text-center text-[12.5px] text-[#8A989D]">Nenhuma aferição registrada ainda.</div>
+              ) : (
+                <div className="p-4">
+                  <div className="grid grid-cols-4 gap-2">
+                    {VITAIS_BIG.map(([lbl, un, f]) => {
+                      const val = ultVital?.[f]; const tr = tendencia(ultVital?.[f], antVital?.[f]); const trS = TREND_ST[tr.dir]; const al = f === "temp" && tempForaFaixa(val);
+                      return (
+                        <div key={f} className="rounded-[11px] border px-2 py-3 text-center" style={{ background: "#FBF9F4", borderColor: "#F0EBE0" }}>
+                          <div className="text-[22px] leading-none font-medium tabular-nums" style={{ color: al ? "#CC3366" : "#014D5E" }}>{val || "—"}<small className="text-[11px] text-[#8A989D] font-normal">{un}</small></div>
+                          <div className="text-[10px] text-[#8A989D] uppercase tracking-wide mt-1.5">{lbl}</div>
+                          {antVital && <div className="inline-flex items-center gap-1 text-[10px] mt-1 px-2 py-0.5 rounded-full" style={{ background: trS.bg, color: trS.fg }}>{tr.ar} {al && f === "temp" ? "alerta" : tr.txt}</div>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {sparkTemp && (
+                    <div className="flex items-center gap-2.5 mt-3.5">
+                      <span className="text-[10px] text-[#8A989D] uppercase tracking-wide">Temp · últimas</span>
+                      <svg width={sparkTemp.W} height={sparkTemp.H} viewBox={`0 0 ${sparkTemp.W} ${sparkTemp.H}`} className="max-w-full">
+                        <line x1="0" y1={sparkTemp.H - 4} x2={sparkTemp.W} y2={sparkTemp.H - 4} stroke="#F0EBE0" strokeWidth="1" />
+                        <polyline points={sparkTemp.poly} fill="none" stroke="#009AAC" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        <circle cx={sparkTemp.last[0]} cy={sparkTemp.last[1]} r="3.5" fill="#009AAC" />
+                      </svg>
+                      <span className="text-[11px] text-[#8A989D] tabular-nums">{sparkTemp.min.toFixed(1)} → {sparkTemp.max.toFixed(1)} °C</span>
+                    </div>
+                  )}
+                  <div className="overflow-x-auto mt-3">
+                    <table className="w-full text-[12.5px]">
+                      <thead><tr className="text-[10px] text-[#8A989D] uppercase tracking-wide">
+                        <th className="text-left font-medium px-3 py-2">Hora</th><th className="text-left font-medium px-2 py-2">FC</th><th className="text-left font-medium px-2 py-2">FR</th><th className="text-left font-medium px-2 py-2">Temp</th><th className="text-left font-medium px-2 py-2">PA</th><th className="text-left font-medium px-2 py-2">Mucosa</th><th className="text-left font-medium px-2 py-2">Dor</th><th className="text-left font-medium px-2 py-2">Por</th><th className="px-2 py-2"></th>
+                      </tr></thead>
+                      <tbody>
+                        {vitaisOrd.map((v) => (
+                          <tr key={v.id} className="border-t tabular-nums" style={{ borderColor: "#F0EBE0" }}>
+                            <td className="px-3 py-2 whitespace-nowrap">{v.hora || "—"}</td><td className="px-2 py-2">{v.fc || "—"}</td><td className="px-2 py-2">{v.fr || "—"}</td>
+                            <td className="px-2 py-2 whitespace-nowrap" style={tempForaFaixa(v.temp) ? { color: "#CC3366", fontWeight: 500 } : {}}>{v.temp ? `${v.temp}°` : "—"}</td>
+                            <td className="px-2 py-2 whitespace-nowrap">{v.pa || "—"}</td><td className="px-2 py-2">{v.mucosa || "—"}</td><td className="px-2 py-2">{v.dor ?? "—"}</td>
+                            <td className="px-2 py-2 text-[#5C6B70] whitespace-nowrap">{v.por || "—"}</td>
+                            <td className="px-2 py-2 text-right">{!alta && <button onClick={() => excluirVital(v.id)} className="text-[12px]">🗑️</button>}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Fluidos, dejetos & alimentação (F4) */}
+            <div className="bg-white border rounded-[13px]" style={{ borderColor: "#E8E2D6" }}>
+              <div className="flex items-center justify-between px-4 py-3 border-b flex-wrap gap-2" style={{ borderColor: "#F0EBE0" }}>
+                <h3 className="text-[13px] font-medium text-[#014D5E] flex items-center gap-2">💧 Fluidos, dejetos &amp; alimentação{ultFluido?.hora ? <span className="text-[11px] text-[#8A989D] font-normal">· último {ultFluido.hora}</span> : null}</h3>
+                {!alta && <button onClick={() => setFluidoOpen(true)} className="text-[12px] font-medium text-white bg-[#009AAC] px-3 py-1.5 rounded-lg">➕ Registrar controle</button>}
+              </div>
+              {!ultFluido ? (
+                <div className="px-4 py-6 text-center text-[12.5px] text-[#8A989D]">Nenhum controle registrado ainda.</div>
+              ) : (
+                <div className="p-4">
+                  <div className="grid grid-cols-2 rounded-[11px] border overflow-hidden" style={{ borderColor: "#F0EBE0" }}>
+                    {[["💧 Entrada (fluido)", ultFluido.entradaFluido ? `${ultFluido.entradaFluido} ml` : "—"], ["🥤 Ingestão de água", ultFluido.agua ? `${ultFluido.agua} ml` : "—"], ["🚻 Diurese", ultFluido.diurese || "—"], ["💩 Fezes", ultFluido.fezes || "—"], ["🍽️ Alimentação", ultFluido.alimentacao || "—"], ["🤢 Êmese", ultFluido.emese || "—"]].map(([lbl, val], i) => (
+                      <div key={lbl} className="flex justify-between items-center px-3.5 py-2.5 border-b" style={{ borderColor: "#F0EBE0", borderRight: i % 2 === 0 ? "1px solid #F0EBE0" : undefined }}>
+                        <span className="text-[12px] text-[#5C6B70]">{lbl}</span><span className="text-[13px] font-medium text-[#014D5E]">{val}</span>
+                      </div>
+                    ))}
+                  </div>
+                  {fluidosOrd.length > 0 && (
+                    <div className="mt-3 space-y-0">
+                      {fluidosOrd.map((f) => (
+                        <div key={f.id} className="flex items-start gap-2 text-[12px] py-1.5 border-t" style={{ borderColor: "#F0EBE0" }}>
+                          <span className="text-[#8A989D] tabular-nums whitespace-nowrap w-[92px] flex-shrink-0">{f.hora}{f.por ? ` · ${f.por}` : ""}</span>
+                          <span className="text-[#5C6B70] flex-1">{[f.entradaFluido && `fluido ${f.entradaFluido} ml`, f.agua && `água ${f.agua} ml`, f.diurese && `diurese ${f.diurese}`, f.fezes && `fezes ${f.fezes}`, f.alimentacao && `alim. ${f.alimentacao}`, f.emese && `êmese ${f.emese}`].filter(Boolean).join(" · ") || "—"}</span>
+                          {!alta && <button onClick={() => excluirFluido(f.id)} className="text-[11px] text-[#B4BCC0] hover:text-[#CC3366]">🗑️</button>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
             {/* conta (resumo do que já temos, gancho pro financeiro completo) */}
             <div className="bg-white border rounded-[13px]" style={{ borderColor: "#E8E2D6" }}>
@@ -491,6 +639,66 @@ export default function FichaInternacaoPage() {
             <div className="px-5 py-4 border-t flex justify-end gap-2" style={{ borderColor: "#E8E2D6" }}>
               <button onClick={() => setPrescOpen(false)} className="px-4 py-2 text-[13px] text-[#5C6B70] bg-[#f3f1ea] rounded-lg">Cancelar</button>
               <button onClick={salvarPresc} disabled={prescSaving} className="px-4 py-2 text-[13px] text-white bg-[#009AAC] rounded-lg disabled:opacity-60">{prescSaving ? "Salvando..." : "Salvar"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== POPUP AFERIÇÃO (sinais vitais) ===== */}
+      {vitalOpen && (
+        <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50 print:hidden" onClick={() => setVitalOpen(false)}>
+          <div className="rounded-2xl shadow-xl max-w-md w-full" style={{ background: "#FBF9F4", border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "#E8E2D6" }}>
+              <h3 className="text-base font-medium text-[#014D5E]">🩺 Registrar aferição</h3>
+              <button onClick={() => setVitalOpen(false)} className="text-[#8A989D]">✕</button>
+            </div>
+            <div className="p-5 grid grid-cols-2 gap-3 text-[13px]">
+              <div><label className="text-[11px] text-[#8A989D] block mb-1">FC (bpm)</label>
+                <input type="number" value={vitalForm.fc} onChange={(e) => setVitalForm({ ...vitalForm, fc: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
+              <div><label className="text-[11px] text-[#8A989D] block mb-1">FR (mpm)</label>
+                <input type="number" value={vitalForm.fr} onChange={(e) => setVitalForm({ ...vitalForm, fr: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
+              <div><label className="text-[11px] text-[#8A989D] block mb-1">Temp (°C)</label>
+                <input type="number" step="0.1" value={vitalForm.temp} onChange={(e) => setVitalForm({ ...vitalForm, temp: e.target.value })} placeholder="38.5" className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
+              <div><label className="text-[11px] text-[#8A989D] block mb-1">PA (mmHg)</label>
+                <input value={vitalForm.pa} onChange={(e) => setVitalForm({ ...vitalForm, pa: e.target.value })} placeholder="110/70" className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
+              <div><label className="text-[11px] text-[#8A989D] block mb-1">Mucosa</label>
+                <select value={vitalForm.mucosa} onChange={(e) => setVitalForm({ ...vitalForm, mucosa: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }}>{MUCOSAS.map((m) => <option key={m} value={m}>{m}</option>)}</select></div>
+              <div><label className="text-[11px] text-[#8A989D] block mb-1">Dor (0–4)</label>
+                <select value={vitalForm.dor} onChange={(e) => setVitalForm({ ...vitalForm, dor: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }}>{["0", "1", "2", "3", "4"].map((d) => <option key={d} value={d}>{d}</option>)}</select></div>
+            </div>
+            <div className="px-5 py-4 border-t flex justify-end gap-2" style={{ borderColor: "#E8E2D6" }}>
+              <button onClick={() => setVitalOpen(false)} className="px-4 py-2 text-[13px] text-[#5C6B70] bg-[#f3f1ea] rounded-lg">Cancelar</button>
+              <button onClick={registrarVital} disabled={vitalSaving} className="px-4 py-2 text-[13px] text-white bg-[#009AAC] rounded-lg disabled:opacity-60">{vitalSaving ? "Salvando..." : "Registrar"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== POPUP CONTROLE (fluidos) ===== */}
+      {fluidoOpen && (
+        <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50 print:hidden" onClick={() => setFluidoOpen(false)}>
+          <div className="rounded-2xl shadow-xl max-w-md w-full" style={{ background: "#FBF9F4", border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "#E8E2D6" }}>
+              <h3 className="text-base font-medium text-[#014D5E]">💧 Registrar controle</h3>
+              <button onClick={() => setFluidoOpen(false)} className="text-[#8A989D]">✕</button>
+            </div>
+            <div className="p-5 grid grid-cols-2 gap-3 text-[13px]">
+              <div><label className="text-[11px] text-[#8A989D] block mb-1">Entrada fluido (ml)</label>
+                <input type="number" value={fluidoForm.entradaFluido} onChange={(e) => setFluidoForm({ ...fluidoForm, entradaFluido: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
+              <div><label className="text-[11px] text-[#8A989D] block mb-1">Ingestão água (ml)</label>
+                <input type="number" value={fluidoForm.agua} onChange={(e) => setFluidoForm({ ...fluidoForm, agua: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
+              <div><label className="text-[11px] text-[#8A989D] block mb-1">Diurese</label>
+                <input value={fluidoForm.diurese} onChange={(e) => setFluidoForm({ ...fluidoForm, diurese: e.target.value })} placeholder="2× normal" className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
+              <div><label className="text-[11px] text-[#8A989D] block mb-1">Fezes</label>
+                <input value={fluidoForm.fezes} onChange={(e) => setFluidoForm({ ...fluidoForm, fezes: e.target.value })} placeholder="1× pastosa" className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
+              <div><label className="text-[11px] text-[#8A989D] block mb-1">Alimentação</label>
+                <input value={fluidoForm.alimentacao} onChange={(e) => setFluidoForm({ ...fluidoForm, alimentacao: e.target.value })} placeholder="Aceitou 40%" className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
+              <div><label className="text-[11px] text-[#8A989D] block mb-1">Êmese (vômito)</label>
+                <input value={fluidoForm.emese} onChange={(e) => setFluidoForm({ ...fluidoForm, emese: e.target.value })} placeholder="Ausente" className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
+            </div>
+            <div className="px-5 py-4 border-t flex justify-end gap-2" style={{ borderColor: "#E8E2D6" }}>
+              <button onClick={() => setFluidoOpen(false)} className="px-4 py-2 text-[13px] text-[#5C6B70] bg-[#f3f1ea] rounded-lg">Cancelar</button>
+              <button onClick={registrarFluido} disabled={fluidoSaving} className="px-4 py-2 text-[13px] text-white bg-[#009AAC] rounded-lg disabled:opacity-60">{fluidoSaving ? "Salvando..." : "Registrar"}</button>
             </div>
           </div>
         </div>
