@@ -555,7 +555,7 @@ export default function PetDetailPage() {
       if (atd.nextReturnDate) body.nextReturnDate = new Date(atd.nextReturnDate + "T12:00:00").toISOString();
       const itensValidos = items.filter((it: any) => it.descricao || it.servicoId);
       if (itensValidos.length) {
-        body.items = itensValidos.map((it: any) => ({ ...(it.servicoId ? { servicoId: it.servicoId } : {}), ...(it.descricao ? { descricao: it.descricao } : {}), ...(it.executorUserId ? { executorUserId: it.executorUserId } : {}), quantidade: Number(it.quantidade) || 1, valorUnitario: Number(it.valorUnitario) || 0, custoUnitario: Number(it.custoUnitario) || 0, valorTotal: (Number(it.quantidade) || 0) * (Number(it.valorUnitario) || 0), ...(it.comissaoValor ? { comissaoTipo: "PERCENTUAL", comissaoValor: Number(it.comissaoValor) } : {}) }));
+        body.items = itensValidos.map((it: any) => ({ ...(it.servicoId ? { servicoId: it.servicoId, productId: it.servicoId } : {}), ...(it.descricao ? { descricao: it.descricao } : {}), ...(it.executorUserId ? { executorUserId: it.executorUserId } : {}), quantidade: Number(it.quantidade) || 1, valorUnitario: Number(it.valorUnitario) || 0, custoUnitario: Number(it.custoUnitario) || 0, valorTotal: (Number(it.quantidade) || 0) * (Number(it.valorUnitario) || 0), ...(it.comissaoValor ? { comissaoTipo: "PERCENTUAL", comissaoValor: Number(it.comissaoValor) } : {}) }));
         body.value = body.items.reduce((sm: number, it: any) => sm + (it.valorTotal || 0), 0);
       }
       const r = await fetch(editId ? `/api/appointments/${editId}` : "/api/appointments", { method: editId ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });

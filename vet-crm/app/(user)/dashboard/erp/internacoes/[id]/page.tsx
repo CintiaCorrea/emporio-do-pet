@@ -111,7 +111,7 @@ export default function FichaInternacaoPage() {
         fetch(`/api/listas?lista=intconta_${id}`).then((r) => r.json()).catch(() => []),
         fetch(`/api/listas?lista=intfechamento_${id}`).then((r) => r.json()).catch(() => []),
         fetch(`/api/servicos/itens`).then((r) => r.json()).catch(() => []),
-        fetch(`/api/products`).then((r) => r.json()).catch(() => []),
+        fetch(`/api/products?excludeService=1&limit=1000`).then((r) => r.json()).catch(() => []),
       ]);
       setH(d && d.id ? d : null);
       const card = Array.isArray(m?.boxes) ? m.boxes.find((c: any) => c.internacao?.id === id) : null;

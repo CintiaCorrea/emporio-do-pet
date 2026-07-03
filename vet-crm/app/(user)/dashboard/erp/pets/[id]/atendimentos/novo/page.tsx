@@ -233,7 +233,7 @@ export default function NovoAtendimentoPage() {
       const itensValidos = itens.filter((it) => it.descricao || it.servicoId);
       if (itensValidos.length) {
         payload.items = itensValidos.map((it) => ({
-          ...(it.servicoId ? { servicoId: it.servicoId } : {}),
+          ...(it.servicoId ? { servicoId: it.servicoId, productId: it.servicoId } : {}),
           ...(it.descricao ? { descricao: it.descricao } : {}),
           ...(it.executorUserId ? { executorUserId: it.executorUserId } : {}),
           quantidade: Number(it.quantidade) || 1,

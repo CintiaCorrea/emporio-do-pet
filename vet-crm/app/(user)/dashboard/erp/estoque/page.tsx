@@ -83,6 +83,7 @@ export default function StockPage() {
       
       const params = new URLSearchParams();
       params.append('limit', '1000');
+      params.append('excludeService', '1'); // estoque = só itens estocáveis (catálogo unificado)
       if (typeFilter !== 'all') params.append('type', typeFilter);
       if (stockFilter === 'low') params.append('lowStock', 'true');
       

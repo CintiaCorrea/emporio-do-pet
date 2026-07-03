@@ -91,6 +91,7 @@ export default function ProductsPage() {
       setError(null);
       
       const params = new URLSearchParams();
+      params.append('excludeService', '1'); // tela de Produtos = só itens estocáveis (catálogo unificado)
       if (searchTerm) params.append('search', searchTerm);
       if (typeFilter !== 'all') params.append('type', typeFilter);
       if (lowStockFilter) params.append('lowStock', 'true');

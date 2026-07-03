@@ -158,7 +158,7 @@ export default function PDVPage() {
 
   const payload = (extra: any) => ({
     tutorId: cliente!.id, petId, userId: profId || undefined, date: new Date(data + 'T12:00:00').toISOString(),
-    itens: carrinho.map((it) => ({ servicoId: it.servicoId, descricao: it.descricao, quantidade: it.quantidade, valorUnitario: it.valorUnitario, desconto: it.desconto })),
+    itens: carrinho.map((it) => ({ servicoId: it.servicoId, productId: it.servicoId, descricao: it.descricao, quantidade: it.quantidade, valorUnitario: it.valorUnitario, desconto: it.desconto })),
     desconto: num(descontoGlobal), observacao: obs || null, ...extra,
   });
 
