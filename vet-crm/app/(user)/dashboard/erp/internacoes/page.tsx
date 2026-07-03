@@ -448,41 +448,72 @@ export default function InternacoesPage() {
 
       {/* ===== NOVA INTERNAÇÃO ===== */}
       {novoOpen && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50" onClick={() => setNovoOpen(false)}>
-          <div className="bg-white rounded-2xl shadow-xl max-w-xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "#eef0e6" }}>
-              <h3 className="text-base font-semibold text-[#014D5E]">Nova internação{form.boxId ? ` · ${boxes.find((b) => b.id === form.boxId)?.codigo || "box"}` : ""}</h3>
-              <button onClick={() => setNovoOpen(false)} className="text-[#94a3b8]"><LuX className="w-4 h-4" /></button>
+        <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50" onClick={() => setNovoOpen(false)}>
+          <div className="rounded-2xl shadow-xl max-w-xl w-full max-h-[90vh] overflow-y-auto" style={{ background: "#FBF9F4", border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 py-4 border-b flex items-center justify-between sticky top-0 z-10" style={{ borderColor: "#E8E2D6", background: "#FBF9F4" }}>
+              <div>
+                <h3 className="text-base font-medium text-[#014D5E]">🏥 Nova internação{form.boxId ? <span className="text-[12px] text-[#009AAC] font-normal"> · Box {boxes.find((b) => b.id === form.boxId)?.codigo || ""}</span> : null}</h3>
+                <p className="text-[11.5px] text-[#8A989D] mt-0.5">Interne o paciente e acompanhe por boletins.</p>
+              </div>
+              <button onClick={() => setNovoOpen(false)} className="text-[#8A989D] hover:text-[#5C6B70] text-lg leading-none">✕</button>
             </div>
-            <div className="p-5 grid grid-cols-2 gap-3 text-[13px]">
-              <div className="col-span-2"><label className="text-[11px] text-[#6b7280] block mb-1">Cliente *</label>
-                <select value={form.tutorId} onChange={(e) => setForm({ ...form, tutorId: e.target.value })} className="w-full border border-[#d8d0bc] rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]"><option value="">Selecione...</option>{tutors.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select></div>
-              <div className="col-span-2"><label className="text-[11px] text-[#6b7280] block mb-1">Pet *</label>
-                <select value={form.petId} onChange={(e) => setForm({ ...form, petId: e.target.value })} disabled={!form.tutorId} className="w-full border border-[#d8d0bc] rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC] disabled:bg-[#f6f5f0]"><option value="">{form.tutorId ? "Selecione o pet..." : "Selecione um cliente primeiro"}</option>{petsModal.map((p) => <option key={p.id} value={p.id}>{p.name}{p.species ? ` · ${p.species}` : ""}</option>)}</select></div>
-              <div className="col-span-2"><label className="text-[11px] text-[#6b7280] block mb-1">Box (opcional)</label>
-                <select value={form.boxId} onChange={(e) => setForm({ ...form, boxId: e.target.value })} className="w-full border border-[#d8d0bc] rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]"><option value="">Sem box / definir depois</option>{form.boxId && !boxesLivres.find((b) => b.id === form.boxId) && (() => { const b = boxes.find((x) => x.id === form.boxId); return b ? <option value={b.id}>{TIPO_EMOJI[b.tipo] || ""} {b.codigo} (selecionado)</option> : null; })()}{boxesLivres.map((b) => <option key={b.id} value={b.id}>{TIPO_EMOJI[b.tipo] || ""} {b.codigo}{b.nome ? ` · ${b.nome}` : ""}</option>)}</select></div>
-              <div><label className="text-[11px] text-[#6b7280] block mb-1">Profissional responsável</label>
-                <select value={form.userId} onChange={(e) => setForm({ ...form, userId: e.target.value })} className="w-full border border-[#d8d0bc] rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]"><option value="">Selecionar...</option>{users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}</select></div>
-              <div><label className="text-[11px] text-[#6b7280] block mb-1">Estado clínico inicial</label>
-                <select value={form.estado} onChange={(e) => setForm({ ...form, estado: e.target.value })} className="w-full border border-[#d8d0bc] rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]">{ESTADOS.map((x) => <option key={x.v} value={x.v}>{x.v}</option>)}</select></div>
-              <div className="col-span-2"><label className="text-[11px] text-[#6b7280] block mb-1">Motivo da internação *</label>
-                <input value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder="Ex: Pós-operatório, crise convulsiva..." className="w-full border border-[#d8d0bc] rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" /></div>
-              <div><label className="text-[11px] text-[#6b7280] block mb-1">Canal com tutor</label>
-                <select value={form.canal} onChange={(e) => setForm({ ...form, canal: e.target.value })} className="w-full border border-[#d8d0bc] rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]">{CANAIS.map((c) => <option key={c} value={c}>{c}</option>)}</select></div>
-              <div><label className="text-[11px] text-[#6b7280] block mb-1">Alta prevista</label>
-                <input type="date" value={form.estimatedDischargeDate} onChange={(e) => setForm({ ...form, estimatedDischargeDate: e.target.value })} className="w-full border border-[#d8d0bc] rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" /></div>
-              <div><label className="text-[11px] text-[#6b7280] block mb-1">Valor diária (R$)</label>
-                <input type="number" min={0} step="0.01" value={form.dailyRate} onChange={(e) => setForm({ ...form, dailyRate: e.target.value })} placeholder="0,00" className="w-full border border-[#d8d0bc] rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" /></div>
-              <div><label className="text-[11px] text-[#6b7280] block mb-1">Boletins/dia</label>
-                <input type="number" min={0} value={form.boletinsDia} onChange={(e) => setForm({ ...form, boletinsDia: e.target.value })} className="w-full border border-[#d8d0bc] rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" /></div>
-              <div className="col-span-2"><label className="text-[11px] text-[#6b7280] block mb-1">Horários dos boletins (HH:MM separados por vírgula)</label>
-                <input value={form.boletinsHorarios} onChange={(e) => setForm({ ...form, boletinsHorarios: e.target.value })} placeholder="07:00, 14:00, 20:00" className="w-full border border-[#d8d0bc] rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" /></div>
-              <div className="col-span-2"><label className="text-[11px] text-[#6b7280] block mb-1">Observações gerais</label>
-                <textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} className="w-full border border-[#d8d0bc] rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC] resize-none" /></div>
+            <div className="p-5 space-y-4">
+              {/* Paciente */}
+              <div>
+                <div className="text-[11px] font-medium text-[#014D5E] mb-2 flex items-center gap-1.5">👤 Paciente</div>
+                <div className="space-y-3">
+                  <div><label className="text-[10.5px] text-[#8A989D] uppercase tracking-wide block mb-1">Cliente *</label>
+                    <select value={form.tutorId} onChange={(e) => setForm({ ...form, tutorId: e.target.value })} className="w-full bg-white border rounded-lg px-3 py-2 text-[13px] text-[#1F2A2E] focus:outline-none focus:border-[#009AAC] focus:ring-2 focus:ring-[#E0F4F6]" style={{ borderColor: "#E8E2D6" }}><option value="">Selecione...</option>{tutors.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select></div>
+                  <div><label className="text-[10.5px] text-[#8A989D] uppercase tracking-wide block mb-1">Pet *</label>
+                    <select value={form.petId} onChange={(e) => setForm({ ...form, petId: e.target.value })} disabled={!form.tutorId} className="w-full bg-white border rounded-lg px-3 py-2 text-[13px] text-[#1F2A2E] focus:outline-none focus:border-[#009AAC] focus:ring-2 focus:ring-[#E0F4F6] disabled:bg-[#F0EBE0] disabled:text-[#8A989D]" style={{ borderColor: "#E8E2D6" }}><option value="">{form.tutorId ? "Selecione o pet..." : "Selecione um cliente primeiro"}</option>{petsModal.map((p) => <option key={p.id} value={p.id}>{especieEmoji(p.species)} {p.name}</option>)}</select></div>
+                  <div><label className="text-[10.5px] text-[#8A989D] uppercase tracking-wide block mb-1">Box (opcional)</label>
+                    <select value={form.boxId} onChange={(e) => setForm({ ...form, boxId: e.target.value })} className="w-full bg-white border rounded-lg px-3 py-2 text-[13px] text-[#1F2A2E] focus:outline-none focus:border-[#009AAC] focus:ring-2 focus:ring-[#E0F4F6]" style={{ borderColor: "#E8E2D6" }}><option value="">Sem box / definir depois</option>{form.boxId && !boxesLivres.find((b) => b.id === form.boxId) && (() => { const b = boxes.find((x) => x.id === form.boxId); return b ? <option value={b.id}>{TIPO_EMOJI[b.tipo] || ""} {b.codigo} (selecionado)</option> : null; })()}{boxesLivres.map((b) => <option key={b.id} value={b.id}>{TIPO_EMOJI[b.tipo] || ""} {b.codigo}{b.nome ? ` · ${b.nome}` : ""}</option>)}</select></div>
+                </div>
+              </div>
+
+              {/* Internação */}
+              <div className="pt-3 border-t" style={{ borderColor: "#F0EBE0" }}>
+                <div className="text-[11px] font-medium text-[#014D5E] mb-2 flex items-center gap-1.5">🩺 Internação</div>
+                <div className="space-y-3">
+                  <div><label className="text-[10.5px] text-[#8A989D] uppercase tracking-wide block mb-1">Profissional responsável</label>
+                    <select value={form.userId} onChange={(e) => setForm({ ...form, userId: e.target.value })} className="w-full bg-white border rounded-lg px-3 py-2 text-[13px] text-[#1F2A2E] focus:outline-none focus:border-[#009AAC] focus:ring-2 focus:ring-[#E0F4F6]" style={{ borderColor: "#E8E2D6" }}><option value="">Selecionar...</option>{users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}</select></div>
+                  <div><label className="text-[10.5px] text-[#8A989D] uppercase tracking-wide block mb-1">Motivo da internação *</label>
+                    <input value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder="Ex.: Pós-operatório, crise convulsiva..." className="w-full bg-white border rounded-lg px-3 py-2 text-[13px] text-[#1F2A2E] focus:outline-none focus:border-[#009AAC] focus:ring-2 focus:ring-[#E0F4F6]" style={{ borderColor: "#E8E2D6" }} /></div>
+                  <div><label className="text-[10.5px] text-[#8A989D] uppercase tracking-wide block mb-1.5">Estado clínico inicial</label>
+                    <div className="grid grid-cols-4 gap-1.5">
+                      {ESTADOS.map((e) => { const on = form.estado === e.v; return (
+                        <button type="button" key={e.v} onClick={() => setForm({ ...form, estado: e.v })} className="text-[11px] font-medium py-2 px-1 rounded-lg border text-center transition-colors" style={on ? { background: e.bg, color: e.fg, borderColor: e.fg } : { background: "#fff", color: "#8A989D", borderColor: "#E8E2D6" }}>{e.v}</button>
+                      ); })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Acompanhamento */}
+              <div className="pt-3 border-t" style={{ borderColor: "#F0EBE0" }}>
+                <div className="text-[11px] font-medium text-[#014D5E] mb-2 flex items-center gap-1.5">🔔 Acompanhamento</div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div><label className="text-[10.5px] text-[#8A989D] uppercase tracking-wide block mb-1">Canal com tutor</label>
+                    <select value={form.canal} onChange={(e) => setForm({ ...form, canal: e.target.value })} className="w-full bg-white border rounded-lg px-3 py-2 text-[13px] text-[#1F2A2E] focus:outline-none focus:border-[#009AAC] focus:ring-2 focus:ring-[#E0F4F6]" style={{ borderColor: "#E8E2D6" }}>{CANAIS.map((c) => <option key={c} value={c}>{c}</option>)}</select></div>
+                  <div><label className="text-[10.5px] text-[#8A989D] uppercase tracking-wide block mb-1">Boletins/dia</label>
+                    <input type="number" min={0} value={form.boletinsDia} onChange={(e) => setForm({ ...form, boletinsDia: e.target.value })} className="w-full bg-white border rounded-lg px-3 py-2 text-[13px] text-[#1F2A2E] focus:outline-none focus:border-[#009AAC] focus:ring-2 focus:ring-[#E0F4F6]" style={{ borderColor: "#E8E2D6" }} /></div>
+                  <div><label className="text-[10.5px] text-[#8A989D] uppercase tracking-wide block mb-1">Valor diária (R$)</label>
+                    <input type="number" min={0} step="0.01" value={form.dailyRate} onChange={(e) => setForm({ ...form, dailyRate: e.target.value })} placeholder="0,00" className="w-full bg-white border rounded-lg px-3 py-2 text-[13px] text-[#1F2A2E] focus:outline-none focus:border-[#009AAC] focus:ring-2 focus:ring-[#E0F4F6]" style={{ borderColor: "#E8E2D6" }} /></div>
+                  <div><label className="text-[10.5px] text-[#8A989D] uppercase tracking-wide block mb-1">Alta prevista</label>
+                    <input type="date" value={form.estimatedDischargeDate} onChange={(e) => setForm({ ...form, estimatedDischargeDate: e.target.value })} className="w-full bg-white border rounded-lg px-3 py-2 text-[13px] text-[#1F2A2E] focus:outline-none focus:border-[#009AAC] focus:ring-2 focus:ring-[#E0F4F6]" style={{ borderColor: "#E8E2D6" }} /></div>
+                  <div className="col-span-2"><label className="text-[10.5px] text-[#8A989D] uppercase tracking-wide block mb-1">Horários dos boletins (HH:MM, separados por vírgula)</label>
+                    <input value={form.boletinsHorarios} onChange={(e) => setForm({ ...form, boletinsHorarios: e.target.value })} placeholder="07:00, 14:00, 20:00" className="w-full bg-white border rounded-lg px-3 py-2 text-[13px] text-[#1F2A2E] focus:outline-none focus:border-[#009AAC] focus:ring-2 focus:ring-[#E0F4F6]" style={{ borderColor: "#E8E2D6" }} /></div>
+                </div>
+              </div>
+
+              {/* Observações */}
+              <div className="pt-3 border-t" style={{ borderColor: "#F0EBE0" }}>
+                <label className="text-[10.5px] text-[#8A989D] uppercase tracking-wide block mb-1">Observações gerais</label>
+                <textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} placeholder="Anotações da recepção/veterinário..." className="w-full bg-white border rounded-lg px-3 py-2 text-[13px] text-[#1F2A2E] focus:outline-none focus:border-[#009AAC] focus:ring-2 focus:ring-[#E0F4F6] resize-none" style={{ borderColor: "#E8E2D6" }} /></div>
             </div>
-            <div className="px-5 py-4 border-t flex justify-end gap-2" style={{ borderColor: "#eef0e6" }}>
-              <button onClick={() => setNovoOpen(false)} className="px-4 py-2 text-[13px] text-[#5b6470] bg-[#f3f1ea] rounded-lg">Cancelar</button>
-              <button onClick={criar} disabled={salvando} className="px-4 py-2 text-[13px] text-white rounded-lg disabled:opacity-60" style={{ background: "#009AAC" }}>{salvando ? "Salvando..." : "Internar"}</button>
+            <div className="px-5 py-4 border-t flex justify-end gap-2 sticky bottom-0" style={{ borderColor: "#E8E2D6", background: "#FBF9F4" }}>
+              <button onClick={() => setNovoOpen(false)} className="px-4 py-2 text-[13px] text-[#5C6B70] bg-white border rounded-lg" style={{ borderColor: "#E8E2D6" }}>Cancelar</button>
+              <button onClick={criar} disabled={salvando} className="px-5 py-2 text-[13px] font-medium text-white rounded-lg disabled:opacity-60" style={{ background: "#009AAC" }}>{salvando ? "Salvando..." : "🏥 Internar"}</button>
             </div>
           </div>
         </div>
