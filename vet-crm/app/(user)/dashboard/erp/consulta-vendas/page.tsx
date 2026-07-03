@@ -70,7 +70,7 @@ function MarcaPill({ marca }: { marca: string | null }) {
   if (!m) return <span style={{ color: GREY, fontSize: 12 }}>{marca}</span>;
   return (
     <span
-      className="inline-flex items-center gap-1 rounded-full font-semibold"
+      className="inline-flex items-center gap-1 rounded-full font-medium"
       style={{ background: m.bg, color: m.fg, fontSize: 11.5, padding: '3px 9px' }}
     >
       <span>{m.emoji}</span>{m.label}
@@ -89,7 +89,7 @@ function StatusPill({ status }: { status: string }) {
       : { bg: '#EEF2F4', fg: GREY, label: status || '—' };
   return (
     <span
-      className="inline-flex items-center rounded-full font-semibold"
+      className="inline-flex items-center rounded-full font-medium"
       style={{ background: cfg.bg, color: cfg.fg, fontSize: 11.5, padding: '3px 9px' }}
     >
       {cfg.label}
@@ -103,9 +103,9 @@ function Kpi({ emoji, label, value, color }: { emoji: string; label: string; val
     <div style={{ ...cardCss, padding: '14px 16px' }} className="flex-1 min-w-[150px]">
       <div className="flex items-center gap-2 mb-1">
         <span style={{ fontSize: 18 }}>{emoji}</span>
-        <span style={{ fontSize: 11.5, color: GREY2, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.3px' }}>{label}</span>
+        <span style={{ fontSize: 11.5, color: GREY2, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '.3px' }}>{label}</span>
       </div>
-      <div style={{ fontSize: 22, fontWeight: 700, color }}>{value}</div>
+      <div style={{ fontSize: 22, fontWeight: 500, color }}>{value}</div>
     </div>
   );
 }
@@ -122,20 +122,20 @@ function LinhaVenda({ v }: { v: Venda }) {
       >
         <td style={{ padding: '11px 12px', fontSize: 13 }}>
           <span style={{ color: GREY2, marginRight: 6 }}>{open ? '▾' : '▸'}</span>
-          <span style={{ color: NAVY, fontWeight: 600 }}>{v.codigoExterno || '—'}</span>
+          <span style={{ color: NAVY, fontWeight: 500 }}>{v.codigoExterno || '—'}</span>
           <span style={{ color: GREY2, fontSize: 11.5, marginLeft: 8 }}>{dm(v.date)}</span>
         </td>
         <td style={{ padding: '11px 12px', fontSize: 13, color: NAVY }}>{v.cliente || '—'}</td>
         <td style={{ padding: '11px 12px', fontSize: 13, color: GREY }}>{v.pet || '—'}</td>
         <td style={{ padding: '11px 12px' }}><MarcaPill marca={v.marca} /></td>
-        <td style={{ padding: '11px 12px', fontSize: 13, fontWeight: 700, color: NAVY, textAlign: 'right', whiteSpace: 'nowrap' }}>{brl(v.valor)}</td>
+        <td style={{ padding: '11px 12px', fontSize: 13, fontWeight: 500, color: NAVY, textAlign: 'right', whiteSpace: 'nowrap' }}>{brl(v.valor)}</td>
         <td style={{ padding: '11px 12px' }}><StatusPill status={v.status} /></td>
       </tr>
       {open && (
         <tr style={{ background: '#FBF9F4' }}>
           <td colSpan={6} style={{ padding: '0 12px 14px 12px' }}>
             <div style={{ ...cardCss, padding: '10px 12px', background: '#fff' }}>
-              <div style={{ fontSize: 11.5, color: GREY2, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.3px', marginBottom: 8 }}>
+              <div style={{ fontSize: 11.5, color: GREY2, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '.3px', marginBottom: 8 }}>
                 🧾 Itens da venda
               </div>
               <div className="flex flex-col gap-1.5">
@@ -143,11 +143,11 @@ function LinhaVenda({ v }: { v: Venda }) {
                 {v.itens.map((it, i) => (
                   <div key={i} className="flex items-center justify-between gap-3 flex-wrap" style={{ fontSize: 12.5, color: GREY, paddingBottom: 6, borderBottom: i < v.itens.length - 1 ? `1px dashed ${CARD_LINE}` : 'none' }}>
                     <div className="flex-1 min-w-[180px]">
-                      <span style={{ color: NAVY, fontWeight: 600 }}>{it.descricao || '—'}</span>
+                      <span style={{ color: NAVY, fontWeight: 500 }}>{it.descricao || '—'}</span>
                       <span style={{ color: GREY2, marginLeft: 8 }}>{it.quantidade} × {brl(it.valorUnitario)}</span>
                       {it.executor && <span style={{ color: GREY2, marginLeft: 8 }}>· 👤 {it.executor}</span>}
                     </div>
-                    <div style={{ fontWeight: 700, color: NAVY, whiteSpace: 'nowrap' }}>{brl(it.valorTotal)}</div>
+                    <div style={{ fontWeight: 500, color: NAVY, whiteSpace: 'nowrap' }}>{brl(it.valorTotal)}</div>
                   </div>
                 ))}
               </div>
@@ -210,15 +210,15 @@ export default function ConsultaVendasPage() {
       <div style={{ ...cardCss, padding: 16 }} className="mb-4">
         <div className="flex items-end gap-3 flex-wrap">
           <label className="flex flex-col gap-1">
-            <span style={{ fontSize: 11.5, color: GREY2, fontWeight: 600 }}>De</span>
+            <span style={{ fontSize: 11.5, color: GREY2, fontWeight: 500 }}>De</span>
             <input type="date" value={de} onChange={(e) => setDe(e.target.value)} style={inp} />
           </label>
           <label className="flex flex-col gap-1">
-            <span style={{ fontSize: 11.5, color: GREY2, fontWeight: 600 }}>Até</span>
+            <span style={{ fontSize: 11.5, color: GREY2, fontWeight: 500 }}>Até</span>
             <input type="date" value={ate} onChange={(e) => setAte(e.target.value)} style={inp} />
           </label>
           <label className="flex flex-col gap-1">
-            <span style={{ fontSize: 11.5, color: GREY2, fontWeight: 600 }}>Status</span>
+            <span style={{ fontSize: 11.5, color: GREY2, fontWeight: 500 }}>Status</span>
             <select value={status} onChange={(e) => setStatus(e.target.value)} style={{ ...inp, minWidth: 140 }}>
               <option value="">Todos</option>
               <option value="COMPLETED">Baixado</option>
@@ -226,7 +226,7 @@ export default function ConsultaVendasPage() {
             </select>
           </label>
           <label className="flex flex-col gap-1">
-            <span style={{ fontSize: 11.5, color: GREY2, fontWeight: 600 }}>Marca</span>
+            <span style={{ fontSize: 11.5, color: GREY2, fontWeight: 500 }}>Marca</span>
             <select value={marca} onChange={(e) => setMarca(e.target.value)} style={{ ...inp, minWidth: 150 }}>
               <option value="">Todas</option>
               <option value="EMPORIO">🏥 Empório</option>
@@ -235,7 +235,7 @@ export default function ConsultaVendasPage() {
             </select>
           </label>
           <label className="flex flex-col gap-1 flex-1 min-w-[180px]">
-            <span style={{ fontSize: 11.5, color: GREY2, fontWeight: 600 }}>Busca</span>
+            <span style={{ fontSize: 11.5, color: GREY2, fontWeight: 500 }}>Busca</span>
             <input
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
@@ -246,7 +246,7 @@ export default function ConsultaVendasPage() {
           </label>
           <button
             onClick={load}
-            className="font-semibold text-white transition"
+            className="font-medium text-white transition"
             style={{ background: TEAL, borderRadius: 9, padding: '9px 18px', fontSize: 13.5 }}
           >
             🔍 Consultar
@@ -281,7 +281,7 @@ export default function ConsultaVendasPage() {
                   <th
                     key={h}
                     style={{
-                      padding: '10px 12px', fontSize: 11, color: GREY2, fontWeight: 700,
+                      padding: '10px 12px', fontSize: 11, color: GREY2, fontWeight: 500,
                       textTransform: 'uppercase', letterSpacing: '.4px',
                       textAlign: i === 4 ? 'right' : 'left',
                     }}
