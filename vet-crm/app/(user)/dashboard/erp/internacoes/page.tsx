@@ -6,7 +6,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
-import { LuPlus, LuClipboardList, LuCalendar, LuCircleDollarSign, LuBell, LuX } from "react-icons/lu";
 
 const ESTADOS = [
   { v: "Estável", prio: "LOW", bg: "#E1F5EE", fg: "#0F6E56" },
@@ -225,7 +224,7 @@ export default function InternacoesPage() {
     const b = c.box;
     if (!c.ocupado) {
       return (
-        <div className="rounded-[13px] border border-dashed flex flex-col items-center justify-center text-center px-3 py-6" style={{ borderColor: "#d8d0bc", background: "#FBF9F4" }}>
+        <div className="rounded-[13px] border border-dashed flex flex-col items-center justify-center text-center px-3 py-6" style={{ borderColor: "#E8E2D6", background: "#FBF9F4" }}>
           <div className={big ? "text-3xl mb-1" : "text-2xl mb-1"}>🛏️</div>
           <div className="text-[12px] text-[#8A989D] font-medium">{TIPO_EMOJI[b.tipo] || "🛏️"} {b.codigo} — Livre</div>
           <button onClick={() => internarNoBox(b.id)} className="mt-2 text-[12px] font-medium text-[#009AAC]">+ Internar paciente</button>
@@ -270,10 +269,10 @@ export default function InternacoesPage() {
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
-        <div className="text-[13px] text-[#64748b]">{kpis.ocupados}/{kpis.total} box(es) ocupado(s) · {ativas.length} internado(s)</div>
+        <div className="text-[13px] text-[#8A989D]">{kpis.ocupados}/{kpis.total} box(es) ocupado(s) · {ativas.length} internado(s)</div>
         <div className="flex items-center gap-2">
           <button onClick={() => { novoBox(); setGerOpen(true); }} className="text-[12px] font-medium text-[#5C6B70] bg-white border px-3 py-1.5 rounded-lg" style={{ borderColor: "#E8E2D6" }}>⚙️ Gerenciar boxes</button>
-          <button onClick={() => { setForm((f: any) => ({ ...f, boxId: "" })); setNovoOpen(true); }} className="text-[12px] font-medium text-white bg-[#009AAC] px-3.5 py-1.5 rounded-lg inline-flex items-center gap-1.5"><LuPlus className="w-3.5 h-3.5" />Nova internação</button>
+          <button onClick={() => { setForm((f: any) => ({ ...f, boxId: "" })); setNovoOpen(true); }} className="text-[12px] font-medium text-white bg-[#009AAC] px-3.5 py-1.5 rounded-lg">➕ Nova internação</button>
         </div>
       </div>
 
@@ -286,7 +285,7 @@ export default function InternacoesPage() {
       {/* ===== MAPA ===== */}
       {tab === "mapa" && (
         loading ? (
-          <div className="px-6 py-16 text-center text-sm text-[#94a3b8]">Carregando...</div>
+          <div className="px-6 py-16 text-center text-sm text-[#8A989D]">Carregando...</div>
         ) : (
           <>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-4">
@@ -322,7 +321,7 @@ export default function InternacoesPage() {
                 <button onClick={() => { novoBox(); setGerOpen(true); }} className="text-[12px] font-medium text-white bg-[#009AAC] px-4 py-2 rounded-lg">⚙️ Cadastrar boxes</button>
               </div>
             ) : cardsFiltrados.length === 0 ? (
-              <div className="bg-white border rounded-xl px-6 py-12 text-center text-sm text-[#94a3b8]" style={{ borderColor: "#E8E2D6" }}>Nenhum box com esse filtro/busca.</div>
+              <div className="bg-white border rounded-xl px-6 py-12 text-center text-sm text-[#8A989D]" style={{ borderColor: "#E8E2D6" }}>Nenhum box com esse filtro/busca.</div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 {cardsFiltrados.map((c) => <BoxCard key={c.box.id} c={c} />)}
@@ -335,37 +334,37 @@ export default function InternacoesPage() {
       {/* ===== ATIVAS / HISTÓRICO ===== */}
       {tab !== "mapa" && (
         loading ? (
-          <div className="px-6 py-16 text-center text-sm text-[#94a3b8]">Carregando...</div>
+          <div className="px-6 py-16 text-center text-sm text-[#8A989D]">Carregando...</div>
         ) : lista.length === 0 ? (
-          <div className="bg-white border rounded-xl px-6 py-12 text-center text-sm text-[#94a3b8]" style={{ borderColor: "#e8dfc8" }}>{tab === "ativas" ? "Nenhum paciente internado no momento." : "Nenhuma internação no histórico."}</div>
+          <div className="bg-white border rounded-[14px] px-6 py-12 text-center text-sm text-[#8A989D]" style={{ borderColor: "#E8E2D6" }}>{tab === "ativas" ? "Nenhum paciente internado no momento." : "Nenhuma internação no histórico."}</div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
             {lista.map((h) => {
               const est = estadoStyle(estadoDe(h)); const pb = tab === "ativas" ? proximoBoletim(h) : null;
               return (
-                <div key={h.id} className="bg-white border rounded-2xl p-4" style={{ borderColor: "#e8dfc8" }}>
+                <div key={h.id} className="bg-white border rounded-[14px] p-4" style={{ borderColor: "#E8E2D6" }}>
                   <div className="flex items-center gap-2.5 mb-2.5">
-                    <div className="w-9 h-9 rounded-full flex items-center justify-center text-[12px] font-medium flex-shrink-0" style={{ background: est.bg, color: est.fg }}>{ini(h.pet?.name)}</div>
+                    <div className="w-9 h-9 rounded-lg flex items-center justify-center text-base flex-shrink-0" style={{ background: est.bg }}>{especieEmoji(h.pet?.species)}</div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-[14px] font-medium text-[#0E2244] truncate">{h.pet?.name || "Pet"} <span className="text-[11px] text-[#94a3b8] font-normal">· {h.tutor?.name}</span></div>
-                      <div className="text-[11px] text-[#888]">{h.pet?.species}{h.pet?.breed ? ` · ${h.pet.breed}` : ""}</div>
+                      <div className="text-[14px] font-medium text-[#014D5E] truncate">{h.pet?.name || "Pet"} <span className="text-[11px] text-[#8A989D] font-normal">· {h.tutor?.name}</span></div>
+                      <div className="text-[11px] text-[#8A989D]">{h.pet?.species}{h.pet?.breed ? ` · ${h.pet.breed}` : ""}</div>
                     </div>
                     <span className="text-[10px] font-medium px-2.5 py-0.5 rounded-full" style={{ background: est.bg, color: est.fg }}>{estadoDe(h)}</span>
                   </div>
-                  <div className="text-[12px] text-[#5b6470] mb-2"><LuClipboardList className="inline w-3.5 h-3.5 align-[-2px] text-[#94a3b8]" /> {h.reason || "—"} <span className="text-[#94a3b8]">· {h.veterinarian?.name || "Sem responsável"}</span></div>
-                  <div className="flex gap-4 text-[11.5px] text-[#5b6470] mb-2.5 flex-wrap">
-                    <span><LuCalendar className="inline w-3.5 h-3.5 align-[-2px] text-[#009AAC]" /> Dia {diasInternado(h.admissionDate)} · desde {fmtData(h.admissionDate)}</span>
-                    <span><LuCircleDollarSign className="inline w-3.5 h-3.5 align-[-2px] text-[#009AAC]" /> {fmtBRL(h.totalCost)} <span className="text-[#94a3b8]">({fmtBRL(h.dailyRate)}/dia)</span></span>
+                  <div className="text-[12px] text-[#5C6B70] mb-2">📋 {h.reason || "—"} <span className="text-[#8A989D]">· {h.veterinarian?.name || "Sem responsável"}</span></div>
+                  <div className="flex gap-4 text-[11.5px] text-[#5C6B70] mb-2.5 flex-wrap">
+                    <span>📅 Dia {diasInternado(h.admissionDate)} · desde {fmtData(h.admissionDate)}</span>
+                    <span>💰 {fmtBRL(h.totalCost)} <span className="text-[#8A989D]">({fmtBRL(h.dailyRate)}/dia)</span></span>
                   </div>
                   {pb && (
-                    <div className="rounded-lg px-3 py-2 mb-2.5 flex items-center justify-between" style={pb.atrasado ? { background: "#fdf3f6", border: "1px solid #f3d2de" } : { background: "#f4fbfc", border: "1px solid #d9eef1" }}>
-                      <span className="text-[11.5px]" style={{ color: pb.atrasado ? "#CC3366" : "#00798A" }}><LuBell className="inline w-3.5 h-3.5 align-[-2px]" /> {pb.atrasado ? `Boletim atrasado ${pb.txt}` : (pb.total ? `Próximo boletim ${pb.txt}` : "")}</span>
-                      <span className="text-[11px] text-[#5b6470]">Hoje {pb.done}/{pb.total}</span>
+                    <div className="rounded-lg px-3 py-2 mb-2.5 flex items-center justify-between" style={pb.atrasado ? { background: "#FCE9EF", border: "1px solid #F3D2DE" } : { background: "#E0F4F6", border: "1px solid #CFE9ED" }}>
+                      <span className="text-[11.5px]" style={{ color: pb.atrasado ? "#CC3366" : "#00798A" }}>🔔 {pb.atrasado ? `Boletim atrasado ${pb.txt}` : (pb.total ? `Próximo boletim ${pb.txt}` : "")}</span>
+                      <span className="text-[11px] text-[#5C6B70]">Hoje {pb.done}/{pb.total}</span>
                     </div>
                   )}
                   <div className="flex gap-2">
                     {tab === "ativas" && <button onClick={() => abrirDetalhes(h.id)} className="flex-1 text-[11.5px] text-white bg-[#009AAC] py-1.5 rounded-lg">+ Boletim</button>}
-                    <button onClick={() => router.push(`/dashboard/erp/internacoes/${h.id}`)} className="flex-1 text-[11.5px] text-[#00798A] bg-[#E6F6F8] py-1.5 rounded-lg">Ficha</button>
+                    <button onClick={() => router.push(`/dashboard/erp/internacoes/${h.id}`)} className="flex-1 text-[11.5px] text-[#00798A] bg-[#E0F4F6] py-1.5 rounded-lg">Ficha</button>
                     {tab === "ativas" && <button onClick={() => darAlta(h.id)} className="flex-1 text-[11.5px] text-[#0F6E56] bg-[#E1F5EE] py-1.5 rounded-lg">Dar alta</button>}
                   </div>
                 </div>
@@ -394,7 +393,7 @@ export default function InternacoesPage() {
           <div className="bg-[#FBF9F4] rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()} style={{ border: "1px solid #E8E2D6" }}>
             <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "#E8E2D6" }}>
               <h3 className="text-base font-medium text-[#014D5E]">⚙️ Gerenciar boxes</h3>
-              <button onClick={() => setGerOpen(false)} className="text-[#8A989D]"><LuX className="w-4 h-4" /></button>
+              <button onClick={() => setGerOpen(false)} className="text-[#8A989D] text-lg leading-none">✕</button>
             </div>
             {/* form add/edit */}
             <div className="p-5 border-b" style={{ borderColor: "#F0EBE0" }}>
@@ -414,7 +413,7 @@ export default function InternacoesPage() {
               </div>
               <div className="flex gap-2 mt-3">
                 <button onClick={salvarBox} disabled={boxSaving} className="text-[12px] text-white bg-[#009AAC] px-4 py-2 rounded-lg disabled:opacity-60">{boxSaving ? "Salvando..." : boxForm.id ? "Salvar alterações" : "+ Adicionar box"}</button>
-                {boxForm.id && <button onClick={novoBox} className="text-[12px] text-[#5C6B70] bg-[#f3f1ea] px-4 py-2 rounded-lg">Cancelar edição</button>}
+                {boxForm.id && <button onClick={novoBox} className="text-[12px] text-[#5C6B70] bg-white border px-4 py-2 rounded-lg" style={{ borderColor: "#E8E2D6" }}>Cancelar edição</button>}
               </div>
             </div>
             {/* lista */}
@@ -521,57 +520,57 @@ export default function InternacoesPage() {
 
       {/* ===== DETALHES ===== */}
       {det && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50" onClick={() => setDetId(null)}>
-          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "#eef0e6" }}>
-              <div><h3 className="text-base font-semibold text-[#014D5E]">{det.pet?.name} <span className="text-[12px] text-[#94a3b8] font-normal">· {det.tutor?.name}</span></h3></div>
-              <button onClick={() => setDetId(null)} className="text-[#94a3b8]"><LuX className="w-4 h-4" /></button>
+        <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50" onClick={() => setDetId(null)}>
+          <div className="rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto" style={{ background: "#FBF9F4", border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "#E8E2D6" }}>
+              <div><h3 className="text-base font-medium text-[#014D5E]">{especieEmoji(det.pet?.species)} {det.pet?.name} <span className="text-[12px] text-[#8A989D] font-normal">· {det.tutor?.name}</span></h3></div>
+              <button onClick={() => setDetId(null)} className="text-[#8A989D] text-lg leading-none">✕</button>
             </div>
             <div className="p-5 space-y-3 text-[13px]">
               <div className="grid grid-cols-2 gap-3">
-                <div><div className="text-[11px] text-[#94a3b8]">Estado</div><span className="inline-flex text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: estadoStyle(estadoDe(det)).bg, color: estadoStyle(estadoDe(det)).fg }}>{estadoDe(det)}</span></div>
-                <div><div className="text-[11px] text-[#94a3b8]">Responsável</div><div className="text-[#0E2244]">{det.veterinarian?.name || "—"}</div></div>
-                <div className="col-span-2"><div className="text-[11px] text-[#94a3b8]">Motivo</div><div className="text-[#0E2244]">{det.reason || "—"}</div></div>
-                <div><div className="text-[11px] text-[#94a3b8]">Início</div><div className="text-[#0E2244]">{fmtData(det.admissionDate)} (dia {diasInternado(det.admissionDate)})</div></div>
-                <div><div className="text-[11px] text-[#94a3b8]">Alta prevista</div><div className="text-[#0E2244]">{fmtData(det.estimatedDischargeDate)}</div></div>
-                <div><div className="text-[11px] text-[#94a3b8]">Diária / acumulado</div><div className="text-[#0E2244]">{fmtBRL(det.dailyRate)} · {fmtBRL(det.totalCost)}</div></div>
-                <div><div className="text-[11px] text-[#94a3b8]">Canal</div><div className="text-[#0E2244]">{det.vitalSigns?.canalTutor || "—"}</div></div>
-                {det.notes && <div className="col-span-2"><div className="text-[11px] text-[#94a3b8]">Observações</div><div className="text-[#475569]">{typeof det.notes === "string" ? det.notes : ""}</div></div>}
+                <div><div className="text-[10.5px] text-[#8A989D] uppercase tracking-wide">Estado</div><span className="inline-flex text-[11px] font-medium px-2 py-0.5 rounded-full mt-0.5" style={{ background: estadoStyle(estadoDe(det)).bg, color: estadoStyle(estadoDe(det)).fg }}>{estadoDe(det)}</span></div>
+                <div><div className="text-[10.5px] text-[#8A989D] uppercase tracking-wide">Responsável</div><div className="text-[#1F2A2E]">{det.veterinarian?.name || "—"}</div></div>
+                <div className="col-span-2"><div className="text-[10.5px] text-[#8A989D] uppercase tracking-wide">Motivo</div><div className="text-[#1F2A2E]">{det.reason || "—"}</div></div>
+                <div><div className="text-[10.5px] text-[#8A989D] uppercase tracking-wide">Início</div><div className="text-[#1F2A2E]">{fmtData(det.admissionDate)} (dia {diasInternado(det.admissionDate)})</div></div>
+                <div><div className="text-[10.5px] text-[#8A989D] uppercase tracking-wide">Alta prevista</div><div className="text-[#1F2A2E]">{fmtData(det.estimatedDischargeDate)}</div></div>
+                <div><div className="text-[10.5px] text-[#8A989D] uppercase tracking-wide">Diária / acumulado</div><div className="text-[#1F2A2E]">{fmtBRL(det.dailyRate)} · {fmtBRL(det.totalCost)}</div></div>
+                <div><div className="text-[10.5px] text-[#8A989D] uppercase tracking-wide">Canal</div><div className="text-[#1F2A2E]">{det.vitalSigns?.canalTutor || "—"}</div></div>
+                {det.notes && <div className="col-span-2"><div className="text-[10.5px] text-[#8A989D] uppercase tracking-wide">Observações</div><div className="text-[#5C6B70]">{typeof det.notes === "string" ? det.notes : ""}</div></div>}
               </div>
 
               {det.status !== "DISCHARGED" && (
-                <div className="border-t pt-3" style={{ borderColor: "#eef0e6" }}>
+                <div className="border-t pt-3" style={{ borderColor: "#F0EBE0" }}>
                   <div className="text-[12px] font-medium text-[#014D5E] mb-2">Registrar boletim</div>
                   <div className="flex gap-2 mb-2">
-                    <select value={bolEstado} onChange={(e) => setBolEstado(e.target.value)} className="border border-[#d8d0bc] rounded-lg px-2 py-1.5 text-[12px] focus:outline-none focus:border-[#009AAC]">{ESTADOS.map((x) => <option key={x.v} value={x.v}>{x.v}</option>)}</select>
-                    <input value={bolTexto} onChange={(e) => setBolTexto(e.target.value)} placeholder="Como o paciente está..." className="flex-1 border border-[#d8d0bc] rounded-lg px-3 py-1.5 text-[12px] focus:outline-none focus:border-[#009AAC]" />
+                    <select value={bolEstado} onChange={(e) => setBolEstado(e.target.value)} className="border rounded-lg px-2 py-1.5 text-[12px] bg-white focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }}>{ESTADOS.map((x) => <option key={x.v} value={x.v}>{x.v}</option>)}</select>
+                    <input value={bolTexto} onChange={(e) => setBolTexto(e.target.value)} placeholder="Como o paciente está..." className="flex-1 border rounded-lg px-3 py-1.5 text-[12px] bg-white focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} />
                     <button onClick={registrarBoletim} disabled={bolSaving} className="text-[12px] text-white bg-[#009AAC] px-3 py-1.5 rounded-lg disabled:opacity-60">Registrar</button>
                   </div>
                 </div>
               )}
 
-              <div className="border-t pt-3" style={{ borderColor: "#eef0e6" }}>
+              <div className="border-t pt-3" style={{ borderColor: "#F0EBE0" }}>
                 <div className="text-[12px] font-medium text-[#014D5E] mb-2">Boletins ({boletins.length})</div>
                 {boletins.length === 0 ? (
-                  <div className="text-[12px] text-[#94a3b8]">Nenhum boletim ainda.</div>
+                  <div className="text-[12px] text-[#8A989D]">Nenhum boletim ainda.</div>
                 ) : (
                   <div className="space-y-2">
                     {boletins.slice().sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime()).map((b) => { const es = estadoStyle(b.estado || ""); return (
-                      <div key={b.id} className="bg-[#fbfaf6] border rounded-lg p-2.5" style={{ borderColor: "#eef0e6" }}>
+                      <div key={b.id} className="bg-white border rounded-lg p-2.5" style={{ borderColor: "#F0EBE0" }}>
                         <div className="flex items-center gap-2 mb-0.5">
-                          <span className="text-[11px] text-[#5b6470]">{fmtData(b.at)} {b.hora || ""}</span>
+                          <span className="text-[11px] text-[#5C6B70]">{fmtData(b.at)} {b.hora || ""}</span>
                           {b.estado && <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: es.bg, color: es.fg }}>{b.estado}</span>}
                         </div>
-                        <div className="text-[12.5px] text-[#0E2244]">{b.texto}</div>
+                        <div className="text-[12.5px] text-[#1F2A2E]">{b.texto}</div>
                       </div>
                     ); })}
                   </div>
                 )}
               </div>
             </div>
-            <div className="px-5 py-4 border-t flex justify-between gap-2" style={{ borderColor: "#eef0e6" }}>
-              {det.status !== "DISCHARGED" ? <button onClick={() => darAlta(det.id)} className="px-4 py-2 text-[13px] text-[#0F6E56] bg-[#E1F5EE] rounded-lg">Dar alta</button> : <span className="text-[12px] text-[#94a3b8] py-2">Paciente já recebeu alta</span>}
-              <button onClick={() => setDetId(null)} className="px-4 py-2 text-[13px] text-[#5b6470] bg-[#f3f1ea] rounded-lg">Fechar</button>
+            <div className="px-5 py-4 border-t flex justify-between gap-2" style={{ borderColor: "#E8E2D6" }}>
+              {det.status !== "DISCHARGED" ? <button onClick={() => darAlta(det.id)} className="px-4 py-2 text-[13px] text-[#0F6E56] bg-[#E1F5EE] rounded-lg">Dar alta</button> : <span className="text-[12px] text-[#8A989D] py-2">Paciente já recebeu alta</span>}
+              <button onClick={() => setDetId(null)} className="px-4 py-2 text-[13px] text-[#5C6B70] bg-white border rounded-lg" style={{ borderColor: "#E8E2D6" }}>Fechar</button>
             </div>
           </div>
         </div>

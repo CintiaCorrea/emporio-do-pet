@@ -819,7 +819,7 @@ export default function FichaInternacaoPage() {
                 <input type="date" value={admForm.estimatedDischargeDate} onChange={(e) => setAdmForm({ ...admForm, estimatedDischargeDate: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
             </div>
             <div className="px-5 py-4 border-t flex justify-end gap-2" style={{ borderColor: "#E8E2D6" }}>
-              <button onClick={() => setAdmOpen(false)} className="px-4 py-2 text-[13px] text-[#5C6B70] bg-[#f3f1ea] rounded-lg">Cancelar</button>
+              <button onClick={() => setAdmOpen(false)} className="px-4 py-2 text-[13px] text-[#5C6B70] bg-white border rounded-lg" style={{ borderColor: "#E8E2D6" }}>Cancelar</button>
               <button onClick={salvarAdm} disabled={admSaving} className="px-4 py-2 text-[13px] text-white bg-[#009AAC] rounded-lg disabled:opacity-60">{admSaving ? "Salvando..." : "Salvar"}</button>
             </div>
           </div>
@@ -850,7 +850,7 @@ export default function FichaInternacaoPage() {
                 <input value={prescForm.observacao} onChange={(e) => setPrescForm({ ...prescForm, observacao: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
             </div>
             <div className="px-5 py-4 border-t flex justify-end gap-2" style={{ borderColor: "#E8E2D6" }}>
-              <button onClick={() => setPrescOpen(false)} className="px-4 py-2 text-[13px] text-[#5C6B70] bg-[#f3f1ea] rounded-lg">Cancelar</button>
+              <button onClick={() => setPrescOpen(false)} className="px-4 py-2 text-[13px] text-[#5C6B70] bg-white border rounded-lg" style={{ borderColor: "#E8E2D6" }}>Cancelar</button>
               <button onClick={salvarPresc} disabled={prescSaving} className="px-4 py-2 text-[13px] text-white bg-[#009AAC] rounded-lg disabled:opacity-60">{prescSaving ? "Salvando..." : "Salvar"}</button>
             </div>
           </div>
@@ -880,7 +880,7 @@ export default function FichaInternacaoPage() {
                 <select value={vitalForm.dor} onChange={(e) => setVitalForm({ ...vitalForm, dor: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }}>{["0", "1", "2", "3", "4"].map((d) => <option key={d} value={d}>{d}</option>)}</select></div>
             </div>
             <div className="px-5 py-4 border-t flex justify-end gap-2" style={{ borderColor: "#E8E2D6" }}>
-              <button onClick={() => setVitalOpen(false)} className="px-4 py-2 text-[13px] text-[#5C6B70] bg-[#f3f1ea] rounded-lg">Cancelar</button>
+              <button onClick={() => setVitalOpen(false)} className="px-4 py-2 text-[13px] text-[#5C6B70] bg-white border rounded-lg" style={{ borderColor: "#E8E2D6" }}>Cancelar</button>
               <button onClick={registrarVital} disabled={vitalSaving} className="px-4 py-2 text-[13px] text-white bg-[#009AAC] rounded-lg disabled:opacity-60">{vitalSaving ? "Salvando..." : "Registrar"}</button>
             </div>
           </div>
@@ -910,7 +910,7 @@ export default function FichaInternacaoPage() {
                 <input value={fluidoForm.emese} onChange={(e) => setFluidoForm({ ...fluidoForm, emese: e.target.value })} placeholder="Ausente" className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
             </div>
             <div className="px-5 py-4 border-t flex justify-end gap-2" style={{ borderColor: "#E8E2D6" }}>
-              <button onClick={() => setFluidoOpen(false)} className="px-4 py-2 text-[13px] text-[#5C6B70] bg-[#f3f1ea] rounded-lg">Cancelar</button>
+              <button onClick={() => setFluidoOpen(false)} className="px-4 py-2 text-[13px] text-[#5C6B70] bg-white border rounded-lg" style={{ borderColor: "#E8E2D6" }}>Cancelar</button>
               <button onClick={registrarFluido} disabled={fluidoSaving} className="px-4 py-2 text-[13px] text-white bg-[#009AAC] rounded-lg disabled:opacity-60">{fluidoSaving ? "Salvando..." : "Registrar"}</button>
             </div>
           </div>
@@ -945,7 +945,7 @@ export default function FichaInternacaoPage() {
               )}
             </div>
             <div className="px-5 py-4 border-t flex justify-end gap-2" style={{ borderColor: "#E8E2D6" }}>
-              <button onClick={() => setItemOpen(false)} className="px-4 py-2 text-[13px] text-[#5C6B70] bg-[#f3f1ea] rounded-lg">Cancelar</button>
+              <button onClick={() => setItemOpen(false)} className="px-4 py-2 text-[13px] text-[#5C6B70] bg-white border rounded-lg" style={{ borderColor: "#E8E2D6" }}>Cancelar</button>
               <button onClick={salvarItem} disabled={itemSaving} className="px-4 py-2 text-[13px] text-white bg-[#009AAC] rounded-lg disabled:opacity-60">{itemSaving ? "Salvando..." : "Salvar"}</button>
             </div>
           </div>
@@ -968,7 +968,7 @@ export default function FichaInternacaoPage() {
               <div className="text-[10.5px] text-[#8A989D]">Adiciona crédito ao tutor {h.tutor?.name}. Fica como saldo e pode abater da conta.</div>
             </div>
             <div className="px-5 py-4 border-t flex justify-end gap-2" style={{ borderColor: "#E8E2D6" }}>
-              <button onClick={() => setCaucaoOpen(false)} className="px-4 py-2 text-[13px] text-[#5C6B70] bg-[#f3f1ea] rounded-lg">Cancelar</button>
+              <button onClick={() => setCaucaoOpen(false)} className="px-4 py-2 text-[13px] text-[#5C6B70] bg-white border rounded-lg" style={{ borderColor: "#E8E2D6" }}>Cancelar</button>
               <button onClick={adicionarCaucao} disabled={finBusy === "caucao"} className="px-4 py-2 text-[13px] text-white bg-[#009AAC] rounded-lg disabled:opacity-60">{finBusy === "caucao" ? "Salvando..." : "Adicionar"}</button>
             </div>
           </div>
