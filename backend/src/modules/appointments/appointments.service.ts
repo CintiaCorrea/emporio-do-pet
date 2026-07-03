@@ -130,6 +130,7 @@ export class AppointmentsService {
             return {
               appointmentId: appointment.id,
               servicoId: it.servicoId ?? null,
+              productId: it.productId ?? null,
               descricao: it.descricao ?? null,
               executorUserId: it.executorUserId ?? null,
               fornecedorId: it.fornecedorId ?? null,

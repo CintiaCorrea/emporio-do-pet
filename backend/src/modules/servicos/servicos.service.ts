@@ -40,24 +40,46 @@ export class ServicosService {
       include: { category: { select: { id: true, nome: true } } },
     });
   }
+  // Espelha o serviço no catálogo unificado (Product, type SERVICE, mesmo id) — Fase 3 da unificação.
+  private async espelharProduto(svc: any) {
+    if (!svc?.id) return;
+    const data = {
+      name: svc.nome, price: svc.valorPadrao ?? 0,
+      categoryId: svc.categoryId ?? null, custoPadrao: svc.custoPadrao ?? null,
+      comissaoBaseDefault: svc.comissaoBaseDefault ?? undefined, ativo: svc.ativo ?? true,
+    };
+    try {
+      await this.prisma.product.upsert({
+        where: { id: svc.id },
+        create: { id: svc.id, type: 'SERVICE' as any, stock: 0, ...data },
+        update: data,
+      });
+    } catch { /* o espelho não pode quebrar o CRUD de serviço */ }
+  }
   async createServico(dto: CreateServicoDto) {
-    return this.prisma.servico.create({
+    const svc = await this.prisma.servico.create({
       data: dto,
       include: { category: { select: { id: true, nome: true } } },
     });
+    await this.espelharProduto(svc);
+    return svc;
   }
   async updateServico(id: string, dto: UpdateServicoDto) {
     const exists = await this.prisma.servico.findUnique({ where: { id } });
     if (!exists) throw new NotFoundException('Serviço não encontrado');
-    return this.prisma.servico.update({
+    const svc = await this.prisma.servico.update({
       where: { id }, data: dto,
       include: { category: { select: { id: true, nome: true } } },
     });
+    await this.espelharProduto(svc);
+    return svc;
   }
   async removeServico(id: string) {
     const exists = await this.prisma.servico.findUnique({ where: { id } });
     if (!exists) throw new NotFoundException('Serviço não encontrado');
-    return this.prisma.servico.delete({ where: { id } });
+    const res = await this.prisma.servico.delete({ where: { id } });
+    await this.prisma.product.deleteMany({ where: { id } }).catch(() => {});
+    return res;
   }
 
   // ============================================

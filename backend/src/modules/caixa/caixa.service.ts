@@ -313,7 +313,7 @@ export class CaixaService {
       const valorUnitario = Number(it.valorUnitario || 0);
       const desconto = Number(it.desconto || 0);
       const valorTotal = Math.max(0, quantidade * valorUnitario - desconto);
-      return { servicoId: it.servicoId ?? undefined, descricao: it.descricao ?? undefined, quantidade, valorUnitario, desconto, valorTotal };
+      return { servicoId: it.servicoId ?? undefined, productId: it.productId ?? undefined, descricao: it.descricao ?? undefined, quantidade, valorUnitario, desconto, valorTotal };
     });
     const itensTotal = items.reduce((s: number, it: any) => s + it.valorTotal, 0);
     const descontoGlobal = Number(dto.desconto || 0);

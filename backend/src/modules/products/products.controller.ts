@@ -39,6 +39,7 @@ export class ProductsController {
     @Query('search') search?: string,
     @Query('type') type?: string,
     @Query('lowStock') lowStock?: string,
+    @Query('excludeService') excludeService?: string,
   ) {
     return this.productsService.findAll({
       page: page ? Number(page) : undefined,
@@ -48,6 +49,7 @@ export class ProductsController {
       search,
       type,
       lowStock: lowStock === 'true',
+      excludeService: excludeService === 'true' || excludeService === '1',
     });
   }
 
