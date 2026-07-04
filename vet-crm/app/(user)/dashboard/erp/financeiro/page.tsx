@@ -1,19 +1,23 @@
 // app/(user)/dashboard/erp/financeiro/page.tsx
+// Financeiro no padrao Base44 (bege + emojis). Roupagem repaginada 04/07 — LOGICA 100% preservada.
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import {
-  LuDownload,
-  LuFileText,
-  LuLoader,
-  LuPencil,
-  LuPlus,
-  LuSearch,
-  LuTrash,
-  LuDollarSign} from 'react-icons/lu';
 import FinanceEntryModal, { FinanceEntryFormValues } from '@/components/protected/dashboard/erp/financeiro/modals/FinanceEntryModal';
 import ConfirmDeleteFinanceEntryModal from '@/components/protected/dashboard/erp/financeiro/modals/ConfirmDeleteFinanceEntryModal';
 import toast from 'react-hot-toast';
+
+// Paleta Base44 (mesmos tokens de components/ui/base44.tsx)
+const TEAL = '#009AAC';      // acento / botao primario
+const TEAL_DARK = '#014D5E'; // titulos / texto forte
+const ORANGE = '#D85A30';    // coral / despesa
+const GREEN = '#0f6e56';     // receita / sucesso
+const BG = '#F6F2EA';        // fundo da pagina
+const LINE = '#E8E2D6';      // borda do cartao
+const DIV = '#F0EBE0';       // divisoria interna
+const TXT = '#1F2A2E';       // corpo
+const TXT2 = '#5C6B70';      // secundario
+const TXT3 = '#8A989D';      // dica / rotulo
 
 type FinanceStatus = 'PAID' | 'PENDING' | 'OVERDUE' | 'CANCELED';
 type FinanceType = 'INCOME' | 'EXPENSE';
@@ -72,18 +76,18 @@ function methodLabel(m: FinanceMethod) {
   }
 }
 
-function getStatusColor(status: FinanceStatus) {
+function getStatusColor(status: FinanceStatus): React.CSSProperties {
   switch (status) {
     case 'PAID':
-      return 'bg-green-100 text-green-800';
+      return { background: '#e1f5ee', color: GREEN };
     case 'PENDING':
-      return 'bg-yellow-100 text-yellow-800';
+      return { background: '#fdf6e3', color: '#854F0B' };
     case 'OVERDUE':
-      return 'bg-red-100 text-red-800';
+      return { background: '#fef0e8', color: '#993C1D' };
     case 'CANCELED':
-      return 'bg-gray-100 text-gray-800';
+      return { background: DIV, color: TXT2 };
     default:
-      return 'bg-gray-100 text-gray-800';
+      return { background: DIV, color: TXT2 };
   }
 }
 
@@ -113,6 +117,13 @@ function toDateISO(yyyyMmDd: string) {
   // meio-dia pra evitar problemas de timezone em datas (yyyy-mm-dd)
   return new Date(`${yyyyMmDd}T12:00:00.000Z`).toISOString();
 }
+
+const cardStyle: React.CSSProperties = { background: '#fff', border: `1px solid ${LINE}`, borderRadius: 14 };
+const primaryBtn: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 13, fontWeight: 500, padding: '10px 16px', borderRadius: 9, cursor: 'pointer', border: 'none', background: TEAL, color: '#fff' };
+const secondaryBtn: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 13, fontWeight: 500, padding: '10px 16px', borderRadius: 9, cursor: 'pointer', border: `1px solid ${LINE}`, background: '#fff', color: TXT2 };
+const inp: React.CSSProperties = { padding: '10px 12px', border: `1px solid ${LINE}`, borderRadius: 9, fontSize: 13, fontFamily: 'inherit', color: TXT, background: '#fff' };
+const thStyle: React.CSSProperties = { color: TXT3, fontWeight: 500, fontSize: 11.5, textTransform: 'uppercase', letterSpacing: '.03em', padding: '12px 16px', borderBottom: `1px solid ${LINE}`, textAlign: 'left' };
+const tdStyle: React.CSSProperties = { padding: '14px 16px', borderBottom: `1px solid ${DIV}`, color: TXT, fontSize: 13 };
 
 export default function FinanceiroPage() {
   const [dateRange, setDateRange] = useState<'7dias' | '30dias' | '90dias' | 'ano'>('30dias');
@@ -266,62 +277,53 @@ export default function FinanceiroPage() {
     {
       label: 'Receitas (Pagas)',
       value: formatCurrency(summary?.paidIncomeCents ?? 0),
-      icon: LuDollarSign,
-      color: 'green' as const,
+      emoji: '💰',
       trend: 'up' as const,
       change: `${summary?.paidCount ?? 0} pagos`},
     {
       label: 'Pendentes (Receitas)',
       value: formatCurrency(summary?.pendingIncomeCents ?? 0),
-      icon: () => <span style={{fontSize:"14px"}}>👥</span>,
-      color: 'yellow' as const,
+      emoji: '👥',
       trend: 'neutral' as const,
       change: `${(summary?.totalCount ?? 0) - (summary?.paidCount ?? 0)} em aberto`},
     {
       label: 'Ticket Médio',
       value: formatCurrency(summary?.averageTicketCents ?? 0),
-      icon: () => <span style={{fontSize:"14px"}}>📈</span>,
-      color: 'blue' as const,
+      emoji: '📈',
       trend: 'up' as const,
       change: `${summary?.totalCount ?? 0} lançamentos`},
     {
       label: 'Taxa de Pagos',
       value: `${summary?.paidPercentage ?? 0}%`,
-      icon: () => <span style={{fontSize:"14px"}}>🥧</span>,
-      color: 'purple' as const,
+      emoji: '🥧',
       trend: 'up' as const,
       change: 'no período'},
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/10 w-full overflow-hidden">
+    <div style={{ width: '100%', minHeight: '100%', background: BG, overflow: 'hidden' }}>
       <div className="p-6">
         <div className="max-w-7xl mx-auto">
             <div className="mb-8">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                  <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-                    Financeiro
+                  <h1 style={{ fontSize: 24, fontWeight: 500, color: TEAL_DARK, display: 'flex', alignItems: 'center', gap: 9 }}>
+                    <span>💰</span>Financeiro
                   </h1>
-                  <p className="text-gray-600 mt-2">Gerencie lançamentos e performance financeira</p>
+                  <p style={{ color: TXT2, marginTop: 6, fontSize: 13 }}>Gerencie lançamentos e performance financeira</p>
                 </div>
                 <div className="flex gap-3">
-                  <button className="group px-6 py-3 text-sm font-semibold text-gray-700 bg-white/80 border border-gray-200/80 rounded-2xl hover:bg-white hover:border-gray-300 hover:shadow-lg transition-all duration-300 hover:scale-105 flex items-center space-x-2">
-                    <LuDownload className="w-4 h-4" />
+                  <button style={secondaryBtn}>
+                    <span>📤</span>
                     <span>Exportar</span>
                   </button>
-                  <button
-                    onClick={openCreate}
-                    className="group px-6 py-3 text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-blue-500/25 flex items-center space-x-2 relative overflow-hidden"
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent transform -skew-x-12 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
-                    <LuPlus className="w-4 h-4 relative z-10" />
-                    <span className="relative z-10">Novo Lançamento</span>
+                  <button onClick={openCreate} style={primaryBtn}>
+                    <span>➕</span>
+                    <span>Novo Lançamento</span>
                   </button>
-                  <button className="group px-6 py-3 text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-blue-500/25 flex items-center space-x-2 relative overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent transform -skew-x-12 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
-                    <LuFileText className="w-4 h-4 relative z-10" />
-                    <span className="relative z-10">Gerar Relatório</span>
+                  <button style={secondaryBtn}>
+                    <span>📊</span>
+                    <span>Gerar Relatório</span>
                   </button>
                 </div>
               </div>
@@ -363,45 +365,27 @@ export default function FinanceiroPage() {
               {stats.map((stat, index) => (
                 <div
                   key={index}
-                  className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-blue-500/5 p-6 hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-300 hover:scale-105"
+                  style={{ background: '#fff', border: `1px solid ${LINE}`, borderRadius: 12, padding: '16px 18px' }}
                 >
-                  <div className="flex items-center justify-between mb-4">
-                    <div
-                      className={`p-3 rounded-xl ${
-                        stat.color === 'green'
-                          ? 'bg-green-50'
-                          : stat.color === 'yellow'
-                            ? 'bg-yellow-50'
-                            : stat.color === 'blue'
-                              ? 'bg-blue-50'
-                              : 'bg-purple-50'
-                      }`}
+                  <div className="flex items-center justify-between" style={{ marginBottom: 12 }}>
+                    <span style={{ fontSize: 20 }}>{stat.emoji}</span>
+                    <span
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        fontSize: 11.5,
+                        fontWeight: 500,
+                        color: stat.trend === 'up' ? GREEN : stat.trend === 'down' ? ORANGE : TXT3}}
                     >
-                      <stat.icon
-                        className={`w-6 h-6 ${
-                          stat.color === 'green'
-                            ? 'text-green-600'
-                            : stat.color === 'yellow'
-                              ? 'text-yellow-600'
-                              : stat.color === 'blue'
-                                ? 'text-blue-600'
-                                : 'text-purple-600'
-                        }`}
-                      />
-                    </div>
-                    <div
-                      className={`flex items-center gap-1 text-sm font-medium ${
-                        stat.trend === 'up' ? 'text-green-600' : stat.trend === 'down' ? 'text-red-600' : 'text-yellow-600'
-                      }`}
-                    >
-                      {stat.trend === 'up' && <span style={{fontSize:"14px"}}>↗</span>}
-                      {stat.trend === 'down' && <span style={{fontSize:"14px"}}>↘</span>}
+                      {stat.trend === 'up' && <span>↗</span>}
+                      {stat.trend === 'down' && <span>↘</span>}
                       <span>{stat.change}</span>
-                    </div>
+                    </span>
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-gray-600 mb-2">{stat.label}</p>
-                    <p className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+                    <p style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.03em', color: TXT3, fontWeight: 500, marginBottom: 6 }}>{stat.label}</p>
+                    <p style={{ fontSize: 26, fontWeight: 500, color: TEAL_DARK }}>
                       {stat.value}
                     </p>
                   </div>
@@ -409,12 +393,12 @@ export default function FinanceiroPage() {
               ))}
             </div>
 
-            <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-blue-500/5 p-6 mb-6">
+            <div style={{ ...cardStyle, padding: 18, marginBottom: 18 }}>
               <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
                 <div className="flex flex-col sm:flex-row gap-4 w-full lg:w-auto">
                   <div className="relative flex-1">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <LuSearch className="w-5 h-5 text-gray-400" />
+                      <span style={{ fontSize: 15 }}>🔍</span>
                     </div>
                     <input
                       type="text"
@@ -424,14 +408,15 @@ export default function FinanceiroPage() {
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') fetchData();
                       }}
-                      className="w-full pl-10 pr-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                      className="w-full"
+                      style={{ ...inp, paddingLeft: 38 }}
                     />
                   </div>
 
                   <select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value as any)}
-                    className="px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                    style={inp}
                   >
                     <option value="todos">Todos os Status</option>
                     <option value="PAID">Pagos</option>
@@ -445,7 +430,8 @@ export default function FinanceiroPage() {
                   <select
                     value={dateRange}
                     onChange={(e) => setDateRange(e.target.value as any)}
-                    className="px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm flex-1 lg:flex-none"
+                    className="flex-1 lg:flex-none"
+                    style={inp}
                   >
                     <option value="7dias">Últimos 7 dias</option>
                     <option value="30dias">Últimos 30 dias</option>
@@ -453,57 +439,56 @@ export default function FinanceiroPage() {
                     <option value="ano">Este ano</option>
                   </select>
 
-                  <button
-                    onClick={fetchData}
-                    className="flex items-center gap-2 px-4 py-3 text-sm font-semibold text-gray-600 bg-white/50 border border-gray-300/50 rounded-2xl hover:bg-white hover:border-gray-400 hover:shadow-lg transition-all duration-300 hover:scale-105 backdrop-blur-sm"
-                  >
-                    <span style={{fontSize:"14px"}}>⌕</span>
+                  <button onClick={fetchData} style={secondaryBtn}>
+                    <span>🔍</span>
                     <span>Aplicar</span>
                   </button>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-blue-500/5 overflow-hidden">
-              <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-100/50 border-b border-white/20">
+            <div style={{ ...cardStyle, overflow: 'hidden' }}>
+              <div style={{ padding: '16px 18px', background: '#FBF9F4', borderBottom: `1px solid ${LINE}` }}>
                 <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-gray-900">Lançamentos</h3>
-                  <div className="text-sm text-gray-600">{entries.length} registros</div>
+                  <h3 style={{ fontSize: 15, fontWeight: 500, color: TEAL_DARK, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span>📋</span>Lançamentos
+                  </h3>
+                  <div style={{ fontSize: 12.5, color: TXT2 }}>{entries.length} registros</div>
                 </div>
               </div>
 
               <div className="overflow-x-auto">
-                <table className="w-full">
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
-                    <tr className="bg-gradient-to-r from-gray-50 to-gray-100/50 border-b border-white/20">
-                      <th className="text-left p-6 font-semibold text-gray-700">Cliente</th>
-                      <th className="text-left p-6 font-semibold text-gray-700">Serviço</th>
-                      <th className="text-left p-6 font-semibold text-gray-700">Valor</th>
-                      <th className="text-left p-6 font-semibold text-gray-700">Status</th>
-                      <th className="text-left p-6 font-semibold text-gray-700">Data</th>
-                      <th className="text-left p-6 font-semibold text-gray-700">Vencimento</th>
-                      <th className="text-left p-6 font-semibold text-gray-700">Método</th>
-                      <th className="text-right p-6 font-semibold text-gray-700">Ações</th>
+                    <tr>
+                      <th style={thStyle}>Cliente</th>
+                      <th style={thStyle}>Serviço</th>
+                      <th style={thStyle}>Valor</th>
+                      <th style={thStyle}>Status</th>
+                      <th style={thStyle}>Data</th>
+                      <th style={thStyle}>Vencimento</th>
+                      <th style={thStyle}>Método</th>
+                      <th style={{ ...thStyle, textAlign: 'right' }}>Ações</th>
                     </tr>
                   </thead>
                   <tbody>
                     {loading ? (
                       <tr>
-                        <td colSpan={8} className="p-10 text-center text-gray-600">
-                          <div className="inline-flex items-center gap-3">
-                            <LuLoader className="w-5 h-5 animate-spin" />
+                        <td colSpan={8} style={{ ...tdStyle, textAlign: 'center', color: TXT2, padding: 40 }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+                            <span>⏳</span>
                             <span>Carregando lançamentos...</span>
-                          </div>
+                          </span>
                         </td>
                       </tr>
                     ) : error ? (
                       <tr>
-                        <td colSpan={8} className="p-10 text-center">
-                          <div className="text-red-600 font-semibold">Erro ao carregar</div>
-                          <div className="text-gray-600 mt-1">{error}</div>
+                        <td colSpan={8} style={{ ...tdStyle, textAlign: 'center', padding: 40 }}>
+                          <div style={{ color: ORANGE, fontWeight: 500 }}>Erro ao carregar</div>
+                          <div style={{ color: TXT2, marginTop: 4 }}>{error}</div>
                           <button
                             onClick={fetchData}
-                            className="mt-4 px-5 py-2 text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl hover:from-blue-700 hover:to-purple-700 transition-all"
+                            style={{ ...primaryBtn, marginTop: 16 }}
                           >
                             Tentar novamente
                           </button>
@@ -511,60 +496,55 @@ export default function FinanceiroPage() {
                       </tr>
                     ) : entries.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="p-10 text-center text-gray-600">
+                        <td colSpan={8} style={{ ...tdStyle, textAlign: 'center', color: TXT3, padding: 40 }}>
                           Nenhum lançamento encontrado para os filtros atuais.
                         </td>
                       </tr>
                     ) : (
                       entries.map((entry) => (
-                        <tr
-                          key={entry.id}
-                          className="border-b border-white/20 hover:bg-gray-50/50 transition-all duration-300 group"
-                        >
-                          <td className="p-6">
-                            <div className="font-semibold text-gray-900">{entry.counterpartyName}</div>
+                        <tr key={entry.id}>
+                          <td style={tdStyle}>
+                            <div style={{ fontWeight: 500, color: TEAL_DARK }}>{entry.counterpartyName}</div>
                           </td>
-                          <td className="p-6">
-                            <div className="text-gray-700">{entry.service}</div>
+                          <td style={tdStyle}>
+                            <div style={{ color: TXT2 }}>{entry.service}</div>
                           </td>
-                          <td className="p-6">
-                            <div className="font-semibold text-gray-900">{formatCurrency(entry.amountCents)}</div>
+                          <td style={tdStyle}>
+                            <div style={{ fontWeight: 500, color: entry.type === 'INCOME' ? GREEN : ORANGE }}>{formatCurrency(entry.amountCents)}</div>
                           </td>
-                          <td className="p-6">
+                          <td style={tdStyle}>
                             <span
-                              className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(
-                                entry.status,
-                              )}`}
+                              style={{ display: 'inline-flex', alignItems: 'center', padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 500, ...getStatusColor(entry.status) }}
                             >
                               {getStatusText(entry.status)}
                             </span>
                           </td>
-                          <td className="p-6">
-                            <div className="text-gray-700">{formatDate(entry.date)}</div>
+                          <td style={tdStyle}>
+                            <div style={{ color: TXT2 }}>{formatDate(entry.date)}</div>
                           </td>
-                          <td className="p-6">
-                            <div className={`text-gray-700 ${entry.status === 'OVERDUE' ? 'text-red-600 font-semibold' : ''}`}>
+                          <td style={tdStyle}>
+                            <div style={{ color: entry.status === 'OVERDUE' ? ORANGE : TXT2, fontWeight: entry.status === 'OVERDUE' ? 500 : 400 }}>
                               {entry.dueDate ? formatDate(entry.dueDate) : '-'}
                             </div>
                           </td>
-                          <td className="p-6">
-                            <div className="text-gray-700">{methodLabel(entry.method)}</div>
+                          <td style={tdStyle}>
+                            <div style={{ color: TXT2 }}>{methodLabel(entry.method)}</div>
                           </td>
-                          <td className="p-6 text-right">
-                            <div className="inline-flex items-center gap-2">
+                          <td style={{ ...tdStyle, textAlign: 'right' }}>
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                               <button
                                 onClick={() => openEdit(entry)}
-                                className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-xl transition-all duration-300 hover:scale-110"
                                 title="Editar"
+                                style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 4, fontSize: 15, lineHeight: 1 }}
                               >
-                                <LuPencil className="w-4 h-4" />
+                                <span>✏️</span>
                               </button>
                               <button
                                 onClick={() => setDeleteTarget(entry)}
-                                className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl transition-all duration-300 hover:scale-110"
                                 title="Excluir"
+                                style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 4, fontSize: 15, lineHeight: 1 }}
                               >
-                                <LuTrash className="w-4 h-4" />
+                                <span>🗑️</span>
                               </button>
                             </div>
                           </td>
@@ -580,5 +560,3 @@ export default function FinanceiroPage() {
     </div>
   );
 }
-
-

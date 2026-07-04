@@ -1,20 +1,25 @@
 // DESTINO: vet-crm/app/(user)/dashboard/erp/lista-precos/page.tsx
+// Roupagem Base44 "delicada" (bege + emojis) — LOGICA 100% preservada.
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { usePageTitle } from '@/lib/ui/PageHeaderContext';
-import { LuEye, LuEyeOff, LuSearch } from 'react-icons/lu';
 
 const TEAL = '#009AAC';
 const TEAL_DARK = '#014D5E';
-const LINE = '#e6eaed';
+const BG = '#F6F2EA';        // fundo da pagina
+const LINE = '#E8E2D6';      // borda do cartao
+const DIV = '#F0EBE0';       // divisoria interna
+const TXT = '#1F2A2E';       // corpo
+const TXT2 = '#5C6B70';      // secundario
+const TXT3 = '#8A989D';      // dica / rotulo
 
 interface Servico { id: string; nome: string; valorPadrao?: number | null; custoPadrao?: number | null; ativo: boolean; category?: { id: string; nome: string } | null; }
 
 const brl = (v?: number | null) => (v == null ? '—' : new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(v)));
-const th: React.CSSProperties = { color: '#64748b', fontWeight: 500, padding: '9px 10px', borderBottom: `1px solid ${LINE}`, textAlign: 'left', fontSize: 12.5 };
-const td: React.CSSProperties = { padding: '10px', borderBottom: '1px solid #f1f5f6', fontSize: 13 };
+const th: React.CSSProperties = { color: TXT3, fontWeight: 500, fontSize: 11.5, textTransform: 'uppercase', letterSpacing: '.03em', padding: '8px 10px', borderBottom: `1px solid ${LINE}`, textAlign: 'left' };
+const td: React.CSSProperties = { padding: '10px', borderBottom: `1px solid ${DIV}`, fontSize: 13 };
 
 export default function ListaPrecosPage() {
   usePageTitle('Lista de preços', 'Tabela de serviços e valores');
@@ -51,37 +56,37 @@ export default function ListaPrecosPage() {
   }, [rows, busca, cat]);
 
   return (
-    <div style={{ width: '100%', background: '#f7f9fa', minHeight: '100%' }}>
+    <div style={{ width: '100%', background: BG, minHeight: '100%' }}>
       <style>{`@media print { .no-print{display:none!important} body{background:#fff} }`}</style>
       <div style={{ width: '100%', padding: '20px 26px 60px', boxSizing: 'border-box' }}>
         <div className="no-print" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
           <div style={{ position: 'relative', flex: '1 1 240px', maxWidth: 320 }}>
-            <LuSearch size={15} style={{ position: 'absolute', left: 10, top: 10, color: '#94a3b8' }} />
+            <span style={{ position: 'absolute', left: 10, top: 8, fontSize: 14, color: TXT3, pointerEvents: 'none' }}>🔍</span>
             <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar serviço…" style={{ ...inp, width: '100%', paddingLeft: 32, boxSizing: 'border-box' }} />
           </div>
           <select value={cat} onChange={(e) => setCat(e.target.value)} style={inp}>
             <option value="">Todas as categorias</option>
             {categorias.map(([id, nome]) => <option key={id} value={id}>{nome}</option>)}
           </select>
-          <button onClick={() => setOcultar((v) => !v)} style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 500, padding: '9px 12px', borderRadius: 9, cursor: 'pointer', border: '1px solid #d7e0e2', background: '#fff', color: TEAL_DARK }}>
-            {ocultar ? <LuEyeOff size={15} /> : <LuEye size={15} />}{ocultar ? 'Mostrar valores' : 'Esconder valores'}
+          <button onClick={() => setOcultar((v) => !v)} style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 500, padding: '9px 12px', borderRadius: 9, cursor: 'pointer', border: `1px solid ${LINE}`, background: '#fff', color: TEAL_DARK }}>
+            <span style={{ fontSize: 14 }}>{ocultar ? '🙈' : '👁️'}</span>{ocultar ? 'Mostrar valores' : 'Esconder valores'}
           </button>
         </div>
 
-        <div style={{ background: '#fff', border: `1px solid ${LINE}`, borderRadius: 11, overflow: 'hidden' }}>
-          <div style={{ padding: '12px 16px', borderBottom: `1px solid ${LINE}`, fontWeight: 600, fontSize: 14 }}>{filtradas.length} serviço(s)</div>
+        <div style={{ background: '#fff', border: `1px solid ${LINE}`, borderRadius: 13, overflow: 'hidden' }}>
+          <div style={{ padding: '12px 16px', borderBottom: `1px solid ${LINE}`, fontWeight: 500, fontSize: 14, color: TEAL_DARK, display: 'flex', alignItems: 'center', gap: 7 }}><span style={{ fontSize: 15 }}>🏷️</span>{filtradas.length} serviço(s)</div>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead><tr><th style={th}>Serviço</th><th style={th}>Categoria</th><th style={{ ...th, textAlign: 'right' }}>Custo</th><th style={{ ...th, textAlign: 'right' }}>Valor</th></tr></thead>
               <tbody>
-                {loading && <tr><td colSpan={4} style={{ ...td, textAlign: 'center', color: '#94a3b8', padding: 18 }}>Carregando…</td></tr>}
-                {!loading && filtradas.length === 0 && <tr><td colSpan={4} style={{ ...td, textAlign: 'center', color: '#94a3b8', padding: 18 }}>Nenhum serviço encontrado.</td></tr>}
+                {loading && <tr><td colSpan={4} style={{ ...td, textAlign: 'center', color: TXT3, padding: 18 }}>Carregando…</td></tr>}
+                {!loading && filtradas.length === 0 && <tr><td colSpan={4} style={{ ...td, textAlign: 'center', color: TXT3, padding: 18 }}>Nenhum serviço encontrado.</td></tr>}
                 {filtradas.map((s) => (
                   <tr key={s.id}>
-                    <td style={{ ...td, color: '#1f2d33' }}>{s.nome}{!s.ativo && <span style={{ fontSize: 10.5, color: '#94a3b8', marginLeft: 6 }}>(inativo)</span>}</td>
-                    <td style={{ ...td, color: '#64748b' }}>{s.category?.nome || '—'}</td>
-                    <td style={{ ...td, textAlign: 'right', color: '#94a3b8' }}>{s.custoPadrao != null ? money(s.custoPadrao) : '—'}</td>
-                    <td style={{ ...td, textAlign: 'right', fontWeight: 600, color: TEAL_DARK }}>{money(s.valorPadrao)}</td>
+                    <td style={{ ...td, color: TXT }}>{s.nome}{!s.ativo && <span style={{ fontSize: 10.5, color: TXT3, marginLeft: 6 }}>(inativo)</span>}</td>
+                    <td style={{ ...td, color: TXT2 }}>{s.category?.nome || '—'}</td>
+                    <td style={{ ...td, textAlign: 'right', color: TXT3 }}>{s.custoPadrao != null ? money(s.custoPadrao) : '—'}</td>
+                    <td style={{ ...td, textAlign: 'right', fontWeight: 500, color: TEAL_DARK }}>{money(s.valorPadrao)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -93,4 +98,4 @@ export default function ListaPrecosPage() {
   );
 }
 
-const inp: React.CSSProperties = { padding: '9px 10px', border: '1px solid #d7e0e2', borderRadius: 8, fontSize: 13, fontFamily: 'inherit' };
+const inp: React.CSSProperties = { padding: '9px 10px', border: `1px solid ${LINE}`, borderRadius: 9, fontSize: 13, fontFamily: 'inherit', color: TXT, background: '#fff' };

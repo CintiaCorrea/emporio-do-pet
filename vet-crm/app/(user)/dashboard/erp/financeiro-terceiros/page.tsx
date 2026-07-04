@@ -1,10 +1,26 @@
 "use client";
 // [EMP-COWORK] Financeiro de Terceiros — automático dos exames dos pets (Listas petexa_) x catálogo (Cintia 07/06)
 // Período por Mês ou Personalizado (de/até). Pago do lote é por fornecedor×mês (intpag_<fid>_<YYYYMM>).
+// Roupagem repaginada 04/07 (Base44 delicada — bege + emojis) — LÓGICA 100% preservada.
 
 import { useEffect, useMemo, useState } from "react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
-import { LuChevronLeft, LuChevronRight, LuCheck, LuChevronDown } from "react-icons/lu";
+
+// Paleta Base44 delicada (mesmos tokens do gabarito caixa/page.tsx)
+const TEAL = "#009AAC";  // acento / botão primário
+const NAVY = "#014D5E";  // títulos / texto forte
+const CORAL = "#D85A30"; // saída / atenção
+const GREEN = "#0f6e56"; // sucesso
+const BG = "#F6F2EA";    // fundo da página
+const SOFT = "#FBF9F4";  // caixinha suave
+const TINT = "#E0F4F6";  // água
+const LINE = "#E8E2D6";  // borda do cartão
+const DIV = "#F0EBE0";   // divisória interna
+const TXT = "#1F2A2E";   // corpo
+const TXT2 = "#5C6B70";  // secundário
+const TXT3 = "#8A989D";  // rótulo / dica
+
+const dateInp: React.CSSProperties = { background: "#fff", border: `1px solid ${LINE}`, borderRadius: 9, padding: "6px 8px", fontSize: 11, color: TXT2, fontFamily: "inherit", outline: "none" };
 
 const MODELO_LABEL: Record<string, string> = { LOTE_MENSAL: "Lote mensal", REPASSE_VIA_CLINICA: "Repasse", DIRETO_CLIENTE: "Direto" };
 const TABS: { k: string; label: string }[] = [
@@ -122,95 +138,98 @@ export default function FinanceiroTerceirosPage() {
   const fmtDia = (s: string) => { try { return new Date(s).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }); } catch { return ""; } };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex bg-white border rounded-lg overflow-hidden" style={{ borderColor: "#d8d0bc" }}>
-            <button onClick={() => setModo("mes")} className="px-3 py-1.5 text-[11px] font-medium border-r" style={{ borderColor: "#d8d0bc", ...(modo === "mes" ? { background: "#009AAC", color: "#fff" } : { color: "#4d5a66" }) }}>Mês</button>
-            <button onClick={() => setModo("custom")} className="px-3 py-1.5 text-[11px] font-medium" style={modo === "custom" ? { background: "#009AAC", color: "#fff" } : { color: "#4d5a66" }}>Personalizado</button>
+    <div style={{ background: BG, minHeight: "100%" }}>
+      <div style={{ maxWidth: 1280, margin: "0 auto", padding: 24, boxSizing: "border-box" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", background: "#fff", border: `1px solid ${LINE}`, borderRadius: 9, overflow: "hidden" }}>
+              <button onClick={() => setModo("mes")} style={{ padding: "6px 12px", fontSize: 11, fontWeight: 500, border: "none", borderRight: `1px solid ${LINE}`, cursor: "pointer", ...(modo === "mes" ? { background: TEAL, color: "#fff" } : { background: "#fff", color: TXT2 }) }}>Mês</button>
+              <button onClick={() => setModo("custom")} style={{ padding: "6px 12px", fontSize: 11, fontWeight: 500, border: "none", cursor: "pointer", ...(modo === "custom" ? { background: TEAL, color: "#fff" } : { background: "#fff", color: TXT2 }) }}>Personalizado</button>
+            </div>
+            {modo === "mes" ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 6, background: "#fff", border: `1px solid ${LINE}`, borderRadius: 9, padding: "2px 6px" }}>
+                <button onClick={prevMes} aria-label="Mês anterior" style={{ border: "none", background: "none", cursor: "pointer", color: NAVY, fontSize: 18, lineHeight: 1, padding: "2px 6px" }}>‹</button>
+                <span style={{ fontSize: 12.5, fontWeight: 500, color: NAVY, minWidth: 110, textAlign: "center" }}>{MESES[ref.m]} {ref.y}</span>
+                <button onClick={nextMes} aria-label="Próximo mês" style={{ border: "none", background: "none", cursor: "pointer", color: NAVY, fontSize: 18, lineHeight: 1, padding: "2px 6px" }}>›</button>
+              </div>
+            ) : (
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontSize: 13 }}>📅</span>
+                <input type="date" value={customIni} onChange={(e) => setCustomIni(e.target.value)} style={dateInp} />
+                <span style={{ fontSize: 11, color: TXT3 }}>até</span>
+                <input type="date" value={customFim} onChange={(e) => setCustomFim(e.target.value)} style={dateInp} />
+              </div>
+            )}
           </div>
-          {modo === "mes" ? (
-            <div className="flex items-center gap-1.5 bg-white border rounded-lg px-1.5 py-1" style={{ borderColor: "#d8d0bc" }}>
-              <button onClick={prevMes} className="p-1 rounded hover:bg-[#fdfaee]" aria-label="Mês anterior"><LuChevronLeft className="w-4 h-4 text-[#5b6470]" /></button>
-              <span className="text-[12.5px] font-medium text-[#014D5E] min-w-[110px] text-center">{MESES[ref.m]} {ref.y}</span>
-              <button onClick={nextMes} className="p-1 rounded hover:bg-[#fdfaee]" aria-label="Próximo mês"><LuChevronRight className="w-4 h-4 text-[#5b6470]" /></button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-1.5">
-              <input type="date" value={customIni} onChange={(e) => setCustomIni(e.target.value)} className="bg-white border rounded-lg px-2 py-1.5 text-[11px] text-[#4d5a66] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#d8d0bc" }} />
-              <span className="text-[11px] text-[#94a3b8]">até</span>
-              <input type="date" value={customFim} onChange={(e) => setCustomFim(e.target.value)} className="bg-white border rounded-lg px-2 py-1.5 text-[11px] text-[#4d5a66] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#d8d0bc" }} />
-            </div>
-          )}
+          <span style={{ fontSize: 11.5, color: TXT3, display: "inline-flex", alignItems: "center", gap: 5 }}><span>🤝</span>Automático — puxado dos exames dos pets</span>
         </div>
-        <span className="text-[11.5px] text-[#94a3b8]">Automático — puxado dos exames dos pets</span>
-      </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-2.5 mb-5">
-        <div className="rounded-xl p-3" style={{ background: "#E1F5EE" }}><div className="text-[11px]" style={{ color: "#0F6E56" }}>Receita</div><div className="text-[19px] font-bold" style={{ color: "#0F6E56" }}>{fmtBRL(kpis.receita)}</div></div>
-        <div className="rounded-xl p-3" style={{ background: "#FCEBEB" }}><div className="text-[11px]" style={{ color: "#A32D2D" }}>Custo</div><div className="text-[19px] font-bold" style={{ color: "#A32D2D" }}>{fmtBRL(kpis.custo)}</div></div>
-        <div className="rounded-xl p-3" style={{ background: "#E6F6F8" }}><div className="text-[11px]" style={{ color: "#00798A" }}>Margem</div><div className="text-[19px] font-bold" style={{ color: "#00798A" }}>{fmtBRL(kpis.margem)}</div></div>
-        <div className="rounded-xl p-3" style={{ background: "#FAEEDA" }}><div className="text-[11px]" style={{ color: "#854F0B" }}>A pagar</div><div className="text-[19px] font-bold" style={{ color: "#854F0B" }}>{fmtBRL(kpis.aPagar)}</div></div>
-        <div className="rounded-xl p-3 bg-white border" style={{ borderColor: "#ece4d2" }}><div className="text-[11px] text-[#94a3b8]">Top fornecedor</div><div className="text-[15px] font-bold text-[#014D5E]">{kpis.topNome}</div><div className="text-[11px] text-[#94a3b8]">{fmtBRL(kpis.topVal)}</div></div>
-      </div>
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-2.5 mb-5">
+          <div style={{ background: "#fff", border: `1px solid ${LINE}`, borderRadius: 12, padding: 12 }}><div style={{ fontSize: 11, color: TXT3 }}>Receita</div><div style={{ fontSize: 19, fontWeight: 500, color: GREEN }}>{fmtBRL(kpis.receita)}</div></div>
+          <div style={{ background: "#fff", border: `1px solid ${LINE}`, borderRadius: 12, padding: 12 }}><div style={{ fontSize: 11, color: TXT3 }}>Custo</div><div style={{ fontSize: 19, fontWeight: 500, color: CORAL }}>{fmtBRL(kpis.custo)}</div></div>
+          <div style={{ background: "#fff", border: `1px solid ${LINE}`, borderRadius: 12, padding: 12 }}><div style={{ fontSize: 11, color: TXT3 }}>Margem</div><div style={{ fontSize: 19, fontWeight: 500, color: TEAL }}>{fmtBRL(kpis.margem)}</div></div>
+          <div style={{ background: "#fff", border: `1px solid ${LINE}`, borderRadius: 12, padding: 12 }}><div style={{ fontSize: 11, color: TXT3 }}>A pagar</div><div style={{ fontSize: 19, fontWeight: 500, color: NAVY }}>{fmtBRL(kpis.aPagar)}</div></div>
+          <div style={{ background: "#fff", border: `1px solid ${LINE}`, borderRadius: 12, padding: 12 }}><div style={{ fontSize: 11, color: TXT3 }}>Top fornecedor</div><div style={{ fontSize: 15, fontWeight: 500, color: NAVY }}>{kpis.topNome}</div><div style={{ fontSize: 11, color: TXT3 }}>{fmtBRL(kpis.topVal)}</div></div>
+        </div>
 
-      <div className="flex gap-1.5 mb-4 flex-wrap">
-        {TABS.map((t) => { const n = grupos.filter((g) => (fornById[g.fid]?.modeloPagamento || "LOTE_MENSAL") === t.k).length; return (
-          <button key={t.k} onClick={() => setTab(t.k)} className="text-[11px] font-medium px-3 py-1 rounded-full border" style={tab === t.k ? { background: "#009AAC", color: "#fff", borderColor: "#009AAC" } : { background: "#fff", color: "#4d5a66", borderColor: "#cfd8e0" }}>{t.label} ({n})</button>
-        ); })}
-      </div>
+        <div style={{ display: "flex", gap: 6, marginBottom: 16, flexWrap: "wrap" }}>
+          {TABS.map((t) => { const n = grupos.filter((g) => (fornById[g.fid]?.modeloPagamento || "LOTE_MENSAL") === t.k).length; return (
+            <button key={t.k} onClick={() => setTab(t.k)} style={{ fontSize: 11, fontWeight: 500, padding: "5px 12px", borderRadius: 999, cursor: "pointer", ...(tab === t.k ? { background: TEAL, color: "#fff", border: `1px solid ${TEAL}` } : { background: "#fff", color: TXT2, border: `1px solid ${LINE}` }) }}>{t.label} ({n})</button>
+          ); })}
+        </div>
 
-      {loading ? (
-        <div className="px-6 py-16 text-center text-sm text-[#94a3b8]">Carregando...</div>
-      ) : (modo === "custom" && !customIni && !customFim) ? (
-        <div className="bg-white border rounded-xl px-6 py-12 text-center text-sm text-[#94a3b8]" style={{ borderColor: "#e8dfc8" }}>Escolha as datas do período acima.</div>
-      ) : gruposTab.length === 0 ? (
-        <div className="bg-white border rounded-xl px-6 py-12 text-center text-sm text-[#94a3b8]" style={{ borderColor: "#e8dfc8" }}>Nenhum serviço de terceiros neste período/modo.</div>
-      ) : (
-        <div className="space-y-3">
-          {gruposTab.map((g) => {
-            const f = fornById[g.fid] || {}; const aberto = openCard === g.fid;
-            return (
-              <div key={g.fid} className="bg-white border rounded-2xl overflow-hidden" style={{ borderColor: "#e8dfc8" }}>
-                <div className="flex items-center gap-3 px-4 py-3">
-                  <button onClick={() => setOpenCard(aberto ? null : g.fid)} className="flex-1 min-w-0 text-left flex items-center gap-2">
-                    <LuChevronDown className={`w-4 h-4 text-[#94a3b8] transition ${aberto ? "rotate-180" : ""}`} />
-                    <div className="min-w-0">
-                      <div className="text-[14px] font-medium text-[#0E2244]">{f.nome || "Fornecedor"} <span className="text-[10px] bg-[#E6F1FB] text-[#0C447C] px-2 py-0.5 rounded-full ml-1">{MODELO_LABEL[f.modeloPagamento] || "Lote"}</span></div>
-                      <div className="text-[11.5px] text-[#888]">{g.itens.length} serviços · fechamento dia {f.diaFechamentoLote || "—"} · {g.allPago ? <span className="text-[#0F6E56]">tudo pago</span> : <span className="text-[#A32D2D]">{g.pend} pendentes</span>}</div>
+        {loading ? (
+          <div style={{ padding: "64px 24px", textAlign: "center", fontSize: 14, color: TXT3 }}>Carregando...</div>
+        ) : (modo === "custom" && !customIni && !customFim) ? (
+          <div style={{ background: "#fff", border: `1px solid ${LINE}`, borderRadius: 14, padding: "48px 24px", textAlign: "center", fontSize: 14, color: TXT3 }}>Escolha as datas do período acima.</div>
+        ) : gruposTab.length === 0 ? (
+          <div style={{ background: "#fff", border: `1px solid ${LINE}`, borderRadius: 14, padding: "48px 24px", textAlign: "center", fontSize: 14, color: TXT3 }}>Nenhum serviço de terceiros neste período/modo.</div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {gruposTab.map((g) => {
+              const f = fornById[g.fid] || {}; const aberto = openCard === g.fid;
+              return (
+                <div key={g.fid} style={{ background: "#fff", border: `1px solid ${LINE}`, borderRadius: 14, overflow: "hidden" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px" }}>
+                    <button onClick={() => setOpenCard(aberto ? null : g.fid)} style={{ flex: 1, minWidth: 0, textAlign: "left", display: "flex", alignItems: "center", gap: 8, border: "none", background: "none", cursor: "pointer" }}>
+                      <span style={{ fontSize: 12, color: TXT3, display: "inline-block", transition: "transform .2s", transform: aberto ? "rotate(180deg)" : "none" }}>▾</span>
+                      <span style={{ minWidth: 0 }}>
+                        <span style={{ display: "block", fontSize: 14, fontWeight: 500, color: NAVY }}>{f.nome || "Fornecedor"} <span style={{ fontSize: 10, background: TINT, color: NAVY, padding: "2px 8px", borderRadius: 999, marginLeft: 4 }}>{MODELO_LABEL[f.modeloPagamento] || "Lote"}</span></span>
+                        <span style={{ display: "block", fontSize: 11.5, color: TXT3 }}>{g.itens.length} serviços · fechamento dia {f.diaFechamentoLote || "—"} · {g.allPago ? <span style={{ color: GREEN }}>tudo pago</span> : <span style={{ color: CORAL }}>{g.pend} pendentes</span>}</span>
+                      </span>
+                    </button>
+                    <div style={{ textAlign: "right" }}>
+                      <div style={{ fontSize: 11, color: TXT3 }}>A pagar</div>
+                      <div style={{ fontSize: 15, fontWeight: 500, color: g.allPago ? GREEN : CORAL }}>{fmtBRL(g.pendCusto)}</div>
                     </div>
-                  </button>
-                  <div className="text-right">
-                    <div className="text-[11px] text-[#94a3b8]">A pagar</div>
-                    <div className="text-[15px] font-bold" style={{ color: g.allPago ? "#0F6E56" : "#854F0B" }}>{fmtBRL(g.pendCusto)}</div>
+                    {g.allPago ? (
+                      <button onClick={() => marcarPago(g)} title="Desfazer pagamento" style={{ fontSize: 11, color: GREEN, background: "#E1F5EE", border: "none", padding: "7px 12px", borderRadius: 9, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5 }}><span>✅</span>Pago</button>
+                    ) : (
+                      <button onClick={() => marcarPago(g)} style={{ fontSize: 11, color: "#fff", background: TEAL, border: "none", padding: "7px 12px", borderRadius: 9, cursor: "pointer" }}>Marcar pago</button>
+                    )}
                   </div>
-                  {g.allPago ? (
-                    <button onClick={() => marcarPago(g)} title="Desfazer pagamento" className="text-[11px] text-[#0F6E56] bg-[#E1F5EE] px-3 py-1.5 rounded-lg inline-flex items-center gap-1"><LuCheck className="w-3.5 h-3.5" />Pago</button>
-                  ) : (
-                    <button onClick={() => marcarPago(g)} className="text-[11px] text-white bg-[#009AAC] px-3 py-1.5 rounded-lg">Marcar pago</button>
+                  {aberto && (
+                    <div style={{ background: SOFT, borderTop: `1px solid ${DIV}` }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1.6fr 0.6fr 0.7fr 0.7fr", gap: 8, padding: "8px 16px", fontSize: 10.5, textTransform: "uppercase", letterSpacing: ".03em", color: TXT3, fontWeight: 500, borderBottom: `1px solid ${DIV}` }}>
+                        <span>Pet / Tutor</span><span>Exame</span><span>Data</span><span style={{ textAlign: "right" }}>Custo</span><span style={{ textAlign: "right" }}>Status</span>
+                      </div>
+                      {g.itens.map((e: any) => { const pg = examPago(e); return (
+                        <div key={e.id} style={{ display: "grid", gridTemplateColumns: "1.4fr 1.6fr 0.6fr 0.7fr 0.7fr", gap: 8, padding: "8px 16px", fontSize: 12, color: TXT, alignItems: "center", borderBottom: `1px solid ${DIV}` }}>
+                          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.petName}{e.tutorName ? ` · ${e.tutorName}` : ""}</span>
+                          <span style={{ color: TXT2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.nome}</span>
+                          <span style={{ color: TXT2 }}>{fmtDia(e.date)}</span>
+                          <span style={{ textAlign: "right" }}>{fmtBRL(e.custo)}</span>
+                          <span style={{ textAlign: "right" }}><span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 999, ...(pg ? { background: "#E1F5EE", color: GREEN } : { background: "#FCEBEB", color: "#A32D2D" }) }}>{pg ? "Pago" : "Pendente"}</span></span>
+                        </div>
+                      ); })}
+                    </div>
                   )}
                 </div>
-                {aberto && (
-                  <div style={{ background: "#fbfaf6", borderTop: "1px solid #f4eede" }}>
-                    <div className="grid grid-cols-[1.4fr_1.6fr_0.6fr_0.7fr_0.7fr] gap-2 px-4 py-2 text-[10px] uppercase text-[#94a3b8] border-b" style={{ borderColor: "#f4eede" }}>
-                      <span>Pet / Tutor</span><span>Exame</span><span>Data</span><span className="text-right">Custo</span><span className="text-right">Status</span>
-                    </div>
-                    {g.itens.map((e: any) => { const pg = examPago(e); return (
-                      <div key={e.id} className="grid grid-cols-[1.4fr_1.6fr_0.6fr_0.7fr_0.7fr] gap-2 px-4 py-2 text-[12px] text-[#0E2244] items-center border-b" style={{ borderColor: "#f4eede" }}>
-                        <span className="truncate">{e.petName}{e.tutorName ? ` · ${e.tutorName}` : ""}</span>
-                        <span className="text-[#5b6470] truncate">{e.nome}</span>
-                        <span className="text-[#5b6470]">{fmtDia(e.date)}</span>
-                        <span className="text-right">{fmtBRL(e.custo)}</span>
-                        <span className="text-right"><span className="text-[10px] px-2 py-0.5 rounded-full" style={pg ? { background: "#E1F5EE", color: "#0F6E56" } : { background: "#FCEBEB", color: "#A32D2D" }}>{pg ? "Pago" : "Pendente"}</span></span>
-                      </div>
-                    ); })}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

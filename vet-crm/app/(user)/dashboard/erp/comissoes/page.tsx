@@ -2,17 +2,20 @@
 
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import {
-  LuSearch,
-  LuPlus,
-  LuDownload,
-  LuUser,
-  LuCalendar,
-  LuDollarSign,
-  LuPencil,
-  LuEye,
-  LuTrash
-} from 'react-icons/lu';
+
+// Paleta Base44 "delicada" (mesmos tokens de caixa/page.tsx)
+const TEAL = '#009AAC';      // acento / botao primario
+const TEAL_DARK = '#014D5E'; // titulos / texto forte
+const ORANGE = '#D85A30';    // coral
+const GREEN = '#0f6e56';     // sucesso
+const BG = '#F6F2EA';        // fundo da pagina
+const SOFT = '#FBF9F4';      // areas suaves
+const TINT = '#E0F4F6';      // agua
+const LINE = '#E8E2D6';      // borda do cartao
+const DIV = '#F0EBE0';       // divisoria interna
+const TXT = '#1F2A2E';       // corpo
+const TXT2 = '#5C6B70';      // secundario
+const TXT3 = '#8A989D';      // dica / rotulo
 
 // Tipos para Comissões
 type CommissionStatus = 'PENDING' | 'PAID' | 'CANCELLED';
@@ -50,6 +53,11 @@ interface ApiResponse {
   };
 }
 
+const thStyle: React.CSSProperties = { color: TXT3, fontWeight: 500, fontSize: 11.5, textTransform: 'uppercase', letterSpacing: '.03em', padding: '10px 12px', borderBottom: `1px solid ${LINE}`, textAlign: 'left' };
+const tdStyle: React.CSSProperties = { padding: '13px 12px', borderBottom: `1px solid ${DIV}`, color: TXT };
+const cardStyle: React.CSSProperties = { background: '#fff', border: `1px solid ${LINE}`, borderRadius: 12, padding: '16px 18px' };
+const inp: React.CSSProperties = { width: '100%', padding: '10px 12px', border: `1px solid ${LINE}`, borderRadius: 9, fontSize: 13, fontFamily: 'inherit', color: TXT, background: '#fff', boxSizing: 'border-box' };
+
 export default function ComissoesPage() {
   const [commissions, setCommissions] = useState<Commission[]>([]);
   const [loading, setLoading] = useState(true);
@@ -76,7 +84,7 @@ export default function ComissoesPage() {
       params.append('limit', '1000');
       if (statusFilter !== 'all') params.append('status', statusFilter);
       if (professionalFilter !== 'all') params.append('userId', professionalFilter);
-      
+
       // Calcular datas baseado no range
       const endDate = new Date();
       const startDate = new Date();
@@ -89,13 +97,13 @@ export default function ComissoesPage() {
       } else if (dateRange === 'ano') {
         startDate.setFullYear(endDate.getFullYear(), 0, 1);
       }
-      
+
       params.append('startDate', startDate.toISOString());
       params.append('endDate', endDate.toISOString());
 
       const response = await fetch(`/api/commissions?${params.toString()}`);
       if (!response.ok) throw new Error('Erro ao carregar comissões');
-      
+
       const data: ApiResponse = await response.json();
       setCommissions(data.commissions || []);
     } catch (err) {
@@ -115,7 +123,7 @@ export default function ComissoesPage() {
 
   // Filtros
   const filteredCommissions = commissions.filter(commission => {
-    const matchesSearch = 
+    const matchesSearch =
       commission.professional.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       commission.service.toLowerCase().includes(searchTerm.toLowerCase()) ||
       commission.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -132,16 +140,16 @@ export default function ComissoesPage() {
     pendingCommissions: commissions.filter(c => c.status === 'PENDING').reduce((sum, c) => sum + c.commissionValue, 0),
     paidCommissions: commissions.filter(c => c.status === 'PAID').reduce((sum, c) => sum + c.commissionValue, 0),
     totalServices: commissions.length,
-    avgCommissionRate: commissions.length > 0 
+    avgCommissionRate: commissions.length > 0
       ? (commissions.reduce((sum, c) => sum + c.commissionRate, 0) / commissions.length).toFixed(1)
       : '0'
   };
 
-  const getStatusColor = (status: CommissionStatus) => {
+  const getStatusColor = (status: CommissionStatus): React.CSSProperties => {
     switch (status) {
-      case 'PAID': return 'bg-cyan-100 text-cyan-700 border-cyan-200';
-      case 'PENDING': return 'bg-orange-100 text-orange-700 border-orange-200';
-      case 'CANCELLED': return 'bg-red-100 text-red-700 border-red-200';
+      case 'PAID': return { background: '#e1f5ee', color: GREEN };
+      case 'PENDING': return { background: '#fef0e8', color: '#993C1D' };
+      case 'CANCELLED': return { background: '#fdecec', color: '#b23b2e' };
     }
   };
 
@@ -153,13 +161,13 @@ export default function ComissoesPage() {
     }
   };
 
-  const getTypeColor = (type: CommissionType) => {
+  const getTypeColor = (type: CommissionType): React.CSSProperties => {
     switch (type) {
-      case 'CONSULTATION': return 'bg-blue-100 text-blue-800';
-      case 'SURGERY': return 'bg-red-100 text-red-800';
-      case 'HOSPITALIZATION': return 'bg-purple-100 text-purple-800';
-      case 'SERVICE': return 'bg-cyan-100 text-cyan-800';
-      case 'PRODUCT': return 'bg-orange-100 text-orange-800';
+      case 'CONSULTATION': return { background: TINT, color: TEAL_DARK };
+      case 'SURGERY': return { background: '#fdecec', color: '#b23b2e' };
+      case 'HOSPITALIZATION': return { background: '#efeaf5', color: '#5b4a7a' };
+      case 'SERVICE': return { background: '#e1f5ee', color: GREEN };
+      case 'PRODUCT': return { background: '#fef0e8', color: '#993C1D' };
     }
   };
 
@@ -262,49 +270,62 @@ export default function ComissoesPage() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    
+
     toast.success('Relatório exportado com sucesso!');
   };
 
+  // KPI: card branco, rotulo pequeno cinza + numero grande marinho
+  const Kpi = ({ emoji, label, value }: { emoji: string; label: string; value: string }) => (
+    <div style={cardStyle}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
+        <span style={{ fontSize: 15 }}>{emoji}</span>
+        <span style={{ fontSize: 11, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '.03em', color: TXT3 }}>{label}</span>
+      </div>
+      <div style={{ fontSize: 24, fontWeight: 500, color: TEAL_DARK, lineHeight: 1.1 }}>{value}</div>
+    </div>
+  );
+
+  const btnSec: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 500, padding: '9px 14px', borderRadius: 9, cursor: 'pointer', border: `1px solid ${LINE}`, background: '#fff', color: TXT2 };
+
   if (loading && commissions.length === 0) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/10 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Carregando comissões...</p>
+      <div style={{ minHeight: '100%', background: BG, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div className="animate-spin" style={{ borderRadius: '50%', height: 44, width: 44, borderBottom: `2px solid ${TEAL}`, margin: '0 auto' }}></div>
+          <p style={{ marginTop: 16, color: TXT2 }}>Carregando comissões...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/10 w-full overflow-hidden">
-      <div className="p-6">
-        <div className="max-w-7xl mx-auto">
+    <div style={{ minHeight: '100%', background: BG, width: '100%' }}>
+      <div style={{ padding: '24px 26px 60px', boxSizing: 'border-box' }}>
+        <div style={{ maxWidth: 1280, margin: '0 auto' }}>
             {/* Header */}
-            <div className="mb-8">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div style={{ marginBottom: 26 }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
                 <div>
-                  <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-                    Comissões
+                  <h1 style={{ fontSize: 26, fontWeight: 500, color: TEAL_DARK, margin: 0, display: 'flex', alignItems: 'center', gap: 9 }}>
+                    <span style={{ fontSize: 24 }}>💵</span> Comissões
                   </h1>
-                  <p className="text-gray-600 mt-2">
+                  <p style={{ color: TXT2, marginTop: 6, fontSize: 13.5 }}>
                     Gerencie as comissões dos profissionais da clínica
                   </p>
                 </div>
-                <div className="flex gap-3">
+                <div style={{ display: 'flex', gap: 10 }}>
                   <button
                     onClick={exportToCSV}
-                    className="group px-6 py-3 text-sm font-semibold text-gray-700 bg-white/80 border border-gray-200/80 rounded-2xl hover:bg-white hover:border-gray-300 hover:shadow-lg transition-all duration-300 hover:scale-105 flex items-center space-x-2"
+                    style={btnSec}
                   >
-                    <LuDownload className="w-4 h-4" />
+                    <span style={{ fontSize: 14 }}>📊</span>
                     <span>Exportar</span>
                   </button>
                   <button
                     onClick={fetchCommissions}
-                    className="group px-6 py-3 text-sm font-semibold text-gray-700 bg-white/80 border border-gray-200/80 rounded-2xl hover:bg-white hover:border-gray-300 hover:shadow-lg transition-all duration-300 hover:scale-105 flex items-center space-x-2"
+                    style={btnSec}
                   >
-                    <span style={{fontSize:"14px"}}>↻</span>
+                    <span style={{ fontSize: 14 }}>↻</span>
                     <span>Atualizar</span>
                   </button>
                 </div>
@@ -313,102 +334,48 @@ export default function ComissoesPage() {
 
             {/* Error Message */}
             {error && (
-              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-2xl text-red-700">
-                {error}
-                <button 
+              <div style={{ marginBottom: 24, padding: 16, background: '#fdecec', border: '1px solid #f2cfca', borderRadius: 12, color: '#b23b2e', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+                <span>{error}</span>
+                <button
                   onClick={() => setError(null)}
-                  className="float-right text-red-500 hover:text-red-700"
+                  style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#b23b2e', fontSize: 14, lineHeight: 1 }}
                 >
-                  <span style={{fontSize:"14px"}}>✕</span>
+                  <span style={{ fontSize: 14 }}>✕</span>
                 </button>
               </div>
             )}
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-              <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-blue-500/5 p-6 hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-300 hover:scale-105">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 rounded-xl bg-gray-50">
-                    <LuDollarSign className="w-6 h-6 text-gray-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-600">Total Comissões</p>
-                    <p className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">{formatCurrency(stats.totalCommissions)}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-blue-500/5 p-6 hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-300 hover:scale-105">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 rounded-xl bg-cyan-50">
-                    <span style={{fontSize:"14px"}}>✓</span>
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-600">Pagas</p>
-                    <p className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">{formatCurrency(stats.paidCommissions)}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-blue-500/5 p-6 hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-300 hover:scale-105">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 rounded-xl bg-orange-50">
-                    <span style={{fontSize:"14px"}}>⏱</span>
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-600">Pendentes</p>
-                    <p className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">{formatCurrency(stats.pendingCommissions)}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-blue-500/5 p-6 hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-300 hover:scale-105">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 rounded-xl bg-blue-50">
-                    <LuCalendar className="w-6 h-6 text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-600">Total Serviços</p>
-                    <p className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">{stats.totalServices}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-blue-500/5 p-6 hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-300 hover:scale-105">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 rounded-xl bg-purple-50">
-                    <span style={{fontSize:"14px"}}>%</span>
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-600">Taxa Média</p>
-                    <p className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">{stats.avgCommissionRate}%</p>
-                  </div>
-                </div>
-              </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5" style={{ gap: 16, marginBottom: 26 }}>
+              <Kpi emoji="💵" label="Total Comissões" value={formatCurrency(stats.totalCommissions)} />
+              <Kpi emoji="✅" label="Pagas" value={formatCurrency(stats.paidCommissions)} />
+              <Kpi emoji="⏳" label="Pendentes" value={formatCurrency(stats.pendingCommissions)} />
+              <Kpi emoji="📋" label="Total Serviços" value={String(stats.totalServices)} />
+              <Kpi emoji="📊" label="Taxa Média" value={`${stats.avgCommissionRate}%`} />
             </div>
 
             {/* Filtros */}
-            <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-blue-500/5 p-6 mb-6">
-              <div className="flex flex-col lg:flex-row gap-4">
+            <div style={{ ...cardStyle, marginBottom: 24 }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, alignItems: 'center' }}>
                 {/* Busca */}
-                <div className="flex-1 relative">
-                  <LuSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <div style={{ position: 'relative', flex: '1 1 240px', minWidth: 200 }}>
+                  <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 14, opacity: .7 }}>🔍</span>
                   <input
                     type="text"
                     placeholder="Buscar por profissional, serviço ou cliente..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-12 pr-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                    style={{ ...inp, paddingLeft: 36 }}
                   />
                 </div>
 
                 {/* Filtro Profissional */}
-                <div className="flex items-center gap-2">
-                  <LuUser className="text-gray-400 w-5 h-5" />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 15 }}>👤</span>
                   <select
                     value={professionalFilter}
                     onChange={(e) => setProfessionalFilter(e.target.value)}
-                    className="px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                    style={{ ...inp, width: 'auto' }}
                   >
                     <option value="all">Todos Profissionais</option>
                     {professionals.map(p => (
@@ -418,12 +385,12 @@ export default function ComissoesPage() {
                 </div>
 
                 {/* Filtro Status */}
-                <div className="flex items-center gap-2">
-                  <span style={{fontSize:"14px"}}>⌕</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 15 }}>🏷️</span>
                   <select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value as CommissionStatus | 'all')}
-                    className="px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                    style={{ ...inp, width: 'auto' }}
                   >
                     <option value="all">Todos Status</option>
                     <option value="PAID">Pago</option>
@@ -433,15 +400,15 @@ export default function ComissoesPage() {
                 </div>
 
                 {/* Filtro Período */}
-                <div className="flex items-center gap-2">
-                  <LuCalendar className="text-gray-400 w-5 h-5" />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 15 }}>📅</span>
                   <select
                     value={dateRange}
                     onChange={(e) => {
                       setDateRange(e.target.value);
                       fetchCommissions();
                     }}
-                    className="px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                    style={{ ...inp, width: 'auto' }}
                   >
                     <option value="7dias">Últimos 7 dias</option>
                     <option value="30dias">Últimos 30 dias</option>
@@ -454,82 +421,79 @@ export default function ComissoesPage() {
 
             {/* Tabela de Comissões */}
             {filteredCommissions.length === 0 && !loading ? (
-              <div className="flex flex-col items-center justify-center py-20 bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl">
-                <span style={{fontSize:"14px"}}>%</span>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">Nenhuma comissão encontrada</h3>
-                <p className="text-gray-500 text-center max-w-md">
+              <div style={{ ...cardStyle, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '64px 20px', textAlign: 'center' }}>
+                <span style={{ fontSize: 34 }}>💵</span>
+                <h3 style={{ fontSize: 18, fontWeight: 500, color: TEAL_DARK, margin: '14px 0 6px' }}>Nenhuma comissão encontrada</h3>
+                <p style={{ color: TXT2, maxWidth: 420, fontSize: 13.5 }}>
                   {searchTerm || statusFilter !== 'all' || professionalFilter !== 'all'
                     ? 'Tente ajustar os filtros para encontrar as comissões desejadas.'
                     : 'As comissões aparecerão aqui quando houver agendamentos com pagamentos.'}
                 </p>
               </div>
             ) : (
-              <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-blue-500/5 overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
+              <div style={{ background: '#fff', border: `1px solid ${LINE}`, borderRadius: 12, overflow: 'hidden' }}>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                     <thead>
-                      <tr className="bg-gradient-to-r from-gray-50 to-gray-100/50 border-b border-white/20">
-                        <th className="text-left p-6 font-semibold text-gray-700">Profissional</th>
-                        <th className="text-left p-6 font-semibold text-gray-700">Serviço</th>
-                        <th className="text-left p-6 font-semibold text-gray-700">Cliente / Pet</th>
-                        <th className="text-left p-6 font-semibold text-gray-700">Valor Total</th>
-                        <th className="text-left p-6 font-semibold text-gray-700">Taxa</th>
-                        <th className="text-left p-6 font-semibold text-gray-700">Comissão</th>
-                        <th className="text-left p-6 font-semibold text-gray-700">Status</th>
-                        <th className="text-left p-6 font-semibold text-gray-700">Data</th>
-                        <th className="text-left p-6 font-semibold text-gray-700">Ações</th>
+                      <tr>
+                        <th style={thStyle}>Profissional</th>
+                        <th style={thStyle}>Serviço</th>
+                        <th style={thStyle}>Cliente / Pet</th>
+                        <th style={thStyle}>Valor Total</th>
+                        <th style={thStyle}>Taxa</th>
+                        <th style={thStyle}>Comissão</th>
+                        <th style={thStyle}>Status</th>
+                        <th style={thStyle}>Data</th>
+                        <th style={thStyle}>Ações</th>
                       </tr>
                     </thead>
                     <tbody>
                       {filteredCommissions.map((commission) => (
-                        <tr 
-                          key={commission.id}
-                          className="border-b border-white/20 hover:bg-gray-50/50 transition-all duration-300"
-                        >
-                          <td className="p-6">
+                        <tr key={commission.id}>
+                          <td style={tdStyle}>
                             <div>
-                              <p className="font-semibold text-gray-900">{commission.professional.name}</p>
-                              <p className="text-sm text-gray-500">{commission.professional.role}</p>
+                              <p style={{ fontWeight: 500, color: TXT, margin: 0 }}>{commission.professional.name}</p>
+                              <p style={{ fontSize: 12, color: TXT3, margin: '2px 0 0' }}>{commission.professional.role}</p>
                             </div>
                           </td>
-                          <td className="p-6">
+                          <td style={tdStyle}>
                             <div>
-                              <p className="text-gray-900">{commission.service}</p>
-                              <span className={`inline-flex mt-1 px-2 py-0.5 text-xs rounded-full ${getTypeColor(commission.serviceType)}`}>
+                              <p style={{ color: TXT, margin: 0 }}>{commission.service}</p>
+                              <span style={{ display: 'inline-flex', marginTop: 4, padding: '3px 9px', fontSize: 11, borderRadius: 999, ...getTypeColor(commission.serviceType) }}>
                                 {getTypeText(commission.serviceType)}
                               </span>
                             </div>
                           </td>
-                          <td className="p-6">
+                          <td style={tdStyle}>
                             <div>
-                              <p className="text-gray-900">{commission.clientName}</p>
-                              <p className="text-sm text-gray-500">{commission.petName}</p>
+                              <p style={{ color: TXT, margin: 0 }}>{commission.clientName}</p>
+                              <p style={{ fontSize: 12, color: TXT3, margin: '2px 0 0' }}>{commission.petName}</p>
                             </div>
                           </td>
-                          <td className="p-6">
-                            <p className="text-gray-900 font-medium">{formatCurrency(commission.totalValue)}</p>
+                          <td style={tdStyle}>
+                            <p style={{ color: TXT, fontWeight: 500, margin: 0 }}>{formatCurrency(commission.totalValue)}</p>
                           </td>
-                          <td className="p-6">
-                            <p className="text-blue-600 font-medium">{commission.commissionRate}%</p>
+                          <td style={tdStyle}>
+                            <p style={{ color: TEAL, fontWeight: 500, margin: 0 }}>{commission.commissionRate}%</p>
                           </td>
-                          <td className="p-6">
-                            <p className="text-cyan-600 font-bold">{formatCurrency(commission.commissionValue)}</p>
+                          <td style={tdStyle}>
+                            <p style={{ color: TEAL_DARK, fontWeight: 500, margin: 0 }}>{formatCurrency(commission.commissionValue)}</p>
                           </td>
-                          <td className="p-6">
-                            <span className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full border ${getStatusColor(commission.status)}`}>
+                          <td style={tdStyle}>
+                            <span style={{ display: 'inline-flex', padding: '3px 10px', fontSize: 11, fontWeight: 500, borderRadius: 999, ...getStatusColor(commission.status) }}>
                               {getStatusText(commission.status)}
                             </span>
                           </td>
-                          <td className="p-6">
-                            <p className="text-gray-600">{formatDate(commission.serviceDate)}</p>
+                          <td style={tdStyle}>
+                            <p style={{ color: TXT2, margin: 0 }}>{formatDate(commission.serviceDate)}</p>
                           </td>
-                          <td className="p-6">
+                          <td style={tdStyle}>
                             <button
                               onClick={() => openCommissionDetails(commission)}
-                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-xl transition-colors"
+                              style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 4, fontSize: 15, lineHeight: 1 }}
                               title="Ver detalhes"
                             >
-                              <LuEye className="w-4 h-4" />
+                              <span>👁️</span>
                             </button>
                           </td>
                         </tr>
@@ -539,8 +503,8 @@ export default function ComissoesPage() {
                 </div>
 
                 {/* Footer da tabela */}
-                <div className="flex flex-col sm:flex-row justify-between items-center p-6 border-t border-white/20 bg-gradient-to-r from-gray-50 to-gray-100/50">
-                  <div className="text-sm text-gray-600 mb-4 sm:mb-0">
+                <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', borderTop: `1px solid ${LINE}`, background: SOFT }}>
+                  <div style={{ fontSize: 12.5, color: TXT2 }}>
                     Mostrando {filteredCommissions.length} de {commissions.length} comissões
                   </div>
                 </div>
@@ -551,111 +515,114 @@ export default function ComissoesPage() {
 
       {/* Modal de Detalhes */}
       {isModalOpen && selectedCommission && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex items-start justify-between">
+        <div
+          onClick={(e) => { if (e.target === e.currentTarget) setIsModalOpen(false); }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(1,43,46,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 16 }}
+        >
+          <div style={{ background: SOFT, border: `1px solid ${LINE}`, borderRadius: 16, width: '100%', maxWidth: 480, maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ padding: '16px 20px', borderBottom: `1px solid ${DIV}` }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
                 <div>
-                  <h2 className="text-xl font-bold text-gray-900">Detalhes da Comissão</h2>
-                  <p className="text-gray-500">#{selectedCommission.id.slice(0, 8)}...</p>
+                  <h2 style={{ fontSize: 17, fontWeight: 500, color: TEAL_DARK, margin: 0 }}>Detalhes da Comissão</h2>
+                  <p style={{ color: TXT3, fontSize: 12.5, margin: '3px 0 0' }}>#{selectedCommission.id.slice(0, 8)}...</p>
                 </div>
                 <button
                   onClick={() => setIsModalOpen(false)}
-                  className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
+                  style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, color: TXT3, lineHeight: 1 }}
                 >
-                  <span style={{fontSize:"14px"}}>✕</span>
+                  <span style={{ fontSize: 15 }}>✕</span>
                 </button>
               </div>
             </div>
 
-            <div className="p-6 space-y-6">
+            <div style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 20 }}>
               {/* Profissional */}
-              <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
-                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                  <LuUser className="w-6 h-6 text-blue-600" />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: 14, background: '#fff', border: `1px solid ${LINE}`, borderRadius: 12 }}>
+                <div style={{ width: 46, height: 46, background: TINT, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>
+                  <span>👤</span>
                 </div>
                 <div>
-                  <p className="font-semibold text-gray-900">{selectedCommission.professional.name}</p>
-                  <p className="text-sm text-gray-500">{selectedCommission.professional.role}</p>
+                  <p style={{ fontWeight: 500, color: TXT, margin: 0 }}>{selectedCommission.professional.name}</p>
+                  <p style={{ fontSize: 12.5, color: TXT3, margin: '2px 0 0' }}>{selectedCommission.professional.role}</p>
                 </div>
               </div>
 
               {/* Status */}
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600">Status</span>
-                <span className={`px-3 py-1.5 text-sm font-medium rounded-full border ${getStatusColor(selectedCommission.status)}`}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ color: TXT2, fontSize: 13 }}>Status</span>
+                <span style={{ display: 'inline-flex', padding: '5px 12px', fontSize: 12.5, fontWeight: 500, borderRadius: 999, ...getStatusColor(selectedCommission.status) }}>
                   {getStatusText(selectedCommission.status)}
                 </span>
               </div>
 
               {/* Serviço */}
               <div>
-                <h3 className="text-sm font-medium text-gray-600 mb-2">Serviço</h3>
-                <p className="text-gray-900">{selectedCommission.service}</p>
-                <span className={`inline-flex mt-2 px-2 py-0.5 text-xs rounded-full ${getTypeColor(selectedCommission.serviceType)}`}>
+                <h3 style={{ fontSize: 12.5, fontWeight: 500, color: TXT3, margin: '0 0 6px' }}>Serviço</h3>
+                <p style={{ color: TXT, margin: 0 }}>{selectedCommission.service}</p>
+                <span style={{ display: 'inline-flex', marginTop: 8, padding: '3px 10px', fontSize: 11, borderRadius: 999, ...getTypeColor(selectedCommission.serviceType) }}>
                   {getTypeText(selectedCommission.serviceType)}
                 </span>
               </div>
 
               {/* Cliente e Pet */}
-              <div className="grid grid-cols-2 gap-4">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                 <div>
-                  <h3 className="text-sm font-medium text-gray-600 mb-1">Cliente</h3>
-                  <p className="text-gray-900">{selectedCommission.clientName}</p>
+                  <h3 style={{ fontSize: 12.5, fontWeight: 500, color: TXT3, margin: '0 0 4px' }}>Cliente</h3>
+                  <p style={{ color: TXT, margin: 0 }}>{selectedCommission.clientName}</p>
                 </div>
                 <div>
-                  <h3 className="text-sm font-medium text-gray-600 mb-1">Pet</h3>
-                  <p className="text-gray-900">{selectedCommission.petName}</p>
+                  <h3 style={{ fontSize: 12.5, fontWeight: 500, color: TXT3, margin: '0 0 4px' }}>Pet</h3>
+                  <p style={{ color: TXT, margin: 0 }}>{selectedCommission.petName}</p>
                 </div>
               </div>
 
               {/* Valores */}
-              <div className="space-y-3 pt-4 border-t border-gray-200">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Valor do Serviço</span>
-                  <span className="text-gray-900 font-medium">{formatCurrency(selectedCommission.totalValue)}</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingTop: 16, borderTop: `1px solid ${DIV}` }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: TXT2, fontSize: 13 }}>Valor do Serviço</span>
+                  <span style={{ color: TXT, fontWeight: 500 }}>{formatCurrency(selectedCommission.totalValue)}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Taxa de Comissão</span>
-                  <span className="text-blue-600 font-medium">{selectedCommission.commissionRate}%</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: TXT2, fontSize: 13 }}>Taxa de Comissão</span>
+                  <span style={{ color: TEAL, fontWeight: 500 }}>{selectedCommission.commissionRate}%</span>
                 </div>
-                <div className="flex justify-between pt-3 border-t border-gray-200">
-                  <span className="text-gray-900 font-semibold">Valor da Comissão</span>
-                  <span className="text-cyan-600 font-bold text-lg">{formatCurrency(selectedCommission.commissionValue)}</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 12, borderTop: `1px solid ${DIV}` }}>
+                  <span style={{ color: TEAL_DARK, fontWeight: 500 }}>Valor da Comissão</span>
+                  <span style={{ color: TEAL_DARK, fontWeight: 500, fontSize: 17 }}>{formatCurrency(selectedCommission.commissionValue)}</span>
                 </div>
               </div>
 
               {/* Datas */}
-              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-200">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, paddingTop: 16, borderTop: `1px solid ${DIV}` }}>
                 <div>
-                  <h3 className="text-sm font-medium text-gray-600 mb-1">Data do Serviço</h3>
-                  <p className="text-gray-900">{formatDate(selectedCommission.serviceDate)}</p>
+                  <h3 style={{ fontSize: 12.5, fontWeight: 500, color: TXT3, margin: '0 0 4px' }}>Data do Serviço</h3>
+                  <p style={{ color: TXT, margin: 0 }}>{formatDate(selectedCommission.serviceDate)}</p>
                 </div>
                 {selectedCommission.paymentDate && (
                   <div>
-                    <h3 className="text-sm font-medium text-gray-600 mb-1">Data do Pagamento</h3>
-                    <p className="text-gray-900">{formatDate(selectedCommission.paymentDate)}</p>
+                    <h3 style={{ fontSize: 12.5, fontWeight: 500, color: TXT3, margin: '0 0 4px' }}>Data do Pagamento</h3>
+                    <p style={{ color: TXT, margin: 0 }}>{formatDate(selectedCommission.paymentDate)}</p>
                   </div>
                 )}
               </div>
 
               {/* Ações */}
-              <div className="pt-4 border-t border-gray-200 space-y-2">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 16, borderTop: `1px solid ${DIV}` }}>
                 {selectedCommission.status === 'PENDING' && (
                   <button
                     onClick={() => handleMarkAsPaid(selectedCommission)}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-cyan-600 to-green-600 hover:from-cyan-500 hover:to-green-500 text-white rounded-xl font-semibold transition-all"
+                    style={{ width: '100%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '11px', background: TEAL, color: '#fff', border: 'none', borderRadius: 9, fontWeight: 500, cursor: 'pointer' }}
                   >
-                    <span style={{fontSize:"14px"}}>✓</span>
+                    <span style={{ fontSize: 14 }}>✅</span>
                     Marcar como Pago
                   </button>
                 )}
                 {selectedCommission.status !== 'CANCELLED' && (
                   <button
                     onClick={() => handleDeleteCommission(selectedCommission)}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold transition-all"
+                    style={{ width: '100%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '11px', background: '#fff', color: ORANGE, border: `1px solid ${ORANGE}`, borderRadius: 9, fontWeight: 500, cursor: 'pointer' }}
                   >
-                    <LuTrash className="w-5 h-5" />
+                    <span style={{ fontSize: 14 }}>🗑️</span>
                     Cancelar Comissão
                   </button>
                 )}
