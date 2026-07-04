@@ -1,120 +1,104 @@
 "use client";
-import { confirmDelete } from "@/lib/ui/confirmDelete";
 /* ─────────────────────────────────────────────────────────────
-   EMPÓRIO DO PET · versão Cintia + Claude (Cowork)   [EMP-COWORK]
-   Tela........: Perfis e Permissões  (configuracoes/permissoes)
-   Atualizado..: 06/06/2026 — Cintia + Claude
-   ✔ Salvar SEMPRE no main (é a versão que publica).
-   ✔ Backup periódico ativo.
-   ⚠ NÃO sobrescrever por "Add files via upload".
-     Toda mudança = commit pequeno e direto. Em dúvida, perguntar.
-   ─────────────────────────────────────────────────────────────
-   ETAPA 1 (atualizada 07/06 c/ Financeiro+Marketing+IA): tela + persistência (em /api/listas). NÃO está ligada
-   ao menu nem bloqueia acesso ainda — isso é a Etapa 2/3.
+   EMPÓRIO DO PET · Perfis e Permissões  (configuracoes/permissoes)
+   Reescrita usando o KIT "Base44 delicada" (@/components/ui/base44)
+   e a base compartilhada de telas/chaves (@/lib/permissions).
+   A árvore de telas e as chaves (key = href) vêm de lá — não duplicar.
+   Persistência: /api/listas (perfis_acesso + permissoes_acesso).
    ───────────────────────────────────────────────────────────── */
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { LuArrowLeft, LuPlus, LuTrash, LuCheck } from "react-icons/lu";
-import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import toast from "react-hot-toast";
-
-const LISTA_PERFIS = "perfis_acesso";
-const LISTA_PERM = "permissoes_acesso";
-
-const TELAS: { key: string; label: string }[] = [
-  { key: "hoje", label: "Hoje" },
-  { key: "dashboard", label: "Dashboard" },
-  { key: "inbox", label: "Inbox BC" },
-  { key: "inbox-nativo", label: "Inbox Meta" },
-  { key: "leads", label: "Leads" },
-  { key: "tutores", label: "Tutores" },
-  { key: "pets", label: "Pets" },
-  { key: "agendamentos", label: "Calendário" },
-  { key: "internacao", label: "Internação" },
-  { key: "financeiro", label: "Financeiro (Fin. Terceiros)" },
-  { key: "mkt-funil", label: "Marketing · Funil Semana" },
-  { key: "mkt-googleads", label: "Marketing · Google Ads" },
-  { key: "mkt-nps", label: "Marketing · NPS" },
-  { key: "mkt-google", label: "Marketing · Aval. Google" },
-  { key: "mkt-campanhas", label: "Marketing · Campanhas" },
-  { key: "mkt-midia", label: "Marketing · Mídia" },
-  { key: "mkt-emails", label: "Marketing · Emails" },
-  { key: "ia", label: "IA / Atendimento" },
-  { key: "configuracoes", label: "Configurações" },
-];
-
-const NIVEIS = ["OCULTO", "VISUALIZA", "EDITA"] as const;
-type Nivel = (typeof NIVEIS)[number];
-const NIVEL_LABEL: Record<Nivel, string> = { OCULTO: "Oculto", VISUALIZA: "Visualiza", EDITA: "Edita" };
-const PERFIS_SISTEMA = ["Admin", "Veterinário", "Recepção"];
-
-function matrizPadrao(perfil: string): Record<string, Nivel> {
-  const m: Record<string, Nivel> = {};
-  for (const t of TELAS) m[t.key] = "OCULTO";
-  if (perfil === "Admin") {
-    for (const t of TELAS) m[t.key] = "EDITA";
-    m["internacao"] = "VISUALIZA";
-  } else if (perfil === "Veterinário") {
-    ["hoje", "dashboard", "inbox", "inbox-nativo", "tutores", "pets", "agendamentos"].forEach(k => (m[k] = "EDITA"));
-    m["internacao"] = "EDITA";
-  } else if (perfil === "Recepção") {
-    ["hoje", "dashboard", "inbox", "inbox-nativo", "leads", "tutores", "pets", "agendamentos"].forEach(k => (m[k] = "EDITA"));
-    m["internacao"] = "VISUALIZA";
-  }
-  return m;
-}
+import { usePageTitle } from "@/lib/ui/PageHeaderContext";
+import { confirmDelete } from "@/lib/ui/confirmDelete";
+import { PageShell, HeaderCard, Card, Btn, Pill, Tabs, Modal, B44 } from "@/components/ui/base44";
+import {
+  PERM_SECTIONS, PermItem, Nivel, NIVEIS, NIVEL_LABEL,
+  LISTA_PERFIS, LISTA_PERM, PERFIS_SISTEMA, LOCKED_KEYS,
+  matrizPadrao, nivelDe,
+} from "@/lib/permissions";
 
 interface ListaItem { id: string; lista: string; valor: string; ordem?: number; ativo?: boolean; }
 interface Perfil { id: string; nome: string; sistema: boolean; }
 
-const COR_NIVEL: Record<Nivel, { bg: string; fg: string }> = {
-  OCULTO: { bg: "#F1EFE8", fg: "#5F5E5A" },
-  VISUALIZA: { bg: "#E6F1FB", fg: "#0C447C" },
-  EDITA: { bg: "#E1F5EE", fg: "#0F6E56" },
+/* Emoji do tab por perfil (personalizados ficam sem emoji). */
+const PERFIL_EMOJI: Record<string, string> = { Admin: "👑", "Veterinário": "🩺", "Recepção": "💁" };
+const perfilLabel = (nome: string) => (PERFIL_EMOJI[nome] ? `${PERFIL_EMOJI[nome]} ${nome}` : nome);
+
+/* Rótulos das linhas travadas (não configuráveis). */
+const LOCKED_LABEL: Record<string, { emoji: string; label: string }> = {
+  "/dashboard/configuracoes": { emoji: "⚙️", label: "Configuração" },
+  "/dashboard/configuracoes/permissoes": { emoji: "🔐", label: "Perfis e Permissões" },
 };
 
+/* Cor do botão ativo do controle segmentado, por nível. */
+const NIVEL_ATIVO: Record<Nivel, { bg: string; fg: string; weight: number }> = {
+  OCULTO: { bg: "#F1EFE8", fg: "#5F5E5A", weight: 500 },
+  VISUALIZA: { bg: "#E6F1FB", fg: "#0C447C", weight: 500 },
+  EDITA: { bg: "#E7F6EE", fg: "#1c7a47", weight: 600 },
+};
+
+/* ── Controle segmentado (Oculto / Visualiza / Edita) ─────────── */
+function Seg({
+  value, onChange, mini = false, label,
+}: {
+  value: Nivel | null; onChange: (n: Nivel) => void; mini?: boolean; label?: string;
+}) {
+  return (
+    <div className="inline-flex items-center gap-1.5">
+      {label && <span className="text-[11px]" style={{ color: B44.text3 }}>{label}</span>}
+      <div
+        className="inline-flex"
+        style={{ background: B44.soft, border: `1px solid ${B44.line}`, borderRadius: 10, padding: 3, gap: 2 }}
+      >
+        {NIVEIS.map((n) => {
+          const on = value === n;
+          const c = NIVEL_ATIVO[n];
+          return (
+            <button
+              key={n}
+              type="button"
+              onClick={() => onChange(n)}
+              className="transition"
+              style={{
+                borderRadius: 8,
+                padding: mini ? "2px 8px" : "4px 11px",
+                fontSize: mini ? 11 : 12,
+                fontWeight: on ? c.weight : 500,
+                background: on ? c.bg : "transparent",
+                color: on ? c.fg : B44.text3,
+                whiteSpace: "nowrap",
+              }}
+            >
+              {NIVEL_LABEL[n]}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* Nível uniforme de um grupo (ou null se os filhos divergem). */
+function nivelGrupo(matriz: Record<string, Nivel>, children: PermItem[]): Nivel | null {
+  const first = nivelDe(matriz, children[0].key);
+  return children.every((c) => nivelDe(matriz, c.key) === first) ? first : null;
+}
+
 export default function PermissoesPage() {
-  usePageTitle("Perfis e Permissões", "Defina o que cada perfil enxerga e edita em cada tela (Etapa 1 — ainda não bloqueia)");
+  usePageTitle("Perfis e Permissões", "Escolha, item por item, o que cada perfil enxerga e edita");
+
   const [perfis, setPerfis] = useState<Perfil[]>([]);
   const [matrizes, setMatrizes] = useState<Record<string, Record<string, Nivel>>>({});
+  const [permIds, setPermIds] = useState<Record<string, string>>({});
+  const [active, setActive] = useState<string>("");
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [dirty, setDirty] = useState(false);
-  // id do ListaItem de permissões por nome de perfil (pra PATCH)
-  const [permIds, setPermIds] = useState<Record<string, string>>({});
 
-  async function load() {
-    setLoading(true);
-    try {
-      const all: ListaItem[] = await fetch("/api/listas?includeInactive=true", { cache: "no-store" }).then(r => r.json()).then(d => (Array.isArray(d) ? d : []));
-      let perfilItems = all.filter(i => i.lista === LISTA_PERFIS);
-      let permItems = all.filter(i => i.lista === LISTA_PERM);
-
-      // Primeira vez: semear os 3 perfis do sistema + matriz padrão
-      if (perfilItems.length === 0) {
-        await semear();
-        const all2: ListaItem[] = await fetch("/api/listas?includeInactive=true", { cache: "no-store" }).then(r => r.json()).then(d => (Array.isArray(d) ? d : []));
-        perfilItems = all2.filter(i => i.lista === LISTA_PERFIS);
-        permItems = all2.filter(i => i.lista === LISTA_PERM);
-      }
-
-      const ps: Perfil[] = perfilItems.map(i => {
-        let nome = i.valor, sistema = false;
-        try { const o = JSON.parse(i.valor); nome = o.nome; sistema = !!o.sistema; } catch { nome = i.valor; sistema = PERFIS_SISTEMA.includes(i.valor); }
-        return { id: i.id, nome, sistema };
-      }).sort((a, b) => Number(b.sistema) - Number(a.sistema));
-
-      const mz: Record<string, Record<string, Nivel>> = {};
-      const ids: Record<string, string> = {};
-      for (const p of ps) {
-        const row = permItems.find(i => { try { return JSON.parse(i.valor).perfil === p.nome; } catch { return false; } });
-        if (row) { ids[p.nome] = row.id; try { mz[p.nome] = { ...matrizPadrao(p.nome), ...JSON.parse(row.valor).matriz }; } catch { mz[p.nome] = matrizPadrao(p.nome); } }
-        else mz[p.nome] = matrizPadrao(p.nome);
-      }
-      setPerfis(ps); setMatrizes(mz); setPermIds(ids); setDirty(false);
-    } catch (e) { toast.error("Erro ao carregar permissões"); }
-    finally { setLoading(false); }
+  async function fetchAll(): Promise<ListaItem[]> {
+    const d = await fetch("/api/listas?includeInactive=true", { cache: "no-store" }).then((r) => r.json());
+    return Array.isArray(d) ? d : [];
   }
 
   async function semear() {
@@ -125,22 +109,80 @@ export default function PermissoesPage() {
     }
   }
 
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+  async function load() {
+    setLoading(true);
+    try {
+      let all = await fetchAll();
+      let perfilItems = all.filter((i) => i.lista === LISTA_PERFIS);
+      let permItems = all.filter((i) => i.lista === LISTA_PERM);
 
-  function setNivel(perfil: string, tela: string, nivel: Nivel) {
-    setMatrizes(prev => ({ ...prev, [perfil]: { ...prev[perfil], [tela]: nivel } }));
-    setDirty(true);
+      if (perfilItems.length === 0) {
+        await semear();
+        all = await fetchAll();
+        perfilItems = all.filter((i) => i.lista === LISTA_PERFIS);
+        permItems = all.filter((i) => i.lista === LISTA_PERM);
+      }
+
+      const ps: Perfil[] = perfilItems
+        .map((i) => {
+          let nome = i.valor, sistema = false;
+          try { const o = JSON.parse(i.valor); nome = o.nome; sistema = !!o.sistema; }
+          catch { nome = i.valor; sistema = PERFIS_SISTEMA.includes(i.valor); }
+          return { id: i.id, nome, sistema };
+        })
+        .sort((a, b) => Number(b.sistema) - Number(a.sistema));
+
+      const mz: Record<string, Record<string, Nivel>> = {};
+      const ids: Record<string, string> = {};
+      for (const p of ps) {
+        const row = permItems.find((i) => { try { return JSON.parse(i.valor).perfil === p.nome; } catch { return false; } });
+        if (row) {
+          ids[p.nome] = row.id;
+          try { mz[p.nome] = { ...matrizPadrao(p.nome), ...JSON.parse(row.valor).matriz }; }
+          catch { mz[p.nome] = matrizPadrao(p.nome); }
+        } else {
+          mz[p.nome] = matrizPadrao(p.nome);
+        }
+      }
+
+      setPerfis(ps);
+      setMatrizes(mz);
+      setPermIds(ids);
+      setActive((cur) => (cur && ps.some((p) => p.nome === cur) ? cur : ps[0]?.nome || ""));
+    } catch {
+      toast.error("Erro ao carregar permissões");
+    } finally {
+      setLoading(false);
+    }
   }
+
+  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+
+  function setNivel(perfil: string, key: string, nivel: Nivel) {
+    setMatrizes((prev) => ({ ...prev, [perfil]: { ...(prev[perfil] || matrizPadrao(perfil)), [key]: nivel } }));
+  }
+
+  function setGrupo(perfil: string, children: PermItem[], nivel: Nivel) {
+    setMatrizes((prev) => {
+      const base = { ...(prev[perfil] || matrizPadrao(perfil)) };
+      for (const c of children) base[c.key] = nivel;
+      return { ...prev, [perfil]: base };
+    });
+  }
+
+  const toggleGroup = (key: string) => setOpenGroups((p) => ({ ...p, [key]: p[key] === undefined ? false : !p[key] }));
+  const isOpen = (key: string) => openGroups[key] !== false; // começa aberto
 
   async function novoPerfil() {
     const nome = window.prompt("Nome do novo perfil (ex: Financeiro, Estagiário):");
     if (!nome || !nome.trim()) return;
     const n = nome.trim();
-    if (perfis.some(p => p.nome.toLowerCase() === n.toLowerCase())) { toast.error("Já existe um perfil com esse nome"); return; }
+    if (perfis.some((p) => p.nome.toLowerCase() === n.toLowerCase())) { toast.error("Já existe um perfil com esse nome"); return; }
     try {
       await fetch("/api/listas", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lista: LISTA_PERFIS, valor: JSON.stringify({ nome: n, sistema: false }), ordem: perfis.length }) });
       await fetch("/api/listas", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lista: LISTA_PERM, valor: JSON.stringify({ perfil: n, matriz: matrizPadrao(n) }) }) });
       toast.success(`Perfil "${n}" criado`);
+      setActive(n);
       await load();
     } catch { toast.error("Erro ao criar perfil"); }
   }
@@ -168,82 +210,132 @@ export default function PermissoesPage() {
         }
       }
       toast.success("Permissões salvas");
-      setDirty(false);
       await load();
     } catch { toast.error("Erro ao salvar"); }
     finally { setSaving(false); }
   }
 
-  return (
-    <div className="min-h-screen bg-white">
-      <div className="bg-white border-b" style={{ borderColor: "#E8DFC8" }}>
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center gap-3">
-          <Link href="/dashboard/configuracoes" className="p-2 rounded-lg hover:bg-gray-100"><LuArrowLeft size={18} /></Link>
-          <div className="flex-1">
-            <h1 className="text-xl font-semibold" style={{ color: "#0E2244" }}>Perfis e Permissões</h1>
-            <p className="text-sm text-gray-500">Defina o que cada perfil enxerga e edita em cada tela. <span style={{ color: "#B45309" }}>Etapa 1: ainda não bloqueia o acesso.</span></p>
-          </div>
-          <button onClick={novoPerfil} className="px-3 py-2 rounded-lg text-sm font-medium border flex items-center gap-2" style={{ borderColor: "#009AAC", color: "#009AAC", background: "white" }}>
-            <LuPlus size={14} /> Novo perfil
-          </button>
-          <button onClick={salvar} disabled={!dirty || saving} className="px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 text-white disabled:opacity-50" style={{ background: "#009AAC" }}>
-            <LuCheck size={14} /> {saving ? "Salvando..." : "Salvar permissões"}
-          </button>
-        </div>
-      </div>
+  const activePerfil = perfis.find((p) => p.nome === active);
+  const matriz = matrizes[active] || (active ? matrizPadrao(active) : {});
 
-      <div className="max-w-7xl mx-auto px-6 py-6">
-        {loading ? (
-          <div className="text-sm text-gray-500 py-10 text-center">Carregando...</div>
-        ) : (
-          <div className="border rounded-xl overflow-x-auto" style={{ borderColor: "#E8DFC8" }}>
-            <table className="w-full text-sm">
-              <thead>
-                <tr style={{ background: "#FAFAFA" }}>
-                  <th className="text-left px-4 py-3 font-medium" style={{ color: "#0E2244", minWidth: 160 }}>Tela / área</th>
-                  {perfis.map(p => (
-                    <th key={p.id} className="px-3 py-3 font-medium text-center" style={{ color: "#0E2244", minWidth: 130 }}>
-                      <div className="flex items-center justify-center gap-1.5">
-                        <span>{p.nome}</span>
-                        {p.sistema
-                          ? <span className="text-[9px] uppercase px-1.5 py-0.5 rounded" style={{ background: "#EEEDFE", color: "#534AB7" }}>sistema</span>
-                          : <button onClick={() => removerPerfil(p)} title="Excluir perfil" className="text-gray-400 hover:text-red-500"><LuTrash size={13} /></button>}
-                      </div>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {TELAS.map(tela => (
-                  <tr key={tela.key} className="border-t" style={{ borderColor: "#F0EBE0" }}>
-                    <td className="px-4 py-2.5" style={{ color: "#0E2244" }}>{tela.label}</td>
-                    {perfis.map(p => {
-                      const nivel = (matrizes[p.nome]?.[tela.key] || "OCULTO") as Nivel;
-                      const cor = COR_NIVEL[nivel];
-                      return (
-                        <td key={p.id} className="px-3 py-2.5 text-center">
-                          <select
-                            value={nivel}
-                            onChange={e => setNivel(p.nome, tela.key, e.target.value as Nivel)}
-                            className="px-2 py-1 rounded-md text-xs border-0 font-medium cursor-pointer"
-                            style={{ background: cor.bg, color: cor.fg }}
-                          >
-                            {NIVEIS.map(n => <option key={n} value={n}>{NIVEL_LABEL[n]}</option>)}
-                          </select>
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-        <p className="text-xs text-gray-400 mt-4">
-          Níveis: <strong>Oculto</strong> (não aparece) · <strong>Visualiza</strong> (só leitura) · <strong>Edita</strong> (pode alterar).
-          Esta tela já salva as definições; ligar no menu e bloquear o acesso são as próximas etapas.
-        </p>
-      </div>
+  /* Uma linha de item (folha) — emoji + label + controle segmentado. */
+  const LeafRow = ({ item, indent = false }: { item: PermItem; indent?: boolean }) => (
+    <div
+      className="flex items-center justify-between gap-3 py-2"
+      style={{ paddingLeft: indent ? 26 : 0, borderTop: `1px solid ${B44.lineSoft}` }}
+    >
+      <span className="text-[13px] flex items-center gap-1.5" style={{ color: indent ? B44.text1 : B44.navy, fontWeight: indent ? 400 : 500 }}>
+        <span>{item.emoji}</span>{item.label}
+      </span>
+      <Seg value={nivelDe(matriz, item.key)} onChange={(n) => setNivel(active, item.key, n)} />
     </div>
+  );
+
+  return (
+    <PageShell pad="p-6">
+      {/* Cabeçalho */}
+      <HeaderCard>
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <h1 className="text-[20px] font-medium flex items-center gap-2" style={{ color: B44.navy }}>
+              🔐 Perfis e Permissões
+            </h1>
+            <p className="text-[12.5px] mt-0.5" style={{ color: B44.text2 }}>
+              Escolha, item por item, o que cada perfil enxerga e edita.
+            </p>
+          </div>
+          <Btn variant="primary" onClick={salvar} disabled={saving || loading || !active}>
+            ✅ {saving ? "Salvando..." : "Salvar"}
+          </Btn>
+        </div>
+      </HeaderCard>
+
+      {loading ? (
+        <p className="text-[13px] py-12 text-center" style={{ color: B44.text3 }}>Carregando…</p>
+      ) : (
+        <>
+          {/* Abas de perfil + Novo perfil */}
+          <div className="flex items-end gap-2">
+            <div className="flex-1 min-w-0 overflow-x-auto">
+              <Tabs
+                tabs={perfis.map((p) => ({ k: p.nome, label: perfilLabel(p.nome) }))}
+                active={active}
+                onChange={setActive}
+              />
+            </div>
+            <Btn variant="ghost" onClick={novoPerfil} className="mb-3" style={{ padding: "6px 10px", fontSize: 11 }}>
+              ➕ Novo perfil
+            </Btn>
+          </div>
+
+          {/* Aviso / trava */}
+          <div
+            className="flex items-start gap-2 mb-3"
+            style={{ background: B44.tint, border: `1px solid ${B44.line}`, borderRadius: 12, padding: "10px 13px" }}
+          >
+            <span className="text-[15px] leading-none mt-0.5">🛡️</span>
+            <p className="text-[12px]" style={{ color: B44.navy }}>
+              Editando <b>{active}</b>. Trava: <b>Configuração</b> e <b>Perfis e Permissões</b> ficam sempre visíveis pro Admin.
+              No grupo, “todos” define todos os subitens; depois ajuste cada um.
+            </p>
+          </div>
+
+          {/* Legenda + remover perfil personalizado */}
+          <div className="flex items-center justify-between gap-3 mb-3 flex-wrap px-1">
+            <div className="flex items-center gap-3 text-[11.5px]" style={{ color: B44.text2 }}>
+              <span className="inline-flex items-center gap-1"><span style={{ width: 9, height: 9, borderRadius: 3, background: "#F1EFE8", display: "inline-block" }} /> Oculto</span>
+              <span className="inline-flex items-center gap-1"><span style={{ width: 9, height: 9, borderRadius: 3, background: "#E6F1FB", display: "inline-block" }} /> Visualiza</span>
+              <span className="inline-flex items-center gap-1"><span style={{ width: 9, height: 9, borderRadius: 3, background: "#E7F6EE", display: "inline-block" }} /> Edita</span>
+            </div>
+            {activePerfil && !activePerfil.sistema && (
+              <Btn variant="danger" onClick={() => removerPerfil(activePerfil)} style={{ padding: "6px 10px", fontSize: 11 }}>
+                🗑️ Remover “{activePerfil.nome}”
+              </Btn>
+            )}
+          </div>
+
+          {/* Seções */}
+          <div className="space-y-3">
+            {PERM_SECTIONS.map((sec) => (
+              <Card key={sec.titulo} title={sec.titulo} emoji={sec.emoji}>
+                {sec.itens.map((item) => {
+                  if (item.children && item.children.length) {
+                    const open = isOpen(item.key);
+                    return (
+                      <div key={item.key}>
+                        {/* Cabeçalho do grupo */}
+                        <div className="flex items-center justify-between gap-3 py-2" style={{ borderTop: `1px solid ${B44.lineSoft}` }}>
+                          <button type="button" onClick={() => toggleGroup(item.key)} className="flex items-center gap-1.5 text-[13px] font-medium" style={{ color: B44.navy }}>
+                            <span className="text-[11px]" style={{ color: B44.text3 }}>{open ? "▾" : "▸"}</span>
+                            <span>{item.emoji}</span>{item.label}
+                          </button>
+                          <Seg mini label="todos:" value={nivelGrupo(matriz, item.children)} onChange={(n) => setGrupo(active, item.children!, n)} />
+                        </div>
+                        {/* Filhos */}
+                        {open && item.children.map((c) => <LeafRow key={c.key} item={c} indent />)}
+                      </div>
+                    );
+                  }
+                  return <LeafRow key={item.key} item={item} />;
+                })}
+
+                {/* Linhas travadas — só na seção Sistema */}
+                {sec.titulo === "Sistema" && LOCKED_KEYS.map((k) => {
+                  const l = LOCKED_LABEL[k];
+                  return (
+                    <div key={k} className="flex items-center justify-between gap-3 py-2" style={{ borderTop: `1px solid ${B44.lineSoft}` }}>
+                      <span className="text-[13px] font-medium flex items-center gap-1.5" style={{ color: B44.navy }}>
+                        <span>{l?.emoji}</span>{l?.label || k}
+                      </span>
+                      <Pill tone="navy">🔒 sempre visível p/ Admin</Pill>
+                    </div>
+                  );
+                })}
+              </Card>
+            ))}
+          </div>
+        </>
+      )}
+    </PageShell>
   );
 }

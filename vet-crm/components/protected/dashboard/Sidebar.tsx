@@ -9,6 +9,7 @@ import {
   LuPawPrint, LuChevronLeft, LuChevronRight, LuChevronDown, LuEye,
 } from "react-icons/lu";
 import { roleLabel, roleShort, AppRole } from "@/lib/ui/role";
+import { roleToPerfil, LOCKED_KEYS, LISTA_PERM } from "@/lib/permissions";
 import { useRolePreview } from "@/lib/ui/RolePreview";
 import { useSession } from "next-auth/react";
 
@@ -216,11 +217,31 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
     return () => { alive = false; clearInterval(id); window.removeEventListener("encfila:changed", onCh); };
   }, [pathname, meId]);
 
+  // Fase B: matriz de permissões do perfil atual (esconde telas "Oculto" do menu)
+  const [permMatriz, setPermMatriz] = useState<Record<string, string>>({});
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const perfil = roleToPerfil(role);
+        const r = await fetch(`/api/listas?lista=${LISTA_PERM}`, { cache: "no-store" });
+        if (!r.ok) return;
+        const d = await r.json();
+        const arr = Array.isArray(d) ? d : (d.itens || d.data || []);
+        const row = arr.find((i: any) => { try { return JSON.parse(i.valor).perfil === perfil; } catch { return false; } });
+        const m = row ? (JSON.parse(row.valor).matriz || {}) : {};
+        if (alive) setPermMatriz(m);
+      } catch {}
+    })();
+    return () => { alive = false; };
+  }, [role]);
+
   const isActive = (it: Item) => {
     if (it.exact) return pathname === it.href;
     return pathname === it.href || pathname.startsWith(it.href + "/");
   };
-  const visible = (it: Item) => it.roles.includes(role);
+  const permHidden = (href: string) => !LOCKED_KEYS.includes(href) && permMatriz[href] === "OCULTO";
+  const visible = (it: Item) => it.roles.includes(role) && !permHidden(it.href);
   const tagFor = (it: Item) => {
     if (!it.tag) return null;
     return role === "ADMIN" ? it.tag.admin : role === "VETERINARIAN" ? it.tag.vet : it.tag.recep;
