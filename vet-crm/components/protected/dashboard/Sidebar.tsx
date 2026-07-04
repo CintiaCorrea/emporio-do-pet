@@ -17,7 +17,8 @@ interface SidebarProps {
   toggleSidebar: () => void;
 }
 
-type Section = "OP" | "GESTAO";
+type Section = "DIA" | "GESTAO" | "CRESCIMENTO" | "SISTEMA";
+const ALL: AppRole[] = ["ADMIN", "VETERINARIAN", "RECEPTIONIST"];
 
 type Item = {
   href: string;
@@ -46,53 +47,78 @@ type Entry = Item | Group;
 const isGroup = (e: Entry): e is Group => (e as Group).group === true;
 
 const NAV: Entry[] = [
-  { href: "/dashboard/hoje", label: "Hoje", emoji: "✨", roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"], section: "OP" },
-  { href: "/dashboard", label: "Dashboard", emoji: "📊", roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"], exact: true, section: "OP" },
-  { href: "/dashboard/inbox", label: "Inbox BC", emoji: "💬", roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"], section: "OP" },
-  { href: "/dashboard/inbox-nativo", label: "Inbox Meta", emoji: "📲", roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"], section: "OP" },
-  { href: "/dashboard/comercial", label: "Comercial", emoji: "🎯", roles: ["ADMIN", "RECEPTIONIST"], section: "OP" },
-  { href: "/dashboard/erp/tutores", label: "Clientes", emoji: "👥", roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"], section: "OP" },
+  // ───────── DIA A DIA ─────────
+  { href: "/dashboard/hoje", label: "Hoje", emoji: "✨", roles: ALL, section: "DIA" },
+  { href: "/dashboard", label: "Painel", emoji: "📊", roles: ALL, exact: true, section: "DIA" },
+  { href: "/dashboard/inbox", label: "Inbox BC", emoji: "💬", roles: ALL, section: "DIA" },
+  { href: "/dashboard/inbox-nativo", label: "Inbox Meta", emoji: "📲", roles: ALL, section: "DIA" },
+  { href: "/dashboard/comercial", label: "Comercial", emoji: "🎯", roles: ["ADMIN", "RECEPTIONIST"], section: "DIA" },
+  { href: "/dashboard/erp/tutores", label: "Clientes", emoji: "👥", roles: ALL, section: "DIA" },
   // LIXEIRA-PETS-MENU (Cintia 22/06): aba "Pets" removida do menu. Edicao do pet centralizada na ficha de Cliente; ficha clinica acessivel pelo nome do pet na lista de Clientes. Restaurar = descomentar a linha abaixo.
-  // { href: "/dashboard/erp/pets", label: "Pets", emoji: "🐾", roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
-  { href: "/dashboard/erp/agendamentos/agenda", label: "Agenda", emoji: "📅", roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"], section: "OP" },
+  // { href: "/dashboard/erp/pets", label: "Pets", emoji: "🐾", roles: ALL },
+  { href: "/dashboard/erp/agendamentos/agenda", label: "Agenda", emoji: "📅", roles: ALL, section: "DIA" },
   {
-    href: "/dashboard/erp/internacoes", label: "Internação", emoji: "🏥",
-    roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"], section: "OP",
-  },
-  {
-    group: true, key: "vendas", label: "Vendas", emoji: "💰", roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"], section: "GESTAO",
+    group: true, key: "clinico", label: "Atendimento clínico", emoji: "🩺", roles: ALL, section: "DIA",
     children: [
-      { href: "/dashboard/erp/comandas", label: "Em atendimento", emoji: "🛎️", roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
-      { href: "/dashboard/erp/ponto-de-venda", label: "Ponto de venda", emoji: "🛒", roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
-      { href: "/dashboard/erp/minhas-vendas", label: "Minhas vendas", emoji: "⭐", roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
-      { href: "/dashboard/erp/consulta-vendas", label: "Consulta de vendas", emoji: "🧾", roles: ["ADMIN", "RECEPTIONIST"] },
-      { href: "/dashboard/erp/caixa", label: "Caixa", emoji: "💵", roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
-      { href: "/dashboard/erp/pacotes", label: "Pacotes", emoji: "📦", roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
-      { href: "/dashboard/erp/recebimentos", label: "Recebimentos", emoji: "🧾", roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
-      { href: "/dashboard/erp/movimentos-caixa", label: "Movimentos de caixa", emoji: "🔄", roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
-      { href: "/dashboard/erp/saldo-clientes", label: "Saldo dos clientes", emoji: "👛", roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
-      { href: "/dashboard/erp/ranking-clientes", label: "Ranking de clientes", emoji: "🏆", roles: ["ADMIN", "RECEPTIONIST"] },
-      { href: "/dashboard/erp/vendas-graficos", label: "Vendas — gráficos", emoji: "📊", roles: ["ADMIN", "RECEPTIONIST"] },
-      { href: "/dashboard/erp/lista-precos", label: "Lista de preços", emoji: "🏷️", roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
+      { href: "/dashboard/erp/consultas", label: "Consultas", emoji: "🩺", roles: ALL },
+      { href: "/dashboard/erp/documentos", label: "Documentos", emoji: "📄", roles: ALL },
+      { href: "/dashboard/erp/tratamentos", label: "Tratamentos", emoji: "💉", roles: ALL },
+    ],
+  },
+  { href: "/dashboard/erp/internacoes", label: "Internação", emoji: "🏥", roles: ALL, section: "DIA" },
+
+  // ───────── GESTÃO ─────────
+  {
+    group: true, key: "vendas", label: "Vendas", emoji: "💰", roles: ALL, section: "GESTAO",
+    children: [
+      { href: "/dashboard/erp/comandas", label: "Em atendimento", emoji: "🛎️", roles: ALL },
+      { href: "/dashboard/erp/ponto-de-venda", label: "Ponto de venda", emoji: "🛒", roles: ALL },
+      { href: "/dashboard/erp/caixa", label: "Caixa", emoji: "💵", roles: ALL },
+      { href: "/dashboard/erp/pacotes", label: "Pacotes", emoji: "📦", roles: ALL },
+      { href: "/dashboard/erp/recebimentos", label: "Recebimentos", emoji: "🧾", roles: ALL },
+      { href: "/dashboard/erp/movimentos-caixa", label: "Movimentos de caixa", emoji: "🔄", roles: ALL },
+      { href: "/dashboard/erp/saldo-clientes", label: "Saldo dos clientes", emoji: "👛", roles: ALL },
       { href: "/dashboard/erp/formas-recebimento", label: "Formas de recebimento", emoji: "💳", roles: ["ADMIN"] },
       { href: "/dashboard/erp/configuracoes-vendas", label: "Configuração de vendas", emoji: "⚙️", roles: ["ADMIN"] },
-      { href: "/dashboard/erp/modelos-orcamento", label: "Modelo de orçamento", emoji: "📄", roles: ["ADMIN", "VETERINARIAN", "RECEPTIONIST"] },
+      { href: "/dashboard/erp/modelos-orcamento", label: "Modelo de orçamento", emoji: "📄", roles: ALL },
       { href: "/dashboard/erp/modelo-demonstrativo", label: "Modelo de demonstrativo", emoji: "🧾", roles: ["ADMIN"] },
       { href: "/dashboard/erp/importar-vendas", label: "Importar vendas", emoji: "📥", roles: ["ADMIN"] },
+    ],
+  },
+  { href: "/dashboard/erp/comissoes", label: "Comissionamento", emoji: "🧾", roles: ["ADMIN"], section: "GESTAO" },
+  {
+    group: true, key: "inteligencia", label: "Inteligência", emoji: "💡", roles: ALL, section: "GESTAO",
+    children: [
+      { href: "/dashboard/erp/minhas-vendas", label: "Produtividade", emoji: "📈", roles: ALL },
+      { href: "/dashboard/erp/consulta-vendas", label: "Consulta de vendas", emoji: "🧾", roles: ["ADMIN", "RECEPTIONIST"] },
+      { href: "/dashboard/erp/ranking-clientes", label: "Ranking de clientes", emoji: "🏆", roles: ["ADMIN", "RECEPTIONIST"] },
+      { href: "/dashboard/erp/vendas-graficos", label: "Vendas — gráficos", emoji: "📊", roles: ["ADMIN", "RECEPTIONIST"] },
+    ],
+  },
+  {
+    group: true, key: "estoque", label: "Estoque e serviços", emoji: "📦", roles: ALL, section: "GESTAO",
+    children: [
+      { href: "/dashboard/erp/produtos", label: "Produtos", emoji: "📦", roles: ALL },
+      { href: "/dashboard/erp/servicos", label: "Serviços", emoji: "🏷️", roles: ALL },
+      { href: "/dashboard/erp/estoque", label: "Estoque", emoji: "📊", roles: ALL },
+      { href: "/dashboard/erp/lista-precos", label: "Lista de preços", emoji: "💲", roles: ALL },
     ],
   },
   {
     group: true, key: "financeiro", label: "Financeiro", emoji: "💵", roles: ["ADMIN"], section: "GESTAO",
     children: [
+      { href: "/dashboard/erp/financeiro", label: "Financeiro", emoji: "💵", roles: ["ADMIN"] },
       { href: "/dashboard/erp/financeiro-terceiros", label: "Fin. Terceiros", emoji: "💸", roles: ["ADMIN"] },
     ],
   },
+
+  // ───────── CRESCIMENTO ─────────
   {
-    group: true, key: "marketing", label: "Marketing", emoji: "📣", roles: ["ADMIN"], section: "GESTAO",
+    group: true, key: "marketing", label: "Marketing", emoji: "📣", roles: ["ADMIN"], section: "CRESCIMENTO",
     children: [
       { href: "/dashboard/marketing/funil-semana", label: "Funil Semana", emoji: "📊", roles: ["ADMIN"] },
       { href: "/dashboard/marketing/google-ads", label: "Google Ads", emoji: "🔍", roles: ["ADMIN"] },
-        { href: "/dashboard/marketing/meta-ads", label: "Meta Ads", emoji: "📣", roles: ["ADMIN"] },
+      { href: "/dashboard/marketing/meta-ads", label: "Meta Ads", emoji: "📣", roles: ["ADMIN"] },
       { href: "/dashboard/marketing/nps", label: "NPS", emoji: "⭐", roles: ["ADMIN"] },
       { href: "/dashboard/marketing/avaliacoes-google", label: "Aval. Google", emoji: "🌟", roles: ["ADMIN"] },
       { href: "/dashboard/marketing/campanhas", label: "Campanhas", emoji: "🎯", roles: ["ADMIN"] },
@@ -101,7 +127,7 @@ const NAV: Entry[] = [
     ],
   },
   {
-    group: true, key: "ia", label: "IA / Atendimento", emoji: "🤖", roles: ["ADMIN"], section: "GESTAO",
+    group: true, key: "ia", label: "IA / Atendimento", emoji: "🤖", roles: ["ADMIN"], section: "CRESCIMENTO",
     children: [
       { href: "/dashboard/ai-agents/agents", label: "Agentes", emoji: "🤖", roles: ["ADMIN"] },
       { href: "/dashboard/ai-agents/conhecimento", label: "Conhecimento", emoji: "📚", roles: ["ADMIN"] },
@@ -110,7 +136,20 @@ const NAV: Entry[] = [
       { href: "/dashboard/ai-agents/templates", label: "Templates", emoji: "📋", roles: ["ADMIN"] },
     ],
   },
-  { href: "/dashboard/configuracoes", label: "Configurações", emoji: "⚙️", roles: ["ADMIN"], section: "GESTAO" },
+
+  // ───────── SISTEMA ─────────
+  {
+    group: true, key: "cadastros", label: "Cadastros", emoji: "📁", roles: ["ADMIN", "RECEPTIONIST"], section: "SISTEMA",
+    children: [
+      { href: "/dashboard/erp/contatos", label: "Contatos", emoji: "📇", roles: ["ADMIN", "RECEPTIONIST"] },
+      { href: "/dashboard/erp/duplicados", label: "Duplicados", emoji: "🔀", roles: ["ADMIN"] },
+      { href: "/dashboard/configuracoes/racas", label: "Raças", emoji: "🐾", roles: ["ADMIN"] },
+      { href: "/dashboard/configuracoes/exames", label: "Exames", emoji: "🔬", roles: ["ADMIN"] },
+      { href: "/dashboard/configuracoes/modelos-receita", label: "Modelo de receita", emoji: "💊", roles: ["ADMIN"] },
+      { href: "/dashboard/configuracoes/modelos-documento", label: "Modelo de documento", emoji: "📄", roles: ["ADMIN"] },
+    ],
+  },
+  { href: "/dashboard/configuracoes", label: "Configuração", emoji: "⚙️", roles: ["ADMIN"], section: "SISTEMA" },
 ];
 
 const FUTURE = [
@@ -232,7 +271,7 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
   };
 
   const renderEntry = (entry: Entry) => {
-    if (!isGroup(entry)) return renderLink(entry);
+    if (!isGroup(entry)) return visible(entry) ? renderLink(entry) : null;
 
     const kids = entry.children.filter(visible);
     if (kids.length === 0) return null;
@@ -262,8 +301,12 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
     );
   };
 
-  const opEntries = NAV.filter((e) => e.section === "OP");
-  const gestaoEntries = NAV.filter((e) => e.section === "GESTAO");
+  const SECTIONS: { key: Section; label: string }[] = [
+    { key: "DIA", label: "Dia a dia" },
+    { key: "GESTAO", label: "Gestão" },
+    { key: "CRESCIMENTO", label: "Crescimento" },
+    { key: "SISTEMA", label: "Sistema" },
+  ];
   const sectionLabelCls = "text-[9.5px] font-bold tracking-wide text-[#8A989D] uppercase px-3 py-1.5";
 
   return (
@@ -325,11 +368,15 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
 
       <nav className="flex-1 px-3 pt-2 pb-4 overflow-y-auto">
         <div className="flex flex-col gap-[2px]">
-          {!collapsed && <div className={sectionLabelCls}>Operação</div>}
-          {opEntries.map((entry) => renderEntry(entry))}
-
-          {!collapsed && <div className={`${sectionLabelCls} mt-2`}>Gestão</div>}
-          {gestaoEntries.map((entry) => renderEntry(entry))}
+          {SECTIONS.map((sec, i) => {
+            const entries = NAV.filter((e) => e.section === sec.key);
+            return (
+              <div key={sec.key} className="flex flex-col gap-[2px]">
+                {!collapsed && <div className={`${sectionLabelCls}${i > 0 ? " mt-2" : ""}`}>{sec.label}</div>}
+                {entries.map((entry) => renderEntry(entry))}
+              </div>
+            );
+          })}
         </div>
 
         {!collapsed && (
