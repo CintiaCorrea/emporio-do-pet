@@ -58,6 +58,7 @@ const NAV: Entry[] = [
   // { href: "/dashboard/erp/pets", label: "Pets", emoji: "🐾", roles: ALL },
   { href: "/dashboard/erp/agendamentos/agenda", label: "Agenda", emoji: "📅", roles: ALL, section: "DIA" },
   { href: "/dashboard/erp/vacinacao", label: "Vacinação", emoji: "💉", roles: ALL, section: "DIA" },
+  { href: "/dashboard/erp/aniversarios", label: "Aniversários", emoji: "🎂", roles: ALL, section: "DIA" },
   {
     group: true, key: "clinico", label: "Atendimento clínico", emoji: "🩺", roles: ALL, section: "DIA",
     children: [

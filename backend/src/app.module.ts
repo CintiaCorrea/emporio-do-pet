@@ -46,6 +46,7 @@ import { PacotesModule } from './modules/pacotes/pacotes.module';
 import { CreditoModule } from './modules/credito/credito.module';
 import { ProtocolosModule } from './modules/protocolos/protocolos.module';
 import { RacasModule } from './modules/racas/racas.module';
+import { AniversariosModule } from './modules/aniversarios/aniversarios.module';
 import { ListasModule } from './modules/listas/listas.module';
 import { FornecedoresModule } from './modules/fornecedores/fornecedores.module';
 import { ScriptsModule } from './modules/scripts/scripts.module';
@@ -181,6 +182,7 @@ import configuration from './config/configuration';
     CreditoModule,
     ProtocolosModule,
     RacasModule,
+    AniversariosModule,
     ListasModule,
     FornecedoresModule,
     ScriptsModule,
