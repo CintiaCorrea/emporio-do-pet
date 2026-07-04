@@ -6,18 +6,7 @@
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { usePageTitle } from '@/lib/ui/PageHeaderContext';
-
-// Paleta Base44 "delicada" (mesmos tokens de caixa/page.tsx)
-const TEAL = '#009AAC';
-const TEAL_DARK = '#014D5E';
-const BG = '#F6F2EA';
-const SOFT = '#FBF9F4';
-const TINT = '#E0F4F6';
-const LINE = '#E8E2D6';
-const DIV = '#F0EBE0';
-const TXT = '#1F2A2E';
-const TXT2 = '#5C6B70';
-const TXT3 = '#8A989D';
+import { PageShell, HeaderCard, Card, Btn, Label, Input, Select, Textarea, B44 } from '@/components/ui/base44';
 
 const UFS = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
 
@@ -34,13 +23,8 @@ const DEFAULTS: Cfg = {
   logoUrl: '', observacoes: '',
 };
 
-const card: React.CSSProperties = { background: '#fff', border: `1px solid ${LINE}`, borderRadius: 13, padding: '18px 20px' };
-const label: React.CSSProperties = { fontSize: 12.5, color: TXT2, display: 'block', marginBottom: 6, fontWeight: 500 };
-const inp: React.CSSProperties = { width: '100%', padding: '9px 11px', border: `1px solid ${LINE}`, borderRadius: 9, fontSize: 13.5, fontFamily: 'inherit', color: TXT, background: '#fff', boxSizing: 'border-box' };
-const secTitle: React.CSSProperties = { fontSize: 14, fontWeight: 500, color: TEAL_DARK, margin: '0 0 14px', display: 'flex', alignItems: 'center', gap: 8 };
-
-function Field({ label: lb, children, span }: { label: string; children: React.ReactNode; span?: number }) {
-  return <div style={{ gridColumn: span ? `span ${span}` : undefined }}><label style={label}>{lb}</label>{children}</div>;
+function Field({ label, children, span }: { label: string; children: React.ReactNode; span?: number }) {
+  return <div style={{ gridColumn: span ? `span ${span}` : undefined }}><Label>{label}</Label>{children}</div>;
 }
 
 export default function DadosClinicaPage() {
@@ -81,95 +65,93 @@ export default function DadosClinicaPage() {
 
   if (loading) {
     return (
-      <div style={{ minHeight: '100%', background: BG, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <PageShell pad="p-6" className="flex items-center justify-center">
         <div style={{ textAlign: 'center' }}>
-          <div className="animate-spin" style={{ borderRadius: '50%', height: 44, width: 44, borderBottom: `2px solid ${TEAL}`, margin: '0 auto' }} />
-          <p style={{ marginTop: 16, color: TXT2 }}>Carregando…</p>
+          <div className="animate-spin" style={{ borderRadius: '50%', height: 44, width: 44, borderBottom: `2px solid ${B44.primary}`, margin: '0 auto' }} />
+          <p style={{ marginTop: 16, color: B44.text2 }}>Carregando…</p>
         </div>
-      </div>
+      </PageShell>
     );
   }
 
   const grid: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 };
 
   return (
-    <div style={{ minHeight: '100%', background: BG, width: '100%' }}>
-      <div style={{ padding: '24px 26px 60px', boxSizing: 'border-box', maxWidth: 980, margin: '0 auto' }}>
+    <PageShell pad="p-6">
+      <div style={{ maxWidth: 980, margin: '0 auto' }}>
 
         {/* Header */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginBottom: 22 }}>
-          <div>
-            <h1 style={{ fontSize: 24, fontWeight: 500, color: TEAL_DARK, margin: 0, display: 'flex', alignItems: 'center', gap: 9 }}>
-              <span style={{ fontSize: 22 }}>🏢</span> Dados da clínica
-            </h1>
-            <p style={{ color: TXT2, marginTop: 6, fontSize: 13.5 }}>Aparecem nos recibos, orçamentos e documentos.</p>
+        <HeaderCard>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+            <div>
+              <h1 style={{ fontSize: 20, fontWeight: 500, color: B44.navy, margin: 0, display: 'flex', alignItems: 'center', gap: 9 }}>
+                <span>🏢</span> Dados da clínica
+              </h1>
+              <p style={{ color: B44.text2, marginTop: 4, fontSize: 13 }}>Aparecem nos recibos, orçamentos e documentos.</p>
+            </div>
+            <Btn variant="primary" onClick={salvar} disabled={saving}>
+              <span>✅</span> {saving ? 'Salvando…' : 'Salvar'}
+            </Btn>
           </div>
-          <button onClick={salvar} disabled={saving} style={{ background: TEAL, color: '#fff', border: 'none', fontSize: 13, fontWeight: 500, padding: '10px 18px', borderRadius: 9, cursor: 'pointer', opacity: saving ? .6 : 1, display: 'inline-flex', alignItems: 'center', gap: 7 }}>
-            <span>✅</span> {saving ? 'Salvando…' : 'Salvar'}
-          </button>
-        </div>
+        </HeaderCard>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
           {/* Geral */}
-          <div style={card}>
-            <div style={secTitle}><span>🏢</span> Geral</div>
+          <Card title="Geral" emoji="🏢" pad="16px 18px">
             <div style={grid}>
-              <Field label="Nome fantasia" span={2}><input style={inp} value={cfg.nomeFantasia} onChange={set('nomeFantasia')} placeholder="Empório do Pet" /></Field>
-              <Field label="Razão social" span={2}><input style={inp} value={cfg.razaoSocial} onChange={set('razaoSocial')} /></Field>
-              <Field label="CNPJ"><input style={inp} value={cfg.cnpj} onChange={set('cnpj')} placeholder="00.000.000/0001-00" /></Field>
-              <Field label="Telefone"><input style={inp} value={cfg.telefone} onChange={set('telefone')} /></Field>
-              <Field label="WhatsApp"><input style={inp} value={cfg.whatsapp} onChange={set('whatsapp')} /></Field>
-              <Field label="E-mail"><input style={inp} value={cfg.email} onChange={set('email')} /></Field>
-              <Field label="Site" span={2}><input style={inp} value={cfg.site} onChange={set('site')} placeholder="https://" /></Field>
-              <Field label="Instagram" span={2}><input style={inp} value={cfg.instagram} onChange={set('instagram')} placeholder="@emporiodopet" /></Field>
+              <Field label="Nome fantasia" span={2}><Input value={cfg.nomeFantasia} onChange={set('nomeFantasia')} placeholder="Empório do Pet" /></Field>
+              <Field label="Razão social" span={2}><Input value={cfg.razaoSocial} onChange={set('razaoSocial')} /></Field>
+              <Field label="CNPJ"><Input value={cfg.cnpj} onChange={set('cnpj')} placeholder="00.000.000/0001-00" /></Field>
+              <Field label="Telefone"><Input value={cfg.telefone} onChange={set('telefone')} /></Field>
+              <Field label="WhatsApp"><Input value={cfg.whatsapp} onChange={set('whatsapp')} /></Field>
+              <Field label="E-mail"><Input value={cfg.email} onChange={set('email')} /></Field>
+              <Field label="Site" span={2}><Input value={cfg.site} onChange={set('site')} placeholder="https://" /></Field>
+              <Field label="Instagram" span={2}><Input value={cfg.instagram} onChange={set('instagram')} placeholder="@emporiodopet" /></Field>
             </div>
-          </div>
+          </Card>
 
           {/* Endereço */}
-          <div style={card}>
-            <div style={secTitle}><span>📍</span> Endereço</div>
+          <Card title="Endereço" emoji="📍" pad="16px 18px">
             <div style={grid}>
-              <Field label="CEP"><input style={inp} value={cfg.cep} onChange={set('cep')} placeholder="00000-000" /></Field>
-              <Field label="Rua / logradouro" span={2}><input style={inp} value={cfg.rua} onChange={set('rua')} /></Field>
-              <Field label="Número"><input style={inp} value={cfg.numero} onChange={set('numero')} /></Field>
-              <Field label="Complemento" span={2}><input style={inp} value={cfg.complemento} onChange={set('complemento')} /></Field>
-              <Field label="Bairro" span={2}><input style={inp} value={cfg.bairro} onChange={set('bairro')} /></Field>
-              <Field label="Cidade" span={3}><input style={inp} value={cfg.cidade} onChange={set('cidade')} /></Field>
-              <Field label="UF"><select style={inp} value={cfg.uf} onChange={set('uf')}><option value="">—</option>{UFS.map((u) => <option key={u} value={u}>{u}</option>)}</select></Field>
+              <Field label="CEP"><Input value={cfg.cep} onChange={set('cep')} placeholder="00000-000" /></Field>
+              <Field label="Rua / logradouro" span={2}><Input value={cfg.rua} onChange={set('rua')} /></Field>
+              <Field label="Número"><Input value={cfg.numero} onChange={set('numero')} /></Field>
+              <Field label="Complemento" span={2}><Input value={cfg.complemento} onChange={set('complemento')} /></Field>
+              <Field label="Bairro" span={2}><Input value={cfg.bairro} onChange={set('bairro')} /></Field>
+              <Field label="Cidade" span={3}><Input value={cfg.cidade} onChange={set('cidade')} /></Field>
+              <Field label="UF"><Select value={cfg.uf} onChange={set('uf')}><option value="">—</option>{UFS.map((u) => <option key={u} value={u}>{u}</option>)}</Select></Field>
             </div>
-          </div>
+          </Card>
 
           {/* Logomarca */}
-          <div style={card}>
-            <div style={secTitle}><span>🖼️</span> Logomarca</div>
+          <Card title="Logomarca" emoji="🖼️" pad="16px 18px">
             <div style={{ display: 'flex', gap: 18, alignItems: 'center', flexWrap: 'wrap' }}>
-              <div style={{ width: 72, height: 72, borderRadius: 14, background: TINT, border: `1px solid ${LINE}`, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
+              <div style={{ width: 72, height: 72, borderRadius: 14, background: B44.tint, border: `1px solid ${B44.line}`, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
                 {cfg.logoUrl
                   ? <img src={cfg.logoUrl} alt="logo" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
-                  : <span style={{ fontSize: 20, fontWeight: 600, color: TEAL_DARK }}>{iniciais}</span>}
+                  : <span style={{ fontSize: 20, fontWeight: 600, color: B44.navy }}>{iniciais}</span>}
               </div>
               <div style={{ flex: '1 1 320px' }}>
-                <label style={label}>URL da logo</label>
-                <input style={inp} value={cfg.logoUrl} onChange={set('logoUrl')} placeholder="https://…/logo.png" />
-                <p style={{ fontSize: 11.5, color: TXT3, margin: '6px 0 0' }}>Cole o link da imagem da logo. (Upload de arquivo será adicionado depois.)</p>
+                <Label>URL da logo</Label>
+                <Input value={cfg.logoUrl} onChange={set('logoUrl')} placeholder="https://…/logo.png" />
+                <p style={{ fontSize: 11.5, color: B44.text3, margin: '6px 0 0' }}>Cole o link da imagem da logo. (Upload de arquivo será adicionado depois.)</p>
               </div>
             </div>
-          </div>
+          </Card>
 
           {/* Observações */}
-          <div style={card}>
-            <div style={secTitle}><span>📝</span> Observações (rodapé de recibos)</div>
-            <textarea style={{ ...inp, minHeight: 80, resize: 'vertical' }} value={cfg.observacoes} onChange={set('observacoes')} placeholder="Ex: Horário de funcionamento, agradecimento, política de retorno…" />
-          </div>
+          <Card title="Observações (rodapé de recibos)" emoji="📝" pad="16px 18px">
+            <Textarea style={{ minHeight: 80, resize: 'vertical' }} value={cfg.observacoes} onChange={set('observacoes')} placeholder="Ex: Horário de funcionamento, agradecimento, política de retorno…" />
+          </Card>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <button onClick={salvar} disabled={saving} style={{ background: TEAL_DARK, color: '#fff', border: 'none', fontSize: 13, fontWeight: 500, padding: '11px 22px', borderRadius: 9, cursor: 'pointer', opacity: saving ? .6 : 1, display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+            <Btn variant="primary" onClick={salvar} disabled={saving}>
               <span>✅</span> {saving ? 'Salvando…' : 'Salvar dados da clínica'}
-            </button>
+            </Btn>
           </div>
         </div>
       </div>
-    </div>
+    </PageShell>
   );
 }

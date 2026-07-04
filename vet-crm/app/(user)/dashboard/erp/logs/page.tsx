@@ -6,20 +6,18 @@
 import { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { usePageTitle } from '@/lib/ui/PageHeaderContext';
-
-// Paleta Base44 (mesmos tokens de components/ui/base44.tsx)
-const TEAL = '#009AAC';      // acento / botao primario
-const TEAL_DARK = '#014D5E'; // marinho — titulos / texto forte
-const ORANGE = '#D85A30';    // coral
-const GREEN = '#0f6e56';     // sucesso
-const BG = '#F6F2EA';        // fundo da pagina
-const SOFT = '#FBF9F4';      // areas suaves
-const TINT = '#E0F4F6';      // agua (pill de modulo)
-const LINE = '#E8E2D6';      // borda do cartao
-const DIV = '#F0EBE0';       // divisoria interna
-const TXT = '#1F2A2E';       // corpo
-const TXT2 = '#5C6B70';      // secundario
-const TXT3 = '#8A989D';      // dica / rotulo
+import {
+  PageShell,
+  HeaderCard,
+  Card,
+  Btn,
+  Pill,
+  Input,
+  Select,
+  EmptyState,
+  B44,
+  B44_TONES,
+} from '@/components/ui/base44';
 
 interface LogRow {
   id: string;
@@ -72,19 +70,17 @@ const MODULO_LABEL: Record<string, string> = {
 };
 const traduzModulo = (m?: string | null) => (m ? MODULO_LABEL[m] || m : '—');
 
-// cor por acao (verbo)
+// cor por acao (verbo) — tokens do kit
 const corAcao = (a?: string | null) => {
   const t = (a || '').toLowerCase();
-  if (/criou|create|cadastr/.test(t)) return GREEN;
-  if (/excluiu|delet|remov/.test(t)) return ORANGE;
-  return TEAL_DARK; // atualizou / demais
+  if (/criou|create|cadastr/.test(t)) return B44_TONES.ok.color; // verde — criar
+  if (/excluiu|delet|remov/.test(t)) return B44.coral;           // coral — excluir
+  return B44.navy;                                               // marinho — atualizar / demais
 };
 
-const thStyle: React.CSSProperties = { color: TXT3, fontWeight: 500, fontSize: 11.5, textTransform: 'uppercase', letterSpacing: '.03em', padding: '10px 12px', borderBottom: `1px solid ${LINE}`, textAlign: 'left' };
-const tdStyle: React.CSSProperties = { padding: '11px 12px', borderBottom: `1px solid ${DIV}`, fontSize: 13 };
-const lbl: React.CSSProperties = { fontSize: 12, color: TXT2, display: 'block', marginBottom: 5 };
-const inp: React.CSSProperties = { width: '100%', padding: '8px 10px', border: `1px solid ${LINE}`, borderRadius: 9, fontSize: 13, fontFamily: 'inherit', color: TXT, background: '#fff', boxSizing: 'border-box' };
-const cardStyle: React.CSSProperties = { background: '#fff', border: `1px solid ${LINE}`, borderRadius: 13 };
+const thStyle: React.CSSProperties = { color: B44.text3, fontWeight: 500, fontSize: 11.5, textTransform: 'uppercase', letterSpacing: '.03em', padding: '10px 12px', borderBottom: `1px solid ${B44.line}`, textAlign: 'left' };
+const tdStyle: React.CSSProperties = { padding: '11px 12px', borderBottom: `1px solid ${B44.lineSoft}`, fontSize: 13 };
+const lbl: React.CSSProperties = { fontSize: 12, color: B44.text2, display: 'block', marginBottom: 5 };
 
 export default function LogsPage() {
   usePageTitle('Log de auditoria', 'Registro de ações no sistema');
@@ -162,129 +158,118 @@ export default function LogsPage() {
   const nomeUsuario = (u: Usuario) => u.name || u.email || u.id;
 
   return (
-    <div style={{ width: '100%', background: BG, minHeight: '100%' }}>
-      <div style={{ width: '100%', padding: '20px 26px 60px', boxSizing: 'border-box' }}>
+    <PageShell pad="p-6">
 
-        {/* Cabecalho */}
-        <div style={{ marginBottom: 16 }}>
-          <h1 style={{ margin: 0, fontSize: 20, fontWeight: 500, color: TEAL_DARK, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span>🔎</span> Log de auditoria
-          </h1>
-          <p style={{ margin: '4px 0 0', fontSize: 13, color: TXT2 }}>Registro de ações de criar, editar e excluir no sistema.</p>
-        </div>
+      {/* Cabecalho */}
+      <HeaderCard>
+        <h1 style={{ margin: 0, fontSize: 20, fontWeight: 500, color: B44.navy, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span>🔎</span> Log de auditoria
+        </h1>
+        <p style={{ margin: '4px 0 0', fontSize: 13, color: B44.text2 }}>Registro de ações de criar, editar e excluir no sistema.</p>
+      </HeaderCard>
 
-        {/* Barra de filtros */}
-        <div style={{ ...cardStyle, padding: '14px 15px', marginBottom: 16 }}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-end' }}>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <div>
-                <label style={lbl}>De</label>
-                <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} style={{ ...inp, width: 150 }} />
-              </div>
-              <div>
-                <label style={lbl}>Até</label>
-                <input type="date" value={to} onChange={(e) => setTo(e.target.value)} style={{ ...inp, width: 150 }} />
-              </div>
+      {/* Barra de filtros */}
+      <Card pad="14px 15px" className="mb-4">
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-end' }}>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <div>
+              <label style={lbl}>De</label>
+              <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: 150 }} />
             </div>
-            <div style={{ minWidth: 150 }}>
-              <label style={lbl}>Módulo</label>
-              <select value={module} onChange={(e) => setModule(e.target.value)} style={inp}>
-                <option value="">Todos</option>
-                {modules.map((m) => <option key={m} value={m}>{traduzModulo(m)}</option>)}
-              </select>
-            </div>
-            <div style={{ minWidth: 180 }}>
-              <label style={lbl}>Usuário</label>
-              <select value={userId} onChange={(e) => setUserId(e.target.value)} style={inp}>
-                <option value="">Todos</option>
-                {usuarios.map((u) => <option key={u.id} value={u.id}>{nomeUsuario(u)}</option>)}
-              </select>
-            </div>
-            <div style={{ flex: 1, minWidth: 180 }}>
-              <label style={lbl}>Buscar</label>
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') aplicar(); }}
-                placeholder="Buscar por evento, caminho…"
-                style={inp}
-              />
-            </div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={aplicar} style={{ background: TEAL, color: '#fff', border: 'none', fontSize: 13, fontWeight: 500, padding: '9px 16px', borderRadius: 9, cursor: 'pointer' }}>Aplicar</button>
-              <button onClick={limpar} style={{ background: '#fff', color: TXT2, border: `1px solid ${LINE}`, fontSize: 13, fontWeight: 500, padding: '9px 16px', borderRadius: 9, cursor: 'pointer' }}>Limpar</button>
+            <div>
+              <label style={lbl}>Até</label>
+              <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: 150 }} />
             </div>
           </div>
+          <div style={{ minWidth: 150 }}>
+            <label style={lbl}>Módulo</label>
+            <Select value={module} onChange={(e) => setModule(e.target.value)}>
+              <option value="">Todos</option>
+              {modules.map((m) => <option key={m} value={m}>{traduzModulo(m)}</option>)}
+            </Select>
+          </div>
+          <div style={{ minWidth: 180 }}>
+            <label style={lbl}>Usuário</label>
+            <Select value={userId} onChange={(e) => setUserId(e.target.value)}>
+              <option value="">Todos</option>
+              {usuarios.map((u) => <option key={u.id} value={u.id}>{nomeUsuario(u)}</option>)}
+            </Select>
+          </div>
+          <div style={{ flex: 1, minWidth: 180 }}>
+            <label style={lbl}>Buscar</label>
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') aplicar(); }}
+              placeholder="Buscar por evento, caminho…"
+            />
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Btn variant="primary" onClick={aplicar}>Aplicar</Btn>
+            <Btn variant="ghost" onClick={limpar}>Limpar</Btn>
+          </div>
         </div>
+      </Card>
 
-        {/* Tabela */}
-        <div style={{ ...cardStyle, overflow: 'hidden' }}>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
+      {/* Tabela */}
+      <Card pad="0" className="overflow-hidden">
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr>
+                <th style={thStyle}>Data e hora</th>
+                <th style={thStyle}>Usuário</th>
+                <th style={thStyle}>Módulo</th>
+                <th style={thStyle}>Evento</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading && (
+                <tr><td colSpan={4} style={{ ...tdStyle, textAlign: 'center', color: B44.text2, padding: 24 }}>Carregando…</td></tr>
+              )}
+              {!loading && logs.length === 0 && (
                 <tr>
-                  <th style={thStyle}>Data e hora</th>
-                  <th style={thStyle}>Usuário</th>
-                  <th style={thStyle}>Módulo</th>
-                  <th style={thStyle}>Evento</th>
+                  <td colSpan={4} style={{ borderBottom: 'none' }}>
+                    <EmptyState className="py-10">
+                      <span style={{ fontSize: 30, display: 'block' }}>🗒️</span>
+                      <span style={{ color: B44.text2, display: 'block', marginTop: 10 }}>Nenhum registro ainda.</span>
+                      <span style={{ color: B44.text3, fontSize: 13, display: 'block', marginTop: 4 }}>As ações de criar, editar ou excluir aparecerão aqui.</span>
+                    </EmptyState>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {loading && (
-                  <tr><td colSpan={4} style={{ ...tdStyle, textAlign: 'center', color: TXT2, padding: 24 }}>Carregando…</td></tr>
-                )}
-                {!loading && logs.length === 0 && (
-                  <tr>
-                    <td colSpan={4} style={{ ...tdStyle, textAlign: 'center', padding: 40, borderBottom: 'none' }}>
-                      <div style={{ fontSize: 30 }}>🗒️</div>
-                      <p style={{ color: TXT2, margin: '10px 0 0' }}>Nenhum registro ainda.</p>
-                      <p style={{ color: TXT3, fontSize: 13, margin: '4px 0 0' }}>As ações de criar, editar ou excluir aparecerão aqui.</p>
+              )}
+              {!loading && logs.map((l) => {
+                const evento = l.path || l.entityId || '';
+                return (
+                  <tr key={l.id}>
+                    <td style={{ ...tdStyle, color: B44.text2, whiteSpace: 'nowrap' }}>{dataHora(l.createdAt)}</td>
+                    <td style={{ ...tdStyle, color: B44.text1 }}>{l.userName || '—'}</td>
+                    <td style={tdStyle}>
+                      <Pill tone="navy">{traduzModulo(l.module)}</Pill>
+                    </td>
+                    <td style={tdStyle}>
+                      <span style={{ fontWeight: 500, color: corAcao(l.action) }}>{l.action || '—'}</span>
+                      {evento && <span style={{ color: B44.text3 }}> · {evento}</span>}
                     </td>
                   </tr>
-                )}
-                {!loading && logs.map((l) => {
-                  const evento = l.path || l.entityId || '';
-                  return (
-                    <tr key={l.id}>
-                      <td style={{ ...tdStyle, color: TXT2, whiteSpace: 'nowrap' }}>{dataHora(l.createdAt)}</td>
-                      <td style={{ ...tdStyle, color: TXT }}>{l.userName || '—'}</td>
-                      <td style={tdStyle}>
-                        <span style={{ display: 'inline-block', fontSize: 11.5, fontWeight: 500, padding: '3px 11px', borderRadius: 999, background: TINT, color: TEAL_DARK }}>
-                          {traduzModulo(l.module)}
-                        </span>
-                      </td>
-                      <td style={tdStyle}>
-                        <span style={{ fontWeight: 500, color: corAcao(l.action) }}>{l.action || '—'}</span>
-                        {evento && <span style={{ color: TXT3 }}> · {evento}</span>}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Paginacao */}
-          {!loading && logs.length > 0 && (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', borderTop: `1px solid ${DIV}`, background: SOFT }}>
-              <span style={{ fontSize: 12.5, color: TXT2 }}>{total} registro{total === 1 ? '' : 's'} · página {data?.page ?? page} de {pages}</span>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page <= 1}
-                  style={{ background: '#fff', color: page <= 1 ? TXT3 : TEAL_DARK, border: `1px solid ${LINE}`, fontSize: 12.5, fontWeight: 500, padding: '7px 14px', borderRadius: 9, cursor: page <= 1 ? 'default' : 'pointer', opacity: page <= 1 ? 0.5 : 1 }}
-                >‹ Anterior</button>
-                <button
-                  onClick={() => setPage((p) => Math.min(pages, p + 1))}
-                  disabled={page >= pages}
-                  style={{ background: '#fff', color: page >= pages ? TXT3 : TEAL_DARK, border: `1px solid ${LINE}`, fontSize: 12.5, fontWeight: 500, padding: '7px 14px', borderRadius: 9, cursor: page >= pages ? 'default' : 'pointer', opacity: page >= pages ? 0.5 : 1 }}
-                >Próxima ›</button>
-              </div>
-            </div>
-          )}
+                );
+              })}
+            </tbody>
+          </table>
         </div>
 
-      </div>
-    </div>
+        {/* Paginacao */}
+        {!loading && logs.length > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', borderTop: `1px solid ${B44.lineSoft}`, background: B44.soft }}>
+            <span style={{ fontSize: 12.5, color: B44.text2 }}>{total} registro{total === 1 ? '' : 's'} · página {data?.page ?? page} de {pages}</span>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Btn variant="ghost" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}>‹ Anterior</Btn>
+              <Btn variant="ghost" onClick={() => setPage((p) => Math.min(pages, p + 1))} disabled={page >= pages}>Próxima ›</Btn>
+            </div>
+          </div>
+        )}
+      </Card>
+
+    </PageShell>
   );
 }

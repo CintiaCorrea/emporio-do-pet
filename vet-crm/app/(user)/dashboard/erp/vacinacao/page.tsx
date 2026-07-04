@@ -8,21 +8,10 @@ import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { usePageTitle } from '@/lib/ui/PageHeaderContext';
 import { openWhatsAppMeta } from '@/lib/actions/whatsapp';
-
-// Paleta Base44 (mesmos tokens de app/(user)/dashboard/erp/caixa/page.tsx)
-const TEAL = '#009AAC';      // acento / botao primario
-const TEAL_DARK = '#014D5E'; // titulos / texto forte
-const ORANGE = '#D85A30';    // coral
-const GREEN = '#0f6e56';     // sucesso
-const AMBER = '#8a6400';     // pendente
-const BG = '#F6F2EA';        // fundo da pagina
-const SOFT = '#FBF9F4';      // areas suaves
-const TINT = '#E0F4F6';      // agua
-const LINE = '#E8E2D6';      // borda do cartao
-const DIV = '#F0EBE0';       // divisoria interna
-const TXT = '#1F2A2E';       // corpo
-const TXT2 = '#5C6B70';      // secundario
-const TXT3 = '#8A989D';      // dica / rotulo
+import {
+  B44, B44Tone, PageShell, HeaderCard, Card, Kpi, KpiGrid,
+  Btn, Pill, Input, Select, Label, Avatar, EmptyState,
+} from '@/components/ui/base44';
 
 interface Dose {
   id: string;
@@ -52,20 +41,19 @@ const emojiEspecie = (esp?: string) => {
   return '🐾';
 };
 
-// Situacao/status -> pill visual
-const pillDe = (d: Dose) => {
+// Situacao/status -> pill visual (tom do kit: Atrasada danger, Pendente warn,
+// Aplicada ok, Sem resposta neutral). A LOGICA de situacao/status e a mesma.
+const pillDe = (d: Dose): { label: string; tone: B44Tone } => {
   const sit = String(d.situacao || '').toUpperCase();
   const st = String(d.status || '').toUpperCase();
-  if (st === 'APLICADA') return { label: 'Aplicada', bg: '#E1F5EE', fg: GREEN };
-  if (sit === 'ATRASADA') return { label: 'Atrasada', bg: '#FDECEC', fg: ORANGE };
-  if (sit === 'SEM_RESPOSTA' || sit === 'SEM RESPOSTA') return { label: 'Sem resposta', bg: '#F0EBE0', fg: TXT2 };
-  return { label: 'Pendente', bg: '#FBF3E3', fg: AMBER };
+  if (st === 'APLICADA') return { label: 'Aplicada', tone: 'ok' };
+  if (sit === 'ATRASADA') return { label: 'Atrasada', tone: 'danger' };
+  if (sit === 'SEM_RESPOSTA' || sit === 'SEM RESPOSTA') return { label: 'Sem resposta', tone: 'neutral' };
+  return { label: 'Pendente', tone: 'warn' };
 };
 
-const thStyle: React.CSSProperties = { color: TXT3, fontWeight: 500, fontSize: 11.5, textTransform: 'uppercase', letterSpacing: '.03em', padding: '8px', borderBottom: `1px solid ${LINE}`, textAlign: 'left' };
-const tdStyle: React.CSSProperties = { padding: '10px 8px', borderBottom: `1px solid ${DIV}`, verticalAlign: 'middle' };
-const inp: React.CSSProperties = { padding: '8px 10px', border: `1px solid ${LINE}`, borderRadius: 9, fontSize: 13, fontFamily: 'inherit', color: TXT, background: '#fff' };
-const cardStyle: React.CSSProperties = { background: '#fff', border: `1px solid ${LINE}`, borderRadius: 13, padding: '14px 15px' };
+const thStyle: React.CSSProperties = { color: B44.text3, fontWeight: 500, fontSize: 11.5, textTransform: 'uppercase', letterSpacing: '.03em', padding: '8px', borderBottom: `1px solid ${B44.line}`, textAlign: 'left' };
+const tdStyle: React.CSSProperties = { padding: '10px 8px', borderBottom: `1px solid ${B44.lineSoft}`, verticalAlign: 'middle' };
 
 // Opcoes do seletor de status (rotulos amigaveis)
 type StatusSel = 'PENDENTE' | 'ATRASADA' | 'APLICADA' | 'all';
@@ -131,134 +119,127 @@ export default function VacinacaoPage() {
     return list;
   }, [data, statusSel]);
 
-  const kpi = (emoji: string, label: string, valor: number, fg: string, bg: string) => (
-    <div style={{ ...cardStyle, flex: '1 1 160px', display: 'flex', alignItems: 'center', gap: 12 }}>
-      <div style={{ width: 42, height: 42, borderRadius: 11, background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>{emoji}</div>
-      <div>
-        <div style={{ fontSize: 22, fontWeight: 500, color: fg, lineHeight: 1.1 }}>{valor}</div>
-        <div style={{ fontSize: 12.5, color: TXT2, marginTop: 2 }}>{label}</div>
-      </div>
-    </div>
-  );
-
   return (
-    <div style={{ width: '100%', background: BG, minHeight: '100%' }}>
-      <div style={{ width: '100%', padding: '20px 26px 60px', boxSizing: 'border-box' }}>
+    <PageShell pad="p-6">
+      {/* Header */}
+      <HeaderCard>
+        <h1 style={{ fontSize: 20, fontWeight: 500, color: B44.navy, margin: 0, display: 'flex', alignItems: 'center', gap: 9 }}>
+          <span>💉</span> Programação de vacinação
+        </h1>
+        <p style={{ fontSize: 13, color: B44.text2, margin: '5px 0 0' }}>Acompanhe as vacinas previstas, atrasadas e aplicadas dos pets.</p>
+      </HeaderCard>
 
-        {/* Header */}
-        <div style={{ marginBottom: 18 }}>
-          <h1 style={{ fontSize: 20, fontWeight: 500, color: TEAL_DARK, margin: 0, display: 'flex', alignItems: 'center', gap: 9 }}>
-            <span>💉</span> Programação de vacinação
-          </h1>
-          <p style={{ fontSize: 13, color: TXT2, margin: '5px 0 0' }}>Acompanhe as vacinas previstas, atrasadas e aplicadas dos pets.</p>
-        </div>
+      {/* KPIs */}
+      <div style={{ marginBottom: 16 }}>
+        <KpiGrid min={160}>
+          <Kpi emoji="⚠️" label="Atrasadas" value={resumo.atrasadas} />
+          <Kpi emoji="⏳" label="Pendentes" value={resumo.pendentes} />
+          <Kpi emoji="✅" label="Aplicadas" value={resumo.aplicadas} />
+        </KpiGrid>
+      </div>
 
-        {/* KPIs */}
-        <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 16 }}>
-          {kpi('⚠️', 'Atrasadas', resumo.atrasadas, ORANGE, '#FDECEC')}
-          {kpi('⏳', 'Pendentes', resumo.pendentes, AMBER, '#FBF3E3')}
-          {kpi('✅', 'Aplicadas', resumo.aplicadas, GREEN, '#E1F5EE')}
-        </div>
-
-        {/* Filtros */}
-        <div style={{ ...cardStyle, marginBottom: 16 }}>
-          <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-            <div>
-              <label style={{ fontSize: 11.5, color: TXT3, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '.03em' }}>Período</label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                <input type="date" value={fFrom} onChange={(e) => setFFrom(e.target.value)} style={inp} />
-                <span style={{ color: TXT3, fontSize: 12 }}>até</span>
-                <input type="date" value={fTo} onChange={(e) => setFTo(e.target.value)} style={inp} />
-              </div>
-            </div>
-            <div>
-              <label style={{ fontSize: 11.5, color: TXT3, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '.03em' }}>Status</label>
-              <select value={fStatus} onChange={(e) => setFStatus(e.target.value as StatusSel)} style={{ ...inp, minWidth: 130 }}>
-                <option value="PENDENTE">A fazer</option>
-                <option value="ATRASADA">Atrasadas</option>
-                <option value="APLICADA">Aplicadas</option>
-                <option value="all">Todas</option>
-              </select>
-            </div>
-            <div>
-              <label style={{ fontSize: 11.5, color: TXT3, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '.03em' }}>Tipo</label>
-              <select value={fTipo} onChange={(e) => setFTipo(e.target.value as TipoSel)} style={{ ...inp, minWidth: 130 }}>
-                <option value="VACINA">Vacinas</option>
-                <option value="VERMIFUGO">Vermífugos</option>
-                <option value="ECTOPARASITA">Ectoparasitas</option>
-                <option value="all">Todos</option>
-              </select>
-            </div>
-            <div style={{ flex: '1 1 180px', minWidth: 160 }}>
-              <label style={{ fontSize: 11.5, color: TXT3, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '.03em' }}>Busca</label>
-              <input value={fSearch} onChange={(e) => setFSearch(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') aplicar(); }} placeholder="Cliente, pet ou vacina…" style={{ ...inp, width: '100%', boxSizing: 'border-box' }} />
-            </div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={aplicar} style={{ background: TEAL, color: '#fff', border: 'none', fontSize: 12.5, fontWeight: 500, padding: '9px 16px', borderRadius: 9, cursor: 'pointer' }}>Aplicar</button>
-              <button onClick={limpar} style={{ background: '#fff', color: TXT2, border: `1px solid ${LINE}`, fontSize: 12.5, fontWeight: 500, padding: '9px 14px', borderRadius: 9, cursor: 'pointer' }}>Limpar</button>
+      {/* Filtros */}
+      <Card pad="14px 15px" className="mb-4">
+        <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          <div>
+            <Label>Período</Label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+              <Input type="date" value={fFrom} onChange={(e) => setFFrom(e.target.value)} style={{ width: 'auto' }} />
+              <span style={{ color: B44.text3, fontSize: 12 }}>até</span>
+              <Input type="date" value={fTo} onChange={(e) => setFTo(e.target.value)} style={{ width: 'auto' }} />
             </div>
           </div>
+          <div>
+            <Label>Status</Label>
+            <Select value={fStatus} onChange={(e) => setFStatus(e.target.value as StatusSel)} style={{ minWidth: 130 }}>
+              <option value="PENDENTE">A fazer</option>
+              <option value="ATRASADA">Atrasadas</option>
+              <option value="APLICADA">Aplicadas</option>
+              <option value="all">Todas</option>
+            </Select>
+          </div>
+          <div>
+            <Label>Tipo</Label>
+            <Select value={fTipo} onChange={(e) => setFTipo(e.target.value as TipoSel)} style={{ minWidth: 130 }}>
+              <option value="VACINA">Vacinas</option>
+              <option value="VERMIFUGO">Vermífugos</option>
+              <option value="ECTOPARASITA">Ectoparasitas</option>
+              <option value="all">Todos</option>
+            </Select>
+          </div>
+          <div style={{ flex: '1 1 180px', minWidth: 160 }}>
+            <Label>Busca</Label>
+            <Input value={fSearch} onChange={(e) => setFSearch(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') aplicar(); }} placeholder="Cliente, pet ou vacina…" />
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Btn variant="primary" onClick={aplicar}>Aplicar</Btn>
+            <Btn variant="ghost" onClick={limpar}>Limpar</Btn>
+          </div>
         </div>
+      </Card>
 
-        {/* Tabela */}
-        <div style={{ ...cardStyle, padding: 0, overflow: 'hidden' }}>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-              <thead>
-                <tr>
-                  <th style={thStyle}>Data prevista</th>
-                  <th style={thStyle}>Cliente</th>
-                  <th style={thStyle}>Animal</th>
-                  <th style={thStyle}>Vacina</th>
-                  <th style={thStyle}>Status</th>
-                  <th style={{ ...thStyle, textAlign: 'right' }}>Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading && (
-                  <tr><td colSpan={6} style={{ ...tdStyle, textAlign: 'center', color: TXT2, padding: 26 }}>Carregando…</td></tr>
-                )}
-                {!loading && doses.length === 0 && (
-                  <tr><td colSpan={6} style={{ ...tdStyle, textAlign: 'center', color: TXT3, padding: 34 }}>
-                    <div style={{ fontSize: 28 }}>💉</div>
-                    <p style={{ margin: '8px 0 0', color: TXT2 }}>Nenhuma vacina na programação para este filtro.</p>
-                  </td></tr>
-                )}
-                {!loading && doses.map((d) => {
-                  const pill = pillDe(d);
-                  const atrasada = String(d.situacao || '').toUpperCase() === 'ATRASADA' && String(d.status || '').toUpperCase() !== 'APLICADA';
-                  return (
-                    <tr key={d.id}>
-                      <td style={{ ...tdStyle, color: atrasada ? ORANGE : TXT, fontWeight: atrasada ? 500 : 400 }}>{fmtData(d.dataPrevista)}</td>
-                      <td style={{ ...tdStyle, color: TXT }}>{d.tutorNome || '—'}</td>
-                      <td style={{ ...tdStyle, color: TXT }}>
-                        <span style={{ marginRight: 6 }}>{emojiEspecie(d.especie)}</span>{d.petNome || '—'}
-                      </td>
-                      <td style={{ ...tdStyle, color: TXT2 }}>{d.nomeProtocolo || '—'}</td>
-                      <td style={tdStyle}>
-                        <span style={{ fontSize: 11, fontWeight: 500, padding: '3px 10px', borderRadius: 20, background: pill.bg, color: pill.fg, whiteSpace: 'nowrap' }}>{pill.label}</span>
-                      </td>
-                      <td style={{ ...tdStyle, textAlign: 'right', whiteSpace: 'nowrap' }}>
+      {/* Tabela */}
+      <Card pad="0" className="overflow-hidden">
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead>
+              <tr>
+                <th style={thStyle}>Data prevista</th>
+                <th style={thStyle}>Cliente</th>
+                <th style={thStyle}>Animal</th>
+                <th style={thStyle}>Vacina</th>
+                <th style={thStyle}>Status</th>
+                <th style={{ ...thStyle, textAlign: 'right' }}>Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading && (
+                <tr><td colSpan={6} style={{ ...tdStyle, textAlign: 'center', color: B44.text2, padding: 26 }}>Carregando…</td></tr>
+              )}
+              {!loading && doses.length === 0 && (
+                <tr><td colSpan={6} style={{ ...tdStyle, padding: 24 }}>
+                  <div style={{ textAlign: 'center', fontSize: 28 }}>💉</div>
+                  <EmptyState>Nenhuma vacina na programação para este filtro.</EmptyState>
+                </td></tr>
+              )}
+              {!loading && doses.map((d) => {
+                const pill = pillDe(d);
+                const atrasada = String(d.situacao || '').toUpperCase() === 'ATRASADA' && String(d.status || '').toUpperCase() !== 'APLICADA';
+                return (
+                  <tr key={d.id}>
+                    <td style={{ ...tdStyle, color: atrasada ? B44.coral : B44.text1, fontWeight: atrasada ? 500 : 400 }}>{fmtData(d.dataPrevista)}</td>
+                    <td style={{ ...tdStyle, color: B44.text1 }}>{d.tutorNome || '—'}</td>
+                    <td style={{ ...tdStyle, color: B44.text1 }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                        <Avatar kind="emoji" emoji={emojiEspecie(d.especie)} size={28} />
+                        {d.petNome || '—'}
+                      </span>
+                    </td>
+                    <td style={{ ...tdStyle, color: B44.text2 }}>{d.nomeProtocolo || '—'}</td>
+                    <td style={tdStyle}>
+                      <Pill tone={pill.tone}>{pill.label}</Pill>
+                    </td>
+                    <td style={{ ...tdStyle, textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}>
                         {d.tutorPhone && (
-                          <button onClick={() => openWhatsAppMeta(d.tutorPhone)} title="WhatsApp" style={{ border: `1px solid ${LINE}`, background: '#fff', cursor: 'pointer', padding: '5px 9px', borderRadius: 8, fontSize: 14, lineHeight: 1, marginRight: 6 }}>📲</button>
+                          <Btn variant="ghost" onClick={() => openWhatsAppMeta(d.tutorPhone)} title="WhatsApp" style={{ padding: '5px 9px' }}>📲</Btn>
                         )}
                         {d.petId ? (
-                          <Link href={`/dashboard/erp/pets/${d.petId}?tab=vacinas`} title="Ficha do pet" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, border: `1px solid ${LINE}`, background: '#fff', cursor: 'pointer', padding: '5px 10px', borderRadius: 8, fontSize: 12.5, color: TEAL_DARK, textDecoration: 'none' }}>
+                          <Link href={`/dashboard/erp/pets/${d.petId}?tab=vacinas`} title="Ficha do pet" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, border: `1px solid ${B44.line}`, background: '#fff', cursor: 'pointer', padding: '5px 10px', borderRadius: B44.rSm, fontSize: 12.5, color: B44.navy, textDecoration: 'none' }}>
                             <span style={{ fontSize: 14 }}>🐾</span> Ficha
                           </Link>
                         ) : (
-                          <span style={{ color: TXT3, fontSize: 12 }}>—</span>
+                          <span style={{ color: B44.text3, fontSize: 12 }}>—</span>
                         )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
-
-      </div>
-    </div>
+      </Card>
+    </PageShell>
   );
 }
