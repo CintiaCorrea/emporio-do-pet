@@ -62,7 +62,7 @@ export default function ModeloDemonstrativoPage() {
       <span className="text-[12.5px] text-[#1F2A2E]">{label}</span>
       <div className="inline-flex border rounded-lg overflow-hidden" style={{ borderColor: "#E8E2D6" }}>
         {[["Sim", true], ["Não", false]].map(([lbl, val]) => (
-          <button key={lbl as string} onClick={() => set(k, val)} className="px-3 py-1 text-[11.5px]" style={cfg[k] === val ? { background: "#0F6E56", color: "#fff" } : { background: "#fff", color: "#5C6B70" }}>{lbl}</button>
+          <button key={lbl as string} onClick={() => set(k, val)} className="px-3 py-1 text-[11.5px]" style={cfg[k] === val ? { background: "#009AAC", color: "#fff" } : { background: "#fff", color: "#5C6B70" }}>{lbl}</button>
         ))}
       </div>
     </div>

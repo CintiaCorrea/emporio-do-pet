@@ -49,9 +49,13 @@ export default function RankingClientesPage() {
 
       <div className="grid grid-cols-3 gap-3 mb-4">
         {(["A", "B", "C"] as const).map((c) => (
-          <div key={c} className="rounded-[13px] px-4 py-3.5 text-white" style={{ background: CLASSE[c].card }}>
-            <div className="text-[24px] font-medium tabular-nums">{resumo[c]?.count ?? 0}</div>
-            <div className="text-[12px] opacity-95 mt-0.5">Clientes {c} · {resumo[c]?.pct ?? 0}% das vendas</div>
+          <div key={c} className="bg-white border rounded-xl px-4 py-3.5" style={{ borderColor: "#E8E2D6" }}>
+            <div className="flex items-center gap-1.5">
+              <span className="inline-block w-2 h-2 rounded-full" style={{ background: CLASSE[c].fg }} />
+              <span className="text-[10.5px] uppercase tracking-wide text-[#8A989D]">Clientes {c}</span>
+            </div>
+            <div className="text-[22px] font-medium tabular-nums text-[#014D5E] mt-1">{resumo[c]?.count ?? 0}</div>
+            <div className="text-[11px] text-[#8A989D]">{resumo[c]?.pct ?? 0}% das vendas</div>
           </div>
         ))}
       </div>

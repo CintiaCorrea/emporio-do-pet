@@ -54,7 +54,7 @@ export default function ConfigVendasPage() {
   const Toggle = ({ k }: { k: string }) => (
     <div className="inline-flex border rounded-lg overflow-hidden flex-shrink-0" style={{ borderColor: "#E8E2D6" }}>
       {[["Sim", true], ["Não", false]].map(([lbl, val]) => (
-        <button key={lbl as string} onClick={() => set(k, val)} className="px-3.5 py-1.5 text-[12.5px]" style={cfg[k] === val ? { background: "#0F6E56", color: "#fff" } : { background: "#fff", color: "#5C6B70" }}>{lbl}</button>
+        <button key={lbl as string} onClick={() => set(k, val)} className="px-3.5 py-1.5 text-[12.5px]" style={cfg[k] === val ? { background: "#009AAC", color: "#fff" } : { background: "#fff", color: "#5C6B70" }}>{lbl}</button>
       ))}
     </div>
   );

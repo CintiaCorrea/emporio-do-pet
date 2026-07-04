@@ -86,9 +86,9 @@ export default function RecebimentosPage() {
         <>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-4">
             {KPIS.map((kp) => (
-              <div key={kp.l} className="rounded-[12px] px-3.5 py-3 text-white" style={{ background: kp.c }}>
-                <div className="text-[18px] font-medium tabular-nums">{money(Number(kp.v) || 0)}</div>
-                <div className="text-[10.5px] opacity-95 mt-1">{kp.l}</div>
+              <div key={kp.l} className="bg-white border rounded-xl px-3.5 py-3" style={{ borderColor: "#E8E2D6" }}>
+                <div className="text-[10.5px] text-[#8A989D] flex items-center gap-1.5"><span className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: kp.c }} />{kp.l}</div>
+                <div className="text-[18px] font-medium tabular-nums text-[#014D5E] mt-1">{money(Number(kp.v) || 0)}</div>
               </div>
             ))}
           </div>
