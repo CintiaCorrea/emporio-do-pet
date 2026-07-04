@@ -152,6 +152,7 @@ const NAV: Entry[] = [
     ],
   },
   { href: "/dashboard/erp/logs", label: "Log de auditoria", emoji: "🔎", roles: ["ADMIN"], section: "SISTEMA" },
+  { href: "/dashboard/erp/dados-clinica", label: "Dados da clínica", emoji: "🏢", roles: ["ADMIN"], section: "SISTEMA" },
   { href: "/dashboard/configuracoes", label: "Configuração", emoji: "⚙️", roles: ["ADMIN"], section: "SISTEMA" },
 ];
 
