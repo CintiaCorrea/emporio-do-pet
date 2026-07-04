@@ -1,21 +1,26 @@
 // DESTINO NO REPO: vet-crm/app/(user)/dashboard/erp/caixa/page.tsx
-// Caixa no PADRAO DO SISTEMA: 2 colunas, largura total, titulo "Caixa",
-// botao de esconder valores e exclusao de registros.
+// Caixa no padrao Base44 (bege + emojis): 2 colunas, largura total,
+// titulo "Caixa", botao de esconder valores e exclusao de registros.
+// Roupagem repaginada 04/07 — LOGICA 100% preservada.
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { usePageTitle } from '@/lib/ui/PageHeaderContext';
-import {
-  LuPlus, LuLock, LuLockOpen, LuPrinter, LuChevronLeft, LuChevronRight,
-  LuX, LuWallet, LuTrash2, LuGift, LuSettings, LuCircleDollarSign, LuEye, LuEyeOff,
-} from 'react-icons/lu';
 
-const TEAL = '#009AAC';
-const TEAL_DARK = '#014D5E';
-const ORANGE = '#D85A30';
-const GREEN = '#0f6e56';
-const LINE = '#e6eaed';
+// Paleta Base44 (mesmos tokens de components/ui/base44.tsx)
+const TEAL = '#009AAC';      // B44.primary  (acento / botao primario)
+const TEAL_DARK = '#014D5E'; // B44.navy     (titulos / texto forte)
+const ORANGE = '#D85A30';    // B44.coral
+const GREEN = '#0f6e56';     // sucesso
+const BG = '#F6F2EA';        // B44.bgPage   (fundo da pagina)
+const SOFT = '#FBF9F4';      // B44.soft     (areas suaves)
+const TINT = '#E0F4F6';      // B44.tint     (agua)
+const LINE = '#E8E2D6';      // B44.line     (borda do cartao)
+const DIV = '#F0EBE0';       // B44.lineSoft (divisoria interna)
+const TXT = '#1F2A2E';       // B44.text1    (corpo)
+const TXT2 = '#5C6B70';      // B44.text2    (secundario)
+const TXT3 = '#8A989D';      // B44.text3    (dica / rotulo)
 
 type Forma = { forma: string; valor: number; parcelas: number; nsu: string };
 interface Movimento { id: string; tipo: string; valor: number; forma?: string | null; conta?: string | null; descricao?: string | null; observacao?: string | null; data: string; }
@@ -36,8 +41,8 @@ const dataHora = (s?: string | null) => s ? new Date(s).toLocaleString('pt-BR', 
 const hojeStr = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const fmtDataLabel = (iso: string) => { const [y, m, d] = iso.split('-'); return `${d}/${m}/${y}`; };
 
-const thStyle: React.CSSProperties = { color: '#64748b', fontWeight: 500, padding: '8px', borderBottom: `1px solid ${LINE}`, textAlign: 'left' };
-const tdStyle: React.CSSProperties = { padding: '9px 8px', borderBottom: '1px solid #f1f5f6' };
+const thStyle: React.CSSProperties = { color: TXT3, fontWeight: 500, fontSize: 11.5, textTransform: 'uppercase', letterSpacing: '.03em', padding: '8px', borderBottom: `1px solid ${LINE}`, textAlign: 'left' };
+const tdStyle: React.CSSProperties = { padding: '9px 8px', borderBottom: `1px solid ${DIV}` };
 
 export default function CaixaPage() {
   usePageTitle('Caixa', 'Controle de recebimentos do dia');
@@ -234,46 +239,44 @@ export default function CaixaPage() {
   const contado = fecharForm.valorContado === '' ? null : Number(String(fecharForm.valorContado).replace(',', '.'));
   const difPrevia = contado === null ? null : Number((contado - saldoDinheiro).toFixed(2));
 
-  const cardStyle: React.CSSProperties = { background: '#fff', border: `1px solid ${LINE}`, borderRadius: 11, padding: '14px 15px' };
-  const cardH = (icon: React.ReactNode, txt: string) => (
-    <div style={{ fontSize: 13, fontWeight: 600, margin: '0 0 10px', display: 'flex', alignItems: 'center', gap: 7 }}>
-      <span style={{ color: TEAL, display: 'flex' }}>{icon}</span>{txt}
+  const cardStyle: React.CSSProperties = { background: '#fff', border: `1px solid ${LINE}`, borderRadius: 13, padding: '14px 15px' };
+  const cardH = (emoji: string, txt: string) => (
+    <div style={{ fontSize: 13, fontWeight: 500, margin: '0 0 10px', display: 'flex', alignItems: 'center', gap: 7, color: TEAL_DARK }}>
+      <span style={{ fontSize: 15 }}>{emoji}</span>{txt}
     </div>
   );
   const tabBtn = (id: typeof tab, label: string) => {
     const on = tab === id;
-    return <button onClick={() => setTab(id)} style={{ fontSize: 13.5, color: on ? TEAL_DARK : '#64748b', fontWeight: on ? 600 : 400, padding: '10px 2px', cursor: 'pointer', background: 'none', border: 'none', borderBottom: `2px solid ${on ? TEAL : 'transparent'}`, whiteSpace: 'nowrap' }}>{label}</button>;
+    return <button onClick={() => setTab(id)} style={{ fontSize: 13.5, color: on ? TEAL_DARK : TXT2, fontWeight: on ? 500 : 400, padding: '10px 2px', cursor: 'pointer', background: 'none', border: 'none', borderBottom: `2px solid ${on ? TEAL : 'transparent'}`, whiteSpace: 'nowrap' }}>{label}</button>;
   };
   const delBtn = (fn: () => void) => (
-    <button onClick={fn} title="Excluir" className="no-print" style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 4, lineHeight: 0 }}>
-      <LuTrash2 size={15} color="#b0408a" style={{ opacity: .7 }} />
-    </button>
+    <button onClick={fn} title="Excluir" className="no-print" style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 4, lineHeight: 1, fontSize: 14, opacity: .75 }}>🗑️</button>
   );
 
   return (
-    <div style={{ width: '100%', background: '#f7f9fa', minHeight: '100%' }}>
+    <div style={{ width: '100%', background: BG, minHeight: '100%' }}>
       <style>{`@media print { .no-print { display:none !important; } body { background:#fff; } }`}</style>
       <div style={{ width: '100%', padding: '20px 26px 60px', boxSizing: 'border-box' }}>
 
         {/* barra de acoes (titulo vem do cabecalho global) */}
         <div className="no-print" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
-          <button onClick={() => setOcultar((v) => !v)} title={ocultar ? 'Mostrar valores' : 'Esconder valores'} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 500, padding: '8px 12px', borderRadius: 9, cursor: 'pointer', border: '1px solid #d7e0e2', background: '#fff', color: TEAL_DARK }}>
-            {ocultar ? <LuEyeOff size={15} /> : <LuEye size={15} />}{ocultar ? 'Mostrar valores' : 'Esconder valores'}
+          <button onClick={() => setOcultar((v) => !v)} title={ocultar ? 'Mostrar valores' : 'Esconder valores'} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 500, padding: '8px 12px', borderRadius: 9, cursor: 'pointer', border: `1px solid ${LINE}`, background: '#fff', color: TEAL_DARK }}>
+            <span style={{ fontSize: 14 }}>{ocultar ? '🙈' : '👁️'}</span>{ocultar ? 'Mostrar valores' : 'Esconder valores'}
           </button>
-          <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #d7e0e2', borderRadius: 9, overflow: 'hidden' }}>
-            <button onClick={() => mudarDia(-1)} style={{ border: 'none', background: '#fff', padding: '8px 11px', color: TEAL_DARK, cursor: 'pointer' }} aria-label="Dia anterior"><LuChevronLeft size={16} /></button>
-            <span style={{ fontSize: 13, fontWeight: 500, padding: '0 12px' }}>{date === hojeStr() ? 'Hoje · ' : ''}{fmtDataLabel(date)}</span>
-            <button onClick={() => mudarDia(1)} style={{ border: 'none', background: '#fff', padding: '8px 11px', color: TEAL_DARK, cursor: 'pointer' }} aria-label="Próximo dia"><LuChevronRight size={16} /></button>
+          <div style={{ display: 'flex', alignItems: 'center', border: `1px solid ${LINE}`, borderRadius: 9, overflow: 'hidden', background: '#fff' }}>
+            <button onClick={() => mudarDia(-1)} style={{ border: 'none', background: '#fff', padding: '6px 13px', color: TEAL_DARK, cursor: 'pointer', fontSize: 18, lineHeight: 1 }} aria-label="Dia anterior">‹</button>
+            <span style={{ fontSize: 13, fontWeight: 500, padding: '0 12px', color: TXT }}>{date === hojeStr() ? 'Hoje · ' : ''}{fmtDataLabel(date)}</span>
+            <button onClick={() => mudarDia(1)} style={{ border: 'none', background: '#fff', padding: '6px 13px', color: TEAL_DARK, cursor: 'pointer', fontSize: 18, lineHeight: 1 }} aria-label="Próximo dia">›</button>
           </div>
-          <button onClick={() => setAbrirOpen(true)} style={{ background: TEAL, color: '#fff', border: 'none', fontSize: 12.5, fontWeight: 500, padding: '9px 14px', borderRadius: 9, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}><LuPlus size={15} /> Abrir caixa</button>
+          <button onClick={() => setAbrirOpen(true)} style={{ background: TEAL, color: '#fff', border: 'none', fontSize: 12.5, fontWeight: 500, padding: '9px 14px', borderRadius: 9, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}><span>➕</span> Abrir caixa</button>
         </div>
 
-        {loading && <p style={{ color: '#64748b' }}>Carregando…</p>}
+        {loading && <p style={{ color: TXT2 }}>Carregando…</p>}
         {!loading && caixas.length === 0 && (
           <div style={{ ...cardStyle, textAlign: 'center', padding: 40 }}>
-            <LuWallet size={28} style={{ color: TEAL }} />
-            <p style={{ color: '#475569', margin: '10px 0 0' }}>Nenhum caixa neste dia.</p>
-            <p style={{ color: '#94a3b8', fontSize: 13, margin: '4px 0 0' }}>Clique em “Abrir caixa” para começar.</p>
+            <div style={{ fontSize: 30 }}>💰</div>
+            <p style={{ color: TXT2, margin: '10px 0 0' }}>Nenhum caixa neste dia.</p>
+            <p style={{ color: TXT3, fontSize: 13, margin: '4px 0 0' }}>Clique em “Abrir caixa” para começar.</p>
           </div>
         )}
 
@@ -283,19 +286,19 @@ export default function CaixaPage() {
             {/* COLUNA ESQUERDA */}
             <div style={{ width: 280, flex: '0 0 280px', display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div style={cardStyle}>
-                {cardH(<LuWallet size={15} />, `Caixa nº ${detail.numero}`)}
-                <div style={{ fontSize: 12.5, lineHeight: 1.95 }}>
-                  <div><span style={{ color: '#0f6e7a', fontWeight: 500 }}>Usuário:</span> {detail.user?.name || '—'}</div>
-                  <div><span style={{ color: '#0f6e7a', fontWeight: 500 }}>Abertura:</span> {dataHora(detail.abertura)}</div>
-                  {detail.fechamento && <div><span style={{ color: '#0f6e7a', fontWeight: 500 }}>Fechamento:</span> {dataHora(detail.fechamento)}</div>}
-                  <div><span style={{ color: '#0f6e7a', fontWeight: 500 }}>Status:</span>{' '}
-                    <span style={{ fontSize: 11, fontWeight: 500, padding: '3px 10px', borderRadius: 20, ...(aberto ? { background: '#e1f5ee', color: GREEN } : { background: '#eef2f3', color: '#64748b' }) }}>{aberto ? 'ABERTO' : 'FECHADO'}</span>
+                {cardH('💰', `Caixa nº ${detail.numero}`)}
+                <div style={{ fontSize: 12.5, lineHeight: 1.95, color: TXT }}>
+                  <div><span style={{ color: TEAL_DARK, fontWeight: 500 }}>Usuário:</span> {detail.user?.name || '—'}</div>
+                  <div><span style={{ color: TEAL_DARK, fontWeight: 500 }}>Abertura:</span> {dataHora(detail.abertura)}</div>
+                  {detail.fechamento && <div><span style={{ color: TEAL_DARK, fontWeight: 500 }}>Fechamento:</span> {dataHora(detail.fechamento)}</div>}
+                  <div><span style={{ color: TEAL_DARK, fontWeight: 500 }}>Status:</span>{' '}
+                    <span style={{ fontSize: 11, fontWeight: 500, padding: '3px 10px', borderRadius: 20, ...(aberto ? { background: '#e1f5ee', color: GREEN } : { background: DIV, color: TXT2 }) }}>{aberto ? 'ABERTO' : 'FECHADO'}</span>
                   </div>
                 </div>
                 {caixas.length > 1 && (
                   <div className="no-print" style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
                     {caixas.map((c) => (
-                      <button key={c.id} onClick={() => setSelectedId(c.id)} style={{ flex: 1, fontSize: 11.5, padding: '6px 8px', borderRadius: 8, cursor: 'pointer', border: c.id === selectedId ? `1.5px solid ${TEAL}` : '1px solid #d7e0e2', background: c.id === selectedId ? '#e8f7f9' : '#fff', color: c.id === selectedId ? '#0f6e7a' : '#475569' }}>nº {c.numero}</button>
+                      <button key={c.id} onClick={() => setSelectedId(c.id)} style={{ flex: 1, fontSize: 11.5, padding: '6px 8px', borderRadius: 8, cursor: 'pointer', border: c.id === selectedId ? `1.5px solid ${TEAL}` : `1px solid ${LINE}`, background: c.id === selectedId ? TINT : '#fff', color: c.id === selectedId ? TEAL_DARK : TXT2 }}>nº {c.numero}</button>
                     ))}
                   </div>
                 )}
@@ -303,18 +306,18 @@ export default function CaixaPage() {
 
               {aberto ? (
                 <div style={cardStyle}>
-                  {cardH(<LuCircleDollarSign size={15} />, 'Saldo em dinheiro')}
-                  <div style={{ fontSize: 22, fontWeight: 600, color: TEAL_DARK }}>{money(saldoDinheiro)}</div>
-                  <div style={{ fontSize: 12, color: '#64748b', marginTop: 3 }}>Suprimento + dinheiro − saídas</div>
+                  {cardH('💵', 'Saldo em dinheiro')}
+                  <div style={{ fontSize: 22, fontWeight: 500, color: TEAL_DARK }}>{money(saldoDinheiro)}</div>
+                  <div style={{ fontSize: 12, color: TXT2, marginTop: 3 }}>Suprimento + dinheiro − saídas</div>
                 </div>
               ) : (
                 <div style={cardStyle}>
-                  {cardH(<LuCircleDollarSign size={15} />, 'Conferência')}
-                  <div style={{ fontSize: 12.5, lineHeight: 1.95 }}>
-                    <div><span style={{ color: '#0f6e7a', fontWeight: 500 }}>Esperado:</span> {money(Number(detail.valorEsperado ?? saldoDinheiro))}</div>
-                    <div><span style={{ color: '#0f6e7a', fontWeight: 500 }}>Contado:</span> {detail.valorContado != null ? money(Number(detail.valorContado)) : '—'}</div>
-                    <div><span style={{ color: '#0f6e7a', fontWeight: 500 }}>Diferença:</span>{' '}
-                      <b style={{ color: detail.diferenca == null ? '#94a3b8' : Math.abs(Number(detail.diferenca)) < 0.005 ? GREEN : Number(detail.diferenca) > 0 ? GREEN : ORANGE }}>
+                  {cardH('🧮', 'Conferência')}
+                  <div style={{ fontSize: 12.5, lineHeight: 1.95, color: TXT }}>
+                    <div><span style={{ color: TEAL_DARK, fontWeight: 500 }}>Esperado:</span> {money(Number(detail.valorEsperado ?? saldoDinheiro))}</div>
+                    <div><span style={{ color: TEAL_DARK, fontWeight: 500 }}>Contado:</span> {detail.valorContado != null ? money(Number(detail.valorContado)) : '—'}</div>
+                    <div><span style={{ color: TEAL_DARK, fontWeight: 500 }}>Diferença:</span>{' '}
+                      <b style={{ fontWeight: 500, color: detail.diferenca == null ? TXT3 : Math.abs(Number(detail.diferenca)) < 0.005 ? GREEN : Number(detail.diferenca) > 0 ? GREEN : ORANGE }}>
                         {detail.diferenca == null ? '—' : (Number(detail.diferenca) > 0 ? 'Sobra ' : Number(detail.diferenca) < 0 ? 'Falta ' : '') + money(Math.abs(Number(detail.diferenca)))}
                       </b>
                     </div>
@@ -323,21 +326,21 @@ export default function CaixaPage() {
               )}
 
               <div className="no-print" style={cardStyle}>
-                {cardH(<LuSettings size={15} />, 'Ações')}
+                {cardH('⚙️', 'Ações')}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 7 }}>
                   <button onClick={() => abrirMov('SUPRIMENTO')} disabled={!aberto} style={{ background: TEAL, color: '#fff', border: 'none', fontSize: 12, fontWeight: 500, padding: '8px', borderRadius: 9, cursor: 'pointer', opacity: aberto ? 1 : .4 }}>Suprimento</button>
                   <button onClick={() => abrirMov('SANGRIA')} disabled={!aberto} style={{ background: '#fff', color: ORANGE, border: `1px solid ${ORANGE}`, fontSize: 12, fontWeight: 500, padding: '8px', borderRadius: 9, cursor: 'pointer', opacity: aberto ? 1 : .4 }}>Sangria</button>
                   <button onClick={() => abrirMov('DESPESA')} disabled={!aberto} style={{ background: '#fff', color: ORANGE, border: `1px solid ${ORANGE}`, fontSize: 12, fontWeight: 500, padding: '8px', borderRadius: 9, cursor: 'pointer', opacity: aberto ? 1 : .4 }}>Despesa</button>
-                  <button onClick={() => abrirMov('TRANSFERENCIA')} disabled={!aberto} style={{ background: '#fff', color: TEAL_DARK, border: `1px solid ${TEAL_DARK}`, fontSize: 12, fontWeight: 500, padding: '8px', borderRadius: 9, cursor: 'pointer', opacity: aberto ? 1 : .4 }}>Transferência</button>
-                  <button onClick={abrirCredito} disabled={!aberto} style={{ gridColumn: '1 / -1', background: '#fff', color: TEAL, border: `1px solid ${TEAL}`, fontSize: 12, fontWeight: 500, padding: '8px', borderRadius: 9, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: aberto ? 1 : .4 }}><LuGift size={14} /> Crédito do pet</button>
-                  <button onClick={() => window.print()} style={{ gridColumn: '1 / -1', background: '#fff', color: TEAL_DARK, border: `1px solid ${TEAL_DARK}`, fontSize: 12, fontWeight: 500, padding: '8px', borderRadius: 9, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><LuPrinter size={14} /> Imprimir relatório</button>
+                  <button onClick={() => abrirMov('TRANSFERENCIA')} disabled={!aberto} style={{ background: '#fff', color: TEAL_DARK, border: `1px solid ${LINE}`, fontSize: 12, fontWeight: 500, padding: '8px', borderRadius: 9, cursor: 'pointer', opacity: aberto ? 1 : .4 }}>Transferência</button>
+                  <button onClick={abrirCredito} disabled={!aberto} style={{ gridColumn: '1 / -1', background: '#fff', color: TEAL, border: `1px solid ${TEAL}`, fontSize: 12, fontWeight: 500, padding: '8px', borderRadius: 9, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: aberto ? 1 : .4 }}><span>🎁</span> Crédito do pet</button>
+                  <button onClick={() => window.print()} style={{ gridColumn: '1 / -1', background: '#fff', color: TEAL_DARK, border: `1px solid ${LINE}`, fontSize: 12, fontWeight: 500, padding: '8px', borderRadius: 9, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><span>🖨️</span> Imprimir relatório</button>
                   {aberto ? (
-                    <button onClick={abrirFechar} style={{ gridColumn: '1 / -1', background: TEAL_DARK, color: '#fff', border: 'none', fontSize: 12, fontWeight: 500, padding: '9px', borderRadius: 9, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><LuLock size={14} /> Revisar e encerrar</button>
+                    <button onClick={abrirFechar} style={{ gridColumn: '1 / -1', background: TEAL_DARK, color: '#fff', border: 'none', fontSize: 12, fontWeight: 500, padding: '9px', borderRadius: 9, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><span>🔒</span> Revisar e encerrar</button>
                   ) : (
-                    <button onClick={reabrirCaixa} style={{ gridColumn: '1 / -1', background: '#fff', color: '#475569', border: '1px solid #d7e0e2', fontSize: 12, fontWeight: 500, padding: '9px', borderRadius: 9, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><LuLockOpen size={14} /> Reabrir caixa</button>
+                    <button onClick={reabrirCaixa} style={{ gridColumn: '1 / -1', background: '#fff', color: TXT2, border: `1px solid ${LINE}`, fontSize: 12, fontWeight: 500, padding: '9px', borderRadius: 9, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><span>🔓</span> Reabrir caixa</button>
                   )}
                 </div>
-                {!aberto && <p style={{ fontSize: 11, color: '#94a3b8', margin: '8px 0 0' }}>Reabra o caixa para lançar ou excluir registros.</p>}
+                {!aberto && <p style={{ fontSize: 11, color: TXT3, margin: '8px 0 0' }}>Reabra o caixa para lançar ou excluir registros.</p>}
               </div>
             </div>
 
@@ -346,29 +349,29 @@ export default function CaixaPage() {
               <div className="no-print" style={{ display: 'flex', gap: 26, borderBottom: `1px solid ${LINE}`, overflowX: 'auto' }}>
                 {tabBtn('resumo', 'Resumo')}{tabBtn('receb', 'Recebimentos')}{tabBtn('mov', 'Movimentações')}{tabBtn('cred', 'Créditos')}
               </div>
-              <div style={{ background: '#fff', border: `1px solid ${LINE}`, borderTop: 'none', borderRadius: '0 0 11px 11px', padding: 18 }}>
+              <div style={{ background: '#fff', border: `1px solid ${LINE}`, borderTop: 'none', borderRadius: '0 0 13px 13px', padding: 18 }}>
 
                 {tab === 'resumo' && (
                   <>
-                    <div style={{ fontSize: 14, fontWeight: 600, margin: '0 0 10px' }}>Valores recebidos no caixa</div>
+                    <div style={{ fontSize: 14, fontWeight: 500, margin: '0 0 10px', color: TEAL_DARK }}>Valores recebidos no caixa</div>
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                       <thead><tr><th style={thStyle}>Forma de recebimento</th><th style={{ ...thStyle, textAlign: 'right' }}>Vendas</th><th style={{ ...thStyle, textAlign: 'right' }}>Suprimentos</th><th style={{ ...thStyle, textAlign: 'right' }}>Resultado</th></tr></thead>
                       <tbody>
-                        {resumo.linhas.length === 0 && (<tr><td colSpan={4} style={{ ...tdStyle, textAlign: 'center', color: '#94a3b8', padding: 16 }}>Nenhum valor recebido ainda.</td></tr>)}
+                        {resumo.linhas.length === 0 && (<tr><td colSpan={4} style={{ ...tdStyle, textAlign: 'center', color: TXT3, padding: 16 }}>Nenhum valor recebido ainda.</td></tr>)}
                         {resumo.linhas.map((l) => (
                           <tr key={l.forma}>
-                            <td style={{ ...tdStyle, color: '#0f6e7a' }}>{l.forma}</td>
-                            <td style={{ ...tdStyle, textAlign: 'right' }}>{l.vendas ? money(l.vendas) : '—'}</td>
-                            <td style={{ ...tdStyle, textAlign: 'right' }}>{l.sup ? money(l.sup) : '—'}</td>
-                            <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 500 }}>{money(l.resultado)}</td>
+                            <td style={{ ...tdStyle, color: TXT }}>{l.forma}</td>
+                            <td style={{ ...tdStyle, textAlign: 'right', color: TXT }}>{l.vendas ? money(l.vendas) : '—'}</td>
+                            <td style={{ ...tdStyle, textAlign: 'right', color: TXT }}>{l.sup ? money(l.sup) : '—'}</td>
+                            <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 500, color: TXT }}>{money(l.resultado)}</td>
                           </tr>
                         ))}
                         {resumo.linhas.length > 0 && (
-                          <tr style={{ borderTop: '1px solid #d7e0e2' }}>
-                            <td style={{ ...tdStyle, fontWeight: 600 }}>Total</td>
-                            <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600 }}>{money(resumo.tot.vendas)}</td>
-                            <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600 }}>{money(resumo.tot.sup)}</td>
-                            <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600, color: TEAL_DARK }}>{money(resumo.tot.resultado)}</td>
+                          <tr style={{ borderTop: `1px solid ${LINE}` }}>
+                            <td style={{ ...tdStyle, fontWeight: 500, color: TEAL_DARK }}>Total</td>
+                            <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 500, color: TEAL_DARK }}>{money(resumo.tot.vendas)}</td>
+                            <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 500, color: TEAL_DARK }}>{money(resumo.tot.sup)}</td>
+                            <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 500, color: TEAL_DARK }}>{money(resumo.tot.resultado)}</td>
                           </tr>
                         )}
                       </tbody>
@@ -382,11 +385,11 @@ export default function CaixaPage() {
                       <div className="no-print" style={{ marginBottom: 12 }}>
                         {vendasEmAberto.length > 0 ? (
                           <details style={{ fontSize: 13 }}>
-                            <summary style={{ cursor: 'pointer', fontWeight: 500, color: TEAL }}>+ Registrar recebimento ({vendasEmAberto.length} venda(s) em aberto)</summary>
-                            <div style={{ marginTop: 8, border: '1px solid #eef2f3', borderRadius: 10 }}>
+                            <summary style={{ cursor: 'pointer', fontWeight: 500, color: TEAL }}>➕ Registrar recebimento ({vendasEmAberto.length} venda(s) em aberto)</summary>
+                            <div style={{ marginTop: 8, border: `1px solid ${LINE}`, borderRadius: 10 }}>
                               {vendasEmAberto.map((v) => (
-                                <div key={v.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderBottom: '1px solid #f1f5f6' }}>
-                                  <span style={{ color: '#1f2d33' }}>{v.tutor?.name || 'Cliente'} · {v.pet?.name || 'Pet'}</span>
+                                <div key={v.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderBottom: `1px solid ${DIV}` }}>
+                                  <span style={{ color: TXT }}>{v.tutor?.name || 'Cliente'} · {v.pet?.name || 'Pet'}</span>
                                   <span style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                                     <span style={{ color: ORANGE, fontWeight: 500 }}>{money(Number(v.value) - (pagoPorAppt.get(v.id) || 0))}</span>
                                     <button onClick={() => abrirReceber(v)} style={{ background: TEAL, color: '#fff', border: 'none', fontSize: 12, padding: '6px 12px', borderRadius: 8, cursor: 'pointer' }}>Receber</button>
@@ -395,23 +398,23 @@ export default function CaixaPage() {
                               ))}
                             </div>
                           </details>
-                        ) : (<p style={{ fontSize: 13, color: '#94a3b8' }}>Nenhuma venda em aberto neste dia.</p>)}
+                        ) : (<p style={{ fontSize: 13, color: TXT3 }}>Nenhuma venda em aberto neste dia.</p>)}
                       </div>
                     )}
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                       <thead><tr><th style={thStyle}>Hora</th><th style={thStyle}>Cliente · Pet</th><th style={thStyle}>Formas</th><th style={{ ...thStyle, textAlign: 'right' }}>Valor</th><th style={{ ...thStyle, textAlign: 'right' }}>Status</th>{aberto && <th style={{ ...thStyle, textAlign: 'right' }} className="no-print"></th>}</tr></thead>
                       <tbody>
-                        {(detail.recebimentos || []).length === 0 && (<tr><td colSpan={aberto ? 6 : 5} style={{ ...tdStyle, textAlign: 'center', color: '#94a3b8', padding: 16 }}>Nenhum recebimento registrado.</td></tr>)}
+                        {(detail.recebimentos || []).length === 0 && (<tr><td colSpan={aberto ? 6 : 5} style={{ ...tdStyle, textAlign: 'center', color: TXT3, padding: 16 }}>Nenhum recebimento registrado.</td></tr>)}
                         {(detail.recebimentos || []).map((rec) => {
                           const value = Number(rec.appointment?.value || 0);
                           const pago = rec.appointmentId ? pagoPorAppt.get(rec.appointmentId) || 0 : 0;
                           const st = statusVenda(value, pago);
                           return (
                             <tr key={rec.id}>
-                              <td style={{ ...tdStyle, color: '#64748b' }}>{hora(rec.data)}</td>
-                              <td style={{ ...tdStyle, color: '#1f2d33' }}>{rec.appointment?.tutor?.name || 'Cliente'} · {rec.appointment?.pet?.name || 'Pet'}</td>
-                              <td style={{ ...tdStyle, color: '#94a3b8' }}>{(rec.formas || []).map((f) => f.forma).join(' + ') || '—'}</td>
-                              <td style={{ ...tdStyle, textAlign: 'right' }}>{money(Number(rec.valorTotal))}</td>
+                              <td style={{ ...tdStyle, color: TXT2 }}>{hora(rec.data)}</td>
+                              <td style={{ ...tdStyle, color: TXT }}>{rec.appointment?.tutor?.name || 'Cliente'} · {rec.appointment?.pet?.name || 'Pet'}</td>
+                              <td style={{ ...tdStyle, color: TXT3 }}>{(rec.formas || []).map((f) => f.forma).join(' + ') || '—'}</td>
+                              <td style={{ ...tdStyle, textAlign: 'right', color: TXT }}>{money(Number(rec.valorTotal))}</td>
                               <td style={{ ...tdStyle, textAlign: 'right' }}><span style={{ fontSize: 11, padding: '3px 9px', borderRadius: 20, background: st.bg, color: st.fg }}>{st.label}</span></td>
                               {aberto && <td style={{ ...tdStyle, textAlign: 'right' }} className="no-print">{delBtn(() => delRec(rec.id))}</td>}
                             </tr>
@@ -426,13 +429,13 @@ export default function CaixaPage() {
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                     <thead><tr><th style={thStyle}>Data</th><th style={thStyle}>Tipo</th><th style={thStyle}>Descrição</th><th style={thStyle}>Conta</th><th style={{ ...thStyle, textAlign: 'right' }}>Valor</th>{aberto && <th style={{ ...thStyle }} className="no-print"></th>}</tr></thead>
                     <tbody>
-                      {movLinhas.length === 0 && (<tr><td colSpan={aberto ? 6 : 5} style={{ ...tdStyle, textAlign: 'center', color: '#94a3b8', padding: 16 }}>Sem movimentações.</td></tr>)}
+                      {movLinhas.length === 0 && (<tr><td colSpan={aberto ? 6 : 5} style={{ ...tdStyle, textAlign: 'center', color: TXT3, padding: 16 }}>Sem movimentações.</td></tr>)}
                       {movLinhas.map((m, i) => (
                         <tr key={m.id || i}>
-                          <td style={{ ...tdStyle, color: '#64748b' }}>{dataHora(m.data)}</td>
+                          <td style={{ ...tdStyle, color: TXT2 }}>{dataHora(m.data)}</td>
                           <td style={{ ...tdStyle, color: m.entrada ? GREEN : ORANGE }}>{m.tipo}</td>
-                          <td style={{ ...tdStyle, color: '#64748b' }}>{m.descricao}</td>
-                          <td style={{ ...tdStyle, color: '#94a3b8' }}>{m.conta}</td>
+                          <td style={{ ...tdStyle, color: TXT2 }}>{m.descricao}</td>
+                          <td style={{ ...tdStyle, color: TXT3 }}>{m.conta}</td>
                           <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 500, color: m.entrada ? GREEN : ORANGE }}>{m.entrada ? '' : '− '}{money(m.valor)}</td>
                           {aberto && <td style={{ ...tdStyle, textAlign: 'right' }} className="no-print">{m.id ? delBtn(() => delMov(m.id!)) : null}</td>}
                         </tr>
@@ -445,12 +448,12 @@ export default function CaixaPage() {
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                     <thead><tr><th style={thStyle}>Data</th><th style={thStyle}>Cliente</th><th style={thStyle}>Descrição</th><th style={{ ...thStyle, textAlign: 'right' }}>Valor</th>{aberto && <th style={{ ...thStyle }} className="no-print"></th>}</tr></thead>
                     <tbody>
-                      {(detail.creditosUtilizados || []).length === 0 && (<tr><td colSpan={aberto ? 5 : 4} style={{ ...tdStyle, textAlign: 'center', color: '#94a3b8', padding: 16 }}>Nenhum crédito utilizado.</td></tr>)}
+                      {(detail.creditosUtilizados || []).length === 0 && (<tr><td colSpan={aberto ? 5 : 4} style={{ ...tdStyle, textAlign: 'center', color: TXT3, padding: 16 }}>Nenhum crédito utilizado.</td></tr>)}
                       {(detail.creditosUtilizados || []).map((c) => (
                         <tr key={c.id}>
-                          <td style={{ ...tdStyle, color: '#64748b' }}>{dataHora(c.data)}</td>
-                          <td style={{ ...tdStyle, color: '#1f2d33' }}>{c.tutor?.name || 'Cliente'}</td>
-                          <td style={{ ...tdStyle, color: '#94a3b8' }}>{c.descricao || '—'}</td>
+                          <td style={{ ...tdStyle, color: TXT2 }}>{dataHora(c.data)}</td>
+                          <td style={{ ...tdStyle, color: TXT }}>{c.tutor?.name || 'Cliente'}</td>
+                          <td style={{ ...tdStyle, color: TXT3 }}>{c.descricao || '—'}</td>
                           <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 500, color: ORANGE }}>− {money(Number(c.valor))}</td>
                           {aberto && <td style={{ ...tdStyle, textAlign: 'right' }} className="no-print">{delBtn(() => delCred(c.id))}</td>}
                         </tr>
@@ -475,14 +478,14 @@ export default function CaixaPage() {
 
       {fecharOpen && detail && (
         <Modal title="Revisar e encerrar" onClose={() => setFecharOpen(false)} onConfirm={fecharCaixa} confirmLabel="Encerrar caixa" dark>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#e8f7f9', borderRadius: 8, padding: '11px 12px' }}>
-            <span style={{ color: '#0f6e7a', fontSize: 13 }}>Esperado em dinheiro (gaveta)</span><b style={{ color: TEAL_DARK, fontSize: 15 }}>{brl(saldoDinheiro)}</b>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: TINT, borderRadius: 8, padding: '11px 12px' }}>
+            <span style={{ color: TEAL_DARK, fontSize: 13 }}>Esperado em dinheiro (gaveta)</span><b style={{ color: TEAL_DARK, fontSize: 15, fontWeight: 500 }}>{brl(saldoDinheiro)}</b>
           </div>
           <Field label="Dinheiro contado"><input value={fecharForm.valorContado} onChange={(e) => setFecharForm({ ...fecharForm, valorContado: e.target.value })} inputMode="decimal" placeholder="0,00" style={inp} /></Field>
           {difPrevia !== null && (
             <div style={{ display: 'flex', justifyContent: 'space-between', borderRadius: 8, padding: '10px 12px', fontSize: 13, background: Math.abs(difPrevia) < 0.005 ? '#e1f5ee' : '#fef0e8' }}>
               <span style={{ color: difPrevia >= 0 ? GREEN : '#993C1D' }}>{Math.abs(difPrevia) < 0.005 ? 'Caixa confere' : difPrevia > 0 ? 'Sobra' : 'Falta'}</span>
-              <b style={{ color: difPrevia >= 0 ? GREEN : ORANGE }}>{brl(Math.abs(difPrevia))}</b>
+              <b style={{ color: difPrevia >= 0 ? GREEN : ORANGE, fontWeight: 500 }}>{brl(Math.abs(difPrevia))}</b>
             </div>
           )}
           <Field label="Observação"><input value={fecharForm.observacao} onChange={(e) => setFecharForm({ ...fecharForm, observacao: e.target.value })} style={inp} /></Field>
@@ -520,13 +523,13 @@ export default function CaixaPage() {
 
       {receberOpen && vendaSel && (
         <Modal title="Registrar recebimento" onClose={() => setReceberOpen(false)} onConfirm={registrarRecebimento} confirmLabel="Confirmar recebimento" confirmDisabled={creditoExcede}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', background: '#f8fafb', borderRadius: 8, padding: '10px 12px', fontSize: 13 }}>
-            <span style={{ color: '#1f2d33' }}>{vendaSel.tutor?.name || 'Cliente'} · {vendaSel.pet?.name || 'Pet'}</span>
-            <span style={{ color: '#64748b', fontSize: 12 }}>Total {brl(Number(vendaSel.value))} · Saldo <b style={{ color: ORANGE }}>{brl(valorDevido)}</b></span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', background: SOFT, borderRadius: 8, padding: '10px 12px', fontSize: 13 }}>
+            <span style={{ color: TXT }}>{vendaSel.tutor?.name || 'Cliente'} · {vendaSel.pet?.name || 'Pet'}</span>
+            <span style={{ color: TXT2, fontSize: 12 }}>Total {brl(Number(vendaSel.value))} · Saldo <b style={{ color: ORANGE, fontWeight: 500 }}>{brl(valorDevido)}</b></span>
           </div>
           {tutorSaldo !== null && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', background: '#e8f7f9', borderRadius: 8, padding: '8px 12px', fontSize: 12 }}>
-              <span style={{ color: '#0f6e7a' }}>Crédito disponível do cliente</span><b style={{ color: TEAL_DARK }}>{brl(tutorSaldo)}</b>
+            <div style={{ display: 'flex', justifyContent: 'space-between', background: TINT, borderRadius: 8, padding: '8px 12px', fontSize: 12 }}>
+              <span style={{ color: TEAL_DARK }}>Crédito disponível do cliente</span><b style={{ color: TEAL_DARK, fontWeight: 500 }}>{brl(tutorSaldo)}</b>
             </div>
           )}
           <div>
@@ -536,19 +539,19 @@ export default function CaixaPage() {
                 <select value={f.forma} onChange={(e) => setFormas(formas.map((x, j) => j === i ? { ...x, forma: e.target.value } : x))} style={{ ...inp, flex: 1.4 }}>{FORMAS_PADRAO.map((op) => <option key={op} value={op}>{op}</option>)}</select>
                 <input value={f.valor || ''} inputMode="decimal" placeholder="R$" onChange={(e) => setFormas(formas.map((x, j) => j === i ? { ...x, valor: Number(String(e.target.value).replace(',', '.')) || 0 } : x))} style={{ ...inp, flex: 1 }} />
                 <input value={f.parcelas || 1} type="number" min={1} title="Parcelas" onChange={(e) => setFormas(formas.map((x, j) => j === i ? { ...x, parcelas: Number(e.target.value) || 1 } : x))} style={{ ...inp, width: 52, textAlign: 'center' }} />
-                {formas.length > 1 && <button onClick={() => setFormas(formas.filter((_, j) => j !== i))} aria-label="Remover" style={{ border: 'none', background: 'none', cursor: 'pointer' }}><LuTrash2 size={15} color="#94a3b8" /></button>}
+                {formas.length > 1 && <button onClick={() => setFormas(formas.filter((_, j) => j !== i))} aria-label="Remover" style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 14 }}>🗑️</button>}
               </div>
             ))}
-            <button onClick={() => setFormas([...formas, { forma: 'Pix', valor: 0, parcelas: 1, nsu: '' }])} style={{ border: 'none', background: 'none', color: TEAL, fontSize: 12, fontWeight: 500, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}><LuPlus size={13} /> adicionar forma</button>
+            <button onClick={() => setFormas([...formas, { forma: 'Pix', valor: 0, parcelas: 1, nsu: '' }])} style={{ border: 'none', background: 'none', color: TEAL, fontSize: 12, fontWeight: 500, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}><span>➕</span> adicionar forma</button>
             {creditoExcede && <p style={{ fontSize: 11, color: ORANGE, margin: '6px 0 0' }}>Crédito usado ({brl(creditoNasFormas)}) maior que o disponível ({brl(tutorSaldo || 0)}).</p>}
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <div style={{ flex: 1 }}><Field label="Desconto"><input value={desconto || ''} inputMode="decimal" placeholder="0,00" onChange={(e) => setDesconto(Number(String(e.target.value).replace(',', '.')) || 0)} style={inp} /></Field></div>
-            <div style={{ flex: 1 }}><Field label="Troco (auto)"><div style={{ ...inp, color: '#94a3b8', background: '#f8fafb' }}>{brl(troco)}</div></Field></div>
+            <div style={{ flex: 1 }}><Field label="Troco (auto)"><div style={{ ...inp, color: TXT3, background: SOFT }}>{brl(troco)}</div></Field></div>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', background: '#e8f7f9', borderRadius: 8, padding: '10px 12px', fontSize: 13 }}>
-            <span style={{ color: '#0f6e7a' }}>Total pago <b style={{ color: TEAL_DARK }}>{brl(somaFormas)}</b></span>
-            <span style={{ color: '#0f6e7a' }}>Saldo restante <b style={{ color: saldoRestante <= 0.001 ? GREEN : ORANGE }}>{brl(saldoRestante)}</b></span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', background: TINT, borderRadius: 8, padding: '10px 12px', fontSize: 13 }}>
+            <span style={{ color: TEAL_DARK }}>Total pago <b style={{ color: TEAL_DARK, fontWeight: 500 }}>{brl(somaFormas)}</b></span>
+            <span style={{ color: TEAL_DARK }}>Saldo restante <b style={{ color: saldoRestante <= 0.001 ? GREEN : ORANGE, fontWeight: 500 }}>{brl(saldoRestante)}</b></span>
           </div>
           <Field label="Observação"><input value={obsReceb} onChange={(e) => setObsReceb(e.target.value)} style={inp} /></Field>
         </Modal>
@@ -557,8 +560,8 @@ export default function CaixaPage() {
   );
 }
 
-const inp: React.CSSProperties = { width: '100%', padding: '9px 10px', border: '1px solid #d7e0e2', borderRadius: 8, fontSize: 13, fontFamily: 'inherit' };
-const lbl: React.CSSProperties = { fontSize: 13, color: '#475569', display: 'block', marginBottom: 6 };
+const inp: React.CSSProperties = { width: '100%', padding: '9px 10px', border: `1px solid ${LINE}`, borderRadius: 9, fontSize: 13, fontFamily: 'inherit', color: TXT, background: '#fff' };
+const lbl: React.CSSProperties = { fontSize: 13, color: TXT2, display: 'block', marginBottom: 6 };
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return <div><label style={lbl}>{label}</label>{children}</div>;
@@ -567,14 +570,14 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 function Modal({ title, children, onClose, onConfirm, confirmLabel, confirmDisabled, dark }: { title: string; children: React.ReactNode; onClose: () => void; onConfirm: () => void; confirmLabel: string; confirmDisabled?: boolean; dark?: boolean }) {
   return (
     <div onClick={(e) => { if (e.target === e.currentTarget) onClose(); }} style={{ position: 'fixed', inset: 0, background: 'rgba(1,43,46,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, zIndex: 50 }}>
-      <div style={{ background: '#fff', borderRadius: 14, width: '100%', maxWidth: 430, maxHeight: '92vh', overflow: 'auto' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '15px 18px', borderBottom: '1px solid #f1f5f6' }}>
-          <h3 style={{ fontSize: 16, fontWeight: 600, margin: 0, color: '#1f2d33' }}>{title}</h3>
-          <button onClick={onClose} style={{ border: 'none', background: 'none', cursor: 'pointer' }}><LuX size={18} color="#94a3b8" /></button>
+      <div style={{ background: SOFT, border: `1px solid ${LINE}`, borderRadius: 16, width: '100%', maxWidth: 430, maxHeight: '92vh', overflow: 'auto' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '15px 18px', borderBottom: `1px solid ${DIV}` }}>
+          <h3 style={{ fontSize: 16, fontWeight: 500, margin: 0, color: TEAL_DARK }}>{title}</h3>
+          <button onClick={onClose} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, color: TXT3, lineHeight: 1 }}>✕</button>
         </div>
         <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 13 }}>{children}</div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, padding: '15px 18px', borderTop: '1px solid #f1f5f6' }}>
-          <button onClick={onClose} style={{ padding: '9px 16px', borderRadius: 9, border: '1px solid #d7e0e2', background: '#fff', color: '#475569', cursor: 'pointer' }}>Cancelar</button>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, padding: '15px 18px', borderTop: `1px solid ${DIV}` }}>
+          <button onClick={onClose} style={{ padding: '9px 16px', borderRadius: 9, border: `1px solid ${LINE}`, background: '#fff', color: TXT2, cursor: 'pointer' }}>Cancelar</button>
           <button onClick={onConfirm} disabled={confirmDisabled} style={{ padding: '9px 18px', borderRadius: 9, border: 'none', color: '#fff', fontWeight: 500, cursor: 'pointer', background: dark ? TEAL_DARK : TEAL, opacity: confirmDisabled ? .4 : 1 }}>{confirmLabel}</button>
         </div>
       </div>
