@@ -241,18 +241,18 @@ model User {
   isBlocked     Boolean   @default(false)
 
   // Relacionamentos
-  accounts            Account[]
-  sessions            Session[]
-  boards              Board[]
-  newsletters         Newsletter[]
-  appointments        Appointment[] // NOVO: Relacionamento com agendamentos
-  orcamentosCriados   Orcamento[]   @relation("OrcamentoCriadoPor")
-  protocolosCriados   ProtocoloAplicado[] @relation("ProtocoloCriadoPor")
-  dosesAplicadas      ProtocoloDose[]     @relation("DoseAplicadaPor")
-  appointmentItemsExecuted AppointmentItem[] @relation("AppointmentItemExecutor")
-  financeEntries      FinanceEntry[]
-  integrationSettings IntegrationSettings?
-  profissional        Profissional?
+  accounts                 Account[]
+  sessions                 Session[]
+  boards                   Board[]
+  newsletters              Newsletter[]
+  appointments             Appointment[] // NOVO: Relacionamento com agendamentos
+  orcamentosCriados        Orcamento[]          @relation("OrcamentoCriadoPor")
+  protocolosCriados        ProtocoloAplicado[]  @relation("ProtocoloCriadoPor")
+  dosesAplicadas           ProtocoloDose[]      @relation("DoseAplicadaPor")
+  appointmentItemsExecuted AppointmentItem[]    @relation("AppointmentItemExecutor")
+  financeEntries           FinanceEntry[]
+  integrationSettings      IntegrationSettings?
+  profissional             Profissional?
 
   // AI Agents
   aiAgents       AIAgent[]
@@ -280,8 +280,11 @@ model User {
   knowledgeBases KnowledgeBase[]
 
   // Landing Pages
-  landingPages LandingPage[]
+  landingPages   LandingPage[]
   caixasOperados CaixaSessao[] @relation("CaixaOperador")
+
+  // Comissionamento
+  comissaoExtratos ComissaoExtrato[] @relation("ComissaoExtratoUser")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -335,15 +338,15 @@ model LandingPage {
 model Tutor {
   id                    String                 @id @default(uuid())
   codigo                Int?                   @unique // Codigo sequencial curto (estilo SimplesVet)
-  rankingAbc            String?                // Ranking ABC: A/B/C (importado do SimplesVet)
-  nps                   Int?                   // NPS do cliente (importado do SimplesVet)
-  ticketMedio           Float?                 // Ticket medio (snapshot SimplesVet)
-  primeiraCompraAt      DateTime?              // Data da primeira compra (SimplesVet)
-  ultimaVendaAt         DateTime?              // Data da ultima venda (SimplesVet)
+  rankingAbc            String? // Ranking ABC: A/B/C (importado do SimplesVet)
+  nps                   Int? // NPS do cliente (importado do SimplesVet)
+  ticketMedio           Float? // Ticket medio (snapshot SimplesVet)
+  primeiraCompraAt      DateTime? // Data da primeira compra (SimplesVet)
+  ultimaVendaAt         DateTime? // Data da ultima venda (SimplesVet)
   // Pipeline & Follow-up (Inbox v3)
-  estadoRelacionamento  String?  // Em dia / Pet em tratamento / Precisa de atenção / A recuperar / Inativo
+  estadoRelacionamento  String? // Em dia / Pet em tratamento / Precisa de atenção / A recuperar / Inativo
   proximoFollowupAt     DateTime?
-  resumoIa              String?  @db.Text
+  resumoIa              String?                @db.Text
   resumoIaUpdatedAt     DateTime?
   interacoes            Interacao[]
   // Informações Básicas
@@ -382,7 +385,7 @@ model Tutor {
   inclusionDate         DateTime? // Inclusão
   // Status comercial (unificado de Client)
   status                TutorStatus            @default(ACTIVE)
-  classificacao String @default("Cliente")
+  classificacao         String                 @default("Cliente")
   companyName           String?
   cnpj                  String?                @unique
   convertedFromLeadId   String?
@@ -400,11 +403,11 @@ model Tutor {
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
 
-  orcamentos    Orcamento[]
-  protocolos    ProtocoloAplicado[]
+  orcamentos Orcamento[]
+  protocolos ProtocoloAplicado[]
+  creditos   CreditoMovimento[]
 
   @@map("tutors")
-  creditos      CreditoMovimento[]
 }
 
 model Contact {
@@ -442,49 +445,48 @@ enum TutorClassificacao {
   Ex_cliente
 }
 
-
 // ATUALIZADO: Pet agora relaciona com Tutor e tem campos expandidos
 model Pet {
-  id            String               @id @default(uuid())
-  codigo        Int?                 @unique // Codigo sequencial curto (estilo SimplesVet)
-  pedigree      String?              // Pedigree (importado do SimplesVet)
-  name          String
-  species       PetSpecies           @default(CANINE)
-  breed         String?
-  status        PetStatus            @default(ACTIVE)
-  gender        Gender?
-  sterilization SterilizationStatus? @default(NOT_STERILIZED)
-  birthDate     DateTime?
-  coat          CoatType?
-  coatColor     String? // Cor específica da pelagem
-  weight        Float? // Peso do animal
-  microchip     String? // Número do microchip
-  avatar        String? // URL da foto do pet
-  observations  String? // Observações gerais
-  allergies     String[] // Lista de alergias
-  medicalNotes  String? // Notas médicas importantes
-  insurancePlan String? // Convênio/plano de saúde
-  temperament   String? // Comportamento/temperamento
-  secondaryTutorId String? // 2º responsável (opcional)
-  tags          String[]             @default([]) // Etiquetas do pet
-  documents     String[]             @default([]) // Lista de documentos (URLs/nomes)
+  id                   String               @id @default(uuid())
+  codigo               Int?                 @unique // Codigo sequencial curto (estilo SimplesVet)
+  pedigree             String? // Pedigree (importado do SimplesVet)
+  name                 String
+  species              PetSpecies           @default(CANINE)
+  breed                String?
+  status               PetStatus            @default(ACTIVE)
+  gender               Gender?
+  sterilization        SterilizationStatus? @default(NOT_STERILIZED)
+  birthDate            DateTime?
+  coat                 CoatType?
+  coatColor            String? // Cor específica da pelagem
+  weight               Float? // Peso do animal
+  microchip            String? // Número do microchip
+  avatar               String? // URL da foto do pet
+  observations         String? // Observações gerais
+  allergies            String[] // Lista de alergias
+  medicalNotes         String? // Notas médicas importantes
+  insurancePlan        String? // Convênio/plano de saúde
+  temperament          String? // Comportamento/temperamento
+  secondaryTutorId     String? // 2º responsável (opcional)
+  tags                 String[]             @default([]) // Etiquetas do pet
+  documents            String[]             @default([]) // Lista de documentos (URLs/nomes)
   // Pipeline & Follow-up (Inbox v3)
-  pipelineClinicoEtapa String?  // Diagnóstico inicial / Em tratamento / Aguardando exames / Retorno agendado / Em manutenção / Alta clínica / Abandonou
-  pipelineFisioEtapa   String?  // Avaliação inicial / Pacote em andamento / Sessão a sessão / Manutenção / Reavaliação / Alta / Pausa
+  pipelineClinicoEtapa String? // Diagnóstico inicial / Em tratamento / Aguardando exames / Retorno agendado / Em manutenção / Alta clínica / Abandonou
+  pipelineFisioEtapa   String? // Avaliação inicial / Pacote em andamento / Sessão a sessão / Manutenção / Reavaliação / Alta / Pausa
   proximoFollowupAt    DateTime?
   interacoes           Interacao[]
   // Relacionamentos
-  tutorId       String
-  tutor         Tutor                @relation(fields: [tutorId], references: [id], onDelete: Cascade)
-  appointments  Appointment[]
-  treatments    Treatment[]
-  clinicalDocuments ClinicalDocument[]
+  tutorId              String
+  tutor                Tutor                @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+  appointments         Appointment[]
+  treatments           Treatment[]
+  clinicalDocuments    ClinicalDocument[]
   // Timestamps
-  createdAt     DateTime             @default(now())
-  updatedAt     DateTime             @updatedAt
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
 
-  orcamentos    Orcamento[]
-  protocolos    ProtocoloAplicado[]
+  orcamentos Orcamento[]
+  protocolos ProtocoloAplicado[]
 
   @@map("pets")
 }
@@ -518,34 +520,34 @@ model Appointment {
   paymentStatus PaymentStatus @default(PENDING)
 
   // Campos clínicos (ficha de atendimento)
-  type              String          @default("CONSULTA")
-  chiefComplaint    String? // motivo_consulta — queixa principal
-  anamnesis         String? // anamnese
-  physicalExam      String? // exame físico
-  diagnosis         String? // diagnostico
-  conduct           String? // conduta / tratamento adotado
-  prescription      String? // prescrição médica
-  examsRequested    String? // exames solicitados
-  followUpNotes     String? // acompanhamento_proximo_contato (recepção/cadência)
-  nextReturnDate    DateTime? // proximo_retorno (date)
-  petWeight         Float? // peso_pet (kg)
-  temperature       Float? // temperatura (ºC)
-  paymentMethod     String? // forma_pagamento livre
-  codigoExterno     String? // id da venda no SimplesVet (idempotencia na importacao)
-  origem            String? // SIMPLESVET | PDV | AGENDA
+  type           String    @default("CONSULTA")
+  chiefComplaint String? // motivo_consulta — queixa principal
+  anamnesis      String? // anamnese
+  physicalExam   String? // exame físico
+  diagnosis      String? // diagnostico
+  conduct        String? // conduta / tratamento adotado
+  prescription   String? // prescrição médica
+  examsRequested String? // exames solicitados
+  followUpNotes  String? // acompanhamento_proximo_contato (recepção/cadência)
+  nextReturnDate DateTime? // proximo_retorno (date)
+  petWeight      Float? // peso_pet (kg)
+  temperature    Float? // temperatura (ºC)
+  paymentMethod  String? // forma_pagamento livre
+  codigoExterno  String? // id da venda no SimplesVet (idempotencia na importacao)
+  origem         String? // SIMPLESVET | PDV | AGENDA
 
   // Relacionamentos
-  tutor      Tutor       @relation(fields: [tutorId], references: [id], onDelete: Cascade)
-  pet        Pet         @relation(fields: [petId], references: [id], onDelete: Cascade)
-  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  treatments Treatment[]
-  items      AppointmentItem[]
-  orcamento  Orcamento?        @relation("OrcamentoVenda")
+  tutor        Tutor               @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+  pet          Pet                 @relation(fields: [petId], references: [id], onDelete: Cascade)
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  treatments   Treatment[]
+  items        AppointmentItem[]
+  orcamento    Orcamento?          @relation("OrcamentoVenda")
   recebimentos Recebimento[]
-  protocolos ProtocoloAplicado[] @relation("ProtocoloAtendimento")
-  kanbanCard KanbanCard?
-  boardId    String?
-  board      Board?      @relation(fields: [boardId], references: [id], onDelete: SetNull)
+  protocolos   ProtocoloAplicado[] @relation("ProtocoloAtendimento")
+  kanbanCard   KanbanCard?
+  boardId      String?
+  board        Board?              @relation(fields: [boardId], references: [id], onDelete: SetNull)
 
   // Gravação e documentos clínicos
   recording         ConsultationRecording?
@@ -577,23 +579,23 @@ model Treatment {
 
 // Catálogo UNIFICADO (absorve Servico): produtos têm estoque, serviços (type SERVICE) não.
 model Product {
-  id         String      @id @default(uuid())
-  codigo     Int?        @unique // código SimplesVet — âncora p/ o import limpo futuro (como Tutor/Pet)
-  name       String
-  type       ProductType
-  price      Float
-  stock      Int         @default(0)
+  id                  String            @id @default(uuid())
+  codigo              Int?              @unique // código SimplesVet — âncora p/ o import limpo futuro (como Tutor/Pet)
+  name                String
+  type                ProductType
+  price               Float
+  stock               Int               @default(0)
   // campos vindos do catálogo de Serviços (Fase 1 da unificação)
   categoryId          String?
-  category            ServiceCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  category            ServiceCategory?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   custoPadrao         Float?
-  comissaoBaseDefault ComissaoBase     @default(VALOR_CHEIO)
-  ativo               Boolean          @default(true)
-  treatments       Treatment[]
-  appointmentItems AppointmentItem[]
-  orcamentoItens   OrcamentoItem[]
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
+  comissaoBaseDefault ComissaoBase      @default(VALOR_CHEIO)
+  ativo               Boolean           @default(true)
+  treatments          Treatment[]
+  appointmentItems    AppointmentItem[]
+  orcamentoItens      OrcamentoItem[]
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
 
   @@index([ativo])
   @@index([categoryId])
@@ -605,21 +607,21 @@ model Product {
 
 // Gravação de Consulta - Áudio e transcrição
 model ConsultationRecording {
-  id              String          @id @default(uuid())
-  appointmentId   String          @unique
-  userId          String
-  audioUrl        String?         // URL do áudio armazenado
-  audioFileName   String?         // Nome do arquivo de áudio
-  audioDuration   Int?            // Duração em segundos
-  transcription   String?         @db.Text // Transcrição completa
-  aiAnalysis      String?         @db.Text // Análise da IA (JSON estruturado)
-  aiSummary       String?         @db.Text // Resumo gerado pela IA
-  status          RecordingStatus @default(RECORDING)
-  language        String          @default("pt-BR")
-  errorMessage    String?         // Mensagem de erro se falhou
+  id            String          @id @default(uuid())
+  appointmentId String          @unique
+  userId        String
+  audioUrl      String? // URL do áudio armazenado
+  audioFileName String? // Nome do arquivo de áudio
+  audioDuration Int? // Duração em segundos
+  transcription String?         @db.Text // Transcrição completa
+  aiAnalysis    String?         @db.Text // Análise da IA (JSON estruturado)
+  aiSummary     String?         @db.Text // Resumo gerado pela IA
+  status        RecordingStatus @default(RECORDING)
+  language      String          @default("pt-BR")
+  errorMessage  String? // Mensagem de erro se falhou
 
   // Relacionamentos
-  appointment     Appointment     @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  appointment       Appointment        @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
   clinicalDocuments ClinicalDocument[]
 
   createdAt DateTime @default(now())
@@ -632,39 +634,39 @@ model ConsultationRecording {
 
 // Documento Clínico - Gerado por IA ou manualmente
 model ClinicalDocument {
-  id              String               @id @default(uuid())
-  appointmentId   String
-  petId           String
-  tutorId         String
-  userId          String               // Veterinário que gerou
-  recordingId     String?              // Gravação de origem (opcional)
-  type            ClinicalDocumentType @default(GENERAL)
-  title           String
-  content         String               @db.Text // Conteúdo em texto
-  htmlContent     String?              @db.Text // Conteúdo formatado HTML
-  pdfUrl          String?              // URL do PDF gerado
-  status          DocumentStatus       @default(DRAFT)
-  isAiGenerated   Boolean              @default(false) // Se foi gerado por IA
-  aiModel         String?              // Modelo de IA usado
-  aiPromptUsed    String?              @db.Text // Prompt utilizado
+  id            String               @id @default(uuid())
+  appointmentId String
+  petId         String
+  tutorId       String
+  userId        String // Veterinário que gerou
+  recordingId   String? // Gravação de origem (opcional)
+  type          ClinicalDocumentType @default(GENERAL)
+  title         String
+  content       String               @db.Text // Conteúdo em texto
+  htmlContent   String?              @db.Text // Conteúdo formatado HTML
+  pdfUrl        String? // URL do PDF gerado
+  status        DocumentStatus       @default(DRAFT)
+  isAiGenerated Boolean              @default(false) // Se foi gerado por IA
+  aiModel       String? // Modelo de IA usado
+  aiPromptUsed  String?              @db.Text // Prompt utilizado
 
   // Compartilhamento
-  sharedVia       String[]             @default([]) // ["whatsapp", "email"]
-  sharedAt        DateTime?
-  sharedTo        String?              // Telefone ou email do destinatário
+  sharedVia String[]  @default([]) // ["whatsapp", "email"]
+  sharedAt  DateTime?
+  sharedTo  String? // Telefone ou email do destinatário
 
   // Metadados
-  metadata        Json?                // Dados extras (ex: medicamentos, dosagens)
-  version         Int                  @default(1) // Versão do documento
-  signedBy        String?              // Nome do veterinário que assinou
-  crmv            String?              // CRMV do veterinário
+  metadata Json? // Dados extras (ex: medicamentos, dosagens)
+  version  Int     @default(1) // Versão do documento
+  signedBy String? // Nome do veterinário que assinou
+  crmv     String? // CRMV do veterinário
 
   // Relacionamentos
-  appointment     Appointment          @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
-  pet             Pet                  @relation(fields: [petId], references: [id], onDelete: Cascade)
-  tutor           Tutor                @relation(fields: [tutorId], references: [id], onDelete: Cascade)
-  user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  recording       ConsultationRecording? @relation(fields: [recordingId], references: [id], onDelete: SetNull)
+  appointment Appointment            @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  pet         Pet                    @relation(fields: [petId], references: [id], onDelete: Cascade)
+  tutor       Tutor                  @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+  user        User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recording   ConsultationRecording? @relation(fields: [recordingId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -714,13 +716,13 @@ model KanbanColumn {
 }
 
 model KanbanCard {
-  id            String       @id @default(uuid())
-  title         String
-  description   String?
-  position      Int
-  columnId      String
-  column        KanbanColumn @relation(fields: [columnId], references: [id], onDelete: Cascade)
-  
+  id          String       @id @default(uuid())
+  title       String
+  description String?
+  position    Int
+  columnId    String
+  column      KanbanColumn @relation(fields: [columnId], references: [id], onDelete: Cascade)
+
   // Entity links - only one should be set per card
   appointmentId String?      @unique
   appointment   Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
@@ -728,16 +730,16 @@ model KanbanCard {
   lead          Lead?        @relation(fields: [leadId], references: [id], onDelete: SetNull)
   tutorId       String?      @unique
   tutor         Tutor?       @relation(fields: [tutorId], references: [id], onDelete: SetNull)
-  
+
   // Card metadata
-  metadata      Json?
-  priority      String?      @default("medium") // low, medium, high, urgent
-  dueDate       DateTime?
-  assignedTo    String?      // User ID assigned to this card
-  tags          String[]     @default([])
-  
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  metadata   Json?
+  priority   String?   @default("medium") // low, medium, high, urgent
+  dueDate    DateTime?
+  assignedTo String? // User ID assigned to this card
+  tags       String[]  @default([])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([columnId, position])
   @@index([leadId])
@@ -855,12 +857,12 @@ model IntegrationSettings {
   emailConfig    String? @db.Text // SMTP config for sending emails
 
   // AI Usage limits per user
-  aiMonthlyBudgetUsd   Float?  // Monthly budget limit in USD (null = unlimited)
-  aiCurrentMonthCostUsd Float  @default(0) // Current month's spending
-  aiLastResetAt        DateTime @default(now()) // Last budget reset date
+  aiMonthlyBudgetUsd    Float? // Monthly budget limit in USD (null = unlimited)
+  aiCurrentMonthCostUsd Float    @default(0) // Current month's spending
+  aiLastResetAt         DateTime @default(now()) // Last budget reset date
 
   // CRM/Automation settings
-  metadata Json?  // Additional settings (autoCreateLeadsFromWhatsApp, etc.)
+  metadata Json? // Additional settings (autoCreateLeadsFromWhatsApp, etc.)
 
   // Relacionamento com usuário
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1006,14 +1008,14 @@ model AIAgent {
   templateId   String?
 
   // WhatsApp Template (from Meta API)
-  whatsappTemplateId   String?  // Meta template ID (numeric string)
-  whatsappTemplateName String?  // Template name for reference
+  whatsappTemplateId   String? // Meta template ID (numeric string)
+  whatsappTemplateName String? // Template name for reference
 
   // WhatsApp Configuration
-  whatsappEnabled          Boolean @default(false)
-  whatsappAutoReply        Boolean @default(true)
-  whatsappGreeting         String? @db.Text
-  whatsappOfflineMessage   String? @db.Text
+  whatsappEnabled           Boolean @default(false)
+  whatsappAutoReply         Boolean @default(true)
+  whatsappGreeting          String? @db.Text
+  whatsappOfflineMessage    String? @db.Text
   whatsappBusinessHoursOnly Boolean @default(false)
 
   // CRM Configuration
@@ -1035,11 +1037,11 @@ model AIAgent {
   // Configurações de voz (Text-to-Speech)
   voiceEnabled Boolean @default(false)
   voiceId      String  @default("nova") // alloy, echo, fable, onyx, nova, shimmer
-  voiceSpeed   Float   @default(1.0)    // 0.25 to 4.0
+  voiceSpeed   Float   @default(1.0) // 0.25 to 4.0
   voiceModel   String  @default("tts-1") // tts-1 or tts-1-hd
 
   // Rate limiting
-  rateLimitRequests Int @default(100)  // Max requests per window
+  rateLimitRequests Int @default(100) // Max requests per window
   rateLimitWindow   Int @default(3600) // Window in seconds (1 hour default)
 
   // Cost tracking (accumulated)
@@ -1052,8 +1054,8 @@ model AIAgent {
   lastActiveAt      DateTime?
 
   // Versionamento
-  version       Int      @default(1)
-  publishedAt   DateTime?
+  version     Int       @default(1)
+  publishedAt DateTime?
 
   // Relacionamentos
   user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1075,14 +1077,14 @@ model AIAgent {
 
 // Versão de Agente - Histórico de versões para rollback
 model AgentVersion {
-  id           String      @id @default(uuid())
+  id           String     @id @default(uuid())
   agentId      String
   version      Int
   name         String
   description  String?
   provider     AIProvider
   model        String
-  systemPrompt String      @db.Text
+  systemPrompt String     @db.Text
   temperature  Float
   maxTokens    Int
 
@@ -1093,8 +1095,8 @@ model AgentVersion {
   voiceModel   String
 
   // Metadata
-  publishedBy  String?     // User ID who published
-  changeNotes  String?     // Notes about this version
+  publishedBy String? // User ID who published
+  changeNotes String? // Notes about this version
 
   // Relacionamentos
   agent AIAgent @relation(fields: [agentId], references: [id], onDelete: Cascade)
@@ -1114,7 +1116,7 @@ model AgentTemplate {
   description String?
   category    TemplateCategory @default(PERSONALIZADO)
   status      TemplateStatus   @default(DRAFT)
-  content     String           @db.Text  // System prompt template
+  content     String           @db.Text // System prompt template
   variables   String[]         @default([])
   provider    AIProvider?
   model       String?
@@ -1123,10 +1125,10 @@ model AgentTemplate {
   rating      Float?
 
   // WhatsApp template integration (for templates approved by Meta)
-  whatsappTemplateName     String?  // Nome do template no WhatsApp Business API
-  whatsappTemplateLanguage String?  @default("pt_BR")
-  whatsappTemplateId       String?  // ID do template na Meta
-  isWhatsAppLinked         Boolean  @default(false)
+  whatsappTemplateName     String? // Nome do template no WhatsApp Business API
+  whatsappTemplateLanguage String? @default("pt_BR")
+  whatsappTemplateId       String? // ID do template na Meta
+  isWhatsAppLinked         Boolean @default(false)
 
   // Voice configuration defaults
   defaultVoiceEnabled Boolean @default(false)
@@ -1161,12 +1163,12 @@ model AgentExecution {
   metadata  Json? // Dados extras (tutor, pet, etc.)
 
   // Cost tracking
-  costUsd       Float?  // Custo em USD da execução
-  costBreakdown Json?   // {prompt_cost, completion_cost, total_cost, model, provider}
+  costUsd       Float? // Custo em USD da execução
+  costBreakdown Json? // {prompt_cost, completion_cost, total_cost, model, provider}
 
   // Voice response info
   voiceGenerated Boolean @default(false)
-  voiceCostUsd   Float?  // Custo do TTS se usado
+  voiceCostUsd   Float? // Custo do TTS se usado
 
   // Relacionamentos
   agent AIAgent @relation(fields: [agentId], references: [id], onDelete: Cascade)
@@ -1442,21 +1444,20 @@ model Notification {
   @@map("notifications")
 }
 
-
 // ============================================
 // Mensagens agendadas (individuais — campanha existe à parte)
 // ============================================
 model WhatsAppScheduledMessage {
-  id           String   @id @default(uuid())
-  userId       String   // Quem agendou
-  phone        String   // Destinatário (sem caracteres especiais)
-  content      String   @db.Text
+  id           String    @id @default(uuid())
+  userId       String // Quem agendou
+  phone        String // Destinatário (sem caracteres especiais)
+  content      String    @db.Text
   scheduledFor DateTime
-  status       String   @default("PENDING") // PENDING / SENT / FAILED / CANCELLED
+  status       String    @default("PENDING") // PENDING / SENT / FAILED / CANCELLED
   sentAt       DateTime?
   failedReason String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   @@index([status, scheduledFor])
   @@index([userId])
@@ -1473,7 +1474,7 @@ model InternalNote {
   content        String    @db.Text
   attachmentUrl  String?
   attachmentName String?
-  conversationId String?   // Opcional — se a nota refere a uma conversa do WhatsApp
+  conversationId String? // Opcional — se a nota refere a uma conversa do WhatsApp
   readAt         DateTime?
   createdAt      DateTime  @default(now())
 
@@ -1485,33 +1486,31 @@ model InternalNote {
   @@map("internal_notes")
 }
 
-
-
 // ============================================
 // Profissional — membro da equipe (vet, recepção, etc)
 // Separado de User: User é auth, Profissional é "membro da clínica"
 // (pode ou não ter login no sistema)
 // ============================================
 model Profissional {
-  id              String   @id @default(uuid())
-  nomeCompleto    String   // Nome completo do profissional
-  nomeExibicao    String?  // Nome usado em dropdowns (ex: "Dra. Vivian")
-  iniciais        String?  // Iniciais pro avatar (máx 2 chars)
-  tipo            ProfissionalTipo @default(VETERINARIO)
-  especialidade   String?  // Ex: Fisioterapia, Medicina Integrativa
-  crmv            String?  // CRMV ou outro registro
-  telefone        String?
-  email           String?  @unique
-  fotoUrl         String?
-  corAvatar       String?  // Cor hex usada quando sem foto
+  id                 String           @id @default(uuid())
+  nomeCompleto       String // Nome completo do profissional
+  nomeExibicao       String? // Nome usado em dropdowns (ex: "Dra. Vivian")
+  iniciais           String? // Iniciais pro avatar (máx 2 chars)
+  tipo               ProfissionalTipo @default(VETERINARIO)
+  especialidade      String? // Ex: Fisioterapia, Medicina Integrativa
+  crmv               String? // CRMV ou outro registro
+  telefone           String?
+  email              String?          @unique
+  fotoUrl            String?
+  corAvatar          String? // Cor hex usada quando sem foto
   comissaoPercentual Float? // % de comissão padrão
-  userId          String?  @unique // Se tem login no sistema, vincula User
-  dataInicio      DateTime? // Data de início
-  observacoes     String?
-  escala          Json?
-  ativo           Boolean  @default(true)
+  userId             String?          @unique // Se tem login no sistema, vincula User
+  dataInicio         DateTime? // Data de início
+  observacoes        String?
+  escala             Json?
+  ativo              Boolean          @default(true)
 
-  user      User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1528,16 +1527,14 @@ enum ProfissionalTipo {
   OUTRO
 }
 
-
-
 // ============================================
 // Etiquetas (tags) — categorias + templates aplicáveis a Lead/Cliente/Pet
 // ============================================
 model TagCategory {
-  id        String   @id @default(uuid())
+  id        String             @id @default(uuid())
   nome      String
-  ordem     Int      @default(0)
-  ativo     Boolean  @default(true)
+  ordem     Int                @default(0)
+  ativo     Boolean            @default(true)
   etiquetas EtiquetaTemplate[]
 
   createdAt DateTime @default(now())
@@ -1555,9 +1552,9 @@ enum TipoEtiqueta {
 
 model EtiquetaTemplate {
   id         String       @id @default(uuid())
-  texto      String       // Nome/texto da etiqueta
+  texto      String // Nome/texto da etiqueta
   tipo       TipoEtiqueta @default(CUSTOM)
-  cor        String?      // Cor hex (#RRGGBB)
+  cor        String? // Cor hex (#RRGGBB)
   descricao  String?
   aplicaEm   String[]     @default([]) // ["Lead","Cliente","Pet"]
   categoryId String?
@@ -1572,25 +1569,23 @@ model EtiquetaTemplate {
   @@map("etiqueta_templates")
 }
 
-
-
 // ============================================
 // Serviços (catálogo de serviços e produtos vendidos pela clínica)
 // ============================================
 enum ComissaoBase {
-  VALOR_CHEIO    // % sobre o preço
-  MARGEM         // % sobre (valor - custo)
-  SEM_COMISSAO   // não comissiona
-  HERDAR         // usa o padrão da categoria (só faz sentido em Servico)
+  VALOR_CHEIO // % sobre o preço
+  MARGEM // % sobre (valor - custo)
+  SEM_COMISSAO // não comissiona
+  HERDAR // usa o padrão da categoria (só faz sentido em Servico)
 }
 
 model ServiceCategory {
-  id                    String        @id @default(uuid())
-  nome                  String
-  comissaoBasePadrao    ComissaoBase  @default(VALOR_CHEIO)
-  ativo                 Boolean       @default(true)
-  servicos              Servico[]
-  produtos              Product[]
+  id                 String       @id @default(uuid())
+  nome               String
+  comissaoBasePadrao ComissaoBase @default(VALOR_CHEIO)
+  ativo              Boolean      @default(true)
+  servicos           Servico[]
+  produtos           Product[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1600,16 +1595,16 @@ model ServiceCategory {
 }
 
 model Servico {
-  id                   String           @id @default(uuid())
-  nome                 String
-  appointmentItems     AppointmentItem[]
-  orcamentoItens       OrcamentoItem[]
-  valorPadrao          Float?           // R$
-  custoPadrao          Float?           // R$ (medicamentos/vacinas/produtos)
-  comissaoBaseDefault  ComissaoBase     @default(HERDAR)
-  categoryId           String?
-  category             ServiceCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  ativo                Boolean          @default(true)
+  id                  String            @id @default(uuid())
+  nome                String
+  appointmentItems    AppointmentItem[]
+  orcamentoItens      OrcamentoItem[]
+  valorPadrao         Float? // R$
+  custoPadrao         Float? // R$ (medicamentos/vacinas/produtos)
+  comissaoBaseDefault ComissaoBase      @default(HERDAR)
+  categoryId          String?
+  category            ServiceCategory?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  ativo               Boolean           @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1618,8 +1613,6 @@ model Servico {
   @@index([categoryId])
   @@map("servicos")
 }
-
-
 
 // ============================================
 // Raças (lista por espécie pra dropdowns de Pet)
@@ -1645,8 +1638,6 @@ model Raca {
   @@map("racas")
 }
 
-
-
 // ============================================
 // ListaTipo — registro de cada "lista" disponível no CRM
 // (canais, origens, motivos_perda, status_clinico, etc)
@@ -1655,7 +1646,7 @@ model Raca {
 model ListaTipo {
   id        String  @id @default(uuid())
   nome      String  @unique // identificador: "canais", "tipos_exame" etc
-  label     String  // visível pro usuário: "Canais de entrada"
+  label     String // visível pro usuário: "Canais de entrada"
   emoji     String? // emoji decorativo
   descricao String?
   ordem     Int     @default(0)
@@ -1674,8 +1665,8 @@ model ListaTipo {
 // ============================================
 model ListaItem {
   id    String  @id @default(uuid())
-  lista String  // identificador da lista (canais, origens, motivos_perda...)
-  valor String  // valor visível pro usuário
+  lista String // identificador da lista (canais, origens, motivos_perda...)
+  valor String // valor visível pro usuário
   ordem Int     @default(0)
   ativo Boolean @default(true)
 
@@ -1687,39 +1678,29 @@ model ListaItem {
   @@map("lista_itens")
 }
 
-
-
-
-
-
-
-
-
-
-
 // ============================================
 // Config 10: Pipelines configuráveis
 // Diferente dos pipelines fixos (Lead), aqui o admin define pipelines custom
 // pra acompanhar outras coisas (vendas de pacotes, pós-venda, projetos internos)
 // ============================================
 enum PipelineEscopo {
-  LEAD          // pipelines aplicáveis a Leads (substitui o LeadStatus enum estático)
-  CLIENTE       // pipelines pra tutores/clientes (ex: jornada de fidelização)
-  PROJETO       // pipelines de projetos internos
+  LEAD // pipelines aplicáveis a Leads (substitui o LeadStatus enum estático)
+  CLIENTE // pipelines pra tutores/clientes (ex: jornada de fidelização)
+  PROJETO // pipelines de projetos internos
   CUSTOM
 }
 
 model PipelineDefinition {
-  id          String           @id @default(uuid())
-  nome        String
-  escopo      PipelineEscopo   @default(CUSTOM)
-  descricao   String?
-  cor         String?          // hex pra destacar visualmente
-  ativo       Boolean          @default(true)
-  ordem       Int              @default(0)
-  isPadrao    Boolean          @default(false)  // pipeline default pra esse escopo
+  id        String         @id @default(uuid())
+  nome      String
+  escopo    PipelineEscopo @default(CUSTOM)
+  descricao String?
+  cor       String? // hex pra destacar visualmente
+  ativo     Boolean        @default(true)
+  ordem     Int            @default(0)
+  isPadrao  Boolean        @default(false) // pipeline default pra esse escopo
 
-  estagios    PipelineEstagio[]
+  estagios PipelineEstagio[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1729,18 +1710,18 @@ model PipelineDefinition {
 }
 
 model PipelineEstagio {
-  id            String              @id @default(uuid())
-  pipelineId    String
-  pipeline      PipelineDefinition  @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
-  nome          String
-  descricao     String?
-  cor           String?             // hex pro chip do estágio
-  ordem         Int
-  ehInicial     Boolean             @default(false)  // primeiro estágio
-  ehGanho       Boolean             @default(false)  // estágio de sucesso
-  ehPerda       Boolean             @default(false)  // estágio de fracasso
-  ativo         Boolean             @default(true)
-  diasMaxParar  Int?                // SLA: alerta se passar X dias parado nesse estágio
+  id           String             @id @default(uuid())
+  pipelineId   String
+  pipeline     PipelineDefinition @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  nome         String
+  descricao    String?
+  cor          String? // hex pro chip do estágio
+  ordem        Int
+  ehInicial    Boolean            @default(false) // primeiro estágio
+  ehGanho      Boolean            @default(false) // estágio de sucesso
+  ehPerda      Boolean            @default(false) // estágio de fracasso
+  ativo        Boolean            @default(true)
+  diasMaxParar Int? // SLA: alerta se passar X dias parado nesse estágio
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1754,25 +1735,25 @@ model PipelineEstagio {
 // Templates HTML/texto com placeholders + biblioteca de variáveis catalogadas
 // ============================================
 enum CategoriaEmail {
-  TRANSACIONAL    // confirmação, agendamento, etc — operacional
-  BOAS_VINDAS     // novos clientes
-  EDUCATIVO       // newsletter, dicas
-  PROMOCIONAL     // ofertas, pacotes
-  ANIVERSARIO     // niver tutor/pet
-  REENGAJAMENTO   // recuperação de inativos
+  TRANSACIONAL // confirmação, agendamento, etc — operacional
+  BOAS_VINDAS // novos clientes
+  EDUCATIVO // newsletter, dicas
+  PROMOCIONAL // ofertas, pacotes
+  ANIVERSARIO // niver tutor/pet
+  REENGAJAMENTO // recuperação de inativos
   OUTRO
 }
 
 model EmailTemplate {
-  id          String          @id @default(uuid())
-  nome        String
-  assunto     String          // assunto do email
-  corpoHtml   String          // html template
-  corpoTexto  String?         // versão texto plano (fallback)
-  categoria   CategoriaEmail  @default(TRANSACIONAL)
-  descricao   String?
-  ativo       Boolean         @default(true)
-  ordem       Int             @default(0)
+  id           String         @id @default(uuid())
+  nome         String
+  assunto      String // assunto do email
+  corpoHtml    String // html template
+  corpoTexto   String? // versão texto plano (fallback)
+  categoria    CategoriaEmail @default(TRANSACIONAL)
+  descricao    String?
+  ativo        Boolean        @default(true)
+  ordem        Int            @default(0)
   vezesEnviado Int            @default(0)
 
   createdAt DateTime @default(now())
@@ -1783,14 +1764,14 @@ model EmailTemplate {
 }
 
 model EmailVariable {
-  id          String   @id @default(uuid())
-  chave       String   @unique  // ex: tutor_nome, pet_nome
-  label       String              // ex: "Nome do tutor"
-  descricao   String?             // ex: "Primeiro nome do tutor responsável"
-  exemplo     String?             // ex: "Cintia"
-  categoria   String   @default("Geral")  // pra agrupar no seletor
-  ordem       Int      @default(0)
-  ativo       Boolean  @default(true)
+  id        String  @id @default(uuid())
+  chave     String  @unique // ex: tutor_nome, pet_nome
+  label     String // ex: "Nome do tutor"
+  descricao String? // ex: "Primeiro nome do tutor responsável"
+  exemplo   String? // ex: "Cintia"
+  categoria String  @default("Geral") // pra agrupar no seletor
+  ordem     Int     @default(0)
+  ativo     Boolean @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1832,15 +1813,15 @@ enum UnidadeTempo {
 }
 
 model CadenciaTemplate {
-  id          String          @id @default(uuid())
-  nome        String
-  descricao   String?
-  gatilho     CadenciaGatilho @default(MANUAL)
-  ativo       Boolean         @default(true)
-  ordem       Int             @default(0)
+  id        String          @id @default(uuid())
+  nome      String
+  descricao String?
+  gatilho   CadenciaGatilho @default(MANUAL)
+  ativo     Boolean         @default(true)
+  ordem     Int             @default(0)
 
-  passos      CadenciaPasso[]
-  inscricoes  CadenciaInscricao[]
+  passos     CadenciaPasso[]
+  inscricoes CadenciaInscricao[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1850,16 +1831,16 @@ model CadenciaTemplate {
 }
 
 model CadenciaPasso {
-  id          String       @id @default(uuid())
-  cadenciaId  String
-  cadencia    CadenciaTemplate @relation(fields: [cadenciaId], references: [id], onDelete: Cascade)
-  ordem       Int
-  tipo        TipoPasso    @default(WHATSAPP)
-  titulo      String?      // nome curto pro passo (ex: "Lembrete 24h antes")
-  conteudo    String       // texto da mensagem (com placeholders {tutor}, {pet})
-  atrasoValor Int          @default(0)  // quanto tempo após o passo anterior
-  atrasoUnidade UnidadeTempo @default(DIAS)
-  ativo       Boolean      @default(true)
+  id            String           @id @default(uuid())
+  cadenciaId    String
+  cadencia      CadenciaTemplate @relation(fields: [cadenciaId], references: [id], onDelete: Cascade)
+  ordem         Int
+  tipo          TipoPasso        @default(WHATSAPP)
+  titulo        String? // nome curto pro passo (ex: "Lembrete 24h antes")
+  conteudo      String // texto da mensagem (com placeholders {tutor}, {pet})
+  atrasoValor   Int              @default(0) // quanto tempo após o passo anterior
+  atrasoUnidade UnidadeTempo     @default(DIAS)
+  ativo         Boolean          @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1905,11 +1886,11 @@ model CadenciaInscricao {
 // Mensagens prontas pra recepção colar no WhatsApp
 // ============================================
 model ScriptCategory {
-  id      String   @id @default(uuid())
-  nome    String   @unique
+  id      String           @id @default(uuid())
+  nome    String           @unique
   emoji   String?
-  ordem   Int      @default(0)
-  ativo   Boolean  @default(true)
+  ordem   Int              @default(0)
+  ativo   Boolean          @default(true)
   scripts ScriptTemplate[]
 
   createdAt DateTime @default(now())
@@ -1919,16 +1900,16 @@ model ScriptCategory {
 }
 
 model ScriptTemplate {
-  id          String           @id @default(uuid())
-  nome        String           // título curto, identificador
-  conteudo    String           // texto com placeholders tipo {tutor}, {pet}, {data}
-  descricao   String?          // contexto de uso
-  variaveis   String[]         // lista de placeholders disponíveis
-  categoryId  String?
-  category    ScriptCategory?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  ordem       Int              @default(0)
-  ativo       Boolean          @default(true)
-  vezesUsado  Int              @default(0) // contador de uso (analytics)
+  id         String          @id @default(uuid())
+  nome       String // título curto, identificador
+  conteudo   String // texto com placeholders tipo {tutor}, {pet}, {data}
+  descricao  String? // contexto de uso
+  variaveis  String[] // lista de placeholders disponíveis
+  categoryId String?
+  category   ScriptCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  ordem      Int             @default(0)
+  ativo      Boolean         @default(true)
+  vezesUsado Int             @default(0) // contador de uso (analytics)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1950,9 +1931,9 @@ enum FornecedorTipo {
 }
 
 enum ModeloPagamento {
-  LOTE_MENSAL          // pagamento em lote no fim do mês
-  DIRETO_CLIENTE       // cliente paga direto pro fornecedor
-  REPASSE_VIA_CLINICA  // clínica recebe e repassa
+  LOTE_MENSAL // pagamento em lote no fim do mês
+  DIRETO_CLIENTE // cliente paga direto pro fornecedor
+  REPASSE_VIA_CLINICA // clínica recebe e repassa
 }
 
 enum ComissaoTipo {
@@ -1973,44 +1954,43 @@ enum CategoriaExame {
 }
 
 model Fornecedor {
-  id                   String           @id @default(uuid())
-  nome                 String
-  tipo                 FornecedorTipo   @default(LABORATORIO)
-  especialidade        String?
-  telefone             String?
-  email                String?
-  contatoResponsavel   String?
-  modeloPagamento      ModeloPagamento  @default(LOTE_MENSAL)
-  comissaoTipo         ComissaoTipo?
-  comissaoValor        Float?
-  diaFechamentoLote    Int?             // dia do mês (1-31)
-  ativo                Boolean          @default(true)
-  observacoes          String?
+  id                 String          @id @default(uuid())
+  nome               String
+  tipo               FornecedorTipo  @default(LABORATORIO)
+  especialidade      String?
+  telefone           String?
+  email              String?
+  contatoResponsavel String?
+  modeloPagamento    ModeloPagamento @default(LOTE_MENSAL)
+  comissaoTipo       ComissaoTipo?
+  comissaoValor      Float?
+  diaFechamentoLote  Int? // dia do mês (1-31)
+  ativo              Boolean         @default(true)
+  observacoes        String?
 
   exames CatalogoExame[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([tipo, ativo])
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
   appointmentItems AppointmentItem[] @relation("AppointmentItemFornecedor")
 
+  @@index([tipo, ativo])
   @@map("fornecedores")
 }
 
 model CatalogoExame {
-  id                    String          @id @default(uuid())
-  fornecedorId          String
-  fornecedor            Fornecedor      @relation(fields: [fornecedorId], references: [id], onDelete: Cascade)
-  codigo                String?
-  nome                  String
-  descricao             String?
-  categoria             CategoriaExame  @default(OUTROS)
-  valorFornecedor       Float?
-  valorClienteSugerido  Float?
-  tempoResultadoDias    Int?
-  ativo                 Boolean         @default(true)
-  observacoes           String?
+  id                   String         @id @default(uuid())
+  fornecedorId         String
+  fornecedor           Fornecedor     @relation(fields: [fornecedorId], references: [id], onDelete: Cascade)
+  codigo               String?
+  nome                 String
+  descricao            String?
+  categoria            CategoriaExame @default(OUTROS)
+  valorFornecedor      Float?
+  valorClienteSugerido Float?
+  tempoResultadoDias   Int?
+  ativo                Boolean        @default(true)
+  observacoes          String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2023,7 +2003,6 @@ model CatalogoExame {
 // ============================================
 // CRM B2C - Leads com Insights Preditivos
 // ============================================
-
 
 enum CommunicationChannel {
   WHATSAPP
@@ -2093,20 +2072,20 @@ model Lead {
   phone String?
 
   // Origem e tracking
-  source       LeadSource @default(OTHER)
-  sourceDetail String? // Ex: "campanha_verao_2024"
-  utmSource    String?
-  utmMedium    String?
-  utmCampaign  String?
-  utmContent   String?
+  source         LeadSource @default(OTHER)
+  sourceDetail   String? // Ex: "campanha_verao_2024"
+  utmSource      String?
+  utmMedium      String?
+  utmCampaign    String?
+  utmContent     String?
   metaCampaignId String?
   metaAdsetId    String?
   metaAdId       String?
   metaPageId     String?
   ctwaClid       String?
   segmento       String?
-  referrer     String? // URL de referência
-  landingPage  String? // Página de entrada
+  referrer       String? // URL de referência
+  landingPage    String? // Página de entrada
 
   // Dispositivo e localização
   device    DeviceType @default(UNKNOWN)
@@ -2117,15 +2096,15 @@ model Lead {
   country   String     @default("BR")
 
   // Status e ciclo de vida
-  status         LeadStatus @default(NEW)
-  firstSeenAt    DateTime   @default(now())
-  lastSeenAt     DateTime   @default(now())
-  lastActivityAt DateTime?
-  convertedAt    DateTime?
+  status                 LeadStatus  @default(NEW)
+  firstSeenAt            DateTime    @default(now())
+  lastSeenAt             DateTime    @default(now())
+  lastActivityAt         DateTime?
+  convertedAt            DateTime?
   // Pipeline & Follow-up (Inbox v3)
-  pipelineComercialEtapa String?  // Triagem / Novo / Qualificação / Orçamento / Aguard retorno / Retomar / Reaproximação / Agendado / Compareceu / Perdido
+  pipelineComercialEtapa String? // Triagem / Novo / Qualificação / Orçamento / Aguard retorno / Retomar / Reaproximação / Agendado / Compareceu / Perdido
   proximoFollowupAt      DateTime?
-  resumoIa               String?  @db.Text
+  resumoIa               String?     @db.Text
   resumoIaUpdatedAt      DateTime?
   interacoes             Interacao[]
 
@@ -2144,7 +2123,7 @@ model Lead {
   notes        String?
 
   // Canal de comunicação preferencial
-  channel      CommunicationChannel?
+  channel CommunicationChannel?
 
   // Qualificação (5 perguntas validadas no Base44)
   qualSituacaoPet      String?
@@ -2159,11 +2138,11 @@ model Lead {
   scores     LeadScore[]
   insights   LeadInsight[]
   history    LeadHistory[]
-  
+
   // CRM Integrations
-  kanbanCards           KanbanCard[]
-  convertedToTutorId    String?       // ID do Tutor se convertido
-  whatsappConversationId String?      // Conversa que originou o lead
+  kanbanCards            KanbanCard[]
+  convertedToTutorId     String? // ID do Tutor se convertido
+  whatsappConversationId String? // Conversa que originou o lead
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2347,11 +2326,11 @@ model WebhookEvent {
   signature String? // Signature para validação
 
   // Status do processamento
-  status       String    @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED, DEAD_LETTER
-  attempts     Int       @default(0)
-  lastError    String?   @db.Text
-  nextRetryAt  DateTime?
-  processedAt  DateTime?
+  status      String    @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED, DEAD_LETTER
+  attempts    Int       @default(0)
+  lastError   String?   @db.Text
+  nextRetryAt DateTime?
+  processedAt DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2367,16 +2346,16 @@ model WebhookEvent {
 // ============================================
 
 model KnowledgeBase {
-  id             String              @id @default(uuid())
+  id             String   @id @default(uuid())
   userId         String
   name           String
   description    String?
-  status         String              @default("PROCESSING")
-  totalDocuments Int                 @default(0)
-  totalChunks    Int                 @default(0)
-  totalSizeBytes Int                 @default(0)
-  createdAt      DateTime            @default(now())
-  updatedAt      DateTime            @updatedAt
+  status         String   @default("PROCESSING")
+  totalDocuments Int      @default(0)
+  totalChunks    Int      @default(0)
+  totalSizeBytes Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   documents KnowledgeDocument[]
@@ -2387,19 +2366,19 @@ model KnowledgeBase {
 }
 
 model KnowledgeDocument {
-  id              String @id @default(uuid())
+  id              String   @id @default(uuid())
   knowledgeBaseId String
   fileName        String
   fileType        String
   fileSize        Int
   filePath        String
-  status          String @default("PENDING")
-  chunkCount      Int    @default(0)
+  status          String   @default("PENDING")
+  chunkCount      Int      @default(0)
   errorMessage    String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  knowledgeBase KnowledgeBase @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+  knowledgeBase KnowledgeBase   @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
   chunks        DocumentChunk[]
 
   @@index([knowledgeBaseId])
@@ -2408,14 +2387,14 @@ model KnowledgeDocument {
 }
 
 model DocumentChunk {
-  id         String                         @id @default(uuid())
+  id         String                       @id @default(uuid())
   documentId String
-  content    String                         @db.Text
+  content    String                       @db.Text
   metadata   Json?
   chunkIndex Int
-  tokenCount Int                            @default(0)
+  tokenCount Int                          @default(0)
   embedding  Unsupported("vector(1536)")?
-  createdAt  DateTime                       @default(now())
+  createdAt  DateTime                     @default(now())
 
   document KnowledgeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
 
@@ -2428,14 +2407,14 @@ model DocumentChunk {
 // ============================================
 
 model MediaFile {
-  id        String @id @default(uuid())
-  userId    String
+  id     String @id @default(uuid())
+  userId String
 
   // Informações do arquivo
   originalFilename String
   mimeType         String
   size             Int // bytes
-  
+
   // URLs
   localPath String? // Caminho local (se armazenado localmente)
   cloudUrl  String? // URL na nuvem (S3/Cloudinary)
@@ -2445,8 +2424,8 @@ model MediaFile {
   storageProvider String @default("local") // local, s3, cloudinary, r2
 
   // Contexto de uso
-  source    String? // whatsapp, upload, ai_generated, etc.
-  sourceId  String? // ID da mensagem/entidade que originou
+  source   String? // whatsapp, upload, ai_generated, etc.
+  sourceId String? // ID da mensagem/entidade que originou
 
   // Metadados
   metadata Json?
@@ -2470,6 +2449,7 @@ enum PlataformaCampanha {
   TIKTOK_ADS
   OUTRAS
 }
+
 enum TipoCampanha {
   CONVERSAO
   TRAFEGO
@@ -2477,6 +2457,7 @@ enum TipoCampanha {
   MENSAGEM_WHATSAPP
   RECONHECIMENTO
 }
+
 enum StatusCampanha {
   ATIVA
   PAUSADA
@@ -2486,15 +2467,15 @@ enum StatusCampanha {
 }
 
 model Campanha {
-  id           String              @id @default(uuid())
+  id           String             @id @default(uuid())
   nome         String
-  plataforma   PlataformaCampanha  @default(OUTRAS)
-  tipo         TipoCampanha        @default(CONVERSAO)
-  tagOrigem    String?             // tag pro BotConversa rastrear
-  inicio       DateTime?           @db.Date
-  fim          DateTime?           @db.Date
-  status       StatusCampanha      @default(ATIVA)
-  investimento Float?              // R$ total
+  plataforma   PlataformaCampanha @default(OUTRAS)
+  tipo         TipoCampanha       @default(CONVERSAO)
+  tagOrigem    String? // tag pro BotConversa rastrear
+  inicio       DateTime?          @db.Date
+  fim          DateTime?          @db.Date
+  status       StatusCampanha     @default(ATIVA)
+  investimento Float? // R$ total
   observacoes  String?
 
   createdAt DateTime @default(now())
@@ -2515,6 +2496,7 @@ enum TipoMeta {
   CONVERSOES
   NPS
 }
+
 enum PeriodicidadeMeta {
   SEMANAL
   MENSAL
@@ -2522,6 +2504,7 @@ enum PeriodicidadeMeta {
   SEMESTRAL
   ANUAL
 }
+
 enum StatusMeta {
   EM_ANDAMENTO
   ATINGIDA
@@ -2529,15 +2512,15 @@ enum StatusMeta {
 }
 
 model Meta {
-  id             String             @id @default(uuid())
+  id             String            @id @default(uuid())
   tipo           TipoMeta
-  periodicidade  PeriodicidadeMeta  @default(MENSAL)
-  profissionalId String?            // quando individual
-  servicoId      String?            // quando serviço específico
-  dataInicio     DateTime           @db.Date
+  periodicidade  PeriodicidadeMeta @default(MENSAL)
+  profissionalId String? // quando individual
+  servicoId      String? // quando serviço específico
+  dataInicio     DateTime          @db.Date
   valorMeta      Float
-  valorRealizado Float              @default(0)
-  status         StatusMeta         @default(EM_ANDAMENTO)
+  valorRealizado Float             @default(0)
+  status         StatusMeta        @default(EM_ANDAMENTO)
   observacoes    String?
 
   createdAt DateTime @default(now())
@@ -2556,11 +2539,13 @@ enum CategoriaAlvoNPS {
   RECEPCAO
   CLINICA_GERAL
 }
+
 enum ClassificacaoNPS {
   PROMOTOR
   NEUTRO
   DETRATOR
 }
+
 enum CanalColetaNPS {
   PRESENCIAL
   WHATSAPP
@@ -2568,6 +2553,7 @@ enum CanalColetaNPS {
   TELEFONE
   FORMULARIO
 }
+
 enum StatusAvaliacaoGoogle {
   PERGUNTA_ENVIADA
   NAO_GOSTOU
@@ -2578,19 +2564,19 @@ enum StatusAvaliacaoGoogle {
 }
 
 model AvaliacaoNPS {
-  id              String              @id @default(uuid())
-  tutorId         String?
-  petId           String?
-  atendimentoId   String?
-  categoriaAlvo   CategoriaAlvoNPS
-  profissionalId  String?
-  score           Int                 // 0-10
-  classificacao   ClassificacaoNPS
-  comentario      String?
-  canalColeta     CanalColetaNPS      @default(PRESENCIAL)
-  dataColeta      DateTime            @default(now())
-  coletadoPor     String?             // email
-  observacoes     String?
+  id             String           @id @default(uuid())
+  tutorId        String?
+  petId          String?
+  atendimentoId  String?
+  categoriaAlvo  CategoriaAlvoNPS
+  profissionalId String?
+  score          Int // 0-10
+  classificacao  ClassificacaoNPS
+  comentario     String?
+  canalColeta    CanalColetaNPS   @default(PRESENCIAL)
+  dataColeta     DateTime         @default(now())
+  coletadoPor    String? // email
+  observacoes    String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2601,23 +2587,23 @@ model AvaliacaoNPS {
 }
 
 model AvaliacaoGoogle {
-  id              String                  @id @default(uuid())
-  tutorId         String?
-  petId           String?
-  atendimentoId   String?
-  profissionalId  String?
-  coletadoPor     String?
-  dataPergunta    DateTime                @default(now())
-  gostou          Boolean?                // null = ainda não respondeu
-  comentarioNegativo String?              // quando gostou=false
-  canalEnvio      String?                 // WhatsApp, Email, SMS, etc
-  dataEnvioLink   DateTime?
-  linkEnviado     String?
-  dataVoto        DateTime?
-  notaDada        Int?                    // 1-5
-  votoConfirmado  Boolean                 @default(false)
-  status          StatusAvaliacaoGoogle   @default(PERGUNTA_ENVIADA)
-  observacoes     String?
+  id                 String                @id @default(uuid())
+  tutorId            String?
+  petId              String?
+  atendimentoId      String?
+  profissionalId     String?
+  coletadoPor        String?
+  dataPergunta       DateTime              @default(now())
+  gostou             Boolean? // null = ainda não respondeu
+  comentarioNegativo String? // quando gostou=false
+  canalEnvio         String? // WhatsApp, Email, SMS, etc
+  dataEnvioLink      DateTime?
+  linkEnviado        String?
+  dataVoto           DateTime?
+  notaDada           Int? // 1-5
+  votoConfirmado     Boolean               @default(false)
+  status             StatusAvaliacaoGoogle @default(PERGUNTA_ENVIADA)
+  observacoes        String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2627,59 +2613,93 @@ model AvaliacaoGoogle {
   @@map("avaliacoes_google")
 }
 
-
-
 // ============================================
 // AppointmentItem — linhas de cobrança do atendimento
 // (de onde sai vendas + comissões + lançamento financeiro)
 // ============================================
 model AppointmentItem {
-  id              String       @id @default(uuid())
-  appointmentId   String
-  appointment     Appointment  @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  id            String      @id @default(uuid())
+  appointmentId String
+  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
 
   // Vinculação a catálogo (opcional — pode ser descrição livre)
-  servicoId       String?
-  servico         Servico?     @relation(fields: [servicoId], references: [id], onDelete: SetNull)
-  productId       String?      // catálogo unificado (Fase 1 da unificação; dual-write com servicoId)
-  product         Product?     @relation(fields: [productId], references: [id], onDelete: SetNull)
-  descricao       String?
+  servicoId String?
+  servico   Servico? @relation(fields: [servicoId], references: [id], onDelete: SetNull)
+  productId String? // catálogo unificado (Fase 1 da unificação; dual-write com servicoId)
+  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  descricao String?
 
   // Executor: profissional interno OU fornecedor externo (lab)
-  executorUserId  String?
-  executorUser    User?        @relation("AppointmentItemExecutor", fields: [executorUserId], references: [id], onDelete: SetNull)
-  fornecedorId    String?
-  fornecedor      Fornecedor?  @relation("AppointmentItemFornecedor", fields: [fornecedorId], references: [id], onDelete: SetNull)
+  executorUserId String?
+  executorUser   User?       @relation("AppointmentItemExecutor", fields: [executorUserId], references: [id], onDelete: SetNull)
+  fornecedorId   String?
+  fornecedor     Fornecedor? @relation("AppointmentItemFornecedor", fields: [fornecedorId], references: [id], onDelete: SetNull)
 
   // Valores
-  quantidade      Float        @default(1)
-  valorUnitario   Float        @default(0)
-  custoUnitario   Float        @default(0)
-  desconto        Float        @default(0)
-  valorTotal      Float        @default(0)
+  quantidade    Float @default(1)
+  valorUnitario Float @default(0)
+  custoUnitario Float @default(0)
+  desconto      Float @default(0)
+  valorTotal    Float @default(0)
 
   // Comissão
-  comissaoBase    String?      // CHEIO | MARGEM | SEM
-  comissaoTipo    String?      // PERCENTUAL | VALOR_FIXO
-  comissaoValor   Float?
+  comissaoBase      String? // CHEIO | MARGEM | SEM
+  comissaoTipo      String? // PERCENTUAL | VALOR_FIXO
+  comissaoValor     Float?
   comissaoCalculada Float?
+  comissaoExtratoId String? // vincula ao extrato quando fechado
 
-  observacoes     String?
+  observacoes String?
 
   // Origem SimplesVet (importacao de vendas)
-  grupo           String?      // grupo do servico no SimplesVet (Consultas, Cirurgias, Laboratorio...)
-  marca           String?      // marca de negocio derivada do grupo: EMPORIO | MUNDO_A_PARTE | DRA_VIVIAN
+  grupo String? // grupo do servico no SimplesVet (Consultas, Cirurgias, Laboratorio...)
+  marca String? // marca de negocio derivada do grupo: EMPORIO | MUNDO_A_PARTE | DRA_VIVIAN
 
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([appointmentId])
   @@index([servicoId])
   @@index([productId])
   @@index([fornecedorId])
+  @@index([comissaoExtratoId])
   @@map("appointment_items")
 }
 
+// ============================================
+// Comissionamento — fechamentos e extratos
+// ============================================
+model ComissaoFechamento {
+  id             String            @id @default(uuid())
+  baixadasAte    DateTime
+  referencia     String?
+  base           String            @default("MARGEM")
+  configSnapshot Json?
+  createdById    String?
+  createdAt      DateTime          @default(now())
+  extratos       ComissaoExtrato[]
+
+  @@map("comissao_fechamentos")
+}
+
+model ComissaoExtrato {
+  id           String             @id @default(uuid())
+  fechamentoId String
+  fechamento   ComissaoFechamento @relation(fields: [fechamentoId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User               @relation("ComissaoExtratoUser", fields: [userId], references: [id], onDelete: Cascade)
+  itens        Int                @default(0)
+  base         Float              @default(0)
+  comissao     Float              @default(0)
+  status       String             @default("A_PAGAR") // A_PAGAR | PAGO
+  pagoAt       DateTime?
+  linhas       Json?
+  createdAt    DateTime           @default(now())
+
+  @@index([userId])
+  @@index([fechamentoId])
+  @@map("comissao_extratos")
+}
 
 // ============================================
 // Interacao — registros de interação com Lead/Tutor/Pet
@@ -2699,11 +2719,11 @@ model Interacao {
   autorUserId String?
   autor       User?   @relation("InteracaoAutor", fields: [autorUserId], references: [id], onDelete: SetNull)
 
-  tipo               String   @default("NOTA")  // NOTA | ENCAMINHAMENTO | AGENDAMENTO | EMAIL_ENVIADO | WHATSAPP_ENVIADO | LIGACAO | PRESENCIAL | PERDIDO
-  texto              String   @db.Text
-  proximaAcao        String?
-  proximoFollowupAt  DateTime?
-  canal              String?  // WhatsApp BC | WhatsApp Meta | Email | Ligação | Presencial
+  tipo              String    @default("NOTA") // NOTA | ENCAMINHAMENTO | AGENDAMENTO | EMAIL_ENVIADO | WHATSAPP_ENVIADO | LIGACAO | PRESENCIAL | PERDIDO
+  texto             String    @db.Text
+  proximaAcao       String?
+  proximoFollowupAt DateTime?
+  canal             String? // WhatsApp BC | WhatsApp Meta | Email | Ligação | Presencial
 
   threadId String?
 
@@ -2716,7 +2736,6 @@ model Interacao {
   @@index([createdAt])
   @@map("interacoes")
 }
-
 
 model Orcamento {
   id            String          @id @default(uuid())
@@ -2742,20 +2761,20 @@ model Orcamento {
 }
 
 model OrcamentoItem {
-  id            String     @id @default(uuid())
+  id            String    @id @default(uuid())
   orcamentoId   String
-  orcamento     Orcamento  @relation(fields: [orcamentoId], references: [id], onDelete: Cascade)
+  orcamento     Orcamento @relation(fields: [orcamentoId], references: [id], onDelete: Cascade)
   servicoId     String?
-  servico       Servico?   @relation(fields: [servicoId], references: [id], onDelete: SetNull)
-  productId     String?    // catálogo unificado (Fase 1 da unificação)
-  product       Product?   @relation(fields: [productId], references: [id], onDelete: SetNull)
+  servico       Servico?  @relation(fields: [servicoId], references: [id], onDelete: SetNull)
+  productId     String? // catálogo unificado (Fase 1 da unificação)
+  product       Product?  @relation(fields: [productId], references: [id], onDelete: SetNull)
   descricao     String?
-  quantidade    Float      @default(1)
-  valorUnitario Float      @default(0)
-  desconto      Float      @default(0)
-  valorTotal    Float      @default(0)
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  quantidade    Float     @default(1)
+  valorUnitario Float     @default(0)
+  desconto      Float     @default(0)
+  valorTotal    Float     @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   @@index([orcamentoId])
   @@index([servicoId])
@@ -2763,18 +2782,17 @@ model OrcamentoItem {
   @@map("orcamento_itens")
 }
 
-
 // ===== Protocolos (vacinas, vermifugos, ectoparasitas) =====
 model ProtocoloTemplate {
   id             String              @id @default(uuid())
-  nome           String              // ex: "V10", "Antirrabica"
-  tipo           String              // VACINA | VERMIFUGO | ECTOPARASITA
-  variante       String?             // ex: "Anual", "Filhote (3 x 30 dias)"
-  doses          Int                 @default(1)  // nº de doses da serie inicial
-  intervaloDias  Int?                // intervalo entre doses da serie
-  reforcoMeses   Int?                // reforco periodico (ex: 12 = anual)
-  indicacaoIdade String?             // ex: "A partir de 45 dias"
-  idadeMinDias   Int?                // p/ sugerir pela idade do pet
+  nome           String // ex: "V10", "Antirrabica"
+  tipo           String // VACINA | VERMIFUGO | ECTOPARASITA
+  variante       String? // ex: "Anual", "Filhote (3 x 30 dias)"
+  doses          Int                 @default(1) // nº de doses da serie inicial
+  intervaloDias  Int? // intervalo entre doses da serie
+  reforcoMeses   Int? // reforco periodico (ex: 12 = anual)
+  indicacaoIdade String? // ex: "A partir de 45 dias"
+  idadeMinDias   Int? // p/ sugerir pela idade do pet
   ativo          Boolean             @default(true)
   ordem          Int                 @default(0)
   aplicados      ProtocoloAplicado[]
@@ -2791,10 +2809,10 @@ model ProtocoloAplicado {
   pet           Pet                @relation(fields: [petId], references: [id], onDelete: Cascade)
   tutorId       String?
   tutor         Tutor?             @relation(fields: [tutorId], references: [id], onDelete: SetNull)
-  tipo          String             // VACINA | VERMIFUGO | ECTOPARASITA (snapshot)
+  tipo          String // VACINA | VERMIFUGO | ECTOPARASITA (snapshot)
   templateId    String?
   template      ProtocoloTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
-  nomeProtocolo String             // snapshot do nome (ex: "V10 - Filhote (3 x 30 dias)")
+  nomeProtocolo String // snapshot do nome (ex: "V10 - Filhote (3 x 30 dias)")
   dataInicial   DateTime
   status        String             @default("EM_ANDAMENTO") // EM_ANDAMENTO | CONCLUIDO | CANCELADO
   observacao    String?
@@ -2815,7 +2833,7 @@ model ProtocoloDose {
   id            String            @id @default(uuid())
   protocoloId   String
   protocolo     ProtocoloAplicado @relation(fields: [protocoloId], references: [id], onDelete: Cascade)
-  numero        Int               @default(1)  // ordem da dose na serie
+  numero        Int               @default(1) // ordem da dose na serie
   dataPrevista  DateTime
   status        String            @default("PENDENTE") // PENDENTE | APLICADA | CANCELADA | SEM_RESPOSTA
   dataAplicada  DateTime?
@@ -2834,25 +2852,25 @@ model ProtocoloDose {
 }
 
 model CaixaSessao {
-  id           String        @id @default(uuid())
-  numero       Int           @default(0)
-  userId       String
-  abertura     DateTime      @default(now())
-  suprimento   Float         @default(0)
-  fechamento   DateTime?
-  status       String        @default("ABERTO")
-  observacao   String?
-  user         User          @relation("CaixaOperador", fields: [userId], references: [id])
-  recebimentos Recebimento[]
-  movimentos   CaixaMovimento[]
-  createdAt    DateTime      @default(now())
-
-  @@index([status])
-  @@map("caixa_sessoes")
+  id            String           @id @default(uuid())
+  numero        Int              @default(0)
+  userId        String
+  abertura      DateTime         @default(now())
+  suprimento    Float            @default(0)
+  fechamento    DateTime?
+  status        String           @default("ABERTO")
+  observacao    String?
+  user          User             @relation("CaixaOperador", fields: [userId], references: [id])
+  recebimentos  Recebimento[]
+  movimentos    CaixaMovimento[]
+  createdAt     DateTime         @default(now())
   valorEsperado Float?
   valorContado  Float?
   diferenca     Float?
   obsFechamento String?
+
+  @@index([status])
+  @@map("caixa_sessoes")
 }
 
 model Recebimento {
@@ -2922,22 +2940,22 @@ enum PacoteStatus {
 }
 
 model Pacote {
-  id            String        @id @default(uuid())
+  id            String         @id @default(uuid())
   petId         String
   tutorId       String?
   orcamentoId   String?
-  servico       String        @default("Fisioterapia")
+  servico       String         @default("Fisioterapia")
   descricao     String?
   totalSessoes  Int
-  sessoesUsadas Int           @default(0)
-  valor         Float         @default(0)
+  sessoesUsadas Int            @default(0)
+  valor         Float          @default(0)
   validade      DateTime?
-  status        PacoteStatus  @default(ATIVO)
+  status        PacoteStatus   @default(ATIVO)
   observacao    String?
   createdById   String?
   sessoes       PacoteSessao[]
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
   @@index([petId])
   @@index([tutorId, status])
@@ -2994,4 +3012,23 @@ model BoxOcupacao {
   @@index([appointmentId])
   @@index([ativa])
   @@map("box_ocupacoes")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?
+  userName   String?
+  method     String
+  module     String
+  action     String
+  path       String
+  entityId   String?
+  statusCode Int?
+  meta       Json?
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([module])
+  @@index([createdAt])
+  @@map("audit_logs")
 }

@@ -77,6 +77,7 @@ import { DocumentsModule } from './modules/documents/documents.module';
 import { CrmModule } from './modules/crm/crm.module';
 import { KnowledgeBaseModule } from './modules/knowledge-base/knowledge-base.module';
 import { LandingPagesModule } from './modules/landing-pages/landing-pages.module';
+import { AuditModule } from './modules/audit/audit.module';
 import configuration from './config/configuration';
 
 @Module({
@@ -224,6 +225,9 @@ import configuration from './config/configuration';
 
     // Landing Pages Builder
     LandingPagesModule,
+
+    // Log de Auditoria (interceptor global + consulta)
+    AuditModule,
 
     // Health check
     HealthModule,
