@@ -3,17 +3,22 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import {
-  LuFileText,
-  LuPlus,
-  LuSearch,
-  LuPencil,
-  LuTrash,
-  LuEye,
-  LuCheck
-} from 'react-icons/lu';
 import toast from 'react-hot-toast';
 import ConfirmDeleteModal from '@/components/common/ConfirmDeleteModal';
+
+// Paleta Base44 (mesmos tokens de components/ui/base44.tsx)
+const TEAL = '#009AAC';
+const TEAL_DARK = '#014D5E';
+const ORANGE = '#D85A30';
+const GREEN = '#0f6e56';
+const BG = '#F6F2EA';
+const SOFT = '#FBF9F4';
+const TINT = '#E0F4F6';
+const LINE = '#E8E2D6';
+const DIV = '#F0EBE0';
+const TXT = '#1F2A2E';
+const TXT2 = '#5C6B70';
+const TXT3 = '#8A989D';
 
 interface Document {
   id: string;
@@ -49,16 +54,19 @@ function extractErrorMessage(data: unknown, fallback: string): string {
 const statusConfig = {
   DRAFT: {
     label: 'Rascunho',
-    color: 'bg-yellow-100 text-yellow-700',
-    icon: () => <span style={{fontSize:"14px"}}>⏱</span>},
+    bg: '#fdf6e3',
+    fg: '#854F0B',
+    icon: '⏱'},
   PUBLISHED: {
     label: 'Publicado',
-    color: 'bg-green-100 text-green-700',
-    icon: LuCheck},
+    bg: '#e1f5ee',
+    fg: GREEN,
+    icon: '✅'},
   ARCHIVED: {
     label: 'Arquivado',
-    color: 'bg-gray-100 text-gray-700',
-    icon: () => <span style={{fontSize:"14px"}}>📦</span>}};
+    bg: DIV,
+    fg: TXT2,
+    icon: '📦'}};
 
 function stripHtml(html: string): string {
   if (!html) return '';
@@ -134,8 +142,10 @@ export default function DocumentsPage() {
     }
   };
 
+  const iconBtn: React.CSSProperties = { border: 'none', background: 'none', cursor: 'pointer', padding: 8, borderRadius: 8, lineHeight: 1, fontSize: 15 };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/20 w-full">
+    <div style={{ width: '100%', background: BG, minHeight: '100%' }}>
       <ConfirmDeleteModal
         isOpen={Boolean(documentToDelete)}
         entityLabel="Documento"
@@ -145,191 +155,186 @@ export default function DocumentsPage() {
         onConfirm={handleDelete}
       />
 
-      <div className="p-6">
-        <div className="max-w-7xl mx-auto">
-          {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-3">
-                <div className="p-2 bg-blue-100 rounded-xl">
-                  <LuFileText className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600" />
-                </div>
-                Documentos
-              </h1>
-              <p className="text-gray-500 mt-1">
-                Gerencie seus templates e documentos
-              </p>
-            </div>
-            <Link
-              href="/dashboard/erp/documentos/novo"
-              className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg shadow-blue-500/25 font-medium"
-            >
-              <LuPlus className="w-5 h-5" />
-              Novo Documento
-            </Link>
+      <div style={{ width: '100%', padding: '20px 26px 60px', boxSizing: 'border-box', maxWidth: 1280, margin: '0 auto' }}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', marginBottom: 22 }}>
+          <div>
+            <h1 style={{ fontSize: 24, fontWeight: 500, color: TEAL_DARK, display: 'flex', alignItems: 'center', gap: 10, margin: 0 }}>
+              <span style={{ fontSize: 26 }}>📄</span>
+              Documentos
+            </h1>
+            <p style={{ color: TXT2, margin: '6px 0 0', fontSize: 13.5 }}>
+              Gerencie seus templates e documentos
+            </p>
           </div>
+          <Link
+            href="/dashboard/erp/documentos/novo"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '10px 16px', background: TEAL, color: '#fff', borderRadius: 9, fontWeight: 500, fontSize: 13.5, textDecoration: 'none' }}
+          >
+            <span>➕</span>
+            Novo Documento
+          </Link>
+        </div>
 
-          {/* Filters */}
-          <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-lg p-4 mb-6">
-            <div className="flex flex-col sm:flex-row gap-4">
-              {/* Search */}
-              <div className="flex-1 relative">
-                <LuSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Buscar documentos..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
-                />
-              </div>
+        {/* Filters */}
+        <div style={{ background: '#fff', border: `1px solid ${LINE}`, borderRadius: 13, padding: 14, marginBottom: 18 }}>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            {/* Search */}
+            <div style={{ flex: '1 1 220px', position: 'relative' }}>
+              <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 15 }}>🔍</span>
+              <input
+                type="text"
+                placeholder="Buscar documentos..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                style={{ width: '100%', padding: '9px 12px 9px 36px', border: `1px solid ${LINE}`, borderRadius: 9, fontSize: 13, fontFamily: 'inherit', color: TXT, background: '#fff', boxSizing: 'border-box' }}
+              />
+            </div>
 
-              {/* Status filter */}
-              <div className="relative">
-                
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="pl-10 pr-8 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors appearance-none bg-white min-w-[160px]"
-                >
-                  <option value="">Todos os status</option>
-                  <option value="DRAFT">Rascunho</option>
-                  <option value="PUBLISHED">Publicado</option>
-                  <option value="ARCHIVED">Arquivado</option>
-                </select>
-              </div>
+            {/* Status filter */}
+            <div style={{ position: 'relative' }}>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                style={{ padding: '9px 12px', border: `1px solid ${LINE}`, borderRadius: 9, fontSize: 13, fontFamily: 'inherit', color: TXT, background: '#fff', minWidth: 160 }}
+              >
+                <option value="">Todos os status</option>
+                <option value="DRAFT">Rascunho</option>
+                <option value="PUBLISHED">Publicado</option>
+                <option value="ARCHIVED">Arquivado</option>
+              </select>
             </div>
           </div>
+        </div>
 
-          {/* Documents list */}
-          <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-3xl shadow-2xl shadow-blue-500/10 overflow-hidden">
-            {loading ? (
-              <div className="p-8 space-y-4">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="animate-pulse flex gap-4">
-                    <div className="h-16 w-16 bg-gray-200 rounded-xl" />
-                    <div className="flex-1 space-y-2">
-                      <div className="h-4 bg-gray-200 rounded w-1/3" />
-                      <div className="h-3 bg-gray-200 rounded w-2/3" />
-                    </div>
+        {/* Documents list */}
+        <div style={{ background: '#fff', border: `1px solid ${LINE}`, borderRadius: 14, overflow: 'hidden' }}>
+          {loading ? (
+            <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {[1, 2, 3].map((i) => (
+                <div key={i} style={{ display: 'flex', gap: 16, opacity: 0.6 }} className="animate-pulse">
+                  <div style={{ height: 64, width: 64, background: DIV, borderRadius: 12 }} />
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8, justifyContent: 'center' }}>
+                    <div style={{ height: 16, background: DIV, borderRadius: 6, width: '33%' }} />
+                    <div style={{ height: 12, background: DIV, borderRadius: 6, width: '66%' }} />
                   </div>
-                ))}
-              </div>
-            ) : documents.length === 0 ? (
-              <div className="p-12 text-center">
-                <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <LuFileText className="w-8 h-8 text-gray-400" />
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                  Nenhum documento encontrado
-                </h3>
-                <p className="text-gray-500 mb-4">
-                  {searchTerm || statusFilter
-                    ? 'Tente ajustar seus filtros de busca'
-                    : 'Comece criando seu primeiro documento'}
-                </p>
-                {!searchTerm && !statusFilter && (
-                  <Link
-                    href="/dashboard/erp/documentos/novo"
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
-                  >
-                    <LuPlus className="w-4 h-4" />
-                    Criar Documento
-                  </Link>
-                )}
+              ))}
+            </div>
+          ) : documents.length === 0 ? (
+            <div style={{ padding: 48, textAlign: 'center' }}>
+              <div style={{ width: 64, height: 64, background: SOFT, border: `1px solid ${LINE}`, borderRadius: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', fontSize: 30 }}>
+                📄
               </div>
-            ) : (
-              <div className="divide-y divide-gray-100">
-                {documents.map((doc) => {
-                  const status = statusConfig[doc.status] || statusConfig.DRAFT;
-                  const StatusIcon = status?.icon ;
+              <h3 style={{ fontSize: 17, fontWeight: 500, color: TEAL_DARK, margin: '0 0 6px' }}>
+                Nenhum documento encontrado
+              </h3>
+              <p style={{ color: TXT2, margin: '0 0 16px', fontSize: 13.5 }}>
+                {searchTerm || statusFilter
+                  ? 'Tente ajustar seus filtros de busca'
+                  : 'Comece criando seu primeiro documento'}
+              </p>
+              {!searchTerm && !statusFilter && (
+                <Link
+                  href="/dashboard/erp/documentos/novo"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '9px 16px', background: TEAL, color: '#fff', borderRadius: 9, fontSize: 13.5, fontWeight: 500, textDecoration: 'none' }}
+                >
+                  <span>➕</span>
+                  Criar Documento
+                </Link>
+              )}
+            </div>
+          ) : (
+            <div>
+              {documents.map((doc, idx) => {
+                const status = statusConfig[doc.status] || statusConfig.DRAFT;
 
-                  return (
-                    <div
-                      key={doc.id}
-                      className="p-4 sm:p-6 hover:bg-gray-50/50 transition-colors group"
-                    >
-                      <div className="flex items-start gap-4">
-                        {/* Icon */}
-                        <div className="hidden sm:flex w-12 h-12 bg-blue-50 rounded-xl items-center justify-center flex-shrink-0">
-                          <LuFileText className="w-6 h-6 text-blue-600" />
+                return (
+                  <div
+                    key={doc.id}
+                    className="doc-row"
+                    style={{ padding: '18px 20px', borderTop: idx === 0 ? 'none' : `1px solid ${DIV}` }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
+                      {/* Icon */}
+                      <div style={{ width: 48, height: 48, background: TINT, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 22 }}>
+                        📄
+                      </div>
+
+                      {/* Content */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
+                          <div style={{ minWidth: 0 }}>
+                            <h3 style={{ fontSize: 16.5, fontWeight: 500, color: TEAL_DARK, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {doc.title}
+                            </h3>
+                            <p style={{ fontSize: 13, color: TXT2, margin: '4px 0 0' }}>
+                              {stripHtml(doc.content) || 'Sem conteúdo'}
+                            </p>
+                          </div>
+
+                          {/* Status badge */}
+                          <span
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 20, fontSize: 11.5, fontWeight: 500, flexShrink: 0, background: status.bg, color: status.fg }}
+                          >
+                            <span style={{ fontSize: 12 }}>{status.icon}</span>
+                            {status.label}
+                          </span>
                         </div>
 
-                        {/* Content */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-4">
-                            <div>
-                              <h3 className="text-lg font-semibold text-gray-900 truncate">
-                                {doc.title}
-                              </h3>
-                              <p className="text-sm text-gray-500 mt-1 line-clamp-2">
-                                {stripHtml(doc.content) || 'Sem conteúdo'}
-                              </p>
-                            </div>
-
-                            {/* Status badge */}
-                            <span
-                              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium flex-shrink-0 ${status.color}`}
-                            >
-                              <StatusIcon className="w-3.5 h-3.5" />
-                              {status.label}
+                        {/* Meta info */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 12, fontSize: 12.5, color: TXT3, flexWrap: 'wrap' }}>
+                          <span>Criado em {formatDate(doc.createdAt)}</span>
+                          {doc.category && (
+                            <span style={{ padding: '2px 8px', background: DIV, borderRadius: 6, color: TXT2 }}>
+                              {doc.category}
                             </span>
-                          </div>
-
-                          {/* Meta info */}
-                          <div className="flex items-center gap-4 mt-3 text-sm text-gray-400">
-                            <span>Criado em {formatDate(doc.createdAt)}</span>
-                            {doc.category && (
-                              <span className="px-2 py-0.5 bg-gray-100 rounded-md text-gray-600">
-                                {doc.category}
-                              </span>
-                            )}
-                            {doc.tags.length > 0 && (
-                              <div className="flex gap-1">
-                                {doc.tags.slice(0, 3).map((tag) => (
-                                  <span
-                                    key={tag}
-                                    className="px-2 py-0.5 bg-purple-50 text-purple-600 rounded-md text-xs"
-                                  >
-                                    {tag}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Actions */}
-                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button
-                            onClick={() => router.push(`/dashboard/erp/documentos/${doc.id}`)}
-                            className="p-2 hover:bg-blue-50 rounded-lg text-blue-600 transition-colors"
-                            title="Visualizar"
-                          >
-                            <LuEye className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => router.push(`/dashboard/erp/documentos/${doc.id}/editar`)}
-                            className="p-2 hover:bg-gray-100 rounded-lg text-gray-600 transition-colors"
-                            title="Editar"
-                          >
-                            <LuPencil className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => setDocumentToDelete(doc)}
-                            className="p-2 hover:bg-red-50 rounded-lg text-red-600 transition-colors"
-                            title="Excluir"
-                          >
-                            <LuTrash className="w-4 h-4" />
-                          </button>
+                          )}
+                          {doc.tags.length > 0 && (
+                            <div style={{ display: 'flex', gap: 5 }}>
+                              {doc.tags.slice(0, 3).map((tag) => (
+                                <span
+                                  key={tag}
+                                  style={{ padding: '2px 8px', background: TINT, color: TEAL_DARK, borderRadius: 6, fontSize: 11.5 }}
+                                >
+                                  {tag}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
+
+                      {/* Actions */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <button
+                          onClick={() => router.push(`/dashboard/erp/documentos/${doc.id}`)}
+                          style={{ ...iconBtn, color: TEAL }}
+                          title="Visualizar"
+                        >
+                          🔍
+                        </button>
+                        <button
+                          onClick={() => router.push(`/dashboard/erp/documentos/${doc.id}/editar`)}
+                          style={{ ...iconBtn, color: TXT2 }}
+                          title="Editar"
+                        >
+                          ✏️
+                        </button>
+                        <button
+                          onClick={() => setDocumentToDelete(doc)}
+                          style={{ ...iconBtn, color: ORANGE }}
+                          title="Excluir"
+                        >
+                          🗑️
+                        </button>
+                      </div>
                     </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
     </div>

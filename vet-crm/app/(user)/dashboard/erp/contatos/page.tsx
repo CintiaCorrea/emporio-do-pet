@@ -1,16 +1,36 @@
 'use client';
 
+// Roupagem repaginada 04/07 para o padrão Base44 (bege + emojis) — LÓGICA 100% preservada.
+
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
-import {
-  LuArrowLeft,
-  LuDownload,
-  LuPhone,
-  LuPlus,
-  LuSearch,
-  LuTrash,
-  LuUser} from 'react-icons/lu';
+
+// Paleta Base44 (mesmos tokens de components/ui/base44.tsx)
+const TEAL = '#009AAC';      // acento / botao primario
+const TEAL_DARK = '#014D5E'; // titulos / texto forte
+const GREEN = '#0f6e56';     // sucesso
+const BG = '#F6F2EA';        // fundo da pagina
+const SOFT = '#FBF9F4';      // areas suaves
+const TINT = '#E0F4F6';      // agua (avatar)
+const LINE = '#E8E2D6';      // borda do cartao
+const DIV = '#F0EBE0';       // divisoria interna
+const TXT = '#1F2A2E';       // corpo
+const TXT2 = '#5C6B70';      // secundario
+const TXT3 = '#8A989D';      // dica / rotulo
+
+const thStyle: React.CSSProperties = { color: TXT3, fontWeight: 500, fontSize: 11.5, textTransform: 'uppercase', letterSpacing: '.03em', padding: '12px 16px', borderBottom: `1px solid ${LINE}`, textAlign: 'left' };
+const tdStyle: React.CSSProperties = { padding: '14px 16px', borderBottom: `1px solid ${DIV}`, color: TXT };
+const cardStyle: React.CSSProperties = { background: '#fff', border: `1px solid ${LINE}`, borderRadius: 14 };
+const inputStyle: React.CSSProperties = { background: '#fff', border: `1px solid ${LINE}`, borderRadius: 9, color: TXT, outline: 'none' };
+
+const iniciais = (nome: string) =>
+  (nome || '?')
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase() || '')
+    .join('') || '?';
 
 type ContactType = 'MOBILE' | 'PHONE' | 'BUSINESS';
 
@@ -158,8 +178,8 @@ export default function ContactsPage() {
     if (loading) {
       return (
         <div className="p-12 text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Carregando contatos...</p>
+          <div className="animate-spin rounded-full h-12 w-12 mx-auto" style={{ borderBottom: `2px solid ${TEAL}` }}></div>
+          <p className="mt-4" style={{ color: TXT2 }}>Carregando contatos...</p>
         </div>
       );
     }
@@ -167,12 +187,13 @@ export default function ContactsPage() {
     if (error) {
       return (
         <div className="p-12 text-center">
-          <div className="text-red-500 text-4xl mb-4">⚠️</div>
-          <h3 className="mt-4 text-lg font-semibold text-gray-900">Erro ao carregar contatos</h3>
-          <p className="mt-2 text-gray-600">{error}</p>
+          <div className="text-4xl mb-4">⚠️</div>
+          <h3 className="mt-4 text-lg" style={{ fontWeight: 500, color: TEAL_DARK }}>Erro ao carregar contatos</h3>
+          <p className="mt-2" style={{ color: TXT2 }}>{error}</p>
           <button
             onClick={() => window.location.reload()}
-            className="mt-4 px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+            className="mt-4 px-6 py-2 rounded-lg transition-colors"
+            style={{ background: TEAL, color: '#fff' }}
           >
             Tentar novamente
           </button>
@@ -183,9 +204,9 @@ export default function ContactsPage() {
     if (visibleContacts.length === 0) {
       return (
         <div className="p-12 text-center">
-          <span style={{fontSize:"14px"}}>👥</span>
-          <h3 className="mt-4 text-lg font-semibold text-gray-900">Nenhum contato encontrado</h3>
-          <p className="mt-2 text-gray-600">Tente ajustar os filtros ou cadastre um novo contato.</p>
+          <span style={{fontSize:"32px"}}>📞</span>
+          <h3 className="mt-4 text-lg" style={{ fontWeight: 500, color: TEAL_DARK }}>Nenhum contato encontrado</h3>
+          <p className="mt-2" style={{ color: TXT2 }}>Tente ajustar os filtros ou cadastre um novo contato.</p>
         </div>
       );
     }
@@ -194,76 +215,77 @@ export default function ContactsPage() {
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
-            <tr className="border-b border-white/20 bg-gradient-to-r from-white to-white/95">
-              <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Tutor</th>
-              <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Contato</th>
-              <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Tipo</th>
-              <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Flags</th>
-              <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Obs.</th>
-              <th className="px-6 py-4 text-right text-sm font-semibold text-gray-900">Ações</th>
+            <tr style={{ background: SOFT }}>
+              <th style={thStyle}>Tutor</th>
+              <th style={thStyle}>Contato</th>
+              <th style={thStyle}>Tipo</th>
+              <th style={thStyle}>Flags</th>
+              <th style={thStyle}>Obs.</th>
+              <th style={{ ...thStyle, textAlign: 'right' }}>Ações</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-white/10">
+          <tbody>
             {visibleContacts.map((c) => (
-              <tr key={c.id} className="hover:bg-gray-50/50 transition-colors duration-200">
-                <td className="px-6 py-4">
+              <tr key={c.id} style={{ transition: 'background .2s' }} onMouseEnter={(e) => (e.currentTarget.style.background = SOFT)} onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>
+                <td style={tdStyle}>
                   <div className="flex items-center">
-                    <div className="flex-shrink-0 h-10 w-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center">
-                      <LuUser className="h-6 w-6 text-white" />
+                    <div className="flex-shrink-0 h-10 w-10 rounded-full flex items-center justify-center" style={{ background: TINT, color: TEAL_DARK, fontWeight: 500, fontSize: 13 }}>
+                      {iniciais(c.tutor?.name || 'Tutor')}
                     </div>
                     <div className="ml-4 min-w-0">
-                      <div className="text-sm font-semibold text-gray-900 truncate">
+                      <div className="text-sm truncate" style={{ fontWeight: 500, color: TEAL_DARK }}>
                         {c.tutor?.name || 'Tutor'}
                       </div>
-                      <div className="text-sm text-gray-500 truncate">{c.tutor?.cpf || 'CPF não informado'}</div>
+                      <div className="text-sm truncate" style={{ color: TXT3 }}>{c.tutor?.cpf || 'CPF não informado'}</div>
                     </div>
                   </div>
                 </td>
-                <td className="px-6 py-4">
+                <td style={tdStyle}>
                   <div className="space-y-1">
-                    <div className="flex items-center text-sm text-gray-600">
-                      <LuPhone className="w-4 h-4 mr-2 text-gray-400" />
+                    <div className="flex items-center gap-2 text-sm" style={{ color: TXT2 }}>
+                      <span style={{fontSize:"14px"}}>📞</span>
                       {c.number}
                     </div>
                     {c.isWhatsApp && (
-                      <div className="flex items-center text-sm text-gray-600">
-                        <span style={{fontSize:"14px"}}>✉</span>
+                      <div className="flex items-center gap-2 text-sm" style={{ color: TXT2 }}>
+                        <span style={{fontSize:"14px"}}>✉️</span>
                         WhatsApp
                       </div>
                     )}
                   </div>
                 </td>
-                <td className="px-6 py-4">
-                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-gray-100 text-gray-800">
+                <td style={tdStyle}>
+                  <span className="inline-flex items-center px-3 py-1 text-sm" style={{ borderRadius: 999, fontWeight: 500, background: DIV, color: TXT2 }}>
                     {formatContactType(c.type)}
                   </span>
                 </td>
-                <td className="px-6 py-4">
+                <td style={tdStyle}>
                   <div className="flex items-center gap-2">
                     {c.isPrimary && (
-                      <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-yellow-100 text-yellow-800">
+                      <span className="inline-flex items-center gap-1 px-3 py-1 text-sm" style={{ borderRadius: 999, fontWeight: 500, background: TINT, color: TEAL_DARK }}>
                         <span style={{fontSize:"14px"}}>⭐</span>
                         Principal
                       </span>
                     )}
                     {c.isWhatsApp && (
-                      <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-green-100 text-green-800">
+                      <span className="inline-flex items-center px-3 py-1 text-sm" style={{ borderRadius: 999, fontWeight: 500, background: TINT, color: GREEN }}>
                         WhatsApp
                       </span>
                     )}
                   </div>
                 </td>
-                <td className="px-6 py-4 text-sm text-gray-600">
+                <td style={{ ...tdStyle, color: TXT2, fontSize: 14 }}>
                   <span className="line-clamp-2">{c.observations || '—'}</span>
                 </td>
-                <td className="px-6 py-4 text-right text-sm font-medium">
-                  <div className="flex justify-end space-x-2">
+                <td style={{ ...tdStyle, textAlign: 'right' }}>
+                  <div className="flex justify-end space-x-1">
                     <button
                       onClick={() => handleDelete(c.id)}
-                      className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl transition-all duration-300 hover:scale-110"
+                      className="p-2 rounded-lg transition-colors"
+                      style={{ color: '#D85A30' }}
                       title="Excluir"
                     >
-                      <LuTrash className="w-4 h-4" />
+                      <span style={{fontSize:"15px"}}>🗑️</span>
                     </button>
                   </div>
                 </td>
@@ -276,42 +298,45 @@ export default function ContactsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/20 w-full overflow-hidden">
+    <div className="min-h-screen w-full overflow-hidden" style={{ background: BG }}>
       <div className="p-6">
         <div className="max-w-7xl mx-auto">
           <div className="mb-8">
             <div className="flex items-center gap-4 mb-4">
               <Link
                 href="/dashboard/erp/tutores"
-                className="flex items-center gap-2 text-blue-600 hover:text-blue-800 transition-colors duration-300"
+                className="flex items-center gap-2 transition-colors"
+                style={{ color: TEAL }}
               >
-                <LuArrowLeft className="w-5 h-5" />
+                <span style={{fontSize:"15px"}}>←</span>
                 <span>Voltar para ERP</span>
               </Link>
             </div>
 
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-                  Contatos
+                <h1 className="text-2xl flex items-center gap-2" style={{ fontWeight: 500, color: TEAL_DARK }}>
+                  <span>📞</span> Contatos
                 </h1>
-                <p className="text-gray-600 mt-2">Gerencie os contatos vinculados aos tutores</p>
+                <p className="mt-2" style={{ color: TXT2 }}>Gerencie os contatos vinculados aos tutores</p>
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3">
                 <Link
                   href="/dashboard/erp/tutores/novo"
-                  className="group flex items-center justify-center gap-2 px-6 py-3 text-white bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-blue-500/25"
+                  className="flex items-center justify-center gap-2 px-5 py-2.5 transition-colors"
+                  style={{ background: TEAL, color: '#fff', borderRadius: 9 }}
                 >
-                  <LuPlus className="w-5 h-5 transition-transform duration-300 group-hover:rotate-90" />
-                  <span className="font-semibold">Novo Tutor</span>
+                  <span style={{fontSize:"15px"}}>➕</span>
+                  <span style={{ fontWeight: 500 }}>Novo Tutor</span>
                 </Link>
                 <Link
                   href="/dashboard/erp/clientes/novo"
-                  className="group flex items-center justify-center gap-2 px-6 py-3 text-gray-700 bg-white/80 border border-gray-200/80 rounded-2xl hover:bg-white hover:border-gray-300 hover:shadow-lg transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-gray-500/50"
+                  className="flex items-center justify-center gap-2 px-5 py-2.5 transition-colors"
+                  style={{ background: '#fff', border: `1px solid ${LINE}`, borderRadius: 9, color: TXT2 }}
                 >
-                  <LuPlus className="w-5 h-5 transition-transform duration-300 group-hover:rotate-90" />
-                  <span className="font-semibold">Novo Contato</span>
+                  <span style={{fontSize:"15px"}}>➕</span>
+                  <span style={{ fontWeight: 500 }}>Novo Contato</span>
                 </Link>
               </div>
             </div>
@@ -319,39 +344,24 @@ export default function ContactsPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             {[
-              { label: 'Contatos (página)', value: stats.totalLocal, color: 'blue', icon: () => <span style={{fontSize:"14px"}}>👥</span> },
-              { label: 'Com WhatsApp', value: stats.whats, color: 'green', icon: () => <span style={{fontSize:"14px"}}>✉</span> },
-              { label: 'Principais', value: stats.primary, color: 'yellow', icon: () => <span style={{fontSize:"14px"}}>⭐</span> },
+              { label: 'Contatos (página)', value: stats.totalLocal, emoji: '📞' },
+              { label: 'Com WhatsApp', value: stats.whats, emoji: '✉️' },
+              { label: 'Principais', value: stats.primary, emoji: '⭐' },
             ].map((stat, idx) => (
               <div
                 key={idx}
-                className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-3xl shadow-2xl shadow-blue-500/10 p-6 hover:shadow-2xl hover:shadow-blue-500/20 transition-all duration-300 hover:scale-105"
+                className="p-6"
+                style={cardStyle}
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-semibold text-gray-600 mb-2">{stat.label}</p>
-                    <p className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+                    <p className="text-sm mb-2" style={{ fontWeight: 500, color: TXT2 }}>{stat.label}</p>
+                    <p className="text-3xl" style={{ fontWeight: 500, color: TEAL_DARK }}>
                       {stat.value}
                     </p>
                   </div>
-                  <div
-                    className={`p-3 rounded-2xl ${
-                      stat.color === 'blue'
-                        ? 'bg-blue-50'
-                        : stat.color === 'green'
-                          ? 'bg-green-50'
-                          : 'bg-yellow-50'
-                    }`}
-                  >
-                    <stat.icon
-                      className={`w-6 h-6 ${
-                        stat.color === 'blue'
-                          ? 'text-blue-600'
-                          : stat.color === 'green'
-                            ? 'text-green-600'
-                            : 'text-yellow-700'
-                      }`}
-                    />
+                  <div className="p-3 rounded-xl" style={{ background: TINT }}>
+                    <span style={{fontSize:"20px"}}>{stat.emoji}</span>
                   </div>
                 </div>
               </div>
@@ -359,28 +369,30 @@ export default function ContactsPage() {
           </div>
 
           {!error && (
-            <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-3xl shadow-2xl shadow-blue-500/10 p-6 mb-6">
+            <div className="p-6 mb-6" style={cardStyle}>
               <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                 <div className="md:col-span-5 relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <LuSearch className="h-5 w-5 text-gray-400" />
+                    <span style={{fontSize:"15px"}}>🔍</span>
                   </div>
                   <input
                     type="text"
                     placeholder="Buscar por tutor, número ou observação..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                    className="w-full pl-10 pr-4 py-3 transition-colors"
+                    style={inputStyle}
                   />
                 </div>
 
                 <div className="md:col-span-4">
                   <div className="flex items-center space-x-2">
-                    <span style={{fontSize:"14px"}}>⌕</span>
+                    <span style={{fontSize:"15px"}}>🔍</span>
                     <select
                       value={filterType}
                       onChange={(e) => setFilterType(e.target.value as any)}
-                      className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                      className="w-full px-4 py-3 transition-colors"
+                      style={inputStyle}
                     >
                       <option value="all">Todos os tipos</option>
                       <option value="MOBILE">Celular</option>
@@ -393,50 +405,53 @@ export default function ContactsPage() {
                 <div className="md:col-span-2">
                   <button
                     onClick={() => setOnlyPrimary((v) => !v)}
-                    className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-2xl transition-all duration-300 focus:outline-none focus:ring-2 ${
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 transition-colors"
+                    style={
                       onlyPrimary
-                        ? 'text-yellow-900 bg-yellow-100 border border-yellow-200'
-                        : 'text-gray-700 bg-white/80 border border-gray-200/80 hover:bg-white hover:border-gray-300 hover:shadow-lg focus:ring-gray-500/50'
-                    }`}
+                        ? { background: TINT, border: `1px solid ${TEAL}`, borderRadius: 9, color: TEAL_DARK }
+                        : { background: '#fff', border: `1px solid ${LINE}`, borderRadius: 9, color: TXT2 }
+                    }
                     title="Mostrar apenas principais"
                   >
-                    <span style={{fontSize:"14px"}}>⭐</span>
-                    <span className="font-semibold">{onlyPrimary ? 'Principais' : 'Todos'}</span>
+                    <span style={{fontSize:"15px"}}>⭐</span>
+                    <span style={{ fontWeight: 500 }}>{onlyPrimary ? 'Principais' : 'Todos'}</span>
                   </button>
                 </div>
 
                 <div className="md:col-span-1">
-                  <button className="w-full flex items-center justify-center gap-2 px-4 py-3 text-gray-700 bg-white/80 border border-gray-200/80 rounded-2xl hover:bg-white hover:border-gray-300 hover:shadow-lg transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-gray-500/50">
-                    <LuDownload className="w-5 h-5" />
+                  <button className="w-full flex items-center justify-center gap-2 px-4 py-3 transition-colors" style={{ background: '#fff', border: `1px solid ${LINE}`, borderRadius: 9, color: TXT2 }}>
+                    <span style={{fontSize:"15px"}}>⬇️</span>
                   </button>
                 </div>
               </div>
             </div>
           )}
 
-          <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-3xl shadow-2xl shadow-blue-500/10 overflow-hidden">
+          <div className="overflow-hidden" style={cardStyle}>
             {renderContent()}
 
             {!loading && !error && pages > 1 && (
-              <div className="px-6 py-4 border-t border-white/20 bg-gradient-to-r from-white to-white/95">
+              <div className="px-6 py-4" style={{ borderTop: `1px solid ${LINE}`, background: SOFT }}>
                 <div className="flex items-center justify-between">
-                  <div className="text-sm text-gray-700">
-                    Página <span className="font-semibold">{page}</span> de{' '}
-                    <span className="font-semibold">{pages}</span> • Total:{' '}
-                    <span className="font-semibold">{total}</span>
+                  <div className="text-sm" style={{ color: TXT2 }}>
+                    Página <span style={{ fontWeight: 500 }}>{page}</span> de{' '}
+                    <span style={{ fontWeight: 500 }}>{pages}</span> • Total:{' '}
+                    <span style={{ fontWeight: 500 }}>{total}</span>
                   </div>
                   <div className="flex space-x-2">
                     <button
                       onClick={() => setPage((p) => Math.max(1, p - 1))}
                       disabled={page <= 1}
-                      className="px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-2xl hover:bg-gray-50 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-4 py-2 text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      style={{ fontWeight: 500, background: '#fff', border: `1px solid ${LINE}`, borderRadius: 9, color: TXT2 }}
                     >
                       Anterior
                     </button>
                     <button
                       onClick={() => setPage((p) => Math.min(pages, p + 1))}
                       disabled={page >= pages}
-                      className="px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl hover:from-blue-700 hover:to-purple-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-4 py-2 text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      style={{ fontWeight: 500, background: TEAL, color: '#fff', borderRadius: 9 }}
                     >
                       Próxima
                     </button>
@@ -450,4 +465,3 @@ export default function ContactsPage() {
     </div>
   );
 }
-

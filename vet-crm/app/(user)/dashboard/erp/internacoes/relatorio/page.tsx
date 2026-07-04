@@ -3,18 +3,23 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Sidebar from '@/components/protected/dashboard/Sidebar';
-import { 
-  LuArrowLeft,
-  LuCalendar,
-  LuDollarSign,
-  LuUser,
-  LuPawPrint,
-  LuDownload,
-  LuFileText,
-  LuTriangleAlert,
-  LuPhone
-} from 'react-icons/lu';
 import toast from 'react-hot-toast';
+
+// Paleta Base44 (bege + emojis) — restyle 04/07, logica 100% preservada.
+const TEAL = '#009AAC';
+const NAVY = '#014D5E';
+const BG = '#F6F2EA';
+const SOFT = '#FBF9F4';
+const TINT = '#E0F4F6';
+const LINE = '#E8E2D6';
+const DIV = '#F0EBE0';
+const TXT = '#1F2A2E';
+const TXT2 = '#5C6B70';
+const TXT3 = '#8A989D';
+
+const cardStyle: React.CSSProperties = { background: '#fff', border: `1px solid ${LINE}`, borderRadius: 14 };
+const thStyle: React.CSSProperties = { textAlign: 'left', padding: '14px 24px', fontSize: 11.5, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '.03em', color: TXT3, borderBottom: `1px solid ${LINE}` };
+const inputStyle: React.CSSProperties = { width: '100%', padding: '10px 14px', background: '#fff', border: `1px solid ${LINE}`, borderRadius: 9, color: TXT, outline: 'none' };
 
 // Tipos
 type HospitalizationStatus = 'ADMITTED' | 'IN_TREATMENT' | 'STABLE' | 'CRITICAL' | 'DISCHARGE_PENDING' | 'DISCHARGED' | 'DECEASED';
@@ -79,7 +84,7 @@ export default function HospitalizationsReportPage() {
   const [loading, setLoading] = useState(true);
   const [hospitalizations, setHospitalizations] = useState<Hospitalization[]>([]);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Filtros
   const [startDate, setStartDate] = useState(() => {
     const date = new Date();
@@ -132,7 +137,7 @@ export default function HospitalizationsReportPage() {
           const admissionDate = new Date(hosp.admissionDate);
           const start = startDate ? new Date(startDate) : null;
           const end = endDate ? new Date(endDate) : null;
-          
+
           if (start && admissionDate < start) return false;
           if (end && admissionDate > end) return false;
           return true;
@@ -156,12 +161,12 @@ export default function HospitalizationsReportPage() {
     const critical = data.filter(h => h.status === 'CRITICAL' || h.priority === 'CRITICAL').length;
     const discharged = data.filter(h => h.status === 'DISCHARGED').length;
     const dischargePending = data.filter(h => h.status === 'DISCHARGE_PENDING').length;
-    
+
     const totalRevenue = data.reduce((acc, h) => acc + h.totalCost, 0);
-    const averageDailyRate = total > 0 
-      ? data.reduce((acc, h) => acc + h.dailyRate, 0) / total 
+    const averageDailyRate = total > 0
+      ? data.reduce((acc, h) => acc + h.dailyRate, 0) / total
       : 0;
-    
+
     // Calcular dias internados
     const totalDays = data.reduce((acc, h) => {
       const admission = new Date(h.admissionDate);
@@ -170,7 +175,7 @@ export default function HospitalizationsReportPage() {
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       return acc + diffDays;
     }, 0);
-    
+
     const averageDaysHospitalized = total > 0 ? totalDays / total : 0;
     const averageCost = total > 0 ? totalRevenue / total : 0;
 
@@ -229,17 +234,17 @@ export default function HospitalizationsReportPage() {
     return labels[status] || status;
   };
 
-  const getStatusColor = (status: HospitalizationStatus) => {
-    const colors: Record<string, string> = {
-      'ADMITTED': 'bg-blue-100 text-blue-800',
-      'IN_TREATMENT': 'bg-yellow-100 text-yellow-800',
-      'STABLE': 'bg-green-100 text-green-800',
-      'CRITICAL': 'bg-red-100 text-red-800',
-      'DISCHARGE_PENDING': 'bg-purple-100 text-purple-800',
-      'DISCHARGED': 'bg-gray-100 text-gray-800',
-      'DECEASED': 'bg-gray-300 text-gray-700'
+  const getStatusStyle = (status: HospitalizationStatus): React.CSSProperties => {
+    const colors: Record<string, React.CSSProperties> = {
+      'ADMITTED': { background: TINT, color: NAVY },
+      'IN_TREATMENT': { background: '#fbf3d9', color: '#8a6d1f' },
+      'STABLE': { background: '#E4F1E8', color: '#0f6e56' },
+      'CRITICAL': { background: '#fdecec', color: '#a03426' },
+      'DISCHARGE_PENDING': { background: '#efe6f5', color: '#6b3f8a' },
+      'DISCHARGED': { background: DIV, color: TXT2 },
+      'DECEASED': { background: '#e5e0d6', color: TXT2 }
     };
-    return colors[status] || 'bg-gray-100 text-gray-800';
+    return colors[status] || { background: DIV, color: TXT2 };
   };
 
   const getPriorityLabel = (priority: Priority) => {
@@ -252,14 +257,14 @@ export default function HospitalizationsReportPage() {
     return labels[priority] || priority;
   };
 
-  const getPriorityColor = (priority: Priority) => {
-    const colors: Record<string, string> = {
-      'LOW': 'bg-green-100 text-green-800',
-      'MEDIUM': 'bg-yellow-100 text-yellow-800',
-      'HIGH': 'bg-orange-100 text-orange-800',
-      'CRITICAL': 'bg-red-100 text-red-800'
+  const getPriorityStyle = (priority: Priority): React.CSSProperties => {
+    const colors: Record<string, React.CSSProperties> = {
+      'LOW': { background: '#E4F1E8', color: '#0f6e56' },
+      'MEDIUM': { background: '#fbf3d9', color: '#8a6d1f' },
+      'HIGH': { background: '#fbeee2', color: '#b45f22' },
+      'CRITICAL': { background: '#fdecec', color: '#a03426' }
     };
-    return colors[priority] || 'bg-gray-100 text-gray-800';
+    return colors[priority] || { background: DIV, color: TXT2 };
   };
 
   const exportToCSV = () => {
@@ -296,7 +301,7 @@ export default function HospitalizationsReportPage() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    
+
     toast.success('Relatório exportado com sucesso!');
   };
 
@@ -306,19 +311,19 @@ export default function HospitalizationsReportPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/10 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center" style={{ background: BG }}>
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Carregando relatório...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto" style={{ borderColor: TEAL }}></div>
+          <p className="mt-4" style={{ color: TXT2 }}>Carregando relatório...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/10 w-full overflow-hidden">
+    <div className="min-h-screen w-full overflow-hidden" style={{ background: BG }}>
       <Sidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
-      
+
       {/* Main Content */}
       <div className={`min-h-screen transition-all duration-500 ${
         sidebarOpen ? 'ml-48 sm:ml-64' : 'ml-12 sm:ml-16'
@@ -331,15 +336,17 @@ export default function HospitalizationsReportPage() {
                 <div className="flex items-center gap-4">
                   <Link
                     href="/dashboard/erp/internacoes"
-                    className="p-2 hover:bg-white/80 rounded-xl transition-colors"
+                    className="p-2 rounded-xl transition-colors"
+                    style={{ color: TXT2 }}
                   >
-                    <LuArrowLeft className="w-5 h-5 text-gray-600" />
+                    <span style={{ fontSize: "20px" }}>‹</span>
                   </Link>
                   <div>
-                    <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+                    <h1 className="text-3xl flex items-center gap-2" style={{ color: NAVY, fontWeight: 500 }}>
+                      <span style={{ fontSize: "26px" }}>📊</span>
                       Relatório de Internações
                     </h1>
-                    <p className="text-gray-600 mt-2">
+                    <p className="mt-2" style={{ color: TXT2 }}>
                       Análise detalhada das internações veterinárias
                     </p>
                   </div>
@@ -347,9 +354,10 @@ export default function HospitalizationsReportPage() {
                 <div className="flex gap-3">
                   <button
                     onClick={exportToCSV}
-                    className="group px-6 py-3 text-sm font-semibold text-gray-700 bg-white/80 border border-gray-200/80 rounded-2xl hover:bg-white hover:border-gray-300 hover:shadow-lg transition-all duration-300 hover:scale-105 flex items-center space-x-2"
+                    className="px-6 py-3 text-sm flex items-center space-x-2 transition-all"
+                    style={{ fontWeight: 500, color: TXT2, background: '#fff', border: `1px solid ${LINE}`, borderRadius: 9 }}
                   >
-                    <LuDownload className="w-4 h-4" />
+                    <span style={{ fontSize: "16px" }}>⬇️</span>
                     <span>Exportar CSV</span>
                   </button>
                 </div>
@@ -358,11 +366,12 @@ export default function HospitalizationsReportPage() {
 
             {/* Error Message */}
             {error && (
-              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-2xl text-red-700">
+              <div className="mb-6 p-4 rounded-xl" style={{ background: '#fdecec', border: '1px solid #f3c9c4', color: '#a03426' }}>
                 {error}
-                <button 
+                <button
                   onClick={() => setError(null)}
-                  className="float-right text-red-500 hover:text-red-700"
+                  className="float-right"
+                  style={{ color: '#a03426' }}
                 >
                   <span style={{fontSize:"14px"}}>✕</span>
                 </button>
@@ -370,36 +379,36 @@ export default function HospitalizationsReportPage() {
             )}
 
             {/* Filtros */}
-            <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-red-500/5 p-6 mb-6">
+            <div className="p-6 mb-6" style={cardStyle}>
               <div className="flex items-center gap-2 mb-4">
-                <span style={{fontSize:"14px"}}>⌕</span>
-                <h3 className="text-lg font-semibold text-gray-900">Filtros</h3>
+                <span style={{fontSize:"16px"}}>🔍</span>
+                <h3 className="text-lg" style={{ color: NAVY, fontWeight: 500 }}>Filtros</h3>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Data Inicial</label>
+                  <label className="block text-sm mb-2" style={{ color: TXT2, fontWeight: 500 }}>Data Inicial</label>
                   <input
                     type="date"
                     value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 text-gray-900"
+                    style={inputStyle}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Data Final</label>
+                  <label className="block text-sm mb-2" style={{ color: TXT2, fontWeight: 500 }}>Data Final</label>
                   <input
                     type="date"
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 text-gray-900"
+                    style={inputStyle}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                  <label className="block text-sm mb-2" style={{ color: TXT2, fontWeight: 500 }}>Status</label>
                   <select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 text-gray-900"
+                    style={inputStyle}
                   >
                     <option value="all">Todos</option>
                     <option value="ADMITTED">Admitido</option>
@@ -412,11 +421,11 @@ export default function HospitalizationsReportPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Prioridade</label>
+                  <label className="block text-sm mb-2" style={{ color: TXT2, fontWeight: 500 }}>Prioridade</label>
                   <select
                     value={priorityFilter}
                     onChange={(e) => setPriorityFilter(e.target.value)}
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 text-gray-900"
+                    style={inputStyle}
                   >
                     <option value="all">Todas</option>
                     <option value="LOW">Baixa</option>
@@ -431,110 +440,100 @@ export default function HospitalizationsReportPage() {
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
               {[
-                { 
-                  label: "Total de Internações", 
-                  value: stats.total, 
-                  color: "gray", 
-                  icon: () => <span style={{fontSize:"14px"}}>🛏</span>,
+                {
+                  label: "Total de Internações",
+                  value: stats.total,
+                  icon: () => <span style={{fontSize:"20px"}}>🏥</span>,
                   trend: null
                 },
-                { 
-                  label: "Ativas", 
-                  value: stats.active, 
-                  color: "blue", 
-                  icon: () => <span style={{fontSize:"14px"}}>⚡</span>,
+                {
+                  label: "Ativas",
+                  value: stats.active,
+                  icon: () => <span style={{fontSize:"20px"}}>⚡</span>,
                   trend: stats.total > 0 ? ((stats.active / stats.total) * 100).toFixed(1) + '%' : '0%'
                 },
-                { 
-                  label: "Críticas", 
-                  value: stats.critical, 
-                  color: "red", 
-                  icon: LuTriangleAlert,
+                {
+                  label: "Críticas",
+                  value: stats.critical,
+                  icon: () => <span style={{fontSize:"20px"}}>⚠️</span>,
                   trend: stats.total > 0 ? ((stats.critical / stats.total) * 100).toFixed(1) + '%' : '0%'
                 },
-                { 
-                  label: "Altas", 
-                  value: stats.discharged, 
-                  color: "green", 
-                  icon: () => <span style={{fontSize:"14px"}}>✓</span>,
+                {
+                  label: "Altas",
+                  value: stats.discharged,
+                  icon: () => <span style={{fontSize:"20px"}}>✓</span>,
                   trend: stats.total > 0 ? ((stats.discharged / stats.total) * 100).toFixed(1) + '%' : '0%'
                 },
-                { 
-                  label: "Alta Pendente", 
-                  value: stats.dischargePending, 
-                  color: "purple", 
-                  icon: () => <span style={{fontSize:"14px"}}>↗</span>,
+                {
+                  label: "Alta Pendente",
+                  value: stats.dischargePending,
+                  icon: () => <span style={{fontSize:"20px"}}>↗</span>,
                   trend: stats.total > 0 ? ((stats.dischargePending / stats.total) * 100).toFixed(1) + '%' : '0%'
                 },
-                { 
-                  label: "Receita Total", 
-                  value: formatCurrency(stats.totalRevenue), 
-                  color: "teal", 
-                  icon: LuDollarSign,
+                {
+                  label: "Receita Total",
+                  value: formatCurrency(stats.totalRevenue),
+                  icon: () => <span style={{fontSize:"20px"}}>💰</span>,
                   trend: null,
                   isFormatted: true
                 },
-                { 
-                  label: "Diária Média", 
-                  value: formatCurrency(stats.averageDailyRate), 
-                  color: "blue", 
-                  icon: () => <span style={{fontSize:"14px"}}>📈</span>,
+                {
+                  label: "Diária Média",
+                  value: formatCurrency(stats.averageDailyRate),
+                  icon: () => <span style={{fontSize:"20px"}}>📈</span>,
                   trend: null,
                   isFormatted: true
                 },
-                { 
-                  label: "Dias Média", 
-                  value: `${Math.round(stats.averageDaysHospitalized)} dias`, 
-                  color: "purple", 
-                  icon: () => <span style={{fontSize:"14px"}}>⏱</span>,
+                {
+                  label: "Dias Média",
+                  value: `${Math.round(stats.averageDaysHospitalized)} dias`,
+                  icon: () => <span style={{fontSize:"20px"}}>⏱</span>,
                   trend: null
                 },
-                { 
-                  label: "Custo Médio", 
-                  value: formatCurrency(stats.averageCost), 
-                  color: "orange", 
-                  icon: LuDollarSign,
+                {
+                  label: "Custo Médio",
+                  value: formatCurrency(stats.averageCost),
+                  icon: () => <span style={{fontSize:"20px"}}>💰</span>,
                   trend: null,
                   isFormatted: true
                 },
-                { 
-                  label: "Total de Dias", 
-                  value: `${stats.totalDays} dias`, 
-                  color: "indigo", 
-                  icon: LuCalendar,
+                {
+                  label: "Total de Dias",
+                  value: `${stats.totalDays} dias`,
+                  icon: () => <span style={{fontSize:"20px"}}>📅</span>,
                   trend: null
                 }
               ].map((stat, index) => (
-                <div key={index} className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-red-500/5 p-6 hover:shadow-2xl hover:shadow-red-500/10 transition-all duration-300 hover:scale-105">
+                <div key={index} className="p-6" style={{ background: '#fff', border: `1px solid ${LINE}`, borderRadius: 12 }}>
                   <div className="flex items-center justify-between mb-4">
-                    <div className={`p-3 bg-${stat.color}-50 rounded-xl`}>
-                      <stat.icon className={`w-6 h-6 text-${stat.color}-600`} />
-                    </div>
+                    <span style={{ background: TINT, borderRadius: 10, padding: '6px 10px', display: 'inline-flex' }}>
+                      <stat.icon />
+                    </span>
                     {stat.trend && (
-                      <div className="text-xs font-semibold text-gray-500">
+                      <div style={{ fontSize: 11, fontWeight: 500, color: TXT3 }}>
                         {stat.trend}
                       </div>
                     )}
                   </div>
-                  <div className={`font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent ${stat.isFormatted ? 'text-lg' : 'text-2xl'}`}>
+                  <div style={{ color: NAVY, fontWeight: 500, fontSize: stat.isFormatted ? 20 : 26 }}>
                     {stat.value}
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-gray-600 mt-2">{stat.label}</p>
+                    <p className="mt-2" style={{ fontSize: 11, color: TXT3, fontWeight: 500 }}>{stat.label}</p>
                   </div>
                 </div>
               ))}
             </div>
 
             {/* Tabela de Internações */}
-            <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-red-500/5 overflow-hidden">
-              <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-100/50 border-b border-white/20">
+            <div className="overflow-hidden" style={cardStyle}>
+              <div className="px-6 py-4" style={{ background: SOFT, borderBottom: `1px solid ${LINE}` }}>
                 <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                    <LuFileText className="w-5 h-5" />
+                  <h3 className="text-lg flex items-center gap-2" style={{ color: NAVY, fontWeight: 500 }}>
+                    <span style={{fontSize:"18px"}}>📋</span>
                     Detalhamento das Internações
                   </h3>
-                  <div className="text-sm text-gray-600">
+                  <div className="text-sm" style={{ color: TXT2 }}>
                     {hospitalizations.length} internações encontradas
                   </div>
                 </div>
@@ -543,48 +542,47 @@ export default function HospitalizationsReportPage() {
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="bg-gradient-to-r from-gray-50 to-gray-100/50 border-b border-white/20">
-                      <th className="text-left p-6 font-semibold text-gray-700">Data Admissão</th>
-                      <th className="text-left p-6 font-semibold text-gray-700">Tutor/Pet</th>
-                      <th className="text-left p-6 font-semibold text-gray-700">Veterinário</th>
-                      <th className="text-left p-6 font-semibold text-gray-700">Quarto</th>
-                      <th className="text-left p-6 font-semibold text-gray-700">Motivo</th>
-                      <th className="text-left p-6 font-semibold text-gray-700">Status</th>
-                      <th className="text-left p-6 font-semibold text-gray-700">Prioridade</th>
-                      <th className="text-left p-6 font-semibold text-gray-700">Dias</th>
-                      <th className="text-left p-6 font-semibold text-gray-700">Diária</th>
-                      <th className="text-left p-6 font-semibold text-gray-700">Custo Total</th>
+                    <tr style={{ background: SOFT }}>
+                      <th style={thStyle}>Data Admissão</th>
+                      <th style={thStyle}>Tutor/Pet</th>
+                      <th style={thStyle}>Veterinário</th>
+                      <th style={thStyle}>Quarto</th>
+                      <th style={thStyle}>Motivo</th>
+                      <th style={thStyle}>Status</th>
+                      <th style={thStyle}>Prioridade</th>
+                      <th style={thStyle}>Dias</th>
+                      <th style={thStyle}>Diária</th>
+                      <th style={thStyle}>Custo Total</th>
                     </tr>
                   </thead>
                   <tbody>
                     {hospitalizations.map((hosp) => {
                       const days = calculateDaysHospitalized(hosp.admissionDate, hosp.actualDischargeDate);
                       return (
-                        <tr 
-                          key={hosp.id} 
-                          className={`border-b border-white/20 hover:bg-gray-50/50 transition-all duration-300 ${
-                            hosp.status === 'CRITICAL' ? 'bg-red-50/30' : ''
-                          }`}
+                        <tr
+                          key={hosp.id}
+                          className="transition-all duration-300"
+                          style={{ borderBottom: `1px solid ${DIV}`, background: hosp.status === 'CRITICAL' ? '#fdecec55' : undefined }}
                         >
                           <td className="p-6">
-                            <div className="flex items-center gap-1 text-gray-700">
-                              <LuCalendar className="w-4 h-4" />
+                            <div className="flex items-center gap-1" style={{ color: TXT2 }}>
+                              <span style={{fontSize:"14px"}}>📅</span>
                               {formatDate(hosp.admissionDate)}
                             </div>
                             {hosp.actualDischargeDate && (
-                              <div className="text-xs text-gray-500 mt-1">
+                              <div className="text-xs mt-1" style={{ color: TXT3 }}>
                                 Alta: {formatDate(hosp.actualDischargeDate)}
                               </div>
                             )}
                           </td>
                           <td className="p-6">
                             <div>
-                              <div className="font-semibold text-gray-900">{hosp.pet.name}</div>
-                              <div className="text-sm text-gray-500">{hosp.tutor.name}</div>
-                              <div className="text-xs text-gray-400">{hosp.pet.species} {hosp.pet.breed && `• ${hosp.pet.breed}`}</div>
+                              <div style={{ color: TXT, fontWeight: 500 }}>{hosp.pet.name}</div>
+                              <div className="text-sm" style={{ color: TXT2 }}>{hosp.tutor.name}</div>
+                              <div className="text-xs" style={{ color: TXT3 }}>{hosp.pet.species} {hosp.pet.breed && `• ${hosp.pet.breed}`}</div>
                               {hosp.tutor.phone && (
-                                <div className="text-xs text-gray-400 flex items-center gap-1 mt-1">
-                                  <LuPhone className="w-3 h-3" />
+                                <div className="text-xs flex items-center gap-1 mt-1" style={{ color: TXT3 }}>
+                                  <span style={{fontSize:"12px"}}>📞</span>
                                   {hosp.tutor.phone}
                                 </div>
                               )}
@@ -594,51 +592,51 @@ export default function HospitalizationsReportPage() {
                             {hosp.veterinarian ? (
                               <div className="flex items-center gap-2">
                                 <span style={{fontSize:"14px"}}>🩺</span>
-                                <span className="text-gray-700">{hosp.veterinarian.name}</span>
+                                <span style={{ color: TXT2 }}>{hosp.veterinarian.name}</span>
                               </div>
                             ) : (
-                              <span className="text-gray-400">N/A</span>
+                              <span style={{ color: TXT3 }}>N/A</span>
                             )}
                           </td>
                           <td className="p-6">
-                            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                              <span style={{fontSize:"14px"}}>🛏</span>
-                              {hosp.roomNumber || 'N/A'}
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs" style={{ background: DIV, color: TXT2, fontWeight: 500 }}>
+                              <span style={{fontSize:"14px"}}>🏥</span>
+                              <span className="ml-1">{hosp.roomNumber || 'N/A'}</span>
                             </span>
                           </td>
                           <td className="p-6">
-                            <div className="text-gray-700 max-w-[200px] truncate" title={hosp.reason}>
+                            <div className="max-w-[200px] truncate" style={{ color: TXT2 }} title={hosp.reason}>
                               {hosp.reason}
                             </div>
                             {hosp.diagnosis && (
-                              <div className="text-xs text-gray-500 mt-1 truncate" title={hosp.diagnosis}>
+                              <div className="text-xs mt-1 truncate" style={{ color: TXT3 }} title={hosp.diagnosis}>
                                 {hosp.diagnosis}
                               </div>
                             )}
                           </td>
                           <td className="p-6">
-                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(hosp.status)}`}>
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs" style={{ ...getStatusStyle(hosp.status), fontWeight: 500 }}>
                               {getStatusLabel(hosp.status)}
                             </span>
                           </td>
                           <td className="p-6">
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getPriorityColor(hosp.priority)}`}>
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs" style={{ ...getPriorityStyle(hosp.priority), fontWeight: 500 }}>
                               {getPriorityLabel(hosp.priority)}
                             </span>
                           </td>
                           <td className="p-6">
-                            <div className="flex items-center gap-1 text-gray-700">
+                            <div className="flex items-center gap-1" style={{ color: TXT2 }}>
                               <span style={{fontSize:"14px"}}>⏱</span>
                               {days} dias
                             </div>
                           </td>
                           <td className="p-6">
-                            <div className="font-semibold text-gray-900">
+                            <div style={{ color: TXT, fontWeight: 500 }}>
                               {formatCurrency(hosp.dailyRate)}
                             </div>
                           </td>
                           <td className="p-6">
-                            <div className="font-semibold text-gray-900">
+                            <div style={{ color: TXT, fontWeight: 500 }}>
                               {formatCurrency(hosp.totalCost)}
                             </div>
                           </td>
@@ -650,9 +648,9 @@ export default function HospitalizationsReportPage() {
 
                 {hospitalizations.length === 0 && !loading && (
                   <div className="text-center py-12">
-                    <span style={{fontSize:"14px"}}>🛏</span>
-                    <p className="text-gray-500 text-lg">Nenhuma internação encontrada</p>
-                    <p className="text-gray-400 mt-2">
+                    <span style={{fontSize:"32px"}}>🏥</span>
+                    <p className="text-lg" style={{ color: TXT2 }}>Nenhuma internação encontrada</p>
+                    <p className="mt-2" style={{ color: TXT3 }}>
                       Tente ajustar os filtros de busca
                     </p>
                   </div>
@@ -665,5 +663,3 @@ export default function HospitalizationsReportPage() {
     </div>
   );
 }
-
-

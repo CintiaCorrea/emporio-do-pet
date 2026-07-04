@@ -3,19 +3,22 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import {
-  LuArrowLeft,
-  LuFileText,
-  LuCheck,
-  LuDownload,
-  LuEye,
-  LuPlus,
-  LuSave,
-  LuLoader} from 'react-icons/lu';
 import toast from 'react-hot-toast';
 import DocumentRecorder from '@/components/protected/dashboard/documents/DocumentRecorder';
 import StandaloneDocumentGenerator from '@/components/protected/dashboard/documents/StandaloneDocumentGenerator';
 import DocumentRecordingHistory, { addToRecordingHistory } from '@/components/protected/dashboard/documents/DocumentRecordingHistory';
+
+// Paleta Base44 (mesmos tokens de components/ui/base44.tsx)
+const TEAL = '#009AAC';
+const TEAL_DARK = '#014D5E';
+const GREEN = '#0f6e56';
+const BG = '#F6F2EA';
+const SOFT = '#FBF9F4';
+const TINT = '#E0F4F6';
+const LINE = '#E8E2D6';
+const TXT = '#1F2A2E';
+const TXT2 = '#5C6B70';
+const TXT3 = '#8A989D';
 
 interface GeneratedDocument {
   id: string;
@@ -113,47 +116,52 @@ export default function NewDocumentPage() {
     }
   };
 
+  const stepBtn = (active: boolean, doneState: boolean): React.CSSProperties => ({
+    display: 'inline-flex', alignItems: 'center', gap: 7, padding: '9px 16px', borderRadius: 9, fontSize: 13, fontWeight: 500, border: 'none', cursor: 'pointer',
+    background: active ? TEAL : doneState ? '#e1f5ee' : SOFT,
+    color: active ? '#fff' : doneState ? GREEN : TXT3});
+
   return (
-    <div className="max-w-5xl mx-auto p-6 space-y-6">
+    <div style={{ maxWidth: 1024, margin: '0 auto', padding: 24, display: 'flex', flexDirection: 'column', gap: 24, background: BG, minHeight: '100%', boxSizing: 'border-box' }}>
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <Link
             href="/dashboard/erp/documentos"
-            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            style={{ display: 'inline-flex', padding: 8, borderRadius: 9, textDecoration: 'none', fontSize: 18, color: TXT2 }}
           >
-            <LuArrowLeft className="w-5 h-5 text-gray-500" />
+            ←
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-              <span style={{fontSize:"14px"}}>🎤</span>
+            <h1 style={{ fontSize: 22, fontWeight: 500, color: TEAL_DARK, display: 'flex', alignItems: 'center', gap: 8, margin: 0 }}>
+              <span style={{ fontSize: 22 }}>🎤</span>
               Novo Documento
             </h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <p style={{ fontSize: 13, color: TXT2, margin: '4px 0 0' }}>
               Grave ou digite, transcreva e gere documentos automaticamente com IA
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <button
             onClick={() => setShowHistory(!showHistory)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              showHistory
-                ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400'
-                : 'bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-300'
-            }`}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 7, padding: '9px 16px', borderRadius: 9, fontSize: 13, fontWeight: 500, cursor: 'pointer',
+              border: `1px solid ${LINE}`,
+              background: showHistory ? TINT : '#fff',
+              color: showHistory ? TEAL_DARK : TXT2}}
           >
-            <span style={{fontSize:"14px"}}>⏳</span>
+            <span style={{ fontSize: 14 }}>⏳</span>
             Histórico
           </button>
 
           {generatedDocs.length > 0 && (
             <Link
               href="/dashboard/erp/documentos"
-              className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-sm font-medium transition-colors"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '9px 16px', background: TEAL, color: '#fff', borderRadius: 9, fontSize: 13, fontWeight: 500, textDecoration: 'none' }}
             >
-              <LuFileText className="w-4 h-4" />
+              <span>📄</span>
               Ver Documentos ({generatedDocs.length})
             </Link>
           )}
@@ -161,53 +169,37 @@ export default function NewDocumentPage() {
       </div>
 
       {/* Step Progress */}
-      <div className="flex items-center justify-center gap-2">
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, flexWrap: 'wrap' }}>
         <button
           onClick={() => setStep('record')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-            step === 'record'
-              ? 'bg-violet-600 text-white'
-              : transcription
-              ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-              : 'bg-gray-100 text-gray-500 dark:bg-gray-700'
-          }`}
+          style={stepBtn(step === 'record', Boolean(transcription))}
         >
-          <span style={{fontSize:"14px"}}>🎤</span>
-          1. Gravar & Transcrever
+          <span style={{ fontSize: 14 }}>🎤</span>
+          1. Gravar &amp; Transcrever
         </button>
-        <span style={{fontSize:"14px"}}>→</span>
+        <span style={{ fontSize: 14, color: TXT3 }}>→</span>
         <button
           onClick={() => transcription && setStep('generate')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-            step === 'generate'
-              ? 'bg-violet-600 text-white'
-              : generatedDocs.length > 0
-              ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-              : 'bg-gray-100 text-gray-500 dark:bg-gray-700'
-          }`}
+          style={{ ...stepBtn(step === 'generate', generatedDocs.length > 0), opacity: transcription ? 1 : 0.6 }}
           disabled={!transcription}
         >
-          <span style={{fontSize:"14px"}}>🧠</span>
+          <span style={{ fontSize: 14 }}>🧠</span>
           2. Gerar Documentos
         </button>
-        <span style={{fontSize:"14px"}}>→</span>
+        <span style={{ fontSize: 14, color: TXT3 }}>→</span>
         <button
           onClick={() => generatedDocs.length > 0 && setStep('done')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-            step === 'done'
-              ? 'bg-violet-600 text-white'
-              : 'bg-gray-100 text-gray-500 dark:bg-gray-700'
-          }`}
+          style={{ ...stepBtn(step === 'done', false), opacity: generatedDocs.length > 0 ? 1 : 0.6 }}
           disabled={generatedDocs.length === 0}
         >
-          <LuFileText className="w-4 h-4" />
+          <span style={{ fontSize: 14 }}>📄</span>
           3. Documentos Prontos
         </button>
       </div>
 
       {/* Recording History Panel */}
       {showHistory && (
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+        <div style={{ background: '#fff', borderRadius: 13, border: `1px solid ${LINE}`, padding: 24 }}>
           <DocumentRecordingHistory onSelectRecording={handleSelectFromHistory} />
         </div>
       )}
@@ -234,71 +226,67 @@ export default function NewDocumentPage() {
 
       {/* Step 3: Documents Ready */}
       {step === 'done' && !showHistory && (
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-green-200 dark:border-green-800 p-6">
-          <div className="text-center mb-6">
-            <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-3">
-              <LuCheck className="w-8 h-8 text-green-600" />
+        <div style={{ background: '#fff', borderRadius: 13, border: `1px solid ${LINE}`, padding: 24 }}>
+          <div style={{ textAlign: 'center', marginBottom: 24 }}>
+            <div style={{ width: 64, height: 64, background: '#e1f5ee', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px', fontSize: 30 }}>
+              ✅
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+            <h3 style={{ fontSize: 17, fontWeight: 500, color: TEAL_DARK, margin: 0 }}>
               Documentos Prontos!
             </h3>
-            <p className="text-sm text-gray-500">
+            <p style={{ fontSize: 13, color: TXT2, margin: '4px 0 0' }}>
               {generatedDocs.length} documento(s) gerado(s)
             </p>
           </div>
 
-          <div className="space-y-3 mb-6">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 24 }}>
             {generatedDocs.map((doc, idx) => (
               <div
                 key={doc.id || idx}
-                className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-lg"
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 16, background: SOFT, border: `1px solid ${LINE}`, borderRadius: 10 }}
               >
-                <div className="flex items-center gap-3">
-                  <LuFileText className="w-5 h-5 text-violet-600" />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <span style={{ fontSize: 20 }}>📄</span>
                   <div>
-                    <p className="font-medium text-sm text-gray-900 dark:text-white">{doc.title}</p>
-                    <p className="text-xs text-gray-500">{doc.type} • Gerado por IA</p>
+                    <p style={{ fontWeight: 500, fontSize: 13, color: TXT, margin: 0 }}>{doc.title}</p>
+                    <p style={{ fontSize: 12, color: TXT3, margin: '2px 0 0' }}>{doc.type} • Gerado por IA</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <button
                     onClick={() => openPreview(doc)}
-                    className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors text-gray-500"
+                    style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 8, borderRadius: 8, fontSize: 15, color: TXT2 }}
                     title="Visualizar"
                   >
-                    <LuEye className="w-4 h-4" />
+                    🔍
                   </button>
                   <button
                     onClick={() => saveDocument(doc)}
                     disabled={saving}
-                    className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors text-gray-500"
+                    style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 8, borderRadius: 8, fontSize: 15, color: TXT2, opacity: saving ? 0.5 : 1 }}
                     title="Salvar"
                   >
-                    <LuSave className="w-4 h-4" />
+                    ✅
                   </button>
                 </div>
               </div>
             ))}
           </div>
 
-          <div className="flex justify-center gap-4">
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 16, flexWrap: 'wrap' }}>
             <button
               onClick={saveAllDocuments}
               disabled={saving}
-              className="flex items-center gap-2 px-6 py-3 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-medium transition-all disabled:opacity-50"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 24px', background: TEAL, color: '#fff', border: 'none', borderRadius: 11, fontWeight: 500, fontSize: 14, cursor: 'pointer', opacity: saving ? 0.5 : 1 }}
             >
-              {saving ? (
-                <LuLoader className="w-5 h-5 animate-spin" />
-              ) : (
-                <LuSave className="w-5 h-5" />
-              )}
+              <span style={{ fontSize: 16 }}>{saving ? '⏳' : '✅'}</span>
               {saving ? 'Salvando...' : 'Salvar Todos os Documentos'}
             </button>
             <button
               onClick={() => setStep('generate')}
-              className="flex items-center gap-2 px-6 py-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-medium transition-all"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 24px', background: '#fff', border: `1px solid ${LINE}`, color: TXT2, borderRadius: 11, fontWeight: 500, fontSize: 14, cursor: 'pointer' }}
             >
-              <LuPlus className="w-5 h-5" />
+              <span style={{ fontSize: 16 }}>➕</span>
               Gerar Mais Documentos
             </button>
           </div>

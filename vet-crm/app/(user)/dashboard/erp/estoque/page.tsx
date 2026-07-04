@@ -1,13 +1,27 @@
+// Estoque no padrao Base44 (bege + emojis). Roupagem repaginada 04/07 — LOGICA 100% preservada.
 'use client';
 
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import {
-  LuSearch,
-  LuPlus,
-  LuTriangleAlert,
-  LuCalendar
-} from 'react-icons/lu';
+
+// Paleta Base44 (mesmos tokens de components/ui/base44.tsx)
+const TEAL = '#009AAC';      // acento / botao primario
+const TEAL_DARK = '#014D5E'; // titulos / texto forte
+const ORANGE = '#D85A30';    // coral (estoque baixo / saidas)
+const GREEN = '#0f6e56';     // sucesso
+const BG = '#F6F2EA';        // fundo da pagina
+const SOFT = '#FBF9F4';      // areas suaves
+const TINT = '#E0F4F6';      // agua
+const LINE = '#E8E2D6';      // borda do cartao
+const DIV = '#F0EBE0';       // divisoria interna
+const TXT = '#1F2A2E';       // corpo
+const TXT2 = '#5C6B70';      // secundario
+const TXT3 = '#8A989D';      // dica / rotulo
+
+const thStyle: React.CSSProperties = { color: TXT3, fontWeight: 500, fontSize: 11.5, textTransform: 'uppercase', letterSpacing: '.03em', padding: '12px 18px', borderBottom: `1px solid ${LINE}`, textAlign: 'left' };
+const tdStyle: React.CSSProperties = { padding: '12px 18px', borderBottom: `1px solid ${DIV}` };
+const inp: React.CSSProperties = { width: '100%', padding: '9px 10px', border: `1px solid ${LINE}`, borderRadius: 9, fontSize: 13, fontFamily: 'inherit', color: TXT, background: '#fff' };
+const lbl: React.CSSProperties = { fontSize: 13, color: TXT2, display: 'block', marginBottom: 6 };
 
 // Tipos
 type ProductType = 'MEDICINE' | 'VACCINE';
@@ -63,7 +77,7 @@ export default function StockPage() {
   const [isMovementModalOpen, setIsMovementModalOpen] = useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [movementType, setMovementType] = useState<'IN' | 'OUT'>('IN');
-  
+
   // Form state
   const [movementForm, setMovementForm] = useState({
     quantity: 1,
@@ -80,20 +94,20 @@ export default function StockPage() {
     try {
       setLoading(true);
       setError(null);
-      
+
       const params = new URLSearchParams();
       params.append('limit', '1000');
       params.append('excludeService', '1'); // estoque = só itens estocáveis (catálogo unificado)
       if (typeFilter !== 'all') params.append('type', typeFilter);
       if (stockFilter === 'low') params.append('lowStock', 'true');
-      
+
       const response = await fetch(`/api/products?${params.toString()}`);
       if (!response.ok) throw new Error('Erro ao carregar produtos');
-      
+
       const data = await response.json();
       // Filtrar apenas produtos (excluir serviços)
       const productsList = (data.products || []).filter((p: ApiProduct) => p.type !== 'SERVICE');
-      
+
       // Converter para formato da interface Product
       const formattedProducts: Product[] = productsList.map((p: ApiProduct) => ({
         id: p.id,
@@ -104,7 +118,7 @@ export default function StockPage() {
         createdAt: p.createdAt,
         updatedAt: p.updatedAt
       }));
-      
+
       setProducts(formattedProducts);
     } catch (err) {
       console.error('Erro ao carregar produtos:', err);
@@ -119,7 +133,7 @@ export default function StockPage() {
     try {
       const response = await fetch('/api/stock/movements?limit=100');
       if (!response.ok) throw new Error('Erro ao carregar movimentações');
-      
+
       const data = await response.json();
       const formattedMovements: StockMovement[] = (data.movements || []).map((m: any) => ({
         id: m.id,
@@ -135,7 +149,7 @@ export default function StockPage() {
         userId: m.userId,
         userName: m.userName
       }));
-      
+
       setMovements(formattedMovements);
     } catch (err) {
       console.error('Erro ao carregar movimentações:', err);
@@ -148,7 +162,7 @@ export default function StockPage() {
   const filteredProducts = products.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesType = typeFilter === 'all' || product.type === typeFilter;
-    
+
     let matchesStock = true;
     if (stockFilter === 'low') {
       matchesStock = product.stock > 0 && product.stock < 10;
@@ -171,17 +185,17 @@ export default function StockPage() {
   };
 
   // Funções auxiliares
-  const getStockStatus = (product: Product) => {
-    if (product.stock === 0) return { label: 'Sem Estoque', color: 'bg-red-100 text-red-800' };
-    if (product.stock < 10) return { label: 'Estoque Baixo', color: 'bg-yellow-100 text-yellow-800' };
-    return { label: 'Normal', color: 'bg-green-100 text-green-800' };
+  const getStockStatus = (product: Product): { label: string; style: React.CSSProperties } => {
+    if (product.stock === 0) return { label: 'Sem Estoque', style: { background: '#fef0e8', color: ORANGE } };
+    if (product.stock < 10) return { label: 'Estoque Baixo', style: { background: '#fdf6e3', color: '#854F0B' } };
+    return { label: 'Normal', style: { background: '#e1f5ee', color: GREEN } };
   };
 
   const getTypeIcon = (type: ProductType) => {
     switch (type) {
-      case 'MEDICINE': return;
-      case 'VACCINE': return;
-      default: return;
+      case 'MEDICINE': return '💊';
+      case 'VACCINE': return '💉';
+      default: return '📦';
     }
   };
 
@@ -193,11 +207,11 @@ export default function StockPage() {
     }
   };
 
-  const getTypeColor = (type: ProductType) => {
+  const getTypeColor = (type: ProductType): React.CSSProperties => {
     switch (type) {
-      case 'MEDICINE': return 'bg-blue-100 text-blue-800';
-      case 'VACCINE': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'MEDICINE': return { background: TINT, color: TEAL_DARK };
+      case 'VACCINE': return { background: '#e1f5ee', color: GREEN };
+      default: return { background: DIV, color: TXT2 };
     }
   };
 
@@ -228,7 +242,7 @@ export default function StockPage() {
   const handleMovement = async () => {
     if (!selectedProduct || movementForm.quantity <= 0) return;
 
-    const newStock = movementType === 'IN' 
+    const newStock = movementType === 'IN'
       ? selectedProduct.stock + movementForm.quantity
       : selectedProduct.stock - movementForm.quantity;
 
@@ -240,7 +254,7 @@ export default function StockPage() {
 
     try {
       setError(null);
-      
+
       const response = await fetch('/api/stock/movements', {
         method: 'POST',
         headers: {
@@ -261,8 +275,8 @@ export default function StockPage() {
       const newMovement = await response.json();
 
       // Atualizar produto localmente
-      setProducts(products.map(p => 
-        p.id === selectedProduct.id 
+      setProducts(products.map(p =>
+        p.id === selectedProduct.id
           ? { ...p, stock: newStock }
           : p
       ));
@@ -286,7 +300,7 @@ export default function StockPage() {
       setIsMovementModalOpen(false);
       setSelectedProduct(null);
       setMovementForm({ quantity: 1, reason: '' });
-      
+
       toast.success(`Movimentação de ${movementType === 'IN' ? 'entrada' : 'saída'} registrada com sucesso!`);
     } catch (err) {
       console.error('Erro ao registrar movimentação:', err);
@@ -300,7 +314,7 @@ export default function StockPage() {
   const openHistory = async (product: Product) => {
     setSelectedProduct(product);
     setIsHistoryModalOpen(true);
-    
+
     // Buscar movimentações específicas do produto
     try {
       const response = await fetch(`/api/stock/movements/${product.id}`);
@@ -328,47 +342,49 @@ export default function StockPage() {
   };
 
   // Movimentações do produto selecionado
-  const productMovements = selectedProduct 
+  const productMovements = selectedProduct
     ? movements.filter(m => m.productId === selectedProduct.id)
     : [];
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/10 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Carregando estoque...</p>
+      <div style={{ minHeight: '100vh', background: BG, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: 34 }}>📦</div>
+          <p style={{ marginTop: 12, color: TXT2 }}>Carregando estoque...</p>
         </div>
       </div>
     );
   }
 
+  const cardStyle: React.CSSProperties = { background: '#fff', border: `1px solid ${LINE}`, borderRadius: 13, padding: '14px 15px' };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/10 w-full overflow-hidden">
+    <div style={{ minHeight: '100vh', background: BG, width: '100%', overflow: 'hidden' }}>
       {/* Main Content */}
-      <div className="p-6">
-        <div className="max-w-7xl mx-auto">
+      <div style={{ padding: 24 }}>
+        <div style={{ maxWidth: 1280, margin: '0 auto' }}>
             {/* Header */}
-            <div className="mb-8">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div style={{ marginBottom: 28 }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
                 <div>
-                  <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-                    Estoque
+                  <h1 style={{ fontSize: 26, fontWeight: 500, color: TEAL_DARK, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span>📦</span> Estoque
                   </h1>
-                  <p className="text-gray-600 mt-2">
+                  <p style={{ color: TXT2, marginTop: 6, fontSize: 13.5 }}>
                     Controle de estoque de medicamentos e vacinas
                   </p>
                 </div>
-                <div className="flex gap-3">
-                  <button 
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button
                     onClick={() => {
                       fetchProducts();
                       fetchMovements();
                       toast.success('Dados atualizados!');
                     }}
-                    className="group px-6 py-3 text-sm font-semibold text-gray-700 bg-white/80 border border-gray-200/80 rounded-2xl hover:bg-white hover:border-gray-300 hover:shadow-lg transition-all duration-300 hover:scale-105 flex items-center space-x-2"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 16px', fontSize: 12.5, fontWeight: 500, color: TXT2, background: '#fff', border: `1px solid ${LINE}`, borderRadius: 9, cursor: 'pointer' }}
                   >
-                    <span style={{fontSize:"14px"}}>↻</span>
+                    <span>↻</span>
                     <span>Atualizar</span>
                   </button>
                 </div>
@@ -377,92 +393,64 @@ export default function StockPage() {
 
             {/* Error Message */}
             {error && (
-              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-2xl text-red-700">
+              <div style={{ marginBottom: 24, padding: 16, background: '#fef0e8', border: `1px solid ${ORANGE}`, borderRadius: 12, color: '#993C1D' }}>
                 {error}
-                <button 
+                <button
                   onClick={() => setError(null)}
-                  className="float-right text-red-500 hover:text-red-700"
+                  style={{ float: 'right', border: 'none', background: 'none', cursor: 'pointer', color: ORANGE, fontSize: 14 }}
                 >
-                  <span style={{fontSize:"14px"}}>✕</span>
+                  <span>✕</span>
                 </button>
               </div>
             )}
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16, marginBottom: 28 }}>
               {[
-                { 
-                  label: "Produtos", 
-                  value: stats.totalProducts, 
-                  color: "gray", 
-                  icon: () => <span style={{fontSize:"14px"}}>📦</span>
-                },
-                { 
-                  label: "Itens em Estoque", 
-                  value: stats.totalItems, 
-                  color: "blue", 
-                  icon: () => <span style={{fontSize:"14px"}}>📦</span>
-                },
-                { 
-                  label: "Estoque Baixo", 
-                  value: stats.lowStock, 
-                  color: "yellow", 
-                  icon: LuTriangleAlert
-                },
-                { 
-                  label: "Sem Estoque", 
-                  value: stats.outOfStock, 
-                  color: "red", 
-                  icon: () => <span style={{fontSize:"14px"}}>📉</span>
-                },
-                { 
-                  label: "Valor Total", 
-                  value: formatCurrency(stats.totalValue), 
-                  color: "green", 
-                  icon: () => <span style={{fontSize:"14px"}}>🏬</span>,
-                  isFormatted: true
-                }
+                { label: "Produtos", value: stats.totalProducts, emoji: "📦" },
+                { label: "Itens em Estoque", value: stats.totalItems, emoji: "📦" },
+                { label: "Estoque Baixo", value: stats.lowStock, emoji: "⚠️" },
+                { label: "Sem Estoque", value: stats.outOfStock, emoji: "📉" },
+                { label: "Valor Total", value: formatCurrency(stats.totalValue), emoji: "🏬", isFormatted: true }
               ].map((stat, index) => (
-                <div key={index} className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-orange-500/5 p-6 hover:shadow-2xl hover:shadow-orange-500/10 transition-all duration-300 hover:scale-105">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className={`p-3 bg-${stat.color}-50 rounded-xl`}>
-                      <stat.icon className={`w-6 h-6 text-${stat.color}-600`} />
-                    </div>
-                    <div className={`font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent ${stat.isFormatted ? 'text-lg' : 'text-2xl'}`}>
+                <div key={index} style={{ background: '#fff', border: `1px solid ${LINE}`, borderRadius: 12, padding: 16 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <span style={{ fontSize: 20 }}>{stat.emoji}</span>
+                    <div style={{ fontWeight: 500, color: TEAL_DARK, fontSize: stat.isFormatted ? 18 : 26 }}>
                       {stat.value}
                     </div>
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-gray-600">{stat.label}</p>
+                    <p style={{ fontSize: 11, color: TXT3, textTransform: 'uppercase', letterSpacing: '.03em', margin: 0 }}>{stat.label}</p>
                   </div>
                 </div>
               ))}
             </div>
 
             {/* Filters */}
-            <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-orange-500/5 p-6 mb-6">
-              <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
-                <div className="flex flex-col sm:flex-row gap-4 w-full lg:w-auto">
-                  <div className="relative flex-1">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <LuSearch className="w-5 h-5 text-gray-400" />
+            <div style={{ ...cardStyle, padding: 16, marginBottom: 24 }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, flex: 1, minWidth: 0 }}>
+                  <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
+                    <div style={{ position: 'absolute', top: 0, bottom: 0, left: 12, display: 'flex', alignItems: 'center', pointerEvents: 'none' }}>
+                      <span style={{ fontSize: 15 }}>🔍</span>
                     </div>
                     <input
                       type="text"
                       placeholder="Buscar produto..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full pl-10 pr-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500/50 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                      style={{ ...inp, paddingLeft: 36 }}
                     />
                   </div>
-                  
+
                   <select
                     value={typeFilter}
                     onChange={(e) => {
                       setTypeFilter(e.target.value as ProductType | 'all');
                       fetchProducts();
                     }}
-                    className="px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                    style={{ ...inp, width: 'auto' }}
                   >
                     <option value="all">Todos os Tipos</option>
                     <option value="MEDICINE">Medicamentos</option>
@@ -474,7 +462,7 @@ export default function StockPage() {
                     onChange={(e) => {
                       setStockFilter(e.target.value as 'all' | 'low' | 'out' | 'ok');
                     }}
-                    className="px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                    style={{ ...inp, width: 'auto' }}
                   >
                     <option value="all">Todos os Status</option>
                     <option value="ok">Estoque Normal</option>
@@ -483,16 +471,12 @@ export default function StockPage() {
                   </select>
                 </div>
 
-                <div className="flex gap-3 w-full lg:w-auto">
+                <div style={{ display: 'flex', gap: 10 }}>
                   <button
                     onClick={() => setStockFilter(stockFilter === 'low' ? 'all' : 'low')}
-                    className={`flex items-center gap-2 px-4 py-3 text-sm font-semibold rounded-2xl transition-all duration-300 hover:scale-105 ${
-                      stockFilter === 'low'
-                        ? 'text-white bg-yellow-500 hover:bg-yellow-600' 
-                        : 'text-gray-600 bg-white/50 border border-gray-300/50 hover:bg-white hover:border-gray-400'
-                    }`}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 14px', fontSize: 12.5, fontWeight: 500, borderRadius: 9, cursor: 'pointer', ...(stockFilter === 'low' ? { color: '#fff', background: ORANGE, border: 'none' } : { color: TXT2, background: '#fff', border: `1px solid ${LINE}` }) }}
                   >
-                    <LuTriangleAlert className="w-4 h-4" />
+                    <span>⚠️</span>
                     <span>Alertas</span>
                   </button>
                 </div>
@@ -500,121 +484,113 @@ export default function StockPage() {
             </div>
 
             {/* Products Table */}
-            <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-orange-500/5 overflow-hidden">
-              <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-100/50 border-b border-white/20">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-gray-900">
+            <div style={{ background: '#fff', border: `1px solid ${LINE}`, borderRadius: 13, overflow: 'hidden' }}>
+              <div style={{ padding: '14px 18px', background: SOFT, borderBottom: `1px solid ${LINE}` }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <h3 style={{ fontSize: 15, fontWeight: 500, color: TEAL_DARK, margin: 0 }}>
                     Controle de Estoque
                   </h3>
-                  <div className="text-sm text-gray-600">
+                  <div style={{ fontSize: 12.5, color: TXT2 }}>
                     {filteredProducts.length} produtos encontrados
                   </div>
                 </div>
               </div>
 
-              <div className="overflow-x-auto">
-                <table className="w-full">
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                   <thead>
-                    <tr className="bg-gradient-to-r from-gray-50 to-gray-100/50 border-b border-white/20">
-                      <th className="text-left p-6 font-semibold text-gray-700">Produto</th>
-                      <th className="text-left p-6 font-semibold text-gray-700">Tipo</th>
-                      <th className="text-left p-6 font-semibold text-gray-700">Estoque</th>
-                      <th className="text-left p-6 font-semibold text-gray-700">Status</th>
-                      <th className="text-left p-6 font-semibold text-gray-700">Valor</th>
-                      <th className="text-left p-6 font-semibold text-gray-700">Ações</th>
+                    <tr>
+                      <th style={thStyle}>Produto</th>
+                      <th style={thStyle}>Tipo</th>
+                      <th style={thStyle}>Estoque</th>
+                      <th style={thStyle}>Status</th>
+                      <th style={thStyle}>Valor</th>
+                      <th style={thStyle}>Ações</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredProducts.map((product) => {
-                      const TypeIcon = getTypeIcon(product.type);
+                      const typeIcon = getTypeIcon(product.type);
                       const stockStatus = getStockStatus(product);
                       const stockPercentage = Math.min((product.stock / 100) * 100, 100);
-                      
+
                       return (
-                        <tr 
-                          key={product.id} 
-                          className={`border-b border-white/20 hover:bg-gray-50/50 transition-all duration-300 ${
-                            product.stock === 0 ? 'bg-red-50/30' : 
-                            product.stock < 10 ? 'bg-yellow-50/30' : ''
-                          }`}
+                        <tr
+                          key={product.id}
+                          style={product.stock === 0 ? { background: '#fef0e8' } : product.stock < 10 ? { background: '#fdf6e3' } : undefined}
                         >
-                          <td className="p-6">
-                            <div className="flex items-center gap-3">
-                              <div className={`p-2 rounded-xl ${getTypeColor(product.type)}`}>
-                                <TypeIcon className="w-5 h-5" />
+                          <td style={tdStyle}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                              <div style={{ padding: 8, borderRadius: 10, display: 'inline-flex', ...getTypeColor(product.type) }}>
+                                <span style={{ fontSize: 16 }}>{typeIcon}</span>
                               </div>
                               <div>
-                                <div className="font-semibold text-gray-900">{product.name}</div>
-                                <div className="text-sm text-gray-500">
+                                <div style={{ fontWeight: 500, color: TXT }}>{product.name}</div>
+                                <div style={{ fontSize: 12, color: TXT3 }}>
                                   {formatCurrency(product.price)} / unidade
                                 </div>
                               </div>
                             </div>
                           </td>
-                          <td className="p-6">
-                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getTypeColor(product.type)}`}>
+                          <td style={tdStyle}>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', padding: '3px 10px', borderRadius: 999, fontSize: 11.5, fontWeight: 500, ...getTypeColor(product.type) }}>
                               {getTypeLabel(product.type)}
                             </span>
                           </td>
-                          <td className="p-6">
-                            <div className="flex items-center gap-3">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <span className="text-lg font-bold text-gray-900">{product.stock}</span>
-                                  <span className="text-sm text-gray-500">unidades</span>
+                          <td style={tdStyle}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                                  <span style={{ fontSize: 17, fontWeight: 500, color: TXT }}>{product.stock}</span>
+                                  <span style={{ fontSize: 12.5, color: TXT3 }}>unidades</span>
                                 </div>
-                                <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
-                                  <div 
-                                    className={`h-full rounded-full transition-all ${
-                                      product.stock === 0 ? 'bg-red-500' :
-                                      product.stock < 10 ? 'bg-yellow-500' :
-                                      'bg-green-500'
-                                    }`}
-                                    style={{ width: `${Math.min(stockPercentage, 100)}%` }}
+                                <div style={{ width: 96, height: 8, background: DIV, borderRadius: 999, overflow: 'hidden' }}>
+                                  <div
+                                    style={{ height: '100%', borderRadius: 999, width: `${Math.min(stockPercentage, 100)}%`, background: product.stock === 0 ? ORANGE : product.stock < 10 ? '#D9A400' : GREEN }}
                                   />
                                 </div>
                               </div>
                             </div>
                           </td>
-                          <td className="p-6">
-                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${stockStatus.color}`}>
+                          <td style={tdStyle}>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', padding: '3px 10px', borderRadius: 999, fontSize: 11.5, fontWeight: 500, ...stockStatus.style }}>
                               {stockStatus.label}
                             </span>
                             {product.updatedAt && (
-                              <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
-                                <LuCalendar className="w-3 h-3" />
+                              <div style={{ fontSize: 11, color: TXT3, marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                <span>📅</span>
                                 {formatDate(product.updatedAt)}
                               </div>
                             )}
                           </td>
-                          <td className="p-6">
-                            <div className="font-semibold text-gray-900">
+                          <td style={tdStyle}>
+                            <div style={{ fontWeight: 500, color: TXT }}>
                               {formatCurrency(product.stock * product.price)}
                             </div>
                           </td>
-                          <td className="p-6">
-                            <div className="flex items-center gap-1">
+                          <td style={tdStyle}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                               <button
                                 onClick={() => openMovementModal(product, 'IN')}
-                                className="p-2 text-green-600 hover:bg-green-50 rounded-xl transition-colors"
+                                style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 6, fontSize: 15, lineHeight: 1 }}
                                 title="Entrada"
                               >
-                                <LuPlus className="w-4 h-4" />
+                                <span>📥</span>
                               </button>
                               <button
                                 onClick={() => openMovementModal(product, 'OUT')}
-                                className="p-2 text-red-600 hover:bg-red-50 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 6, fontSize: 15, lineHeight: 1, opacity: product.stock === 0 ? 0.4 : 1 }}
                                 title="Saída"
                                 disabled={product.stock === 0}
                               >
-                                <span style={{fontSize:"14px"}}>−</span>
+                                <span>📤</span>
                               </button>
                               <button
                                 onClick={() => openHistory(product)}
-                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-xl transition-colors"
+                                style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 6, fontSize: 15, lineHeight: 1 }}
                                 title="Histórico"
                               >
-                                <span style={{fontSize:"14px"}}>⏳</span>
+                                <span>⏳</span>
                               </button>
                             </div>
                           </td>
@@ -625,57 +601,55 @@ export default function StockPage() {
                 </table>
 
                 {filteredProducts.length === 0 && !loading && (
-                  <div className="text-center py-12">
-                    <span style={{fontSize:"14px"}}>🏬</span>
-                    <p className="text-gray-500 text-lg">Nenhum produto encontrado</p>
-                    <p className="text-gray-400 mt-2">Tente ajustar os filtros de busca</p>
+                  <div style={{ textAlign: 'center', padding: 48 }}>
+                    <div style={{ fontSize: 30 }}>🏬</div>
+                    <p style={{ color: TXT2, fontSize: 16, margin: '10px 0 0' }}>Nenhum produto encontrado</p>
+                    <p style={{ color: TXT3, marginTop: 6 }}>Tente ajustar os filtros de busca</p>
                   </div>
                 )}
               </div>
 
-              <div className="flex flex-col sm:flex-row justify-between items-center p-6 border-t border-white/20 bg-gradient-to-r from-gray-50 to-gray-100/50">
-                <div className="text-sm text-gray-600 mb-4 sm:mb-0">
+              <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', padding: 18, borderTop: `1px solid ${LINE}`, background: SOFT, gap: 12 }}>
+                <div style={{ fontSize: 12.5, color: TXT2 }}>
                   Mostrando {filteredProducts.length} de {products.length} produtos
                 </div>
               </div>
             </div>
 
             {/* Últimas Movimentações */}
-            <div className="mt-6 bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-orange-500/5 overflow-hidden">
-              <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-100/50 border-b border-white/20">
-                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                  <span style={{fontSize:"14px"}}>⏳</span>
+            <div style={{ marginTop: 24, background: '#fff', border: `1px solid ${LINE}`, borderRadius: 13, overflow: 'hidden' }}>
+              <div style={{ padding: '14px 18px', background: SOFT, borderBottom: `1px solid ${LINE}` }}>
+                <h3 style={{ fontSize: 15, fontWeight: 500, color: TEAL_DARK, margin: 0, display: 'flex', alignItems: 'center', gap: 7 }}>
+                  <span>⏳</span>
                   Últimas Movimentações
                 </h3>
               </div>
-              <div className="divide-y divide-gray-100">
+              <div>
                 {movements.slice(0, 5).map((movement) => (
-                  <div key={movement.id} className="p-4 hover:bg-gray-50 transition-colors">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className={`p-2 rounded-xl ${
-                          movement.type === 'IN' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
-                        }`}>
-                          {movement.type === 'IN' ? <span style={{fontSize:"14px"}}>↘</span> : <span style={{fontSize:"14px"}}>↗</span>}
+                  <div key={movement.id} style={{ padding: 16, borderBottom: `1px solid ${DIV}` }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <div style={{ padding: 8, borderRadius: 10, display: 'inline-flex', ...(movement.type === 'IN' ? { background: '#e1f5ee', color: GREEN } : { background: '#fef0e8', color: ORANGE }) }}>
+                          {movement.type === 'IN' ? <span style={{ fontSize: 15 }}>📥</span> : <span style={{ fontSize: 15 }}>📤</span>}
                         </div>
                         <div>
-                          <div className="font-medium text-gray-900">
+                          <div style={{ fontWeight: 500, color: TXT }}>
                             {movement.type === 'IN' ? '+' : '-'}{movement.quantity} {movement.productName}
                           </div>
-                          <div className="text-sm text-gray-500">{movement.reason || 'Movimentação de estoque'}</div>
+                          <div style={{ fontSize: 12.5, color: TXT3 }}>{movement.reason || 'Movimentação de estoque'}</div>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <div className="text-sm text-gray-600">{formatDateTime(movement.date)}</div>
-                        <div className="text-xs text-gray-400">{movement.user}</div>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: 12.5, color: TXT2 }}>{formatDateTime(movement.date)}</div>
+                        <div style={{ fontSize: 11, color: TXT3 }}>{movement.user}</div>
                       </div>
                     </div>
                   </div>
                 ))}
                 {movements.length === 0 && (
-                  <div className="p-12 text-center">
-                    <span style={{fontSize:"14px"}}>⏳</span>
-                    <p className="text-gray-500">Nenhuma movimentação registrada</p>
+                  <div style={{ padding: 48, textAlign: 'center' }}>
+                    <div style={{ fontSize: 30 }}>⏳</div>
+                    <p style={{ color: TXT2, margin: '10px 0 0' }}>Nenhuma movimentação registrada</p>
                   </div>
                 )}
               </div>
@@ -685,81 +659,77 @@ export default function StockPage() {
 
       {/* Modal de Movimentação */}
       {isMovementModalOpen && selectedProduct && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full">
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xl font-bold text-gray-900">
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(1,43,46,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, zIndex: 50 }}>
+          <div style={{ background: SOFT, border: `1px solid ${LINE}`, borderRadius: 16, maxWidth: 448, width: '100%' }}>
+            <div style={{ padding: '16px 20px', borderBottom: `1px solid ${DIV}` }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <h3 style={{ fontSize: 17, fontWeight: 500, color: TEAL_DARK, margin: 0 }}>
                   {movementType === 'IN' ? 'Entrada de Estoque' : 'Saída de Estoque'}
                 </h3>
                 <button
                   onClick={() => setIsMovementModalOpen(false)}
-                  className="p-2 hover:bg-gray-100 rounded-2xl transition-colors"
+                  style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, color: TXT3, lineHeight: 1 }}
                 >
-                  <span style={{fontSize:"14px"}}>✕</span>
+                  <span>✕</span>
                 </button>
               </div>
             </div>
-            
-            <div className="p-6 space-y-4">
-              <div className="bg-gray-50 p-4 rounded-2xl">
-                <div className="font-semibold text-gray-900">{selectedProduct.name}</div>
-                <div className="text-sm text-gray-500">
+
+            <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div style={{ background: '#fff', border: `1px solid ${LINE}`, padding: 14, borderRadius: 12 }}>
+                <div style={{ fontWeight: 500, color: TXT }}>{selectedProduct.name}</div>
+                <div style={{ fontSize: 12.5, color: TXT3 }}>
                   Estoque atual: {selectedProduct.stock} unidades
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Quantidade</label>
+                <label style={lbl}>Quantidade</label>
                 <input
                   type="number"
                   value={movementForm.quantity}
                   onChange={(e) => setMovementForm({...movementForm, quantity: parseInt(e.target.value) || 0})}
                   min="1"
                   max={movementType === 'OUT' ? selectedProduct.stock : undefined}
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500/50 transition-all duration-300 text-gray-900"
+                  style={inp}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Motivo</label>
+                <label style={lbl}>Motivo</label>
                 <input
                   type="text"
                   value={movementForm.reason}
                   onChange={(e) => setMovementForm({...movementForm, reason: e.target.value})}
                   placeholder={movementType === 'IN' ? 'Ex: Compra - NF 12345' : 'Ex: Consulta #456'}
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500/50 transition-all duration-300 text-gray-900"
+                  style={inp}
                 />
               </div>
 
-              <div className="bg-gray-50 p-4 rounded-2xl">
-                <div className="text-sm text-gray-600">Novo estoque após movimentação:</div>
-                <div className="text-xl font-bold text-gray-900">
-                  {movementType === 'IN' 
-                    ? selectedProduct.stock + movementForm.quantity 
+              <div style={{ background: TINT, padding: 14, borderRadius: 12 }}>
+                <div style={{ fontSize: 12.5, color: TEAL_DARK }}>Novo estoque após movimentação:</div>
+                <div style={{ fontSize: 19, fontWeight: 500, color: TEAL_DARK }}>
+                  {movementType === 'IN'
+                    ? selectedProduct.stock + movementForm.quantity
                     : selectedProduct.stock - movementForm.quantity
                   } unidades
                 </div>
               </div>
             </div>
 
-            <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
+            <div style={{ padding: '15px 20px', borderTop: `1px solid ${DIV}`, display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
               <button
                 onClick={() => setIsMovementModalOpen(false)}
-                className="px-6 py-3 text-gray-700 bg-gray-100 rounded-2xl hover:bg-gray-200 transition-colors"
+                style={{ padding: '9px 16px', borderRadius: 9, border: `1px solid ${LINE}`, background: '#fff', color: TXT2, cursor: 'pointer' }}
               >
                 Cancelar
               </button>
               <button
                 onClick={handleMovement}
                 disabled={movementForm.quantity <= 0 || (movementType === 'OUT' && movementForm.quantity > selectedProduct.stock)}
-                className={`px-6 py-3 text-white rounded-2xl transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
-                  movementType === 'IN' 
-                    ? 'bg-green-600 hover:bg-green-700' 
-                    : 'bg-red-600 hover:bg-red-700'
-                }`}
+                style={{ padding: '9px 18px', borderRadius: 9, border: 'none', color: '#fff', fontWeight: 500, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, background: movementType === 'IN' ? TEAL : ORANGE, opacity: (movementForm.quantity <= 0 || (movementType === 'OUT' && movementForm.quantity > selectedProduct.stock)) ? 0.5 : 1 }}
               >
-                {movementType === 'IN' ? <LuPlus className="w-4 h-4" /> : <span style={{fontSize:"14px"}}>−</span>}
+                {movementType === 'IN' ? <span>📥</span> : <span>📤</span>}
                 Confirmar {movementType === 'IN' ? 'Entrada' : 'Saída'}
               </button>
             </div>
@@ -769,71 +739,69 @@ export default function StockPage() {
 
       {/* Modal de Histórico */}
       {isHistoryModalOpen && selectedProduct && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex items-center justify-between">
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(1,43,46,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, zIndex: 50 }}>
+          <div style={{ background: SOFT, border: `1px solid ${LINE}`, borderRadius: 16, maxWidth: 640, width: '100%', maxHeight: '80vh', overflow: 'hidden' }}>
+            <div style={{ padding: '16px 20px', borderBottom: `1px solid ${DIV}` }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div>
-                  <h3 className="text-xl font-bold text-gray-900">Histórico de Movimentações</h3>
-                  <p className="text-sm text-gray-500">{selectedProduct.name}</p>
+                  <h3 style={{ fontSize: 17, fontWeight: 500, color: TEAL_DARK, margin: 0 }}>Histórico de Movimentações</h3>
+                  <p style={{ fontSize: 12.5, color: TXT3, margin: '2px 0 0' }}>{selectedProduct.name}</p>
                 </div>
                 <button
                   onClick={() => {
                     setIsHistoryModalOpen(false);
                     fetchMovements(); // Recarregar todas as movimentações
                   }}
-                  className="p-2 hover:bg-gray-100 rounded-2xl transition-colors"
+                  style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, color: TXT3, lineHeight: 1 }}
                 >
-                  <span style={{fontSize:"14px"}}>✕</span>
+                  <span>✕</span>
                 </button>
               </div>
             </div>
-            
-            <div className="overflow-y-auto max-h-[60vh]">
+
+            <div style={{ overflowY: 'auto', maxHeight: '60vh' }}>
               {productMovements.length > 0 ? (
-                <div className="divide-y divide-gray-100">
+                <div>
                   {productMovements.map((movement) => (
-                    <div key={movement.id} className="p-4 hover:bg-gray-50 transition-colors">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className={`p-2 rounded-xl ${
-                            movement.type === 'IN' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
-                          }`}>
-                            {movement.type === 'IN' ? <span style={{fontSize:"14px"}}>↘</span> : <span style={{fontSize:"14px"}}>↗</span>}
+                    <div key={movement.id} style={{ padding: 16, borderBottom: `1px solid ${DIV}` }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                          <div style={{ padding: 8, borderRadius: 10, display: 'inline-flex', ...(movement.type === 'IN' ? { background: '#e1f5ee', color: GREEN } : { background: '#fef0e8', color: ORANGE }) }}>
+                            {movement.type === 'IN' ? <span style={{ fontSize: 15 }}>📥</span> : <span style={{ fontSize: 15 }}>📤</span>}
                           </div>
                           <div>
-                            <div className="font-medium text-gray-900">
+                            <div style={{ fontWeight: 500, color: TXT }}>
                               {movement.type === 'IN' ? '+' : '-'}{movement.quantity} unidades
                             </div>
-                            <div className="text-sm text-gray-500">{movement.reason || 'Movimentação de estoque'}</div>
-                            <div className="text-xs text-gray-400">
+                            <div style={{ fontSize: 12.5, color: TXT3 }}>{movement.reason || 'Movimentação de estoque'}</div>
+                            <div style={{ fontSize: 11, color: TXT3 }}>
                               {movement.previousStock} → {movement.newStock} unidades
                             </div>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <div className="text-sm text-gray-600">{formatDateTime(movement.date)}</div>
-                          <div className="text-xs text-gray-400">{movement.user}</div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: 12.5, color: TXT2 }}>{formatDateTime(movement.date)}</div>
+                          <div style={{ fontSize: 11, color: TXT3 }}>{movement.user}</div>
                         </div>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="p-12 text-center">
-                  <span style={{fontSize:"14px"}}>⏳</span>
-                  <p className="text-gray-500">Nenhuma movimentação registrada</p>
+                <div style={{ padding: 48, textAlign: 'center' }}>
+                  <div style={{ fontSize: 30 }}>⏳</div>
+                  <p style={{ color: TXT2, margin: '10px 0 0' }}>Nenhuma movimentação registrada</p>
                 </div>
               )}
             </div>
 
-            <div className="p-6 border-t border-gray-200">
+            <div style={{ padding: '15px 20px', borderTop: `1px solid ${DIV}` }}>
               <button
                 onClick={() => {
                   setIsHistoryModalOpen(false);
                   fetchMovements(); // Recarregar todas as movimentações
                 }}
-                className="w-full px-6 py-3 text-gray-700 bg-gray-100 rounded-2xl hover:bg-gray-200 transition-colors"
+                style={{ width: '100%', padding: '9px 16px', borderRadius: 9, border: `1px solid ${LINE}`, background: '#fff', color: TXT2, cursor: 'pointer' }}
               >
                 Fechar
               </button>

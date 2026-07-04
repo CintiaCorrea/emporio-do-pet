@@ -3,15 +3,6 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Sidebar from '@/components/protected/dashboard/Sidebar';
-import { 
-  LuArrowLeft,
-  LuCalendar,
-  LuDollarSign,
-  LuUser,
-  LuPawPrint,
-  LuDownload,
-  LuFileText
-} from 'react-icons/lu';
 import toast from 'react-hot-toast';
 
 // Tipos
@@ -238,14 +229,14 @@ export default function ConsultationsReportPage() {
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
-      'SCHEDULED': 'bg-purple-100 text-purple-800',
-      'CONFIRMED': 'bg-blue-100 text-blue-800',
-      'IN_PROGRESS': 'bg-yellow-100 text-yellow-800',
-      'COMPLETED': 'bg-green-100 text-green-800',
-      'CANCELED': 'bg-red-100 text-red-800',
-      'NO_SHOW': 'bg-gray-100 text-gray-800'
+      'SCHEDULED': 'bg-[#E0F4F6] text-[#014D5E]',
+      'CONFIRMED': 'bg-[#E0F4F6] text-[#014D5E]',
+      'IN_PROGRESS': 'bg-[#fdf6e3] text-[#854F0B]',
+      'COMPLETED': 'bg-[#e1f5ee] text-[#0f6e56]',
+      'CANCELED': 'bg-[#fef0e8] text-[#993C1D]',
+      'NO_SHOW': 'bg-[#F0EBE0] text-[#5C6B70]'
     };
-    return colors[status] || 'bg-gray-100 text-gray-800';
+    return colors[status] || 'bg-[#F0EBE0] text-[#5C6B70]';
   };
 
   const getPaymentStatusLabel = (status: string) => {
@@ -260,12 +251,12 @@ export default function ConsultationsReportPage() {
 
   const getPaymentStatusColor = (status: string) => {
     const colors: Record<string, string> = {
-      'PAID': 'bg-green-100 text-green-800',
-      'PENDING': 'bg-yellow-100 text-yellow-800',
-      'OVERDUE': 'bg-red-100 text-red-800',
-      'CANCELLED': 'bg-gray-100 text-gray-800'
+      'PAID': 'bg-[#e1f5ee] text-[#0f6e56]',
+      'PENDING': 'bg-[#fdf6e3] text-[#854F0B]',
+      'OVERDUE': 'bg-[#fef0e8] text-[#993C1D]',
+      'CANCELLED': 'bg-[#F0EBE0] text-[#5C6B70]'
     };
-    return colors[status] || 'bg-gray-100 text-gray-800';
+    return colors[status] || 'bg-[#F0EBE0] text-[#5C6B70]';
   };
 
   const exportToCSV = () => {
@@ -309,17 +300,17 @@ export default function ConsultationsReportPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/10 flex items-center justify-center">
+      <div className="min-h-screen bg-[#F6F2EA] flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Carregando relatório...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#009AAC] mx-auto"></div>
+          <p className="mt-4 text-[#5C6B70]">Carregando relatório...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/10 w-full overflow-hidden">
+    <div className="min-h-screen bg-[#F6F2EA] w-full overflow-hidden">
       <Sidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
       
       {/* Main Content */}
@@ -334,15 +325,16 @@ export default function ConsultationsReportPage() {
                 <div className="flex items-center gap-4">
                   <Link
                     href="/dashboard/erp/consultas"
-                    className="p-2 hover:bg-white/80 rounded-xl transition-colors"
+                    className="p-2 bg-white border border-[#E8E2D6] hover:bg-[#FBF9F4] rounded-[9px] transition-colors text-[#014D5E]"
                   >
-                    <LuArrowLeft className="w-5 h-5 text-gray-600" />
+                    <span style={{fontSize:"16px"}}>‹</span>
                   </Link>
                   <div>
-                    <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+                    <h1 className="text-3xl font-medium text-[#014D5E] flex items-center gap-2">
+                      <span style={{fontSize:"26px"}}>📊</span>
                       Relatório de Consultas
                     </h1>
-                    <p className="text-gray-600 mt-2">
+                    <p className="text-[#5C6B70] mt-2">
                       Análise detalhada das consultas veterinárias
                     </p>
                   </div>
@@ -350,9 +342,9 @@ export default function ConsultationsReportPage() {
                 <div className="flex gap-3">
                   <button
                     onClick={exportToCSV}
-                    className="group px-6 py-3 text-sm font-semibold text-gray-700 bg-white/80 border border-gray-200/80 rounded-2xl hover:bg-white hover:border-gray-300 hover:shadow-lg transition-all duration-300 hover:scale-105 flex items-center space-x-2"
+                    className="px-6 py-3 text-sm font-medium text-[#5C6B70] bg-white border border-[#E8E2D6] rounded-[9px] hover:bg-[#FBF9F4] transition-all flex items-center space-x-2"
                   >
-                    <LuDownload className="w-4 h-4" />
+                    <span style={{fontSize:"14px"}}>⬇️</span>
                     <span>Exportar CSV</span>
                   </button>
                 </div>
@@ -361,11 +353,11 @@ export default function ConsultationsReportPage() {
 
             {/* Error Message */}
             {error && (
-              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-2xl text-red-700">
+              <div className="mb-6 p-4 bg-[#fef0e8] border border-[#E8E2D6] rounded-[13px] text-[#993C1D]">
                 {error}
-                <button 
+                <button
                   onClick={() => setError(null)}
-                  className="float-right text-red-500 hover:text-red-700"
+                  className="float-right text-[#993C1D] hover:opacity-70"
                 >
                   <span style={{fontSize:"14px"}}>✕</span>
                 </button>
@@ -373,36 +365,36 @@ export default function ConsultationsReportPage() {
             )}
 
             {/* Filtros */}
-            <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-cyan-500/5 p-6 mb-6">
+            <div className="bg-white border border-[#E8E2D6] rounded-[13px] p-6 mb-6">
               <div className="flex items-center gap-2 mb-4">
-                <span style={{fontSize:"14px"}}>⌕</span>
-                <h3 className="text-lg font-semibold text-gray-900">Filtros</h3>
+                <span style={{fontSize:"15px"}}>🔍</span>
+                <h3 className="text-lg font-medium text-[#014D5E]">Filtros</h3>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Data Inicial</label>
+                  <label className="block text-sm font-medium text-[#5C6B70] mb-2">Data Inicial</label>
                   <input
                     type="date"
                     value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-300 text-gray-900"
+                    className="w-full px-4 py-3 bg-white border border-[#E8E2D6] rounded-[9px] focus:outline-none focus:ring-2 focus:ring-[#009AAC]/40 focus:border-[#009AAC] transition-all text-[#1F2A2E]"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Data Final</label>
+                  <label className="block text-sm font-medium text-[#5C6B70] mb-2">Data Final</label>
                   <input
                     type="date"
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-300 text-gray-900"
+                    className="w-full px-4 py-3 bg-white border border-[#E8E2D6] rounded-[9px] focus:outline-none focus:ring-2 focus:ring-[#009AAC]/40 focus:border-[#009AAC] transition-all text-[#1F2A2E]"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                  <label className="block text-sm font-medium text-[#5C6B70] mb-2">Status</label>
                   <select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-300 text-gray-900"
+                    className="w-full px-4 py-3 bg-white border border-[#E8E2D6] rounded-[9px] focus:outline-none focus:ring-2 focus:ring-[#009AAC]/40 focus:border-[#009AAC] transition-all text-[#1F2A2E]"
                   >
                     <option value="all">Todos</option>
                     <option value="SCHEDULED">Agendadas</option>
@@ -413,11 +405,11 @@ export default function ConsultationsReportPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Pagamento</label>
+                  <label className="block text-sm font-medium text-[#5C6B70] mb-2">Pagamento</label>
                   <select
                     value={paymentFilter}
                     onChange={(e) => setPaymentFilter(e.target.value)}
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-300 text-gray-900"
+                    className="w-full px-4 py-3 bg-white border border-[#E8E2D6] rounded-[9px] focus:outline-none focus:ring-2 focus:ring-[#009AAC]/40 focus:border-[#009AAC] transition-all text-[#1F2A2E]"
                   >
                     <option value="all">Todos</option>
                     <option value="PAID">Pago</option>
@@ -453,11 +445,11 @@ export default function ConsultationsReportPage() {
                   icon: () => null, 
                   trend: stats.total > 0 ? ((stats.canceled / stats.total) * 100).toFixed(1) + '%' : '0%'
                 },
-                { 
-                  label: "Receita Total", 
-                  value: formatCurrency(stats.totalRevenue), 
-                  color: "teal", 
-                  icon: LuDollarSign,
+                {
+                  label: "Receita Total",
+                  value: formatCurrency(stats.totalRevenue),
+                  color: "teal",
+                  icon: () => <span style={{fontSize:"14px"}}>💰</span>,
                   trend: null,
                   isFormatted: true
                 },
@@ -493,36 +485,36 @@ export default function ConsultationsReportPage() {
                   trend: null
                 }
               ].map((stat, index) => (
-                <div key={index} className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-cyan-500/5 p-6 hover:shadow-2xl hover:shadow-cyan-500/10 transition-all duration-300 hover:scale-105">
+                <div key={index} className="bg-white border border-[#E8E2D6] rounded-[13px] p-6 hover:shadow-md transition-all">
                   <div className="flex items-center justify-between mb-4">
-                    <div className={`p-3 bg-${stat.color}-50 rounded-xl`}>
-                      <stat.icon className={`w-6 h-6 text-${stat.color}-600`} />
+                    <div className="p-3 bg-[#E0F4F6] rounded-[9px] flex items-center justify-center">
+                      <stat.icon className="w-6 h-6 text-[#014D5E]" />
                     </div>
                     {stat.trend && (
-                      <div className="text-xs font-semibold text-gray-500">
+                      <div className="text-xs font-medium text-[#8A989D]">
                         {stat.trend}
                       </div>
                     )}
                   </div>
-                  <div className={`font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent ${stat.isFormatted ? 'text-lg' : 'text-2xl'}`}>
+                  <div className={`font-medium text-[#014D5E] ${stat.isFormatted ? 'text-lg' : 'text-2xl'}`}>
                     {stat.value}
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-gray-600 mt-2">{stat.label}</p>
+                    <p className="text-sm font-medium text-[#5C6B70] mt-2">{stat.label}</p>
                   </div>
                 </div>
               ))}
             </div>
 
             {/* Tabela de Consultas */}
-            <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-cyan-500/5 overflow-hidden">
-              <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-100/50 border-b border-white/20">
+            <div className="bg-white border border-[#E8E2D6] rounded-[13px] overflow-hidden">
+              <div className="px-6 py-4 bg-[#FBF9F4] border-b border-[#E8E2D6]">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                    <LuFileText className="w-5 h-5" />
+                  <h3 className="text-lg font-medium text-[#014D5E] flex items-center gap-2">
+                    <span style={{fontSize:"16px"}}>📄</span>
                     Detalhamento das Consultas
                   </h3>
-                  <div className="text-sm text-gray-600">
+                  <div className="text-sm text-[#5C6B70]">
                     {consultations.length} consultas encontradas
                   </div>
                 </div>
@@ -531,58 +523,58 @@ export default function ConsultationsReportPage() {
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="bg-gradient-to-r from-gray-50 to-gray-100/50 border-b border-white/20">
-                      <th className="text-left p-6 font-semibold text-gray-700">Data/Hora</th>
-                      <th className="text-left p-6 font-semibold text-gray-700">Tutor/Pet</th>
-                      <th className="text-left p-6 font-semibold text-gray-700">Veterinário</th>
-                      <th className="text-left p-6 font-semibold text-gray-700">Status</th>
-                      <th className="text-left p-6 font-semibold text-gray-700">Pagamento</th>
-                      <th className="text-left p-6 font-semibold text-gray-700">Valor</th>
-                      <th className="text-left p-6 font-semibold text-gray-700">Duração</th>
+                    <tr className="bg-[#FBF9F4] border-b border-[#E8E2D6]">
+                      <th className="text-left px-6 py-3 font-medium text-[#8A989D] uppercase text-[11.5px] tracking-wide">Data/Hora</th>
+                      <th className="text-left px-6 py-3 font-medium text-[#8A989D] uppercase text-[11.5px] tracking-wide">Tutor/Pet</th>
+                      <th className="text-left px-6 py-3 font-medium text-[#8A989D] uppercase text-[11.5px] tracking-wide">Veterinário</th>
+                      <th className="text-left px-6 py-3 font-medium text-[#8A989D] uppercase text-[11.5px] tracking-wide">Status</th>
+                      <th className="text-left px-6 py-3 font-medium text-[#8A989D] uppercase text-[11.5px] tracking-wide">Pagamento</th>
+                      <th className="text-left px-6 py-3 font-medium text-[#8A989D] uppercase text-[11.5px] tracking-wide">Valor</th>
+                      <th className="text-left px-6 py-3 font-medium text-[#8A989D] uppercase text-[11.5px] tracking-wide">Duração</th>
                     </tr>
                   </thead>
                   <tbody>
                     {consultations.map((cons) => (
-                      <tr 
-                        key={cons.id} 
-                        className="border-b border-white/20 hover:bg-gray-50/50 transition-all duration-300"
+                      <tr
+                        key={cons.id}
+                        className="border-b border-[#F0EBE0] hover:bg-[#FBF9F4] transition-all"
                       >
-                        <td className="p-6">
-                          <div className="flex items-center gap-1 text-gray-700">
-                            <LuCalendar className="w-4 h-4" />
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-1 text-[#1F2A2E]">
+                            <span style={{fontSize:"14px"}}>📅</span>
                             {formatDateTime(cons.date)}
                           </div>
                         </td>
-                        <td className="p-6">
+                        <td className="px-6 py-4">
                           <div>
-                            <div className="font-semibold text-gray-900">{cons.pet.name}</div>
-                            <div className="text-sm text-gray-500">{cons.tutor.name}</div>
-                            <div className="text-xs text-gray-400">{cons.pet.species} {cons.pet.breed && `• ${cons.pet.breed}`}</div>
+                            <div className="font-medium text-[#1F2A2E]">{cons.pet.name}</div>
+                            <div className="text-sm text-[#5C6B70]">{cons.tutor.name}</div>
+                            <div className="text-xs text-[#8A989D]">{cons.pet.species} {cons.pet.breed && `• ${cons.pet.breed}`}</div>
                           </div>
                         </td>
-                        <td className="p-6">
+                        <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
-                            <LuUser className="w-4 h-4 text-cyan-600" />
-                            <span className="text-gray-700">{cons.veterinarian.name}</span>
+                            <span style={{fontSize:"14px"}}>👤</span>
+                            <span className="text-[#1F2A2E]">{cons.veterinarian.name}</span>
                           </div>
                         </td>
-                        <td className="p-6">
+                        <td className="px-6 py-4">
                           <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(cons.status)}`}>
                             {getStatusLabel(cons.status)}
                           </span>
                         </td>
-                        <td className="p-6">
+                        <td className="px-6 py-4">
                           <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getPaymentStatusColor(cons.paymentStatus)}`}>
                             {getPaymentStatusLabel(cons.paymentStatus)}
                           </span>
                         </td>
-                        <td className="p-6">
-                          <div className="font-semibold text-gray-900">
+                        <td className="px-6 py-4">
+                          <div className="font-medium text-[#1F2A2E]">
                             {formatCurrency(cons.value)}
                           </div>
                         </td>
-                        <td className="p-6">
-                          <div className="flex items-center gap-1 text-gray-700">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-1 text-[#1F2A2E]">
                             <span style={{fontSize:"14px"}}>⏱</span>
                             {cons.duration} min
                           </div>
@@ -594,9 +586,9 @@ export default function ConsultationsReportPage() {
 
                 {consultations.length === 0 && !loading && (
                   <div className="text-center py-12">
-                    <span style={{fontSize:"14px"}}>🩺</span>
-                    <p className="text-gray-500 text-lg">Nenhuma consulta encontrada</p>
-                    <p className="text-gray-400 mt-2">
+                    <span style={{fontSize:"30px"}}>🩺</span>
+                    <p className="text-[#5C6B70] text-lg">Nenhuma consulta encontrada</p>
+                    <p className="text-[#8A989D] mt-2">
                       Tente ajustar os filtros de busca
                     </p>
                   </div>

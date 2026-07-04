@@ -3,13 +3,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { 
-  LuCalendar,
-  LuUser,
-  LuChevronLeft,
-  LuChevronRight,
-  LuPlus
-} from 'react-icons/lu';
 import toast from 'react-hot-toast';
 import NovoAgendamentoModal from '@/components/agendamentos/NovoAgendamentoModal';
 
@@ -159,9 +152,9 @@ export default function CalendarPage() {
       case 'SCHEDULED': return { bg: '#E6F6F8', fg: '#00798A', label: 'Agendada' };
       case 'CONFIRMED': return { bg: '#E1F5EE', fg: '#0F6E56', label: 'Confirmada' };
       case 'IN_PROGRESS': return { bg: '#FBEFE0', fg: '#B45309', label: 'Em andamento' };
-      case 'COMPLETED': return { bg: '#EEF2F4', fg: '#5b6470', label: 'Concluída' };
+      case 'COMPLETED': return { bg: '#F0EBE0', fg: '#5C6B70', label: 'Concluída' };
       case 'CANCELED': return { bg: '#FCE9EF', fg: '#CC3366', label: 'Cancelada' };
-      default: return { bg: '#EEF2F4', fg: '#5b6470', label: status };
+      default: return { bg: '#F0EBE0', fg: '#5C6B70', label: status };
     }
   };
 
@@ -221,7 +214,7 @@ export default function CalendarPage() {
   if (loading && appointments.length === 0) {
     return (
       <div className="p-6 max-w-7xl mx-auto">
-        <div className="px-6 py-16 text-center text-sm text-[#94a3b8]">Carregando agenda...</div>
+        <div className="px-6 py-16 text-center text-sm text-[#8A989D]">Carregando agenda...</div>
       </div>
     );
   }
@@ -232,38 +225,38 @@ export default function CalendarPage() {
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
         <div className="flex items-center gap-2">
-          <Link href="/dashboard/erp/agendamentos/clinico" className="px-3 py-1.5 rounded-lg text-[11px] font-medium bg-white border text-[#4d5a66]" style={{ borderColor: "#cfd8e0" }}>Clínico (FU)</Link>
-          <Link href="/dashboard/erp/agendamentos/calendario" className="px-3 py-1.5 rounded-lg text-[11px] font-semibold text-white" style={{ background: "#009AAC" }}>Agenda</Link>
-          <Link href="/dashboard/erp/agendamentos" className="px-3 py-1.5 rounded-lg text-[11px] font-medium bg-white border text-[#4d5a66]" style={{ borderColor: "#cfd8e0" }}>Lista</Link>
+          <Link href="/dashboard/erp/agendamentos/clinico" className="px-3 py-1.5 rounded-lg text-[11px] font-medium bg-white border text-[#5C6B70]" style={{ borderColor: "#E8E2D6" }}>Clínico (FU)</Link>
+          <Link href="/dashboard/erp/agendamentos/calendario" className="px-3 py-1.5 rounded-lg text-[11px] font-medium text-white inline-flex items-center gap-1" style={{ background: "#009AAC" }}><span aria-hidden>📅</span>Agenda</Link>
+          <Link href="/dashboard/erp/agendamentos" className="px-3 py-1.5 rounded-lg text-[11px] font-medium bg-white border text-[#5C6B70]" style={{ borderColor: "#E8E2D6" }}>Lista</Link>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex items-center gap-1 bg-white border rounded-lg px-1.5 py-1" style={{ borderColor: "#d8d0bc" }}>
-            <button onClick={goToPreviousMonth} className="p-1 rounded hover:bg-[#fdfaee]" aria-label="Mês anterior"><LuChevronLeft className="w-4 h-4 text-[#5b6470]" /></button>
+          <div className="flex items-center gap-1 bg-white border rounded-lg px-1.5 py-1" style={{ borderColor: "#E8E2D6" }}>
+            <button onClick={goToPreviousMonth} className="p-1 rounded hover:bg-[#F0EBE0]" aria-label="Mês anterior"><span aria-hidden className="text-[15px] leading-none text-[#5C6B70]">‹</span></button>
             <span className="text-[12.5px] font-medium text-[#014D5E] min-w-[100px] text-center">{monthNames[currentMonth]} {currentYear}</span>
-            <button onClick={goToNextMonth} className="p-1 rounded hover:bg-[#fdfaee]" aria-label="Próximo mês"><LuChevronRight className="w-4 h-4 text-[#5b6470]" /></button>
+            <button onClick={goToNextMonth} className="p-1 rounded hover:bg-[#F0EBE0]" aria-label="Próximo mês"><span aria-hidden className="text-[15px] leading-none text-[#5C6B70]">›</span></button>
           </div>
-          <button onClick={goToToday} className="text-[11px] font-medium text-[#009AAC] bg-[#e6f6f8] px-3 py-1.5 rounded-lg">Hoje</button>
-          <button onClick={() => setNovoOpen(true)} className="text-[11px] font-medium text-white bg-[#009AAC] px-3 py-1.5 rounded-lg inline-flex items-center gap-1"><LuPlus className="w-3 h-3" />Novo</button>
+          <button onClick={goToToday} className="text-[11px] font-medium text-[#009AAC] bg-[#E0F4F6] px-3 py-1.5 rounded-lg">Hoje</button>
+          <button onClick={() => setNovoOpen(true)} className="text-[11px] font-medium text-white bg-[#009AAC] px-3 py-1.5 rounded-lg inline-flex items-center gap-1"><span aria-hidden>➕</span>Novo</button>
         </div>
       </div>
 
       {error && (<div className="mb-4 p-3 rounded-lg text-xs font-medium" style={{ background: "#FCE9EF", border: "1px solid #f3c9d6", color: "#CC3366" }}>{error}</div>)}
 
-      <div className="bg-white border rounded-xl overflow-hidden" style={{ borderColor: "#d8d0bc" }}>
-        <div className="grid grid-cols-7" style={{ background: "#F8F3E4", borderBottom: "1px solid #e8dfc8" }}>
-          {weekDays.map((d) => (<div key={d} className="py-2 text-center text-[10.5px] font-medium uppercase tracking-wide text-[#6b7280]">{d}</div>))}
+      <div className="bg-white border rounded-xl overflow-hidden" style={{ borderColor: "#E8E2D6" }}>
+        <div className="grid grid-cols-7" style={{ background: "#F0EBE0", borderBottom: "1px solid #E8E2D6" }}>
+          {weekDays.map((d) => (<div key={d} className="py-2 text-center text-[10.5px] font-medium uppercase tracking-wide text-[#5C6B70]">{d}</div>))}
         </div>
         <div className="grid grid-cols-7">
           {calendarDays.map(({ day, isCurrentMonth, date }, index) => {
             const dayAppointments = isCurrentMonth ? getAppointmentsForDay(day) : [];
             const isToday = date.toDateString() === new Date().toDateString();
             return (
-              <div key={index} className="min-h-[92px] p-1.5" style={{ borderRight: "1px solid #f4eede", borderBottom: "1px solid #f4eede", background: isToday ? "#f4fbfc" : (isCurrentMonth ? "#fff" : "#fbfaf6") }}>
+              <div key={index} className="min-h-[92px] p-1.5" style={{ borderRight: "1px solid #E8E2D6", borderBottom: "1px solid #E8E2D6", background: isToday ? "#E0F4F6" : (isCurrentMonth ? "#fff" : "#FBF9F4") }}>
                 <div className="mb-1">
                   {isToday ? (
-                    <span className="inline-flex items-center justify-center w-[19px] h-[19px] rounded-full text-[11px] font-semibold text-white" style={{ background: "#009AAC" }}>{day}</span>
+                    <span className="inline-flex items-center justify-center w-[19px] h-[19px] rounded-full text-[11px] font-medium text-white" style={{ background: "#009AAC" }}>{day}</span>
                   ) : (
-                    <span className="text-[11px]" style={{ color: isCurrentMonth ? "#5b6470" : "#c4bdaf" }}>{day}</span>
+                    <span className="text-[11px]" style={{ color: isCurrentMonth ? "#5C6B70" : "#8A989D" }}>{day}</span>
                   )}
                 </div>
                 <div className="space-y-1 max-h-[60px] overflow-y-auto">
@@ -273,7 +266,7 @@ export default function CalendarPage() {
                       {formatTime(appointment.date)} {appointment.pet.name}
                     </div>
                   ); })}
-                  {dayAppointments.length > 3 && (<div className="text-[9.5px] text-[#94a3b8] px-1">+{dayAppointments.length - 3} mais</div>)}
+                  {dayAppointments.length > 3 && (<div className="text-[9.5px] text-[#8A989D] px-1">+{dayAppointments.length - 3} mais</div>)}
                 </div>
               </div>
             );
@@ -281,34 +274,34 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      <div className="mt-3 flex gap-3.5 flex-wrap text-[11px] text-[#6b7280]">
+      <div className="mt-3 flex gap-3.5 flex-wrap text-[11px] text-[#5C6B70]">
         {LEGENDA.map(({ s }) => { const st = statusStyle(s); return (
           <span key={s} className="inline-flex items-center gap-1.5"><span className="w-[10px] h-[10px] rounded" style={{ background: st.bg, border: `1px solid ${st.fg}` }} />{st.label}</span>
         ); })}
       </div>
 
       {isModalOpen && selectedAppointment && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50" onClick={() => setIsModalOpen(false)}>
-          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "#eef0e6" }}>
-              <h3 className="text-base font-semibold text-[#014D5E]">Detalhes do agendamento</h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-[#94a3b8] hover:text-[#5b6470] text-sm">✕</button>
+        <div className="fixed inset-0 flex items-center justify-center p-4 z-50" style={{ background: "rgba(1,43,46,0.45)" }} onClick={() => setIsModalOpen(false)}>
+          <div className="rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto border" style={{ background: "#FBF9F4", borderColor: "#E8E2D6" }} onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "#E8E2D6" }}>
+              <h3 className="text-base font-medium text-[#014D5E] inline-flex items-center gap-2"><span aria-hidden>📅</span>Detalhes do agendamento</h3>
+              <button onClick={() => setIsModalOpen(false)} className="text-[#8A989D] hover:text-[#5C6B70] text-sm">✕</button>
             </div>
             <div className="p-5 space-y-4 text-[13px]">
               <div className="grid grid-cols-2 gap-4">
-                <div><div className="text-[11px] text-[#94a3b8]">Tutor</div><div className="text-[#0E2244] font-medium">{selectedAppointment.tutor.name}</div></div>
-                <div><div className="text-[11px] text-[#94a3b8]">Pet</div><div className="text-[#0E2244] font-medium">{selectedAppointment.pet.name} <span className="text-[#94a3b8] font-normal">({selectedAppointment.pet.species}{selectedAppointment.pet.breed ? ` · ${selectedAppointment.pet.breed}` : ''})</span></div></div>
-                <div><div className="text-[11px] text-[#94a3b8]">Veterinário</div><div className="text-[#0E2244]">{selectedAppointment.user?.name || 'Não atribuído'}</div></div>
-                <div><div className="text-[11px] text-[#94a3b8]">Data</div><div className="text-[#0E2244]">{formatDate(selectedAppointment.date)} · {formatTime(selectedAppointment.date)}</div></div>
-                <div><div className="text-[11px] text-[#94a3b8]">Duração</div><div className="text-[#0E2244]">{selectedAppointment.duration} min</div></div>
-                <div><div className="text-[11px] text-[#94a3b8]">Valor</div><div className="text-[#0E2244] font-semibold">{formatCurrency(selectedAppointment.value)}</div></div>
-                <div><div className="text-[11px] text-[#94a3b8]">Status</div><span className="inline-flex text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: statusStyle(selectedAppointment.status).bg, color: statusStyle(selectedAppointment.status).fg }}>{statusStyle(selectedAppointment.status).label}</span></div>
+                <div><div className="text-[11px] text-[#8A989D]">Tutor</div><div className="text-[#1F2A2E] font-medium">{selectedAppointment.tutor.name}</div></div>
+                <div><div className="text-[11px] text-[#8A989D]">Pet</div><div className="text-[#1F2A2E] font-medium">{selectedAppointment.pet.name} <span className="text-[#8A989D] font-normal">({selectedAppointment.pet.species}{selectedAppointment.pet.breed ? ` · ${selectedAppointment.pet.breed}` : ''})</span></div></div>
+                <div><div className="text-[11px] text-[#8A989D]">Veterinário</div><div className="text-[#1F2A2E]">{selectedAppointment.user?.name || 'Não atribuído'}</div></div>
+                <div><div className="text-[11px] text-[#8A989D]">Data</div><div className="text-[#1F2A2E]">{formatDate(selectedAppointment.date)} · {formatTime(selectedAppointment.date)}</div></div>
+                <div><div className="text-[11px] text-[#8A989D]">Duração</div><div className="text-[#1F2A2E]">{selectedAppointment.duration} min</div></div>
+                <div><div className="text-[11px] text-[#8A989D]">Valor</div><div className="text-[#1F2A2E] font-medium">{formatCurrency(selectedAppointment.value)}</div></div>
+                <div><div className="text-[11px] text-[#8A989D]">Status</div><span className="inline-flex text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: statusStyle(selectedAppointment.status).bg, color: statusStyle(selectedAppointment.status).fg }}>{statusStyle(selectedAppointment.status).label}</span></div>
               </div>
-              {selectedAppointment.description && (<div><div className="text-[11px] text-[#94a3b8] mb-1">Descrição</div><p className="text-[#475569] bg-[#fbfaf6] border rounded-lg p-3" style={{ borderColor: "#eef0e6" }}>{selectedAppointment.description}</p></div>)}
-              {selectedAppointment.notes && (<div><div className="text-[11px] text-[#94a3b8] mb-1">Observações</div><p className="text-[#475569] bg-[#fbfaf6] border rounded-lg p-3" style={{ borderColor: "#eef0e6" }}>{selectedAppointment.notes}</p></div>)}
+              {selectedAppointment.description && (<div><div className="text-[11px] text-[#8A989D] mb-1">Descrição</div><p className="text-[#5C6B70] bg-[#FBF9F4] border rounded-lg p-3" style={{ borderColor: "#E8E2D6" }}>{selectedAppointment.description}</p></div>)}
+              {selectedAppointment.notes && (<div><div className="text-[11px] text-[#8A989D] mb-1">Observações</div><p className="text-[#5C6B70] bg-[#FBF9F4] border rounded-lg p-3" style={{ borderColor: "#E8E2D6" }}>{selectedAppointment.notes}</p></div>)}
             </div>
-            <div className="px-5 py-4 border-t flex justify-end gap-2" style={{ borderColor: "#eef0e6" }}>
-              <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-[13px] text-[#5b6470] bg-[#f3f1ea] rounded-lg hover:bg-[#ece8dd]">Fechar</button>
+            <div className="px-5 py-4 border-t flex justify-end gap-2" style={{ borderColor: "#E8E2D6" }}>
+              <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-[13px] text-[#5C6B70] bg-white border rounded-lg hover:bg-[#F0EBE0]" style={{ borderColor: "#E8E2D6" }}>Fechar</button>
               <Link href="/dashboard/erp/agendamentos" className="px-4 py-2 text-[13px] text-white rounded-lg" style={{ background: "#009AAC" }}>Ver na lista</Link>
             </div>
           </div>

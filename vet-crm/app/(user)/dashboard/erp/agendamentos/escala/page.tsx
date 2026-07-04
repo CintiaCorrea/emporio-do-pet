@@ -1,14 +1,13 @@
 "use client";
 import { useEffect, useState } from "react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
-import { LuCheck, LuPlus, LuTrash2, LuArrowLeft, LuCalendarOff, LuSettings } from "react-icons/lu";
 import toast from "react-hot-toast";
 
 const DIAS: [string, string][] = [["1", "Seg"], ["2", "Ter"], ["3", "Qua"], ["4", "Qui"], ["5", "Sex"], ["6", "Sáb"], ["0", "Dom"]];
 type Esc = { semana: Record<string, [string, string][]>; bloqueios: { inicio: string; fim: string; label: string }[] };
 const VAZIA: Esc = { semana: {}, bloqueios: [] };
-const card = "bg-white border rounded-xl p-4";
-const inpT = "border rounded-lg px-2 py-1.5 text-[14px] text-[#14253a] focus:outline-none focus:border-[#009AAC]";
+const card = "bg-white border rounded-[14px] p-4";
+const inpT = "border rounded-[9px] px-2 py-1.5 text-[14px] text-[#1F2A2E] focus:outline-none focus:border-[#009AAC]";
 
 function parseEsc(v: any): Esc {
   let o: any = v;
@@ -53,65 +52,65 @@ export default function EscalaPage() {
   const selProf = profs.find((p) => p.id === sel);
 
   return (
-    <div className="p-4">
-      <div className="flex items-center gap-4 border-b pb-2.5 mb-4" style={{ borderColor: "#E8DFC8" }}>
-        <a href="/dashboard/erp/agendamentos/agenda" className="text-[14px] text-gray-500 flex items-center gap-1 hover:text-[#009AAC]"><LuArrowLeft size={15} /> Dia</a>
-        <span className="text-[14px] text-[#014D5E] font-medium border-b-2 pb-2.5 -mb-2.5" style={{ borderColor: "#009AAC" }}>Escala</span>
-        <a href="/dashboard/erp/agendamentos/configuracoes" className="text-[14px] text-gray-500 flex items-center gap-1 hover:text-[#009AAC]"><LuSettings size={14} /> Configurações</a>
+    <div className="p-4" style={{ background: "#F6F2EA", minHeight: "100%" }}>
+      <div className="flex items-center gap-4 border-b pb-2.5 mb-4" style={{ borderColor: "#E8E2D6" }}>
+        <a href="/dashboard/erp/agendamentos/agenda" className="text-[14px] text-[#5C6B70] flex items-center gap-1 hover:text-[#009AAC]"><span>📅</span> Dia</a>
+        <span className="text-[14px] text-[#014D5E] font-medium border-b-2 pb-2.5 -mb-2.5 flex items-center gap-1" style={{ borderColor: "#009AAC" }}><span>📋</span> Escala</span>
+        <a href="/dashboard/erp/agendamentos/configuracoes" className="text-[14px] text-[#5C6B70] flex items-center gap-1 hover:text-[#009AAC]"><span>⚙️</span> Configurações</a>
       </div>
 
       <div className="grid gap-3" style={{ gridTemplateColumns: "200px minmax(0,1fr)" }}>
-        <div className={card} style={{ borderColor: "#E8DFC8" }}>
-          <p className="text-[12px] text-gray-400 mb-2">Profissionais</p>
-          {profs.length === 0 ? <p className="text-[13px] text-gray-400">Cadastre em Configurações › Profissionais.</p> : profs.map((p) => (
-            <button key={p.id} onClick={() => escolher(p)} className="w-full text-left px-2.5 py-2 rounded-lg text-[14px] mb-0.5" style={sel === p.id ? { background: "#E1F3F5", color: "#014D5E", fontWeight: 500 } : { color: "#475569" }}>
-              {p.nomeExibicao || p.nomeCompleto}
+        <div className={card} style={{ borderColor: "#E8E2D6" }}>
+          <p className="text-[12px] text-[#8A989D] mb-2">Profissionais</p>
+          {profs.length === 0 ? <p className="text-[13px] text-[#8A989D]">Cadastre em Configurações › Profissionais.</p> : profs.map((p) => (
+            <button key={p.id} onClick={() => escolher(p)} className="w-full text-left px-2.5 py-2 rounded-[9px] text-[14px] mb-0.5" style={sel === p.id ? { background: "#E0F4F6", color: "#014D5E", fontWeight: 500 } : { color: "#5C6B70" }}>
+              <span className="mr-1">👤</span>{p.nomeExibicao || p.nomeCompleto}
             </button>
           ))}
         </div>
 
         <div>
-          <div className={card} style={{ borderColor: "#E8DFC8" }}>
-            <p className="text-[13px] font-medium text-[#475569] mb-3">Jornada {selProf ? `de ${selProf.nomeExibicao || selProf.nomeCompleto}` : ""}</p>
+          <div className={card} style={{ borderColor: "#E8E2D6" }}>
+            <p className="text-[13px] font-medium text-[#014D5E] mb-3 flex items-center gap-1.5"><span>🕐</span> Jornada {selProf ? `de ${selProf.nomeExibicao || selProf.nomeCompleto}` : ""}</p>
             <div className="flex flex-col gap-2">
               {DIAS.map(([wd, lbl]) => {
                 const js = janelas(wd);
                 return (
                   <div key={wd} className="flex items-center gap-2 flex-wrap">
-                    <span className="w-9 text-[13px] text-gray-500">{lbl}</span>
-                    {js.length === 0 ? <span className="text-[12px] text-gray-400 italic">Folga</span> : js.map((par, i) => (
-                      <span key={i} className="inline-flex items-center gap-1 bg-[#E1F3F5] rounded-lg px-2 py-1">
+                    <span className="w-9 text-[13px] text-[#5C6B70]">{lbl}</span>
+                    {js.length === 0 ? <span className="text-[12px] text-[#8A989D] italic">Folga</span> : js.map((par, i) => (
+                      <span key={i} className="inline-flex items-center gap-1 bg-[#E0F4F6] rounded-[9px] px-2 py-1">
                         <input type="time" step={900} value={par[0]} onChange={(e) => setJanela(wd, i, 0, e.target.value)} className={inpT + " bg-transparent border-0 px-0 py-0"} />
                         <span className="text-[#014D5E]">–</span>
                         <input type="time" step={900} value={par[1]} onChange={(e) => setJanela(wd, i, 1, e.target.value)} className={inpT + " bg-transparent border-0 px-0 py-0"} />
-                        <button onClick={() => rmJanela(wd, i)} className="text-[#014D5E]"><LuTrash2 size={13} /></button>
+                        <button onClick={() => rmJanela(wd, i)} className="text-[#014D5E] text-[13px]"><span>🗑️</span></button>
                       </span>
                     ))}
-                    <button onClick={() => addJanela(wd)} className="text-[12px] text-[#009AAC] inline-flex items-center gap-0.5"><LuPlus size={13} /> janela</button>
+                    <button onClick={() => addJanela(wd)} className="text-[12px] text-[#009AAC] inline-flex items-center gap-0.5"><span>➕</span> janela</button>
                   </div>
                 );
               })}
             </div>
           </div>
 
-          <div className={card + " mt-3"} style={{ borderColor: "#E8DFC8" }}>
+          <div className={card + " mt-3"} style={{ borderColor: "#E8E2D6" }}>
             <div className="flex items-center justify-between mb-2">
-              <p className="text-[13px] font-medium text-[#475569] flex items-center gap-1.5"><LuCalendarOff size={15} /> Bloqueios e exceções</p>
-              <button onClick={addBloqueio} className="text-[12px] text-[#009AAC] inline-flex items-center gap-0.5"><LuPlus size={13} /> adicionar</button>
+              <p className="text-[13px] font-medium text-[#014D5E] flex items-center gap-1.5"><span>🚫</span> Bloqueios e exceções</p>
+              <button onClick={addBloqueio} className="text-[12px] text-[#009AAC] inline-flex items-center gap-0.5"><span>➕</span> adicionar</button>
             </div>
-            {esc.bloqueios.length === 0 ? <p className="text-[12px] text-gray-400">Nenhum bloqueio.</p> : esc.bloqueios.map((b, i) => (
-              <div key={i} className="flex items-center gap-2 flex-wrap py-1.5 border-b last:border-0" style={{ borderColor: "#eef0ec" }}>
-                <input value={b.label} onChange={(e) => setBloqueio(i, "label", e.target.value)} placeholder="Motivo (férias, folga…)" className={inpT} style={{ borderColor: "#d8d0bc", width: "180px" }} />
-                <input type="date" value={b.inicio} onChange={(e) => setBloqueio(i, "inicio", e.target.value)} className={inpT} style={{ borderColor: "#d8d0bc" }} />
-                <span className="text-gray-400 text-[13px]">até</span>
-                <input type="date" value={b.fim} onChange={(e) => setBloqueio(i, "fim", e.target.value)} className={inpT} style={{ borderColor: "#d8d0bc" }} />
-                <button onClick={() => rmBloqueio(i)} className="text-gray-400 hover:text-[#E24B4A]"><LuTrash2 size={15} /></button>
+            {esc.bloqueios.length === 0 ? <p className="text-[12px] text-[#8A989D]">Nenhum bloqueio.</p> : esc.bloqueios.map((b, i) => (
+              <div key={i} className="flex items-center gap-2 flex-wrap py-1.5 border-b last:border-0" style={{ borderColor: "#F0EBE0" }}>
+                <input value={b.label} onChange={(e) => setBloqueio(i, "label", e.target.value)} placeholder="Motivo (férias, folga…)" className={inpT} style={{ borderColor: "#E8E2D6", width: "180px" }} />
+                <input type="date" value={b.inicio} onChange={(e) => setBloqueio(i, "inicio", e.target.value)} className={inpT} style={{ borderColor: "#E8E2D6" }} />
+                <span className="text-[#8A989D] text-[13px]">até</span>
+                <input type="date" value={b.fim} onChange={(e) => setBloqueio(i, "fim", e.target.value)} className={inpT} style={{ borderColor: "#E8E2D6" }} />
+                <button onClick={() => rmBloqueio(i)} className="text-[#8A989D] hover:text-[#D85A30] text-[15px]"><span>🗑️</span></button>
               </div>
             ))}
           </div>
 
           <div className="flex justify-end mt-4">
-            <button onClick={salvar} disabled={saving || !sel} className="px-4 py-2 text-[14px] text-white rounded-lg disabled:opacity-60 flex items-center gap-1.5" style={{ background: "#009AAC" }}><LuCheck size={15} /> {saving ? "Salvando…" : "Salvar escala"}</button>
+            <button onClick={salvar} disabled={saving || !sel} className="px-4 py-2 text-[14px] text-white rounded-[9px] disabled:opacity-60 flex items-center gap-1.5" style={{ background: "#009AAC" }}><span>✅</span> {saving ? "Salvando…" : "Salvar escala"}</button>
           </div>
         </div>
       </div>

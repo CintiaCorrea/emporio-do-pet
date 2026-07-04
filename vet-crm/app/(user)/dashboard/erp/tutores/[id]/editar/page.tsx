@@ -265,7 +265,7 @@ export default function EditTutorPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/20 w-full overflow-hidden">
+      <div className="min-h-screen bg-[#F6F2EA] w-full overflow-hidden">
         <div className="p-6">
           <div className="max-w-7xl mx-auto">
             <LoadingState />
@@ -277,7 +277,7 @@ export default function EditTutorPage() {
 
   if (error || !tutor) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/20 w-full overflow-hidden">
+      <div className="min-h-screen bg-[#F6F2EA] w-full overflow-hidden">
         <div className="p-6">
           <div className="max-w-7xl mx-auto">
             <ErrorState 
@@ -292,7 +292,7 @@ export default function EditTutorPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/20 w-full overflow-hidden">
+    <div className="min-h-screen bg-[#F6F2EA] w-full overflow-hidden">
       <div className="p-6">
         <div className="max-w-7xl mx-auto">
           <EditTutorHeader tutorName={tutor.name} tutorId={tutor.id} />
@@ -304,7 +304,7 @@ export default function EditTutorPage() {
           />
 
           {/* Main Card */}
-          <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-3xl shadow-2xl shadow-blue-500/10 overflow-hidden">
+          <div className="bg-white border border-[#E8E2D6] rounded-2xl shadow-sm overflow-hidden">
             <TutorTabs activeTab={activeTab} onTabChange={setActiveTab} showPetsTab={true} />
 
             <form onSubmit={handleSubmit} className="p-8">
@@ -336,8 +336,8 @@ export default function EditTutorPage() {
               {activeTab === 'pets' && (
                 petsLoading ? (
                   <div className="flex items-center justify-center py-12">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
-                    <span className="ml-3 text-gray-600">Carregando pets...</span>
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#009AAC]"></div>
+                    <span className="ml-3 text-[#5C6B70]">Carregando pets...</span>
                   </div>
                 ) : (
                   <PetsTab

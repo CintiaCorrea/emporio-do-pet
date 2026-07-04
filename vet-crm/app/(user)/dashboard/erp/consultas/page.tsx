@@ -3,19 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import {
-  LuSearch,
-  LuPlus,
-  LuPencil,
-  LuTrash,
-  LuUser,
-  LuPawPrint,
-  LuCalendar,
-  LuDollarSign,
-  LuPhone,
-  LuFileText,
-  LuSave
-} from 'react-icons/lu';
 import toast from 'react-hot-toast';
 import ConfirmDeleteModal from '@/components/common/ConfirmDeleteModal';
 
@@ -360,13 +347,13 @@ export default function ConsultationsPage() {
   // Funções auxiliares
   const getStatusColor = (status: ConsultationStatus) => {
     switch (status) {
-      case 'SCHEDULED': return 'bg-blue-100 text-blue-800';
-      case 'CONFIRMED': return 'bg-green-100 text-green-800';
-      case 'IN_PROGRESS': return 'bg-yellow-100 text-yellow-800';
-      case 'COMPLETED': return 'bg-green-100 text-green-800';
-      case 'CANCELED': return 'bg-red-100 text-red-800';
-      case 'NO_SHOW': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'SCHEDULED': return 'bg-[#E0F4F6] text-[#014D5E]';
+      case 'CONFIRMED': return 'bg-[#e1f5ee] text-[#0f6e56]';
+      case 'IN_PROGRESS': return 'bg-[#fdf6e3] text-[#854F0B]';
+      case 'COMPLETED': return 'bg-[#e1f5ee] text-[#0f6e56]';
+      case 'CANCELED': return 'bg-[#fef0e8] text-[#993C1D]';
+      case 'NO_SHOW': return 'bg-[#F0EBE0] text-[#5C6B70]';
+      default: return 'bg-[#F0EBE0] text-[#5C6B70]';
     }
   };
 
@@ -383,15 +370,15 @@ export default function ConsultationsPage() {
   };
 
   const getTypeColor = (type?: ConsultationType) => {
-    if (!type) return 'bg-gray-100 text-gray-800';
+    if (!type) return 'bg-[#F0EBE0] text-[#5C6B70]';
     switch (type) {
-      case 'ROUTINE': return 'bg-blue-100 text-blue-800';
-      case 'EMERGENCY': return 'bg-red-100 text-red-800';
-      case 'FOLLOW_UP': return 'bg-purple-100 text-purple-800';
-      case 'VACCINATION': return 'bg-green-100 text-green-800';
-      case 'SURGERY_PREP': return 'bg-orange-100 text-orange-800';
-      case 'SPECIALIST': return 'bg-cyan-100 text-cyan-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'ROUTINE': return 'bg-[#E0F4F6] text-[#014D5E]';
+      case 'EMERGENCY': return 'bg-[#fef0e8] text-[#993C1D]';
+      case 'FOLLOW_UP': return 'bg-[#E0F4F6] text-[#014D5E]';
+      case 'VACCINATION': return 'bg-[#e1f5ee] text-[#0f6e56]';
+      case 'SURGERY_PREP': return 'bg-[#fdf6e3] text-[#854F0B]';
+      case 'SPECIALIST': return 'bg-[#E0F4F6] text-[#014D5E]';
+      default: return 'bg-[#F0EBE0] text-[#5C6B70]';
     }
   };
 
@@ -416,7 +403,7 @@ export default function ConsultationsPage() {
       case 'FOLLOW_UP': return;
       case 'VACCINATION': return;
       case 'SURGERY_PREP': return;
-      case 'SPECIALIST': return LuFileText;
+      case 'SPECIALIST': return;
       default: return;
     }
   };
@@ -687,17 +674,17 @@ export default function ConsultationsPage() {
 
   if (loading && consultations.length === 0) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/10 flex items-center justify-center">
+      <div className="min-h-screen bg-[#F6F2EA] flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Carregando consultas...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#009AAC] mx-auto"></div>
+          <p className="mt-4 text-[#5C6B70]">Carregando consultas...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/10 w-full overflow-hidden">
+    <div className="min-h-screen bg-[#F6F2EA] w-full overflow-hidden">
       <ConfirmDeleteModal
         isOpen={Boolean(consultationToDelete)}
         entityLabel="Consulta"
@@ -717,31 +704,31 @@ export default function ConsultationsPage() {
             <div className="mb-8">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                  <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+                  <h1 className="text-3xl font-medium text-[#014D5E] flex items-center gap-2">
+                    <span style={{fontSize:"26px"}}>🩺</span>
                     Consultas
                   </h1>
-                  <p className="text-gray-600 mt-2">
+                  <p className="text-[#5C6B70] mt-2">
                     Gerencie consultas veterinárias e atendimentos
                   </p>
                 </div>
                 <div className="flex gap-3">
                   <Link
                     href="/dashboard/erp/consultas/relatorio"
-                    className="group px-6 py-3 text-sm font-semibold text-gray-700 bg-white/80 border border-gray-200/80 rounded-2xl hover:bg-white hover:border-gray-300 hover:shadow-lg transition-all duration-300 hover:scale-105 flex items-center space-x-2"
+                    className="px-6 py-3 text-sm font-medium text-[#5C6B70] bg-white border border-[#E8E2D6] rounded-[9px] hover:bg-[#FBF9F4] transition-all flex items-center space-x-2"
                   >
-                    <span style={{fontSize:"14px"}}>📈</span>
+                    <span style={{fontSize:"14px"}}>📊</span>
                     <span>Relatório</span>
                   </Link>
-                  <button 
+                  <button
                     onClick={() => {
                       resetForm();
                       setIsCreateModalOpen(true);
                     }}
-                    className="group px-6 py-3 text-sm font-semibold text-white bg-gradient-to-r from-cyan-600 to-cyan-600 rounded-2xl hover:from-cyan-700 hover:to-cyan-700 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-cyan-500/25 flex items-center space-x-2 relative overflow-hidden"
+                    className="px-6 py-3 text-sm font-medium text-white bg-[#009AAC] rounded-[9px] hover:bg-[#014D5E] focus:outline-none focus:ring-2 focus:ring-[#009AAC]/40 transition-all flex items-center space-x-2"
                   >
-                    <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent transform -skew-x-12 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
-                    <LuPlus className="w-4 h-4 relative z-10" />
-                    <span className="relative z-10">Nova Consulta</span>
+                    <span style={{fontSize:"14px"}}>➕</span>
+                    <span>Nova Consulta</span>
                   </button>
                 </div>
               </div>
@@ -749,11 +736,11 @@ export default function ConsultationsPage() {
 
             {/* Error Message */}
             {error && (
-              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-2xl text-red-700">
+              <div className="mb-6 p-4 bg-[#fef0e8] border border-[#E8E2D6] rounded-[13px] text-[#993C1D]">
                 {error}
-                <button 
+                <button
                   onClick={() => setError(null)}
-                  className="float-right text-red-500 hover:text-red-700"
+                  className="float-right text-[#993C1D] hover:opacity-70"
                 >
                   <span style={{fontSize:"14px"}}>✕</span>
                 </button>
@@ -769,11 +756,11 @@ export default function ConsultationsPage() {
                   color: "gray", 
                   icon: () => <span style={{fontSize:"14px"}}>🩺</span>
                 },
-                { 
-                  label: "Hoje", 
-                  value: stats.today, 
-                  color: "blue", 
-                  icon: LuCalendar
+                {
+                  label: "Hoje",
+                  value: stats.today,
+                  color: "blue",
+                  icon: () => <span style={{fontSize:"14px"}}>📅</span>
                 },
                 { 
                   label: "Agendadas", 
@@ -793,51 +780,51 @@ export default function ConsultationsPage() {
                   color: "green", 
                   icon: () => <span style={{fontSize:"14px"}}>✓</span>
                 },
-                { 
-                  label: "Receita", 
-                  value: formatCurrency(stats.totalRevenue), 
-                  color: "teal", 
-                  icon: LuDollarSign,
+                {
+                  label: "Receita",
+                  value: formatCurrency(stats.totalRevenue),
+                  color: "teal",
+                  icon: () => <span style={{fontSize:"14px"}}>💰</span>,
                   isFormatted: true
                 }
               ].map((stat, index) => (
-                <div key={index} className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-cyan-500/5 p-6 hover:shadow-2xl hover:shadow-cyan-500/10 transition-all duration-300 hover:scale-105">
+                <div key={index} className="bg-white border border-[#E8E2D6] rounded-[13px] p-6 hover:shadow-md transition-all">
                   <div className="flex items-center justify-between mb-4">
-                    <div className={`p-3 bg-${stat.color}-50 rounded-xl`}>
-                      <stat.icon className={`w-6 h-6 text-${stat.color}-600`} />
+                    <div className="p-3 bg-[#E0F4F6] rounded-[9px] flex items-center justify-center">
+                      <stat.icon className="w-6 h-6 text-[#014D5E]" />
                     </div>
-                    <div className={`font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent ${stat.isFormatted ? 'text-lg' : 'text-2xl'}`}>
+                    <div className={`font-medium text-[#014D5E] ${stat.isFormatted ? 'text-lg' : 'text-2xl'}`}>
                       {stat.value}
                     </div>
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-gray-600">{stat.label}</p>
+                    <p className="text-sm font-medium text-[#5C6B70]">{stat.label}</p>
                   </div>
                 </div>
               ))}
             </div>
 
             {/* Filters and Search */}
-            <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-cyan-500/5 p-6 mb-6">
+            <div className="bg-white border border-[#E8E2D6] rounded-[13px] p-6 mb-6">
               <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
                 <div className="flex flex-col sm:flex-row gap-4 w-full lg:w-auto">
                   <div className="relative flex-1">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <LuSearch className="w-5 h-5 text-gray-400" />
+                      <span style={{fontSize:"15px"}}>🔍</span>
                     </div>
                     <input
                       type="text"
                       placeholder="Buscar por tutor, pet, veterinário..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full pl-10 pr-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                      className="w-full pl-10 pr-4 py-3 bg-white border border-[#E8E2D6] rounded-[9px] focus:outline-none focus:ring-2 focus:ring-[#009AAC]/40 focus:border-[#009AAC] transition-all text-[#1F2A2E] placeholder-[#8A989D]"
                     />
                   </div>
-                  
+
                   <select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value as ConsultationStatus | 'all')}
-                    className="px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                    className="px-4 py-3 bg-white border border-[#E8E2D6] rounded-[9px] focus:outline-none focus:ring-2 focus:ring-[#009AAC]/40 focus:border-[#009AAC] transition-all text-[#1F2A2E]"
                   >
                     <option value="all">Todos os Status</option>
                     <option value="SCHEDULED">Agendadas</option>
@@ -854,24 +841,24 @@ export default function ConsultationsPage() {
                     type="date"
                     value={dateFilter}
                     onChange={(e) => setDateFilter(e.target.value)}
-                    className="px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                    className="px-4 py-3 bg-white border border-[#E8E2D6] rounded-[9px] focus:outline-none focus:ring-2 focus:ring-[#009AAC]/40 focus:border-[#009AAC] transition-all text-[#1F2A2E]"
                   />
                   <button
                     onClick={() => setDateFilter(todayStr)}
-                    className={`flex items-center gap-2 px-4 py-3 text-sm font-semibold rounded-2xl transition-all duration-300 hover:scale-105 ${
+                    className={`flex items-center gap-2 px-4 py-3 text-sm font-medium rounded-[9px] transition-all ${
                       dateFilter === todayStr
-                        ? 'text-white bg-cyan-500 hover:bg-cyan-600' 
-                        : 'text-gray-600 bg-white/50 border border-gray-300/50 hover:bg-white hover:border-gray-400'
+                        ? 'text-white bg-[#009AAC] hover:bg-[#014D5E]'
+                        : 'text-[#5C6B70] bg-white border border-[#E8E2D6] hover:bg-[#FBF9F4]'
                     }`}
                   >
-                    <LuCalendar className="w-4 h-4" />
+                    <span style={{fontSize:"14px"}}>📅</span>
                     <span>Hoje</span>
                   </button>
                   <button
                     onClick={fetchConsultations}
-                    className="flex items-center gap-2 px-4 py-3 text-sm font-semibold text-gray-600 bg-white/50 border border-gray-300/50 rounded-2xl hover:bg-white hover:border-gray-400 hover:shadow-lg transition-all duration-300 hover:scale-105 backdrop-blur-sm"
+                    className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-[#5C6B70] bg-white border border-[#E8E2D6] rounded-[9px] hover:bg-[#FBF9F4] transition-all"
                   >
-                    <LuSearch className="w-4 h-4" />
+                    <span style={{fontSize:"14px"}}>🔍</span>
                     <span>Recarregar</span>
                   </button>
                 </div>
@@ -879,14 +866,14 @@ export default function ConsultationsPage() {
             </div>
 
             {/* Consultations Table */}
-            <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-cyan-500/5 overflow-hidden">
+            <div className="bg-white border border-[#E8E2D6] rounded-[13px] overflow-hidden">
               {/* Table Header */}
-              <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-100/50 border-b border-white/20">
+              <div className="px-6 py-4 bg-[#FBF9F4] border-b border-[#E8E2D6]">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-gray-900">
+                  <h3 className="text-lg font-medium text-[#014D5E]">
                     Lista de Consultas
                   </h3>
-                  <div className="text-sm text-gray-600">
+                  <div className="text-sm text-[#5C6B70]">
                     {filteredConsultations.length} consultas encontradas
                   </div>
                 </div>
@@ -896,81 +883,81 @@ export default function ConsultationsPage() {
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="bg-gradient-to-r from-gray-50 to-gray-100/50 border-b border-white/20">
-                      <th className="text-left p-6 font-semibold text-gray-700">Paciente/Tutor</th>
-                      <th className="text-left p-6 font-semibold text-gray-700">Veterinário</th>
-                      <th className="text-left p-6 font-semibold text-gray-700">Data/Hora</th>
-                      <th className="text-left p-6 font-semibold text-gray-700">Status</th>
-                      <th className="text-left p-6 font-semibold text-gray-700">Valor</th>
-                      <th className="text-left p-6 font-semibold text-gray-700">Ações</th>
+                    <tr className="bg-[#FBF9F4] border-b border-[#E8E2D6]">
+                      <th className="text-left px-6 py-3 font-medium text-[#8A989D] uppercase text-[11.5px] tracking-wide">Paciente/Tutor</th>
+                      <th className="text-left px-6 py-3 font-medium text-[#8A989D] uppercase text-[11.5px] tracking-wide">Veterinário</th>
+                      <th className="text-left px-6 py-3 font-medium text-[#8A989D] uppercase text-[11.5px] tracking-wide">Data/Hora</th>
+                      <th className="text-left px-6 py-3 font-medium text-[#8A989D] uppercase text-[11.5px] tracking-wide">Status</th>
+                      <th className="text-left px-6 py-3 font-medium text-[#8A989D] uppercase text-[11.5px] tracking-wide">Valor</th>
+                      <th className="text-left px-6 py-3 font-medium text-[#8A989D] uppercase text-[11.5px] tracking-wide">Ações</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredConsultations.map((cons) => {
                       const TypeIcon = getTypeIcon(cons.type);
-                      
+
                       return (
-                        <tr 
-                          key={cons.id} 
-                          className="border-b border-white/20 hover:bg-gray-50/50 transition-all duration-300 group cursor-pointer"
+                        <tr
+                          key={cons.id}
+                          className="border-b border-[#F0EBE0] hover:bg-[#FBF9F4] transition-all group cursor-pointer"
                           onClick={() => openDetails(cons)}
                         >
-                          <td className="p-6">
+                          <td className="px-6 py-4">
                             <div className="flex items-center gap-3">
-                              <div className={`p-2 rounded-xl ${getTypeColor(cons.type)}`}>
-                                <LuPawPrint className="w-5 h-5" />
+                              <div className={`w-9 h-9 flex items-center justify-center rounded-full ${getTypeColor(cons.type)}`}>
+                                <span style={{fontSize:"16px"}}>🐾</span>
                               </div>
                               <div>
-                                <div className="font-semibold text-gray-900">
+                                <div className="font-medium text-[#1F2A2E]">
                                   {cons.pet.name}
                                 </div>
-                                <div className="text-sm text-gray-500">
+                                <div className="text-sm text-[#5C6B70]">
                                   {cons.pet.species} {cons.pet.breed && `• ${cons.pet.breed}`} • {cons.tutor.name}
                                 </div>
                                 {cons.tutor.phone && (
-                                  <div className="text-xs text-gray-400 flex items-center gap-1">
-                                    <LuPhone className="w-3 h-3" />
+                                  <div className="text-xs text-[#8A989D] flex items-center gap-1">
+                                    <span style={{fontSize:"11px"}}>📞</span>
                                     {cons.tutor.phone}
                                   </div>
                                 )}
                               </div>
                             </div>
                           </td>
-                          <td className="p-6">
+                          <td className="px-6 py-4">
                             <div className="flex items-center gap-2">
                               <span style={{fontSize:"14px"}}>🩺</span>
-                              <span className="text-gray-700">{cons.veterinarian.name}</span>
+                              <span className="text-[#1F2A2E]">{cons.veterinarian.name}</span>
                             </div>
                           </td>
-                          <td className="p-6">
-                            <div className="flex items-center gap-1 text-gray-700">
-                              <LuCalendar className="w-4 h-4" />
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-1 text-[#1F2A2E]">
+                              <span style={{fontSize:"14px"}}>📅</span>
                               {formatDate(cons.date)}
                             </div>
-                            <div className="text-sm text-gray-500 flex items-center gap-1 mt-1">
+                            <div className="text-sm text-[#5C6B70] flex items-center gap-1 mt-1">
                               <span style={{fontSize:"14px"}}>⏱</span>
                               {cons.time} • {cons.duration}min
                             </div>
                           </td>
-                          <td className="p-6">
+                          <td className="px-6 py-4">
                             <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(cons.status)}`}>
                               {getStatusLabel(cons.status)}
                             </span>
                           </td>
-                          <td className="p-6">
-                            <div className="font-semibold text-gray-900">
+                          <td className="px-6 py-4">
+                            <div className="font-medium text-[#1F2A2E]">
                               {formatCurrency(cons.value)}
                             </div>
-                            <div className={`text-xs mt-1 ${cons.paid ? 'text-green-600' : 'text-orange-600'}`}>
+                            <div className={`text-xs mt-1 ${cons.paid ? 'text-[#0f6e56]' : 'text-[#D85A30]'}`}>
                               {cons.paid ? '✓ Pago' : '○ Pendente'}
                             </div>
                           </td>
-                          <td className="p-6">
+                          <td className="px-6 py-4">
                             <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                               {cons.status === 'SCHEDULED' || cons.status === 'CONFIRMED' ? (
                                 <button
                                   onClick={() => handleStartConsultation(cons.id)}
-                                  className="p-2 text-cyan-600 hover:bg-cyan-50 rounded-2xl transition-colors"
+                                  className="p-2 text-[#009AAC] hover:bg-[#E0F4F6] rounded-[9px] transition-colors"
                                   title="Iniciar consulta"
                                 >
                                   <span style={{fontSize:"14px"}}>⚡</span>
@@ -979,7 +966,7 @@ export default function ConsultationsPage() {
                               {cons.status === 'IN_PROGRESS' && (
                                 <button
                                   onClick={() => handleCompleteConsultation(cons.id)}
-                                  className="p-2 text-green-600 hover:bg-green-50 rounded-2xl transition-colors"
+                                  className="p-2 text-[#0f6e56] hover:bg-[#e1f5ee] rounded-[9px] transition-colors"
                                   title="Finalizar consulta"
                                 >
                                   <span style={{fontSize:"14px"}}>✓</span>
@@ -988,7 +975,7 @@ export default function ConsultationsPage() {
                               {(cons.status === 'SCHEDULED' || cons.status === 'CONFIRMED' || cons.status === 'IN_PROGRESS') && (
                                 <button
                                   onClick={() => handleCancelConsultation(cons.id)}
-                                  className="p-2 text-orange-600 hover:bg-orange-50 rounded-2xl transition-colors"
+                                  className="p-2 text-[#D85A30] hover:bg-[#fef0e8] rounded-[9px] transition-colors"
                                   title="Cancelar consulta"
                                 >
                                   <span style={{fontSize:"14px"}}>✕</span>
@@ -996,31 +983,31 @@ export default function ConsultationsPage() {
                               )}
                               <Link
                                 href={`/dashboard/erp/consultas/${cons.id}/gravar`}
-                                className="p-2 text-violet-600 hover:bg-violet-50 rounded-2xl transition-colors"
+                                className="p-2 text-[#014D5E] hover:bg-[#E0F4F6] rounded-[9px] transition-colors"
                                 title="Gravar consulta & Gerar documentos"
                               >
                                 <span style={{fontSize:"14px"}}>🎤</span>
                               </Link>
                               <Link
                                 href={`/dashboard/erp/consultas/${cons.id}/documentos`}
-                                className="p-2 text-cyan-600 hover:bg-cyan-50 rounded-2xl transition-colors"
+                                className="p-2 text-[#009AAC] hover:bg-[#E0F4F6] rounded-[9px] transition-colors"
                                 title="Ver documentos clínicos"
                               >
-                                <LuFileText className="w-4 h-4" />
+                                <span style={{fontSize:"14px"}}>📄</span>
                               </Link>
                               <button
                                 onClick={() => openEditModal(cons)}
-                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-2xl transition-colors"
+                                className="p-2 text-[#014D5E] hover:bg-[#E0F4F6] rounded-[9px] transition-colors"
                                 title="Editar consulta"
                               >
-                                <LuPencil className="w-4 h-4" />
+                                <span style={{fontSize:"14px"}}>✏️</span>
                               </button>
                               <button
                                 onClick={() => requestDeleteConsultation(cons)}
-                                className="p-2 text-gray-400 hover:bg-gray-50 hover:text-red-600 rounded-2xl transition-colors"
+                                className="p-2 text-[#8A989D] hover:bg-[#fef0e8] hover:text-[#D85A30] rounded-[9px] transition-colors"
                                 title="Excluir"
                               >
-                                <LuTrash className="w-4 h-4" />
+                                <span style={{fontSize:"14px"}}>🗑️</span>
                               </button>
                             </div>
                           </td>
@@ -1032,11 +1019,11 @@ export default function ConsultationsPage() {
 
                 {filteredConsultations.length === 0 && !loading && (
                   <div className="text-center py-12">
-                    <span style={{fontSize:"14px"}}>🩺</span>
-                    <p className="text-gray-500 text-lg">Nenhuma consulta encontrada</p>
-                    <p className="text-gray-400 mt-2">
-                      {consultations.length === 0 
-                        ? 'Agende a primeira consulta' 
+                    <span style={{fontSize:"30px"}}>🩺</span>
+                    <p className="text-[#5C6B70] text-lg">Nenhuma consulta encontrada</p>
+                    <p className="text-[#8A989D] mt-2">
+                      {consultations.length === 0
+                        ? 'Agende a primeira consulta'
                         : 'Tente ajustar os filtros de busca'
                       }
                     </p>
@@ -1045,8 +1032,8 @@ export default function ConsultationsPage() {
               </div>
 
               {/* Table Footer */}
-              <div className="flex flex-col sm:flex-row justify-between items-center p-6 border-t border-white/20 bg-gradient-to-r from-gray-50 to-gray-100/50">
-                <div className="text-sm text-gray-600 mb-4 sm:mb-0">
+              <div className="flex flex-col sm:flex-row justify-between items-center p-6 border-t border-[#E8E2D6] bg-[#FBF9F4]">
+                <div className="text-sm text-[#5C6B70] mb-4 sm:mb-0">
                   Mostrando {filteredConsultations.length} de {consultations.length} consultas
                 </div>
               </div>
@@ -1056,25 +1043,25 @@ export default function ConsultationsPage() {
 
       {/* Modal de Detalhes */}
       {isModalOpen && selectedConsultation && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200">
+        <div className="fixed inset-0 bg-[#012B2E]/45 flex items-center justify-center p-4 z-50">
+          <div className="bg-[#FBF9F4] border border-[#E8E2D6] rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-[#F0EBE0]">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-xl font-bold text-gray-900">Detalhes da Consulta</h3>
-                  <p className="text-sm text-gray-500">
+                  <h3 className="text-xl font-medium text-[#014D5E]">Detalhes da Consulta</h3>
+                  <p className="text-sm text-[#5C6B70]">
                     {formatDate(selectedConsultation.date)} às {selectedConsultation.time}
                   </p>
                 </div>
                 <button
                   onClick={() => setIsModalOpen(false)}
-                  className="p-2 hover:bg-gray-100 rounded-2xl transition-colors"
+                  className="p-2 hover:bg-[#F0EBE0] rounded-[9px] transition-colors text-[#8A989D]"
                 >
-                  <span style={{fontSize:"14px"}}>✕</span>
+                  <span style={{fontSize:"16px"}}>✕</span>
                 </button>
               </div>
             </div>
-            
+
             <div className="p-6 space-y-6">
               {/* Status e Tipo */}
               <div className="flex gap-3">
@@ -1086,74 +1073,74 @@ export default function ConsultationsPage() {
                     {getTypeLabel(selectedConsultation.type)}
                   </span>
                 )}
-                <span className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium ${selectedConsultation.paid ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800'}`}>
+                <span className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium ${selectedConsultation.paid ? 'bg-[#e1f5ee] text-[#0f6e56]' : 'bg-[#fef0e8] text-[#993C1D]'}`}>
                   {selectedConsultation.paid ? '✓ Pago' : '○ Pendente'}
                 </span>
               </div>
 
               {/* Informações do Paciente */}
               <div>
-                <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <LuPawPrint className="w-5 h-5 text-cyan-600" />
+                <h4 className="text-lg font-medium text-[#014D5E] mb-4 flex items-center gap-2">
+                  <span style={{fontSize:"16px"}}>🐾</span>
                   Informações do Paciente
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-sm font-medium text-gray-700">Pet</label>
-                    <p className="text-gray-900">{selectedConsultation.pet.name}</p>
-                    <p className="text-sm text-gray-500">
+                    <label className="text-sm font-medium text-[#5C6B70]">Pet</label>
+                    <p className="text-[#1F2A2E]">{selectedConsultation.pet.name}</p>
+                    <p className="text-sm text-[#5C6B70]">
                       {selectedConsultation.pet.species} {selectedConsultation.pet.breed && `• ${selectedConsultation.pet.breed}`}
                       {selectedConsultation.pet.age && ` • ${selectedConsultation.pet.age}`}
                     </p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-700">Tutor</label>
-                    <p className="text-gray-900">{selectedConsultation.tutor.name}</p>
+                    <label className="text-sm font-medium text-[#5C6B70]">Tutor</label>
+                    <p className="text-[#1F2A2E]">{selectedConsultation.tutor.name}</p>
                     {selectedConsultation.tutor.phone && (
-                      <p className="text-sm text-gray-500 flex items-center gap-1">
-                        <LuPhone className="w-3 h-3" />
+                      <p className="text-sm text-[#5C6B70] flex items-center gap-1">
+                        <span style={{fontSize:"11px"}}>📞</span>
                         {selectedConsultation.tutor.phone}
                       </p>
                     )}
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-700">Veterinário</label>
-                    <p className="text-gray-900 flex items-center gap-1">
+                    <label className="text-sm font-medium text-[#5C6B70]">Veterinário</label>
+                    <p className="text-[#1F2A2E] flex items-center gap-1">
                       <span style={{fontSize:"14px"}}>🩺</span>
                       {selectedConsultation.veterinarian.name}
                     </p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-700">Duração</label>
-                    <p className="text-gray-900">{selectedConsultation.duration} minutos</p>
+                    <label className="text-sm font-medium text-[#5C6B70]">Duração</label>
+                    <p className="text-[#1F2A2E]">{selectedConsultation.duration} minutos</p>
                   </div>
                 </div>
               </div>
 
               {/* Motivo e Diagnóstico */}
               <div>
-                <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <span style={{fontSize:"14px"}}>📋</span>
+                <h4 className="text-lg font-medium text-[#014D5E] mb-4 flex items-center gap-2">
+                  <span style={{fontSize:"14px"}}>📝</span>
                   Informações Clínicas
                 </h4>
                 <div className="space-y-4">
                   <div>
-                    <label className="text-sm font-medium text-gray-700">Motivo da Consulta</label>
-                    <p className="text-gray-900 bg-gray-50 p-3 rounded-xl">{selectedConsultation.reason}</p>
+                    <label className="text-sm font-medium text-[#5C6B70]">Motivo da Consulta</label>
+                    <p className="text-[#1F2A2E] bg-white border border-[#F0EBE0] p-3 rounded-[9px]">{selectedConsultation.reason}</p>
                   </div>
                   {selectedConsultation.diagnosis && (
                     <div>
-                      <label className="text-sm font-medium text-gray-700">Diagnóstico</label>
-                      <p className="text-gray-900 bg-gray-50 p-3 rounded-xl">{selectedConsultation.diagnosis}</p>
+                      <label className="text-sm font-medium text-[#5C6B70]">Diagnóstico</label>
+                      <p className="text-[#1F2A2E] bg-white border border-[#F0EBE0] p-3 rounded-[9px]">{selectedConsultation.diagnosis}</p>
                     </div>
                   )}
                   {selectedConsultation.prescription && (
                     <div>
-                      <label className="text-sm font-medium text-gray-700 flex items-center gap-1">
+                      <label className="text-sm font-medium text-[#5C6B70] flex items-center gap-1">
                         <span style={{fontSize:"14px"}}>💊</span>
                         Prescrição
                       </label>
-                      <p className="text-gray-900 bg-gray-50 p-3 rounded-xl">{selectedConsultation.prescription}</p>
+                      <p className="text-[#1F2A2E] bg-white border border-[#F0EBE0] p-3 rounded-[9px]">{selectedConsultation.prescription}</p>
                     </div>
                   )}
                 </div>
@@ -1161,13 +1148,13 @@ export default function ConsultationsPage() {
 
               {/* Valor */}
               <div>
-                <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <LuDollarSign className="w-5 h-5 text-green-600" />
+                <h4 className="text-lg font-medium text-[#014D5E] mb-4 flex items-center gap-2">
+                  <span style={{fontSize:"16px"}}>💰</span>
                   Valor
                 </h4>
-                <div className="bg-gray-50 p-4 rounded-2xl">
-                  <p className="text-2xl font-bold text-gray-900">{formatCurrency(selectedConsultation.value)}</p>
-                  <p className={`text-sm ${selectedConsultation.paid ? 'text-green-600' : 'text-orange-600'}`}>
+                <div className="bg-white border border-[#F0EBE0] p-4 rounded-[13px]">
+                  <p className="text-2xl font-medium text-[#014D5E]">{formatCurrency(selectedConsultation.value)}</p>
+                  <p className={`text-sm ${selectedConsultation.paid ? 'text-[#0f6e56]' : 'text-[#D85A30]'}`}>
                     {selectedConsultation.paid ? '✓ Pagamento confirmado' : '○ Pagamento pendente'}
                   </p>
                 </div>
@@ -1176,46 +1163,46 @@ export default function ConsultationsPage() {
               {/* Observações */}
               {selectedConsultation.notes && (
                 <div>
-                  <h4 className="text-lg font-semibold text-gray-900 mb-4">Observações</h4>
-                  <p className="text-gray-700 bg-gray-50 p-4 rounded-2xl">
+                  <h4 className="text-lg font-medium text-[#014D5E] mb-4">Observações</h4>
+                  <p className="text-[#1F2A2E] bg-white border border-[#F0EBE0] p-4 rounded-[13px]">
                     {selectedConsultation.notes}
                   </p>
                 </div>
               )}
             </div>
 
-            <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
+            <div className="p-6 border-t border-[#F0EBE0] flex justify-end gap-3">
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="px-6 py-3 text-gray-700 bg-gray-100 rounded-2xl hover:bg-gray-200 transition-colors"
+                className="px-6 py-3 text-[#5C6B70] bg-white border border-[#E8E2D6] rounded-[9px] hover:bg-[#F0EBE0] transition-colors"
               >
                 Fechar
               </button>
               <Link
                 href={`/dashboard/erp/consultas/${selectedConsultation.id}/gravar`}
-                className="px-6 py-3 text-white bg-violet-600 rounded-2xl hover:bg-violet-700 transition-colors flex items-center gap-2"
+                className="px-6 py-3 text-white bg-[#014D5E] rounded-[9px] hover:opacity-90 transition-colors flex items-center gap-2"
               >
                 <span style={{fontSize:"14px"}}>🎤</span>
                 Gravar & Documentos
               </Link>
               <Link
                 href={`/dashboard/erp/consultas/${selectedConsultation.id}/documentos`}
-                className="px-6 py-3 text-white bg-cyan-600 rounded-2xl hover:bg-cyan-700 transition-colors flex items-center gap-2"
+                className="px-6 py-3 text-white bg-[#009AAC] rounded-[9px] hover:bg-[#014D5E] transition-colors flex items-center gap-2"
               >
-                <LuFileText className="w-4 h-4" />
+                <span style={{fontSize:"14px"}}>📄</span>
                 Documentos
               </Link>
               <button
                 onClick={() => openEditModal(selectedConsultation)}
-                className="px-6 py-3 text-white bg-cyan-600 rounded-2xl hover:bg-cyan-700 transition-colors flex items-center gap-2"
+                className="px-6 py-3 text-white bg-[#009AAC] rounded-[9px] hover:bg-[#014D5E] transition-colors flex items-center gap-2"
               >
-                <LuPencil className="w-4 h-4" />
+                <span style={{fontSize:"14px"}}>✏️</span>
                 Editar
               </button>
               {selectedConsultation.status === 'SCHEDULED' || selectedConsultation.status === 'CONFIRMED' ? (
                 <button
                   onClick={() => handleStartConsultation(selectedConsultation.id)}
-                  className="px-6 py-3 text-white bg-cyan-600 rounded-2xl hover:bg-cyan-700 transition-colors flex items-center gap-2"
+                  className="px-6 py-3 text-white bg-[#009AAC] rounded-[9px] hover:bg-[#014D5E] transition-colors flex items-center gap-2"
                 >
                   <span style={{fontSize:"14px"}}>⚡</span>
                   Iniciar Consulta
@@ -1224,7 +1211,7 @@ export default function ConsultationsPage() {
               {selectedConsultation.status === 'IN_PROGRESS' && (
                 <button
                   onClick={() => handleCompleteConsultation(selectedConsultation.id)}
-                  className="px-6 py-3 text-white bg-green-600 rounded-2xl hover:bg-green-700 transition-colors flex items-center gap-2"
+                  className="px-6 py-3 text-white bg-[#0f6e56] rounded-[9px] hover:opacity-90 transition-colors flex items-center gap-2"
                 >
                   <span style={{fontSize:"14px"}}>✓</span>
                   Finalizar Consulta
@@ -1237,11 +1224,11 @@ export default function ConsultationsPage() {
 
       {/* Modal de Criar/Editar Consulta */}
       {(isCreateModalOpen || isEditModalOpen) && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200">
+        <div className="fixed inset-0 bg-[#012B2E]/45 flex items-center justify-center p-4 z-50">
+          <div className="bg-[#FBF9F4] border border-[#E8E2D6] rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-[#F0EBE0]">
               <div className="flex items-center justify-between">
-                <h3 className="text-xl font-bold text-gray-900">
+                <h3 className="text-xl font-medium text-[#014D5E]">
                   {isEditModalOpen ? 'Editar Consulta' : 'Nova Consulta'}
                 </h3>
                 <button
@@ -1250,20 +1237,20 @@ export default function ConsultationsPage() {
                     setIsEditModalOpen(false);
                     resetForm();
                   }}
-                  className="p-2 hover:bg-gray-100 rounded-2xl transition-colors"
+                  className="p-2 hover:bg-[#F0EBE0] rounded-[9px] transition-colors text-[#8A989D]"
                 >
-                  <span style={{fontSize:"14px"}}>✕</span>
+                  <span style={{fontSize:"16px"}}>✕</span>
                 </button>
               </div>
             </div>
             
             <div className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Tutor *</label>
+                <label className="block text-sm font-medium text-[#5C6B70] mb-2">Tutor *</label>
                 <select
                   value={formData.tutorId}
                   onChange={(e) => setFormData({...formData, tutorId: e.target.value, petId: ''})}
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-300 text-gray-900"
+                  className="w-full px-4 py-3 bg-white border border-[#E8E2D6] rounded-[9px] focus:outline-none focus:ring-2 focus:ring-[#009AAC]/40 focus:border-[#009AAC] transition-all text-[#1F2A2E]"
                   required
                   disabled={loadingData}
                 >
@@ -1275,11 +1262,11 @@ export default function ConsultationsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Pet *</label>
+                <label className="block text-sm font-medium text-[#5C6B70] mb-2">Pet *</label>
                 <select
                   value={formData.petId}
                   onChange={(e) => setFormData({...formData, petId: e.target.value})}
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-300 text-gray-900"
+                  className="w-full px-4 py-3 bg-white border border-[#E8E2D6] rounded-[9px] focus:outline-none focus:ring-2 focus:ring-[#009AAC]/40 focus:border-[#009AAC] transition-all text-[#1F2A2E]"
                   required
                   disabled={!formData.tutorId || loadingData || pets.length === 0}
                 >
@@ -1299,11 +1286,11 @@ export default function ConsultationsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Veterinário *</label>
+                <label className="block text-sm font-medium text-[#5C6B70] mb-2">Veterinário *</label>
                 <select
                   value={formData.userId}
                   onChange={(e) => setFormData({...formData, userId: e.target.value})}
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-300 text-gray-900"
+                  className="w-full px-4 py-3 bg-white border border-[#E8E2D6] rounded-[9px] focus:outline-none focus:ring-2 focus:ring-[#009AAC]/40 focus:border-[#009AAC] transition-all text-[#1F2A2E]"
                   required
                   disabled={loadingData}
                 >
@@ -1318,22 +1305,22 @@ export default function ConsultationsPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Data *</label>
+                  <label className="block text-sm font-medium text-[#5C6B70] mb-2">Data *</label>
                   <input
                     type="date"
                     value={formData.date}
                     onChange={(e) => setFormData({...formData, date: e.target.value})}
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-300 text-gray-900"
+                    className="w-full px-4 py-3 bg-white border border-[#E8E2D6] rounded-[9px] focus:outline-none focus:ring-2 focus:ring-[#009AAC]/40 focus:border-[#009AAC] transition-all text-[#1F2A2E]"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Horário *</label>
+                  <label className="block text-sm font-medium text-[#5C6B70] mb-2">Horário *</label>
                   <input
                     type="time"
                     value={formData.time}
                     onChange={(e) => setFormData({...formData, time: e.target.value})}
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-300 text-gray-900"
+                    className="w-full px-4 py-3 bg-white border border-[#E8E2D6] rounded-[9px] focus:outline-none focus:ring-2 focus:ring-[#009AAC]/40 focus:border-[#009AAC] transition-all text-[#1F2A2E]"
                     required
                   />
                 </div>
@@ -1341,11 +1328,11 @@ export default function ConsultationsPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Duração (min) *</label>
+                  <label className="block text-sm font-medium text-[#5C6B70] mb-2">Duração (min) *</label>
                   <select
                     value={formData.duration}
                     onChange={(e) => setFormData({...formData, duration: parseInt(e.target.value)})}
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-300 text-gray-900"
+                    className="w-full px-4 py-3 bg-white border border-[#E8E2D6] rounded-[9px] focus:outline-none focus:ring-2 focus:ring-[#009AAC]/40 focus:border-[#009AAC] transition-all text-[#1F2A2E]"
                   >
                     <option value={15}>15 min</option>
                     <option value={30}>30 min</option>
@@ -1355,11 +1342,11 @@ export default function ConsultationsPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                  <label className="block text-sm font-medium text-[#5C6B70] mb-2">Status</label>
                   <select
                     value={formData.status}
                     onChange={(e) => setFormData({...formData, status: e.target.value as ConsultationStatus})}
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-300 text-gray-900"
+                    className="w-full px-4 py-3 bg-white border border-[#E8E2D6] rounded-[9px] focus:outline-none focus:ring-2 focus:ring-[#009AAC]/40 focus:border-[#009AAC] transition-all text-[#1F2A2E]"
                   >
                     <option value="SCHEDULED">Agendada</option>
                     <option value="CONFIRMED">Confirmada</option>
@@ -1371,11 +1358,11 @@ export default function ConsultationsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Motivo da Consulta *</label>
+                <label className="block text-sm font-medium text-[#5C6B70] mb-2">Motivo da Consulta *</label>
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData({...formData, description: e.target.value})}
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-300 text-gray-900 resize-none"
+                  className="w-full px-4 py-3 bg-white border border-[#E8E2D6] rounded-[9px] focus:outline-none focus:ring-2 focus:ring-[#009AAC]/40 focus:border-[#009AAC] transition-all text-[#1F2A2E] resize-none"
                   rows={3}
                   placeholder="Descreva o motivo da consulta"
                   required
@@ -1383,11 +1370,11 @@ export default function ConsultationsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Observações</label>
+                <label className="block text-sm font-medium text-[#5C6B70] mb-2">Observações</label>
                 <textarea
                   value={formData.notes}
                   onChange={(e) => setFormData({...formData, notes: e.target.value})}
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-300 text-gray-900 resize-none"
+                  className="w-full px-4 py-3 bg-white border border-[#E8E2D6] rounded-[9px] focus:outline-none focus:ring-2 focus:ring-[#009AAC]/40 focus:border-[#009AAC] transition-all text-[#1F2A2E] resize-none"
                   rows={3}
                   placeholder="Observações, diagnóstico, prescrição..."
                 />
@@ -1395,23 +1382,23 @@ export default function ConsultationsPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Valor (R$) *</label>
+                  <label className="block text-sm font-medium text-[#5C6B70] mb-2">Valor (R$) *</label>
                   <input
                     type="number"
                     value={formData.value}
                     onChange={(e) => setFormData({...formData, value: parseFloat(e.target.value) || 0})}
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-300 text-gray-900"
+                    className="w-full px-4 py-3 bg-white border border-[#E8E2D6] rounded-[9px] focus:outline-none focus:ring-2 focus:ring-[#009AAC]/40 focus:border-[#009AAC] transition-all text-[#1F2A2E]"
                     min="0"
                     step="0.01"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Status de Pagamento</label>
+                  <label className="block text-sm font-medium text-[#5C6B70] mb-2">Status de Pagamento</label>
                   <select
                     value={formData.paymentStatus}
                     onChange={(e) => setFormData({...formData, paymentStatus: e.target.value as 'PAID' | 'PENDING' | 'OVERDUE' | 'CANCELLED'})}
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-300 text-gray-900"
+                    className="w-full px-4 py-3 bg-white border border-[#E8E2D6] rounded-[9px] focus:outline-none focus:ring-2 focus:ring-[#009AAC]/40 focus:border-[#009AAC] transition-all text-[#1F2A2E]"
                   >
                     <option value="PENDING">Pendente</option>
                     <option value="PAID">Pago</option>
@@ -1422,21 +1409,21 @@ export default function ConsultationsPage() {
               </div>
             </div>
 
-            <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
+            <div className="p-6 border-t border-[#F0EBE0] flex justify-end gap-3">
               <button
                 onClick={() => {
                   setIsCreateModalOpen(false);
                   setIsEditModalOpen(false);
                   resetForm();
                 }}
-                className="px-6 py-3 text-gray-700 bg-gray-100 rounded-2xl hover:bg-gray-200 transition-colors"
+                className="px-6 py-3 text-[#5C6B70] bg-white border border-[#E8E2D6] rounded-[9px] hover:bg-[#F0EBE0] transition-colors"
               >
                 Cancelar
               </button>
               <button
                 onClick={isEditModalOpen ? handleUpdateConsultation : handleCreateConsultation}
                 disabled={submitting || !formData.tutorId || !formData.petId || !formData.userId || !formData.description}
-                className="px-6 py-3 text-white bg-gradient-to-r from-cyan-600 to-cyan-600 rounded-2xl hover:from-cyan-700 hover:to-cyan-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-6 py-3 text-white bg-[#009AAC] rounded-[9px] hover:bg-[#014D5E] transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {submitting ? (
                   <>
@@ -1445,7 +1432,7 @@ export default function ConsultationsPage() {
                   </>
                 ) : (
                   <>
-                    <LuSave className="w-4 h-4" />
+                    <span style={{fontSize:"14px"}}>✅</span>
                     <span>{isEditModalOpen ? 'Salvar Alterações' : 'Agendar Consulta'}</span>
                   </>
                 )}

@@ -3,13 +3,6 @@
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import {
-  LuPawPrint,
-  LuUser,
-  LuCalendar,
-  LuLoader,
-  LuFileText
-} from 'react-icons/lu';
 import toast from 'react-hot-toast';
 import ConsultationRecorder from '@/components/protected/dashboard/clinical-documents/ConsultationRecorder';
 import DocumentGenerator from '@/components/protected/dashboard/clinical-documents/DocumentGenerator';
@@ -83,7 +76,7 @@ export default function GravarConsultaPage({ params }: { params: Promise<{ id: s
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <LuLoader className="w-8 h-8 animate-spin text-violet-600" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#009AAC]"></div>
       </div>
     );
   }
@@ -91,22 +84,22 @@ export default function GravarConsultaPage({ params }: { params: Promise<{ id: s
   if (!appointment) return null;
 
   return (
-    <div className="max-w-5xl mx-auto p-6 space-y-6">
+    <div className="max-w-5xl mx-auto p-6 space-y-6 bg-[#F6F2EA] min-h-screen">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Link
             href="/dashboard/erp/consultas"
-            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            className="p-2 rounded-[9px] border border-[#E8E2D6] bg-white hover:bg-[#FBF9F4] transition-colors text-[#014D5E]"
           >
-            <span style={{fontSize:"12px"}}>◀</span>
+            <span style={{fontSize:"14px"}}>‹</span>
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-              <span style={{fontSize:"14px"}}>🎤</span>
+            <h1 className="text-2xl font-medium text-[#014D5E] flex items-center gap-2">
+              <span style={{fontSize:"20px"}}>🎤</span>
               Gravação & Documentos
             </h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <p className="text-sm text-[#5C6B70]">
               Grave a consulta, transcreva e gere documentos automaticamente
             </p>
           </div>
@@ -115,22 +108,22 @@ export default function GravarConsultaPage({ params }: { params: Promise<{ id: s
         <div className="flex items-center gap-3">
           <button
             onClick={() => setShowHistory(!showHistory)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-[9px] text-sm font-medium transition-colors ${
               showHistory
-                ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400'
-                : 'bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-300'
+                ? 'bg-[#E0F4F6] text-[#014D5E]'
+                : 'bg-white border border-[#E8E2D6] hover:bg-[#FBF9F4] text-[#5C6B70]'
             }`}
           >
-            <span style={{fontSize:"14px"}}>⏳</span>
+            <span style={{fontSize:"14px"}}>📝</span>
             Histórico
           </button>
-          
+
           {generatedDocs.length > 0 && (
             <Link
               href={`/dashboard/erp/consultas/${id}/documentos`}
-              className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-sm font-medium transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-[#009AAC] hover:bg-[#014D5E] text-white rounded-[9px] text-sm font-medium transition-colors"
             >
-              <LuFileText className="w-4 h-4" />
+              <span style={{fontSize:"14px"}}>📄</span>
               Ver Documentos ({generatedDocs.length})
             </Link>
           )}
@@ -138,31 +131,31 @@ export default function GravarConsultaPage({ params }: { params: Promise<{ id: s
       </div>
 
       {/* Appointment Info Card */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+      <div className="bg-white rounded-[13px] border border-[#E8E2D6] p-4">
         <div className="flex items-center gap-6 text-sm">
           <div className="flex items-center gap-2">
-            <LuPawPrint className="w-4 h-4 text-violet-600" />
-            <span className="font-medium text-gray-900 dark:text-white">{appointment.pet.name}</span>
-            <span className="text-gray-500">({appointment.pet.species}{appointment.pet.breed ? ` - ${appointment.pet.breed}` : ''})</span>
+            <span style={{fontSize:"14px"}}>🐾</span>
+            <span className="font-medium text-[#1F2A2E]">{appointment.pet.name}</span>
+            <span className="text-[#8A989D]">({appointment.pet.species}{appointment.pet.breed ? ` - ${appointment.pet.breed}` : ''})</span>
           </div>
           <div className="flex items-center gap-2">
-            <LuUser className="w-4 h-4 text-gray-500" />
-            <span className="text-gray-700 dark:text-gray-300">{appointment.tutor.name}</span>
+            <span style={{fontSize:"14px"}}>👤</span>
+            <span className="text-[#5C6B70]">{appointment.tutor.name}</span>
           </div>
           <div className="flex items-center gap-2">
-            <LuCalendar className="w-4 h-4 text-gray-500" />
-            <span className="text-gray-700 dark:text-gray-300">
+            <span style={{fontSize:"14px"}}>📅</span>
+            <span className="text-[#5C6B70]">
               {new Date(appointment.date).toLocaleDateString('pt-BR')}
             </span>
           </div>
           <div className="flex items-center gap-2">
             <span style={{fontSize:"14px"}}>🩺</span>
-            <span className="text-gray-700 dark:text-gray-300">{appointment.user.name}</span>
+            <span className="text-[#5C6B70]">{appointment.user.name}</span>
           </div>
         </div>
         {appointment.description && (
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            <strong>Motivo:</strong> {appointment.description}
+          <p className="mt-2 text-sm text-[#5C6B70]">
+            <strong className="font-medium text-[#1F2A2E]">Motivo:</strong> {appointment.description}
           </p>
         )}
       </div>
@@ -171,50 +164,50 @@ export default function GravarConsultaPage({ params }: { params: Promise<{ id: s
       <div className="flex items-center justify-center gap-2">
         <button
           onClick={() => setStep('record')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-[9px] text-sm font-medium transition-all ${
             step === 'record'
-              ? 'bg-violet-600 text-white'
+              ? 'bg-[#009AAC] text-white'
               : hasTranscription || hasAnalysis
-              ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-              : 'bg-gray-100 text-gray-500 dark:bg-gray-700'
+              ? 'bg-[#E0F4F6] text-[#0f6e56]'
+              : 'bg-[#F0EBE0] text-[#8A989D]'
           }`}
         >
           <span style={{fontSize:"14px"}}>🎤</span>
           1. Gravar & Transcrever
         </button>
-        <span style={{fontSize:"14px"}}>→</span>
+        <span style={{fontSize:"14px"}}>›</span>
         <button
           onClick={() => (hasTranscription || hasAnalysis) && setStep('generate')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-[9px] text-sm font-medium transition-all ${
             step === 'generate'
-              ? 'bg-violet-600 text-white'
+              ? 'bg-[#009AAC] text-white'
               : generatedDocs.length > 0
-              ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-              : 'bg-gray-100 text-gray-500 dark:bg-gray-700'
+              ? 'bg-[#E0F4F6] text-[#0f6e56]'
+              : 'bg-[#F0EBE0] text-[#8A989D]'
           }`}
           disabled={!hasTranscription && !hasAnalysis}
         >
-          <span style={{fontSize:"14px"}}>🧠</span>
+          <span style={{fontSize:"14px"}}>📝</span>
           2. Gerar Documentos
         </button>
-        <span style={{fontSize:"14px"}}>→</span>
+        <span style={{fontSize:"14px"}}>›</span>
         <button
           onClick={() => generatedDocs.length > 0 && setStep('done')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-[9px] text-sm font-medium transition-all ${
             step === 'done'
-              ? 'bg-violet-600 text-white'
-              : 'bg-gray-100 text-gray-500 dark:bg-gray-700'
+              ? 'bg-[#009AAC] text-white'
+              : 'bg-[#F0EBE0] text-[#8A989D]'
           }`}
           disabled={generatedDocs.length === 0}
         >
-          <LuFileText className="w-4 h-4" />
+          <span style={{fontSize:"14px"}}>📄</span>
           3. Documentos Prontos
         </button>
       </div>
 
       {/* Recording History Panel */}
       {showHistory && (
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+        <div className="bg-white rounded-[13px] border border-[#E8E2D6] p-6">
           <RecordingHistory
             appointmentId={id}
             currentRecordingId={recordingId}
@@ -262,15 +255,15 @@ export default function GravarConsultaPage({ params }: { params: Promise<{ id: s
       )}
 
       {step === 'done' && !showHistory && (
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-green-200 dark:border-green-800 p-6">
+        <div className="bg-white rounded-[13px] border border-[#E8E2D6] p-6">
           <div className="text-center mb-6">
-            <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-3">
-              <LuFileText className="w-8 h-8 text-green-600" />
+            <div className="w-16 h-16 bg-[#E0F4F6] rounded-full flex items-center justify-center mx-auto mb-3">
+              <span style={{fontSize:"28px"}}>📄</span>
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+            <h3 className="text-lg font-medium text-[#014D5E]">
               Documentos Prontos!
             </h3>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-[#5C6B70]">
               {generatedDocs.length} documento(s) gerado(s) para esta consulta
             </p>
           </div>
@@ -279,13 +272,13 @@ export default function GravarConsultaPage({ params }: { params: Promise<{ id: s
             {generatedDocs.map((doc) => (
               <div
                 key={doc.id}
-                className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-lg"
+                className="flex items-center justify-between p-4 bg-[#FBF9F4] border border-[#F0EBE0] rounded-[9px]"
               >
                 <div className="flex items-center gap-3">
-                  <LuFileText className="w-5 h-5 text-violet-600" />
+                  <span style={{fontSize:"18px"}}>📄</span>
                   <div>
-                    <p className="font-medium text-sm text-gray-900 dark:text-white">{doc.title}</p>
-                    <p className="text-xs text-gray-500">{doc.type}</p>
+                    <p className="font-medium text-sm text-[#1F2A2E]">{doc.title}</p>
+                    <p className="text-xs text-[#8A989D]">{doc.type}</p>
                   </div>
                 </div>
               </div>
@@ -295,16 +288,16 @@ export default function GravarConsultaPage({ params }: { params: Promise<{ id: s
           <div className="flex justify-center gap-4">
             <Link
               href={`/dashboard/erp/consultas/${id}/documentos`}
-              className="flex items-center gap-2 px-6 py-3 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-medium transition-all"
+              className="flex items-center gap-2 px-6 py-3 bg-[#009AAC] hover:bg-[#014D5E] text-white rounded-[9px] font-medium transition-all"
             >
-              <LuFileText className="w-5 h-5" />
+              <span style={{fontSize:"16px"}}>📄</span>
               Visualizar e Baixar Documentos
             </Link>
             <button
               onClick={() => setStep('generate')}
-              className="flex items-center gap-2 px-6 py-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-medium transition-all"
+              className="flex items-center gap-2 px-6 py-3 bg-white border border-[#E8E2D6] hover:bg-[#FBF9F4] text-[#5C6B70] rounded-[9px] font-medium transition-all"
             >
-              <span style={{fontSize:"14px"}}>🧠</span>
+              <span style={{fontSize:"14px"}}>📝</span>
               Gerar Mais Documentos
             </button>
           </div>

@@ -1,15 +1,14 @@
 "use client";
 import { useEffect, useState } from "react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
-import { LuCheck, LuClock, LuUsers, LuPalette, LuArrowLeft } from "react-icons/lu";
 import toast from "react-hot-toast";
 
 const STATUSES = ["Agendado", "Confirmado", "Em espera", "Em atendimento", "Atendido", "Cancelado"];
 const COR_DEFAULT: Record<string, string> = { "Agendado": "#E6F1FB", "Confirmado": "#E1F5EE", "Em espera": "#FAEEDA", "Em atendimento": "#E1F5EE", "Atendido": "#EAF3DE", "Cancelado": "#F1EFE8" };
 const DEF = { horaInicio: 8, horaFim: 19, intervalo: 15, duracaoPadrao: 30, profsOcultos: [] as string[], cores: {} as Record<string, string> };
-const card = "bg-white border rounded-xl p-4";
-const lbl = "text-[12px] text-[#475569] block mb-1";
-const inp = "w-full border rounded-lg px-3 py-2 text-[14px] text-[#14253a] focus:outline-none focus:border-[#009AAC]";
+const card = "bg-white border rounded-[14px] p-4";
+const lbl = "text-[12px] text-[#5C6B70] block mb-1";
+const inp = "w-full border rounded-[9px] px-3 py-2 text-[14px] text-[#1F2A2E] focus:outline-none focus:border-[#009AAC]";
 
 export default function AgendaConfigPage() {
   usePageTitle("Configurações da agenda", "Horários, intervalo e profissionais exibidos");
@@ -40,44 +39,44 @@ export default function AgendaConfigPage() {
   }
 
   return (
-    <div className="p-4 max-w-3xl">
-      <div className="flex items-center gap-4 border-b pb-2.5 mb-4" style={{ borderColor: "#E8DFC8" }}>
-        <a href="/dashboard/erp/agendamentos/agenda" className="text-[14px] text-gray-500 flex items-center gap-1 hover:text-[#009AAC]"><LuArrowLeft size={15} /> Dia</a>
-        <a href="/dashboard/erp/agendamentos/escala" className="text-[14px] text-gray-500 hover:text-[#009AAC]">Escala</a>
-        <span className="text-[14px] text-[#014D5E] font-medium border-b-2 pb-2.5 -mb-2.5" style={{ borderColor: "#009AAC" }}>Configurações</span>
+    <div className="p-4 max-w-3xl" style={{ background: "#F6F2EA", minHeight: "100%" }}>
+      <div className="flex items-center gap-4 border-b pb-2.5 mb-4" style={{ borderColor: "#E8E2D6" }}>
+        <a href="/dashboard/erp/agendamentos/agenda" className="text-[14px] text-[#5C6B70] flex items-center gap-1 hover:text-[#009AAC]"><span>📅</span> Dia</a>
+        <a href="/dashboard/erp/agendamentos/escala" className="text-[14px] text-[#5C6B70] flex items-center gap-1 hover:text-[#009AAC]"><span>📋</span> Escala</a>
+        <span className="text-[14px] text-[#014D5E] font-medium border-b-2 pb-2.5 -mb-2.5 flex items-center gap-1" style={{ borderColor: "#009AAC" }}><span>⚙️</span> Configurações</span>
       </div>
 
-      <div className={card} style={{ borderColor: "#E8DFC8" }}>
-        <p className="text-[13px] font-medium text-[#475569] mb-3 flex items-center gap-1.5"><LuClock size={16} /> Exibição da grade</p>
+      <div className={card} style={{ borderColor: "#E8E2D6" }}>
+        <p className="text-[13px] font-medium text-[#014D5E] mb-3 flex items-center gap-1.5"><span>🕐</span> Exibição da grade</p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div><label className={lbl}>Hora de início</label><input type="number" min={0} max={23} value={cfg.horaInicio} onChange={(e) => set("horaInicio", Number(e.target.value))} className={inp} style={{ borderColor: "#d8d0bc" }} /></div>
-          <div><label className={lbl}>Hora de fim</label><input type="number" min={1} max={23} value={cfg.horaFim} onChange={(e) => set("horaFim", Number(e.target.value))} className={inp} style={{ borderColor: "#d8d0bc" }} /></div>
-          <div><label className={lbl}>Intervalo da grade</label><select value={cfg.intervalo} onChange={(e) => set("intervalo", Number(e.target.value))} className={inp} style={{ borderColor: "#d8d0bc" }}><option value={15}>15 min</option><option value={30}>30 min</option></select></div>
-          <div><label className={lbl}>Duração padrão</label><select value={cfg.duracaoPadrao} onChange={(e) => set("duracaoPadrao", Number(e.target.value))} className={inp} style={{ borderColor: "#d8d0bc" }}><option value={15}>15 min</option><option value={30}>30 min</option><option value={45}>45 min</option><option value={60}>60 min</option></select></div>
+          <div><label className={lbl}>Hora de início</label><input type="number" min={0} max={23} value={cfg.horaInicio} onChange={(e) => set("horaInicio", Number(e.target.value))} className={inp} style={{ borderColor: "#E8E2D6" }} /></div>
+          <div><label className={lbl}>Hora de fim</label><input type="number" min={1} max={23} value={cfg.horaFim} onChange={(e) => set("horaFim", Number(e.target.value))} className={inp} style={{ borderColor: "#E8E2D6" }} /></div>
+          <div><label className={lbl}>Intervalo da grade</label><select value={cfg.intervalo} onChange={(e) => set("intervalo", Number(e.target.value))} className={inp} style={{ borderColor: "#E8E2D6" }}><option value={15}>15 min</option><option value={30}>30 min</option></select></div>
+          <div><label className={lbl}>Duração padrão</label><select value={cfg.duracaoPadrao} onChange={(e) => set("duracaoPadrao", Number(e.target.value))} className={inp} style={{ borderColor: "#E8E2D6" }}><option value={15}>15 min</option><option value={30}>30 min</option><option value={45}>45 min</option><option value={60}>60 min</option></select></div>
         </div>
       </div>
 
-      <div className={card + " mt-3"} style={{ borderColor: "#E8DFC8" }}>
-        <p className="text-[13px] font-medium text-[#475569] mb-1 flex items-center gap-1.5"><LuUsers size={16} /> Profissionais na agenda</p>
-        <p className="text-[12px] text-gray-400 mb-3">Quem aparece como coluna na visão Dia</p>
-        {profs.length === 0 ? <p className="text-[13px] text-gray-400">Cadastre profissionais em Configurações › Profissionais.</p> : profs.map((p: any) => {
+      <div className={card + " mt-3"} style={{ borderColor: "#E8E2D6" }}>
+        <p className="text-[13px] font-medium text-[#014D5E] mb-1 flex items-center gap-1.5"><span>👤</span> Profissionais na agenda</p>
+        <p className="text-[12px] text-[#8A989D] mb-3">Quem aparece como coluna na visão Dia</p>
+        {profs.length === 0 ? <p className="text-[13px] text-[#8A989D]">Cadastre profissionais em Configurações › Profissionais.</p> : profs.map((p: any) => {
           const on = !(cfg.profsOcultos || []).includes(p.id);
           return (
-            <div key={p.id} className="flex items-center justify-between py-2 border-b last:border-0" style={{ borderColor: "#eef0ec" }}>
-              <span className="text-[14px]">{p.nomeExibicao || p.nomeCompleto}{p.especialidade ? <span className="text-[12px] text-gray-400"> · {p.especialidade}</span> : null}{!p.userId ? <span className="text-[12px] text-amber-600"> · sem login</span> : null}</span>
-              <button onClick={() => toggleProf(p.id)} aria-label="Alternar" className="w-[38px] h-[22px] rounded-full relative transition" style={{ background: on ? "#009AAC" : "#d8d0bc" }}><span className="absolute top-[2px] w-[18px] h-[18px] rounded-full bg-white transition-all" style={{ left: on ? "18px" : "2px" }} /></button>
+            <div key={p.id} className="flex items-center justify-between py-2 border-b last:border-0" style={{ borderColor: "#F0EBE0" }}>
+              <span className="text-[14px]">{p.nomeExibicao || p.nomeCompleto}{p.especialidade ? <span className="text-[12px] text-[#8A989D]"> · {p.especialidade}</span> : null}{!p.userId ? <span className="text-[12px] text-amber-600"> · sem login</span> : null}</span>
+              <button onClick={() => toggleProf(p.id)} aria-label="Alternar" className="w-[38px] h-[22px] rounded-full relative transition" style={{ background: on ? "#009AAC" : "#8A989D" }}><span className="absolute top-[2px] w-[18px] h-[18px] rounded-full bg-white transition-all" style={{ left: on ? "18px" : "2px" }} /></button>
             </div>
           );
         })}
       </div>
 
-      <div className={card + " mt-3"} style={{ borderColor: "#E8DFC8" }}>
-        <p className="text-[13px] font-medium text-[#475569] mb-3 flex items-center gap-1.5"><LuPalette size={16} /> Cores por status</p>
+      <div className={card + " mt-3"} style={{ borderColor: "#E8E2D6" }}>
+        <p className="text-[13px] font-medium text-[#014D5E] mb-3 flex items-center gap-1.5"><span>🎨</span> Cores por status</p>
         <div className="flex flex-wrap gap-3">
           {STATUSES.map((st) => {
             const v = (cfg.cores && cfg.cores[st]) || COR_DEFAULT[st];
             return (
-              <label key={st} className="flex items-center gap-2 text-[13px] border rounded-lg px-2.5 py-1.5 cursor-pointer" style={{ borderColor: "#eef0ec" }}>
+              <label key={st} className="flex items-center gap-2 text-[13px] border rounded-[9px] px-2.5 py-1.5 cursor-pointer" style={{ borderColor: "#E8E2D6" }}>
                 <input type="color" value={v} onChange={(e) => setCor(st, e.target.value)} className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent" />
                 {st}
               </label>
@@ -87,7 +86,7 @@ export default function AgendaConfigPage() {
       </div>
 
       <div className="flex justify-end gap-2 mt-4">
-        <button onClick={salvar} disabled={saving} className="px-4 py-2 text-[14px] text-white rounded-lg disabled:opacity-60 flex items-center gap-1.5" style={{ background: "#009AAC" }}><LuCheck size={15} /> {saving ? "Salvando…" : "Salvar configurações"}</button>
+        <button onClick={salvar} disabled={saving} className="px-4 py-2 text-[14px] text-white rounded-[9px] disabled:opacity-60 flex items-center gap-1.5" style={{ background: "#009AAC" }}><span>✅</span> {saving ? "Salvando…" : "Salvar configurações"}</button>
       </div>
     </div>
   );

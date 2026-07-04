@@ -1,20 +1,28 @@
+// Tratamentos no padrão Base44 (bege + emojis).
+// Roupagem repaginada 04/07 — LÓGICA 100% preservada.
 'use client';
 
 import { useState, useEffect } from 'react';
-import {
-  LuSearch,
-  LuPlus,
-  LuPencil,
-  LuTrash,
-  LuUser,
-  LuPawPrint,
-  LuCalendar,
-  LuDollarSign,
-  LuSave,
-  LuEye
-} from 'react-icons/lu';
 import toast from 'react-hot-toast';
 import ConfirmDeleteModal from '@/components/common/ConfirmDeleteModal';
+
+// Paleta Base44 (mesmos tokens de components/ui/base44.tsx)
+const TEAL = '#009AAC';
+const TEAL_DARK = '#014D5E';
+const ORANGE = '#D85A30';
+const GREEN = '#0f6e56';
+const BG = '#F6F2EA';
+const SOFT = '#FBF9F4';
+const TINT = '#E0F4F6';
+const LINE = '#E8E2D6';
+const DIV = '#F0EBE0';
+const TXT = '#1F2A2E';
+const TXT2 = '#5C6B70';
+const TXT3 = '#8A989D';
+
+const inp: React.CSSProperties = { width: '100%', padding: '10px 12px', border: `1px solid ${LINE}`, borderRadius: 9, fontSize: 13.5, fontFamily: 'inherit', color: TXT, background: '#fff', boxSizing: 'border-box' };
+const lbl: React.CSSProperties = { fontSize: 13, color: TXT2, display: 'block', marginBottom: 6, fontWeight: 500 };
+const pillBase: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 999, fontSize: 12, fontWeight: 500 };
 
 interface Treatment {
   id: string;
@@ -180,16 +188,16 @@ export default function TratamentosPage() {
       minute: '2-digit'});
   };
 
-  const getProductTypeBadge = (type: string) => {
+  const getProductTypeBadge = (type: string): React.CSSProperties => {
     switch (type) {
       case 'MEDICINE':
-        return 'bg-blue-100 text-blue-800';
+        return { background: TINT, color: TEAL_DARK };
       case 'VACCINE':
-        return 'bg-green-100 text-green-800';
+        return { background: '#e1f5ee', color: GREEN };
       case 'SERVICE':
-        return 'bg-purple-100 text-purple-800';
+        return { background: '#fef0e8', color: '#993C1D' };
       default:
-        return 'bg-gray-100 text-gray-800';
+        return { background: DIV, color: TXT2 };
     }
   };
 
@@ -206,20 +214,20 @@ export default function TratamentosPage() {
     }
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string): React.CSSProperties => {
     switch (status) {
       case 'SCHEDULED':
-        return 'bg-blue-100 text-blue-800';
+        return { background: TINT, color: TEAL_DARK };
       case 'CONFIRMED':
-        return 'bg-indigo-100 text-indigo-800';
+        return { background: '#E0F4F6', color: TEAL_DARK };
       case 'IN_PROGRESS':
-        return 'bg-yellow-100 text-yellow-800';
+        return { background: '#fdf6e3', color: '#854F0B' };
       case 'COMPLETED':
-        return 'bg-green-100 text-green-800';
+        return { background: '#e1f5ee', color: GREEN };
       case 'CANCELED':
-        return 'bg-red-100 text-red-800';
+        return { background: '#fef0e8', color: '#993C1D' };
       default:
-        return 'bg-gray-100 text-gray-800';
+        return { background: DIV, color: TXT2 };
     }
   };
 
@@ -383,17 +391,24 @@ export default function TratamentosPage() {
 
   if (loading && treatments.length === 0) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/10 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Carregando tratamentos...</p>
+      <div style={{ minHeight: '100vh', background: BG, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ width: 48, height: 48, margin: '0 auto', borderRadius: '50%', border: `3px solid ${LINE}`, borderBottomColor: TEAL, animation: 'spin 1s linear infinite' }}></div>
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+          <p style={{ marginTop: 16, color: TXT2 }}>Carregando tratamentos...</p>
         </div>
       </div>
     );
   }
 
+  const statCards = [
+    { label: 'Total de Tratamentos', value: stats.total, emoji: '💉', accent: TEAL },
+    { label: 'Custo Total', value: formatCurrency(stats.totalCost), emoji: '💲', accent: GREEN },
+    { label: 'Custo Médio', value: formatCurrency(stats.avgCost), emoji: '📈', accent: TEAL_DARK },
+  ];
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/10 w-full overflow-hidden">
+    <div style={{ minHeight: '100vh', background: BG, width: '100%', overflow: 'hidden' }}>
       <ConfirmDeleteModal
         isOpen={Boolean(treatmentToDelete)}
         entityLabel="Tratamento"
@@ -407,27 +422,26 @@ export default function TratamentosPage() {
         onConfirm={confirmDelete}
       />
 
-      <div className="p-6">
-        <div className="max-w-7xl mx-auto">
+      <div style={{ padding: '24px' }}>
+        <div style={{ maxWidth: 1280, margin: '0 auto' }}>
           {/* Header */}
-          <div className="mb-8">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div style={{ marginBottom: 32 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
               <div>
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-                  Tratamentos
+                <h1 style={{ fontSize: 28, fontWeight: 500, color: TEAL_DARK, display: 'flex', alignItems: 'center', gap: 10, margin: 0 }}>
+                  <span style={{ fontSize: 26 }}>💉</span> Tratamentos
                 </h1>
-                <p className="text-gray-600 mt-2">
+                <p style={{ color: TXT2, marginTop: 8 }}>
                   Gerencie tratamentos realizados nos atendimentos
                 </p>
               </div>
-              <div className="flex gap-3">
+              <div style={{ display: 'flex', gap: 12 }}>
                 <button
                   onClick={() => setIsCreateModalOpen(true)}
-                  className="group px-6 py-3 text-sm font-semibold text-white bg-gradient-to-r from-cyan-600 to-cyan-600 rounded-2xl hover:from-cyan-700 hover:to-cyan-700 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-cyan-500/25 flex items-center space-x-2 relative overflow-hidden"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 18px', fontSize: 13, fontWeight: 500, color: '#fff', background: TEAL, border: 'none', borderRadius: 9, cursor: 'pointer' }}
                 >
-                  <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent transform -skew-x-12 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
-                  <LuPlus className="w-4 h-4 relative z-10" />
-                  <span className="relative z-10">Novo Tratamento</span>
+                  <span style={{ fontSize: 15 }}>➕</span>
+                  <span>Novo Tratamento</span>
                 </button>
               </div>
             </div>
@@ -435,65 +449,41 @@ export default function TratamentosPage() {
 
           {/* Error Message */}
           {error && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-2xl text-red-700">
+            <div style={{ marginBottom: 24, padding: 16, background: '#fef0e8', border: `1px solid ${ORANGE}`, borderRadius: 12, color: '#993C1D' }}>
               {error}
               <button
                 onClick={() => setError(null)}
-                className="float-right text-red-500 hover:text-red-700"
+                style={{ float: 'right', border: 'none', background: 'none', cursor: 'pointer', color: '#993C1D' }}
               >
-                <span style={{fontSize:"14px"}}>✕</span>
+                <span style={{ fontSize: 14 }}>✕</span>
               </button>
             </div>
           )}
 
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            {[
-              {
-                label: 'Total de Tratamentos',
-                value: stats.total,
-                color: 'gray',
-                icon: () => <span style={{fontSize:"14px"}}>💉</span>},
-              {
-                label: 'Custo Total',
-                value: formatCurrency(stats.totalCost),
-                color: 'green',
-                icon: LuDollarSign},
-              {
-                label: 'Custo Médio',
-                value: formatCurrency(stats.avgCost),
-                color: 'blue',
-                icon: () => <span style={{fontSize:"14px"}}>📈</span>},
-            ].map((stat) => {
-              const colorMap: Record<string, string> = {
-                gray: 'from-gray-500/10 to-gray-500/5 border-gray-200/80',
-                green: 'from-green-500/10 to-green-500/5 border-green-200/80',
-                blue: 'from-blue-500/10 to-blue-500/5 border-blue-200/80'};
-              const iconColorMap: Record<string, string> = {
-                gray: 'text-gray-600',
-                green: 'text-green-600',
-                blue: 'text-blue-600'};
-              return (
-                <div
-                  key={stat.label}
-                  className={`bg-gradient-to-br ${colorMap[stat.color]} border rounded-2xl p-5 transition-all duration-300 hover:shadow-lg`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-500 font-medium">{stat.label}</p>
-                      <p className="text-2xl font-bold text-gray-900 mt-1">{stat.value}</p>
-                    </div>
-                    <stat.icon className={`w-8 h-8 ${iconColorMap[stat.color]}`} />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 18, marginBottom: 32 }}>
+            {statCards.map((stat) => (
+              <div
+                key={stat.label}
+                style={{ background: '#fff', border: `1px solid ${LINE}`, borderRadius: 13, padding: 20 }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div>
+                    <p style={{ fontSize: 13, color: TXT3, fontWeight: 500, margin: 0 }}>{stat.label}</p>
+                    <p style={{ fontSize: 24, fontWeight: 500, color: TEAL_DARK, marginTop: 4 }}>{stat.value}</p>
+                  </div>
+                  <div style={{ width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', background: SOFT, borderRadius: 11, fontSize: 20 }}>
+                    <span>{stat.emoji}</span>
                   </div>
                 </div>
-              );
-            })}
+              </div>
+            ))}
           </div>
 
           {/* Search */}
-          <div className="mb-6">
-            <div className="relative max-w-md">
-              <LuSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ position: 'relative', maxWidth: 420 }}>
+              <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', fontSize: 15 }}>🔍</span>
               <input
                 type="text"
                 placeholder="Buscar por descrição, pet ou tutor..."
@@ -502,25 +492,26 @@ export default function TratamentosPage() {
                   setSearchTerm(e.target.value);
                   setPage(1);
                 }}
-                className="w-full pl-12 pr-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/30 focus:border-cyan-300 transition-all"
+                style={{ ...inp, paddingLeft: 42 }}
               />
             </div>
           </div>
 
           {/* Treatments List */}
           {loading && treatments.length > 0 && (
-            <div className="flex items-center justify-center py-4 mb-4">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-cyan-600 mr-3"></div>
-              <span className="text-gray-500 text-sm">Atualizando...</span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px 0', marginBottom: 16 }}>
+              <div style={{ width: 24, height: 24, borderRadius: '50%', border: `2px solid ${LINE}`, borderBottomColor: TEAL, marginRight: 12, animation: 'spin 1s linear infinite' }}></div>
+              <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+              <span style={{ color: TXT2, fontSize: 13 }}>Atualizando...</span>
             </div>
           )}
           {treatments.length === 0 && !loading ? (
-            <div className="text-center py-20">
-              <span style={{fontSize:"14px"}}>💉</span>
-              <h3 className="text-xl font-semibold text-gray-600 mb-2">
+            <div style={{ textAlign: 'center', padding: '80px 0' }}>
+              <div style={{ fontSize: 34 }}>💉</div>
+              <h3 style={{ fontSize: 19, fontWeight: 500, color: TXT2, margin: '12px 0 8px' }}>
                 Nenhum tratamento encontrado
               </h3>
-              <p className="text-gray-400 mb-6">
+              <p style={{ color: TXT3, marginBottom: 24 }}>
                 {searchTerm
                   ? 'Tente ajustar sua busca'
                   : 'Comece registrando um novo tratamento'}
@@ -528,63 +519,59 @@ export default function TratamentosPage() {
               {!searchTerm && (
                 <button
                   onClick={() => setIsCreateModalOpen(true)}
-                  className="px-6 py-3 bg-cyan-600 text-white rounded-2xl hover:bg-cyan-700 transition-colors"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 18px', background: TEAL, color: '#fff', border: 'none', borderRadius: 9, cursor: 'pointer', fontWeight: 500 }}
                 >
-                  <LuPlus className="w-4 h-4 inline mr-2" />
+                  <span>➕</span>
                   Novo Tratamento
                 </button>
               )}
             </div>
           ) : (
             <>
-              <div className="grid gap-4">
+              <div style={{ display: 'grid', gap: 16 }}>
                 {treatments.map((treatment) => (
                   <div
                     key={treatment.id}
-                    className="bg-white/80 backdrop-blur-sm border border-gray-200/80 rounded-2xl p-5 hover:shadow-lg transition-all duration-300 hover:border-cyan-200/50"
+                    style={{ background: '#fff', border: `1px solid ${LINE}`, borderRadius: 13, padding: 20 }}
                   >
-                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start gap-3">
-                          <div className="p-2 bg-cyan-50 rounded-xl flex-shrink-0">
-                            <span style={{fontSize:"14px"}}>💉</span>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                          <div style={{ width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', background: TINT, borderRadius: 10, flexShrink: 0, fontSize: 16 }}>
+                            <span>💉</span>
                           </div>
-                          <div className="min-w-0 flex-1">
-                            <h3 className="font-semibold text-gray-900 truncate">
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <h3 style={{ fontWeight: 500, color: TEAL_DARK, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {treatment.description}
                             </h3>
-                            <div className="flex flex-wrap items-center gap-3 mt-2 text-sm text-gray-500">
-                              <span className="flex items-center gap-1">
-                                <LuPawPrint className="w-3.5 h-3.5" />
+                            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12, marginTop: 8, fontSize: 13, color: TXT2 }}>
+                              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                <span style={{ fontSize: 13 }}>🐾</span>
                                 {treatment.pet.name}
-                                <span className="text-gray-400">
+                                <span style={{ color: TXT3 }}>
                                   ({treatment.pet.species}
                                   {treatment.pet.breed ? ` - ${treatment.pet.breed}` : ''})
                                 </span>
                               </span>
                               {treatment.appointment?.tutor && (
-                                <span className="flex items-center gap-1">
-                                  <LuUser className="w-3.5 h-3.5" />
+                                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                  <span style={{ fontSize: 13 }}>👤</span>
                                   {treatment.appointment.tutor.name}
                                 </span>
                               )}
-                              <span className="flex items-center gap-1">
-                                <LuCalendar className="w-3.5 h-3.5" />
+                              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                <span style={{ fontSize: 13 }}>📅</span>
                                 {formatDate(treatment.createdAt)}
                               </span>
                             </div>
-                            <div className="flex flex-wrap items-center gap-2 mt-2">
+                            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginTop: 8 }}>
                               {treatment.product && (
-                                <span
-                                  className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${getProductTypeBadge(treatment.product.type)}`}
-                                >
-                                  <span style={{fontSize:"14px"}}>📦</span>
+                                <span style={{ ...pillBase, ...getProductTypeBadge(treatment.product.type) }}>
+                                  <span style={{ fontSize: 13 }}>📦</span>
                                   {treatment.product.name}
                                 </span>
                               )}
-                              <span
-                                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadge(treatment.appointment.status)}`}
-                              >
+                              <span style={{ ...pillBase, ...getStatusBadge(treatment.appointment.status) }}>
                                 {getStatusLabel(treatment.appointment.status)}
                               </span>
                             </div>
@@ -592,33 +579,33 @@ export default function TratamentosPage() {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-4 lg:flex-shrink-0">
-                        <div className="text-right">
-                          <p className="text-lg font-bold text-gray-900">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexShrink: 0 }}>
+                        <div style={{ textAlign: 'right' }}>
+                          <p style={{ fontSize: 18, fontWeight: 500, color: TEAL_DARK, margin: 0 }}>
                             {formatCurrency(treatment.cost)}
                           </p>
                         </div>
-                        <div className="flex items-center gap-1">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                           <button
                             onClick={() => openDetails(treatment)}
-                            className="p-2 text-gray-400 hover:text-cyan-600 hover:bg-cyan-50 rounded-xl transition-colors"
+                            style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 15, padding: 6, borderRadius: 8 }}
                             title="Ver detalhes"
                           >
-                            <LuEye className="w-4 h-4" />
+                            <span>👁️</span>
                           </button>
                           <button
                             onClick={() => openEdit(treatment)}
-                            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors"
+                            style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 15, padding: 6, borderRadius: 8 }}
                             title="Editar"
                           >
-                            <LuPencil className="w-4 h-4" />
+                            <span>✏️</span>
                           </button>
                           <button
                             onClick={() => requestDelete(treatment)}
-                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+                            style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 15, padding: 6, borderRadius: 8 }}
                             title="Excluir"
                           >
-                            <LuTrash className="w-4 h-4" />
+                            <span>🗑️</span>
                           </button>
                         </div>
                       </div>
@@ -629,27 +616,27 @@ export default function TratamentosPage() {
 
               {/* Pagination */}
               {totalPages > 1 && (
-                <div className="flex items-center justify-between mt-6">
-                  <p className="text-sm text-gray-500">
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 24 }}>
+                  <p style={{ fontSize: 13, color: TXT2 }}>
                     Mostrando {treatments.length} de {totalItems} tratamentos
                   </p>
-                  <div className="flex items-center gap-2">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <button
                       onClick={() => setPage((p) => Math.max(1, p - 1))}
                       disabled={page <= 1}
-                      className="p-2 rounded-xl border border-gray-200 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      style={{ padding: 8, borderRadius: 9, border: `1px solid ${LINE}`, background: '#fff', cursor: page <= 1 ? 'not-allowed' : 'pointer', opacity: page <= 1 ? 0.5 : 1 }}
                     >
-                      <span style={{fontSize:"12px"}}>◀</span>
+                      <span style={{ fontSize: 12 }}>◀</span>
                     </button>
-                    <span className="text-sm text-gray-600 px-3">
+                    <span style={{ fontSize: 13, color: TXT2, padding: '0 12px' }}>
                       {page} / {totalPages}
                     </span>
                     <button
                       onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                       disabled={page >= totalPages}
-                      className="p-2 rounded-xl border border-gray-200 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      style={{ padding: 8, borderRadius: 9, border: `1px solid ${LINE}`, background: '#fff', cursor: page >= totalPages ? 'not-allowed' : 'pointer', opacity: page >= totalPages ? 0.5 : 1 }}
                     >
-                      <span style={{fontSize:"14px"}}>▶</span>
+                      <span style={{ fontSize: 14 }}>▶</span>
                     </button>
                   </div>
                 </div>
@@ -661,110 +648,106 @@ export default function TratamentosPage() {
 
       {/* Detail Modal */}
       {isModalOpen && selectedTreatment && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-100">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold text-gray-900">Detalhes do Tratamento</h2>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(1,43,46,.45)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ background: SOFT, border: `1px solid ${LINE}`, borderRadius: 16, maxWidth: 640, width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ padding: '16px 20px', borderBottom: `1px solid ${DIV}` }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <h2 style={{ fontSize: 18, fontWeight: 500, color: TEAL_DARK, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}><span>💉</span> Detalhes do Tratamento</h2>
                 <button
                   onClick={() => setIsModalOpen(false)}
-                  className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
+                  style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, color: TXT3, lineHeight: 1 }}
                 >
-                  <span style={{fontSize:"14px"}}>✕</span>
+                  <span>✕</span>
                 </button>
               </div>
             </div>
-            <div className="p-6 space-y-6">
+            <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 24 }}>
               <div>
-                <h3 className="text-sm font-medium text-gray-500 mb-1">Descrição</h3>
-                <p className="text-gray-900 font-semibold text-lg">{selectedTreatment.description}</p>
+                <h3 style={{ fontSize: 12, fontWeight: 500, color: TXT3, marginBottom: 4 }}>Descrição</h3>
+                <p style={{ color: TXT, fontWeight: 500, fontSize: 17, margin: 0 }}>{selectedTreatment.description}</p>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                 <div>
-                  <h3 className="text-sm font-medium text-gray-500 mb-1">Custo</h3>
-                  <p className="text-gray-900 font-bold text-xl text-cyan-700">
+                  <h3 style={{ fontSize: 12, fontWeight: 500, color: TXT3, marginBottom: 4 }}>Custo</h3>
+                  <p style={{ fontWeight: 500, fontSize: 20, color: TEAL_DARK, margin: 0 }}>
                     {formatCurrency(selectedTreatment.cost)}
                   </p>
                 </div>
                 <div>
-                  <h3 className="text-sm font-medium text-gray-500 mb-1">Data</h3>
-                  <p className="text-gray-900">{formatDateTime(selectedTreatment.createdAt)}</p>
+                  <h3 style={{ fontSize: 12, fontWeight: 500, color: TXT3, marginBottom: 4 }}>Data</h3>
+                  <p style={{ color: TXT, margin: 0 }}>{formatDateTime(selectedTreatment.createdAt)}</p>
                 </div>
               </div>
 
-              <div className="bg-gray-50 rounded-2xl p-4">
-                <h3 className="text-sm font-medium text-gray-500 mb-3 flex items-center gap-2">
-                  <LuPawPrint className="w-4 h-4" /> Pet
+              <div style={{ background: '#fff', border: `1px solid ${LINE}`, borderRadius: 12, padding: 16 }}>
+                <h3 style={{ fontSize: 12, fontWeight: 500, color: TXT3, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontSize: 14 }}>🐾</span> Pet
                 </h3>
-                <p className="text-gray-900 font-medium">
+                <p style={{ color: TXT, fontWeight: 500, margin: 0 }}>
                   {selectedTreatment.pet.name}{' '}
-                  <span className="text-gray-500 font-normal">
+                  <span style={{ color: TXT2, fontWeight: 400 }}>
                     ({selectedTreatment.pet.species}
                     {selectedTreatment.pet.breed ? ` - ${selectedTreatment.pet.breed}` : ''})
                   </span>
                 </p>
               </div>
 
-              <div className="bg-gray-50 rounded-2xl p-4">
-                <h3 className="text-sm font-medium text-gray-500 mb-3 flex items-center gap-2">
-                  <span style={{fontSize:"14px"}}>🩺</span> Consulta
+              <div style={{ background: '#fff', border: `1px solid ${LINE}`, borderRadius: 12, padding: 16 }}>
+                <h3 style={{ fontSize: 12, fontWeight: 500, color: TXT3, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontSize: 14 }}>🩺</span> Consulta
                 </h3>
-                <p className="text-gray-900 font-medium">
+                <p style={{ color: TXT, fontWeight: 500, margin: 0 }}>
                   {selectedTreatment.appointment.description || 'Sem descrição'}
                 </p>
-                <div className="flex items-center gap-3 mt-2 text-sm text-gray-500">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8, fontSize: 13, color: TXT2 }}>
                   <span>{formatDate(selectedTreatment.appointment.date)}</span>
-                  <span
-                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadge(selectedTreatment.appointment.status)}`}
-                  >
+                  <span style={{ ...pillBase, ...getStatusBadge(selectedTreatment.appointment.status) }}>
                     {getStatusLabel(selectedTreatment.appointment.status)}
                   </span>
                 </div>
                 {selectedTreatment.appointment.tutor && (
-                  <p className="text-sm text-gray-500 mt-2 flex items-center gap-1">
-                    <LuUser className="w-3.5 h-3.5" />
+                  <p style={{ fontSize: 13, color: TXT2, marginTop: 8, display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ fontSize: 13 }}>👤</span>
                     Tutor: {selectedTreatment.appointment.tutor.name}
                   </p>
                 )}
               </div>
 
               {selectedTreatment.product && (
-                <div className="bg-gray-50 rounded-2xl p-4">
-                  <h3 className="text-sm font-medium text-gray-500 mb-3 flex items-center gap-2">
-                    <span style={{fontSize:"14px"}}>📦</span> Produto Utilizado
+                <div style={{ background: '#fff', border: `1px solid ${LINE}`, borderRadius: 12, padding: 16 }}>
+                  <h3 style={{ fontSize: 12, fontWeight: 500, color: TXT3, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 14 }}>📦</span> Produto Utilizado
                   </h3>
-                  <div className="flex items-center justify-between">
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <div>
-                      <p className="text-gray-900 font-medium">{selectedTreatment.product.name}</p>
-                      <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium mt-1 ${getProductTypeBadge(selectedTreatment.product.type)}`}
-                      >
+                      <p style={{ color: TXT, fontWeight: 500, margin: 0 }}>{selectedTreatment.product.name}</p>
+                      <span style={{ ...pillBase, marginTop: 4, ...getProductTypeBadge(selectedTreatment.product.type) }}>
                         {getProductTypeLabel(selectedTreatment.product.type)}
                       </span>
                     </div>
-                    <p className="text-gray-900 font-semibold">
+                    <p style={{ color: TXT, fontWeight: 500, margin: 0 }}>
                       {formatCurrency(selectedTreatment.product.price)}
                     </p>
                   </div>
                 </div>
               )}
             </div>
-            <div className="p-6 border-t border-gray-100 flex gap-3 justify-end">
+            <div style={{ padding: '16px 20px', borderTop: `1px solid ${DIV}`, display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
               <button
                 onClick={() => openEdit(selectedTreatment)}
-                className="px-5 py-2.5 text-sm font-medium text-blue-700 bg-blue-50 rounded-xl hover:bg-blue-100 transition-colors flex items-center gap-2"
+                style={{ padding: '9px 16px', fontSize: 13, fontWeight: 500, color: TEAL_DARK, background: '#fff', border: `1px solid ${LINE}`, borderRadius: 9, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}
               >
-                <LuPencil className="w-4 h-4" /> Editar
+                <span>✏️</span> Editar
               </button>
               <button
                 onClick={() => {
                   requestDelete(selectedTreatment);
                   setIsModalOpen(false);
                 }}
-                className="px-5 py-2.5 text-sm font-medium text-red-700 bg-red-50 rounded-xl hover:bg-red-100 transition-colors flex items-center gap-2"
+                style={{ padding: '9px 16px', fontSize: 13, fontWeight: 500, color: '#993C1D', background: '#fef0e8', border: `1px solid ${ORANGE}`, borderRadius: 9, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}
               >
-                <LuTrash className="w-4 h-4" /> Excluir
+                <span>🗑️</span> Excluir
               </button>
             </div>
           </div>
@@ -773,28 +756,28 @@ export default function TratamentosPage() {
 
       {/* Create Modal */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-100">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold text-gray-900">Novo Tratamento</h2>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(1,43,46,.45)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ background: SOFT, border: `1px solid ${LINE}`, borderRadius: 16, maxWidth: 640, width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ padding: '16px 20px', borderBottom: `1px solid ${DIV}` }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <h2 style={{ fontSize: 18, fontWeight: 500, color: TEAL_DARK, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}><span>💉</span> Novo Tratamento</h2>
                 <button
                   onClick={() => setIsCreateModalOpen(false)}
-                  className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
+                  style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, color: TXT3, lineHeight: 1 }}
                 >
-                  <span style={{fontSize:"14px"}}>✕</span>
+                  <span>✕</span>
                 </button>
               </div>
             </div>
-            <div className="p-6 space-y-5">
+            <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 20 }}>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label style={lbl}>
                   Consulta *
                 </label>
                 <select
                   value={formData.appointmentId}
                   onChange={(e) => handleSelectAppointment(e.target.value)}
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-cyan-500/30 focus:border-cyan-300"
+                  style={inp}
                 >
                   <option value="">Selecione uma consulta</option>
                   {appointments.map((apt) => (
@@ -807,14 +790,14 @@ export default function TratamentosPage() {
                   ))}
                 </select>
                 {appointments.length === 0 && (
-                  <p className="text-sm text-orange-600 mt-1">
+                  <p style={{ fontSize: 13, color: ORANGE, marginTop: 4 }}>
                     Nenhuma consulta disponível. Crie uma consulta primeiro em Agendamentos.
                   </p>
                 )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label style={lbl}>
                   Descrição do Tratamento *
                 </label>
                 <textarea
@@ -824,12 +807,12 @@ export default function TratamentosPage() {
                   }
                   placeholder="Descreva o tratamento realizado..."
                   rows={3}
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/30 focus:border-cyan-300 resize-none"
+                  style={{ ...inp, resize: 'none' }}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label style={lbl}>
                   Custo (R$)
                 </label>
                 <input
@@ -840,12 +823,12 @@ export default function TratamentosPage() {
                   onChange={(e) =>
                     setFormData((prev) => ({ ...prev, cost: parseFloat(e.target.value) || 0 }))
                   }
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-cyan-500/30 focus:border-cyan-300"
+                  style={inp}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label style={lbl}>
                   Produto (opcional)
                 </label>
                 <select
@@ -853,7 +836,7 @@ export default function TratamentosPage() {
                   onChange={(e) =>
                     setFormData((prev) => ({ ...prev, productId: e.target.value || null }))
                   }
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-cyan-500/30 focus:border-cyan-300"
+                  style={inp}
                 >
                   <option value="">Nenhum produto</option>
                   {products.map((prod) => (
@@ -865,19 +848,19 @@ export default function TratamentosPage() {
                 </select>
               </div>
             </div>
-            <div className="p-6 border-t border-gray-100 flex gap-3 justify-end">
+            <div style={{ padding: '16px 20px', borderTop: `1px solid ${DIV}`, display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
               <button
                 onClick={() => setIsCreateModalOpen(false)}
-                className="px-5 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors"
+                style={{ padding: '9px 16px', fontSize: 13, fontWeight: 500, color: TXT2, background: '#fff', border: `1px solid ${LINE}`, borderRadius: 9, cursor: 'pointer' }}
               >
                 Cancelar
               </button>
               <button
                 onClick={handleCreateTreatment}
                 disabled={submitting}
-                className="px-5 py-2.5 text-sm font-medium text-white bg-cyan-600 rounded-xl hover:bg-cyan-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                style={{ padding: '9px 18px', fontSize: 13, fontWeight: 500, color: '#fff', background: TEAL, border: 'none', borderRadius: 9, cursor: 'pointer', opacity: submitting ? 0.5 : 1, display: 'inline-flex', alignItems: 'center', gap: 8 }}
               >
-                <LuSave className="w-4 h-4" />
+                <span>✅</span>
                 {submitting ? 'Salvando...' : 'Salvar Tratamento'}
               </button>
             </div>
@@ -887,27 +870,27 @@ export default function TratamentosPage() {
 
       {/* Edit Modal */}
       {isEditModalOpen && selectedTreatment && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-100">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold text-gray-900">Editar Tratamento</h2>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(1,43,46,.45)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ background: SOFT, border: `1px solid ${LINE}`, borderRadius: 16, maxWidth: 640, width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ padding: '16px 20px', borderBottom: `1px solid ${DIV}` }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <h2 style={{ fontSize: 18, fontWeight: 500, color: TEAL_DARK, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}><span>✏️</span> Editar Tratamento</h2>
                 <button
                   onClick={() => setIsEditModalOpen(false)}
-                  className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
+                  style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, color: TXT3, lineHeight: 1 }}
                 >
-                  <span style={{fontSize:"14px"}}>✕</span>
+                  <span>✕</span>
                 </button>
               </div>
             </div>
-            <div className="p-6 space-y-5">
-              <div className="bg-gray-50 rounded-2xl p-4">
-                <p className="text-sm text-gray-500">Consulta</p>
-                <p className="text-gray-900 font-medium">
+            <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+              <div style={{ background: '#fff', border: `1px solid ${LINE}`, borderRadius: 12, padding: 16 }}>
+                <p style={{ fontSize: 12, color: TXT3, margin: 0 }}>Consulta</p>
+                <p style={{ color: TXT, fontWeight: 500, margin: '2px 0 0' }}>
                   {selectedTreatment.appointment.description || 'Sem descrição'} -{' '}
                   {formatDate(selectedTreatment.appointment.date)}
                 </p>
-                <p className="text-sm text-gray-500 mt-1">
+                <p style={{ fontSize: 13, color: TXT2, marginTop: 4 }}>
                   Pet: {selectedTreatment.pet.name}
                   {selectedTreatment.appointment.tutor
                     ? ` | Tutor: ${selectedTreatment.appointment.tutor.name}`
@@ -916,7 +899,7 @@ export default function TratamentosPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label style={lbl}>
                   Descrição do Tratamento *
                 </label>
                 <textarea
@@ -925,12 +908,12 @@ export default function TratamentosPage() {
                     setEditFormData((prev) => ({ ...prev, description: e.target.value }))
                   }
                   rows={3}
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-cyan-500/30 focus:border-cyan-300 resize-none"
+                  style={{ ...inp, resize: 'none' }}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label style={lbl}>
                   Custo (R$)
                 </label>
                 <input
@@ -943,12 +926,12 @@ export default function TratamentosPage() {
                       ...prev,
                       cost: parseFloat(e.target.value) || 0}))
                   }
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-cyan-500/30 focus:border-cyan-300"
+                  style={inp}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label style={lbl}>
                   Produto (opcional)
                 </label>
                 <select
@@ -956,7 +939,7 @@ export default function TratamentosPage() {
                   onChange={(e) =>
                     setEditFormData((prev) => ({ ...prev, productId: e.target.value || null }))
                   }
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-cyan-500/30 focus:border-cyan-300"
+                  style={inp}
                 >
                   <option value="">Nenhum produto</option>
                   {products.map((prod) => (
@@ -968,19 +951,19 @@ export default function TratamentosPage() {
                 </select>
               </div>
             </div>
-            <div className="p-6 border-t border-gray-100 flex gap-3 justify-end">
+            <div style={{ padding: '16px 20px', borderTop: `1px solid ${DIV}`, display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
               <button
                 onClick={() => setIsEditModalOpen(false)}
-                className="px-5 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors"
+                style={{ padding: '9px 16px', fontSize: 13, fontWeight: 500, color: TXT2, background: '#fff', border: `1px solid ${LINE}`, borderRadius: 9, cursor: 'pointer' }}
               >
                 Cancelar
               </button>
               <button
                 onClick={handleUpdateTreatment}
                 disabled={submitting}
-                className="px-5 py-2.5 text-sm font-medium text-white bg-cyan-600 rounded-xl hover:bg-cyan-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                style={{ padding: '9px 18px', fontSize: 13, fontWeight: 500, color: '#fff', background: TEAL, border: 'none', borderRadius: 9, cursor: 'pointer', opacity: submitting ? 0.5 : 1, display: 'inline-flex', alignItems: 'center', gap: 8 }}
               >
-                <LuSave className="w-4 h-4" />
+                <span>✅</span>
                 {submitting ? 'Salvando...' : 'Salvar Alterações'}
               </button>
             </div>

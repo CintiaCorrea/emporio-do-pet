@@ -3,13 +3,19 @@
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import {
-  LuArrowLeft,
-  LuPencil,
-  LuFileText,
-  LuCheck
-} from 'react-icons/lu';
 import toast from 'react-hot-toast';
+
+// Paleta Base44 (mesmos tokens de components/ui/base44.tsx)
+const TEAL = '#009AAC';
+const TEAL_DARK = '#014D5E';
+const GREEN = '#0f6e56';
+const BG = '#F6F2EA';
+const TINT = '#E0F4F6';
+const LINE = '#E8E2D6';
+const DIV = '#F0EBE0';
+const TXT = '#1F2A2E';
+const TXT2 = '#5C6B70';
+const TXT3 = '#8A989D';
 
 interface Document {
   id: string;
@@ -45,16 +51,19 @@ function extractErrorMessage(data: unknown, fallback: string): string {
 const statusConfig = {
   DRAFT: {
     label: 'Rascunho',
-    color: 'bg-yellow-100 text-yellow-700',
-    icon: () => <span style={{fontSize:"14px"}}>⏱</span>},
+    bg: '#fdf6e3',
+    fg: '#854F0B',
+    icon: '⏱'},
   PUBLISHED: {
     label: 'Publicado',
-    color: 'bg-green-100 text-green-700',
-    icon: LuCheck},
+    bg: '#e1f5ee',
+    fg: GREEN,
+    icon: '✅'},
   ARCHIVED: {
     label: 'Arquivado',
-    color: 'bg-gray-100 text-gray-700',
-    icon: () => <span style={{fontSize:"14px"}}>📦</span>}};
+    bg: DIV,
+    fg: TXT2,
+    icon: '📦'}};
 
 function formatDate(dateString: string): string {
   return new Date(dateString).toLocaleDateString('pt-BR', {
@@ -102,14 +111,14 @@ export default function DocumentDetailPage({
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/20 p-6">
-        <div className="max-w-4xl mx-auto">
-          <div className="animate-pulse space-y-6">
-            <div className="h-8 bg-gray-200 rounded w-1/3" />
-            <div className="bg-white rounded-2xl p-8 space-y-4">
-              <div className="h-6 bg-gray-200 rounded w-1/2" />
-              <div className="h-4 bg-gray-200 rounded w-full" />
-              <div className="h-4 bg-gray-200 rounded w-3/4" />
+      <div style={{ minHeight: '100%', background: BG, padding: 24 }}>
+        <div style={{ maxWidth: 896, margin: '0 auto' }}>
+          <div className="animate-pulse" style={{ display: 'flex', flexDirection: 'column', gap: 24, opacity: 0.7 }}>
+            <div style={{ height: 32, background: DIV, borderRadius: 8, width: '33%' }} />
+            <div style={{ background: '#fff', borderRadius: 14, padding: 32, display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ height: 24, background: DIV, borderRadius: 6, width: '50%' }} />
+              <div style={{ height: 16, background: DIV, borderRadius: 6, width: '100%' }} />
+              <div style={{ height: 16, background: DIV, borderRadius: 6, width: '75%' }} />
             </div>
           </div>
         </div>
@@ -122,71 +131,68 @@ export default function DocumentDetailPage({
   }
 
   const status = statusConfig[document.status] || statusConfig.DRAFT;
-  const StatusIcon = status?.icon ;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/20 w-full">
-      <div className="p-6">
-        <div className="max-w-4xl mx-auto">
+    <div style={{ minHeight: '100%', background: BG, width: '100%' }}>
+      <div style={{ padding: 24 }}>
+        <div style={{ maxWidth: 896, margin: '0 auto' }}>
           {/* Header */}
-          <div className="flex items-center justify-between mb-6 print:hidden">
-            <div className="flex items-center gap-4">
+          <div className="print:hidden" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', marginBottom: 22 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
               <Link
                 href="/dashboard/erp/documentos"
-                className="p-2 hover:bg-white rounded-xl transition-colors"
+                style={{ display: 'inline-flex', padding: 8, borderRadius: 9, textDecoration: 'none', fontSize: 18, color: TXT2 }}
               >
-                <LuArrowLeft className="w-5 h-5 text-gray-600" />
+                ←
               </Link>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-                  <div className="p-2 bg-blue-100 rounded-xl">
-                    <LuFileText className="w-6 h-6 text-blue-600" />
-                  </div>
+                <h1 style={{ fontSize: 22, fontWeight: 500, color: TEAL_DARK, display: 'flex', alignItems: 'center', gap: 10, margin: 0 }}>
+                  <span style={{ fontSize: 24 }}>📄</span>
                   {document.title}
                 </h1>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <button
                 onClick={handlePrint}
-                className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '10px 16px', background: '#fff', border: `1px solid ${LINE}`, color: TXT2, borderRadius: 9, fontSize: 13.5, cursor: 'pointer' }}
               >
-                <span style={{fontSize:"14px"}}>🖨</span>
+                <span style={{ fontSize: 14 }}>🖨️</span>
                 Imprimir
               </button>
               <Link
                 href={`/dashboard/erp/documentos/${id}/editar`}
-                className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg shadow-blue-500/25 font-medium"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '10px 16px', background: TEAL, color: '#fff', borderRadius: 9, fontWeight: 500, fontSize: 13.5, textDecoration: 'none' }}
               >
-                <LuPencil className="w-5 h-5" />
+                <span>✏️</span>
                 Editar
               </Link>
             </div>
           </div>
 
           {/* Document info */}
-          <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-lg p-6 mb-6 print:shadow-none print:border-none">
-            <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
+          <div className="print:border-none" style={{ background: '#fff', border: `1px solid ${LINE}`, borderRadius: 13, padding: 20, marginBottom: 18 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12, fontSize: 13, color: TXT2 }}>
               <span
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full font-medium ${status.color}`}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 20, fontWeight: 500, background: status.bg, color: status.fg }}
               >
-                <StatusIcon className="w-4 h-4" />
+                <span style={{ fontSize: 13 }}>{status.icon}</span>
                 {status.label}
               </span>
 
               {document.category && (
-                <span className="px-3 py-1.5 bg-gray-100 rounded-full text-gray-600">
+                <span style={{ padding: '6px 12px', background: DIV, borderRadius: 20, color: TXT2 }}>
                   {document.category}
                 </span>
               )}
 
               {document.tags.length > 0 && (
-                <div className="flex gap-1">
+                <div style={{ display: 'flex', gap: 5 }}>
                   {document.tags.map((tag) => (
                     <span
                       key={tag}
-                      className="px-2.5 py-1 bg-purple-50 text-purple-600 rounded-full text-xs"
+                      style={{ padding: '4px 10px', background: TINT, color: TEAL_DARK, borderRadius: 20, fontSize: 11.5 }}
                     >
                       {tag}
                     </span>
@@ -194,16 +200,17 @@ export default function DocumentDetailPage({
                 </div>
               )}
 
-              <span className="ml-auto">
+              <span style={{ marginLeft: 'auto', color: TXT3 }}>
                 Atualizado em {formatDate(document.updatedAt)}
               </span>
             </div>
           </div>
 
           {/* Document content */}
-          <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-lg overflow-hidden print:shadow-none print:border-none">
+          <div className="print:border-none" style={{ background: '#fff', border: `1px solid ${LINE}`, borderRadius: 13, overflow: 'hidden' }}>
             <div
-              className="prose prose-lg max-w-none p-8"
+              className="prose prose-lg max-w-none"
+              style={{ padding: 32 }}
               dangerouslySetInnerHTML={{ __html: document.content }}
             />
           </div>

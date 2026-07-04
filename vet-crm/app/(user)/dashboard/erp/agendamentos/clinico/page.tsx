@@ -1,10 +1,10 @@
 "use client";
 // [EMP-COWORK] Calendário Clínico (FU) — objetivo + paleta do Base44 (Cintia 07/06)
+// Roupagem repaginada Base44 delicada — LOGICA 100% preservada.
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { LuTriangleAlert, LuClock, LuCalendar, LuCake, LuChevronRight } from "react-icons/lu";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 
 type Periodo = "hoje" | "7d" | "30d" | "mes" | "custom";
@@ -20,16 +20,16 @@ const TIPO: Record<string, { bg: string; fg: string }> = {
 type Tema = { cardBg: string; cardBorder: string; num: string; label: string; icon: string; rowBg: string; rowBorder: string; dateBg: string; dayColor: string };
 const TEMA: Record<TabK, Tema> = {
   vencidos:     { cardBg: "#FEF2F2", cardBorder: "#FECACA", num: "#DC2626", label: "#B91C1C", icon: "#DC2626", rowBg: "#FEF2F2", rowBorder: "#FECACA", dateBg: "#CC3366", dayColor: "#CC3366" },
-  proximos:     { cardBg: "#FFFFFF", cardBorder: "#E5E7EB", num: "#0F2643", label: "#476385", icon: "#009AAC", rowBg: "#FFFFFF", rowBorder: "#E5E7EB", dateBg: "#009AAC", dayColor: "#0F6E56" },
+  proximos:     { cardBg: "#FFFFFF", cardBorder: "#E8E2D6", num: "#014D5E", label: "#5C6B70", icon: "#009AAC", rowBg: "#FFFFFF", rowBorder: "#E8E2D6", dateBg: "#009AAC", dayColor: "#0F6E56" },
   retornos:     { cardBg: "#FFF7ED", cardBorder: "#FED7AA", num: "#C2410C", label: "#C2410C", icon: "#C2410C", rowBg: "#FFF7ED", rowBorder: "#FED7AA", dateBg: "#C2410C", dayColor: "#C2410C" },
   aniversarios: { cardBg: "#FFFBEB", cardBorder: "#FDE68A", num: "#D97706", label: "#B45309", icon: "#D97706", rowBg: "#FFFBEB", rowBorder: "#FDE68A", dateBg: "#D97706", dayColor: "#B45309" },
 };
 
-const CATS: { k: TabK; card: string; tab: string; Icon: any }[] = [
-  { k: "vencidos", card: "Follow-ups vencidos", tab: "Vencidos", Icon: LuTriangleAlert },
-  { k: "proximos", card: "Próx. follow-ups", tab: "Próximos", Icon: LuClock },
-  { k: "retornos", card: "Retornos vencidos", tab: "Retornos", Icon: LuCalendar },
-  { k: "aniversarios", card: "Aniversários", tab: "Aniversários", Icon: LuCake },
+const CATS: { k: TabK; card: string; tab: string; emoji: string }[] = [
+  { k: "vencidos", card: "Follow-ups vencidos", tab: "Vencidos", emoji: "⚠️" },
+  { k: "proximos", card: "Próx. follow-ups", tab: "Próximos", emoji: "🕐" },
+  { k: "retornos", card: "Retornos vencidos", tab: "Retornos", emoji: "📅" },
+  { k: "aniversarios", card: "Aniversários", tab: "Aniversários", emoji: "🎂" },
 ];
 
 const PERIODOS: { k: Periodo; label: string }[] = [
@@ -135,7 +135,7 @@ export default function CalendarioClinicoPage() {
     const diff = Math.round((new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() - new Date(t.getFullYear(), t.getMonth(), t.getDate()).getTime()) / 86400000);
     if (diff === 0) return { txt: "hoje", cor: "#0F6E56" };
     if (diff < 0) return { txt: `${Math.abs(diff)}d de atraso`, cor: "#CC3366" };
-    return { txt: `em ${diff}d`, cor: "#7a8794" };
+    return { txt: `em ${diff}d`, cor: "#8A989D" };
   };
   const diasTxt = (s: string) => {
     const d = new Date(s); const t = new Date();
@@ -155,25 +155,25 @@ export default function CalendarioClinicoPage() {
   const tm = TEMA[tab];
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-6 max-w-7xl mx-auto" style={{ background: "#F6F2EA", minHeight: "100%" }}>
       <div className="flex items-center gap-2 mb-4">
-        <Link href="/dashboard/erp/agendamentos/clinico" className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white" style={{ background: "#009AAC" }}>Clínico (FU)</Link>
-        <Link href="/dashboard/erp/agendamentos/calendario" className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white border text-[#5F5E5A] hover:bg-[#f6f8f9]" style={{ borderColor: "#e8edf0" }}>Agenda</Link>
-        <Link href="/dashboard/erp/agendamentos" className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white border text-[#5F5E5A] hover:bg-[#f6f8f9]" style={{ borderColor: "#e8edf0" }}>Lista</Link>
+        <Link href="/dashboard/erp/agendamentos/clinico" className="px-3 py-1.5 rounded-lg text-xs font-medium text-white" style={{ background: "#009AAC" }}>🩺 Clínico (FU)</Link>
+        <Link href="/dashboard/erp/agendamentos/calendario" className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white border text-[#5C6B70] hover:bg-[#FBF9F4]" style={{ borderColor: "#E8E2D6" }}>📅 Agenda</Link>
+        <Link href="/dashboard/erp/agendamentos" className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white border text-[#5C6B70] hover:bg-[#FBF9F4]" style={{ borderColor: "#E8E2D6" }}>Lista</Link>
       </div>
 
       <div className="flex items-center gap-1.5 flex-wrap mb-4">
         {PERIODOS.map((p) => (
           <button key={p.k} onClick={() => setPeriodo(p.k)} className="text-xs px-3 py-1.5 rounded-lg font-medium transition"
-            style={periodo === p.k ? { background: "#009AAC", color: "#fff" } : { background: "#fff", color: "#5F5E5A", border: "1px solid #e8edf0" }}>
+            style={periodo === p.k ? { background: "#009AAC", color: "#fff" } : { background: "#fff", color: "#5C6B70", border: "1px solid #E8E2D6" }}>
             {p.label}
           </button>
         ))}
         {periodo === "custom" && (
           <span className="flex items-center gap-1.5 ml-1">
-            <input type="date" value={customIni} onChange={(e) => setCustomIni(e.target.value)} className="text-xs px-2 py-1.5 rounded-lg border" style={{ borderColor: "#e8edf0" }} />
-            <span className="text-xs text-[#94a3b8]">até</span>
-            <input type="date" value={customFim} onChange={(e) => setCustomFim(e.target.value)} className="text-xs px-2 py-1.5 rounded-lg border" style={{ borderColor: "#e8edf0" }} />
+            <input type="date" value={customIni} onChange={(e) => setCustomIni(e.target.value)} className="text-xs px-2 py-1.5 rounded-lg border" style={{ borderColor: "#E8E2D6" }} />
+            <span className="text-xs text-[#8A989D]">até</span>
+            <input type="date" value={customFim} onChange={(e) => setCustomFim(e.target.value)} className="text-xs px-2 py-1.5 rounded-lg border" style={{ borderColor: "#E8E2D6" }} />
           </span>
         )}
       </div>
@@ -184,8 +184,8 @@ export default function CalendarioClinicoPage() {
           return (
             <button key={c.k} onClick={() => setTab(c.k)} className="rounded-2xl p-4 text-center transition hover:brightness-[0.98]"
               style={{ background: th.cardBg, border: `1px solid ${th.cardBorder}`, boxShadow: ativa ? `0 0 0 2px ${th.num}` : "none" }}>
-              <c.Icon size={18} className="mx-auto" style={{ color: th.icon }} />
-              <div className="text-[26px] font-bold leading-tight" style={{ color: th.num }}>{loading ? "—" : listas[c.k].length}</div>
+              <span className="block mx-auto" style={{ fontSize: 18, lineHeight: 1 }}>{c.emoji}</span>
+              <div className="text-[26px] font-medium leading-tight" style={{ color: th.num }}>{loading ? "—" : listas[c.k].length}</div>
               <div className="text-[11.5px]" style={{ color: th.label }}>{c.card}</div>
             </button>
           );
@@ -197,18 +197,18 @@ export default function CalendarioClinicoPage() {
           const th = TEMA[c.k]; const ativa = tab === c.k;
           return (
             <button key={c.k} onClick={() => setTab(c.k)} className="inline-flex items-center gap-1.5 text-[13px] font-medium px-3 py-1.5 rounded-lg transition"
-              style={ativa ? { background: th.cardBg, color: th.num, border: `1px solid ${th.cardBorder}` } : { background: "transparent", color: "#476385", border: "1px solid transparent" }}>
-              <c.Icon size={14} style={{ color: ativa ? th.icon : "#94a3b8" }} />
+              style={ativa ? { background: th.cardBg, color: th.num, border: `1px solid ${th.cardBorder}` } : { background: "transparent", color: "#5C6B70", border: "1px solid transparent" }}>
+              <span style={{ fontSize: 14, lineHeight: 1, opacity: ativa ? 1 : 0.6 }}>{c.emoji}</span>
               {c.tab} ({listas[c.k].length})
             </button>
           );
         })}
       </div>
 
-      <div className="bg-white rounded-xl border border-[#e8dfc8] overflow-hidden">
+      <div className="bg-white rounded-xl border border-[#E8E2D6] overflow-hidden">
         <table className="w-full" style={{ borderCollapse: "collapse" }}>
           <thead>
-            <tr className="bg-[#F8F3E4] text-[10.5px] uppercase tracking-wide text-[#6b7280]">
+            <tr className="text-[11.5px] uppercase tracking-wide text-[#8A989D]" style={{ borderBottom: "1px solid #E8E2D6" }}>
               <th className="text-left font-medium px-3.5 py-1.5">Cliente / Pet</th>
               <th className="text-left font-medium px-2 py-1.5">Tipo</th>
               <th className="text-left font-medium px-2 py-1.5">Contexto</th>
@@ -216,19 +216,19 @@ export default function CalendarioClinicoPage() {
               <th className="text-right font-medium px-3.5 py-1.5">Situação</th>
             </tr>
           </thead>
-          <tbody className="text-[12.5px] text-[#0E2244]">
+          <tbody className="text-[12.5px] text-[#1F2A2E]">
             {loading ? (
-              <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-[#94a3b8]">Carregando...</td></tr>
+              <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-[#8A989D]">Carregando...</td></tr>
             ) : ativos.length === 0 ? (
-              <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-[#94a3b8]">{vazio[tab]}</td></tr>
+              <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-[#8A989D]">{vazio[tab]}</td></tr>
             ) : ativos.map((e: any) => {
               const c = TIPO[e.tipo] || TIPO.Cliente; const sit = situacao(e.date);
               return (
-                <tr key={e.id} onClick={() => e.href && e.href !== "#" && router.push(e.href)} className="border-t border-[#f4eede] hover:bg-[#fdfaee] transition cursor-pointer">
+                <tr key={e.id} onClick={() => e.href && e.href !== "#" && router.push(e.href)} className="border-t border-[#F0EBE0] hover:bg-[#FBF9F4] transition cursor-pointer">
                   <td className="px-3.5 py-1.5 whitespace-nowrap"><span className="inline-block w-[7px] h-[7px] rounded-full align-middle mr-2" style={{ background: sit.cor }} />{e.nome}</td>
                   <td className="px-2 py-1.5"><span className="text-[9.5px] px-2 py-0.5 rounded-full" style={{ background: c.bg, color: c.fg }}>{e.tipo}</span></td>
-                  <td className="px-2 py-1.5 text-[#6b7280] truncate max-w-[220px]">{e.sub}</td>
-                  <td className="px-2 py-1.5 text-[#6b7280] whitespace-nowrap">{fmtData(e.date)}</td>
+                  <td className="px-2 py-1.5 text-[#5C6B70] truncate max-w-[220px]">{e.sub}</td>
+                  <td className="px-2 py-1.5 text-[#5C6B70] whitespace-nowrap">{fmtData(e.date)}</td>
                   <td className="px-3.5 py-1.5 text-right font-medium whitespace-nowrap" style={{ color: sit.cor }}>{sit.txt}</td>
                 </tr>
               );
@@ -236,10 +236,10 @@ export default function CalendarioClinicoPage() {
           </tbody>
         </table>
       </div>
-      <div className="mt-2.5 flex gap-3.5 flex-wrap text-[11px] text-[#6b7280]">
+      <div className="mt-2.5 flex gap-3.5 flex-wrap text-[11px] text-[#8A989D]">
         <span className="inline-flex items-center gap-1.5"><span className="w-[7px] h-[7px] rounded-full" style={{ background: "#CC3366" }} />Em atraso</span>
         <span className="inline-flex items-center gap-1.5"><span className="w-[7px] h-[7px] rounded-full" style={{ background: "#0F6E56" }} />Hoje</span>
-        <span className="inline-flex items-center gap-1.5"><span className="w-[7px] h-[7px] rounded-full" style={{ background: "#7a8794" }} />Próximo</span>
+        <span className="inline-flex items-center gap-1.5"><span className="w-[7px] h-[7px] rounded-full" style={{ background: "#8A989D" }} />Próximo</span>
       </div>
     </div>
   );

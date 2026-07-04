@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent 
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { LuArrowLeft, LuPawPrint, LuVenetianMask, LuCalendar, LuUser, LuSave, LuCamera, LuLoaderCircle, LuTrash, LuFiles } from "react-icons/lu";
 import toast from "react-hot-toast";
 
 interface Tutor {
@@ -686,13 +685,13 @@ export default function EditPetPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-green-50/20 to-cyan-50/10 w-full overflow-hidden">
+      <div className="min-h-screen bg-[#F6F2EA] w-full overflow-hidden">
         <div className="p-6">
           <div className="max-w-4xl mx-auto">
             <div className="flex items-center justify-center h-64">
               <div className="text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
-                <p className="text-gray-600 mt-4">Carregando...</p>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#009AAC] mx-auto"></div>
+                <p className="text-[#5C6B70] mt-4">Carregando...</p>
               </div>
             </div>
           </div>
@@ -703,17 +702,17 @@ export default function EditPetPage() {
 
   if (error && !pet.name) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-green-50/20 to-cyan-50/10 w-full overflow-hidden">
+      <div className="min-h-screen bg-[#F6F2EA] w-full overflow-hidden">
         <div className="p-6">
           <div className="max-w-4xl mx-auto">
-            <div className="bg-white rounded-3xl p-8 text-center">
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Erro</h2>
-              <p className="text-gray-600 mb-6">{error || "Pet não encontrado"}</p>
-              <Link 
-                href="/dashboard/erp/pets" 
-                className="inline-flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-2xl hover:bg-green-700 transition-all duration-300"
+            <div className="bg-white border border-[#E8E2D6] rounded-2xl p-8 text-center">
+              <h2 className="text-2xl font-medium text-[#014D5E] mb-4">Erro</h2>
+              <p className="text-[#5C6B70] mb-6">{error || "Pet não encontrado"}</p>
+              <Link
+                href="/dashboard/erp/pets"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-[#009AAC] text-white rounded-[9px] hover:bg-[#008999] transition-colors"
               >
-                <LuArrowLeft className="w-4 h-4" />
+                <span aria-hidden>⬅️</span>
                 <span>Voltar para a lista</span>
               </Link>
             </div>
@@ -724,25 +723,25 @@ export default function EditPetPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-green-50/20 to-cyan-50/10 w-full overflow-hidden">
+    <div className="min-h-screen bg-[#F6F2EA] w-full overflow-hidden">
       <div className="p-6">
         <div className="max-w-4xl mx-auto">
             {/* Header */}
             <div className="mb-8">
               <div className="flex items-center justify-between">
                 <div>
-                  <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+                  <h1 className="text-3xl font-medium text-[#014D5E]">
                     Editar Pet
                   </h1>
-                  <p className="text-gray-600 mt-2">
+                  <p className="text-[#5C6B70] mt-2">
                     Edite as informações do pet no sistema
                   </p>
                 </div>
-                <Link 
-                  href="/dashboard/erp/pets" 
-                  className="group flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-800 text-sm font-semibold bg-white/50 border border-gray-300/50 rounded-2xl hover:bg-white hover:border-gray-400 hover:shadow-lg transition-all duration-300 hover:scale-105 backdrop-blur-sm"
+                <Link
+                  href="/dashboard/erp/pets"
+                  className="group flex items-center gap-2 px-4 py-2 text-[#5C6B70] hover:text-[#014D5E] text-sm font-medium bg-white border border-[#E8E2D6] rounded-[9px] hover:bg-[#FBF9F4] transition-colors"
                 >
-                  <LuArrowLeft className="w-4 h-4 transition-transform duration-300 group-hover:-translate-x-1" />
+                  <span aria-hidden>⬅️</span>
                   <span>Voltar</span>
                 </Link>
               </div>
@@ -750,7 +749,7 @@ export default function EditPetPage() {
 
             {/* Mensagem de erro */}
             {error && (
-              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-2xl">
+              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-[9px]">
                 <p className="text-red-600 text-sm font-medium">
                   ❌ {error}
                 </p>
@@ -758,25 +757,25 @@ export default function EditPetPage() {
             )}
 
             {/* Main Card */}
-            <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-3xl shadow-2xl shadow-green-500/10 overflow-hidden">
+            <div className="bg-white border border-[#E8E2D6] rounded-2xl shadow-sm overflow-hidden">
               {/* Pet Header */}
-              <div className="bg-gradient-to-r from-green-600 to-cyan-600 p-6">
+              <div className="bg-[#009AAC] p-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-4">
-                    <div className="flex items-center justify-center w-16 h-16 bg-white/20 rounded-2xl backdrop-blur-sm">
-                      <LuPawPrint className="w-8 h-8 text-white" />
+                    <div className="flex items-center justify-center w-16 h-16 bg-white/20 rounded-2xl">
+                      <span aria-hidden style={{ fontSize: 28 }}>🐾</span>
                     </div>
                     <div>
-                      <h1 className="text-2xl font-bold text-white">
+                      <h1 className="text-2xl font-medium text-white">
                         {pet.name || "Editar Pet"}
                       </h1>
-                      <p className="text-green-100 text-sm mt-1">
+                      <p className="text-white/80 text-sm mt-1">
                         {pet.breed || "Raça"} • {pet.species || "Espécie"}
                       </p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="inline-flex items-center px-3 py-1 bg-white/20 rounded-full backdrop-blur-sm">
+                    <div className="inline-flex items-center px-3 py-1 bg-white/20 rounded-full">
                       <span className="text-white text-sm font-medium">{pet.status}</span>
                     </div>
                   </div>
@@ -784,59 +783,51 @@ export default function EditPetPage() {
               </div>
 
               {/* Tabs Modernizadas */}
-              <div className="border-b border-white/20 bg-gradient-to-r from-white to-white/95">
+              <div className="border-b border-[#E8E2D6] bg-white">
                 <div className="overflow-x-auto">
                   <div className="flex flex-nowrap min-w-max">
                   <button
                     onClick={() => setActiveTab('geral')}
                     className={`group shrink-0 px-8 py-4 text-sm font-semibold transition-all duration-300 flex items-center space-x-2 ${
                       activeTab === 'geral'
-                        ? 'border-b-2 border-blue-500 text-blue-600 bg-blue-50/50'
-                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50/50'
+                        ? 'border-b-2 border-[#009AAC] text-[#014D5E] bg-[#E0F4F6]'
+                        : 'text-[#5C6B70] hover:text-[#014D5E] hover:bg-[#FBF9F4]'
                     }`}
                   >
-                    <LuPawPrint className={`w-4 h-4 transition-transform duration-300 ${
-                      activeTab === 'geral' ? 'scale-110' : 'group-hover:scale-110'
-                    }`} />
+                    <span aria-hidden>🐾</span>
                     <span>Geral</span>
                   </button>
                   <button
                     onClick={() => setActiveTab('foto')}
                     className={`group shrink-0 px-8 py-4 text-sm font-semibold transition-all duration-300 flex items-center space-x-2 ${
                       activeTab === 'foto'
-                        ? 'border-b-2 border-blue-500 text-blue-600 bg-blue-50/50'
-                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50/50'
+                        ? 'border-b-2 border-[#009AAC] text-[#014D5E] bg-[#E0F4F6]'
+                        : 'text-[#5C6B70] hover:text-[#014D5E] hover:bg-[#FBF9F4]'
                     }`}
                   >
-                    <LuVenetianMask className={`w-4 h-4 transition-transform duration-300 ${
-                      activeTab === 'foto' ? 'scale-110' : 'group-hover:scale-110'
-                    }`} />
+                    <span aria-hidden>📷</span>
                     <span>Foto</span>
                   </button>
                   <button
                     onClick={() => setActiveTab('extras')}
                     className={`group shrink-0 px-8 py-4 text-sm font-semibold transition-all duration-300 flex items-center space-x-2 ${
                       activeTab === 'extras'
-                        ? 'border-b-2 border-blue-500 text-blue-600 bg-blue-50/50'
-                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50/50'
+                        ? 'border-b-2 border-[#009AAC] text-[#014D5E] bg-[#E0F4F6]'
+                        : 'text-[#5C6B70] hover:text-[#014D5E] hover:bg-[#FBF9F4]'
                     }`}
                   >
-                    <LuUser className={`w-4 h-4 transition-transform duration-300 ${
-                      activeTab === 'extras' ? 'scale-110' : 'group-hover:scale-110'
-                    }`} />
+                    <span aria-hidden>👤</span>
                     <span>Extras</span>
                   </button>
                   <button
                     onClick={() => setActiveTab('documentos')}
                     className={`group shrink-0 px-8 py-4 text-sm font-semibold transition-all duration-300 flex items-center space-x-2 ${
                       activeTab === 'documentos'
-                        ? 'border-b-2 border-blue-500 text-blue-600 bg-blue-50/50'
-                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50/50'
+                        ? 'border-b-2 border-[#009AAC] text-[#014D5E] bg-[#E0F4F6]'
+                        : 'text-[#5C6B70] hover:text-[#014D5E] hover:bg-[#FBF9F4]'
                     }`}
                   >
-                    <LuFiles className={`w-4 h-4 transition-transform duration-300 ${
-                      activeTab === 'documentos' ? 'scale-110' : 'group-hover:scale-110'
-                    }`} />
+                    <span aria-hidden>📄</span>
                     <span>Documentos</span>
                   </button>
                   </div>
@@ -849,8 +840,8 @@ export default function EditPetPage() {
                   {/* Informações Básicas */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <label className="flex items-center text-sm font-semibold text-gray-700">
-                        <LuPawPrint className="w-4 h-4 mr-2 text-green-500" />
+                      <label className="flex items-center text-[13px] font-medium text-[#5C6B70]">
+                        <span className="mr-2" aria-hidden>🐾</span>
                         Nome do Animal*
                       </label>
                       <input
@@ -858,21 +849,21 @@ export default function EditPetPage() {
                         name="name"
                         value={pet.name}
                         onChange={handleChange}
-                        className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500/50 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                        className="w-full px-4 py-3 bg-white border border-[#E8E2D6] rounded-[9px] focus:outline-none focus:ring-2 focus:ring-[#009AAC]/25 focus:border-[#009AAC] transition-colors text-[#1F2A2E] placeholder-[#8A989D] shadow-sm"
                         placeholder="Digite o nome do pet"
                         required
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="flex items-center text-sm font-semibold text-gray-700">
-                        <LuPawPrint className="w-4 h-4 mr-2 text-green-500" />
+                      <label className="flex items-center text-[13px] font-medium text-[#5C6B70]">
+                        <span className="mr-2" aria-hidden>🐾</span>
                         Espécie*
                       </label>
                       <select
                         name="species"
                         value={pet.species}
                         onChange={handleChange}
-                        className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                        className="w-full px-4 py-3 bg-white border border-[#E8E2D6] rounded-[9px] focus:outline-none focus:ring-2 focus:ring-[#009AAC]/25 focus:border-[#009AAC] transition-colors text-[#1F2A2E] shadow-sm"
                       >
                         <option value="Canina">Canina</option>
                         <option value="Felina">Felina</option>
@@ -886,7 +877,7 @@ export default function EditPetPage() {
                   {/* Raça e Status */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <label className="flex items-center text-sm font-semibold text-gray-700">
+                      <label className="flex items-center text-[13px] font-medium text-[#5C6B70]">
                         Raça
                       </label>
                       {/* Selector das raças existentes */}
@@ -895,7 +886,7 @@ export default function EditPetPage() {
                         value={pet.breed}
                         onChange={handleChange}
                         disabled={breedsLoading}
-                        className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full px-4 py-3 bg-white border border-[#E8E2D6] rounded-[9px] focus:outline-none focus:ring-2 focus:ring-[#009AAC]/25 focus:border-[#009AAC] transition-colors text-[#1F2A2E] shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <option value="">Selecione...</option>
                         {currentBreeds.map((breed) => (
@@ -911,20 +902,20 @@ export default function EditPetPage() {
                           type="text"
                           value={newBreed}
                           onChange={(e) => setNewBreed(e.target.value)}
-                          className="flex-1 px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500/50 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                          className="flex-1 px-4 py-3 bg-white border border-[#E8E2D6] rounded-[9px] focus:outline-none focus:ring-2 focus:ring-[#009AAC]/25 focus:border-[#009AAC] transition-colors text-[#1F2A2E] placeholder-[#8A989D] shadow-sm"
                           placeholder="Nova raça (se não existir)"
                         />
                         <button
                           type="button"
                           onClick={addBreedToCurrentSpecies}
                           disabled={breedsSubmitting || breedsLoading || !normalizeBreed(newBreed || "")}
-                          className="px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl text-sm font-semibold text-gray-700 hover:bg-white hover:border-gray-300/50 shadow-sm transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="px-4 py-3 bg-white border border-[#E8E2D6] rounded-[9px] text-sm font-medium text-[#5C6B70] hover:bg-[#FBF9F4] shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           title="Adicionar esta raça ao banco para esta espécie"
                         >
                           {breedsSubmitting ? "Adicionando..." : "Adicionar"}
                         </button>
                       </div>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-[#8A989D]">
                         {breedsLoading
                           ? "Carregando raças..."
                           : breedsError
@@ -935,14 +926,14 @@ export default function EditPetPage() {
                       </p>
                     </div>
                     <div className="space-y-2">
-                      <label className="flex items-center text-sm font-semibold text-gray-700">
+                      <label className="flex items-center text-[13px] font-medium text-[#5C6B70]">
                         Status*
                       </label>
                       <select
                         name="status"
                         value={pet.status}
                         onChange={handleChange}
-                        className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                        className="w-full px-4 py-3 bg-white border border-[#E8E2D6] rounded-[9px] focus:outline-none focus:ring-2 focus:ring-[#009AAC]/25 focus:border-[#009AAC] transition-colors text-[#1F2A2E] shadow-sm"
                       >
                         <option value="Ativo">Ativo</option>
                         <option value="Inativo">Inativo</option>
@@ -955,14 +946,14 @@ export default function EditPetPage() {
                   {/* Sexo e Esterilização */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <label className="flex items-center text-sm font-semibold text-gray-700">
+                      <label className="flex items-center text-[13px] font-medium text-[#5C6B70]">
                         Sexo
                       </label>
                       <select
                         name="sex"
                         value={pet.sex}
                         onChange={handleChange}
-                        className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                        className="w-full px-4 py-3 bg-white border border-[#E8E2D6] rounded-[9px] focus:outline-none focus:ring-2 focus:ring-[#009AAC]/25 focus:border-[#009AAC] transition-colors text-[#1F2A2E] shadow-sm"
                       >
                         <option value="">Selecione...</option>
                         <option value="Macho">Macho</option>
@@ -971,14 +962,14 @@ export default function EditPetPage() {
                       </select>
                     </div>
                     <div className="space-y-2">
-                      <label className="flex items-center text-sm font-semibold text-gray-700">
+                      <label className="flex items-center text-[13px] font-medium text-[#5C6B70]">
                         Esterilização
                       </label>
                       <select
                         name="sterilization"
                         value={pet.sterilization}
                         onChange={handleChange}
-                        className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                        className="w-full px-4 py-3 bg-white border border-[#E8E2D6] rounded-[9px] focus:outline-none focus:ring-2 focus:ring-[#009AAC]/25 focus:border-[#009AAC] transition-colors text-[#1F2A2E] shadow-sm"
                       >
                         <option value="">Selecione...</option>
                         <option value="Sim">Sim</option>
@@ -991,8 +982,8 @@ export default function EditPetPage() {
                   {/* Nascimento e Pelagem */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <label className="flex items-center text-sm font-semibold text-gray-700">
-                        <LuCalendar className="w-4 h-4 mr-2 text-blue-500" />
+                      <label className="flex items-center text-[13px] font-medium text-[#5C6B70]">
+                        <span className="mr-2" aria-hidden>🎂</span>
                         Data de Nascimento
                       </label>
                       <input
@@ -1000,19 +991,19 @@ export default function EditPetPage() {
                         name="birthDate"
                         value={pet.birthDate}
                         onChange={handleChange}
-                        className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                        className="w-full px-4 py-3 bg-white border border-[#E8E2D6] rounded-[9px] focus:outline-none focus:ring-2 focus:ring-[#009AAC]/25 focus:border-[#009AAC] transition-colors text-[#1F2A2E] placeholder-[#8A989D] shadow-sm"
                         placeholder="dd/mm/aaaa"
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="flex items-center text-sm font-semibold text-gray-700">
+                      <label className="flex items-center text-[13px] font-medium text-[#5C6B70]">
                         Pelagem
                       </label>
                       <select
                         name="coat"
                         value={pet.coat}
                         onChange={handleChange}
-                        className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                        className="w-full px-4 py-3 bg-white border border-[#E8E2D6] rounded-[9px] focus:outline-none focus:ring-2 focus:ring-[#009AAC]/25 focus:border-[#009AAC] transition-colors text-[#1F2A2E] shadow-sm"
                       >
                         <option value="">Selecione...</option>
                         <option value="Curta">Curta</option>
@@ -1026,16 +1017,16 @@ export default function EditPetPage() {
 
                   {/* Dono - Campo único */}
                   <div className="space-y-2">
-                    <label className="flex items-center text-sm font-semibold text-gray-700">
-                      <LuUser className="w-4 h-4 mr-2 text-purple-500" />
+                    <label className="flex items-center text-[13px] font-medium text-[#5C6B70]">
+                      <span className="mr-2" aria-hidden>👤</span>
                       Dono do Animal*
                     </label>
                     {loading ? (
-                      <div className="w-full px-4 py-3 bg-gray-50/80 border border-gray-200/80 rounded-2xl text-gray-600 shadow-sm">
+                      <div className="w-full px-4 py-3 bg-[#FBF9F4] border border-[#E8E2D6] rounded-[9px] text-[#5C6B70] shadow-sm">
                         Carregando tutores...
                       </div>
                     ) : error ? (
-                      <div className="w-full px-4 py-3 bg-red-50/80 border border-red-200/80 rounded-2xl text-red-600 shadow-sm">
+                      <div className="w-full px-4 py-3 bg-red-50/80 border border-red-200/80 rounded-[9px] text-red-600 shadow-sm">
                         Erro ao carregar tutores: {error}
                       </div>
                     ) : (
@@ -1043,7 +1034,7 @@ export default function EditPetPage() {
                         name="tutorId"
                         value={pet.tutorId || ''}
                         onChange={handleChange}
-                        className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                        className="w-full px-4 py-3 bg-white border border-[#E8E2D6] rounded-[9px] focus:outline-none focus:ring-2 focus:ring-[#009AAC]/25 focus:border-[#009AAC] transition-colors text-[#1F2A2E] shadow-sm"
                         required
                       >
                         <option value="">Selecione um tutor</option>
@@ -1057,12 +1048,12 @@ export default function EditPetPage() {
                   </div>
 
                   <div className="space-y-2 mt-6">
-                    <label className="flex items-center text-sm font-semibold text-gray-700">2º Responsável (opcional)</label>
+                    <label className="flex items-center text-[13px] font-medium text-[#5C6B70]">2º Responsável (opcional)</label>
                     <select
                       name="secondaryTutorId"
                       value={pet.secondaryTutorId || ''}
                       onChange={handleChange}
-                      className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                      className="w-full px-4 py-3 bg-white border border-[#E8E2D6] rounded-[9px] focus:outline-none focus:ring-2 focus:ring-[#009AAC]/25 focus:border-[#009AAC] transition-colors text-[#1F2A2E] shadow-sm"
                     >
                       <option value="">Nenhum</option>
                       {Array.isArray(tutors) && tutors.map((t) => (
@@ -1072,13 +1063,12 @@ export default function EditPetPage() {
                   </div>
 
                   {/* Botões de ação */}
-                  <div className="flex gap-4 mt-8 pt-8 border-t border-white/20">
+                  <div className="flex gap-4 mt-8 pt-8 border-t border-[#F0EBE0]">
                     <button
                       type="submit"
                       disabled={submitting}
-                      className="group px-8 py-3 text-sm font-semibold text-white bg-gradient-to-r from-green-600 to-cyan-600 rounded-2xl hover:from-green-700 hover:to-cyan-700 focus:outline-none focus:ring-2 focus:ring-green-500/50 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-green-500/25 flex items-center space-x-2 relative overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                      className="px-8 py-3 text-sm font-medium text-white bg-[#009AAC] rounded-[9px] hover:bg-[#008999] focus:outline-none focus:ring-2 focus:ring-[#009AAC]/40 transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent transform -skew-x-12 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
                       {submitting ? (
                         <>
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
@@ -1086,7 +1076,7 @@ export default function EditPetPage() {
                         </>
                       ) : (
                         <>
-                          <LuSave className="w-4 h-4 relative z-10" />
+                          <span className="relative z-10" aria-hidden>✅</span>
                           <span className="relative z-10">Salvar Alterações</span>
                         </>
                       )}
@@ -1108,14 +1098,14 @@ export default function EditPetPage() {
                           className="rounded-2xl object-cover ring-2 ring-white/60 shadow-lg"
                         />
                       ) : (
-                        <div className="w-40 h-40 bg-gray-100 rounded-2xl flex items-center justify-center">
-                          <LuVenetianMask className="w-12 h-12 text-gray-400" />
+                        <div className="w-40 h-40 bg-[#FBF9F4] border border-[#E8E2D6] rounded-2xl flex items-center justify-center">
+                          <span aria-hidden style={{ fontSize: 44 }}>🐾</span>
                         </div>
                       )}
                     </div>
 
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Foto do Pet</h3>
-                    <p className="text-gray-600 mb-6">Envie uma foto e ela será salva no cadastro.</p>
+                    <h3 className="text-lg font-medium text-[#014D5E] mb-2">Foto do Pet</h3>
+                    <p className="text-[#5C6B70] mb-6">Envie uma foto e ela será salva no cadastro.</p>
 
                     <input
                       ref={fileInputRef}
@@ -1130,12 +1120,12 @@ export default function EditPetPage() {
                         type="button"
                         onClick={openFilePicker}
                         disabled={isUploadingAvatar}
-                        className="inline-flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-2xl hover:bg-green-700 transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed"
+                        className="inline-flex items-center gap-2 px-6 py-3 bg-[#009AAC] text-white rounded-[9px] hover:bg-[#008999] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                       >
                         {isUploadingAvatar ? (
-                          <LuLoaderCircle className="w-5 h-5 animate-spin" />
+                          <span className="animate-spin" aria-hidden>⏳</span>
                         ) : (
-                          <LuCamera className="w-5 h-5" />
+                          <span aria-hidden>📷</span>
                         )}
                         {isUploadingAvatar ? "Enviando..." : "Selecionar arquivo"}
                       </button>
@@ -1145,9 +1135,9 @@ export default function EditPetPage() {
                           type="button"
                           onClick={removeAvatar}
                           disabled={isUploadingAvatar}
-                          className="inline-flex items-center gap-2 px-6 py-3 bg-white/80 border border-gray-200/80 text-gray-700 rounded-2xl hover:bg-white transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed"
+                          className="inline-flex items-center gap-2 px-6 py-3 bg-white border border-[#E8E2D6] text-[#5C6B70] rounded-[9px] hover:bg-[#FBF9F4] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                         >
-                          <LuTrash className="w-5 h-5" />
+                          <span aria-hidden>🗑️</span>
                           Remover
                         </button>
                       ) : null}
@@ -1163,58 +1153,58 @@ export default function EditPetPage() {
               {activeTab === 'extras' && (
                 <div className="p-8">
                   <div className="max-w-3xl mx-auto">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-1">Informações Extras</h3>
-                    <p className="text-gray-600 mb-6">Campos opcionais para complementar o cadastro do pet.</p>
+                    <h3 className="text-lg font-medium text-[#014D5E] mb-1">Informações Extras</h3>
+                    <p className="text-[#5C6B70] mb-6">Campos opcionais para complementar o cadastro do pet.</p>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-2">
-                        <label className="text-sm font-semibold text-gray-700">Cor da Pelagem</label>
+                        <label className="text-[13px] font-medium text-[#5C6B70]">Cor da Pelagem</label>
                         <input
                           type="text"
                           name="coatColor"
                           value={pet.coatColor}
                           onChange={handleChange}
-                          className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500/40 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                          className="w-full px-4 py-3 bg-white border border-[#E8E2D6] rounded-[9px] focus:outline-none focus:ring-2 focus:ring-[#009AAC]/25 focus:border-[#009AAC] transition-colors text-[#1F2A2E] placeholder-[#8A989D] shadow-sm"
                           placeholder="Ex.: Preto e branco"
                         />
                       </div>
 
                       <div className="space-y-2">
-                        <label className="text-sm font-semibold text-gray-700">Peso (kg)</label>
+                        <label className="text-[13px] font-medium text-[#5C6B70]">Peso (kg)</label>
                         <input
                           type="text"
                           inputMode="decimal"
                           name="weight"
                           value={pet.weight}
                           onChange={handleChange}
-                          className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500/40 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                          className="w-full px-4 py-3 bg-white border border-[#E8E2D6] rounded-[9px] focus:outline-none focus:ring-2 focus:ring-[#009AAC]/25 focus:border-[#009AAC] transition-colors text-[#1F2A2E] placeholder-[#8A989D] shadow-sm"
                           placeholder="Ex.: 12,5"
                         />
-                        <p className="text-xs text-gray-500">Aceita ponto ou vírgula.</p>
+                        <p className="text-xs text-[#8A989D]">Aceita ponto ou vírgula.</p>
                       </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
                       <div className="space-y-2">
-                        <label className="text-sm font-semibold text-gray-700">Microchip</label>
+                        <label className="text-[13px] font-medium text-[#5C6B70]">Microchip</label>
                         <input
                           type="text"
                           name="microchip"
                           value={pet.microchip}
                           onChange={handleChange}
-                          className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500/40 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                          className="w-full px-4 py-3 bg-white border border-[#E8E2D6] rounded-[9px] focus:outline-none focus:ring-2 focus:ring-[#009AAC]/25 focus:border-[#009AAC] transition-colors text-[#1F2A2E] placeholder-[#8A989D] shadow-sm"
                           placeholder="Número do microchip"
                         />
                       </div>
 
                       <div className="space-y-2">
-                        <label className="text-sm font-semibold text-gray-700">Alergias</label>
+                        <label className="text-[13px] font-medium text-[#5C6B70]">Alergias</label>
                         <textarea
                           name="allergies"
                           value={pet.allergies}
                           onChange={handleChange}
                           rows={3}
-                          className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500/40 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm resize-none"
+                          className="w-full px-4 py-3 bg-white border border-[#E8E2D6] rounded-[9px] focus:outline-none focus:ring-2 focus:ring-[#009AAC]/25 focus:border-[#009AAC] transition-colors text-[#1F2A2E] placeholder-[#8A989D] shadow-sm resize-none"
                           placeholder={"Uma por linha (ou separadas por vírgula)\nEx.: Frango\nEx.: Pólen"}
                         />
                       </div>
@@ -1222,24 +1212,24 @@ export default function EditPetPage() {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
                       <div className="space-y-2">
-                        <label className="text-sm font-semibold text-gray-700">Convênio / Plano</label>
+                        <label className="text-[13px] font-medium text-[#5C6B70]">Convênio / Plano</label>
                         <input
                           type="text"
                           name="insurancePlan"
                           value={pet.insurancePlan}
                           onChange={handleChange}
-                          className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500/40 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                          className="w-full px-4 py-3 bg-white border border-[#E8E2D6] rounded-[9px] focus:outline-none focus:ring-2 focus:ring-[#009AAC]/25 focus:border-[#009AAC] transition-colors text-[#1F2A2E] placeholder-[#8A989D] shadow-sm"
                           placeholder="Ex.: Dog Life, convênio X"
                         />
                       </div>
                       <div className="space-y-2">
-                        <label className="text-sm font-semibold text-gray-700">Comportamento / Temperamento</label>
+                        <label className="text-[13px] font-medium text-[#5C6B70]">Comportamento / Temperamento</label>
                         <input
                           type="text"
                           name="temperament"
                           value={pet.temperament}
                           onChange={handleChange}
-                          className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500/40 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                          className="w-full px-4 py-3 bg-white border border-[#E8E2D6] rounded-[9px] focus:outline-none focus:ring-2 focus:ring-[#009AAC]/25 focus:border-[#009AAC] transition-colors text-[#1F2A2E] placeholder-[#8A989D] shadow-sm"
                           placeholder="Ex.: dócil, ansioso, reativo a outros cães"
                         />
                       </div>
@@ -1247,25 +1237,25 @@ export default function EditPetPage() {
 
                     <div className="grid grid-cols-1 gap-6 mt-6">
                       <div className="space-y-2">
-                        <label className="text-sm font-semibold text-gray-700">Observações</label>
+                        <label className="text-[13px] font-medium text-[#5C6B70]">Observações</label>
                         <textarea
                           name="observations"
                           value={pet.observations}
                           onChange={handleChange}
                           rows={4}
-                          className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500/40 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm resize-none"
+                          className="w-full px-4 py-3 bg-white border border-[#E8E2D6] rounded-[9px] focus:outline-none focus:ring-2 focus:ring-[#009AAC]/25 focus:border-[#009AAC] transition-colors text-[#1F2A2E] placeholder-[#8A989D] shadow-sm resize-none"
                           placeholder="Observações gerais do pet (temperamento, cuidados, etc.)"
                         />
                       </div>
 
                       <div className="space-y-2">
-                        <label className="text-sm font-semibold text-gray-700">Notas Médicas Importantes</label>
+                        <label className="text-[13px] font-medium text-[#5C6B70]">Notas Médicas Importantes</label>
                         <textarea
                           name="medicalNotes"
                           value={pet.medicalNotes}
                           onChange={handleChange}
                           rows={4}
-                          className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500/40 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm resize-none"
+                          className="w-full px-4 py-3 bg-white border border-[#E8E2D6] rounded-[9px] focus:outline-none focus:ring-2 focus:ring-[#009AAC]/25 focus:border-[#009AAC] transition-colors text-[#1F2A2E] placeholder-[#8A989D] shadow-sm resize-none"
                           placeholder="Ex.: Faz uso contínuo de medicação X, histórico de convulsões..."
                         />
                       </div>
@@ -1277,60 +1267,60 @@ export default function EditPetPage() {
               {activeTab === 'documentos' && (
                 <div className="p-8">
                   <div className="max-w-3xl mx-auto">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-1">Documentos</h3>
-                    <p className="text-gray-600 mb-6">
+                    <h3 className="text-lg font-medium text-[#014D5E] mb-1">Documentos</h3>
+                    <p className="text-[#5C6B70] mb-6">
                       Selecione quantos templates de documentos forem necessários para este pet.
                     </p>
 
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
                       <div className="flex-1">
-                        <label className="text-sm font-semibold text-gray-700">Buscar template</label>
+                        <label className="text-[13px] font-medium text-[#5C6B70]">Buscar template</label>
                         <input
                           type="text"
                           value={docSearch}
                           onChange={(e) => setDocSearch(e.target.value)}
                           placeholder="Ex.: termo, contrato, prontuário..."
-                          className="mt-1 w-full px-4 py-2.5 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500/40 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                          className="mt-1 w-full px-4 py-2.5 bg-white border border-[#E8E2D6] rounded-[9px] focus:outline-none focus:ring-2 focus:ring-[#009AAC]/25 focus:border-[#009AAC] transition-colors text-[#1F2A2E] placeholder-[#8A989D] shadow-sm"
                         />
                       </div>
                       <div className="sm:text-right pt-1">
-                        <div className="text-sm font-semibold text-gray-900">
+                        <div className="text-sm font-medium text-[#014D5E]">
                           Selecionados: {pet.documents.length}
                         </div>
                         <Link
                           href="/dashboard/erp/documentos"
-                          className="text-sm text-blue-600 hover:text-blue-700 underline underline-offset-2"
+                          className="text-sm text-[#009AAC] hover:text-[#014D5E] underline underline-offset-2"
                         >
                           Gerenciar templates
                         </Link>
                       </div>
                     </div>
 
-                    <div className="bg-white/70 border border-gray-200/70 rounded-2xl overflow-hidden">
+                    <div className="bg-white border border-[#E8E2D6] rounded-[9px] overflow-hidden">
                       {docTemplatesLoading ? (
-                        <div className="p-4 text-sm text-gray-600">Carregando templates...</div>
+                        <div className="p-4 text-sm text-[#5C6B70]">Carregando templates...</div>
                       ) : docTemplatesError ? (
                         <div className="p-4 text-sm text-red-600">{docTemplatesError}</div>
                       ) : filteredDocTemplates.length === 0 ? (
-                        <div className="p-4 text-sm text-gray-600">
+                        <div className="p-4 text-sm text-[#5C6B70]">
                           Nenhum template publicado encontrado.
                         </div>
                       ) : (
-                        <ul className="divide-y divide-gray-100">
+                        <ul className="divide-y divide-[#F0EBE0]">
                           {filteredDocTemplates.map((doc) => {
                             const checked = pet.documents.includes(doc.id);
                             return (
-                              <li key={doc.id} className="p-4 hover:bg-gray-50/60 transition-colors">
+                              <li key={doc.id} className="p-4 hover:bg-[#FBF9F4] transition-colors">
                                 <label className="flex items-start gap-3 cursor-pointer">
                                   <input
                                     type="checkbox"
                                     checked={checked}
                                     onChange={() => togglePetDocument(doc.id)}
-                                    className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                    className="mt-1 h-4 w-4 rounded border-[#E8E2D6] text-[#009AAC] focus:ring-[#009AAC]"
                                   />
                                   <div className="min-w-0">
-                                    <div className="font-semibold text-gray-900 truncate">{doc.title}</div>
-                                    <div className="text-sm text-gray-500 mt-0.5 flex flex-wrap gap-x-3 gap-y-1">
+                                    <div className="font-medium text-[#1F2A2E] truncate">{doc.title}</div>
+                                    <div className="text-sm text-[#8A989D] mt-0.5 flex flex-wrap gap-x-3 gap-y-1">
                                       {doc.category ? <span>Categoria: {doc.category}</span> : null}
                                       <span>Atualizado: {new Date(doc.updatedAt).toLocaleDateString('pt-BR')}</span>
                                     </div>
@@ -1343,7 +1333,7 @@ export default function EditPetPage() {
                       )}
                     </div>
 
-                    <p className="text-xs text-gray-500 mt-3">
+                    <p className="text-xs text-[#8A989D] mt-3">
                       Os templates selecionados serão vinculados ao pet (salvo como IDs no banco).
                     </p>
                   </div>

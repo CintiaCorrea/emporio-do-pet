@@ -3,7 +3,6 @@ import { useEffect, useMemo, useState } from "react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { useRolePreview } from "@/lib/ui/RolePreview";
 import NovoAgendamentoModal from "@/components/agendamentos/NovoAgendamentoModal";
-import { LuChevronLeft, LuChevronRight } from "react-icons/lu";
 import toast from "react-hot-toast";
 
 const HORAS = Array.from({ length: 12 }, (_, i) => i + 8);
@@ -100,9 +99,9 @@ export default function AgendaPage() {
     <div className="p-4 min-h-screen bg-[#F6F2EA]">
       <div className="flex items-center gap-2.5 mb-3 flex-wrap">
         <div className="flex items-center gap-1">
-          <button onClick={() => addDays(-1)} aria-label="Dia anterior" className="w-8 h-8 rounded-lg border flex items-center justify-center text-[#5C6B70] hover:text-[#009AAC]" style={{ borderColor: "#E8E2D6" }}><LuChevronLeft size={16} /></button>
+          <button onClick={() => addDays(-1)} aria-label="Dia anterior" className="w-8 h-8 rounded-lg border flex items-center justify-center text-[16px] leading-none text-[#5C6B70] hover:text-[#009AAC]" style={{ borderColor: "#E8E2D6" }}><span>‹</span></button>
           <button onClick={() => setDia(new Date())} className="px-3 h-8 rounded-lg border text-[13px] text-[#5C6B70]" style={{ borderColor: "#E8E2D6" }}>Hoje</button>
-          <button onClick={() => addDays(1)} aria-label="Próximo dia" className="w-8 h-8 rounded-lg border flex items-center justify-center text-[#5C6B70] hover:text-[#009AAC]" style={{ borderColor: "#E8E2D6" }}><LuChevronRight size={16} /></button>
+          <button onClick={() => addDays(1)} aria-label="Próximo dia" className="w-8 h-8 rounded-lg border flex items-center justify-center text-[16px] leading-none text-[#5C6B70] hover:text-[#009AAC]" style={{ borderColor: "#E8E2D6" }}><span>›</span></button>
           <span className="text-[14px] font-medium ml-2" style={{ color: "#014D5E" }}>{tituloView}</span>
         </div>
         <div className="flex-1" />

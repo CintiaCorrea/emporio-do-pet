@@ -5,12 +5,38 @@
 // URL /api/clients/* mantida temporariamente como compat layer apontando pra /tutors no backend.
 // Alguns campos podem não bater 100% com o backend até validação contra dados reais.
 
+// Roupagem repaginada 04/07 para o padrão Base44 (bege + emojis) — LÓGICA 100% preservada.
 
 import { useState, useEffect } from 'react';
-import { LuPlus, LuSearch, LuPencil, LuTrash, LuDownload, LuEye, LuPhone, LuUser } from 'react-icons/lu';
 import Link from 'next/link';
 import ConfirmDeleteModal from '@/components/common/ConfirmDeleteModal';
 import toast from 'react-hot-toast';
+
+// Paleta Base44 (mesmos tokens de components/ui/base44.tsx)
+const TEAL = '#009AAC';      // acento / botao primario
+const TEAL_DARK = '#014D5E'; // titulos / texto forte
+const GREEN = '#0f6e56';     // sucesso
+const BG = '#F6F2EA';        // fundo da pagina
+const SOFT = '#FBF9F4';      // areas suaves
+const TINT = '#E0F4F6';      // agua (avatar)
+const LINE = '#E8E2D6';      // borda do cartao
+const DIV = '#F0EBE0';       // divisoria interna
+const TXT = '#1F2A2E';       // corpo
+const TXT2 = '#5C6B70';      // secundario
+const TXT3 = '#8A989D';      // dica / rotulo
+
+const thStyle: React.CSSProperties = { color: TXT3, fontWeight: 500, fontSize: 11.5, textTransform: 'uppercase', letterSpacing: '.03em', padding: '12px 16px', borderBottom: `1px solid ${LINE}`, textAlign: 'left' };
+const tdStyle: React.CSSProperties = { padding: '14px 16px', borderBottom: `1px solid ${DIV}`, color: TXT };
+const cardStyle: React.CSSProperties = { background: '#fff', border: `1px solid ${LINE}`, borderRadius: 14 };
+const inputStyle: React.CSSProperties = { background: '#fff', border: `1px solid ${LINE}`, borderRadius: 9, color: TXT, outline: 'none' };
+
+const iniciais = (nome: string) =>
+  (nome || '?')
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase() || '')
+    .join('') || '?';
 
 interface Tutor {
   id: string;
@@ -40,20 +66,20 @@ export default function ClientsListPage() {
         setLoading(true);
         setError(null);
         const response = await fetch('/api/clients');
-        
+
         if (!response.ok) {
           throw new Error(`Erro ${response.status}: ${response.statusText}`);
         }
-        
+
         const data = await response.json();
-        
+
         // Garantir que data é um array
         if (!Array.isArray(data)) {
           console.warn('Dados recebidos não são um array:', data);
           setClients([]);
           return;
         }
-        
+
         setClients(data);
       } catch (error) {
         console.error('Erro ao buscar clientes:', error);
@@ -71,27 +97,27 @@ export default function ClientsListPage() {
   const filteredClients = Array.isArray(clients) ? clients.filter(client => {
     // Verificar se client tem as propriedades necessárias
     if (!client || typeof client !== 'object') return false;
-    
+
     const contactName = client.contactName || '';
     const email = client.email || '';
     const phone = client.phone || '';
     const contactOwner = client.contactOwner || '';
     const leadSource = client.leadSource || '';
     const status = client.status || 'inactive';
-    
+
     const matchesSearch = contactName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          email.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          phone.includes(searchTerm) ||
                          contactOwner.toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     const matchesStatus = filterStatus === 'all' || status === filterStatus;
-    const matchesSource = filterSource === 'all' || 
+    const matchesSource = filterSource === 'all' ||
                          (filterSource === 'website' && leadSource.toLowerCase().includes('site')) ||
                          (filterSource === 'referral' && leadSource.toLowerCase().includes('indicação')) ||
                          (filterSource === 'social' && leadSource.toLowerCase().includes('social')) ||
                          (filterSource === 'event' && leadSource.toLowerCase().includes('evento')) ||
                          (filterSource === 'other' && leadSource && !['site', 'indicação', 'social', 'evento'].some(source => leadSource.toLowerCase().includes(source)));
-    
+
     return matchesSearch && matchesStatus && matchesSource;
   }) : [];
 
@@ -124,18 +150,18 @@ export default function ClientsListPage() {
     }
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: string): React.CSSProperties => {
     switch (status) {
       case 'active':
-        return 'bg-green-100 text-green-800';
+        return { background: TINT, color: GREEN };
       case 'inactive':
-        return 'bg-gray-100 text-gray-800';
+        return { background: DIV, color: TXT2 };
       case 'lead':
-        return 'bg-blue-100 text-blue-800';
+        return { background: TINT, color: TEAL_DARK };
       case 'customer':
-        return 'bg-purple-100 text-purple-800';
+        return { background: TINT, color: TEAL };
       default:
-        return 'bg-gray-100 text-gray-800';
+        return { background: DIV, color: TXT2 };
     }
   };
 
@@ -156,7 +182,7 @@ export default function ClientsListPage() {
 
   const getSourceText = (source: string) => {
     if (!source) return 'Não informado';
-    
+
     const sourceMap: { [key: string]: string } = {
       'website': 'Site',
       'referral': 'Indicação',
@@ -164,7 +190,7 @@ export default function ClientsListPage() {
       'event': 'Evento',
       'other': 'Outro'
     };
-    
+
     return sourceMap[source.toLowerCase()] || source;
   };
 
@@ -181,8 +207,8 @@ export default function ClientsListPage() {
     if (loading) {
       return (
         <div className="p-12 text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Carregando clientes...</p>
+          <div className="animate-spin rounded-full h-12 w-12 mx-auto" style={{ borderBottom: `2px solid ${TEAL}` }}></div>
+          <p className="mt-4" style={{ color: TXT2 }}>Carregando clientes...</p>
         </div>
       );
     }
@@ -190,12 +216,13 @@ export default function ClientsListPage() {
     if (error) {
       return (
         <div className="p-12 text-center">
-          <div className="text-red-500 text-4xl mb-4">⚠️</div>
-          <h3 className="mt-4 text-lg font-semibold text-gray-900">Erro ao carregar clientes</h3>
-          <p className="mt-2 text-gray-600">{error}</p>
+          <div className="text-4xl mb-4">⚠️</div>
+          <h3 className="mt-4 text-lg" style={{ fontWeight: 500, color: TEAL_DARK }}>Erro ao carregar clientes</h3>
+          <p className="mt-2" style={{ color: TXT2 }}>{error}</p>
           <button
             onClick={() => window.location.reload()}
-            className="mt-4 px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+            className="mt-4 px-6 py-2 rounded-lg transition-colors"
+            style={{ background: TEAL, color: '#fff' }}
           >
             Tentar novamente
           </button>
@@ -206,11 +233,11 @@ export default function ClientsListPage() {
     if (!Array.isArray(clients) || clients.length === 0) {
       return (
         <div className="p-12 text-center">
-          <span style={{fontSize:"14px"}}>👥</span>
-          <h3 className="mt-4 text-lg font-semibold text-gray-900">
+          <span style={{fontSize:"32px"}}>👤</span>
+          <h3 className="mt-4 text-lg" style={{ fontWeight: 500, color: TEAL_DARK }}>
             Nenhum cliente cadastrado
           </h3>
-          <p className="mt-2 text-gray-600">
+          <p className="mt-2" style={{ color: TXT2 }}>
             Comece cadastrando o primeiro cliente
           </p>
         </div>
@@ -220,11 +247,11 @@ export default function ClientsListPage() {
     if (filteredClients.length === 0) {
       return (
         <div className="p-12 text-center">
-          <span style={{fontSize:"14px"}}>👥</span>
-          <h3 className="mt-4 text-lg font-semibold text-gray-900">
+          <span style={{fontSize:"32px"}}>👤</span>
+          <h3 className="mt-4 text-lg" style={{ fontWeight: 500, color: TEAL_DARK }}>
             Nenhum cliente encontrado
           </h3>
-          <p className="mt-2 text-gray-600">
+          <p className="mt-2" style={{ color: TXT2 }}>
             Tente ajustar os filtros de busca
           </p>
         </div>
@@ -235,84 +262,87 @@ export default function ClientsListPage() {
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
-            <tr className="border-b border-white/20 bg-gradient-to-r from-white to-white/95">
-              <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Cliente</th>
-              <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Informações</th>
-              <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Responsável</th>
-              <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Fonte</th>
-              <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Status</th>
-              <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Último Contato</th>
-              <th className="px-6 py-4 text-right text-sm font-semibold text-gray-900">Ações</th>
+            <tr style={{ background: SOFT }}>
+              <th style={thStyle}>Cliente</th>
+              <th style={thStyle}>Informações</th>
+              <th style={thStyle}>Responsável</th>
+              <th style={thStyle}>Fonte</th>
+              <th style={thStyle}>Status</th>
+              <th style={thStyle}>Último Contato</th>
+              <th style={{ ...thStyle, textAlign: 'right' }}>Ações</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-white/10">
+          <tbody>
             {filteredClients.map((client) => (
-              <tr key={client.id} className="hover:bg-gray-50/50 transition-colors duration-200">
-                <td className="px-6 py-4">
+              <tr key={client.id} style={{ transition: 'background .2s' }} onMouseEnter={(e) => (e.currentTarget.style.background = SOFT)} onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>
+                <td style={tdStyle}>
                   <div className="flex items-center">
-                    <div className="flex-shrink-0 h-10 w-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center">
-                      <LuUser className="h-6 w-6 text-white" />
+                    <div className="flex-shrink-0 h-10 w-10 rounded-full flex items-center justify-center" style={{ background: TINT, color: TEAL_DARK, fontWeight: 500, fontSize: 13 }}>
+                      {iniciais(client.contactName)}
                     </div>
                     <div className="ml-4">
-                      <div className="text-sm font-semibold text-gray-900">{client.contactName || 'Nome não informado'}</div>
-                      <div className="text-sm text-gray-500">{client.email || 'Email não informado'}</div>
+                      <div className="text-sm" style={{ fontWeight: 500, color: TEAL_DARK }}>{client.contactName || 'Nome não informado'}</div>
+                      <div className="text-sm" style={{ color: TXT3 }}>{client.email || 'Email não informado'}</div>
                     </div>
                   </div>
                 </td>
-                <td className="px-6 py-4">
+                <td style={tdStyle}>
                   <div className="space-y-1">
                     {client.email && (
-                      <div className="flex items-center text-sm text-gray-600">
-                        <span style={{fontSize:"14px"}}>✉</span>
+                      <div className="flex items-center gap-2 text-sm" style={{ color: TXT2 }}>
+                        <span style={{fontSize:"14px"}}>✉️</span>
                         {client.email}
                       </div>
                     )}
                     {client.phone && (
-                      <div className="flex items-center text-sm text-gray-600">
-                        <LuPhone className="w-4 h-4 mr-2 text-gray-400" />
+                      <div className="flex items-center gap-2 text-sm" style={{ color: TXT2 }}>
+                        <span style={{fontSize:"14px"}}>📞</span>
                         {client.phone}
                       </div>
                     )}
                   </div>
                 </td>
-                <td className="px-6 py-4">
-                  <div className="text-sm text-gray-900">{client.contactOwner || 'Não atribuído'}</div>
+                <td style={tdStyle}>
+                  <div className="text-sm" style={{ color: TXT }}>{client.contactOwner || 'Não atribuído'}</div>
                 </td>
-                <td className="px-6 py-4">
-                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-gray-100 text-gray-800">
+                <td style={tdStyle}>
+                  <span className="inline-flex items-center px-3 py-1 text-sm" style={{ borderRadius: 999, fontWeight: 500, background: DIV, color: TXT2 }}>
                     {getSourceText(client.leadSource)}
                   </span>
                 </td>
-                <td className="px-6 py-4">
-                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold ${getStatusColor(client.status)}`}>
+                <td style={tdStyle}>
+                  <span className="inline-flex items-center px-3 py-1 text-sm" style={{ borderRadius: 999, fontWeight: 500, ...getStatusColor(client.status) }}>
                     {getStatusText(client.status)}
                   </span>
                 </td>
-                <td className="px-6 py-4 text-sm text-gray-900">
+                <td style={{ ...tdStyle, fontSize: 14 }}>
                   {formatDate(client.lastContact)}
                 </td>
-                <td className="px-6 py-4 text-right text-sm font-medium">
-                  <div className="flex justify-end space-x-2">
+                <td style={{ ...tdStyle, textAlign: 'right' }}>
+                  <div className="flex justify-end space-x-1">
                     <Link
                       href={`/dashboard/erp/clientes/${client.id}`}
-                      className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-xl transition-all duration-300 hover:scale-110"
+                      className="p-2 rounded-lg transition-colors"
+                      style={{ color: TEAL }}
                       title="Visualizar"
                     >
-                      <LuEye className="w-4 h-4" />
+                      <span style={{fontSize:"15px"}}>🔍</span>
                     </Link>
                     <Link
                       href={`/dashboard/erp/clientes/${client.id}/editar`}
-                      className="p-2 text-green-600 hover:text-green-700 hover:bg-green-50 rounded-xl transition-all duration-300 hover:scale-110"
+                      className="p-2 rounded-lg transition-colors"
+                      style={{ color: TEAL_DARK }}
                       title="Editar"
                     >
-                      <LuPencil className="w-4 h-4" />
+                      <span style={{fontSize:"15px"}}>✏️</span>
                     </Link>
                     <button
                       onClick={() => requestDeleteClient(client)}
-                      className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl transition-all duration-300 hover:scale-110"
+                      className="p-2 rounded-lg transition-colors"
+                      style={{ color: '#D85A30' }}
                       title="Excluir"
                     >
-                      <LuTrash className="w-4 h-4" />
+                      <span style={{fontSize:"15px"}}>🗑️</span>
                     </button>
                   </div>
                 </td>
@@ -325,7 +355,7 @@ export default function ClientsListPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/20 w-full overflow-hidden">
+    <div className="min-h-screen w-full overflow-hidden" style={{ background: BG }}>
       <ConfirmDeleteModal
         isOpen={Boolean(clientToDelete)}
         entityLabel="Cliente"
@@ -341,19 +371,20 @@ export default function ClientsListPage() {
             <div className="mb-8">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-                    Clientes
+                  <h1 className="text-2xl flex items-center gap-2" style={{ fontWeight: 500, color: TEAL_DARK }}>
+                    <span>👤</span> Clientes
                   </h1>
-                  <p className="text-gray-600 mt-2">
+                  <p className="mt-2" style={{ color: TXT2 }}>
                     Gerencie todos os clientes cadastrados no sistema
                   </p>
                 </div>
                 <Link
                   href="/dashboard/erp/clientes/novo"
-                  className="group mt-4 sm:mt-0 flex items-center gap-2 px-6 py-3 text-white bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-blue-500/25"
+                  className="mt-4 sm:mt-0 flex items-center gap-2 px-5 py-2.5 transition-colors"
+                  style={{ background: TEAL, color: '#fff', borderRadius: 9 }}
                 >
-                  <LuPlus className="w-5 h-5 transition-transform duration-300 group-hover:rotate-90" />
-                  <span className="font-semibold">Novo Cliente</span>
+                  <span style={{fontSize:"15px"}}>➕</span>
+                  <span style={{ fontWeight: 500 }}>Novo Cliente</span>
                 </Link>
               </div>
             </div>
@@ -361,29 +392,21 @@ export default function ClientsListPage() {
             {/* Cards de Estatísticas */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
               {[
-                { label: "Total de Clientes", value: stats.total, color: "blue", icon: () => <span style={{fontSize:"14px"}}>👥</span> },
-                { label: "Clientes Ativos", value: stats.active, color: "green", icon: LuUser },
-                { label: "Leads", value: stats.leads, color: "purple", icon: () => <span style={{fontSize:"14px"}}>👥</span> },
-                { label: "Clientes Convertidos", value: stats.customers, color: "orange", icon: LuUser }
+                { label: "Total de Clientes", value: stats.total, emoji: "👤" },
+                { label: "Clientes Ativos", value: stats.active, emoji: "✅" },
+                { label: "Leads", value: stats.leads, emoji: "🔍" },
+                { label: "Clientes Convertidos", value: stats.customers, emoji: "🐾" }
               ].map((stat, index) => (
-                <div key={index} className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-3xl shadow-2xl shadow-blue-500/10 p-6 hover:shadow-2xl hover:shadow-blue-500/20 transition-all duration-300 hover:scale-105">
+                <div key={index} className="p-6" style={cardStyle}>
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-semibold text-gray-600 mb-2">{stat.label}</p>
-                      <p className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+                      <p className="text-sm mb-2" style={{ fontWeight: 500, color: TXT2 }}>{stat.label}</p>
+                      <p className="text-3xl" style={{ fontWeight: 500, color: TEAL_DARK }}>
                         {stat.value}
                       </p>
                     </div>
-                    <div className={`p-3 rounded-2xl ${
-                      stat.color === 'blue' ? 'bg-blue-50' :
-                      stat.color === 'green' ? 'bg-green-50' :
-                      stat.color === 'purple' ? 'bg-purple-50' : 'bg-orange-50'
-                    }`}>
-                      <stat.icon className={`w-6 h-6 ${
-                        stat.color === 'blue' ? 'text-blue-600' :
-                        stat.color === 'green' ? 'text-green-600' :
-                        stat.color === 'purple' ? 'text-purple-600' : 'text-orange-600'
-                      }`} />
+                    <div className="p-3 rounded-xl" style={{ background: TINT }}>
+                      <span style={{fontSize:"20px"}}>{stat.emoji}</span>
                     </div>
                   </div>
                 </div>
@@ -392,30 +415,32 @@ export default function ClientsListPage() {
 
             {/* Filtros e Busca - Só mostra se não estiver em estado de erro */}
             {!error && (
-              <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-3xl shadow-2xl shadow-blue-500/10 p-6 mb-6">
+              <div className="p-6 mb-6" style={cardStyle}>
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                   {/* Barra de Pesquisa */}
                   <div className="md:col-span-4 relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <LuSearch className="h-5 w-5 text-gray-400" />
+                      <span style={{fontSize:"15px"}}>🔍</span>
                     </div>
                     <input
                       type="text"
                       placeholder="Buscar por nome, email, telefone ou responsável..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full pl-10 pr-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                      className="w-full pl-10 pr-4 py-3 transition-colors"
+                      style={inputStyle}
                     />
                   </div>
 
                   {/* Filtro de Status */}
                   <div className="md:col-span-3">
                     <div className="flex items-center space-x-2">
-                      <span style={{fontSize:"14px"}}>⌕</span>
+                      <span style={{fontSize:"15px"}}>🔍</span>
                       <select
                         value={filterStatus}
                         onChange={(e) => setFilterStatus(e.target.value as typeof filterStatus)}
-                        className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                        className="w-full px-4 py-3 transition-colors"
+                        style={inputStyle}
                       >
                         <option value="all">Todos os status</option>
                         <option value="active">Ativos</option>
@@ -429,11 +454,12 @@ export default function ClientsListPage() {
                   {/* Filtro de Fonte */}
                   <div className="md:col-span-3">
                     <div className="flex items-center space-x-2">
-                      <span style={{fontSize:"14px"}}>👥</span>
+                      <span style={{fontSize:"15px"}}>👤</span>
                       <select
                         value={filterSource}
                         onChange={(e) => setFilterSource(e.target.value as typeof filterSource)}
-                        className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                        className="w-full px-4 py-3 transition-colors"
+                        style={inputStyle}
                       >
                         <option value="all">Todas as fontes</option>
                         <option value="website">Site</option>
@@ -447,9 +473,9 @@ export default function ClientsListPage() {
 
                   {/* Botão Exportar */}
                   <div className="md:col-span-2">
-                    <button className="w-full flex items-center justify-center gap-2 px-4 py-3 text-gray-700 bg-white/80 border border-gray-200/80 rounded-2xl hover:bg-white hover:border-gray-300 hover:shadow-lg transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-gray-500/50">
-                      <LuDownload className="w-5 h-5" />
-                      <span className="font-semibold">Exportar</span>
+                    <button className="w-full flex items-center justify-center gap-2 px-4 py-3 transition-colors" style={{ background: '#fff', border: `1px solid ${LINE}`, borderRadius: 9, color: TXT2 }}>
+                      <span style={{fontSize:"15px"}}>⬇️</span>
+                      <span style={{ fontWeight: 500 }}>Exportar</span>
                     </button>
                   </div>
                 </div>
@@ -457,22 +483,22 @@ export default function ClientsListPage() {
             )}
 
             {/* Tabela de Clientes */}
-            <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-3xl shadow-2xl shadow-blue-500/10 overflow-hidden">
+            <div className="overflow-hidden" style={cardStyle}>
               {renderContent()}
 
               {/* Paginação */}
               {!loading && !error && Array.isArray(clients) && clients.length > 0 && filteredClients.length > 0 && (
-                <div className="px-6 py-4 border-t border-white/20 bg-gradient-to-r from-white to-white/95">
+                <div className="px-6 py-4" style={{ borderTop: `1px solid ${LINE}`, background: SOFT }}>
                   <div className="flex items-center justify-between">
-                    <div className="text-sm text-gray-700">
-                      Mostrando <span className="font-semibold">{filteredClients.length}</span> de{' '}
-                      <span className="font-semibold">{clients.length}</span> clientes
+                    <div className="text-sm" style={{ color: TXT2 }}>
+                      Mostrando <span style={{ fontWeight: 500 }}>{filteredClients.length}</span> de{' '}
+                      <span style={{ fontWeight: 500 }}>{clients.length}</span> clientes
                     </div>
                     <div className="flex space-x-2">
-                      <button className="px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-2xl hover:bg-gray-50 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed">
+                      <button className="px-4 py-2 text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed" style={{ fontWeight: 500, background: '#fff', border: `1px solid ${LINE}`, borderRadius: 9, color: TXT2 }}>
                         Anterior
                       </button>
-                      <button className="px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl hover:from-blue-700 hover:to-purple-700 transition-all duration-300">
+                      <button className="px-4 py-2 text-sm transition-colors" style={{ fontWeight: 500, background: TEAL, color: '#fff', borderRadius: 9 }}>
                         Próxima
                       </button>
                     </div>
@@ -485,10 +511,3 @@ export default function ClientsListPage() {
     </div>
   );
 }
-
-
-
-
-
-
-

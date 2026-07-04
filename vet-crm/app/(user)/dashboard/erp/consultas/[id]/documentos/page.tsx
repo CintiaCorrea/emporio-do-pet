@@ -3,16 +3,6 @@
 import { useState, useEffect, use } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import {
-  LuFileText,
-  LuLoader,
-  LuPlus,
-  LuDownload,
-  LuSparkles,
-  LuCalendar,
-  LuPawPrint,
-  LuUser,
-  LuTrash} from 'react-icons/lu';
 import toast from 'react-hot-toast';
 import DocumentViewer from '@/components/protected/dashboard/clinical-documents/DocumentViewer';
 
@@ -29,14 +19,14 @@ const TYPE_LABELS: Record<string, string> = {
   GENERAL: 'Documento Geral'};
 
 const TYPE_COLORS: Record<string, string> = {
-  ANAMNESIS: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-  PRESCRIPTION: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-  DIAGNOSIS: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
-  TUTOR_REPORT: 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400',
-  MEDICAL_CERTIFICATE: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
-  EXAM_REQUEST: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
-  SURGICAL_REPORT: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-  DISCHARGE_SUMMARY: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400'};
+  ANAMNESIS: 'bg-[#E0F4F6] text-[#014D5E]',
+  PRESCRIPTION: 'bg-[#e1f5ee] text-[#0f6e56]',
+  DIAGNOSIS: 'bg-[#E0F4F6] text-[#014D5E]',
+  TUTOR_REPORT: 'bg-[#fdf6e3] text-[#854F0B]',
+  MEDICAL_CERTIFICATE: 'bg-[#fdf6e3] text-[#854F0B]',
+  EXAM_REQUEST: 'bg-[#fef0e8] text-[#993C1D]',
+  SURGICAL_REPORT: 'bg-[#fef0e8] text-[#993C1D]',
+  DISCHARGE_SUMMARY: 'bg-[#E0F4F6] text-[#014D5E]'};
 
 export default function DocumentosConsultaPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -100,7 +90,7 @@ export default function DocumentosConsultaPage({ params }: { params: Promise<{ i
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <LuLoader className="w-8 h-8 animate-spin text-violet-600" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#009AAC]"></div>
       </div>
     );
   }
@@ -121,33 +111,33 @@ export default function DocumentosConsultaPage({ params }: { params: Promise<{ i
   }
 
   return (
-    <div className="max-w-5xl mx-auto p-6 space-y-6">
+    <div className="max-w-5xl mx-auto p-6 space-y-6 bg-[#F6F2EA] min-h-screen">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Link
             href={`/dashboard/erp/consultas`}
-            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            className="p-2 rounded-[9px] border border-[#E8E2D6] bg-white hover:bg-[#FBF9F4] transition-colors text-[#014D5E]"
           >
-            <span style={{fontSize:"12px"}}>◀</span>
+            <span style={{fontSize:"14px"}}>‹</span>
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-              <LuFileText className="w-6 h-6 text-violet-600" />
+            <h1 className="text-2xl font-medium text-[#014D5E] flex items-center gap-2">
+              <span style={{fontSize:"20px"}}>📄</span>
               Documentos da Consulta
             </h1>
             {appointment && (
-              <div className="flex items-center gap-3 text-sm text-gray-500 mt-1">
+              <div className="flex items-center gap-3 text-sm text-[#8A989D] mt-1">
                 <span className="flex items-center gap-1">
-                  <LuPawPrint className="w-3.5 h-3.5" />
+                  <span style={{fontSize:"13px"}}>🐾</span>
                   {appointment.pet?.name}
                 </span>
                 <span className="flex items-center gap-1">
-                  <LuUser className="w-3.5 h-3.5" />
+                  <span style={{fontSize:"13px"}}>👤</span>
                   {appointment.tutor?.name}
                 </span>
                 <span className="flex items-center gap-1">
-                  <LuCalendar className="w-3.5 h-3.5" />
+                  <span style={{fontSize:"13px"}}>📅</span>
                   {new Date(appointment.date).toLocaleDateString('pt-BR')}
                 </span>
               </div>
@@ -158,9 +148,9 @@ export default function DocumentosConsultaPage({ params }: { params: Promise<{ i
         <div className="flex items-center gap-3">
           <Link
             href={`/dashboard/erp/consultas/${id}/gravar`}
-            className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-sm font-medium transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-[#009AAC] hover:bg-[#014D5E] text-white rounded-[9px] text-sm font-medium transition-colors"
           >
-            <LuPlus className="w-4 h-4" />
+            <span style={{fontSize:"14px"}}>➕</span>
             Gerar Mais Documentos
           </Link>
         </div>
@@ -168,19 +158,19 @@ export default function DocumentosConsultaPage({ params }: { params: Promise<{ i
 
       {/* Documents List */}
       {documents.length === 0 ? (
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-12 text-center">
-          <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
-            <LuFileText className="w-8 h-8 text-gray-400" />
+        <div className="bg-white rounded-[13px] border border-[#E8E2D6] p-12 text-center">
+          <div className="w-16 h-16 bg-[#F0EBE0] rounded-full flex items-center justify-center mx-auto mb-4">
+            <span style={{fontSize:"28px"}}>📄</span>
           </div>
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+          <h3 className="text-lg font-medium text-[#014D5E] mb-2">
             Nenhum documento gerado
           </h3>
-          <p className="text-sm text-gray-500 mb-6">
+          <p className="text-sm text-[#5C6B70] mb-6">
             Grave a consulta e gere documentos automaticamente com IA
           </p>
           <Link
             href={`/dashboard/erp/consultas/${id}/gravar`}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-medium transition-all"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-[#009AAC] hover:bg-[#014D5E] text-white rounded-[9px] font-medium transition-all"
           >
             <span style={{fontSize:"14px"}}>🎤</span>
             Iniciar Gravação
@@ -191,7 +181,7 @@ export default function DocumentosConsultaPage({ params }: { params: Promise<{ i
           {documents.map((doc) => (
             <div
               key={doc.id}
-              className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 hover:shadow-lg transition-all cursor-pointer group"
+              className="bg-white rounded-[13px] border border-[#E8E2D6] p-5 hover:shadow-md transition-all cursor-pointer group"
               onClick={() => {
                 setSelectedDoc(doc);
                 router.push(`/dashboard/erp/consultas/${id}/documentos?doc=${doc.id}`);
@@ -200,13 +190,13 @@ export default function DocumentosConsultaPage({ params }: { params: Promise<{ i
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                    TYPE_COLORS[doc.type] || 'bg-gray-100 text-gray-700'
+                    TYPE_COLORS[doc.type] || 'bg-[#F0EBE0] text-[#5C6B70]'
                   }`}>
                     {TYPE_LABELS[doc.type] || doc.type}
                   </span>
                   {doc.isAiGenerated && (
-                    <span className="flex items-center gap-1 px-2 py-0.5 bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400 rounded-full text-xs">
-                      <LuSparkles className="w-3 h-3" />
+                    <span className="flex items-center gap-1 px-2 py-0.5 bg-[#E0F4F6] text-[#014D5E] rounded-full text-xs">
+                      <span style={{fontSize:"11px"}}>✨</span>
                       IA
                     </span>
                   )}
@@ -216,21 +206,21 @@ export default function DocumentosConsultaPage({ params }: { params: Promise<{ i
                     e.stopPropagation();
                     deleteDocument(doc.id);
                   }}
-                  className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-500 transition-all"
+                  className="p-1.5 rounded-[9px] opacity-0 group-hover:opacity-100 hover:bg-[#fef0e8] transition-all"
                 >
-                  <LuTrash className="w-4 h-4" />
+                  <span style={{fontSize:"14px"}}>🗑️</span>
                 </button>
               </div>
 
-              <h4 className="font-semibold text-gray-900 dark:text-white mb-2 line-clamp-1">
+              <h4 className="font-medium text-[#1F2A2E] mb-2 line-clamp-1">
                 {doc.title}
               </h4>
 
-              <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2 mb-3">
+              <p className="text-sm text-[#5C6B70] line-clamp-2 mb-3">
                 {doc.content?.substring(0, 150)}...
               </p>
 
-              <div className="flex items-center justify-between text-xs text-gray-400">
+              <div className="flex items-center justify-between text-xs text-[#8A989D]">
                 <span>{new Date(doc.createdAt).toLocaleDateString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
                 <div className="flex items-center gap-2">
                   {doc.sharedVia?.length > 0 && (
