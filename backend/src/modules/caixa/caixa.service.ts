@@ -100,6 +100,41 @@ export class CaixaService {
     return rows;
   }
 
+  // Ranking ABC de clientes (Fase 3 relatórios): gasto por cliente em 365/90/30 dias + classe A/B/C pela % acumulada.
+  async rankingClientes() {
+    const now = Date.now();
+    const d365 = new Date(now - 365 * 86400000);
+    const d90 = new Date(now - 90 * 86400000);
+    const d30 = new Date(now - 30 * 86400000);
+    const appts = await this.prisma.appointment.findMany({
+      where: { value: { gt: 0 }, date: { gte: d365 }, status: { not: 'CANCELLED' } },
+      select: { tutorId: true, value: true, date: true, tutor: { select: { name: true } }, pet: { select: { name: true, species: true } } },
+    });
+    const map = new Map<string, any>();
+    for (const a of appts) {
+      if (!a.tutorId) continue;
+      if (!map.has(a.tutorId)) map.set(a.tutorId, { tutorId: a.tutorId, nome: a.tutor?.name || 'Cliente', petsSet: new Set<string>(), total365: 0, total90: 0, total30: 0 });
+      const g = map.get(a.tutorId); const v = Number(a.value) || 0;
+      g.total365 += v;
+      if (a.date >= d90) g.total90 += v;
+      if (a.date >= d30) g.total30 += v;
+      if (a.pet?.name) g.petsSet.add(JSON.stringify({ n: a.pet.name, s: a.pet.species || null }));
+    }
+    let list = [...map.values()].map((g) => ({ tutorId: g.tutorId, nome: g.nome, pets: [...g.petsSet].map((x: string) => JSON.parse(x)), total365: g.total365, total90: g.total90, total30: g.total30 }));
+    list.sort((a, b) => b.total365 - a.total365);
+    const totalRev = list.reduce((s, g) => s + g.total365, 0) || 1;
+    let cum = 0;
+    const clientes = list.map((g, i) => { cum += g.total365; const pctCum = cum / totalRev; const classe = pctCum <= 0.65 ? 'A' : pctCum <= 0.90 ? 'B' : 'C'; return { ...g, posicao: i + 1, classe }; });
+    const agg: any = { A: { count: 0, rev: 0 }, B: { count: 0, rev: 0 }, C: { count: 0, rev: 0 } };
+    for (const g of clientes) { agg[g.classe].count++; agg[g.classe].rev += g.total365; }
+    const resumo = {
+      A: { count: agg.A.count, pct: Math.round((agg.A.rev / totalRev) * 100) },
+      B: { count: agg.B.count, pct: Math.round((agg.B.rev / totalRev) * 100) },
+      C: { count: agg.C.count, pct: Math.round((agg.C.rev / totalRev) * 100) },
+    };
+    return { clientes, resumo };
+  }
+
   // ============================================================
   // MINHAS VENDAS / PRODUTIVIDADE (somente produtividade — sem metas).
   // A integração com o model Meta existente virá numa etapa dedicada.

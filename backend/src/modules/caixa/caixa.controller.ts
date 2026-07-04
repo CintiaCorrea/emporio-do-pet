@@ -41,6 +41,11 @@ export class CaixaController {
     return this.service.produtividade(query, userId);
   }
 
+  @Get('ranking-clientes')
+  rankingClientes() {
+    return this.service.rankingClientes();
+  }
+
   @Post('pdv')
   pdv(@Body() dto: any, @CurrentUser('id') userId: string) {
     return this.service.vendaDireta(dto, userId);
