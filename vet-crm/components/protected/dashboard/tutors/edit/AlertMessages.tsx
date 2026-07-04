@@ -9,11 +9,18 @@ export default function AlertMessages({ error, success, onDismissError }: AlertM
   return (
     <>
       {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-2xl text-red-700 flex items-center justify-between">
-          <span>{error}</span>
-          <button 
+        <div
+          className="mb-6 p-4 rounded-2xl flex items-center justify-between"
+          style={{ background: '#FDECEC', border: '1px solid #F5D0D0', color: '#b23b39' }}
+        >
+          <span className="flex items-center gap-2">
+            <span style={{ fontSize: '16px' }}>⚠️</span>
+            {error}
+          </span>
+          <button
             onClick={onDismissError}
-            className="text-red-500 hover:text-red-700 p-1 rounded-lg"
+            className="p-1 rounded-lg"
+            style={{ color: '#b23b39' }}
           >
             <span style={{fontSize:"14px"}}>✕</span>
           </button>
@@ -21,7 +28,10 @@ export default function AlertMessages({ error, success, onDismissError }: AlertM
       )}
 
       {success && (
-        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-2xl text-green-700">
+        <div
+          className="mb-6 p-4 rounded-2xl"
+          style={{ background: '#E1F5EE', border: '1px solid #C7EBDD', color: '#0F6E56' }}
+        >
           ✅ Tutor atualizado com sucesso! Redirecionando...
         </div>
       )}

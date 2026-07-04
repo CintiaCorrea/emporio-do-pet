@@ -6,6 +6,8 @@ interface ExtrasTabProps {
   onTutorChange: (field: keyof Tutor, value: any) => void;
 }
 
+const inputStyle = { background: '#fff', border: '1px solid #E8E2D6', borderRadius: '9px', color: '#1F2A2E' };
+
 export default function ExtrasTab({ tutor, onTutorChange }: ExtrasTabProps) {
   const formatDateForInput = (dateString?: string) => {
     if (!dateString) return '';
@@ -23,12 +25,13 @@ export default function ExtrasTab({ tutor, onTutorChange }: ExtrasTabProps) {
           rows={6}
           value={tutor.observations || ''}
           onChange={(e) => onTutorChange('observations', e.target.value)}
-          className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm resize-none"
+          className="w-full px-4 py-3 focus:outline-none focus:ring-2 transition-all duration-300 resize-none"
+          style={inputStyle}
           placeholder="Observações adicionais sobre o tutor..."
         />
       </FormField>
 
-      <FormField 
+      <FormField
         label="Marcações (Tags)"
         description="Separe as tags com vírgula"
       >
@@ -37,7 +40,8 @@ export default function ExtrasTab({ tutor, onTutorChange }: ExtrasTabProps) {
           placeholder="Digite o texto e pressione enter para adicionar tags"
           value={tutor.tags.join(', ')}
           onChange={(e) => onTutorChange('tags', e.target.value.split(', ').filter(tag => tag.trim()))}
-          className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm"
+          className="w-full px-4 py-3 focus:outline-none focus:ring-2 transition-all duration-300"
+          style={inputStyle}
         />
       </FormField>
 
@@ -47,7 +51,8 @@ export default function ExtrasTab({ tutor, onTutorChange }: ExtrasTabProps) {
             type="date"
             value={formatDateForInput(tutor.formDate)}
             onChange={(e) => onTutorChange('formDate', e.target.value || undefined)}
-            className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm"
+            className="w-full px-4 py-3 focus:outline-none focus:ring-2 transition-all duration-300"
+            style={inputStyle}
           />
         </FormField>
 
@@ -56,7 +61,8 @@ export default function ExtrasTab({ tutor, onTutorChange }: ExtrasTabProps) {
             type="date"
             value={formatDateForInput(tutor.inclusionDate)}
             onChange={(e) => onTutorChange('inclusionDate', e.target.value || undefined)}
-            className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm"
+            className="w-full px-4 py-3 focus:outline-none focus:ring-2 transition-all duration-300"
+            style={inputStyle}
           />
         </FormField>
       </div>

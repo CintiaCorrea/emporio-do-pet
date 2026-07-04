@@ -6,18 +6,21 @@ interface AddressTabProps {
   onTutorChange: (field: keyof Tutor, value: any) => void;
 }
 
+const inputStyle = { background: '#fff', border: '1px solid #E8E2D6', borderRadius: '9px', color: '#1F2A2E' };
+
 export default function AddressTab({ tutor, onTutorChange }: AddressTabProps) {
   return (
     <div className="space-y-8">
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
         <div className="md:col-span-2">
-          <FormField label="CEP" icon={<span style={{fontSize:"14px"}}>📍</span>}>
+          <FormField label="CEP" icon={<span style={{fontSize:"14px", marginRight: '8px'}}>🏠</span>}>
             <input
               type="text"
               placeholder="00000-000"
               value={tutor.cep || ''}
               onChange={(e) => onTutorChange('cep', e.target.value)}
-              className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm"
+              className="w-full px-4 py-3 focus:outline-none focus:ring-2 transition-all duration-300"
+              style={inputStyle}
             />
           </FormField>
         </div>
@@ -28,7 +31,8 @@ export default function AddressTab({ tutor, onTutorChange }: AddressTabProps) {
               type="text"
               value={tutor.address || ''}
               onChange={(e) => onTutorChange('address', e.target.value)}
-              className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm"
+              className="w-full px-4 py-3 focus:outline-none focus:ring-2 transition-all duration-300"
+              style={inputStyle}
             />
           </FormField>
         </div>
@@ -39,7 +43,8 @@ export default function AddressTab({ tutor, onTutorChange }: AddressTabProps) {
               type="text"
               value={tutor.addressNumber || ''}
               onChange={(e) => onTutorChange('addressNumber', e.target.value)}
-              className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm"
+              className="w-full px-4 py-3 focus:outline-none focus:ring-2 transition-all duration-300"
+              style={inputStyle}
             />
           </FormField>
         </div>
@@ -51,7 +56,8 @@ export default function AddressTab({ tutor, onTutorChange }: AddressTabProps) {
             type="text"
             value={tutor.complement || ''}
             onChange={(e) => onTutorChange('complement', e.target.value)}
-            className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm"
+            className="w-full px-4 py-3 focus:outline-none focus:ring-2 transition-all duration-300"
+            style={inputStyle}
           />
         </FormField>
 
@@ -60,7 +66,8 @@ export default function AddressTab({ tutor, onTutorChange }: AddressTabProps) {
             type="text"
             value={tutor.referencePoint || ''}
             onChange={(e) => onTutorChange('referencePoint', e.target.value)}
-            className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm"
+            className="w-full px-4 py-3 focus:outline-none focus:ring-2 transition-all duration-300"
+            style={inputStyle}
           />
         </FormField>
       </div>
@@ -71,7 +78,8 @@ export default function AddressTab({ tutor, onTutorChange }: AddressTabProps) {
             type="text"
             value={tutor.neighborhood || ''}
             onChange={(e) => onTutorChange('neighborhood', e.target.value)}
-            className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm"
+            className="w-full px-4 py-3 focus:outline-none focus:ring-2 transition-all duration-300"
+            style={inputStyle}
           />
         </FormField>
 
@@ -80,15 +88,17 @@ export default function AddressTab({ tutor, onTutorChange }: AddressTabProps) {
             type="text"
             value={tutor.city || ''}
             onChange={(e) => onTutorChange('city', e.target.value)}
-            className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm"
+            className="w-full px-4 py-3 focus:outline-none focus:ring-2 transition-all duration-300"
+            style={inputStyle}
           />
         </FormField>
 
         <FormField label="Estado">
-          <select 
+          <select
             value={tutor.state || ''}
             onChange={(e) => onTutorChange('state', e.target.value || undefined)}
-            className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm"
+            className="w-full px-4 py-3 focus:outline-none focus:ring-2 transition-all duration-300"
+            style={inputStyle}
           >
             <option value="">Selecione...</option>
             <option value="AC">Acre</option>

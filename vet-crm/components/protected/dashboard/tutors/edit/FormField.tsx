@@ -7,26 +7,27 @@ interface FormFieldProps {
   description?: string;
 }
 
-export default function FormField({ 
-  label, 
-  htmlFor, 
-  required = false, 
-  children, 
+export default function FormField({
+  label,
+  htmlFor,
+  required = false,
+  children,
   icon,
-  description 
+  description
 }: FormFieldProps) {
   return (
     <div className="space-y-2">
-      <label 
+      <label
         htmlFor={htmlFor}
-        className="flex items-center text-sm font-semibold text-gray-700"
+        className="flex items-center"
+        style={{ fontSize: '13px', fontWeight: 500, color: '#5C6B70' }}
       >
         {icon}
-        {label} {required && <span className="text-red-500 ml-1">*</span>}
+        {label} {required && <span className="ml-1" style={{ color: '#D85A30' }}>*</span>}
       </label>
       {children}
       {description && (
-        <p className="text-xs text-gray-500 mt-1">{description}</p>
+        <p className="mt-1" style={{ fontSize: '12px', color: '#8A989D' }}>{description}</p>
       )}
     </div>
   );

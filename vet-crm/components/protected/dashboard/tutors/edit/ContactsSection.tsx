@@ -1,4 +1,3 @@
-import { LuPlus, LuTrash } from 'react-icons/lu';
 import { ContactInput } from '@/types/tutor-edit';
 import FormField from './FormField';
 
@@ -10,6 +9,8 @@ interface ContactsSectionProps {
   onSetPrimaryContact: (index: number) => void;
 }
 
+const inputStyle = { background: '#fff', border: '1px solid #E8E2D6', borderRadius: '9px', color: '#1F2A2E' };
+
 export default function ContactsSection({
   contacts,
   onContactChange,
@@ -18,27 +19,35 @@ export default function ContactsSection({
   onSetPrimaryContact
 }: ContactsSectionProps) {
   return (
-    <div className="border-t border-white/20 pt-8">
+    <div className="pt-8" style={{ borderTop: '1px solid #E8E2D6' }}>
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-semibold text-gray-900">Contatos *</h3>
+        <h3 className="text-lg flex items-center gap-2" style={{ fontWeight: 500, color: '#014D5E' }}>
+          <span>📞</span>Contatos *
+        </h3>
         <button
           type="button"
           onClick={onAddContact}
-          className="group flex items-center gap-2 px-4 py-2 text-blue-600 hover:text-blue-700 text-sm font-semibold bg-blue-50/50 rounded-2xl hover:bg-blue-100/50 transition-all duration-300 hover:scale-105"
+          className="flex items-center gap-2 px-4 py-2 text-sm transition-all duration-300"
+          style={{ fontWeight: 500, color: '#009AAC', background: '#E0F4F6', borderRadius: '9px' }}
         >
-          <LuPlus className="w-4 h-4 transition-transform duration-300 group-hover:rotate-90" />
+          <span style={{ fontSize: '14px' }}>➕</span>
           Adicionar Contato
         </button>
       </div>
 
       {contacts.map((contact, index) => (
-        <div key={contact.id || index} className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4 p-4 bg-gray-50/50 rounded-2xl hover:bg-gray-100/50 transition-all duration-300">
+        <div
+          key={contact.id || index}
+          className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4 p-4 transition-all duration-300"
+          style={{ background: '#FBF9F4', borderRadius: '12px', border: '1px solid #E8E2D6' }}
+        >
           <div className="md:col-span-2">
             <FormField label="Tipo">
-              <select 
+              <select
                 value={contact.type}
                 onChange={(e) => onContactChange(index, 'type', e.target.value as 'MOBILE' | 'PHONE' | 'BUSINESS')}
-                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all duration-300"
+                className="w-full px-3 py-2 focus:outline-none focus:ring-2 transition-all duration-300"
+                style={inputStyle}
               >
                 <option value="MOBILE">Celular</option>
                 <option value="PHONE">Telefone</option>
@@ -54,17 +63,19 @@ export default function ContactsSection({
                 placeholder="Número *"
                 value={contact.number}
                 onChange={(e) => onContactChange(index, 'number', e.target.value)}
-                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all duration-300"
+                className="w-full px-3 py-2 focus:outline-none focus:ring-2 transition-all duration-300"
+                style={inputStyle}
               />
             </FormField>
           </div>
 
           <div className="md:col-span-2">
             <FormField label="WhatsApp">
-              <select 
+              <select
                 value={contact.isWhatsApp ? 'true' : 'false'}
                 onChange={(e) => onContactChange(index, 'isWhatsApp', e.target.value === 'true')}
-                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500/50 transition-all duration-300"
+                className="w-full px-3 py-2 focus:outline-none focus:ring-2 transition-all duration-300"
+                style={inputStyle}
               >
                 <option value="true">Tem WhatsApp</option>
                 <option value="false">Sem WhatsApp</option>
@@ -79,7 +90,8 @@ export default function ContactsSection({
                 placeholder="Observações"
                 value={contact.observations || ''}
                 onChange={(e) => onContactChange(index, 'observations', e.target.value)}
-                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-500/50 transition-all duration-300"
+                className="w-full px-3 py-2 focus:outline-none focus:ring-2 transition-all duration-300"
+                style={inputStyle}
               />
             </FormField>
           </div>
@@ -88,21 +100,24 @@ export default function ContactsSection({
             <button
               type="button"
               onClick={() => onSetPrimaryContact(index)}
-              className={`p-2 rounded-xl transition-all duration-300 hover:scale-110 ${
-                contact.isPrimary 
-                  ? 'text-orange-500 bg-orange-50' 
-                  : 'text-gray-400 hover:text-orange-500 hover:bg-orange-50'
-              }`}
+              className="p-2 transition-all duration-300 hover:scale-110"
+              style={{
+                borderRadius: '9px',
+                background: contact.isPrimary ? '#FBEDE6' : 'transparent',
+                opacity: contact.isPrimary ? 1 : 0.5,
+              }}
+              title="Definir como principal"
             >
               <span style={{fontSize:"14px"}}>⭐</span>
             </button>
             <button
               type="button"
               onClick={() => onRemoveContact(index)}
-              className="p-2 text-red-500 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all duration-300 hover:scale-110"
+              className="p-2 transition-all duration-300 hover:scale-110"
+              style={{ borderRadius: '9px' }}
               disabled={contacts.length === 1}
             >
-              <LuTrash className="w-4 h-4" />
+              <span style={{ fontSize: '14px' }}>🗑️</span>
             </button>
           </div>
         </div>

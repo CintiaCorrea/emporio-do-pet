@@ -5,6 +5,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
+import { confirmDelete } from '@/lib/ui/confirmDelete';
 
 // Paleta Base44 (mesmos tokens de components/ui/base44.tsx)
 const TEAL = '#009AAC';      // acento / botao primario

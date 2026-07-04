@@ -1,4 +1,3 @@
-import { LuUser } from 'react-icons/lu';
 import { Tutor, ContactInput } from '@/types/tutor-edit';
 import FormField from '../FormField';
 import ContactsSection from '../ContactsSection';
@@ -11,6 +10,9 @@ interface GeneralTabProps {
   onRemoveContact: (index: number) => void;
   onSetPrimaryContact: (index: number) => void;
 }
+
+const inputStyle = { background: '#fff', border: '1px solid #E8E2D6', borderRadius: '9px', color: '#1F2A2E' };
+const userIcon = <span style={{ fontSize: '14px', marginRight: '8px' }}>👤</span>;
 
 export default function GeneralTab({
   tutor,
@@ -33,11 +35,12 @@ export default function GeneralTab({
     <div className="space-y-8">
       {/* Informações Básicas */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <FormField label="Tipo" icon={<LuUser className="w-4 h-4 mr-2 text-blue-500" />}>
-          <select 
+        <FormField label="Tipo" icon={userIcon}>
+          <select
             value={tutor.type}
             onChange={(e) => onTutorChange('type', e.target.value as 'INDIVIDUAL' | 'LEGAL_ENTITY')}
-            className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm"
+            className="w-full px-4 py-3 focus:outline-none focus:ring-2 transition-all duration-300"
+            style={inputStyle}
           >
             <option value="INDIVIDUAL">Pessoa Física</option>
             <option value="LEGAL_ENTITY">Pessoa Jurídica</option>
@@ -45,34 +48,37 @@ export default function GeneralTab({
         </FormField>
 
         <div className="md:col-span-2">
-          <FormField label="Nome completo" required icon={<LuUser className="w-4 h-4 mr-2 text-blue-500" />}>
+          <FormField label="Nome completo" required icon={userIcon}>
             <input
               type="text"
               value={tutor.name}
               onChange={(e) => onTutorChange('name', e.target.value)}
               required
-              className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm"
+              className="w-full px-4 py-3 focus:outline-none focus:ring-2 transition-all duration-300"
+              style={inputStyle}
               placeholder="Nome completo do tutor"
             />
           </FormField>
         </div>
 
-        <FormField label="Nacionalidade" icon={<LuUser className="w-4 h-4 mr-2 text-blue-500" />}>
-          <select 
+        <FormField label="Nacionalidade" icon={userIcon}>
+          <select
             value={tutor.nationality}
             onChange={(e) => onTutorChange('nationality', e.target.value)}
-            className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm"
+            className="w-full px-4 py-3 focus:outline-none focus:ring-2 transition-all duration-300"
+            style={inputStyle}
           >
             <option value="Brasileira">Brasileira</option>
             <option value="Estrangeira">Estrangeira</option>
           </select>
         </FormField>
 
-        <FormField label="Sexo" icon={<LuUser className="w-4 h-4 mr-2 text-blue-500" />}>
-          <select 
+        <FormField label="Sexo" icon={userIcon}>
+          <select
             value={tutor.gender || ''}
             onChange={(e) => onTutorChange('gender', e.target.value || undefined)}
-            className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm"
+            className="w-full px-4 py-3 focus:outline-none focus:ring-2 transition-all duration-300"
+            style={inputStyle}
           >
             <option value="">Selecione...</option>
             <option value="MALE">Masculino</option>
@@ -81,11 +87,12 @@ export default function GeneralTab({
           </select>
         </FormField>
 
-        <FormField label="Status" icon={<LuUser className="w-4 h-4 mr-2 text-blue-500" />}>
+        <FormField label="Status" icon={userIcon}>
           <select
             value={tutor.isActive ? 'true' : 'false'}
             onChange={(e) => onTutorChange('isActive', e.target.value === 'true')}
-            className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm"
+            className="w-full px-4 py-3 focus:outline-none focus:ring-2 transition-all duration-300"
+            style={inputStyle}
           >
             <option value="true">Ativo</option>
             <option value="false">Inativo</option>
@@ -95,16 +102,17 @@ export default function GeneralTab({
 
       {/* Email */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <FormField 
-          label="E-mail" 
-          icon={<span style={{fontSize:"14px"}}>✉</span>}
+        <FormField
+          label="E-mail"
+          icon={<span style={{fontSize:"14px", marginRight: '8px'}}>✉️</span>}
           description="E-mail principal para comunicação"
         >
           <input
             type="email"
             value={tutor.email || ''}
             onChange={(e) => onTutorChange('email', e.target.value)}
-            className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm"
+            className="w-full px-4 py-3 focus:outline-none focus:ring-2 transition-all duration-300"
+            style={inputStyle}
             placeholder="email@exemplo.com"
           />
         </FormField>
@@ -118,7 +126,8 @@ export default function GeneralTab({
             placeholder="000.000.000-00"
             value={tutor.cpf || ''}
             onChange={(e) => onTutorChange('cpf', e.target.value)}
-            className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm"
+            className="w-full px-4 py-3 focus:outline-none focus:ring-2 transition-all duration-300"
+            style={inputStyle}
           />
         </FormField>
 
@@ -127,16 +136,18 @@ export default function GeneralTab({
             type="text"
             value={tutor.rg || ''}
             onChange={(e) => onTutorChange('rg', e.target.value)}
-            className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm"
+            className="w-full px-4 py-3 focus:outline-none focus:ring-2 transition-all duration-300"
+            style={inputStyle}
           />
         </FormField>
 
-        <FormField label="Data de Nascimento">
+        <FormField label="Data de Nascimento" icon={<span style={{fontSize:"14px", marginRight: '8px'}}>🎂</span>}>
           <input
             type="date"
             value={formatDateForInput(tutor.birthDate)}
             onChange={(e) => onTutorChange('birthDate', e.target.value || undefined)}
-            className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm"
+            className="w-full px-4 py-3 focus:outline-none focus:ring-2 transition-all duration-300"
+            style={inputStyle}
           />
         </FormField>
       </div>
@@ -148,7 +159,8 @@ export default function GeneralTab({
             type="text"
             value={tutor.howFoundUs || ''}
             onChange={(e) => onTutorChange('howFoundUs', e.target.value)}
-            className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm"
+            className="w-full px-4 py-3 focus:outline-none focus:ring-2 transition-all duration-300"
+            style={inputStyle}
             placeholder="Indicação, Google, etc."
           />
         </FormField>
@@ -158,7 +170,8 @@ export default function GeneralTab({
             type="text"
             value={tutor.profession || ''}
             onChange={(e) => onTutorChange('profession', e.target.value)}
-            className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm"
+            className="w-full px-4 py-3 focus:outline-none focus:ring-2 transition-all duration-300"
+            style={inputStyle}
             placeholder="Profissão do tutor"
           />
         </FormField>
@@ -167,16 +180,17 @@ export default function GeneralTab({
       {/* Preferências de Contato */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         {[
-          { label: 'Aceita Email?', field: 'acceptsEmail', color: 'blue' },
-          { label: 'Aceita WhatsApp?', field: 'acceptsWhatsApp', color: 'green' },
-          { label: 'Aceita SMS?', field: 'acceptsSMS', color: 'purple' },
-          { label: 'Aceita Campanha SMS?', field: 'acceptsSmsCampaign', color: 'amber' }
+          { label: 'Aceita Email?', field: 'acceptsEmail' },
+          { label: 'Aceita WhatsApp?', field: 'acceptsWhatsApp' },
+          { label: 'Aceita SMS?', field: 'acceptsSMS' },
+          { label: 'Aceita Campanha SMS?', field: 'acceptsSmsCampaign' }
         ].map((item, index) => (
           <FormField key={index} label={item.label}>
-            <select 
+            <select
               value={tutor[item.field as keyof Tutor] ? 'true' : 'false'}
               onChange={(e) => onTutorChange(item.field as keyof Tutor, e.target.value === 'true')}
-              className={`w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-${item.color}-500/50 focus:border-${item.color}-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm`}
+              className="w-full px-4 py-3 focus:outline-none focus:ring-2 transition-all duration-300"
+              style={inputStyle}
             >
               <option value="true">Sim</option>
               <option value="false">Não</option>

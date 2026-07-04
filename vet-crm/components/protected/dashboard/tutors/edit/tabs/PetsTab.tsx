@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { LuPlus, LuTrash, LuPawPrint, LuCalendar } from 'react-icons/lu';
 import { PetInline, emptyPetInline, normalizeBreed, formatDateMask } from '@/types/pet-inline';
 
 interface PetsTabProps {
@@ -9,6 +8,20 @@ interface PetsTabProps {
   onPetsChange: (pets: PetInline[]) => void;
   tutorId?: string;
 }
+
+const inputStyle = { background: '#fff', border: '1px solid #E8E2D6', borderRadius: '9px', color: '#1F2A2E' };
+const labelStyle = { fontSize: '13px', fontWeight: 500, color: '#5C6B70' };
+
+const speciesEmoji = (species: string): string => {
+  switch (species) {
+    case 'Canina': return '🐶';
+    case 'Felina': return '🐱';
+    case 'Ave': return '🐦';
+    case 'Roedor': return '🐹';
+    case 'Réptil': return '🦎';
+    default: return '🐾';
+  }
+};
 
 export default function PetsTab({ pets, onPetsChange, tutorId }: PetsTabProps) {
   const [breedsBySpecies, setBreedsBySpecies] = useState<Record<string, string[]>>({});
@@ -18,19 +31,19 @@ export default function PetsTab({ pets, onPetsChange, tutorId }: PetsTabProps) {
 
   const fetchBreeds = async (species: string) => {
     if (!species || breedsBySpecies[species] || breedsLoading[species]) return;
-    
+
     try {
       setBreedsLoading(prev => ({ ...prev, [species]: true }));
       const res = await fetch(`/api/breeds?species=${encodeURIComponent(species)}`);
       const data = await res.json().catch(() => null);
-      
+
       if (res.ok) {
-        const arr: string[] = Array.isArray(data) 
+        const arr: string[] = Array.isArray(data)
           ? data.map((item: any) => typeof item === 'string' ? item : item?.name).filter(Boolean)
-          : Array.isArray(data?.breeds) 
+          : Array.isArray(data?.breeds)
             ? data.breeds.map((item: any) => typeof item === 'string' ? item : item?.name).filter(Boolean)
             : [];
-        
+
         const unique = Array.from(new Map(arr.map(b => [normalizeBreed(b).toLowerCase(), normalizeBreed(b)])).values());
         setBreedsBySpecies(prev => ({ ...prev, [species]: unique }));
       }
@@ -55,7 +68,7 @@ export default function PetsTab({ pets, onPetsChange, tutorId }: PetsTabProps) {
     if (!pet) return;
 
     if (pet.id) {
-      onPetsChange(pets.map(p => 
+      onPetsChange(pets.map(p =>
         p.tempId === tempId ? { ...p, isDeleted: true } : p
       ));
     } else {
@@ -66,16 +79,16 @@ export default function PetsTab({ pets, onPetsChange, tutorId }: PetsTabProps) {
   const updatePet = (tempId: string, field: keyof PetInline, value: any) => {
     onPetsChange(pets.map(p => {
       if (p.tempId !== tempId) return p;
-      
+
       if (field === 'birthDate') {
         return { ...p, birthDate: formatDateMask(value) };
       }
-      
+
       if (field === 'species' && value !== p.species) {
         fetchBreeds(value);
         return { ...p, species: value, breed: '' };
       }
-      
+
       return { ...p, [field]: value };
     }));
   };
@@ -83,14 +96,14 @@ export default function PetsTab({ pets, onPetsChange, tutorId }: PetsTabProps) {
   const addBreedToSpecies = async (tempId: string) => {
     const pet = pets.find(p => p.tempId === tempId);
     if (!pet) return;
-    
+
     const newBreed = newBreedInputs[tempId] || '';
     const normalized = normalizeBreed(newBreed);
     if (!normalized) return;
-    
+
     const currentBreeds = breedsBySpecies[pet.species] || [];
     const exists = currentBreeds.some(b => normalizeBreed(b).toLowerCase() === normalized.toLowerCase());
-    
+
     if (exists) {
       updatePet(tempId, 'breed', normalized);
       setNewBreedInputs(prev => ({ ...prev, [tempId]: '' }));
@@ -99,7 +112,7 @@ export default function PetsTab({ pets, onPetsChange, tutorId }: PetsTabProps) {
 
     try {
       setBreedsSubmitting(prev => ({ ...prev, [tempId]: true }));
-      
+
       const res = await fetch('/api/breeds', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -130,26 +143,32 @@ export default function PetsTab({ pets, onPetsChange, tutorId }: PetsTabProps) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">Pets do Tutor</h3>
-          <p className="text-sm text-gray-500 mt-1">
+          <h3 className="text-lg flex items-center gap-2" style={{ fontWeight: 500, color: '#014D5E' }}>
+            <span>🐾</span>Pets do Tutor
+          </h3>
+          <p className="mt-1" style={{ fontSize: '13px', color: '#8A989D' }}>
             Cadastre quantos pets quiser. Eles serão salvos junto com o tutor.
           </p>
         </div>
         <button
           type="button"
           onClick={addPet}
-          className="group flex items-center gap-2 px-4 py-2 text-green-600 hover:text-green-700 text-sm font-semibold bg-green-50/50 rounded-2xl hover:bg-green-100/50 transition-all duration-300 hover:scale-105"
+          className="flex items-center gap-2 px-4 py-2 text-sm transition-all duration-300"
+          style={{ fontWeight: 500, color: '#0f6e56', background: '#E1F5EE', borderRadius: '9px' }}
         >
-          <LuPlus className="w-4 h-4 transition-transform duration-300 group-hover:rotate-90" />
+          <span style={{ fontSize: '14px' }}>➕</span>
           Adicionar Pet
         </button>
       </div>
 
       {visiblePets.length === 0 ? (
-        <div className="text-center py-12 bg-gray-50/50 rounded-2xl border border-gray-200/50">
-          <LuPawPrint className="w-12 h-12 mx-auto text-gray-300 mb-3" />
-          <p className="text-gray-500">Nenhum pet cadastrado</p>
-          <p className="text-sm text-gray-400 mt-1">Clique em "Adicionar Pet" para começar</p>
+        <div
+          className="text-center py-12"
+          style={{ background: '#FBF9F4', borderRadius: '16px', border: '1px solid #E8E2D6' }}
+        >
+          <div className="mb-3" style={{ fontSize: '48px', opacity: 0.5 }}>🐾</div>
+          <p style={{ color: '#5C6B70' }}>Nenhum pet cadastrado</p>
+          <p className="mt-1" style={{ fontSize: '13px', color: '#8A989D' }}>Clique em "Adicionar Pet" para começar</p>
         </div>
       ) : (
         <div className="space-y-6">
@@ -159,24 +178,34 @@ export default function PetsTab({ pets, onPetsChange, tutorId }: PetsTabProps) {
             const newBreed = newBreedInputs[pet.tempId] || '';
             const isSubmittingBreed = breedsSubmitting[pet.tempId] || false;
             const breedExists = breeds.some(b => normalizeBreed(b).toLowerCase() === normalizeBreed(newBreed).toLowerCase());
-            
+
             return (
-              <div 
-                key={pet.tempId} 
-                className="bg-white/80 border border-gray-200/80 rounded-2xl overflow-hidden shadow-sm"
+              <div
+                key={pet.tempId}
+                className="overflow-hidden"
+                style={{ background: '#fff', border: '1px solid #E8E2D6', borderRadius: '16px' }}
               >
-                <div className="bg-gradient-to-r from-green-50 to-cyan-50/50 px-6 py-4 border-b border-gray-200/50 flex items-center justify-between">
+                <div
+                  className="px-6 py-4 flex items-center justify-between"
+                  style={{ background: '#FBF9F4', borderBottom: '1px solid #E8E2D6' }}
+                >
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-green-100 rounded-xl flex items-center justify-center">
-                      <LuPawPrint className="w-4 h-4 text-green-600" />
+                    <div
+                      className="w-8 h-8 flex items-center justify-center"
+                      style={{ background: '#E0F4F6', borderRadius: '9px', fontSize: '16px' }}
+                    >
+                      {speciesEmoji(pet.species)}
                     </div>
                     <div>
-                      <span className="font-semibold text-gray-900">
+                      <span style={{ fontWeight: 500, color: '#1F2A2E' }}>
                         Pet {index + 1}
                         {pet.name && ` - ${pet.name}`}
                       </span>
                       {pet.isNew && !pet.id && (
-                        <span className="ml-2 text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded-full">
+                        <span
+                          className="ml-2 px-2 py-0.5 rounded-full"
+                          style={{ fontSize: '11px', background: '#E1F5EE', color: '#0f6e56' }}
+                        >
                           Novo
                         </span>
                       )}
@@ -185,10 +214,11 @@ export default function PetsTab({ pets, onPetsChange, tutorId }: PetsTabProps) {
                   <button
                     type="button"
                     onClick={() => removePet(pet.tempId)}
-                    className="p-2 text-red-500 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all duration-300"
+                    className="p-2 transition-all duration-300"
+                    style={{ borderRadius: '9px' }}
                     title="Remover pet"
                   >
-                    <LuTrash className="w-4 h-4" />
+                    <span style={{ fontSize: '14px' }}>🗑️</span>
                   </button>
                 </div>
 
@@ -196,29 +226,31 @@ export default function PetsTab({ pets, onPetsChange, tutorId }: PetsTabProps) {
                   {/* Nome e Espécie */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <label className="flex items-center text-sm font-semibold text-gray-700">
-                        <LuPawPrint className="w-4 h-4 mr-2 text-green-500" />
+                      <label className="flex items-center" style={labelStyle}>
+                        <span style={{ fontSize: '14px', marginRight: '8px' }}>🐾</span>
                         Nome do Animal *
                       </label>
                       <input
                         type="text"
                         value={pet.name}
                         onChange={(e) => updatePet(pet.tempId, 'name', e.target.value)}
-                        className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500/50 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                        className="w-full px-4 py-3 focus:outline-none focus:ring-2 transition-all duration-300"
+                        style={inputStyle}
                         placeholder="Digite o nome do pet"
                         required
                       />
                     </div>
-                    
+
                     <div className="space-y-2">
-                      <label className="flex items-center text-sm font-semibold text-gray-700">
-                        <LuPawPrint className="w-4 h-4 mr-2 text-green-500" />
+                      <label className="flex items-center" style={labelStyle}>
+                        <span style={{ fontSize: '14px', marginRight: '8px' }}>🐾</span>
                         Espécie *
                       </label>
                       <select
                         value={pet.species}
                         onChange={(e) => updatePet(pet.tempId, 'species', e.target.value)}
-                        className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                        className="w-full px-4 py-3 focus:outline-none focus:ring-2 transition-all duration-300"
+                        style={inputStyle}
                       >
                         <option value="Canina">Canina</option>
                         <option value="Felina">Felina</option>
@@ -232,12 +264,13 @@ export default function PetsTab({ pets, onPetsChange, tutorId }: PetsTabProps) {
                   {/* Raça e Status */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <label className="text-sm font-semibold text-gray-700">Raça</label>
+                      <label style={labelStyle}>Raça</label>
                       <select
                         value={pet.breed}
                         onChange={(e) => updatePet(pet.tempId, 'breed', e.target.value)}
                         disabled={isLoadingBreeds}
-                        className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full px-4 py-3 focus:outline-none focus:ring-2 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                        style={inputStyle}
                       >
                         <option value="">Selecione...</option>
                         {breeds.map((breed) => (
@@ -249,20 +282,22 @@ export default function PetsTab({ pets, onPetsChange, tutorId }: PetsTabProps) {
                           type="text"
                           value={newBreed}
                           onChange={(e) => setNewBreedInputs(prev => ({ ...prev, [pet.tempId]: e.target.value }))}
-                          className="flex-1 px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500/50 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                          className="flex-1 px-4 py-3 focus:outline-none focus:ring-2 transition-all duration-300"
+                          style={inputStyle}
                           placeholder="Nova raça (se não existir)"
                         />
                         <button
                           type="button"
                           onClick={() => addBreedToSpecies(pet.tempId)}
                           disabled={isSubmittingBreed || isLoadingBreeds || !normalizeBreed(newBreed)}
-                          className="px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl text-sm font-semibold text-gray-700 hover:bg-white hover:border-gray-300/50 shadow-sm transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="px-4 py-3 text-sm transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                          style={{ fontWeight: 500, color: '#5C6B70', background: '#fff', border: '1px solid #E8E2D6', borderRadius: '9px' }}
                           title="Adicionar esta raça ao banco para esta espécie"
                         >
                           {isSubmittingBreed ? 'Adicionando...' : 'Adicionar'}
                         </button>
                       </div>
-                      <p className="text-xs text-gray-500">
+                      <p style={{ fontSize: '12px', color: '#8A989D' }}>
                         {isLoadingBreeds
                           ? 'Carregando raças...'
                           : breedExists
@@ -272,11 +307,12 @@ export default function PetsTab({ pets, onPetsChange, tutorId }: PetsTabProps) {
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-sm font-semibold text-gray-700">Status *</label>
+                      <label style={labelStyle}>Status *</label>
                       <select
                         value={pet.status}
                         onChange={(e) => updatePet(pet.tempId, 'status', e.target.value)}
-                        className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                        className="w-full px-4 py-3 focus:outline-none focus:ring-2 transition-all duration-300"
+                        style={inputStyle}
                       >
                         <option value="Ativo">Ativo</option>
                         <option value="Inativo">Inativo</option>
@@ -289,11 +325,12 @@ export default function PetsTab({ pets, onPetsChange, tutorId }: PetsTabProps) {
                   {/* Sexo e Esterilização */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <label className="text-sm font-semibold text-gray-700">Sexo</label>
+                      <label style={labelStyle}>Sexo</label>
                       <select
                         value={pet.sex}
                         onChange={(e) => updatePet(pet.tempId, 'sex', e.target.value)}
-                        className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                        className="w-full px-4 py-3 focus:outline-none focus:ring-2 transition-all duration-300"
+                        style={inputStyle}
                       >
                         <option value="">Selecione...</option>
                         <option value="Macho">Macho</option>
@@ -303,11 +340,12 @@ export default function PetsTab({ pets, onPetsChange, tutorId }: PetsTabProps) {
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-sm font-semibold text-gray-700">Esterilização</label>
+                      <label style={labelStyle}>Esterilização</label>
                       <select
                         value={pet.sterilization}
                         onChange={(e) => updatePet(pet.tempId, 'sterilization', e.target.value)}
-                        className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                        className="w-full px-4 py-3 focus:outline-none focus:ring-2 transition-all duration-300"
+                        style={inputStyle}
                       >
                         <option value="">Selecione...</option>
                         <option value="Sim">Sim</option>
@@ -320,25 +358,27 @@ export default function PetsTab({ pets, onPetsChange, tutorId }: PetsTabProps) {
                   {/* Data de Nascimento e Pelagem */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <label className="flex items-center text-sm font-semibold text-gray-700">
-                        <LuCalendar className="w-4 h-4 mr-2 text-blue-500" />
+                      <label className="flex items-center" style={labelStyle}>
+                        <span style={{ fontSize: '14px', marginRight: '8px' }}>🎂</span>
                         Data de Nascimento
                       </label>
                       <input
                         type="text"
                         value={pet.birthDate}
                         onChange={(e) => updatePet(pet.tempId, 'birthDate', e.target.value)}
-                        className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                        className="w-full px-4 py-3 focus:outline-none focus:ring-2 transition-all duration-300"
+                        style={inputStyle}
                         placeholder="dd/mm/aaaa"
                       />
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-sm font-semibold text-gray-700">Pelagem</label>
+                      <label style={labelStyle}>Pelagem</label>
                       <select
                         value={pet.coat}
                         onChange={(e) => updatePet(pet.tempId, 'coat', e.target.value)}
-                        className="w-full px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                        className="w-full px-4 py-3 focus:outline-none focus:ring-2 transition-all duration-300"
+                        style={inputStyle}
                       >
                         <option value="">Selecione...</option>
                         <option value="Curta">Curta</option>
