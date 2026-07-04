@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Meta Ads · Empório do Pet — Mockup de Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Mulish:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --pine:#1d3a2e;
+    --pine-2:#27503d;
+    --amber:#d99a4e;
+    --amber-soft:#f0d8b4;
+    --sage:#8ba888;
+    --bone:#faf7f0;
+    --card:#ffffff;
+    --ink:#1a1f1c;
+    --muted:#6b7d72;
+    --line:#e6e0d4;
+    --crm:#6a8cae;        /* azul sereno = lado CRM */
+    --crm-soft:#dbe6f0;
+    --good:#2f8f5b;
+    --warn:#c2683a;
+    --radius:16px;
+    --shadow:0 1px 2px rgba(29,58,46,.04), 0 8px 24px rgba(29,58,46,.06);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:'Mulish',system-ui,sans-serif;
+    background:var(--bone);
+    color:var(--ink);
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+    padding:28px 20px 60px;
+  }
+  .wrap{max-width:1120px;margin:0 auto}
+
+  /* ---------- Header ---------- */
+  .top{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:16px;margin-bottom:22px}
+  .brand .eyebrow{
+    font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--amber);margin-bottom:4px;
+  }
+  .brand h1{
+    font-family:'Fraunces',serif;font-weight:600;font-size:30px;color:var(--pine);
+    letter-spacing:-.01em;line-height:1.1;
+  }
+  .brand .sub{font-size:13px;color:var(--muted);margin-top:5px;max-width:520px}
+  .period{
+    display:flex;align-items:center;gap:10px;background:var(--card);
+    border:1px solid var(--line);border-radius:999px;padding:8px 16px;
+    font-size:13px;font-weight:600;color:var(--pine);box-shadow:var(--shadow);
+  }
+  .period .dot{width:8px;height:8px;border-radius:50%;background:var(--good);box-shadow:0 0 0 3px rgba(47,143,91,.18)}
+
+  /* ---------- Tabs de segmento ---------- */
+  .segs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px}
+  .seg{
+    cursor:pointer;border:1px solid var(--line);background:var(--card);
+    padding:9px 18px;border-radius:999px;font-weight:700;font-size:13.5px;
+    color:var(--muted);transition:all .18s ease;display:flex;align-items:center;gap:8px;
+  }
+  .seg .swatch{width:9px;height:9px;border-radius:3px}
+  .seg[data-seg="consolidado"] .swatch{background:var(--pine)}
+  .seg[data-seg="clinica"] .swatch{background:var(--sage)}
+  .seg[data-seg="fisio"] .swatch{background:var(--amber)}
+  .seg[data-seg="integrativa"] .swatch{background:var(--crm)}
+  .seg:hover{border-color:var(--sage);color:var(--pine)}
+  .seg.active{background:var(--pine);color:#fff;border-color:var(--pine)}
+  .seg.active .swatch{background:#fff}
+
+  /* ---------- Grid de KPIs ---------- */
+  .section-label{
+    font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--muted);margin:0 0 12px 2px;display:flex;align-items:center;gap:10px;
+  }
+  .section-label::after{content:"";flex:1;height:1px;background:var(--line)}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:30px}
+  .kpi{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    padding:18px;box-shadow:var(--shadow);position:relative;overflow:hidden;
+  }
+  .kpi::before{content:"";position:absolute;top:0;left:0;width:100%;height:3px;background:var(--amber)}
+  .kpi .label{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+  .kpi .val{font-family:'Fraunces',serif;font-weight:600;font-size:30px;color:var(--pine);margin-top:8px;letter-spacing:-.02em}
+  .kpi .delta{font-size:12px;font-weight:700;margin-top:6px;display:inline-flex;align-items:center;gap:4px}
+  .delta.up{color:var(--good)} .delta.down{color:var(--warn)}
+
+  /* ---------- Funil Meta → CRM (signature) ---------- */
+  .funnel-card{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:24px 26px 28px;margin-bottom:30px;position:relative;
+  }
+  .funnel-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;flex-wrap:wrap;gap:8px}
+  .funnel-head h2{font-family:'Fraunces',serif;font-weight:600;font-size:20px;color:var(--pine)}
+  .funnel-head .hint{font-size:12.5px;color:var(--muted)}
+  .legend{display:flex;gap:18px;margin:14px 0 20px;font-size:12px;font-weight:700}
+  .legend span{display:flex;align-items:center;gap:7px;color:var(--muted)}
+  .legend i{width:13px;height:13px;border-radius:4px;display:inline-block}
+  .legend .i-meta{background:var(--amber)}
+  .legend .i-crm{background:var(--crm)}
+
+  .funnel{display:grid;grid-template-columns:repeat(7,1fr);gap:0;align-items:end;position:relative;padding-top:10px}
+  .stage{display:flex;flex-direction:column;align-items:center;gap:9px;padding:0 5px;position:relative}
+  .stage .bar{
+    width:100%;border-radius:8px 8px 4px 4px;transition:height .4s ease;
+    display:flex;align-items:flex-start;justify-content:center;padding-top:8px;
+    color:#fff;font-weight:800;font-size:13px;min-height:26px;
+  }
+  .stage.meta .bar{background:linear-gradient(180deg,var(--amber),#c98637)}
+  .stage.crm .bar{background:linear-gradient(180deg,var(--crm),#577899)}
+  .stage .name{font-size:11.5px;font-weight:700;color:var(--ink);text-align:center;line-height:1.25}
+  .stage .pct{font-size:10.5px;color:var(--muted);font-weight:600}
+  /* fronteira de atribuição */
+  .frontier{
+    position:absolute;top:0;bottom:34px;width:0;border-left:2px dashed var(--pine);
+    left:calc(100%/7*3);opacity:.55;
+  }
+  .frontier-tag{
+    position:absolute;top:-4px;left:calc(100%/7*3);transform:translateX(-50%);
+    background:var(--pine);color:#fff;font-size:10px;font-weight:800;letter-spacing:.06em;
+    text-transform:uppercase;padding:4px 10px;border-radius:999px;white-space:nowrap;
+  }
+  .handoff-note{
+    margin-top:20px;display:grid;grid-template-columns:1fr 1fr;gap:14px;
+  }
+  .ho{border-radius:12px;padding:14px 16px;font-size:12.5px;line-height:1.45}
+  .ho.meta{background:#fdf4e6;border:1px solid var(--amber-soft)}
+  .ho.crm{background:#eef3f8;border:1px solid var(--crm-soft)}
+  .ho strong{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
+  .ho.meta strong{color:#b3782f} .ho.crm strong{color:#4a6a8a}
+
+  /* ---------- Linha do dinheiro ---------- */
+  .money{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:30px}
+  .mcard{
+    background:var(--pine);color:#fff;border-radius:var(--radius);padding:20px;
+    box-shadow:var(--shadow);position:relative;overflow:hidden;
+  }
+  .mcard.alt{background:linear-gradient(135deg,var(--pine),var(--pine-2))}
+  .mcard .label{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--amber-soft);opacity:.95}
+  .mcard .val{font-family:'Fraunces',serif;font-weight:600;font-size:32px;margin-top:8px;letter-spacing:-.02em}
+  .mcard .note{font-size:11.5px;color:rgba(255,255,255,.7);margin-top:6px}
+
+  /* ---------- Tabela por campanha ---------- */
+  .tbl-card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+  .tbl-head{padding:18px 22px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+  .tbl-head h2{font-family:'Fraunces',serif;font-weight:600;font-size:19px;color:var(--pine)}
+  .tbl-head .src{font-size:11.5px;color:var(--muted);font-weight:600}
+  .src b{color:var(--amber)} .src i{color:var(--crm);font-style:normal}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  thead th{
+    text-align:right;padding:12px 16px;font-size:10.5px;font-weight:800;letter-spacing:.05em;
+    text-transform:uppercase;color:var(--muted);background:#f7f3ea;white-space:nowrap;
+  }
+  thead th:first-child{text-align:left}
+  thead th.grp-meta{color:#b3782f} thead th.grp-crm{color:#4a6a8a}
+  tbody td{padding:13px 16px;text-align:right;border-top:1px solid var(--line);font-variant-numeric:tabular-nums;font-family:'JetBrains Mono',monospace;font-weight:500}
+  tbody td:first-child{text-align:left;font-family:'Mulish';font-weight:700;color:var(--pine)}
+  tbody tr:hover{background:#fbfaf6}
+  .pill{font-family:'Mulish';display:inline-block;padding:3px 9px;border-radius:999px;font-size:11.5px;font-weight:800}
+  .pill.good{background:#e3f3ea;color:var(--good)}
+  .pill.mid{background:#fdf0e3;color:var(--warn)}
+  .pill.low{background:#fbe5e0;color:#b23b2a}
+
+  .foot{margin-top:26px;font-size:12px;color:var(--muted);text-align:center;line-height:1.6}
+  .foot b{color:var(--pine)}
+
+  @media(max-width:880px){
+    .kpis,.money{grid-template-columns:repeat(2,1fr)}
+    .handoff-note{grid-template-columns:1fr}
+    .funnel{grid-template-columns:repeat(7,1fr);overflow-x:auto}
+    .tbl-wrap{overflow-x:auto}
+    table{min-width:720px}
+  }
+  @media(max-width:520px){
+    .kpis,.money{grid-template-columns:1fr}
+    .brand h1{font-size:24px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="top">
+    <div class="brand">
+      <div class="eyebrow">Tráfego pago · Meta Ads</div>
+      <h1>Dashboard de Campanhas</h1>
+      <p class="sub">Une o que o <b>Meta</b> mostra (investimento → conversa) com o que só o <b>CRM</b> sabe (lead → cliente). O número que importa não é o custo por conversa: é o custo por cliente que pagou.</p>
+    </div>
+    <div class="period"><span class="dot"></span>Últimos 30 dias · atualizado há 12 min</div>
+  </div>
+
+  <div class="segs">
+    <div class="seg active" data-seg="consolidado"><span class="swatch"></span>Consolidado</div>
+    <div class="seg" data-seg="clinica"><span class="swatch"></span>Clínica</div>
+    <div class="seg" data-seg="fisio"><span class="swatch"></span>Fisioterapia</div>
+    <div class="seg" data-seg="integrativa"><span class="swatch"></span>Medicina Integrativa</div>
+  </div>
+
+  <!-- KPIs de mídia -->
+  <div class="section-label">Métricas de mídia · vêm direto da API do Meta</div>
+  <div class="kpis" id="kpis"></div>
+
+  <!-- Funil signature -->
+  <div class="funnel-card">
+    <div class="funnel-head">
+      <h2>Funil de aquisição</h2>
+      <span class="hint">Onde o Meta entrega e o CRM assume</span>
+    </div>
+    <div class="legend">
+      <span><i class="i-meta"></i> Visível no Meta</span>
+      <span><i class="i-crm"></i> Visível só no CRM</span>
+    </div>
+    <div class="funnel" id="funnel">
+      <div class="frontier"></div>
+      <div class="frontier-tag">fronteira de atribuição</div>
+    </div>
+    <div class="handoff-note">
+      <div class="ho meta">
+        <strong>Lado Meta</strong>
+        Impressão, clique e conversa iniciada. Aqui você otimiza criativo, público e custo por conversa — mas o Meta não sabe se a pessoa virou cliente.
+      </div>
+      <div class="ho crm">
+        <strong>Lado CRM</strong>
+        Lead qualificado, agendamento, comparecimento e venda. Cada lead chega com o <code>campaign_id</code> via <code>ctwa_clid</code> e a <code>origem_lead</code> preservada — é assim que o resultado real volta para a campanha certa.
+      </div>
+    </div>
+  </div>
+
+  <!-- Linha do dinheiro -->
+  <div class="section-label">O que importa de verdade · cruzamento Meta × CRM</div>
+  <div class="money" id="money"></div>
+
+  <!-- Tabela por campanha -->
+  <div class="tbl-card">
+    <div class="tbl-head">
+      <h2>Desempenho por campanha</h2>
+      <span class="src">colunas <b>laranja = Meta</b> · <i>azul = CRM</i></span>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Campanha</th>
+            <th class="grp-meta">Investido</th>
+            <th class="grp-meta">Conversas</th>
+            <th class="grp-meta">Custo/conv.</th>
+            <th class="grp-crm">Leads qual.</th>
+            <th class="grp-crm">Vendas</th>
+            <th class="grp-crm">CAC real</th>
+            <th class="grp-crm">ROAS</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <p class="foot">Mockup ilustrativo · <b>Empório do Pet</b> — números de exemplo.<br>Estrutura pensada para o mesmo padrão do dashboard de Google Ads (4 segmentos), pronta para implementar em Base44 / Supabase.</p>
+
+</div>
+
+<script>
+const DATA = {
+  consolidado:{
+    kpis:[
+      {label:"Investimento",val:"R$ 4.200",delta:"+8%",dir:"up"},
+      {label:"Conversas iniciadas",val:"312",delta:"+14%",dir:"up"},
+      {label:"Custo / conversa",val:"R$ 13,46",delta:"-6%",dir:"up"},
+      {label:"CTR",val:"2,25%",delta:"+0,3pp",dir:"up"}
+    ],
+    funnel:[
+      {n:"Impressões",v:"285k",c:"meta",h:100},
+      {n:"Cliques",v:"6.400",c:"meta",h:62},
+      {n:"Conversas",v:"312",c:"meta",h:40},
+      {n:"Lead qual.",v:"168",c:"crm",h:34},
+      {n:"Agendou",v:"94",c:"crm",h:27},
+      {n:"Compareceu",v:"71",c:"crm",h:22},
+      {n:"Vendeu",v:"48",c:"crm",h:17}
+    ],
+    money:[
+      {label:"CAC real",val:"R$ 87,50",note:"investimento ÷ vendas"},
+      {label:"Receita atribuída",val:"R$ 20.160",note:"vendas com origem Meta"},
+      {label:"Ticket médio",val:"R$ 420",note:"por venda do canal"},
+      {label:"ROAS",val:"4,8x",note:"receita ÷ investimento"}
+    ],
+    rows:[
+      ["Conversas · Check-up geral","R$ 1.500","142","R$ 10,56","78","22","R$ 68","4,1x","good"],
+      ["Fisio · Reabilitação","R$ 1.900","118","R$ 16,10","62","19","R$ 100","6,5x","good"],
+      ["Dra. Vivian · Integrativa","R$ 800","52","R$ 15,38","28","7","R$ 114","3,3x","mid"]
+    ]
+  },
+  clinica:{
+    kpis:[
+      {label:"Investimento",val:"R$ 1.500",delta:"+5%",dir:"up"},
+      {label:"Conversas iniciadas",val:"142",delta:"+11%",dir:"up"},
+      {label:"Custo / conversa",val:"R$ 10,56",delta:"-9%",dir:"up"},
+      {label:"CTR",val:"2,6%",delta:"+0,4pp",dir:"up"}
+    ],
+    funnel:[
+      {n:"Impressões",v:"108k",c:"meta",h:100},
+      {n:"Cliques",v:"2.810",c:"meta",h:66},
+      {n:"Conversas",v:"142",c:"meta",h:42},
+      {n:"Lead qual.",v:"78",c:"crm",h:35},
+      {n:"Agendou",v:"44",c:"crm",h:28},
+      {n:"Compareceu",v:"33",c:"crm",h:23},
+      {n:"Vendeu",v:"22",c:"crm",h:18}
+    ],
+    money:[
+      {label:"CAC real",val:"R$ 68,18",note:"investimento ÷ vendas"},
+      {label:"Receita atribuída",val:"R$ 6.160",note:"vendas com origem Meta"},
+      {label:"Ticket médio",val:"R$ 280",note:"por venda do canal"},
+      {label:"ROAS",val:"4,1x",note:"receita ÷ investimento"}
+    ],
+    rows:[
+      ["Check-up geral","R$ 900","94","R$ 9,57","52","15","R$ 60","4,7x","good"],
+      ["Vacinação · sazonal","R$ 600","48","R$ 12,50","26","7","R$ 86","2,9x","mid"]
+    ]
+  },
+  fisio:{
+    kpis:[
+      {label:"Investimento",val:"R$ 1.900",delta:"+10%",dir:"up"},
+      {label:"Conversas iniciadas",val:"118",delta:"+7%",dir:"up"},
+      {label:"Custo / conversa",val:"R$ 16,10",delta:"+3%",dir:"down"},
+      {label:"CTR",val:"2,0%",delta:"-0,1pp",dir:"down"}
+    ],
+    funnel:[
+      {n:"Impressões",v:"132k",c:"meta",h:100},
+      {n:"Cliques",v:"2.640",c:"meta",h:58},
+      {n:"Conversas",v:"118",c:"meta",h:38},
+      {n:"Lead qual.",v:"62",c:"crm",h:32},
+      {n:"Agendou",v:"36",c:"crm",h:26},
+      {n:"Compareceu",v:"28",c:"crm",h:21},
+      {n:"Vendeu",v:"19",c:"crm",h:16}
+    ],
+    money:[
+      {label:"CAC real",val:"R$ 100,00",note:"investimento ÷ vendas"},
+      {label:"Receita atribuída",val:"R$ 12.350",note:"pacotes fechados"},
+      {label:"Ticket médio",val:"R$ 650",note:"pacote de sessões"},
+      {label:"ROAS",val:"6,5x",note:"melhor retorno do mix"}
+    ],
+    rows:[
+      ["Reabilitação neurológica","R$ 1.100","68","R$ 16,18","36","11","R$ 100","6,8x","good"],
+      ["Displasia · pós-cirúrgico","R$ 800","50","R$ 16,00","26","8","R$ 100","6,1x","good"]
+    ]
+  },
+  integrativa:{
+    kpis:[
+      {label:"Investimento",val:"R$ 800",delta:"novo",dir:"up"},
+      {label:"Conversas iniciadas",val:"52",delta:"—",dir:"up"},
+      {label:"Custo / conversa",val:"R$ 15,38",delta:"—",dir:"up"},
+      {label:"CTR",val:"1,8%",delta:"—",dir:"up"}
+    ],
+    funnel:[
+      {n:"Impressões",v:"45k",c:"meta",h:100},
+      {n:"Cliques",v:"810",c:"meta",h:55},
+      {n:"Conversas",v:"52",c:"meta",h:36},
+      {n:"Lead qual.",v:"28",c:"crm",h:30},
+      {n:"Agendou",v:"14",c:"crm",h:23},
+      {n:"Compareceu",v:"10",c:"crm",h:18},
+      {n:"Vendeu",v:"7",c:"crm",h:14}
+    ],
+    money:[
+      {label:"CAC real",val:"R$ 114,28",note:"campanha em fase de teste"},
+      {label:"Receita atribuída",val:"R$ 2.660",note:"primeiras consultas"},
+      {label:"Ticket médio",val:"R$ 380",note:"consulta integrativa"},
+      {label:"ROAS",val:"3,3x",note:"esperado subir com LTV"}
+    ],
+    rows:[
+      ["Medicina integrativa · institucional","R$ 500","34","R$ 14,71","18","5","R$ 100","3,8x","mid"],
+      ["Acupuntura · dor crônica","R$ 300","18","R$ 16,67","10","2","R$ 150","2,5x","low"]
+    ]
+  }
+};
+
+const $ = s => document.querySelector(s);
+
+function roasClass(r){const n=parseFloat(r);return n>=4?"good":n>=3?"mid":"low";}
+
+function render(seg){
+  const d = DATA[seg];
+
+  $("#kpis").innerHTML = d.kpis.map(k=>`
+    <div class="kpi">
+      <div class="label">${k.label}</div>
+      <div class="val">${k.val}</div>
+      <div class="delta ${k.dir}">${k.dir==="up"?"▲":"▼"} ${k.delta} vs. mês anterior</div>
+    </div>`).join("");
+
+  const fn = $("#funnel");
+  fn.querySelectorAll(".stage").forEach(e=>e.remove());
+  const stagesHTML = d.funnel.map((s,i)=>{
+    const prev = i>0 ? d.funnel[i-1] : null;
+    return `<div class="stage ${s.c}">
+        <div class="bar" style="height:${Math.max(s.h*1.8,26)}px">${s.v}</div>
+        <div class="name">${s.n}</div>
+        <div class="pct">${s.h}%</div>
+      </div>`;
+  }).join("");
+  fn.insertAdjacentHTML("beforeend", stagesHTML);
+
+  $("#money").innerHTML = d.money.map((m,i)=>`
+    <div class="mcard ${i%2?'alt':''}">
+      <div class="label">${m.label}</div>
+      <div class="val">${m.val}</div>
+      <div class="note">${m.note}</div>
+    </div>`).join("");
+
+  $("#rows").innerHTML = d.rows.map(r=>`
+    <tr>
+      <td>${r[0]}</td>
+      <td>${r[1]}</td>
+      <td>${r[2]}</td>
+      <td>${r[3]}</td>
+      <td>${r[4]}</td>
+      <td>${r[5]}</td>
+      <td>${r[6]}</td>
+      <td><span class="pill ${r[8]}">${r[7]}</span></td>
+    </tr>`).join("");
+}
+
+document.querySelectorAll(".seg").forEach(tab=>{
+  tab.addEventListener("click",()=>{
+    document.querySelectorAll(".seg").forEach(t=>t.classList.remove("active"));
+    tab.classList.add("active");
+    render(tab.dataset.seg);
+  });
+});
+
+render("consolidado");
+</script>
+</body>
+</html>

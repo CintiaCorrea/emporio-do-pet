@@ -1,0 +1,67 @@
+<style>
+:root{
+  --bg:#F6F2EA; --card:#fff; --line:#E8E2D6; --soft:#F0EBE0; --suave:#FBF9F4;
+  --ink:#1F2A2E; --ink2:#5C6B70; --mut:#8A989D; --navy:#014D5E; --teal:#009AAC; --agua:#E0F4F6;
+  --ok-i:#0F6E56;
+}
+*{box-sizing:border-box}
+.wrap{max-width:720px;margin:0 auto;padding:12px 6px 48px;font-family:"Segoe UI",system-ui,-apple-system,sans-serif;color:var(--ink);font-size:14px;line-height:1.45}
+h1{font-size:20px;font-weight:500;color:var(--navy);margin:0 0 2px}
+.sub{font-size:12.5px;color:var(--mut);margin-bottom:18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;margin-bottom:14px;overflow:hidden}
+.ch{padding:11px 16px;border-bottom:1px solid var(--soft);font-size:13px;font-weight:500;color:var(--navy);display:flex;align-items:center;gap:8px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 16px;border-bottom:1px solid var(--soft)}
+.row:last-child{border-bottom:0}
+.row .lab{font-size:13px;color:var(--ink)}
+.row .desc{font-size:11.5px;color:var(--mut);margin-top:2px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;flex-shrink:0}
+.seg span{padding:6px 14px;font-size:12.5px;cursor:pointer;background:#fff;color:var(--ink2)}
+.seg span.on{background:var(--teal);color:#fff}
+.seg.g span.on{background:var(--ok-i)}
+.in{border:1px solid var(--line);border-radius:8px;padding:6px 9px;font-size:13px;background:#fff;width:88px;text-align:right;font-variant-numeric:tabular-nums;flex-shrink:0}
+.save{display:flex;justify-content:flex-end;margin-top:6px}
+.btn{background:var(--teal);color:#fff;border:none;border-radius:9px;padding:10px 20px;font-size:13.5px;font-weight:500;cursor:pointer}
+.badge{font-size:9.5px;color:var(--mut);background:var(--soft);border-radius:999px;padding:1px 7px;margin-left:6px}
+.note{font-size:11px;color:var(--mut);text-align:center;margin-top:18px}
+</style>
+<div class="wrap">
+  <h1>⚙️ Configuração de Vendas</h1>
+  <div class="sub">As regras do módulo de vendas. Cada ajuste é salvo e passa a valer no Ponto de venda, atendimento e caixa.</div>
+
+  <div class="card">
+    <div class="ch">💵 Caixa</div>
+    <div class="row"><div><div class="lab">Fechar caixa automaticamente à meia-noite<span class="badge">em breve</span></div><div class="desc">Caixas abertos são fechados às 23:59 automaticamente.</div></div><div class="seg g"><span>Sim</span><span class="on">Não</span></div></div>
+  </div>
+
+  <div class="card">
+    <div class="ch">🛒 Venda</div>
+    <div class="row"><div><div class="lab">Obrigar profissional em cada item</div><div class="desc">Cada item da venda precisa ter um profissional responsável.</div></div><div class="seg g"><span>Sim</span><span class="on">Não</span></div></div>
+    <div class="row"><div><div class="lab">Permitir vender sem estoque</div><div class="desc">Deixa vender um produto mesmo com estoque zerado.</div></div><div class="seg g"><span class="on">Sim</span><span>Não</span></div></div>
+    <div class="row"><div><div class="lab">Unificar vendas do dia por cliente</div><div class="desc">Agrupa as comandas abertas do mesmo cliente no dia.</div></div><div class="seg g"><span class="on">Sim</span><span>Não</span></div></div>
+  </div>
+
+  <div class="card">
+    <div class="ch">💳 Cartão</div>
+    <div class="row"><div><div class="lab">Obrigar NSU (nº da transação)<span class="badge">em breve</span></div><div class="desc">Ajuda na conciliação das maquininhas.</div></div><div class="seg g"><span>Sim</span><span class="on">Não</span></div></div>
+  </div>
+
+  <div class="card">
+    <div class="ch">🏷️ Desconto</div>
+    <div class="row"><div><div class="lab">Limite de desconto por venda</div><div class="desc">Desconto máximo permitido (0 = sem limite).</div></div><div style="display:flex;align-items:center;gap:6px"><input class="in" value="0"><span style="color:var(--mut)">%</span></div></div>
+  </div>
+
+  <div class="card">
+    <div class="ch">📄 Orçamento</div>
+    <div class="row"><div><div class="lab">Validade padrão</div><div class="desc">Dias de validade de um orçamento novo.</div></div><div style="display:flex;align-items:center;gap:6px"><input class="in" value="30"><span style="color:var(--mut)">dias</span></div></div>
+    <div class="row"><div><div class="lab">Obrigar cliente no orçamento</div></div><div class="seg g"><span class="on">Sim</span><span>Não</span></div></div>
+    <div class="row"><div><div class="lab">Chamar de</div><div class="desc">Título que o cliente vê. "Plano de tratamento" passa mais urgência.</div></div><div class="seg"><span class="on">Orçamento</span><span>Plano de tratamento</span></div></div>
+  </div>
+
+  <div class="card">
+    <div class="ch">↩️ Devolução</div>
+    <div class="row"><div><div class="lab">Prazo para devolução<span class="badge">em breve</span></div><div class="desc">Dias para aceitar devolução de uma venda.</div></div><div style="display:flex;align-items:center;gap:6px"><input class="in" value="30"><span style="color:var(--mut)">dias</span></div></div>
+  </div>
+
+  <div class="save"><button class="btn">Salvar configurações</button></div>
+  <div class="note">Mockup · Configuração de Vendas · padrão Base44 · "em breve" = salvo agora, passa a valer quando a função existir</div>
+</div>

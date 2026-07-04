@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inbox · Box de atendimento + agendamento (SimplesDental)</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.5.0/dist/tabler-icons.min.css">
+<style>
+  body{margin:0;background:#F4F2EC;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;display:flex;justify-content:center;padding:24px;color:#0E2244;}
+  button{font-family:inherit;cursor:pointer;}
+  .pet.sel{border-color:#009AAC !important;background:#E1F2F4 !important;color:#0E5560;font-weight:500;}
+  .slot.sel{background:#E1F2F4 !important;border-color:#009AAC !important;color:#0E5560;font-weight:500;}
+  .day.sel{background:#009AAC !important;color:#fff !important;}
+  /* modal */
+  .ov{position:fixed;inset:0;background:rgba(14,34,68,.34);display:none;align-items:center;justify-content:center;z-index:30;}
+  .ov.on{display:flex;}
+  .modal{width:380px;max-height:92vh;overflow:auto;background:#fff;border-radius:16px;box-shadow:0 18px 50px rgba(14,34,68,.25);}
+  .step{display:none;} .step.on{display:block;}
+  .fld{margin-bottom:13px;}
+  .fld label{display:block;font-size:11px;color:#8A9099;margin-bottom:5px;}
+  .ctrl{width:100%;border:1px solid #E3E0D7;border-radius:11px;padding:10px 12px;font-size:13px;color:#0E2244;background:#fff;display:flex;align-items:center;gap:7px;box-sizing:border-box;}
+  .ctrl.mut{color:#9aa0a8;}
+  textarea.ctrl{font-family:inherit;resize:vertical;min-height:54px;}
+  .sw{width:38px;height:22px;border-radius:999px;background:#D9D5CB;position:relative;flex-shrink:0;transition:.15s;}
+  .sw.on{background:#009AAC;} .sw::after{content:"";position:absolute;width:18px;height:18px;border-radius:50%;background:#fff;top:2px;left:2px;transition:.15s;box-shadow:0 1px 2px rgba(0,0,0,.2);} .sw.on::after{left:18px;}
+  .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;text-align:center;}
+  .dow{font-size:10px;color:#9aa0a8;padding:3px 0;}
+  .day{padding:7px 0;border-radius:9px;font-size:12.5px;background:none;border:none;color:#0E2244;}
+  .day:hover{background:#F2FAFB;}
+  .slot{border:1px solid #E3E0D7;border-radius:9px;padding:8px;font-size:12px;text-align:center;background:#fff;}
+  .slot:hover{border-color:#009AAC;}
+</style>
+</head><body>
+
+<div style="width:374px; background:#fff; border:1px solid #ECE9E1; border-radius:16px; overflow:hidden; font-size:13px;">
+
+  <!-- HEADER: tutor (telefone = chave) + unidade -->
+  <div style="padding:16px 16px 14px;">
+    <div style="display:flex; align-items:center; gap:6px; margin-bottom:12px;">
+      <i class="ti ti-building-store" style="font-size:15px; color:#009AAC"></i>
+      <span style="font-size:11px; color:#0E5560; font-weight:500;">Empório do Pet</span>
+      <span style="margin-left:auto; font-size:11px; color:#9aa0a8; display:flex; align-items:center; gap:3px;">Unidade <i class="ti ti-chevron-down" style="font-size:13px"></i></span>
+    </div>
+    <div style="display:flex; align-items:center; gap:11px;">
+      <div style="width:44px; height:44px; border-radius:50%; background:#F0F7F8; color:#0E5560; display:flex; align-items:center; justify-content:center; font-size:17px; font-weight:500;">J</div>
+      <div style="flex:1; min-width:0;">
+        <div style="font-size:16px; font-weight:500;">José Marques</div>
+        <div style="font-size:12px; color:#8A9099; margin-top:2px; display:flex; align-items:center; gap:5px;"><i class="ti ti-brand-whatsapp" style="font-size:14px; color:#0F9D58"></i> (85) 99806-7466 · há 2d</div>
+      </div>
+      <span style="font-size:10px; background:#E1F2F4; color:#0E5560; padding:2px 8px; border-radius:8px;">Cliente</span>
+    </div>
+    <div style="display:flex; gap:8px; margin-top:13px;">
+      <div style="flex:1; background:#FAFAF7; border:1px solid #EEEBE3; border-radius:10px; padding:8px 10px;"><div style="font-size:10px; color:#9aa0a8;">Cliente desde</div><div style="margin-top:1px; font-weight:500;">jun/2026</div></div>
+      <div style="flex:1; background:#FAFAF7; border:1px solid #EEEBE3; border-radius:10px; padding:8px 10px;"><div style="font-size:10px; color:#9aa0a8;">LTV</div><div style="margin-top:1px; font-weight:500;">R$ 1.240</div></div>
+      <div style="flex:1; background:#FAFAF7; border:1px solid #EEEBE3; border-radius:10px; padding:8px 10px;"><div style="font-size:10px; color:#9aa0a8;">Relacionamento</div><div style="margin-top:1px; font-weight:500; color:#0E5560;">Em dia</div></div>
+    </div>
+  </div>
+
+  <!-- PETS (selecionáveis: trocam o contexto das consultas) -->
+  <div style="padding:0 14px 14px;">
+    <div style="display:flex; align-items:center; margin:0 2px 8px;"><span style="font-size:10px; color:#9aa0a8; text-transform:uppercase; letter-spacing:.06em;">Pets · 2 vinculados</span><span style="margin-left:auto; font-size:11px; color:#009AAC;"><i class="ti ti-plus" style="font-size:12px; vertical-align:-1px"></i> novo pet</span></div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <button class="pet sel" data-pet="Pretinha" onclick="selPet(this)" style="display:flex; align-items:center; gap:7px; background:#fff; border:1px solid #E3E0D7; border-radius:11px; padding:8px 12px; font-size:12.5px; color:#0E2244;"><i class="ti ti-cat" style="font-size:16px; color:#0E5560"></i> Pretinha <span style="color:#9aa0a8;">· Gato</span></button>
+      <button class="pet" data-pet="Thor" onclick="selPet(this)" style="display:flex; align-items:center; gap:7px; background:#fff; border:1px solid #E3E0D7; border-radius:11px; padding:8px 12px; font-size:12.5px; color:#0E2244;"><i class="ti ti-dog" style="font-size:16px; color:#0E5560"></i> Thor <span style="color:#9aa0a8;">· Cão</span></button>
+    </div>
+  </div>
+
+  <!-- CONSULTAS DO PET (inline — SimplesDental) -->
+  <div style="padding:0 14px 14px;">
+    <div style="display:flex; align-items:center; margin:0 2px 8px;">
+      <span style="font-size:10px; color:#9aa0a8; text-transform:uppercase; letter-spacing:.06em;">Consultas de <span id="petName" style="color:#0E5560;">Pretinha</span></span>
+      <i class="ti ti-refresh" style="margin-left:auto; font-size:13px; color:#9aa0a8;"></i>
+    </div>
+    <div id="consultas" style="display:flex; flex-direction:column; gap:8px;"></div>
+    <button onclick="openModal()" style="width:100%; margin-top:10px; background:#009AAC; color:#fff; border:none; border-radius:11px; padding:11px; font-size:13px; font-weight:500; display:flex; align-items:center; justify-content:center; gap:7px;"><i class="ti ti-calendar-plus" style="font-size:16px"></i> Agendar consulta</button>
+  </div>
+
+  <!-- AÇÕES -->
+  <div style="padding:0 14px 14px;">
+    <div style="font-size:10px; color:#9aa0a8; text-transform:uppercase; letter-spacing:.06em; margin:0 2px 8px;">Ações</div>
+    <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:9px;">
+      <button style="background:#fff; border:1px solid #E3E0D7; border-radius:11px; padding:11px 8px; font-size:12px; color:#0E2244; display:flex; flex-direction:column; align-items:center; gap:5px;"><i class="ti ti-id-badge-2" style="font-size:18px; color:#0E5560"></i> Abrir ficha</button>
+      <button style="background:#fff; border:1px solid #E3E0D7; border-radius:11px; padding:11px 8px; font-size:12px; color:#0E2244; display:flex; flex-direction:column; align-items:center; gap:5px;"><i class="ti ti-message-plus" style="font-size:18px; color:#0E5560"></i> Registrar interação</button>
+      <button style="background:#fff; border:1px solid #E3E0D7; border-radius:11px; padding:11px 8px; font-size:12px; color:#0E2244; display:flex; flex-direction:column; align-items:center; gap:5px;"><i class="ti ti-cash-register" style="font-size:18px; color:#0E5560"></i> Nova venda</button>
+      <button style="background:#fff; border:1px solid #E3E0D7; border-radius:11px; padding:11px 8px; font-size:12px; color:#0E2244; display:flex; flex-direction:column; align-items:center; gap:5px;"><i class="ti ti-template" style="font-size:18px; color:#0E5560"></i> Modelos de msg</button>
+    </div>
+  </div>
+
+  <!-- RESUMO IA -->
+  <div style="padding:0 14px 14px;">
+    <div style="border:1px solid #ECE9E1; border-radius:12px; overflow:hidden;">
+      <div style="display:flex; align-items:center; gap:7px; padding:10px 12px; background:#F2FAFB; color:#0E5560; font-size:12px; font-weight:500;"><i class="ti ti-sparkles" style="font-size:15px"></i> Resumo da conversa <span style="margin-left:auto; font-size:10px; color:#7aa6ad; font-weight:400;">IA · há 2d</span></div>
+      <div style="padding:10px 12px; color:#3a4654; font-size:12.5px; line-height:1.6;">Tutora confirmou retorno da Pretinha para reavaliação e perguntou sobre o pacote de fisioterapia do Thor.</div>
+    </div>
+  </div>
+
+  <!-- ÚLTIMOS ATENDIMENTOS -->
+  <div style="padding:0 14px 16px;">
+    <div style="display:flex; align-items:center; margin:0 2px 8px;"><span style="font-size:10px; color:#9aa0a8; text-transform:uppercase; letter-spacing:.06em;">Últimos atendimentos</span><span style="margin-left:auto; font-size:11px; color:#009AAC;">ver todos</span></div>
+    <div style="display:flex; flex-direction:column; gap:8px;">
+      <div style="display:flex; align-items:center; gap:10px; border:1px solid #ECE9E1; border-radius:11px; padding:9px 11px;">
+        <i class="ti ti-stethoscope" style="font-size:17px; color:#0E5560"></i>
+        <div style="flex:1; min-width:0;"><div style="font-size:12.5px;">Consulta · Pretinha</div><div style="font-size:11px; color:#9aa0a8;">Dra. Vivian</div></div>
+        <span style="font-size:11px; color:#9aa0a8;">18/06</span>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px; border:1px solid #ECE9E1; border-radius:11px; padding:9px 11px;">
+        <i class="ti ti-activity" style="font-size:17px; color:#0E5560"></i>
+        <div style="flex:1; min-width:0;"><div style="font-size:12.5px;">Fisioterapia · Thor</div><div style="font-size:11px; color:#9aa0a8;">Pacote · sessão 3 de 8</div></div>
+        <span style="font-size:11px; color:#9aa0a8;">12/06</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ===== MODAL: AGENDAR CONSULTA ===== -->
+<div class="ov" id="ov">
+  <div class="modal">
+
+    <!-- STEP 1: form -->
+    <div class="step on" id="sForm">
+      <div style="display:flex; align-items:center; gap:10px; padding:15px 16px; border-bottom:1px solid #ECE9E1;">
+        <i class="ti ti-arrow-left" style="font-size:18px; color:#8A9099;" onclick="closeModal()"></i>
+        <b style="font-size:14px; font-weight:500;">Agendar consulta</b>
+      </div>
+      <div style="padding:15px 16px;">
+        <div class="fld"><label>Pet (paciente)</label><div class="ctrl"><i class="ti ti-paw" style="color:#0E5560"></i><span id="mPet">Pretinha</span> <span style="margin-left:auto; color:#9aa0a8;">José Marques</span></div></div>
+        <div class="fld"><label>Profissional</label><div class="ctrl mut">Selecione um profissional <i class="ti ti-chevron-down" style="margin-left:auto"></i></div></div>
+        <div class="fld"><label>Tipo de atendimento</label><div class="ctrl mut">Consulta clínica <i class="ti ti-chevron-down" style="margin-left:auto"></i></div></div>
+        <div class="fld"><label>Duração (min)</label><div class="ctrl">30</div></div>
+        <div class="fld"><label>Data e hora</label><div class="ctrl" id="dh" style="color:#009AAC;" onclick="showSlots()"><i class="ti ti-clock-search"></i> Encontrar horário livre</div></div>
+        <div class="fld"><label>Observações</label><textarea class="ctrl" placeholder="Digite as observações…"></textarea></div>
+        <div class="fld"><label>Rótulo</label><div class="ctrl mut">Selecione um rótulo <i class="ti ti-chevron-down" style="margin-left:auto"></i></div></div>
+        <div style="display:flex; align-items:center; gap:11px; margin:4px 2px 2px;">
+          <div class="sw on" id="swR" onclick="this.classList.toggle('on')"></div>
+          <span style="font-size:12px; color:#5a6472; line-height:1.4;">Enviar confirmação e lembrete automático pelo WhatsApp</span>
+        </div>
+      </div>
+      <div style="padding:4px 16px 16px;">
+        <button onclick="marcar()" style="width:100%; background:#009AAC; color:#fff; border:none; border-radius:11px; padding:11px; font-size:13px; font-weight:500;">Marcar consulta</button>
+        <button onclick="closeModal()" style="width:100%; margin-top:8px; background:#fff; border:1px solid #E3E0D7; color:#0E2244; border-radius:11px; padding:11px; font-size:13px;">Voltar</button>
+      </div>
+    </div>
+
+    <!-- STEP 2: encontrar horário livre -->
+    <div class="step" id="sSlots">
+      <div style="display:flex; align-items:center; gap:10px; padding:15px 16px; border-bottom:1px solid #ECE9E1;">
+        <i class="ti ti-arrow-left" style="font-size:18px; color:#8A9099;" onclick="showForm()"></i>
+        <b style="font-size:14px; font-weight:500;">Encontrar horário livre</b>
+      </div>
+      <div style="padding:15px 16px;">
+        <div style="display:flex; align-items:center; margin-bottom:10px;">
+          <i class="ti ti-chevron-left" style="color:#9aa0a8;"></i>
+          <b style="margin:0 auto; font-size:13px; font-weight:500;">Junho 2026</b>
+          <i class="ti ti-chevron-right" style="color:#9aa0a8;"></i>
+        </div>
+        <div class="cal" id="cal"></div>
+        <div style="font-size:11px; color:#9aa0a8; margin:12px 0 8px;">Mostrando só horários livres do profissional.</div>
+        <div style="font-size:12.5px; font-weight:500; margin-bottom:7px;">Manhã</div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+          <button class="slot" onclick="pick(this)">08h00 – 08h30</button>
+          <button class="slot" onclick="pick(this)">08h30 – 09h00</button>
+          <button class="slot" onclick="pick(this)">09h00 – 09h30</button>
+          <button class="slot" onclick="pick(this)">10h30 – 11h00</button>
+        </div>
+        <div style="font-size:12.5px; font-weight:500; margin:12px 0 7px;">Tarde</div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+          <button class="slot" onclick="pick(this)">14h00 – 14h30</button>
+          <button class="slot" onclick="pick(this)">15h30 – 16h00</button>
+        </div>
+      </div>
+      <div style="padding:4px 16px 16px;">
+        <button onclick="showForm()" style="width:100%; background:#009AAC; color:#fff; border:none; border-radius:11px; padding:11px; font-size:13px; font-weight:500;">Escolher horário</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  var DADOS = {
+    Pretinha:[
+      {ic:'ti-calendar-event', t:'Seg, 30/06 · 10h30–11h00', s:'Reavaliação · Dra. Vivian', up:true},
+      {ic:'ti-stethoscope', t:'18/06 · concluída', s:'Consulta clínica · Dra. Vivian', up:false}
+    ],
+    Thor:[
+      {ic:'ti-activity', t:'Qua, 25/06 · 14h00–14h30', s:'Fisioterapia (sessão 4/8) · Isabela', up:true},
+      {ic:'ti-vaccine', t:'02/06 · concluída', s:'Vacina V10 · Dra. Vivian', up:false}
+    ]
+  };
+  function renderConsultas(pet){
+    var box=document.getElementById('consultas'); box.innerHTML='';
+    DADOS[pet].forEach(function(c){
+      var color = c.up ? '#0E5560' : '#9aa0a8';
+      box.insertAdjacentHTML('beforeend',
+        '<div style="display:flex; align-items:center; gap:10px; border:1px solid #ECE9E1; border-radius:11px; padding:9px 11px; background:'+(c.up?'#FAFEFE':'#fff')+';">'
+        +'<i class="ti '+c.ic+'" style="font-size:17px; color:'+color+'"></i>'
+        +'<div style="flex:1; min-width:0;"><div style="font-size:12.5px; font-weight:'+(c.up?'500':'400')+';">'+c.t+'</div><div style="font-size:11px; color:#9aa0a8;">'+c.s+'</div></div>'
+        +'<i class="ti ti-external-link" style="font-size:15px; color:#9aa0a8;"></i></div>');
+    });
+  }
+  function selPet(el){
+    document.querySelectorAll('.pet').forEach(function(p){p.classList.remove('sel');});
+    el.classList.add('sel');
+    var pet=el.dataset.pet;
+    document.getElementById('petName').textContent=pet;
+    document.getElementById('mPet').textContent=pet;
+    renderConsultas(pet);
+  }
+  function openModal(){document.getElementById('ov').classList.add('on');showForm();}
+  function closeModal(){document.getElementById('ov').classList.remove('on');}
+  function showSlots(){document.getElementById('sForm').classList.remove('on');document.getElementById('sSlots').classList.add('on');buildCal();}
+  function showForm(){document.getElementById('sSlots').classList.remove('on');document.getElementById('sForm').classList.add('on');}
+  function pick(el){document.querySelectorAll('.slot').forEach(function(s){s.classList.remove('sel');});el.classList.add('sel');window._slot=el.textContent.trim();document.getElementById('dh').innerHTML='<i class="ti ti-clock-check"></i> 30/06 · '+window._slot;}
+  function marcar(){alert('✅ Consulta marcada (mockup)\\n'+document.getElementById('mPet').textContent+' · '+(window._slot||'horário a definir')+'\\nLembrete automático: '+(document.getElementById('swR').classList.contains('on')?'ligado':'desligado'));closeModal();}
+  function buildCal(){
+    var c=document.getElementById('cal'); if(c.dataset.b) return; c.dataset.b=1;
+    ['D','S','T','Q','Q','S','S'].forEach(function(d){c.insertAdjacentHTML('beforeend','<div class="dow">'+d+'</div>');});
+    c.insertAdjacentHTML('beforeend','<div></div>'); // 1/jun/2026 = segunda
+    for(var d=1; d<=30; d++){
+      c.insertAdjacentHTML('beforeend','<button class="day'+(d===30?' sel':'')+'" onclick="selDay(this)">'+d+'</button>');
+    }
+  }
+  function selDay(el){document.querySelectorAll('.day').forEach(function(x){x.classList.remove('sel');});el.classList.add('sel');}
+  renderConsultas('Pretinha');
+</script>
+</body></html>

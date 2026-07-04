@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.5.0/dist/tabler-icons.min.css">
+<style>
+  body{margin:0;background:#F4F2EC;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;padding:24px;color:#0E2244;}
+  h2{text-align:center;font-size:14px;color:#0E5560;margin:0 0 4px;}
+  .sub{text-align:center;font-size:11px;color:#8A9099;margin:0 0 22px;}
+  .row{display:flex;gap:26px;flex-wrap:wrap;align-items:flex-start;justify-content:center;}
+  .col{display:flex;flex-direction:column;align-items:center;gap:8px;width:300px;}
+  .lab{font-size:11px;font-weight:600;}
+  .card{width:300px;background:#fff;border:1px solid #ECE9E1;border-radius:14px;font-size:12px;box-sizing:border-box;}
+  .pad{padding:13px;}
+  .pet-h{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#014D5E;margin-bottom:9px;}
+  .pet-h .ti{font-size:16px;color:#009AAC;}
+  .pen{font-size:12px;color:#b9bdc4;margin-left:auto;}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:3px 10px;font-size:11px;margin-bottom:9px;}
+  .grid .k{color:#9aa0a8;}
+  .grid .v{color:#014D5E;}
+  .pl{display:flex;align-items:center;gap:7px;margin-bottom:6px;}
+  .tag{font-size:8.5px;font-weight:700;padding:2px 6px;border-radius:5px;min-width:26px;text-align:center;}
+  .sel{flex:1;border:1px solid #E3E0D7;border-radius:7px;padding:5px 8px;font-size:11px;color:#014D5E;background:#fff;}
+  .fisio{border:1px solid #ede9fe;background:#faf8ff;border-radius:9px;padding:9px 10px;margin-top:9px;}
+  .fisio .t{font-size:10px;font-weight:700;color:#5b21b6;text-transform:uppercase;letter-spacing:.3px;display:flex;align-items:center;gap:5px;margin-bottom:6px;}
+  .paws{display:flex;gap:3px;align-items:center;}
+  .paw{font-size:13px;}
+  .badge-rm{display:inline-block;font-size:9px;font-weight:700;color:#fff;background:#D85A30;border-radius:5px;padding:1px 6px;margin-left:auto;}
+  .strike{position:relative;opacity:.6;}
+  .note{font-size:10.5px;color:#8A9099;text-align:center;max-width:300px;line-height:1.4;}
+  .arrow{font-size:26px;color:#009AAC;align-self:center;padding-top:120px;}
+  .keepbox{border:1px dashed #009AAC;}
+  .src{font-size:9.5px;color:#0E7C8B;background:#E1F2F4;border-radius:5px;padding:1px 6px;font-weight:600;}
+</style></head>
+<body>
+
+<h2>Ponto #2 — ficha do pet inline (abre pelo lápis no card do pet)</h2>
+<p class="sub">Proposta: parar de repetir o pacote de fisio dentro da ficha inline, porque o box já tem o card "PACOTES DE FISIO".</p>
+
+<div class="row">
+
+  <!-- ANTES -->
+  <div class="col">
+    <div class="lab" style="color:#D85A30;">ANTES (hoje)</div>
+    <div class="card"><div class="pad">
+      <div class="pet-h"><i class="ti ti-paw"></i> Thor <i class="ti ti-pencil pen"></i></div>
+      <div class="grid">
+        <div><span class="k">Espécie:</span> <span class="v">Cão</span></div>
+        <div><span class="k">Raça:</span> <span class="v">Labrador</span></div>
+        <div><span class="k">Idade:</span> <span class="v">4 anos</span></div>
+        <div><span class="k">Peso:</span> <span class="v">28 kg</span></div>
+      </div>
+      <div class="pl"><span class="tag" style="background:#fef3c7;color:#92400e;">CLI</span><div class="sel">Retorno agendado</div></div>
+      <div class="pl"><span class="tag" style="background:#ede9fe;color:#5b21b6;">FIS</span><div class="sel">Pacote em andamento</div></div>
+
+      <div class="fisio strike">
+        <div class="t"><i class="ti ti-stethoscope"></i> Pacote de fisio <span class="badge-rm">SAI DAQUI</span></div>
+        <div class="paws"><span class="paw">🐾🐾🐾</span><span style="opacity:.3" class="paw">🐾🐾🐾</span><span style="margin-left:6px;color:#5b21b6;font-weight:700;">3/6</span></div>
+        <div style="font-size:10px;color:#8A9099;margin-top:5px;">Próx. sessão: 02/07 · iniciar</div>
+      </div>
+    </div></div>
+    <div class="note">A ficha inline traz dados + pipelines <b>e</b> repete o pacote de fisio (bloco roxo).</div>
+  </div>
+
+  <div class="arrow"><i class="ti ti-arrow-right"></i></div>
+
+  <!-- DEPOIS -->
+  <div class="col">
+    <div class="lab" style="color:#0f6e56;">DEPOIS (proposta)</div>
+    <div class="card"><div class="pad">
+      <div class="pet-h"><i class="ti ti-paw"></i> Thor <i class="ti ti-pencil pen"></i></div>
+      <div class="grid">
+        <div><span class="k">Espécie:</span> <span class="v">Cão</span></div>
+        <div><span class="k">Raça:</span> <span class="v">Labrador</span></div>
+        <div><span class="k">Idade:</span> <span class="v">4 anos</span></div>
+        <div><span class="k">Peso:</span> <span class="v">28 kg</span></div>
+      </div>
+      <div class="pl"><span class="tag" style="background:#fef3c7;color:#92400e;">CLI</span><div class="sel">Retorno agendado</div></div>
+      <div class="pl"><span class="tag" style="background:#ede9fe;color:#5b21b6;">FIS</span><div class="sel">Pacote em andamento</div></div>
+    </div></div>
+    <div class="note">Mesma ficha, <b>sem o bloco de pacote de fisio</b>. Dados, raça, peso e os dois pipelines (CLI/FIS) continuam.</div>
+  </div>
+
+</div>
+
+<!-- onde a info de fisio continua vivendo -->
+<div class="row" style="margin-top:28px;">
+  <div class="col" style="width:320px;">
+    <div class="lab" style="color:#0E5560;">A info de fisio continua aqui (card do box) — sem mudança</div>
+    <div class="card keepbox" style="width:320px;"><div class="pad">
+      <div style="display:flex;align-items:center;gap:6px;font-size:10px;font-weight:700;color:#5b21b6;text-transform:uppercase;letter-spacing:.3px;margin-bottom:8px;"><i class="ti ti-stethoscope" style="font-size:14px;"></i> Pacotes de fisio <span style="margin-left:auto;font-size:10px;color:#009AAC;font-weight:600;">+ iniciar</span></div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:12px;color:#014D5E;font-weight:600;">06 - Pl. Fisio</span>
+        <span class="paws" style="margin-left:auto;"><span class="paw">🐾🐾🐾</span><span style="opacity:.3" class="paw">🐾🐾🐾</span></span>
+        <span style="color:#5b21b6;font-weight:700;font-size:12px;">3/6</span>
+      </div>
+    </div></div>
+    <div class="note">É o card que você me mandou no print — fonte única da fisio.</div>
+  </div>
+</div>
+
+</body></html>

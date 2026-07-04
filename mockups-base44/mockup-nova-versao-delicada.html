@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Empório do Pet — Nova versão (minimalista e delicada)</title>
+<style>
+  :root{
+    /* ===== TOKENS — VERSÃO DELICADA (identidade Empório) ===== */
+    --bg-page:#F8F6F1;        /* fundo geral, bege bem claro */
+    --bg-surface:#FFFFFF;     /* cards e painéis — superfícies brancas */
+    --bg-soft:#F1EFE8;        /* chips, áreas suaves */
+    --bg-tint:#E0F4F6;        /* destaque suave (turquesa água) */
+    --bg-tint-turq:#E0F4F6;   /* item ativo */
+
+    --primary:#009AAC;        /* turquesa da marca (acento) */
+    --primary-deep:#014D5E;   /* marinho (acento forte / texto ativo) */
+    --moss:#009AAC;           /* (sem verde — aponta pro turquesa) */
+    --coral:#D85A30;          /* coral (alertas quentes) */
+    --gold:#B8860B;
+
+    --text-1:#2C2C2A;         /* texto principal (quase preto quente) */
+    --text-2:#5F5E5A;         /* secundário */
+    --text-3:#9A9388;         /* dicas / placeholders */
+
+    --line:#ECE7DD;           /* borda padrão, fina */
+    --line-2:#E0DACE;         /* borda hover/ênfase */
+
+    --r-sm:10px; --r-md:14px; --r-lg:18px; --r-xl:26px;
+    --shadow:0 1px 2px rgba(52,50,46,.04);
+    --font:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:var(--font);background:var(--bg-page);color:var(--text-1);
+       font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased;}
+  h1,h2,h3{font-weight:500;margin:0;}
+  a{text-decoration:none;color:inherit;}
+
+  .app{display:flex;min-height:100vh;}
+
+  /* ===== SIDEBAR ===== */
+  .sidebar{width:236px;background:var(--bg-surface);border-right:1px solid var(--line);
+           padding:18px 14px;display:flex;flex-direction:column;flex-shrink:0;}
+  .brand{display:flex;align-items:center;gap:11px;padding:4px 8px 18px;}
+  .brand .logo{width:40px;height:40px;border-radius:13px;background:var(--bg-tint);
+       display:flex;align-items:center;justify-content:center;color:var(--moss);font-size:21px;}
+  .brand b{font-size:14px;font-weight:500;line-height:1.2;color:var(--text-1);}
+  .brand small{display:block;font-size:11px;color:var(--text-3);font-weight:400;}
+  .nav-group{font-size:10.5px;letter-spacing:.6px;text-transform:uppercase;color:var(--text-3);
+       padding:14px 12px 6px;}
+  .menu{display:flex;flex-direction:column;gap:2px;}
+  .mi{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:var(--r-sm);
+      color:var(--text-2);font-size:13.5px;cursor:pointer;transition:background .15s;}
+  .mi i{font-size:18px;width:20px;text-align:center;color:var(--text-3);}
+  .mi:hover{background:var(--bg-soft);}
+  .mi.active{background:var(--bg-tint-turq);color:var(--primary-deep);font-weight:500;}
+  .mi.active i{color:var(--primary);}
+  .mi .badge{margin-left:auto;font-size:10.5px;background:var(--coral);color:#fff;
+       padding:1px 8px;border-radius:999px;}
+  .foot{margin-top:auto;padding-top:14px;border-top:1px solid var(--line);
+        display:flex;align-items:center;gap:11px;padding-left:8px;}
+  .foot .av{width:34px;height:34px;border-radius:50%;background:var(--primary-deep);color:#fff;
+       display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;}
+  .foot .name{font-size:13px;font-weight:500;} .foot .role{font-size:11px;color:var(--text-3);}
+
+  /* ===== MAIN ===== */
+  .main{flex:1;display:flex;flex-direction:column;min-width:0;}
+  .topbar{height:64px;display:flex;align-items:center;gap:14px;padding:0 28px;
+          border-bottom:1px solid var(--line);background:var(--bg-surface);}
+  .topbar .back{color:var(--text-3);font-size:20px;}
+  .topbar h1{font-size:20px;}
+  .search{margin-left:auto;display:flex;align-items:center;gap:9px;background:var(--bg-soft);
+       border:1px solid var(--line);border-radius:999px;padding:8px 15px;width:260px;color:var(--text-3);font-size:13px;}
+  .top-ic{width:38px;height:38px;border-radius:50%;background:var(--bg-soft);display:flex;
+       align-items:center;justify-content:center;color:var(--text-2);font-size:18px;}
+
+  .content{padding:28px;overflow:auto;}
+  .screen{display:none;} .screen.on{display:block;animation:fade .25s ease;}
+  @keyframes fade{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+
+  /* ===== COMPONENTES ===== */
+  .row{display:flex;gap:20px;flex-wrap:wrap;}
+  .card{background:var(--bg-surface);border:1px solid var(--line);border-radius:var(--r-lg);
+        padding:20px 22px;box-shadow:var(--shadow);}
+  .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;}
+  .metric{background:var(--bg-surface);border:1px solid var(--line);border-radius:var(--r-md);padding:16px 18px;}
+  .metric small{font-size:12px;color:var(--text-2);}
+  .metric b{display:block;font-size:26px;font-weight:500;margin-top:4px;}
+  .metric .d{font-size:11.5px;color:var(--primary);margin-top:2px;}
+  .sec-title{font-size:13px;color:var(--text-2);font-weight:500;margin:0 0 14px;}
+
+  .list .item{display:flex;align-items:center;gap:14px;padding:13px 0;border-bottom:1px solid var(--line);}
+  .list .item:last-child{border-bottom:none;}
+  .pic{width:42px;height:42px;border-radius:13px;background:var(--bg-tint);display:flex;
+       align-items:center;justify-content:center;color:var(--moss);font-size:20px;flex-shrink:0;}
+  .pic.turq{background:var(--bg-tint-turq);color:var(--primary);}
+  .pic.coral{background:#FBEDE6;color:var(--coral);}
+  .it-main b{font-size:14px;font-weight:500;display:block;} .it-main small{font-size:12px;color:var(--text-3);}
+  .pill{font-size:11.5px;padding:4px 11px;border-radius:999px;background:var(--bg-soft);color:var(--text-2);}
+  .pill.ok{background:var(--bg-tint);color:var(--primary-deep);}
+  .pill.warn{background:#FBEDE6;color:var(--coral);}
+  .ml-auto{margin-left:auto;}
+
+  .btn{display:inline-flex;align-items:center;gap:7px;border:none;border-radius:var(--r-sm);
+       padding:11px 18px;font-size:13.5px;font-weight:500;cursor:pointer;font-family:var(--font);}
+  .btn.primary{background:var(--primary);color:#fff;}
+  .btn.ghost{background:transparent;color:var(--primary-deep);border:1px solid var(--line-2);}
+
+  table{width:100%;border-collapse:collapse;font-size:13.5px;}
+  th{text-align:left;font-weight:500;color:var(--text-3);font-size:11.5px;letter-spacing:.4px;
+     text-transform:uppercase;padding:0 0 12px;border-bottom:1px solid var(--line);}
+  td{padding:14px 0;border-bottom:1px solid var(--line);color:var(--text-1);}
+  tr:last-child td{border-bottom:none;}
+
+  .grid2{display:grid;grid-template-columns:1.4fr 1fr;gap:20px;}
+  .timeline .ev{display:flex;gap:14px;padding-bottom:18px;position:relative;}
+  .timeline .ev::before{content:"";position:absolute;left:6px;top:16px;bottom:-2px;width:1.5px;background:var(--line);}
+  .timeline .ev:last-child::before{display:none;}
+  .timeline .dot{width:13px;height:13px;border-radius:50%;flex-shrink:0;margin-top:2px;z-index:1;border:2.5px solid var(--bg-surface);}
+  .timeline b{font-size:13.5px;font-weight:500;display:block;} .timeline small{font-size:12px;color:var(--text-3);}
+
+  .modgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;}
+  .mod{background:var(--bg-surface);border:1px solid var(--line);border-radius:var(--r-lg);
+       padding:22px;cursor:pointer;transition:border-color .15s;box-shadow:var(--shadow);}
+  .mod:hover{border-color:var(--primary);}
+  .mod .mi-ic{width:46px;height:46px;border-radius:14px;background:var(--bg-tint);display:flex;
+       align-items:center;justify-content:center;color:var(--moss);font-size:23px;margin-bottom:14px;}
+  .mod b{font-size:15px;font-weight:500;display:block;margin-bottom:3px;}
+  .mod small{font-size:12.5px;color:var(--text-3);line-height:1.5;}
+
+  .tag{font-size:11px;color:var(--text-2);background:var(--bg-soft);border-radius:999px;padding:3px 10px;}
+
+  /* faixa de referência das cores */
+  .ref{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;}
+  .sw{font-size:11px;color:var(--text-2);text-align:center;}
+  .sw i{display:block;width:54px;height:40px;border-radius:9px;border:1px solid rgba(0,0,0,.05);margin-bottom:5px;}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="logo">🐾</div>
+      <div><b>Empório do Pet</b><small>CRM &amp; gestão</small></div>
+    </div>
+    <div class="nav-group">Operação</div>
+    <nav class="menu">
+      <a class="mi active" data-screen="hoje"><i class="ti">☀</i> Hoje</a>
+      <a class="mi" data-screen="clientes"><i class="ti">👥</i> Clientes</a>
+      <a class="mi" data-screen="pet"><i class="ti">🐾</i> Pets</a>
+      <a class="mi" data-screen="agenda"><i class="ti">📅</i> Agenda</a>
+      <a class="mi" data-screen="hoje"><i class="ti">💬</i> Inbox <span class="badge">8</span></a>
+    </nav>
+    <div class="nav-group">Gestão</div>
+    <nav class="menu">
+      <a class="mi" data-screen="financeiro"><i class="ti">💳</i> Financeiro</a>
+      <a class="mi" data-screen="gestao"><i class="ti">▦</i> Mais módulos</a>
+    </nav>
+    <div class="foot">
+      <div class="av">CR</div>
+      <div><div class="name">Cintia</div><div class="role">Admin</div></div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <header class="topbar">
+      <span class="back">←</span>
+      <h1 id="page-title">Hoje</h1>
+      <div class="search">🔍 Buscar tutor, pet ou serviço…</div>
+      <div class="top-ic">🔔</div>
+    </header>
+
+    <div class="content">
+
+      <!-- ===== HOJE ===== -->
+      <section class="screen on" id="hoje">
+        <div class="metrics">
+          <div class="metric"><small>Atendimentos hoje</small><b>12</b><div class="d">4 já concluídos</div></div>
+          <div class="metric"><small>Retornos do dia</small><b>5</b><div class="d">2 confirmados</div></div>
+          <div class="metric"><small>Novos leads</small><b>7</b><div class="d">+3 vs. ontem</div></div>
+          <div class="metric"><small>Caixa do dia</small><b>R$ 3.480</b><div class="d">8 vendas</div></div>
+        </div>
+        <div class="grid2">
+          <div class="card">
+            <h3 class="sec-title">Próximos atendimentos</h3>
+            <div class="list">
+              <div class="item"><div class="pic">🐶</div><div class="it-main"><b>Thor · Golden</b><small>Cintia · medicina integrativa</small></div><span class="pill ml-auto">14h30 · Dra. Vivian</span></div>
+              <div class="item"><div class="pic turq">🐱</div><div class="it-main"><b>Mia · Siamês</b><small>Ellen · retorno de exame</small></div><span class="pill ok ml-auto">15h00 · confirmado</span></div>
+              <div class="item"><div class="pic coral">🐶</div><div class="it-main"><b>Bóris · Bulldog</b><small>Isabela · fisioterapia</small></div><span class="pill warn ml-auto">16h00 · aguardando</span></div>
+            </div>
+          </div>
+          <div class="card">
+            <h3 class="sec-title">Precisa de atenção</h3>
+            <div class="list">
+              <div class="item"><div class="pic coral">💉</div><div class="it-main"><b>3 vacinas vencendo</b><small>esta semana</small></div></div>
+              <div class="item"><div class="pic">📞</div><div class="it-main"><b>5 follow-ups</b><small>tutores para tocar hoje</small></div></div>
+              <div class="item"><div class="pic turq">📋</div><div class="it-main"><b>2 orçamentos</b><small>aguardando resposta</small></div></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== CLIENTES ===== -->
+      <section class="screen" id="clientes">
+        <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:20px;">
+          <span class="tag">428 clientes ativos</span>
+          <button class="btn primary">+ Novo cliente</button>
+        </div>
+        <div class="card">
+          <table>
+            <thead><tr><th>Tutor</th><th>Pets</th><th>Última visita</th><th>LTV</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr><td><b>Cintia Correa</b></td><td>Thor, Luna</td><td>12 jun</td><td>R$ 4.120</td><td><span class="pill ok">Ativo</span></td></tr>
+              <tr><td><b>Ana Beatriz</b></td><td>Mia</td><td>02 jun</td><td>R$ 1.870</td><td><span class="pill ok">Ativo</span></td></tr>
+              <tr><td><b>Rafael Lima</b></td><td>Bóris, Mel, Zeca</td><td>28 mai</td><td>R$ 6.540</td><td><span class="pill">VIP</span></td></tr>
+              <tr><td><b>Juliana Souza</b></td><td>Nina</td><td>10 abr</td><td>R$ 740</td><td><span class="pill warn">Reativar</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ===== FICHA DO PET ===== -->
+      <section class="screen" id="pet">
+        <div class="grid2">
+          <div class="card">
+            <div class="row" style="align-items:center;gap:16px;margin-bottom:18px;">
+              <div class="pic" style="width:64px;height:64px;border-radius:20px;font-size:30px;">🐶</div>
+              <div><h2 style="font-size:20px;">Thor</h2><small style="color:var(--text-3);">Golden Retriever · Macho · 5 anos</small></div>
+              <span class="pill ok ml-auto">Vacinas em dia</span>
+            </div>
+            <div class="metrics" style="grid-template-columns:repeat(3,1fr);margin-bottom:22px;">
+              <div class="metric"><small>Peso</small><b style="font-size:20px;">28 kg</b></div>
+              <div class="metric"><small>Plano</small><b style="font-size:15px;line-height:2.1;">Vida Longa</b></div>
+              <div class="metric"><small>Microchip</small><b style="font-size:15px;line-height:2.1;">982·4471</b></div>
+            </div>
+            <h3 class="sec-title">Linha do tempo clínica</h3>
+            <div class="timeline">
+              <div class="ev"><span class="dot" style="background:var(--primary-deep);"></span><div><b>Consulta integrativa</b><small>12 jun · Dra. Vivian · acupuntura</small></div></div>
+              <div class="ev"><span class="dot" style="background:var(--primary);"></span><div><b>Exame de sangue</b><small>02 jun · resultado normal</small></div></div>
+              <div class="ev"><span class="dot" style="background:var(--gold);"></span><div><b>Vacina V10 — reforço</b><small>15 mai · próxima dose em 1 ano</small></div></div>
+              <div class="ev"><span class="dot" style="background:var(--coral);"></span><div><b>Fisioterapia</b><small>08 mai · mobilidade articular</small></div></div>
+            </div>
+          </div>
+          <div class="card" style="height:fit-content;">
+            <h3 class="sec-title">Tutor</h3>
+            <div class="item" style="display:flex;align-items:center;gap:14px;padding-bottom:16px;border-bottom:1px solid var(--line);">
+              <div class="pic turq">👤</div><div class="it-main"><b>Cintia Correa</b><small>(85) 9 9999·0000</small></div>
+            </div>
+            <h3 class="sec-title" style="margin-top:18px;">Ações</h3>
+            <div class="row" style="gap:10px;">
+              <button class="btn primary">＋ Atendimento</button>
+              <button class="btn ghost">Agendar retorno</button>
+              <button class="btn ghost">Nova venda</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== AGENDA ===== -->
+      <section class="screen" id="agenda">
+        <div class="card">
+          <h3 class="sec-title">Quinta, 26 de junho</h3>
+          <div class="list">
+            <div class="item"><span class="tag" style="min-width:54px;text-align:center;">09h00</span><div class="pic turq">🐱</div><div class="it-main"><b>Mia · consulta clínica</b><small>Dra. Letícia</small></div><span class="pill ok ml-auto">Confirmado</span></div>
+            <div class="item"><span class="tag" style="min-width:54px;text-align:center;">10h30</span><div class="pic">🐶</div><div class="it-main"><b>Thor · medicina integrativa</b><small>Dra. Vivian</small></div><span class="pill ml-auto">Agendado</span></div>
+            <div class="item"><span class="tag" style="min-width:54px;text-align:center;">14h00</span><div class="pic coral">🐰</div><div class="it-main"><b>Pipoca · fisioterapia</b><small>Isabela</small></div><span class="pill warn ml-auto">Aguardando</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== FINANCEIRO ===== -->
+      <section class="screen" id="financeiro">
+        <div class="metrics">
+          <div class="metric"><small>Faturamento do mês</small><b>R$ 62.4k</b><div class="d">+12% vs. mai</div></div>
+          <div class="metric"><small>Recebido</small><b>R$ 48.1k</b><div class="d">77% do mês</div></div>
+          <div class="metric"><small>A receber</small><b>R$ 14.3k</b><div class="d">19 cobranças</div></div>
+          <div class="metric"><small>Ticket médio</small><b>R$ 287</b><div class="d">217 vendas</div></div>
+        </div>
+        <div class="card">
+          <h3 class="sec-title">Últimas vendas</h3>
+          <table>
+            <thead><tr><th>Cliente</th><th>Itens</th><th>Valor</th><th>Forma</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr><td><b>Cintia Correa</b></td><td>Consulta + acupuntura</td><td>R$ 320</td><td>Pix</td><td><span class="pill ok">Pago</span></td></tr>
+              <tr><td><b>Rafael Lima</b></td><td>Pacote fisioterapia 10x</td><td>R$ 1.450</td><td>Cartão 3x</td><td><span class="pill">Parcelado</span></td></tr>
+              <tr><td><b>Ana Beatriz</b></td><td>Exame de sangue</td><td>R$ 180</td><td>—</td><td><span class="pill warn">A receber</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ===== MAIS MÓDULOS ===== -->
+      <section class="screen" id="gestao">
+        <h3 class="sec-title">Tudo da clínica, centralizado</h3>
+        <div class="modgrid">
+          <div class="mod"><div class="mi-ic">📅</div><b>Agenda &amp; pacientes</b><small>Consultas, retornos e internações do dia.</small></div>
+          <div class="mod"><div class="mi-ic">👥</div><b>CRM</b><small>Tutores, leads, funil e follow-up.</small></div>
+          <div class="mod"><div class="mi-ic">💳</div><b>Financeiro</b><small>Caixa, vendas, cobranças e relatórios.</small></div>
+          <div class="mod"><div class="mi-ic">📣</div><b>Marketing</b><small>Campanhas Meta/Google, posts e métricas.</small></div>
+          <div class="mod"><div class="mi-ic">🪪</div><b>RH</b><small>Equipe, escalas e permissões.</small></div>
+          <div class="mod"><div class="mi-ic">🎓</div><b>Treinamento</b><small>Trilhas e onboarding interno.</small></div>
+        </div>
+
+        <div class="card" style="margin-top:24px;">
+          <h3 class="sec-title">Paleta da nova versão</h3>
+          <div class="ref">
+            <div class="sw"><i style="background:#009AAC;"></i>Turquesa</div>
+            <div class="sw"><i style="background:#014D5E;"></i>Marinho</div>
+            <div class="sw"><i style="background:#D85A30;"></i>Coral</div>
+            <div class="sw"><i style="background:#B8860B;"></i>Dourado</div>
+            <div class="sw"><i style="background:#F8F6F1;"></i>Fundo</div>
+            <div class="sw"><i style="background:#F1EFE8;"></i>Suave</div>
+            <div class="sw"><i style="background:#ECE7DD;"></i>Borda</div>
+            <div class="sw"><i style="background:#2C2C2A;"></i>Texto</div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  var titles={hoje:'Hoje',clientes:'Clientes',pet:'Ficha do pet',agenda:'Agenda',financeiro:'Financeiro',gestao:'Mais módulos'};
+  function go(id){
+    document.querySelectorAll('.screen').forEach(function(s){s.classList.toggle('on',s.id===id);});
+    document.querySelectorAll('.mi').forEach(function(m){m.classList.toggle('active',m.dataset.screen===id);});
+    document.getElementById('page-title').textContent=titles[id]||'';
+    document.querySelector('.content').scrollTop=0;
+  }
+  document.querySelectorAll('.mi').forEach(function(m){m.addEventListener('click',function(){go(m.dataset.screen);});});
+  document.querySelectorAll('.mod').forEach(function(m,i){
+    var map=['agenda','clientes','financeiro','hoje','hoje','hoje'];
+    m.addEventListener('click',function(){go(map[i]);});
+  });
+</script>
+</body>
+</html>

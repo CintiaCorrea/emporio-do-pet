@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mockup — Aba Histórico (estilo SimplesVet)</title>
+<style>
+  :root{
+    --turq:#009AAC; --marinho:#014D5E; --bege:#E8DFC8; --bg:#f6f7f5;
+    --tinta:#0E2244; --cinza:#6B7280; --turqbg:#f6fdfd; --linha:#eef0ec;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+  body{background:var(--bg);color:var(--tinta);padding:18px;font-size:13px}
+  .wrap{max-width:1180px;margin:0 auto}
+  .obs{background:#fff;border:1px solid var(--bege);border-radius:12px;padding:12px 14px;margin-bottom:14px;font-size:12.5px;color:#475569;line-height:1.5}
+  .obs b{color:var(--marinho)}
+  .ctrl{display:flex;gap:8px;align-items:center;margin-bottom:14px}
+  .ctrl span{font-size:12px;color:var(--cinza)}
+  .ctrl button{border:1px solid var(--bege);background:#fff;color:#475569;border-radius:8px;padding:7px 12px;font-size:12.5px;cursor:pointer;font-weight:600}
+  .ctrl button.on{background:var(--turq);color:#fff;border-color:var(--turq)}
+
+  /* header pet */
+  .pethead{background:#fff;border:1px solid var(--bege);border-radius:12px 12px 0 0;padding:12px 16px;display:flex;align-items:center;gap:12px;border-bottom:none}
+  .avatar{width:42px;height:42px;border-radius:50%;background:#E0F4F6;color:#00798A;display:flex;align-items:center;justify-content:center;font-weight:700}
+  .pethead h2{font-size:16px;color:var(--marinho)}
+  .pethead .sub{font-size:12px;color:var(--cinza)}
+  .pethead .sub a{color:var(--turq);text-decoration:none}
+
+  .shell{display:grid;grid-template-columns:230px 1fr;gap:16px;align-items:start;background:#fff;border:1px solid var(--bege);border-radius:0 0 12px 12px;padding:16px}
+
+  /* coluna venda (existente) */
+  .venda{border:1px solid var(--bege);border-radius:12px;overflow:hidden}
+  .venda .vtabs{display:flex;border-bottom:1px solid var(--bege)}
+  .venda .vtabs div{flex:1;text-align:center;padding:9px;font-size:12px;font-weight:600;color:var(--cinza)}
+  .venda .vtabs div.on{color:var(--turq);border-bottom:2px solid var(--turq)}
+  .venda .vbody{padding:14px}
+  .venda .addbtn{display:flex;align-items:center;gap:6px;background:var(--turq);color:#fff;border:none;border-radius:8px;padding:8px 12px;font-size:12.5px;font-weight:600;width:100%;justify-content:center;cursor:pointer}
+  .venda .empty{text-align:center;color:#9aa3ad;font-size:12px;padding:22px 0}
+
+  /* painel principal */
+  .panel{border:1px solid var(--bege);border-radius:12px;overflow:hidden}
+  .tabs{display:flex;border-bottom:1px solid var(--bege)}
+  .tabs button{flex:1;padding:11px 8px;font-size:13px;font-weight:600;color:var(--cinza);background:none;border:none;border-bottom:2px solid transparent;cursor:pointer}
+  .tabs button.on{color:var(--turq);border-bottom-color:var(--turq);background:var(--turqbg)}
+  .tabs .mais{flex:0 0 auto;display:flex;align-items:center;gap:4px}
+
+  /* histórico: 2 colunas */
+  .hist{display:grid;grid-template-columns:300px 1fr;gap:0;min-height:430px}
+  .timeline{border-right:1px solid var(--linha);padding:14px}
+  .tlbar{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+  .chip{display:flex;align-items:center;gap:6px;border:1px solid var(--bege);border-radius:8px;padding:6px 10px;font-size:12px;color:#475569;cursor:pointer}
+  .iconbtn{border:1px solid var(--bege);border-radius:8px;width:30px;height:30px;display:flex;align-items:center;justify-content:center;color:#64748b;background:#fff;cursor:pointer}
+  .yr{font-size:18px;color:var(--turq);font-weight:700;margin:8px 0 6px}
+  .ev{display:flex;gap:10px;padding:8px 6px;border-left:2px solid var(--turq);margin-bottom:8px;background:var(--turqbg);border-radius:0 8px 8px 0}
+  .ev .when{font-size:12px;color:var(--turq);font-weight:600}
+  .ev .ti{font-size:12.5px;font-weight:600}
+  .ev .de{font-size:11.5px;color:var(--cinza)}
+  .ev .ini{margin-left:auto;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;flex:0 0 auto}
+
+  .right{padding:18px}
+  .rtitle{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:#94a3b8;margin-bottom:12px}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .gbtn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;border:none;border-radius:12px;color:#fff;font-size:12px;font-weight:600;padding:18px 8px;cursor:pointer;transition:.15s}
+  .gbtn:hover{filter:brightness(1.05)}
+  .gbtn.soon{opacity:.5}
+  .gbtn svg{width:20px;height:20px}
+  .legenda{margin-top:14px;font-size:11px;color:#9aa3ad}
+
+  /* ficha de atendimento (estado aberto) */
+  .ficha{display:none}
+  .ficha .fhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+  .ficha .fhead h3{font-size:15px;color:var(--marinho)}
+  .ficha .fclose{border:1px solid var(--bege);background:#fff;border-radius:8px;padding:6px 12px;font-size:12px;color:#475569;cursor:pointer}
+  .frow{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+  .fld label{display:block;font-size:11.5px;color:var(--cinza);margin-bottom:4px}
+  .fld input,.fld select,.fld textarea{width:100%;border:1px solid var(--bege);border-radius:8px;padding:8px 10px;font-size:12.5px;color:var(--tinta)}
+  .fld textarea{min-height:72px;resize:vertical}
+  .serv{border:1px dashed var(--bege);border-radius:10px;padding:12px;margin-bottom:14px}
+  .serv .sh{font-size:12px;font-weight:700;color:var(--marinho);margin-bottom:8px}
+  .serv .sline{display:flex;gap:8px;align-items:center;font-size:12px;color:#475569}
+  .serv .sline + .sline{margin-top:6px}
+  .factions{display:flex;gap:10px}
+  .btn-pri{background:var(--turq);color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:13px;font-weight:600;cursor:pointer}
+  .btn-sec{background:#fff;color:#475569;border:1px solid var(--bege);border-radius:8px;padding:9px 18px;font-size:13px;cursor:pointer}
+  .show .grid-wrap{display:none}
+  .show .ficha{display:block}
+  .note{font-size:11px;color:#9aa3ad;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="obs">
+    <b>Mockup — aba "Histórico" da ficha do pet, espelhando o SimplesVet.</b><br>
+    Timeline (lista por ano) à <b>esquerda</b> · grade "Adicionar" à <b>direita</b>. Ao clicar em <b>Atendimento</b>, a ficha de atendimento abre <b>na própria coluna da direita</b> (inline), com a timeline seguindo visível. Use os botões abaixo para ver os dois estados. Cromo turquesa do nosso app; botões coloridos mantidos como no SimplesVet.
+  </div>
+
+  <div class="ctrl">
+    <span>Ver estado:</span>
+    <button id="b1" class="on" onclick="setState(false)">Grade "Adicionar"</button>
+    <button id="b2" onclick="setState(true)">Atendimento aberto</button>
+  </div>
+
+  <div class="pethead">
+    <div class="avatar">TH</div>
+    <div>
+      <h2>Thor</h2>
+      <div class="sub">Cão · Golden Retriever · 4a 2m &nbsp;·&nbsp; Tutor: <a href="#">Cintia Correa</a></div>
+    </div>
+  </div>
+
+  <div class="shell">
+    <!-- coluna Venda/Orçamentos (existente, mantida) -->
+    <div class="venda">
+      <div class="vtabs"><div class="on">Venda</div><div>Orçamentos</div></div>
+      <div class="vbody">
+        <button class="addbtn">+ Adicionar</button>
+        <div class="empty">Nenhum item cadastrado</div>
+      </div>
+    </div>
+
+    <!-- painel principal -->
+    <div class="panel" id="panel">
+      <div class="tabs">
+        <button class="on">Histórico</button>
+        <button>Protocolos</button>
+        <button>Linha do tempo</button>
+        <button>Agenda</button>
+        <button>Vendas</button>
+        <button class="mais">Mais ▾</button>
+      </div>
+
+      <div class="hist">
+        <!-- TIMELINE (esquerda) -->
+        <div class="timeline">
+          <div class="tlbar">
+            <div class="chip">📅 Período…</div>
+            <div class="iconbtn">↺</div>
+          </div>
+          <div class="yr">2026</div>
+          <div class="ev">
+            <div>
+              <div class="when">21/06 às 09:28</div>
+              <div class="ti">Atendimento</div>
+              <div class="de">Consulta Alimentação Natural</div>
+            </div>
+            <div class="ini" style="background:#2f80c4">CC</div>
+          </div>
+          <div class="yr">2024</div>
+          <div class="ev">
+            <div><div class="when">10/06 às 15:36</div><div class="ti">Atendimento</div><div class="de">MAP</div></div>
+            <div class="ini" style="background:#7c3aed">VC</div>
+          </div>
+          <div class="ev">
+            <div><div class="when">07/06 às 17:37</div><div class="ti">Atendimento</div><div class="de">MAP · 11/12</div></div>
+            <div class="ini" style="background:#e0556b">E2</div>
+          </div>
+          <div class="ev">
+            <div><div class="when">03/06 às 18:16</div><div class="ti">Atendimento</div><div class="de">MAP · 10/12</div></div>
+            <div class="ini" style="background:#2e9e5b">VC</div>
+          </div>
+        </div>
+
+        <!-- DIREITA: grade OU ficha -->
+        <div class="right">
+          <!-- estado 1: grade -->
+          <div class="grid-wrap">
+            <div class="rtitle">Adicionar ao histórico</div>
+            <div class="grid">
+              <button class="gbtn" style="background:#2f80c4" onclick="setState(true)">+ Atendimento</button>
+              <button class="gbtn soon" style="background:#b8860b">Peso</button>
+              <button class="gbtn soon" style="background:#7c3aed">Patologia</button>
+              <button class="gbtn soon" style="background:#2e9e5b">Documento</button>
+              <button class="gbtn soon" style="background:#e0556b">Exame</button>
+              <button class="gbtn soon" style="background:#2b6cb0">Fotos</button>
+              <button class="gbtn soon" style="background:#e08a1e">Vacina</button>
+              <button class="gbtn soon" style="background:#9333ea">Receita</button>
+              <button class="gbtn soon" style="background:#64748b">Observação</button>
+              <button class="gbtn soon" style="background:#0f7a52">Vídeo</button>
+              <button class="gbtn soon" style="background:#9b2c3a">Internação</button>
+            </div>
+            <div class="legenda">Atendimento ligado · os demais ficam "em construção" (cinza) até as próximas fatias.</div>
+          </div>
+
+          <!-- estado 2: ficha de atendimento aberta aqui -->
+          <div class="ficha">
+            <div class="fhead">
+              <h3>Nova ficha de atendimento</h3>
+              <button class="fclose" onclick="setState(false)">✕ Fechar</button>
+            </div>
+            <div class="frow">
+              <div class="fld"><label>Tipo</label><select><option>Consulta</option><option>Retorno</option><option>Avaliação</option><option>Sessão de fisio</option></select></div>
+              <div class="fld"><label>Data</label><input value="21/06/2026 09:28"></div>
+            </div>
+            <div class="frow">
+              <div class="fld"><label>Profissional</label><select><option>Dra. Vivian Correa</option><option>Dra. Victoria</option></select></div>
+              <div class="fld"><label>Status</label><select><option>Realizado</option><option>Agendado</option></select></div>
+            </div>
+            <div class="fld" style="margin-bottom:12px"><label>Queixa / Anamnese</label><textarea placeholder="Descreva o atendimento…"></textarea></div>
+            <div class="serv">
+              <div class="sh">Serviços / itens da venda</div>
+              <div class="sline">• Consulta Alimentação Natural — R$ 180</div>
+              <div class="sline">+ adicionar serviço…</div>
+            </div>
+            <div class="factions">
+              <button class="btn-pri">Salvar atendimento</button>
+              <button class="btn-sec" onclick="setState(false)">Cancelar</button>
+            </div>
+            <div class="note">Ao salvar, o atendimento entra na timeline à esquerda e reflete na aba Venda.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+<script>
+  function setState(open){
+    document.getElementById('panel').classList.toggle('show', open);
+    document.getElementById('b1').classList.toggle('on', !open);
+    document.getElementById('b2').classList.toggle('on', open);
+  }
+</script>
+</body>
+</html>

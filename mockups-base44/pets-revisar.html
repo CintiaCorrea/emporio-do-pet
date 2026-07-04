@@ -1,0 +1,132 @@
+<style>
+  :root{
+    --bg:#F6F2EA; --card:#ffffff; --line:#E8E2D6; --line-soft:#F0EBE0;
+    --ink:#1F2A2E; --ink-soft:#5C6B70; --muted:#8A989D;
+    --teal:#009AAC; --navy:#014D5E; --agua:#E0F4F6;
+    --flag-bg:#FDECEC; --flag-ink:#A32D2D; --flag-line:#F3C9C9;
+    --nota-bg:#FBF3E3; --nota-ink:#8a6400; --nota-line:#F0DCB0;
+    --nome-bg:#EDE9FA; --nome-ink:#3C3489; --nome-line:#d9d3f2;
+  }
+  *{box-sizing:border-box}
+  .wrap{max-width:980px;margin:0 auto;padding:8px 0 40px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--ink)}
+  h1{font-size:22px;font-weight:500;color:var(--navy);margin:0 0 4px}
+  .lede{font-size:14px;color:var(--ink-soft);line-height:1.6;margin:0 0 4px;max-width:70ch}
+  .kpis{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 14px;min-width:120px}
+  .kpi .n{font-size:22px;font-weight:500;color:var(--navy);font-variant-numeric:tabular-nums}
+  .kpi .l{font-size:11.5px;color:var(--muted)}
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:14px 0}
+  .search{flex:1;min-width:220px;position:relative}
+  .search input{width:100%;height:38px;padding:0 12px;border:1px solid var(--line);border-radius:10px;font-size:14px;background:var(--card);color:var(--ink)}
+  .search input:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 3px var(--agua)}
+  .chip{border:1px solid var(--line);background:var(--card);color:var(--ink-soft);border-radius:999px;padding:7px 13px;font-size:12.5px;cursor:pointer;user-select:none}
+  .chip[aria-pressed="true"]{border-color:var(--teal);color:var(--navy);background:var(--agua)}
+  .btn{border:1px solid var(--line);background:var(--card);color:var(--ink-soft);border-radius:10px;padding:8px 13px;font-size:12.5px;cursor:pointer}
+  .btn:hover{border-color:var(--teal);color:var(--teal)}
+  .tablewrap{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .scroll{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  thead th{text-align:left;font-weight:500;color:var(--muted);text-transform:uppercase;font-size:10.5px;letter-spacing:.5px;padding:11px 12px;border-bottom:1px solid var(--line);white-space:nowrap;position:sticky;top:0;background:var(--card)}
+  tbody td{padding:9px 12px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr:hover{background:#FBF9F4}
+  .cod{font-variant-numeric:tabular-nums;color:var(--ink-soft);font-size:12px}
+  .nm{font-weight:500;color:var(--navy)}
+  .cli{color:var(--ink-soft)}
+  .pill{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11px;white-space:nowrap}
+  .p-flag{background:var(--flag-bg);color:var(--flag-ink)}
+  .p-nota{background:var(--nota-bg);color:var(--nota-ink)}
+  .p-nome{background:var(--nome-bg);color:var(--nome-ink)}
+  .sp{font-size:14px}
+  .empty{padding:26px;text-align:center;color:var(--muted);font-size:13px}
+  .foot{font-size:11.5px;color:var(--muted);margin-top:12px;line-height:1.6}
+</style>
+
+<div class="wrap">
+  <h1>Pets a revisar — importação SimplesVet</h1>
+  <p class="lede">Registros de pet com nome de 3+ palavras. Isso pega <strong>placeholders/não-pets</strong> (erro real), <strong>pets com nota entre parênteses</strong> (válido, só bagunçado) e <strong>pets com sobrenome da família</strong> (quase sempre certo). Ataque os <span class="pill p-flag">🚩 revisar</span> primeiro. Cada linha tem o <strong>código do SimplesVet</strong> pra conferir na fonte.</p>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="toolbar">
+    <label class="search"><input id="q" type="search" placeholder="Buscar por nome, código ou cliente…" aria-label="Buscar"></label>
+    <button class="chip" data-f="todos" aria-pressed="true">Todos</button>
+    <button class="chip" data-f="flag" aria-pressed="false">🚩 Revisar</button>
+    <button class="chip" data-f="nota" aria-pressed="false">📝 Com nota</button>
+    <button class="chip" data-f="nome" aria-pressed="false">👤 Nome longo</button>
+    <button class="btn" id="csv">⬇️ Baixar CSV</button>
+  </div>
+
+  <div class="tablewrap"><div class="scroll">
+    <table>
+      <thead><tr>
+        <th>Cód. pet</th><th>Nome do pet</th><th>Esp.</th><th>Raça</th><th>Cód. cli.</th><th>Cliente</th><th>Tipo</th>
+      </tr></thead>
+      <tbody id="tb"></tbody>
+    </table>
+  </div></div>
+  <div class="foot">A âncora segura é o <strong>código</strong> (pet e cliente) — 100% dos pets têm. A correção final se faz confrontando por código com um export novo do SimplesVet.</div>
+</div>
+
+<script>
+const DADOS = [{"codigo":1954,"name":"10 machos e 10 femeas","breed":null,"species":"FELINE","tutor":{"codigo":1520,"name":"Tamara Allgauer de Melo"}},{"codigo":691,"name":"Adely Barros Chen","breed":"Shih- Tzu","species":"CANINE","tutor":{"codigo":694,"name":"Ana Caroline Barros Chen / Paulo João Chen"}},{"codigo":7286,"name":"ainda vai informar","breed":null,"species":"CANINE","tutor":{"codigo":4669,"name":"Isa"}},{"codigo":5154,"name":"Airon ( Bebezão)","breed":"Chow Chow","species":"CANINE","tutor":{"codigo":1343,"name":"Francisco Flavio Moreira Pires"}},{"codigo":6024,"name":"Alvará Pix Melo Porteia","breed":"SRD","species":"CANINE","tutor":{"codigo":3863,"name":"Nilbio Pereira Portela Júnior"}},{"codigo":6838,"name":"Antônio Cidrack Aguiar","breed":"Dachshund","species":"CANINE","tutor":{"codigo":4362,"name":"Nilson Harrison Ferreira Aguiar"}},{"codigo":6395,"name":"Banho & Tosa","breed":null,"species":"CANINE","tutor":{"codigo":1235,"name":"Paulo Everton da Silva Rodrigues"}},{"codigo":5827,"name":"Bela da Schnawest Club","breed":"Golden Retriever","species":"CANINE","tutor":{"codigo":449,"name":"Melina de Abreu Santos Cruz"}},{"codigo":2847,"name":"Bella Donna Gaity Girl","breed":"Retriever dos Labrador","species":"CANINE","tutor":{"codigo":1853,"name":"Rosiane Carneiro da Silva"}},{"codigo":720,"name":"Bethowen (Carol - Maria Anita)","breed":"SRD","species":"CANINE","tutor":{"codigo":481,"name":"Rosane Mara Fenili Tavares"}},{"codigo":1476,"name":"Billy (Antonio Carlos)","breed":null,"species":"CANINE","tutor":{"codigo":481,"name":"Rosane Mara Fenili Tavares"}},{"codigo":3652,"name":"Blue Gomes Ribeiro","breed":"Persa","species":"FELINE","tutor":{"codigo":2393,"name":"Marcionilia Gomes Ribeiro"}},{"codigo":1601,"name":"Bombom (Chica- Jéssica 99671-6835)","breed":null,"species":"FELINE","tutor":{"codigo":481,"name":"Rosane Mara Fenili Tavares"}},{"codigo":4571,"name":"Brian Lucas A G","breed":"Akita","species":"CANINE","tutor":{"codigo":2940,"name":"Gisele Maria Abreu Guedes"}},{"codigo":3423,"name":"Bull Dog Francês","breed":"Bulldogue","species":"CANINE","tutor":{"codigo":2039,"name":"Ana Claudia  Cavalcante - Fórmula Natural"}},{"codigo":5854,"name":"Cadelinha 4 anos","breed":null,"species":"CANINE","tutor":{"codigo":638,"name":"Marta Barcelos Monteiro"}},{"codigo":6663,"name":"Cão macho de 6k","breed":null,"species":"CANINE","tutor":{"codigo":4018,"name":"Ana Luiza Melo"}},{"codigo":2211,"name":"Cara de Velho","breed":"Pug","species":"CANINE","tutor":{"codigo":1651,"name":"Raimundo Aguar Rocha"}},{"codigo":7047,"name":"Carmel Lucetti Garcia","breed":"SRD","species":"CANINE","tutor":{"codigo":4493,"name":"Andréa Maria Gondim Lucetti"}},{"codigo":7418,"name":"Chico - Zeca - Romeu","breed":null,"species":"CANINE","tutor":{"codigo":4786,"name":"Nivando"}},{"codigo":7660,"name":"Chloe Castelo Ferreira","breed":null,"species":"CANINE","tutor":{"codigo":4954,"name":"Camila Castelo Silveira Ferreira"}},{"codigo":2170,"name":"Clara das Neves","breed":"SRD","species":"CANINE","tutor":{"codigo":638,"name":"Marta Barcelos Monteiro"}},{"codigo":847,"name":"Cris ( Maria Aparecida)","breed":"SRD","species":"CANINE","tutor":{"codigo":481,"name":"Rosane Mara Fenili Tavares"}},{"codigo":6124,"name":"Cronos - Gunar","breed":"SRD","species":"CANINE","tutor":{"codigo":4575,"name":"Gunar de Mesquita Alves"}},{"codigo":6236,"name":"Deejay Saraiva Alexandre","breed":"Yorkshire Terrier","species":"CANINE","tutor":{"codigo":3987,"name":"Miguel Saraiva"}},{"codigo":6624,"name":"Dominic Toretto Sousa Cunha .","breed":"Poodle Micro","species":"CANINE","tutor":{"codigo":222,"name":"Aglae Sousa Cunha"}},{"codigo":1125,"name":"Fifi (Bia festas)","breed":"SRD","species":"FELINE","tutor":{"codigo":481,"name":"Rosane Mara Fenili Tavares"}},{"codigo":4005,"name":"Filhote de 5 meses","breed":"SRD","species":"CANINE","tutor":{"codigo":1899,"name":"Leticia Ribeiro Diogo"}},{"codigo":3763,"name":"Filhote de gato","breed":"SRD","species":"FELINE","tutor":{"codigo":2458,"name":"Ana Lucia Tofoli"}},{"codigo":612,"name":"Filhotes Pretos gatos (Rosane)","breed":"SRD","species":"CANINE","tutor":{"codigo":481,"name":"Rosane Mara Fenili Tavares"}},{"codigo":193,"name":"Frajola Temotio de Lima","breed":"SRD","species":"FELINE","tutor":{"codigo":363,"name":"Katia Milena Témoteo Silva de Lima"}},{"codigo":7299,"name":"Francisca Valentina (Tina)","breed":"Shih- Tzu","species":"CANINE","tutor":{"codigo":4681,"name":"Awanna Souza Rodrigues"}},{"codigo":1546,"name":"Fred (Luiza) 99939-5141","breed":"SRD","species":"FELINE","tutor":{"codigo":227,"name":"Patricia Mariano"}},{"codigo":2519,"name":"Fred de Freitas Rodrigues","breed":"SRD","species":"FELINE","tutor":{"codigo":1605,"name":"Ramon de Freitas Rodrigues"}},{"codigo":1523,"name":"Gamp (Indara)98121-2445 Wats","breed":"SRD","species":"CANINE","tutor":{"codigo":481,"name":"Rosane Mara Fenili Tavares"}},{"codigo":412,"name":"Gata Preta (Socorro)","breed":"SRD","species":"FELINE","tutor":{"codigo":481,"name":"Rosane Mara Fenili Tavares"}},{"codigo":411,"name":"Gata Tigrada (Socorro)","breed":"SRD","species":"FELINE","tutor":{"codigo":481,"name":"Rosane Mara Fenili Tavares"}},{"codigo":7843,"name":"gatinha da rua 08/05/26","breed":"SRD","species":"FELINE","tutor":{"codigo":2456,"name":"José Venâncio Estevão Araujo"}},{"codigo":6504,"name":"Gatinha Nova (Mãezinha)","breed":"SRD","species":"FELINE","tutor":{"codigo":3256,"name":"Áurea Regina Xavier Lope"}},{"codigo":6506,"name":"Gatinho da Castração","breed":null,"species":"FELINE","tutor":{"codigo":3256,"name":"Áurea Regina Xavier Lope"}},{"codigo":7438,"name":"Gatinho Novo - 30/08/2025","breed":null,"species":"FELINE","tutor":{"codigo":743,"name":"Antonio Nildo Xavier Barbosa"}},{"codigo":429,"name":"Gato Preto Pirata","breed":"SRD","species":"FELINE","tutor":{"codigo":485,"name":"Stefanie Marinho Gomes"}},{"codigo":1912,"name":"Grey (Camila - 997844889)","breed":"SRD","species":"FELINE","tutor":{"codigo":481,"name":"Rosane Mara Fenili Tavares"}},{"codigo":1504,"name":"Isis de Freitas","breed":"SRD","species":"FELINE","tutor":{"codigo":481,"name":"Rosane Mara Fenili Tavares"}},{"codigo":3965,"name":"Jade Pinheiro Lima","breed":"Beagle","species":"CANINE","tutor":{"codigo":2553,"name":"Clebiana Soares de Lima"}},{"codigo":2418,"name":"Johnny Vasconcelos Souto","breed":"Golden Retriever","species":"CANINE","tutor":{"codigo":572,"name":"Mônica Vasconcelos (Vipa)"}},{"codigo":7689,"name":"Jonh Maylon Chris","breed":"Pit Bull","species":"CANINE","tutor":{"codigo":4178,"name":"Larissa Thaís Jorge"}},{"codigo":7616,"name":"José Fofo Magalhaes","breed":"Shih- Tzu","species":"CANINE","tutor":{"codigo":4929,"name":"Roberta Forte"}},{"codigo":5765,"name":"Julieta Vitória Gonçalves dos Santos","breed":null,"species":"CANINE","tutor":{"codigo":3701,"name":"Ivany Gonçalves de Oliveira"}},{"codigo":1593,"name":"Kaleu da Silva Silvana","breed":"SRD","species":"CANINE","tutor":{"codigo":1374,"name":"Kamila da Silva Silvana"}},{"codigo":3923,"name":"Lion Olimpio Alves","breed":"Beagle","species":"CANINE","tutor":{"codigo":2531,"name":"Francisco Charles Pereira Alves"}},{"codigo":6129,"name":"Liz Alves Mariano","breed":"SRD","species":"FELINE","tutor":{"codigo":3920,"name":"Rosângela da Silva Alves"}},{"codigo":698,"name":"Liz Bela (Juliana)","breed":"SRD","species":"CANINE","tutor":{"codigo":481,"name":"Rosane Mara Fenili Tavares"}},{"codigo":4564,"name":"Loly Gomes Barreira","breed":"Bulldogue","species":"CANINE","tutor":{"codigo":2937,"name":"Suelania Maria Rodrigues Gomes Barreira"}},{"codigo":1599,"name":"Luck (Patriciano - 98569-2191/ 998683281)","breed":"SRD","species":"CANINE","tutor":{"codigo":227,"name":"Patricia Mariano"}},{"codigo":4742,"name":"Lucky Fernandes Alencar","breed":"SRD","species":"CANINE","tutor":{"codigo":2343,"name":"Daniela Fernandes dos Santos"}},{"codigo":1966,"name":"Luma (Roseana Martins da Silva)","breed":"SRD","species":"FELINE","tutor":{"codigo":490,"name":"Margareti Mantovanni (Aquiraz)"}},{"codigo":3145,"name":"Maboo ( Peito branco)","breed":"SRD","species":"CANINE","tutor":{"codigo":1302,"name":"Cristina Linhares"}},{"codigo":4493,"name":"Maggie de Danberg","breed":"Golden Retriever","species":"CANINE","tutor":{"codigo":2897,"name":"Adrielly Araújo"}},{"codigo":5602,"name":"Manchinha (Sérgio Britto)","breed":"SRD","species":"FELINE","tutor":{"codigo":490,"name":"Margareti Mantovanni (Aquiraz)"}},{"codigo":194,"name":"Maninha Temotio de Lima","breed":"SRD","species":"FELINE","tutor":{"codigo":363,"name":"Katia Milena Témoteo Silva de Lima"}},{"codigo":3090,"name":"Maria do Carmo","breed":"SRD","species":"CANINE","tutor":{"codigo":1211,"name":"Vangelis De Vanesso"}},{"codigo":5654,"name":"Maria Tequila Oliveira Azevedo","breed":"Dachshund","species":"CANINE","tutor":{"codigo":3625,"name":"Maria katarine Pereira"}},{"codigo":6433,"name":"Max da Costa Duque Estrada","breed":"Poodle Micro","species":"CANINE","tutor":{"codigo":4106,"name":"Joanna da Costa Duque Estrada"}},{"codigo":6605,"name":"Meg Rodrigues Moreira Lopes","breed":"SRD","species":"CANINE","tutor":{"codigo":4215,"name":"Ádila  Rodrigues Moreira Lopes"}},{"codigo":1971,"name":"Mel (Siamesa Delegacia)","breed":"SRD","species":"FELINE","tutor":{"codigo":490,"name":"Margareti Mantovanni (Aquiraz)"}},{"codigo":7614,"name":"Mia Candice Aragão","breed":"SRD","species":"FELINE","tutor":{"codigo":4242,"name":"Izabel Aragão"}},{"codigo":6726,"name":"Minni Gomes Almeida","breed":"Yorkshire Terrier","species":"CANINE","tutor":{"codigo":4285,"name":"Francisca Francilane Mariano Gomes"}},{"codigo":4898,"name":"Morgana - Daniel","breed":"SRD","species":"FELINE","tutor":{"codigo":913,"name":"Pollyanna Brandão Mota"}},{"codigo":7074,"name":"Não fazer cadastro","breed":null,"species":"CANINE","tutor":{"codigo":4507,"name":"Patrícia Juliana Santos Melo"}},{"codigo":2096,"name":"Negão (Renata Pão de Açúcar)","breed":"SRD","species":"CANINE","tutor":{"codigo":227,"name":"Patricia Mariano"}},{"codigo":636,"name":"Nina (gata prolapso)","breed":"SRD","species":"CANINE","tutor":{"codigo":6,"name":"Tânia Maria da Silva (ONG)"}},{"codigo":1565,"name":"Nina (Tutora Charlote)","breed":"SRD","species":"CANINE","tutor":{"codigo":481,"name":"Rosane Mara Fenili Tavares"}},{"codigo":1699,"name":"Nina Flor Rabanne","breed":"Yorkshire Terrier","species":"CANINE","tutor":{"codigo":1410,"name":"Samara Rosy  De melo Oliveira"}},{"codigo":6023,"name":"Nina Loiola Moura","breed":"Shih- Tzu","species":"CANINE","tutor":{"codigo":3862,"name":"Dayse Loiola Andrade Nunes"}},{"codigo":7713,"name":"Nina Oliveira Lambe Lambe","breed":"Yorkshire Terrier","species":"CANINE","tutor":{"codigo":4995,"name":"Tereza Cristina Santos de Oliveira"}},{"codigo":6842,"name":"Nina Rozas Freitas","breed":"Maltês","species":"CANINE","tutor":{"codigo":4366,"name":"Cristiane Rozas Freitas"}},{"codigo":1938,"name":"Noble Warrior Vicky","breed":"Bulldogue","species":"CANINE","tutor":{"codigo":1516,"name":"Mirela Rocha"}},{"codigo":1928,"name":"Obi Wan Kenobi","breed":"Rottweiller","species":"CANINE","tutor":{"codigo":1480,"name":"Marilena Machado Pereira"}},{"codigo":6909,"name":"Pé de pano","breed":"SRD","species":"FELINE","tutor":{"codigo":4406,"name":"Luis Henrique de Sousa"}},{"codigo":898,"name":"Pé de Pano","breed":"Yorkshire Terrier","species":"CANINE","tutor":{"codigo":615,"name":"Hilaria Oriá"}},{"codigo":1651,"name":"Pequena 1 - Clara","breed":"Pinscher","species":"CANINE","tutor":{"codigo":343,"name":"Jorge Simon"}},{"codigo":7697,"name":"Pétala Maria Athayde Feitosa","breed":"SRD","species":"CANINE","tutor":{"codigo":4980,"name":"Inês Cristine Araújo de Athayde"}},{"codigo":2031,"name":"Pingo de gente","breed":"SRD","species":"FELINE","tutor":{"codigo":298,"name":"Francisca Maria de Oliveira Silva e Sousa"}},{"codigo":2037,"name":"Pit Bll Gat","breed":"SRD","species":"FELINE","tutor":{"codigo":399,"name":"Marcia Andreia Falcao Escorcia Lima"}},{"codigo":796,"name":"Pitukinha (Pretinha Bia Festas)","breed":null,"species":"CANINE","tutor":{"codigo":481,"name":"Rosane Mara Fenili Tavares"}},{"codigo":3144,"name":"Pompom(Patas e Peito branco)","breed":"SRD","species":"CANINE","tutor":{"codigo":1302,"name":"Cristina Linhares"}},{"codigo":3293,"name":"Preta com branco","breed":"SRD","species":"CANINE","tutor":{"codigo":2210,"name":"Andre Pereira"}},{"codigo":972,"name":"Preta Daiane dos Santos","breed":"SRD","species":"CANINE","tutor":{"codigo":1120,"name":"Ângela Magda Costa dos Santos"}},{"codigo":922,"name":"Pretinho funguinho (Rosane)","breed":"SRD","species":"FELINE","tutor":{"codigo":481,"name":"Rosane Mara Fenili Tavares"}},{"codigo":5371,"name":"Princesa Ferreira da Cunha","breed":"Poodle Standard","species":"CANINE","tutor":{"codigo":3305,"name":"Rosemary Morais de Arimatea"}},{"codigo":4855,"name":"Rocky Balboa Ribeiro Lins","breed":"Bulldogue","species":"CANINE","tutor":{"codigo":3110,"name":"Leilianny Ribeiro"}},{"codigo":1710,"name":"Scooby (Maria do Socorro)","breed":"SRD","species":"CANINE","tutor":{"codigo":481,"name":"Rosane Mara Fenili Tavares"}},{"codigo":4026,"name":"Shih tzu 1","breed":"Shih- Tzu","species":"CANINE","tutor":{"codigo":2589,"name":"Gabriel - Tosador"}},{"codigo":7704,"name":"Skunk Jorlan Gadelha","breed":"American Bully","species":"CANINE","tutor":{"codigo":4987,"name":"Vitória Lívina Soares Gadelha"}},{"codigo":2962,"name":"Spitiz  - Beira Mar","breed":"Spitz","species":"CANINE","tutor":{"codigo":2039,"name":"Ana Claudia  Cavalcante - Fórmula Natural"}},{"codigo":345,"name":"Spyke - SRD","breed":"SRD","species":"CANINE","tutor":{"codigo":485,"name":"Stefanie Marinho Gomes"}},{"codigo":6225,"name":"Sucre de Paula Freire","breed":"Collie","species":"CANINE","tutor":{"codigo":3978,"name":"Ticiana de Paula Andrade"}},{"codigo":3461,"name":"Taty Of Sumia","breed":"Shar-pei","species":"CANINE","tutor":{"codigo":2288,"name":"Alessandra Rodrigues"}},{"codigo":7462,"name":"Tito Lima Gonzalez","breed":"Spitz","species":"CANINE","tutor":{"codigo":4824,"name":"Jordan Sebastian Gonzalez Rendo"}},{"codigo":1297,"name":"Uel ( Rosimeire da Silva)","breed":"SRD","species":"CANINE","tutor":{"codigo":481,"name":"Rosane Mara Fenili Tavares"}},{"codigo":6817,"name":"Yorkshire - emergência","breed":"Yorkshire Terrier","species":"CANINE","tutor":{"codigo":4206,"name":"Reginaldo Vieira"}},{"codigo":2593,"name":"Zeus Martins Fernandes","breed":"Retriever dos Labrador","species":"CANINE","tutor":{"codigo":1857,"name":"Eliana de Fátima de Lima Fernandes (Pet Saúde)"}}];
+
+const FLAG_RE = /(\d|filhote|gatinh|cadelinha|c[ãa]o macho|c[ãa]o f[êe]mea|banho|tosa|castra|emerg[êe]ncia|vai informar|n[ãa]o fazer|n[ãa]o cadastr|femea|f[êe]mea|\bmacho\b|\bkg\b|\bgat\b|pit bll|bull dog|shih tzu \d|preta com|\bde \d|of sumia)/i;
+function categoria(p){
+  const n = p.name || "";
+  if (n.includes("&") || FLAG_RE.test(n)) return "flag";
+  if (n.includes("(")) return "nota";
+  return "nome";
+}
+const TIPO = { flag:{t:"🚩 revisar",c:"p-flag"}, nota:{t:"📝 com nota",c:"p-nota"}, nome:{t:"👤 nome longo",c:"p-nome"} };
+const SP = { CANINE:"🐶", FELINE:"🐱" };
+DADOS.forEach(p => p._cat = categoria(p));
+
+let filtro = "todos", termo = "";
+const tb = document.getElementById("tb"), kpis = document.getElementById("kpis");
+const esc = s => String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+
+function render(){
+  const q = termo.trim().toLowerCase();
+  const rows = DADOS.filter(p => (filtro==="todos" || p._cat===filtro) && (!q ||
+    (p.name||"").toLowerCase().includes(q) || String(p.codigo).includes(q) ||
+    (p.tutor?.name||"").toLowerCase().includes(q) || String(p.tutor?.codigo||"").includes(q)));
+  tb.innerHTML = rows.length ? rows.map(p => {
+    const ti = TIPO[p._cat];
+    return `<tr>
+      <td class="cod">#${p.codigo}</td>
+      <td class="nm">${esc(p.name)}</td>
+      <td class="sp" title="${p.species}">${SP[p.species]||"🐾"}</td>
+      <td class="cli">${esc(p.breed||"—")}</td>
+      <td class="cod">#${p.tutor?.codigo??"—"}</td>
+      <td class="cli">${esc(p.tutor?.name||"—")}</td>
+      <td><span class="pill ${ti.c}">${ti.t}</span></td>
+    </tr>`;
+  }).join("") : `<tr><td colspan="7" class="empty">Nada encontrado.</td></tr>`;
+}
+function renderKpis(){
+  const c = { todos:DADOS.length, flag:0, nota:0, nome:0 };
+  DADOS.forEach(p => c[p._cat]++);
+  kpis.innerHTML = [
+    ["Total suspeitos", c.todos, "var(--navy)"],
+    ["🚩 Revisar (erro provável)", c.flag, "var(--flag-ink)"],
+    ["📝 Com nota", c.nota, "var(--nota-ink)"],
+    ["👤 Nome longo (ok?)", c.nome, "var(--nome-ink)"],
+  ].map(([l,n,cor]) => `<div class="kpi"><div class="n" style="color:${cor}">${n}</div><div class="l">${l}</div></div>`).join("");
+}
+document.getElementById("q").addEventListener("input", e => { termo = e.target.value; render(); });
+document.querySelectorAll(".chip").forEach(ch => ch.addEventListener("click", () => {
+  document.querySelectorAll(".chip").forEach(c => c.setAttribute("aria-pressed","false"));
+  ch.setAttribute("aria-pressed","true"); filtro = ch.dataset.f; render();
+}));
+document.getElementById("csv").addEventListener("click", () => {
+  const head = ["cod_pet","nome_pet","especie","raca","cod_cliente","cliente","tipo"];
+  const q = t => `"${String(t==null?"":t).replace(/"/g,'""')}"`;
+  const linhas = DADOS.map(p => [p.codigo,p.name,p.species,p.breed,p.tutor?.codigo,p.tutor?.name,TIPO[p._cat].t].map(q).join(","));
+  const csv = "﻿" + [head.join(","), ...linhas].join("\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([csv], {type:"text/csv;charset=utf-8;"}));
+  a.download = "pets_revisar_simplesvet.csv"; a.click(); URL.revokeObjectURL(a.href);
+});
+renderKpis(); render();
+</script>

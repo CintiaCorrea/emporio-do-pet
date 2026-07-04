@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Empório do Pet — Painel do Roadmap de CRM</title>
+<style>
+  :root{
+    --turq:#009AAC; --marinho:#014D5E; --navy:#0E2244; --bege:#E2CFB5;
+    --bg:#F4F8F9; --card:#ffffff; --line:#e2e8eb; --txt:#1f3a40; --muted:#6b7e83;
+    --ok:#1B7F3B; --part:#B8860B; --no:#B00000; --roxo:#7C3AED;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--txt);line-height:1.5}
+  .wrap{max-width:1080px;margin:0 auto;padding:28px 20px 60px}
+  header.top{background:linear-gradient(120deg,var(--marinho),var(--turq));color:#fff;border-radius:16px;padding:26px 28px;box-shadow:0 6px 20px rgba(1,77,94,.18)}
+  header.top h1{margin:0 0 4px;font-size:26px;letter-spacing:.2px}
+  header.top p{margin:0;opacity:.92;font-size:14.5px}
+  .principles{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
+  .principles span{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.25);padding:6px 12px;border-radius:20px;font-size:13px;font-weight:600}
+  .principles span b{opacity:.7;font-weight:700;margin-right:5px}
+  h2.sec{font-size:15px;text-transform:uppercase;letter-spacing:1px;color:var(--marinho);margin:34px 0 14px;border-bottom:2px solid var(--turq);padding-bottom:6px}
+
+  /* steps strip */
+  .steps{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
+  .step{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 8px;text-align:center}
+  .step .n{font-size:11px;color:var(--muted);font-weight:700}
+  .step .t{font-size:12px;font-weight:600;margin:5px 0 8px;min-height:46px;display:flex;align-items:center;justify-content:center}
+  .pill{display:inline-block;font-size:11px;font-weight:800;padding:3px 9px;border-radius:20px;color:#fff}
+  .pill.ok{background:var(--ok)} .pill.part{background:var(--part)} .pill.no{background:var(--no)}
+  @media(max-width:760px){.steps{grid-template-columns:repeat(2,1fr)}}
+
+  /* timeline */
+  .phase{background:var(--card);border:1px solid var(--line);border-left:6px solid var(--turq);border-radius:12px;margin-bottom:14px;overflow:hidden;transition:.15s}
+  .phase:hover{box-shadow:0 4px 16px rgba(1,77,94,.08)}
+  .phase .head{display:flex;align-items:center;gap:14px;padding:16px 18px;cursor:pointer;user-select:none}
+  .badge{flex:0 0 auto;width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:17px}
+  .phase .head .meta{flex:1;min-width:0}
+  .phase .head h3{margin:0;font-size:16.5px}
+  .phase .head .sub{font-size:12.5px;color:var(--muted);margin-top:2px}
+  .statetag{font-size:11px;font-weight:800;padding:4px 10px;border-radius:20px;white-space:nowrap}
+  .chev{color:var(--muted);transition:.2s;font-size:13px}
+  .phase.open .chev{transform:rotate(90deg)}
+  .body{display:none;padding:0 18px 18px 76px}
+  .phase.open .body{display:block}
+  .body .row{margin:10px 0}
+  .body .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--turq);font-weight:800;margin-bottom:3px}
+  .body .val{font-size:14px}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+  .chips em{font-style:normal;background:#eef6f7;border:1px solid #d6e8ea;color:var(--marinho);font-size:12px;padding:3px 9px;border-radius:6px;font-weight:600}
+  .done{font-size:12px;font-weight:700;color:var(--ok);background:#e9f6ee;border:1px solid #bfe6cd;padding:6px 10px;border-radius:8px;display:inline-block}
+
+  .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin:6px 0 2px}
+  .legend b{color:var(--txt)}
+  footer{margin-top:34px;text-align:center;font-size:12px;color:var(--muted)}
+  .hint{font-size:12.5px;color:var(--muted);margin:-6px 0 14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <h1>Empório do Pet — Roadmap de Construção do CRM</h1>
+    <p>Da fundação à excelência Disney · App próprio · Fly.io · Junho 2026</p>
+    <div class="principles">
+      <span><b>1</b>Facilitar a recepção</span>
+      <span><b>2</b>Conhecer o cliente</span>
+      <span><b>3</b>Melhor atendimento</span>
+      <span><b>→</b>R$150k · R$200k/mês</span>
+    </div>
+  </header>
+
+  <h2 class="sec">As 7 etapas do modelo — onde estamos</h2>
+  <div class="legend">
+    <span><b class="pill ok" style="font-size:10px">OK</b> já temos &nbsp; <b class="pill part" style="font-size:10px">PARC</b> parcial &nbsp; <b class="pill no" style="font-size:10px">FALTA</b> não temos</span>
+  </div>
+  <div class="steps">
+    <div class="step"><div class="n">ETAPA 1</div><div class="t">Diagnóstico do estado atual</div><span class="pill part">PARC</span></div>
+    <div class="step"><div class="n">ETAPA 2</div><div class="t">Metas e métricas</div><span class="pill part">PARC</span></div>
+    <div class="step"><div class="n">ETAPA 3</div><div class="t">Seleção dos relacionamentos</div><span class="pill no">FALTA</span></div>
+    <div class="step"><div class="n">ETAPA 4</div><div class="t">Agendas de relacionamento</div><span class="pill part">PARC</span></div>
+    <div class="step"><div class="n">ETAPA 5</div><div class="t">Preparação p/ implantação</div><span class="pill part">PARC</span></div>
+    <div class="step"><div class="n">ETAPA 6</div><div class="t">Execução das agendas</div><span class="pill part">PARC</span></div>
+    <div class="step"><div class="n">ETAPA 7</div><div class="t">Controle e evolução</div><span class="pill part">PARC</span></div>
+  </div>
+
+  <h2 class="sec">Roadmap por fases</h2>
+  <p class="hint">Clique em cada fase para expandir. Ordem respeita: canais primeiro, Financeiro depois.</p>
+  <div id="timeline"></div>
+
+  <footer>Empório do Pet · Padrão Disney do atendimento veterinário · documento complementar à Auditoria de CRM (.docx)</footer>
+</div>
+
+<script>
+const COLORS={f0:'#B00000',f1:'#009AAC',f2:'#014D5E',f3:'#7C3AED',f4:'#009AAC',f5:'#014D5E'};
+const phases=[
+ {id:'f0',badge:'0',color:COLORS.f0,title:'Fundação inadiável — cultura e qualidade de cadastro',sub:'Em paralelo a tudo · o ativo mais crítico',state:'EM CURSO',stateColor:'#B00000',stateBg:'#fde8e8',
+  why:'Sem cadastro limpo, todas as métricas mentem. É o assassino nº 1 de qualquer CRM.',
+  build:['Normalizar a chave telefone','Dedupe de tutores','SOP de cadastro ≤30s na recepção','Campos mínimos obrigatórios','Trava de origem_lead imutável'],
+  metrics:'% de cadastros completos · taxa de duplicidade',
+  who:'Isabela / recepção — não pode pesar',
+  done:'<2% duplicidade · >95% cadastros completos · origem_lead nunca sobrescrita'},
+ {id:'f1',badge:'1',color:COLORS.f1,title:'Conectar os canais — WhatsApp API + Campanhas',sub:'Fechar a porta de entrada',state:'EM CURSO',stateColor:'#009AAC',stateBg:'#e3f5f7',
+  why:'Todo lead entra rastreado, com origem preservada.',
+  build:['Webhook WhatsApp oficial (origem_lead)','Finalizar painel Google Ads','Meta Ads multi-marca','Inbox unificado estável'],
+  metrics:'Leads por canal/campanha · CPL · conversão por origem',
+  who:'Recepção · Gabi (vendas) · Cintia (marketing)',
+  done:'100% dos leads via webhook com origem · Inbox sem duplicidade · painéis Ads ativos'},
+ {id:'f2',badge:'2',color:COLORS.f2,title:'Financeiro + integração SimplesVet',sub:'O grande próximo módulo · maior destravador',state:'PRÓXIMA',stateColor:'#014D5E',stateBg:'#e1eef0',
+  why:'Traz a verdade financeira e o histórico — habilita LTV, RFM, ticket, Share of Wallet e contribuição de uma vez.',
+  build:['Módulo Financeiro (receita/custo/comissão por marca)','Importar histórico SimplesVet','Campo "marca" no atendimento','Fechamento por profissional e marca'],
+  metrics:'LTV real · ticket real · RFM · contribuição · faturamento por marca',
+  who:'Cintia/Ellen (gestão) · vets (comissão) · recepção (lançamento leve)',
+  done:'Receita do CRM ≈ receita real · histórico carregado · RFM calculável'},
+ {id:'f3',badge:'3',color:COLORS.f3,title:'Inteligência de relacionamento — RFM, segmentação, 3 níveis',sub:'Parar de tratar todo mundo igual',state:'HORIZONTE',stateColor:'#7C3AED',stateBg:'#f1ebfb',
+  why:'Pareto: identificar e blindar os 20% que geram 80% da receita.',
+  build:['Motor RFM','Campo nivel_relacionamento','Segmentações salvas','Painel de key accounts','Churn/retenção · NPS operacional'],
+  metrics:'RFM · churn (clínico vs. fisio) · retenção · NPS · Share of Wallet',
+  who:'Cintia (estratégia) · vets/recepção sabem quem é prioridade',
+  done:'Base segmentada · top 20% identificado e com responsável'},
+ {id:'f4',badge:'4',color:COLORS.f4,title:'Execução das agendas + automação',sub:'A régua digital rodando',state:'HORIZONTE',stateColor:'#009AAC',stateBg:'#e3f5f7',
+  why:'Cadência sistemática: as 4 agendas com gatilho, canal e nível.',
+  build:['Ativar todas as cadências','Agendas por persona/evento','Disparos automáticos (90d, fim de pacote, pós-cirúrgico)','Templates por marca'],
+  metrics:'Taxa de reativação · renovação de pacote · conversão de cadência',
+  who:'Recepção (menos trabalho manual) · tutores (experiência)',
+  done:'Agendas ativas · recepção foca em key accounts, resto automático'},
+ {id:'f5',badge:'5',color:COLORS.f5,title:'Excelência Disney — controle, evolução e experiência memorável',sub:'Ser a referência do segmento',state:'HORIZONTE',stateColor:'#014D5E',stateBg:'#e1eef0',
+  why:'Loop de melhoria contínua e os toques que tornam o atendimento inesquecível.',
+  build:['Cadência de revisão formal','Dashboards de relacionamento','Jornada-surpresa (aniversário, hospice, boas-vindas)','NPS → ação','Integrativa e hospice como diferencial visível'],
+  metrics:'NPS alto · retenção alta · LTV crescente · Share of Wallet',
+  who:'Toda a equipe — vira cultura',
+  done:'Revisões rodando · NPS e retenção em alta sustentada'},
+];
+
+const tl=document.getElementById('timeline');
+phases.forEach((p,idx)=>{
+  const el=document.createElement('div');
+  el.className='phase'+(idx<2?' open':'');
+  el.style.borderLeftColor=p.color;
+  el.innerHTML=`
+    <div class="head" onclick="this.parentElement.classList.toggle('open')">
+      <div class="badge" style="background:${p.color}">${p.badge}</div>
+      <div class="meta"><h3>Fase ${p.badge} — ${p.title}</h3><div class="sub">${p.sub}</div></div>
+      <span class="statetag" style="color:${p.stateColor};background:${p.stateBg}">${p.state}</span>
+      <span class="chev">▶</span>
+    </div>
+    <div class="body">
+      <div class="row"><div class="lbl">Por que nesta ordem</div><div class="val">${p.why}</div></div>
+      <div class="row"><div class="lbl">O que construir</div><div class="chips">${p.build.map(b=>`<em>${b}</em>`).join('')}</div></div>
+      <div class="row"><div class="lbl">Métricas que destrava</div><div class="val">${p.metrics}</div></div>
+      <div class="row"><div class="lbl">Quem é impactado</div><div class="val">${p.who}</div></div>
+      <div class="row"><div class="lbl">Pronto quando</div><div class="done">✓ ${p.done}</div></div>
+    </div>`;
+  tl.appendChild(el);
+});
+</script>
+</body>
+</html>

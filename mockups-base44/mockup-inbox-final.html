@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Mockup Painel Inbox — versão final aprovação</title>
+<style>
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Inter,sans-serif;margin:0;padding:24px;background:#f5f2ec;color:#014D5E}
+  h1{font-size:20px;font-weight:600;margin:0 0 4px}
+  .sub{font-size:13px;color:#5F5E5A;margin:0 0 24px;max-width:900px;line-height:1.5}
+  h2{font-size:15px;font-weight:600;color:#014D5E;margin:24px 0 8px;display:flex;align-items:center;gap:8px}
+  .pill-h{font-size:10px;font-weight:700;padding:3px 8px;border-radius:5px;text-transform:uppercase}
+  .pill-bc{background:#009AAC;color:white}
+  .pill-meta{background:#25D366;color:white}
+  .desc{font-size:12.5px;color:#5F5E5A;margin:0 0 14px;line-height:1.5}
+
+  .grid2{display:grid;grid-template-columns:1fr 320px;gap:0;background:white;border-radius:10px;border:1px solid #E8DFC8;overflow:hidden;height:760px}
+  .left-side{background:linear-gradient(180deg,#f5f5f5,#fafafa);display:flex;align-items:center;justify-content:center;font-size:12px;color:#94a3b8;border-right:1px solid #E8DFC8;flex-direction:column;gap:8px}
+  .left-side .tag{padding:3px 9px;border-radius:12px;color:white;font-size:10.5px;font-weight:600}
+  .left-side .tag.bc{background:#009AAC}
+  .left-side .tag.meta{background:#25D366}
+
+  .panel{background:white;display:flex;flex-direction:column;min-height:0;overflow:hidden;height:100%}
+
+  /* HEADER */
+  .ctx-head{padding:9px 12px;border-bottom:1px solid #E8DFC8;flex-shrink:0;display:flex;align-items:center;justify-content:space-between}
+  .ctx-head .lbl{font-size:10px;color:#888780;font-weight:700;text-transform:uppercase;letter-spacing:0.5px}
+  .header-actions{display:flex;align-items:center;gap:6px}
+  .btn-fwd{background:white;color:#475569;border:1px solid #E8DFC8;padding:4px 8px;border-radius:5px;font-size:10.5px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:3px}
+  .btn-fwd:hover{border-color:#009AAC;color:#009AAC}
+  .btn-rsv{background:#009AAC;color:white;border:none;padding:4px 9px;border-radius:5px;font-size:10.5px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:3px}
+  .btn-x{background:none;border:none;color:#94a3b8;cursor:pointer;font-size:13px;padding:2px 4px}
+
+  /* SEARCH */
+  .search{padding:8px 12px;border-bottom:1px solid #E8DFC8;flex-shrink:0;position:relative}
+  .search input{width:100%;padding:6px 10px 6px 28px;border:1px solid #E8DFC8;border-radius:7px;font-size:12px;background:white;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.2'><circle cx='11' cy='11' r='7'/><line x1='21' y1='21' x2='16.5' y2='16.5'/></svg>");background-repeat:no-repeat;background-position:8px center}
+
+  .content{flex:1;overflow-y:auto;min-height:0}
+  .sec{padding:9px 12px;border-bottom:1px solid #E8DFC8}
+  .sec:last-child{border-bottom:none}
+  .sec-lbl{font-size:10px;color:#888780;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between}
+  .sec-lbl .link{font-size:10.5px;color:#009AAC;font-weight:500}
+  .num{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:#fef3c7;color:#92611a;font-size:9px;font-weight:700;margin-right:5px;vertical-align:1px}
+
+  /* RESUMO IA */
+  .resumo-card{background:linear-gradient(135deg,#f0fdfa,#e0f4f6);border:1px solid #99e9d8;border-radius:8px;padding:8px 10px;font-size:11.5px;color:#0c4a6e;line-height:1.5}
+  .resumo-card.empty{background:#fafafa;border:1px dashed #E8DFC8;color:#94a3b8;font-style:italic;text-align:center;padding:10px}
+  .resumo-who{font-size:9.5px;color:#0e7490;font-weight:700;text-transform:uppercase;margin-bottom:3px;display:flex;align-items:center;gap:4px}
+  .resumo-who span{background:#14b8a6;color:white;padding:0 4px;border-radius:3px;font-size:9px}
+
+  /* CLIENTE / LEAD */
+  .tutor-row{display:flex;align-items:flex-start;gap:8px}
+  .avatar{width:30px;height:30px;border-radius:50%;color:white;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0}
+  .av-cli{background:linear-gradient(135deg,#009AAC,#014D5E)}
+  .av-lead{background:linear-gradient(135deg,#f59e0b,#d97706)}
+  .tutor-name{font-size:12.5px;color:#014D5E;font-weight:600}
+  .tutor-meta{font-size:10.5px;color:#64748b;line-height:1.5}
+
+  /* PILLS */
+  .pills{display:flex;flex-wrap:wrap;gap:3px;margin-top:6px}
+  .pill{font-size:9.5px;padding:2px 7px;border-radius:10px;cursor:pointer;border:1px solid transparent;font-weight:500}
+  .pill-em-dia{background:#dcfce7;color:#15803d}
+  .pill-tratamento.on{background:linear-gradient(90deg,#f59e0b,#fbbf24);color:white;font-weight:600}
+  .pill-tratamento{background:#fef3c7;color:#92400e}
+  .pill-atencao{background:#fed7aa;color:#b45309}
+  .pill-recuperar{background:#fee2e2;color:#b91c1c}
+  .pill-inativo{background:#f1f5f9;color:#64748b}
+  .pill-base{background:#f1f5f9;color:#64748b}
+  .pill-base.on{background:linear-gradient(90deg,#009AAC,#00B4C4);color:white;font-weight:600}
+  .pill-base.cli-on{background:linear-gradient(90deg,#f59e0b,#fbbf24);color:white;font-weight:600}
+  .pill-base.fis-on{background:linear-gradient(90deg,#7c3aed,#8b5cf6);color:white;font-weight:600}
+
+  /* PETS */
+  .pet-row{display:flex;align-items:center;gap:8px;padding:5px 7px;border:1px solid #F0EBE0;border-radius:6px;margin-bottom:3px;cursor:pointer}
+  .pet-row.active{background:#e0f4f6;border-color:#009AAC}
+  .pet-icon{width:24px;height:24px;border-radius:50%;background:#e6f6f8;color:#009AAC;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0}
+  .pet-row.active .pet-icon{background:#009AAC;color:white}
+  .pet-name{font-size:11.5px;color:#014D5E;font-weight:600}
+  .pet-meta{font-size:10px;color:#64748b}
+  .empty-pets{background:#fafafa;border:1px dashed #E8DFC8;border-radius:6px;padding:10px;text-align:center;font-size:11px;color:#94a3b8}
+  .empty-pets a{color:#009AAC;font-weight:600;text-decoration:none}
+
+  /* PIPELINES */
+  .ppl{margin-bottom:6px}
+  .ppl-head{font-size:9.5px;color:#94a3b8;font-weight:700;text-transform:uppercase;margin-bottom:3px;display:flex;justify-content:space-between}
+  .ppl-tag{font-size:8.5px;padding:0 4px;border-radius:3px;font-weight:600}
+  .ppl-tag.cli{background:#fef3c7;color:#92400e}
+  .ppl-tag.fis{background:#ede9fe;color:#5b21b6}
+
+  /* INT FORM */
+  .int-form{background:#f6fdfd;padding:8px;border-radius:6px;border:1px solid #E8DFC8}
+  .int-form select,.int-form input,.int-form textarea{width:100%;padding:5px 8px;border:1px solid #E8DFC8;border-radius:5px;font-size:11px;margin-bottom:5px;background:white;font-family:inherit}
+  .int-form .btn-row{display:flex;gap:6px;margin-top:4px}
+  .int-form .btn-row button{flex:1;padding:6px;border-radius:5px;font-size:11px;border:1px solid #E8DFC8;cursor:pointer;background:white;color:#475569;font-weight:600}
+  .int-form .btn-row button.primary{background:#009AAC;color:white;border:none}
+
+  /* ATENDIMENTOS */
+  .at-row{display:flex;align-items:center;gap:6px;padding:5px 7px;border:1px solid #F0EBE0;border-radius:6px;margin-bottom:3px;cursor:pointer}
+  .at-tit{font-size:11px;color:#014D5E;font-weight:600}
+  .at-sub{font-size:10px;color:#64748b}
+  .empty-block{background:#fafafa;border:1px dashed #E8DFC8;border-radius:6px;padding:8px;text-align:center;font-size:10.5px;color:#94a3b8;font-style:italic}
+
+  /* LEGENDA */
+  .legend{background:white;border:1px solid #E8DFC8;border-radius:8px;padding:14px;margin-top:18px;font-size:12.5px;color:#475569;line-height:1.65}
+  .legend strong{color:#014D5E}
+  .legend ul{margin:6px 0 0 18px;padding:0}
+  .legend li{margin:3px 0}
+  .legend code{background:#f1f5f9;padding:1px 5px;border-radius:3px;font-size:11px;color:#0e7490}
+  .yellow{background:#fffbeb;border-color:#fde68a}
+</style>
+</head>
+<body>
+
+<h1>Painel Inbox — versão final pra aprovação</h1>
+<p class="sub">Mesmo painel direito (7 blocos numerados) aplicado nos 2 Inbox. Sempre mostra os 7 blocos — quando vazio aparece placeholder com CTA (mata o "espaço"). Header com Encaminhar / Resolver / X fechar.</p>
+
+<!-- ============ INBOX BC ============ -->
+<h2><span class="pill-h pill-bc">Inbox BC</span> BotConversa (iframe à esquerda)</h2>
+<p class="desc">Exemplo com <strong>Cliente que tem Lead histórico</strong> (Cintia Renata, número já cadastrado, conversa veio do BotConversa). Mostra os 2 blocos (Cliente + Lead vinculado) — Lead histórico permite editar pipeline comercial.</p>
+
+<div class="grid2">
+  <div class="left-side">
+    <div style="font-size:14px;color:#014D5E;font-weight:600">📱 BotConversa</div>
+    <span class="tag bc">iframe app.botconversa.com.br</span>
+  </div>
+  <aside class="panel">
+    <div class="ctx-head">
+      <span class="lbl">Contexto da conversa</span>
+      <div class="header-actions">
+        <button class="btn-fwd">⤴ Encaminhar</button>
+        <button class="btn-rsv">✓ Resolver</button>
+        <button class="btn-x">✕</button>
+      </div>
+    </div>
+    <div class="search"><input value="558586018111" placeholder="Telefone, nome ou email..."></div>
+    <div class="content">
+
+      <div class="sec">
+        <div class="sec-lbl"><span><span class="num">1</span>📝 Resumo da conversa (IA) <span style="font-weight:400;color:#94a3b8;font-size:9px;margin-left:4px">há 8min</span></span><span class="link">↻</span></div>
+        <div class="resumo-card">
+          <div class="resumo-who"><span>IA</span> via BotConversa</div>
+          Tutora pergunta sobre próximo retorno da Lola. Disse que a tosse melhorou. Quer agendar pra semana que vem.
+        </div>
+      </div>
+
+      <div class="sec">
+        <div class="sec-lbl"><span><span class="num">2</span>Cliente</span><span class="link">Ficha ↗</span></div>
+        <div class="tutor-row">
+          <div class="avatar av-cli">CR</div>
+          <div>
+            <div class="tutor-name">Cintia Renata Rocha Corrêa</div>
+            <div class="tutor-meta">📞 55 (85) 98601-8111 · LTV R$ 1.245<br>🐾 2 pets · 5 atendimentos · cliente desde mar/24</div>
+          </div>
+        </div>
+        <div style="font-size:9.5px;color:#94a3b8;text-transform:uppercase;font-weight:700;margin-top:8px;margin-bottom:3px">Estado de relacionamento</div>
+        <div class="pills">
+          <span class="pill pill-em-dia">Em dia</span>
+          <span class="pill pill-tratamento on">Pet em tratamento</span>
+          <span class="pill pill-atencao">Precisa de atenção</span>
+          <span class="pill pill-recuperar">A recuperar</span>
+          <span class="pill pill-inativo">Inativo há muito</span>
+        </div>
+      </div>
+
+      <div class="sec">
+        <div class="sec-lbl"><span><span class="num">3</span>Lead vinculado</span><span class="link">Ficha ↗</span></div>
+        <div style="font-size:11px;color:#64748b;margin-bottom:4px">55 (85) 98601-8111 · via BotConversa Webhook · mar/24</div>
+        <div style="font-size:9.5px;color:#94a3b8;text-transform:uppercase;font-weight:700;margin-bottom:3px">Pipeline comercial</div>
+        <div class="pills">
+          <span class="pill pill-base">Triagem</span>
+          <span class="pill pill-base on">Lead novo</span>
+          <span class="pill pill-base">Qualificação</span>
+          <span class="pill pill-base">Orçamento</span>
+          <span class="pill pill-base">Agendado</span>
+        </div>
+      </div>
+
+      <div class="sec">
+        <div class="sec-lbl"><span><span class="num">4</span>Pets (2) · clique pra selecionar</span><span class="link">+ cadastrar</span></div>
+        <div class="pet-row active">
+          <div class="pet-icon">🐕</div>
+          <div><div class="pet-name">Lola</div><div class="pet-meta">Cão · SRD · 4 anos</div></div>
+        </div>
+        <div class="pet-row">
+          <div class="pet-icon">🐈</div>
+          <div><div class="pet-name">Atma</div><div class="pet-meta">Gato · 2 anos</div></div>
+        </div>
+      </div>
+
+      <div class="sec">
+        <div class="sec-lbl"><span><span class="num">5</span>Pipelines da Lola</span></div>
+        <div class="ppl">
+          <div class="ppl-head"><span>Clínico</span><span class="ppl-tag cli">CLI</span></div>
+          <div class="pills"><span class="pill pill-base">Diagnóstico</span><span class="pill pill-base cli-on">Em tratamento</span><span class="pill pill-base">Aguard. exames</span><span class="pill pill-base">Retorno</span><span class="pill pill-base">Alta</span></div>
+        </div>
+        <div class="ppl">
+          <div class="ppl-head"><span>Fisioterapia</span><span class="ppl-tag fis">FISIO</span></div>
+          <div class="pills"><span class="pill pill-base fis-on">Avaliação</span><span class="pill pill-base">Pacote</span><span class="pill pill-base">Sessão</span><span class="pill pill-base">Alta</span></div>
+        </div>
+      </div>
+
+      <div class="sec">
+        <div class="sec-lbl"><span><span class="num">6</span>💬 Registrar interação</span></div>
+        <div class="int-form">
+          <select><option>Nota</option><option>WhatsApp enviado</option><option>Ligação</option><option>Email</option><option>Presencial</option></select>
+          <textarea placeholder="Resumo da conversa de hoje..." rows="2"></textarea>
+          <input placeholder="Próxima ação (opcional)">
+          <input type="date">
+          <div class="btn-row"><button>Cancelar</button><button class="primary">Salvar na ficha</button></div>
+        </div>
+      </div>
+
+      <div class="sec">
+        <div class="sec-lbl"><span><span class="num">7</span>Últimos atendimentos (2)</span><span class="link">+ novo</span></div>
+        <div class="at-row">
+          <div style="flex:1"><div class="at-tit">Consulta · 28/05/2026</div><div class="at-sub">Diagnóstico: bronquite leve · R$ 280</div></div>
+        </div>
+        <div class="at-row">
+          <div style="flex:1"><div class="at-tit">Sessão Fisio · 24/05/2026</div><div class="at-sub">Avaliação inicial · R$ 120</div></div>
+        </div>
+      </div>
+
+    </div>
+  </aside>
+</div>
+
+<!-- ============ INBOX META ============ -->
+<h2><span class="pill-h pill-meta">Inbox Meta</span> WhatsApp Business (Meta API nativo à esquerda)</h2>
+<p class="desc">Exemplo com <strong>Lead novo</strong> (Marília, número NÃO cadastrado, etiqueta BC = Lead). Mostra só bloco Lead (sem Cliente). Pets vazio com CTA. Mesmo painel direito, mesmo padrão visual.</p>
+
+<div class="grid2">
+  <div class="left-side">
+    <div style="font-size:14px;color:#014D5E;font-weight:600">💬 WhatsApp Business</div>
+    <span class="tag meta">Meta API · /dashboard/inbox-nativo</span>
+  </div>
+  <aside class="panel">
+    <div class="ctx-head">
+      <span class="lbl">Contexto da conversa</span>
+      <div class="header-actions">
+        <button class="btn-fwd">⤴ Encaminhar</button>
+        <button class="btn-rsv">✓ Resolver</button>
+        <button class="btn-x">✕</button>
+      </div>
+    </div>
+    <div class="search"><input value="5585999881234" placeholder="Telefone, nome ou email..."></div>
+    <div class="content">
+
+      <div class="sec">
+        <div class="sec-lbl"><span><span class="num">1</span>📝 Resumo da conversa (IA) <span style="font-weight:400;color:#94a3b8;font-size:9px;margin-left:4px">há 2min</span></span><span class="link">↻</span></div>
+        <div class="resumo-card">
+          <div class="resumo-who"><span>IA</span> via BotConversa</div>
+          Marília quer agendar consulta de retorno da artrose do pet. Mencionou que o pet está com dificuldade pra subir escadas.
+        </div>
+      </div>
+
+      <div class="sec" style="background:#fef9f1">
+        <div class="sec-lbl"><span><span class="num">3</span>Lead novo</span><span class="link">Converter em cliente ↗</span></div>
+        <div class="tutor-row">
+          <div class="avatar av-lead">MR</div>
+          <div>
+            <div class="tutor-name">Marília Rodrigues</div>
+            <div class="tutor-meta">📞 55 (85) 99988-1234 · via WhatsApp Meta · há 2min<br>📌 Etiqueta BC: <strong style="color:#92400e">Lead</strong></div>
+          </div>
+        </div>
+        <div style="font-size:9.5px;color:#94a3b8;text-transform:uppercase;font-weight:700;margin-top:8px;margin-bottom:3px">Pipeline comercial</div>
+        <div class="pills">
+          <span class="pill pill-base on">Triagem</span>
+          <span class="pill pill-base">Lead novo</span>
+          <span class="pill pill-base">Qualificação</span>
+          <span class="pill pill-base">Orçamento</span>
+          <span class="pill pill-base">Agendado</span>
+        </div>
+      </div>
+
+      <div class="sec">
+        <div class="sec-lbl"><span><span class="num">4</span>Pets</span><span class="link">+ cadastrar</span></div>
+        <div class="empty-pets">Nenhum pet cadastrado ainda<br><a href="#">+ Cadastrar pet</a></div>
+      </div>
+
+      <div class="sec">
+        <div class="sec-lbl"><span><span class="num">5</span>Pipelines do Pet</span></div>
+        <div class="empty-block">Selecione um pet pra ver pipelines</div>
+      </div>
+
+      <div class="sec">
+        <div class="sec-lbl"><span><span class="num">6</span>💬 Registrar interação</span></div>
+        <div class="int-form">
+          <select><option>Nota</option><option>WhatsApp enviado</option><option>Ligação</option><option>Email</option><option>Presencial</option></select>
+          <textarea placeholder="Resumo da conversa de hoje..." rows="2"></textarea>
+          <input placeholder="Próxima ação (opcional)">
+          <input type="date">
+          <div class="btn-row"><button>Cancelar</button><button class="primary">Salvar na ficha</button></div>
+        </div>
+      </div>
+
+      <div class="sec">
+        <div class="sec-lbl"><span><span class="num">7</span>Últimos atendimentos</span></div>
+        <div class="empty-block">Sem pet selecionado</div>
+      </div>
+
+    </div>
+  </aside>
+</div>
+
+<!-- ============ LEGENDA ============ -->
+<div class="legend">
+  <strong>O que muda em relação ao PR #116:</strong>
+  <ul>
+    <li><strong>Sempre 7 blocos:</strong> mesmo vazios mostram placeholder ("Nenhum pet cadastrado · + cadastrar") em vez de sumir. <strong>Mata o "espaço".</strong></li>
+    <li><strong>Bloco 1 Resumo IA sempre visível:</strong> com fallback "Sem resumo ainda · ↻ atualizar do BotConversa" quando vazio.</li>
+    <li><strong>Bloco Cliente com mais campos:</strong> LTV calculado em tempo real (soma atendimentos) + nº pets + nº atendimentos + cliente desde.</li>
+    <li><strong>Lead OU Cliente baseado em status do número + etiqueta BC:</strong>
+      <ul>
+        <li>Número <strong>não cadastrado</strong> no sistema + etiqueta BC "Lead" → bloco <strong>3 Lead novo</strong> (cor amarela)</li>
+        <li>Número <strong>cadastrado</strong> + etiqueta BC "Cliente" → bloco <strong>2 Cliente</strong></li>
+        <li>Número <strong>cadastrado</strong> que veio do BC como Lead histórico → blocos <strong>2 Cliente + 3 Lead vinculado</strong> (caso 1: Cintia)</li>
+      </ul>
+    </li>
+    <li><strong>Mesmo painel nos 2 Inbox</strong> (BC e Meta) — só o que muda é a tela à esquerda.</li>
+    <li><strong>Encaminhar / Resolver no HEADER</strong> (não dentro de Cliente).</li>
+    <li><strong>Resolver muda pipeline:</strong> Lead → "Atendido" / Cliente → mantém estado atual + cria Interação RESOLVIDO.</li>
+  </ul>
+</div>
+
+<div class="legend yellow">
+  <strong>📞 Normalização de telefone (banco de dados):</strong>
+  <ul>
+    <li>Formato canônico no banco: <code>55 + DDD + 9 + 8 dígitos</code> = 13 dígitos (ex: <code>5585986018111</code>)</li>
+    <li>Quando recebe número em qualquer formato (com/sem 55, com/sem 9, com/sem formatação), <strong>normaliza pra esse padrão antes de salvar.</strong></li>
+    <li>Quando busca/compara: usa <strong>últimos 9 dígitos</strong> pra casar números em formatos diferentes (evita duplicata).</li>
+    <li>Quando exibe: <code>55 (85) 98601-8111</code> com máscara visual.</li>
+    <li><strong>Migração:</strong> rodar 1 script no banco que normaliza TODOS os números existentes pra esse formato (não-destrutivo, só re-format).</li>
+  </ul>
+</div>
+
+<div class="legend yellow">
+  <strong>👉 Aprove pra eu codar (1 só PR):</strong>
+  <ul>
+    <li>✅ Aprovo os 2 painéis idênticos? (BC + Meta com mesmos 7 blocos)</li>
+    <li>✅ Aprovo lógica Lead OU Cliente OU os dois (baseado em status do número + etiqueta BC)?</li>
+    <li>✅ Aprovo normalização <code>55DDD9XXXX</code> + busca pelos últimos 9 dígitos?</li>
+    <li>✅ Aprovo Encaminhar/Resolver no header + Resolver mudando pipeline?</li>
+  </ul>
+  Responde "aprovado" ou aponta o que mudar.
+</div>
+
+</body>
+</html>

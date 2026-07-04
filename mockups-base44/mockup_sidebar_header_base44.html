@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mockup — Sidebar + Header (padrão Base44 turquesa)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --turq:#009AAC; --turq-light:#00B4C4; --turq-50:#e6f6f8;
+    --marinho:#014D5E; --bege:#F5EFE6;
+    --text:#1e293b; --muted:#64748b; --muted-2:#94a3b8;
+    --border:#e8edf0; --bg:#f6f8f9; --danger:#ef4444; --sidebar-w:252px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Inter',system-ui,sans-serif;color:var(--text);background:#dde4e8;-webkit-font-smoothing:antialiased}
+  .app{display:flex;min-height:100vh;background:var(--bg)}
+
+  /* ---------- Sidebar ---------- */
+  .sidebar{width:var(--sidebar-w);flex-shrink:0;background:#fff;border-right:1px solid var(--border);
+    display:flex;flex-direction:column;position:relative}
+  .collapse-tab{position:absolute;top:22px;right:-11px;width:22px;height:22px;border-radius:50%;
+    background:#fff;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;
+    color:var(--muted-2);cursor:pointer;font-size:11px;box-shadow:0 1px 3px rgba(0,0,0,.06);z-index:5}
+  .brand{padding:18px 18px 14px;border-bottom:1px solid var(--border)}
+  .brand img{height:46px;width:auto;display:block}
+
+  /* role switcher */
+  .role-switch{padding:12px 14px 4px}
+  .role-switch .lbl{font-size:9.5px;font-weight:700;letter-spacing:.7px;color:var(--muted-2);text-transform:uppercase;margin-bottom:6px}
+  .role-switch .opts{display:flex;background:var(--bg);border:1px solid var(--border);border-radius:9px;padding:3px;gap:2px}
+  .role-switch button{flex:1;border:none;background:none;font-family:inherit;font-size:11px;font-weight:600;
+    color:var(--muted);padding:6px 4px;border-radius:7px;cursor:pointer;transition:.12s}
+  .role-switch button.on{background:linear-gradient(90deg,var(--turq),var(--turq-light));color:#fff;box-shadow:0 2px 6px -1px rgba(0,154,172,.4)}
+
+  .nav{padding:8px 12px 4px;display:flex;flex-direction:column;gap:2px;overflow-y:auto;flex:1}
+  .nav a{display:flex;align-items:center;gap:12px;padding:9px 12px;border-radius:9px;color:#475569;
+    font-size:13.5px;font-weight:500;text-decoration:none;cursor:pointer;transition:background .12s,color .12s;position:relative}
+  .nav a .ico{width:18px;height:18px;flex-shrink:0;stroke:currentColor;fill:none;stroke-width:1.7}
+  .nav a:hover{background:var(--turq-50);color:var(--marinho)}
+  .nav a.active{background:linear-gradient(90deg,var(--turq),var(--turq-light));color:#fff;font-weight:600;
+    box-shadow:0 4px 12px -2px rgba(0,154,172,.45)}
+  .nav a.active .ico{stroke-width:2}
+  .nav a.hidden-role{display:none}
+  .badge{margin-left:auto;background:var(--danger);color:#fff;font-size:10.5px;font-weight:700;min-width:20px;
+    height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 5px}
+  .nav a.active .badge{background:#fff;color:var(--danger)}
+  .tag{margin-left:auto;font-size:9px;font-weight:700;letter-spacing:.3px;padding:2px 6px;border-radius:6px;
+    background:#eef2f4;color:var(--muted);text-transform:uppercase}
+  .nav a.active .tag{background:rgba(255,255,255,.25);color:#fff}
+  .nav .section{font-size:10px;font-weight:700;letter-spacing:.8px;color:var(--muted-2);text-transform:uppercase;padding:14px 12px 6px}
+
+  /* future modules */
+  .future{margin:6px 12px 2px;border-top:1px dashed var(--border);padding-top:10px}
+  .future .section{font-size:10px;font-weight:700;letter-spacing:.8px;color:var(--muted-2);text-transform:uppercase;padding:2px 12px 6px;display:flex;align-items:center;gap:6px}
+  .future a{display:flex;align-items:center;gap:12px;padding:8px 12px;border-radius:9px;color:#b6c1c9;
+    font-size:13px;font-weight:500;cursor:not-allowed}
+  .future a .ico{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.7}
+  .future a .soon{margin-left:auto;font-size:8.5px;font-weight:700;letter-spacing:.4px;background:#f1f5f7;color:var(--muted-2);padding:2px 6px;border-radius:6px;text-transform:uppercase}
+
+  .side-foot{border-top:1px solid var(--border);padding:12px 16px;display:flex;flex-direction:column;gap:10px}
+  .side-foot .urow{display:flex;align-items:center;gap:10px}
+  .side-foot .uav{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--turq),var(--marinho));
+    color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;flex-shrink:0}
+  .side-foot .user{display:flex;flex-direction:column;line-height:1.25;min-width:0}
+  .side-foot .user b{font-size:12.5px;color:var(--text);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .side-foot .user span{font-size:11px;color:var(--muted-2)}
+  .side-foot .logout{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12.5px;cursor:pointer}
+  .side-foot .logout svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8}
+
+  /* ---------- Main ---------- */
+  .main{flex:1;display:flex;flex-direction:column;min-width:0}
+  .header{height:64px;background:#fff;border-bottom:1px solid var(--border);display:flex;align-items:center;
+    justify-content:space-between;padding:0 26px;flex-shrink:0}
+  .header .htitle h1{font-size:19px;font-weight:700;color:var(--marinho);line-height:1.1}
+  .header .htitle p{font-size:12.5px;color:var(--muted);margin-top:2px}
+  .header .hright{display:flex;align-items:center;gap:14px}
+  .search{display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--border);border-radius:9px;
+    padding:8px 12px;width:240px;color:var(--muted-2)}
+  .search svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8}
+  .search input{border:none;background:none;outline:none;font-size:13px;color:var(--text);width:100%;font-family:inherit}
+  .icon-btn{width:38px;height:38px;border-radius:9px;border:1px solid var(--border);background:#fff;display:flex;
+    align-items:center;justify-content:center;color:var(--muted);cursor:pointer;position:relative}
+  .icon-btn svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.8}
+  .icon-btn .dot{position:absolute;top:8px;right:9px;width:7px;height:7px;border-radius:50%;background:var(--danger);border:2px solid #fff}
+  .avatar{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--turq),var(--marinho));
+    color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;cursor:pointer}
+
+  .content{padding:26px;flex:1;overflow:auto;position:relative}
+  .ph-watermark{position:absolute;top:10px;right:26px;color:#cbd5e1;font-size:11px;letter-spacing:1px;text-transform:uppercase;font-weight:600;pointer-events:none}
+  .ph-row{display:flex;gap:16px;margin-bottom:18px;flex-wrap:wrap}
+  .ph-card{flex:1;min-width:170px;background:#fff;border:1px solid var(--border);border-radius:12px;padding:18px 20px}
+  .ph-card .k{font-size:12px;color:var(--muted);font-weight:500}
+  .ph-card .v{font-size:24px;font-weight:700;color:var(--marinho);margin-top:6px}
+  .ph-card .v small{font-size:13px;color:var(--turq);font-weight:600}
+  .ph-block{background:#fff;border:1px solid var(--border);border-radius:12px;padding:20px;height:200px;
+    display:flex;align-items:center;justify-content:center;color:var(--muted-2);font-size:13px}
+
+  .today-head{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+  .today-head h2{font-size:15px;font-weight:700;color:var(--marinho)}
+  .pend{font-size:12px;font-weight:600;color:var(--turq);background:var(--turq-50);padding:4px 11px;border-radius:20px}
+  .todo-card{background:#fff;border:1px solid var(--border);border-radius:14px;overflow:hidden}
+  .todo-row{display:flex;align-items:center;gap:14px;padding:13px 18px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .12s}
+  .todo-row:last-child{border-bottom:none}
+  .todo-row:hover{background:var(--turq-50)}
+  .todo-ic{width:38px;height:38px;border-radius:10px;background:var(--turq-50);color:var(--turq);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .todo-ic svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.8}
+  .todo-txt{flex:1;min-width:0}
+  .todo-txt b{display:block;font-size:13.5px;font-weight:600;color:var(--text)}
+  .todo-txt span{font-size:12px;color:var(--muted)}
+  .todo-link{font-size:10px;font-weight:700;color:var(--turq);text-transform:uppercase;letter-spacing:.4px;flex-shrink:0}
+  .todo-cnt{font-size:13px;font-weight:700;color:#fff;background:linear-gradient(90deg,var(--turq),var(--turq-light));min-width:26px;height:24px;border-radius:12px;display:flex;align-items:center;justify-content:center;padding:0 8px;flex-shrink:0}
+  .todo-go{color:var(--muted-2);flex-shrink:0;display:flex}
+  .todo-go svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2.2}
+
+  .note{margin:0 26px 26px;background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:16px 20px;font-size:13px;color:#92611a;line-height:1.6}
+  .note b{color:#7c4a06}
+  .note ul{margin:8px 0 0 18px}
+  .note li{margin:3px 0}
+  code{background:rgba(0,0,0,.05);padding:1px 5px;border-radius:4px;font-size:12px}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ===================== SIDEBAR ===================== -->
+  <aside class="sidebar">
+    <div class="collapse-tab" title="Recolher">‹</div>
+
+    <div class="brand">
+      <img src="https://emporiodopet.com.br/wp-content/uploads/2022/04/logo-emporio-do-pet-padrao.png" alt="Empório do Pet">
+    </div>
+
+    <div class="role-switch">
+      <div class="lbl">Perfil logado (preview)</div>
+      <div class="opts">
+        <button class="on" data-role="admin" onclick="setRole('admin')">Admin</button>
+        <button data-role="vet" onclick="setRole('vet')">Veterinário</button>
+        <button data-role="recep" onclick="setRole('recep')">Recepção</button>
+      </div>
+    </div>
+
+    <nav class="nav">
+      <a class="active" data-roles="admin,vet,recep">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M3 12l9-9 9 9"/><path d="M5 10v10h14V10"/></svg>Hoje</a>
+
+      <a data-roles="admin,vet,recep">
+        <svg class="ico" viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="5" rx="1"/><rect x="13" y="11" width="8" height="10" rx="1"/><rect x="3" y="14" width="8" height="7" rx="1"/></svg>Dashboard</a>
+
+      <a data-roles="admin,vet,recep">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M4 4h16v12H7l-3 3V4z"/></svg>Inbox Recepção<span class="badge">63</span></a>
+
+      <a data-roles="admin,recep">
+        <svg class="ico" viewBox="0 0 24 24"><line x1="8" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="20" y2="12"/><line x1="8" y1="18" x2="20" y2="18"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg>Leads</a>
+
+      <a data-roles="admin,vet,recep">
+        <svg class="ico" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M16 4a3 3 0 0 1 0 6"/><path d="M18 14c2.2.5 4 2.4 4 5"/></svg>Tutores</a>
+
+      <a data-roles="admin,vet,recep">
+        <svg class="ico" viewBox="0 0 24 24"><circle cx="6" cy="11" r="1.8"/><circle cx="10.5" cy="7" r="1.8"/><circle cx="15" cy="7" r="1.8"/><circle cx="18.5" cy="11" r="1.8"/><path d="M8 16c1-2.2 2.5-3.5 4-3.5s3 1.3 4 3.5c1 2.2-.3 3.7-2 3.5-1-.1-1.3-.5-2-.5s-1 .4-2 .5c-1.7.2-3-1.3-2-3.5z"/></svg>Pets</a>
+
+      <a data-roles="admin,vet,recep">
+        <svg class="ico" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg>Calendário</a>
+
+      <a data-roles="admin,vet,recep" data-internacao="1">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M4 21V8l8-4 8 4v13"/><path d="M9 21v-6h6v6"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="10" y1="11" x2="14" y2="11"/></svg>Internação<span class="tag" id="intTag">Edita</span></a>
+
+      <a data-roles="admin">
+        <svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 7 19.4a1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.6 1.6 0 0 0 3 15a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 4.6 7l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.6 1.6 0 0 0 9 4.6 1.6 1.6 0 0 0 10 3.1V3a2 2 0 1 1 4 0v.1A1.6 1.6 0 0 0 17 4.6l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1A1.6 1.6 0 0 0 21 9a2 2 0 1 1 0 4z"/></svg>Configurações</a>
+
+      <div class="future">
+        <div class="section">Módulos · em breve</div>
+        <a><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.5 9.5h4a1.5 1.5 0 0 1 0 3h-3a1.5 1.5 0 0 0 0 3h4"/></svg>Financeiro<span class="soon">depois</span></a>
+        <a><svg class="ico" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2"/></svg>RH<span class="soon">depois</span></a>
+        <a><svg class="ico" viewBox="0 0 24 24"><path d="M3 11l16-6v14L3 13z"/><path d="M7 12v5"/></svg>Marketing<span class="soon">integrado</span></a>
+      </div>
+    </nav>
+
+    <div class="side-foot">
+      <div class="urow">
+        <div class="uav" id="footAv">CA</div>
+        <div class="user">
+          <b id="footName">Cintia Albuquerque</b>
+          <span id="footRole">Administradora</span>
+        </div>
+      </div>
+      <div class="logout">
+        <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>Sair</div>
+    </div>
+  </aside>
+
+  <!-- ===================== MAIN ===================== -->
+  <div class="main">
+    <header class="header">
+      <div class="htitle">
+        <h1>Hoje</h1>
+        <p id="hsub">Seu dia · Cintia Albuquerque · 31 de maio de 2026</p>
+      </div>
+      <div class="hright">
+        <div class="search">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>
+          <input placeholder="Buscar tutor, pet ou lead...">
+        </div>
+        <div class="icon-btn" title="Notificações">
+          <svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+          <span class="dot"></span>
+        </div>
+        <div class="avatar" id="hAvatar">CA</div>
+      </div>
+    </header>
+
+    <div class="content">
+      <div class="ph-watermark">conteúdo ilustrativo · muda por perfil</div>
+      <div class="today-head">
+        <h2>O que precisa ser feito hoje</h2>
+        <span class="pend" id="todayCount"></span>
+      </div>
+      <div class="todo-card" id="todo"></div>
+    </div>
+
+    <div class="note">
+      <b>Notas do mockup — confira antes de eu codar:</b>
+      <ul>
+        <li>Troque o <b>Perfil logado</b> (Admin / Veterinário / Recepção) no topo da sidebar pra ver o menu e as pendências mudando conforme as regras.</li>
+        <li><b>Hoje = resumo do que precisa ser feito</b>, não métricas. Cada linha mostra o que falta e leva pra tela onde se resolve (Inbox, Leads, Calendário...). As medições/números ficam no Dashboard e no Inbox (coração do sistema).</li>
+        <li><b>Veterinário</b> não vê Leads nem Configurações. <b>Recepção</b> não vê Configurações. Internação: vet <code>Edita</code>, demais <code>Visualiza</code>.</li>
+        <li><b>Inbox</b> aparece nos 3 perfis — é onde fica o chat do WhatsApp.</li>
+        <li><b>Calendário</b>: dados do perfil logado, mas aniversários aparecem pra todos (vou tratar isso no filtro da tela).</li>
+        <li><b>Módulos em breve</b> (Financeiro, RH, Marketing) — só registrados desativados no rodapé. Estrutura segue plana, nada construído agora.</li>
+        <li><b>Logo</b> real puxado do site. <b>Header</b> fixo: busca + sino + avatar — ok manter assim?</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<script>
+  const IC = {
+    confirm:'<circle cx="12" cy="12" r="9"/><path d="M8.5 12l2.3 2.3L15.5 9.5"/>',
+    chat:'<path d="M4 5h16v11H8l-4 3V5z"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="12.5" x2="13" y2="12.5"/>',
+    followup:'<path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1"/><path d="M3 4v4h4"/>',
+    lead:'<circle cx="9" cy="8" r="3"/><path d="M3.5 20c0-3.3 2.5-5.5 5.5-5.5 1.3 0 2.5.4 3.5 1.1"/><line x1="18" y1="12" x2="18" y2="18"/><line x1="15" y1="15" x2="21" y2="15"/>',
+    intern:'<path d="M4 21V8l8-4 8 4v13"/><line x1="12" y1="9.5" x2="12" y2="13.5"/><line x1="10" y1="11.5" x2="14" y2="11.5"/><path d="M9 21v-5h6v5"/>',
+    birthday:'<path d="M5 21v-7h14v7z"/><path d="M5 14.5c2.2-1.8 11.8-1.8 14 0"/><line x1="12" y1="11" x2="12" y2="7.5"/><circle cx="12" cy="6" r="1"/>',
+    agenda:'<rect x="3" y="5" width="18" height="16" rx="2"/><line x1="3" y1="9.5" x2="21" y2="9.5"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/>',
+    exame:'<path d="M9 3h6M10 3v5.5l-4.6 8.3a2 2 0 0 0 1.8 3h9.6a2 2 0 0 0 1.8-3L14 8.5V3"/><line x1="8" y1="15" x2="16" y2="15"/>'
+  };
+  const DATA = {
+    admin: {name:'Cintia Albuquerque', role:'Administradora', av:'CA', sub:'Seu dia · Cintia Albuquerque',
+      todo:[
+        ['confirm','Confirmar agendamentos','5 consultas aguardando confirmação',5,'Inbox'],
+        ['chat','Responder conversas','8 sem resposta no WhatsApp',8,'Inbox'],
+        ['followup','Follow-ups de hoje','6 tutores para retomar contato',6,'Tutores'],
+        ['lead','Leads novos para triar','3 aguardando triagem',3,'Leads'],
+        ['intern','Internados para acompanhar','4 pets em observação',4,'Internação'],
+        ['birthday','Aniversariantes do dia','3 pets fazem aniversário hoje',3,'Parabéns']
+      ]},
+    vet: {name:'Dra. Vivian Corrêa', role:'Veterinária', av:'VC', sub:'Seu dia · Dra. Vivian',
+      todo:[
+        ['agenda','Meus atendimentos de hoje','7 na sua agenda',7,'Calendário'],
+        ['followup','Retornos previstos','5 pets com retorno hoje',5,'Pets'],
+        ['exame','Exames a avaliar','2 resultados pendentes',2,'Pets'],
+        ['intern','Internados para acompanhar','4 pets em observação',4,'Internação'],
+        ['birthday','Aniversariantes do dia','3 pets fazem aniversário hoje',3,'']
+      ]},
+    recep: {name:'Ellen', role:'Recepção', av:'EL', sub:'Seu dia · Ellen · Recepção',
+      todo:[
+        ['confirm','Confirmar agendamentos','5 consultas aguardando confirmação',5,'Inbox'],
+        ['chat','Responder conversas','8 sem resposta no WhatsApp',8,'Inbox'],
+        ['lead','Leads novos para triar','8 aguardando triagem',8,'Leads'],
+        ['followup','Follow-ups de hoje','6 tutores para retomar contato',6,'Tutores'],
+        ['birthday','Aniversariantes do dia','3 pets fazem aniversário hoje',3,'Parabéns']
+      ]}
+  };
+  function setRole(r){
+    document.querySelectorAll('.role-switch button').forEach(b=>b.classList.toggle('on', b.dataset.role===r));
+    document.querySelectorAll('.nav a[data-roles]').forEach(a=>{
+      a.classList.toggle('hidden-role', !a.dataset.roles.split(',').includes(r));
+    });
+    const d = DATA[r];
+    footName.textContent=d.name; footRole.textContent=d.role; footAv.textContent=d.av;
+    hAvatar.textContent=d.av; hsub.textContent=d.sub+' · 31 de maio de 2026';
+    intTag.textContent = r==='vet' ? 'Edita' : 'Visualiza';
+    const total = d.todo.reduce((s,t)=>s+t[3],0);
+    todayCount.textContent = total+' pendências';
+    todo.innerHTML = d.todo.map(t=>{
+      const [ic,title,sub,cnt,link]=t;
+      return `<div class="todo-row">
+        <div class="todo-ic"><svg viewBox="0 0 24 24">${IC[ic]}</svg></div>
+        <div class="todo-txt"><b>${title}</b><span>${sub}</span></div>
+        ${link?'<span class="todo-link">'+link+'</span>':''}
+        <span class="todo-cnt">${cnt}</span>
+        <span class="todo-go"><svg viewBox="0 0 24 24"><polyline points="9 6 15 12 9 18"/></svg></span>
+      </div>`;
+    }).join('');
+  }
+  setRole('admin');
+</script>
+</body>
+</html>

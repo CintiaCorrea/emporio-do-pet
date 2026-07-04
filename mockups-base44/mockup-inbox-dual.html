@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Mockup — Inbox dual (BotConversa + Nativo)</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif; margin: 0; padding: 24px; background: #f5f2ec; color: #014D5E; }
+  h1 { font-size: 18px; font-weight: 500; margin: 0 0 4px; color: #014D5E; }
+  .sub { font-size: 13px; color: #5F5E5A; margin: 0 0 24px; }
+  h2 { font-size: 14px; font-weight: 500; color: #014D5E; margin: 32px 0 4px; }
+  h2 .badge { font-size: 10px; font-weight: 600; text-transform: uppercase; padding: 2px 6px; border-radius: 5px; margin-left: 6px; vertical-align: 2px; }
+  h2 .rec { background: #dcfce7; color: #15803d; }
+  h2 .alt { background: #fef3c7; color: #92400e; }
+  .desc { font-size: 12.5px; color: #5F5E5A; margin: 0 0 14px; line-height: 1.5; }
+
+  .frame { background: white; border-radius: 10px; border: 1px solid #E8DFC8; height: 540px; display: flex; overflow: hidden; }
+
+  /* Sidebar */
+  .sb { width: 200px; background: white; border-right: 1px solid #E8DFC8; padding: 14px 10px; display: flex; flex-direction: column; flex-shrink: 0; }
+  .sb .logo { width: 38px; height: 38px; border-radius: 8px; background: #009AAC; color: white; display: flex; align-items: center; justify-content: center; font-size: 18px; margin: 0 auto 12px; }
+  .sb .brand { font-size: 11px; font-weight: 600; color: #014D5E; text-align: center; margin: 0 0 14px; }
+  .sb .item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; color: #475569; font-size: 12.5px; cursor: pointer; }
+  .sb .item.active { background: linear-gradient(90deg, #009AAC, #00B4C4); color: white; font-weight: 600; }
+  .sb .item.indent { padding-left: 30px; font-size: 11.5px; color: #64748b; }
+  .sb .item.indent.active { padding-left: 30px; background: #e0f4f6; color: #009AAC; font-weight: 500; }
+  .sb .badge-on { margin-left: auto; font-size: 9px; padding: 1px 5px; background: #fef3c7; color: #92400e; border-radius: 8px; font-weight: 600; }
+  .sb .badge-cnt { margin-left: auto; font-size: 10px; padding: 1px 6px; background: #D85A30; color: white; border-radius: 8px; font-weight: 600; }
+
+  /* Página */
+  .page { flex: 1; padding: 14px; background: #f6fdfd; min-width: 0; overflow: hidden; }
+  .ptitle { font-size: 16px; font-weight: 600; color: #014D5E; margin-bottom: 8px; }
+  .switcher { background: white; border: 1px solid #E8DFC8; border-radius: 8px; padding: 4px; display: inline-flex; gap: 2px; margin-bottom: 10px; }
+  .switcher button { border: none; background: none; padding: 6px 14px; font-size: 12px; border-radius: 6px; cursor: pointer; color: #64748b; font-weight: 500; }
+  .switcher button.on { background: linear-gradient(90deg, #009AAC, #00B4C4); color: white; }
+  .switcher .pill { font-size: 9px; padding: 1px 5px; border-radius: 4px; margin-left: 5px; background: #fef3c7; color: #92400e; font-weight: 600; }
+  .switcher button.on .pill { background: rgba(255,255,255,0.25); color: white; }
+
+  .embed { background: white; border: 1px solid #E8DFC8; border-radius: 8px; height: calc(100% - 64px); padding: 12px; color: #64748b; font-size: 11px; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 6px; }
+  .embed .label { font-size: 11px; color: #94a3b8; }
+  .embed .ttl { font-size: 13px; color: #014D5E; font-weight: 600; }
+
+  /* nativo preview */
+  .nativo-cols { display: flex; gap: 8px; height: calc(100% - 64px); }
+  .nativo-cols > div { background: white; border: 1px solid #E8DFC8; border-radius: 8px; padding: 10px; }
+  .col-conv { width: 200px; }
+  .col-chat { flex: 1; display: flex; flex-direction: column; }
+  .col-pet { width: 180px; }
+  .conv-row { padding: 6px 8px; border-radius: 6px; font-size: 11px; color: #475569; margin-bottom: 3px; }
+  .conv-row.active { background: #e0f4f6; color: #009AAC; font-weight: 600; }
+  .conv-row .last { font-size: 10px; color: #94a3b8; margin-top: 2px; }
+  .legend { font-size: 11px; color: #94a3b8; margin-top: 8px; line-height: 1.6; }
+  .legend strong { color: #014D5E; }
+
+  .pros-cons { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 12px; font-size: 12.5px; }
+  .pros-cons > div { background: white; border: 1px solid #E8DFC8; border-radius: 8px; padding: 12px; }
+  .pros-cons .h { font-weight: 600; margin-bottom: 6px; color: #014D5E; font-size: 12px; }
+  .pros-cons .green { color: #15803d; }
+  .pros-cons .amber { color: #92611a; }
+  .pros-cons ul { margin: 0; padding-left: 16px; line-height: 1.7; }
+</style>
+</head>
+<body>
+
+<h1>Inbox dual — 2 propostas de organização</h1>
+<p class="sub">Renomear "Inbox Recepção" → "Inbox" e ter os dois Inboxes acessíveis em paralelo durante a migração.</p>
+
+<!-- ========== Opção A: Switcher na página ========== -->
+<h2>Opção A — Um item "Inbox" + switcher no topo da página <span class="badge rec">Recomendado</span></h2>
+<p class="desc">Menu mantém um item só "Inbox". Dentro da página, um switcher pequeno alterna entre <strong>BotConversa</strong> (atual) e <strong>Nativo</strong> (em construção). Mais limpo, alterna rápido sem perder contexto.</p>
+<div class="frame">
+  <aside class="sb">
+    <div class="logo">🐾</div>
+    <div class="brand">EMPÓRIO DO PET</div>
+    <div class="item">☀ Hoje</div>
+    <div class="item">▦ Dashboard</div>
+    <div class="item active">💬 Inbox</div>
+    <div class="item">≡ Leads</div>
+    <div class="item">👥 Tutores</div>
+    <div class="item">🐾 Pets</div>
+    <div class="item">📅 Calendário</div>
+    <div class="item">🛏 Internação</div>
+    <div class="item" style="font-size:11.5px;color:#888;margin-top:auto;">⚙ Configurações</div>
+  </aside>
+  <div class="page">
+    <div class="ptitle">Inbox <span style="font-size:11px;color:#94a3b8;font-weight:400;">· suas conversas</span></div>
+    <div class="switcher">
+      <button class="on">BotConversa <span class="pill">atual</span></button>
+      <button>Nativo <span class="pill" style="background:#dbeafe;color:#1e40af;">preview</span></button>
+    </div>
+    <div class="embed">
+      <div class="label">↑ aba ativa</div>
+      <div class="ttl">Painel BotConversa embarcado</div>
+      <div class="label">(iframe full-height, sessão própria do BotConversa)</div>
+    </div>
+  </div>
+</div>
+
+<div class="pros-cons">
+  <div>
+    <div class="h green">✓ Vantagens</div>
+    <ul>
+      <li>Menu mais limpo (1 item)</li>
+      <li>Troca rápida sem sair da página</li>
+      <li>Cada usuário ainda vê as próprias conversas no nativo</li>
+      <li>Quando nativo amadurecer, basta inverter o "atual" e remover BotConversa</li>
+    </ul>
+  </div>
+  <div>
+    <div class="h amber">⚠ Pontos de atenção</div>
+    <ul>
+      <li>Recarregar a aba "nativa" recarrega o iframe BotConversa (perde scroll)</li>
+      <li>Quem chega na URL /dashboard/inbox sempre cai no BotConversa primeiro</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ========== Opção B: dois itens na sidebar ========== -->
+<h2>Opção B — Dois itens na sidebar <span class="badge alt">Alternativo</span></h2>
+<p class="desc">"Inbox" (BotConversa) e "Inbox novo" (Nativo) como dois itens separados. Vê os dois lado a lado no menu, troca rápida pelo menu. Sidebar fica um pouco mais cheia.</p>
+<div class="frame">
+  <aside class="sb">
+    <div class="logo">🐾</div>
+    <div class="brand">EMPÓRIO DO PET</div>
+    <div class="item">☀ Hoje</div>
+    <div class="item">▦ Dashboard</div>
+    <div class="item active">💬 Inbox <span class="badge-on">BC</span></div>
+    <div class="item" style="background:#e0f4f6;color:#009AAC;font-weight:500;">⚡ Inbox novo <span class="badge-on" style="background:#dbeafe;color:#1e40af;">preview</span></div>
+    <div class="item">≡ Leads</div>
+    <div class="item">👥 Tutores</div>
+    <div class="item">🐾 Pets</div>
+    <div class="item">📅 Calendário</div>
+    <div class="item">🛏 Internação</div>
+    <div class="item" style="font-size:11.5px;color:#888;margin-top:auto;">⚙ Configurações</div>
+  </aside>
+  <div class="page">
+    <div class="ptitle">Inbox <span style="font-size:11px;color:#94a3b8;font-weight:400;">· BotConversa embarcado</span></div>
+    <div class="embed" style="margin-top:8px;height:calc(100% - 40px)">
+      <div class="ttl">Painel BotConversa</div>
+      <div class="label">A página /inbox-novo seria o nativo em construção</div>
+    </div>
+  </div>
+</div>
+
+<div class="pros-cons">
+  <div>
+    <div class="h green">✓ Vantagens</div>
+    <ul>
+      <li>Cada um tem URL própria e link específico</li>
+      <li>Recarregar uma não afeta a outra</li>
+      <li>Mais explícito que estão rodando em paralelo</li>
+    </ul>
+  </div>
+  <div>
+    <div class="h amber">⚠ Pontos de atenção</div>
+    <ul>
+      <li>Sidebar ganha 1 item a mais (10 no total)</li>
+      <li>Equipe pode ficar confusa sobre qual abrir</li>
+      <li>Migrar depois exige tirar 1 item do menu, mexer em sidebar</li>
+    </ul>
+  </div>
+</div>
+
+<!-- Visão da Inbox nativa proposta -->
+<h2>Como será o Inbox nativo (mesmo em A ou B)</h2>
+<p class="desc">Filtro automático por usuário logado, painel direito com 3 blocos (Tutor / Pet selecionado / Ações) conforme registrado em memória. Aqui só preview visual.</p>
+<div class="frame">
+  <aside class="sb">
+    <div class="logo">🐾</div>
+    <div class="brand">EMPÓRIO DO PET</div>
+    <div class="item">☀ Hoje</div>
+    <div class="item active">💬 Inbox</div>
+    <div class="item">🐾 Pets</div>
+    <div class="item">📅 Calendário</div>
+  </aside>
+  <div class="page">
+    <div class="ptitle">Inbox <span style="font-size:11px;color:#94a3b8;font-weight:400;">· nativo · suas conversas (Ellen Falcão)</span></div>
+    <div class="switcher">
+      <button>BotConversa <span class="pill">atual</span></button>
+      <button class="on">Nativo <span class="pill" style="background:rgba(255,255,255,0.25);color:white;">preview</span></button>
+    </div>
+    <div class="nativo-cols">
+      <div class="col-conv">
+        <div style="font-size:10.5px;color:#94a3b8;text-transform:uppercase;font-weight:600;margin-bottom:6px;">Conversas (12)</div>
+        <div class="conv-row active">
+          <div>Cíntia · Lola</div>
+          <div class="last">"vai ter retorno semana que..."</div>
+        </div>
+        <div class="conv-row">
+          <div>Ellen Falcão · Lupin</div>
+          <div class="last">"obrigada!"</div>
+        </div>
+        <div class="conv-row">
+          <div>Nayana · 🐾</div>
+          <div class="last">"oi, posso agendar..."</div>
+        </div>
+      </div>
+      <div class="col-chat">
+        <div style="font-size:11px;color:#94a3b8;text-align:center;margin-top:50px;">
+          ↓ Linha do tempo da conversa<br>
+          mensagens trafegando<br>
+          (lendo de WhatsAppMessage)
+        </div>
+      </div>
+      <div class="col-pet">
+        <div style="font-size:10.5px;color:#94a3b8;text-transform:uppercase;font-weight:600;margin-bottom:6px;">Contexto</div>
+        <div style="font-size:11px;color:#014D5E;font-weight:600;">Tutor · Cíntia</div>
+        <div style="font-size:10.5px;color:#64748b;margin-bottom:8px;">+55 85 9601-8111</div>
+        <div style="font-size:10.5px;color:#94a3b8;text-transform:uppercase;font-weight:600;margin-top:8px;margin-bottom:4px;">Pet</div>
+        <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:6px;font-size:10.5px;">
+          🐕 Lola<br>
+          <span style="color:#94a3b8;">SRD · 4 anos</span>
+        </div>
+        <div style="font-size:10.5px;color:#94a3b8;text-transform:uppercase;font-weight:600;margin-top:8px;margin-bottom:4px;">Ações</div>
+        <button style="width:100%;padding:5px;background:#009AAC;color:white;border:none;border-radius:6px;font-size:10.5px;margin-bottom:3px;">+ Atendimento</button>
+        <button style="width:100%;padding:5px;background:white;border:1px solid #E8DFC8;color:#475569;border-radius:6px;font-size:10.5px;">Ver ficha</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="legend">
+  <strong>Regras da Inbox nativa:</strong><br>
+  • Cada usuário vê <strong>somente suas conversas</strong> (filtro por <code>WhatsAppConversation.assignedUserId</code> + por papel).<br>
+  • <strong>Admin</strong> pode ver "Todas" pela opção no topo.<br>
+  • Painel direito é a ponte clínica: 3 blocos (Tutor / Pet / Ações no pet) — conforme acordado em memória.<br>
+  • Mensagens vêm do <code>WhatsAppConversation</code> + <code>WhatsAppMessage</code> que já existem no Prisma.
+</div>
+
+</body>
+</html>

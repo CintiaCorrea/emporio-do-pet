@@ -1,0 +1,118 @@
+<style>
+:root{
+  --bg:#F6F2EA; --card:#fff; --line:#E8E2D6; --soft:#F0EBE0; --suave:#FBF9F4;
+  --ink:#1F2A2E; --ink2:#5C6B70; --mut:#8A989D; --navy:#014D5E; --teal:#009AAC; --agua:#E0F4F6;
+  --up:#B45309; --up-b:#FBEFE0; --down:#0F6E56; --down-b:#E1F5EE; --flat:#8A989D;
+  --alerta:#CC3366; --alerta-b:#FCE9EF;
+}
+*{box-sizing:border-box}
+.wrap{max-width:900px;margin:0 auto;padding:10px 4px 48px;font-family:"Segoe UI",system-ui,-apple-system,sans-serif;color:var(--ink);font-size:14px;line-height:1.45}
+.crumb{font-size:12px;color:var(--mut);margin-bottom:4px}
+.crumb b{color:var(--teal);font-weight:500}
+h1{font-size:20px;font-weight:500;color:var(--navy);margin:0 0 2px;letter-spacing:-.2px}
+.sub{font-size:12.5px;color:var(--mut);margin-bottom:18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;margin-bottom:16px;overflow:hidden}
+.ch{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 16px;border-bottom:1px solid var(--soft);flex-wrap:wrap}
+.ch h3{font-size:14px;font-weight:500;color:var(--navy);margin:0;display:flex;align-items:center;gap:8px}
+.ch .when{font-size:11.5px;color:var(--mut);font-weight:400}
+.btn{border:1px solid var(--line);background:#fff;color:var(--ink2);border-radius:9px;padding:7px 12px;font-size:12.5px;cursor:pointer;font-weight:500}
+.btn:hover{border-color:var(--teal);color:var(--teal)}
+.btn.pri{background:var(--teal);border-color:var(--teal);color:#fff}
+.btn.pri:hover{background:#007A89}
+.cb{padding:14px 16px}
+.vbig{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.v{background:var(--suave);border:1px solid var(--soft);border-radius:11px;padding:12px 8px;text-align:center}
+.v .vl{font-size:22px;font-weight:500;color:var(--navy);line-height:1;font-variant-numeric:tabular-nums}
+.v .vl small{font-size:11px;color:var(--mut);font-weight:400}
+.v .vk{font-size:10px;color:var(--mut);text-transform:uppercase;letter-spacing:.3px;margin-top:6px}
+.v .vt{font-size:10px;margin-top:4px;display:inline-flex;align-items:center;gap:3px;padding:1px 7px;border-radius:999px}
+.t-up{color:var(--up);background:var(--up-b)} .t-down{color:var(--down);background:var(--down-b)} .t-flat{color:var(--flat);background:var(--suave)}
+.v.alert .vl{color:var(--alerta)}
+.spark{margin-top:14px;display:flex;align-items:center;gap:10px}
+.spark .lbl{font-size:10.5px;color:var(--mut);text-transform:uppercase;letter-spacing:.3px}
+.scroll{overflow-x:auto;margin-top:12px}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--mut);font-weight:500;padding:8px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:8px 12px;border-bottom:1px solid var(--soft);color:var(--ink);white-space:nowrap;font-variant-numeric:tabular-nums}
+tr:last-child td{border-bottom:0}
+.acts{color:var(--mut);cursor:pointer}
+.fl{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--soft);border-radius:11px;overflow:hidden}
+.fl .it{display:flex;justify-content:space-between;align-items:center;padding:11px 14px;border-bottom:1px solid var(--soft)}
+.fl .it:nth-child(odd){border-right:1px solid var(--soft)}
+.fl .it:nth-last-child(-n+2){border-bottom:0}
+.fl .lbl{font-size:12.5px;color:var(--ink2);display:flex;align-items:center;gap:7px}
+.fl .num{font-weight:500;color:var(--navy);font-variant-numeric:tabular-nums}
+.hint{font-size:11px;color:var(--mut);margin-top:10px}
+.hist{margin-top:12px;font-size:12px;color:var(--ink2)}
+.hist .row{display:flex;gap:10px;padding:6px 0;border-top:1px solid var(--soft)}
+.hist .h-when{color:var(--mut);width:78px;flex-shrink:0;font-variant-numeric:tabular-nums}
+.note{font-size:11px;color:var(--mut);text-align:center;margin-top:18px}
+</style>
+<div class="wrap">
+  <div class="crumb">Internação / Box B-01 / <b>Monitoramento</b></div>
+  <h1>🩺 Sinais vitais &amp; monitoramento — Thor</h1>
+  <div class="sub">Fatia 4 · como vai ficar na ficha do paciente internado · dados de exemplo</div>
+
+  <!-- SINAIS VITAIS -->
+  <div class="card">
+    <div class="ch">
+      <h3>🩺 Sinais vitais <span class="when">· última aferição 13:00</span></h3>
+      <button class="btn pri">➕ Registrar aferição</button>
+    </div>
+    <div class="cb">
+      <div class="vbig">
+        <div class="v"><div class="vl">132</div><div class="vk">FC (bpm)</div><span class="vt t-up">▲ subindo</span></div>
+        <div class="v"><div class="vl">44</div><div class="vk">FR (mpm)</div><span class="vt t-up">▲ subindo</span></div>
+        <div class="v alert"><div class="vl">39.8<small>°C</small></div><div class="vk">Temp</div><span class="vt t-up">▲ febre</span></div>
+        <div class="v"><div class="vl">2<small>/4</small></div><div class="vk">Dor</div><span class="vt t-flat">— estável</span></div>
+      </div>
+
+      <div class="spark">
+        <span class="lbl">Temp · últimas aferições</span>
+        <svg width="240" height="42" viewBox="0 0 240 42" fill="none" aria-label="tendência de temperatura">
+          <polyline points="6,30 63,22 120,12 177,20 234,8" fill="none" stroke="#009AAC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="234" cy="8" r="3.5" fill="#009AAC"/>
+          <line x1="0" y1="34" x2="240" y2="34" stroke="#F0EBE0" stroke-width="1"/>
+        </svg>
+        <span style="font-size:11px;color:var(--mut)">37,5 → 39,8 °C</span>
+      </div>
+
+      <div class="scroll">
+        <table>
+          <thead><tr><th>Hora</th><th>FC</th><th>FR</th><th>Temp</th><th>PA</th><th>Mucosa</th><th>Dor</th><th>Por</th><th></th></tr></thead>
+          <tbody>
+            <tr><td>13:00</td><td>132</td><td>44</td><td>39,8°</td><td>110/70</td><td>Rósea</td><td>2</td><td>Ellen</td><td style="text-align:right"><span class="acts">🗑️</span></td></tr>
+            <tr><td>11:00</td><td>128</td><td>40</td><td>39,6°</td><td>112/72</td><td>Rósea</td><td>2</td><td>Ellen</td><td style="text-align:right"><span class="acts">🗑️</span></td></tr>
+            <tr><td>09:00</td><td>120</td><td>36</td><td>39,2°</td><td>115/74</td><td>Rósea</td><td>1</td><td>Isabela</td><td style="text-align:right"><span class="acts">🗑️</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="hint">Cada aferição atualiza os números grandes e a tendência (compara com a anterior). Temp fora da faixa fica em vermelho.</div>
+    </div>
+  </div>
+
+  <!-- FLUIDOS -->
+  <div class="card">
+    <div class="ch">
+      <h3>💧 Fluidos, dejetos &amp; alimentação <span class="when">· turno 12h–19h</span></h3>
+      <button class="btn pri">➕ Registrar controle</button>
+    </div>
+    <div class="cb">
+      <div class="fl">
+        <div class="it"><span class="lbl">💧 Entrada (fluido)</span><span class="num">480 ml</span></div>
+        <div class="it"><span class="lbl">🥤 Ingestão de água</span><span class="num">60 ml</span></div>
+        <div class="it"><span class="lbl">🚻 Diurese</span><span class="num">2× normal</span></div>
+        <div class="it"><span class="lbl">💩 Fezes</span><span class="num">1× pastosa</span></div>
+        <div class="it"><span class="lbl">🍽️ Alimentação</span><span class="num">Aceitou 40%</span></div>
+        <div class="it"><span class="lbl">🤢 Êmese (vômito)</span><span class="num">Ausente</span></div>
+      </div>
+      <div class="hist">
+        <div class="row"><span class="h-when">12:00 · Ellen</span><span>Fluido 480 ml · água 60 ml · diurese 2× · fezes 1× pastosa · aceitou 40% · sem êmese</span></div>
+        <div class="row"><span class="h-when">06:00 · Isabela</span><span>Fluido 500 ml · água 40 ml · diurese 1× · sem fezes · recusou alimento · 1× êmese</span></div>
+      </div>
+      <div class="hint">O grid mostra o último registro; abaixo fica o histórico do dia.</div>
+    </div>
+  </div>
+
+  <div class="note">Mockup da Fatia 4 · padrão Base44 · dados de exemplo · toda ação vira botão real</div>
+</div>

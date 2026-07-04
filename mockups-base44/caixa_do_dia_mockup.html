@@ -1,0 +1,71 @@
+<div class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden">Mockup do Caixa do dia: sessão aberta, KPIs de recebido/em aberto, valores por forma de pagamento e lista de vendas com status de baixa e saldo devedor.</div>
+
+<div style="padding: 0.5rem 0;">
+
+  <div style="display:flex; align-items:center; gap:18px; border-bottom:0.5px solid var(--color-border-secondary); padding:0 2px 10px; margin-bottom:14px;">
+    <span style="font-size:16px; font-weight:500;">Caixa</span>
+    <span style="font-size:14px; color:#0F6E56; border-bottom:2px solid #009AAC; padding-bottom:10px;">Caixa do dia</span>
+    <span style="font-size:14px; color:var(--color-text-secondary);">Vendas</span>
+    <span style="font-size:14px; color:var(--color-text-secondary);">Recebimentos</span>
+  </div>
+
+  <div style="display:flex; align-items:center; justify-content:space-between; background:var(--color-background-primary); border:0.5px solid var(--color-border-tertiary); border-radius:var(--border-radius-lg); padding:12px 16px; margin-bottom:12px;">
+    <div style="display:flex; align-items:center; gap:12px;">
+      <i class="ti ti-cash-register" style="font-size:22px; color:#009AAC;" aria-hidden="true"></i>
+      <div>
+        <div style="font-size:14px; font-weight:500;">Caixa 2224 · EP Recepção</div>
+        <div style="font-size:12px; color:var(--color-text-secondary);">Aberto às 09:25 · suprimento R$ 100,00</div>
+      </div>
+      <span style="font-size:12px; background:#E1F3F5; color:#014D5E; padding:3px 10px; border-radius:20px; margin-left:4px;">Aberto</span>
+    </div>
+    <div style="display:flex; gap:8px;">
+      <button style="font-size:13px;"><i class="ti ti-arrows-exchange" style="font-size:15px; vertical-align:-2px; margin-right:4px" aria-hidden="true"></i>Movimentos</button>
+      <button style="font-size:13px; background:#014D5E; color:#fff; border-color:#014D5E;">Fechar caixa</button>
+    </div>
+  </div>
+
+  <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:12px;">
+    <div style="background:var(--color-background-secondary); border-radius:var(--border-radius-md); padding:12px;"><div style="font-size:12px; color:var(--color-text-secondary);">Recebido hoje</div><div style="font-size:22px; font-weight:500; color:#0F6E56;">R$ 406,30</div></div>
+    <div style="background:var(--color-background-secondary); border-radius:var(--border-radius-md); padding:12px;"><div style="font-size:12px; color:var(--color-text-secondary);">Em aberto</div><div style="font-size:22px; font-weight:500; color:#854F0B;">R$ 180,00</div></div>
+    <div style="background:var(--color-background-secondary); border-radius:var(--border-radius-md); padding:12px;"><div style="font-size:12px; color:var(--color-text-secondary);">Vendas</div><div style="font-size:22px; font-weight:500;">7</div></div>
+    <div style="background:var(--color-background-secondary); border-radius:var(--border-radius-md); padding:12px;"><div style="font-size:12px; color:var(--color-text-secondary);">Suprimento</div><div style="font-size:22px; font-weight:500;">R$ 100</div></div>
+  </div>
+
+  <div style="display:grid; grid-template-columns:1fr 1.6fr; gap:12px;">
+
+    <div style="background:var(--color-background-primary); border:0.5px solid var(--color-border-tertiary); border-radius:var(--border-radius-lg); padding:1rem 1.1rem;">
+      <p style="font-size:13px; font-weight:500; color:var(--color-text-secondary); margin:0 0 10px;">Recebido por forma</p>
+      <table style="width:100%; font-size:13px; border-collapse:collapse;">
+        <tr><td style="padding:5px 0; color:var(--color-text-secondary);"><i class="ti ti-cash" style="font-size:15px;vertical-align:-2px;margin-right:6px" aria-hidden="true"></i>Dinheiro</td><td style="text-align:right;">R$ 61,30</td></tr>
+        <tr><td style="padding:5px 0; color:var(--color-text-secondary);"><i class="ti ti-credit-card" style="font-size:15px;vertical-align:-2px;margin-right:6px" aria-hidden="true"></i>Cartão crédito</td><td style="text-align:right;">R$ 320,00</td></tr>
+        <tr><td style="padding:5px 0; color:var(--color-text-secondary);"><i class="ti ti-brand-cashapp" style="font-size:15px;vertical-align:-2px;margin-right:6px" aria-hidden="true"></i>Pix</td><td style="text-align:right;">R$ 25,00</td></tr>
+        <tr><td style="padding:7px 0 0; font-weight:500; border-top:0.5px solid var(--color-border-tertiary);">Total</td><td style="text-align:right; font-weight:500; border-top:0.5px solid var(--color-border-tertiary); padding-top:7px; color:#0F6E56;">R$ 406,30</td></tr>
+      </table>
+    </div>
+
+    <div style="background:var(--color-background-primary); border:0.5px solid var(--color-border-tertiary); border-radius:var(--border-radius-lg); padding:1rem 1.1rem;">
+      <p style="font-size:13px; font-weight:500; color:var(--color-text-secondary); margin:0 0 10px;">Vendas do dia</p>
+      <div style="display:flex; flex-direction:column;">
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:9px 0; border-bottom:0.5px solid var(--color-border-tertiary);">
+          <div><div style="font-size:13px; font-weight:500;">Maggy · Maria Tereza</div><div style="font-size:11px; color:var(--color-text-tertiary);">Consulta + vacina</div></div>
+          <span style="font-size:11px; background:#EAF3DE; color:#3B6D11; padding:2px 8px; border-radius:20px;">Baixado</span>
+          <span style="font-size:13px; width:74px; text-align:right;">R$ 226,00</span>
+          <span style="width:78px;"></span>
+        </div>
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:9px 0; border-bottom:0.5px solid var(--color-border-tertiary);">
+          <div><div style="font-size:13px; font-weight:500;">Pippo · Lorena</div><div style="font-size:11px; color:var(--color-text-tertiary);">Sessão de fisio</div></div>
+          <span style="font-size:11px; background:#FAEEDA; color:#854F0B; padding:2px 8px; border-radius:20px;">Baixa parcial</span>
+          <span style="font-size:13px; width:74px; text-align:right;">R$ 120,00<br><span style="font-size:11px; color:#854F0B;">resta 60,00</span></span>
+          <button style="font-size:12px; padding:5px 10px; background:#009AAC; color:#fff; border-color:#009AAC;">Receber</button>
+        </div>
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:9px 0;">
+          <div><div style="font-size:13px; font-weight:500;">Simba · Norma</div><div style="font-size:11px; color:var(--color-text-tertiary);">Consulta</div></div>
+          <span style="font-size:11px; background:var(--color-background-secondary); color:var(--color-text-secondary); padding:2px 8px; border-radius:20px;">Em atendimento</span>
+          <span style="font-size:13px; width:74px; text-align:right; color:#854F0B;">R$ 120,00</span>
+          <button style="font-size:12px; padding:5px 10px; background:#009AAC; color:#fff; border-color:#009AAC;">Receber</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>

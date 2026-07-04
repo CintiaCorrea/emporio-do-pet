@@ -1,0 +1,59 @@
+<style>
+:root{
+  --bg:#F6F2EA; --card:#fff; --line:#E8E2D6; --soft:#F0EBE0; --suave:#FBF9F4;
+  --ink:#1F2A2E; --ink2:#5C6B70; --mut:#8A989D; --navy:#014D5E; --teal:#009AAC; --agua:#E0F4F6;
+  --ok-b:#E1F5EE; --ok-i:#0F6E56; --warn-b:#FBF3E3; --warn-i:#8a6400;
+}
+*{box-sizing:border-box}
+.wrap{max-width:840px;margin:0 auto;padding:12px 6px 50px;font-family:"Segoe UI",system-ui,-apple-system,sans-serif;color:var(--ink);font-size:14px;line-height:1.5}
+h1{font-size:21px;font-weight:500;color:var(--navy);margin:0 0 3px}
+.sub{font-size:12.5px;color:var(--mut);margin-bottom:18px}
+h2{font-size:15px;font-weight:500;color:var(--navy);margin:24px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px}
+.box{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:14px 16px;margin-bottom:12px}
+.box.ok{background:var(--ok-b);border-color:#BEE3D5}
+.box p{margin:0 0 6px} .box p:last-child{margin:0}
+b{color:var(--navy)}
+.fase{display:flex;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:9px;align-items:flex-start}
+.fase .n{width:26px;height:26px;border-radius:999px;background:var(--agua);color:var(--navy);font-weight:500;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:13px}
+.fase.destaque{border-color:var(--teal);background:var(--agua)}
+.fase .t{font-weight:500;color:var(--navy)}
+.fase .d{font-size:12.5px;color:var(--ink2);margin-top:2px}
+.tag{font-size:10px;font-weight:500;padding:1px 8px;border-radius:999px;white-space:nowrap;margin-left:6px}
+.t-seg{background:var(--ok-b);color:var(--ok-i)} .t-cuid{background:var(--warn-b);color:var(--warn-i)}
+.note{font-size:11.5px;color:var(--mut);text-align:center;margin-top:20px}
+</style>
+<div class="wrap">
+  <h1>🔗 Plano — unificar Serviços + Produtos num catálogo só</h1>
+  <div class="sub">Para que a venda possa baixar estoque (Fatia 1C) e termos um catálogo único. Feito em fases, com backup e seu OK a cada passo.</div>
+
+  <h2>✅ A notícia boa do mapeamento</h2>
+  <div class="box ok">
+    <p>Os dois catálogos hoje <b>quase não se falam</b>. As vendas que importamos do SimplesVet usam <b>texto livre</b> (não estão "amarradas" ao catálogo de Serviços).</p>
+    <p>Isso quer dizer que o <b>risco de perder vínculos</b> na migração é <b>baixo</b> — o cuidado principal é só <b>não perder o catálogo de Serviços</b> num deploy. E isso a gente controla com backup + fases.</p>
+  </div>
+
+  <h2>🎯 Como vamos unificar</h2>
+  <div class="box">
+    <p>O catálogo de <b>Produtos</b> vira o <b>catálogo único</b> — ele já tem <b>estoque</b> e já prevê um tipo <b>"serviço"</b>.</p>
+    <p>• <b>Serviços</b> (consulta, banho, vacina aplicada…) → viram itens do tipo "serviço", <b>sem estoque</b>.<br>• <b>Produtos</b> (ração, medicamento pra vender…) → ficam <b>com estoque</b>.</p>
+    <p>Resultado: um catálogo só, e a <b>venda de um produto desconta o estoque</b> automaticamente.</p>
+  </div>
+
+  <h2>🛟 Segurança (o mais importante)</h2>
+  <div class="box">
+    <p>• <b>Backup completo antes</b> de cada passo que mexe em dados.<br>
+    • <b>Nada é apagado até o fim</b> — a gente só adiciona e copia; o catálogo antigo só some no último passo, já vazio.<br>
+    • <b>Cada fase tem seu OK</b> e dá pra <b>voltar atrás</b> (rollback) a partir do backup.</p>
+  </div>
+
+  <h2>🗺️ As fases</h2>
+  <div class="fase destaque"><div class="n">0</div><div><div class="t">Preparação + backup <span class="tag t-seg">100% seguro</span></div><div class="d">Relatório dos itens com <b>nome repetido</b> nos dois catálogos (pra você decidir qual fica) + <b>backup completo</b> do banco. Nada muda no sistema.</div></div></div>
+  <div class="fase"><div class="n">1</div><div><div class="t">Adicionar campos novos <span class="tag t-seg">sem apagar nada</span></div><div class="d">O catálogo de Produtos ganha os campos que faltam (categoria, custo, comissão). Puramente aditivo.</div></div></div>
+  <div class="fase"><div class="n">2</div><div><div class="t">Copiar os Serviços pros Produtos <span class="tag t-cuid">com backup</span></div><div class="d">Cada serviço vira um item "serviço" no catálogo único, mantendo o mesmo código interno. Conferimos as contagens.</div></div></div>
+  <div class="fase"><div class="n">3</div><div><div class="t">Backend passa a usar o catálogo único</div><div class="d">Vendas, atendimento e PDV passam a apontar pro catálogo unificado (em paralelo, sem quebrar o antigo).</div></div></div>
+  <div class="fase"><div class="n">4</div><div><div class="t">Telas apontam pro catálogo único</div><div class="d">Ponto de venda, atendimento, listas — todas passam a usar o catálogo unificado.</div></div></div>
+  <div class="fase destaque"><div class="n">5</div><div><div class="t">🎯 Ligar a baixa de estoque na venda (a Fatia 1C!)</div><div class="d">Vender um produto passa a descontar o estoque. Testamos com uma venda real.</div></div></div>
+  <div class="fase"><div class="n">6</div><div><div class="t">Limpeza final <span class="tag t-cuid">com backup</span></div><div class="d">Remove o catálogo antigo (já vazio e copiado). Fim.</div></div></div>
+
+  <div class="note">Plano de unificação de catálogos · Empório do Pet · executar só após aprovação, fase a fase</div>
+</div>

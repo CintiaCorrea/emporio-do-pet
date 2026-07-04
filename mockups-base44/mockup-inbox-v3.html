@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Mockup Inbox v3 — pipeline FU + dois WhatsApps</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif; margin: 0; padding: 24px; background: #f5f2ec; color: #014D5E; }
+  h1 { font-size: 18px; font-weight: 500; margin: 0 0 4px; color: #014D5E; }
+  .sub { font-size: 13px; color: #5F5E5A; margin: 0 0 24px; }
+  h2 { font-size: 14px; font-weight: 500; color: #014D5E; margin: 28px 0 4px; }
+  .desc { font-size: 12.5px; color: #5F5E5A; margin: 0 0 12px; line-height: 1.5; }
+
+  .frame { background: white; border-radius: 10px; border: 1px solid #E8DFC8; height: 600px; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* Toolbar */
+  .toolbar { background: white; border-bottom: 1px solid #E8DFC8; padding: 8px 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .badge-prov { font-size: 10px; padding: 2px 7px; border-radius: 5px; background: #fef3c7; color: #92400e; font-weight: 600; text-transform: uppercase; }
+
+  /* Toggle 3 botões */
+  .switch { background: #f6f8f9; border: 1px solid #E8DFC8; border-radius: 9px; padding: 3px; display: inline-flex; gap: 2px; }
+  .switch button { border: none; background: none; padding: 6px 12px; font-size: 12px; border-radius: 6px; cursor: pointer; color: #64748b; font-weight: 500; display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .switch button.on.bc { background: linear-gradient(90deg, #009AAC, #00B4C4); color: white; }
+  .switch button.on.meta { background: linear-gradient(90deg, #25D366, #128C7E); color: white; }
+  .switch button.on.nat { background: linear-gradient(90deg, #6366f1, #4f46e5); color: white; }
+  .switch .dot { width: 6px; height: 6px; border-radius: 50%; background: #94a3b8; }
+  .switch button.on .dot { background: white; }
+  .pill { font-size: 9px; padding: 1px 5px; border-radius: 4px; background: #fef3c7; color: #92400e; font-weight: 600; }
+  .switch button.on .pill { background: rgba(255,255,255,0.25); color: white; }
+  .badge-cnt { background: #ef4444; color: white; padding: 1px 5px; border-radius: 8px; font-size: 9.5px; font-weight: 600; }
+  .switch button.on .badge-cnt { background: rgba(255,255,255,0.3); color: white; }
+
+  .btn-out { font-size: 11.5px; padding: 4px 9px; border-radius: 6px; border: 1px solid #E8DFC8; color: #475569; background: white; cursor: pointer; }
+  .btn-pri { font-size: 11.5px; padding: 4px 9px; border-radius: 6px; background: #009AAC; color: white; border: none; }
+
+  .row { display: flex; flex: 1; min-height: 0; }
+  .iframe-mock { flex: 1; background: linear-gradient(180deg, #f5f5f5, #fafafa); border-right: 1px solid #E8DFC8; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 6px; font-size: 12px; color: #94a3b8; }
+  .iframe-mock .src { font-size: 14px; color: #014D5E; font-weight: 600; }
+  .iframe-mock .tag { padding: 3px 9px; border-radius: 12px; color: white; font-size: 10.5px; font-weight: 600; }
+  .iframe-mock .tag.bc { background: #009AAC; }
+  .iframe-mock .tag.meta { background: #25D366; }
+
+  /* Painel direito */
+  .panel { width: 340px; background: white; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+  .p-search { padding: 10px 12px; border-bottom: 1px solid #E8DFC8; flex-shrink: 0; }
+  .p-search .lbl { font-size: 10px; color: #888780; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .p-search input { width: 100%; padding: 6px 12px 6px 28px; border: 1px solid #E8DFC8; border-radius: 7px; font-size: 12.5px; background: white; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.2'><circle cx='11' cy='11' r='7'/><line x1='21' y1='21' x2='16.5' y2='16.5'/></svg>"); background-repeat: no-repeat; background-position: 8px center; }
+
+  .p-content { flex: 1; overflow-y: auto; min-height: 0; }
+
+  .sec { padding: 10px 12px; border-bottom: 1px solid #E8DFC8; }
+  .sec .lbl { font-size: 10px; color: #888780; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between; }
+  .sec .link { font-size: 10.5px; color: #009AAC; font-weight: 500; }
+
+  /* Tutor */
+  .tutor-row { display: flex; align-items: flex-start; gap: 8px; }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #009AAC, #014D5E); color: white; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; flex-shrink: 0; }
+  .tutor-name { font-size: 13px; color: #014D5E; font-weight: 600; }
+  .tutor-meta { font-size: 11px; color: #64748b; }
+  .wpp-tag { font-size: 9px; padding: 1px 4px; border-radius: 3px; color: white; margin-left: 4px; font-weight: 600; }
+  .wpp-tag.bc { background: #009AAC; }
+  .wpp-tag.meta { background: #25D366; }
+
+  /* Pipeline */
+  .pipeline { background: #f8fafc; border-radius: 8px; padding: 8px; }
+  .pipeline-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .pipeline-name { font-size: 10.5px; font-weight: 700; color: #014D5E; }
+  .pipeline-tag { font-size: 8.5px; padding: 1px 5px; border-radius: 3px; background: #e0f4f6; color: #009AAC; font-weight: 600; text-transform: uppercase; }
+  .stages { display: flex; gap: 3px; align-items: center; margin-bottom: 6px; }
+  .stage { flex: 1; height: 5px; background: #e2e8f0; border-radius: 2px; position: relative; }
+  .stage.done { background: #14b8a6; }
+  .stage.active { background: linear-gradient(90deg, #009AAC, #00B4C4); box-shadow: 0 0 0 2px rgba(0,154,172,0.15); }
+  .stage-name { font-size: 11.5px; color: #014D5E; font-weight: 600; margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between; }
+  .stage-name .step-num { font-size: 9.5px; color: #94a3b8; font-weight: 500; }
+  .next-step { font-size: 10.5px; color: #64748b; display: flex; align-items: center; gap: 4px; }
+  .next-btn { font-size: 10.5px; padding: 3px 7px; background: white; border: 1px solid #009AAC; color: #009AAC; border-radius: 5px; font-weight: 600; cursor: pointer; }
+  .stages-list { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 6px; }
+  .stages-list .s { font-size: 9.5px; padding: 2px 6px; background: #f1f5f9; color: #64748b; border-radius: 10px; cursor: pointer; }
+  .stages-list .s.done { background: #d1fae5; color: #065f46; }
+  .stages-list .s.active { background: linear-gradient(90deg, #009AAC, #00B4C4); color: white; font-weight: 600; }
+  .fu-line { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; padding-top: 6px; border-top: 1px dashed #cbd5e1; font-size: 10.5px; color: #64748b; }
+  .fu-line strong { color: #014D5E; }
+
+  /* Pets */
+  .pet-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid #F0EBE0; border-radius: 7px; margin-bottom: 4px; cursor: pointer; }
+  .pet-row.active { background: #e0f4f6; border-color: #009AAC; }
+  .pet-icon { width: 26px; height: 26px; border-radius: 50%; background: #e6f6f8; color: #009AAC; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
+  .pet-row.active .pet-icon { background: #009AAC; color: white; }
+  .pet-name { font-size: 12px; color: #014D5E; font-weight: 600; }
+  .pet-meta { font-size: 10.5px; color: #64748b; }
+
+  /* Resumo IA */
+  .resumo-card { background: linear-gradient(135deg, #f0fdfa, #e0f4f6); border: 1px solid #99e9d8; border-radius: 8px; padding: 8px 10px; font-size: 11.5px; color: #0c4a6e; line-height: 1.5; }
+  .resumo-card .who { font-size: 9.5px; color: #0e7490; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px; display: flex; align-items: center; gap: 4px; }
+  .resumo-card .who span { background: #14b8a6; color: white; padding: 0 4px; border-radius: 3px; font-size: 9px; }
+  .resumo-card .stamp { font-size: 10px; color: #0e7490; opacity: 0.7; margin-top: 4px; }
+
+  /* Botões ação */
+  .act { display: flex; flex-direction: column; gap: 5px; margin-top: 8px; }
+  .act .b-pri { background: #009AAC; color: white; padding: 7px; border-radius: 7px; font-size: 11.5px; font-weight: 600; border: none; }
+  .act .b-out { background: white; color: #475569; padding: 7px; border-radius: 7px; font-size: 11.5px; border: 1px solid #E8DFC8; }
+
+  /* Legenda */
+  .legend { background: white; border: 1px solid #E8DFC8; border-radius: 8px; padding: 12px; margin-top: 12px; font-size: 12.5px; color: #475569; line-height: 1.6; }
+  .legend strong { color: #014D5E; }
+  .legend code { background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: 11px; color: #0e7490; }
+  .legend ul { margin: 6px 0 0 18px; padding: 0; }
+  .legend li { margin: 3px 0; }
+</style>
+</head>
+<body>
+
+<h1>Inbox v3 — pipeline de FU + dois WhatsApps</h1>
+<p class="sub">Adiciona ao v2: pipelines visíveis pra cada entidade (Lead/Tutor/Pet) e toggle de 3 botões pros 2 WhatsApps.</p>
+
+<!-- ============ 1. Toggle de 3 botões ============ -->
+<h2>1. Toggle de 3 — BotConversa · WhatsApp Meta · Nativo</h2>
+<p class="desc">Cada botão tem cor própria pra distinguir num piscar de olho. Badge vermelho mostra mensagens não lidas. Cada um carrega seu próprio conteúdo na coluna esquerda (iframe BotConversa, iframe Meta Business, ou conversa nativa). Painel direito é o mesmo em todos.</p>
+
+<div class="frame" style="height:440px;">
+  <div class="toolbar">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span class="badge-prov">Provisório</span>
+      <span style="font-size:11.5px;color:#64748b;">3 fontes de conversa</span>
+    </div>
+    <div class="switch">
+      <button class="on bc"><span class="dot"></span>BotConversa <span class="badge-cnt">12</span></button>
+      <button><span class="dot"></span>WhatsApp Meta <span class="badge-cnt">3</span></button>
+      <button><span class="dot"></span>Nativo <span class="pill">preview</span></button>
+    </div>
+    <div style="display:flex;gap:6px;">
+      <button class="btn-out">↻</button>
+      <button class="btn-pri">↗</button>
+    </div>
+  </div>
+  <div class="row">
+    <div class="iframe-mock">
+      <div class="src">Painel BotConversa</div>
+      <span class="tag bc">iframe app.botconversa.com.br</span>
+      <div style="font-size:10.5px;margin-top:8px;">(troca quando clica WhatsApp Meta)</div>
+    </div>
+    <aside class="panel"><div class="p-search"><div class="lbl">CONTEXTO DA CONVERSA</div><input placeholder="Telefone, nome ou email..."></div></aside>
+  </div>
+</div>
+
+<div class="legend">
+  <strong>Como funciona:</strong>
+  <ul>
+    <li><span style="color:#009AAC;font-weight:600;">BotConversa</span> (turquesa) — embed iframe de <code>app.botconversa.com.br</code>. O número usado é o da sua linha BotConversa.</li>
+    <li><span style="color:#25D366;font-weight:600;">WhatsApp Meta</span> (verde) — embed de <code>business.facebook.com/wa</code> OU nossa tela usando WhatsApp Business API. Ainda preciso confirmar se Meta permite iframe (provavelmente não). Plano B: <strong>nossa tela própria já lendo da WhatsAppConversation</strong> que existe no Prisma. Decido pra você no PR depois de testar.</li>
+    <li><span style="color:#6366f1;font-weight:600;">Nativo</span> (índigo/roxo) — tela em construção lendo nosso banco. Vai unificar os 2 WhatsApps depois.</li>
+    <li>Badge vermelho mostra <strong>mensagens não lidas</strong> de cada fonte.</li>
+    <li>Cada um carrega no mesmo URL <code>/dashboard/inbox</code> — só troca o iframe à esquerda. Painel direito não muda.</li>
+  </ul>
+</div>
+
+<!-- ============ 2. Pipeline pra Lead novo ============ -->
+<h2>2. Pipeline pra LEAD — pipeline_comercial_etapa</h2>
+<p class="desc">Quando o contato é Lead, mostra o pipeline COMERCIAL com as 10 etapas. A atual fica destacada, as concluídas em verde, próximas em cinza. Click numa etapa move (com confirmação). Tem campo de "próximo FU" abaixo.</p>
+
+<div class="frame">
+  <div class="toolbar">
+    <div><span class="badge-prov">Provisório</span></div>
+    <div class="switch"><button class="on bc"><span class="dot"></span>BotConversa</button><button><span class="dot"></span>Meta</button><button><span class="dot"></span>Nativo</button></div>
+    <div></div>
+  </div>
+  <div class="row">
+    <div class="iframe-mock"><div class="src">BotConversa</div></div>
+    <aside class="panel">
+      <div class="p-search"><div class="lbl">CONTEXTO DA CONVERSA</div><input value="Sandra | Faísca"></div>
+      <div class="p-content">
+        <!-- Resumo IA topo -->
+        <div class="sec">
+          <div class="lbl">📝 Resumo da conversa (IA) <span class="link">↻</span></div>
+          <div class="resumo-card">
+            <div class="who"><span>IA</span> via BotConversa</div>
+            Cliente Sandra perguntou sobre orçamento de castração da Faísca. Pediu pra reagendar avaliação. Tom dúvida no preço.
+            <div class="stamp">↻ atualizado há 8min</div>
+          </div>
+        </div>
+
+        <!-- Lead identification -->
+        <div class="sec">
+          <div class="lbl">LEAD <span class="wpp-tag bc">BC</span> <span class="link">Ficha ↗</span></div>
+          <div class="tutor-row">
+            <div class="avatar">SF</div>
+            <div class="tutor-meta">
+              <div class="tutor-name">Sandra · pet Faísca</div>
+              <div>📞 558597338301 · em qualificação há 3d</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pipeline COMERCIAL -->
+        <div class="sec">
+          <div class="lbl">PIPELINE COMERCIAL <span class="pipeline-tag" style="background:#e0e7ff;color:#4338ca;">Lead</span></div>
+          <div class="pipeline">
+            <div class="pipeline-head">
+              <span class="stage-name">Em qualificação <span class="step-num">3 de 10</span></span>
+            </div>
+            <div class="stages">
+              <div class="stage done"></div>
+              <div class="stage done"></div>
+              <div class="stage active"></div>
+              <div class="stage"></div><div class="stage"></div><div class="stage"></div><div class="stage"></div><div class="stage"></div><div class="stage"></div><div class="stage"></div>
+            </div>
+            <div class="next-step">
+              <span>Próxima: <strong>Orçamento enviado</strong></span>
+              <button class="next-btn">avançar →</button>
+            </div>
+            <div class="stages-list">
+              <span class="s done">Triagem</span>
+              <span class="s done">Novo</span>
+              <span class="s active">Qualificação</span>
+              <span class="s">Orçamento</span>
+              <span class="s">Aguard. retorno</span>
+              <span class="s">Retomar</span>
+              <span class="s">Reaproximação</span>
+              <span class="s">Agendado</span>
+              <span class="s">Compareceu</span>
+              <span class="s">Perdido</span>
+            </div>
+            <div class="fu-line">
+              <span>⏰ Próximo FU: <strong>02/06 às 10:00</strong></span>
+              <span class="link">editar</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pet preview -->
+        <div class="sec">
+          <div class="lbl">PET PROVÁVEL (do lead)</div>
+          <div class="pet-row active">
+            <div class="pet-icon">🐈</div>
+            <div>
+              <div class="pet-name">Faísca</div>
+              <div class="pet-meta">Gato · castração</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="sec">
+          <div class="act">
+            <button class="b-pri">📲 Enviar orçamento</button>
+            <button class="b-out">+ Converter em Cliente</button>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<!-- ============ 3. Pipeline pra Tutor/Pet (clínico + fisio) ============ -->
+<h2>3. Pipelines do Pet — clínico + fisio (quando é Cliente)</h2>
+<p class="desc">Pra Tutor/Pet, mostra <strong>2 pipelines paralelos</strong>: clínico e fisioterapia. Cada um com sua barra. Tutor também tem badge de <strong>estado de relacionamento</strong>.</p>
+
+<div class="frame">
+  <div class="toolbar">
+    <div><span class="badge-prov">Provisório</span></div>
+    <div class="switch"><button class="on bc"><span class="dot"></span>BotConversa</button><button><span class="dot"></span>Meta</button><button><span class="dot"></span>Nativo</button></div>
+    <div></div>
+  </div>
+  <div class="row">
+    <div class="iframe-mock"><div class="src">BotConversa</div></div>
+    <aside class="panel">
+      <div class="p-search"><div class="lbl">CONTEXTO DA CONVERSA</div><input value="Cintia Corrêa"></div>
+      <div class="p-content">
+        <div class="sec">
+          <div class="lbl">📝 Resumo IA <span class="link">↻</span></div>
+          <div class="resumo-card">
+            <div class="who"><span>IA</span> BotConversa</div>
+            Tutora pergunta sobre próximo retorno da Atma. Disse que a tosse melhorou.
+            <div class="stamp">há 14min</div>
+          </div>
+        </div>
+
+        <div class="sec">
+          <div class="lbl">CLIENTE <span class="wpp-tag bc">BC</span> <span class="link">Ficha ↗</span></div>
+          <div class="tutor-row">
+            <div class="avatar">CC</div>
+            <div class="tutor-meta">
+              <div class="tutor-name">Cintia Corrêa</div>
+              <div>📞 558586018111 · LTV R$ 1.245</div>
+              <div style="margin-top:4px;"><span style="background:#fef3c7;color:#92400e;font-size:9.5px;padding:1px 6px;border-radius:3px;font-weight:600;">PET EM TRATAMENTO</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="sec">
+          <div class="lbl">PETS (1)</div>
+          <div class="pet-row active">
+            <div class="pet-icon">🐕</div>
+            <div>
+              <div class="pet-name">Atma</div>
+              <div class="pet-meta">Cão · SRD · 4 anos</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="sec">
+          <div class="lbl">PIPELINES DA ATMA</div>
+
+          <div class="pipeline" style="margin-bottom:8px;">
+            <div class="pipeline-head">
+              <span class="stage-name">Em tratamento <span class="step-num">2 de 7</span></span>
+              <span class="pipeline-tag" style="background:#fef3c7;color:#92400e;">Clínico</span>
+            </div>
+            <div class="stages">
+              <div class="stage done"></div>
+              <div class="stage active"></div>
+              <div class="stage"></div><div class="stage"></div><div class="stage"></div><div class="stage"></div><div class="stage"></div>
+            </div>
+            <div class="stages-list">
+              <span class="s done">Diagnóstico</span>
+              <span class="s active">Tratamento</span>
+              <span class="s">Aguard. exames</span>
+              <span class="s">Retorno agend.</span>
+              <span class="s">Manutenção</span>
+              <span class="s">Alta</span>
+              <span class="s">Abandonou</span>
+            </div>
+            <div class="fu-line">
+              <span>⏰ Próximo retorno: <strong>05/06</strong></span>
+              <span class="link">editar</span>
+            </div>
+          </div>
+
+          <div class="pipeline">
+            <div class="pipeline-head">
+              <span class="stage-name">Pacote em andamento <span class="step-num">2 de 7</span></span>
+              <span class="pipeline-tag" style="background:#ddd6fe;color:#5b21b6;">Fisio</span>
+            </div>
+            <div class="stages">
+              <div class="stage done"></div>
+              <div class="stage active"></div>
+              <div class="stage"></div><div class="stage"></div><div class="stage"></div><div class="stage"></div><div class="stage"></div>
+            </div>
+            <div class="stages-list">
+              <span class="s done">Avaliação</span>
+              <span class="s active">Pacote</span>
+              <span class="s">Sessão a sessão</span>
+              <span class="s">Manutenção</span>
+              <span class="s">Reavaliação</span>
+              <span class="s">Alta</span>
+              <span class="s">Pausa</span>
+            </div>
+            <div class="fu-line">
+              <span>📦 Pacote: <strong>5/10 sessões</strong></span>
+              <span class="link">ver pacote ↗</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="sec">
+          <div class="act">
+            <button class="b-pri">+ Novo Atendimento</button>
+            <button class="b-out">Ver ficha do pet ↗</button>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<!-- ============ 4. Vista combinada (FU geral) ============ -->
+<h2>4. Como o FU vai sair organizado</h2>
+<p class="desc">Cada entidade alimenta uma fonte de FU diferente, mas todas aparecem no mesmo lugar — na tela <strong>Hoje</strong> e no <strong>Calendário Clínico</strong> (visualizações canônicas registradas em memória).</p>
+
+<div class="legend">
+  <strong>Mapa de FU por origem:</strong>
+  <ul>
+    <li><strong>Lead</strong> → <code>lead.proximo_followup</code> (data) + <code>pipeline_comercial_etapa</code> (em qual estado está). Quando estado muda pra "Aguardando retorno" / "Retomar contato" / "Reaproximação", o sistema sugere data de FU.</li>
+    <li><strong>Tutor</strong> → <code>tutor.proximo_followup</code> + <code>estado_relacionamento</code> (Em dia / Pet em tratamento / Precisa atenção / A recuperar / Inativo). Pra clientes "Precisa de atenção", FU é sugerido pelo sistema.</li>
+    <li><strong>Pet</strong> → <code>pet.proximo_followup</code> + os 2 pipelines (clínico e fisio). Cada etapa pode disparar cadência automática.</li>
+    <li>Tudo isso já existe no Prisma — só preciso ligar os botões de avançar etapa + editar data ao backend.</li>
+  </ul>
+  <br>
+  <strong>Onde os FU aparecem:</strong>
+  <ul>
+    <li><strong>Tela Hoje</strong> — bloco "Retornos vencidos" + "Próximos toques de cadência" + "Tutores a acompanhar".</li>
+    <li><strong>Calendário Clínico</strong> — agendamentos com retorno + FU em formato calendário.</li>
+    <li><strong>Inbox direito</strong> — pipeline visível pra ação imediata na conversa.</li>
+  </ul>
+</div>
+
+<!-- ============ Resumo de decisão ============ -->
+<div class="legend" style="background: #fffbeb; border-color: #fde68a; color: #92611a;">
+  <strong>O que decidir antes de codar:</strong>
+  <ul>
+    <li>Toggle de 3 botões com cores distintas (turquesa / verde / índigo) → <strong>aprova?</strong></li>
+    <li>WhatsApp Meta — se não permitir iframe (provável), faço nossa tela própria lendo da <code>WhatsAppConversation</code>. <strong>OK?</strong></li>
+    <li>Pipeline COMERCIAL (Lead) com 10 etapas + barra + lista de pills clicáveis + FU date → <strong>aprova?</strong></li>
+    <li>Pipelines CLÍNICO + FISIO (Pet) lado a lado com etapas clicáveis + retorno date + saldo pacote → <strong>aprova?</strong></li>
+    <li>Estado de relacionamento do Tutor como badge (Pet em tratamento / Precisa atenção / etc) → <strong>aprova?</strong></li>
+    <li>Avançar etapa via click direto (com confirmação) OU via dropdown? Sugiro <strong>click direto</strong> pra ser mais rápido.</li>
+  </ul>
+  <br>
+  Aprovando, PR fica com: 4 mudanças do v2 + pipelines + 3-way toggle + endpoint webhook resumo IA.
+</div>
+
+</body>
+</html>

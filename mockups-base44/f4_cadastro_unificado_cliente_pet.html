@@ -1,0 +1,80 @@
+<div style="background: var(--color-background-secondary); border-radius: var(--border-radius-lg); padding: 16px;">
+<h2 class="sr-only">Mockup F4: cadastro e edição unificada de cliente e pet dentro do box do cabeçalho da ficha</h2>
+
+<div style="font-size:12px; font-weight:500; color:#0E5560; letter-spacing:.04em; margin:0 0 8px;">1 · MODO VISUALIZAÇÃO (como fica normalmente)</div>
+
+<div style="background:#fff; border:1px solid #E8DFC8; border-radius:12px; padding:14px 16px;">
+  <div style="display:flex; align-items:flex-start; gap:14px;">
+    <div style="width:52px; height:52px; border-radius:50%; background:#E1F2F4; display:flex; align-items:center; justify-content:center; color:#0E5560; flex-shrink:0;"><i class="ti ti-dog" style="font-size:26px" aria-hidden="true"></i></div>
+    <div style="flex:1; min-width:0;">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span style="font-size:18px; font-weight:500; color:#0E2244;">Thor</span>
+        <span style="color:#009AAC; font-size:15px;"><i class="ti ti-pencil" aria-hidden="true"></i></span>
+      </div>
+      <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;">
+        <span style="font-size:11px; background:#F1EFE8; color:#5F5E5A; padding:2px 8px; border-radius:6px;">Cão</span>
+        <span style="font-size:11px; background:#F1EFE8; color:#5F5E5A; padding:2px 8px; border-radius:6px;">Golden · 4 anos</span>
+        <span style="font-size:11px; background:#E1F2F4; color:#0E5560; padding:2px 8px; border-radius:6px;">Ativo</span>
+        <span style="font-size:11px; background:#E7F6EF; color:#0F6E56; padding:2px 8px; border-radius:6px;">Clínica · Em tratamento</span>
+      </div>
+      <div style="font-size:12.5px; color:#5F5E5A; margin-top:8px; display:flex; flex-wrap:wrap; gap:14px;">
+        <span><i class="ti ti-user" style="font-size:14px; vertical-align:-2px" aria-hidden="true"></i> Cintia Correia</span>
+        <span><i class="ti ti-phone" style="font-size:14px; vertical-align:-2px" aria-hidden="true"></i> (85) 99999-0000</span>
+        <span style="color:#0F6E56;"><i class="ti ti-brand-whatsapp" style="font-size:14px; vertical-align:-2px" aria-hidden="true"></i> WhatsApp</span>
+      </div>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:6px; flex-shrink:0;">
+      <button style="font-size:11px; padding:4px 10px; border:1px solid #009AAC; color:#0E5560; background:#fff; border-radius:8px;"><i class="ti ti-pencil" aria-hidden="true"></i> Editar</button>
+      <button style="font-size:11px; padding:4px 10px; border:1px solid #E8DFC8; color:#0F6E56; background:#fff; border-radius:8px;"><i class="ti ti-brand-whatsapp" aria-hidden="true"></i> Mensagem</button>
+      <button style="font-size:11px; padding:4px 10px; border:1px solid #E8DFC8; color:#5F5E5A; background:#fff; border-radius:8px;"><i class="ti ti-share-2" aria-hidden="true"></i> Encaminhar</button>
+    </div>
+  </div>
+
+  <div style="display:flex; align-items:center; gap:8px; margin-top:12px; padding-top:10px; border-top:1px solid #F1EFE8;">
+    <span style="font-size:11px; color:#888780;">Pets deste tutor:</span>
+    <span style="font-size:11.5px; background:#009AAC; color:#fff; padding:3px 10px; border-radius:14px;"><i class="ti ti-dog" style="font-size:13px; vertical-align:-2px" aria-hidden="true"></i> Thor</span>
+    <span style="font-size:11.5px; background:#F1EFE8; color:#5F5E5A; padding:3px 10px; border-radius:14px;"><i class="ti ti-cat" style="font-size:13px; vertical-align:-2px" aria-hidden="true"></i> Mel</span>
+    <span style="font-size:11.5px; border:1px dashed #cdd; color:#009AAC; padding:3px 10px; border-radius:14px;"><i class="ti ti-plus" style="font-size:13px; vertical-align:-2px" aria-hidden="true"></i> Novo pet</span>
+  </div>
+</div>
+
+<div style="font-size:12px; font-weight:500; color:#0E5560; letter-spacing:.04em; margin:18px 0 8px;">2 · MODO EDIÇÃO INLINE (clicou em “Editar” — edita tutor E pet no mesmo box)</div>
+
+<div style="background:#fff; border:2px solid #009AAC; border-radius:12px; padding:14px 16px;">
+
+  <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+    <i class="ti ti-user" style="font-size:16px; color:#0E5560" aria-hidden="true"></i>
+    <span style="font-size:13px; font-weight:500; color:#0E2244;">Dados do tutor (cliente)</span>
+    <span style="font-size:10.5px; background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:6px;">telefone = chave única · 1 tutor → N pets</span>
+  </div>
+  <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px,1fr)); gap:10px;">
+    <label style="font-size:11px; color:#888780;">Nome<input value="Cintia Correia" style="width:100%; height:32px; margin-top:3px; border:1px solid #E8DFC8; border-radius:8px; padding:0 8px; font-size:13px; color:#0E2244;"/></label>
+    <label style="font-size:11px; color:#888780;">Telefone (chave)<input value="(85) 99999-0000" style="width:100%; height:32px; margin-top:3px; border:1px solid #009AAC; border-radius:8px; padding:0 8px; font-size:13px; color:#0E2244;"/></label>
+    <label style="font-size:11px; color:#888780;">E-mail<input value="cintia@email.com" style="width:100%; height:32px; margin-top:3px; border:1px solid #E8DFC8; border-radius:8px; padding:0 8px; font-size:13px; color:#0E2244;"/></label>
+    <label style="font-size:11px; color:#888780;">CPF<input value="000.000.000-00" style="width:100%; height:32px; margin-top:3px; border:1px solid #E8DFC8; border-radius:8px; padding:0 8px; font-size:13px; color:#0E2244;"/></label>
+  </div>
+
+  <div style="display:flex; align-items:center; gap:8px; margin:16px 0 10px; padding-top:12px; border-top:1px solid #F1EFE8;">
+    <i class="ti ti-paw" style="font-size:16px; color:#0E5560" aria-hidden="true"></i>
+    <span style="font-size:13px; font-weight:500; color:#0E2244;">Dados do pet</span>
+    <span style="font-size:10.5px; color:#888780;">(editando: Thor)</span>
+  </div>
+  <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(120px,1fr)); gap:10px;">
+    <label style="font-size:11px; color:#888780;">Nome<input value="Thor" style="width:100%; height:32px; margin-top:3px; border:1px solid #E8DFC8; border-radius:8px; padding:0 8px; font-size:13px; color:#0E2244;"/></label>
+    <label style="font-size:11px; color:#888780;">Espécie<select style="width:100%; height:32px; margin-top:3px; border:1px solid #E8DFC8; border-radius:8px; padding:0 6px; font-size:13px; color:#0E2244;"><option>Cão</option><option>Gato</option></select></label>
+    <label style="font-size:11px; color:#888780;">Raça<input value="Golden" style="width:100%; height:32px; margin-top:3px; border:1px solid #E8DFC8; border-radius:8px; padding:0 8px; font-size:13px; color:#0E2244;"/></label>
+    <label style="font-size:11px; color:#888780;">Sexo<select style="width:100%; height:32px; margin-top:3px; border:1px solid #E8DFC8; border-radius:8px; padding:0 6px; font-size:13px; color:#0E2244;"><option>Macho</option><option>Fêmea</option></select></label>
+    <label style="font-size:11px; color:#888780;">Nascimento<input value="2022-03-01" type="date" style="width:100%; height:32px; margin-top:3px; border:1px solid #E8DFC8; border-radius:8px; padding:0 8px; font-size:12px; color:#0E2244;"/></label>
+    <label style="font-size:11px; color:#888780;">Peso (kg)<input value="32" style="width:100%; height:32px; margin-top:3px; border:1px solid #E8DFC8; border-radius:8px; padding:0 8px; font-size:13px; color:#0E2244;"/></label>
+    <label style="font-size:11px; color:#888780;">Status<select style="width:100%; height:32px; margin-top:3px; border:1px solid #E8DFC8; border-radius:8px; padding:0 6px; font-size:13px; color:#0E2244;"><option>Ativo</option><option>Inativo</option></select></label>
+    <label style="font-size:11px; color:#888780;">Pipeline<select style="width:100%; height:32px; margin-top:3px; border:1px solid #E8DFC8; border-radius:8px; padding:0 6px; font-size:13px; color:#0E2244;"><option>Clínica</option><option>Fisioterapia</option></select></label>
+  </div>
+
+  <div style="display:flex; align-items:center; gap:8px; margin-top:14px; padding-top:12px; border-top:1px solid #F1EFE8;">
+    <button style="font-size:12px; padding:6px 16px; background:#009AAC; color:#fff; border:none; border-radius:8px;"><i class="ti ti-check" aria-hidden="true"></i> Salvar tudo</button>
+    <button style="font-size:12px; padding:6px 16px; background:#fff; color:#5F5E5A; border:1px solid #E8DFC8; border-radius:8px;">Cancelar</button>
+    <span style="font-size:11px; color:#888780; margin-left:auto;"><i class="ti ti-link" style="font-size:13px; vertical-align:-2px" aria-hidden="true"></i> salvar atualiza os dois registros de uma vez</span>
+  </div>
+</div>
+
+</div>

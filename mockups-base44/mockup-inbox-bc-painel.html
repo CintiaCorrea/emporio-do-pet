@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Inbox BC — iframe + painel + 3 estados</title>
+<style>
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Inter,sans-serif;margin:0;padding:20px;background:#f5f2ec;color:#014D5E}
+  h1{font-size:18px;font-weight:500;margin:0 0 4px}
+  .sub{font-size:13px;color:#5F5E5A;margin:0 0 20px}
+  h2{font-size:14px;font-weight:500;color:#014D5E;margin:24px 0 6px}
+  .desc{font-size:12.5px;color:#5F5E5A;margin:0 0 12px;line-height:1.5}
+
+  /* Layout full BC + painel */
+  .full{background:white;border-radius:10px;border:1px solid #E8DFC8;overflow:hidden;height:540px;display:flex;flex-direction:column}
+  .top-bar{background:white;border-bottom:1px solid #E8DFC8;padding:6px 12px;display:flex;align-items:center;justify-content:space-between;font-size:11px}
+  .badge-prov{font-size:9.5px;padding:1px 6px;border-radius:4px;background:#fef3c7;color:#92400e;font-weight:600;text-transform:uppercase}
+  .btn-out{font-size:10.5px;padding:3px 7px;border-radius:5px;border:1px solid #E8DFC8;color:#475569;background:white;cursor:pointer}
+  .btn-pri{font-size:10.5px;padding:3px 7px;border-radius:5px;background:#009AAC;color:white;border:none}
+
+  .body{flex:1;display:flex;min-height:0}
+  .bc-frame{flex:1;background:linear-gradient(180deg,#f5f5f5,#fafafa);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;border-right:1px solid #E8DFC8;font-size:11px;color:#94a3b8}
+  .bc-frame .tag{padding:3px 9px;border-radius:12px;color:white;font-size:10px;font-weight:600;background:#009AAC}
+  .bc-frame .src{font-size:13px;color:#014D5E;font-weight:600}
+
+  /* Painel direito */
+  .panel{width:300px;background:white;display:flex;flex-direction:column;overflow:hidden}
+  .p-head{padding:8px 11px;border-bottom:1px solid #E8DFC8;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+  .p-head .lbl{font-size:10px;color:#888780;font-weight:700;text-transform:uppercase;letter-spacing:0.5px}
+  .p-head .close{background:none;border:none;cursor:pointer;color:#94a3b8;font-size:10px;font-weight:600}
+  .p-search{padding:7px 11px;border-bottom:1px solid #E8DFC8;flex-shrink:0}
+  .p-search input{width:100%;padding:5px 10px 5px 26px;border:1px solid #E8DFC8;border-radius:6px;font-size:11.5px;background:white;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.2'><circle cx='11' cy='11' r='7'/><line x1='21' y1='21' x2='16.5' y2='16.5'/></svg>");background-repeat:no-repeat;background-position:7px center}
+  .p-body{flex:1;overflow-y:auto;min-height:0}
+
+  /* Seções */
+  .sec{padding:8px 11px;border-bottom:1px solid #E8DFC8}
+  .sec-lbl{font-size:9.5px;color:#888780;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:5px;display:flex;align-items:center;justify-content:space-between}
+  .sec-lbl .link{font-size:10px;color:#009AAC;font-weight:500}
+  .num{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:#fef3c7;color:#92611a;font-size:8px;font-weight:700;margin-right:3px;vertical-align:1px}
+
+  /* Resumo IA */
+  .resumo{background:linear-gradient(135deg,#f0fdfa,#e0f4f6);border:1px solid #99e9d8;border-radius:7px;padding:6px 8px;font-size:11px;color:#0c4a6e;line-height:1.4}
+  .resumo .who{font-size:9px;color:#0e7490;font-weight:700;text-transform:uppercase;margin-bottom:2px}
+  .resumo .who span{background:#14b8a6;color:white;padding:0 3px;border-radius:2px;font-size:8.5px}
+
+  /* Tutor / Lead row */
+  .row{display:flex;align-items:flex-start;gap:7px}
+  .av{width:28px;height:28px;border-radius:50%;color:white;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0}
+  .av-cli{background:linear-gradient(135deg,#009AAC,#014D5E)}
+  .av-lead{background:linear-gradient(135deg,#6366f1,#4f46e5)}
+  .nm{font-size:11.5px;color:#014D5E;font-weight:600;line-height:1.2}
+  .mt{font-size:10px;color:#64748b}
+
+  /* Pills */
+  .pills{display:flex;flex-wrap:wrap;gap:3px;margin-top:5px}
+  .pill{font-size:9px;padding:2px 5px;border-radius:8px;cursor:pointer;font-weight:500;border:1px solid transparent}
+  .p-em{background:#dcfce7;color:#15803d}
+  .p-tt.on{background:linear-gradient(90deg,#f59e0b,#fbbf24);color:white;font-weight:600}
+  .p-tt{background:#fef3c7;color:#92400e}
+  .p-at{background:#fed7aa;color:#b45309}
+  .p-rc{background:#fee2e2;color:#b91c1c}
+  .p-in{background:#f1f5f9;color:#64748b}
+  .p-base{background:#f1f5f9;color:#64748b}
+  .p-base.on{background:linear-gradient(90deg,#009AAC,#00B4C4);color:white;font-weight:600}
+
+  /* Botões classificar/converter */
+  .classify{display:flex;gap:4px;margin-top:6px;padding-top:6px;border-top:1px dashed #E8DFC8}
+  .classify button{flex:1;padding:4px 6px;border:1px solid #E8DFC8;border-radius:5px;font-size:9.5px;background:white;cursor:pointer;color:#64748b;font-weight:500}
+  .classify button:hover{border-color:#009AAC;color:#009AAC}
+
+  .b-pri-sm{background:#009AAC;color:white;padding:5px 8px;border-radius:5px;font-size:10.5px;font-weight:600;border:none;cursor:pointer;width:100%;margin-top:5px}
+  .hist-link{display:flex;align-items:center;gap:4px;font-size:10px;color:#64748b;margin-top:5px;padding-top:5px;border-top:1px dashed #E8DFC8;cursor:pointer}
+  .hist-link:hover{color:#009AAC}
+
+  /* 3 cards */
+  .three{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+  .card{background:white;border-radius:10px;border:1px solid #E8DFC8;overflow:hidden}
+  .card-head{padding:8px 12px;background:#f6fdfd;border-bottom:1px solid #E8DFC8}
+  .card-head h3{font-size:12px;margin:0;color:#014D5E;font-weight:600;display:flex;align-items:center;gap:6px}
+  .card-head .tag{font-size:9px;padding:1px 5px;border-radius:3px;font-weight:600;text-transform:uppercase}
+  .tag-lead{background:#dbeafe;color:#1e40af}
+  .tag-cli{background:#dcfce7;color:#15803d}
+  .tag-hist{background:#fef3c7;color:#92400e}
+  .card .panel{width:100%;height:430px}
+
+  /* Legend */
+  .legend{background:white;border:1px solid #E8DFC8;border-radius:8px;padding:12px;margin-top:14px;font-size:12.5px;color:#475569;line-height:1.6}
+  .legend strong{color:#014D5E}
+  .legend ul{margin:6px 0 0 18px;padding:0}
+  .legend li{margin:3px 0}
+  .legend code{background:#f1f5f9;padding:1px 5px;border-radius:3px;font-size:11px;color:#0e7490}
+
+  .arrow{font-size:18px;color:#94a3b8;text-align:center;margin:6px 0}
+</style>
+</head>
+<body>
+
+<h1>Inbox BC — layout completo + 3 estados do painel</h1>
+<p class="sub">Como vai ficar a aba Inbox BC (sidebar item dedicado), e como o painel se adapta ao tipo de contato reconhecido.</p>
+
+<!-- ===== TELA CHEIA ===== -->
+<h2>Layout completo — Inbox BC (iframe BotConversa + painel CRM)</h2>
+<p class="desc">Tela inteira. Sidebar à esquerda (Inbox BC ativo). Conteúdo: BotConversa embedado ocupando ~75% + painel CRM 300px à direita. Toolbar superior só com badge Provisório e botão "Nova aba".</p>
+
+<div class="full">
+  <div class="top-bar">
+    <span class="badge-prov">Provisório</span>
+    <div style="display:flex;gap:6px">
+      <button class="btn-out">↻</button>
+      <button class="btn-pri">↗ Nova aba</button>
+    </div>
+  </div>
+  <div class="body">
+    <div class="bc-frame">
+      <div class="src">Painel BotConversa</div>
+      <span class="tag">iframe app.botconversa.com.br</span>
+      <div style="font-size:10px;color:#94a3b8;margin-top:6px">conversa do tutor aparece aqui</div>
+    </div>
+    <aside class="panel">
+      <div class="p-head">
+        <span class="lbl">Contexto da conversa</span>
+        <button class="close">← fechar</button>
+      </div>
+      <div class="p-search"><input value="Cintia Renata Rocha Corrêa"></div>
+      <div class="p-body">
+        <div class="sec">
+          <div class="sec-lbl"><span><span class="num">1</span>📝 Resumo IA <span style="font-weight:400;color:#94a3b8;font-size:9px;margin-left:3px">há 8min</span></span><span class="link">↻</span></div>
+          <div class="resumo">
+            <div class="who"><span>IA</span> via BotConversa</div>
+            Tutora pergunta sobre próximo retorno da Lola. Quer agendar pra semana que vem.
+          </div>
+        </div>
+        <div class="sec">
+          <div class="sec-lbl"><span><span class="num">2</span>Cliente</span><span class="link">Ficha ↗</span></div>
+          <div class="row">
+            <div class="av av-cli">CR</div>
+            <div><div class="nm">Cintia Rocha Corrêa</div><div class="mt">📞 558586018111 · LTV R$ 1.245</div></div>
+          </div>
+          <div style="font-size:9px;color:#94a3b8;text-transform:uppercase;font-weight:700;margin-top:6px;margin-bottom:2px">Estado de relacionamento</div>
+          <div class="pills"><span class="pill p-em">Em dia</span><span class="pill p-tt on">Pet em tratamento</span><span class="pill p-at">Precisa atenção</span><span class="pill p-rc">A recuperar</span></div>
+          <div class="hist-link">📜 Ver histórico do lead que originou esse cliente</div>
+        </div>
+        <div class="sec">
+          <div class="sec-lbl"><span><span class="num">3</span>Pets (1)</span></div>
+          <div style="display:flex;align-items:center;gap:6px;padding:4px 6px;background:#e0f4f6;border:1px solid #009AAC;border-radius:5px"><div style="width:22px;height:22px;border-radius:50%;background:#009AAC;color:white;display:flex;align-items:center;justify-content:center;font-size:11px">🐕</div><div><div style="font-size:11px;color:#014D5E;font-weight:600">Lola</div><div style="font-size:9.5px;color:#64748b">Cão · 4 anos</div></div></div>
+        </div>
+        <div class="sec">
+          <div class="sec-lbl"><span><span class="num">4</span>Pipelines da Lola</span></div>
+          <div style="font-size:9px;color:#94a3b8;font-weight:700;text-transform:uppercase;margin-bottom:2px">Clínico</div>
+          <div class="pills"><span class="pill p-base">Diagnóstico</span><span class="pill p-base on">Em tratamento</span><span class="pill p-base">Aguard. exames</span><span class="pill p-base">Alta</span></div>
+        </div>
+        <div class="sec">
+          <div class="sec-lbl"><span><span class="num">5</span>💬 Registrar interação</span><span class="link">+ nova</span></div>
+          <div style="font-size:10px;color:#94a3b8;text-align:center;padding:4px 0">clique pra abrir formulário</div>
+        </div>
+        <div class="sec">
+          <div class="sec-lbl"><span><span class="num">6</span>Últimos atendimentos (2)</span><span class="link">+ novo</span></div>
+          <div style="font-size:10px;color:#64748b">Consulta · 28/05 · R$ 280</div>
+          <div style="font-size:10px;color:#64748b">Sessão Fisio · 24/05 · R$ 120</div>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<!-- ===== 3 ESTADOS ===== -->
+<h2 style="margin-top:30px">Os 3 estados do painel (lado a lado)</h2>
+<p class="desc">Dependendo de como o telefone está no nosso banco no momento da consulta, o painel direito muda. Os botões em cada estado permitem que a recepcionista reclassifique manualmente quando precisar.</p>
+
+<div class="three">
+
+  <!-- Estado A: só Lead -->
+  <div class="card">
+    <div class="card-head">
+      <h3>Estado A · só LEAD <span class="tag tag-lead">novo do BC</span></h3>
+    </div>
+    <aside class="panel">
+      <div class="p-head"><span class="lbl">Contexto da conversa</span><button class="close">← fechar</button></div>
+      <div class="p-search"><input value="558599887766"></div>
+      <div class="p-body">
+        <div class="sec">
+          <div class="sec-lbl"><span>📝 Resumo IA</span></div>
+          <div class="resumo"><div class="who"><span>IA</span> BC</div>Cliente nova pergunta sobre castração da gata. Sem outro pet.</div>
+        </div>
+        <div class="sec">
+          <div class="sec-lbl"><span>Lead</span><span class="link">Ficha ↗</span></div>
+          <div class="row">
+            <div class="av av-lead">??</div>
+            <div><div class="nm">Sandra (sem sobrenome)</div><div class="mt">📞 558599887766 · há 2min</div></div>
+          </div>
+          <div style="font-size:9px;color:#94a3b8;text-transform:uppercase;font-weight:700;margin-top:6px;margin-bottom:2px">Pipeline comercial</div>
+          <div class="pills"><span class="pill p-base">Triagem</span><span class="pill p-base on">Lead novo</span><span class="pill p-base">Qualif.</span><span class="pill p-base">Orçamento</span></div>
+          <div class="classify">
+            <button>→ converter em cliente</button>
+          </div>
+        </div>
+        <div class="sec">
+          <div class="sec-lbl"><span>Pet</span></div>
+          <div style="font-size:10px;color:#94a3b8;font-style:italic">Webhook trouxe: Faísca · Gato. Cadastrar definitivo? <span style="color:#009AAC;font-weight:600;cursor:pointer">+ confirmar</span></div>
+        </div>
+        <div class="sec">
+          <div class="sec-lbl"><span>💬 Registrar interação</span><span class="link">+ nova</span></div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- Estado B: só Cliente -->
+  <div class="card">
+    <div class="card-head">
+      <h3>Estado B · só CLIENTE <span class="tag tag-cli">tutor antigo</span></h3>
+    </div>
+    <aside class="panel">
+      <div class="p-head"><span class="lbl">Contexto da conversa</span><button class="close">← fechar</button></div>
+      <div class="p-search"><input value="558588332363"></div>
+      <div class="p-body">
+        <div class="sec">
+          <div class="sec-lbl"><span>📝 Resumo IA</span></div>
+          <div class="resumo"><div class="who"><span>IA</span> BC</div>Cliente Talimpo pergunta sobre próxima vacina do pet.</div>
+        </div>
+        <div class="sec">
+          <div class="sec-lbl"><span>Cliente</span><span class="link">Ficha ↗</span></div>
+          <div class="row">
+            <div class="av av-cli">TS</div>
+            <div><div class="nm">Talimpo Sapiranga</div><div class="mt">📞 558588332363 · LTV R$ 870</div></div>
+          </div>
+          <div style="font-size:9px;color:#94a3b8;text-transform:uppercase;font-weight:700;margin-top:6px;margin-bottom:2px">Estado de relacionamento</div>
+          <div class="pills"><span class="pill p-em">Em dia</span><span class="pill p-tt">Pet em tratamento</span><span class="pill p-at on">Precisa atenção</span></div>
+          <div class="classify">
+            <button>← reclassificar como lead</button>
+          </div>
+        </div>
+        <div class="sec">
+          <div class="sec-lbl"><span>Pets (2)</span></div>
+          <div style="display:flex;align-items:center;gap:6px;padding:4px 6px;background:#e0f4f6;border:1px solid #009AAC;border-radius:5px;margin-bottom:3px"><div style="width:22px;height:22px;border-radius:50%;background:#009AAC;color:white;display:flex;align-items:center;justify-content:center;font-size:11px">🐕</div><div><div style="font-size:11px;color:#014D5E;font-weight:600">Bento</div></div></div>
+          <div style="display:flex;align-items:center;gap:6px;padding:4px 6px;border:1px solid #F0EBE0;border-radius:5px"><div style="width:22px;height:22px;border-radius:50%;background:#e6f6f8;color:#009AAC;display:flex;align-items:center;justify-content:center;font-size:11px">🐈</div><div><div style="font-size:11px;color:#014D5E;font-weight:600">Mel</div></div></div>
+        </div>
+        <div class="sec">
+          <div class="sec-lbl"><span>💬 Registrar interação</span><span class="link">+ nova</span></div>
+        </div>
+        <div class="sec">
+          <div class="sec-lbl"><span>Últimos atendimentos (3)</span></div>
+          <div style="font-size:10px;color:#64748b">Vacina · 15/05 · R$ 180</div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- Estado C: Cliente com histórico de Lead -->
+  <div class="card">
+    <div class="card-head">
+      <h3>Estado C · CLIENTE c/ histórico <span class="tag tag-hist">Lead virou Tutor</span></h3>
+    </div>
+    <aside class="panel">
+      <div class="p-head"><span class="lbl">Contexto da conversa</span><button class="close">← fechar</button></div>
+      <div class="p-search"><input value="558586018111"></div>
+      <div class="p-body">
+        <div class="sec">
+          <div class="sec-lbl"><span>📝 Resumo IA</span></div>
+          <div class="resumo"><div class="who"><span>IA</span> BC</div>Tutora Cintia pergunta sobre retorno da Lola. Tosse melhorou.</div>
+        </div>
+        <div class="sec">
+          <div class="sec-lbl"><span>Cliente</span><span class="link">Ficha ↗</span></div>
+          <div class="row">
+            <div class="av av-cli">CR</div>
+            <div><div class="nm">Cintia Rocha Corrêa</div><div class="mt">📞 558586018111 · LTV R$ 1.245</div></div>
+          </div>
+          <div style="font-size:9px;color:#94a3b8;text-transform:uppercase;font-weight:700;margin-top:6px;margin-bottom:2px">Estado de relacionamento</div>
+          <div class="pills"><span class="pill p-em">Em dia</span><span class="pill p-tt on">Pet em tratamento</span></div>
+          <div class="hist-link">📜 Ver histórico do lead que originou esse cliente</div>
+        </div>
+        <div class="sec">
+          <div class="sec-lbl"><span>Pets (1)</span></div>
+          <div style="display:flex;align-items:center;gap:6px;padding:4px 6px;background:#e0f4f6;border:1px solid #009AAC;border-radius:5px"><div style="width:22px;height:22px;border-radius:50%;background:#009AAC;color:white;display:flex;align-items:center;justify-content:center;font-size:11px">🐕</div><div><div style="font-size:11px;color:#014D5E;font-weight:600">Lola</div><div style="font-size:9.5px;color:#64748b">Cão · 4 anos</div></div></div>
+        </div>
+        <div class="sec">
+          <div class="sec-lbl"><span>Pipelines da Lola</span></div>
+          <div style="font-size:9px;color:#94a3b8;font-weight:700;text-transform:uppercase;margin-bottom:2px">Clínico</div>
+          <div class="pills"><span class="pill p-base on">Em tratamento</span><span class="pill p-base">Aguard. exames</span><span class="pill p-base">Alta</span></div>
+        </div>
+        <div class="sec">
+          <div class="sec-lbl"><span>💬 Registrar interação</span><span class="link">+ nova</span></div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+</div>
+
+<div class="legend">
+  <strong>Regra de reconhecimento automático (decisão #3):</strong>
+  <ul>
+    <li>Webhook do BC chega com telefone. Sistema procura nos últimos 9 dígitos.</li>
+    <li><strong>Encontrou Tutor:</strong> classifica como Tutor (Estado B), atualiza resumo IA. <strong>Ignora</strong> o <code>tipo_contato</code> que o BC mandou se ele dizer "Lead".</li>
+    <li><strong>Encontrou Lead:</strong> classifica como Lead (Estado A), atualiza. <strong>Se Lead já tem status CONVERTED</strong> e existe Tutor com mesmo telefone, usa Tutor (Estado C).</li>
+    <li><strong>Novo:</strong> respeita o <code>tipo_contato</code> do BC. Default: cria Lead.</li>
+  </ul>
+  <br>
+  <strong>Reclassificação manual da recepcionista:</strong>
+  <ul>
+    <li>Em <strong>Estado A (Lead):</strong> botão "→ converter em cliente" — pega os dados do Lead, cria Tutor com mesmo phone, marca Lead status=CONVERTED, painel transita pra Estado C (com histórico).</li>
+    <li>Em <strong>Estado B (Cliente):</strong> botão "← reclassificar como lead" — caso raro (cliente que voltou a ser lead). Cria Lead novo vinculado ao Tutor.</li>
+    <li>Em <strong>Estado C (Cliente c/ histórico):</strong> link "📜 Ver histórico do lead que originou esse cliente" abre modal/drawer com pipeline percorrido, datas, etiquetas do BC, etc.</li>
+  </ul>
+</div>
+
+<div class="legend" style="background:#fffbeb;border-color:#fde68a;color:#92611a">
+  <strong>O que vou codar se você aprovar isso:</strong>
+  <ul>
+    <li>Sidebar: 2 itens "Inbox BC" e "Inbox Meta" (decisão #4)</li>
+    <li><code>/dashboard/inbox</code>: layout exatamente como mostrado no topo (BC iframe + painel)</li>
+    <li><code>/dashboard/inbox-meta</code>: Inbox nativo da Meta API + mesmo painel CRM à direita (decisão #2)</li>
+    <li>Painel direito com 3 estados (A, B, C) conforme reconhecimento automático</li>
+    <li>Webhook BC respeitando regra de reconhecimento (Tutor existente → atualiza Tutor, não cria Lead duplicado)</li>
+    <li>Botão "→ converter em cliente" no Estado A funcional (cria Tutor, marca Lead CONVERTED)</li>
+    <li>Link "📜 Ver histórico do lead" no Estado C — abre drawer com timeline do Lead original</li>
+    <li>Fix do bug de Lead → Tutor merge (últimos 9 dígitos)</li>
+  </ul>
+  <strong>Aprovado pra eu codar?</strong>
+</div>
+
+</body>
+</html>

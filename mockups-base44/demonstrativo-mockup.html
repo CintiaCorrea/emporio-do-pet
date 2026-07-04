@@ -1,0 +1,92 @@
+<style>
+:root{
+  --bg:#F6F2EA; --card:#fff; --line:#E8E2D6; --soft:#F0EBE0; --suave:#FBF9F4;
+  --ink:#1F2A2E; --ink2:#5C6B70; --mut:#8A989D; --navy:#014D5E; --teal:#009AAC; --agua:#E0F4F6;
+}
+*{box-sizing:border-box}
+.wrap{max-width:880px;margin:0 auto;padding:12px 6px 48px;font-family:"Segoe UI",system-ui,-apple-system,sans-serif;color:var(--ink);font-size:14px;line-height:1.45}
+h1{font-size:20px;font-weight:500;color:var(--navy);margin:0 0 2px}
+.sub{font-size:12.5px;color:var(--mut);margin-bottom:16px}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+@media(max-width:680px){.cols{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:14px}
+.ch{padding:11px 15px;border-bottom:1px solid var(--soft);font-size:13px;font-weight:500;color:var(--navy)}
+.cb{padding:14px 15px}
+.f{margin-bottom:11px}
+.f label{font-size:10.5px;color:var(--mut);text-transform:uppercase;letter-spacing:.3px;display:block;margin-bottom:4px}
+.in{width:100%;border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:13px;background:#fff}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg span{padding:6px 14px;font-size:12.5px;cursor:pointer;background:#fff;color:var(--ink2)}
+.seg span.on{background:var(--teal);color:#fff}
+.tgl{display:flex;align-items:center;justify-content:space-between;padding:7px 0}
+.tgl .l{font-size:12.5px;color:var(--ink)}
+.sw{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+.sw span{padding:4px 11px;font-size:11.5px;cursor:pointer;background:#fff;color:var(--ink2)}
+.sw span.on{background:#0F6E56;color:#fff}
+/* preview */
+.prev{position:sticky;top:10px}
+.paper{background:#fff;border:1px solid var(--line);border-radius:10px;padding:18px;font-size:11.5px;color:#222;box-shadow:0 6px 20px -10px rgba(0,0,0,.15)}
+.phead{display:flex;gap:12px;align-items:center;border-bottom:1px solid #e5e5e5;padding-bottom:10px;margin-bottom:10px}
+.plogo{width:44px;height:44px;border-radius:8px;background:var(--agua);display:flex;align-items:center;justify-content:center;font-size:22px}
+.pname{font-size:14px;font-weight:600;color:var(--navy)}
+.pmeta{font-size:10px;color:#666}
+.ptitle{text-align:center;font-weight:600;color:#333;margin:6px 0 10px;letter-spacing:.5px}
+.prow{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dashed #eee}
+.pfoot{margin-top:12px;text-align:center;font-size:10px;color:#777;border-top:1px solid #e5e5e5;padding-top:8px}
+.note{font-size:11px;color:var(--mut);text-align:center;margin-top:18px}
+.save{display:flex;justify-content:flex-end;margin-top:4px}
+.btn{background:var(--teal);color:#fff;border:none;border-radius:9px;padding:9px 18px;font-size:13px;font-weight:500;cursor:pointer}
+</style>
+<div class="wrap">
+  <h1>🧾 Modelo de demonstrativo</h1>
+  <div class="sub">O recibo/comprovante que sai da venda e do orçamento. Personalize o cabeçalho, o rodapé e o formato.</div>
+
+  <div class="cols">
+    <div>
+      <div class="card">
+        <div class="ch">🏥 Cabeçalho</div>
+        <div class="cb">
+          <div class="f"><label>Nome no recibo</label><input class="in" value="Empório do Pet"></div>
+          <div class="f"><label>Endereço</label><input class="in" value="Av. Eng. Leal Lima Verde 205 · Sapiranga, Fortaleza/CE"></div>
+          <div class="f"><label>Telefone(s)</label><input class="in" value="(85) 98890-7786 · (85) 3038-7887"></div>
+          <div class="f"><label>CNPJ (opcional)</label><input class="in" value=""></div>
+          <div class="f"><label>Logo (link da imagem)</label><input class="in" value="https://…/logo.png"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="ch">📐 Formato &amp; conteúdo</div>
+        <div class="cb">
+          <div class="f"><label>Formato padrão de impressão</label><div class="seg"><span class="on">A4</span><span>A5</span><span>Bobina (térmica)</span></div></div>
+          <div class="tgl"><span class="l">Mostrar logo</span><div class="sw"><span class="on">Sim</span><span>Não</span></div></div>
+          <div class="tgl"><span class="l">Mostrar profissional</span><div class="sw"><span class="on">Sim</span><span>Não</span></div></div>
+          <div class="tgl"><span class="l">Mostrar observações</span><div class="sw"><span class="on">Sim</span><span>Não</span></div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="ch">✍️ Rodapé</div>
+        <div class="cb"><div class="f"><label>Mensagem do rodapé</label><input class="in" value="Obrigado pela preferência! 🐾"></div></div>
+      </div>
+      <div class="save"><button class="btn">Salvar modelo</button></div>
+    </div>
+
+    <div class="prev">
+      <div class="card"><div class="ch">👁️ Prévia</div></div>
+      <div class="paper">
+        <div class="phead"><div class="plogo">🏥</div><div><div class="pname">Empório do Pet</div><div class="pmeta">Av. Eng. Leal Lima Verde 205 · Sapiranga, Fortaleza/CE<br>(85) 98890-7786 · (85) 3038-7887</div></div></div>
+        <div class="ptitle">DEMONSTRATIVO DE VENDA</div>
+        <div class="prow"><span style="color:#666">Cliente</span><span>Maria Souza</span></div>
+        <div class="prow"><span style="color:#666">Pet</span><span>Thor</span></div>
+        <div class="prow"><span style="color:#666">Data</span><span>03/07/2026 · Venda 25385</span></div>
+        <div style="margin:10px 0 4px;font-weight:600;color:#333">Itens</div>
+        <div class="prow"><span>Consulta clínica · Dra. Vivian</span><span>R$ 120,00</span></div>
+        <div class="prow"><span>Vacina V10</span><span>R$ 50,00</span></div>
+        <div class="prow"><span>Vermífugo</span><span>R$ 20,00</span></div>
+        <div class="prow" style="border-bottom:none;font-weight:600;color:var(--navy);margin-top:6px"><span>TOTAL</span><span>R$ 190,00</span></div>
+        <div class="prow" style="border-bottom:none"><span style="color:#666">Pagamento</span><span>Pix</span></div>
+        <div class="pfoot">Obrigado pela preferência! 🐾</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">Mockup · Modelo de demonstrativo · padrão Base44 · prévia com dados de exemplo</div>
+</div>

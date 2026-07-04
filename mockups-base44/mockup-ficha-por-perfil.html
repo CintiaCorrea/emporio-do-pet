@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ficha de Atendimento por perfil — Empório do Pet</title>
+<style>
+:root{--turq:#009AAC;--marinho:#014D5E;--navy:#0E2244;--bg:#F4F8F9;--card:#fff;--line:#e2e8eb;--txt:#1f3a40;--muted:#6b7e83;--ok:#1B7F3B;--okbg:#e9f6ee;--warn:#B8860B;--warnbg:#fbf3df;--emporio:#014D5E;--fisio:#009AAC;--integra:#7C3AED;}
+*{box-sizing:border-box}
+body{margin:0;font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--txt);font-size:14px}
+.app{max-width:1000px;margin:0 auto;padding:18px}
+.topbar{display:flex;align-items:center;gap:12px;background:linear-gradient(120deg,var(--marinho),var(--turq));color:#fff;border-radius:14px;padding:15px 20px}
+.topbar h1{font-size:17px;margin:0}
+.topbar .tag{margin-left:auto;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.3);padding:5px 12px;border-radius:20px;font-size:12px;font-weight:600}
+.switch{display:flex;gap:8px;margin:18px 0 6px;align-items:center}
+.switch .lbl{font-size:12px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-right:4px}
+.pf{border:1px solid var(--line);background:#fff;color:var(--marinho);padding:9px 18px;border-radius:10px;font-weight:700;cursor:pointer;font-size:14px}
+.pf.active{background:var(--marinho);color:#fff;border-color:var(--marinho)}
+.who{font-size:12.5px;color:var(--muted);margin:4px 2px 14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:14px}
+.card.accent{border-left:4px solid var(--turq)}
+.card h2{font-size:15px;margin:0 0 3px;display:flex;align-items:center;gap:8px}
+.card h2 svg{width:18px;height:18px;color:var(--turq)}
+.sub{font-size:12.5px;color:var(--muted);margin:0 0 12px}
+.badge{font-size:11px;font-weight:800;padding:3px 9px;border-radius:20px}
+.b-edit{background:var(--okbg);color:var(--ok);border:1px solid #bfe6cd}
+.b-ro{background:#eef1f3;color:#5a6b70;border:1px solid #d8dee1}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;color:#fff;background:var(--marinho);font-weight:600;padding:8px 10px;font-size:12px}
+td{padding:8px 10px;border-bottom:1px solid var(--line)}
+tr:nth-child(even) td{background:#f7fbfc}
+.m{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;padding:3px 8px;border-radius:6px;color:#fff}
+.m.emporio{background:var(--emporio)}.m.fisio{background:var(--fisio)}.m.integra{background:var(--integra)}
+.pay{font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px}.pay.pago{background:var(--okbg);color:var(--ok)}.pay.aberto{background:var(--warnbg);color:var(--warn)}
+.btn{display:inline-flex;align-items:center;gap:6px;background:var(--turq);color:#fff;border:none;padding:8px 14px;border-radius:9px;font-weight:700;font-size:13px;cursor:pointer;margin-right:8px}
+.btn.ghost{background:#fff;color:var(--marinho);border:1px solid var(--line)}
+.actions{margin-top:12px}
+.lock{font-size:12px;color:var(--muted);background:#f3f6f7;border:1px dashed #cdd8db;border-radius:8px;padding:9px 12px;margin-top:10px;display:flex;align-items:center;gap:8px}
+.lock svg{width:15px;height:15px;flex:0 0 auto}
+.view{display:none}.view.active{display:block}
+.diffs{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
+.diff{flex:1;min-width:220px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:12.5px}
+.diff b{color:var(--marinho)}
+.tot{margin:10px 2px 0;font-size:13px}
+.mock{font-size:11px;color:#9aa;letter-spacing:1px;text-transform:uppercase;text-align:center;margin:18px 0 0}
+.eye svg{width:14px;height:14px;vertical-align:-2px}
+.clin{font-size:13px;line-height:1.7}
+.clin .k{color:var(--muted);font-weight:600}
+</style>
+</head>
+<body>
+<div class="app">
+ <div class="topbar">
+   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>
+   <h1>Ficha de Atendimento · Thor — visão por perfil</h1>
+   <span class="tag">MOCKUP · não funcional</span>
+ </div>
+
+ <div class="switch">
+   <span class="lbl">Perfil logado</span>
+   <button class="pf active" data-p="admin">Admin (Cintia)</button>
+   <button class="pf" data-p="vet">Veterinário</button>
+   <button class="pf" data-p="recep">Recepção</button>
+ </div>
+ <p class="who" id="who"></p>
+
+ <!-- cabeçalho comum -->
+ <div class="card">
+   <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="4" r="2"/><circle cx="18" cy="8" r="2"/><circle cx="4" cy="8" r="2"/><circle cx="6.5" cy="14" r="2.5"/><circle cx="15.5" cy="14" r="2.5"/><path d="M8 18c0 2 1.8 3 4 3s4-1 4-3"/></svg>Thor · Golden Retriever · 6 anos</h2>
+   <p class="sub">Tutor: Mariana Sousa · (85) 9xxxx-1234 &nbsp;|&nbsp; Atendimento 20/06/2026 · Dra. Vivian Corrêa</p>
+ </div>
+
+ <!-- ===== ADMIN ===== -->
+ <div class="view active" id="admin">
+   <div class="card"><h2 style="font-size:14px">Prontuário clínico <span class="badge b-ro">somente leitura</span></h2><p class="sub" style="margin:0">Visível para conferência. Edição é do veterinário responsável.</p></div>
+   <div class="card accent">
+     <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.5 9.5h4a1.5 1.5 0 0 1 0 3h-3a1.5 1.5 0 0 0 0 3h4"/></svg>Venda — Lançamento Financeiro <span class="badge b-edit">completo</span></h2>
+     <p class="sub">Você vê tudo, inclusive custo e margem. Atalho para o Financeiro.</p>
+     <table>
+       <tr><th>Serviço</th><th>Marca</th><th>Profissional</th><th>Valor</th><th>Custo</th><th>Margem</th><th>Forma</th><th>Status</th></tr>
+       <tr><td>Consulta Integrativa</td><td><span class="m integra">Dra. Vivian</span></td><td>Dra. Vivian</td><td>R$ 250</td><td>R$ 60</td><td><b style="color:var(--ok)">R$ 190</b></td><td>Pix</td><td><span class="pay pago">Pago</span></td></tr>
+       <tr><td>Sessão Fisioterapia</td><td><span class="m fisio">Mundo à Parte</span></td><td>Dra. Letícia</td><td>R$ 200</td><td>R$ 45</td><td><b style="color:var(--ok)">R$ 155</b></td><td>Cartão</td><td><span class="pay pago">Pago</span></td></tr>
+       <tr><td>Exame — Hemograma</td><td><span class="m emporio">Empório</span></td><td>Dra. Vivian</td><td>R$ 200</td><td>R$ 80</td><td><b style="color:var(--ok)">R$ 120</b></td><td>—</td><td><span class="pay aberto">Em aberto</span></td></tr>
+     </table>
+     <p class="tot"><b>Total:</b> R$ 650 · <b>Custo:</b> R$ 185 · <b>Contribuição:</b> R$ 465 · <b>Em aberto:</b> R$ 200</p>
+     <div class="actions"><button class="btn">Abrir no Financeiro</button><button class="btn ghost">Exportar</button></div>
+   </div>
+ </div>
+
+ <!-- ===== VET ===== -->
+ <div class="view" id="vet">
+   <div class="card accent">
+     <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 2v6a3 3 0 0 0 6 0V2"/><path d="M12 11v5a4 4 0 0 0 8 0v-1"/><circle cx="20" cy="14" r="2"/></svg>Prontuário clínico <span class="badge b-edit">você edita</span></h2>
+     <div class="clin">
+       <span class="k">Queixa:</span> claudicação posterior leve, rigidez ao levantar.<br>
+       <span class="k">Exame:</span> dor à extensão do quadril D; escore corporal 6/9.<br>
+       <span class="k">Conduta:</span> manter fisioterapia 1x/semana; consulta integrativa de apoio; reavaliar em 30 dias.
+     </div>
+     <div class="actions"><button class="btn">Salvar prontuário</button><button class="btn ghost">Solicitar exame</button><button class="btn ghost">Agendar retorno</button></div>
+   </div>
+   <div class="card">
+     <h2 style="font-size:14px">Serviços realizados neste atendimento</h2>
+     <p class="sub">Para o registro clínico. Valores e pagamento ficam com recepção/admin.</p>
+     <table>
+       <tr><th>Serviço</th><th>Marca</th><th>Profissional</th></tr>
+       <tr><td>Consulta Integrativa</td><td><span class="m integra">Dra. Vivian</span></td><td>Dra. Vivian</td></tr>
+       <tr><td>Sessão Fisioterapia</td><td><span class="m fisio">Mundo à Parte</span></td><td>Dra. Letícia</td></tr>
+       <tr><td>Exame — Hemograma</td><td><span class="m emporio">Empório</span></td><td>Dra. Vivian</td></tr>
+     </table>
+     <div class="lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Valor, custo e forma de pagamento ocultos para o perfil veterinário. Sua comissão aparece no Meu Painel.</div>
+   </div>
+ </div>
+
+ <!-- ===== RECEPÇÃO ===== -->
+ <div class="view" id="recep">
+   <div class="card"><h2 style="font-size:14px">Prontuário clínico <span class="badge b-ro">somente leitura</span></h2><p class="sub" style="margin:0">Resumo visível para contexto do atendimento. Edição é do veterinário.</p></div>
+   <div class="card accent">
+     <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.5 9.5h4a1.5 1.5 0 0 1 0 3h-3a1.5 1.5 0 0 0 0 3h4"/></svg>Venda — você lança aqui <span class="badge b-edit">operacional</span></h2>
+     <p class="sub">Adiciona serviços, aplica desconto e registra o pagamento. Custo interno fica oculto.</p>
+     <table>
+       <tr><th>Serviço</th><th>Marca</th><th>Profissional</th><th>Valor</th><th>Desconto</th><th>Forma pgto</th><th>Status</th></tr>
+       <tr><td>Consulta Integrativa</td><td><span class="m integra">Dra. Vivian</span></td><td>Dra. Vivian</td><td>R$ 250</td><td>—</td><td>Pix</td><td><span class="pay pago">Pago</span></td></tr>
+       <tr><td>Sessão Fisioterapia</td><td><span class="m fisio">Mundo à Parte</span></td><td>Dra. Letícia</td><td>R$ 200</td><td>—</td><td>Cartão</td><td><span class="pay pago">Pago</span></td></tr>
+       <tr><td>Exame — Hemograma</td><td><span class="m emporio">Empório</span></td><td>Dra. Vivian</td><td>R$ 200</td><td>—</td><td>—</td><td><span class="pay aberto">Em aberto</span></td></tr>
+     </table>
+     <p class="tot"><b>Total:</b> R$ 650 · <b>Recebido:</b> R$ 450 · <b>Em aberto:</b> R$ 200</p>
+     <div class="actions"><button class="btn">+ Adicionar serviço</button><button class="btn">Registrar pagamento</button><button class="btn ghost">Imprimir recibo</button></div>
+     <div class="lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Custo interno e margem ocultos para a recepção.</div>
+   </div>
+ </div>
+
+ <div class="card" style="background:#f0f8f9;border:1px dashed var(--turq)">
+   <h2 style="font-size:13px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>O que muda entre os perfis</h2>
+   <div class="diffs">
+     <div class="diff"><b>Admin:</b> tudo — valor, custo, margem, contribuição, atalho ao Financeiro.</div>
+     <div class="diff"><b>Veterinário:</b> prontuário em primeiro plano (edita o seu); vê os serviços realizados, mas sem valor/custo/pagamento.</div>
+     <div class="diff"><b>Recepção:</b> lança a venda, aplica desconto, registra pagamento; vê valor e status, mas não o custo.</div>
+   </div>
+   <p style="font-size:12px;color:var(--muted);margin:10px 2px 0">Tudo isso é controlado em Configurações → Perfis e Permissões (já existe), campo a campo.</p>
+ </div>
+
+ <p class="mock">Mockup ilustrativo · Empório do Pet · padrão Base44</p>
+</div>
+<script>
+const who={admin:'Visão da dona/gestão — acesso total, incluindo custo, margem e o módulo Financeiro.',vet:'Visão do veterinário — foco no prontuário; informações financeiras ocultas; edita só o próprio prontuário.',recep:'Visão da recepção (primeira usuária) — lança a venda e o pagamento no fluxo natural; custo interno oculto.'};
+document.getElementById('who').textContent=who.admin;
+document.querySelectorAll('.pf').forEach(b=>b.onclick=()=>{
+ document.querySelectorAll('.pf').forEach(x=>x.classList.remove('active'));
+ document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
+ b.classList.add('active');document.getElementById(b.dataset.p).classList.add('active');
+ document.getElementById('who').textContent=who[b.dataset.p];
+});
+</script>
+</body>
+</html>

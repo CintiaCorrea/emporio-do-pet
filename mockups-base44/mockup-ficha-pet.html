@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mockup — Ficha do Pet · Empório do Pet</title>
+<style>
+:root{
+ --turq:#009AAC;--marinho:#014D5E;--navy:#0E2244;--bege:#E2CFB5;
+ --bg:#F4F8F9;--card:#fff;--line:#e3eaec;--txt:#1f3a40;--muted:#6b7e83;
+ --ok:#1B7F3B;--okbg:#e9f6ee;--warn:#B8860B;--warnbg:#fbf3df;
+ --emporio:#014D5E;--fisio:#009AAC;--integra:#7C3AED;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--txt);font-size:13.5px}
+.app{max-width:1180px;margin:0 auto;padding:16px}
+.bar{display:flex;align-items:center;gap:10px;background:linear-gradient(120deg,var(--marinho),var(--turq));color:#fff;border-radius:12px;padding:12px 18px}
+.bar svg{width:20px;height:20px}
+.bar h1{font-size:16px;margin:0}
+.bar .tag{margin-left:auto;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.3);padding:4px 11px;border-radius:20px;font-size:11.5px;font-weight:700}
+.note{font-size:12px;color:var(--muted);margin:8px 2px 14px}
+
+/* header card */
+.head{display:grid;grid-template-columns:1fr 1fr 92px;gap:18px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:14px}
+.head h2{margin:0 0 2px;font-size:17px;color:var(--marinho)}
+.head .sub{font-size:12px;color:var(--muted);margin:0}
+.kv{font-size:12.5px;margin-top:7px;line-height:1.7}
+.kv b{color:var(--marinho)}
+.tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}
+.tag2{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:20px;border:1px solid}
+.t-co{background:#e8f6fb;color:#0a6e85;border-color:#bfe5f0}
+.t-prem{background:#f3ecfb;color:#6b21a8;border-color:#ddd0f2}
+.t-vivo{background:var(--okbg);color:var(--ok);border-color:#bfe6cd}
+.t-saldo{background:var(--warnbg);color:var(--warn);border-color:#ecd9a3}
+.photo{width:90px;height:90px;border-radius:14px;background:#eef4f5 url('data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"90\" height=\"90\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"%23009AAC\" stroke-width=\"1.4\"><circle cx=\"11\" cy=\"4\" r=\"2\"/><circle cx=\"18\" cy=\"8\" r=\"2\"/><circle cx=\"4\" cy=\"8\" r=\"2\"/><circle cx=\"6.5\" cy=\"14\" r=\"2.5\"/><circle cx=\"15.5\" cy=\"14\" r=\"2.5\"/><path d=\"M8 18c0 2 1.8 3 4 3s4-1 4-3\"/></svg>') center/54px no-repeat;border:1px solid var(--line)}
+
+/* body grid */
+.body{display:grid;grid-template-columns:300px 1fr;gap:14px}
+.col .panel{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:14px;overflow:hidden}
+.panel .ph{padding:11px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px;font-weight:700;font-size:13px;color:var(--marinho)}
+.panel .ph svg{width:16px;height:16px;color:var(--turq)}
+.panel .pb{padding:12px 14px}
+.btn{display:inline-flex;align-items:center;gap:6px;background:var(--turq);color:#fff;border:none;padding:7px 12px;border-radius:8px;font-weight:700;font-size:12.5px;cursor:pointer}
+.btn.ghost{background:#fff;color:var(--marinho);border:1px solid var(--line)}
+.btn.block{width:100%;justify-content:center}
+.stabs{display:flex;border-bottom:1px solid var(--line)}
+.stab{flex:1;text-align:center;padding:10px;font-weight:700;font-size:12.5px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
+.stab.active{color:var(--marinho);border-bottom-color:var(--turq)}
+.vrow{display:flex;justify-content:space-between;align-items:center;font-size:12.5px;padding:7px 0;border-bottom:1px dashed var(--line)}
+.vrow:last-child{border-bottom:none}
+.m{display:inline-flex;align-items:center;font-size:10px;font-weight:700;padding:2px 6px;border-radius:5px;color:#fff;margin-left:6px}
+.m.emporio{background:var(--emporio)}.m.fisio{background:var(--fisio)}.m.integra{background:var(--integra)}
+.tot{font-weight:700;color:var(--marinho);font-size:13px;margin-top:8px}
+.pk{background:#eef9fb;border:1px solid #cdeef3;border-radius:9px;padding:10px 12px;font-size:12px}
+.pkbar{height:7px;border-radius:5px;background:#d6eef2;margin:7px 0 5px;overflow:hidden}
+.pkbar i{display:block;height:100%;width:58%;background:var(--turq)}
+
+/* tabs */
+.tabs{display:flex;gap:4px;border-bottom:2px solid var(--line);margin-bottom:0;flex-wrap:wrap}
+.tab{padding:9px 14px;font-weight:600;font-size:13px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;display:flex;align-items:center;gap:6px}
+.tab.active{color:var(--marinho);border-bottom-color:var(--turq)}
+.tab svg{width:15px;height:15px}
+.view{display:none;padding-top:14px}.view.active{display:block}
+
+/* add grid */
+.addgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px}
+.add{display:flex;flex-direction:column;align-items:center;gap:5px;padding:11px 6px;border-radius:10px;color:#fff;font-size:11.5px;font-weight:600;cursor:pointer;border:none}
+.add svg{width:18px;height:18px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.chip{border:1px solid var(--line);background:#fff;padding:4px 11px;border-radius:20px;font-size:11.5px;color:var(--marinho);font-weight:600;cursor:pointer}
+.chip.on{background:var(--marinho);color:#fff;border-color:var(--marinho)}
+
+/* feed */
+.year{font-size:13px;font-weight:800;color:var(--turq);margin:6px 0 8px}
+.ev{display:flex;gap:11px;padding:10px 0;border-bottom:1px solid var(--line)}
+.ev .ic{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;flex:0 0 auto}
+.ev .ic svg{width:16px;height:16px}
+.ev .body2{flex:1}
+.ev .top{display:flex;justify-content:space-between;gap:10px}
+.ev .ty{font-weight:700;font-size:12.5px}
+.ev .dt{font-size:11.5px;color:var(--muted)}
+.ev .tx{font-size:12.5px;color:#374b50;margin-top:2px}
+.ev .who{width:26px;height:26px;border-radius:50%;background:#eef4f5;color:var(--marinho);font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;flex:0 0 auto;border:1px solid var(--line)}
+
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{text-align:left;color:#fff;background:var(--marinho);font-weight:600;padding:7px 9px;font-size:11.5px}
+td{padding:7px 9px;border-bottom:1px solid var(--line)}
+tr:nth-child(even) td{background:#f7fbfc}
+.st{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:5px}
+.st.ok{background:var(--okbg);color:var(--ok)}.st.cancel{background:#fdeaea;color:#b00000}.st.ativo{background:#e8f1fb;color:#2c5b9e}
+.callout{background:#f0f8f9;border:1px dashed var(--turq);border-radius:10px;padding:10px 13px;font-size:12px;margin-top:14px}
+.callout b{color:var(--marinho)}
+.mock{font-size:11px;color:#9aa;letter-spacing:1px;text-transform:uppercase;text-align:center;margin:18px 0 0}
+@media(max-width:840px){.body{grid-template-columns:1fr}.head{grid-template-columns:1fr}.addgrid{grid-template-columns:repeat(3,1fr)}}
+</style>
+</head>
+<body>
+<div class="app">
+ <div class="bar">
+   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="4" r="2"/><circle cx="18" cy="8" r="2"/><circle cx="4" cy="8" r="2"/><circle cx="6.5" cy="14" r="2.5"/><circle cx="15.5" cy="14" r="2.5"/><path d="M8 18c0 2 1.8 3 4 3s4-1 4-3"/></svg>
+   <h1>Ficha do Pet</h1>
+   <span class="tag">MOCKUP · para aprovação</span>
+ </div>
+ <p class="note">Espelha o SimplesVet no padrão Base44: cabeçalho tutor + pet, Venda à esquerda, abas com feed clínico à direita. Ícones (não emoji). Dados ilustrativos. Nada no ar.</p>
+
+ <!-- HEADER -->
+ <div class="head">
+   <div>
+     <h2>Mariana Sousa <span style="font-size:12px;color:var(--muted)">· tutora</span></h2>
+     <p class="sub">Cliente desde 03/2022 · cód. 4517</p>
+     <div class="kv">
+       <b>WhatsApp:</b> (85) 9xxxx-1234<br>
+       <b>LTV:</b> R$ 8.430 · <b>Última visita:</b> 12/06/2026
+     </div>
+     <div class="tags">
+       <span class="tag2 t-prem">Cliente Premium</span>
+       <span class="tag2 t-saldo">Crédito: R$ 120,00</span>
+     </div>
+   </div>
+   <div>
+     <h2>Thor</h2>
+     <p class="sub">Golden Retriever · Macho · 7 anos · 32,4 kg (jun/2026)</p>
+     <div class="kv"><b>Nascimento:</b> 15/03/2019 · <b>Microchip:</b> 982000xxxxxxxxx</div>
+     <div class="tags">
+       <span class="tag2 t-vivo">Vivo</span>
+       <span class="tag2 t-co">CO · Artrose</span>
+       <span class="tag2 t-co">CO · Geriatria</span>
+     </div>
+   </div>
+   <div class="photo"></div>
+ </div>
+
+ <div class="body">
+   <!-- LEFT -->
+   <div class="col">
+     <div class="panel">
+       <div class="stabs">
+         <div class="stab active" data-s="sv-venda" onclick="subtab(this)">Venda</div>
+         <div class="stab" data-s="sv-orc" onclick="subtab(this)">Orçamentos</div>
+       </div>
+       <div class="pb sview" id="sv-venda">
+         <div class="vrow"><span>Consulta Integrativa <span class="m integra">Vivian</span></span><b>R$ 250</b></div>
+         <div class="vrow"><span>Sessão Fisioterapia <span class="m fisio">MAP</span></span><b>R$ 200</b></div>
+         <div class="tot">Total: R$ 450</div>
+         <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">
+           <button class="btn">+ Serviço</button>
+           <button class="btn ghost">Pagamento</button>
+         </div>
+       </div>
+       <div class="pb sview" id="sv-orc" style="display:none">
+         <button class="btn block" style="margin-bottom:10px">+ Novo orçamento</button>
+         <div class="vrow"><span><b>10/06/2026</b><br><span style="color:var(--muted);font-size:11.5px">Cirurgia · válido até 10/07</span></span><span style="text-align:right"><b>R$ 1.862</b><br><span class="st ativo" style="font-size:10px">Orçamento</span></span></div>
+         <button class="btn block ghost" style="margin-top:10px">Converter em venda</button>
+         <p style="font-size:11.5px;color:var(--muted);margin:10px 0 0">Em cirurgia e fisio o orçamento vem primeiro; ao aprovar, vira venda com os mesmos itens (e dispara o pacote, se for o caso).</p>
+       </div>
+     </div>
+     <div class="panel">
+       <div class="ph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v6H3zM3 13h18v8H3z"/></svg>Pacote ativo</div>
+       <div class="pb">
+         <div class="pk">
+           <b>Fisioterapia — 12 sessões</b>
+           <div class="pkbar"><i></i></div>
+           <span style="color:var(--muted)">7 de 12 consumidas · validade 30/09/2026</span>
+         </div>
+       </div>
+     </div>
+     <div class="panel">
+       <div class="ph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12V8H6a2 2 0 0 1 0-4h12v4"/><path d="M4 6v12a2 2 0 0 0 2 2h14v-4"/><path d="M18 12a2 2 0 0 0 0 4h4v-4z"/></svg>Carteira do cliente</div>
+       <div class="pb" style="font-size:12.5px">
+         Saldo de crédito: <b style="color:var(--warn)">R$ 120,00</b><br>
+         <span style="color:var(--muted)">Usado na baixa de vendas. Não é receita até o consumo.</span>
+       </div>
+     </div>
+   </div>
+
+   <!-- RIGHT -->
+   <div class="col">
+     <div class="panel">
+       <div class="pb">
+         <div class="tabs">
+           <div class="tab active" data-v="hist"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Histórico</div>
+           <div class="tab" data-v="prot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3 8-8"/><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></svg>Protocolos</div>
+           <div class="tab" data-v="tl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Linha do tempo</div>
+           <div class="tab" data-v="ag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>Agenda</div>
+           <div class="tab" data-v="ven"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6h15l-1.5 9H8z"/><circle cx="9" cy="20" r="1"/><circle cx="18" cy="20" r="1"/><path d="M6 6L5 3H2"/></svg>Vendas</div>
+         </div>
+
+         <!-- HISTÓRICO -->
+         <div class="view active" id="hist">
+           <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px">Adicionar ao histórico</div>
+           <div class="addgrid">
+             <button class="add" style="background:#2f80c4"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 2v6a3 3 0 0 0 6 0V2"/><path d="M12 11v5a4 4 0 0 0 8 0"/><circle cx="20" cy="15" r="2"/></svg>Atendimento</button>
+             <button class="add" style="background:#b8860b"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h18l-2 12H5z"/><path d="M8 7a4 4 0 0 1 8 0"/></svg>Peso</button>
+             <button class="add" style="background:#7c3aed"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 2v6a3 3 0 0 0 6 0V2"/><path d="M12 11v5a4 4 0 0 0 8 0"/></svg>Patologia</button>
+             <button class="add" style="background:#2e9e5b"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>Documento</button>
+             <button class="add" style="background:#e0556b"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3h6M10 3v6l-4 9a2 2 0 0 0 2 3h8a2 2 0 0 0 2-3l-4-9V3"/></svg>Exame</button>
+             <button class="add" style="background:#2b6cb0"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3"/></svg>Fotos</button>
+             <button class="add" style="background:#e08a1e"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2s6 5 6 11a6 6 0 0 1-12 0c0-2 1-4 2-5"/></svg>Vacina</button>
+             <button class="add" style="background:#9333ea"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>Receita</button>
+             <button class="add" style="background:#64748b"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Observação</button>
+             <button class="add" style="background:#0f7a52"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="M22 8l-6 4 6 4z"/></svg>Vídeo</button>
+             <button class="add" style="background:#9b2c3a"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Internação</button>
+           </div>
+           <div class="chips">
+             <span class="chip on">Todos</span><span class="chip">Atendimento</span><span class="chip">Vacina</span><span class="chip">Receita</span><span class="chip">Exame</span><span class="chip">Peso</span>
+           </div>
+           <div class="year">2026</div>
+           <div class="ev"><div class="ic" style="background:#2f80c4"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 2v6a3 3 0 0 0 6 0V2"/><path d="M12 11v5a4 4 0 0 0 8 0"/><circle cx="20" cy="15" r="2"/></svg></div><div class="body2"><div class="top"><span class="ty">Atendimento · Fisioterapia (sessão 7/12)</span><span class="dt">12/06 · 14:00</span></div><div class="tx">Boa evolução da artrose; manteve carga. Próxima sessão 19/06.</div></div><div class="who">LT</div></div>
+           <div class="ev"><div class="ic" style="background:#b8860b"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h18l-2 12H5z"/><path d="M8 7a4 4 0 0 1 8 0"/></svg></div><div class="body2"><div class="top"><span class="ty">Peso</span><span class="dt">12/06</span></div><div class="tx">32,4 kg</div></div><div class="who">LT</div></div>
+           <div class="ev"><div class="ic" style="background:#9333ea"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></div><div class="body2"><div class="top"><span class="ty">Receita · suplemento articular</span><span class="dt">05/06</span></div><div class="tx">Condroitina + glicosamina, 1x/dia, 60 dias.</div></div><div class="who">VC</div></div>
+           <div class="ev"><div class="ic" style="background:#e08a1e"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2s6 5 6 11a6 6 0 0 1-12 0c0-2 1-4 2-5"/></svg></div><div class="body2"><div class="top"><span class="ty">Vacina · Antirrábica</span><span class="dt">20/05</span></div><div class="tx">Lote 00xx · próxima dose 05/2027</div></div><div class="who">AL</div></div>
+           <div class="year">2025</div>
+           <div class="ev"><div class="ic" style="background:#e0556b"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3h6M10 3v6l-4 9a2 2 0 0 0 2 3h8a2 2 0 0 0 2-3l-4-9V3"/></svg></div><div class="body2"><div class="top"><span class="ty">Exame · Raio-X quadril</span><span class="dt">18/11/2025</span></div><div class="tx">Sinais de artrose coxofemoral. PDF anexado.</div></div><div class="who">VC</div></div>
+         </div>
+
+         <!-- PROTOCOLOS -->
+         <div class="view" id="prot">
+           <table><tr><th>Tipo</th><th>Protocolo</th><th>Início</th><th>Próxima</th><th>Status</th></tr>
+           <tr><td>Vacina</td><td>Antirrábica</td><td>20/05/2026</td><td>05/2027</td><td><span class="st ok">Em dia</span></td></tr>
+           <tr><td>Vermífugo</td><td>Endogard</td><td>10/04/2026</td><td>10/07/2026</td><td><span class="st ativo">Programado</span></td></tr>
+           <tr><td>Vacina</td><td>V10</td><td>20/05/2026</td><td>05/2027</td><td><span class="st ok">Em dia</span></td></tr>
+           </table>
+         </div>
+
+         <!-- LINHA DO TEMPO -->
+         <div class="view" id="tl">
+           <p style="font-size:12.5px;color:var(--muted)">Mesma informação do Histórico, em visual de linha vertical por data — útil para revisar a evolução do paciente (ex.: curva de peso, sessões de fisio). Mantemos os dois modos como no SimplesVet.</p>
+         </div>
+
+         <!-- AGENDA -->
+         <div class="view" id="ag">
+           <table><tr><th>Data</th><th>Tipo</th><th>Profissional</th><th>Status</th><th>Espera</th><th>Duração</th></tr>
+           <tr><td>19/06 14:00</td><td>Fisioterapia</td><td>Dra. Letícia</td><td><span class="st ativo">Agendado</span></td><td>—</td><td>—</td></tr>
+           <tr><td>12/06 14:00</td><td>Fisioterapia</td><td>Dra. Letícia</td><td><span class="st ok">Atendido</span></td><td>06min</td><td>52min</td></tr>
+           <tr><td>05/06 15:00</td><td>Consulta Integrativa</td><td>Dra. Vivian</td><td><span class="st ok">Atendido</span></td><td>00min</td><td>48min</td></tr>
+           <tr><td>28/05 14:00</td><td>Fisioterapia</td><td>Dra. Letícia</td><td><span class="st cancel">Cancelado</span></td><td>—</td><td>—</td></tr>
+           </table>
+         </div>
+
+         <!-- VENDAS -->
+         <div class="view" id="ven">
+           <table><tr><th>Data</th><th>Serviço</th><th>Marca</th><th>Valor</th><th>Status</th></tr>
+           <tr><td>12/06</td><td>Sessão Pacote Fisioterapia</td><td><span class="m fisio">MAP</span></td><td>R$ 141</td><td><span class="st ok">Baixado</span></td></tr>
+           <tr><td>05/06</td><td>Consulta Integrativa</td><td><span class="m integra">Vivian</span></td><td>R$ 250</td><td><span class="st ok">Baixado</span></td></tr>
+           <tr><td>18/11/25</td><td>Raio-X</td><td><span class="m emporio">Empório</span></td><td>R$ 200</td><td><span class="st ok">Baixado</span></td></tr>
+           </table>
+           <div class="callout"><b>Pacote:</b> a venda de pacote entra como receita diferida — cada sessão baixada reconhece R$ 141. Restam 5 sessões (R$ 705 a reconhecer).</div>
+         </div>
+
+       </div>
+     </div>
+   </div>
+ </div>
+
+ <div class="callout">
+   <b>Melhorias sobre o SimplesVet (já previstas):</b> prontuário com campos semi-estruturados opcionais (queixa/exame/conduta/peso/temperatura) além do texto livre; receita com campos de medicamento; carteira do cliente e pacote como receita diferida; e tudo exportável (LGPD). A marca em cada serviço sai automática da categoria.
+ </div>
+ <p class="mock">Mockup ilustrativo · Empório do Pet · padrão Base44 · aguardando sua aprovação</p>
+</div>
+<script>
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
+ document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+ document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
+ t.classList.add('active');document.getElementById(t.dataset.v).classList.add('active');
+});
+document.querySelectorAll('.chip').forEach(c=>c.onclick=()=>{document.querySelectorAll('.chip').forEach(x=>x.classList.remove('on'));c.classList.add('on');});
+function subtab(el){document.querySelectorAll('.stab').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.sview').forEach(x=>x.style.display='none');el.classList.add('active');document.getElementById(el.dataset.s).style.display='block';}
+</script>
+</body>
+</html>

@@ -1,0 +1,105 @@
+<style>
+:root{
+  --bg:#F6F2EA; --card:#fff; --line:#E8E2D6; --soft:#F0EBE0; --suave:#FBF9F4;
+  --ink:#1F2A2E; --ink2:#5C6B70; --mut:#8A989D; --navy:#014D5E; --teal:#009AAC; --agua:#E0F4F6;
+  --ok-b:#E1F5EE; --ok-i:#0F6E56; --par-b:#FBF3E3; --par-i:#8a6400; --no-b:#FDECEC; --no-i:#b23b39;
+}
+*{box-sizing:border-box}
+.wrap{max-width:940px;margin:0 auto;padding:12px 6px 56px;font-family:"Segoe UI",system-ui,-apple-system,sans-serif;color:var(--ink);font-size:14px;line-height:1.5}
+h1{font-size:22px;font-weight:500;color:var(--navy);margin:0 0 3px;letter-spacing:-.2px}
+.sub{font-size:13px;color:var(--mut);margin-bottom:20px}
+h2{font-size:15px;font-weight:500;color:var(--navy);margin:26px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:13px;overflow:hidden;margin-bottom:14px}
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--mut);font-weight:500;padding:9px 12px;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--suave)}
+td{padding:9px 12px;border-bottom:1px solid var(--soft);color:var(--ink);vertical-align:top}
+tr:last-child td{border-bottom:0}
+.nm{font-weight:500;color:var(--navy);white-space:nowrap}
+.pill{font-size:10px;font-weight:500;padding:2px 8px;border-radius:999px;white-space:nowrap;display:inline-block}
+.p-ok{background:var(--ok-b);color:var(--ok-i)} .p-par{background:var(--par-b);color:var(--par-i)} .p-no{background:var(--no-b);color:var(--no-i)}
+.box{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:14px 16px;margin-bottom:12px}
+.box.hi{background:var(--agua);border-color:#BEE6EB}
+.box h3{font-size:13.5px;font-weight:500;color:var(--navy);margin:0 0 6px;display:flex;align-items:center;gap:7px}
+.box p{margin:0 0 6px;font-size:13px;color:var(--ink2)}
+.box p:last-child{margin-bottom:0}
+ul{margin:6px 0 0;padding-left:20px} li{margin:3px 0;color:var(--ink2);font-size:12.5px}
+.miss{display:grid;grid-template-columns:1fr;gap:10px}
+.miss .m{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--no-i);border-radius:11px;padding:11px 14px}
+.miss .m b{color:var(--navy)}
+.fase{border-left:3px solid var(--teal)}
+.tag{font-size:10.5px;color:var(--mut);font-weight:500;text-transform:uppercase;letter-spacing:.3px}
+.note{font-size:11.5px;color:var(--mut);text-align:center;margin-top:22px}
+b{color:var(--navy)}
+</style>
+<div class="wrap">
+  <h1>🛒 Módulo de Vendas — SimplesVet × nosso sistema</h1>
+  <div class="sub">Mapa completo das 13 telas do menu Vendas do SimplesVet, o que já temos, o que falta, e o plano de construção. Referência: navegação ao vivo no SimplesVet + export de vendas.</div>
+
+  <h2>📋 As 13 telas do menu Vendas</h2>
+  <div class="card"><div class="scroll">
+  <table>
+    <thead><tr><th>Tela</th><th>O que faz no SimplesVet</th><th>Nós</th></tr></thead>
+    <tbody>
+      <tr><td class="nm">Ponto de venda</td><td>PDV/comanda: cliente ou animal, itens com <b>profissional por item</b>, obs, botões “Registrar recebimento” / “Salvar”, abas Não pago/Pago, tipo de venda fiscal, multi-caixa.</td><td><span class="pill p-ok">Temos</span><br><span class="tag">quase idêntico</span></td></tr>
+      <tr><td class="nm">Minhas vendas</td><td>Dashboard de produtividade: evolução no tempo, produção por período, <b>vendas por grupo</b>, por produto/serviço.</td><td><span class="pill p-par">Parcial</span><br><span class="tag">faltam gráficos</span></td></tr>
+      <tr><td class="nm">Movimentos de caixa</td><td>Lista de caixas (abertura/fechamento/encerramento/status) + “Abrir caixa”.</td><td><span class="pill p-ok">Temos</span></td></tr>
+      <tr><td class="nm">Consulta vendas</td><td><b>Gestão</b> de vendas: “Clientes em atendimento” (comandas abertas), Lista de vendas com status (editar/baixar/adicionar), abas Resumo / Totais por produto.</td><td><span class="pill p-par">Parcial</span><br><span class="tag">só relatório</span></td></tr>
+      <tr><td class="nm">Pacotes vendidos</td><td>KPIs (Ativos/Consumidos/Vencidos/Cancelados) + situação + validade.</td><td><span class="pill p-ok">Temos</span></td></tr>
+      <tr><td class="nm">Recebimentos</td><td>Baixas no dia × posteriores × adiantamento × receita total × <b>em aberto</b>; por usuário/data/forma.</td><td><span class="pill p-par">Parcial</span><br><span class="tag">mais simples</span></td></tr>
+      <tr><td class="nm">Lista de preços</td><td>Catálogo nome/código/estoque/preço + busca (código de barras).</td><td><span class="pill p-ok">Temos</span></td></tr>
+      <tr><td class="nm">Ranking de clientes</td><td>Curva <b>ABC</b> (A/B/C, % clientes × % vendas) + gasto 30/90/365 dias.</td><td><span class="pill p-par">Parcial</span><br><span class="tag">campo existe, falta tela</span></td></tr>
+      <tr><td class="nm">Saldo dos clientes</td><td>Saldo credor/devedor + última compra.</td><td><span class="pill p-ok">Temos</span></td></tr>
+      <tr><td class="nm">Formas de recebimento</td><td>Catálogo <b>configurável</b> de formas (Dinheiro, Crédito Cliente, Maquininha InfinitePay/Nubank, Ajuste de Saldo) — cada uma com taxa/prazo/conta.</td><td><span class="pill p-no">Falta</span><br><span class="tag">formas fixas</span></td></tr>
+      <tr><td class="nm">Modelo de orçamento</td><td>Orçamentos-modelo salvos (Castração, Cirurgias…) reutilizáveis.</td><td><span class="pill p-no">Falta</span></td></tr>
+      <tr><td class="nm">Modelo de demonstrativo</td><td>Recibo/comprovante personalizável (logo, cabeçalho) — <b>A4 / A5 / Bobina</b> térmica.</td><td><span class="pill p-no">Falta</span><br><span class="tag">print básico</span></td></tr>
+      <tr><td class="nm">Configuração</td><td>Regras de venda (ver abaixo — várias importantes).</td><td><span class="pill p-no">Falta</span></td></tr>
+    </tbody>
+  </table>
+  </div></div>
+
+  <h2>🔑 O grande achado — como o atendimento vira venda</h2>
+  <div class="box hi">
+    <h3>“Clientes em atendimento” + “Unificar vendas do dia por cliente”</h3>
+    <p>Na <b>Consulta vendas</b>, os clientes sendo atendidos aparecem como <b>comandas abertas</b>. E na Configuração há a regra <b>“Unificar vendas do dia por cliente”</b> (ligada): o atendimento clínico e o PDV lançam na <b>mesma comanda</b> do cliente no dia. Ela fica “em atendimento / aberta” e é <b>baixada (paga) no caixa</b>.</p>
+    <p>👉 É exatamente a <b>lacuna nº 1</b> que achamos: hoje nosso atendimento cria o registro mas <b>não abre comanda nem cai no caixa</b>. Esse é o coração da Fase 1.</p>
+  </div>
+
+  <h2>❌ O que falta (os itens que você intuiu)</h2>
+  <div class="miss">
+    <div class="m"><b>1. Comanda aberta / “Em atendimento”</b> — o elo atendimento → venda → caixa. Hoje são ilhas.</div>
+    <div class="m"><b>2. Formas de recebimento configuráveis</b> — cadastrar as máquinas/adquirentes reais (InfinitePay, Nubank…) com taxa/prazo/conta, em vez de 5 formas fixas.</div>
+    <div class="m"><b>3. Configuração de Vendas</b> — regras: fechar caixa auto 23:59 · unificar vendas do dia · obrigar profissional no item · vender sem estoque · <b>obrigar NSU</b> (conciliação de cartão) · <b>limite de desconto</b> · política de <b>devolução</b> · validade de orçamento · <b>“Orçamento” vs “Plano de tratamento”</b>.</div>
+    <div class="m"><b>4. Modelo de orçamento</b> — orçamentos-modelo reutilizáveis (montam a venda de uma vez).</div>
+    <div class="m"><b>5. Modelo de demonstrativo</b> — recibo personalizável A4/A5/<b>Bobina</b> (impressora térmica).</div>
+    <div class="m"><b>6. Consulta vendas como gestão</b> — editar/baixar/adicionar venda + abas Resumo / Totais por produto (hoje é só relatório).</div>
+    <div class="m"><b>7. Baixa de estoque automática</b> ao vender produto (hoje não baixa).</div>
+    <div class="m"><b>8. Relatórios ricos</b> — Recebimentos analítico (em aberto/adiantamento), Minhas vendas com gráficos, Ranking ABC.</div>
+  </div>
+
+  <h2>🗺️ Plano de construção (revisado com o que vimos)</h2>
+  <div class="box fase"><h3>Fase 1 — Comanda + ligar tudo ao Caixa (o coração)</h3>
+    <ul>
+      <li>Conceito de <b>comanda aberta</b> (venda “em atendimento”) + área “Clientes em atendimento”.</li>
+      <li>Atendimento clínico, internação e PDV lançam na <b>mesma comanda do cliente/dia</b> (unificar).</li>
+      <li>Baixa (recebimento) no caixa + <b>baixa de estoque</b> automática. Consulta vendas vira gestão.</li>
+    </ul>
+  </div>
+  <div class="box fase"><h3>Fase 2 — Configuração &amp; catálogos que faltam</h3>
+    <ul>
+      <li><b>Formas de recebimento</b> configuráveis (com taxa/prazo/conta).</li>
+      <li><b>Configuração de Vendas</b> (as regras de negócio acima).</li>
+      <li><b>Modelo de orçamento</b> (templates) + <b>Modelo de demonstrativo</b> (recibo A4/A5/Bobina).</li>
+    </ul>
+  </div>
+  <div class="box fase"><h3>Fase 3 — Relatórios &amp; inteligência</h3>
+    <ul>
+      <li>Recebimentos analítico · Minhas vendas com gráficos/por grupo · <b>Ranking ABC</b> · Totais por produto.</li>
+    </ul>
+  </div>
+  <div class="box"><h3>🔭 Futuro — Financeiro completo + Fiscal</h3>
+    <p>No SimplesVet, <b>Comissionamento, Inteligência (BI), Financeiro (a pagar/receber/DRE) e Fiscal (NF-e)</b> são módulos <b>separados</b> do Vendas. Ficam pra depois, conectados ao caixa/vendas.</p>
+  </div>
+
+  <div class="note">Levantamento por navegação ao vivo no SimplesVet + análise do export de vendas · para construção do módulo Empório do Pet</div>
+</div>

@@ -1,0 +1,100 @@
+<style>
+:root{
+  --bg:#F6F2EA; --card:#fff; --line:#E8E2D6; --soft:#F0EBE0; --suave:#FBF9F4;
+  --ink:#1F2A2E; --ink2:#5C6B70; --mut:#8A989D; --navy:#014D5E; --teal:#009AAC; --agua:#E0F4F6;
+}
+*{box-sizing:border-box}
+.wrap{max-width:900px;margin:0 auto;padding:12px 6px 48px;font-family:"Segoe UI",system-ui,-apple-system,sans-serif;color:var(--ink);font-size:14px;line-height:1.45}
+h1{font-size:20px;font-weight:500;color:var(--navy);margin:0 0 2px}
+.sub{font-size:12.5px;color:var(--mut);margin-bottom:14px}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.in{border:1px solid var(--line);border-radius:9px;padding:7px 10px;font-size:13px;background:#fff}
+.btn{border:1px solid var(--line);background:#fff;color:var(--ink2);border-radius:9px;padding:8px 12px;font-size:12.5px;cursor:pointer;font-weight:500}
+.btn.pri{background:var(--teal);border-color:var(--teal);color:#fff}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.kpi .l{font-size:10.5px;color:var(--mut);text-transform:uppercase;letter-spacing:.3px}
+.kpi .v{font-size:22px;font-weight:500;color:var(--navy);margin-top:3px;font-variant-numeric:tabular-nums}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:14px}
+.ch{padding:11px 15px;border-bottom:1px solid var(--soft);font-size:13px;font-weight:500;color:var(--navy)}
+.cb{padding:14px 16px}
+.chart{display:flex;align-items:flex-end;gap:6px;height:130px}
+.chart .col{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px}
+.chart .b{width:100%;max-width:26px;background:var(--teal);border-radius:5px 5px 0 0}
+.chart .x{font-size:9.5px;color:var(--mut)}
+.hbar{display:flex;align-items:center;gap:10px;margin-bottom:9px}
+.hbar .nm{width:150px;font-size:12.5px;color:var(--ink2);flex-shrink:0;text-align:right}
+.hbar .track{flex:1;background:var(--soft);border-radius:999px;height:16px;overflow:hidden}
+.hbar .fill{height:100%;background:var(--teal);border-radius:999px}
+.hbar .val{width:88px;text-align:right;font-size:12px;font-weight:500;color:var(--navy);font-variant-numeric:tabular-nums;flex-shrink:0}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:680px){.cols{grid-template-columns:1fr}}
+table{width:100%;border-collapse:collapse;font-size:13px}
+td{padding:8px 14px;border-bottom:1px solid var(--soft)}
+tr:last-child td{border-bottom:0}
+td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:500;color:var(--navy)}
+.mk{width:150px}.mk.e .fill{background:#009AAC}.mk.m .fill{background:#639922}.mk.v .fill{background:#7F77DD}
+.note{font-size:11px;color:var(--mut);text-align:center;margin-top:18px}
+</style>
+<div class="wrap">
+  <h1>📊 Vendas — gráficos</h1>
+  <div class="sub">Como as vendas evoluem e de onde vêm (grupo, marca, top itens). Valores ocultáveis pelo 👁️.</div>
+
+  <div class="bar">
+    <input class="in" type="date" value="2026-06-01"><span style="color:var(--mut)">a</span><input class="in" type="date" value="2026-06-30">
+    <button class="btn pri">🔍 Consultar</button>
+    <button class="btn" style="margin-left:auto">👁️ Mostrar valores</button>
+  </div>
+
+  <div class="kpis">
+    <div class="kpi"><div class="l">💰 Total vendido</div><div class="v">R$ 84.320</div></div>
+    <div class="kpi"><div class="l">🧾 Nº de vendas</div><div class="v">312</div></div>
+    <div class="kpi"><div class="l">🎯 Ticket médio</div><div class="v">R$ 270</div></div>
+  </div>
+
+  <div class="card">
+    <div class="ch">📈 Evolução no período</div>
+    <div class="cb"><div class="chart">
+      <div class="col"><div class="b" style="height:40%"></div><div class="x">01–05</div></div>
+      <div class="col"><div class="b" style="height:62%"></div><div class="x">06–10</div></div>
+      <div class="col"><div class="b" style="height:48%"></div><div class="x">11–15</div></div>
+      <div class="col"><div class="b" style="height:80%"></div><div class="x">16–20</div></div>
+      <div class="col"><div class="b" style="height:95%"></div><div class="x">21–25</div></div>
+      <div class="col"><div class="b" style="height:70%"></div><div class="x">26–30</div></div>
+    </div></div>
+  </div>
+
+  <div class="cols">
+    <div class="card">
+      <div class="ch">🗂️ Vendas por grupo</div>
+      <div class="cb">
+        <div class="hbar"><span class="nm">Consultas</span><div class="track"><div class="fill" style="width:100%"></div></div><span class="val">R$ 24.100</span></div>
+        <div class="hbar"><span class="nm">Cirurgias</span><div class="track"><div class="fill" style="width:78%"></div></div><span class="val">R$ 18.800</span></div>
+        <div class="hbar"><span class="nm">Vacinas</span><div class="track"><div class="fill" style="width:52%"></div></div><span class="val">R$ 12.540</span></div>
+        <div class="hbar"><span class="nm">Fisioterapia</span><div class="track"><div class="fill" style="width:44%"></div></div><span class="val">R$ 10.620</span></div>
+        <div class="hbar"><span class="nm">Banho e Tosa</span><div class="track"><div class="fill" style="width:36%"></div></div><span class="val">R$ 8.700</span></div>
+        <div class="hbar" style="margin-bottom:0"><span class="nm">Exames</span><div class="track"><div class="fill" style="width:38%"></div></div><span class="val">R$ 9.560</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="ch">🏥 Vendas por marca</div>
+      <div class="cb">
+        <div class="hbar"><span class="nm mk e">🏥 Empório</span><div class="track"><div class="fill" style="width:100%"></div></div><span class="val">R$ 58.900</span></div>
+        <div class="hbar"><span class="nm mk m">🌿 Mundo à Parte</span><div class="track"><div class="fill" style="width:32%"></div></div><span class="val">R$ 18.700</span></div>
+        <div class="hbar" style="margin-bottom:0"><span class="nm mk v">✨ Dra. Vivian</span><div class="track"><div class="fill" style="width:11%"></div></div><span class="val">R$ 6.720</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ch">🏆 Top serviços / produtos</div>
+    <table><tbody>
+      <tr><td>Consulta clínica</td><td class="r">R$ 14.400</td></tr>
+      <tr><td>Castração felina</td><td class="r">R$ 9.100</td></tr>
+      <tr><td>Vacina V10</td><td class="r">R$ 6.800</td></tr>
+      <tr><td>Sessão de fisioterapia</td><td class="r">R$ 5.940</td></tr>
+    </tbody></table>
+  </div>
+
+  <div class="note">Mockup · Gráficos de vendas · padrão Base44 · dados de exemplo</div>
+</div>

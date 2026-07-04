@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Mockup: Painel com 2 abas (Caixa + Contexto) — paleta Empório</title>
+<style>
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Inter,sans-serif;margin:0;padding:24px;background:#F5F2EC;color:#014D5E}
+  h1{font-size:20px;font-weight:600;margin:0 0 4px}
+  h2{font-size:15px;font-weight:600;color:#014D5E;margin:24px 0 8px;display:flex;align-items:center;gap:8px}
+  .sub{font-size:13px;color:#5F5E5A;margin:0 0 18px;max-width:900px;line-height:1.5}
+  .desc{font-size:12.5px;color:#5F5E5A;margin:0 0 12px;line-height:1.5}
+  .pill-h{font-size:10px;font-weight:700;padding:3px 8px;border-radius:5px;text-transform:uppercase;background:#dcfce7;color:#15803d}
+
+  .grid2{display:grid;grid-template-columns:1fr 320px;gap:18px;margin-bottom:14px}
+  .frame{background:white;border-radius:10px;border:1px solid #E8DFC8;overflow:hidden;height:720px}
+  .left-frame{display:flex;align-items:center;justify-content:center;font-size:13px;color:#94a3b8;background:linear-gradient(180deg,#f5f5f5,#fafafa);flex-direction:column;gap:8px}
+  .left-frame .tag{padding:3px 9px;border-radius:12px;color:white;font-size:10.5px;font-weight:600;background:#009AAC}
+  .panel{display:flex;flex-direction:column;min-height:0;overflow:hidden;height:100%;background:white}
+
+  /* ============ ABAS NO TOPO ============ */
+  .tabs{display:flex;border-bottom:1px solid #E8DFC8;flex-shrink:0;background:#FAFAF7}
+  .tab{flex:1;padding:11px 8px;font-size:11.5px;font-weight:600;color:#5F5E5A;text-align:center;border-bottom:2px solid transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:all 0.1s}
+  .tab:hover{color:#014D5E;background:white}
+  .tab.active{color:#014D5E;border-bottom-color:#009AAC;background:white}
+  .tab-badge{background:#009AAC;color:white;font-size:9px;padding:1px 6px;border-radius:8px;font-weight:700;min-width:18px;text-align:center}
+  .tab.active .tab-badge{background:#009AAC}
+  .tab:not(.active) .tab-badge{background:#E8DFC8;color:#5F5E5A}
+
+  /* ============ HEADER de ações (Encaminhar/Resolver) ============ */
+  .ctx-actions{padding:8px 12px;border-bottom:1px solid #E8DFC8;flex-shrink:0;display:flex;justify-content:flex-end;gap:6px;background:white}
+  .btn-fwd{background:white;color:#014D5E;border:1px solid #E8DFC8;padding:4px 9px;border-radius:5px;font-size:10.5px;font-weight:600;cursor:pointer}
+  .btn-rsv{background:#009AAC;color:white;border:none;padding:4px 11px;border-radius:5px;font-size:10.5px;font-weight:600;cursor:pointer}
+  .btn-x{background:none;border:none;color:#94a3b8;font-size:13px;padding:2px 4px;cursor:pointer}
+
+  /* BUSCA */
+  .search{padding:8px 12px;border-bottom:1px solid #E8DFC8;flex-shrink:0}
+  .search input{width:100%;padding:6px 10px 6px 28px;border:1px solid #E8DFC8;border-radius:7px;font-size:12px;background:white url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.2'><circle cx='11' cy='11' r='7'/><line x1='21' y1='21' x2='16.5' y2='16.5'/></svg>") no-repeat 8px center}
+
+  .content{flex:1;overflow-y:auto;min-height:0}
+  .sec{padding:9px 12px;border-bottom:1px solid #E8DFC8}
+  .sec-lbl{font-size:10px;color:#888780;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between}
+  .num{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:#FEF3C7;color:#92611A;font-size:9px;font-weight:700;margin-right:5px;vertical-align:1px}
+
+  /* ============ CAIXA DE ENTRADA — cores paleta Empório ============ */
+  .ce-items{display:flex;flex-direction:column;gap:6px;padding:10px 10px 12px}
+  .ce-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;background:white;border:1px solid #E8DFC8;border-left:4px solid;cursor:pointer;transition:all 0.12s}
+  .ce-item:hover{transform:translateX(2px);box-shadow:0 1px 4px rgba(1,77,94,0.08)}
+  /* LEAD = ÂMBAR (cor da paleta para "atenção/triagem") */
+  .ce-item.is-lead{border-left-color:#92611A;background:#FFFBEB}
+  /* CLIENTE = TURQUESA (cor primária Empório) */
+  .ce-item.is-cliente{border-left-color:#009AAC;background:#F0FDFA}
+  .ce-icon{width:28px;height:28px;border-radius:50%;color:white;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .ce-item.is-lead .ce-icon{background:linear-gradient(135deg,#D97706,#92611A)}
+  .ce-item.is-cliente .ce-icon{background:linear-gradient(135deg,#009AAC,#014D5E)}
+  .ce-info{flex:1;min-width:0}
+  .ce-name{font-size:11.5px;font-weight:600;color:#014D5E;display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+  .ce-tag{font-size:8.5px;font-weight:700;padding:1px 5px;border-radius:3px;text-transform:uppercase}
+  .ce-item.is-lead .ce-tag{background:#FEF3C7;color:#92611A}
+  .ce-item.is-cliente .ce-tag{background:#CCFBF1;color:#0E7490}
+  .ce-bc{font-size:7.5px;background:#009AAC;color:white;padding:0 3px;border-radius:2px;font-weight:700}
+  .ce-meta{font-size:10px;color:#5F5E5A;line-height:1.3;margin-top:1px}
+  .ce-time{font-size:9px;color:#94a3b8;text-align:right;flex-shrink:0}
+
+  /* ============ Toggle Lead/Cliente ============ */
+  .role-toggle{display:inline-flex;background:#FAFAF7;border-radius:14px;padding:1.5px;margin-left:6px;border:1px solid #E8DFC8}
+  .role-toggle button{background:none;border:none;padding:2px 8px;font-size:9px;font-weight:700;color:#5F5E5A;cursor:pointer;border-radius:11px;text-transform:uppercase}
+  .role-toggle button.active.lead{background:#FEF3C7;color:#92611A}
+  .role-toggle button.active.cliente{background:#CCFBF1;color:#0E7490}
+
+  /* Pet inputs no Lead */
+  .pet-input-row{display:flex;gap:6px;align-items:center;margin-top:6px}
+  .pet-input{flex:1;padding:5px 8px;border:1px solid #E8DFC8;border-radius:5px;font-size:11px;background:white}
+  .pet-select{padding:5px 6px;border:1px solid #E8DFC8;border-radius:5px;font-size:11px;background:white;color:#014D5E;width:62px}
+  .servico-input{margin-top:5px;width:100%;padding:5px 8px;border:1px solid #E8DFC8;border-radius:5px;font-size:11px;background:white}
+
+  .avatar{width:30px;height:30px;border-radius:50%;color:white;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0}
+  .av-lead{background:linear-gradient(135deg,#D97706,#92611A)}
+  .av-cliente{background:linear-gradient(135deg,#009AAC,#014D5E)}
+  .tutor-name{font-size:12.5px;color:#014D5E;font-weight:600}
+  .tutor-meta{font-size:10.5px;color:#5F5E5A}
+
+  .pills{display:flex;flex-wrap:wrap;gap:3px;margin-top:6px}
+  .pill{font-size:9.5px;padding:2px 7px;border-radius:10px;font-weight:500;background:#FAFAF7;color:#5F5E5A;border:1px solid #E8DFC8}
+  .pill.on{background:#009AAC;color:white;font-weight:600;border-color:#009AAC}
+
+  .legend{background:white;border:1px solid #E8DFC8;border-radius:8px;padding:14px;margin-top:14px;font-size:12.5px;color:#475569;line-height:1.65}
+  .legend strong{color:#014D5E}
+  .legend ul{margin:6px 0 0 18px;padding:0}
+  .legend li{margin:3px 0}
+  .yellow{background:#FFFBEB;border-color:#FDE68A}
+</style>
+</head>
+<body>
+
+<h1>Painel direito — 2 abas + cores Empório</h1>
+<p class="sub">2 visualizações lado a lado: <strong>Aba 1 (esquerda)</strong> mostra a Caixa de Entrada com os novos contatos. <strong>Aba 2 (direita)</strong> mostra o Contexto que abre quando você clica num contato.</p>
+
+<!-- ============ DOIS ESTADOS LADO A LADO ============ -->
+<div class="grid2">
+  <!-- ESTADO 1: Aba "Caixa de Entrada" ativa -->
+  <div>
+    <h2 style="margin-top:0"><span class="pill-h">Estado 1</span> Aba "Caixa de Entrada" — padrão (ninguém clicado)</h2>
+    <div class="frame">
+      <aside class="panel">
+        <!-- ABAS -->
+        <div class="tabs">
+          <div class="tab active">📬 Caixa de entrada <span class="tab-badge">5</span></div>
+          <div class="tab">💬 Contexto</div>
+        </div>
+        <!-- HEADER de ações -->
+        <div class="ctx-actions">
+          <button class="btn-fwd">⤴ Encaminhar</button>
+          <button class="btn-rsv">✓ Resolver</button>
+        </div>
+        <!-- BUSCA -->
+        <div class="search">
+          <input value="" placeholder="Telefone, nome ou email...">
+        </div>
+        <!-- CAIXA -->
+        <div class="content">
+          <div class="ce-items">
+            <div class="ce-item is-lead">
+              <div class="ce-icon">MR</div>
+              <div class="ce-info">
+                <div class="ce-name">Marília Rodrigues <span class="ce-tag">Lead</span> <span class="ce-bc">BC</span></div>
+                <div class="ce-meta">55 (85) 99988-1234 · 🐾 Bento (cão) · banho e tosa</div>
+              </div>
+              <div class="ce-time">há 2min</div>
+            </div>
+            <div class="ce-item is-cliente">
+              <div class="ce-icon">CR</div>
+              <div class="ce-info">
+                <div class="ce-name">Cintia Renata <span class="ce-tag">Cliente</span> <span class="ce-bc">BC</span></div>
+                <div class="ce-meta">55 (85) 98601-8111 · 🐾 Lola · retorno consulta</div>
+              </div>
+              <div class="ce-time">há 8min</div>
+            </div>
+            <div class="ce-item is-lead">
+              <div class="ce-icon">JS</div>
+              <div class="ce-info">
+                <div class="ce-name">João Silva <span class="ce-tag">Lead</span> <span class="ce-bc">BC</span></div>
+                <div class="ce-meta">55 (85) 99777-3333 · 🐾 Toby (cão) · vacinação</div>
+              </div>
+              <div class="ce-time">há 14min</div>
+            </div>
+            <div class="ce-item is-cliente">
+              <div class="ce-icon">KA</div>
+              <div class="ce-info">
+                <div class="ce-name">Kalina <span class="ce-tag">Cliente</span> <span class="ce-bc">BC</span></div>
+                <div class="ce-meta">55 (85) 98702-4632 · 🐾 Duque · agendamento fisio</div>
+              </div>
+              <div class="ce-time">há 32min</div>
+            </div>
+            <div class="ce-item is-lead">
+              <div class="ce-icon">AS</div>
+              <div class="ce-info">
+                <div class="ce-name">Ana Souza <span class="ce-tag">Lead</span> <span class="ce-bc">BC</span></div>
+                <div class="ce-meta">55 (85) 99555-7777 · pediu valor de consulta</div>
+              </div>
+              <div class="ce-time">há 1h</div>
+            </div>
+            <div style="text-align:center;padding:10px;font-size:10.5px;color:#94a3b8;font-style:italic">
+              · · · 15 contatos restantes · · ·
+            </div>
+            <button style="background:white;border:1px solid #E8DFC8;color:#014D5E;padding:6px;border-radius:6px;font-size:10.5px;font-weight:600;cursor:pointer">ver mais</button>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- ESTADO 2: Aba "Contexto" ativa (após click num contato) -->
+  <div>
+    <h2 style="margin-top:0"><span class="pill-h">Estado 2</span> Aba "Contexto" — abre automaticamente ao clicar num contato</h2>
+    <div class="frame">
+      <aside class="panel">
+        <!-- ABAS -->
+        <div class="tabs">
+          <div class="tab">📬 Caixa de entrada <span class="tab-badge">4</span></div>
+          <div class="tab active">💬 Contexto</div>
+        </div>
+        <!-- HEADER de ações -->
+        <div class="ctx-actions">
+          <button class="btn-fwd">⤴ Encaminhar</button>
+          <button class="btn-rsv">✓ Resolver</button>
+          <button class="btn-x">✕</button>
+        </div>
+        <!-- BUSCA -->
+        <div class="search">
+          <input value="Marília Rodrigues" placeholder="Telefone, nome ou email...">
+        </div>
+        <div class="content">
+          <!-- BLOCO 1 (Resumo IA) - simplificado -->
+          <div class="sec">
+            <div class="sec-lbl"><span><span class="num">1</span>📝 Resumo IA</span></div>
+            <div style="background:linear-gradient(135deg,#f0fdfa,#e0f4f6);border:1px solid #99e9d8;border-radius:8px;padding:8px 10px;font-size:11px;color:#0c4a6e">Marília quer agendar banho e tosa pro Bento (cão). Primeira vez na clínica.</div>
+          </div>
+
+          <!-- BLOCO 2 LEAD com TOGGLE + PET + SERVIÇO -->
+          <div class="sec" style="background:#FFFBEB">
+            <div class="sec-lbl">
+              <span>
+                <span class="num">2</span>
+                Lead
+                <span class="role-toggle">
+                  <button class="active lead">Lead</button>
+                  <button>Cliente</button>
+                </span>
+              </span>
+              <span style="font-size:10.5px;color:#009AAC;font-weight:600">Ficha ↗</span>
+            </div>
+            <div style="display:flex;align-items:flex-start;gap:8px">
+              <div class="avatar av-lead">MR</div>
+              <div style="min-width:0;flex:1">
+                <div class="tutor-name">Marília Rodrigues</div>
+                <div class="tutor-meta">📞 55 (85) 99988-1234 · via BotConversa · há 2min</div>
+              </div>
+            </div>
+            <div style="font-size:9.5px;color:#94a3b8;font-weight:700;margin-top:8px;margin-bottom:3px;text-transform:uppercase">Pipeline comercial</div>
+            <div class="pills">
+              <span class="pill on">Triagem</span>
+              <span class="pill">Lead novo</span>
+              <span class="pill">Qualificação</span>
+              <span class="pill">Orçamento</span>
+            </div>
+            <div style="font-size:9.5px;color:#92611A;font-weight:700;margin-top:10px;margin-bottom:3px;text-transform:uppercase">🐾 Pet de interesse</div>
+            <div class="pet-input-row">
+              <input class="pet-input" value="Bento" placeholder="Nome do pet">
+              <select class="pet-select"><option>Cão</option><option>Gato</option></select>
+            </div>
+            <input class="servico-input" value="Banho e tosa" placeholder="Serviço desejado">
+            <button style="margin-top:8px;width:100%;padding:6px;background:white;border:1px solid #009AAC;color:#009AAC;border-radius:6px;font-size:10.5px;font-weight:600;cursor:pointer">⇪ Converter em cliente</button>
+          </div>
+          <div class="sec" style="background:#FAFAF7;color:#94a3b8;text-align:center;font-size:10.5px;font-style:italic;padding:14px 12px">
+            ... blocos 3 a 6 (Pets, Pipelines, Registrar Interação, Histórico) seguem normais ...
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</div>
+
+<!-- ============ LEGENDA ============ -->
+<div class="legend">
+  <strong>Como funciona — 2 abas:</strong>
+  <ul>
+    <li><strong>Aba "Caixa de entrada"</strong> (padrão quando ninguém está em foco): lista todos os contatos não-resolvidos chegando pelo BotConversa. Lead com borda âmbar (cor da paleta), Cliente com borda turquesa.</li>
+    <li><strong>Click num contato</strong> → abre aba "Contexto" automaticamente com a ficha completa pra editar/conversar.</li>
+    <li><strong>Click em "✓ Resolver"</strong> ou agenda Follow-Up → contato sai da Caixa, volta pra /leads ou /tutores (lista geral).</li>
+    <li><strong>Click na aba "Caixa de entrada"</strong> de volta → fecha o Contexto e volta pra lista (pra você escolher outro).</li>
+    <li><strong>Memória persistente:</strong> só some quando Resolver ou virar Follow-Up.</li>
+  </ul>
+
+  <strong>Cores da paleta Empório:</strong>
+  <ul>
+    <li><strong>Lead</strong> = âmbar #92611A (fundo #FFFBEB) — cor de "atenção/triagem", consistente com o bloco 2 Lead atual</li>
+    <li><strong>Cliente</strong> = turquesa #009AAC (fundo #F0FDFA) — cor primária Empório, consistente com o bloco 2 Cliente atual</li>
+    <li><strong>Sem vermelho</strong>: substituí o "vermelho/azul" do mockup anterior pelos âmbar/turquesa pra manter visual coerente com o resto do CRM</li>
+  </ul>
+
+  <strong>Pré-classificação Lead/Cliente:</strong>
+  <ul>
+    <li>1ª prioridade: <strong>etiqueta</strong> que o BotConversa envia no webhook (<code>tipo_contato: Lead</code> ou <code>Cliente</code>)</li>
+    <li>2ª prioridade (fallback): busca o telefone no banco — se acha Tutor cadastrado = Cliente, senão = Lead</li>
+  </ul>
+</div>
+
+<div class="legend yellow">
+  <strong>👉 Aprova o visual? Responde "aprovado" + ajustes (se houver) e eu codo:</strong>
+  <ul>
+    <li>Cores OK (âmbar Lead / turquesa Cliente)?</li>
+    <li>Posição das abas no topo, antes do header de ações?</li>
+    <li>Limite 20 + "ver mais" pra rolagem leve?</li>
+    <li>Mais alguma coisa pra adicionar/tirar?</li>
+  </ul>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,109 @@
+<style>
+:root{
+  --bg:#F6F2EA; --card:#fff; --line:#E8E2D6; --soft:#F0EBE0; --suave:#FBF9F4;
+  --ink:#1F2A2E; --ink2:#5C6B70; --mut:#8A989D; --navy:#014D5E; --teal:#009AAC; --agua:#E0F4F6;
+  --fat-b:#E0F4F6; --fat-i:#00707E;
+  --ins-b:#F0EBE0; --ins-i:#8A7B63;
+  --cau-b:#EDE9FA; --cau-i:#5a3b9b;
+  --ok-i:#0F6E56;
+}
+*{box-sizing:border-box}
+.wrap{max-width:860px;margin:0 auto;padding:10px 4px 48px;font-family:"Segoe UI",system-ui,-apple-system,sans-serif;color:var(--ink);font-size:14px;line-height:1.45}
+.crumb{font-size:12px;color:var(--mut);margin-bottom:4px}
+.crumb b{color:var(--teal);font-weight:500}
+h1{font-size:20px;font-weight:500;color:var(--navy);margin:0 0 2px;letter-spacing:-.2px}
+.sub{font-size:12.5px;color:var(--mut);margin-bottom:18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;margin-bottom:16px;overflow:hidden}
+.ch{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 16px;border-bottom:1px solid var(--soft);flex-wrap:wrap}
+.ch h3{font-size:14px;font-weight:500;color:var(--navy);margin:0;display:flex;align-items:center;gap:8px}
+.btn{border:1px solid var(--line);background:#fff;color:var(--ink2);border-radius:9px;padding:7px 12px;font-size:12.5px;cursor:pointer;font-weight:500}
+.btn:hover{border-color:var(--teal);color:var(--teal)}
+.btn.pri{background:var(--teal);border-color:var(--teal);color:#fff}
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--mut);font-weight:500;padding:9px 14px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:10px 14px;border-bottom:1px solid var(--soft);color:var(--ink);white-space:nowrap}
+td.r,th.r{text-align:right;font-variant-numeric:tabular-nums}
+tr:last-child td{border-bottom:0}
+.pill{font-size:10.5px;font-weight:500;padding:2px 9px;border-radius:999px;white-space:nowrap}
+.p-fat{background:var(--fat-b);color:var(--fat-i)}
+.p-ins{background:var(--ins-b);color:var(--ins-i)}
+.p-dia{background:#E8F1F8;color:#1f5a82}
+.acts{color:var(--mut);cursor:pointer;font-size:12.5px}
+.tot{padding:12px 16px;border-top:1px solid var(--soft);display:flex;flex-direction:column;gap:6px}
+.tot .row{display:flex;justify-content:space-between;font-size:13px;color:var(--ink2)}
+.tot .row .v{font-variant-numeric:tabular-nums;font-weight:500;color:var(--ink)}
+.tot .row.big{font-size:15px;color:var(--navy);border-top:1px solid var(--soft);padding-top:8px;margin-top:2px}
+.tot .row.big .v{color:var(--navy);font-weight:500}
+.tot .row.desc .v{color:var(--cau-i)}
+.cau{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;flex-wrap:wrap}
+.cau .saldo{font-size:22px;font-weight:500;color:var(--cau-i);font-variant-numeric:tabular-nums}
+.cau .k{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.3px}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px}
+.actions .btn{padding:10px 16px;font-size:13px}
+.hint{font-size:11px;color:var(--mut);padding:0 16px 14px}
+.note{font-size:11px;color:var(--mut);text-align:center;margin-top:18px}
+.scope{background:var(--suave);border:1px solid var(--line);border-radius:12px;padding:14px 16px;font-size:12.5px;color:var(--ink2);line-height:1.6;margin-bottom:16px}
+.scope b{color:var(--navy)} .scope .ok{color:var(--ok-i)} .scope .lt{color:var(--ins-i)}
+</style>
+<div class="wrap">
+  <div class="crumb">Internação / Box B-01 / <b>Financeiro</b></div>
+  <h1>🧾 Conta da internação — Thor</h1>
+  <div class="sub">Fatia 5 · como vai ficar na ficha do paciente internado · dados de exemplo</div>
+
+  <div class="scope">
+    <b>O que a F5 faz:</b> junta tudo o que o paciente consumiu numa conta, separando o que <span class="ok">cobra do tutor (faturável)</span> do que é <span class="lt">só insumo (baixa estoque, não cobra)</span>, aplica a <b>caução</b> (crédito do tutor) e permite <b>enviar pro Caixa</b> e mandar o <b>boletim financeiro</b> ao tutor.
+  </div>
+
+  <!-- CONTA -->
+  <div class="card">
+    <div class="ch">
+      <h3>🧾 Itens da conta</h3>
+      <button class="btn pri">➕ Adicionar item</button>
+    </div>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Item</th><th>Categoria</th><th class="r">Qtd</th><th class="r">Valor un.</th><th class="r">Total</th><th></th></tr></thead>
+        <tbody>
+          <tr><td>Diária internação (porte grande)</td><td><span class="pill p-dia">Diária · auto</span></td><td class="r">3</td><td class="r">320,00</td><td class="r">960,00</td><td></td></tr>
+          <tr><td>Esplenectomia</td><td><span class="pill p-fat">Procedimento</span></td><td class="r">1</td><td class="r">1.076,00</td><td class="r">1.076,00</td><td style="text-align:right"><span class="acts">✏️</span> <span class="acts">🗑️</span></td></tr>
+          <tr><td>Tramadol 50mg/ml — amp.</td><td><span class="pill p-fat">Medicamento</span></td><td class="r">6</td><td class="r">12,00</td><td class="r">72,00</td><td style="text-align:right"><span class="acts">✏️</span> <span class="acts">🗑️</span></td></tr>
+          <tr><td>Equipo + Ringer 500ml</td><td><span class="pill p-fat">Material</span></td><td class="r">4</td><td class="r">22,00</td><td class="r">88,00</td><td style="text-align:right"><span class="acts">✏️</span> <span class="acts">🗑️</span></td></tr>
+          <tr style="opacity:.7"><td>Catéter 22G</td><td><span class="pill p-ins">Insumo · só estoque</span></td><td class="r">2</td><td class="r">—</td><td class="r">—</td><td style="text-align:right"><span class="acts">✏️</span> <span class="acts">🗑️</span></td></tr>
+          <tr style="opacity:.7"><td>Seringa 10ml</td><td><span class="pill p-ins">Insumo · só estoque</span></td><td class="r">8</td><td class="r">—</td><td class="r">—</td><td style="text-align:right"><span class="acts">✏️</span> <span class="acts">🗑️</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="tot">
+      <div class="row"><span>Total faturável</span><span class="v">R$ 2.196,00</span></div>
+      <div class="row desc"><span>Caução aplicada</span><span class="v">− R$ 500,00</span></div>
+      <div class="row big"><span>Saldo a pagar</span><span class="v">R$ 1.696,00</span></div>
+    </div>
+    <div class="hint">Diárias entram automaticamente (dias × valor/dia). Insumos “só estoque” não somam na conta — apenas baixam do estoque.</div>
+  </div>
+
+  <!-- CAUÇÃO -->
+  <div class="card">
+    <div class="ch"><h3>💳 Caução (crédito do tutor)</h3><button class="btn">➕ Adicionar caução</button></div>
+    <div class="cau">
+      <div><div class="k">Saldo disponível de Maria Souza</div><div class="saldo">R$ 500,00</div></div>
+      <button class="btn pri">Aplicar à conta</button>
+    </div>
+    <div class="hint">O tutor deposita uma caução no início; ela abate do saldo ao fechar a conta.</div>
+  </div>
+
+  <!-- AÇÕES -->
+  <div class="card">
+    <div class="ch"><h3>📤 Fechamento</h3></div>
+    <div style="padding:14px 16px">
+      <div class="actions">
+        <button class="btn pri">📤 Enviar pro Caixa</button>
+        <button class="btn">🧾 Boletim financeiro (WhatsApp)</button>
+        <button class="btn">🖨️ Imprimir conta</button>
+      </div>
+      <div class="hint" style="padding:10px 0 0">“Enviar pro Caixa” cria a venda (a receber) com os itens faturáveis. O boletim manda ao tutor o resumo: despesas, caução e saldo.</div>
+    </div>
+  </div>
+
+  <div class="note">Mockup da Fatia 5 · padrão Base44 · dados de exemplo · toda ação vira botão real</div>
+</div>

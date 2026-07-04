@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inbox · Box de atendimento v5</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.5.0/dist/tabler-icons.min.css">
+<style>
+  body{margin:0;background:#F4F2EC;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;display:flex;justify-content:center;padding:24px;color:#0E2244;}
+  button{font-family:inherit;cursor:pointer;}
+  .card{width:380px;background:#fff;border:1px solid #ECE9E1;border-radius:16px;overflow:hidden;font-size:13px;}
+  .sec{padding:0 14px 14px;}
+  .lbl{font-size:10px;color:#9aa0a8;text-transform:uppercase;letter-spacing:.06em;}
+  .panel{border:1px solid #ECE9E1;border-radius:12px;padding:12px;}
+  .pet.sel{border-color:#009AAC !important;background:#E1F2F4 !important;color:#0E5560;font-weight:500;}
+  .slot.sel{background:#E1F2F4 !important;border-color:#009AAC !important;color:#0E5560;font-weight:500;}
+  .day.sel{background:#009AAC !important;color:#fff !important;}
+  .actbtn{background:#fff;border:1px solid #E3E0D7;border-radius:11px;padding:10px 6px;font-size:11px;color:#0E2244;display:flex;flex-direction:column;align-items:center;gap:5px;}
+  .actbtn.on{border-color:#009AAC;background:#E1F2F4;color:#0E5560;font-weight:500;}
+  .actbtn i{font-size:18px;color:#0E5560;}
+  .inline{border:1px solid #D6E9EC;background:#FAFEFE;border-radius:12px;padding:13px;margin-top:9px;}
+  .fld{margin-bottom:11px;} .fld:last-child{margin-bottom:0;}
+  .fld label{display:block;font-size:11px;color:#8A9099;margin-bottom:5px;}
+  .ctrl{width:100%;border:1px solid #E3E0D7;border-radius:10px;padding:9px 11px;font-size:13px;color:#0E2244;background:#fff;display:block;box-sizing:border-box;}
+  .ctrl.mut{color:#9aa0a8;display:flex;align-items:center;gap:7px;} textarea.ctrl{font-family:inherit;resize:vertical;min-height:46px;}
+  .btnP{width:100%;background:#009AAC;color:#fff;border:none;border-radius:10px;padding:10px;font-size:12.5px;font-weight:500;}
+  .btnG{width:100%;background:#fff;border:1px solid #E3E0D7;color:#0E2244;border-radius:10px;padding:10px;font-size:12.5px;}
+  .grp{font-size:11px;color:#0E5560;font-weight:500;margin:4px 0 8px;display:flex;align-items:center;gap:6px;}
+  .sw{width:36px;height:21px;border-radius:999px;background:#D9D5CB;position:relative;flex-shrink:0;transition:.15s;}
+  .sw.on{background:#009AAC;}.sw::after{content:"";position:absolute;width:17px;height:17px;border-radius:50%;background:#fff;top:2px;left:2px;transition:.15s;box-shadow:0 1px 2px rgba(0,0,0,.2);}.sw.on::after{left:17px;}
+  .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;text-align:center;}
+  .dow{font-size:10px;color:#9aa0a8;padding:2px 0;}
+  .day{padding:6px 0;border-radius:8px;font-size:12px;background:none;border:none;color:#0E2244;} .day:hover{background:#EAF7F8;}
+  .slot{border:1px solid #E3E0D7;border-radius:8px;padding:7px;font-size:11.5px;text-align:center;background:#fff;} .slot:hover{border-color:#009AAC;}
+  .badge{font-size:10px;padding:2px 8px;border-radius:8px;}
+  /* score vertical minimalista */
+  .vbars{display:flex; gap:16px; align-items:flex-end;}
+  .vbar{display:flex; flex-direction:column; align-items:center; gap:6px;}
+  .vbar .track{width:6px; height:42px; background:#EEEBE3; border-radius:4px; position:relative; overflow:hidden;}
+  .vbar .track > span{position:absolute; bottom:0; left:0; width:100%; background:#009AAC; border-radius:4px;}
+  .vbar .vn{font-size:9px; color:#9aa0a8;} .vbar .vv{font-size:10px; color:#0E5560; font-weight:500;}
+  .penmini{font-size:13px; color:#b9bdc4; margin-left:2px;}
+</style>
+</head><body>
+<div class="card">
+
+  <!-- HEADER -->
+  <div style="padding:16px 16px 14px;">
+    <div style="display:flex; align-items:center; gap:6px; margin-bottom:12px;">
+      <i class="ti ti-building-store" style="font-size:15px; color:#009AAC"></i>
+      <span style="font-size:11px; color:#0E5560; font-weight:500;">Empório do Pet</span>
+      <span style="margin-left:auto; font-size:11px; color:#9aa0a8; display:flex; align-items:center; gap:3px;">Unidade <i class="ti ti-chevron-down" style="font-size:13px"></i></span>
+    </div>
+    <div style="display:flex; align-items:center; gap:11px;">
+      <div style="width:44px; height:44px; border-radius:50%; background:#F0F7F8; color:#0E5560; display:flex; align-items:center; justify-content:center; font-size:17px; font-weight:500;">J</div>
+      <div style="flex:1; min-width:0;">
+        <div onclick="toggleFicha()" style="font-size:16px; font-weight:500; display:flex; align-items:center; gap:6px; cursor:pointer;">José Marques <i class="ti ti-pencil penmini"></i></div>
+        <div style="font-size:12px; color:#8A9099; margin-top:2px; display:flex; align-items:center; gap:5px;"><i class="ti ti-brand-whatsapp" style="font-size:14px; color:#0F9D58"></i> (85) 99806-7466 · há 2d</div>
+      </div>
+      <span class="badge" style="background:#E1F2F4; color:#0E5560;">Cliente</span>
+    </div>
+
+    <!-- FICHA COMPLETA DO TUTOR -->
+    <div id="ficha" style="display:none;" class="inline">
+      <div class="grp"><i class="ti ti-user"></i> Dados pessoais</div>
+      <div class="fld"><label>Nome completo</label><input class="ctrl" value="José Marques da Silva"></div>
+      <div style="display:flex; gap:8px;"><div class="fld" style="flex:1;"><label>CPF</label><input class="ctrl" value="000.000.000-00"></div><div class="fld" style="flex:1;"><label>Nascimento</label><input class="ctrl" value="12/03/1985"></div></div>
+      <div style="display:flex; gap:8px;"><div class="fld" style="flex:1;"><label>WhatsApp</label><input class="ctrl" value="(85) 99806-7466"></div><div class="fld" style="flex:1;"><label>Telefone 2</label><input class="ctrl" placeholder="—"></div></div>
+      <div class="fld"><label>E-mail</label><input class="ctrl" value="jose.marques@email.com"></div>
+      <div class="grp" style="margin-top:10px;"><i class="ti ti-map-pin"></i> Endereço</div>
+      <div style="display:flex; gap:8px;"><div class="fld" style="flex:1;"><label>CEP</label><input class="ctrl" value="60000-000"></div><div class="fld" style="flex:2;"><label>Rua</label><input class="ctrl" value="Av. Exemplo"></div></div>
+      <div style="display:flex; gap:8px;"><div class="fld" style="width:80px;"><label>Nº</label><input class="ctrl" value="123"></div><div class="fld" style="flex:1;"><label>Bairro</label><input class="ctrl" value="Aldeota"></div></div>
+      <div style="display:flex; gap:8px;"><div class="fld" style="flex:2;"><label>Cidade</label><input class="ctrl" value="Fortaleza"></div><div class="fld" style="width:70px;"><label>UF</label><input class="ctrl" value="CE"></div></div>
+      <div class="grp" style="margin-top:10px;"><i class="ti ti-dots"></i> Outros</div>
+      <div class="fld"><label>Observações</label><textarea class="ctrl" placeholder="Observações do cliente…"></textarea></div>
+      <div style="display:flex; gap:8px; margin-top:4px;"><button class="btnP" onclick="toggleFicha()">Salvar ficha</button><button class="btnG" onclick="toggleFicha()">Cancelar</button></div>
+    </div>
+  </div>
+
+  <!-- SCORE (delicado, barras verticais) -->
+  <div class="sec">
+    <div class="panel">
+      <div class="lbl" style="margin-bottom:10px;">Score do cliente</div>
+      <div style="display:flex; align-items:center; gap:16px;">
+        <svg width="58" height="58" viewBox="0 0 64 64" style="flex-shrink:0;">
+          <circle cx="32" cy="32" r="27" fill="none" stroke="#EEEBE3" stroke-width="6"/>
+          <circle cx="32" cy="32" r="27" fill="none" stroke="#009AAC" stroke-width="6" stroke-linecap="round" stroke-dasharray="169.6" stroke-dashoffset="47.5" transform="rotate(-90 32 32)"/>
+          <text x="32" y="37" text-anchor="middle" font-size="17" font-weight="600" fill="#0E2244">72</text>
+        </svg>
+        <div style="flex:1;">
+          <div style="display:flex; align-items:center; gap:6px; font-size:14px; font-weight:500; color:#0E5560; margin-bottom:9px;"><i class="ti ti-star-filled" style="color:#E6A700; font-size:15px"></i> Cliente ativo</div>
+          <div class="vbars">
+            <div class="vbar"><div class="track"><span style="height:73%"></span></div><span class="vn">Visitas</span><span class="vv">22</span></div>
+            <div class="vbar"><div class="track"><span style="height:80%"></span></div><span class="vn">LTV</span><span class="vv">24</span></div>
+            <div class="vbar"><div class="track"><span style="height:72%"></span></div><span class="vn">Recência</span><span class="vv">18</span></div>
+            <div class="vbar"><div class="track"><span style="height:53%"></span></div><span class="vn">NPS</span><span class="vv">8</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AVALIAÇÃO GOOGLE -->
+  <div class="sec">
+    <div class="panel" id="googleCard">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <i class="ti ti-brand-google" style="font-size:18px; color:#E6A700"></i>
+        <div style="font-size:12.5px; font-weight:500;">Avaliação Google</div>
+        <button id="gBtn" onclick="toggleGoogle()" class="badge" style="margin-left:auto; background:#009AAC; color:#fff; border:none;"><i class="ti ti-send" style="font-size:12px; vertical-align:-1px"></i> Solicitar</button>
+      </div>
+      <div id="gStatus" style="font-size:11.5px; color:#9aa0a8; margin-top:7px;">Nenhuma avaliação solicitada.</div>
+    </div>
+  </div>
+
+  <!-- PETS (cada um com lápis -> ficha; novo pet -> ficha em branco) -->
+  <div class="sec">
+    <div style="display:flex; align-items:center; margin:0 2px 8px;"><span class="lbl">Pets · 2 vinculados</span><span onclick="openPetFicha(null)" style="margin-left:auto; font-size:11px; color:#009AAC; cursor:pointer;"><i class="ti ti-plus" style="font-size:12px; vertical-align:-1px"></i> novo pet</span></div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+      <div class="pet sel" data-pet="Pretinha" onclick="selPet(this)" style="display:flex; align-items:center; gap:7px; background:#fff; border:1px solid #E3E0D7; border-radius:11px; padding:8px 10px 8px 12px; font-size:12.5px; color:#0E2244;"><i class="ti ti-cat" style="font-size:16px; color:#0E5560"></i> Pretinha <span style="color:#9aa0a8;">· Gato</span> <i class="ti ti-pencil penmini" onclick="event.stopPropagation(); openPetFicha('Pretinha')" style="cursor:pointer;"></i></div>
+      <div class="pet" data-pet="Thor" onclick="selPet(this)" style="display:flex; align-items:center; gap:7px; background:#fff; border:1px solid #E3E0D7; border-radius:11px; padding:8px 10px 8px 12px; font-size:12.5px; color:#0E2244;"><i class="ti ti-dog" style="font-size:16px; color:#0E5560"></i> Thor <span style="color:#9aa0a8;">· Cão</span> <i class="ti ti-pencil penmini" onclick="event.stopPropagation(); openPetFicha('Thor')" style="cursor:pointer;"></i></div>
+    </div>
+    <!-- FICHA COMPLETA DO PET -->
+    <div id="petFicha" style="display:none;" class="inline">
+      <div class="grp"><i class="ti ti-paw"></i> <span id="pfTitle">Ficha do pet</span></div>
+      <div class="fld"><label>Nome do pet</label><input class="ctrl" id="pfNome" value=""></div>
+      <div style="display:flex; gap:8px;"><div class="fld" style="flex:1;"><label>Espécie</label><div class="ctrl mut">Selecionar <i class="ti ti-chevron-down" style="margin-left:auto"></i></div></div><div class="fld" style="flex:1;"><label>Sexo</label><div class="ctrl mut">Selecionar <i class="ti ti-chevron-down" style="margin-left:auto"></i></div></div></div>
+      <div class="fld"><label>Raça</label><input class="ctrl" id="pfRaca" value=""></div>
+      <div style="display:flex; gap:8px;"><div class="fld" style="flex:1;"><label>Nascimento</label><input class="ctrl" placeholder="dd/mm/aaaa"></div><div class="fld" style="flex:1;"><label>Peso (kg)</label><input class="ctrl" id="pfPeso" value=""></div></div>
+      <div style="display:flex; gap:8px;"><div class="fld" style="flex:1;"><label>Pelagem/cor</label><input class="ctrl"></div><div class="fld" style="flex:1;"><label>Castrado</label><div class="ctrl mut">Selecionar <i class="ti ti-chevron-down" style="margin-left:auto"></i></div></div></div>
+      <div style="display:flex; gap:8px;"><div class="fld" style="flex:1;"><label>Microchip</label><input class="ctrl"></div><div class="fld" style="flex:1;"><label>Plano</label><div class="ctrl mut">Selecionar <i class="ti ti-chevron-down" style="margin-left:auto"></i></div></div></div>
+      <div class="fld"><label>Alergias / observações</label><textarea class="ctrl" placeholder="Observações clínicas…"></textarea></div>
+      <div style="display:flex; gap:8px; margin-top:4px;"><button class="btnP" onclick="closePetFicha()">Salvar pet</button><button class="btnG" onclick="closePetFicha()">Cancelar</button></div>
+    </div>
+  </div>
+
+  <!-- contexto do pet -->
+  <div style="margin:0 14px 10px; padding:6px 10px; background:#F2FAFB; border-radius:9px; font-size:11px; color:#0E5560; display:flex; align-items:center; gap:6px;">
+    <i class="ti ti-info-circle" style="font-size:14px"></i> Tudo abaixo é do pet: <b id="ctxPet" style="font-weight:600;">Pretinha</b>
+  </div>
+
+  <!-- VACINAS (só vencidas ou ≤7 dias) -->
+  <div class="sec">
+    <div class="lbl" style="margin:0 2px 8px;">Vacinas a resolver</div>
+    <div id="vacinas" style="display:flex; flex-direction:column; gap:7px;"></div>
+  </div>
+
+  <!-- FISIO (só sessões) -->
+  <div class="sec" id="fisioWrap" style="display:none;">
+    <div class="panel" style="padding:11px 12px;">
+      <div style="display:flex; align-items:center; gap:7px; font-size:12px; color:#0E5560; font-weight:500;"><i class="ti ti-activity" style="font-size:15px"></i> Pacote de fisioterapia <span id="fisioCount" style="margin-left:auto; color:#9aa0a8; font-weight:400;">4 de 8</span></div>
+      <div id="fisioPaws" style="display:flex; gap:6px; margin-top:9px; flex-wrap:wrap;"></div>
+      <div style="font-size:10.5px; color:#9aa0a8; margin-top:8px;">As sessões são lançadas pela Agenda e atualizam aqui automaticamente.</div>
+    </div>
+  </div>
+
+  <!-- PRÓXIMAS CONSULTAS (só futuras) -->
+  <div class="sec">
+    <div style="display:flex; align-items:center; margin:0 2px 8px;">
+      <span class="lbl">Próximas consultas de <span id="petName" style="color:#0E5560;">Pretinha</span></span>
+      <i class="ti ti-refresh" style="margin-left:auto; font-size:13px; color:#9aa0a8;"></i>
+    </div>
+    <div id="consultas" style="display:flex; flex-direction:column; gap:8px;"></div>
+  </div>
+
+  <!-- AÇÕES (8 botões, do pet selecionado, inline) -->
+  <div class="sec">
+    <div class="lbl" style="margin:0 2px 8px;">Ações · <span id="actPet" style="color:#0E5560;">Pretinha</span></div>
+    <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:8px;">
+      <button class="actbtn" data-act="agenda" onclick="act(this)"><i class="ti ti-calendar-plus"></i>Agenda</button>
+      <button class="actbtn" data-act="fu" onclick="act(this)"><i class="ti ti-calendar-clock"></i>Follow-up</button>
+      <button class="actbtn" data-act="inter" onclick="act(this)"><i class="ti ti-message-plus"></i>Interação</button>
+      <button class="actbtn" data-act="venda" onclick="act(this)"><i class="ti ti-cash-register"></i>Venda</button>
+      <button class="actbtn" data-act="seq" onclick="act(this)"><i class="ti ti-arrows-split-2"></i>Sequência</button>
+      <button class="actbtn" data-act="email" onclick="act(this)"><i class="ti ti-mail"></i>E-mail</button>
+      <button class="actbtn" data-act="enc" onclick="act(this)"><i class="ti ti-arrow-forward-up"></i>Encaminhar</button>
+      <button class="actbtn" data-act="exa" onclick="act(this)"><i class="ti ti-test-pipe"></i>Exames</button>
+    </div>
+    <div id="actPanel"></div>
+  </div>
+
+  <!-- RESUMO IA -->
+  <div class="sec">
+    <div class="panel" style="padding:0; overflow:hidden;">
+      <div style="display:flex; align-items:center; gap:7px; padding:10px 12px; background:#F2FAFB; color:#0E5560; font-size:12px; font-weight:500;"><i class="ti ti-sparkles" style="font-size:15px"></i> Resumo da conversa <span style="margin-left:auto; font-size:10px; color:#7aa6ad; font-weight:400;">IA · há 2d</span></div>
+      <div style="padding:10px 12px; color:#3a4654; font-size:12.5px; line-height:1.6;">Tutora confirmou retorno da Pretinha para reavaliação e perguntou sobre o pacote de fisioterapia do Thor.</div>
+    </div>
+  </div>
+
+  <!-- ÚLTIMAS 2 INTERAÇÕES -->
+  <div class="sec">
+    <div class="lbl" style="margin:0 2px 8px;">Últimas interações</div>
+    <div style="display:flex; flex-direction:column; gap:8px;">
+      <div style="display:flex; align-items:flex-start; gap:10px; border:1px solid #ECE9E1; border-radius:11px; padding:9px 11px;">
+        <i class="ti ti-brand-whatsapp" style="font-size:16px; color:#0F9D58; margin-top:1px"></i>
+        <div style="flex:1; min-width:0;"><div style="font-size:12.5px;">"Pode ser quinta de manhã?"</div><div style="font-size:11px; color:#9aa0a8;">WhatsApp · recebida</div></div>
+        <span style="font-size:11px; color:#9aa0a8;">há 2d</span>
+      </div>
+      <div style="display:flex; align-items:flex-start; gap:10px; border:1px solid #ECE9E1; border-radius:11px; padding:9px 11px;">
+        <i class="ti ti-note" style="font-size:16px; color:#0E5560; margin-top:1px"></i>
+        <div style="flex:1; min-width:0;"><div style="font-size:12.5px;">Nota: cliente prefere contato pela manhã.</div><div style="font-size:11px; color:#9aa0a8;">Ellen · recepção</div></div>
+        <span style="font-size:11px; color:#9aa0a8;">05/06</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  var DADOS = {
+    Pretinha:{
+      fisio:null,
+      raca:'SRD', peso:'4,2',
+      vacinas:[ {n:'Antirrábica', sub:'venceu 03/2026', st:'Vencida', cls:'bad'} ],
+      consultas:[ {ic:'ti-calendar-event', t:'Seg, 30/06 · 10h30–11h00', s:'Reavaliação · Dra. Vivian'} ]
+    },
+    Thor:{
+      fisio:{feitas:4,total:8},
+      raca:'Golden Retriever', peso:'28',
+      vacinas:[ {n:'Antirrábica', sub:'vence em 5 dias (29/06)', st:'A vencer', cls:'warn'}, {n:'Giárdia', sub:'venceu 04/2026', st:'Vencida', cls:'bad'} ],
+      consultas:[ {ic:'ti-activity', t:'Qua, 25/06 · 14h00–14h30', s:'Fisioterapia (sessão 5/8) · Isabela'} ]
+    }
+  };
+  var VCOL={warn:{bg:'#FCF1DD',fg:'#9a6b00'},bad:{bg:'#FBE6DF',fg:'#C2410C'}};
+
+  function renderVacinas(pet){
+    var box=document.getElementById('vacinas'); box.innerHTML='';
+    var list=DADOS[pet].vacinas;
+    if(!list.length){box.innerHTML='<div style="display:flex; align-items:center; gap:8px; font-size:12px; color:#0E5560;"><i class="ti ti-circle-check" style="font-size:16px"></i> Vacinas em dia.</div>';return;}
+    list.forEach(function(v){
+      var c=VCOL[v.cls], icon=v.cls==='bad'?'ti-alert-triangle':'ti-clock-exclamation';
+      box.insertAdjacentHTML('beforeend',
+        '<div style="display:flex; align-items:center; gap:10px; border:1px solid #ECE9E1; border-radius:11px; padding:9px 11px;">'
+        +'<i class="ti '+icon+'" style="font-size:17px; color:'+c.fg+'"></i>'
+        +'<div style="flex:1; min-width:0;"><div style="font-size:12.5px;">'+v.n+'</div><div style="font-size:11px; color:#9aa0a8;">'+v.sub+'</div></div>'
+        +'<span class="badge" style="background:'+c.bg+'; color:'+c.fg+';">'+v.st+'</span></div>');
+    });
+  }
+  function renderConsultas(pet){
+    var box=document.getElementById('consultas'); box.innerHTML='';
+    var list=DADOS[pet].consultas;
+    if(!list.length){box.innerHTML='<div style="font-size:12px; color:#9aa0a8;">Nenhuma consulta agendada.</div>';return;}
+    list.forEach(function(c){
+      box.insertAdjacentHTML('beforeend',
+        '<div style="display:flex; align-items:center; gap:10px; border:1px solid #ECE9E1; border-radius:11px; padding:9px 11px; background:#FAFEFE;">'
+        +'<i class="ti '+c.ic+'" style="font-size:17px; color:#0E5560"></i>'
+        +'<div style="flex:1; min-width:0;"><div style="font-size:12.5px; font-weight:500;">'+c.t+'</div><div style="font-size:11px; color:#9aa0a8;">'+c.s+'</div></div>'
+        +'<i class="ti ti-external-link" style="font-size:15px; color:#9aa0a8;"></i></div>');
+    });
+  }
+  function renderFisio(pet){
+    var f=DADOS[pet].fisio, wrap=document.getElementById('fisioWrap');
+    if(!f){wrap.style.display='none';return;}
+    wrap.style.display='block';
+    document.getElementById('fisioCount').textContent=f.feitas+' de '+f.total;
+    var paws=document.getElementById('fisioPaws'); paws.innerHTML='';
+    for(var i=1;i<=f.total;i++){var done=i<=f.feitas;paws.insertAdjacentHTML('beforeend','<i class="ti ti-paw-filled" style="font-size:16px; color:'+(done?'#009AAC':'#DfDcd3')+'"></i>');}
+  }
+  function selPet(el){
+    document.querySelectorAll('.pet').forEach(function(p){p.classList.remove('sel');});
+    el.classList.add('sel');
+    var pet=el.dataset.pet;
+    ['petName','ctxPet','actPet'].forEach(function(id){document.getElementById(id).textContent=pet;});
+    renderVacinas(pet); renderConsultas(pet); renderFisio(pet);
+    document.getElementById('petFicha').style.display='none';
+    var p=document.getElementById('actPanel'); p.innerHTML=''; document.querySelectorAll('.actbtn').forEach(function(b){b.classList.remove('on');}); openAct=null;
+  }
+  function toggleFicha(){var e=document.getElementById('ficha');e.style.display=e.style.display==='none'?'block':'none';}
+  function openPetFicha(pet){
+    var e=document.getElementById('petFicha');
+    if(pet){document.getElementById('pfTitle').textContent='Ficha de '+pet;document.getElementById('pfNome').value=pet;document.getElementById('pfRaca').value=DADOS[pet].raca;document.getElementById('pfPeso').value=DADOS[pet].peso;}
+    else{document.getElementById('pfTitle').textContent='Novo pet';document.getElementById('pfNome').value='';document.getElementById('pfRaca').value='';document.getElementById('pfPeso').value='';}
+    e.style.display='block';
+  }
+  function closePetFicha(){document.getElementById('petFicha').style.display='none';}
+
+  var gState=0;
+  function toggleGoogle(){
+    gState=(gState+1)%3;
+    var b=document.getElementById('gBtn'), s=document.getElementById('gStatus');
+    if(gState===1){b.innerHTML='<i class="ti ti-clock" style="font-size:12px; vertical-align:-1px"></i> Reenviar';b.style.background='#fff';b.style.color='#0E5560';b.style.border='1px solid #E3E0D7';s.innerHTML='<span style="color:#9a6b00;">Solicitação enviada · aguardando avaliação (há 1d).</span>';}
+    else if(gState===2){b.innerHTML='<i class="ti ti-check" style="font-size:12px; vertical-align:-1px"></i> Avaliou';b.style.background='#E1F2F4';b.style.color='#0E5560';b.style.border='none';s.innerHTML='<span style="color:#0E5560;">★★★★★ Avaliação recebida · há 3h.</span>';}
+    else{b.innerHTML='<i class="ti ti-send" style="font-size:12px; vertical-align:-1px"></i> Solicitar';b.style.background='#009AAC';b.style.color='#fff';b.style.border='none';s.textContent='Nenhuma avaliação solicitada.';}
+  }
+
+  function panelHTML(a){
+    if(a==='agenda') return ''
+      +'<div class="fld"><label>Profissional</label><div class="ctrl mut">Selecione um profissional <i class="ti ti-chevron-down" style="margin-left:auto"></i></div></div>'
+      +'<div style="display:flex; gap:8px;"><div class="fld" style="flex:1;"><label>Tipo</label><div class="ctrl mut">Consulta <i class="ti ti-chevron-down" style="margin-left:auto"></i></div></div><div class="fld" style="flex:1;"><label>Duração</label><input class="ctrl" value="30 min"></div></div>'
+      +'<div class="fld"><label>Data e hora</label><div class="ctrl mut" id="dh" style="color:#009AAC; cursor:pointer;" onclick="toggleSlots()"><i class="ti ti-clock-search"></i> Encontrar horário livre</div></div>'
+      +'<div id="slots" style="display:none; margin-bottom:11px;">'
+        +'<div style="display:flex; align-items:center; margin-bottom:8px;"><i class="ti ti-chevron-left" style="color:#9aa0a8"></i><b style="margin:0 auto; font-size:12.5px; font-weight:500;">Junho 2026</b><i class="ti ti-chevron-right" style="color:#9aa0a8"></i></div>'
+        +'<div class="cal" id="cal"></div>'
+        +'<div style="font-size:12px; font-weight:500; margin:9px 0 6px;">Manhã</div>'
+        +'<div style="display:grid; grid-template-columns:1fr 1fr; gap:7px;"><button class="slot" onclick="pick(this)">08h00–08h30</button><button class="slot" onclick="pick(this)">09h00–09h30</button><button class="slot" onclick="pick(this)">10h30–11h00</button><button class="slot" onclick="pick(this)">14h00–14h30</button></div>'
+      +'</div>'
+      +'<div class="fld"><label>Observações</label><textarea class="ctrl" placeholder="Observações…"></textarea></div>'
+      +'<div style="display:flex; align-items:center; gap:10px; margin-bottom:11px;"><div class="sw on" id="swR" onclick="this.classList.toggle(\'on\')"></div><span style="font-size:12px; color:#5a6472;">Confirmação e lembrete automático no WhatsApp</span></div>'
+      +'<button class="btnP" onclick="alert(\'Consulta marcada (mockup)\')">Marcar consulta</button>';
+    if(a==='fu') return '<div style="display:flex; gap:8px;"><div class="fld" style="flex:1;"><label>Data</label><input class="ctrl" value="01/07/2026"></div><div class="fld" style="flex:1;"><label>Responsável</label><div class="ctrl mut">Recepção <i class="ti ti-chevron-down" style="margin-left:auto"></i></div></div></div><div class="fld"><label>Motivo</label><textarea class="ctrl" placeholder="Motivo do follow-up…"></textarea></div><button class="btnP">Agendar follow-up</button>';
+    if(a==='inter') return '<div class="fld"><label>Tipo</label><div class="ctrl mut">Nota <i class="ti ti-chevron-down" style="margin-left:auto"></i></div></div><div class="fld"><label>Descrição</label><textarea class="ctrl" placeholder="Registrar interação…"></textarea></div><button class="btnP">Salvar interação</button>';
+    if(a==='venda') return '<div class="fld"><label>Item / serviço</label><div class="ctrl mut">Adicionar serviço <i class="ti ti-plus" style="margin-left:auto"></i></div></div><div class="fld"><label>Forma de pagamento</label><div class="ctrl mut">Selecione <i class="ti ti-chevron-down" style="margin-left:auto"></i></div></div><button class="btnP">Lançar venda</button>';
+    if(a==='seq') return '<div class="fld"><label>Sequência / cadência</label><div class="ctrl mut">Escolher sequência <i class="ti ti-chevron-down" style="margin-left:auto"></i></div></div><div style="font-size:11px; color:#9aa0a8; margin-bottom:9px;">Ex.: pós-consulta, reativação, reforço de vacina.</div><button class="btnP">Iniciar sequência</button>';
+    if(a==='email') return '<div class="fld"><label>Assunto</label><input class="ctrl" placeholder="Assunto"></div><div class="fld"><label>Mensagem</label><textarea class="ctrl" placeholder="Escreva o e-mail…"></textarea></div><button class="btnP">Enviar e-mail</button>';
+    if(a==='enc') return '<div class="fld"><label>Encaminhar para</label><div class="ctrl mut">Setor / profissional <i class="ti ti-chevron-down" style="margin-left:auto"></i></div></div><div class="fld"><label>Observação</label><textarea class="ctrl" placeholder="Motivo…"></textarea></div><button class="btnP">Encaminhar</button>';
+    if(a==='exa') return '<div class="fld"><label>Exame (catálogo)</label><div class="ctrl mut">Selecionar exame <i class="ti ti-chevron-down" style="margin-left:auto"></i></div></div><div style="font-size:11px; color:#9aa0a8; margin-bottom:9px;">Custo do fornecedor vai só pro financeiro.</div><button class="btnP">Solicitar exame</button>';
+    return '';
+  }
+  var openAct=null;
+  function act(btn){
+    var a=btn.dataset.act, panel=document.getElementById('actPanel');
+    document.querySelectorAll('.actbtn').forEach(function(b){b.classList.remove('on');});
+    if(openAct===a){openAct=null;panel.innerHTML='';return;}
+    openAct=a; btn.classList.add('on');
+    panel.innerHTML='<div class="inline">'+panelHTML(a)+'</div>';
+    if(a==='agenda') buildCal();
+  }
+  function toggleSlots(){var s=document.getElementById('slots');s.style.display=s.style.display==='none'?'block':'none';if(s.style.display==='block')buildCal();}
+  function pick(el){document.querySelectorAll('.slot').forEach(function(s){s.classList.remove('sel');});el.classList.add('sel');document.getElementById('dh').innerHTML='<i class="ti ti-clock-check"></i> 30/06 '+el.textContent.trim();}
+  function selDay(el){document.querySelectorAll('.day').forEach(function(x){x.classList.remove('sel');});el.classList.add('sel');}
+  function buildCal(){
+    var c=document.getElementById('cal'); if(!c||c.dataset.b)return; c.dataset.b=1;
+    ['D','S','T','Q','Q','S','S'].forEach(function(d){c.insertAdjacentHTML('beforeend','<div class="dow">'+d+'</div>');});
+    c.insertAdjacentHTML('beforeend','<div></div>');
+    for(var d=1; d<=30; d++){c.insertAdjacentHTML('beforeend','<button class="day'+(d===30?' sel':'')+'" onclick="selDay(this)">'+d+'</button>');}
+  }
+
+  renderVacinas('Pretinha'); renderConsultas('Pretinha'); renderFisio('Pretinha');
+</script>
+</body></html>

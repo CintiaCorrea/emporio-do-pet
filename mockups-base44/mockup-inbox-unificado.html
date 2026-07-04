@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Mockup unificação Inbox BC e Meta</title>
+<style>
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Inter,sans-serif;margin:0;padding:24px;background:#f5f2ec;color:#014D5E}
+  h1{font-size:20px;font-weight:600;margin:0 0 4px}
+  h2{font-size:15px;font-weight:600;color:#014D5E;margin:28px 0 8px}
+  h3{font-size:13px;font-weight:600;color:#014D5E;margin:18px 0 6px}
+  .sub{font-size:13px;color:#5F5E5A;margin:0 0 18px;max-width:900px;line-height:1.5}
+  .desc{font-size:12.5px;color:#5F5E5A;margin:0 0 12px;line-height:1.5}
+
+  .frame{background:white;border-radius:10px;border:1px solid #E8DFC8;overflow:hidden;margin-bottom:14px}
+
+  /* Header global - igual ao app atual */
+  .page-head{padding:14px 24px;border-bottom:1px solid #E8DFC8;background:white;display:flex;align-items:center;justify-content:space-between}
+  .page-head .title{font-size:18px;font-weight:700;color:#014D5E;margin:0}
+  .page-head .sub{font-size:12px;color:#64748b;margin:2px 0 0}
+  .page-head .actions{display:flex;align-items:center;gap:8px}
+  .search-pill{background:#f6f8f9;border:1px solid #e8edf0;border-radius:9px;padding:7px 11px;font-size:12px;color:#94a3b8;display:flex;align-items:center;gap:6px;width:200px}
+  .icon-btn{width:34px;height:34px;border-radius:9px;border:1px solid #e8edf0;background:white;display:flex;align-items:center;justify-content:center;color:#64748b;cursor:pointer;position:relative}
+  .icon-btn .dot{position:absolute;top:6px;right:7px;width:6px;height:6px;border-radius:50%;background:#ef4444;border:2px solid white}
+  .avatar-circle{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#009AAC,#014D5E);color:white;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600}
+
+  /* Stats no header (Opção A) */
+  .stats-inline{display:flex;align-items:center;gap:14px;margin-right:12px;padding-right:12px;border-right:1px solid #e8edf0}
+  .stat{display:flex;flex-direction:column;align-items:flex-end;line-height:1.1}
+  .stat .v{font-size:13px;font-weight:700;color:#014D5E}
+  .stat .l{font-size:9.5px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.3px;font-weight:600}
+
+  /* Banner provisório */
+  .banner-prov{background:#FFFBEB;color:#92611A;padding:8px 24px;font-size:11px;font-weight:600;display:flex;align-items:center;gap:8px;border-bottom:1px solid #FDE68A}
+  .pill-prov{background:#FCD34D;color:#78350F;padding:2px 8px;border-radius:4px;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px}
+
+  /* Stats bar (Opção B) */
+  .stats-bar{background:#fafafa;border-bottom:1px solid #E8DFC8;padding:8px 24px;display:flex;align-items:center;gap:24px;font-size:11.5px}
+  .stats-bar .si{display:flex;align-items:center;gap:6px;color:#475569}
+  .stats-bar .si b{color:#014D5E;font-weight:700}
+  .stats-bar .right{margin-left:auto;display:flex;gap:8px}
+  .btn-mini{background:white;border:1px solid #e8edf0;color:#475569;padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer}
+  .btn-mini-pri{background:#009AAC;border-color:#009AAC;color:white}
+
+  /* Tabs internas (mesma estrutura nas duas) */
+  .tabs{background:white;border-bottom:1px solid #E8DFC8;display:flex;align-items:center;padding:0 24px;gap:18px}
+  .tab{padding:11px 0;font-size:12.5px;color:#5F5E5A;border-bottom:2px solid transparent;cursor:pointer;display:flex;align-items:center;gap:5px}
+  .tab.active{color:#014D5E;font-weight:600;border-color:#009AAC}
+  .tab .count{background:#f1f5f9;color:#5F5E5A;font-size:10px;padding:1px 6px;border-radius:8px}
+  .tab.active .count{background:#e0f4f6;color:#014D5E}
+
+  /* Body placeholder */
+  .body-area{padding:24px;min-height:160px;background:#f6f8f9;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:12px;font-style:italic}
+
+  .legend{background:white;border:1px solid #E8DFC8;border-radius:8px;padding:14px;margin-top:14px;font-size:12.5px;color:#475569;line-height:1.65}
+  .legend strong{color:#014D5E}
+  .legend ul{margin:6px 0 0 18px;padding:0}
+  .legend li{margin:3px 0}
+  .yellow{background:#fffbeb;border-color:#fde68a}
+
+  .label{display:inline-block;font-size:9.5px;font-weight:700;padding:3px 8px;border-radius:5px;text-transform:uppercase;margin-bottom:6px}
+  .label-a{background:#dcfce7;color:#15803d}
+  .label-b{background:#dbeafe;color:#1e40af}
+</style>
+</head>
+<body>
+
+<h1>Inbox BC e Meta — padronização visual</h1>
+<p class="sub">2 propostas. Em ambas: <strong>sumiu o cabeçalho interno duplicado</strong> (Inbox + Triagem...) e o <strong>rodapé com stats</strong> (esperando +1h · Tempo médio · Streak) foi pra cima.</p>
+
+<!-- ============ OPÇÃO A ============ -->
+<h2><span class="label label-a">Opção A — Recomendado</span> Stats inline no header global</h2>
+<p class="desc">Stats da clínica (esperando, tempo médio, streak) ficam compactos NO HEADER global, ao lado do título. <strong>Mata o cabeçalho interno duplicado</strong> e o footer. Tabs (Conversas/Internas/Encaminhadas) e filtros (Todos/Leads/Clientes) viram única barra logo abaixo.</p>
+
+<div class="frame">
+  <div class="page-head">
+    <div>
+      <div class="title">Inbox Meta</div>
+      <div class="sub">Conversas WhatsApp Business via API Meta</div>
+    </div>
+    <div class="actions">
+      <div class="stats-inline">
+        <div class="stat"><span class="v">+1h</span><span class="l">⏱ esperando</span></div>
+        <div class="stat"><span class="v">—</span><span class="l">⌛ tempo méd.</span></div>
+        <div class="stat"><span class="v">—</span><span class="l">🏆 streak</span></div>
+        <div class="stat"><span class="v">— res.</span><span class="l">📅 hoje</span></div>
+      </div>
+      <div class="search-pill">🔍 Buscar tutor, pet ou lead...</div>
+      <div class="icon-btn">🔔<span class="dot"></span></div>
+      <div class="avatar-circle">CR</div>
+    </div>
+  </div>
+  <div class="banner-prov">
+    <span class="pill-prov">Provisório</span>
+    Veja o telefone no BotConversa, cole na busca à direita pra puxar contexto do CRM e registrar interação na ficha.
+  </div>
+  <div class="tabs">
+    <div class="tab active">Conversas <span class="count">5</span></div>
+    <div class="tab">Internas <span class="count">0</span></div>
+    <div class="tab">Encaminhadas</div>
+    <div style="margin-left:auto;display:flex;gap:6px">
+      <button class="btn-mini">↻ Atualizar</button>
+      <button class="btn-mini btn-mini-pri">+ Nova mensagem</button>
+    </div>
+  </div>
+  <div class="body-area">[ lista de conversas · chat · painel CRM direito ]</div>
+</div>
+
+<div class="frame">
+  <div class="page-head">
+    <div>
+      <div class="title">Inbox BC</div>
+      <div class="sub">Conversas BotConversa com contexto do CRM</div>
+    </div>
+    <div class="actions">
+      <div class="stats-inline">
+        <div class="stat"><span class="v">+1h</span><span class="l">⏱ esperando</span></div>
+        <div class="stat"><span class="v">—</span><span class="l">⌛ tempo méd.</span></div>
+        <div class="stat"><span class="v">—</span><span class="l">🏆 streak</span></div>
+      </div>
+      <div class="search-pill">🔍 Buscar tutor, pet ou lead...</div>
+      <div class="icon-btn">🔔<span class="dot"></span></div>
+      <div class="avatar-circle">CR</div>
+    </div>
+  </div>
+  <div class="banner-prov">
+    <span class="pill-prov">Provisório</span>
+    Veja o telefone no BotConversa, cole na busca à direita pra puxar contexto do CRM e registrar interação na ficha.
+  </div>
+  <div class="tabs">
+    <div class="tab active">BotConversa</div>
+    <div style="margin-left:auto;display:flex;gap:6px">
+      <button class="btn-mini">↻ Atualizar</button>
+      <button class="btn-mini btn-mini-pri">↗ Nova aba</button>
+    </div>
+  </div>
+  <div class="body-area">[ iframe BotConversa · painel CRM direito ]</div>
+</div>
+
+<!-- ============ OPÇÃO B ============ -->
+<h2><span class="label label-b">Opção B</span> Barra fina de stats entre header e conteúdo</h2>
+<p class="desc">Header global fica clean (só título + busca + sino + avatar). Stats ficam em uma <strong>barra fina horizontal</strong> bem espaçada logo abaixo do banner provisório. Funciona pra os 2 inbox, mais "respiração" no header.</p>
+
+<div class="frame">
+  <div class="page-head">
+    <div>
+      <div class="title">Inbox Meta</div>
+      <div class="sub">Conversas WhatsApp Business via API Meta</div>
+    </div>
+    <div class="actions">
+      <div class="search-pill">🔍 Buscar tutor, pet ou lead...</div>
+      <div class="icon-btn">🔔<span class="dot"></span></div>
+      <div class="avatar-circle">CR</div>
+    </div>
+  </div>
+  <div class="banner-prov">
+    <span class="pill-prov">Provisório</span>
+    Veja o telefone no BotConversa, cole na busca à direita pra puxar contexto do CRM e registrar interação na ficha.
+  </div>
+  <div class="stats-bar">
+    <div class="si">⏱ <span>esperando</span> <b>+1h</b></div>
+    <div class="si">⌛ <span>tempo médio</span> <b>—</b></div>
+    <div class="si">🏆 <span>streak</span> <b>—</b></div>
+    <div class="si">📅 <span>hoje</span> <b>— resolvidas</b></div>
+    <div class="right">
+      <button class="btn-mini">↻ Atualizar</button>
+      <button class="btn-mini btn-mini-pri">+ Nova mensagem</button>
+    </div>
+  </div>
+  <div class="tabs">
+    <div class="tab active">Conversas <span class="count">5</span></div>
+    <div class="tab">Internas <span class="count">0</span></div>
+    <div class="tab">Encaminhadas</div>
+  </div>
+  <div class="body-area">[ lista de conversas · chat · painel CRM direito ]</div>
+</div>
+
+<div class="frame">
+  <div class="page-head">
+    <div>
+      <div class="title">Inbox BC</div>
+      <div class="sub">Conversas BotConversa com contexto do CRM</div>
+    </div>
+    <div class="actions">
+      <div class="search-pill">🔍 Buscar tutor, pet ou lead...</div>
+      <div class="icon-btn">🔔<span class="dot"></span></div>
+      <div class="avatar-circle">CR</div>
+    </div>
+  </div>
+  <div class="banner-prov">
+    <span class="pill-prov">Provisório</span>
+    Veja o telefone no BotConversa, cole na busca à direita pra puxar contexto do CRM e registrar interação na ficha.
+  </div>
+  <div class="stats-bar">
+    <div class="si">⏱ <span>esperando</span> <b>+1h</b></div>
+    <div class="si">⌛ <span>tempo médio</span> <b>—</b></div>
+    <div class="si">🏆 <span>streak</span> <b>—</b></div>
+    <div class="right">
+      <button class="btn-mini">↻ Atualizar</button>
+      <button class="btn-mini btn-mini-pri">↗ Nova aba</button>
+    </div>
+  </div>
+  <div class="body-area">[ iframe BotConversa · painel CRM direito ]</div>
+</div>
+
+<!-- ============ LEGENDA ============ -->
+<div class="legend">
+  <strong>O que sumiu nas duas opções:</strong>
+  <ul>
+    <li><strong>Cabeçalho interno duplicado</strong> (ícone Inbox + "Inbox" + "Triagem, mensagens e comunicação interna") — era redundante porque o header global já diz "Inbox Meta".</li>
+    <li><strong>Rodapé com stats</strong> (esperando +1h · Tempo médio · Streak) — virou parte do topo (mais visível e não ocupa altura embaixo).</li>
+  </ul>
+
+  <strong>O que ficou igual nos 2 Inbox:</strong>
+  <ul>
+    <li>Header global com título dinâmico + subtítulo (já implementado em #122).</li>
+    <li>Banner amarelo "Provisório" — só faz sentido no BC, mas mantemos pra consistência durante a fase de testes. Quando o sistema sair de teste, removemos.</li>
+    <li>Tabs Conversas / Internas / Encaminhadas (só no Meta — BC só tem "BotConversa"). Botões Atualizar + Nova mensagem/aba à direita.</li>
+  </ul>
+</div>
+
+<div class="legend yellow">
+  <strong>👉 Pra eu codar, me diz:</strong>
+  <ul>
+    <li><strong>1.</strong> Opção <strong>A</strong> (stats inline no header) ou <strong>B</strong> (barra fina abaixo do banner)?</li>
+    <li><strong>2.</strong> Manter o banner amarelo "Provisório" pros 2 Inbox, ou só pro BC?</li>
+    <li><strong>3.</strong> Algo a adicionar/tirar das stats? (esperando · tempo médio · streak · hoje resolvidas — quais quer e em que ordem?)</li>
+  </ul>
+  Responde "A" ou "B" + bullet points e eu codo.
+</div>
+
+</body>
+</html>

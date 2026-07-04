@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Mockup: Caixa de entrada + Pet no Lead + Toggle Lead/Cliente</title>
+<style>
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Inter,sans-serif;margin:0;padding:24px;background:#f5f2ec;color:#014D5E}
+  h1{font-size:20px;font-weight:600;margin:0 0 4px}
+  .sub{font-size:13px;color:#5F5E5A;margin:0 0 18px;max-width:900px;line-height:1.5}
+  h2{font-size:15px;font-weight:600;color:#014D5E;margin:24px 0 8px;display:flex;align-items:center;gap:8px}
+  .desc{font-size:12.5px;color:#5F5E5A;margin:0 0 12px;line-height:1.5}
+  .pill-h{font-size:10px;font-weight:700;padding:3px 8px;border-radius:5px;text-transform:uppercase}
+  .pill-rec{background:#dcfce7;color:#15803d}
+
+  .grid2{display:grid;grid-template-columns:1fr 320px;gap:0;background:white;border-radius:10px;border:1px solid #E8DFC8;overflow:hidden;height:760px}
+  .left-side{background:linear-gradient(180deg,#f5f5f5,#fafafa);display:flex;align-items:center;justify-content:center;font-size:12px;color:#94a3b8;border-right:1px solid #E8DFC8;flex-direction:column;gap:8px}
+  .left-side .tag{padding:3px 9px;border-radius:12px;color:white;font-size:10.5px;font-weight:600;background:#009AAC}
+  .panel{background:white;display:flex;flex-direction:column;min-height:0;overflow:hidden;height:100%}
+
+  /* Header */
+  .ctx-head{padding:9px 12px;border-bottom:1px solid #E8DFC8;flex-shrink:0;display:flex;align-items:center;justify-content:space-between}
+  .ctx-head .lbl{font-size:10px;color:#888780;font-weight:700;text-transform:uppercase;letter-spacing:0.5px}
+  .btn-fwd{background:white;color:#475569;border:1px solid #E8DFC8;padding:4px 8px;border-radius:5px;font-size:10.5px;font-weight:600;cursor:pointer}
+  .btn-rsv{background:#009AAC;color:white;border:none;padding:4px 9px;border-radius:5px;font-size:10.5px;font-weight:600;cursor:pointer}
+  .btn-x{background:none;border:none;color:#94a3b8;font-size:13px;padding:2px 4px}
+
+  .search{padding:8px 12px;border-bottom:1px solid #E8DFC8;flex-shrink:0}
+  .search input{width:100%;padding:6px 10px 6px 28px;border:1px solid #E8DFC8;border-radius:7px;font-size:12px;background:white url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.2'><circle cx='11' cy='11' r='7'/><line x1='21' y1='21' x2='16.5' y2='16.5'/></svg>") no-repeat 8px center}
+
+  .content{flex:1;overflow-y:auto;min-height:0}
+  .sec{padding:9px 12px;border-bottom:1px solid #E8DFC8}
+  .sec-lbl{font-size:10px;color:#888780;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between}
+  .num{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:#fef3c7;color:#92611a;font-size:9px;font-weight:700;margin-right:5px;vertical-align:1px}
+
+  /* ============ CAIXA DE ENTRADA ============ */
+  .caixa-entrada{background:linear-gradient(135deg,#fff7ed,#fffbeb);border-bottom:2px solid #fcd34d}
+  .ce-head{padding:9px 12px 4px;display:flex;align-items:center;justify-content:space-between}
+  .ce-title{font-size:10.5px;font-weight:700;color:#92611a;text-transform:uppercase;letter-spacing:0.5px;display:flex;align-items:center;gap:5px}
+  .ce-badge{background:#f59e0b;color:white;font-size:9px;padding:1px 5px;border-radius:8px;font-weight:700}
+  .ce-toggle{font-size:9.5px;color:#92611a;font-weight:600;cursor:pointer}
+  .ce-items{padding:0 8px 8px;display:flex;flex-direction:column;gap:3px}
+
+  .ce-item{display:flex;align-items:center;gap:7px;padding:6px 8px;border-radius:7px;background:white;border-left:4px solid;cursor:pointer;transition:transform 0.1s}
+  .ce-item:hover{transform:translateX(2px)}
+  .ce-item.is-lead{border-left-color:#ef4444}
+  .ce-item.is-cliente{border-left-color:#2563eb}
+  .ce-icon{width:24px;height:24px;border-radius:50%;color:white;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .ce-item.is-lead .ce-icon{background:linear-gradient(135deg,#ef4444,#b91c1c)}
+  .ce-item.is-cliente .ce-icon{background:linear-gradient(135deg,#3b82f6,#1e40af)}
+  .ce-info{flex:1;min-width:0}
+  .ce-name{font-size:11.5px;font-weight:600;color:#014D5E;display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+  .ce-tag{font-size:8px;font-weight:700;padding:1px 5px;border-radius:3px;text-transform:uppercase}
+  .ce-item.is-lead .ce-tag{background:#fee2e2;color:#b91c1c}
+  .ce-item.is-cliente .ce-tag{background:#dbeafe;color:#1e40af}
+  .ce-bc{font-size:7.5px;background:#009AAC;color:white;padding:0 3px;border-radius:2px;font-weight:700}
+  .ce-meta{font-size:10px;color:#64748b;line-height:1.3}
+  .ce-time{font-size:9px;color:#94a3b8;text-align:right;flex-shrink:0}
+
+  /* ============ Toggle Lead/Cliente no bloco 2 ============ */
+  .role-toggle{display:inline-flex;background:#f1f5f9;border-radius:14px;padding:1.5px;margin-left:6px;border:1px solid #E8DFC8}
+  .role-toggle button{background:none;border:none;padding:2px 8px;font-size:9px;font-weight:700;color:#64748b;cursor:pointer;border-radius:11px;text-transform:uppercase}
+  .role-toggle button.active.lead{background:#fee2e2;color:#b91c1c}
+  .role-toggle button.active.cliente{background:#dcfce7;color:#15803d}
+
+  /* ============ Pet no Lead ============ */
+  .pet-input-row{display:flex;gap:6px;align-items:center;margin-top:6px}
+  .pet-input{flex:1;padding:5px 8px;border:1px solid #fcd34d;border-radius:5px;font-size:11px;background:#fffbeb}
+  .pet-input::placeholder{color:#a16207}
+  .pet-select{padding:5px 6px;border:1px solid #fcd34d;border-radius:5px;font-size:11px;background:#fffbeb;color:#92611a;width:62px}
+  .servico-input{margin-top:5px;width:100%;padding:5px 8px;border:1px solid #fcd34d;border-radius:5px;font-size:11px;background:#fffbeb}
+  .servico-input::placeholder{color:#a16207}
+
+  /* ============ Body do painel ============ */
+  .avatar{width:30px;height:30px;border-radius:50%;color:white;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0}
+  .av-lead{background:linear-gradient(135deg,#ef4444,#b91c1c)}
+  .tutor-name{font-size:12.5px;color:#014D5E;font-weight:600}
+  .tutor-meta{font-size:10.5px;color:#64748b}
+
+  .pills{display:flex;flex-wrap:wrap;gap:3px;margin-top:6px}
+  .pill{font-size:9.5px;padding:2px 7px;border-radius:10px;font-weight:500;background:#f1f5f9;color:#64748b}
+  .pill.on{background:linear-gradient(90deg,#009AAC,#00B4C4);color:white;font-weight:600}
+
+  .legend{background:white;border:1px solid #E8DFC8;border-radius:8px;padding:14px;margin-top:14px;font-size:12.5px;color:#475569;line-height:1.65}
+  .legend strong{color:#014D5E}
+  .legend ul{margin:6px 0 0 18px;padding:0}
+  .legend li{margin:3px 0}
+  .legend code{background:#f1f5f9;padding:1px 5px;border-radius:3px;font-size:11px;color:#0e7490}
+  .yellow{background:#fffbeb;border-color:#fde68a}
+</style>
+</head>
+<body>
+
+<h1>3 ajustes no painel — mockup</h1>
+<p class="sub">Visual de como vai ficar: (1) <strong>Caixa de Entrada</strong> com novos contatos chegando do BotConversa, cores Lead vermelho / Cliente azul; (2) <strong>Pet + Serviço</strong> editáveis dentro do bloco Lead; (3) <strong>Toggle Lead/Cliente</strong> pra reclassificar.</p>
+
+<!-- ============ MOCKUP UNIFICADO ============ -->
+<h2><span class="pill-h pill-rec">Mockup</span> Painel direito com Caixa de Entrada + Lead com Pet/Serviço + Toggle</h2>
+
+<div class="grid2">
+  <div class="left-side">
+    <div style="font-size:14px;color:#014D5E;font-weight:600">📱 BotConversa / WhatsApp Meta</div>
+    <span class="tag">conversa em andamento</span>
+  </div>
+  <aside class="panel">
+    <!-- HEADER fixo -->
+    <div class="ctx-head">
+      <span class="lbl">Contexto da conversa</span>
+      <div style="display:flex;gap:6px">
+        <button class="btn-fwd">⤴ Encaminhar</button>
+        <button class="btn-rsv">✓ Resolver</button>
+        <button class="btn-x">✕</button>
+      </div>
+    </div>
+
+    <!-- BUSCA -->
+    <div class="search">
+      <input value="" placeholder="Telefone, nome ou email...">
+    </div>
+
+    <div class="content">
+
+      <!-- ============ CAIXA DE ENTRADA ============ -->
+      <div class="caixa-entrada">
+        <div class="ce-head">
+          <div class="ce-title">📬 Caixa de entrada <span class="ce-badge">5</span></div>
+          <span class="ce-toggle">▾ ocultar</span>
+        </div>
+        <div class="ce-items">
+          <div class="ce-item is-lead">
+            <div class="ce-icon">MR</div>
+            <div class="ce-info">
+              <div class="ce-name">Marília Rodrigues <span class="ce-tag">Lead</span> <span class="ce-bc">BC</span></div>
+              <div class="ce-meta">55 (85) 99988-1234 · 🐾 Bento (cão) · banho e tosa</div>
+            </div>
+            <div class="ce-time">há 2min</div>
+          </div>
+          <div class="ce-item is-cliente">
+            <div class="ce-icon">CR</div>
+            <div class="ce-info">
+              <div class="ce-name">Cintia Renata <span class="ce-tag">Cliente</span> <span class="ce-bc">BC</span></div>
+              <div class="ce-meta">55 (85) 98601-8111 · 🐾 Lola · retorno consulta</div>
+            </div>
+            <div class="ce-time">há 8min</div>
+          </div>
+          <div class="ce-item is-lead">
+            <div class="ce-icon">JS</div>
+            <div class="ce-info">
+              <div class="ce-name">João Silva <span class="ce-tag">Lead</span> <span class="ce-bc">BC</span></div>
+              <div class="ce-meta">55 (85) 99777-3333 · 🐾 Toby (cão) · vacinação</div>
+            </div>
+            <div class="ce-time">há 14min</div>
+          </div>
+          <div class="ce-item is-cliente">
+            <div class="ce-icon">KA</div>
+            <div class="ce-info">
+              <div class="ce-name">Kalina <span class="ce-tag">Cliente</span> <span class="ce-bc">BC</span></div>
+              <div class="ce-meta">55 (85) 98702-4632 · 🐾 Duque · agendamento fisio</div>
+            </div>
+            <div class="ce-time">há 32min</div>
+          </div>
+          <div class="ce-item is-lead">
+            <div class="ce-icon">AS</div>
+            <div class="ce-info">
+              <div class="ce-name">Ana Souza <span class="ce-tag">Lead</span> <span class="ce-bc">BC</span></div>
+              <div class="ce-meta">55 (85) 99555-7777 · pediu valor de consulta</div>
+            </div>
+            <div class="ce-time">há 1h</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============ BLOCO 2 LEAD com toggle + pet/serviço inline ============ -->
+      <div class="sec" style="background:#fef9f1">
+        <div class="sec-lbl">
+          <span>
+            <span class="num">2</span>
+            Lead
+            <!-- TOGGLE Lead/Cliente -->
+            <span class="role-toggle">
+              <button class="active lead">Lead</button>
+              <button>Cliente</button>
+            </span>
+          </span>
+          <span style="font-size:10.5px;color:#009AAC;font-weight:600">Ficha ↗</span>
+        </div>
+
+        <div style="display:flex;align-items:flex-start;gap:8px">
+          <div class="avatar av-lead">MR</div>
+          <div style="min-width:0;flex:1">
+            <div class="tutor-name">Marília Rodrigues</div>
+            <div class="tutor-meta">📞 55 (85) 99988-1234 · via BotConversa · há 2min</div>
+          </div>
+        </div>
+
+        <div style="font-size:9.5px;color:#94a3b8;font-weight:700;margin-top:8px;margin-bottom:3px;text-transform:uppercase">Pipeline comercial</div>
+        <div class="pills">
+          <span class="pill on">Triagem</span>
+          <span class="pill">Lead novo</span>
+          <span class="pill">Qualificação</span>
+          <span class="pill">Orçamento</span>
+          <span class="pill">Agendado</span>
+        </div>
+
+        <!-- BOX DE PET + SERVIÇO inline no Lead -->
+        <div style="font-size:9.5px;color:#94a3b8;font-weight:700;margin-top:10px;margin-bottom:3px;text-transform:uppercase">🐾 Pet de interesse</div>
+        <div class="pet-input-row">
+          <input class="pet-input" value="Bento" placeholder="Nome do pet">
+          <select class="pet-select">
+            <option>Cão</option>
+            <option>Gato</option>
+            <option>Outro</option>
+          </select>
+        </div>
+        <input class="servico-input" value="Banho e tosa" placeholder="Serviço desejado">
+
+        <button style="margin-top:8px;width:100%;padding:6px;background:white;border:1px solid #009AAC;color:#009AAC;border-radius:6px;font-size:10.5px;font-weight:600;cursor:pointer">⇪ Converter em cliente</button>
+      </div>
+
+      <!-- Bloco 3+: indicação de continuação -->
+      <div class="sec" style="background:#fafafa;color:#94a3b8;text-align:center;font-size:11px;font-style:italic;padding:14px 12px">
+        ... blocos 3 a 6 normais (Pets, Pipelines, Registrar Interação, Histórico) seguem abaixo ...
+      </div>
+
+    </div>
+  </aside>
+</div>
+
+<!-- ============ LEGENDA ============ -->
+<div class="legend">
+  <strong>Como funciona a Caixa de Entrada:</strong>
+  <ul>
+    <li><strong>Aparece logo abaixo da busca</strong>, antes dos blocos numerados.</li>
+    <li><strong>Cor da borda esquerda:</strong> 🔴 vermelho = Lead · 🔵 azul = Cliente.</li>
+    <li><strong>Pré-classificação:</strong> lê a <code>etiqueta</code> que o BotConversa envia no webhook (<code>tipo_contato: Lead</code> ou <code>tipo_contato: Cliente</code>). Se não vier etiqueta, fallback é busca pelo telefone (cadastrado no banco = Cliente, senão = Lead).</li>
+    <li><strong>Click no item:</strong> abre o contexto completo do contato no painel (substitui o que estava em foco).</li>
+    <li><strong>Botão "✓ Resolver"</strong> no header → fecha o atendimento. O contato <strong>some da Caixa</strong> e volta pra <code>/leads</code> ou <code>/tutores</code> (pra ser tratado depois nos FUs/listagens).</li>
+    <li><strong>Memória persistente:</strong> contato fica na Caixa até ser Resolvido (não desaparece sozinho com o tempo).</li>
+    <li><strong>Botão "▾ ocultar"</strong>: você minimiza a Caixa quando quiser focar só no contato em conversa.</li>
+  </ul>
+
+  <strong>Pet + Serviço no Lead (bloco 2):</strong>
+  <ul>
+    <li>Aparecem como inputs editáveis dentro do bloco Lead.</li>
+    <li>Vêm pré-preenchidos com o que o BotConversa enviou nos <code>customFields</code> (petName, especie, servicoInteresse).</li>
+    <li>Quando você clica em "Converter em cliente", o Pet é criado automaticamente vinculado ao novo Tutor (sem precisar cadastrar de novo).</li>
+  </ul>
+
+  <strong>Toggle Lead ↔ Cliente:</strong>
+  <ul>
+    <li>2 pillinhas no header do bloco — uma ativa, outra desativada.</li>
+    <li>Click em "Cliente" quando está como Lead → confirma e converte (já existia como "Converter em cliente", agora também tem o toggle).</li>
+    <li>Click em "Lead" quando está como Cliente → desfaz a conversão (caso cadastrou errado). Mantém o Tutor no banco mas marca <code>status=LEAD</code> de novo. Útil pra correção rápida.</li>
+  </ul>
+</div>
+
+<div class="legend yellow">
+  <strong>👉 Pra eu codar, confirma 3 coisas:</strong>
+  <ul>
+    <li><strong>1.</strong> Aparência tá OK assim? (cor vermelho/azul, posição, hover, etc)</li>
+    <li><strong>2.</strong> Limite de itens na Caixa — mostro <strong>todos não-resolvidos</strong> ou <strong>até 20 mais recentes</strong> (com scroll quando passa)? Recomendo <strong>até 20</strong> com botão "ver mais" se passar disso.</li>
+    <li><strong>3.</strong> Sobre o toggle <strong>Cliente → Lead</strong> (desclassificar): vai ser comum você precisar fazer isso ou raro? Se raro, faço sem confirmação pop-up. Se comum, mantenho o botão "Converter em cliente" como agora e adiciono só o atalho de Cliente → Lead via toggle.</li>
+  </ul>
+  Responde "<strong>aprovado</strong>" + bullets de ajuste e eu codo.
+</div>
+
+</body>
+</html>

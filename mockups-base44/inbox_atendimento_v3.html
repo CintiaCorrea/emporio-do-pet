@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inbox · Box de atendimento v3 (inline, sem pop-up)</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.5.0/dist/tabler-icons.min.css">
+<style>
+  body{margin:0;background:#F4F2EC;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;display:flex;justify-content:center;padding:24px;color:#0E2244;}
+  button{font-family:inherit;cursor:pointer;}
+  .card{width:374px;background:#fff;border:1px solid #ECE9E1;border-radius:16px;overflow:hidden;font-size:13px;}
+  .sec{padding:0 14px 14px;}
+  .lbl{font-size:10px;color:#9aa0a8;text-transform:uppercase;letter-spacing:.06em;}
+  .pet.sel{border-color:#009AAC !important;background:#E1F2F4 !important;color:#0E5560;font-weight:500;}
+  .slot.sel,.day.sel{}
+  .slot.sel{background:#E1F2F4 !important;border-color:#009AAC !important;color:#0E5560;font-weight:500;}
+  .day.sel{background:#009AAC !important;color:#fff !important;}
+  .actbtn{background:#fff;border:1px solid #E3E0D7;border-radius:11px;padding:10px 8px;font-size:11.5px;color:#0E2244;display:flex;flex-direction:column;align-items:center;gap:5px;}
+  .actbtn.on{border-color:#009AAC;background:#E1F2F4;color:#0E5560;font-weight:500;}
+  .actbtn i{font-size:18px;color:#0E5560;}
+  .inline{border:1px solid #D6E9EC;background:#FAFEFE;border-radius:12px;padding:13px;margin-top:9px;}
+  .fld{margin-bottom:11px;} .fld:last-child{margin-bottom:0;}
+  .fld label{display:block;font-size:11px;color:#8A9099;margin-bottom:5px;}
+  .ctrl{width:100%;border:1px solid #E3E0D7;border-radius:10px;padding:9px 11px;font-size:13px;color:#0E2244;background:#fff;display:flex;align-items:center;gap:7px;box-sizing:border-box;}
+  .ctrl.mut{color:#9aa0a8;} textarea.ctrl{font-family:inherit;resize:vertical;min-height:48px;}
+  .btnP{width:100%;background:#009AAC;color:#fff;border:none;border-radius:10px;padding:10px;font-size:12.5px;font-weight:500;}
+  .btnG{width:100%;background:#fff;border:1px solid #E3E0D7;color:#0E2244;border-radius:10px;padding:10px;font-size:12.5px;}
+  .sw{width:36px;height:21px;border-radius:999px;background:#D9D5CB;position:relative;flex-shrink:0;transition:.15s;}
+  .sw.on{background:#009AAC;}.sw::after{content:"";position:absolute;width:17px;height:17px;border-radius:50%;background:#fff;top:2px;left:2px;transition:.15s;box-shadow:0 1px 2px rgba(0,0,0,.2);}.sw.on::after{left:17px;}
+  .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;text-align:center;}
+  .dow{font-size:10px;color:#9aa0a8;padding:2px 0;}
+  .day{padding:6px 0;border-radius:8px;font-size:12px;background:none;border:none;color:#0E2244;}
+  .day:hover{background:#EAF7F8;}
+  .slot{border:1px solid #E3E0D7;border-radius:8px;padding:7px;font-size:11.5px;text-align:center;background:#fff;}
+  .slot:hover{border-color:#009AAC;}
+  .paw{font-size:15px;}
+</style>
+</head><body>
+<div class="card">
+
+  <!-- HEADER -->
+  <div style="padding:16px 16px 14px;">
+    <div style="display:flex; align-items:center; gap:6px; margin-bottom:12px;">
+      <i class="ti ti-building-store" style="font-size:15px; color:#009AAC"></i>
+      <span style="font-size:11px; color:#0E5560; font-weight:500;">Empório do Pet</span>
+      <span style="margin-left:auto; font-size:11px; color:#9aa0a8; display:flex; align-items:center; gap:3px;">Unidade <i class="ti ti-chevron-down" style="font-size:13px"></i></span>
+    </div>
+    <div style="display:flex; align-items:center; gap:11px;">
+      <div style="width:44px; height:44px; border-radius:50%; background:#F0F7F8; color:#0E5560; display:flex; align-items:center; justify-content:center; font-size:17px; font-weight:500;">J</div>
+      <div style="flex:1; min-width:0;">
+        <!-- nome clicável -> edição inline -->
+        <div onclick="toggleEditTutor()" style="font-size:16px; font-weight:500; display:flex; align-items:center; gap:6px; cursor:pointer;">José Marques <i class="ti ti-pencil" style="font-size:13px; color:#b9bdc4"></i></div>
+        <div style="font-size:12px; color:#8A9099; margin-top:2px; display:flex; align-items:center; gap:5px;"><i class="ti ti-brand-whatsapp" style="font-size:14px; color:#0F9D58"></i> (85) 99806-7466 · há 2d</div>
+      </div>
+      <span style="font-size:10px; background:#E1F2F4; color:#0E5560; padding:2px 8px; border-radius:8px;">Cliente</span>
+    </div>
+
+    <!-- EDIÇÃO INLINE DO TUTOR (abre pra baixo) -->
+    <div id="editTutor" style="display:none;" class="inline">
+      <div class="fld"><label>Nome</label><input class="ctrl" value="José Marques"></div>
+      <div class="fld"><label>Telefone (WhatsApp)</label><input class="ctrl" value="(85) 99806-7466"></div>
+      <div class="fld"><label>E-mail</label><input class="ctrl" value="jose.marques@email.com"></div>
+      <div style="display:flex; gap:8px;"><button class="btnP" onclick="toggleEditTutor()">Salvar</button><button class="btnG" onclick="toggleEditTutor()">Cancelar</button></div>
+    </div>
+
+    <!-- stats: SEM valor monetário -->
+    <div style="display:flex; gap:8px; margin-top:13px;">
+      <div style="flex:1; background:#FAFAF7; border:1px solid #EEEBE3; border-radius:10px; padding:8px 10px;"><div style="font-size:10px; color:#9aa0a8;">Cliente desde</div><div style="margin-top:1px; font-weight:500;">jun/2026</div></div>
+      <div style="flex:1; background:#FAFAF7; border:1px solid #EEEBE3; border-radius:10px; padding:8px 10px;"><div style="font-size:10px; color:#9aa0a8;">Visitas</div><div style="margin-top:1px; font-weight:500;">14</div></div>
+      <div style="flex:1; background:#FAFAF7; border:1px solid #EEEBE3; border-radius:10px; padding:8px 10px;"><div style="font-size:10px; color:#9aa0a8;">Relacionamento</div><div style="margin-top:1px; font-weight:500; color:#0E5560;">Em dia</div></div>
+    </div>
+  </div>
+
+  <!-- PETS (selecionar troca contexto; lápis edita inline) -->
+  <div class="sec">
+    <div style="display:flex; align-items:center; margin:0 2px 8px;"><span class="lbl">Pets · 2 vinculados</span><span style="margin-left:auto; font-size:11px; color:#009AAC;"><i class="ti ti-plus" style="font-size:12px; vertical-align:-1px"></i> novo pet</span></div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+      <button class="pet sel" data-pet="Pretinha" onclick="selPet(this)" style="display:flex; align-items:center; gap:7px; background:#fff; border:1px solid #E3E0D7; border-radius:11px; padding:8px 12px; font-size:12.5px; color:#0E2244;"><i class="ti ti-cat" style="font-size:16px; color:#0E5560"></i> Pretinha <span style="color:#9aa0a8;">· Gato</span></button>
+      <button class="pet" data-pet="Thor" onclick="selPet(this)" style="display:flex; align-items:center; gap:7px; background:#fff; border:1px solid #E3E0D7; border-radius:11px; padding:8px 12px; font-size:12.5px; color:#0E2244;"><i class="ti ti-dog" style="font-size:16px; color:#0E5560"></i> Thor <span style="color:#9aa0a8;">· Cão</span></button>
+      <button onclick="toggleEditPet()" title="Editar pet" style="background:#fff; border:1px solid #E3E0D7; border-radius:10px; width:34px; height:34px; color:#0E5560;"><i class="ti ti-pencil" style="font-size:15px"></i></button>
+    </div>
+    <!-- EDIÇÃO INLINE DO PET -->
+    <div id="editPet" style="display:none;" class="inline">
+      <div class="fld"><label>Nome do pet</label><input class="ctrl" id="epNome" value="Pretinha"></div>
+      <div style="display:flex; gap:8px;">
+        <div class="fld" style="flex:1;"><label>Espécie</label><div class="ctrl mut">Gato <i class="ti ti-chevron-down" style="margin-left:auto"></i></div></div>
+        <div class="fld" style="flex:1;"><label>Peso (kg)</label><input class="ctrl" value="4,2"></div>
+      </div>
+      <div class="fld"><label>Raça</label><input class="ctrl" value="SRD"></div>
+      <div style="display:flex; gap:8px;"><button class="btnP" onclick="toggleEditPet()">Salvar</button><button class="btnG" onclick="toggleEditPet()">Cancelar</button></div>
+    </div>
+  </div>
+
+  <!-- LINHA DE PACOTE DE FISIOTERAPIA (só p/ pet de fisio) -->
+  <div class="sec" id="fisioWrap" style="display:none;">
+    <div style="border:1px solid #ECE9E1; border-radius:12px; padding:11px 12px;">
+      <div style="display:flex; align-items:center; gap:7px; font-size:12px; color:#0E5560; font-weight:500;"><i class="ti ti-activity" style="font-size:15px"></i> Pacote de fisioterapia <span id="fisioCount" style="margin-left:auto; color:#9aa0a8; font-weight:400;">4 de 8</span></div>
+      <div id="fisioPaws" style="display:flex; gap:6px; margin-top:9px;"></div>
+      <button class="btnP" style="margin-top:11px;" onclick="alert('Sessão marcada como realizada (mockup)')">Marcar sessão de hoje</button>
+    </div>
+  </div>
+
+  <!-- CONSULTAS DO PET -->
+  <div class="sec">
+    <div style="display:flex; align-items:center; margin:0 2px 8px;">
+      <span class="lbl">Consultas de <span id="petName" style="color:#0E5560;">Pretinha</span></span>
+      <i class="ti ti-refresh" style="margin-left:auto; font-size:13px; color:#9aa0a8;"></i>
+    </div>
+    <div id="consultas" style="display:flex; flex-direction:column; gap:8px;"></div>
+  </div>
+
+  <!-- AÇÕES (8 botões) — todas inline, sem pop-up -->
+  <div class="sec">
+    <div class="lbl" style="margin:0 2px 8px;">Ações</div>
+    <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:8px;">
+      <button class="actbtn" data-act="agenda" onclick="act(this)"><i class="ti ti-calendar-plus"></i>Agenda</button>
+      <button class="actbtn" data-act="fu" onclick="act(this)"><i class="ti ti-calendar-clock"></i>Follow-up</button>
+      <button class="actbtn" data-act="inter" onclick="act(this)"><i class="ti ti-message-plus"></i>Interação</button>
+      <button class="actbtn" data-act="venda" onclick="act(this)"><i class="ti ti-cash-register"></i>Venda</button>
+      <button class="actbtn" data-act="msg" onclick="act(this)"><i class="ti ti-brand-whatsapp"></i>Mensagem</button>
+      <button class="actbtn" data-act="email" onclick="act(this)"><i class="ti ti-mail"></i>E-mail</button>
+      <button class="actbtn" data-act="enc" onclick="act(this)"><i class="ti ti-arrow-forward-up"></i>Encaminhar</button>
+      <button class="actbtn" data-act="exa" onclick="act(this)"><i class="ti ti-test-pipe"></i>Exames</button>
+    </div>
+    <!-- painel inline da ação selecionada -->
+    <div id="actPanel"></div>
+  </div>
+
+  <!-- RESUMO IA -->
+  <div class="sec">
+    <div style="border:1px solid #ECE9E1; border-radius:12px; overflow:hidden;">
+      <div style="display:flex; align-items:center; gap:7px; padding:10px 12px; background:#F2FAFB; color:#0E5560; font-size:12px; font-weight:500;"><i class="ti ti-sparkles" style="font-size:15px"></i> Resumo da conversa <span style="margin-left:auto; font-size:10px; color:#7aa6ad; font-weight:400;">IA · há 2d</span></div>
+      <div style="padding:10px 12px; color:#3a4654; font-size:12.5px; line-height:1.6;">Tutora confirmou retorno da Pretinha para reavaliação e perguntou sobre o pacote de fisioterapia do Thor.</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  /* ---- dados por pet ---- */
+  var DADOS = {
+    Pretinha:{ fisio:null, consultas:[
+      {ic:'ti-calendar-event', t:'Seg, 30/06 · 10h30–11h00', s:'Reavaliação · Dra. Vivian', up:true},
+      {ic:'ti-stethoscope', t:'18/06 · concluída', s:'Consulta clínica · Dra. Vivian', up:false}
+    ]},
+    Thor:{ fisio:{feitas:4,total:8}, consultas:[
+      {ic:'ti-activity', t:'Qua, 25/06 · 14h00–14h30', s:'Fisioterapia (sessão 4/8) · Isabela', up:true},
+      {ic:'ti-vaccine', t:'02/06 · concluída', s:'Vacina V10 · Dra. Vivian', up:false}
+    ]}
+  };
+  function renderConsultas(pet){
+    var box=document.getElementById('consultas'); box.innerHTML='';
+    DADOS[pet].consultas.forEach(function(c){
+      var color=c.up?'#0E5560':'#9aa0a8';
+      box.insertAdjacentHTML('beforeend',
+        '<div style="display:flex; align-items:center; gap:10px; border:1px solid #ECE9E1; border-radius:11px; padding:9px 11px; background:'+(c.up?'#FAFEFE':'#fff')+';">'
+        +'<i class="ti '+c.ic+'" style="font-size:17px; color:'+color+'"></i>'
+        +'<div style="flex:1; min-width:0;"><div style="font-size:12.5px; font-weight:'+(c.up?'500':'400')+';">'+c.t+'</div><div style="font-size:11px; color:#9aa0a8;">'+c.s+'</div></div>'
+        +'<i class="ti ti-external-link" style="font-size:15px; color:#9aa0a8;"></i></div>');
+    });
+  }
+  function renderFisio(pet){
+    var f=DADOS[pet].fisio, wrap=document.getElementById('fisioWrap');
+    if(!f){wrap.style.display='none';return;}
+    wrap.style.display='block';
+    document.getElementById('fisioCount').textContent=f.feitas+' de '+f.total;
+    var paws=document.getElementById('fisioPaws'); paws.innerHTML='';
+    for(var i=1;i<=f.total;i++){
+      var done=i<=f.feitas;
+      paws.insertAdjacentHTML('beforeend','<i class="ti ti-paw-filled paw" style="color:'+(done?'#009AAC':'#DfDcd3')+'"></i>');
+    }
+  }
+  function selPet(el){
+    document.querySelectorAll('.pet').forEach(function(p){p.classList.remove('sel');});
+    el.classList.add('sel');
+    var pet=el.dataset.pet;
+    document.getElementById('petName').textContent=pet;
+    document.getElementById('epNome').value=pet;
+    renderConsultas(pet); renderFisio(pet);
+  }
+  function toggleEditTutor(){var e=document.getElementById('editTutor');e.style.display=e.style.display==='none'?'block':'none';}
+  function toggleEditPet(){var e=document.getElementById('editPet');e.style.display=e.style.display==='none'?'block':'none';}
+
+  /* ---- ações inline (sem pop-up) ---- */
+  function panelHTML(act){
+    if(act==='agenda') return ''
+      +'<div class="fld"><label>Profissional</label><div class="ctrl mut">Selecione um profissional <i class="ti ti-chevron-down" style="margin-left:auto"></i></div></div>'
+      +'<div class="fld"><label>Tipo de atendimento</label><div class="ctrl mut">Consulta clínica <i class="ti ti-chevron-down" style="margin-left:auto"></i></div></div>'
+      +'<div style="display:flex; gap:8px;"><div class="fld" style="flex:1;"><label>Duração (min)</label><input class="ctrl" value="30"></div>'
+      +'<div class="fld" style="flex:1;"><label>Data e hora</label><div class="ctrl" id="dh" style="color:#009AAC;" onclick="toggleSlots()"><i class="ti ti-clock-search"></i> Horário livre</div></div></div>'
+      +'<div id="slots" style="display:none; margin-bottom:11px;">'
+        +'<div style="display:flex; align-items:center; margin-bottom:8px;"><i class="ti ti-chevron-left" style="color:#9aa0a8"></i><b style="margin:0 auto; font-size:12.5px; font-weight:500;">Junho 2026</b><i class="ti ti-chevron-right" style="color:#9aa0a8"></i></div>'
+        +'<div class="cal" id="cal"></div>'
+        +'<div style="font-size:11px; color:#9aa0a8; margin:9px 0 6px;">Só horários livres do profissional.</div>'
+        +'<div style="font-size:12px; font-weight:500; margin-bottom:6px;">Manhã</div>'
+        +'<div style="display:grid; grid-template-columns:1fr 1fr; gap:7px;"><button class="slot" onclick="pick(this)">08h00–08h30</button><button class="slot" onclick="pick(this)">08h30–09h00</button><button class="slot" onclick="pick(this)">09h00–09h30</button><button class="slot" onclick="pick(this)">10h30–11h00</button></div>'
+        +'<div style="font-size:12px; font-weight:500; margin:9px 0 6px;">Tarde</div>'
+        +'<div style="display:grid; grid-template-columns:1fr 1fr; gap:7px;"><button class="slot" onclick="pick(this)">14h00–14h30</button><button class="slot" onclick="pick(this)">15h30–16h00</button></div>'
+      +'</div>'
+      +'<div class="fld"><label>Observações</label><textarea class="ctrl" placeholder="Digite as observações…"></textarea></div>'
+      +'<div class="fld"><label>Rótulo</label><div class="ctrl mut">Selecione um rótulo <i class="ti ti-chevron-down" style="margin-left:auto"></i></div></div>'
+      +'<div style="display:flex; align-items:center; gap:10px; margin-bottom:11px;"><div class="sw on" id="swR" onclick="this.classList.toggle(\'on\')"></div><span style="font-size:12px; color:#5a6472;">Confirmação e lembrete automático no WhatsApp</span></div>'
+      +'<button class="btnP" onclick="alert(\'Consulta marcada (mockup)\')">Marcar consulta</button>';
+    if(act==='fu') return ''
+      +'<div style="display:flex; gap:8px;"><div class="fld" style="flex:1;"><label>Data</label><input class="ctrl" value="01/07/2026"></div><div class="fld" style="flex:1;"><label>Responsável</label><div class="ctrl mut">Recepção <i class="ti ti-chevron-down" style="margin-left:auto"></i></div></div></div>'
+      +'<div class="fld"><label>Motivo</label><textarea class="ctrl" placeholder="Ex.: confirmar retorno da Pretinha…"></textarea></div>'
+      +'<button class="btnP">Agendar follow-up</button>';
+    if(act==='inter') return ''
+      +'<div class="fld"><label>Tipo</label><div class="ctrl mut">Nota <i class="ti ti-chevron-down" style="margin-left:auto"></i></div></div>'
+      +'<div class="fld"><label>Descrição</label><textarea class="ctrl" placeholder="Registrar interação…"></textarea></div>'
+      +'<button class="btnP">Salvar interação</button>';
+    if(act==='venda') return ''
+      +'<div class="fld"><label>Item / serviço</label><div class="ctrl mut">Adicionar serviço <i class="ti ti-plus" style="margin-left:auto"></i></div></div>'
+      +'<div class="fld"><label>Forma de pagamento</label><div class="ctrl mut">Selecione <i class="ti ti-chevron-down" style="margin-left:auto"></i></div></div>'
+      +'<button class="btnP">Lançar venda</button>';
+    if(act==='msg') return ''
+      +'<div class="fld"><label>Modelo de mensagem</label><div class="ctrl mut">Selecionar modelo <i class="ti ti-chevron-down" style="margin-left:auto"></i></div></div>'
+      +'<div class="fld"><label>Mensagem</label><textarea class="ctrl" placeholder="Escreva ou escolha um modelo…"></textarea></div>'
+      +'<button class="btnP">Enviar no WhatsApp</button>';
+    if(act==='email') return ''
+      +'<div class="fld"><label>Assunto</label><input class="ctrl" placeholder="Assunto do e-mail"></div>'
+      +'<div class="fld"><label>Mensagem</label><textarea class="ctrl" placeholder="Escreva o e-mail…"></textarea></div>'
+      +'<button class="btnP">Enviar e-mail</button>';
+    if(act==='enc') return ''
+      +'<div class="fld"><label>Encaminhar para</label><div class="ctrl mut">Setor / profissional <i class="ti ti-chevron-down" style="margin-left:auto"></i></div></div>'
+      +'<div class="fld"><label>Observação</label><textarea class="ctrl" placeholder="Motivo do encaminhamento…"></textarea></div>'
+      +'<button class="btnP">Encaminhar</button>';
+    if(act==='exa') return ''
+      +'<div class="fld"><label>Exame (catálogo)</label><div class="ctrl mut">Selecionar exame <i class="ti ti-chevron-down" style="margin-left:auto"></i></div></div>'
+      +'<div style="font-size:11px; color:#9aa0a8; margin-bottom:9px;">O custo do fornecedor vai só pro financeiro.</div>'
+      +'<button class="btnP">Solicitar exame</button>';
+    return '';
+  }
+  var openAct=null;
+  function act(btn){
+    var a=btn.dataset.act, panel=document.getElementById('actPanel');
+    document.querySelectorAll('.actbtn').forEach(function(b){b.classList.remove('on');});
+    if(openAct===a){openAct=null;panel.innerHTML='';return;}
+    openAct=a; btn.classList.add('on');
+    panel.innerHTML='<div class="inline">'+panelHTML(a)+'</div>';
+    if(a==='agenda') buildCal();
+  }
+  function toggleSlots(){var s=document.getElementById('slots');s.style.display=s.style.display==='none'?'block':'none';if(s.style.display==='block')buildCal();}
+  function pick(el){document.querySelectorAll('.slot').forEach(function(s){s.classList.remove('sel');});el.classList.add('sel');document.getElementById('dh').innerHTML='<i class="ti ti-clock-check"></i> 30/06 '+el.textContent.trim();}
+  function selDay(el){document.querySelectorAll('.day').forEach(function(x){x.classList.remove('sel');});el.classList.add('sel');}
+  function buildCal(){
+    var c=document.getElementById('cal'); if(!c||c.dataset.b)return; c.dataset.b=1;
+    ['D','S','T','Q','Q','S','S'].forEach(function(d){c.insertAdjacentHTML('beforeend','<div class="dow">'+d+'</div>');});
+    c.insertAdjacentHTML('beforeend','<div></div>');
+    for(var d=1; d<=30; d++){c.insertAdjacentHTML('beforeend','<button class="day'+(d===30?' sel':'')+'" onclick="selDay(this)">'+d+'</button>');}
+  }
+
+  renderConsultas('Pretinha'); renderFisio('Pretinha');
+</script>
+</body></html>

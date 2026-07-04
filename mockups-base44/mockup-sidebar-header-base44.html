@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Mockup Sidebar + Header Base44 — Empório do Pet</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif; margin: 0; padding: 24px; background: #F5F2EC; color: #0E2244; }
+  h1 { font-size: 18px; font-weight: 500; margin: 0 0 4px; }
+  .subtitle { font-size: 13px; color: #5F5E5A; margin: 0 0 20px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; max-width: 1400px; }
+  .col { background: white; border-radius: 12px; padding: 16px; border: 1px solid #E8DFC8; }
+  .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #888780; margin: 0 0 12px; font-weight: 500; }
+  .label.green { color: #0F6E56; }
+  .frame { background: #FAFAFA; border-radius: 8px; border: 1px solid #E8DFC8; height: 540px; display: flex; overflow: hidden; }
+  .note { font-size: 12px; color: #5F5E5A; margin: 10px 0 0; line-height: 1.5; }
+
+  /* Sidebar ATUAL */
+  .sb-atual { width: 56px; background: white; border-right: 1px solid #E8DFC8; padding: 12px 0; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .sb-atual .logo { width: 30px; height: 30px; border-radius: 50%; background: #2C2C2A; color: white; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+  .sb-atual .div { width: 22px; height: 1px; background: #E8DFC8; }
+  .sb-atual .item { color: #888780; font-size: 14px; }
+  .sb-atual .item.active { width: 28px; height: 28px; border-radius: 6px; background: #009AAC; color: white; display: flex; align-items: center; justify-content: center; }
+  .sb-atual .user { margin-top: auto; width: 30px; height: 30px; border-radius: 50%; background: #009AAC; color: white; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 500; }
+
+  /* Sidebar NOVA */
+  .sb-nova { width: 200px; background: white; border-right: 1px solid #E8DFC8; padding: 14px 10px; display: flex; flex-direction: column; }
+  .sb-nova .logo-row { display: flex; align-items: center; gap: 10px; padding: 4px 8px 14px; }
+  .sb-nova .logo { width: 36px; height: 36px; border-radius: 8px; background: #009AAC; color: white; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+  .sb-nova .brand { font-size: 13px; font-weight: 500; color: #0E2244; line-height: 1.15; }
+  .sb-nova .menu { display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
+  .sb-nova .mi { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; color: #5F5E5A; text-decoration: none; }
+  .sb-nova .mi.active { background: #E0F4F6; color: #009AAC; font-weight: 500; }
+  .sb-nova .mi .badge { margin-left: auto; font-size: 10px; background: #D85A30; color: white; padding: 1px 7px; border-radius: 10px; }
+  .sb-nova .sep { height: 1px; background: #E8DFC8; margin: 10px 6px; }
+  .sb-nova .footer { margin-top: auto; padding-top: 10px; border-top: 1px solid #E8DFC8; }
+  .sb-nova .user-row { display: flex; align-items: center; gap: 10px; padding: 4px 6px; }
+  .sb-nova .avatar { width: 30px; height: 30px; border-radius: 50%; background: #1D9E75; color: white; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 500; }
+  .sb-nova .name { font-size: 12px; color: #0E2244; font-weight: 500; line-height: 1.2; }
+  .sb-nova .role { font-size: 11px; color: #888780; }
+  .sb-nova .logout { display: flex; align-items: center; gap: 8px; padding: 8px 10px; color: #5F5E5A; font-size: 12px; margin-top: 4px; cursor: pointer; }
+
+  /* Página */
+  .page { flex: 1; padding: 24px; background: white; }
+  .ph-atual .title { font-size: 19px; font-weight: 500; color: #2C2C2A; }
+  .ph-atual .meta { font-size: 13px; color: #009AAC; margin-top: 6px; }
+  .ph-nova .title { font-size: 22px; font-weight: 500; color: #0E2244; }
+  .ph-nova .meta { font-size: 13px; color: #5F5E5A; margin-top: 4px; }
+  .ph-nova .divider { height: 1px; background: #F0EBE0; margin: 18px 0; }
+  .placeholder { font-size: 12px; color: #888780; }
+
+  .legend { max-width: 1400px; margin: 28px auto 0; background: white; border: 1px solid #E8DFC8; border-radius: 12px; padding: 18px; }
+  .legend h2 { font-size: 14px; margin: 0 0 12px; color: #0E2244; }
+  .legend dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0; font-size: 13px; }
+  .legend dt { color: #888780; }
+  .legend dd { margin: 0; color: #0E2244; }
+  .swatch { display: inline-block; width: 14px; height: 14px; border-radius: 3px; vertical-align: -2px; margin-right: 6px; border: 1px solid rgba(0,0,0,0.05); }
+</style>
+</head>
+<body>
+
+<h1>Sidebar + Header — proposta Base44</h1>
+<p class="subtitle">Comparativo lado a lado. Sem efetivar nada ainda. Apenas mockup HTML.</p>
+
+<div class="grid">
+
+  <div class="col">
+    <p class="label">Antes — sidebar atual (colapsada)</p>
+    <div class="frame">
+      <aside class="sb-atual">
+        <div class="logo">🐾</div>
+        <div class="div"></div>
+        <div class="item active">☀</div>
+        <div class="item">▦</div>
+        <div class="item">💬</div>
+        <div class="item">≡</div>
+        <div class="item">👥</div>
+        <div class="item">📅</div>
+        <div class="item">🛏</div>
+        <div class="item">⚙</div>
+        <div class="user">CR</div>
+      </aside>
+      <div class="page ph-atual">
+        <div class="title">Hoje — Domingo, 31 De Maio</div>
+        <div class="meta">0 retornos vencidos · 2 toques hoje · 0 tutores precisando atenção</div>
+        <p class="placeholder" style="margin-top:18px;">conteúdo da página</p>
+      </div>
+    </div>
+    <p class="note">Sidebar só com ícones, sem labels, sem nome do usuário. Logo genérica.</p>
+  </div>
+
+  <div class="col">
+    <p class="label green">Depois — proposta Base44</p>
+    <div class="frame">
+      <aside class="sb-nova">
+        <div class="logo-row">
+          <div class="logo">🐾</div>
+          <div class="brand">Empório<br>do Pet</div>
+        </div>
+        <nav class="menu">
+          <a class="mi active">☀ &nbsp;Hoje</a>
+          <a class="mi">▦ &nbsp;Meu Painel</a>
+          <a class="mi">💬 &nbsp;Inbox <span class="badge">64</span></a>
+          <a class="mi">≡ &nbsp;Leads</a>
+          <a class="mi">👥 &nbsp;Tutores</a>
+          <a class="mi">🐾 &nbsp;Pets</a>
+          <a class="mi">📅 &nbsp;Calendário</a>
+          <a class="mi">🛏 &nbsp;Internações</a>
+          <div class="sep"></div>
+          <a class="mi" style="font-size:12px; color:#888780;">⚙ &nbsp;Configurações</a>
+        </nav>
+        <div class="footer">
+          <div class="user-row">
+            <div class="avatar">CR</div>
+            <div>
+              <div class="name">Cintia</div>
+              <div class="role">Admin</div>
+            </div>
+          </div>
+          <div class="logout">↩ Sair</div>
+        </div>
+      </aside>
+      <div class="page ph-nova">
+        <div class="title">Hoje — domingo, 31 de maio</div>
+        <div class="meta">3 retornos vencidos · 1 toque hoje · 9 tutores precisando atenção</div>
+        <div class="divider"></div>
+        <p class="placeholder">conteúdo da página</p>
+      </div>
+    </div>
+    <p class="note">Sidebar expandida (200px), labels visíveis, item ativo em turquesa-claro, badge no Inbox, identidade do usuário no rodapé, Configurações separada. Título marinho sentence-case + linha divisória bege.</p>
+  </div>
+
+</div>
+
+<section class="legend">
+  <h2>Paleta usada</h2>
+  <dl>
+    <dt><span class="swatch" style="background:#009AAC;"></span>Turquesa primária</dt><dd>#009AAC — logo, item ativo (texto), botão primário</dd>
+    <dt><span class="swatch" style="background:#E0F4F6;"></span>Turquesa claro</dt><dd>#E0F4F6 — fundo do item ativo na sidebar</dd>
+    <dt><span class="swatch" style="background:#0E2244;"></span>Marinho</dt><dd>#0E2244 — títulos das páginas, nome do usuário</dd>
+    <dt><span class="swatch" style="background:#E8DFC8;"></span>Bege bordas</dt><dd>#E8DFC8 — bordas de painéis, divisores</dd>
+    <dt><span class="swatch" style="background:#F0EBE0;"></span>Bege divisor</dt><dd>#F0EBE0 — linha sob o título da página</dd>
+    <dt><span class="swatch" style="background:#1D9E75;"></span>Verde avatar</dt><dd>#1D9E75 — avatar circular do usuário</dd>
+    <dt><span class="swatch" style="background:#D85A30;"></span>Laranja badge</dt><dd>#D85A30 — contador do Inbox</dd>
+    <dt><span class="swatch" style="background:#5F5E5A;"></span>Cinza texto</dt><dd>#5F5E5A — labels do menu inativo, subtítulos</dd>
+  </dl>
+</section>
+
+</body>
+</html>

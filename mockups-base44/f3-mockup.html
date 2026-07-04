@@ -1,0 +1,123 @@
+<style>
+:root{
+  --bg:#F6F2EA; --card:#fff; --line:#E8E2D6; --soft:#F0EBE0; --suave:#FBF9F4;
+  --ink:#1F2A2E; --ink2:#5C6B70; --mut:#8A989D; --navy:#014D5E; --teal:#009AAC; --agua:#E0F4F6;
+  --late-b:#FCE9EF; --late-i:#CC3366;
+  --pend-b:#FDF4DD; --pend-i:#8a6400;
+  --feito-b:#E1F5EE; --feito-i:#0F6E56;
+}
+*{box-sizing:border-box}
+.wrap{max-width:900px;margin:0 auto;padding:10px 4px 48px;font-family:"Segoe UI",system-ui,-apple-system,sans-serif;color:var(--ink);font-size:14px;line-height:1.45}
+.crumb{font-size:12px;color:var(--mut);margin-bottom:4px}
+.crumb b{color:var(--teal);font-weight:500}
+h1{font-size:20px;font-weight:500;color:var(--navy);margin:0 0 2px;letter-spacing:-.2px}
+.sub{font-size:12.5px;color:var(--mut);margin-bottom:18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;margin-bottom:16px;overflow:hidden}
+.ch{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 16px;border-bottom:1px solid var(--soft);flex-wrap:wrap}
+.ch h3{font-size:14px;font-weight:500;color:var(--navy);margin:0;display:flex;align-items:center;gap:8px}
+.ch .counts{display:flex;gap:6px;flex-wrap:wrap}
+.pill{font-size:11px;font-weight:500;padding:2px 9px;border-radius:999px;white-space:nowrap}
+.p-late{background:var(--late-b);color:var(--late-i)}
+.p-pend{background:var(--pend-b);color:var(--pend-i)}
+.p-feito{background:var(--feito-b);color:var(--feito-i)}
+.btn{border:1px solid var(--line);background:#fff;color:var(--ink2);border-radius:9px;padding:7px 12px;font-size:12.5px;cursor:pointer;font-weight:500}
+.btn:hover{border-color:var(--teal);color:var(--teal)}
+.btn.pri{background:var(--teal);border-color:var(--teal);color:#fff}
+.btn.pri:hover{background:#007A89}
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--mut);font-weight:500;padding:9px 14px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:10px 14px;border-bottom:1px solid var(--soft);color:var(--ink);white-space:nowrap}
+tr:last-child td{border-bottom:0}
+.num{font-variant-numeric:tabular-nums}
+.med{font-weight:500;color:var(--navy)}
+.via{font-size:11px;color:var(--ink2);background:var(--suave);border:1px solid var(--line);border-radius:6px;padding:1px 7px}
+.acts{color:var(--mut);cursor:pointer;font-size:13px}
+.done td{opacity:.55}
+.ck{width:20px;height:20px;border:1.5px solid var(--line);border-radius:6px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;background:#fff;font-size:12px;color:transparent;transition:.12s}
+.ck.on{background:var(--feito-i);border-color:var(--feito-i);color:#fff}
+.chips{display:flex;gap:8px;flex-wrap:wrap;padding:14px 16px}
+.chip{font-size:12px;border:1px solid var(--line);border-radius:999px;padding:6px 13px;color:var(--ink2);cursor:pointer;background:var(--suave)}
+.chip:hover{border-color:var(--teal);color:var(--teal)}
+.hint{font-size:11px;color:var(--mut);padding:0 16px 14px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--ink2);margin:-6px 0 16px;padding:0 2px}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.legend i{width:9px;height:9px;border-radius:50%;display:inline-block}
+.note{font-size:11px;color:var(--mut);text-align:center;margin-top:18px}
+</style>
+<div class="wrap">
+  <div class="crumb">Internação / Box B-01 / <b>Prescrição &amp; plantão</b></div>
+  <h1>💊 Prescrição &amp; plantão — Thor</h1>
+  <div class="sub">Fatia 3 · como vai ficar na ficha do paciente internado · Rottweiler · 32 kg · Dra. Vivian</div>
+
+  <div class="legend">
+    <span><i style="background:var(--late-i)"></i> Atrasada (passou do horário)</span>
+    <span><i style="background:var(--pend-i)"></i> Pendente (ainda vai)</span>
+    <span><i style="background:var(--feito-i)"></i> Feita (aplicada)</span>
+  </div>
+
+  <!-- PRESCRIÇÃO -->
+  <div class="card">
+    <div class="ch">
+      <h3>💊 Prescrição ativa</h3>
+      <button class="btn pri">➕ Adicionar medicação</button>
+    </div>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Medicação</th><th>Via</th><th>Dose</th><th>Frequência</th><th>Horários</th><th></th></tr></thead>
+        <tbody>
+          <tr><td class="med">Tramadol</td><td><span class="via">IV</span></td><td class="num">3 mg/kg</td><td>8/8h</td><td class="num">06 · 14 · 22</td><td style="text-align:right"><span class="acts">✏️</span> <span class="acts">🗑️</span></td></tr>
+          <tr><td class="med">Cefalotina</td><td><span class="via">IV</span></td><td class="num">30 mg/kg</td><td>8/8h</td><td class="num">06 · 14 · 22</td><td style="text-align:right"><span class="acts">✏️</span> <span class="acts">🗑️</span></td></tr>
+          <tr><td class="med">Omeprazol</td><td><span class="via">IV</span></td><td class="num">1 mg/kg</td><td>24h</td><td class="num">08</td><td style="text-align:right"><span class="acts">✏️</span> <span class="acts">🗑️</span></td></tr>
+          <tr><td class="med">Ringer lactato</td><td><span class="via">IV (BIC)</span></td><td class="num">80 ml/h</td><td>Contínuo</td><td class="num">—</td><td style="text-align:right"><span class="acts">✏️</span> <span class="acts">🗑️</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="chips">
+      <span class="chip">🧬 Fluidoterapia de manutenção</span>
+      <span class="chip">🧬 Analgesia pós-op</span>
+      <span class="chip">🧬 Protocolo antiemético</span>
+      <span class="chip">➕ Novo protocolo</span>
+    </div>
+    <div class="hint">Protocolos = modelos salvos que preenchem a prescrição de uma vez.</div>
+  </div>
+
+  <!-- PLANTÃO -->
+  <div class="card">
+    <div class="ch">
+      <h3>📋 Plantão de hoje · doses</h3>
+      <div class="counts">
+        <span class="pill p-late">🔴 1 atrasada</span>
+        <span class="pill p-pend">🟡 2 pendentes</span>
+        <span class="pill p-feito">🟢 3 feitas</span>
+      </div>
+    </div>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Hora</th><th>Medicação</th><th>Via</th><th>Dose</th><th>Status</th><th>Por</th><th style="text-align:center">Feita</th></tr></thead>
+        <tbody id="tb">
+          <tr><td class="num">14:00</td><td class="med">Tramadol</td><td><span class="via">IV</span></td><td class="num">3 mg/kg</td><td><span class="pill p-late">Atrasada</span></td><td class="mut">—</td><td style="text-align:center"><span class="ck" data-por="Ellen"></span></td></tr>
+          <tr><td class="num">14:00</td><td class="med">Cefalotina</td><td><span class="via">IV</span></td><td class="num">30 mg/kg</td><td><span class="pill p-pend">Pendente</span></td><td class="mut">—</td><td style="text-align:center"><span class="ck" data-por="Ellen"></span></td></tr>
+          <tr><td class="num">22:00</td><td class="med">Tramadol</td><td><span class="via">IV</span></td><td class="num">3 mg/kg</td><td><span class="pill p-pend">Pendente</span></td><td class="mut">—</td><td style="text-align:center"><span class="ck" data-por="Ellen"></span></td></tr>
+          <tr class="done"><td class="num">08:00</td><td class="med">Omeprazol</td><td><span class="via">IV</span></td><td class="num">1 mg/kg</td><td><span class="pill p-feito">Feita</span></td><td>Isabela</td><td style="text-align:center"><span class="ck on">✓</span></td></tr>
+          <tr class="done"><td class="num">06:00</td><td class="med">Cefalotina</td><td><span class="via">IV</span></td><td class="num">30 mg/kg</td><td><span class="pill p-feito">Feita</span></td><td>Isabela</td><td style="text-align:center"><span class="ck on">✓</span></td></tr>
+          <tr class="done"><td class="num">06:00</td><td class="med">Tramadol</td><td><span class="via">IV</span></td><td class="num">3 mg/kg</td><td><span class="pill p-feito">Feita</span></td><td>Isabela</td><td style="text-align:center"><span class="ck on">✓</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="hint">Clique no quadradinho pra marcar como aplicada — registra quem deu e a hora. As doses saem da prescrição, nos horários definidos.</div>
+  </div>
+
+  <div class="note">Mockup da Fatia 3 · padrão Base44 · dados de exemplo · toda ação vira botão real</div>
+</div>
+<script>
+document.getElementById("tb").addEventListener("click", function(e){
+  var ck = e.target.closest(".ck"); if(!ck) return;
+  var tr = ck.closest("tr"); var on = ck.classList.toggle("on");
+  ck.textContent = on ? "✓" : "";
+  tr.classList.toggle("done", on);
+  var st = tr.querySelector(".pill"); var por = tr.children[5];
+  if(on){ st.className="pill p-feito"; st.textContent="Feita"; por.textContent=ck.dataset.por; por.classList.remove("mut"); }
+  else { st.className="pill p-pend"; st.textContent="Pendente"; por.textContent="—"; por.classList.add("mut"); }
+});
+</script>

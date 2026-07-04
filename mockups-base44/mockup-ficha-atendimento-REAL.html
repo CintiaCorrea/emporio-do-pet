@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mockup REAL — Ficha de Atendimento (espelhando SimplesVet)</title>
+<style>
+  :root{
+    --turq:#009AAC; --turqd:#00798A; --marinho:#014D5E; --bege:#E8DFC8; --bg:#f4f5f3;
+    --tinta:#0E2244; --cinza:#6B7280; --turqbg:#f6fdfd; --linha:#eef0ec;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+  body{background:var(--bg);color:var(--tinta);padding:16px;font-size:13px}
+  .wrap{max-width:1240px;margin:0 auto}
+  .note{background:#fff;border:1px solid var(--bege);border-radius:12px;padding:12px 14px;margin-bottom:12px;font-size:12.5px;color:#475569;line-height:1.55}
+  .note b{color:var(--marinho)}
+  .ctrl{display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+  .ctrl span{font-size:12px;color:var(--cinza)}
+  .ctrl button{border:1px solid var(--bege);background:#fff;color:#475569;border-radius:8px;padding:7px 12px;font-size:12.5px;cursor:pointer;font-weight:600}
+  .ctrl button.on{background:var(--turq);color:#fff;border-color:var(--turq)}
+
+  .card{background:#fff;border:1px solid var(--bege);border-radius:12px;overflow:hidden}
+  /* header pet */
+  .ph{display:grid;grid-template-columns:1fr 1fr 70px;gap:14px;padding:14px 18px;border-bottom:1px solid var(--linha)}
+  .ph .name{font-size:15px;color:var(--marinho);font-weight:700}
+  .ph .meta{font-size:11.5px;color:var(--cinza);line-height:1.5}
+  .ph .tag{display:inline-block;background:#fce5c8;color:#9a6a17;border-radius:5px;padding:1px 7px;font-size:10px;font-weight:600;margin-right:4px}
+  .ph .photo{width:62px;height:62px;border-radius:50%;background:#E0F4F6;display:flex;align-items:center;justify-content:center;color:var(--turqd);font-size:24px}
+
+  .body{display:grid;grid-template-columns:230px 1fr;gap:16px;padding:16px}
+  /* coluna lateral */
+  .side .box{border:1px solid var(--bege);border-radius:10px;margin-bottom:12px;overflow:hidden}
+  .side .vtabs{display:flex;border-bottom:1px solid var(--bege)}
+  .side .vtabs div{flex:1;text-align:center;padding:8px;font-size:11.5px;font-weight:600;color:var(--cinza)}
+  .side .vtabs div.on{color:var(--turq);border-bottom:2px solid var(--turq)}
+  .side .vbody{padding:12px}
+  .side .add{display:flex;align-items:center;justify-content:center;gap:6px;background:var(--turq);color:#fff;border:none;border-radius:8px;padding:8px;font-size:12px;font-weight:600;width:100%;cursor:pointer}
+  .side .empty{text-align:center;color:#9aa3ad;font-size:11.5px;padding:16px 0}
+  .side .bx-h{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:#94a3b8;padding:10px 12px 4px}
+  .side .bx-c{padding:6px 12px 12px;font-size:11.5px;color:#475569;line-height:1.5}
+  .soonpill{display:inline-block;background:#fef3c7;color:#92400e;border-radius:6px;padding:1px 7px;font-size:9.5px;font-weight:700;margin-bottom:5px}
+
+  /* painel principal */
+  .panel{border:1px solid var(--bege);border-radius:10px;overflow:hidden;min-height:460px}
+  .tabs{display:flex;border-bottom:1px solid var(--bege);background:#fcfcfb}
+  .tabs button{padding:10px 14px;font-size:12.5px;font-weight:600;color:var(--cinza);background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap}
+  .tabs button.on{color:var(--turq);border-bottom-color:var(--turq);background:var(--turqbg)}
+  .tabs .rel{color:#0C447C}
+  .tabs .rel.on{color:#0C447C;border-bottom-color:#0C447C;background:#eef4fb}
+
+  .histgrid{display:grid;grid-template-columns:290px 1fr;gap:0}
+  /* timeline */
+  .tl{border-right:1px solid var(--linha);padding:12px}
+  .tlbar{display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+  .chip{border:1px solid var(--bege);border-radius:7px;padding:5px 9px;font-size:11px;color:#475569;cursor:pointer}
+  .ico{border:1px solid var(--bege);border-radius:7px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;color:#64748b;cursor:pointer;font-size:13px}
+  .iconrow{display:flex;gap:3px;flex-wrap:wrap;margin-bottom:4px}
+  .iconrow .d{width:24px;height:24px;border-radius:5px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px}
+  .yr{font-size:16px;color:var(--turq);font-weight:700;margin:8px 0 6px}
+  .ev{display:flex;gap:9px;padding:7px;border-left:3px solid var(--turq);margin-bottom:7px;background:var(--turqbg);border-radius:0 7px 7px 0;cursor:pointer}
+  .ev .w{font-size:11px;color:var(--turq);font-weight:600}
+  .ev .t{font-size:12px;font-weight:600}
+  .ev .d{font-size:11px;color:var(--cinza)}
+  .ev .i{margin-left:auto;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:700;flex:0 0 auto}
+
+  .work{padding:16px}
+  /* estado grade */
+  .gtitle{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:#94a3b8;margin-bottom:10px}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+  .gb{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;border:none;border-radius:11px;color:#fff;font-size:12px;font-weight:600;padding:16px 6px;cursor:pointer}
+  .gb small{font-size:8.5px;opacity:.9;background:rgba(0,0,0,.18);border-radius:5px;padding:0 5px}
+  .gb.soon{opacity:.55}
+  .leg{margin-top:12px;font-size:11px;color:#9aa3ad}
+
+  /* work-area header */
+  .wa{display:none}
+  .wahead{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--linha);padding-bottom:10px;margin-bottom:14px}
+  .wahead .ttl{font-size:14px;font-weight:700;color:var(--marinho)}
+  .wahead .by{font-size:11px;color:var(--cinza)}
+  .wabtns{display:flex;gap:8px}
+  .bsalv{background:var(--turq);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:12.5px;font-weight:600;cursor:pointer}
+  .bimp{background:#fff;color:#475569;border:1px solid var(--bege);border-radius:8px;padding:8px 14px;font-size:12.5px;cursor:pointer}
+  .bfech{background:#fff;color:#9b2c3a;border:1px solid #f0d2d2;border-radius:8px;padding:8px 14px;font-size:12.5px;cursor:pointer}
+  .fld{margin-bottom:12px}
+  .fld label{display:block;font-size:11.5px;color:var(--cinza);margin-bottom:4px;font-weight:600}
+  .fld input,.fld select,.fld textarea{width:100%;border:1px solid var(--bege);border-radius:8px;padding:9px 10px;font-size:12.5px;color:var(--tinta);background:#fff}
+  .fld textarea{min-height:120px;resize:vertical}
+  .frow{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .req{color:#c0392b}
+  .preview{border:1px dashed var(--bege);border-radius:10px;padding:14px;font-size:12px;color:#475569;line-height:1.6;background:#fcfcfb}
+  .preview .var{background:#E0F4F6;color:var(--turqd);border-radius:4px;padding:0 4px;font-size:11px}
+  .medrow{display:grid;grid-template-columns:2fr 1fr 1fr 1fr 28px;gap:6px;align-items:center;margin-bottom:6px}
+  .medrow input,.medrow select{font-size:11.5px;padding:6px 8px}
+  .addline{font-size:11.5px;color:var(--turq);cursor:pointer;font-weight:600}
+  .show-wa .gridstate{display:none}
+  .show-wa .wa{display:block}
+
+  /* relacionamento */
+  .relbody{display:none;padding:18px}
+  .show-rel .histgrid{display:none}
+  .show-rel .relbody{display:block}
+  .relcard{border:1px solid var(--bege);border-radius:10px;padding:14px;margin-bottom:12px}
+  .relcard h4{font-size:12.5px;color:var(--marinho);margin-bottom:8px}
+  .relline{display:flex;justify-content:space-between;font-size:12px;color:#475569;padding:4px 0;border-bottom:1px solid var(--linha)}
+  .pill{display:inline-block;border-radius:999px;padding:2px 9px;font-size:10.5px;font-weight:600}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="note">
+    <b>Mockup REAL — ficha de atendimento do pet, espelhando o SimplesVet</b> (baseado nas capturas reais).<br>
+    Padrão <b>inline</b>: clicar num artefato abre a <b>área de trabalho na própria ficha</b> (no lugar da grade), com <b>Salvar · Imprimir · Fechar</b> — nunca pop-up. Use os botões abaixo pra ver cada estado. Abas iguais ao SimplesVet + <b>Relacionamento</b> (nosso FU). Cromo turquesa do nosso app; botões coloridos mantidos como lá.
+  </div>
+
+  <div class="ctrl">
+    <span>Ver:</span>
+    <button id="c1" class="on" onclick="setView('hist')">Histórico (grade)</button>
+    <button id="c2" onclick="setView('atd')">Atendimento aberto</button>
+    <button id="c3" onclick="setView('doc')">Documento (modelo)</button>
+    <button id="c4" onclick="setView('rec')">Receita</button>
+    <button id="c5" onclick="setView('rel')">Relacionamento (FU)</button>
+  </div>
+
+  <div class="card" id="root">
+    <!-- header pet -->
+    <div class="ph">
+      <div>
+        <div class="name">Abraão Victor Barroso <span style="color:#9aa3ad;font-weight:400">(4201)</span></div>
+        <div class="meta">(85) 99445-7994 · aaj2011@live.com<br><span class="tag">GMN</span><span class="tag">Sessão 141.00</span></div>
+      </div>
+      <div>
+        <div class="name">Maike <span style="color:#9aa3ad;font-weight:400">(6578)</span></div>
+        <div class="meta">Dachshund · Macho<br>6,25 kg em Abr 2024 · 5 anos 4 meses</div>
+      </div>
+      <div class="photo">🐶</div>
+    </div>
+
+    <div class="body">
+      <!-- lateral -->
+      <div class="side">
+        <div class="box">
+          <div class="vtabs"><div class="on">Venda</div><div>Orçamentos</div></div>
+          <div class="vbody"><button class="add">+ Adicionar</button><div class="empty">Nenhum item cadastrado</div></div>
+        </div>
+        <div class="box">
+          <div class="bx-h">Pacote ativo</div>
+          <div class="bx-c">Pacote Fisioterapia 12 sessões — <b>3/12</b> usadas</div>
+        </div>
+        <div class="box">
+          <div class="bx-h">Crédito do pet</div>
+          <div class="bx-c"><span class="soonpill">Em construção</span><br>Saldo a favor deste pet — transferível.</div>
+        </div>
+      </div>
+
+      <!-- painel -->
+      <div class="panel" id="panel">
+        <div class="tabs">
+          <button class="on" id="tabHist">Histórico</button>
+          <button>Protocolos</button>
+          <button>Linha do tempo</button>
+          <button>Agenda</button>
+          <button>Vendas</button>
+          <button class="rel" id="tabRel" onclick="setView('rel')">Relacionamento</button>
+        </div>
+
+        <!-- HISTÓRICO -->
+        <div class="histgrid">
+          <!-- timeline -->
+          <div class="tl">
+            <div class="tlbar">
+              <div class="chip">📅 Período…</div><div class="ico">↺</div>
+            </div>
+            <div class="iconrow">
+              <div class="d" style="background:#2f80c4">＋</div><div class="d" style="background:#b8860b">⚖</div><div class="d" style="background:#7c3aed">!</div><div class="d" style="background:#2e9e5b">📄</div><div class="d" style="background:#e0556b">🧪</div><div class="d" style="background:#2b6cb0">📷</div><div class="d" style="background:#e08a1e">💉</div><div class="d" style="background:#9333ea">✎</div><div class="d" style="background:#64748b">💬</div>
+            </div>
+            <div class="yr">2024</div>
+            <div class="ev" onclick="setView('atd')"><div><div class="w">10/06 às 15:36</div><div class="t">Atendimento</div><div class="d">MAP</div></div><div class="i" style="background:#7c3aed">VC</div></div>
+            <div class="ev"><div><div class="w">07/06 às 17:37</div><div class="t">Atendimento</div><div class="d">MAP · 11/12</div></div><div class="i" style="background:#e0556b">E2</div></div>
+            <div class="ev"><div><div class="w">03/06 às 18:16</div><div class="t">Atendimento</div><div class="d">MAP · 10/12</div></div><div class="i" style="background:#2e9e5b">VC</div></div>
+            <div class="ev"><div><div class="w">27/05 às 17:09</div><div class="t">Atendimento</div><div class="d">MAP</div></div><div class="i" style="background:#e08a1e">ER</div></div>
+          </div>
+
+          <!-- area de trabalho -->
+          <div class="work" id="work">
+            <!-- grade -->
+            <div class="gridstate">
+              <div class="gtitle">Adicionar ao histórico</div>
+              <div class="grid">
+                <button class="gb" style="background:#2f80c4" onclick="setView('atd')">＋ Atendimento</button>
+                <button class="gb soon" style="background:#b8860b">⚖ Peso <small>em construção</small></button>
+                <button class="gb soon" style="background:#7c3aed">! Patologia <small>em construção</small></button>
+                <button class="gb" style="background:#2e9e5b" onclick="setView('doc')">📄 Documento</button>
+                <button class="gb soon" style="background:#e0556b">🧪 Exame <small>em construção</small></button>
+                <button class="gb soon" style="background:#2b6cb0">📷 Fotos <small>em construção</small></button>
+                <button class="gb soon" style="background:#e08a1e">💉 Vacina</button>
+                <button class="gb" style="background:#9333ea" onclick="setView('rec')">✎ Receita</button>
+                <button class="gb soon" style="background:#64748b">💬 Observação <small>em construção</small></button>
+                <button class="gb soon" style="background:#0f7a52">🎥 Vídeo <small>em construção</small></button>
+                <button class="gb soon" style="background:#9b2c3a">＋ Internação</button>
+              </div>
+              <div class="leg">Cada artefato abre aqui (inline) e vira uma entrada na timeline ao salvar. Verde = pronto na fatia; cinza = próximas fatias.</div>
+            </div>
+
+            <!-- ATENDIMENTO -->
+            <div class="wa" id="wa-atd">
+              <div class="wahead">
+                <div><div class="ttl">Atendimento</div><div class="by">Por Dra. Vivian Correa · 22/06/2026 09:33</div></div>
+                <div class="wabtns"><button class="bsalv">Salvar</button><button class="bimp">Imprimir ▾</button><button class="bfech" onclick="setView('hist')">Fechar</button></div>
+              </div>
+              <div class="frow">
+                <div class="fld"><label>Tipo do atendimento <span class="req">*</span></label>
+                  <select><option>Consulta Alimentação Natural</option><option>Consulta Clínica</option><option>Consulta Integrativa</option><option>Consulta Fisioterapia</option><option>MAP</option><option>Retorno</option><option>Vacinação</option><option>Acupuntura</option><option>Laserterapia</option><option>… (43 tipos, configuráveis)</option></select>
+                </div>
+                <div class="fld"><label>Data e hora</label><input value="22/06/2026 09:33"></div>
+              </div>
+              <div class="fld"><label>Resumo</label><textarea placeholder="Texto livre do atendimento (anamnese, conduta…)">Animal estável. Mantida dieta natural. Retorno em 30 dias.</textarea></div>
+              <div class="leg">O peso clínico real é montado pelos artefatos (Documento, Receita, Exame, Peso…), cada um vira uma entrada na timeline.</div>
+            </div>
+
+            <!-- DOCUMENTO -->
+            <div class="wa" id="wa-doc">
+              <div class="wahead">
+                <div><div class="ttl">Documento</div><div class="by">Por Dra. Vivian Correa · 22/06/2026 09:35</div></div>
+                <div class="wabtns"><button class="bsalv">Salvar</button><button class="bimp">Imprimir ▾</button><button class="bfech" onclick="setView('hist')">Cancelar</button></div>
+              </div>
+              <div class="fld"><label>Selecione o modelo…</label>
+                <select onchange="document.getElementById('docprev').style.display='block'">
+                  <option>Selecione o modelo…</option>
+                  <option>Atestado de saúde</option><option>Atestado de vacinação</option><option>Atividades Map</option>
+                  <option>Avaliação Fisioterapêutica</option><option>Declaração</option><option>Encaminhamento</option>
+                  <option>Ficha Resumida</option><option>Guia de trânsito</option><option>Laudo Veterinário</option>
+                  <option>Orientações Pós Operatórias</option><option>Receituário de Controle Especial</option>
+                  <option>Termo de Internação e Tratamento</option><option>… (38 modelos, configuráveis)</option>
+                </select>
+              </div>
+              <div class="preview" id="docprev" style="display:none">
+                <b>Atestado de saúde</b><br><br>
+                Atesto para os devidos fins que o animal <span class="var">{{pet}}</span> (Dachshund, macho), de tutoria de <span class="var">{{tutor}}</span>, encontra-se clinicamente saudável nesta data.<br><br>
+                Fortaleza, <span class="var">{{data}}</span>.<br>
+                <span class="var">{{vet}}</span> — CRMV <span class="var">{{crmv}}</span>
+              </div>
+              <div class="leg">Modelo = template de texto rico com variáveis. Ao salvar: vira entrada na timeline + gera PDF (Imprimir).</div>
+            </div>
+
+            <!-- RECEITA -->
+            <div class="wa" id="wa-rec">
+              <div class="wahead">
+                <div><div class="ttl">Receita</div><div class="by">Por Dra. Vivian Correa · 22/06/2026 09:40</div></div>
+                <div class="wabtns"><button class="bsalv">Salvar</button><button class="bimp">Imprimir ▾</button><button class="bfech" onclick="setView('hist')">Cancelar</button></div>
+              </div>
+              <div class="fld"><label>Medicamentos</label>
+                <div class="medrow" style="font-size:10.5px;color:#94a3b8;font-weight:700"><div>Medicamento</div><div>Dose</div><div>Via</div><div>Frequência</div><div></div></div>
+                <div class="medrow"><input value="Dipirona 500mg"><input value="0,5 ml"><select><option>VO</option><option>IM</option><option>SC</option></select><input value="8/8h por 5 dias"><div class="ico">🗑</div></div>
+                <div class="medrow"><input placeholder="Medicamento"><input placeholder="Dose"><select><option>VO</option><option>IM</option><option>SC</option></select><input placeholder="Frequência/duração"><div class="ico">🗑</div></div>
+                <div class="addline">+ adicionar medicamento</div>
+              </div>
+              <div class="fld"><label>Observações</label><textarea style="min-height:60px" placeholder="Orientações ao tutor…"></textarea></div>
+              <div class="leg">Estrutura a confirmar com prints do SimplesVet (Receita). Ao salvar: entrada na timeline + imprimir/PDF.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RELACIONAMENTO -->
+        <div class="relbody">
+          <div class="relcard">
+            <h4>Follow-Up</h4>
+            <div class="relline"><span>Próximo follow-up</span><span class="pill" style="background:#fce5c8;color:#9a6a17">30/06/2026 · Retorno MAP</span></div>
+            <div class="relline"><span>Estado do relacionamento</span><span class="pill" style="background:#E1F5EE;color:#0F6E56">Em dia</span></div>
+            <div class="relline" style="border:none"><span>Cadência ativa</span><span>Acompanhamento Alimentação Natural (mensal)</span></div>
+          </div>
+          <div class="relcard">
+            <h4>Interações recentes</h4>
+            <div class="relline"><span>15/06 · WhatsApp</span><span style="color:#9aa3ad">Confirmou retorno</span></div>
+            <div class="relline" style="border:none"><span>02/06 · Ligação</span><span style="color:#9aa3ad">Tutor relatou melhora</span></div>
+          </div>
+          <div class="leg">Esta é a única aba que mantemos do que já tínhamos — é o nosso diferencial de CRM (o SimplesVet não tem FU).</div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  function setView(v){
+    var root=document.getElementById('root'), panel=document.getElementById('panel');
+    root.classList.remove('show-rel'); panel.classList.remove('show-wa');
+    ['wa-atd','wa-doc','wa-rec'].forEach(id=>document.getElementById(id).style.display='none');
+    ['c1','c2','c3','c4','c5'].forEach(id=>document.getElementById(id).classList.remove('on'));
+    document.getElementById('tabHist').classList.toggle('on', v!=='rel');
+    document.getElementById('tabRel').classList.toggle('on', v==='rel');
+    if(v==='hist'){document.getElementById('c1').classList.add('on');}
+    if(v==='atd'){panel.classList.add('show-wa');document.getElementById('wa-atd').style.display='block';document.getElementById('c2').classList.add('on');}
+    if(v==='doc'){panel.classList.add('show-wa');document.getElementById('wa-doc').style.display='block';document.getElementById('c3').classList.add('on');}
+    if(v==='rec'){panel.classList.add('show-wa');document.getElementById('wa-rec').style.display='block';document.getElementById('c4').classList.add('on');}
+    if(v==='rel'){root.classList.add('show-rel');document.getElementById('c5').classList.add('on');}
+  }
+</script>
+</body>
+</html>

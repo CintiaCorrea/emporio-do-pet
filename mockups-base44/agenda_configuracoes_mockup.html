@@ -1,0 +1,65 @@
+<div class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden">Mockup da aba Configurações da Agenda: faixa de horário, intervalo da grade, profissionais exibidos, cores por status e dias de funcionamento.</div>
+
+<div style="background: var(--color-background-secondary); border-radius: var(--border-radius-lg); padding: 1rem;">
+
+  <div style="display:flex; align-items:center; gap:18px; border-bottom:0.5px solid var(--color-border-secondary); padding:0 4px 10px;">
+    <span style="font-size:15px; font-weight:500;">Agenda</span>
+    <span style="display:flex; gap:14px; font-size:14px; color:var(--color-text-secondary);">
+      <span>Dia</span><span>Semana</span><span>Mês</span>
+      <span style="color:var(--color-text-tertiary);">·</span>
+      <span>Escala</span>
+      <span style="color:#0F6E56; border-bottom:2px solid #1D9E75; padding-bottom:8px;">Configurações</span>
+    </span>
+  </div>
+
+  <div style="background:var(--color-background-primary); border:0.5px solid var(--color-border-tertiary); border-radius:var(--border-radius-lg); padding:1rem 1.25rem; margin-top:14px;">
+    <p style="font-size:13px; font-weight:500; margin:0 0 12px; color:var(--color-text-secondary);"><i class="ti ti-clock" style="font-size:16px;vertical-align:-2px;margin-right:6px" aria-hidden="true"></i>Exibição da grade</p>
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px;">
+      <div><label style="font-size:12px; color:var(--color-text-secondary); display:block; margin-bottom:4px;">Hora de início</label><input value="07:00" style="width:100%"/></div>
+      <div><label style="font-size:12px; color:var(--color-text-secondary); display:block; margin-bottom:4px;">Hora de fim</label><input value="20:00" style="width:100%"/></div>
+      <div><label style="font-size:12px; color:var(--color-text-secondary); display:block; margin-bottom:4px;">Intervalo da grade</label><select style="width:100%"><option>15 min</option><option>30 min</option></select></div>
+      <div><label style="font-size:12px; color:var(--color-text-secondary); display:block; margin-bottom:4px;">Duração padrão</label><select style="width:100%"><option>30 min</option><option>60 min</option></select></div>
+    </div>
+  </div>
+
+  <div style="background:var(--color-background-primary); border:0.5px solid var(--color-border-tertiary); border-radius:var(--border-radius-lg); padding:1rem 1.25rem; margin-top:12px;">
+    <p style="font-size:13px; font-weight:500; margin:0 0 4px; color:var(--color-text-secondary);"><i class="ti ti-users" style="font-size:16px;vertical-align:-2px;margin-right:6px" aria-hidden="true"></i>Profissionais na agenda</p>
+    <p style="font-size:12px; color:var(--color-text-tertiary); margin:0 0 12px;">Quem aparece como coluna na visão Dia</p>
+    <div style="display:flex; flex-direction:column; gap:2px;">
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:8px 4px; border-bottom:0.5px solid var(--color-border-tertiary);"><span style="font-size:14px;"><i class="ti ti-stethoscope" style="font-size:15px;vertical-align:-2px;margin-right:8px;color:var(--color-text-tertiary)" aria-hidden="true"></i>Dra. Vivian Corrêa <span style="font-size:12px;color:var(--color-text-tertiary)">· Medicina integrativa</span></span><span style="width:34px;height:20px;border-radius:10px;background:#1D9E75;position:relative;display:inline-block;"><span style="position:absolute;right:2px;top:2px;width:16px;height:16px;border-radius:50%;background:#fff;"></span></span></div>
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:8px 4px; border-bottom:0.5px solid var(--color-border-tertiary);"><span style="font-size:14px;"><i class="ti ti-stethoscope" style="font-size:15px;vertical-align:-2px;margin-right:8px;color:var(--color-text-tertiary)" aria-hidden="true"></i>Dr. Gabriel <span style="font-size:12px;color:var(--color-text-tertiary)">· Fisioterapia</span></span><span style="width:34px;height:20px;border-radius:10px;background:#1D9E75;position:relative;display:inline-block;"><span style="position:absolute;right:2px;top:2px;width:16px;height:16px;border-radius:50%;background:#fff;"></span></span></div>
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:8px 4px;"><span style="font-size:14px; color:var(--color-text-secondary)"><i class="ti ti-stethoscope" style="font-size:15px;vertical-align:-2px;margin-right:8px;color:var(--color-text-tertiary)" aria-hidden="true"></i>Dra. Ana Luiza <span style="font-size:12px;color:var(--color-text-tertiary)">· sem login ainda</span></span><span style="width:34px;height:20px;border-radius:10px;background:var(--color-border-secondary);position:relative;display:inline-block;"><span style="position:absolute;left:2px;top:2px;width:16px;height:16px;border-radius:50%;background:#fff;"></span></span></div>
+    </div>
+  </div>
+
+  <div style="background:var(--color-background-primary); border:0.5px solid var(--color-border-tertiary); border-radius:var(--border-radius-lg); padding:1rem 1.25rem; margin-top:12px;">
+    <p style="font-size:13px; font-weight:500; margin:0 0 12px; color:var(--color-text-secondary);"><i class="ti ti-palette" style="font-size:16px;vertical-align:-2px;margin-right:6px" aria-hidden="true"></i>Cores por status</p>
+    <div style="display:flex; flex-wrap:wrap; gap:8px;">
+      <span style="display:inline-flex;align-items:center;gap:7px;font-size:13px;border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:5px 10px;"><span style="width:12px;height:12px;border-radius:3px;background:#85B7EB"></span>Agendado</span>
+      <span style="display:inline-flex;align-items:center;gap:7px;font-size:13px;border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:5px 10px;"><span style="width:12px;height:12px;border-radius:3px;background:#5DCAA5"></span>Confirmado</span>
+      <span style="display:inline-flex;align-items:center;gap:7px;font-size:13px;border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:5px 10px;"><span style="width:12px;height:12px;border-radius:3px;background:#FAC775"></span>Em espera</span>
+      <span style="display:inline-flex;align-items:center;gap:7px;font-size:13px;border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:5px 10px;"><span style="width:12px;height:12px;border-radius:3px;background:#1D9E75"></span>Em atendimento</span>
+      <span style="display:inline-flex;align-items:center;gap:7px;font-size:13px;border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:5px 10px;"><span style="width:12px;height:12px;border-radius:3px;background:#888780"></span>Atendido</span>
+      <span style="display:inline-flex;align-items:center;gap:7px;font-size:13px;border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:5px 10px;"><span style="width:12px;height:12px;border-radius:3px;background:#E24B4A"></span>Cancelado</span>
+    </div>
+  </div>
+
+  <div style="background:var(--color-background-primary); border:0.5px solid var(--color-border-tertiary); border-radius:var(--border-radius-lg); padding:1rem 1.25rem; margin-top:12px;">
+    <p style="font-size:13px; font-weight:500; margin:0 0 12px; color:var(--color-text-secondary);"><i class="ti ti-calendar" style="font-size:16px;vertical-align:-2px;margin-right:6px" aria-hidden="true"></i>Dias de funcionamento</p>
+    <div style="display:flex; gap:6px; flex-wrap:wrap;">
+      <span style="font-size:13px;padding:6px 13px;border-radius:20px;background:#E1F5EE;color:#0F6E56;">Seg</span>
+      <span style="font-size:13px;padding:6px 13px;border-radius:20px;background:#E1F5EE;color:#0F6E56;">Ter</span>
+      <span style="font-size:13px;padding:6px 13px;border-radius:20px;background:#E1F5EE;color:#0F6E56;">Qua</span>
+      <span style="font-size:13px;padding:6px 13px;border-radius:20px;background:#E1F5EE;color:#0F6E56;">Qui</span>
+      <span style="font-size:13px;padding:6px 13px;border-radius:20px;background:#E1F5EE;color:#0F6E56;">Sex</span>
+      <span style="font-size:13px;padding:6px 13px;border-radius:20px;background:#E1F5EE;color:#0F6E56;">Sáb</span>
+      <span style="font-size:13px;padding:6px 13px;border-radius:20px;border:0.5px solid var(--color-border-secondary);color:var(--color-text-tertiary);">Dom</span>
+    </div>
+  </div>
+
+  <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:14px;">
+    <button>Cancelar</button>
+    <button style="background:#1D9E75; color:#fff; border-color:#1D9E75;"><i class="ti ti-check" style="font-size:15px;vertical-align:-2px;margin-right:5px" aria-hidden="true"></i>Salvar configurações</button>
+  </div>
+
+</div>

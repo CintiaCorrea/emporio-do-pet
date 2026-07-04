@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Mockup Inbox v2 — toggle + cadastro inline + resumo IA + layout enxuto</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif; margin: 0; padding: 24px; background: #f5f2ec; color: #014D5E; }
+  h1 { font-size: 18px; font-weight: 500; margin: 0 0 4px; color: #014D5E; }
+  .sub { font-size: 13px; color: #5F5E5A; margin: 0 0 24px; }
+  h2 { font-size: 14px; font-weight: 500; color: #014D5E; margin: 32px 0 4px; }
+  .desc { font-size: 12.5px; color: #5F5E5A; margin: 0 0 14px; line-height: 1.5; }
+
+  .frame { background: white; border-radius: 10px; border: 1px solid #E8DFC8; height: 520px; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* Toolbar topo */
+  .toolbar { background: white; border-bottom: 1px solid #E8DFC8; padding: 8px 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .badge-prov { font-size: 10px; padding: 2px 7px; border-radius: 5px; background: #fef3c7; color: #92400e; font-weight: 600; text-transform: uppercase; }
+
+  /* Toggle BotConversa/Nativo */
+  .switch { background: #f6f8f9; border: 1px solid #E8DFC8; border-radius: 9px; padding: 3px; display: inline-flex; gap: 2px; }
+  .switch button { border: none; background: none; padding: 6px 14px; font-size: 12px; border-radius: 6px; cursor: pointer; color: #64748b; font-weight: 500; display: flex; align-items: center; gap: 6px; }
+  .switch button.on { background: linear-gradient(90deg, #009AAC, #00B4C4); color: white; box-shadow: 0 2px 4px rgba(0,154,172,0.25); }
+  .switch .dot { width: 6px; height: 6px; border-radius: 50%; background: #94a3b8; }
+  .switch button.on .dot { background: white; }
+  .pill { font-size: 9px; padding: 1px 5px; border-radius: 4px; background: #fef3c7; color: #92400e; font-weight: 600; }
+  .switch button.on .pill { background: rgba(255,255,255,0.25); color: white; }
+
+  .btn-out { font-size: 11.5px; padding: 4px 9px; border-radius: 6px; border: 1px solid #E8DFC8; color: #475569; background: white; cursor: pointer; }
+  .btn-pri { font-size: 11.5px; padding: 4px 9px; border-radius: 6px; background: #009AAC; color: white; border: none; }
+
+  .row { display: flex; flex: 1; min-height: 0; }
+  .iframe-mock { flex: 1; background: linear-gradient(180deg, #f5f5f5, #fafafa); border-right: 1px solid #E8DFC8; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #94a3b8; }
+
+  /* Painel direito */
+  .panel { width: 320px; background: white; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+  .p-search { padding: 12px; border-bottom: 1px solid #E8DFC8; }
+  .p-search .lbl { font-size: 10px; color: #888780; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .p-search input { width: 100%; padding: 6px 12px 6px 28px; border: 1px solid #E8DFC8; border-radius: 7px; font-size: 12.5px; background: white; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.2'><circle cx='11' cy='11' r='7'/><line x1='21' y1='21' x2='16.5' y2='16.5'/></svg>"); background-repeat: no-repeat; background-position: 8px center; }
+
+  .p-content { flex: 1; overflow-y: auto; min-height: 0; }
+
+  /* seção de tutor encontrado */
+  .sec { padding: 10px 12px; border-bottom: 1px solid #E8DFC8; }
+  .sec .lbl { font-size: 10px; color: #888780; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between; }
+  .sec .link { font-size: 10.5px; color: #009AAC; font-weight: 500; }
+
+  .tutor-row { display: flex; align-items: flex-start; gap: 8px; }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #009AAC, #014D5E); color: white; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; flex-shrink: 0; }
+  .tutor-name { font-size: 13px; color: #014D5E; font-weight: 600; }
+  .tutor-meta { font-size: 11px; color: #64748b; }
+
+  /* Resumo IA */
+  .resumo-card { background: linear-gradient(135deg, #f0fdfa, #e0f4f6); border: 1px solid #99e9d8; border-radius: 8px; padding: 8px 10px; font-size: 11.5px; color: #0c4a6e; line-height: 1.5; }
+  .resumo-card .who { font-size: 9.5px; color: #0e7490; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px; display: flex; align-items: center; gap: 4px; }
+  .resumo-card .who span { background: #14b8a6; color: white; padding: 0 4px; border-radius: 3px; font-size: 9px; }
+  .resumo-card .stamp { font-size: 10px; color: #0e7490; opacity: 0.7; margin-top: 4px; }
+
+  /* Lista de pets */
+  .pet-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid #F0EBE0; border-radius: 7px; margin-bottom: 4px; cursor: pointer; }
+  .pet-row.active { background: #e0f4f6; border-color: #009AAC; }
+  .pet-icon { width: 26px; height: 26px; border-radius: 50%; background: #e6f6f8; color: #009AAC; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
+  .pet-row.active .pet-icon { background: #009AAC; color: white; }
+  .pet-name { font-size: 12px; color: #014D5E; font-weight: 600; }
+  .pet-meta { font-size: 10.5px; color: #64748b; }
+
+  /* Botões ação */
+  .act { display: flex; flex-direction: column; gap: 5px; margin-top: 8px; }
+  .act .b-pri { background: #009AAC; color: white; padding: 7px; border-radius: 7px; font-size: 11.5px; font-weight: 600; border: none; display: flex; align-items: center; justify-content: center; gap: 5px; cursor: pointer; }
+  .act .b-out { background: white; color: #475569; padding: 7px; border-radius: 7px; font-size: 11.5px; border: 1px solid #E8DFC8; display: flex; align-items: center; justify-content: center; gap: 5px; }
+
+  /* Atendimentos */
+  .atend-row { padding: 5px 7px; border: 1px solid #F0EBE0; border-radius: 6px; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
+  .atend-row .at-tit { font-size: 11px; color: #014D5E; font-weight: 600; }
+  .atend-row .at-sub { font-size: 10px; color: #64748b; }
+
+  /* Empty state com CTA cadastrar */
+  .empty-cta { text-align: center; padding: 16px 12px; }
+  .empty-cta .icon { font-size: 32px; margin-bottom: 6px; }
+  .empty-cta .tit { font-size: 13px; color: #014D5E; font-weight: 600; margin-bottom: 4px; }
+  .empty-cta .msg { font-size: 11px; color: #64748b; margin-bottom: 10px; line-height: 1.5; }
+  .empty-cta .b-cad { background: #009AAC; color: white; padding: 7px 16px; border-radius: 7px; font-size: 12px; font-weight: 600; border: none; }
+
+  /* Form inline cadastro */
+  .form-inline { background: #f6fdfd; border-radius: 8px; padding: 10px; }
+  .form-inline label { font-size: 10px; color: #64748b; font-weight: 600; margin-bottom: 3px; display: block; }
+  .form-inline input, .form-inline select { width: 100%; padding: 5px 8px; border: 1px solid #E8DFC8; border-radius: 6px; font-size: 12px; margin-bottom: 6px; background: white; }
+  .form-inline .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .form-inline .actions { display: flex; gap: 6px; margin-top: 4px; }
+  .form-inline .actions button { flex: 1; padding: 6px; border-radius: 6px; font-size: 11.5px; font-weight: 600; cursor: pointer; border: none; }
+  .form-inline .b-save { background: #009AAC; color: white; }
+  .form-inline .b-cancel { background: white; color: #64748b; border: 1px solid #E8DFC8 !important; }
+
+  /* Legendas */
+  .legend { background: white; border: 1px solid #E8DFC8; border-radius: 8px; padding: 12px; margin-top: 12px; font-size: 12.5px; color: #475569; line-height: 1.6; }
+  .legend strong { color: #014D5E; }
+  .legend code { background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: 11px; color: #0e7490; }
+  .legend ul { margin: 6px 0 0 18px; padding: 0; }
+  .legend li { margin: 3px 0; }
+</style>
+</head>
+<body>
+
+<h1>Inbox v2 — propostas pra você aprovar antes de codar</h1>
+<p class="sub">4 melhorias: toggle visível, cadastro inline, resumo IA do BotConversa, layout sem sobra.</p>
+
+<!-- ============ 1. Toggle visível no topo ============ -->
+<h2>1. Toggle visível pra alternar BotConversa ↔ Nativo</h2>
+<p class="desc">Substitui o link discreto atual ("Inbox nativo (preview)") por um <strong>switcher de duas pílulas</strong> centralizado, igual aos Settings de UI moderna. Dot verde mostra qual está ativo. Lembra que essa página é uma só (<code>/dashboard/inbox</code>) — só troca o conteúdo dentro.</p>
+<div class="frame">
+  <div class="toolbar">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span class="badge-prov">Provisório</span>
+      <span style="font-size:11.5px;color:#64748b;">2 inboxes rodando em paralelo</span>
+    </div>
+    <div class="switch">
+      <button class="on"><span class="dot"></span>BotConversa <span class="pill">atual</span></button>
+      <button><span class="dot"></span>Nativo <span class="pill" style="background:#dbeafe;color:#1e40af;">preview</span></button>
+    </div>
+    <div style="display:flex;gap:6px;">
+      <button class="btn-out">↻ Recarregar</button>
+      <button class="btn-pri">↗ Nova aba</button>
+    </div>
+  </div>
+  <div class="row">
+    <div class="iframe-mock">painel BotConversa (iframe)</div>
+    <aside class="panel"><div class="p-search"><div class="lbl">CONTEXTO DA CONVERSA</div><input placeholder="Telefone, nome ou email..."></div></aside>
+  </div>
+</div>
+
+<!-- ============ 2. Cadastrar lead/tutor/pet inline ============ -->
+<h2>2. Cadastrar lead, tutor ou pet quando não encontra</h2>
+<p class="desc">Quando a busca não retorna ninguém, ao invés do <em>"selecione um tutor"</em> em branco, mostra CTA pra cadastrar — formulário aparece NO PAINEL mesmo, sem sair do Inbox.</p>
+
+<div class="frame">
+  <div class="toolbar">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span class="badge-prov">Provisório</span>
+    </div>
+    <div class="switch"><button class="on"><span class="dot"></span>BotConversa</button><button><span class="dot"></span>Nativo</button></div>
+    <div></div>
+  </div>
+  <div class="row">
+    <div class="iframe-mock">painel BotConversa</div>
+    <aside class="panel">
+      <div class="p-search">
+        <div class="lbl">CONTEXTO DA CONVERSA</div>
+        <input value="558599887766" style="background-position: 8px center; padding-left: 28px;">
+      </div>
+      <div class="p-content">
+        <div class="sec">
+          <div class="empty-cta">
+            <div class="icon">🆕</div>
+            <div class="tit">Contato não cadastrado</div>
+            <div class="msg">Esse número (558599887766) ainda não está no CRM.<br>Quer cadastrar agora?</div>
+            <button class="b-cad">+ Cadastrar como Lead</button>
+            <div style="margin-top:6px;"><a style="font-size:11px;color:#009AAC;text-decoration:none;">ou cadastrar direto como Cliente →</a></div>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<div class="desc" style="margin-top:14px;">↓ Ao clicar em "+ Cadastrar como Lead", o formulário aparece inline:</div>
+
+<div class="frame">
+  <div class="toolbar">
+    <div><span class="badge-prov">Provisório</span></div>
+    <div class="switch"><button class="on"><span class="dot"></span>BotConversa</button><button><span class="dot"></span>Nativo</button></div>
+    <div></div>
+  </div>
+  <div class="row">
+    <div class="iframe-mock">painel BotConversa</div>
+    <aside class="panel">
+      <div class="p-search">
+        <div class="lbl">CADASTRO RÁPIDO</div>
+      </div>
+      <div class="p-content">
+        <div class="sec">
+          <div class="lbl">NOVO LEAD</div>
+          <div class="form-inline">
+            <label>Nome *</label>
+            <input placeholder="Nome do tutor" value="">
+            <label>Telefone *</label>
+            <input value="558599887766">
+            <div class="row2">
+              <div>
+                <label>Canal</label>
+                <select><option>WhatsApp</option><option>Ligação</option><option>Indicação</option></select>
+              </div>
+              <div>
+                <label>Origem</label>
+                <select><option>Direto</option><option>Google Ads</option><option>Instagram</option></select>
+              </div>
+            </div>
+            <label>Nome do pet (opcional)</label>
+            <input placeholder="Ex: Lola">
+            <div class="row2">
+              <div>
+                <label>Espécie</label>
+                <select><option>Cão</option><option>Gato</option><option>Outro</option></select>
+              </div>
+              <div>
+                <label>Idade</label>
+                <input placeholder="Ex: 3 anos">
+              </div>
+            </div>
+            <label>Anotações iniciais</label>
+            <input placeholder="Ex: Interessada em fisioterapia">
+            <div class="actions">
+              <button class="b-cancel">Cancelar</button>
+              <button class="b-save">Cadastrar Lead</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<div class="legend">
+  <strong>Regras desse cadastro:</strong>
+  <ul>
+    <li>Default cria <strong>Lead</strong> (mais rápido na recepção). Opção alternativa cadastra direto <strong>Cliente</strong>.</li>
+    <li>O <code>phone</code> já vem pré-preenchido com o que tava na busca.</li>
+    <li>Se preencher nome do pet, cria o Pet vinculado <strong>ao mesmo tempo</strong> em 1 clique.</li>
+    <li>Após salvar: o painel transita automaticamente pro estado "tutor selecionado + pet selecionado", pronto pra cadastrar atendimento.</li>
+  </ul>
+</div>
+
+<!-- ============ 3. Resumo IA do BotConversa ============ -->
+<h2>3. Resumo da conversa (vindo via webhook do BotConversa)</h2>
+<p class="desc">Quando o BotConversa gera o <code>resumo_ia</code> da conversa, ele dispara um webhook. Hoje aponta pro Base44; só vamos mudar a URL pra apontar pro nosso endpoint. O resumo aparece bem em destaque no painel.</p>
+
+<div class="frame">
+  <div class="toolbar">
+    <div><span class="badge-prov">Provisório</span></div>
+    <div class="switch"><button class="on"><span class="dot"></span>BotConversa</button><button><span class="dot"></span>Nativo</button></div>
+    <div></div>
+  </div>
+  <div class="row">
+    <div class="iframe-mock">painel BotConversa</div>
+    <aside class="panel">
+      <div class="p-search">
+        <div class="lbl">CONTEXTO DA CONVERSA</div>
+        <input value="Cintia Corrêa">
+      </div>
+      <div class="p-content">
+        <div class="sec">
+          <div class="lbl">TUTOR <span class="link">Ficha ↗</span></div>
+          <div class="tutor-row">
+            <div class="avatar">CC</div>
+            <div class="tutor-meta">
+              <div class="tutor-name">Cintia Corrêa</div>
+              <div>📞 558586018111</div>
+            </div>
+          </div>
+        </div>
+        <div class="sec">
+          <div class="lbl">📝 Resumo da conversa (IA) <span class="link">atualizar ↻</span></div>
+          <div class="resumo-card">
+            <div class="who"><span>IA</span> via BotConversa</div>
+            Tutora retornou após 5 dias perguntando se o pacote de fisioterapia da Lola tem desconto no plano semestral. Disse que decidirá com o marido até quinta. Tom amigável. Mencionou que a Lola está mancando menos.
+            <div class="stamp">↻ Atualizado há 14min · webhook recebido às 16:08</div>
+          </div>
+        </div>
+        <div class="sec">
+          <div class="lbl">PETS (1)</div>
+          <div class="pet-row active">
+            <div class="pet-icon">🐕</div>
+            <div>
+              <div class="pet-name">Atma</div>
+              <div class="pet-meta">Cão · SRD · 4 anos</div>
+            </div>
+          </div>
+        </div>
+        <div class="sec">
+          <div class="lbl">ATMA <span class="link">Ficha ↗</span></div>
+          <div class="act">
+            <button class="b-pri">+ Novo Atendimento</button>
+            <button class="b-out">Ver ficha do pet ↗</button>
+          </div>
+        </div>
+        <div class="sec">
+          <div class="lbl">ÚLTIMOS ATENDIMENTOS (0)</div>
+          <div style="font-size:11px;color:#94a3b8;text-align:center;padding:6px 0;">Nenhum atendimento ainda</div>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<div class="legend">
+  <strong>Como vai funcionar tecnicamente:</strong>
+  <ul>
+    <li>Criamos endpoint: <code>POST https://app.emporiodopet.com.br/api/integrations/botconversa/webhook</code></li>
+    <li>Body esperado: <code>{ subscriber_id, phone, resumo_ia, atualizado_em }</code> (mesma estrutura que já vai pro Base44 hoje)</li>
+    <li>O endpoint procura o Tutor/Lead pelo telefone e salva os campos <code>resumo_ia</code> + <code>resumo_ia_atualizado_em</code> que já existem no schema do Prisma.</li>
+    <li>No painel direito, sempre que tem resumo, aparece o card verde com selo "IA" e timestamp.</li>
+    <li>Botão "atualizar" recarrega do banco (não dispara webhook — webhook é controlado pelo BotConversa).</li>
+    <li>Você muda <strong>uma vez</strong> a URL do webhook no painel do BotConversa e fica funcionando.</li>
+  </ul>
+</div>
+
+<!-- ============ 4. Layout sem espaço sobrando ============ -->
+<h2>4. Layout sem o espaço grande sobrando embaixo</h2>
+<p class="desc">Hoje quando não tem atendimentos (ou pet não selecionado), sobra área branca enorme. Vou ajustar pra usar <code>flex-1</code> nos blocos certos e o painel sempre preencher 100% da altura.</p>
+<div class="frame" style="height: 380px;">
+  <div class="toolbar">
+    <div><span class="badge-prov">Provisório</span></div>
+    <div class="switch"><button class="on"><span class="dot"></span>BotConversa</button><button><span class="dot"></span>Nativo</button></div>
+    <div></div>
+  </div>
+  <div class="row">
+    <div class="iframe-mock">painel BotConversa</div>
+    <aside class="panel">
+      <div class="p-search">
+        <div class="lbl">CONTEXTO DA CONVERSA</div>
+        <input value="Cintia Corrêa">
+      </div>
+      <div class="p-content">
+        <div class="sec"><div class="lbl">TUTOR</div><div class="tutor-row"><div class="avatar">CC</div><div class="tutor-meta"><div class="tutor-name">Cintia Corrêa</div><div>📞 558586018111</div></div></div></div>
+        <div class="sec"><div class="lbl">PETS (1)</div><div class="pet-row active"><div class="pet-icon">🐕</div><div><div class="pet-name">Atma</div><div class="pet-meta">Cão · 4 anos</div></div></div></div>
+        <div class="sec" style="flex:1;display:flex;flex-direction:column;">
+          <div class="lbl">ATENDIMENTOS (0) <span class="link">+ adicionar</span></div>
+          <div style="flex:1;display:flex;align-items:center;justify-content:center;text-align:center;color:#94a3b8;font-size:11px;">
+            Nenhum atendimento ainda<br>
+            <button class="b-pri" style="margin-top:8px;">+ Novo Atendimento</button>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<div class="legend">
+  <strong>Resumindo:</strong>
+  <ul>
+    <li>Bloco "Tutor" e "Pets" colapsam pra altura mínima.</li>
+    <li>Bloco "Atendimentos" ocupa <strong>flex-1</strong> — usa todo espaço restante.</li>
+    <li>Quando não tem atendimentos, o espaço vazio vira CTA centralizado pra criar atendimento.</li>
+    <li>Painel sempre 100% altura, sem espaço perdido embaixo.</li>
+  </ul>
+</div>
+
+<!-- ============ Resumo / decisões ============ -->
+<div class="legend" style="background: #fffbeb; border-color: #fde68a; color: #92611a; margin-top: 28px;">
+  <strong>O que preciso da sua aprovação antes de codar:</strong>
+  <ul>
+    <li>Toggle visível com 2 pílulas no centro do topo → <strong>aprova?</strong></li>
+    <li>Cadastro inline (Lead default, com opção Cliente) com nome+telefone+canal+origem+pet+notas → <strong>os campos estão bons?</strong></li>
+    <li>Card verde do resumo IA no topo da seção (antes dos pets) → <strong>posição está boa?</strong></li>
+    <li>Layout sem espaço sobrando, atendimentos em flex-1 → <strong>aprova?</strong></li>
+  </ul>
+  Aprovando, faço PR único com tudo + endpoint webhook pra você só trocar a URL no painel BotConversa.
+</div>
+
+</body>
+</html>

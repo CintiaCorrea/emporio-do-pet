@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Mockup Inbox — retomada 02/06/2026</title>
+<style>
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Inter,sans-serif;margin:0;padding:24px;background:#f5f2ec;color:#014D5E}
+  h1{font-size:18px;font-weight:500;margin:0 0 4px}
+  .sub{font-size:13px;color:#5F5E5A;margin:0 0 24px}
+  h2{font-size:14px;font-weight:500;color:#014D5E;margin:32px 0 4px}
+  .badge{font-size:10px;font-weight:600;text-transform:uppercase;padding:2px 6px;border-radius:5px;margin-left:6px;vertical-align:2px}
+  .rec{background:#dcfce7;color:#15803d}
+  .desc{font-size:12.5px;color:#5F5E5A;margin:0 0 14px;line-height:1.5}
+
+  /* ===== Mockup 1: Painel contexto completo ===== */
+  .grid2{display:grid;grid-template-columns:1fr 320px;gap:0;background:white;border-radius:10px;border:1px solid #E8DFC8;overflow:hidden;height:720px}
+  .bc-side{background:linear-gradient(180deg,#f5f5f5,#fafafa);display:flex;align-items:center;justify-content:center;font-size:12px;color:#94a3b8;border-right:1px solid #E8DFC8;flex-direction:column;gap:8px}
+  .bc-side .tag{padding:3px 9px;border-radius:12px;color:white;font-size:10.5px;font-weight:600;background:#009AAC}
+
+  .panel{background:white;display:flex;flex-direction:column;min-height:0;overflow:hidden;height:100%}
+  .ctx-head{padding:10px 12px;border-bottom:1px solid #E8DFC8;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+  .ctx-head .lbl{font-size:10px;color:#888780;font-weight:700;text-transform:uppercase;letter-spacing:0.5px}
+  .ctx-head .actions{display:flex;gap:8px;font-size:10px}
+  .ctx-head .actions button{background:none;border:none;cursor:pointer;color:#94a3b8;font-weight:600}
+  .ctx-head .actions .close:hover{color:#ef4444}
+  .ctx-head .actions .add{color:#009AAC}
+
+  .search{padding:8px 12px;border-bottom:1px solid #E8DFC8;flex-shrink:0}
+  .search input{width:100%;padding:6px 10px 6px 28px;border:1px solid #E8DFC8;border-radius:7px;font-size:12px;background:white;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.2'><circle cx='11' cy='11' r='7'/><line x1='21' y1='21' x2='16.5' y2='16.5'/></svg>");background-repeat:no-repeat;background-position:8px center}
+
+  .content{flex:1;overflow-y:auto;min-height:0}
+  .sec{padding:9px 12px;border-bottom:1px solid #E8DFC8}
+  .sec-lbl{font-size:10px;color:#888780;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between}
+  .sec-lbl .link{font-size:10.5px;color:#009AAC;font-weight:500}
+
+  .num{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:#fef3c7;color:#92611a;font-size:9px;font-weight:700;margin-right:4px;vertical-align:1px}
+
+  /* Resumo IA */
+  .resumo-card{background:linear-gradient(135deg,#f0fdfa,#e0f4f6);border:1px solid #99e9d8;border-radius:8px;padding:8px 10px;font-size:11.5px;color:#0c4a6e;line-height:1.5}
+  .resumo-who{font-size:9.5px;color:#0e7490;font-weight:700;text-transform:uppercase;margin-bottom:3px;display:flex;align-items:center;gap:4px}
+  .resumo-who span{background:#14b8a6;color:white;padding:0 4px;border-radius:3px;font-size:9px}
+  .resumo-stamp{font-size:10px;color:#0e7490;opacity:0.7;margin-top:4px}
+
+  /* Avatar/Tutor */
+  .tutor-row{display:flex;align-items:flex-start;gap:8px}
+  .avatar{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#009AAC,#014D5E);color:white;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0}
+  .tutor-name{font-size:12.5px;color:#014D5E;font-weight:600}
+  .tutor-meta{font-size:10.5px;color:#64748b}
+
+  /* Pills (estado/pipeline) */
+  .pills{display:flex;flex-wrap:wrap;gap:3px;margin-top:6px}
+  .pill{font-size:9.5px;padding:2px 6px;border-radius:10px;cursor:pointer;border:1px solid transparent;font-weight:500}
+  .pill-em-dia{background:#dcfce7;color:#15803d}
+  .pill-tratamento.on{background:linear-gradient(90deg,#f59e0b,#fbbf24);color:white;font-weight:600}
+  .pill-tratamento{background:#fef3c7;color:#92400e}
+  .pill-atencao{background:#fed7aa;color:#b45309}
+  .pill-recuperar{background:#fee2e2;color:#b91c1c}
+  .pill-inativo{background:#f1f5f9;color:#64748b}
+  .pill-base{background:#f1f5f9;color:#64748b}
+  .pill-base.on{background:linear-gradient(90deg,#009AAC,#00B4C4);color:white;font-weight:600}
+
+  /* Pets */
+  .pet-row{display:flex;align-items:center;gap:8px;padding:5px 7px;border:1px solid #F0EBE0;border-radius:6px;margin-bottom:3px;cursor:pointer}
+  .pet-row.active{background:#e0f4f6;border-color:#009AAC}
+  .pet-icon{width:24px;height:24px;border-radius:50%;background:#e6f6f8;color:#009AAC;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0}
+  .pet-row.active .pet-icon{background:#009AAC;color:white}
+  .pet-name{font-size:11.5px;color:#014D5E;font-weight:600}
+  .pet-meta{font-size:10px;color:#64748b}
+
+  /* Pipelines */
+  .ppl{margin-bottom:5px}
+  .ppl-head{font-size:9.5px;color:#94a3b8;font-weight:700;text-transform:uppercase;margin-bottom:3px;display:flex;justify-content:space-between}
+  .ppl-tag{font-size:8.5px;padding:0 4px;border-radius:3px;font-weight:600}
+  .ppl-tag.cli{background:#fef3c7;color:#92400e}
+  .ppl-tag.fis{background:#ede9fe;color:#5b21b6}
+
+  /* Buttons */
+  .act{display:flex;flex-direction:column;gap:4px;margin-top:6px}
+  .b-pri{background:#009AAC;color:white;padding:6px;border-radius:6px;font-size:11px;font-weight:600;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px}
+  .b-out{background:white;color:#475569;padding:6px;border-radius:6px;font-size:11px;border:1px solid #E8DFC8;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px}
+
+  /* Registrar interação */
+  .int-form{background:#f6fdfd;padding:8px;border-radius:6px;border:1px solid #E8DFC8}
+  .int-form select,.int-form input,.int-form textarea{width:100%;padding:5px 8px;border:1px solid #E8DFC8;border-radius:5px;font-size:11px;margin-bottom:5px;background:white;font-family:inherit}
+  .int-form .act{flex-direction:row;margin-top:4px}
+  .int-form .b-pri,.int-form .b-out{flex:1}
+
+  /* Atendimentos */
+  .at-row{display:flex;align-items:center;gap:6px;padding:5px 7px;border:1px solid #F0EBE0;border-radius:6px;margin-bottom:3px;cursor:pointer}
+  .at-tit{font-size:11px;color:#014D5E;font-weight:600}
+  .at-sub{font-size:10px;color:#64748b}
+
+  /* ===== Mockup 2: Sidebar com Inbox expansível ===== */
+  .sb-mock{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:14px}
+  .sb-col{background:white;border-radius:10px;border:1px solid #E8DFC8;padding:14px}
+  .sb-col h3{margin:0 0 8px;font-size:12px;font-weight:600;color:#014D5E;display:flex;align-items:center;gap:6px}
+  .sb-col .head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+  .opt{background:#dbeafe;color:#1e40af;padding:1px 6px;border-radius:4px;font-size:9px;font-weight:600;text-transform:uppercase}
+  .sb-frame{background:#f6f8f9;padding:8px;border-radius:8px}
+  .sb-item{display:flex;align-items:center;gap:10px;padding:6px 10px;border-radius:6px;color:#475569;font-size:12px;cursor:pointer}
+  .sb-item.active{background:linear-gradient(90deg,#009AAC,#00B4C4);color:white;font-weight:600}
+  .sb-sub{display:flex;align-items:center;gap:10px;padding:5px 10px 5px 30px;border-radius:6px;color:#64748b;font-size:11.5px;cursor:pointer}
+  .sb-sub.active{background:#e0f4f6;color:#009AAC;font-weight:500}
+  .sb-sub .badge-bc{font-size:8px;background:#009AAC;color:white;padding:0 4px;border-radius:3px;margin-left:auto}
+  .sb-sub .badge-meta{font-size:8px;background:#25D366;color:white;padding:0 4px;border-radius:3px;margin-left:auto}
+
+  /* Legend */
+  .legend{background:white;border:1px solid #E8DFC8;border-radius:8px;padding:12px;margin-top:14px;font-size:12.5px;color:#475569;line-height:1.6}
+  .legend strong{color:#014D5E}
+  .legend ul{margin:6px 0 0 18px;padding:0}
+  .legend li{margin:3px 0}
+  .legend code{background:#f1f5f9;padding:1px 5px;border-radius:3px;font-size:11px;color:#0e7490}
+</style>
+</head>
+<body>
+
+<h1>Inbox — retomada 02/06/2026</h1>
+<p class="sub">Dois mockups: (1) painel "Contexto da Conversa" com TODOS os blocos numerados, (2) sidebar com Inbox expansível.</p>
+
+<!-- ============ MOCKUP 1 ============ -->
+<h2>1. Painel Contexto da Conversa — todos os blocos visíveis quando Tutor+Lead selecionados <span class="badge rec">Como deveria estar agora</span></h2>
+<p class="desc">A intenção era essa desde os PRs #103-#110. O que aconteceu ontem: quando você clicava num Lead, o Tutor associado (mesmo telefone) não era buscado automaticamente — então só apareciam os blocos de Lead, e Pets/Pipelines/Atendimentos ficavam vazios. <strong>Bug a corrigir:</strong> garantir <code>selectLead → busca Tutor pelos últimos 9 dígitos do telefone → carrega Pets + Atendimentos juntos</code>.</p>
+
+<div class="grid2">
+  <div class="bc-side">
+    <div style="font-size:14px;color:#014D5E;font-weight:600">Painel BotConversa</div>
+    <span class="tag">iframe app.botconversa.com.br</span>
+  </div>
+  <aside class="panel">
+    <div class="ctx-head">
+      <span class="lbl">Contexto da conversa</span>
+      <div class="actions">
+        <button class="close">← fechar</button>
+      </div>
+    </div>
+    <div class="search">
+      <input value="558586018111">
+    </div>
+    <div class="content">
+
+      <div class="sec">
+        <div class="sec-lbl"><span><span class="num">1</span>📝 Resumo da conversa (IA) <span style="font-weight:400;color:#94a3b8;font-size:9px;margin-left:4px">há 8min</span></span><span class="link">↻</span></div>
+        <div class="resumo-card">
+          <div class="resumo-who"><span>IA</span> via BotConversa</div>
+          Tutora pergunta sobre próximo retorno da Lola. Disse que a tosse melhorou. Quer agendar pra semana que vem.
+        </div>
+      </div>
+
+      <div class="sec">
+        <div class="sec-lbl"><span><span class="num">2</span>Cliente</span><span class="link">Ficha ↗</span></div>
+        <div class="tutor-row">
+          <div class="avatar">CR</div>
+          <div>
+            <div class="tutor-name">Cintia Renata Rocha Corrêa</div>
+            <div class="tutor-meta">📞 558586018111 · LTV R$ 1.245</div>
+          </div>
+        </div>
+        <div style="font-size:9.5px;color:#94a3b8;text-transform:uppercase;font-weight:700;margin-top:8px;margin-bottom:3px">Estado de relacionamento</div>
+        <div class="pills">
+          <span class="pill pill-em-dia">Em dia</span>
+          <span class="pill pill-tratamento on">Pet em tratamento</span>
+          <span class="pill pill-atencao">Precisa de atenção</span>
+          <span class="pill pill-recuperar">A recuperar</span>
+          <span class="pill pill-inativo">Inativo há muito</span>
+        </div>
+      </div>
+
+      <div class="sec">
+        <div class="sec-lbl"><span><span class="num">3</span>Lead vinculado</span><span class="link">Ficha ↗</span></div>
+        <div style="font-size:11px;color:#64748b;margin-bottom:4px">5585986018111 · via BotConversa Webhook</div>
+        <div style="font-size:9.5px;color:#94a3b8;text-transform:uppercase;font-weight:700;margin-bottom:3px">Pipeline comercial</div>
+        <div class="pills">
+          <span class="pill pill-base">Triagem</span>
+          <span class="pill pill-base on">Lead novo</span>
+          <span class="pill pill-base">Qualificação</span>
+          <span class="pill pill-base">Orçamento</span>
+          <span class="pill pill-base">Agendado</span>
+        </div>
+      </div>
+
+      <div class="sec">
+        <div class="sec-lbl"><span><span class="num">4</span>Pets (2) · clique pra selecionar</span></div>
+        <div class="pet-row active">
+          <div class="pet-icon">🐕</div>
+          <div><div class="pet-name">Lola</div><div class="pet-meta">Cão · SRD · 4 anos</div></div>
+        </div>
+        <div class="pet-row">
+          <div class="pet-icon">🐈</div>
+          <div><div class="pet-name">Atma</div><div class="pet-meta">Gato · 2 anos</div></div>
+        </div>
+      </div>
+
+      <div class="sec">
+        <div class="sec-lbl"><span><span class="num">5</span>Pipelines da Lola</span></div>
+        <div class="ppl">
+          <div class="ppl-head"><span>Clínico</span><span class="ppl-tag cli">CLI</span></div>
+          <div class="pills"><span class="pill pill-base">Diagnóstico</span><span class="pill pill-base on">Em tratamento</span><span class="pill pill-base">Aguard. exames</span><span class="pill pill-base">Retorno</span><span class="pill pill-base">Alta</span></div>
+        </div>
+        <div class="ppl">
+          <div class="ppl-head"><span>Fisioterapia</span><span class="ppl-tag fis">FISIO</span></div>
+          <div class="pills"><span class="pill pill-base on">Avaliação</span><span class="pill pill-base">Pacote</span><span class="pill pill-base">Sessão</span><span class="pill pill-base">Alta</span></div>
+        </div>
+      </div>
+
+      <div class="sec">
+        <div class="sec-lbl"><span><span class="num">6</span>💬 Registrar interação</span></div>
+        <div class="int-form">
+          <select><option>Nota</option><option>WhatsApp enviado</option><option>Ligação</option><option>Email</option><option>Presencial</option><option>Encaminhamento</option></select>
+          <textarea placeholder="Resumo da conversa de hoje..." rows="2"></textarea>
+          <input placeholder="Próxima ação (opcional)">
+          <input type="date">
+          <div class="act">
+            <button class="b-out">Cancelar</button>
+            <button class="b-pri">Salvar na ficha</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="sec">
+        <div class="sec-lbl"><span><span class="num">7</span>Últimos atendimentos (2)</span><span class="link">+ novo</span></div>
+        <div class="at-row">
+          <div style="flex:1"><div class="at-tit">Consulta · 28/05/2026</div><div class="at-sub">Diagnóstico: bronquite leve · R$ 280</div></div>
+        </div>
+        <div class="at-row">
+          <div style="flex:1"><div class="at-tit">Sessão Fisio · 24/05/2026</div><div class="at-sub">Avaliação inicial · R$ 120</div></div>
+        </div>
+      </div>
+
+    </div>
+  </aside>
+</div>
+
+<div class="legend">
+  <strong>O que o painel terá (7 blocos):</strong>
+  <ul>
+    <li><strong>1 — Resumo IA</strong> (preenchido via webhook BotConversa)</li>
+    <li><strong>2 — Cliente</strong> com Estado de Relacionamento clicável (Em dia/Pet em tratamento/etc)</li>
+    <li><strong>3 — Lead vinculado</strong> com Pipeline Comercial clicável (10 etapas)</li>
+    <li><strong>4 — Pets</strong> do tutor (1 clique seleciona)</li>
+    <li><strong>5 — Pipelines do Pet</strong> selecionado (Clínico + Fisioterapia, ambos clicáveis)</li>
+    <li><strong>6 — Registrar Interação</strong> (formulário inline; salva vinculada a Tutor + Lead + Pet)</li>
+    <li><strong>7 — Últimos atendimentos</strong> do pet</li>
+  </ul>
+  <strong>Topo:</strong> botão "← fechar" que limpa tudo e volta pra lista "Chegando agora".<br>
+  <strong>Bug a corrigir:</strong> Lead → Tutor merge automático quando clica num Lead na busca/Chegando agora.
+</div>
+
+<!-- ============ MOCKUP 2 ============ -->
+<h2>2. Inbox Meta como subitem da sidebar — usar "in natura" sem adaptação <span class="badge rec">Sua proposta</span></h2>
+<p class="desc">A sua sugestão faz total sentido tecnicamente. O Inbox nativo (<code>/dashboard/inbox-nativo</code>) já lê do <code>WhatsAppConversation</code> e <code>WhatsAppMessage</code> do nosso banco — ele NÃO precisa do painel CRM ao lado porque ele JÁ tem ficha integrada. Forçar ele dentro do toggle do BC é o que tá complicando tudo. Voltar pra tela inteira nativa resolve.</p>
+
+<div class="sb-mock">
+  <div class="sb-col">
+    <div class="head">
+      <h3>Opção A — Inbox como item agrupador <span class="opt">Recomendado</span></h3>
+    </div>
+    <div class="sb-frame">
+      <div class="sb-item">☀ Hoje</div>
+      <div class="sb-item">▦ Dashboard</div>
+      <div style="margin:2px 0">
+        <div class="sb-item active">💬 Inbox <span style="margin-left:auto;font-size:9px;opacity:0.8">▼</span></div>
+        <div class="sb-sub active">BotConversa <span class="badge-bc">BC</span></div>
+        <div class="sb-sub">WhatsApp Meta <span class="badge-meta">META</span></div>
+      </div>
+      <div class="sb-item">≡ Leads</div>
+      <div class="sb-item">👥 Tutores</div>
+      <div class="sb-item">🐾 Pets</div>
+      <div class="sb-item">📅 Calendário</div>
+    </div>
+    <p style="font-size:11px;color:#64748b;margin-top:8px;line-height:1.5"><strong>Como funciona:</strong> Clica em "Inbox" → expande sub-itens. <strong>BotConversa</strong> abre dual (iframe BC + painel CRM). <strong>WhatsApp Meta</strong> abre Inbox nativo em tela cheia, sem o painel direito do CRM (ele já tem a UI dele que funciona). Toggle de 3 botões dentro da página é REMOVIDO.</p>
+  </div>
+
+  <div class="sb-col">
+    <div class="head">
+      <h3>Opção B — Dois itens separados</h3>
+    </div>
+    <div class="sb-frame">
+      <div class="sb-item">☀ Hoje</div>
+      <div class="sb-item">▦ Dashboard</div>
+      <div class="sb-item active">💬 Inbox BC <span class="badge-bc" style="margin-left:auto">BC</span></div>
+      <div class="sb-item">💬 Inbox Meta <span class="badge-meta" style="margin-left:auto">META</span></div>
+      <div class="sb-item">≡ Leads</div>
+      <div class="sb-item">👥 Tutores</div>
+      <div class="sb-item">🐾 Pets</div>
+      <div class="sb-item">📅 Calendário</div>
+    </div>
+    <p style="font-size:11px;color:#64748b;margin-top:8px;line-height:1.5"><strong>Como funciona:</strong> Dois itens diretos no menu. Cada um é uma página independente. Mais explícito, menos clique. Sidebar ganha 1 item a mais (9 → 10).</p>
+  </div>
+</div>
+
+<div class="legend">
+  <strong>Por que a sua sugestão funciona:</strong>
+  <ul>
+    <li>O Inbox nativo já lê do <code>/api/whatsapp/conversations</code> (Meta Business API que você já tem conectado)</li>
+    <li>Ele já tem ficha integrada à direita — não precisa do painel CRM extra</li>
+    <li>Sem iframe interno, sem layout recursivo, sem ?embed=1</li>
+    <li>Mais leve, mais rápido, mantém todo trabalho que você já tinha feito</li>
+    <li>Quando a Cintia futuramente quiser unificar, basta apontar BC pra mesma tela do Meta — não precisa reescrever</li>
+  </ul>
+  <strong>Toggle dentro da página /dashboard/inbox:</strong> simplifica pra 2 botões (BotConversa, Nativo preview) ou remove. Meta vira página independente.
+</div>
+
+<div class="legend" style="background:#fffbeb;border-color:#fde68a;color:#92611a">
+  <strong>Pra você decidir antes de eu codar:</strong>
+  <ul>
+    <li><strong>Mockup 1 (painel completo):</strong> aprova os 7 blocos numerados como mostrado? Falta algo?</li>
+    <li><strong>Mockup 2:</strong> opção <strong>A (agrupador expansível)</strong> ou <strong>B (2 itens diretos)</strong>?</li>
+  </ul>
+  Aprovando, faço 1 PR com:
+  <ul>
+    <li>Bug fix Lead → Tutor merge no painel</li>
+    <li>Sidebar com Inbox expansível (opção A) ou 2 itens (opção B)</li>
+    <li>Remover iframe Meta do dual</li>
+    <li>Manter /dashboard/inbox = BotConversa + painel direito</li>
+    <li>Criar/redirecionar /dashboard/inbox-meta = Inbox nativo tela cheia</li>
+  </ul>
+</div>
+
+</body>
+</html>

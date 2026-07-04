@@ -1,0 +1,87 @@
+<style>
+:root{
+  --bg:#F6F2EA; --card:#fff; --line:#E8E2D6; --soft:#F0EBE0; --suave:#FBF9F4;
+  --ink:#1F2A2E; --ink2:#5C6B70; --mut:#8A989D; --navy:#014D5E; --teal:#009AAC; --agua:#E0F4F6;
+  --blue-b:#E6F1FB; --blue-i:#0C447C; --amber-b:#FBF3E3; --amber-i:#8a6400; --gray-b:#F0EBE0; --gray-i:#5C6B70; --ok-b:#E1F5EE; --ok-i:#0F6E56; --red-b:#FDECEC; --red-i:#b23b39;
+}
+*{box-sizing:border-box}
+.wrap{max-width:900px;margin:0 auto;padding:12px 6px 48px;font-family:"Segoe UI",system-ui,-apple-system,sans-serif;color:var(--ink);font-size:14px;line-height:1.45}
+h1{font-size:20px;font-weight:500;color:var(--navy);margin:0 0 2px}
+.sub{font-size:12.5px;color:var(--mut);margin-bottom:14px}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.in{border:1px solid var(--line);border-radius:9px;padding:7px 10px;font-size:13px;background:#fff}
+.btn{border:1px solid var(--line);background:#fff;color:var(--ink2);border-radius:9px;padding:8px 12px;font-size:12.5px;cursor:pointer;font-weight:500}
+.btn.pri{background:var(--teal);border-color:var(--teal);color:#fff}
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin-bottom:14px}
+.tab{padding:8px 14px;font-size:12.5px;color:var(--mut);border-bottom:2px solid transparent;cursor:pointer}
+.tab.on{color:var(--navy);border-bottom-color:var(--teal);font-weight:500}
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px}
+@media(max-width:720px){.kpis{grid-template-columns:repeat(2,1fr)}}
+.kpi{border-radius:12px;padding:12px 13px;color:#fff}
+.kpi.b1{background:var(--blue-i)} .kpi.b2{background:var(--amber-i)} .kpi.b3{background:var(--gray-i)} .kpi.b4{background:var(--ok-i)} .kpi.b5{background:var(--red-i)}
+.kpi .v{font-size:19px;font-weight:600;font-variant-numeric:tabular-nums}
+.kpi .l{font-size:10.5px;opacity:.95;margin-top:3px}
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:680px){.cards{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.ch{padding:11px 15px;border-bottom:1px solid var(--soft);font-size:13px;font-weight:500;color:var(--navy)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+td{padding:9px 14px;border-bottom:1px solid var(--soft)}
+tr:last-child td{border-bottom:0}
+td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:500;color:var(--navy)}
+.note{font-size:11px;color:var(--mut);text-align:center;margin-top:18px}
+</style>
+<div class="wrap">
+  <h1>🧾 Recebimentos</h1>
+  <div class="sub">O que entrou no caixa, com a análise por origem, forma e responsável. Valores ocultáveis pelo 👁️.</div>
+
+  <div class="bar">
+    <input class="in" type="date" value="2026-07-01"><span style="color:var(--mut)">a</span><input class="in" type="date" value="2026-07-03">
+    <select class="in"><option>Todos os usuários</option></select>
+    <button class="btn pri">🔍 Consultar</button>
+    <button class="btn" style="margin-left:auto">👁️ Mostrar valores</button>
+  </div>
+
+  <div class="tabs"><span class="tab on">Resumo</span><span class="tab">Lista de recebimentos</span></div>
+
+  <div class="kpis">
+    <div class="kpi b1"><div class="v">R$ 2.636</div><div class="l">💵 Baixas no dia da venda</div></div>
+    <div class="kpi b2"><div class="v">R$ 0</div><div class="l">⏳ Baixas posteriores</div></div>
+    <div class="kpi b3"><div class="v">R$ 49</div><div class="l">🏦 Adiantamento (caução)</div></div>
+    <div class="kpi b4"><div class="v">R$ 2.685</div><div class="l">✅ Receita total</div></div>
+    <div class="kpi b5"><div class="v">R$ 165</div><div class="l">🔴 Em aberto</div></div>
+  </div>
+
+  <div class="cards">
+    <div class="card">
+      <div class="ch">💳 Por forma de recebimento</div>
+      <table><tbody>
+        <tr><td>📱 InfinitePay Pix</td><td class="r">R$ 1.550,00</td></tr>
+        <tr><td>💳 Maquininha InfinitePay (crédito)</td><td class="r">R$ 685,00</td></tr>
+        <tr><td>💵 Dinheiro</td><td class="r">R$ 401,00</td></tr>
+        <tr><td>🏦 Crédito do cliente</td><td class="r">R$ 49,00</td></tr>
+      </tbody></table>
+    </div>
+    <div class="card">
+      <div class="ch">🧑 Por quem realizou a baixa</div>
+      <table><tbody>
+        <tr><td>EP - Recepção</td><td class="r">R$ 2.685,00</td></tr>
+      </tbody></table>
+    </div>
+    <div class="card">
+      <div class="ch">📅 Por dia</div>
+      <table><tbody>
+        <tr><td>03/07 · Sexta</td><td class="r">R$ 2.685,00</td></tr>
+      </tbody></table>
+    </div>
+    <div class="card">
+      <div class="ch">🏥 Por marca</div>
+      <table><tbody>
+        <tr><td>🏥 Empório</td><td class="r">R$ 2.200,00</td></tr>
+        <tr><td>🌿 Mundo à Parte</td><td class="r">R$ 485,00</td></tr>
+      </tbody></table>
+    </div>
+  </div>
+
+  <div class="note">Mockup · Recebimentos analítico · padrão Base44 · dados de exemplo</div>
+</div>

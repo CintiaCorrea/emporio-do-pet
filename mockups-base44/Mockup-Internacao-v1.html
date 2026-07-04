@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Internação · Empório do Pet — Mockup v1</title>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/lucide-static/0.460.0/lucide.min.css" rel="stylesheet" />
+<style>
+  :root{
+    --turq:#009AAC; --turq-d:#007A89; --marinho:#014D5E; --bege:#F6F2EA; --bege-2:#FBF9F4;
+    --card:#FFFFFF; --line:#E8E2D6; --line-2:#F0EBE0;
+    --txt:#1F2A2E; --txt-2:#5C6B70; --txt-3:#8A989D;
+    --livre:#9CA3AF; --livre-bg:#F1F2F4;
+    --verde:#2BAE66; --verde-bg:#E7F6EE;
+    --amar:#E0A100; --amar-bg:#FDF4DD;
+    --verm:#D9534F; --verm-bg:#FBE9E8;
+    --azul:#3B82B6; --azul-bg:#E8F1F8;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Segoe UI",system-ui,-apple-system,sans-serif;background:var(--bege);color:var(--txt);font-size:14px;line-height:1.45}
+  i[class^="lucide"]{width:1em;height:1em;display:inline-block;vertical-align:-0.14em}
+  .wrap{max-width:1180px;margin:0 auto;padding:18px 22px 60px}
+
+  /* header */
+  .top{display:flex;align-items:center;gap:12px;margin-bottom:4px}
+  .top .back{color:var(--txt-3);font-size:18px}
+  .top h1{font-size:21px;font-weight:600;color:var(--marinho);letter-spacing:-.2px}
+  .top .sub{color:var(--txt-3);font-size:12.5px;margin:2px 0 16px 30px}
+
+  /* kpi strip */
+  .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:18px}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+  .kpi .lbl{font-size:11.5px;color:var(--txt-3);text-transform:uppercase;letter-spacing:.4px;display:flex;align-items:center;gap:6px}
+  .kpi .val{font-size:24px;font-weight:600;color:var(--marinho);margin-top:5px}
+  .kpi .val small{font-size:14px;color:var(--txt-3);font-weight:500}
+  .kpi.alert .val{color:var(--verm)}
+  .kpi.warn .val{color:var(--amar)}
+
+  /* tabs */
+  .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:18px}
+  .tab{padding:10px 16px;font-size:13.5px;color:var(--txt-2);cursor:pointer;border-bottom:2px solid transparent;display:flex;align-items:center;gap:7px;font-weight:500}
+  .tab:hover{color:var(--turq)}
+  .tab.on{color:var(--turq);border-bottom-color:var(--turq)}
+  .panel{display:none}
+  .panel.on{display:block}
+
+  /* toolbar */
+  .bar{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+  .bar .grow{flex:1}
+  .search{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:9px;padding:8px 12px;min-width:240px;color:var(--txt-3)}
+  .search input{border:0;outline:0;font-size:13.5px;width:100%;background:transparent;color:var(--txt)}
+  .btn{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:var(--card);color:var(--txt-2);border-radius:9px;padding:8px 13px;font-size:13px;cursor:pointer;font-weight:500}
+  .btn:hover{border-color:var(--turq);color:var(--turq)}
+  .btn.pri{background:var(--turq);border-color:var(--turq);color:#fff}
+  .btn.pri:hover{background:var(--turq-d)}
+  .seg{display:flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+  .seg span{padding:7px 13px;font-size:12.5px;color:var(--txt-2);cursor:pointer;background:var(--card)}
+  .seg span.on{background:var(--turq);color:#fff}
+
+  /* legend */
+  .legend{display:flex;gap:16px;align-items:center;margin:0 0 14px;font-size:12px;color:var(--txt-2);flex-wrap:wrap}
+  .legend b{font-weight:600;color:var(--txt-3);text-transform:uppercase;font-size:10.5px;letter-spacing:.4px}
+  .dot{display:inline-flex;align-items:center;gap:6px}
+  .dot i{width:10px;height:10px;border-radius:50%;display:inline-block}
+
+  /* map grid */
+  .map{display:grid;grid-template-columns:repeat(4,1fr);gap:13px}
+  .baia{background:var(--card);border:1px solid var(--line);border-radius:13px;overflow:hidden;position:relative}
+  .baia .stripe{height:4px}
+  .baia .body{padding:12px 13px 13px}
+  .baia .hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+  .baia .code{font-size:11px;font-weight:700;color:var(--txt-3);letter-spacing:.5px;display:flex;align-items:center;gap:5px}
+  .risk{font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;text-transform:uppercase;letter-spacing:.3px}
+  .baia .pet{display:flex;align-items:center;gap:8px;margin-bottom:3px}
+  .baia .pet .ic{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+  .baia .pet .nm{font-size:15px;font-weight:600;color:var(--txt);line-height:1.1}
+  .baia .pet .br{font-size:11.5px;color:var(--txt-3)}
+  .baia .meta{font-size:11.5px;color:var(--txt-2);margin:7px 0;display:flex;flex-direction:column;gap:3px}
+  .baia .meta span{display:flex;align-items:center;gap:6px}
+  .baia .meta i{color:var(--txt-3);font-size:13px}
+  .vit{display:flex;gap:6px;margin:9px 0 8px}
+  .vit div{flex:1;background:var(--bege-2);border:1px solid var(--line-2);border-radius:7px;padding:5px 4px;text-align:center}
+  .vit .vl{font-size:13px;font-weight:600;color:var(--marinho)}
+  .vit .vk{font-size:9px;color:var(--txt-3);text-transform:uppercase;letter-spacing:.3px}
+  .med{display:flex;align-items:center;gap:7px;border-radius:8px;padding:7px 9px;font-size:11.5px;font-weight:500}
+  .med.due{background:var(--verm-bg);color:#9b2d2a}
+  .med.soon{background:var(--amar-bg);color:#8a6400}
+  .med.ok{background:var(--verde-bg);color:#1c7a47}
+  .med .t{margin-left:auto;font-weight:700}
+  .baia.free{background:var(--livre-bg);border-style:dashed}
+  .baia.free .empty{padding:26px 12px;text-align:center;color:var(--txt-3)}
+  .baia.free .empty i{font-size:22px;display:block;margin-bottom:6px;opacity:.6}
+  .baia.free .empty .lk{color:var(--turq);font-weight:600;font-size:12.5px;cursor:pointer;margin-top:7px;display:inline-block}
+
+  /* generic card / table */
+  .card{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:0;margin-bottom:16px}
+  .card .ch{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:1px solid var(--line-2)}
+  .card .ch h3{font-size:14px;font-weight:600;color:var(--marinho);display:flex;align-items:center;gap:8px}
+  .card .cb{padding:14px 16px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--txt-3);font-weight:600;padding:9px 12px;border-bottom:1px solid var(--line)}
+  td{padding:10px 12px;border-bottom:1px solid var(--line-2);color:var(--txt)}
+  tr:last-child td{border-bottom:0}
+  .pill{font-size:10.5px;font-weight:700;padding:2px 9px;border-radius:20px;text-transform:uppercase;letter-spacing:.3px}
+  .ico-btn{color:var(--txt-3);cursor:pointer;font-size:15px;padding:3px}
+  .ico-btn:hover{color:var(--turq)}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .field{margin-bottom:12px}
+  .field .k{font-size:11px;color:var(--txt-3);text-transform:uppercase;letter-spacing:.3px;margin-bottom:3px}
+  .field .v{font-size:14px;color:var(--txt);font-weight:500}
+  .chips{display:flex;gap:7px;flex-wrap:wrap}
+  .chip{font-size:12px;border:1px solid var(--line);border-radius:20px;padding:5px 12px;color:var(--txt-2);cursor:pointer;background:var(--bege-2)}
+  .chip:hover{border-color:var(--turq);color:var(--turq)}
+  .note{font-size:11px;color:var(--txt-3);font-style:italic;margin-top:14px;display:flex;align-items:center;gap:6px}
+  .ck{width:18px;height:18px;border:1.5px solid var(--line);border-radius:5px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+  .ck.done{background:var(--verde);border-color:var(--verde);color:#fff;font-size:11px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="top">
+    <i class="lucide lucide-arrow-left back"></i>
+    <h1>Internação</h1>
+  </div>
+  <div class="sub">Mapa de leitos em tempo real · atualizado há 12 s</div>
+
+  <!-- KPIs -->
+  <div class="kpis">
+    <div class="kpi"><div class="lbl"><i class="lucide lucide-bed-double"></i>Ocupação</div><div class="val">8<small>/12</small></div></div>
+    <div class="kpi alert"><div class="lbl"><i class="lucide lucide-alert-triangle"></i>Em risco</div><div class="val">2</div></div>
+    <div class="kpi warn"><div class="lbl"><i class="lucide lucide-clock"></i>Medicações atrasadas</div><div class="val">3</div></div>
+    <div class="kpi"><div class="lbl"><i class="lucide lucide-log-out"></i>Altas previstas hoje</div><div class="val">2</div></div>
+    <div class="kpi"><div class="lbl"><i class="lucide lucide-wallet"></i>Em aberto (diárias)</div><div class="val" style="font-size:20px">R$ 4.380</div></div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <div class="tab on" data-t="mapa"><i class="lucide lucide-layout-grid"></i>Mapa de Internação</div>
+    <div class="tab" data-t="ficha"><i class="lucide lucide-clipboard-list"></i>Ficha do Paciente</div>
+    <div class="tab" data-t="presc"><i class="lucide lucide-pill"></i>Prescrição & Plantão</div>
+    <div class="tab" data-t="mon"><i class="lucide lucide-activity"></i>Monitoramento</div>
+    <div class="tab" data-t="fin"><i class="lucide lucide-receipt"></i>Financeiro</div>
+  </div>
+
+  <!-- ===== MAPA ===== -->
+  <div class="panel on" id="mapa">
+    <div class="bar">
+      <div class="search"><i class="lucide lucide-search"></i><input placeholder="Buscar pet, tutor ou baia..."></div>
+      <div class="seg"><span class="on">Todas</span><span>Caninos</span><span>Felinos</span><span>Isolamento</span></div>
+      <div class="grow"></div>
+      <button class="btn"><i class="lucide lucide-monitor"></i>Modo painel (TV)</button>
+      <button class="btn pri"><i class="lucide lucide-plus"></i>Nova internação</button>
+    </div>
+
+    <div class="legend">
+      <b>Nível de risco:</b>
+      <span class="dot"><i style="background:var(--verde)"></i>Estável</span>
+      <span class="dot"><i style="background:var(--amar)"></i>Atenção</span>
+      <span class="dot"><i style="background:var(--verm)"></i>Crítico</span>
+      <span class="dot"><i style="background:var(--livre)"></i>Livre</span>
+    </div>
+
+    <div class="map">
+
+      <!-- crítico -->
+      <div class="baia">
+        <div class="stripe" style="background:var(--verm)"></div>
+        <div class="body">
+          <div class="hd"><span class="code"><i class="lucide lucide-map-pin"></i>BAIA 01</span><span class="risk" style="background:var(--verm-bg);color:#9b2d2a">Crítico</span></div>
+          <div class="pet"><div class="ic" style="background:var(--azul-bg)">🐶</div><div><div class="nm">Thor</div><div class="br">Rottweiler · 32 kg</div></div></div>
+          <div class="meta">
+            <span><i class="lucide lucide-user"></i>Maria Souza · (85) 9 8812-3344</span>
+            <span><i class="lucide lucide-stethoscope"></i>Dra. Vivian · D3 de internação</span>
+            <span><i class="lucide lucide-clipboard"></i>Pós-cirúrgico · esplenectomia</span>
+          </div>
+          <div class="vit">
+            <div><div class="vl">132</div><div class="vk">FC</div></div>
+            <div><div class="vl">44</div><div class="vk">FR</div></div>
+            <div><div class="vl">39.8°</div><div class="vk">Temp</div></div>
+          </div>
+          <div class="med due"><i class="lucide lucide-pill"></i>Tramadol IV<span class="t">atrasado 14min</span></div>
+        </div>
+      </div>
+
+      <!-- atenção -->
+      <div class="baia">
+        <div class="stripe" style="background:var(--amar)"></div>
+        <div class="body">
+          <div class="hd"><span class="code"><i class="lucide lucide-map-pin"></i>BAIA 02</span><span class="risk" style="background:var(--amar-bg);color:#8a6400">Atenção</span></div>
+          <div class="pet"><div class="ic" style="background:#FDEFE6">🐱</div><div><div class="nm">Mia</div><div class="br">SRD felino · 3,8 kg</div></div></div>
+          <div class="meta">
+            <span><i class="lucide lucide-user"></i>João Lima · (85) 9 9920-1100</span>
+            <span><i class="lucide lucide-stethoscope"></i>Dr. Gabriel · D1 de internação</span>
+            <span><i class="lucide lucide-clipboard"></i>DRC · fluidoterapia</span>
+          </div>
+          <div class="vit">
+            <div><div class="vl">186</div><div class="vk">FC</div></div>
+            <div><div class="vl">32</div><div class="vk">FR</div></div>
+            <div><div class="vl">38.9°</div><div class="vk">Temp</div></div>
+          </div>
+          <div class="med soon"><i class="lucide lucide-pill"></i>Ranitidina SC<span class="t">em 25min</span></div>
+        </div>
+      </div>
+
+      <!-- estável -->
+      <div class="baia">
+        <div class="stripe" style="background:var(--verde)"></div>
+        <div class="body">
+          <div class="hd"><span class="code"><i class="lucide lucide-map-pin"></i>BAIA 03</span><span class="risk" style="background:var(--verde-bg);color:#1c7a47">Estável</span></div>
+          <div class="pet"><div class="ic" style="background:var(--azul-bg)">🐶</div><div><div class="nm">Bid</div><div class="br">Shih-tzu · 6,2 kg</div></div></div>
+          <div class="meta">
+            <span><i class="lucide lucide-user"></i>Ana Paula · (85) 9 9133-7788</span>
+            <span><i class="lucide lucide-stethoscope"></i>Dra. Letícia · D2 de internação</span>
+            <span><i class="lucide lucide-clipboard"></i>Gastroenterite · obs.</span>
+          </div>
+          <div class="vit">
+            <div><div class="vl">98</div><div class="vk">FC</div></div>
+            <div><div class="vl">22</div><div class="vk">FR</div></div>
+            <div><div class="vl">38.4°</div><div class="vk">Temp</div></div>
+          </div>
+          <div class="med ok"><i class="lucide lucide-check"></i>Próxima dose<span class="t">14:00</span></div>
+        </div>
+      </div>
+
+      <!-- livre -->
+      <div class="baia free">
+        <div class="stripe" style="background:var(--livre)"></div>
+        <div class="empty">
+          <i class="lucide lucide-bed"></i>
+          <div>BAIA 04 — Livre</div>
+          <span class="lk">+ Internar paciente</span>
+        </div>
+      </div>
+
+      <!-- estável -->
+      <div class="baia">
+        <div class="stripe" style="background:var(--verde)"></div>
+        <div class="body">
+          <div class="hd"><span class="code"><i class="lucide lucide-map-pin"></i>BAIA 05</span><span class="risk" style="background:var(--verde-bg);color:#1c7a47">Estável</span></div>
+          <div class="pet"><div class="ic" style="background:var(--azul-bg)">🐶</div><div><div class="nm">Nina</div><div class="br">Poodle · 8,1 kg</div></div></div>
+          <div class="meta">
+            <span><i class="lucide lucide-user"></i>Carla Dias · (85) 9 8800-5521</span>
+            <span><i class="lucide lucide-stethoscope"></i>Dra. Vivian · D4 de internação</span>
+            <span><i class="lucide lucide-log-out" style="color:var(--turq)"></i>Alta prevista hoje</span>
+          </div>
+          <div class="vit">
+            <div><div class="vl">104</div><div class="vk">FC</div></div>
+            <div><div class="vl">24</div><div class="vk">FR</div></div>
+            <div><div class="vl">38.6°</div><div class="vk">Temp</div></div>
+          </div>
+          <div class="med ok"><i class="lucide lucide-check"></i>Próxima dose<span class="t">16:00</span></div>
+        </div>
+      </div>
+
+      <!-- atenção isolamento -->
+      <div class="baia">
+        <div class="stripe" style="background:var(--amar)"></div>
+        <div class="body">
+          <div class="hd"><span class="code"><i class="lucide lucide-biohazard"></i>ISO 01</span><span class="risk" style="background:var(--amar-bg);color:#8a6400">Atenção</span></div>
+          <div class="pet"><div class="ic" style="background:#FDEFE6">🐱</div><div><div class="nm">Felix</div><div class="br">Persa · 4,5 kg</div></div></div>
+          <div class="meta">
+            <span><i class="lucide lucide-user"></i>Rita Gomes · (85) 9 9011-2233</span>
+            <span><i class="lucide lucide-stethoscope"></i>Dr. Gabriel · D2 de internação</span>
+            <span><i class="lucide lucide-shield-alert" style="color:var(--amar)"></i>Isolamento · PIF suspeita</span>
+          </div>
+          <div class="vit">
+            <div><div class="vl">170</div><div class="vk">FC</div></div>
+            <div><div class="vl">36</div><div class="vk">FR</div></div>
+            <div><div class="vl">39.5°</div><div class="vk">Temp</div></div>
+          </div>
+          <div class="med due"><i class="lucide lucide-pill"></i>Meloxicam SC<span class="t">atrasado 6min</span></div>
+        </div>
+      </div>
+
+      <!-- estável -->
+      <div class="baia">
+        <div class="stripe" style="background:var(--verde)"></div>
+        <div class="body">
+          <div class="hd"><span class="code"><i class="lucide lucide-map-pin"></i>BAIA 06</span><span class="risk" style="background:var(--verde-bg);color:#1c7a47">Estável</span></div>
+          <div class="pet"><div class="ic" style="background:var(--azul-bg)">🐶</div><div><div class="nm">Bob</div><div class="br">Labrador · 28 kg</div></div></div>
+          <div class="meta">
+            <span><i class="lucide lucide-user"></i>Pedro Alves · (85) 9 8744-9090</span>
+            <span><i class="lucide lucide-stethoscope"></i>Dra. Nayana · D1 de internação</span>
+            <span><i class="lucide lucide-clipboard"></i>Observação · vômito</span>
+          </div>
+          <div class="vit">
+            <div><div class="vl">92</div><div class="vk">FC</div></div>
+            <div><div class="vl">20</div><div class="vk">FR</div></div>
+            <div><div class="vl">38.2°</div><div class="vk">Temp</div></div>
+          </div>
+          <div class="med soon"><i class="lucide lucide-pill"></i>Ondansetrona IV<span class="t">em 40min</span></div>
+        </div>
+      </div>
+
+      <!-- livre -->
+      <div class="baia free">
+        <div class="stripe" style="background:var(--livre)"></div>
+        <div class="empty">
+          <i class="lucide lucide-bed"></i>
+          <div>BAIA 07 — Livre</div>
+          <span class="lk">+ Internar paciente</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ===== FICHA ===== -->
+  <div class="panel" id="ficha">
+    <div class="card">
+      <div class="ch">
+        <h3><i class="lucide lucide-clipboard-list"></i>Admissão — Thor (Baia 01)</h3>
+        <div style="display:flex;gap:8px">
+          <button class="btn"><i class="lucide lucide-printer"></i>Resumo de alta</button>
+          <button class="btn"><i class="lucide lucide-edit"></i>Editar</button>
+        </div>
+      </div>
+      <div class="cb">
+        <div class="two">
+          <div>
+            <div class="field"><div class="k">Tutor</div><div class="v">Maria Souza · (85) 9 8812-3344</div></div>
+            <div class="field"><div class="k">Peso de entrada</div><div class="v">32,0 kg</div></div>
+            <div class="field"><div class="k">Temperatura de entrada</div><div class="v">39,8 °C</div></div>
+            <div class="field"><div class="k">Veterinário responsável</div><div class="v">Dra. Vivian Corrêa</div></div>
+          </div>
+          <div>
+            <div class="field"><div class="k">Diagnóstico / motivo</div><div class="v">Pós-cirúrgico — esplenectomia por hemangiossarcoma</div></div>
+            <div class="field"><div class="k">Prognóstico</div><div class="v"><span class="pill" style="background:var(--amar-bg);color:#8a6400">Reservado</span></div></div>
+            <div class="field"><div class="k">Predição de alta</div><div class="v">26/06/2026 (em 2 dias)</div></div>
+            <div class="field"><div class="k">Custo acumulado</div><div class="v">R$ 1.840,00</div></div>
+          </div>
+        </div>
+        <div class="field" style="margin-top:6px"><div class="k">Anamnese / justificativa da internação</div><div class="v" style="font-weight:400;color:var(--txt-2)">Paciente em pós-operatório imediato, necessita monitoramento de dor, hidratação e sinais de sangramento. Mantido em fluidoterapia e analgesia multimodal.</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="ch"><h3><i class="lucide lucide-file-stack"></i>Modelos de admissão</h3></div>
+      <div class="cb"><div class="chips">
+        <span class="chip">Pós-operatório cirúrgico</span>
+        <span class="chip">Fluidoterapia / DRC</span>
+        <span class="chip">Parvovirose</span>
+        <span class="chip">Cetoacidose diabética</span>
+        <span class="chip">Observação 24h</span>
+        <span class="chip"><i class="lucide lucide-plus"></i> Novo modelo</span>
+      </div></div>
+    </div>
+  </div>
+
+  <!-- ===== PRESCRIÇÃO & PLANTÃO ===== -->
+  <div class="panel" id="presc">
+    <div class="card">
+      <div class="ch">
+        <h3><i class="lucide lucide-list-checks"></i>Checklist de plantão — turno 12h às 19h</h3>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span class="pill" style="background:var(--verm-bg);color:#9b2d2a">3 atrasadas</span>
+          <span class="pill" style="background:var(--amar-bg);color:#8a6400">5 pendentes</span>
+          <button class="btn pri"><i class="lucide lucide-plus"></i>Nova prescrição</button>
+        </div>
+      </div>
+      <div class="cb" style="padding:0">
+        <table>
+          <thead><tr><th>Hora</th><th>Paciente</th><th>Medicação</th><th>Via</th><th>Dose</th><th>Status</th><th>Responsável</th><th></th></tr></thead>
+          <tbody>
+            <tr><td>13:00</td><td>Thor · B01</td><td>Tramadol</td><td>IV</td><td>3 mg/kg</td><td><span class="pill" style="background:var(--verm-bg);color:#9b2d2a">Atrasado</span></td><td>—</td><td><span class="ck"></span></td></tr>
+            <tr><td>13:00</td><td>Felix · ISO1</td><td>Meloxicam</td><td>SC</td><td>0,1 mg/kg</td><td><span class="pill" style="background:var(--verm-bg);color:#9b2d2a">Atrasado</span></td><td>—</td><td><span class="ck"></span></td></tr>
+            <tr><td>13:30</td><td>Mia · B02</td><td>Ranitidina</td><td>SC</td><td>2 mg/kg</td><td><span class="pill" style="background:var(--amar-bg);color:#8a6400">Pendente</span></td><td>—</td><td><span class="ck"></span></td></tr>
+            <tr style="opacity:.6"><td>12:00</td><td>Thor · B01</td><td>Fluido Ringer</td><td>IV (BIC)</td><td>80 ml/h</td><td><span class="pill" style="background:var(--verde-bg);color:#1c7a47">Feito</span></td><td>Ellen</td><td><span class="ck done"><i class="lucide lucide-check"></i></span></td></tr>
+            <tr style="opacity:.6"><td>12:00</td><td>Bid · B03</td><td>Metronidazol</td><td>VO</td><td>15 mg/kg</td><td><span class="pill" style="background:var(--verde-bg);color:#1c7a47">Feito</span></td><td>Isabela</td><td><span class="ck done"><i class="lucide lucide-check"></i></span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="ch"><h3><i class="lucide lucide-file-stack"></i>Modelos de prescrição (protocolos)</h3></div>
+      <div class="cb"><div class="chips">
+        <span class="chip">Fluidoterapia de manutenção</span>
+        <span class="chip">Analgesia pós-op multimodal</span>
+        <span class="chip">Protocolo antiemético</span>
+        <span class="chip">Parvovirose suporte</span>
+        <span class="chip"><i class="lucide lucide-plus"></i> Novo protocolo</span>
+      </div></div>
+    </div>
+  </div>
+
+  <!-- ===== MONITORAMENTO ===== -->
+  <div class="panel" id="mon">
+    <div class="card">
+      <div class="ch">
+        <h3><i class="lucide lucide-activity"></i>Sinais vitais — Thor (Baia 01)</h3>
+        <button class="btn pri"><i class="lucide lucide-plus"></i>Registrar aferição</button>
+      </div>
+      <div class="cb" style="padding:0">
+        <table>
+          <thead><tr><th>Hora</th><th>FC</th><th>FR</th><th>Temp</th><th>PA</th><th>Mucosa</th><th>Dor (0-4)</th><th>Aferido por</th></tr></thead>
+          <tbody>
+            <tr><td>13:00</td><td>132</td><td>44</td><td>39,8°</td><td>110/70</td><td>Rósea</td><td>2</td><td>Ellen</td></tr>
+            <tr><td>11:00</td><td>128</td><td>40</td><td>39,6°</td><td>112/72</td><td>Rósea</td><td>2</td><td>Ellen</td></tr>
+            <tr><td>09:00</td><td>120</td><td>36</td><td>39,2°</td><td>115/74</td><td>Rósea</td><td>1</td><td>Isabela</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="two">
+      <div class="card">
+        <div class="ch"><h3><i class="lucide lucide-droplets"></i>Controle de fluidos & dejetos</h3></div>
+        <div class="cb" style="padding:0">
+          <table>
+            <tbody>
+              <tr><td><i class="lucide lucide-arrow-down-to-line" style="color:var(--turq)"></i> Entrada (fluido 6h)</td><td style="text-align:right;font-weight:600">480 ml</td></tr>
+              <tr><td><i class="lucide lucide-glass-water"></i> Ingestão de água</td><td style="text-align:right;font-weight:600">60 ml</td></tr>
+              <tr><td><i class="lucide lucide-droplet"></i> Diurese</td><td style="text-align:right;font-weight:600">2 x normal</td></tr>
+              <tr><td><i class="lucide lucide-circle"></i> Fezes</td><td style="text-align:right;font-weight:600">1 x pastosa</td></tr>
+              <tr><td><i class="lucide lucide-bowl"></i> Alimentação</td><td style="text-align:right;font-weight:600">Aceitou 40%</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <div class="ch"><h3><i class="lucide lucide-notebook-pen"></i>Evolução médica</h3><span class="ico-btn"><i class="lucide lucide-plus"></i></span></div>
+        <div class="cb">
+          <div style="border-left:2px solid var(--turq);padding:2px 0 2px 12px;margin-bottom:12px">
+            <div style="font-size:11px;color:var(--txt-3)">13:10 · Dra. Vivian</div>
+            <div style="color:var(--txt-2);margin-top:2px">Paciente alerta, dor controlada. Mantida analgesia. Sem sinais de sangramento na ferida.</div>
+          </div>
+          <div style="border-left:2px solid var(--line);padding:2px 0 2px 12px">
+            <div style="font-size:11px;color:var(--txt-3)">09:30 · Dra. Vivian</div>
+            <div style="color:var(--txt-2);margin-top:2px">Anexado hemograma de controle. Hematócrito estável (38%).</div>
+            <div style="margin-top:6px"><span class="chip" style="font-size:11px"><i class="lucide lucide-paperclip"></i> hemograma_thor.pdf</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== FINANCEIRO ===== -->
+  <div class="panel" id="fin">
+    <div class="card">
+      <div class="ch">
+        <h3><i class="lucide lucide-receipt"></i>Conta da internação — Thor (Baia 01)</h3>
+        <button class="btn"><i class="lucide lucide-send"></i>Enviar p/ Caixa</button>
+      </div>
+      <div class="cb" style="padding:0">
+        <table>
+          <thead><tr><th>Data</th><th>Item</th><th>Tipo</th><th>Qtd</th><th>Estoque</th><th style="text-align:right">Valor</th></tr></thead>
+          <tbody>
+            <tr><td>23/06</td><td>Diária internação (porte grande)</td><td><span class="pill" style="background:var(--azul-bg);color:#1f5a82">Diária</span></td><td>1</td><td>—</td><td style="text-align:right">R$ 320,00</td></tr>
+            <tr><td>24/06</td><td>Diária internação (porte grande)</td><td><span class="pill" style="background:var(--azul-bg);color:#1f5a82">Diária</span></td><td>1</td><td>—</td><td style="text-align:right">R$ 320,00</td></tr>
+            <tr><td>23/06</td><td>Tramadol 50mg/ml — amp.</td><td><span class="pill" style="background:var(--verde-bg);color:#1c7a47">Insumo</span></td><td>3</td><td><i class="lucide lucide-check" style="color:var(--verde)"></i> baixado</td><td style="text-align:right">R$ 36,00</td></tr>
+            <tr><td>23/06</td><td>Equipo + Ringer 500ml</td><td><span class="pill" style="background:var(--verde-bg);color:#1c7a47">Insumo</span></td><td>4</td><td><i class="lucide lucide-check" style="color:var(--verde)"></i> baixado</td><td style="text-align:right">R$ 88,00</td></tr>
+            <tr><td>22/06</td><td>Esplenectomia</td><td><span class="pill" style="background:#EFE7FB;color:#5a3b9b">Procedimento</span></td><td>1</td><td>—</td><td style="text-align:right">R$ 1.076,00</td></tr>
+          </tbody>
+          <tfoot>
+            <tr><td colspan="5" style="text-align:right;font-weight:600;border-top:1px solid var(--line)">Total acumulado</td><td style="text-align:right;font-weight:700;color:var(--marinho);border-top:1px solid var(--line)">R$ 1.840,00</td></tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+    <div class="note"><i class="lucide lucide-info"></i>Diárias lançadas automaticamente à meia-noite · insumos dão baixa no estoque ao serem marcados no checklist de plantão.</div>
+  </div>
+
+  <div class="note" style="margin-top:24px;justify-content:center">
+    <i class="lucide lucide-flask-conical"></i>Mockup v1 para aprovação · padrão visual Base44 · nenhum dado real
+  </div>
+
+</div>
+
+<script>
+  document.querySelectorAll('.tab').forEach(t=>{
+    t.addEventListener('click',()=>{
+      document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
+      document.querySelectorAll('.panel').forEach(x=>x.classList.remove('on'));
+      t.classList.add('on');
+      document.getElementById(t.dataset.t).classList.add('on');
+    });
+  });
+  document.querySelectorAll('.ck:not(.done)').forEach(c=>{
+    c.addEventListener('click',()=>{c.classList.toggle('done');c.innerHTML=c.classList.contains('done')?'<i class="lucide lucide-check"></i>':'';});
+  });
+</script>
+</body>
+</html>

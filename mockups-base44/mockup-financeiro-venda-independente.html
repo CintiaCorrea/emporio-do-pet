@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mockup — Venda independente + Financeiro · Empório do Pet</title>
+<style>
+:root{
+ --turq:#009AAC;--marinho:#014D5E;--navy:#0E2244;--bege:#E2CFB5;
+ --bg:#F4F8F9;--card:#fff;--line:#e2e8eb;--txt:#1f3a40;--muted:#6b7e83;
+ --ok:#1B7F3B;--okbg:#e9f6ee;--warn:#B8860B;--warnbg:#fbf3df;--no:#B00000;
+ --emporio:#014D5E;--fisio:#009AAC;--integra:#7C3AED;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--txt);font-size:14px}
+.app{max-width:1120px;margin:0 auto;padding:18px}
+.topbar{display:flex;align-items:center;gap:12px;background:linear-gradient(120deg,var(--marinho),var(--turq));color:#fff;border-radius:14px;padding:16px 20px}
+.topbar h1{font-size:18px;margin:0}
+.topbar .tag{margin-left:auto;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.3);padding:5px 12px;border-radius:20px;font-size:12px;font-weight:600}
+.note{font-size:12.5px;color:var(--muted);margin:8px 2px 0}
+.tabs{display:flex;gap:6px;margin:18px 0 14px;flex-wrap:wrap}
+.tab{border:1px solid var(--line);background:#fff;color:var(--marinho);padding:9px 16px;border-radius:10px;font-weight:600;cursor:pointer;font-size:13.5px;display:flex;align-items:center;gap:7px}
+.tab.active{background:var(--marinho);color:#fff;border-color:var(--marinho)}
+.tab svg{width:16px;height:16px}
+.view{display:none;animation:f .2s}
+.view.active{display:block}
+@keyframes f{from{opacity:0;transform:translateY(4px)}to{opacity:1}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:14px}
+.card h2{font-size:15px;margin:0 0 4px;display:flex;align-items:center;gap:8px}
+.card h2 svg{width:18px;height:18px;color:var(--turq)}
+.sub{font-size:12.5px;color:var(--muted);margin:0 0 12px}
+.badge{font-size:11px;font-weight:800;padding:3px 9px;border-radius:20px;letter-spacing:.3px}
+.b-new{background:#eaf7ec;color:var(--ok);border:1px solid #bfe6cd}
+.b-ind{background:#eef3fb;color:#2c5b9e;border:1px solid #c9d8ef}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;color:#fff;background:var(--marinho);font-weight:600;padding:8px 10px;font-size:12px}
+td{padding:8px 10px;border-bottom:1px solid var(--line)}
+tr:nth-child(even) td{background:#f7fbfc}
+.m{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;padding:3px 8px;border-radius:6px;color:#fff}
+.m.emporio{background:var(--emporio)}.m.fisio{background:var(--fisio)}.m.integra{background:var(--integra)}
+.pay{font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px}
+.pay.pago{background:var(--okbg);color:var(--ok)}.pay.aberto{background:var(--warnbg);color:var(--warn)}
+.hidden-cost{color:#b9c4c7;font-style:italic}
+.flex{display:flex;gap:14px;flex-wrap:wrap}
+.flex>.card{flex:1;min-width:200px;margin:0}
+.kpi .v{font-size:24px;font-weight:800;color:var(--marinho)}
+.kpi .l{font-size:12px;color:var(--muted);margin-top:2px}
+.kpi .d{font-size:11px;color:var(--ok);font-weight:700;margin-top:4px}
+.legend{background:#f0f8f9;border:1px dashed var(--turq);border-radius:10px;padding:12px 14px;font-size:13px}
+.legend b{color:var(--marinho)}
+.arrow{display:inline-block;margin:0 6px;color:var(--turq);font-weight:800}
+.chips{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px}
+.chip{border:1px solid var(--line);background:#fff;padding:6px 12px;border-radius:20px;font-size:12.5px;color:var(--marinho);font-weight:600;cursor:pointer}
+.chip.on{background:var(--turq);color:#fff;border-color:var(--turq)}
+.src{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+.src .s{flex:1;min-width:220px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:12.5px}
+.src .s b{display:block;color:var(--marinho);margin-bottom:2px}
+.beforeafter{display:flex;gap:12px;flex-wrap:wrap;margin-top:6px}
+.ba{flex:1;min-width:230px;border:1px solid var(--line);border-radius:10px;padding:12px}
+.ba.old{background:#faf6f6;border-color:#e7d3d3}
+.ba.new{background:#f1faf3;border-color:#cbe7d3}
+.ba .h{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.ba.old .h{color:var(--no)}.ba.new .h{color:var(--ok)}
+.ba ul{margin:0;padding-left:16px}.ba li{margin:3px 0;font-size:12.5px}
+.warnbox{background:var(--warnbg);border:1px solid #ecd9a3;border-radius:10px;padding:11px 14px;font-size:12.5px;color:#6b541a;margin-top:8px}
+.mock{font-size:11px;color:#9aa;letter-spacing:1px;text-transform:uppercase;text-align:center;margin:16px 0 0}
+.pcell{font-weight:600}
+.tcell{font-size:11.5px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="app">
+ <div class="topbar">
+   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><path d="M3 3v18h18"/><rect x="7" y="10" width="3" height="7"/><rect x="12" y="6" width="3" height="11"/><rect x="17" y="13" width="3" height="4"/></svg>
+   <h1>Empório do Pet — Venda independente &amp; Financeiro</h1>
+   <span class="tag">MOCKUP · não funcional</span>
+ </div>
+ <p class="note">Proposta visual da Fase 2. Mostra como a "venda" da ficha de atendimento vira uma entidade própria, como a categoria Integrativa define a marca, e como o Financeiro lê esses lançamentos. Dados ilustrativos.</p>
+
+ <div class="tabs">
+   <div class="tab active" data-v="ficha"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12h6M9 16h6M9 8h6"/><rect x="4" y="3" width="16" height="18" rx="2"/></svg>Ficha de Atendimento</div>
+   <div class="tab" data-v="catalogo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41 13.42 20.6a2 2 0 0 1-2.83 0L2 12V2h10z"/><circle cx="7" cy="7" r="1.5"/></svg>Catálogo &amp; Marca</div>
+   <div class="tab" data-v="financeiro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.5 9.5h4a1.5 1.5 0 0 1 0 3h-3a1.5 1.5 0 0 0 0 3h4"/></svg>Financeiro (mínimo)</div>
+ </div>
+
+ <!-- ============ FICHA ============ -->
+ <div class="view active" id="ficha">
+   <div class="card">
+     <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="4" r="2"/><circle cx="18" cy="8" r="2"/><circle cx="4" cy="8" r="2"/><circle cx="6.5" cy="14" r="2.5"/><circle cx="15.5" cy="14" r="2.5"/><path d="M8 18c0 2 1.8 3 4 3s4-1 4-3"/></svg>Atendimento · Thor (Golden Retriever)</h2>
+     <p class="sub">Tutor: Mariana Sousa · (85) 9xxxx-1234 &nbsp;|&nbsp; 20/06/2026 · Profissional: Dra. Vivian Corrêa</p>
+     <p style="font-size:12.5px;color:var(--muted);margin:0">Prontuário clínico (queixa, exame, conduta) — bloco existente, inalterado. <span style="color:var(--turq)">▾ recolhido</span></p>
+   </div>
+
+   <div class="card" style="border-left:4px solid var(--turq)">
+     <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.5 9.5h4a1.5 1.5 0 0 1 0 3h-3a1.5 1.5 0 0 0 0 3h4"/></svg>
+       Venda — Lançamento Financeiro &nbsp;<span class="badge b-ind">ENTIDADE INDEPENDENTE</span></h2>
+     <p class="sub">Continua aparecendo aqui na ficha, mas agora cada item vive na tabela <b>LançamentoFinanceiro</b>. O módulo Financeiro lê daqui.</p>
+     <table>
+       <tr><th>Serviço</th><th>Marca (auto)</th><th>Profissional</th><th>Valor</th><th>Custo</th><th>Forma pgto</th><th>Status</th></tr>
+       <tr><td class="pcell">Consulta Integrativa</td><td><span class="m integra">Dra. Vivian</span></td><td>Dra. Vivian Corrêa</td><td>R$ 250,00</td><td class="hidden-cost">oculto p/ vet</td><td>Pix</td><td><span class="pay pago">Pago</span></td></tr>
+       <tr><td class="pcell">Sessão de Fisioterapia</td><td><span class="m fisio">Mundo à Parte</span></td><td>Dra. Letícia</td><td>R$ 200,00</td><td class="hidden-cost">oculto p/ vet</td><td>Cartão 2x</td><td><span class="pay pago">Pago</span></td></tr>
+       <tr><td class="pcell">Exame — Hemograma</td><td><span class="m emporio">Empório</span></td><td>Dra. Vivian Corrêa</td><td>R$ 200,00</td><td class="hidden-cost">oculto p/ vet</td><td>—</td><td><span class="pay aberto">Em aberto</span></td></tr>
+     </table>
+     <p style="margin:10px 2px 0;font-size:13px"><b>Total da venda:</b> R$ 650,00 &nbsp;·&nbsp; <b>Recebido:</b> R$ 450,00 &nbsp;·&nbsp; <b>Em aberto:</b> R$ 200,00</p>
+
+     <div class="beforeafter">
+       <div class="ba old"><div class="h">Antes (hoje)</div><ul>
+         <li>Venda é um pedaço "preso" dentro da ficha</li>
+         <li>Financeiro não consegue ler isoladamente</li>
+         <li>Histórico do SimplesVet não tem onde encaixar</li>
+       </ul></div>
+       <div class="ba new"><div class="h">Depois (proposta)</div><ul>
+         <li>Cada item = registro próprio (valor, custo, marca, profissional, data)</li>
+         <li>Financeiro lê direto da tabela</li>
+         <li>Linha do SimplesVet entra na mesma tabela (sem atendimento)</li>
+       </ul></div>
+     </div>
+   </div>
+ </div>
+
+ <!-- ============ CATALOGO ============ -->
+ <div class="view" id="catalogo">
+   <div class="card">
+     <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41 13.42 20.6a2 2 0 0 1-2.83 0L2 12V2h10z"/><circle cx="7" cy="7" r="1.5"/></svg>Categoria nova: <span style="color:var(--integra)">Integrativa</span></h2>
+     <p class="sub">Tudo que a Dra. Vivian faz nessa linha entra aqui. Criar a categoria faz a marca "Dra. Vivian" sair limpa por regra automática.</p>
+     <table>
+       <tr><th>Serviço</th><th>Categoria</th><th>Valor padrão</th><th>Marca resultante</th></tr>
+       <tr><td class="pcell">Consulta Integrativa</td><td>Integrativa</td><td>R$ 250,00</td><td><span class="m integra">Dra. Vivian</span></td></tr>
+       <tr><td class="pcell">Acupuntura</td><td>Integrativa</td><td>R$ 180,00</td><td><span class="m integra">Dra. Vivian</span></td></tr>
+       <tr><td class="pcell">Ozonioterapia</td><td>Integrativa</td><td>R$ 160,00</td><td><span class="m integra">Dra. Vivian</span></td></tr>
+       <tr><td class="pcell">Homeopatia / Fitoterapia</td><td>Integrativa</td><td>R$ 150,00</td><td><span class="m integra">Dra. Vivian</span></td></tr>
+       <tr><td class="pcell">Sessão de Fisioterapia</td><td>Fisioterapia</td><td>R$ 200,00</td><td><span class="m fisio">Mundo à Parte</span></td></tr>
+       <tr><td class="pcell">Consulta</td><td>Clínica</td><td>R$ 150,00</td><td><span class="m emporio">Empório</span></td></tr>
+       <tr><td class="pcell">Castração</td><td>Cirurgia</td><td>R$ 400,00</td><td><span class="m emporio">Empório</span></td></tr>
+     </table>
+   </div>
+   <div class="card">
+     <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h10"/></svg>Regra de marca (automática, sem campo novo)</h2>
+     <div class="legend">
+       Categoria <b>Fisioterapia</b> <span class="arrow">→</span> <span class="m fisio">Centro Mundo à Parte</span><br><br>
+       Categoria <b>Integrativa</b> <span class="arrow">→</span> <span class="m integra">Dra. Vivian Corrêa</span><br><br>
+       <b>Demais categorias</b> (Clínica, Especialidade, Cirurgia, Diagnóstico, Hospitalar, Plano) <span class="arrow">→</span> <span class="m emporio">Empório do Pet</span>
+     </div>
+     <div class="warnbox"><b>Por que assim:</b> a recepção não escolhe marca em nenhum atendimento — ela é herdada da categoria do serviço, definida uma vez no catálogo. Zero passo a mais na linha de frente.</div>
+   </div>
+ </div>
+
+ <!-- ============ FINANCEIRO ============ -->
+ <div class="view" id="financeiro">
+   <div class="chips">
+     <span class="chip on">Junho/2026</span><span class="chip">Todas as marcas</span><span class="chip">Empório</span><span class="chip">Mundo à Parte</span><span class="chip">Dra. Vivian</span><span class="chip">Todos profissionais</span>
+   </div>
+   <div class="flex" style="margin-bottom:14px">
+     <div class="card kpi"><div class="v">R$ 112.480</div><div class="l">Receita no período</div><div class="d">▲ acima de R$ 100k</div></div>
+     <div class="card kpi"><div class="v">R$ 268</div><div class="l">Ticket médio</div></div>
+     <div class="card kpi"><div class="v">419</div><div class="l">Lançamentos</div></div>
+     <div class="card kpi"><div class="v">R$ 8.200</div><div class="l">Em aberto</div></div>
+   </div>
+
+   <div class="flex" style="margin-bottom:14px">
+     <div class="card"><h2 style="font-size:13px"><span class="m emporio">Empório</span></h2><div class="kpi"><div class="v" style="font-size:20px">R$ 48.900</div><div class="l">43% · clínica geral</div></div></div>
+     <div class="card"><h2 style="font-size:13px"><span class="m fisio">Mundo à Parte</span></h2><div class="kpi"><div class="v" style="font-size:20px">R$ 50.600</div><div class="l">45% · fisioterapia</div></div></div>
+     <div class="card"><h2 style="font-size:13px"><span class="m integra">Dra. Vivian</span></h2><div class="kpi"><div class="v" style="font-size:20px">R$ 12.980</div><div class="l">12% · integrativa</div></div></div>
+   </div>
+
+   <div class="card">
+     <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18"/></svg>Lançamentos financeiros</h2>
+     <p class="sub">Mesma tabela alimenta dois fluxos: o que a recepção lança hoje no CRM e o histórico importado do SimplesVet.</p>
+     <table>
+       <tr><th>Data</th><th>Tutor / Pet</th><th>Serviço</th><th>Marca</th><th>Profissional</th><th>Valor</th><th>Status</th><th>Origem</th></tr>
+       <tr><td class="tcell">20/06</td><td>Mariana · Thor</td><td>Consulta Integrativa</td><td><span class="m integra">Dra. Vivian</span></td><td>Dra. Vivian</td><td>R$ 250</td><td><span class="pay pago">Pago</span></td><td class="tcell">CRM</td></tr>
+       <tr><td class="tcell">20/06</td><td>Mariana · Thor</td><td>Fisioterapia</td><td><span class="m fisio">Mundo à Parte</span></td><td>Dra. Letícia</td><td>R$ 200</td><td><span class="pay pago">Pago</span></td><td class="tcell">CRM</td></tr>
+       <tr><td class="tcell">19/06</td><td>Carlos · Mel</td><td>Castração</td><td><span class="m emporio">Empório</span></td><td>Dra. Ana Luiza</td><td>R$ 400</td><td><span class="pay pago">Pago</span></td><td class="tcell">CRM</td></tr>
+       <tr><td class="tcell">12/03</td><td>Júlia · Bidu</td><td>Pacote Fisio (10x)</td><td><span class="m fisio">Mundo à Parte</span></td><td>Dra. Letícia</td><td>R$ 1.800</td><td><span class="pay pago">Pago</span></td><td class="tcell">SimplesVet</td></tr>
+       <tr><td class="tcell">05/02</td><td>Renata · Nina</td><td>Consulta + Exames</td><td><span class="m emporio">Empório</span></td><td>Dra. Victoria</td><td>R$ 350</td><td><span class="pay pago">Pago</span></td><td class="tcell">SimplesVet</td></tr>
+     </table>
+     <div class="src">
+       <div class="s"><b>⟳ CRM (tempo real)</b>Cada venda lançada na ficha de atendimento cria o registro automaticamente.</div>
+       <div class="s"><b>↥ SimplesVet (histórico)</b>Importação por CSV: cada linha vira um lançamento, casado ao tutor pelo telefone. Sem atendimento vinculado.</div>
+     </div>
+   </div>
+ </div>
+
+ <p class="mock">Mockup ilustrativo · Empório do Pet · padrão Base44</p>
+</div>
+
+<script>
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
+ document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+ document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
+ t.classList.add('active');
+ document.getElementById(t.dataset.v).classList.add('active');
+});
+document.querySelectorAll('.chip').forEach(c=>c.onclick=()=>c.classList.toggle('on'));
+</script>
+</body>
+</html>
