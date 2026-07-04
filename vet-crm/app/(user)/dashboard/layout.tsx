@@ -17,7 +17,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <RolePreviewProvider realRole={realRole}>
       <PageHeaderProvider>
-        <div className="min-h-screen" style={{ background: "#f6f8f9" }}>
+        <div className="min-h-screen" style={{ background: "#F6F2EA" }}>
           <HotToaster />
           <Sidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
           <Header sidebarOpen={sidebarOpen} />
