@@ -179,6 +179,50 @@ export class CaixaService {
     };
   }
 
+  // Vendas — gráficos (Fase 3): total/ticket + evolução (bucketizada) + por grupo/marca + top itens.
+  async vendasResumo(query: any = {}) {
+    const from = query?.from, to = query?.to;
+    const where: any = { value: { gt: 0 }, status: { not: 'CANCELLED' } };
+    if (from || to) { where.date = {}; if (from) where.date.gte = new Date(String(from) + 'T00:00:00'); if (to) where.date.lte = new Date(String(to) + 'T23:59:59'); }
+    const appts = await this.prisma.appointment.findMany({
+      where,
+      select: { value: true, date: true, items: { select: { grupo: true, marca: true, valorTotal: true, descricao: true } } },
+    });
+    const total = appts.reduce((s, a) => s + (Number(a.value) || 0), 0);
+    const count = appts.length;
+    const ticket = count ? total / count : 0;
+    const porDia = new Map<string, number>();
+    for (const a of appts) { const d = new Date(a.date).toISOString().slice(0, 10); porDia.set(d, (porDia.get(d) || 0) + (Number(a.value) || 0)); }
+    const evolucao = this.bucketizeEvolucao(from, to, porDia);
+    const MARCAS: Record<string, string> = { EMPORIO: 'EMPORIO', MUNDO_A_PARTE: 'MUNDO_A_PARTE', DRA_VIVIAN: 'DRA_VIVIAN' };
+    const porGrupo = new Map<string, number>(), porMarca = new Map<string, number>(), topItens = new Map<string, number>();
+    for (const a of appts) for (const it of (a.items || [])) {
+      const v = Number(it.valorTotal) || 0;
+      porGrupo.set(it.grupo || 'Sem grupo', (porGrupo.get(it.grupo || 'Sem grupo') || 0) + v);
+      const m = MARCAS[it.marca as string] || 'Sem marca'; porMarca.set(m, (porMarca.get(m) || 0) + v);
+      const nm = it.descricao || 'Item'; topItens.set(nm, (topItens.get(nm) || 0) + v);
+    }
+    const toArr = (mp: Map<string, number>) => [...mp.entries()].map(([nome, valor]) => ({ nome, valor })).sort((a, b) => b.valor - a.valor);
+    return { total, count, ticket, evolucao, porGrupo: toArr(porGrupo), porMarca: toArr(porMarca), topItens: toArr(topItens).slice(0, 8) };
+  }
+
+  private bucketizeEvolucao(from: string, to: string, porDia: Map<string, number>) {
+    if (!from || !to) return [...porDia.entries()].sort().map(([d, v]) => ({ label: `${d.slice(8, 10)}/${d.slice(5, 7)}`, valor: v }));
+    const start = new Date(from + 'T00:00:00'), end = new Date(to + 'T00:00:00');
+    const days = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000) + 1);
+    const n = Math.min(8, days), per = Math.ceil(days / n);
+    const out: { label: string; valor: number }[] = [];
+    for (let i = 0; i < days; i += per) {
+      const bStart = new Date(start.getTime() + i * 86400000);
+      const bEnd = new Date(start.getTime() + Math.min(i + per - 1, days - 1) * 86400000);
+      let sum = 0;
+      for (let d = new Date(bStart); d <= bEnd; d = new Date(d.getTime() + 86400000)) sum += porDia.get(d.toISOString().slice(0, 10)) || 0;
+      const dd = (x: Date) => String(x.getDate()).padStart(2, '0');
+      out.push({ label: per > 1 ? `${dd(bStart)}–${dd(bEnd)}` : `${dd(bStart)}/${String(bStart.getMonth() + 1).padStart(2, '0')}`, valor: sum });
+    }
+    return out;
+  }
+
   // ============================================================
   // MINHAS VENDAS / PRODUTIVIDADE (somente produtividade — sem metas).
   // A integração com o model Meta existente virá numa etapa dedicada.
