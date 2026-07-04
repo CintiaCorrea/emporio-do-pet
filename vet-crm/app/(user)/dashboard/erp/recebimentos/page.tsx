@@ -1,91 +1,130 @@
-// DESTINO: vet-crm/app/(user)/dashboard/erp/recebimentos/page.tsx
-'use client';
+"use client";
+// [EMP-COWORK] Recebimentos analítico (Vendas · Fase 3) — Resumo (KPIs + quebras) + Lista. Base44 + olhinho.
+// Resumo: GET /api/caixa/recebimentos-resumo?from=&to=. Lista: GET /api/caixa/recebimentos?from=&to=.
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import toast from 'react-hot-toast';
-import { usePageTitle } from '@/lib/ui/PageHeaderContext';
-import { LuEye, LuEyeOff } from 'react-icons/lu';
+import { useCallback, useEffect, useState } from "react";
+import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 
-const TEAL = '#009AAC';
-const TEAL_DARK = '#014D5E';
-const LINE = '#e6eaed';
-
-interface Forma { forma: string; valor: number }
-interface Rec {
-  id: string; valorTotal: number; desconto: number; troco: number; formas: Forma[]; data: string;
-  appointment?: { value: number; pet?: { name: string } | null; tutor?: { name: string } | null } | null;
-}
-
-const brl = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number.isFinite(v) ? v : 0);
-const dh = (s?: string | null) => s ? new Date(s).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).replace(',', '') : '—';
-const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-const th: React.CSSProperties = { color: '#64748b', fontWeight: 500, padding: '9px 10px', borderBottom: `1px solid ${LINE}`, textAlign: 'left', fontSize: 12.5 };
-const td: React.CSSProperties = { padding: '10px', borderBottom: '1px solid #f1f5f6', fontSize: 13 };
+const brl = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number.isFinite(v) ? v : 0);
+const dh = (s?: string | null) => (s ? new Date(s).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).replace(",", "") : "—");
+const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const diaBR = (s: string) => { try { const [y, m, dd] = s.split("-"); return `${dd}/${m}`; } catch { return s; } };
 
 export default function RecebimentosPage() {
-  usePageTitle('Recebimentos', 'Todos os recebimentos do caixa');
-  const hoje = new Date();
-  const ini = new Date(); ini.setDate(ini.getDate() - 30);
+  usePageTitle("Recebimentos", "Análise dos recebimentos do caixa");
+  const hoje = new Date(); const ini = new Date(); ini.setDate(ini.getDate() - 30);
   const [from, setFrom] = useState(iso(ini));
   const [to, setTo] = useState(iso(hoje));
-  const [rows, setRows] = useState<Rec[]>([]);
+  const [tab, setTab] = useState<"resumo" | "lista">("resumo");
+  const [olho, setOlho] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [ocultar, setOcultar] = useState(false);
-  const money = (v: number) => (ocultar ? 'R$ ••••' : brl(v));
+  const [resumo, setResumo] = useState<any>(null);
+  const [rows, setRows] = useState<any[]>([]);
 
-  const fetchData = useCallback(async () => {
+  const load = useCallback(async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      const r = await fetch(`/api/caixa/recebimentos?from=${from}&to=${to}`, { cache: 'no-store' });
-      if (!r.ok) throw new Error('Erro ao carregar recebimentos');
-      setRows(await r.json());
-    } catch (e: any) { toast.error(e.message || 'Erro'); } finally { setLoading(false); }
+      const [res, lst] = await Promise.all([
+        fetch(`/api/caixa/recebimentos-resumo?from=${from}&to=${to}`, { cache: "no-store" }).then((r) => r.json()).catch(() => null),
+        fetch(`/api/caixa/recebimentos?from=${from}&to=${to}`, { cache: "no-store" }).then((r) => r.json()).catch(() => []),
+      ]);
+      setResumo(res);
+      setRows(Array.isArray(lst) ? lst : (lst.data || []));
+    } catch {}
+    setLoading(false);
   }, [from, to]);
+  useEffect(() => { load(); }, [load]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
-
-  const total = useMemo(() => rows.reduce((s, r) => s + Number(r.valorTotal || 0), 0), [rows]);
+  const money = (v: number) => (olho ? brl(v) : "R$ •••");
+  const k = resumo?.kpis || {};
+  const KPIS = [
+    { l: "💵 Baixas no dia da venda", v: k.noDia, c: "#0C447C" },
+    { l: "⏳ Baixas posteriores", v: k.posteriores, c: "#8a6400" },
+    { l: "🏦 Adiantamento (caução)", v: k.adiantamento, c: "#5C6B70" },
+    { l: "✅ Receita total", v: k.receitaTotal, c: "#0F6E56" },
+    { l: "🔴 Em aberto", v: k.emAberto, c: "#b23b39" },
+  ];
+  const Quebra = ({ titulo, dados }: { titulo: string; dados: any[] }) => (
+    <div className="bg-white border rounded-[14px] overflow-hidden" style={{ borderColor: "#E8E2D6" }}>
+      <div className="px-4 py-3 border-b text-[13px] font-medium text-[#014D5E]" style={{ borderColor: "#F0EBE0" }}>{titulo}</div>
+      {(!dados || dados.length === 0) ? (
+        <div className="px-4 py-4 text-[12px] text-[#8A989D] text-center">Sem dados no período.</div>
+      ) : (
+        <table className="w-full text-[13px]">
+          <tbody>
+            {dados.map((d: any) => (
+              <tr key={d.nome} className="border-b last:border-b-0" style={{ borderColor: "#F0EBE0" }}>
+                <td className="px-4 py-2 text-[#5C6B70]">{d.nome}</td>
+                <td className="px-4 py-2 text-right tabular-nums font-medium text-[#014D5E]">{money(d.valor)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
 
   return (
-    <div style={{ width: '100%', background: '#f7f9fa', minHeight: '100%' }}>
-      <style>{`@media print { .no-print{display:none!important} body{background:#fff} }`}</style>
-      <div style={{ width: '100%', padding: '20px 26px 60px', boxSizing: 'border-box' }}>
-        <div className="no-print" style={{ display: 'flex', alignItems: 'flex-end', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
-          <div><label style={lbl}>De</label><input type="date" value={from} onChange={(e) => setFrom(e.target.value)} style={inp} /></div>
-          <div><label style={lbl}>Até</label><input type="date" value={to} onChange={(e) => setTo(e.target.value)} style={inp} /></div>
-          <button onClick={() => setOcultar((v) => !v)} style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 500, padding: '9px 12px', borderRadius: 9, cursor: 'pointer', border: '1px solid #d7e0e2', background: '#fff', color: TEAL_DARK }}>
-            {ocultar ? <LuEyeOff size={15} /> : <LuEye size={15} />}{ocultar ? 'Mostrar valores' : 'Esconder valores'}
-          </button>
-        </div>
+    <div className="p-6 max-w-5xl mx-auto">
+      <div className="flex items-center gap-2 mb-4 flex-wrap">
+        <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="border rounded-lg px-3 py-2 text-[13px] bg-white" style={{ borderColor: "#E8E2D6" }} />
+        <span className="text-[#8A989D] text-[12px]">a</span>
+        <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="border rounded-lg px-3 py-2 text-[13px] bg-white" style={{ borderColor: "#E8E2D6" }} />
+        <button onClick={load} className="text-[12.5px] font-medium text-white bg-[#009AAC] px-4 py-2 rounded-lg">🔍 Consultar</button>
+        <button onClick={() => setOlho((v) => !v)} className="ml-auto text-[12px] font-medium text-[#5C6B70] bg-white border px-3 py-2 rounded-lg" style={{ borderColor: "#E8E2D6" }}>{olho ? "🙈 Ocultar valores" : "👁️ Mostrar valores"}</button>
+      </div>
 
-        <div style={{ background: '#fff', border: `1px solid ${LINE}`, borderRadius: 11, overflow: 'hidden' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderBottom: `1px solid ${LINE}` }}>
-            <span style={{ fontWeight: 600, fontSize: 14 }}>{rows.length} recebimento(s)</span>
-            <span style={{ fontSize: 13, color: '#0f6e7a' }}>Total <b style={{ color: TEAL_DARK }}>{money(total)}</b></span>
+      <div className="flex gap-1 border-b mb-4" style={{ borderColor: "#E8E2D6" }}>
+        {(["resumo", "lista"] as const).map((t) => (
+          <button key={t} onClick={() => setTab(t)} className="text-[12.5px] px-3.5 py-2 -mb-px border-b-2" style={tab === t ? { color: "#014D5E", borderColor: "#009AAC", fontWeight: 500 } : { color: "#5C6B70", borderColor: "transparent" }}>{t === "resumo" ? "Resumo" : `Lista (${rows.length})`}</button>
+        ))}
+      </div>
+
+      {loading ? (
+        <div className="px-6 py-16 text-center text-sm text-[#8A989D]">Carregando...</div>
+      ) : tab === "resumo" ? (
+        <>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-4">
+            {KPIS.map((kp) => (
+              <div key={kp.l} className="rounded-[12px] px-3.5 py-3 text-white" style={{ background: kp.c }}>
+                <div className="text-[18px] font-medium tabular-nums">{money(Number(kp.v) || 0)}</div>
+                <div className="text-[10.5px] opacity-95 mt-1">{kp.l}</div>
+              </div>
+            ))}
           </div>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead><tr><th style={th}>Data</th><th style={th}>Cliente · Pet</th><th style={th}>Formas</th><th style={{ ...th, textAlign: 'right' }}>Desconto</th><th style={{ ...th, textAlign: 'right' }}>Valor</th></tr></thead>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+            <Quebra titulo="💳 Por forma de recebimento" dados={resumo?.porForma} />
+            <Quebra titulo="🧑 Por quem realizou a baixa" dados={resumo?.porUsuario} />
+            <Quebra titulo="📅 Por dia" dados={(resumo?.porDia || []).map((d: any) => ({ nome: diaBR(d.nome), valor: d.valor }))} />
+            <Quebra titulo="🏥 Por marca" dados={resumo?.porMarca} />
+          </div>
+        </>
+      ) : (
+        <div className="bg-white border rounded-[14px] overflow-hidden" style={{ borderColor: "#E8E2D6" }}>
+          <div className="flex justify-between items-center px-4 py-3 border-b" style={{ borderColor: "#F0EBE0" }}>
+            <span className="text-[13px] font-medium text-[#014D5E]">{rows.length} recebimento(s)</span>
+            <span className="text-[12.5px] text-[#5C6B70]">Total <b className="text-[#014D5E]">{money(rows.reduce((s, r) => s + Number(r.valorTotal || 0), 0))}</b></span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-[13px]">
+              <thead><tr className="text-[10.5px] text-[#8A989D] uppercase tracking-wide" style={{ background: "#FBF9F4" }}>
+                <th className="text-left font-medium px-4 py-2.5">Data</th><th className="text-left font-medium px-3 py-2.5">Cliente · Pet</th><th className="text-left font-medium px-3 py-2.5">Formas</th><th className="text-right font-medium px-4 py-2.5">Valor</th>
+              </tr></thead>
               <tbody>
-                {loading && <tr><td colSpan={5} style={{ ...td, textAlign: 'center', color: '#94a3b8', padding: 18 }}>Carregando…</td></tr>}
-                {!loading && rows.length === 0 && <tr><td colSpan={5} style={{ ...td, textAlign: 'center', color: '#94a3b8', padding: 18 }}>Nenhum recebimento no período.</td></tr>}
+                {rows.length === 0 && <tr><td colSpan={4} className="px-4 py-6 text-center text-[#8A989D] text-[13px]">Nenhum recebimento no período.</td></tr>}
                 {rows.map((r) => (
-                  <tr key={r.id}>
-                    <td style={{ ...td, color: '#64748b' }}>{dh(r.data)}</td>
-                    <td style={{ ...td, color: '#1f2d33' }}>{r.appointment?.tutor?.name || 'Cliente'} · {r.appointment?.pet?.name || 'Pet'}</td>
-                    <td style={{ ...td, color: '#94a3b8' }}>{(r.formas || []).map((f) => f.forma).join(' + ') || '—'}</td>
-                    <td style={{ ...td, textAlign: 'right', color: '#94a3b8' }}>{r.desconto ? money(Number(r.desconto)) : '—'}</td>
-                    <td style={{ ...td, textAlign: 'right', fontWeight: 500 }}>{money(Number(r.valorTotal))}</td>
+                  <tr key={r.id} className="border-t" style={{ borderColor: "#F0EBE0" }}>
+                    <td className="px-4 py-2.5 text-[#8A989D] whitespace-nowrap">{dh(r.data)}</td>
+                    <td className="px-3 py-2.5 text-[#1F2A2E]">{r.appointment?.tutor?.name || "Cliente"} · {r.appointment?.pet?.name || "Pet"}</td>
+                    <td className="px-3 py-2.5 text-[#8A989D]">{(r.formas || []).map((f: any) => f.forma).join(" + ") || "—"}</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums font-medium text-[#014D5E]">{money(Number(r.valorTotal))}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
-
-const inp: React.CSSProperties = { padding: '9px 10px', border: '1px solid #d7e0e2', borderRadius: 8, fontSize: 13, fontFamily: 'inherit' };
-const lbl: React.CSSProperties = { fontSize: 12, color: '#475569', display: 'block', marginBottom: 5 };

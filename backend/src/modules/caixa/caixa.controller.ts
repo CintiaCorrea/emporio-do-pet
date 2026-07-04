@@ -46,6 +46,11 @@ export class CaixaController {
     return this.service.rankingClientes();
   }
 
+  @Get('recebimentos-resumo')
+  recebimentosResumo(@Query() query: any) {
+    return this.service.recebimentosResumo(query);
+  }
+
   @Post('pdv')
   pdv(@Body() dto: any, @CurrentUser('id') userId: string) {
     return this.service.vendaDireta(dto, userId);

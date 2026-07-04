@@ -135,6 +135,50 @@ export class CaixaService {
     return { clientes, resumo };
   }
 
+  // Recebimentos analítico (Fase 3): KPIs + quebras por forma/usuário/dia/marca no período.
+  async recebimentosResumo(query: any = {}) {
+    const where = rangeFromQuery(query);
+    if (!where.data) { const { ini, fim } = dayRange(); where.data = { gte: ini, lte: fim }; }
+    const recs = await this.prisma.recebimento.findMany({
+      where,
+      include: { appointment: { select: { date: true, items: { select: { marca: true, valorTotal: true } } } } },
+    });
+    const userIds = [...new Set(recs.map((r) => r.createdById).filter(Boolean))] as string[];
+    const users = userIds.length ? await this.prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true, name: true } }) : [];
+    const userName = new Map(users.map((u) => [u.id, u.name]));
+    const MARCAS: Record<string, string> = { EMPORIO: "🏥 Empório", MUNDO_A_PARTE: "🌿 Mundo à Parte", DRA_VIVIAN: "✨ Dra. Vivian" };
+    const sameDay = (a: any, b: any) => a && b && new Date(a).toDateString() === new Date(b).toDateString();
+    let receitaTotal = 0, noDia = 0, posteriores = 0;
+    const porForma = new Map<string, number>(), porUsuario = new Map<string, number>(), porDia = new Map<string, number>(), porMarca = new Map<string, number>();
+    for (const r of recs) {
+      const v = Number(r.valorTotal) || 0;
+      receitaTotal += v;
+      if (sameDay(r.data, r.appointment?.date)) noDia += v; else posteriores += v;
+      const formas: any[] = Array.isArray(r.formas) ? (r.formas as any[]) : [];
+      for (const f of formas) { const nm = f?.forma || "Outro"; porForma.set(nm, (porForma.get(nm) || 0) + (Number(f?.valor) || 0)); }
+      const un = (r.createdById && userName.get(r.createdById)) || "Sistema";
+      porUsuario.set(un, (porUsuario.get(un) || 0) + v);
+      const dia = new Date(r.data).toISOString().slice(0, 10);
+      porDia.set(dia, (porDia.get(dia) || 0) + v);
+      const itens: any[] = (r.appointment as any)?.items || [];
+      const somaItens = itens.reduce((s, i) => s + (Number(i.valorTotal) || 0), 0);
+      if (somaItens > 0) { for (const it of itens) { const m = MARCAS[it.marca] || it.marca || "Sem marca"; porMarca.set(m, (porMarca.get(m) || 0) + v * (Number(it.valorTotal) || 0) / somaItens); } }
+      else { porMarca.set("Sem marca", (porMarca.get("Sem marca") || 0) + v); }
+    }
+    const cred = await this.prisma.creditoMovimento.findMany({ where: { tipo: "RECARGA", ...(where.data ? { data: where.data } : {}) } });
+    const adiantamento = cred.reduce((s, c) => s + Number(c.valor), 0);
+    const apWhere: any = { value: { gt: 0 } };
+    if (where.data) apWhere.date = where.data;
+    const aps = await this.prisma.appointment.findMany({ where: apWhere, select: { value: true, recebimentos: { select: { valorTotal: true } } } });
+    const emAberto = aps.reduce((s, a) => { const pago = (a.recebimentos || []).reduce((x, r) => x + Number(r.valorTotal), 0); return s + Math.max(0, Number(a.value) - pago); }, 0);
+    const toArr = (m: Map<string, number>) => [...m.entries()].map(([nome, valor]) => ({ nome, valor })).sort((a, b) => b.valor - a.valor);
+    return {
+      kpis: { noDia, posteriores, adiantamento, receitaTotal, emAberto },
+      porForma: toArr(porForma), porUsuario: toArr(porUsuario),
+      porDia: toArr(porDia).sort((a, b) => a.nome.localeCompare(b.nome)), porMarca: toArr(porMarca),
+    };
+  }
+
   // ============================================================
   // MINHAS VENDAS / PRODUTIVIDADE (somente produtividade — sem metas).
   // A integração com o model Meta existente virá numa etapa dedicada.
