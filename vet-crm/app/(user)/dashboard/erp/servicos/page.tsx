@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import ConfirmDeleteModal from '@/components/common/ConfirmDeleteModal';
 import toast from 'react-hot-toast';
+import { usePodeEditar } from "@/lib/permissions/context";
 
 // Paleta Base44 (mesmos tokens de components/ui/base44.tsx)
 const TEAL = '#009AAC';
@@ -74,6 +75,7 @@ interface ApiResponse {
 }
 
 export default function ServicesPage() {
+  const podeEditar = usePodeEditar();
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -326,13 +328,18 @@ export default function ServicesPage() {
                     <span style={{ fontSize: 15 }}>📈</span>
                     <span>Relatório</span>
                   </Link>
-                  <button
-                    onClick={openCreateModal}
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 18px', fontSize: 13, fontWeight: 500, color: '#fff', background: TEAL, border: 'none', borderRadius: 9, cursor: 'pointer' }}
-                  >
-                    <span style={{ fontSize: 15 }}>➕</span>
-                    <span>Novo Serviço</span>
-                  </button>
+                  {!podeEditar && (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: TXT3 }}>👁️ Somente leitura</span>
+                  )}
+                  {podeEditar && (
+                    <button
+                      onClick={openCreateModal}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 18px', fontSize: 13, fontWeight: 500, color: '#fff', background: TEAL, border: 'none', borderRadius: 9, cursor: 'pointer' }}
+                    >
+                      <span style={{ fontSize: 15 }}>➕</span>
+                      <span>Novo Serviço</span>
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -476,30 +483,36 @@ export default function ServicesPage() {
                         </td>
                         <td style={tdStyle}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }} onClick={(e) => e.stopPropagation()}>
-                            <button
-                              onClick={() => {
-                                setSelectedService(service);
-                                setFormData({
-                                  name: service.name,
-                                  type: 'SERVICE',
-                                  price: service.price,
-                                  stock: 0
-                                });
-                                setIsEditMode(true);
-                                setIsModalOpen(true);
-                              }}
-                              style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 15, padding: 6, borderRadius: 8 }}
-                              title="Editar serviço"
-                            >
-                              <span>✏️</span>
-                            </button>
-                            <button
-                              onClick={() => requestDeleteService(service)}
-                              style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 15, padding: 6, borderRadius: 8 }}
-                              title="Excluir serviço"
-                            >
-                              <span>🗑️</span>
-                            </button>
+                            {podeEditar ? (
+                              <>
+                                <button
+                                  onClick={() => {
+                                    setSelectedService(service);
+                                    setFormData({
+                                      name: service.name,
+                                      type: 'SERVICE',
+                                      price: service.price,
+                                      stock: 0
+                                    });
+                                    setIsEditMode(true);
+                                    setIsModalOpen(true);
+                                  }}
+                                  style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 15, padding: 6, borderRadius: 8 }}
+                                  title="Editar serviço"
+                                >
+                                  <span>✏️</span>
+                                </button>
+                                <button
+                                  onClick={() => requestDeleteService(service)}
+                                  style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 15, padding: 6, borderRadius: 8 }}
+                                  title="Excluir serviço"
+                                >
+                                  <span>🗑️</span>
+                                </button>
+                              </>
+                            ) : (
+                              <span style={{ fontSize: 12, color: TXT3 }}>—</span>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -685,12 +698,14 @@ export default function ServicesPage() {
                   >
                     Fechar
                   </button>
-                  <button
-                    onClick={() => setIsEditMode(true)}
-                    style={{ padding: '9px 18px', color: '#fff', background: TEAL, border: 'none', borderRadius: 9, cursor: 'pointer', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 8 }}
-                  >
-                    <span>✏️</span> Editar Serviço
-                  </button>
+                  {podeEditar && (
+                    <button
+                      onClick={() => setIsEditMode(true)}
+                      style={{ padding: '9px 18px', color: '#fff', background: TEAL, border: 'none', borderRadius: 9, cursor: 'pointer', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 8 }}
+                    >
+                      <span>✏️</span> Editar Serviço
+                    </button>
+                  )}
                 </>
               )}
             </div>

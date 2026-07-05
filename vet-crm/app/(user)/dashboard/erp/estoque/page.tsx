@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
+import { usePodeEditar } from "@/lib/permissions/context";
 
 // Paleta Base44 (mesmos tokens de components/ui/base44.tsx)
 const TEAL = '#009AAC';      // acento / botao primario
@@ -66,6 +67,7 @@ interface ApiProduct {
 }
 
 export default function StockPage() {
+  const podeEditar = usePodeEditar();
   const [products, setProducts] = useState<Product[]>([]);
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [loading, setLoading] = useState(true);
@@ -375,7 +377,10 @@ export default function StockPage() {
                     Controle de estoque de medicamentos e vacinas
                   </p>
                 </div>
-                <div style={{ display: 'flex', gap: 10 }}>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                  {!podeEditar && (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: TXT3 }}>👁️ Somente leitura</span>
+                  )}
                   <button
                     onClick={() => {
                       fetchProducts();
@@ -570,21 +575,25 @@ export default function StockPage() {
                           </td>
                           <td style={tdStyle}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                              <button
-                                onClick={() => openMovementModal(product, 'IN')}
-                                style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 6, fontSize: 15, lineHeight: 1 }}
-                                title="Entrada"
-                              >
-                                <span>📥</span>
-                              </button>
-                              <button
-                                onClick={() => openMovementModal(product, 'OUT')}
-                                style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 6, fontSize: 15, lineHeight: 1, opacity: product.stock === 0 ? 0.4 : 1 }}
-                                title="Saída"
-                                disabled={product.stock === 0}
-                              >
-                                <span>📤</span>
-                              </button>
+                              {podeEditar && (
+                                <>
+                                  <button
+                                    onClick={() => openMovementModal(product, 'IN')}
+                                    style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 6, fontSize: 15, lineHeight: 1 }}
+                                    title="Entrada"
+                                  >
+                                    <span>📥</span>
+                                  </button>
+                                  <button
+                                    onClick={() => openMovementModal(product, 'OUT')}
+                                    style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 6, fontSize: 15, lineHeight: 1, opacity: product.stock === 0 ? 0.4 : 1 }}
+                                    title="Saída"
+                                    disabled={product.stock === 0}
+                                  >
+                                    <span>📤</span>
+                                  </button>
+                                </>
+                              )}
                               <button
                                 onClick={() => openHistory(product)}
                                 style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 6, fontSize: 15, lineHeight: 1 }}

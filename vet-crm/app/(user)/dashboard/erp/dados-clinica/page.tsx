@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { usePageTitle } from '@/lib/ui/PageHeaderContext';
 import { PageShell, HeaderCard, Card, Btn, Label, Input, Select, Textarea, B44 } from '@/components/ui/base44';
+import { usePodeEditar } from "@/lib/permissions/context";
 
 const UFS = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
 
@@ -29,6 +30,7 @@ function Field({ label, children, span }: { label: string; children: React.React
 
 export default function DadosClinicaPage() {
   usePageTitle('Dados da clínica', 'Informações da empresa usadas em recibos e documentos');
+  const podeEditar = usePodeEditar();
 
   const [cfg, setCfg] = useState<Cfg>(DEFAULTS);
   const [regId, setRegId] = useState<string | null>(null);
@@ -89,9 +91,13 @@ export default function DadosClinicaPage() {
               </h1>
               <p style={{ color: B44.text2, marginTop: 4, fontSize: 13 }}>Aparecem nos recibos, orçamentos e documentos.</p>
             </div>
-            <Btn variant="primary" onClick={salvar} disabled={saving}>
-              <span>✅</span> {saving ? 'Salvando…' : 'Salvar'}
-            </Btn>
+            {podeEditar ? (
+              <Btn variant="primary" onClick={salvar} disabled={saving}>
+                <span>✅</span> {saving ? 'Salvando…' : 'Salvar'}
+              </Btn>
+            ) : (
+              <span style={{ fontSize: 12.5, color: B44.text3 }}>👁️ Somente leitura</span>
+            )}
           </div>
         </HeaderCard>
 
@@ -145,11 +151,13 @@ export default function DadosClinicaPage() {
             <Textarea style={{ minHeight: 80, resize: 'vertical' }} value={cfg.observacoes} onChange={set('observacoes')} placeholder="Ex: Horário de funcionamento, agradecimento, política de retorno…" />
           </Card>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <Btn variant="primary" onClick={salvar} disabled={saving}>
-              <span>✅</span> {saving ? 'Salvando…' : 'Salvar dados da clínica'}
-            </Btn>
-          </div>
+          {podeEditar && (
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <Btn variant="primary" onClick={salvar} disabled={saving}>
+                <span>✅</span> {saving ? 'Salvando…' : 'Salvar dados da clínica'}
+              </Btn>
+            </div>
+          )}
         </div>
       </div>
     </PageShell>

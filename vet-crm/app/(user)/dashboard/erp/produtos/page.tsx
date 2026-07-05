@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import ConfirmDeleteModal from '@/components/common/ConfirmDeleteModal';
 import toast from 'react-hot-toast';
+import { usePodeEditar } from "@/lib/permissions/context";
 
 // Paleta Base44 (mesmos tokens de components/ui/base44.tsx)
 const TEAL = '#009AAC';      // acento / botao primario
@@ -75,6 +76,7 @@ interface ApiResponse {
 }
 
 export default function ProductsPage() {
+  const podeEditar = usePodeEditar();
   const [products, setProducts] = useState<Product[]>([]);
   const [stats, setStats] = useState<ProductStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -355,13 +357,18 @@ export default function ProductsPage() {
                     <span>📈</span>
                     <span>Relatório</span>
                   </Link>
-                  <button
-                    onClick={openCreateModal}
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 16px', fontSize: 12.5, fontWeight: 500, color: '#fff', background: TEAL, border: 'none', borderRadius: 9, cursor: 'pointer' }}
-                  >
-                    <span>➕</span>
-                    <span>Novo Produto</span>
-                  </button>
+                  {!podeEditar && (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: TXT3 }}>👁️ Somente leitura</span>
+                  )}
+                  {podeEditar && (
+                    <button
+                      onClick={openCreateModal}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 16px', fontSize: 12.5, fontWeight: 500, color: '#fff', background: TEAL, border: 'none', borderRadius: 9, cursor: 'pointer' }}
+                    >
+                      <span>➕</span>
+                      <span>Novo Produto</span>
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -537,30 +544,36 @@ export default function ProductsPage() {
                           </td>
                           <td style={{ ...tdStyle, padding: '12px 18px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }} onClick={(e) => e.stopPropagation()}>
-                              <button
-                                onClick={() => {
-                                  setSelectedProduct(product);
-                                  setFormData({
-                                    name: product.name,
-                                    type: product.type,
-                                    price: product.price,
-                                    stock: product.stock
-                                  });
-                                  setIsEditMode(true);
-                                  setIsModalOpen(true);
-                                }}
-                                style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 6, fontSize: 15, lineHeight: 1 }}
-                                title="Editar produto"
-                              >
-                                <span>✏️</span>
-                              </button>
-                              <button
-                                onClick={() => requestDeleteProduct(product)}
-                                style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 6, fontSize: 15, lineHeight: 1 }}
-                                title="Excluir produto"
-                              >
-                                <span>🗑️</span>
-                              </button>
+                              {podeEditar ? (
+                                <>
+                                  <button
+                                    onClick={() => {
+                                      setSelectedProduct(product);
+                                      setFormData({
+                                        name: product.name,
+                                        type: product.type,
+                                        price: product.price,
+                                        stock: product.stock
+                                      });
+                                      setIsEditMode(true);
+                                      setIsModalOpen(true);
+                                    }}
+                                    style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 6, fontSize: 15, lineHeight: 1 }}
+                                    title="Editar produto"
+                                  >
+                                    <span>✏️</span>
+                                  </button>
+                                  <button
+                                    onClick={() => requestDeleteProduct(product)}
+                                    style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 6, fontSize: 15, lineHeight: 1 }}
+                                    title="Excluir produto"
+                                  >
+                                    <span>🗑️</span>
+                                  </button>
+                                </>
+                              ) : (
+                                <span style={{ fontSize: 12, color: TXT3 }}>—</span>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -763,13 +776,15 @@ export default function ProductsPage() {
                   >
                     Fechar
                   </button>
-                  <button
-                    onClick={() => setIsEditMode(true)}
-                    style={{ padding: '9px 18px', borderRadius: 9, border: 'none', color: '#fff', fontWeight: 500, background: TEAL, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}
-                  >
-                    <span>✏️</span>
-                    Editar Produto
-                  </button>
+                  {podeEditar && (
+                    <button
+                      onClick={() => setIsEditMode(true)}
+                      style={{ padding: '9px 18px', borderRadius: 9, border: 'none', color: '#fff', fontWeight: 500, background: TEAL, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                    >
+                      <span>✏️</span>
+                      Editar Produto
+                    </button>
+                  )}
                 </>
               )}
             </div>

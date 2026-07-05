@@ -11,6 +11,7 @@ export const NIVEL_LABEL: Record<Nivel, string> = { OCULTO: "Oculto", VISUALIZA:
 
 export const LISTA_PERFIS = "perfis_acesso";
 export const LISTA_PERM = "permissoes_acesso";
+export const LISTA_PERFIL_USUARIO = "perfil_usuario"; // 1 item JSON {map:{userId:perfilNome}}
 export const PERFIS_SISTEMA = ["Admin", "Veterinário", "Recepção"];
 
 // Telas que NUNCA entram na matriz: são gateadas por cargo (só Admin) e
@@ -159,4 +160,32 @@ export function matrizPadrao(_perfil: string): Record<string, Nivel> {
 /** Nível de uma tela num perfil (default EDITA quando não definido = visível). */
 export function nivelDe(matriz: Record<string, Nivel> | undefined, key: string): Nivel {
   return (matriz && matriz[key]) || "EDITA";
+}
+
+/** Resolve o caminho atual (pathname) para a chave (href) da matriz.
+ *  Casa por maior prefixo (ex.: /dashboard/erp/tutores/123 → /dashboard/erp/tutores).
+ *  '/dashboard' (Painel) só casa exato. Retorna null se a rota não estiver na matriz. */
+export function pathToKey(pathname: string): string | null {
+  if (!pathname) return null;
+  const keys = allLeafKeys();
+  if (pathname === "/dashboard") return keys.includes("/dashboard") ? "/dashboard" : null;
+  let best: string | null = null;
+  for (const k of keys) {
+    if (k === "/dashboard") continue;
+    if (pathname === k || pathname.startsWith(k + "/")) {
+      if (!best || k.length > best.length) best = k;
+    }
+  }
+  return best;
+}
+
+/** Nome do perfil de acesso do usuário: preview (cargo) > perfil atribuído > cargo real. */
+export function resolvePerfil(opts: {
+  meId?: string | null; realRole?: string | null; previewRole?: string | null;
+  isPreviewing?: boolean; userMap?: Record<string, string>;
+}): string {
+  const { meId, realRole, previewRole, isPreviewing, userMap } = opts;
+  if (isPreviewing) return roleToPerfil(previewRole);
+  if (meId && userMap && userMap[meId]) return userMap[meId];
+  return roleToPerfil(realRole);
 }

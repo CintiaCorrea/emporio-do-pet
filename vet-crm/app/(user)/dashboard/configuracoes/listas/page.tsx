@@ -4,6 +4,7 @@ import { confirmDelete } from "@/lib/ui/confirmDelete";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import CsvImporter from "@/components/import/CsvImporter";
+import { usePodeEditar } from "@/lib/permissions/context";
 
 interface ListaTipo { id: string; nome: string; label?: string | null; emoji?: string | null; descricao?: string | null; ordem: number; ativo: boolean; _count?: { itens: number }; }
 interface ListaItem { id: string; lista: string; valor: string; ordem: number; ativo: boolean; }
@@ -13,6 +14,7 @@ const EMPTY_T: any = { nome: "", label: "", emoji: "", descricao: "", ordem: 0, 
 const EMPTY_I: any = { valor: "", lista: "", ordem: 0, ativo: true };
 
 export default function ListasPage() {
+  const podeEditar = usePodeEditar();
   const [tipos, setTipos] = useState<ListaTipo[]>([]);
   const [itens, setItens] = useState<ListaItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -107,6 +109,7 @@ export default function ListasPage() {
             <h1 className="text-xl font-medium" style={{ color: "#014D5E" }}>Listas customizáveis</h1>
             <p className="text-sm" style={{ color: "#5C6B70" }}>Canais, origens, motivos de perda, status clínicos — vocabulário do CRM</p>
           </div>
+          {!podeEditar && <span className="text-sm" style={{ color: "#8A989D" }}>👁️ Somente leitura</span>}
           <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: "#5C6B70" }}>
             <input type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)} />
             Mostrar inativos
@@ -115,18 +118,22 @@ export default function ListasPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-6 pt-4 flex items-center justify-between gap-3">
-        <button onClick={openTNew} className="px-3 py-2 rounded-lg text-sm font-medium border flex items-center gap-2"
-          style={{ borderColor: "#009AAC", color: "#009AAC", background: "white" }}>
-          <span>➕</span> Nova Lista
-        </button>
+        {podeEditar && (
+          <button onClick={openTNew} className="px-3 py-2 rounded-lg text-sm font-medium border flex items-center gap-2"
+            style={{ borderColor: "#009AAC", color: "#009AAC", background: "white" }}>
+            <span>➕</span> Nova Lista
+          </button>
+        )}
         <div className="relative flex-1 max-w-md mx-3">
           <span className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ fontSize: 13, color: "#8A989D" }}>🔍</span>
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar itens..."
             className="w-full pl-8 pr-3 py-2 border rounded-lg text-sm bg-white" style={{ borderColor: "#E8E2D6" }} />
         </div>
-        <button onClick={openINew} className="px-3 py-2 text-sm font-medium flex items-center gap-2 text-white" style={{ background: "#009AAC", borderRadius: 9 }}>
-          <span>➕</span> Novo Item
-        </button>
+        {podeEditar && (
+          <button onClick={openINew} className="px-3 py-2 text-sm font-medium flex items-center gap-2 text-white" style={{ background: "#009AAC", borderRadius: 9 }}>
+            <span>➕</span> Novo Item
+          </button>
+        )}
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-4">
@@ -152,14 +159,22 @@ export default function ListasPage() {
                     <td className="px-4 py-2.5 hidden md:table-cell" style={{ color: "#5C6B70" }}>{t?.emoji} {t?.label || i.lista}</td>
                     <td className="px-4 py-2.5 hidden md:table-cell text-right tabular-nums" style={{ color: "#5C6B70" }}>{i.ordem}</td>
                     <td className="px-4 py-2.5 text-center">
-                      <button onClick={() => toggleI(i)} className="inline-flex items-center w-10 h-5 rounded-full transition"
-                        style={{ background: i.ativo ? "#009AAC" : "#D3D1C7" }}>
-                        <span className="block w-4 h-4 rounded-full bg-white transition shadow" style={{ marginLeft: i.ativo ? 20 : 2 }} />
-                      </button>
+                      {podeEditar ? (
+                        <button onClick={() => toggleI(i)} className="inline-flex items-center w-10 h-5 rounded-full transition"
+                          style={{ background: i.ativo ? "#009AAC" : "#D3D1C7" }}>
+                          <span className="block w-4 h-4 rounded-full bg-white transition shadow" style={{ marginLeft: i.ativo ? 20 : 2 }} />
+                        </button>
+                      ) : (
+                        <span style={{ fontSize: 12, color: i.ativo ? "#009AAC" : "#8A989D" }}>{i.ativo ? "Sim" : "Não"}</span>
+                      )}
                     </td>
                     <td className="px-4 py-2.5 text-right">
-                      <button onClick={() => openIEdit(i)} className="p-1 hover:bg-[#FBF9F4] rounded inline-block" style={{ color: "#5C6B70" }} title="Editar"><span style={{ fontSize: 13 }}>✏️</span></button>
-                      <button onClick={() => removeI(i)} className="p-1 hover:bg-[#FBF9F4] rounded inline-block ml-1" style={{ color: "#b23b39" }} title="Excluir"><span style={{ fontSize: 13 }}>🗑️</span></button>
+                      {podeEditar && (
+                        <>
+                          <button onClick={() => openIEdit(i)} className="p-1 hover:bg-[#FBF9F4] rounded inline-block" style={{ color: "#5C6B70" }} title="Editar"><span style={{ fontSize: 13 }}>✏️</span></button>
+                          <button onClick={() => removeI(i)} className="p-1 hover:bg-[#FBF9F4] rounded inline-block ml-1" style={{ color: "#b23b39" }} title="Excluir"><span style={{ fontSize: 13 }}>🗑️</span></button>
+                        </>
+                      )}
                     </td>
                   </tr>
                 );
@@ -194,13 +209,19 @@ export default function ListasPage() {
                   style={{ color: filterLista === t.nome ? "#009AAC" : "#5C6B70" }}>
                   {t.emoji} {t.label || t.nome} <span style={{ color: "#8A989D" }}>({t._count?.itens || 0})</span>
                 </button>
-                <button onClick={() => openTEdit(t)} className="p-1.5 hover:bg-[#FBF9F4] border-l" style={{ borderColor: "#E8E2D6", color: "#5C6B70" }} title="Editar lista"><span style={{ fontSize: 11 }}>✏️</span></button>
-                <button onClick={() => removeT(t)} className="p-1.5 hover:bg-[#FBF9F4] border-l" style={{ borderColor: "#E8E2D6", color: "#b23b39" }} title="Excluir lista"><span style={{ fontSize: 11 }}>🗑️</span></button>
+                {podeEditar && (
+                  <>
+                    <button onClick={() => openTEdit(t)} className="p-1.5 hover:bg-[#FBF9F4] border-l" style={{ borderColor: "#E8E2D6", color: "#5C6B70" }} title="Editar lista"><span style={{ fontSize: 11 }}>✏️</span></button>
+                    <button onClick={() => removeT(t)} className="p-1.5 hover:bg-[#FBF9F4] border-l" style={{ borderColor: "#E8E2D6", color: "#b23b39" }} title="Excluir lista"><span style={{ fontSize: 11 }}>🗑️</span></button>
+                  </>
+                )}
               </div>
             ))}
-            <button onClick={openTNew} className="px-3 py-1.5 rounded-lg text-xs font-medium border-2 border-dashed flex items-center gap-1.5" style={{ borderColor: "#E8E2D6", color: "#5C6B70" }}>
-              <span>➕</span> Nova lista
-            </button>
+            {podeEditar && (
+              <button onClick={openTNew} className="px-3 py-1.5 rounded-lg text-xs font-medium border-2 border-dashed flex items-center gap-1.5" style={{ borderColor: "#E8E2D6", color: "#5C6B70" }}>
+                <span>➕</span> Nova lista
+              </button>
+            )}
           </div>
         </div>
       </div>

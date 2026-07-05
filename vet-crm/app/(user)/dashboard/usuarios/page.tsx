@@ -2,6 +2,19 @@
 
 import { useEffect, useState } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
+import {
+  PageShell,
+  HeaderCard,
+  Card,
+  Btn,
+  Label,
+  Input,
+  Select,
+  Pill,
+  EmptyState,
+  B44,
+} from '@/components/ui/base44';
+import { LISTA_PERFIS, LISTA_PERFIL_USUARIO } from '@/lib/permissions';
 
 type Role = 'ADMIN' | 'VETERINARIAN' | 'RECEPTIONIST';
 
@@ -19,10 +32,10 @@ const ROLE_LABELS: Record<Role, string> = {
   VETERINARIAN: 'Veterinário(a)',
   RECEPTIONIST: 'Recepção'};
 
-const ROLE_BADGE: Record<Role, string> = {
-  ADMIN: 'bg-cyan-100 text-cyan-800',
-  VETERINARIAN: 'bg-blue-100 text-blue-800',
-  RECEPTIONIST: 'bg-orange-100 text-orange-800'};
+const ROLE_TONE: Record<Role, 'info' | 'neutral' | 'warn'> = {
+  ADMIN: 'info',
+  VETERINARIAN: 'neutral',
+  RECEPTIONIST: 'warn'};
 
 export default function UsuariosPage() {
   const [users, setUsers] = useState<User[]>([]);
@@ -33,6 +46,11 @@ export default function UsuariosPage() {
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<Role>('RECEPTIONIST');
   const [submitting, setSubmitting] = useState(false);
+
+  // C3 — perfil de acesso por usuário
+  const [perfis, setPerfis] = useState<string[]>([]);           // nomes dos perfis de acesso
+  const [perfilMap, setPerfilMap] = useState<Record<string, string>>({}); // userId -> perfilNome
+  const [perfilItemId, setPerfilItemId] = useState<string | null>(null);  // id do item perfil_usuario (p/ PATCH)
 
   const load = async () => {
     setLoading(true);
@@ -48,8 +66,41 @@ export default function UsuariosPage() {
     }
   };
 
+  // C3 — carrega perfis de acesso e o mapa usuário→perfil de /api/listas
+  const loadPerfis = async () => {
+    try {
+      const res = await fetch('/api/listas?includeInactive=true', { cache: 'no-store' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const arr = Array.isArray(data) ? data : data.itens || data.data || [];
+      const nomes: string[] = [];
+      let map: Record<string, string> = {};
+      let itemId: string | null = null;
+      for (const it of arr) {
+        if (it.lista === LISTA_PERFIS) {
+          try {
+            const o = JSON.parse(it.valor);
+            if (o && o.nome) nomes.push(o.nome);
+          } catch {}
+        } else if (it.lista === LISTA_PERFIL_USUARIO) {
+          itemId = it.id;
+          try {
+            const o = JSON.parse(it.valor);
+            map = o.map || {};
+          } catch {}
+        }
+      }
+      setPerfis(nomes);
+      setPerfilMap(map);
+      setPerfilItemId(itemId);
+    } catch (e: any) {
+      // silencioso: a tela de usuários continua funcional mesmo sem perfis
+    }
+  };
+
   useEffect(() => {
     load();
+    loadPerfis();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -82,137 +133,167 @@ export default function UsuariosPage() {
     }
   };
 
+  // C3 — troca o perfil de acesso de um usuário e persiste em /api/listas
+  const handlePerfilChange = async (userId: string, novoPerfil: string) => {
+    const map = { ...perfilMap };
+    if (novoPerfil) map[userId] = novoPerfil;
+    else delete map[userId];
+    setPerfilMap(map);
+
+    try {
+      const body = JSON.stringify({ valor: JSON.stringify({ map }) });
+      if (perfilItemId) {
+        const res = await fetch(`/api/listas/${perfilItemId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body});
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      } else {
+        const res = await fetch('/api/listas', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ lista: LISTA_PERFIL_USUARIO, valor: JSON.stringify({ map }) })});
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const created = await res.json().catch(() => ({}));
+        if (created && created.id) setPerfilItemId(created.id);
+      }
+      window.dispatchEvent(new Event('perms:changed'));
+      toast.success('Perfil atualizado');
+    } catch (e: any) {
+      toast.error('Erro ao salvar perfil: ' + e.message);
+    }
+  };
+
   return (
-    <div className="p-6 max-w-6xl mx-auto">
+    <PageShell pad="p-6">
       <Toaster position="top-right" />
-      <header className="mb-6 flex justify-between items-start">
+
+      <HeaderCard className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Equipe</h1>
-          <p className="text-gray-600 mt-1">Usuários com acesso ao sistema</p>
+          <h1 className="text-[18px] font-medium" style={{ color: B44.navy }}>Equipe</h1>
+          <p className="text-[12px]" style={{ color: B44.text2 }}>Usuários com acesso ao sistema</p>
         </div>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded-lg font-medium shadow-sm transition"
-        >
-          {showForm ? 'Cancelar' : '+ Novo usuário'}
-        </button>
-      </header>
+        <Btn variant={showForm ? 'ghost' : 'primary'} onClick={() => setShowForm(!showForm)}>
+          {showForm ? 'Cancelar' : '＋ Novo usuário'}
+        </Btn>
+      </HeaderCard>
 
       {showForm && (
-        <form
-          onSubmit={handleSubmit}
-          className="bg-white border border-gray-200 rounded-lg p-6 mb-6 shadow-sm"
-        >
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Criar novo usuário</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Nome completo</label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-                minLength={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
-              />
+        <Card title="Criar novo usuário" emoji="👤" className="mb-3">
+          <form onSubmit={handleSubmit}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <Label>Nome completo</Label>
+                <Input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                  minLength={3}
+                />
+              </div>
+              <div>
+                <Label>E-mail</Label>
+                <Input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </div>
+              <div>
+                <Label>Senha inicial</Label>
+                <Input
+                  type="text"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={6}
+                  placeholder="Mínimo 6 caracteres"
+                />
+                <p className="text-[11px] mt-1" style={{ color: B44.text3 }}>
+                  A pessoa pode trocar depois em "Alterar senha".
+                </p>
+              </div>
+              <div>
+                <Label>Papel</Label>
+                <Select value={role} onChange={(e) => setRole(e.target.value as Role)}>
+                  <option value="RECEPTIONIST">Recepção</option>
+                  <option value="VETERINARIAN">Veterinário(a)</option>
+                  <option value="ADMIN">Administrador</option>
+                </Select>
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">E-mail</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
-              />
+            <div className="mt-4 flex gap-2">
+              <Btn type="submit" variant="primary" disabled={submitting}>
+                {submitting ? 'Criando...' : 'Criar usuário'}
+              </Btn>
+              <Btn type="button" variant="ghost" onClick={() => setShowForm(false)}>
+                Cancelar
+              </Btn>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Senha inicial</label>
-              <input
-                type="text"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={6}
-                placeholder="Mínimo 6 caracteres"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                A pessoa pode trocar depois em "Alterar senha".
-              </p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Papel</label>
-              <select
-                value={role}
-                onChange={(e) => setRole(e.target.value as Role)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
-              >
-                <option value="RECEPTIONIST">Recepção</option>
-                <option value="VETERINARIAN">Veterinário(a)</option>
-                <option value="ADMIN">Administrador</option>
-              </select>
-            </div>
-          </div>
-          <div className="mt-6 flex gap-3">
-            <button
-              type="submit"
-              disabled={submitting}
-              className="bg-cyan-600 hover:bg-cyan-700 disabled:opacity-50 text-white px-5 py-2 rounded-lg font-medium"
-            >
-              {submitting ? 'Criando...' : 'Criar usuário'}
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowForm(false)}
-              className="bg-white border border-gray-300 text-gray-700 px-5 py-2 rounded-lg hover:bg-gray-50"
-            >
-              Cancelar
-            </button>
-          </div>
-        </form>
+          </form>
+        </Card>
       )}
 
-      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+      <Card pad="0">
         {loading ? (
-          <div className="p-12 text-center text-gray-500">Carregando...</div>
+          <EmptyState>Carregando...</EmptyState>
         ) : users.length === 0 ? (
-          <div className="p-12 text-center text-gray-500">Nenhum usuário cadastrado ainda.</div>
+          <EmptyState>Nenhum usuário cadastrado ainda.</EmptyState>
         ) : (
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase">Nome</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase">E-mail</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase">Papel</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((u) => (
-                <tr key={u.id} className="border-b border-gray-100 hover:bg-gray-50">
-                  <td className="py-3 px-4 font-medium text-gray-900">{u.name || '—'}</td>
-                  <td className="py-3 px-4 text-gray-700">{u.email}</td>
-                  <td className="py-3 px-4">
-                    <span className={`inline-block text-xs px-2 py-1 rounded ${ROLE_BADGE[u.role]}`}>
-                      {ROLE_LABELS[u.role]}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4">
-                    {u.isBlocked ? (
-                      <span className="text-red-600 text-sm">Bloqueado</span>
-                    ) : u.isApproved ? (
-                      <span className="text-cyan-600 text-sm">Ativo</span>
-                    ) : (
-                      <span className="text-orange-600 text-sm">Pendente</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full text-[13px]">
+                <thead>
+                  <tr style={{ borderBottom: `1px solid ${B44.lineSoft}` }}>
+                    <th className="text-left py-2.5 px-4 text-[10px] font-medium uppercase tracking-wide" style={{ color: B44.text3 }}>Nome</th>
+                    <th className="text-left py-2.5 px-4 text-[10px] font-medium uppercase tracking-wide" style={{ color: B44.text3 }}>E-mail</th>
+                    <th className="text-left py-2.5 px-4 text-[10px] font-medium uppercase tracking-wide" style={{ color: B44.text3 }}>Papel</th>
+                    <th className="text-left py-2.5 px-4 text-[10px] font-medium uppercase tracking-wide" style={{ color: B44.text3 }}>Status</th>
+                    <th className="text-left py-2.5 px-4 text-[10px] font-medium uppercase tracking-wide" style={{ color: B44.text3 }}>Perfil de acesso</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map((u) => (
+                    <tr key={u.id} style={{ borderBottom: `1px solid ${B44.lineSoft}` }}>
+                      <td className="py-2.5 px-4 font-medium" style={{ color: B44.navy }}>{u.name || '—'}</td>
+                      <td className="py-2.5 px-4" style={{ color: B44.text2 }}>{u.email}</td>
+                      <td className="py-2.5 px-4">
+                        <Pill tone={ROLE_TONE[u.role]}>{ROLE_LABELS[u.role]}</Pill>
+                      </td>
+                      <td className="py-2.5 px-4">
+                        {u.isBlocked ? (
+                          <Pill tone="danger">Bloqueado</Pill>
+                        ) : u.isApproved ? (
+                          <Pill tone="ok">Ativo</Pill>
+                        ) : (
+                          <Pill tone="warn">Pendente</Pill>
+                        )}
+                      </td>
+                      <td className="py-2.5 px-4">
+                        <Select
+                          value={perfilMap[u.id] || ''}
+                          onChange={(e) => handlePerfilChange(u.id, e.target.value)}
+                          style={{ minWidth: 170 }}
+                        >
+                          <option value="">— (pelo cargo) —</option>
+                          {perfis.map((p) => (
+                            <option key={p} value={p}>{p}</option>
+                          ))}
+                        </Select>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="text-[11px] px-4 py-2.5" style={{ color: B44.text3 }}>
+              Sem perfil escolhido = usa o padrão do cargo (Admin/Vet/Recepção).
+            </p>
+          </>
         )}
-      </div>
-    </div>
+      </Card>
+    </PageShell>
   );
 }

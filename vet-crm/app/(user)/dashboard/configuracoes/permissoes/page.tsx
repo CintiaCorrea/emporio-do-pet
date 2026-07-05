@@ -210,6 +210,7 @@ export default function PermissoesPage() {
         }
       }
       toast.success("Permissões salvas");
+      window.dispatchEvent(new Event("perms:changed")); // menu/guarda atualizam na hora
       await load();
     } catch { toast.error("Erro ao salvar"); }
     finally { setSaving(false); }
