@@ -13,7 +13,7 @@ const markupDe = (custo?: number | null, preco?: number | null) => {
 };
 
 type Grupo = "PRODUTO" | "SERVICO" | "EXAME";
-interface Item { key: string; grupo: Grupo; tipo: string; nome: string; codigo?: number | string | null; custo?: number | null; preco?: number | null; estoque?: number | null; ativo: boolean; extra?: string | null; }
+interface Item { key: string; grupo: Grupo; tipo: string; nome: string; codigo?: number | string | null; custo?: number | null; preco?: number | null; estoque?: number | null; ativo: boolean; fornecedor?: string | null; }
 
 const TIPO_PILL: Record<Grupo, { bg: string; fg: string; emoji: string }> = {
   PRODUTO: { bg: "#E6F1FB", fg: "#0C447C", emoji: "📦" },
@@ -42,10 +42,12 @@ const CSS = `
 .cat-tbl{width:100%;border-collapse:collapse;font-size:13px}
 .cat-tbl th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;color:#8A989D;font-weight:500;padding:9px 12px;background:#FBF9F4;white-space:nowrap}
 .cat-tbl th.r{text-align:right}
-.cat-tbl td{padding:10px 12px;border-bottom:1px solid #F0EBE0;white-space:nowrap}
+.cat-tbl td{padding:9px 11px;border-bottom:1px solid #F0EBE0;white-space:nowrap}
 .cat-tbl td.r{text-align:right;font-variant-numeric:tabular-nums}
 .cat-tbl tr:last-child td{border-bottom:0}
-.cat-nm{color:#1F2A2E;white-space:normal;min-width:220px}
+.cat-nm{color:#1F2A2E;white-space:normal;min-width:180px}
+.cat-cod{font-size:11px;color:#8A989D;margin-top:1px}
+@media(max-width:1150px){ .col-sec{display:none} }
 .cat-pill{font-size:11px;font-weight:500;padding:2px 9px;border-radius:999px;display:inline-flex;align-items:center;gap:4px}
 .cat-empty{padding:40px;text-align:center;color:#8A989D;font-size:13px}
 .cat-sit{font-size:11px;padding:2px 9px;border-radius:999px}
@@ -75,14 +77,14 @@ export default function CatalogoPage() {
           key: `p-${p.id}`, grupo: isServ ? "SERVICO" : "PRODUTO",
           tipo: isServ ? "Serviço" : (p.type === "VACCINE" ? "Vacina" : "Produto"),
           nome: p.name, codigo: p.codigo ?? null, custo: p.custoPadrao ?? null, preco: p.price ?? null,
-          estoque: isServ ? null : (p.stock ?? 0), ativo: p.ativo !== false,
+          estoque: isServ ? null : (p.stock ?? 0), ativo: p.ativo !== false, fornecedor: p.fornecedor?.nome ?? null,
         });
       }
       for (const e of exames) {
         rows.push({
           key: `e-${e.id}`, grupo: "EXAME", tipo: "Exame",
           nome: e.nome, codigo: e.codigo ?? null, custo: e.valorFornecedor ?? null, preco: e.valorClienteSugerido ?? null,
-          estoque: null, ativo: e.ativo !== false, extra: e.fornecedor?.nome || null,
+          estoque: null, ativo: e.ativo !== false, fornecedor: e.fornecedor?.nome || null,
         });
       }
       rows.sort((a, b) => a.nome.localeCompare(b.nome));
@@ -131,7 +133,7 @@ export default function CatalogoPage() {
           <table className="cat-tbl">
             <thead>
               <tr>
-                <th>Tipo</th><th>Nome</th><th>Código</th><th className="r">Custo</th><th className="r">Markup</th><th className="r">Preço de venda</th><th className="r">Estoque</th><th>Situação</th>
+                <th>Tipo</th><th>Nome</th><th>Fornecedor</th><th className="r col-sec">Custo</th><th className="r col-sec">Markup</th><th className="r">Preço</th><th className="r">Estoque</th><th>Situação</th>
               </tr>
             </thead>
             <tbody>
@@ -143,10 +145,10 @@ export default function CatalogoPage() {
                 return (
                   <tr key={it.key}>
                     <td><span className="cat-pill" style={{ background: pill.bg, color: pill.fg }}>{pill.emoji} {it.tipo}</span></td>
-                    <td className="cat-nm">{it.nome}{it.extra ? <span style={{ color: "#8A989D", fontSize: 11.5 }}> · {it.extra}</span> : null}</td>
-                    <td style={{ color: "#8A989D" }}>{it.codigo ?? "—"}</td>
-                    <td className="r" style={{ color: "#5C6B70" }}>{brl(it.custo)}</td>
-                    <td className="r" style={{ color: mk == null ? "#8A989D" : "#5C6B70" }}>{mk == null ? "—" : `${mk}%`}</td>
+                    <td className="cat-nm">{it.nome}{it.codigo != null && it.codigo !== "" ? <div className="cat-cod">cód. {it.codigo}</div> : null}</td>
+                    <td style={{ color: it.fornecedor ? "#5C6B70" : "#8A989D" }}>{it.fornecedor || "—"}</td>
+                    <td className="r col-sec" style={{ color: "#5C6B70" }}>{brl(it.custo)}</td>
+                    <td className="r col-sec" style={{ color: mk == null ? "#8A989D" : "#5C6B70" }}>{mk == null ? "—" : `${mk}%`}</td>
                     <td className="r" style={{ color: "#014D5E", fontWeight: 500 }}>{brl(it.preco)}</td>
                     <td className="r" style={{ color: it.estoque == null ? "#8A989D" : "#1F2A2E" }}>{it.estoque == null ? "—" : it.estoque}</td>
                     <td><span className="cat-sit" style={it.ativo ? { background: "#E7F6EE", color: "#1c7a47" } : { background: "#F0EBE0", color: "#8A989D" }}>{it.ativo ? "Ativo" : "Inativo"}</span></td>

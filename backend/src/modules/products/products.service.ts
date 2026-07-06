@@ -52,6 +52,8 @@ export class ProductsService {
             orderBy: { createdAt: 'desc' as const },
             take: 5,
           },
+          fornecedor: { select: { id: true, nome: true } },
+          category: { select: { id: true, nome: true } },
           _count: { select: { treatments: true } },
         },
         orderBy: { name: 'asc' as const },
