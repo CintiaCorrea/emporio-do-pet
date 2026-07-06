@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AppointmentsService } from '../appointments/appointments.service';
+import { ensureNumeroVenda } from '../../common/venda-numero';
 
 function dayRange(dateStr?: string) {
   const d = dateStr ? new Date(dateStr + 'T00:00:00') : new Date();
@@ -42,14 +43,24 @@ export class CaixaService {
 
   async listRecebimentos(query: any = {}) {
     const where = rangeFromQuery(query);
-    return this.prisma.recebimento.findMany({
+    const rows = await this.prisma.recebimento.findMany({
       where,
       include: {
-        appointment: { select: { id: true, value: true, pet: { select: { name: true } }, tutor: { select: { name: true } } } },
+        appointment: { select: { id: true, value: true, numeroVenda: true, codigoExterno: true, pet: { select: { name: true } }, tutor: { select: { name: true } }, items: { select: { marca: true } } } },
       },
       orderBy: { data: 'desc' },
       take: 500,
     });
+    // enriquecimento aditivo p/ filtros da tela: quem deu a baixa (usuario) + marcas presentes na venda
+    const userIds = [...new Set(rows.map((r) => r.createdById).filter(Boolean))] as string[];
+    const users = userIds.length ? await this.prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true, name: true } }) : [];
+    const userName = new Map(users.map((u) => [u.id, u.name]));
+    const MARCAS: Record<string, string> = { EMPORIO: '🏥 Empório', MUNDO_A_PARTE: '🌿 Mundo à Parte', DRA_VIVIAN: '✨ Dra. Vivian' };
+    return rows.map((r: any) => ({
+      ...r,
+      usuario: (r.createdById && userName.get(r.createdById)) || 'Sistema',
+      marcas: [...new Set(((r.appointment?.items || []) as any[]).map((i) => MARCAS[i.marca] || i.marca).filter(Boolean))],
+    }));
   }
 
   async listMovimentos(query: any = {}) {
@@ -88,7 +99,8 @@ export class CaixaService {
         ? 'INTERNACAO'
         : (a.chiefComplaint || a.diagnosis || a.anamnesis ? 'ATENDIMENTO' : 'VENDA');
       return {
-        id: a.id, tutorId: a.tutor?.id || null, tutor: a.tutor?.name || 'Cliente',
+        id: a.id, numeroVenda: a.numeroVenda ?? null, codigoExterno: a.codigoExterno ?? null,
+        tutorId: a.tutor?.id || null, tutor: a.tutor?.name || 'Cliente',
         pet: a.pet?.name || '', petSpecies: a.pet?.species || null,
         vet: a.user?.name || null,
         valor, pago, aberto: Math.max(0, valor - pago), status: a.paymentStatus,
@@ -268,7 +280,7 @@ export class CaixaService {
     const ticket = num ? total / num : 0;
     const porGrupo = Object.entries(grupos).map(([grupo, valor]) => ({ grupo, valor })).sort((a, b) => b.valor - a.valor);
     const lista = (appts as any[]).slice(0, 100).map((a) => ({
-      id: a.id, tutor: a.tutor?.name || '', pet: a.pet?.name || '',
+      id: a.id, numeroVenda: a.numeroVenda ?? null, tutor: a.tutor?.name || '', pet: a.pet?.name || '',
       valor: Number(a.value || 0), date: a.date, status: a.paymentStatus,
     }));
 
@@ -308,7 +320,7 @@ export class CaixaService {
         user: { select: { id: true, name: true } },
         recebimentos: {
           orderBy: { data: 'desc' },
-          include: { appointment: { select: { id: true, value: true, pet: { select: { name: true } }, tutor: { select: { name: true } } } } },
+          include: { appointment: { select: { id: true, value: true, numeroVenda: true, codigoExterno: true, pet: { select: { name: true } }, tutor: { select: { name: true } } } } },
         },
         movimentos: { orderBy: { data: 'desc' } },
       },
@@ -384,6 +396,9 @@ export class CaixaService {
         createdById: userId,
       },
     });
+
+    // garante o número sequencial da venda (rede de segurança: toda venda que recebe pagamento tem número)
+    if (appointmentId) { try { await ensureNumeroVenda(this.prisma, appointmentId); } catch (e) { console.error('numeroVenda (recebimento) falhou:', e); } }
 
     if (creditoUsado > 0.001 && tutorId) {
       await this.prisma.creditoMovimento.create({

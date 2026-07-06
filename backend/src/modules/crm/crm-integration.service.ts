@@ -919,6 +919,7 @@ export class CrmIntegrationService {
     marca?: string;
     funcionarioId?: string;
     busca?: string;
+    cod?: string;
     limit?: number;
   }) {
     const limit = Math.max(1, Math.min(Number(q.limit) || 200, 1000));
@@ -946,6 +947,15 @@ export class CrmIntegrationService {
     }
 
     if (q.funcionarioId && q.funcionarioId.trim()) where.userId = q.funcionarioId.trim();
+
+    // Cod. da venda: nosso numeroVenda (se numerico) OU codigoExterno do SimplesVet (contains)
+    if (q.cod && String(q.cod).trim()) {
+      const c = String(q.cod).trim();
+      const ors: any[] = [{ codigoExterno: { contains: c, mode: 'insensitive' } }];
+      const asNum = Number(c);
+      if (Number.isInteger(asNum) && asNum > 0) ors.push({ numeroVenda: asNum });
+      where.AND = [...(where.AND || []), { OR: ors }];
+    }
 
     // Busca textual em cliente / pet / descricao do item
     if (q.busca && q.busca.trim()) {
@@ -992,6 +1002,7 @@ export class CrmIntegrationService {
 
       return {
         id: a.id,
+        numeroVenda: a.numeroVenda ?? null,
         codigoExterno: a.codigoExterno,
         date: a.date,
         status: a.status,

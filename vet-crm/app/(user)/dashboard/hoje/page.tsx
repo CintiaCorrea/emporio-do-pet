@@ -10,6 +10,7 @@ import {
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { useRolePreview } from "@/lib/ui/RolePreview";
 import { roleShort } from "@/lib/ui/role";
+import { PageShell, ProgressBar, B44 } from "@/components/ui/base44";
 
 interface HojeData {
   retornosVencidos: { id: string }[];
@@ -41,6 +42,37 @@ function fmtDate(d: Date) {
   const mes = d.toLocaleDateString("pt-BR", { month: "long" });
   return `${dia.charAt(0).toUpperCase() + dia.slice(1)}, ${dd} de ${mes}`;
 }
+
+/* ── Peças de apresentação do Hoje (usam os tokens do kit B44) ────────
+   Cores por tipo de entidade — as mesmas já aprovadas nesta tela. */
+const TIPO_CHIP: Record<string, { bg: string; color: string }> = {
+  Cliente: { bg: B44.tint, color: "#00798A" },
+  Pet: { bg: "#E1F5EE", color: "#0F6E56" },
+  Lead: { bg: "#E6F1FB", color: "#0C447C" },
+};
+const TipoChip = ({ tipo }: { tipo: string }) => {
+  const c = TIPO_CHIP[tipo] || TIPO_CHIP.Cliente;
+  return <span className="text-[10px] px-2 py-0.5 rounded-full flex-shrink-0 capitalize" style={{ background: c.bg, color: c.color }}>{tipo}</span>;
+};
+/* Bolha de contagem (número branco). */
+const CountBadge = ({ n, color }: { n: number; color?: string }) => (
+  <span className="text-[13px] font-medium text-white min-w-[26px] h-6 rounded-xl flex items-center justify-center px-2 flex-shrink-0" style={{ background: color || (n > 0 ? B44.primary : "#D3D1C7") }}>{n}</span>
+);
+/* Casca de um cartão-seção (Boletins, Entradas, Encaminhados). */
+const SectionCard = ({ children }: { children: React.ReactNode }) => (
+  <div className="mt-6 bg-white border rounded-[14px] overflow-hidden" style={{ borderColor: B44.line }}>{children}</div>
+);
+/* Cabeçalho de um cartão-seção. */
+const SectionHeader = ({ emoji, tileBg, title, sub, count, countColor }: { emoji: string; tileBg: string; title: string; sub: string; count: number; countColor?: string }) => (
+  <div className="flex items-center gap-3.5 px-[18px] py-[13px] border-b" style={{ borderColor: B44.lineSoft }}>
+    <div className="w-[38px] h-[38px] rounded-[10px] flex items-center justify-center flex-shrink-0" style={{ background: tileBg }}><span style={{ fontSize: "19px" }}>{emoji}</span></div>
+    <div className="flex-1 min-w-0">
+      <div className="text-[13.5px] font-medium" style={{ color: B44.text1 }}>{title}</div>
+      <div className="text-xs" style={{ color: B44.text2 }}>{sub}</div>
+    </div>
+    <CountBadge n={count} color={countColor} />
+  </div>
+);
 
 export default function HojePage() {
   const { data: session } = useSession();
@@ -338,58 +370,55 @@ export default function HojePage() {
   const total = items.reduce((s, t) => s + t.count, 0);
 
   return (
-    <div className="p-6 min-h-screen bg-[#F6F2EA]">
+    <PageShell pad="p-6">
       <div className="flex items-center gap-3 mb-4">
-        <h2 className="text-[15px] font-medium" style={{ color: "#014D5E" }}>{effectiveRole === "ADMIN" ? "O que a clínica precisa de atenção hoje" : "O que você precisa atender hoje"}</h2>
-        <span
-          className="text-xs font-medium px-3 py-1 rounded-full"
-          style={{ background: "#E0F4F6", color: "#00798A" }}
-        >
+        <h2 className="text-[15px] font-medium" style={{ color: B44.navy }}>{effectiveRole === "ADMIN" ? "O que a clínica precisa de atenção hoje" : "O que você precisa atender hoje"}</h2>
+        <span className="text-xs font-medium px-3 py-1 rounded-full" style={{ background: B44.tint, color: "#00798A" }}>
           {loading ? "carregando..." : `${total} pendências`}
         </span>
-        <span className="ml-auto text-[11px] text-[#8A989D]">
-          Perfil: {roleShort(effectiveRole)}{isPreviewing && <span className="text-[#d97706]"> · preview</span>}
+        <span className="ml-auto text-[11px]" style={{ color: B44.text3 }}>
+          Perfil: {roleShort(effectiveRole)}{isPreviewing && <span style={{ color: "#d97706" }}> · preview</span>}
         </span>
       </div>
 
-      <div className="bg-white border rounded-[14px] overflow-hidden" style={{ borderColor: "#E8E2D6" }}>
+      <div className="bg-white border rounded-[14px] overflow-hidden" style={{ borderColor: B44.line }}>
         {loading ? (
-          <div className="px-6 py-10 text-center text-sm text-[#8A989D]">Carregando seu dia...</div>
+          <div className="px-6 py-10 text-center text-sm" style={{ color: B44.text3 }}>Carregando seu dia...</div>
         ) : items.length === 0 ? (
-          <div className="px-6 py-10 text-center text-sm text-[#8A989D]">Tudo em ordem por aqui. 🎉</div>
+          <div className="px-6 py-10 text-center text-sm" style={{ color: B44.text3 }}>Tudo em ordem por aqui. 🎉</div>
         ) : (
           items.map((p, i) => {
             const inner = (
               <>
-                <div className="w-[38px] h-[38px] rounded-[10px] flex items-center justify-center flex-shrink-0" style={{ background: "#E0F4F6" }}>
+                <div className="w-[38px] h-[38px] rounded-[10px] flex items-center justify-center flex-shrink-0" style={{ background: B44.tint }}>
                   <span style={{ fontSize: "19px" }}>{p.emoji}</span>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-[13.5px] font-medium text-[#1F2A2E]">{p.title}</div>
-                  <div className="text-xs text-[#5C6B70]">{p.sub}</div>
+                  <div className="text-[13.5px] font-medium" style={{ color: B44.text1 }}>{p.title}</div>
+                  <div className="text-xs" style={{ color: B44.text2 }}>{p.sub}</div>
                 </div>
-                <span className="text-[10px] font-medium uppercase tracking-wide text-[#009AAC] hidden sm:block">{p.link}</span>
-                <span className="text-[13px] font-medium text-white min-w-[26px] h-6 rounded-xl flex items-center justify-center px-2 flex-shrink-0" style={{ background: p.count > 0 ? "#009AAC" : "#D3D1C7" }}>{p.count}</span>
-                <span style={{ fontSize: "16px" }} className="text-[#8A989D] flex-shrink-0">›</span>
+                <span className="text-[10px] font-medium uppercase tracking-wide hidden sm:block" style={{ color: B44.primary }}>{p.link}</span>
+                <CountBadge n={p.count} />
+                <span style={{ fontSize: "16px", color: B44.text3 }} className="flex-shrink-0">›</span>
               </>
             );
             const rowCls = "flex items-center gap-3.5 px-[18px] py-[13px] border-b hover:bg-[#E0F4F6]/60 transition cursor-pointer";
-            const rowStyle = { borderColor: i === items.length - 1 && !(p.key === "exames" && examesOpen) ? "transparent" : "#F0EBE0" } as any;
+            const rowStyle = { borderColor: i === items.length - 1 && !(p.key === "exames" && examesOpen) ? "transparent" : B44.lineSoft } as any;
             if (p.key === "pacotes") {
               return (
                 <div key={p.key}>
-                  <div className={rowCls} style={{ borderColor: "#F0EBE0" }} onClick={() => setPacOpen(o => !o)}>{inner}</div>
+                  <div className={rowCls} style={{ borderColor: B44.lineSoft }} onClick={() => setPacOpen(o => !o)}>{inner}</div>
                   {pacOpen && (
-                    <div style={{ background: "#FBF9F4" }}>
+                    <div style={{ background: B44.soft }}>
                       {pacRisco.length === 0 ? (
-                        <div className="px-[58px] py-3 text-xs text-[#8A989D] border-b" style={{ borderColor: "#F0EBE0" }}>Nenhum pacote perto de acabar.</div>
+                        <div className="px-[58px] py-3 text-xs border-b" style={{ color: B44.text3, borderColor: B44.lineSoft }}>Nenhum pacote perto de acabar.</div>
                       ) : pacRisco.map((e: any) => { const done = e.remaining <= 0; return (
-                        <Link key={e.id} href={`/dashboard/erp/pets/${e.petId}`} className="flex items-center gap-2 px-[58px] py-2.5 border-b hover:bg-[#E0F4F6]/60 text-xs" style={{ borderColor: "#F0EBE0" }}>
-                          <span className="font-medium text-[#1F2A2E]">{e.petName}</span>
-                          <span className="text-[#5C6B70] truncate max-w-[120px]">· {e.nome}</span>
+                        <Link key={e.id} href={`/dashboard/erp/pets/${e.petId}`} className="flex items-center gap-2 px-[58px] py-2.5 border-b hover:bg-[#E0F4F6]/60 text-xs" style={{ borderColor: B44.lineSoft }}>
+                          <span className="font-medium" style={{ color: B44.text1 }}>{e.petName}</span>
+                          <span className="truncate max-w-[120px]" style={{ color: B44.text2 }}>· {e.nome}</span>
                           <div className="flex items-center gap-1 ml-auto">
-                            <div className="w-16 h-1.5 rounded-full bg-[#F0EBE0] overflow-hidden"><div className="h-full" style={{ width: `${e.total ? Math.min(100, (e.used / e.total) * 100) : 0}%`, background: done ? "#0F6E56" : "#BA7517" }} /></div>
-                            <span className="text-[10px] text-[#5C6B70]">{e.used}/{e.total}</span>
+                            <div style={{ width: 64 }}><ProgressBar value={e.used} max={e.total || 1} height={6} color={done ? "#0F6E56" : "#BA7517"} /></div>
+                            <span className="text-[10px]" style={{ color: B44.text2 }}>{e.used}/{e.total}</span>
                             <span className="text-[10px] px-2 py-0.5 rounded-full" style={done ? { background: "#E1F5EE", color: "#0F6E56" } : { background: "#FCE5C8", color: "#8A5A0F" }}>{done ? "Concluído" : "Penúltima"}</span>
                           </div>
                         </Link>
@@ -399,19 +428,18 @@ export default function HojePage() {
                 </div>
               );
             }
-            const tcor: Record<string, { bg: string; fg: string }> = { Cliente: { bg: "#E0F4F6", fg: "#00798A" }, Pet: { bg: "#E1F5EE", fg: "#0F6E56" }, Lead: { bg: "#E6F1FB", fg: "#0C447C" } };
             const fuExpand = (list: any[], open: boolean, setOpen: (f: (o: boolean) => boolean) => void, emptyMsg: string) => (
               <div key={p.key}>
-                <div className={rowCls} style={{ borderColor: "#F0EBE0" }} onClick={() => setOpen(o => !o)}>{inner}</div>
+                <div className={rowCls} style={{ borderColor: B44.lineSoft }} onClick={() => setOpen(o => !o)}>{inner}</div>
                 {open && (
-                  <div style={{ background: "#FBF9F4" }}>
+                  <div style={{ background: B44.soft }}>
                     {list.length === 0 ? (
-                      <div className="px-[58px] py-3 text-xs text-[#8A989D] border-b" style={{ borderColor: "#F0EBE0" }}>{emptyMsg}</div>
+                      <div className="px-[58px] py-3 text-xs border-b" style={{ color: B44.text3, borderColor: B44.lineSoft }}>{emptyMsg}</div>
                     ) : list.map((e: any) => (
-                      <Link key={e.id} href={e.href} className="flex items-center gap-2 px-[58px] py-2.5 border-b hover:bg-[#E0F4F6]/60 text-xs" style={{ borderColor: "#F0EBE0" }}>
-                        <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: (tcor[e.tipo] || tcor.Cliente).bg, color: (tcor[e.tipo] || tcor.Cliente).fg }}>{e.tipo}</span>
-                        <span className="font-medium text-[#1F2A2E]">{e.nome}</span>
-                        {e.date && <span className="ml-auto text-[#5C6B70]">{new Date(e.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}</span>}
+                      <Link key={e.id} href={e.href} className="flex items-center gap-2 px-[58px] py-2.5 border-b hover:bg-[#E0F4F6]/60 text-xs" style={{ borderColor: B44.lineSoft }}>
+                        <TipoChip tipo={e.tipo} />
+                        <span className="font-medium" style={{ color: B44.text1 }}>{e.nome}</span>
+                        {e.date && <span className="ml-auto" style={{ color: B44.text2 }}>{new Date(e.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}</span>}
                       </Link>
                     ))}
                   </div>
@@ -422,17 +450,17 @@ export default function HojePage() {
             if (p.key === "aniversariantes") return fuExpand(aniv, anivOpen, setAnivOpen, "Ninguém faz aniversário hoje.");
             if (p.key === "toques") return (
               <div key={p.key}>
-                <div className={rowCls} style={{ borderColor: "#F0EBE0" }} onClick={() => setToquesOpen(o => !o)}>{inner}</div>
+                <div className={rowCls} style={{ borderColor: B44.lineSoft }} onClick={() => setToquesOpen(o => !o)}>{inner}</div>
                 {toquesOpen && (
-                  <div style={{ background: "#FBF9F4" }}>
+                  <div style={{ background: B44.soft }}>
                     {toques.length === 0 ? (
-                      <div className="px-[58px] py-3 text-xs text-[#8A989D] border-b" style={{ borderColor: "#F0EBE0" }}>Nenhum toque de cadência para hoje.</div>
+                      <div className="px-[58px] py-3 text-xs border-b" style={{ color: B44.text3, borderColor: B44.lineSoft }}>Nenhum toque de cadência para hoje.</div>
                     ) : toques.map((e: any) => (
-                      <Link key={e.id} href={e.href} className="flex items-center gap-2 px-[58px] py-2.5 border-b hover:bg-[#E0F4F6]/60 text-xs" style={{ borderColor: "#F0EBE0" }}>
-                        <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: (tcor[e.tipo] || tcor.Cliente).bg, color: (tcor[e.tipo] || tcor.Cliente).fg }}>{e.tipo}</span>
-                        <span className="font-medium text-[#1F2A2E]">{e.nome}</span>
-                        <span className="text-[#5C6B70] truncate max-w-[200px]">· {e.cadencia} — {e.passo}</span>
-                        {e.canal && <span className="ml-auto text-[10px] text-[#009AAC] font-medium">{e.canal}</span>}
+                      <Link key={e.id} href={e.href} className="flex items-center gap-2 px-[58px] py-2.5 border-b hover:bg-[#E0F4F6]/60 text-xs" style={{ borderColor: B44.lineSoft }}>
+                        <TipoChip tipo={e.tipo} />
+                        <span className="font-medium" style={{ color: B44.text1 }}>{e.nome}</span>
+                        <span className="truncate max-w-[200px]" style={{ color: B44.text2 }}>· {e.cadencia} — {e.passo}</span>
+                        {e.canal && <span className="ml-auto text-[10px] font-medium" style={{ color: B44.primary }}>{e.canal}</span>}
                       </Link>
                     ))}
                   </div>
@@ -444,14 +472,14 @@ export default function HojePage() {
                 <div key={p.key}>
                   <div className={rowCls} style={rowStyle} onClick={() => setExamesOpen(o => !o)}>{inner}</div>
                   {examesOpen && (
-                    <div style={{ background: "#FBF9F4" }}>
+                    <div style={{ background: B44.soft }}>
                       {examesPend.length === 0 ? (
-                        <div className="px-[58px] py-3 text-xs text-[#8A989D] border-b" style={{ borderColor: "#F0EBE0" }}>Nenhum exame em acompanhamento.</div>
+                        <div className="px-[58px] py-3 text-xs border-b" style={{ color: B44.text3, borderColor: B44.lineSoft }}>Nenhum exame em acompanhamento.</div>
                       ) : examesPend.map((e: any) => (
-                        <Link key={e.id} href={`/dashboard/erp/pets/${e.petId}`} className="flex items-center gap-2 px-[58px] py-2.5 border-b hover:bg-[#E0F4F6]/60 text-xs" style={{ borderColor: "#F0EBE0" }}>
-                          <span className="font-medium text-[#1F2A2E]">{e.petName}</span>
-                          <span className="text-[#5C6B70]">· {e.nome}</span>
-                          <span className="ml-auto text-[11px] px-2 py-0.5 rounded-full" style={{ background: "#E0F4F6", color: "#00798A" }}>{e.status}</span>
+                        <Link key={e.id} href={`/dashboard/erp/pets/${e.petId}`} className="flex items-center gap-2 px-[58px] py-2.5 border-b hover:bg-[#E0F4F6]/60 text-xs" style={{ borderColor: B44.lineSoft }}>
+                          <span className="font-medium" style={{ color: B44.text1 }}>{e.petName}</span>
+                          <span style={{ color: B44.text2 }}>· {e.nome}</span>
+                          <span className="ml-auto text-[11px] px-2 py-0.5 rounded-full" style={{ background: B44.tint, color: "#00798A" }}>{e.status}</span>
                         </Link>
                       ))}
                     </div>
@@ -460,7 +488,7 @@ export default function HojePage() {
               );
             }
             return (
-              <Link key={p.key} href={p.href} className={rowCls} style={{ borderColor: i === items.length - 1 ? "transparent" : "#F0EBE0" }}>{inner}</Link>
+              <Link key={p.key} href={p.href} className={rowCls} style={{ borderColor: i === items.length - 1 ? "transparent" : B44.lineSoft }}>{inner}</Link>
             );
           })
         )}
@@ -468,89 +496,67 @@ export default function HojePage() {
 
       {/* 📋 Boletins pendentes — VET e ADMIN */}
       {!loading && (effectiveRole === "VET" || effectiveRole === "ADMIN") && (
-        <div className="mt-6 bg-white border rounded-[14px] overflow-hidden" style={{ borderColor: "#E8E2D6" }}>
-          <div className="flex items-center gap-3.5 px-[18px] py-[13px] border-b" style={{ borderColor: "#F0EBE0" }}>
-            <div className="w-[38px] h-[38px] rounded-[10px] flex items-center justify-center flex-shrink-0" style={{ background: "#EAF3DE" }}><span style={{ fontSize: "19px" }}>📋</span></div>
-            <div className="flex-1 min-w-0">
-              <div className="text-[13.5px] font-medium text-[#1F2A2E]">📋 Boletins pendentes</div>
-              <div className="text-xs text-[#5C6B70]">Boletins de fisioterapia salvos e ainda não enviados ao tutor</div>
-            </div>
-            <span className="text-[13px] font-medium text-white min-w-[26px] h-6 rounded-xl flex items-center justify-center px-2 flex-shrink-0" style={{ background: boletinsPend.length > 0 ? "#009AAC" : "#D3D1C7" }}>{boletinsPend.length}</span>
-          </div>
+        <SectionCard>
+          <SectionHeader emoji="📋" tileBg="#EAF3DE" title="📋 Boletins pendentes" sub="Boletins de fisioterapia salvos e ainda não enviados ao tutor" count={boletinsPend.length} />
           {boletinsPend.length === 0 ? (
-            <div className="px-[18px] py-8 text-center text-sm text-[#8A989D]">Nenhum boletim pendente. 🎉</div>
+            <div className="px-[18px] py-8 text-center text-sm" style={{ color: B44.text3 }}>Nenhum boletim pendente. 🎉</div>
           ) : boletinsPend.map((b) => (
-            <Link key={b.id} href={`/dashboard/erp/pets/${b.petId}/fisio/boletim/novo?id=${b.id}`} className="flex items-center gap-2.5 px-[18px] py-2.5 border-b hover:bg-[#E0F4F6]/40" style={{ borderColor: "#F0EBE0" }}>
+            <Link key={b.id} href={`/dashboard/erp/pets/${b.petId}/fisio/boletim/novo?id=${b.id}`} className="flex items-center gap-2.5 px-[18px] py-2.5 border-b hover:bg-[#E0F4F6]/40" style={{ borderColor: B44.lineSoft }}>
               {b.sessao && <span className="text-[10px] px-2 py-0.5 rounded-full flex-shrink-0" style={{ background: "#EAF3DE", color: "#3B6D11" }}>#{b.sessao}</span>}
-              <span className="font-medium text-[13px] text-[#1F2A2E] truncate">{b.petName}</span>
-              {b.mv && <span className="text-xs text-[#5C6B70] hidden sm:block truncate">· 🧑‍⚕️ {b.mv}</span>}
-              {b.date && <span className="ml-auto text-[11px] text-[#8A989D] flex-shrink-0">{new Date(b.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}</span>}
-              <span className="text-[11px] text-[#009AAC] flex-shrink-0">abrir / enviar →</span>
+              <span className="font-medium text-[13px] truncate" style={{ color: B44.text1 }}>{b.petName}</span>
+              {b.mv && <span className="text-xs hidden sm:block truncate" style={{ color: B44.text2 }}>· 🧑‍⚕️ {b.mv}</span>}
+              {b.date && <span className="ml-auto text-[11px] flex-shrink-0" style={{ color: B44.text3 }}>{new Date(b.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}</span>}
+              <span className="text-[11px] flex-shrink-0" style={{ color: B44.primary }}>abrir / enviar →</span>
             </Link>
           ))}
-        </div>
+        </SectionCard>
       )}
 
       {!loading && effectiveRole === "ADMIN" && (() => {
-        const cor: Record<string, { bg: string; fg: string }> = { Cliente: { bg: "#E0F4F6", fg: "#00798A" }, Lead: { bg: "#E6F1FB", fg: "#0C447C" } };
         const hhmm = (dt: any) => { try { return new Date(dt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }); } catch { return ""; } };
         const fmtDia = (dt: any) => { const d = new Date(dt), h = new Date(), o = new Date(); o.setDate(h.getDate() - 1); const k = (x: Date) => x.toDateString(); if (k(d) === k(h)) return "Hoje"; if (k(d) === k(o)) return "Ontem"; return d.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" }); };
         const grupos: { dia: string; itens: any[] }[] = [];
         for (const e of entradas) { const dk = new Date(e.at).toDateString(); let g = grupos.find(x => x.dia === dk); if (!g) { g = { dia: dk, itens: [] }; grupos.push(g); } g.itens.push(e); }
         return (
-          <div className="mt-6 bg-white border rounded-[14px] overflow-hidden" style={{ borderColor: "#E8E2D6" }}>
-            <div className="flex items-center gap-3.5 px-[18px] py-[13px] border-b" style={{ borderColor: "#F0EBE0" }}>
-              <div className="w-[38px] h-[38px] rounded-[10px] flex items-center justify-center flex-shrink-0" style={{ background: "#E0F4F6" }}><span style={{ fontSize: "19px" }}>📋</span></div>
-              <div className="flex-1 min-w-0">
-                <div className="text-[13.5px] font-medium text-[#1F2A2E]">📋 Acompanhamento de entradas</div>
-                <div className="text-xs text-[#5C6B70]">Leads e clientes que entraram — dê baixa ao conferir o atendimento</div>
-              </div>
-              <span className="text-[13px] font-medium text-white min-w-[26px] h-6 rounded-xl flex items-center justify-center px-2 flex-shrink-0" style={{ background: entradas.length > 0 ? "#009AAC" : "#D3D1C7" }}>{entradas.length}</span>
-            </div>
+          <SectionCard>
+            <SectionHeader emoji="📋" tileBg={B44.tint} title="📋 Acompanhamento de entradas" sub="Leads e clientes que entraram — dê baixa ao conferir o atendimento" count={entradas.length} />
             {entradas.length === 0 ? (
-              <div className="px-[18px] py-8 text-center text-sm text-[#8A989D]">Nenhuma entrada pendente de baixa.</div>
+              <div className="px-[18px] py-8 text-center text-sm" style={{ color: B44.text3 }}>Nenhuma entrada pendente de baixa.</div>
             ) : grupos.map((g) => (
               <div key={g.dia}>
-                <div className="px-[18px] py-1.5 text-[11px] font-medium text-[#5C6B70] border-b" style={{ background: "#FBF9F4", borderColor: "#F0EBE0" }}>{fmtDia(g.itens[0].at)} ({g.itens.length})</div>
+                <div className="px-[18px] py-1.5 text-[11px] font-medium border-b" style={{ color: B44.text2, background: B44.soft, borderColor: B44.lineSoft }}>{fmtDia(g.itens[0].at)} ({g.itens.length})</div>
                 {g.itens.map((e: any) => (
-                  <div key={e.key} className="flex items-center gap-3 px-[18px] py-2.5 border-b hover:bg-[#E0F4F6]/40" style={{ borderColor: "#F0EBE0" }}>
+                  <div key={e.key} className="flex items-center gap-3 px-[18px] py-2.5 border-b hover:bg-[#E0F4F6]/40" style={{ borderColor: B44.lineSoft }}>
                     <input type="checkbox" checked={false} onChange={() => baixarEntrada(e)} className="w-4 h-4 flex-shrink-0 cursor-pointer accent-[#009AAC]" title="Dar baixa (sai da lista, fica na ficha)" />
-                    <span className="text-[10px] px-2 py-0.5 rounded-full flex-shrink-0" style={{ background: (cor[e.tipo] || cor.Cliente).bg, color: (cor[e.tipo] || cor.Cliente).fg }}>{e.tipo}</span>
-                    <Link href={e.href} className="font-medium text-[13px] text-[#1F2A2E] hover:underline truncate">{e.nome}</Link>
-                    {e.sub && <span className="text-xs text-[#5C6B70] truncate hidden sm:block">. {e.sub}</span>}
-                    <span className="ml-auto text-[11px] text-[#8A989D] flex-shrink-0">{hhmm(e.at)}</span>
+                    <TipoChip tipo={e.tipo} />
+                    <Link href={e.href} className="font-medium text-[13px] hover:underline truncate" style={{ color: B44.text1 }}>{e.nome}</Link>
+                    {e.sub && <span className="text-xs truncate hidden sm:block" style={{ color: B44.text2 }}>. {e.sub}</span>}
+                    <span className="ml-auto text-[11px] flex-shrink-0" style={{ color: B44.text3 }}>{hhmm(e.at)}</span>
                   </div>
                 ))}
               </div>
             ))}
-          </div>
+          </SectionCard>
         );
       })()}
       {!loading && encMine.length > 0 && (
-        <div className="mt-6 bg-white border rounded-[14px] overflow-hidden" style={{ borderColor: "#E8E2D6" }}>
-          <div className="flex items-center gap-3.5 px-[18px] py-[13px] border-b" style={{ borderColor: "#F0EBE0" }}>
-            <div className="w-[38px] h-[38px] rounded-[10px] flex items-center justify-center flex-shrink-0" style={{ background: "#fef3c7" }}><span style={{ fontSize: "19px" }}>↔️</span></div>
-            <div className="flex-1 min-w-0">
-              <div className="text-[13.5px] font-medium text-[#1F2A2E]">↔️ Encaminhados para mim</div>
-              <div className="text-xs text-[#5C6B70]">Clientes, pets e leads que precisam do seu atendimento</div>
-            </div>
-            <span className="text-[13px] font-medium text-white min-w-[26px] h-6 rounded-xl flex items-center justify-center px-2 flex-shrink-0" style={{ background: "#D97706" }}>{encMine.length}</span>
-          </div>
+        <SectionCard>
+          <SectionHeader emoji="↔️" tileBg="#fef3c7" title="↔️ Encaminhados para mim" sub="Clientes, pets e leads que precisam do seu atendimento" count={encMine.length} countColor="#D97706" />
           {encMine.map((e) => (
-            <div key={e.entryId} className="flex items-center gap-3 px-[18px] py-2.5 border-b hover:bg-[#fef9ec]" style={{ borderColor: "#F0EBE0" }}>
+            <div key={e.entryId} className="flex items-center gap-3 px-[18px] py-2.5 border-b hover:bg-[#fef9ec]" style={{ borderColor: B44.lineSoft }}>
               <span className="text-[10px] px-2 py-0.5 rounded-full flex-shrink-0 capitalize" style={{ background: "#FEF3C7", color: "#92611A" }}>{e.tipo}</span>
-              <Link href={encHref(e)} className="font-medium text-[13px] text-[#1F2A2E] hover:underline truncate">{e.nome}</Link>
-              {e.obs && <span className="text-xs text-[#5C6B70] truncate hidden sm:block">. {e.obs}</span>}
-              {e.byName && <span className="text-[11px] text-[#8A989D] flex-shrink-0">por {e.byName}</span>}
+              <Link href={encHref(e)} className="font-medium text-[13px] hover:underline truncate" style={{ color: B44.text1 }}>{e.nome}</Link>
+              {e.obs && <span className="text-xs truncate hidden sm:block" style={{ color: B44.text2 }}>. {e.obs}</span>}
+              {e.byName && <span className="text-[11px] flex-shrink-0" style={{ color: B44.text3 }}>por {e.byName}</span>}
               <button onClick={() => concluirEnc(e)} className="ml-auto text-[11px] font-medium text-[#0F6E56] hover:underline flex-shrink-0">Concluir</button>
             </div>
           ))}
-        </div>
+        </SectionCard>
       )}
-      <div className="mt-6 text-xs text-[#8A989D] text-center">
+      <div className="mt-6 text-xs text-center" style={{ color: B44.text3 }}>
         Métricas e relatórios ficam no <Link href="/dashboard" className="underline">Dashboard</Link>.
         Conversas no <Link href="/dashboard/inbox" className="underline">Inbox</Link>.
       </div>
-    </div>
+    </PageShell>
   );
 }

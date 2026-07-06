@@ -59,6 +59,7 @@ export class CrmController {
     @Query('marca') marca?: string,
     @Query('funcionarioId') funcionarioId?: string,
     @Query('busca') busca?: string,
+    @Query('cod') cod?: string,
     @Query('limit') limit?: string,
   ) {
     return this.crmService.consultaVendas({
@@ -68,6 +69,7 @@ export class CrmController {
       marca,
       funcionarioId,
       busca,
+      cod,
       limit: limit ? Number(limit) : undefined,
     });
   }

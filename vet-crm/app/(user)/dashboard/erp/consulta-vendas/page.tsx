@@ -26,6 +26,7 @@ interface Item {
 }
 interface Venda {
   id: string;
+  numeroVenda: number | null;
   codigoExterno: string | null;
   date: string;
   status: string;
@@ -50,6 +51,8 @@ const dm = (s: string) => {
   return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 };
 const iso = (d: Date) => d.toISOString().slice(0, 10);
+const vendaNum = (v: { numeroVenda: number | null; codigoExterno: string | null }) =>
+  v.numeroVenda != null ? `#${v.numeroVenda}` : (v.codigoExterno ? `SV ${v.codigoExterno}` : '—');
 
 // Marca: pill config
 const MARCAS: Record<string, { label: string; emoji: string; bg: string; fg: string }> = {
@@ -122,7 +125,8 @@ function LinhaVenda({ v }: { v: Venda }) {
       >
         <td style={{ padding: '11px 12px', fontSize: 13 }}>
           <span style={{ color: GREY2, marginRight: 6 }}>{open ? '▾' : '▸'}</span>
-          <span style={{ color: NAVY, fontWeight: 500 }}>{v.codigoExterno || '—'}</span>
+          <span style={{ color: NAVY, fontWeight: 600 }}>{vendaNum(v)}</span>
+          {v.numeroVenda != null && v.codigoExterno && <span style={{ color: GREY2, fontSize: 11, marginLeft: 6 }}>· SV {v.codigoExterno}</span>}
           <span style={{ color: GREY2, fontSize: 11.5, marginLeft: 8 }}>{dm(v.date)}</span>
         </td>
         <td style={{ padding: '11px 12px', fontSize: 13, color: NAVY }}>{v.cliente || '—'}</td>
@@ -177,6 +181,7 @@ export default function ConsultaVendasPage() {
   const [status, setStatus] = useState('');
   const [marca, setMarca] = useState('');
   const [busca, setBusca] = useState('');
+  const [cod, setCod] = useState('');
 
   const [data, setData] = useState<Resp | null>(null);
   const [loading, setLoading] = useState(true);
@@ -190,6 +195,7 @@ export default function ConsultaVendasPage() {
       if (status) p.set('status', status);
       if (marca) p.set('marca', marca);
       if (busca.trim()) p.set('busca', busca.trim());
+      if (cod.trim()) p.set('cod', cod.trim());
       const r = await fetch(`/api/crm/consulta-vendas?${p.toString()}`, { cache: 'no-store' });
       if (r.ok) setData(await r.json());
       else setData({ vendas: [], totais: { qtd: 0, liquido: 0, ticket: 0, descontos: 0 } });
@@ -198,7 +204,7 @@ export default function ConsultaVendasPage() {
     } finally {
       setLoading(false);
     }
-  }, [de, ate, status, marca, busca]);
+  }, [de, ate, status, marca, busca, cod]);
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
 
@@ -206,8 +212,16 @@ export default function ConsultaVendasPage() {
 
   return (
     <div className="p-6 min-h-screen" style={{ background: BG }}>
+      <style>{`@media print{ .no-print{display:none!important;} body{background:#fff;} .cv-print-h{display:block!important;} }`}</style>
+
+      {/* cabeçalho só de impressão */}
+      <div className="cv-print-h" style={{ display: 'none', marginBottom: 14 }}>
+        <div style={{ fontSize: 16, fontWeight: 600, color: NAVY }}>Consulta de vendas · Empório do Pet</div>
+        <div style={{ fontSize: 12, color: GREY }}>Período {de} a {ate}{cod ? ` · cód. ${cod}` : ''}{marca ? ` · ${marca}` : ''}{status ? ` · ${status}` : ''}</div>
+      </div>
+
       {/* Filtros */}
-      <div style={{ ...cardCss, padding: 16 }} className="mb-4">
+      <div style={{ ...cardCss, padding: 16 }} className="mb-4 no-print">
         <div className="flex items-end gap-3 flex-wrap">
           <label className="flex flex-col gap-1">
             <span style={{ fontSize: 11.5, color: GREY2, fontWeight: 500 }}>De</span>
@@ -234,6 +248,16 @@ export default function ConsultaVendasPage() {
               <option value="DRA_VIVIAN">✨ Dra. Vivian</option>
             </select>
           </label>
+          <label className="flex flex-col gap-1">
+            <span style={{ fontSize: 11.5, color: GREY2, fontWeight: 500 }}>Cód. venda</span>
+            <input
+              value={cod}
+              onChange={(e) => setCod(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') load(); }}
+              placeholder="Nº ou SimplesVet"
+              style={{ ...inp, width: 140 }}
+            />
+          </label>
           <label className="flex flex-col gap-1 flex-1 min-w-[180px]">
             <span style={{ fontSize: 11.5, color: GREY2, fontWeight: 500 }}>Busca</span>
             <input
@@ -250,6 +274,13 @@ export default function ConsultaVendasPage() {
             style={{ background: TEAL, borderRadius: 9, padding: '9px 18px', fontSize: 13.5 }}
           >
             🔍 Consultar
+          </button>
+          <button
+            onClick={() => window.print()}
+            className="font-medium transition"
+            style={{ background: '#fff', color: NAVY, border: `1px solid ${CARD_LINE}`, borderRadius: 9, padding: '9px 16px', fontSize: 13.5 }}
+          >
+            🖨️ Imprimir
           </button>
         </div>
       </div>

@@ -532,6 +532,7 @@ model Appointment {
   temperature       Float? // temperatura (ºC)
   paymentMethod     String? // forma_pagamento livre
   codigoExterno     String? // id da venda no SimplesVet (idempotencia na importacao)
+  numeroVenda       Int?     @unique // numero sequencial VISIVEL da venda (comeca em 1001); atribuido qdo o atendimento vira venda (value>0)
   origem            String? // SIMPLESVET | PDV | AGENDA
 
   // Relacionamentos

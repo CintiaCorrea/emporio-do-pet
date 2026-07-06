@@ -82,23 +82,23 @@ export default function AnaliseComercial() {
   }, [leads]);
 
   const Bar = ({ label, val, max, color, bg }: any) => (
-    <div><div className="flex justify-between text-[12px]"><span className="text-[#334155] truncate pr-2">{label}</span><span className="text-[#64748b]">{val}</span></div>
+    <div><div className="flex justify-between text-[12px]"><span className="text-[#1F2A2E] truncate pr-2">{label}</span><span className="text-[#5C6B70]">{val}</span></div>
       <div className="h-1.5 rounded-full mt-0.5" style={{ background: bg }}><div className="h-1.5 rounded-full" style={{ width: `${Math.round((val / max) * 100)}%`, background: color }} /></div></div>
   );
 
   // Role gate: só Admin e Recepção veem análise comercial
   if (effectiveRole === "VETERINARIAN") return null;
 
-  if (loading) return <div className="mt-4 text-sm text-[#94a3b8]">Carregando análise comercial...</div>;
+  if (loading) return <div className="mt-4 text-sm text-[#8A989D]">Carregando análise comercial...</div>;
 
   return (
     <div className="mt-4 flex flex-col gap-3">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <span className="text-[14px] font-semibold text-[#014D5E]">📊 Análise comercial</span>
+        <span className="text-[14px] font-medium text-[#014D5E]">📊 Análise comercial</span>
         <div className="flex gap-1">
           {(["7d", "30d", "tudo"] as Period[]).map(p => (
             <button key={p} onClick={() => setPeriod(p)} className="text-[11px] font-medium px-3 py-1 rounded-full border"
-              style={period === p ? { background: TURQ, color: "#fff", borderColor: TURQ } : { background: "#fff", color: "#4d5a66", borderColor: "#cfd8e0" }}>
+              style={period === p ? { background: TURQ, color: "#fff", borderColor: TURQ } : { background: "#fff", color: "#5C6B70", borderColor: "#E8E2D6" }}>
               {p === "tudo" ? "Tudo" : p}
             </button>
           ))}
@@ -106,46 +106,46 @@ export default function AnaliseComercial() {
       </div>
 
       <div>
-        <div className="text-[14px] font-semibold mb-2 flex items-center gap-2 text-[#014D5E]">📊 Indicadores comerciais</div>
+        <div className="text-[14px] font-medium mb-2 flex items-center gap-2 text-[#014D5E]">📊 Indicadores comerciais</div>
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5">
-          <div className="bg-[#FBF9F4] border border-[#E8E2D6] rounded-xl p-3"><div className="text-[12px] text-[#64748b]">Leads total</div><div className="text-[22px] font-semibold mt-0.5 text-[#014D5E]">{kpis.total}</div></div>
-          <div className="bg-[#FBF9F4] border border-[#E8E2D6] rounded-xl p-3"><div className="text-[12px] text-[#64748b]">Taxa conversão</div><div className="text-[22px] font-semibold mt-0.5 text-[#014D5E]">{kpis.taxa}%</div></div>
-          <div className="bg-[#FBF9F4] border border-[#E8E2D6] rounded-xl p-3"><div className="text-[12px] text-[#64748b]">Pipeline aberto</div><div className="text-[22px] font-semibold mt-0.5 text-[#014D5E]">{kpis.aberto}</div></div>
+          <div className="bg-[#FBF9F4] border border-[#E8E2D6] rounded-xl p-3"><div className="text-[12px] text-[#5C6B70]">Leads total</div><div className="text-[22px] font-medium mt-0.5 text-[#014D5E]">{kpis.total}</div></div>
+          <div className="bg-[#FBF9F4] border border-[#E8E2D6] rounded-xl p-3"><div className="text-[12px] text-[#5C6B70]">Taxa conversão</div><div className="text-[22px] font-medium mt-0.5 text-[#014D5E]">{kpis.taxa}%</div></div>
+          <div className="bg-[#FBF9F4] border border-[#E8E2D6] rounded-xl p-3"><div className="text-[12px] text-[#5C6B70]">Pipeline aberto</div><div className="text-[22px] font-medium mt-0.5 text-[#014D5E]">{kpis.aberto}</div></div>
         </div>
       </div>
 
       <div className="bg-white border border-[#E8E2D6] rounded-xl p-4">
-        <div className="text-[14px] font-semibold mb-3 flex items-center gap-2 text-[#014D5E]">🎯 Funil comercial — {period === "tudo" ? "todos" : "no período"}</div>
+        <div className="text-[14px] font-medium mb-3 flex items-center gap-2 text-[#014D5E]">🎯 Funil comercial — {period === "tudo" ? "todos" : "no período"}</div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2.5">
-          {estagios.length === 0 ? <div className="text-sm text-[#94a3b8]">Nenhuma etapa no pipeline de leads.</div>
+          {estagios.length === 0 ? <div className="text-sm text-[#8A989D]">Nenhuma etapa no pipeline de leads.</div>
             : estagios.map(e => <Bar key={e} label={e} val={funil.c[e] || 0} max={funil.max} color={TURQ} bg="#E1F5EE" />)}
         </div>
       </div>
 
       <div className="bg-white border border-[#E8E2D6] rounded-xl p-4">
-        <div className="text-[14px] font-semibold mb-2 text-[#014D5E]">📈 Tendência de leads (últimos 12 meses)</div>
+        <div className="text-[14px] font-medium mb-2 text-[#014D5E]">📈 Tendência de leads (últimos 12 meses)</div>
         <svg viewBox="0 0 600 90" style={{ width: "100%", height: 70 }} preserveAspectRatio="none" role="img" aria-label="Tendência de leads">
           <polyline fill="none" stroke={TURQ} strokeWidth="2.5" points={tendencia.months.map((m, i) => `${(i / 11) * 600},${85 - (m.leads / tendencia.max) * 78}`).join(" ")} />
           <polyline fill="none" stroke="#D4537E" strokeWidth="2" points={tendencia.months.map((m, i) => `${(i / 11) * 600},${85 - (m.conv / tendencia.max) * 78}`).join(" ")} />
         </svg>
-        <div className="flex justify-between text-[10px] text-[#94a3b8] mt-1">{tendencia.months.map((m, i) => <span key={i}>{m.label}</span>)}</div>
-        <div className="text-[11px] text-[#64748b] mt-1 flex gap-3"><span style={{ color: TURQ }}>● Leads</span><span style={{ color: "#D4537E" }}>● Convertidos</span></div>
+        <div className="flex justify-between text-[10px] text-[#8A989D] mt-1">{tendencia.months.map((m, i) => <span key={i}>{m.label}</span>)}</div>
+        <div className="text-[11px] text-[#5C6B70] mt-1 flex gap-3"><span style={{ color: TURQ }}>● Leads</span><span style={{ color: "#D4537E" }}>● Convertidos</span></div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <div className="bg-white border border-[#E8E2D6] rounded-xl p-4">
-          <div className="text-[14px] font-semibold mb-3 text-[#014D5E]">📡 Leads por canal</div>
-          <div className="flex flex-col gap-2">{porCanal.length === 0 ? <div className="text-[13px] text-[#94a3b8]">Sem dados no período.</div> : porCanal.map(([k, v]) => <Bar key={k} label={k} val={v} max={Math.max(1, ...porCanal.map(x => x[1]))} color={TURQ} bg="#E1F5EE" />)}</div>
+          <div className="text-[14px] font-medium mb-3 text-[#014D5E]">📡 Leads por canal</div>
+          <div className="flex flex-col gap-2">{porCanal.length === 0 ? <div className="text-[13px] text-[#8A989D]">Sem dados no período.</div> : porCanal.map(([k, v]) => <Bar key={k} label={k} val={v} max={Math.max(1, ...porCanal.map(x => x[1]))} color={TURQ} bg="#E1F5EE" />)}</div>
         </div>
         <div className="bg-white border border-[#E8E2D6] rounded-xl p-4">
-          <div className="text-[14px] font-semibold mb-3 text-[#014D5E]">🧭 Leads por origem / campanha</div>
-          <div className="flex flex-col gap-2">{porOrigem.length === 0 ? <div className="text-[13px] text-[#94a3b8]">Sem dados no período.</div> : porOrigem.map(([k, v]) => <Bar key={k} label={k} val={v} max={Math.max(1, ...porOrigem.map(x => x[1]))} color="#185FA5" bg="#E6F1FB" />)}</div>
+          <div className="text-[14px] font-medium mb-3 text-[#014D5E]">🧭 Leads por origem / campanha</div>
+          <div className="flex flex-col gap-2">{porOrigem.length === 0 ? <div className="text-[13px] text-[#8A989D]">Sem dados no período.</div> : porOrigem.map(([k, v]) => <Bar key={k} label={k} val={v} max={Math.max(1, ...porOrigem.map(x => x[1]))} color="#185FA5" bg="#E6F1FB" />)}</div>
         </div>
       </div>
 
       <div className="bg-white border border-[#E8E2D6] rounded-xl p-4">
-        <div className="text-[14px] font-semibold mb-3 flex items-center gap-2 text-[#014D5E]">❌ Top motivos de perda</div>
-        <div className="flex flex-col gap-2">{motivos.length === 0 ? <div className="text-[13px] text-[#94a3b8]">Sem motivos registrados ainda. Preencha na ficha do lead perdido.</div> : motivos.map(([k, v]) => <Bar key={k} label={k} val={v} max={Math.max(1, ...motivos.map(x => x[1]))} color="#E24B4A" bg="#FCEBEB" />)}</div>
+        <div className="text-[14px] font-medium mb-3 flex items-center gap-2 text-[#014D5E]">❌ Top motivos de perda</div>
+        <div className="flex flex-col gap-2">{motivos.length === 0 ? <div className="text-[13px] text-[#8A989D]">Sem motivos registrados ainda. Preencha na ficha do lead perdido.</div> : motivos.map(([k, v]) => <Bar key={k} label={k} val={v} max={Math.max(1, ...motivos.map(x => x[1]))} color="#E24B4A" bg="#FCEBEB" />)}</div>
       </div>
     </div>
   );

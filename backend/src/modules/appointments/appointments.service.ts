@@ -5,6 +5,7 @@ import { EventsService } from '../events/events.service';
 import { BoardsService } from '../boards/boards.service';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { UpdateAppointmentDto } from './dto/update-appointment.dto';
+import { ensureNumeroVenda } from '../../common/venda-numero';
 
 @Injectable()
 export class AppointmentsService {
@@ -160,6 +161,13 @@ export class AppointmentsService {
         },
       });
     });
+
+    // numeroVenda: se o atendimento já nasce como venda (tem valor ou itens), atribui o número sequencial
+    const nasceComoVenda = (Number(createAppointmentDto.value) || 0) > 0 || (((createAppointmentDto as any).items || []).length > 0);
+    if (result && nasceComoVenda) {
+      try { (result as any).numeroVenda = await ensureNumeroVenda(this.prisma, result.id); }
+      catch (e) { console.error('numeroVenda (create) falhou:', e); }
+    }
 
     // Emit appointment created event for automations
     if (result) {
@@ -471,6 +479,12 @@ export class AppointmentsService {
         },
       });
     });
+
+    // numeroVenda: se a atualização deixou o atendimento como venda (value>0) e ele ainda não tem número, atribui
+    if (result && (Number(result.value) || 0) > 0) {
+      try { (result as any).numeroVenda = await ensureNumeroVenda(this.prisma, result.id); }
+      catch (e) { console.error('numeroVenda (update) falhou:', e); }
+    }
 
     // Emit events based on status change
     if (result && updateAppointmentDto.status && updateAppointmentDto.status !== previousStatus) {

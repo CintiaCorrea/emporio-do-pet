@@ -11,6 +11,7 @@ import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { useRolePreview } from "@/lib/ui/RolePreview";
 import { roleShort } from "@/lib/ui/role";
 import AnaliseComercial from "@/components/protected/dashboard/AnaliseComercial";
+import { PageShell, ProgressBar, B44 } from "@/components/ui/base44";
 
 interface HojeData {
   retornosVencidos: { id: string }[];
@@ -324,38 +325,38 @@ export default function DashboardPage() {
   const isRecep = effectiveRole === "RECEPTIONIST";
   const novosLeads = entradas.filter((e: any) => e.tipo === "Lead").length;
 
-  // ---- Sub-componentes locais (Base44) ----
+  // ---- Sub-componentes locais (Base44 · usam tokens do kit B44) ----
   const Kpi = ({ emoji, label, value, sub, soon, turquesa }: { emoji: string; label: string; value: any; sub: string; soon?: boolean; turquesa?: boolean }) => (
-    <div className={`bg-white rounded-[12px] p-3 ${turquesa ? "border border-[#009AAC]" : "border border-[#E8E2D6]"}`}>
+    <div className="bg-white rounded-[12px] p-3 border" style={{ borderColor: turquesa ? B44.primary : B44.line }}>
       <div className="flex items-center gap-1.5 mb-1">
-        <span className="text-[11px] text-[#8A989D]">{emoji} {label}</span>
-        {soon && <span className="text-[8.5px] bg-[#F3F1EC] text-[#9a948a] px-1.5 rounded-full">em breve</span>}
+        <span className="text-[11px]" style={{ color: B44.text3 }}>{emoji} {label}</span>
+        {soon && <span className="text-[8.5px] px-1.5 rounded-full" style={{ background: "#F3F1EC", color: "#9a948a" }}>em breve</span>}
       </div>
-      <div className="text-[22px] font-medium text-[#014D5E] leading-tight">{value}</div>
-      <div className={`text-[9.5px] ${soon ? "text-[#8A989D]" : "text-[#1c7a47]"}`}>{sub}</div>
+      <div className="text-[22px] font-medium leading-tight" style={{ color: B44.navy }}>{value}</div>
+      <div className="text-[9.5px]" style={{ color: soon ? B44.text3 : "#1c7a47" }}>{sub}</div>
     </div>
   );
 
   const Painel = ({ titulo, soon, children }: { titulo: string; soon?: boolean; children: any }) => (
-    <div className="bg-white border border-[#E8E2D6] rounded-[12px] p-4">
+    <div className="bg-white border rounded-[12px] p-4" style={{ borderColor: B44.line }}>
       <div className="flex items-center gap-2 mb-3">
-        <span className="text-[13px] font-semibold text-[#014D5E]">{titulo}</span>
-        {soon && <span className="text-[8.5px] bg-[#F3F1EC] text-[#9a948a] px-1.5 rounded-full">em breve</span>}
+        <span className="text-[13px] font-medium" style={{ color: B44.navy }}>{titulo}</span>
+        {soon && <span className="text-[8.5px] px-1.5 rounded-full" style={{ background: "#F3F1EC", color: "#9a948a" }}>em breve</span>}
       </div>
       {children}
     </div>
   );
 
   const SoonPlaceholder = ({ texto }: { texto: string }) => (
-    <div className="py-8 text-center text-[12px] text-[#8A989D]">{texto}</div>
+    <div className="py-8 text-center text-[12px]" style={{ color: B44.text3 }}>{texto}</div>
   );
 
   const LinhaAtencao = ({ emoji, cor, titulo, sub }: { emoji: string; cor: string; titulo: string; sub: string }) => (
     <div className="flex items-center gap-2.5 py-2">
       <span className="w-8 h-8 rounded-[8px] flex items-center justify-center text-[15px] flex-shrink-0" style={{ background: cor }}>{emoji}</span>
       <div className="min-w-0">
-        <div className="text-[13px] font-medium text-[#1F2A2E]">{titulo}</div>
-        <div className="text-[11px] text-[#8A989D]">{sub}</div>
+        <div className="text-[13px] font-medium" style={{ color: B44.text1 }}>{titulo}</div>
+        <div className="text-[11px]" style={{ color: B44.text3 }}>{sub}</div>
       </div>
     </div>
   );
@@ -363,12 +364,10 @@ export default function DashboardPage() {
   const BarraProgresso = ({ label, pct, valor }: { label: string; pct: number; valor: string }) => (
     <div className="mb-2.5">
       <div className="flex items-center justify-between mb-1">
-        <span className="text-[11px] text-[#5C6B70]">{label}</span>
-        <span className="text-[11px] text-[#8A989D]">{valor}</span>
+        <span className="text-[11px]" style={{ color: B44.text2 }}>{label}</span>
+        <span className="text-[11px]" style={{ color: B44.text3 }}>{valor}</span>
       </div>
-      <div className="h-1.5 rounded-full bg-[#EAE3D4] overflow-hidden">
-        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: "#009AAC" }} />
-      </div>
+      <ProgressBar value={pct} max={100} height={6} />
     </div>
   );
 
@@ -381,64 +380,64 @@ export default function DashboardPage() {
     const LIMITE = 40; const entradasView = entradas.slice(0, LIMITE);
     for (const e of entradasView) { const dk = new Date(e.at).toDateString(); let g = grupos.find(x => x.dia === dk); if (!g) { g = { dia: dk, itens: [] }; grupos.push(g); } g.itens.push(e); }
     return (
-      <div className="bg-white border border-[#E8E2D6] rounded-[12px] overflow-hidden">
-        <div className="flex items-center gap-3.5 px-[18px] py-[13px] border-b" style={{ borderColor: "#E8E2D6" }}>
-          <div className="w-[38px] h-[38px] rounded-[10px] flex items-center justify-center flex-shrink-0" style={{ background: "#E0F4F6", color: "#009AAC" }}><LuClipboardCheck size={19} /></div>
+      <div className="bg-white border rounded-[12px] overflow-hidden" style={{ borderColor: B44.line }}>
+        <div className="flex items-center gap-3.5 px-[18px] py-[13px] border-b" style={{ borderColor: B44.line }}>
+          <div className="w-[38px] h-[38px] rounded-[10px] flex items-center justify-center flex-shrink-0" style={{ background: B44.tint, color: B44.primary }}><LuClipboardCheck size={19} /></div>
           <div className="flex-1 min-w-0">
-            <div className="text-[13.5px] font-semibold text-[#014D5E]">📥 Acompanhamento de entradas</div>
-            <div className="text-xs text-[#8A989D]">Leads e clientes que entraram — dê baixa ao conferir o atendimento</div>
+            <div className="text-[13.5px] font-medium" style={{ color: B44.navy }}>📥 Acompanhamento de entradas</div>
+            <div className="text-xs" style={{ color: B44.text3 }}>Leads e clientes que entraram — dê baixa ao conferir o atendimento</div>
           </div>
-          <span className="text-[13px] font-bold text-white min-w-[26px] h-6 rounded-xl flex items-center justify-center px-2 flex-shrink-0" style={{ background: entradas.length > 0 ? "linear-gradient(90deg, #009AAC, #00B4C4)" : "#cbd5e1" }}>{entradas.length}</span>
+          <span className="text-[13px] font-medium text-white min-w-[26px] h-6 rounded-xl flex items-center justify-center px-2 flex-shrink-0" style={{ background: entradas.length > 0 ? B44.primary : "#D3D1C7" }}>{entradas.length}</span>
         </div>
         {entradas.length === 0 ? (
-          <div className="px-[18px] py-8 text-center text-sm text-[#8A989D]">Nenhuma entrada pendente de baixa.</div>
+          <div className="px-[18px] py-8 text-center text-sm" style={{ color: B44.text3 }}>Nenhuma entrada pendente de baixa.</div>
         ) : grupos.map((g) => (
           <div key={g.dia}>
-            <div className="px-[18px] py-1.5 text-[11px] font-semibold text-[#5C6B70] bg-[#F6F2EA] border-b" style={{ borderColor: "#eef2f4" }}>{fmtDia(g.itens[0].at)} ({g.itens.length})</div>
+            <div className="px-[18px] py-1.5 text-[11px] font-medium border-b" style={{ color: B44.text2, background: B44.soft, borderColor: B44.lineSoft }}>{fmtDia(g.itens[0].at)} ({g.itens.length})</div>
             {g.itens.map((e: any) => (
-              <div key={e.key} className="flex items-center gap-3 px-[18px] py-2.5 border-b hover:bg-[#E0F4F6]/40" style={{ borderColor: "#E8E2D6" }}>
+              <div key={e.key} className="flex items-center gap-3 px-[18px] py-2.5 border-b hover:bg-[#E0F4F6]/40" style={{ borderColor: B44.lineSoft }}>
                 <input type="checkbox" checked={false} onChange={() => baixarEntrada(e)} className="w-4 h-4 flex-shrink-0 cursor-pointer accent-[#009AAC]" title="Dar baixa (sai da lista, fica na ficha)" />
                 <span className="text-[10px] px-2 py-0.5 rounded-full flex-shrink-0" style={{ background: (cor[e.tipo] || cor.Cliente).bg, color: (cor[e.tipo] || cor.Cliente).fg }}>{e.tipo}</span>
-                <Link href={e.href} className="font-medium text-[13px] text-[#1F2A2E] hover:underline truncate">{e.nome}</Link>
-                {e.sub && <span className="text-xs text-[#8A989D] truncate hidden sm:block">. {e.sub}</span>}
-                <span className="ml-auto text-[11px] text-[#8A989D] flex-shrink-0">{hhmm(e.at)}</span>
+                <Link href={e.href} className="font-medium text-[13px] hover:underline truncate" style={{ color: B44.text1 }}>{e.nome}</Link>
+                {e.sub && <span className="text-xs truncate hidden sm:block" style={{ color: B44.text3 }}>. {e.sub}</span>}
+                <span className="ml-auto text-[11px] flex-shrink-0" style={{ color: B44.text3 }}>{hhmm(e.at)}</span>
               </div>
             ))}
           </div>
         ))}
         {entradas.length > 40 ? (
-          <div className="px-[18px] py-2 text-center text-[11px] text-[#8A989D] border-t" style={{ borderColor: "#E8E2D6" }}>Mostrando 40 de {entradas.length} — dê baixa para limpar a lista.</div>
+          <div className="px-[18px] py-2 text-center text-[11px] border-t" style={{ color: B44.text3, borderColor: B44.line }}>Mostrando 40 de {entradas.length} — dê baixa para limpar a lista.</div>
         ) : null}
       </div>
     );
   })() : null);
 
   const PainelEncaminhados = () => (!loading && encMine.length > 0 ? (
-    <div className="bg-white border border-[#E8E2D6] rounded-[12px] overflow-hidden">
-      <div className="flex items-center gap-3.5 px-[18px] py-[13px] border-b" style={{ borderColor: "#E8E2D6" }}>
+    <div className="bg-white border rounded-[12px] overflow-hidden" style={{ borderColor: B44.line }}>
+      <div className="flex items-center gap-3.5 px-[18px] py-[13px] border-b" style={{ borderColor: B44.line }}>
         <div className="w-[38px] h-[38px] rounded-[10px] flex items-center justify-center flex-shrink-0" style={{ background: "#fef3c7", color: "#92611A" }}><LuShare2 size={19} /></div>
         <div className="flex-1 min-w-0">
-          <div className="text-[13.5px] font-semibold text-[#014D5E]">📨 Encaminhados para mim</div>
-          <div className="text-xs text-[#8A989D]">Clientes, pets e leads que precisam do seu atendimento</div>
+          <div className="text-[13.5px] font-medium" style={{ color: B44.navy }}>📨 Encaminhados para mim</div>
+          <div className="text-xs" style={{ color: B44.text3 }}>Clientes, pets e leads que precisam do seu atendimento</div>
         </div>
-        <span className="text-[13px] font-bold text-white min-w-[26px] h-6 rounded-xl flex items-center justify-center px-2 flex-shrink-0" style={{ background: "linear-gradient(90deg,#D97706,#92611A)" }}>{encMine.length}</span>
+        <span className="text-[13px] font-medium text-white min-w-[26px] h-6 rounded-xl flex items-center justify-center px-2 flex-shrink-0" style={{ background: "#D97706" }}>{encMine.length}</span>
       </div>
       {encMine.map((e) => (
-        <div key={e.entryId} className="flex items-center gap-3 px-[18px] py-2.5 border-b hover:bg-[#fef9ec]" style={{ borderColor: "#E8E2D6" }}>
+        <div key={e.entryId} className="flex items-center gap-3 px-[18px] py-2.5 border-b hover:bg-[#fef9ec]" style={{ borderColor: B44.lineSoft }}>
           <span className="text-[10px] px-2 py-0.5 rounded-full flex-shrink-0 capitalize" style={{ background: "#FEF3C7", color: "#92611A" }}>{e.tipo}</span>
-          <Link href={encHref(e)} className="font-medium text-[13px] text-[#1F2A2E] hover:underline truncate">{e.nome}</Link>
-          {e.obs && <span className="text-xs text-[#8A989D] truncate hidden sm:block">. {e.obs}</span>}
-          {e.byName && <span className="text-[11px] text-[#8A989D] flex-shrink-0">por {e.byName}</span>}
-          <button onClick={() => concluirEnc(e)} className="ml-auto text-[11px] font-semibold text-[#0F6E56] hover:underline flex-shrink-0">Concluir</button>
+          <Link href={encHref(e)} className="font-medium text-[13px] hover:underline truncate" style={{ color: B44.text1 }}>{e.nome}</Link>
+          {e.obs && <span className="text-xs truncate hidden sm:block" style={{ color: B44.text3 }}>. {e.obs}</span>}
+          {e.byName && <span className="text-[11px] flex-shrink-0" style={{ color: B44.text3 }}>por {e.byName}</span>}
+          <button onClick={() => concluirEnc(e)} className="ml-auto text-[11px] font-medium text-[#0F6E56] hover:underline flex-shrink-0">Concluir</button>
         </div>
       ))}
     </div>
   ) : null);
 
   return (
-    <div className="p-6 min-h-screen bg-[#F6F2EA]">
+    <PageShell pad="p-6">
       {loading ? (
-        <div className="py-16 text-center text-sm text-[#8A989D]">Carregando seu dia...</div>
+        <div className="py-16 text-center text-sm" style={{ color: B44.text3 }}>Carregando seu dia...</div>
       ) : (
         <>
           {/* ===================== ADMIN ===================== */}
@@ -447,13 +446,13 @@ export default function DashboardPage() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
                 <Kpi emoji="📋" label="Atendimentos hoje" value={0} soon sub="chega com a Fase 2" />
                 <Kpi emoji="🎯" label="Novos leads" value={novosLeads} sub="dado real" />
-                <div className="bg-white rounded-[12px] p-3 border border-[#009AAC]">
+                <div className="bg-white rounded-[12px] p-3 border" style={{ borderColor: B44.primary }}>
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-[11px] text-[#8A989D]">💰 Caixa do dia</span>
+                    <span className="text-[11px]" style={{ color: B44.text3 }}>💰 Caixa do dia</span>
                     <button onClick={() => setCaixaVisivel(v => !v)} className="text-[13px] leading-none" title="Mostrar/ocultar">👁️</button>
                   </div>
-                  <div className="text-[22px] font-medium text-[#014D5E] leading-tight">{caixaVisivel ? "R$ 0" : "R$ ••••"}</div>
-                  <div className="text-[9.5px] text-[#8A989D]">só admin · em breve</div>
+                  <div className="text-[22px] font-medium leading-tight" style={{ color: B44.navy }}>{caixaVisivel ? "R$ 0" : "R$ ••••"}</div>
+                  <div className="text-[9.5px]" style={{ color: B44.text3 }}>só admin · em breve</div>
                 </div>
                 <Kpi emoji="💵" label="Faturamento do mês" value="—" soon sub="chega com a Fase 2" />
               </div>
@@ -560,6 +559,6 @@ export default function DashboardPage() {
           <PainelEntradas />
         </>
       )}
-    </div>
+    </PageShell>
   );
 }
