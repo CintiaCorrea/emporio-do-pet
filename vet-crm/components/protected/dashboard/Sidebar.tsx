@@ -11,6 +11,8 @@ import {
 import { roleLabel, roleShort, AppRole } from "@/lib/ui/role";
 import { useRolePreview } from "@/lib/ui/RolePreview";
 import { useSession } from "next-auth/react";
+import { usePermissions } from "@/lib/permissions/context";
+import { LOCKED_KEYS } from "@/lib/permissions";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -114,6 +116,7 @@ const NAV: Entry[] = [
     ],
   },
   { href: "/dashboard/configuracoes", label: "Configurações", emoji: "⚙️", roles: ["ADMIN"], section: "GESTAO" },
+  { href: "/dashboard/configuracoes/permissoes", label: "Perfis de acesso", emoji: "🔐", roles: ["ADMIN"], section: "GESTAO" },
   { href: "/dashboard/erp/dados-clinica", label: "Dados da clínica", emoji: "🏥", roles: ["ADMIN"], section: "GESTAO" },
   { href: "/dashboard/erp/logs", label: "Logs de auditoria", emoji: "📋", roles: ["ADMIN"], section: "GESTAO" },
 ];
@@ -127,6 +130,9 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
   const collapsed = !isOpen;
   const pathname = usePathname();
   const { realRole, effectiveRole, isPreviewing, setPreview } = useRolePreview();
+  const { nivel: permNivel } = usePermissions();
+  // Perfis: esconde do menu as telas marcadas "Oculto" p/ o perfil atual (nunca as travadas anti-lockout)
+  const permHidden = (href?: string) => !!href && !LOCKED_KEYS.includes(href) && permNivel(href) === "OCULTO";
   const { data: __session } = useSession();
   const meId = (__session as any)?.user?.id as string | undefined;
   const role = effectiveRole;
@@ -237,9 +243,9 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
   };
 
   const renderEntry = (entry: Entry) => {
-    if (!isGroup(entry)) return renderLink(entry);
+    if (!isGroup(entry)) return permHidden(entry.href) ? null : renderLink(entry);
 
-    const kids = entry.children.filter(visible);
+    const kids = entry.children.filter((c) => visible(c) && !permHidden(c.href));
     if (kids.length === 0) return null;
 
     // recolhido: mostra os filhos como ícones soltos
