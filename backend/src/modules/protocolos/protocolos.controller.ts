@@ -53,6 +53,23 @@ export class ProtocolosController {
     return this.service.findByPet(petId);
   }
 
+  @Get('programacao')
+  @ApiOperation({ summary: 'Programacao/agenda de doses (janela, filtros por status/tipo/busca)' })
+  @ApiQuery({ name: 'from', required: false })
+  @ApiQuery({ name: 'to', required: false })
+  @ApiQuery({ name: 'status', required: false })
+  @ApiQuery({ name: 'tipo', required: false })
+  @ApiQuery({ name: 'search', required: false })
+  programacao(
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('status') status?: string,
+    @Query('tipo') tipo?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.service.programacao({ from, to, status, tipo, search });
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Detalhe do protocolo aplicado' })
   findOne(@Param('id') id: string) {

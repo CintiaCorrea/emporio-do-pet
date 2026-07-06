@@ -194,6 +194,98 @@ export class ProtocolosService {
     }));
   }
 
+  // ----- Programacao (agenda de doses) -----
+  async programacao(params: { from?: string; to?: string; status?: string; tipo?: string; search?: string }) {
+    const { from, to, status, tipo, search } = params;
+
+    const hoje0 = new Date();
+    hoje0.setHours(0, 0, 0, 0);
+
+    const gte = from ? new Date(from) : addDays(hoje0, -365);
+    const lte = to ? new Date(to) : addDays(hoje0, 60);
+
+    const tipoFiltro = tipo && tipo !== 'all' ? tipo : 'VACINA';
+
+    const protocoloWhere: any = { tipo: tipoFiltro };
+    if (search) {
+      protocoloWhere.OR = [
+        { pet: { name: { contains: search, mode: 'insensitive' } } },
+        { tutor: { name: { contains: search, mode: 'insensitive' } } },
+      ];
+    }
+
+    const where: any = {
+      dataPrevista: { gte, lte },
+      protocolo: protocoloWhere,
+    };
+    if (status && status !== 'all') {
+      where.status = status;
+    } else {
+      where.status = { not: 'CANCELADA' };
+    }
+
+    const doses = await this.prisma.protocoloDose.findMany({
+      where,
+      orderBy: { dataPrevista: 'asc' },
+      include: {
+        protocolo: {
+          select: {
+            tipo: true,
+            nomeProtocolo: true,
+            pet: { select: { id: true, name: true, species: true } },
+            tutor: {
+              select: {
+                id: true,
+                name: true,
+                contacts: {
+                  select: { number: true, isPrimary: true },
+                  orderBy: { isPrimary: 'desc' },
+                  take: 1,
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const mapped = doses.map((d: any) => {
+      let situacao: string;
+      if (d.status === 'APLICADA') situacao = 'APLICADA';
+      else if (d.status === 'PENDENTE' && new Date(d.dataPrevista) < hoje0) situacao = 'ATRASADA';
+      else situacao = d.status;
+      return {
+        id: d.id,
+        dataPrevista: d.dataPrevista,
+        status: d.status,
+        situacao,
+        dataAplicada: d.dataAplicada ?? null,
+        protocoloId: d.protocoloId,
+        tipo: d.protocolo?.tipo ?? null,
+        nomeProtocolo: d.protocolo?.nomeProtocolo ?? null,
+        petId: d.protocolo?.pet?.id ?? null,
+        petNome: d.protocolo?.pet?.name ?? null,
+        especie: d.protocolo?.pet?.species ?? null,
+        tutorId: d.protocolo?.tutor?.id ?? null,
+        tutorNome: d.protocolo?.tutor?.name ?? null,
+        tutorPhone: d.protocolo?.tutor?.contacts?.[0]?.number ?? null,
+      };
+    });
+
+    const resumo = {
+      total: mapped.length,
+      atrasadas: mapped.filter((m) => m.situacao === 'ATRASADA').length,
+      pendentes: mapped.filter((m) => m.situacao === 'PENDENTE' || m.situacao === 'SEM_RESPOSTA').length,
+      aplicadas: mapped.filter((m) => m.situacao === 'APLICADA').length,
+    };
+
+    return {
+      doses: mapped,
+      resumo,
+      tipos: ['VACINA', 'VERMIFUGO', 'ECTOPARASITA'],
+    };
+  }
+
   async registrarDose(doseId: string, dto: RegistrarDoseDto) {
     const dose = await this.prisma.protocoloDose.findUnique({ where: { id: doseId } });
     if (!dose) throw new NotFoundException('Dose nao encontrada');
