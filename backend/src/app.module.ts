@@ -78,6 +78,7 @@ import { CrmModule } from './modules/crm/crm.module';
 import { KnowledgeBaseModule } from './modules/knowledge-base/knowledge-base.module';
 import { LandingPagesModule } from './modules/landing-pages/landing-pages.module';
 import { AuditModule } from './modules/audit/audit.module';
+import { AniversariosModule } from './modules/aniversarios/aniversarios.module';
 import configuration from './config/configuration';
 
 @Module({
@@ -164,6 +165,7 @@ import configuration from './config/configuration';
     StockModule,
     CommissionsModule,
     AuditModule, // Log de auditoria (interceptor global + consulta)
+    AniversariosModule, // Aniversários de pets/tutores
     HospitalizationsModule,
     BoxesModule,
     FinanceModule,
