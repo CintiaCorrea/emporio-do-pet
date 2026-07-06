@@ -1,669 +1,723 @@
+// DESTINO NO REPO: vet-crm/app/(user)/dashboard/erp/comissoes/page.tsx
+// Comissionamento completo no padrao Base44 "delicada".
+// 3 abas (Em aberto | Extratos | Minhas comissoes) + modal de configuracao.
+// Consome os endpoints do contrato /api/commissions/*.
+// Camada visual: KIT @/components/ui/base44 (sem tokens/inline copiados na mao).
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
+import { usePageTitle } from '@/lib/ui/PageHeaderContext';
 import {
-  LuSearch,
-  LuPlus,
-  LuDownload,
-  LuUser,
-  LuCalendar,
-  LuDollarSign,
-  LuPencil,
-  LuEye,
-  LuTrash
-} from 'react-icons/lu';
+  B44, PageShell, HeaderCard, Card, Kpi, KpiGrid, Btn, Pill, Tabs, Modal, Input, Select,
+} from '@/components/ui/base44';
 
-// Tipos para Comissões
-type CommissionStatus = 'PENDING' | 'PAID' | 'CANCELLED';
-type CommissionType = 'CONSULTATION' | 'SURGERY' | 'HOSPITALIZATION' | 'SERVICE' | 'PRODUCT';
+// Verde de sucesso pontual (sem token equivalente no kit) — usado no botao "Marcar pago"
+const GREEN = '#0f6e56';
 
-interface Commission {
+// ===== Tipos do contrato =====
+type Base = 'MARGEM' | 'CHEIO';
+type Considerar = 'BAIXADAS' | 'TODAS';
+type ExtratoStatus = 'A_PAGAR' | 'PAGO';
+
+interface CommissionConfig {
+  base: Base;
+  considerar: Considerar;
+  abaterTaxaCartao: boolean;
+  lancarContasPagar: boolean;
+  funcionarioVePropria: boolean;
+  comissionados: string[];
+}
+interface ResumoLinha {
+  userId: string;
+  nome: string;
+  iniciais?: string;
+  role?: string;
+  itens: number;
+  base: number;
+  comissao: number;
+  pctMedio: number;
+}
+interface AbertoResponse {
+  config?: CommissionConfig;
+  baixadasAte?: string;
+  resumo: ResumoLinha[];
+  totais: { itens: number; base: number; comissao: number };
+}
+interface ExtratoItem {
   id: string;
-  appointmentId?: string;
-  professional: {
-    id: string;
-    name: string;
-    role: string;
-    avatar?: string | null;
-  };
-  service: string;
-  serviceType: CommissionType;
-  clientName: string;
-  petName: string;
-  totalValue: number;
-  commissionRate: number;
-  commissionValue: number;
-  status: CommissionStatus;
-  serviceDate: string;
-  paymentDate?: string;
+  userId: string;
+  nome: string;
+  iniciais?: string;
+  itens: number;
+  comissao: number;
+  status: ExtratoStatus;
+  pagoAt?: string | null;
+}
+interface FechamentoGrupo {
+  fechamentoId: string;
   createdAt: string;
+  referencia: string;
+  baixadasAte: string;
+  total: number;
+  extratos: ExtratoItem[];
+}
+interface MinhaLinha {
+  grupo?: string;
+  nome?: string;
+  data?: string;
+  itens: number;
+  base: number;
+  comissao: number;
+  pctMedio: number;
+}
+interface MinhasResponse {
+  resumo: { itens: number; base: number; comissao: number; pctMedio: number };
+  porGrupo: MinhaLinha[];
+  porProduto: MinhaLinha[];
+  porData: MinhaLinha[];
+}
+interface UsuarioLite { id: string; name: string; email?: string; role?: string }
+
+// ===== Formatadores =====
+const brl = (v: number) =>
+  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number.isFinite(v) ? v : 0);
+const pct = (v: number) => `${(Number.isFinite(v) ? v : 0).toFixed(1)}%`;
+const dataBR = (s?: string | null) =>
+  s ? new Date(s).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
+const hojeStr = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+// "2026-06-15" -> "Junho/2026"
+const referenciaDe = (ymd: string) => {
+  const [y, m] = ymd.split('-');
+  const idx = Math.max(0, Math.min(11, Number(m) - 1));
+  return `${MESES[idx]}/${y}`;
+};
+const iniciaisDe = (nome?: string) =>
+  (nome || '?')
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase() || '')
+    .join('') || '?';
+
+// ===== Estilos de tabela (tokens do kit B44) =====
+const thStyle: React.CSSProperties = { color: B44.text3, fontWeight: 500, fontSize: 11.5, textTransform: 'uppercase', letterSpacing: '.03em', padding: '10px 12px', borderBottom: `1px solid ${B44.line}`, textAlign: 'left' };
+const thNum: React.CSSProperties = { ...thStyle, textAlign: 'right' };
+const tdStyle: React.CSSProperties = { padding: '12px', borderBottom: `1px solid ${B44.lineSoft}`, color: B44.text1, fontSize: 13 };
+const tdNum: React.CSSProperties = { ...tdStyle, textAlign: 'right' };
+const labelStyle: React.CSSProperties = { display: 'block', fontSize: 11.5, color: B44.text3, marginBottom: 5, fontWeight: 500 };
+
+// Avatar de iniciais (mantém as iniciais vindas da API quando existirem)
+function Avatar({ nome, iniciais }: { nome?: string; iniciais?: string }) {
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 30, height: 30, borderRadius: '50%', background: B44.tint, color: B44.navy, fontSize: 11.5, fontWeight: 600, flexShrink: 0 }}>
+      {iniciais || iniciaisDe(nome)}
+    </span>
+  );
 }
 
-interface ApiResponse {
-  commissions: Commission[];
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    pages: number;
-  };
-}
+type TabKey = 'aberto' | 'extratos' | 'minhas';
+type SubMinha = 'grupo' | 'produto' | 'data' | 'resumo';
 
 export default function ComissoesPage() {
-  const [commissions, setCommissions] = useState<Commission[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<CommissionStatus | 'all'>('all');
-  const [typeFilter, setTypeFilter] = useState<CommissionType | 'all'>('all');
-  const [professionalFilter, setProfessionalFilter] = useState<string>('all');
-  const [selectedCommission, setSelectedCommission] = useState<Commission | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [dateRange, setDateRange] = useState('30dias');
+  usePageTitle('Comissionamento', 'Comissões dos profissionais');
 
-  useEffect(() => {
-    fetchCommissions();
-  }, [statusFilter, professionalFilter, dateRange]);
+  const [tab, setTab] = useState<TabKey>('aberto');
+  const [config, setConfig] = useState<CommissionConfig | null>(null);
 
-  const fetchCommissions = async () => {
+  // ---- Aba Em aberto ----
+  const [baixadasAte, setBaixadasAte] = useState(hojeStr());
+  const [aberto, setAberto] = useState<AbertoResponse | null>(null);
+  const [loadingAberto, setLoadingAberto] = useState(false);
+  const [fechando, setFechando] = useState(false);
+
+  // ---- Aba Extratos ----
+  const [exMonth, setExMonth] = useState('');
+  const [exUser, setExUser] = useState('');
+  const [exStatus, setExStatus] = useState<'' | ExtratoStatus>('');
+  const [extratos, setExtratos] = useState<FechamentoGrupo[]>([]);
+  const [loadingExtratos, setLoadingExtratos] = useState(false);
+
+  // ---- Aba Minhas ----
+  const [minhasAte, setMinhasAte] = useState(hojeStr());
+  const [minhas, setMinhas] = useState<MinhasResponse | null>(null);
+  const [loadingMinhas, setLoadingMinhas] = useState(false);
+  const [subMinha, setSubMinha] = useState<SubMinha>('grupo');
+
+  // ---- Modal de config ----
+  const [configOpen, setConfigOpen] = useState(false);
+  const [cfgDraft, setCfgDraft] = useState<CommissionConfig | null>(null);
+  const [usuarios, setUsuarios] = useState<UsuarioLite[]>([]);
+  const [savingConfig, setSavingConfig] = useState(false);
+
+  const verPropria = config?.funcionarioVePropria !== false;
+
+  // ===== Carregamento inicial da config (define visibilidade da aba Minhas) =====
+  const loadConfig = useCallback(async () => {
     try {
-      setLoading(true);
-      setError(null);
-
-      const params = new URLSearchParams();
-      params.append('limit', '1000');
-      if (statusFilter !== 'all') params.append('status', statusFilter);
-      if (professionalFilter !== 'all') params.append('userId', professionalFilter);
-      
-      // Calcular datas baseado no range
-      const endDate = new Date();
-      const startDate = new Date();
-      if (dateRange === '7dias') {
-        startDate.setDate(endDate.getDate() - 7);
-      } else if (dateRange === '30dias') {
-        startDate.setDate(endDate.getDate() - 30);
-      } else if (dateRange === '90dias') {
-        startDate.setDate(endDate.getDate() - 90);
-      } else if (dateRange === 'ano') {
-        startDate.setFullYear(endDate.getFullYear(), 0, 1);
+      const r = await fetch('/api/commissions/config', { cache: 'no-store' });
+      if (r.ok) {
+        const data = await r.json();
+        if (data && typeof data === 'object') setConfig(data);
       }
-      
-      params.append('startDate', startDate.toISOString());
-      params.append('endDate', endDate.toISOString());
+    } catch { /* silencioso */ }
+  }, []);
 
-      const response = await fetch(`/api/commissions?${params.toString()}`);
-      if (!response.ok) throw new Error('Erro ao carregar comissões');
-      
-      const data: ApiResponse = await response.json();
-      setCommissions(data.commissions || []);
-    } catch (err) {
-      console.error('Erro ao carregar comissões:', err);
-      setError(err instanceof Error ? err.message : 'Erro desconhecido');
-      toast.error('Erro ao carregar comissões');
+  useEffect(() => { loadConfig(); }, [loadConfig]);
+
+  // ===== Aba Em aberto =====
+  const fetchAberto = useCallback(async () => {
+    try {
+      setLoadingAberto(true);
+      const iso = new Date(baixadasAte + 'T23:59:59').toISOString();
+      const r = await fetch(`/api/commissions/aberto?baixadasAte=${encodeURIComponent(iso)}`, { cache: 'no-store' });
+      if (!r.ok) throw new Error('Erro ao carregar comissões em aberto');
+      const data: AbertoResponse = await r.json();
+      setAberto(data);
+      if (data?.config) setConfig(data.config);
+    } catch (e: any) {
+      toast.error(e.message || 'Erro ao carregar comissões em aberto');
+      setAberto(null);
     } finally {
-      setLoading(false);
+      setLoadingAberto(false);
+    }
+  }, [baixadasAte]);
+
+  useEffect(() => { if (tab === 'aberto') fetchAberto(); }, [tab, fetchAberto]);
+
+  const handleFechar = async () => {
+    const referencia = referenciaDe(baixadasAte);
+    if (!confirm(`Fechar as comissões de ${referencia} (vendas baixadas até ${dataBR(baixadasAte)})?\n\nIsso gera os extratos para pagamento.`)) return;
+    try {
+      setFechando(true);
+      const iso = new Date(baixadasAte + 'T23:59:59').toISOString();
+      const r = await fetch('/api/commissions/fechar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ baixadasAte: iso, referencia }),
+      });
+      if (!r.ok) {
+        const err = await r.json().catch(() => null);
+        throw new Error(err?.error || err?.message || 'Erro ao fechar comissões');
+      }
+      toast.success(`Comissões de ${referencia} fechadas!`);
+      fetchAberto();
+    } catch (e: any) {
+      toast.error(e.message || 'Erro ao fechar comissões');
+    } finally {
+      setFechando(false);
     }
   };
 
+  // ===== Aba Extratos =====
+  const fetchExtratos = useCallback(async () => {
+    try {
+      setLoadingExtratos(true);
+      const params = new URLSearchParams();
+      if (exMonth) {
+        // month input "2026-06" -> from/to do mes
+        const [y, m] = exMonth.split('-').map(Number);
+        const from = new Date(y, m - 1, 1).toISOString();
+        const to = new Date(y, m, 0, 23, 59, 59).toISOString();
+        params.set('from', from);
+        params.set('to', to);
+      }
+      if (exUser) params.set('userId', exUser);
+      if (exStatus) params.set('status', exStatus);
+      const qs = params.toString();
+      const r = await fetch(`/api/commissions/extratos${qs ? `?${qs}` : ''}`, { cache: 'no-store' });
+      if (!r.ok) throw new Error('Erro ao carregar extratos');
+      const data = await r.json();
+      setExtratos(Array.isArray(data) ? data : []);
+    } catch (e: any) {
+      toast.error(e.message || 'Erro ao carregar extratos');
+      setExtratos([]);
+    } finally {
+      setLoadingExtratos(false);
+    }
+  }, [exMonth, exUser, exStatus]);
 
-  // Profissionais únicos para o filtro
-  const professionals = Array.from(new Set(commissions.map(c => c.professional.id)))
-    .map(id => commissions.find(c => c.professional.id === id)?.professional)
-    .filter(Boolean) as Array<{ id: string; name: string; role: string }>;
+  useEffect(() => { if (tab === 'extratos') fetchExtratos(); }, [tab, fetchExtratos]);
 
-  // Filtros
-  const filteredCommissions = commissions.filter(commission => {
-    const matchesSearch = 
-      commission.professional.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      commission.service.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      commission.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      commission.petName.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || commission.status === statusFilter;
-    const matchesType = typeFilter === 'all' || commission.serviceType === typeFilter;
-    const matchesProfessional = professionalFilter === 'all' || commission.professional.id === professionalFilter;
-    return matchesSearch && matchesStatus && matchesType && matchesProfessional;
-  });
-
-  // Estatísticas
-  const stats = {
-    totalCommissions: commissions.reduce((sum, c) => sum + c.commissionValue, 0),
-    pendingCommissions: commissions.filter(c => c.status === 'PENDING').reduce((sum, c) => sum + c.commissionValue, 0),
-    paidCommissions: commissions.filter(c => c.status === 'PAID').reduce((sum, c) => sum + c.commissionValue, 0),
-    totalServices: commissions.length,
-    avgCommissionRate: commissions.length > 0 
-      ? (commissions.reduce((sum, c) => sum + c.commissionRate, 0) / commissions.length).toFixed(1)
-      : '0'
-  };
-
-  const getStatusColor = (status: CommissionStatus) => {
-    switch (status) {
-      case 'PAID': return 'bg-cyan-100 text-cyan-700 border-cyan-200';
-      case 'PENDING': return 'bg-orange-100 text-orange-700 border-orange-200';
-      case 'CANCELLED': return 'bg-red-100 text-red-700 border-red-200';
+  const handleTogglePago = async (ex: ExtratoItem) => {
+    const novo: ExtratoStatus = ex.status === 'A_PAGAR' ? 'PAGO' : 'A_PAGAR';
+    try {
+      const r = await fetch(`/api/commissions/extratos/${ex.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: novo }),
+      });
+      if (!r.ok) throw new Error('Erro ao atualizar extrato');
+      toast.success(novo === 'PAGO' ? 'Marcado como pago!' : 'Extrato reaberto');
+      fetchExtratos();
+    } catch (e: any) {
+      toast.error(e.message || 'Erro ao atualizar extrato');
     }
   };
 
-  const getStatusText = (status: CommissionStatus) => {
-    switch (status) {
-      case 'PAID': return 'Pago';
-      case 'PENDING': return 'Pendente';
-      case 'CANCELLED': return 'Cancelado';
+  // ===== Aba Minhas =====
+  const fetchMinhas = useCallback(async () => {
+    try {
+      setLoadingMinhas(true);
+      const iso = new Date(minhasAte + 'T23:59:59').toISOString();
+      const r = await fetch(`/api/commissions/minhas?baixadasAte=${encodeURIComponent(iso)}`, { cache: 'no-store' });
+      if (!r.ok) throw new Error('Erro ao carregar minhas comissões');
+      const data: MinhasResponse = await r.json();
+      setMinhas(data);
+    } catch (e: any) {
+      toast.error(e.message || 'Erro ao carregar minhas comissões');
+      setMinhas(null);
+    } finally {
+      setLoadingMinhas(false);
+    }
+  }, [minhasAte]);
+
+  useEffect(() => { if (tab === 'minhas') fetchMinhas(); }, [tab, fetchMinhas]);
+
+  // ===== Modal de config =====
+  const openConfig = async () => {
+    setConfigOpen(true);
+    // carrega config atual
+    try {
+      const r = await fetch('/api/commissions/config', { cache: 'no-store' });
+      if (r.ok) {
+        const data = await r.json();
+        setConfig(data);
+        setCfgDraft(data);
+      } else {
+        setCfgDraft(config);
+      }
+    } catch {
+      setCfgDraft(config);
+    }
+    // carrega usuarios (comissionaveis)
+    try {
+      const r = await fetch('/api/users', { cache: 'no-store' });
+      if (r.ok) {
+        const data = await r.json();
+        setUsuarios(Array.isArray(data) ? data : (data?.users || data?.data || []));
+      }
+    } catch { /* silencioso */ }
+  };
+
+  const saveConfig = async () => {
+    if (!cfgDraft) return;
+    try {
+      setSavingConfig(true);
+      const r = await fetch('/api/commissions/config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(cfgDraft),
+      });
+      if (!r.ok) {
+        const err = await r.json().catch(() => null);
+        throw new Error(err?.error || err?.message || 'Erro ao salvar configuração');
+      }
+      toast.success('Configuração salva!');
+      setConfig(cfgDraft);
+      setConfigOpen(false);
+      // recarrega aba atual
+      if (tab === 'aberto') fetchAberto();
+      else if (tab === 'extratos') fetchExtratos();
+      else if (tab === 'minhas') fetchMinhas();
+    } catch (e: any) {
+      toast.error(e.message || 'Erro ao salvar configuração');
+    } finally {
+      setSavingConfig(false);
     }
   };
 
-  const getTypeColor = (type: CommissionType) => {
-    switch (type) {
-      case 'CONSULTATION': return 'bg-blue-100 text-blue-800';
-      case 'SURGERY': return 'bg-red-100 text-red-800';
-      case 'HOSPITALIZATION': return 'bg-purple-100 text-purple-800';
-      case 'SERVICE': return 'bg-cyan-100 text-cyan-800';
-      case 'PRODUCT': return 'bg-orange-100 text-orange-800';
-    }
-  };
-
-  const getTypeText = (type: CommissionType) => {
-    switch (type) {
-      case 'CONSULTATION': return 'Consulta';
-      case 'SURGERY': return 'Cirurgia';
-      case 'HOSPITALIZATION': return 'Internação';
-      case 'SERVICE': return 'Serviço';
-      case 'PRODUCT': return 'Produto';
-    }
-  };
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(value);
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
+  const toggleComissionado = (userId: string) => {
+    setCfgDraft((prev) => {
+      if (!prev) return prev;
+      const set = new Set(prev.comissionados || []);
+      if (set.has(userId)) set.delete(userId);
+      else set.add(userId);
+      return { ...prev, comissionados: Array.from(set) };
     });
   };
 
-  const openCommissionDetails = (commission: Commission) => {
-    setSelectedCommission(commission);
-    setIsModalOpen(true);
-  };
-
-  const handleMarkAsPaid = async (commission: Commission) => {
-    try {
-      const response = await fetch(`/api/commissions/${commission.id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          status: 'PAID'
-        })
-      });
-
-      if (!response.ok) throw new Error('Erro ao atualizar comissão');
-
-      toast.success('Comissão marcada como paga!');
-      setIsModalOpen(false);
-      fetchCommissions();
-    } catch (err) {
-      console.error('Erro ao marcar como pago:', err);
-      toast.error('Erro ao atualizar comissão');
-    }
-  };
-
-  const handleDeleteCommission = async (commission: Commission) => {
-    if (!confirm('Tem certeza que deseja cancelar esta comissão?')) return;
-
-    try {
-      const response = await fetch(`/api/commissions/${commission.id}`, {
-        method: 'DELETE'
-      });
-
-      if (!response.ok) throw new Error('Erro ao cancelar comissão');
-
-      toast.success('Comissão cancelada com sucesso!');
-      setIsModalOpen(false);
-      fetchCommissions();
-    } catch (err) {
-      console.error('Erro ao cancelar comissão:', err);
-      toast.error('Erro ao cancelar comissão');
-    }
-  };
-
-  const exportToCSV = () => {
-    const headers = ['Profissional', 'Serviço', 'Cliente', 'Pet', 'Valor Total', 'Taxa', 'Comissão', 'Status', 'Data'];
-    const rows = filteredCommissions.map(commission => [
-      commission.professional.name,
-      commission.service,
-      commission.clientName,
-      commission.petName,
-      commission.totalValue.toFixed(2),
-      `${commission.commissionRate}%`,
-      commission.commissionValue.toFixed(2),
-      getStatusText(commission.status),
-      formatDate(commission.serviceDate)
-    ]);
-
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
-    ].join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `comissoes-${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    toast.success('Relatório exportado com sucesso!');
-  };
-
-  if (loading && commissions.length === 0) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/10 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Carregando comissões...</p>
-        </div>
-      </div>
-    );
-  }
+  // ===== Render de abas =====
+  const tabs: { key: TabKey; emoji: string; label: string; show: boolean }[] = [
+    { key: 'aberto', emoji: '📂', label: 'Em aberto', show: true },
+    { key: 'extratos', emoji: '📁', label: 'Extratos', show: true },
+    { key: 'minhas', emoji: '👤', label: 'Minhas comissões', show: verPropria },
+  ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/10 w-full overflow-hidden">
-      <div className="p-6">
-        <div className="max-w-7xl mx-auto">
-            {/* Header */}
-            <div className="mb-8">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                  <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-                    Comissões
-                  </h1>
-                  <p className="text-gray-600 mt-2">
-                    Gerencie as comissões dos profissionais da clínica
+    <PageShell pad="p-6">
+      <div style={{ maxWidth: 1280, margin: '0 auto' }}>
+
+        {/* Header */}
+        <HeaderCard>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+            <h1 style={{ fontSize: 24, fontWeight: 500, color: B44.navy, margin: 0, display: 'flex', alignItems: 'center', gap: 9 }}>
+              <span style={{ fontSize: 22 }}>🧾</span> Comissionamento
+            </h1>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <Btn variant="ghost" onClick={openConfig}>⚙️ Configurar</Btn>
+              <Btn variant="ghost" onClick={() => window.print()}>🖨️ Imprimir</Btn>
+            </div>
+          </div>
+        </HeaderCard>
+
+        {/* Abas */}
+        <Tabs
+          tabs={tabs.filter((t) => t.show).map((t) => ({ k: t.key, label: `${t.emoji} ${t.label}` }))}
+          active={tab}
+          onChange={setTab}
+        />
+
+        {/* ===================== ABA EM ABERTO ===================== */}
+        {tab === 'aberto' && (
+          <div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: 12, marginBottom: 20 }}>
+              <div>
+                <label style={labelStyle}>Vendas baixadas até</label>
+                <Input type="date" value={baixadasAte} onChange={(e) => setBaixadasAte(e.target.value)} style={{ width: 170 }} />
+              </div>
+              <Btn variant="primary" onClick={handleFechar} disabled={fechando}>
+                🔒 {fechando ? 'Fechando...' : 'Fechar comissões do período'}
+              </Btn>
+            </div>
+
+            <div style={{ marginBottom: 22 }}>
+              <KpiGrid min={200}>
+                <Kpi emoji="💰" label="Total em aberto" value={brl(aberto?.totais?.comissao || 0)} />
+                <Kpi emoji="👥" label="Comissionados" value={String(aberto?.resumo?.length || 0)} />
+                <Kpi emoji="📦" label="Itens baixados" value={String(aberto?.totais?.itens || 0)} />
+              </KpiGrid>
+            </div>
+
+            {loadingAberto ? (
+              <Card pad="48px"><div style={{ textAlign: 'center', color: B44.text2 }}>Carregando...</div></Card>
+            ) : !aberto || aberto.resumo.length === 0 ? (
+              <Card pad="56px 20px">
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: 34 }}>🧾</div>
+                  <h3 style={{ fontSize: 17, fontWeight: 500, color: B44.navy, margin: '12px 0 6px' }}>Nenhuma comissão em aberto</h3>
+                  <p style={{ color: B44.text2, fontSize: 13.5, maxWidth: 460, margin: '0 auto' }}>
+                    Verifique se os profissionais têm % configurado e se há vendas baixadas no período.
                   </p>
                 </div>
-                <div className="flex gap-3">
-                  <button
-                    onClick={exportToCSV}
-                    className="group px-6 py-3 text-sm font-semibold text-gray-700 bg-white/80 border border-gray-200/80 rounded-2xl hover:bg-white hover:border-gray-300 hover:shadow-lg transition-all duration-300 hover:scale-105 flex items-center space-x-2"
-                  >
-                    <LuDownload className="w-4 h-4" />
-                    <span>Exportar</span>
-                  </button>
-                  <button
-                    onClick={fetchCommissions}
-                    className="group px-6 py-3 text-sm font-semibold text-gray-700 bg-white/80 border border-gray-200/80 rounded-2xl hover:bg-white hover:border-gray-300 hover:shadow-lg transition-all duration-300 hover:scale-105 flex items-center space-x-2"
-                  >
-                    <span style={{fontSize:"14px"}}>↻</span>
-                    <span>Atualizar</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Error Message */}
-            {error && (
-              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-2xl text-red-700">
-                {error}
-                <button 
-                  onClick={() => setError(null)}
-                  className="float-right text-red-500 hover:text-red-700"
-                >
-                  <span style={{fontSize:"14px"}}>✕</span>
-                </button>
-              </div>
-            )}
-
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-              <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-blue-500/5 p-6 hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-300 hover:scale-105">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 rounded-xl bg-gray-50">
-                    <LuDollarSign className="w-6 h-6 text-gray-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-600">Total Comissões</p>
-                    <p className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">{formatCurrency(stats.totalCommissions)}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-blue-500/5 p-6 hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-300 hover:scale-105">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 rounded-xl bg-cyan-50">
-                    <span style={{fontSize:"14px"}}>✓</span>
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-600">Pagas</p>
-                    <p className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">{formatCurrency(stats.paidCommissions)}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-blue-500/5 p-6 hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-300 hover:scale-105">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 rounded-xl bg-orange-50">
-                    <span style={{fontSize:"14px"}}>⏱</span>
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-600">Pendentes</p>
-                    <p className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">{formatCurrency(stats.pendingCommissions)}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-blue-500/5 p-6 hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-300 hover:scale-105">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 rounded-xl bg-blue-50">
-                    <LuCalendar className="w-6 h-6 text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-600">Total Serviços</p>
-                    <p className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">{stats.totalServices}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-blue-500/5 p-6 hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-300 hover:scale-105">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 rounded-xl bg-purple-50">
-                    <span style={{fontSize:"14px"}}>%</span>
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-600">Taxa Média</p>
-                    <p className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">{stats.avgCommissionRate}%</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Filtros */}
-            <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-blue-500/5 p-6 mb-6">
-              <div className="flex flex-col lg:flex-row gap-4">
-                {/* Busca */}
-                <div className="flex-1 relative">
-                  <LuSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <input
-                    type="text"
-                    placeholder="Buscar por profissional, serviço ou cliente..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-12 pr-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm"
-                  />
-                </div>
-
-                {/* Filtro Profissional */}
-                <div className="flex items-center gap-2">
-                  <LuUser className="text-gray-400 w-5 h-5" />
-                  <select
-                    value={professionalFilter}
-                    onChange={(e) => setProfessionalFilter(e.target.value)}
-                    className="px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm"
-                  >
-                    <option value="all">Todos Profissionais</option>
-                    {professionals.map(p => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Filtro Status */}
-                <div className="flex items-center gap-2">
-                  <span style={{fontSize:"14px"}}>⌕</span>
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value as CommissionStatus | 'all')}
-                    className="px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm"
-                  >
-                    <option value="all">Todos Status</option>
-                    <option value="PAID">Pago</option>
-                    <option value="PENDING">Pendente</option>
-                    <option value="CANCELLED">Cancelado</option>
-                  </select>
-                </div>
-
-                {/* Filtro Período */}
-                <div className="flex items-center gap-2">
-                  <LuCalendar className="text-gray-400 w-5 h-5" />
-                  <select
-                    value={dateRange}
-                    onChange={(e) => {
-                      setDateRange(e.target.value);
-                      fetchCommissions();
-                    }}
-                    className="px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm"
-                  >
-                    <option value="7dias">Últimos 7 dias</option>
-                    <option value="30dias">Últimos 30 dias</option>
-                    <option value="90dias">Últimos 90 dias</option>
-                    <option value="ano">Este ano</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            {/* Tabela de Comissões */}
-            {filteredCommissions.length === 0 && !loading ? (
-              <div className="flex flex-col items-center justify-center py-20 bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl">
-                <span style={{fontSize:"14px"}}>%</span>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">Nenhuma comissão encontrada</h3>
-                <p className="text-gray-500 text-center max-w-md">
-                  {searchTerm || statusFilter !== 'all' || professionalFilter !== 'all'
-                    ? 'Tente ajustar os filtros para encontrar as comissões desejadas.'
-                    : 'As comissões aparecerão aqui quando houver agendamentos com pagamentos.'}
-                </p>
-              </div>
+              </Card>
             ) : (
-              <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-blue-500/5 overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
+              <div style={{ background: '#fff', border: `1px solid ${B44.line}`, borderRadius: 12, overflow: 'hidden' }}>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
-                      <tr className="bg-gradient-to-r from-gray-50 to-gray-100/50 border-b border-white/20">
-                        <th className="text-left p-6 font-semibold text-gray-700">Profissional</th>
-                        <th className="text-left p-6 font-semibold text-gray-700">Serviço</th>
-                        <th className="text-left p-6 font-semibold text-gray-700">Cliente / Pet</th>
-                        <th className="text-left p-6 font-semibold text-gray-700">Valor Total</th>
-                        <th className="text-left p-6 font-semibold text-gray-700">Taxa</th>
-                        <th className="text-left p-6 font-semibold text-gray-700">Comissão</th>
-                        <th className="text-left p-6 font-semibold text-gray-700">Status</th>
-                        <th className="text-left p-6 font-semibold text-gray-700">Data</th>
-                        <th className="text-left p-6 font-semibold text-gray-700">Ações</th>
+                      <tr>
+                        <th style={thStyle}>Funcionário</th>
+                        <th style={thNum}>Itens</th>
+                        <th style={thNum}>Base</th>
+                        <th style={thNum}>% médio</th>
+                        <th style={thNum}>Comissão</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredCommissions.map((commission) => (
-                        <tr 
-                          key={commission.id}
-                          className="border-b border-white/20 hover:bg-gray-50/50 transition-all duration-300"
-                        >
-                          <td className="p-6">
-                            <div>
-                              <p className="font-semibold text-gray-900">{commission.professional.name}</p>
-                              <p className="text-sm text-gray-500">{commission.professional.role}</p>
+                      {aberto.resumo.map((l) => (
+                        <tr key={l.userId}>
+                          <td style={tdStyle}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                              <Avatar nome={l.nome} iniciais={l.iniciais} />
+                              <div>
+                                <div style={{ fontWeight: 500, color: B44.text1 }}>{l.nome}</div>
+                                {l.role && <div style={{ fontSize: 11.5, color: B44.text3 }}>{l.role}</div>}
+                              </div>
                             </div>
                           </td>
-                          <td className="p-6">
-                            <div>
-                              <p className="text-gray-900">{commission.service}</p>
-                              <span className={`inline-flex mt-1 px-2 py-0.5 text-xs rounded-full ${getTypeColor(commission.serviceType)}`}>
-                                {getTypeText(commission.serviceType)}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="p-6">
-                            <div>
-                              <p className="text-gray-900">{commission.clientName}</p>
-                              <p className="text-sm text-gray-500">{commission.petName}</p>
-                            </div>
-                          </td>
-                          <td className="p-6">
-                            <p className="text-gray-900 font-medium">{formatCurrency(commission.totalValue)}</p>
-                          </td>
-                          <td className="p-6">
-                            <p className="text-blue-600 font-medium">{commission.commissionRate}%</p>
-                          </td>
-                          <td className="p-6">
-                            <p className="text-cyan-600 font-bold">{formatCurrency(commission.commissionValue)}</p>
-                          </td>
-                          <td className="p-6">
-                            <span className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full border ${getStatusColor(commission.status)}`}>
-                              {getStatusText(commission.status)}
-                            </span>
-                          </td>
-                          <td className="p-6">
-                            <p className="text-gray-600">{formatDate(commission.serviceDate)}</p>
-                          </td>
-                          <td className="p-6">
-                            <button
-                              onClick={() => openCommissionDetails(commission)}
-                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-xl transition-colors"
-                              title="Ver detalhes"
-                            >
-                              <LuEye className="w-4 h-4" />
-                            </button>
-                          </td>
+                          <td style={tdNum}>{l.itens}</td>
+                          <td style={tdNum}>{brl(l.base)}</td>
+                          <td style={{ ...tdNum, color: B44.primary }}>{pct(l.pctMedio)}</td>
+                          <td style={{ ...tdNum, fontWeight: 600, color: B44.navy }}>{brl(l.comissao)}</td>
                         </tr>
                       ))}
                     </tbody>
+                    <tfoot>
+                      <tr>
+                        <td style={{ ...tdStyle, fontWeight: 600, color: B44.text1, borderBottom: 'none', background: B44.soft }}>Total</td>
+                        <td style={{ ...tdNum, fontWeight: 600, borderBottom: 'none', background: B44.soft }}>{aberto.totais.itens}</td>
+                        <td style={{ ...tdNum, fontWeight: 600, borderBottom: 'none', background: B44.soft }}>{brl(aberto.totais.base)}</td>
+                        <td style={{ ...tdNum, borderBottom: 'none', background: B44.soft }}></td>
+                        <td style={{ ...tdNum, fontWeight: 700, color: B44.navy, borderBottom: 'none', background: B44.soft }}>{brl(aberto.totais.comissao)}</td>
+                      </tr>
+                    </tfoot>
                   </table>
-                </div>
-
-                {/* Footer da tabela */}
-                <div className="flex flex-col sm:flex-row justify-between items-center p-6 border-t border-white/20 bg-gradient-to-r from-gray-50 to-gray-100/50">
-                  <div className="text-sm text-gray-600 mb-4 sm:mb-0">
-                    Mostrando {filteredCommissions.length} de {commissions.length} comissões
-                  </div>
                 </div>
               </div>
             )}
           </div>
-        </div>
+        )}
 
-      {/* Modal de Detalhes */}
-      {isModalOpen && selectedCommission && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex items-start justify-between">
+        {/* ===================== ABA EXTRATOS ===================== */}
+        {tab === 'extratos' && (
+          <div>
+            <Card pad="16px 18px" className="mb-5">
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, alignItems: 'flex-end' }}>
                 <div>
-                  <h2 className="text-xl font-bold text-gray-900">Detalhes da Comissão</h2>
-                  <p className="text-gray-500">#{selectedCommission.id.slice(0, 8)}...</p>
+                  <label style={labelStyle}>Período</label>
+                  <Input type="month" value={exMonth} onChange={(e) => setExMonth(e.target.value)} style={{ width: 170 }} />
                 </div>
-                <button
-                  onClick={() => setIsModalOpen(false)}
-                  className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
-                >
-                  <span style={{fontSize:"14px"}}>✕</span>
-                </button>
+                <div>
+                  <label style={labelStyle}>Funcionário</label>
+                  <Select value={exUser} onChange={(e) => setExUser(e.target.value)} style={{ minWidth: 180 }}>
+                    <option value="">Todos</option>
+                    {usuarios.map((u) => (<option key={u.id} value={u.id}>{u.name}</option>))}
+                  </Select>
+                </div>
+                <div>
+                  <label style={labelStyle}>Status</label>
+                  <Select value={exStatus} onChange={(e) => setExStatus(e.target.value as '' | ExtratoStatus)} style={{ minWidth: 140 }}>
+                    <option value="">Todos</option>
+                    <option value="A_PAGAR">A pagar</option>
+                    <option value="PAGO">Pago</option>
+                  </Select>
+                </div>
+              </div>
+            </Card>
+
+            {loadingExtratos ? (
+              <Card pad="48px"><div style={{ textAlign: 'center', color: B44.text2 }}>Carregando...</div></Card>
+            ) : extratos.length === 0 ? (
+              <Card pad="56px 20px">
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: 34 }}>📁</div>
+                  <h3 style={{ fontSize: 17, fontWeight: 500, color: B44.navy, margin: '12px 0 6px' }}>Nenhum fechamento encontrado</h3>
+                  <p style={{ color: B44.text2, fontSize: 13.5 }}>Feche um período na aba "Em aberto" para gerar extratos.</p>
+                </div>
+              </Card>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                {extratos.map((g) => (
+                  <div key={g.fechamentoId} style={{ background: '#fff', border: `1px solid ${B44.line}`, borderRadius: 12, overflow: 'hidden' }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 10, padding: '13px 16px', background: B44.soft, borderBottom: `1px solid ${B44.line}` }}>
+                      <div style={{ fontSize: 13.5, fontWeight: 500, color: B44.navy }}>
+                        🔒 Fechado em {dataBR(g.createdAt)} · {g.referencia}
+                      </div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: B44.navy }}>{brl(g.total)}</div>
+                    </div>
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                        <thead>
+                          <tr>
+                            <th style={thStyle}>Funcionário</th>
+                            <th style={thNum}>Itens</th>
+                            <th style={thNum}>Comissão</th>
+                            <th style={{ ...thStyle, textAlign: 'center' }}>Status</th>
+                            <th style={{ ...thStyle, textAlign: 'right' }}>Ação</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {g.extratos.map((ex) => (
+                            <tr key={ex.id}>
+                              <td style={tdStyle}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                  <Avatar nome={ex.nome} iniciais={ex.iniciais} />
+                                  <span style={{ fontWeight: 500 }}>{ex.nome}</span>
+                                </div>
+                              </td>
+                              <td style={tdNum}>{ex.itens}</td>
+                              <td style={{ ...tdNum, fontWeight: 600, color: B44.navy }}>{brl(ex.comissao)}</td>
+                              <td style={{ ...tdStyle, textAlign: 'center' }}>
+                                <Pill tone={ex.status === 'PAGO' ? 'ok' : 'warn'}>{ex.status === 'PAGO' ? 'Pago' : 'A pagar'}</Pill>
+                              </td>
+                              <td style={{ ...tdStyle, textAlign: 'right' }}>
+                                <Btn
+                                  variant="ghost"
+                                  onClick={() => handleTogglePago(ex)}
+                                  style={ex.status === 'A_PAGAR' ? { borderColor: GREEN, color: GREEN } : undefined}
+                                >
+                                  {ex.status === 'A_PAGAR' ? '✅ Marcar pago' : '↩️ Reabrir'}
+                                </Btn>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ===================== ABA MINHAS COMISSÕES ===================== */}
+        {tab === 'minhas' && (
+          <div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: 12, marginBottom: 20 }}>
+              <div>
+                <label style={labelStyle}>Vendas baixadas até</label>
+                <Input type="date" value={minhasAte} onChange={(e) => setMinhasAte(e.target.value)} style={{ width: 170 }} />
+              </div>
+              <Btn variant="ghost" onClick={() => setTab('extratos')}>📁 Ver meus extratos</Btn>
+            </div>
+
+            <div style={{ marginBottom: 22 }}>
+              <KpiGrid min={200}>
+                <Kpi emoji="💰" label="Minha comissão em aberto" value={brl(minhas?.resumo?.comissao || 0)} />
+                <Kpi emoji="📦" label="Meus itens" value={String(minhas?.resumo?.itens || 0)} />
+                <Kpi emoji="📊" label="Meu % médio" value={pct(minhas?.resumo?.pctMedio || 0)} />
+              </KpiGrid>
+            </div>
+
+            {/* Sub-abas (chips) */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 18 }}>
+              {([['grupo', 'Por grupo'], ['produto', 'Por produto'], ['data', 'Por data'], ['resumo', 'Resumo']] as [SubMinha, string][]).map(([k, lbl]) => {
+                const on = subMinha === k;
+                return (
+                  <button key={k} onClick={() => setSubMinha(k)} style={{ padding: '7px 14px', borderRadius: 999, fontSize: 12.5, fontWeight: 500, cursor: 'pointer', border: `1px solid ${on ? B44.primary : B44.line}`, background: on ? B44.tint : '#fff', color: on ? B44.navy : B44.text2 }}>
+                    {lbl}
+                  </button>
+                );
+              })}
+            </div>
+
+            {loadingMinhas ? (
+              <Card pad="48px"><div style={{ textAlign: 'center', color: B44.text2 }}>Carregando...</div></Card>
+            ) : subMinha === 'resumo' ? (
+              <KpiGrid min={200}>
+                <Kpi emoji="💰" label="Comissão total" value={brl(minhas?.resumo?.comissao || 0)} />
+                <Kpi emoji="💵" label="Base total" value={brl(minhas?.resumo?.base || 0)} />
+                <Kpi emoji="📦" label="Itens" value={String(minhas?.resumo?.itens || 0)} />
+                <Kpi emoji="📊" label="% médio" value={pct(minhas?.resumo?.pctMedio || 0)} />
+              </KpiGrid>
+            ) : (
+              (() => {
+                const linhas = subMinha === 'grupo' ? (minhas?.porGrupo || []) : subMinha === 'produto' ? (minhas?.porProduto || []) : (minhas?.porData || []);
+                const colLabel = subMinha === 'grupo' ? 'Grupo' : subMinha === 'produto' ? 'Produto' : 'Data';
+                if (linhas.length === 0) {
+                  return (
+                    <Card pad="56px 20px">
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: 34 }}>📊</div>
+                        <h3 style={{ fontSize: 17, fontWeight: 500, color: B44.navy, margin: '12px 0 6px' }}>Nada por aqui ainda</h3>
+                        <p style={{ color: B44.text2, fontSize: 13.5 }}>Não há comissões em aberto para você neste período.</p>
+                      </div>
+                    </Card>
+                  );
+                }
+                return (
+                  <div style={{ background: '#fff', border: `1px solid ${B44.line}`, borderRadius: 12, overflow: 'hidden' }}>
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                        <thead>
+                          <tr>
+                            <th style={thStyle}>{colLabel}</th>
+                            <th style={thNum}>Itens</th>
+                            <th style={thNum}>Base</th>
+                            <th style={thNum}>% médio</th>
+                            <th style={thNum}>Comissão</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {linhas.map((l, i) => (
+                            <tr key={i}>
+                              <td style={{ ...tdStyle, fontWeight: 500 }}>{subMinha === 'grupo' ? l.grupo : subMinha === 'produto' ? l.nome : dataBR(l.data)}</td>
+                              <td style={tdNum}>{l.itens}</td>
+                              <td style={tdNum}>{brl(l.base)}</td>
+                              <td style={{ ...tdNum, color: B44.primary }}>{pct(l.pctMedio)}</td>
+                              <td style={{ ...tdNum, fontWeight: 600, color: B44.navy }}>{brl(l.comissao)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                );
+              })()
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ===================== MODAL DE CONFIGURAÇÃO ===================== */}
+      <Modal
+        open={configOpen}
+        onClose={() => setConfigOpen(false)}
+        title="⚙️ Configuração de comissões"
+        width={460}
+        footer={cfgDraft ? (
+          <Btn variant="primary" onClick={saveConfig} disabled={savingConfig} style={{ justifyContent: 'center', padding: '12px 18px', fontSize: 13.5 }}>
+            {savingConfig ? 'Salvando...' : '💾 Salvar configuração'}
+          </Btn>
+        ) : null}
+      >
+        {!cfgDraft ? (
+          <div style={{ padding: 40, textAlign: 'center', color: B44.text2 }}>Carregando...</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+            {/* Base de cálculo */}
+            <div>
+              <h3 style={{ fontSize: 12.5, fontWeight: 600, color: B44.text2, margin: '0 0 10px', textTransform: 'uppercase', letterSpacing: '.02em' }}>Base de cálculo</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {([['CHEIO', 'Valor cheio'], ['MARGEM', 'Margem (preço − custo)']] as [Base, string][]).map(([v, lbl]) => (
+                  <label key={v} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 13px', border: `1px solid ${cfgDraft.base === v ? B44.primary : B44.line}`, borderRadius: 10, background: cfgDraft.base === v ? B44.tint : '#fff', cursor: 'pointer', fontSize: 13 }}>
+                    <input type="radio" name="base" checked={cfgDraft.base === v} onChange={() => setCfgDraft({ ...cfgDraft, base: v })} />
+                    <span style={{ color: B44.text1 }}>{lbl}</span>
+                  </label>
+                ))}
               </div>
             </div>
 
-            <div className="p-6 space-y-6">
-              {/* Profissional */}
-              <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
-                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                  <LuUser className="w-6 h-6 text-blue-600" />
-                </div>
-                <div>
-                  <p className="font-semibold text-gray-900">{selectedCommission.professional.name}</p>
-                  <p className="text-sm text-gray-500">{selectedCommission.professional.role}</p>
-                </div>
+            {/* Considerar */}
+            <div>
+              <h3 style={{ fontSize: 12.5, fontWeight: 600, color: B44.text2, margin: '0 0 10px', textTransform: 'uppercase', letterSpacing: '.02em' }}>Considerar</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {([['BAIXADAS', 'Só baixadas'], ['TODAS', 'Todas']] as [Considerar, string][]).map(([v, lbl]) => (
+                  <label key={v} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 13px', border: `1px solid ${cfgDraft.considerar === v ? B44.primary : B44.line}`, borderRadius: 10, background: cfgDraft.considerar === v ? B44.tint : '#fff', cursor: 'pointer', fontSize: 13 }}>
+                    <input type="radio" name="considerar" checked={cfgDraft.considerar === v} onChange={() => setCfgDraft({ ...cfgDraft, considerar: v })} />
+                    <span style={{ color: B44.text1 }}>{lbl}</span>
+                  </label>
+                ))}
               </div>
+            </div>
 
-              {/* Status */}
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600">Status</span>
-                <span className={`px-3 py-1.5 text-sm font-medium rounded-full border ${getStatusColor(selectedCommission.status)}`}>
-                  {getStatusText(selectedCommission.status)}
-                </span>
-              </div>
+            {/* Toggles */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {([
+                ['abaterTaxaCartao', 'Abater taxa de cartão'],
+                ['lancarContasPagar', 'Lançar em contas a pagar'],
+                ['funcionarioVePropria', 'Funcionário vê a própria comissão'],
+              ] as [keyof CommissionConfig, string][]).map(([key, lbl]) => (
+                <label key={key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '11px 2px', borderBottom: `1px solid ${B44.lineSoft}`, cursor: 'pointer', fontSize: 13, color: B44.text1 }}>
+                  <span>{lbl}</span>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(cfgDraft[key])}
+                    onChange={(e) => setCfgDraft({ ...cfgDraft, [key]: e.target.checked })}
+                    style={{ width: 18, height: 18 }}
+                  />
+                </label>
+              ))}
+            </div>
 
-              {/* Serviço */}
-              <div>
-                <h3 className="text-sm font-medium text-gray-600 mb-2">Serviço</h3>
-                <p className="text-gray-900">{selectedCommission.service}</p>
-                <span className={`inline-flex mt-2 px-2 py-0.5 text-xs rounded-full ${getTypeColor(selectedCommission.serviceType)}`}>
-                  {getTypeText(selectedCommission.serviceType)}
-                </span>
-              </div>
-
-              {/* Cliente e Pet */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <h3 className="text-sm font-medium text-gray-600 mb-1">Cliente</h3>
-                  <p className="text-gray-900">{selectedCommission.clientName}</p>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-gray-600 mb-1">Pet</h3>
-                  <p className="text-gray-900">{selectedCommission.petName}</p>
-                </div>
-              </div>
-
-              {/* Valores */}
-              <div className="space-y-3 pt-4 border-t border-gray-200">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Valor do Serviço</span>
-                  <span className="text-gray-900 font-medium">{formatCurrency(selectedCommission.totalValue)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Taxa de Comissão</span>
-                  <span className="text-blue-600 font-medium">{selectedCommission.commissionRate}%</span>
-                </div>
-                <div className="flex justify-between pt-3 border-t border-gray-200">
-                  <span className="text-gray-900 font-semibold">Valor da Comissão</span>
-                  <span className="text-cyan-600 font-bold text-lg">{formatCurrency(selectedCommission.commissionValue)}</span>
-                </div>
-              </div>
-
-              {/* Datas */}
-              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-200">
-                <div>
-                  <h3 className="text-sm font-medium text-gray-600 mb-1">Data do Serviço</h3>
-                  <p className="text-gray-900">{formatDate(selectedCommission.serviceDate)}</p>
-                </div>
-                {selectedCommission.paymentDate && (
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-600 mb-1">Data do Pagamento</h3>
-                    <p className="text-gray-900">{formatDate(selectedCommission.paymentDate)}</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Ações */}
-              <div className="pt-4 border-t border-gray-200 space-y-2">
-                {selectedCommission.status === 'PENDING' && (
-                  <button
-                    onClick={() => handleMarkAsPaid(selectedCommission)}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-cyan-600 to-green-600 hover:from-cyan-500 hover:to-green-500 text-white rounded-xl font-semibold transition-all"
-                  >
-                    <span style={{fontSize:"14px"}}>✓</span>
-                    Marcar como Pago
-                  </button>
-                )}
-                {selectedCommission.status !== 'CANCELLED' && (
-                  <button
-                    onClick={() => handleDeleteCommission(selectedCommission)}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold transition-all"
-                  >
-                    <LuTrash className="w-5 h-5" />
-                    Cancelar Comissão
-                  </button>
-                )}
+            {/* Comissionados */}
+            <div>
+              <h3 style={{ fontSize: 12.5, fontWeight: 600, color: B44.text2, margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '.02em' }}>Quem é comissionado</h3>
+              <p style={{ fontSize: 11.5, color: B44.text3, margin: '0 0 10px' }}>Nenhum marcado = todos são comissionados.</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 260, overflowY: 'auto' }}>
+                {usuarios.length === 0 ? (
+                  <p style={{ fontSize: 12.5, color: B44.text3 }}>Nenhum usuário carregado.</p>
+                ) : usuarios.map((u) => {
+                  const marcado = (cfgDraft.comissionados || []).includes(u.id);
+                  return (
+                    <label key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 2px', borderBottom: `1px solid ${B44.lineSoft}`, cursor: 'pointer', fontSize: 13 }}>
+                      <input type="checkbox" checked={marcado} onChange={() => toggleComissionado(u.id)} style={{ width: 17, height: 17 }} />
+                      <Avatar nome={u.name} />
+                      <span style={{ color: B44.text1 }}>{u.name}{u.role ? <span style={{ color: B44.text3, fontSize: 11.5 }}> · {u.role}</span> : null}</span>
+                    </label>
+                  );
+                })}
               </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </Modal>
+    </PageShell>
   );
 }
