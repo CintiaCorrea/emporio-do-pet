@@ -61,7 +61,7 @@ export default function ModelosOrcamentoPage() {
   const totalForm = form.itens.reduce((sm: number, it: any) => sm + (Number(it.quantidade) || 0) * (Number(it.valorUnitario) || 0), 0);
 
   return (
-    <div className="p-6 max-w-3xl mx-auto">
+    <div className="p-6 w-full">
       <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
         <div className="text-[13px] text-[#8A989D]">{modelos.length} modelo(s) · preenchem o orçamento/venda de uma vez</div>
         <button onClick={() => abrir()} className="text-[12px] font-medium text-white bg-[#009AAC] px-3.5 py-1.5 rounded-lg">➕ Novo modelo</button>

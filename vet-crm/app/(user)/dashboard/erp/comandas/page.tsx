@@ -118,7 +118,7 @@ export default function ComandasPage() {
   };
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
+    <div className="p-6 w-full">
       <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
         <div className="text-[13px] text-[#8A989D]">{comandas.length} comanda(s) aberta(s){caixaAberto ? "" : " · ⚠️ sem caixa aberto"}</div>
         <button onClick={() => setOlho((v) => !v)} className="text-[12px] font-medium text-[#5C6B70] bg-white border px-3 py-1.5 rounded-lg" style={{ borderColor: "#E8E2D6" }}>{olho ? "🙈 Ocultar valores" : "👁️ Mostrar valores"}</button>

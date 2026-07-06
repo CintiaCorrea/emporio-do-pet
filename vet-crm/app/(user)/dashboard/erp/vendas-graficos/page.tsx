@@ -12,7 +12,7 @@ const MARCA: Record<string, { lbl: string; cls: string }> = {
 };
 
 const CSS = `
-.vg-wrap{max-width:900px;margin:0 auto;padding:2px 0 40px}
+.vg-wrap{width:100%;padding:2px 0 40px}
 .vg-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
 .vg-in{border:1px solid #E8E2D6;border-radius:9px;padding:7px 10px;font-size:13px;background:#fff;color:#1F2A2E}
 .vg-btn{border:1px solid #E8E2D6;background:#fff;color:#5C6B70;border-radius:9px;padding:8px 12px;font-size:12.5px;cursor:pointer;font-weight:500}

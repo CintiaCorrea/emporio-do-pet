@@ -11,16 +11,16 @@ function especieEmoji(s?: string) { const k = (s || "").toUpperCase(); if (k.sta
 const cls = (c?: string) => (c === "A" ? "a" : c === "B" ? "b" : "c");
 
 const CSS = `
-.rk-wrap{max-width:900px;margin:0 auto;padding:2px 0 40px}
+.rk-wrap{width:100%;padding:2px 0 40px}
 .rk-bar{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px}
 .rk-search{flex:1;min-width:200px;border:1px solid #E8E2D6;border-radius:9px;padding:8px 12px;font-size:13px;background:#fff;color:#1F2A2E}
 .rk-search:focus{outline:none;border-color:#009AAC}
 .rk-btn{border:1px solid #E8E2D6;background:#fff;color:#5C6B70;border-radius:9px;padding:8px 12px;font-size:12.5px;cursor:pointer;font-weight:500}
 .rk-abc{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
-.rk-k{border-radius:13px;padding:14px 16px;color:#fff}
-.rk-k.a{background:#0F6E56}.rk-k.b{background:#0C447C}.rk-k.c{background:#B45309}
+.rk-k{border-radius:13px;padding:14px 16px;border:1px solid transparent}
+.rk-k.a{background:#E7F6EE;border-color:#c9ecd8;color:#1c7a47}.rk-k.b{background:#E6F1FB;border-color:#cfe0f2;color:#0C447C}.rk-k.c{background:#FBF3E3;border-color:#efe1c2;color:#8a6400}
 .rk-k .n{font-size:24px;font-weight:600;font-variant-numeric:tabular-nums}
-.rk-k .l{font-size:12px;opacity:.92;margin-top:3px}
+.rk-k .l{font-size:12px;opacity:.9;margin-top:3px}
 .rk-card{background:#fff;border:1px solid #E8E2D6;border-radius:14px;overflow:hidden}
 .rk-scroll{overflow-x:auto}
 .rk-tbl{width:100%;border-collapse:collapse;font-size:13px}

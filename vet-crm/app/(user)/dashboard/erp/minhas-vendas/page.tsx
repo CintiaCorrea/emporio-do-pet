@@ -139,7 +139,7 @@ export default function MinhasVendasPage() {
         <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
           {/* por tipo de serviço */}
           <div style={{ flex: '1.4 1 380px', minWidth: 0, ...card }}>
-            <div style={{ background: TEAL_DARK, padding: '12px 16px', color: '#fff', fontSize: 13.5, fontWeight: 500 }}>Vendas por tipo de serviço</div>
+            <div style={{ background: '#FBF9F4', padding: '12px 16px', color: TEAL_DARK, fontSize: 13.5, fontWeight: 500, borderBottom: '1px solid #F0EBE0' }}>Vendas por tipo de serviço</div>
             <div style={{ padding: 16 }}>
               {(!prod?.porGrupo || prod.porGrupo.length === 0) && <p style={{ fontSize: 12.5, color: '#8A989D', textAlign: 'center', margin: '6px 0' }}>Sem itens classificados neste período.</p>}
               {(prod?.porGrupo || []).map((g, i) => (
@@ -159,7 +159,7 @@ export default function MinhasVendasPage() {
           <div style={{ flex: '1 1 280px', minWidth: 240, maxWidth: 380, display: 'flex', flexDirection: 'column', gap: 16 }}>
             {prod?.isAdmin && (
               <div style={card}>
-                <div style={{ background: TEAL_DARK, padding: '12px 16px', color: '#fff', fontSize: 13.5, fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 8, width: '100%', boxSizing: 'border-box' }}><LuTrophy size={16} color="#FAC775" /> Ranking do período</div>
+                <div style={{ background: '#FBF9F4', padding: '12px 16px', color: TEAL_DARK, fontSize: 13.5, fontWeight: 500, borderBottom: '1px solid #F0EBE0', display: 'inline-flex', alignItems: 'center', gap: 8, width: '100%', boxSizing: 'border-box' }}><LuTrophy size={16} color="#C08B2E" /> Ranking do período</div>
                 <div style={{ padding: 12 }}>
                   {(!prod.ranking || prod.ranking.length === 0) && <p style={{ fontSize: 12, color: '#8A989D', textAlign: 'center', margin: '8px 0' }}>Sem vendas no período.</p>}
                   {(prod.ranking || []).map((r, i) => (
@@ -178,7 +178,7 @@ export default function MinhasVendasPage() {
             )}
 
             <div style={card}>
-              <div style={{ background: TEAL_DARK, padding: '12px 16px', color: '#fff', fontSize: 13.5, fontWeight: 500 }}>Vendas do período ({prod?.lista?.length || 0})</div>
+              <div style={{ background: '#FBF9F4', padding: '12px 16px', color: TEAL_DARK, fontSize: 13.5, fontWeight: 500, borderBottom: '1px solid #F0EBE0' }}>Vendas do período ({prod?.lista?.length || 0})</div>
               <div style={{ padding: 12, maxHeight: 420, overflowY: 'auto' }}>
                 {loading && <p style={{ fontSize: 12, color: '#8A989D', textAlign: 'center', margin: '10px 0' }}>Carregando…</p>}
                 {!loading && (!prod?.lista || prod.lista.length === 0) && <p style={{ fontSize: 12, color: '#8A989D', textAlign: 'center', margin: '10px 0' }}>Nenhuma venda no período.</p>}
