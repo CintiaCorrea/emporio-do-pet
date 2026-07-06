@@ -212,7 +212,8 @@ export default function InboxUnificadoPage() {
           tutor: c?.tutor ? { id: c.tutor.id, name: c.tutor.name } : null,
           source: c?.metadata?.source || c?.source || null,
           metadata: c?.metadata || null}));
-        setConversations(safe);
+        // [FIX] Não mostrar conversas FINALIZADAS (CLOSED) na lista — antes elas voltavam ao recarregar.
+        setConversations(safe.filter((c: any) => String(c.status).toUpperCase() !== "CLOSED"));
       } catch (e) { console.error(e); setConversations([]); }
       finally { setLoading(false); }
     })();

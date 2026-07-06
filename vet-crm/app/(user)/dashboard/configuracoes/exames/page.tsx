@@ -6,7 +6,12 @@ import Link from "next/link";
 import { LuArrowLeft, LuPlus, LuPencil, LuTrash, LuSearch, LuUpload, LuSparkles } from "react-icons/lu";
 
 type CategoriaExame = "HEMATOLOGIA" | "BIOQUIMICA" | "IMAGEM" | "CITOLOGIA" | "MICROBIOLOGIA" | "ENDOCRINOLOGIA" | "HISTOPATOLOGIA" | "OUTROS";
-type FornTipo = "LABORATORIO" | "PROFISSIONAL" | "PARCEIRO" | "OUTRO";
+type FornTipo = "LABORATORIO" | "PROFISSIONAL" | "PARCEIRO" | "FORNECEDOR" | "OUTRO";
+const TIPO_LABEL: Record<string, string> = { LABORATORIO: "🔬 Laboratório", PROFISSIONAL: "👤 Profissional", PARCEIRO: "🤝 Parceiro", FORNECEDOR: "📦 Fornecedor", OUTRO: "• Outro" };
+const TIPOS_FORN: { v: string; label: string }[] = [
+  { v: "", label: "Todos" }, { v: "LABORATORIO", label: "🔬 Laboratórios" }, { v: "PARCEIRO", label: "🤝 Parceiros" },
+  { v: "FORNECEDOR", label: "📦 Fornecedores" }, { v: "PROFISSIONAL", label: "👤 Profissionais" }, { v: "OUTRO", label: "• Outros" },
+];
 type ModeloPag = "LOTE_MENSAL" | "DIRETO_CLIENTE" | "REPASSE_VIA_CLINICA";
 
 interface Fornecedor {
@@ -43,6 +48,7 @@ export default function ExamesConfigPage() {
   // Filtros do catálogo
   const [search, setSearch] = useState("");
   const [filterForn, setFilterForn] = useState<string>("");
+  const [fFornTipo, setFFornTipo] = useState<string>(""); // filtro por tipo na aba Fornecedores
   const [filterCat, setFilterCat] = useState<string>("");
 
   // Modal Exame
@@ -342,11 +348,18 @@ export default function ExamesConfigPage() {
 
         {tab === "fornecedores" && (
           <div className="bg-white rounded-xl border overflow-hidden" style={{ borderColor: "#E5DCC9" }}>
-            <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: "#E5DCC9" }}>
-              <div className="text-sm font-semibold" style={{ color: "#009AAC" }}>{fornecedores.length} fornecedores cadastrados</div>
-              <button onClick={openFornNew} className="px-3 py-2 rounded-lg text-sm flex items-center gap-1" style={{ background: "#009AAC", color: "white" }}>
-                <LuPlus size={14} /> Novo fornecedor
-              </button>
+            <div className="px-4 py-3 border-b" style={{ borderColor: "#E5DCC9" }}>
+              <div className="flex items-center justify-between mb-2.5">
+                <div className="text-sm font-semibold" style={{ color: "#009AAC" }}>{fornecedores.filter(f => !fFornTipo || f.tipo === fFornTipo).length} cadastrado(s)</div>
+                <button onClick={openFornNew} className="px-3 py-2 rounded-lg text-sm flex items-center gap-1" style={{ background: "#009AAC", color: "white" }}>
+                  <LuPlus size={14} /> Novo fornecedor
+                </button>
+              </div>
+              <div className="flex gap-1.5 flex-wrap">
+                {TIPOS_FORN.map(t => (
+                  <button key={t.v} onClick={() => setFFornTipo(t.v)} className="px-2.5 py-1 rounded-full text-[12px] border transition" style={fFornTipo === t.v ? { background: "#009AAC", color: "white", borderColor: "#009AAC" } : { background: "white", color: "#666", borderColor: "#E5DCC9" }}>{t.label}</button>
+                ))}
+              </div>
             </div>
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b" style={{ borderColor: "#E5DCC9" }}>
@@ -360,10 +373,13 @@ export default function ExamesConfigPage() {
                 </tr>
               </thead>
               <tbody>
-                {fornecedores.map(f => (
+                {fornecedores.filter(f => !fFornTipo || f.tipo === fFornTipo).length === 0 && (
+                  <tr><td colSpan={6} className="px-3 py-6 text-center text-gray-400 text-sm">Nenhum registro nesse tipo.</td></tr>
+                )}
+                {fornecedores.filter(f => !fFornTipo || f.tipo === fFornTipo).map(f => (
                   <tr key={f.id} className="border-b hover:bg-gray-50" style={{ borderColor: "#F0EBE0", opacity: f.ativo ? 1 : 0.55 }}>
                     <td className="px-3 py-2 font-medium">{f.nome}</td>
-                    <td className="px-3 py-2 hidden md:table-cell text-gray-600">{f.tipo}</td>
+                    <td className="px-3 py-2 hidden md:table-cell text-gray-600">{TIPO_LABEL[f.tipo] || f.tipo}</td>
                     <td className="px-3 py-2 hidden md:table-cell text-gray-600">{f.especialidade || "—"}</td>
                     <td className="px-3 py-2 text-right">{f._count?.exames || 0}</td>
                     <td className="px-3 py-2 text-center">{f.ativo ? "✅" : "—"}</td>
@@ -443,7 +459,7 @@ export default function ExamesConfigPage() {
                 <input value={fForm.nome || ""} onChange={e => setFForm({ ...fForm, nome: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E5DCC9" }} /></div>
               <div><label className="text-xs text-gray-600">Tipo *</label>
                 <select value={fForm.tipo} onChange={e => setFForm({ ...fForm, tipo: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E5DCC9" }}>
-                  <option value="LABORATORIO">Laboratório</option><option value="PROFISSIONAL">Profissional</option><option value="PARCEIRO">Parceiro</option><option value="OUTRO">Outro</option>
+                  <option value="LABORATORIO">🔬 Laboratório</option><option value="PROFISSIONAL">👤 Profissional</option><option value="PARCEIRO">🤝 Parceiro</option><option value="FORNECEDOR">📦 Fornecedor</option><option value="OUTRO">• Outro</option>
                 </select></div>
               <div><label className="text-xs text-gray-600">Modelo pagamento</label>
                 <select value={fForm.modeloPagamento} onChange={e => setFForm({ ...fForm, modeloPagamento: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E5DCC9" }}>

@@ -38,6 +38,7 @@ function scorePie(score: number, max: number, color: string) {
 interface Contact { id: string; number: string; isPrimary?: boolean; isWhatsApp?: boolean; }
 interface Tutor {
   id: string; name: string; email?: string | null;
+  classificacao?: string | null;
   contacts?: Contact[];
   pets?: Pet[];
   estadoRelacionamento?: string | null;
@@ -999,8 +1000,13 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
     reset();
   }
   async function handleConverter(classif?: any) {
-    if (!lead) return;
     const classificacao = typeof classif === "string" ? classif : undefined;
+    if (classificacao === "Fornecedor" || classificacao === "Parceiro") {
+      setClassifOpen(false);
+      if (await criarTerceiro(classificacao)) { reset(); loadIncoming(); }
+      return;
+    }
+    if (!lead) return;
     if (!confirm(`Converter ${lead.name || "esse lead"} em cliente${classificacao ? " (" + classificacao + ")" : ""}?`)) return;
     const real = await materializarLead();
     if (!real) return;
@@ -1050,9 +1056,28 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
   }
 
   const classifColor = (c?: string) => c === "Fornecedor" ? "#6D28D9" : c === "Parceiro" ? "#BE185D" : c === "Cliente" ? "#0E5560" : "#64748b";
+  // [EMP] Fornecedor/Parceiro vão pra LISTA DE FORNECEDORES (Configurações), não viram cliente.
+  async function criarTerceiro(valor: string): Promise<boolean> {
+    const tipo = valor === "Parceiro" ? "PARCEIRO" : "FORNECEDOR";
+    const nome = (tutor?.name || lead?.name || leadConversa?.name || "Contato").trim();
+    const telefone =
+      (tutor as any)?.contacts?.find((c: any) => c.isPrimary)?.number ||
+      (tutor as any)?.phone || (lead as any)?.phone || leadConversa?.phone || "";
+    if (!confirm(`Adicionar "${nome}" na lista de Fornecedores como ${valor}?`)) return false;
+    try {
+      const r = await fetch(`/api/fornecedores`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nome, tipo, ...(telefone ? { telefone } : {}) }) });
+      if (!r.ok) throw new Error();
+      toast.success(`Adicionado em Fornecedores (${valor})`);
+      return true;
+    } catch { toast.error("Erro ao adicionar em Fornecedores"); return false; }
+  }
   async function saveClassificacao(valor: string) {
-    if (!tutor) return;
     setClassifOpen(false);
+    if (valor === "Fornecedor" || valor === "Parceiro") {
+      if (await criarTerceiro(valor)) { reset(); loadIncoming(); }
+      return;
+    }
+    if (!tutor) return;
     try {
       const r = await fetch(`/api/tutors/${tutor.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ classificacao: valor }) });
       if (!r.ok) throw new Error();
