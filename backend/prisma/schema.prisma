@@ -49,6 +49,8 @@ enum ProductType {
   MEDICINE
   VACCINE
   SERVICE
+  PACOTE
+  KIT
 }
 
 enum BoardType {
@@ -592,6 +594,37 @@ model Product {
   custoPadrao         Float?
   comissaoBaseDefault ComissaoBase      @default(VALOR_CHEIO)
   ativo               Boolean           @default(true)
+  // ── Catálogo estilo SimplesVet (estrutura p/ importação; wizard vem depois) ──
+  codigoBarras        String?
+  unidadeVenda        String? // UN, KG, ML...
+  marca               String? // nome da marca (cadastro de Marcas pode vir depois)
+  proposito           String? // VENDA_CONSUMO | APENAS_VENDA | APENAS_CONSUMO
+  markup              Float?
+  exibeListaPreco     Boolean           @default(true)
+  permiteAlterarPreco Boolean           @default(false)
+  controlaEstoque     Boolean           @default(true)
+  estoqueMin          Int?
+  estoqueMax          Int?
+  controlaValidade    Boolean           @default(false)
+  validadeMaisAntiga  DateTime?
+  comissionado        Boolean           @default(false)
+  descontoControle    String? // EMPRESA | ESPECIFICO | NAO_PERMITE | ATE_100
+  fornecedorId        String?
+  fornecedor          Fornecedor?       @relation("ProdutoFornecedor", fields: [fornecedorId], references: [id], onDelete: SetNull)
+  // Fiscal — estrutura (ver docs/fiscal-produtos.md); UI/emissão em etapa futura
+  ncm                 String?
+  exTipi              String?
+  perfilTributario    String?
+  origem              String?
+  formaAquisicao      String?
+  cest                String?
+  nve                 String?
+  // Pacote/Kit — agregam outros itens do catálogo
+  pacoteValidadeQtd     Int?
+  pacoteValidadeUnidade String? // Dias | Meses
+  pacoteTermos          String?         @db.Text
+  composicao          ProdutoComposicao[] @relation("ProdutoPai")
+  componenteDe        ProdutoComposicao[] @relation("ProdutoFilho")
   treatments          Treatment[]
   appointmentItems    AppointmentItem[]
   orcamentoItens      OrcamentoItem[]
@@ -600,6 +633,23 @@ model Product {
 
   @@index([ativo])
   @@index([categoryId])
+  @@index([fornecedorId])
+  @@index([type])
+}
+
+// Itens que compõem um Pacote ou Kit (o "pai" é um Product tipo PACOTE/KIT)
+model ProdutoComposicao {
+  id            String  @id @default(uuid())
+  paiId         String
+  pai           Product @relation("ProdutoPai", fields: [paiId], references: [id], onDelete: Cascade)
+  itemId        String
+  item          Product @relation("ProdutoFilho", fields: [itemId], references: [id], onDelete: Cascade)
+  quantidade    Float   @default(1)
+  precoUnitario Float?
+  createdAt     DateTime @default(now())
+
+  @@index([paiId])
+  @@map("produto_composicao")
 }
 
 // ============================================
@@ -1970,7 +2020,8 @@ model Fornecedor {
   ativo              Boolean         @default(true)
   observacoes        String?
 
-  exames CatalogoExame[]
+  exames   CatalogoExame[]
+  produtos Product[]       @relation("ProdutoFornecedor")
 
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
