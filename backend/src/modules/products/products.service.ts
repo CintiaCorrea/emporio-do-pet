@@ -3,6 +3,13 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 
+// Campos do catálogo (Fase 1) copiados do DTO p/ o data do create/update, quando presentes.
+const PRODUCT_EXTRA_KEYS = [
+  'codigoBarras', 'unidadeVenda', 'marca', 'categoryId', 'custoPadrao', 'proposito', 'markup',
+  'exibeListaPreco', 'permiteAlterarPreco', 'controlaEstoque', 'estoqueMin', 'estoqueMax',
+  'comissionado', 'comissaoTipo', 'comissaoValor', 'fornecedorId',
+] as const;
+
 @Injectable()
 export class ProductsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -128,13 +135,11 @@ export class ProductsService {
 
     const defaultStock = dto.type === ('SERVICE' as any) ? 0 : dto.stock || 0;
 
+    const data: any = { name: dto.name, type: dto.type as any, price: dto.price, stock: defaultStock };
+    for (const k of PRODUCT_EXTRA_KEYS) if ((dto as any)[k] !== undefined) data[k] = (dto as any)[k];
+
     return this.prisma.product.create({
-      data: {
-        name: dto.name,
-        type: dto.type as any,
-        price: dto.price,
-        stock: defaultStock,
-      },
+      data,
       include: { _count: { select: { treatments: true } } },
     });
   }
@@ -168,6 +173,7 @@ export class ProductsService {
     if (dto.type !== undefined) data.type = dto.type as any;
     if (dto.price !== undefined) data.price = dto.price;
     if (dto.stock !== undefined) data.stock = dto.stock;
+    for (const k of PRODUCT_EXTRA_KEYS) if ((dto as any)[k] !== undefined) data[k] = (dto as any)[k];
 
     if (dto.type === ('SERVICE' as any) && dto.stock === undefined) {
       data.stock = 0;

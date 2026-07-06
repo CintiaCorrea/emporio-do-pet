@@ -608,6 +608,8 @@ model Product {
   controlaValidade    Boolean           @default(false)
   validadeMaisAntiga  DateTime?
   comissionado        Boolean           @default(false)
+  comissaoTipo        String? // PERCENTUAL | VALOR_FIXO — padrão do item quando comissionado
+  comissaoValor       Float?  // % (ou valor fixo) padrão do item
   descontoControle    String? // EMPRESA | ESPECIFICO | NAO_PERMITE | ATE_100
   fornecedorId        String?
   fornecedor          Fornecedor?       @relation("ProdutoFornecedor", fields: [fornecedorId], references: [id], onDelete: SetNull)

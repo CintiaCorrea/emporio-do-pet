@@ -5,6 +5,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
+import ItemFormModal from "@/components/catalogo/ItemFormModal";
 
 const brl = (v?: number | null) => (v == null ? "—" : new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(v)));
 const markupDe = (custo?: number | null, preco?: number | null) => {
@@ -13,7 +14,7 @@ const markupDe = (custo?: number | null, preco?: number | null) => {
 };
 
 type Grupo = "PRODUTO" | "SERVICO" | "EXAME";
-interface Item { key: string; grupo: Grupo; tipo: string; nome: string; codigo?: number | string | null; custo?: number | null; preco?: number | null; estoque?: number | null; ativo: boolean; fornecedor?: string | null; }
+interface Item { key: string; rawId?: string; grupo: Grupo; tipo: string; nome: string; codigo?: number | string | null; custo?: number | null; preco?: number | null; estoque?: number | null; ativo: boolean; fornecedor?: string | null; }
 
 const TIPO_PILL: Record<Grupo, { bg: string; fg: string; emoji: string }> = {
   PRODUTO: { bg: "#E6F1FB", fg: "#0C447C", emoji: "📦" },
@@ -60,6 +61,8 @@ export default function CatalogoPage() {
   const [itens, setItens] = useState<Item[]>([]);
   const [grupo, setGrupo] = useState<string>("");
   const [busca, setBusca] = useState("");
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -74,7 +77,7 @@ export default function CatalogoPage() {
       for (const p of prods) {
         const isServ = p.type === "SERVICE";
         rows.push({
-          key: `p-${p.id}`, grupo: isServ ? "SERVICO" : "PRODUTO",
+          key: `p-${p.id}`, rawId: p.id, grupo: isServ ? "SERVICO" : "PRODUTO",
           tipo: isServ ? "Serviço" : (p.type === "VACCINE" ? "Vacina" : "Produto"),
           nome: p.name, codigo: p.codigo ?? null, custo: p.custoPadrao ?? null, preco: p.price ?? null,
           estoque: isServ ? null : (p.stock ?? 0), ativo: p.ativo !== false, fornecedor: p.fornecedor?.nome ?? null,
@@ -116,6 +119,7 @@ export default function CatalogoPage() {
       <div className="cat-bar no-print">
         <input className="cat-in" placeholder="🔍 Buscar por nome ou código…" value={busca} onChange={(e) => setBusca(e.target.value)} />
         <div style={{ flex: 1 }} />
+        <button className="cat-btn" style={{ background: "#009AAC", borderColor: "#009AAC", color: "#fff" }} onClick={() => { setEditId(null); setModalOpen(true); }}>➕ Novo item</button>
         <button className="cat-btn" onClick={() => window.print()}>🖨️ Imprimir</button>
       </div>
 
@@ -143,7 +147,7 @@ export default function CatalogoPage() {
                 const pill = TIPO_PILL[it.grupo];
                 const mk = markupDe(it.custo, it.preco);
                 return (
-                  <tr key={it.key}>
+                  <tr key={it.key} onClick={() => { if (it.rawId) { setEditId(it.rawId); setModalOpen(true); } }} style={{ cursor: it.rawId ? "pointer" : "default" }}>
                     <td><span className="cat-pill" style={{ background: pill.bg, color: pill.fg }}>{pill.emoji} {it.tipo}</span></td>
                     <td className="cat-nm">{it.nome}{it.codigo != null && it.codigo !== "" ? <div className="cat-cod">cód. {it.codigo}</div> : null}</td>
                     <td style={{ color: it.fornecedor ? "#5C6B70" : "#8A989D" }}>{it.fornecedor || "—"}</td>
@@ -161,8 +165,10 @@ export default function CatalogoPage() {
       </div>
 
       <p className="no-print" style={{ fontSize: 11.5, color: "#8A989D", marginTop: 12 }}>
-        📋 Lista unificada (Passo 1). Para <b>adicionar/editar</b>, use por enquanto as telas de Produtos, Serviços e Exames — o cadastro único (com o Tipo no topo) vem no Passo 2.
+        📋 Clique num <b>Produto</b> ou <b>Serviço</b> pra editar, ou <b>➕ Novo item</b> pra cadastrar. Exames são editados na tela de Exames (têm laboratório).
       </p>
+
+      {modalOpen && <ItemFormModal editId={editId} onClose={() => setModalOpen(false)} onSaved={() => { setModalOpen(false); load(); }} />}
     </div>
   );
 }
