@@ -350,7 +350,7 @@ export default function ComissoesPage() {
 
   return (
     <PageShell pad="p-6">
-      <div style={{ maxWidth: 1280, margin: '0 auto' }}>
+      <div style={{ width: '100%' }}>
 
         {/* Header */}
         <HeaderCard>
