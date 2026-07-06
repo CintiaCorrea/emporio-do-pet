@@ -306,10 +306,6 @@ export default function FinanceiroPage() {
                   <p className="text-gray-600 mt-2">Gerencie lançamentos e performance financeira</p>
                 </div>
                 <div className="flex gap-3">
-                  <button className="group px-6 py-3 text-sm font-semibold text-gray-700 bg-white/80 border border-gray-200/80 rounded-2xl hover:bg-white hover:border-gray-300 hover:shadow-lg transition-all duration-300 hover:scale-105 flex items-center space-x-2">
-                    <LuDownload className="w-4 h-4" />
-                    <span>Exportar</span>
-                  </button>
                   <button
                     onClick={openCreate}
                     className="group px-6 py-3 text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-blue-500/25 flex items-center space-x-2 relative overflow-hidden"

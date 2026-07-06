@@ -307,7 +307,7 @@ export default function ContactsPage() {
                   <span className="font-semibold">Novo Tutor</span>
                 </Link>
                 <Link
-                  href="/dashboard/erp/clientes/novo"
+                  href="/dashboard/erp/tutores/novo"
                   className="group flex items-center justify-center gap-2 px-6 py-3 text-gray-700 bg-white/80 border border-gray-200/80 rounded-2xl hover:bg-white hover:border-gray-300 hover:shadow-lg transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-gray-500/50"
                 >
                   <LuPlus className="w-5 h-5 transition-transform duration-300 group-hover:rotate-90" />
@@ -405,11 +405,6 @@ export default function ContactsPage() {
                   </button>
                 </div>
 
-                <div className="md:col-span-1">
-                  <button className="w-full flex items-center justify-center gap-2 px-4 py-3 text-gray-700 bg-white/80 border border-gray-200/80 rounded-2xl hover:bg-white hover:border-gray-300 hover:shadow-lg transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-gray-500/50">
-                    <LuDownload className="w-5 h-5" />
-                  </button>
-                </div>
               </div>
             </div>
           )}

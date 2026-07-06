@@ -3,6 +3,7 @@
 // Resumo: GET /api/caixa/recebimentos-resumo?from=&to=. Lista: GET /api/caixa/recebimentos?from=&to= (linhas trazem usuario + marcas).
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 
 const brl = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number.isFinite(v) ? v : 0);
@@ -241,7 +242,7 @@ export default function RecebimentosPage() {
                   <tr key={r.id}>
                     <td style={{ color: "#014D5E", fontWeight: 500, whiteSpace: "nowrap" }}>{vendaLabel(r.appointment)}</td>
                     <td style={{ color: "#8A989D", whiteSpace: "nowrap" }}>{dh(r.data)}</td>
-                    <td style={{ color: "#1F2A2E" }}>{r.appointment?.tutor?.name || "Cliente"} · {r.appointment?.pet?.name || "Pet"}</td>
+                    <td style={{ color: "#1F2A2E" }}>{r.appointment?.tutor?.id ? (<Link href={`/dashboard/erp/tutores/${r.appointment.tutor.id}`} style={{ color: "#014D5E", textDecoration: "none", fontWeight: 500 }}>{r.appointment?.tutor?.name || "Cliente"}</Link>) : (r.appointment?.tutor?.name || "Cliente")} · {r.appointment?.pet?.name || "Pet"}</td>
                     <td style={{ color: "#5C6B70" }}>{r.usuario || "—"}</td>
                     <td style={{ color: "#8A989D" }}>{(r.formas || []).map((f: any) => f.forma).join(" + ") || "—"}</td>
                     <td className="r">{money(Number(r.valorTotal))}</td>

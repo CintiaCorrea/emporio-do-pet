@@ -918,12 +918,13 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
         <div className="bg-white border border-[#E8E2D6] rounded-[13px]" style={{ padding: "6px 15px" }}>
           {comprasFiltradas.length === 0 && <p className="text-[12.5px] text-[#8A989D] py-3 text-center">Nenhuma compra registrada{comprasPet ? ` para ${comprasPet}` : ""} ainda.</p>}
           {comprasFiltradas.map((a, i) => (
-            <div key={a.id} className="flex items-center gap-2.5 py-2.5" style={{ borderBottom: i < comprasFiltradas.length - 1 ? "1px solid #F0EBE0" : "none" }}>
+            <Link key={a.id} href={`/dashboard/erp/atendimentos/${a.id}`} className="flex items-center gap-2.5 py-2.5 hover:opacity-70 transition-opacity" style={{ borderBottom: i < comprasFiltradas.length - 1 ? "1px solid #F0EBE0" : "none" }}>
               <span className="text-[11.5px] text-[#8A989D] w-[46px] shrink-0">{fmtDataBR(a.date).slice(0, 5)}</span>
               <span className="flex-1 text-[12.5px] text-[#1F2A2E] truncate">{a.description || a.type || "Atendimento"}</span>
               {a.pet?.name && <span className="text-[11px] text-[#8A989D] shrink-0">🐾 {a.pet.name}</span>}
               <span className="text-[12.5px] text-[#014D5E] font-medium shrink-0">{money(a.value)}</span>
-            </div>
+              <span className="text-[#8A989D] text-[12px] shrink-0">›</span>
+            </Link>
           ))}
         </div>
       </div>

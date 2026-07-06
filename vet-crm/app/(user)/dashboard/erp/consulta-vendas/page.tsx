@@ -2,6 +2,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import Link from 'next/link';
 import { usePageTitle } from '@/lib/ui/PageHeaderContext';
 
 /* ---------------- paleta Base44 ---------------- */
@@ -129,7 +130,7 @@ function LinhaVenda({ v }: { v: Venda }) {
           {v.numeroVenda != null && v.codigoExterno && <span style={{ color: GREY2, fontSize: 11, marginLeft: 6 }}>· SV {v.codigoExterno}</span>}
           <span style={{ color: GREY2, fontSize: 11.5, marginLeft: 8 }}>{dm(v.date)}</span>
         </td>
-        <td style={{ padding: '11px 12px', fontSize: 13, color: NAVY }}>{v.cliente || '—'}</td>
+        <td style={{ padding: '11px 12px', fontSize: 13, color: NAVY }} onClick={(e) => e.stopPropagation()}>{v.clienteId ? (<Link href={`/dashboard/erp/tutores/${v.clienteId}`} style={{ color: NAVY, textDecoration: 'none', fontWeight: 500 }}>{v.cliente || '—'}</Link>) : (v.cliente || '—')}</td>
         <td style={{ padding: '11px 12px', fontSize: 13, color: GREY }}>{v.pet || '—'}</td>
         <td style={{ padding: '11px 12px' }}><MarcaPill marca={v.marca} /></td>
         <td style={{ padding: '11px 12px', fontSize: 13, fontWeight: 500, color: NAVY, textAlign: 'right', whiteSpace: 'nowrap' }}>{brl(v.valor)}</td>

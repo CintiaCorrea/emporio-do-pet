@@ -994,11 +994,8 @@ export default function InboxUnificadoPage() {
               <h3 className="text-base text-[#0E2244] font-medium">Encaminhar conversa</h3>
               <button onClick={() => setEncaminharOpen(false)} className="text-[#5F5E5A] text-xl">×</button>
             </div>
-            <p className="text-xs text-[#5F5E5A] mb-3">Selecione pra quem encaminhar essa conversa. Funcionalidade completa em construção — por enquanto, registre como nota.</p>
-            <div className="flex flex-col gap-1.5">
-              <button className="text-left px-3 py-2 border border-[#e8e1d2] rounded-lg hover:bg-[#f9f9f9] text-sm">👩‍⚕️ Dra. Vivian (Vet)</button>
-              <button className="text-left px-3 py-2 border border-[#e8e1d2] rounded-lg hover:bg-[#f9f9f9] text-sm">👩 Ellen (Recepção)</button>
-              <button className="text-left px-3 py-2 border border-[#e8e1d2] rounded-lg hover:bg-[#f9f9f9] text-sm">👩 Isabela (Recepção)</button>
+            <div className="text-[12.5px] text-[#8a6400] bg-[#FBF3E3] border border-[#efe1c2] rounded-lg px-3 py-2.5">
+              🚧 O encaminhamento da conversa entre a equipe está <b>em construção</b>. Em breve você vai poder atribuir a conversa a um profissional por aqui.
             </div>
             <div className="flex justify-end mt-3">
               <button onClick={() => setEncaminharOpen(false)} className="px-3 py-1.5 text-xs text-[#5F5E5A]">Cancelar</button>

@@ -444,14 +444,6 @@ export default function ClientsListPage() {
                       </select>
                     </div>
                   </div>
-
-                  {/* Botão Exportar */}
-                  <div className="md:col-span-2">
-                    <button className="w-full flex items-center justify-center gap-2 px-4 py-3 text-gray-700 bg-white/80 border border-gray-200/80 rounded-2xl hover:bg-white hover:border-gray-300 hover:shadow-lg transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-gray-500/50">
-                      <LuDownload className="w-5 h-5" />
-                      <span className="font-semibold">Exportar</span>
-                    </button>
-                  </div>
                 </div>
               </div>
             )}
