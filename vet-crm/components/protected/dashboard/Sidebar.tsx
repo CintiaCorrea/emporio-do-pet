@@ -114,6 +114,7 @@ const NAV: Entry[] = [
     ],
   },
   { href: "/dashboard/configuracoes", label: "Configurações", emoji: "⚙️", roles: ["ADMIN"], section: "GESTAO" },
+  { href: "/dashboard/erp/dados-clinica", label: "Dados da clínica", emoji: "🏥", roles: ["ADMIN"], section: "GESTAO" },
   { href: "/dashboard/erp/logs", label: "Logs de auditoria", emoji: "📋", roles: ["ADMIN"], section: "GESTAO" },
 ];
 
