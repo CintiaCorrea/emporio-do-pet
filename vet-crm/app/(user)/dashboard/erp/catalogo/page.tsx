@@ -14,7 +14,7 @@ const markupDe = (custo?: number | null, preco?: number | null) => {
 };
 
 type Grupo = "PRODUTO" | "SERVICO" | "EXAME";
-interface Item { key: string; rawId?: string; grupo: Grupo; tipo: string; nome: string; codigo?: number | string | null; custo?: number | null; preco?: number | null; estoque?: number | null; ativo: boolean; fornecedor?: string | null; }
+interface Item { key: string; rawId?: string; grupo: Grupo; tipo: string; nome: string; codigo?: number | string | null; custo?: number | null; preco?: number | null; estoque?: number | null; ativo: boolean; fornecedor?: string | null; categoria?: string | null; marca?: string | null; controlaValidade?: boolean | null; validade?: string | null; }
 
 const TIPO_PILL: Record<Grupo, { bg: string; fg: string; emoji: string }> = {
   PRODUTO: { bg: "#E6F1FB", fg: "#0C447C", emoji: "📦" },
@@ -37,6 +37,14 @@ const CSS = `
 .cat-chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
 .cat-chip{border:1px solid #E8E2D6;background:#fff;color:#5C6B70;border-radius:999px;padding:6px 13px;font-size:12.5px;cursor:pointer;font-weight:500}
 .cat-chip.on{background:#009AAC;border-color:#009AAC;color:#fff}
+.cat-filtros{background:#FBF9F4;border:1px solid #E8E2D6;border-radius:12px;padding:14px 16px;margin-bottom:14px}
+.cat-fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px 14px}
+.cat-flbl{display:block;font-size:11px;color:#8A989D;font-weight:500;margin-bottom:4px;text-transform:uppercase;letter-spacing:.03em}
+.cat-fin{width:100%;border:1px solid #E8E2D6;border-radius:9px;padding:8px 10px;font-size:13px;font-family:inherit;background:#fff;color:#1F2A2E;box-sizing:border-box}
+.cat-seg{display:inline-flex;border:1px solid #E8E2D6;border-radius:9px;overflow:hidden;width:100%}
+.cat-seg button{flex:1;border:none;background:#fff;font-family:inherit;font-size:12px;font-weight:500;color:#5C6B70;padding:8px 4px;cursor:pointer}
+.cat-seg button.on{background:#014D5E;color:#fff}
+.cat-factions{display:flex;justify-content:flex-end;margin-top:12px}
 .cat-card{background:#fff;border:1px solid #E8E2D6;border-radius:14px;overflow:hidden}
 .cat-ch{padding:11px 15px;border-bottom:1px solid #F0EBE0;font-size:13px;font-weight:500;color:#014D5E;display:flex;justify-content:space-between;align-items:center}
 .cat-scroll{overflow-x:auto}
@@ -63,6 +71,17 @@ export default function CatalogoPage() {
   const [busca, setBusca] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+  // filtros
+  const [showFiltros, setShowFiltros] = useState(false);
+  const [fSit, setFSit] = useState<"" | "ativo" | "inativo">("");
+  const [fGrupo, setFGrupo] = useState("");
+  const [fMarca, setFMarca] = useState("");
+  const [fForn, setFForn] = useState("");
+  const [fCtrlVal, setFCtrlVal] = useState<"" | "sim" | "nao">("");
+  const [valDe, setValDe] = useState("");
+  const [valAte, setValAte] = useState("");
+  const limparFiltros = () => { setFSit(""); setFGrupo(""); setFMarca(""); setFForn(""); setFCtrlVal(""); setValDe(""); setValAte(""); };
+  const nFiltros = [fSit, fGrupo, fMarca, fForn, fCtrlVal, valDe, valAte].filter(Boolean).length;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -81,6 +100,7 @@ export default function CatalogoPage() {
           tipo: isServ ? "Serviço" : (p.type === "VACCINE" ? "Vacina" : "Produto"),
           nome: p.name, codigo: p.codigo ?? null, custo: p.custoPadrao ?? null, preco: p.price ?? null,
           estoque: isServ ? null : (p.stock ?? 0), ativo: p.ativo !== false, fornecedor: p.fornecedor?.nome ?? null,
+          categoria: p.category?.nome ?? null, marca: p.marca ?? null, controlaValidade: p.controlaValidade ?? null, validade: p.validadeMaisAntiga ?? null,
         });
       }
       for (const e of exames) {
@@ -88,6 +108,7 @@ export default function CatalogoPage() {
           key: `e-${e.id}`, grupo: "EXAME", tipo: "Exame",
           nome: e.nome, codigo: e.codigo ?? null, custo: e.valorFornecedor ?? null, preco: e.valorClienteSugerido ?? null,
           estoque: null, ativo: e.ativo !== false, fornecedor: e.fornecedor?.nome || null,
+          categoria: e.categoria ?? null, marca: null, controlaValidade: null, validade: null,
         });
       }
       rows.sort((a, b) => a.nome.localeCompare(b.nome));
@@ -97,13 +118,29 @@ export default function CatalogoPage() {
   }, []);
   useEffect(() => { load(); }, [load]);
 
+  const opts = useMemo(() => ({
+    grupos: [...new Set(itens.map((i) => i.categoria).filter(Boolean))].sort() as string[],
+    marcas: [...new Set(itens.map((i) => i.marca).filter(Boolean))].sort() as string[],
+    forns: [...new Set(itens.map((i) => i.fornecedor).filter(Boolean))].sort() as string[],
+  }), [itens]);
+
   const filtrados = useMemo(() => {
     const q = busca.trim().toLowerCase();
-    return itens.filter((it) =>
-      (!grupo || it.grupo === grupo) &&
-      (!q || it.nome.toLowerCase().includes(q) || String(it.codigo ?? "").toLowerCase().includes(q)),
-    );
-  }, [itens, grupo, busca]);
+    return itens.filter((it) => {
+      if (grupo && it.grupo !== grupo) return false;
+      if (q && !(it.nome.toLowerCase().includes(q) || String(it.codigo ?? "").toLowerCase().includes(q))) return false;
+      if (fSit === "ativo" && !it.ativo) return false;
+      if (fSit === "inativo" && it.ativo) return false;
+      if (fGrupo && it.categoria !== fGrupo) return false;
+      if (fMarca && it.marca !== fMarca) return false;
+      if (fForn && it.fornecedor !== fForn) return false;
+      if (fCtrlVal === "sim" && it.controlaValidade !== true) return false;
+      if (fCtrlVal === "nao" && it.controlaValidade === true) return false;
+      if (valDe && (!it.validade || String(it.validade).slice(0, 10) < valDe)) return false;
+      if (valAte && (!it.validade || String(it.validade).slice(0, 10) > valAte)) return false;
+      return true;
+    });
+  }, [itens, grupo, busca, fSit, fGrupo, fMarca, fForn, fCtrlVal, valDe, valAte]);
 
   const cont = useMemo(() => ({
     total: itens.length,
@@ -118,6 +155,7 @@ export default function CatalogoPage() {
 
       <div className="cat-bar no-print">
         <input className="cat-in" placeholder="🔍 Buscar por nome ou código…" value={busca} onChange={(e) => setBusca(e.target.value)} />
+        <button className="cat-btn" onClick={() => setShowFiltros((v) => !v)} style={nFiltros ? { borderColor: "#009AAC", color: "#009AAC", fontWeight: 600 } : undefined}>🔎 Filtros{nFiltros ? ` (${nFiltros})` : ""}</button>
         <div style={{ flex: 1 }} />
         <button className="cat-btn" style={{ background: "#009AAC", borderColor: "#009AAC", color: "#fff" }} onClick={() => { setEditId(null); setModalOpen(true); }}>➕ Novo item</button>
         <button className="cat-btn" onClick={() => window.print()}>🖨️ Imprimir</button>
@@ -130,6 +168,34 @@ export default function CatalogoPage() {
           </button>
         ))}
       </div>
+
+      {showFiltros && (
+        <div className="cat-filtros no-print">
+          <div className="cat-fgrid">
+            <div>
+              <label className="cat-flbl">Situação</label>
+              <div className="cat-seg">
+                {([["", "Todos"], ["ativo", "Ativo"], ["inativo", "Inativo"]] as const).map(([v, l]) => (
+                  <button key={v} className={fSit === v ? "on" : ""} onClick={() => setFSit(v as any)}>{l}</button>
+                ))}
+              </div>
+            </div>
+            <div><label className="cat-flbl">Grupo</label>
+              <select className="cat-fin" value={fGrupo} onChange={(e) => setFGrupo(e.target.value)}><option value="">Todos</option>{opts.grupos.map((g) => <option key={g} value={g}>{g}</option>)}</select></div>
+            <div><label className="cat-flbl">Marca</label>
+              <select className="cat-fin" value={fMarca} onChange={(e) => setFMarca(e.target.value)}><option value="">Todas</option>{opts.marcas.map((m) => <option key={m} value={m}>{m}</option>)}</select></div>
+            <div><label className="cat-flbl">Fornecedor</label>
+              <select className="cat-fin" value={fForn} onChange={(e) => setFForn(e.target.value)}><option value="">Todos</option>{opts.forns.map((f) => <option key={f} value={f}>{f}</option>)}</select></div>
+            <div><label className="cat-flbl">Controla validade</label>
+              <select className="cat-fin" value={fCtrlVal} onChange={(e) => setFCtrlVal(e.target.value as any)}><option value="">Todos</option><option value="sim">Sim</option><option value="nao">Não</option></select></div>
+            <div><label className="cat-flbl">Validade — de</label><input type="date" className="cat-fin" value={valDe} onChange={(e) => setValDe(e.target.value)} /></div>
+            <div><label className="cat-flbl">Validade — até</label><input type="date" className="cat-fin" value={valAte} onChange={(e) => setValAte(e.target.value)} /></div>
+          </div>
+          <div className="cat-factions">
+            <button className="cat-btn" onClick={limparFiltros} disabled={!nFiltros} style={{ opacity: nFiltros ? 1 : .5 }}>Limpar filtros</button>
+          </div>
+        </div>
+      )}
 
       <div className="cat-card">
         <div className="cat-ch"><span>{filtrados.length} item(ns){grupo ? "" : " no catálogo"}</span></div>
