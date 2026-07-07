@@ -54,9 +54,12 @@ const CSS = `
 .cat-tbl td{padding:9px 11px;border-bottom:1px solid #F0EBE0;white-space:nowrap}
 .cat-tbl td.r{text-align:right;font-variant-numeric:tabular-nums}
 .cat-tbl tr:last-child td{border-bottom:0}
-.cat-nm{color:#1F2A2E;white-space:normal;min-width:180px}
+.cat-nm{color:#1F2A2E;white-space:normal;min-width:150px}
 .cat-cod{font-size:11px;color:#8A989D;margin-top:1px}
-@media(max-width:1150px){ .col-sec{display:none} }
+.cat-forn{max-width:130px;overflow:hidden;text-overflow:ellipsis}
+/* Custo/Markup somem cedo (notebook) p/ Estoque e Situação sempre caberem; Fornecedor some só em telas bem estreitas */
+@media(max-width:1400px){ .col-sec{display:none} }
+@media(max-width:1080px){ .col-sec2{display:none} }
 .cat-pill{font-size:11px;font-weight:500;padding:2px 9px;border-radius:999px;display:inline-flex;align-items:center;gap:4px}
 .cat-empty{padding:40px;text-align:center;color:#8A989D;font-size:13px}
 .cat-sit{font-size:11px;padding:2px 9px;border-radius:999px}
@@ -203,7 +206,7 @@ export default function CatalogoPage() {
           <table className="cat-tbl">
             <thead>
               <tr>
-                <th>Tipo</th><th>Nome</th><th>Fornecedor</th><th className="r col-sec">Custo</th><th className="r col-sec">Markup</th><th className="r">Preço</th><th className="r">Estoque</th><th>Situação</th>
+                <th>Tipo</th><th>Nome</th><th className="col-sec2">Fornecedor</th><th className="r col-sec">Custo</th><th className="r col-sec">Markup</th><th className="r">Preço</th><th className="r">Estoque</th><th>Situação</th>
               </tr>
             </thead>
             <tbody>
@@ -216,7 +219,7 @@ export default function CatalogoPage() {
                   <tr key={it.key} onClick={() => { if (it.rawId) { setEditId(it.rawId); setModalOpen(true); } }} style={{ cursor: it.rawId ? "pointer" : "default" }}>
                     <td><span className="cat-pill" style={{ background: pill.bg, color: pill.fg }}>{pill.emoji} {it.tipo}</span></td>
                     <td className="cat-nm">{it.nome}{it.codigo != null && it.codigo !== "" ? <div className="cat-cod">cód. {it.codigo}</div> : null}</td>
-                    <td style={{ color: it.fornecedor ? "#5C6B70" : "#8A989D" }}>{it.fornecedor || "—"}</td>
+                    <td className="cat-forn col-sec2" style={{ color: it.fornecedor ? "#5C6B70" : "#8A989D" }}>{it.fornecedor || "—"}</td>
                     <td className="r col-sec" style={{ color: "#5C6B70" }}>{brl(it.custo)}</td>
                     <td className="r col-sec" style={{ color: mk == null ? "#8A989D" : "#5C6B70" }}>{mk == null ? "—" : `${mk}%`}</td>
                     <td className="r" style={{ color: "#014D5E", fontWeight: 500 }}>{brl(it.preco)}</td>
