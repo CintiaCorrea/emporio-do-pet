@@ -1141,6 +1141,12 @@ export default function InboxUnificadoPage() {
                       style={{ background: "#0F6E56" }}>
                       <span style={{fontSize:"10px"}}>✅</span>{resolvendo ? "Encerrando…" : "Encerrar"}
                     </button>
+                    <button
+                      onClick={() => setSelectedId(null)}
+                      title="Fechar a conversa e o painel de contexto ao lado (não encerra o atendimento)"
+                      className="text-[11px] px-2 py-1 rounded-full inline-flex items-center gap-1 bg-white border border-[#e8e1d2] text-[#888780] hover:text-[#A32D2D] hover:border-[#e6c9c9]">
+                      ✕ Fechar
+                    </button>
                     {/* ⋮ ações secundárias (como no mockup) */}
                     <div className="relative">
                       <button onClick={() => setHeaderMenuOpen((o) => !o)} title="Mais ações"
@@ -1346,8 +1352,14 @@ export default function InboxUnificadoPage() {
             )}
           </div>
 
-          {/* RIGHT - Painel CRM unificado (igual ao Inbox BC) */}
+          {/* RIGHT - Painel CRM unificado (igual ao Inbox BC) — fecha junto com a conversa */}
+  {selectedId ? (
   <InboxRightPanel canal="WhatsApp Meta" initialPhone={selectedConv?.contactNumber} initialTutorId={selectedConv?.tutor?.id} soContexto />
+  ) : (
+  <div className="border-l border-[#e8e1d2] bg-white flex items-center justify-center text-center p-6">
+    <p className="text-[11px] text-[#B4B2A9]">O contexto do cliente aparece aqui quando você abrir uma conversa.</p>
+  </div>
+  )}
           </div>
 
     )}
