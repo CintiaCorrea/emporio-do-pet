@@ -308,6 +308,27 @@ export default function AgendaPage() {
         </div>
         {/* Escala agora fica no cadastro do profissional: Configurações › Equipe. */}
         {/* Config da agenda agora só em Configurações › Agenda & Atendimento. */}
+        {profsAtende.length > 0 && (
+          <div className="relative">
+            <button onClick={() => setFilasOpen((o) => !o)} className="inline-flex items-center gap-1.5 text-[13px] px-3 py-1.5 rounded-lg border" style={{ borderColor: "#E8E2D6", background: "#fff", color: "#5C6B70" }}>
+              👥 Filas · {profsAtende.filter((p: any) => !hidden.has(p.id)).length}/{profsAtende.length}
+              <span style={{ transform: filasOpen ? "rotate(180deg)" : "none", transition: "transform .15s" }}>▾</span>
+            </button>
+            {filasOpen && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setFilasOpen(false)} />
+                <div className="absolute right-0 mt-1 z-20 bg-white border rounded-xl shadow-lg p-2 flex flex-wrap gap-1.5 w-[320px]" style={{ borderColor: "#E8E2D6" }}>
+                  {profsAtende.map((p: any) => { const on = !hidden.has(p.id); return (
+                    <span key={p.id} className="inline-flex items-center rounded-full border text-[11px]" style={on ? { background: "#E1F3F5", color: "#014D5E", borderColor: "#9ED8DE" } : { background: "#fff", color: "#8A989D", borderColor: "#E8E2D6" }}>
+                      <button onClick={() => toggleFila(p.id)} className="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1"><span className="w-2 h-2 rounded-full" style={{ background: p.corAvatar || "#009AAC" }} />{nomeCurto(p)}{on ? <span className="text-[11px]">✓</span> : null}</button>
+                      <button onClick={() => soEste(p.id)} title="Mostrar só este" className="text-[10px] pr-2.5 pl-1 py-1 opacity-70 hover:opacity-100">só</button>
+                    </span>
+                  ); })}
+                </div>
+              </>
+            )}
+          </div>
+        )}
         {foraHoje.length > 0 && (
           <div className="relative">
             <button onClick={() => setIncluirOpen((v) => !v)} className="text-[13px] px-3 py-1.5 rounded-lg border flex items-center gap-1.5" style={{ borderColor: "#009AAC", color: "#009AAC", background: "#fff" }}>➕ Incluir profissional</button>
@@ -331,40 +352,7 @@ export default function AgendaPage() {
         <button onClick={() => { setEditAppt(null); setNovoDefaults({ date: diaStr, duration: cfg?.duracaoPadrao }); setNovoOpen(true); }} className="text-[13px] px-3 py-1.5 rounded-lg text-white flex items-center gap-1.5" style={{ background: "#009AAC" }}>➕ Agendar</button>
       </div>
 
-      {profsAtende.length > 0 ? (
-        <div className="mb-3 relative">
-          <button onClick={() => setFilasOpen((o) => !o)} className="inline-flex items-center gap-2 text-[12px] px-3 h-8 rounded-lg border" style={{ borderColor: "#E8E2D6", background: "#fff", color: "#5C6B70" }}>
-            👥 Filas · {profsAtende.filter((p: any) => !hidden.has(p.id)).length} de {profsAtende.length}
-            <span style={{ transform: filasOpen ? "rotate(180deg)" : "none", transition: "transform .15s" }}>▾</span>
-          </button>
-          {filasOpen && (
-            <>
-              <div className="fixed inset-0 z-10" onClick={() => setFilasOpen(false)} />
-              <div className="absolute left-0 mt-1 z-20 bg-white border rounded-xl shadow-lg p-2 flex flex-wrap gap-1.5 max-w-[560px]" style={{ borderColor: "#E8E2D6" }}>
-                {profsAtende.map((p: any) => { const on = !hidden.has(p.id); return (
-                  <span key={p.id} className="inline-flex items-center rounded-full border text-[11px]" style={on ? { background: "#E1F3F5", color: "#014D5E", borderColor: "#9ED8DE" } : { background: "#fff", color: "#8A989D", borderColor: "#E8E2D6" }}>
-                    <button onClick={() => toggleFila(p.id)} className="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1"><span className="w-2 h-2 rounded-full" style={{ background: p.corAvatar || "#009AAC" }} />{nomeCurto(p)}{on ? <span className="text-[11px]">✓</span> : null}</button>
-                    <button onClick={() => soEste(p.id)} title="Mostrar só este" className="text-[10px] pr-2.5 pl-1 py-1 opacity-70 hover:opacity-100">só</button>
-                  </span>
-                ); })}
-              </div>
-            </>
-          )}
-        </div>
-      ) : null}
-
       {view === "dia" && (<>
-      <div className="flex gap-2.5 mb-3">
-        <div className="rounded-lg px-3.5 py-2.5 border" style={{ background: "#FBF9F4", borderColor: "#F0EBE0" }}><div className="text-[11px] text-[#5C6B70]">📋 Agendamentos</div><div className="text-[18px] font-medium" style={{ color: "#014D5E" }}>{doDiaVis.length}</div></div>
-        {isAdmin ? (
-          <div className="rounded-lg px-3.5 py-2.5 border" style={{ background: "#FBF9F4", borderColor: "#F0EBE0" }}>
-            <div className="text-[11px] text-[#5C6B70] flex items-center gap-1">💰 Previsão do dia<button onClick={() => setValoresVisiveis((v) => !v)} title={valoresVisiveis ? "Ocultar valores" : "Mostrar valores"} className="text-[12px] leading-none">{valoresVisiveis ? "👁️" : "🙈"}</button></div>
-            <div className="text-[18px] font-medium" style={{ color: "#0F6E56" }}>{valoresVisiveis ? brl(previsao) : "R$ ••••"}</div>
-          </div>
-        ) : null}
-        <div className="rounded-lg px-3.5 py-2.5 border" style={{ background: "#FBF9F4", borderColor: "#F0EBE0" }}><div className="text-[11px] text-[#5C6B70]">⏳ Aguardando</div><div className="text-[18px] font-medium" style={{ color: "#854F0B" }}>{espera.length}</div></div>
-      </div>
-
       <div className="grid gap-3" style={{ gridTemplateColumns: "1fr 248px" }}>
         <div className="bg-white border rounded-2xl overflow-hidden" style={{ borderColor: "#E8E2D6" }}>
           {loading ? (
@@ -476,15 +464,24 @@ export default function AgendaPage() {
             <div className="text-center text-[12px] text-gray-400 py-8 px-3">Ninguém aguardando agora.</div>
           ) : (
             <div className="p-2 space-y-1.5">
-              {espera.map((a: any) => (
-                <div key={a.id} className="rounded-lg px-2.5 py-2" style={{ background: "#FAEEDA" }}>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[12px] font-medium" style={{ color: "#014D5E" }}>{a.pet?.name ? `${a.pet.name}${a.tutor?.name ? ` · ${a.tutor.name}` : ""}` : (a.tutor?.name || "—")}</span>
-                    <span className="text-[10px] flex items-center gap-1" style={{ color: "#854F0B" }}>⏱ {esperaDesde(a)}</span>
+              {espera.map((a: any) => {
+                const emAtend = a.status === "Em atendimento";
+                const diff = Math.round((Date.now() - new Date(a.date).getTime()) / 60000);
+                const atrasado = !emAtend && diff > 15;
+                const bg = emAtend ? "#E1F5EE" : atrasado ? "#FCEBEB" : "#FAEEDA";
+                const cor = emAtend ? "#0F6E56" : atrasado ? "#A32D2D" : "#854F0B";
+                return (
+                  <div key={a.id} className="rounded-lg px-2.5 py-2" style={{ background: bg }}>
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="text-[12px] font-medium truncate" style={{ color: "#014D5E" }}>{a.pet?.name ? `${a.pet.name}${a.tutor?.name ? ` · ${a.tutor.name}` : ""}` : (a.tutor?.name || "—")}</span>
+                      <span className="text-[10px] font-semibold whitespace-nowrap" style={{ color: cor }}>{emAtend ? "🩺 atendendo" : atrasado ? `⚠ atrasado ${diff} min` : diff > 0 ? `⏱ há ${diff} min` : "⏱ na hora"}</span>
+                    </div>
+                    <div className="text-[10px] flex items-center gap-1.5 mt-0.5" style={{ color: cor }}>
+                      <span>🕐 {hm(new Date(a.date))}</span><span className="opacity-60">·</span><span className="truncate">{a.type || "Atendimento"}</span>
+                    </div>
                   </div>
-                  <div className="text-[10px]" style={{ color: "#854F0B" }}>{a.type || "Atendimento"} · {a.user?.name || ""}</div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </aside>
