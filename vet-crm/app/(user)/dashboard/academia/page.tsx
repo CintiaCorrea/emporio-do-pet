@@ -7,7 +7,7 @@ import { useState } from "react";
 // então não depende de link externo — qualquer pessoa logada acessa por aqui.
 
 type Tema = "whatsapp" | "regras";
-type ConteudoWa = "guia" | "maquete";
+type ConteudoWa = "guia" | "maquete" | "api";
 
 export default function AcademiaPage() {
   const [tema, setTema] = useState<Tema>("whatsapp");
@@ -54,7 +54,7 @@ export default function AcademiaPage() {
           {/* sub-abas: Guia / Maquete */}
           <div className="flex items-center gap-2 px-4 py-3 border-b flex-wrap" style={{ borderColor: "#F0EBE0" }}>
             <span className="text-[12px] font-bold uppercase tracking-wide mr-1" style={{ color: "#8A8778" }}>Caixa de WhatsApp</span>
-            {([["guia", "📖 Guia visual"], ["maquete", "🖱️ Maquete interativa"]] as [ConteudoWa, string][]).map(([k, lbl]) => {
+            {([["guia", "📖 Guia visual"], ["maquete", "🖱️ Maquete interativa"], ["api", "📡 API & Modelos"]] as [ConteudoWa, string][]).map(([k, lbl]) => {
               const on = wa === k;
               return (
                 <button key={k} onClick={() => setWa(k)}
@@ -67,13 +67,13 @@ export default function AcademiaPage() {
               );
             })}
             <span className="text-[11.5px] ml-auto" style={{ color: "#8A8778" }}>
-              {wa === "maquete" ? "Passe o mouse (ou toque) nos itens." : "Melhor lido com calma. Dá pra imprimir."}
+              {wa === "maquete" ? "Passe o mouse (ou toque) nos itens." : wa === "api" ? "A regra das 24h e os modelos." : "Melhor lido com calma. Dá pra imprimir."}
             </span>
           </div>
           <iframe
             key={wa}
-            src={wa === "guia" ? "/academia/guia-whatsapp.html" : "/academia/maquete-whatsapp.html"}
-            title={wa === "guia" ? "Guia da Caixa de WhatsApp" : "Maquete interativa da Caixa de WhatsApp"}
+            src={wa === "guia" ? "/academia/guia-whatsapp.html" : wa === "maquete" ? "/academia/maquete-whatsapp.html" : "/academia/whatsapp-api.html"}
+            title={wa === "guia" ? "Guia da Caixa de WhatsApp" : wa === "maquete" ? "Maquete interativa da Caixa de WhatsApp" : "WhatsApp API e Modelos"}
             className="w-full block"
             style={{ height: "calc(100vh - 250px)", minHeight: 520, border: 0 }}
           />

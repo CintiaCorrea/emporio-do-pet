@@ -1,0 +1,192 @@
+<!doctype html><html lang="pt-BR" data-theme="light"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>WhatsApp API e Modelos</title></head><body>
+<style>
+  :root {
+    --turq: #009AAC; --marinho: #014D5E; --bege: #E8DFC8;
+    --verde: #0F6E56; --vermelho: #A32D2D; --amber: #8a5a12;
+    --ink: #14253a; --muted: #5F5E5A; --faint: #8A8778;
+    --bg: #F6F2EA; --card: #ffffff; --line: #e8e1d2; --soft: #FBF9F4;
+    --shadow: 0 1px 3px rgba(1,77,94,.07), 0 6px 20px rgba(1,77,94,.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --ink:#eaf1f2; --muted:#b8c2c4; --faint:#8f9a9c; --bg:#0e1516; --card:#16201f; --line:#26332f; --soft:#131c1b; --bege:#2a2a22; --shadow:0 1px 3px rgba(0,0,0,.3),0 6px 20px rgba(0,0,0,.25); }
+  }
+  :root[data-theme="light"] { --ink:#14253a; --muted:#5F5E5A; --faint:#8A8778; --bg:#F6F2EA; --card:#fff; --line:#e8e1d2; --soft:#FBF9F4; --bege:#E8DFC8; }
+  :root[data-theme="dark"] { --ink:#eaf1f2; --muted:#b8c2c4; --faint:#8f9a9c; --bg:#0e1516; --card:#16201f; --line:#26332f; --soft:#131c1b; --bege:#2a2a22; }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+  .wrap { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: var(--bg); color: var(--ink); line-height: 1.55; -webkit-font-smoothing: antialiased; padding: 0 20px 80px; }
+  .container { max-width: 860px; margin: 0 auto; }
+
+  header.hero { background: linear-gradient(135deg, var(--marinho), var(--turq)); color: #fff; border-radius: 20px; padding: 34px 30px 30px; margin: 28px auto 26px; max-width: 860px; box-shadow: var(--shadow); }
+  header.hero .eyebrow { text-transform: uppercase; letter-spacing: .12em; font-size: 11px; font-weight: 700; opacity: .85; margin: 0 0 8px; }
+  header.hero h1 { margin: 0 0 8px; font-size: 29px; line-height: 1.15; font-weight: 800; text-wrap: balance; }
+  header.hero p { margin: 0; font-size: 15px; opacity: .92; max-width: 60ch; }
+
+  section { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 24px 26px; margin: 0 0 18px; box-shadow: var(--shadow); }
+  section > h2 { margin: 0 0 4px; font-size: 20px; color: var(--marinho); font-weight: 800; display: flex; align-items: center; gap: 9px; }
+  @media (prefers-color-scheme: dark) { section > h2 { color: var(--turq); } }
+  :root[data-theme="dark"] section > h2 { color: var(--turq); }
+  section > .lead { margin: 0 0 16px; color: var(--muted); font-size: 14px; }
+  h3 { font-size: 15px; margin: 20px 0 8px; color: var(--ink); font-weight: 700; }
+  p.tx { color: var(--muted); font-size: 14px; margin: 0 0 10px; }
+  p.tx b { color: var(--ink); }
+
+  /* Janela 24h — dois estados */
+  .janela { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 6px; }
+  .jcard { border-radius: 14px; padding: 16px 18px; border: 1.5px solid var(--line); }
+  .jcard.aberta { background: color-mix(in srgb, var(--verde) 9%, var(--card)); border-color: color-mix(in srgb, var(--verde) 30%, var(--line)); }
+  .jcard.fechada { background: color-mix(in srgb, var(--amber) 10%, var(--card)); border-color: color-mix(in srgb, var(--amber) 30%, var(--line)); }
+  .jcard .top { font-size: 14px; font-weight: 800; display: flex; align-items: center; gap: 7px; margin-bottom: 4px; }
+  .jcard.aberta .top { color: var(--verde); }
+  .jcard.fechada .top { color: var(--amber); }
+  .jcard p { margin: 4px 0 0; font-size: 13px; color: var(--muted); }
+  .jcard .can { display: inline-block; margin-top: 9px; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; }
+  .jcard.aberta .can { background: var(--verde); color: #fff; }
+  .jcard.fechada .can { background: var(--amber); color: #fff; }
+  @media (max-width: 560px) { .janela { grid-template-columns: 1fr; } }
+
+  /* Anatomia do modelo */
+  .modelo { background: #DCF3F5; border-radius: 12px; padding: 14px 16px; font-size: 13.5px; color: #0b3a41; line-height: 1.6; border: 1px solid #bfe8ec; }
+  .modelo .v { background: var(--turq); color: #fff; padding: 0 6px; border-radius: 5px; font-weight: 700; font-size: 12px; }
+  .varleg { display: grid; gap: 6px; margin-top: 12px; }
+  .varleg .row { display: flex; gap: 9px; align-items: baseline; font-size: 13px; }
+  .varleg .k { background: var(--turq); color: #fff; padding: 1px 7px; border-radius: 5px; font-weight: 700; font-size: 11.5px; flex-shrink: 0; }
+  .varleg .row span { color: var(--muted); }
+
+  /* Passo a passo */
+  ol.steps { list-style: none; counter-reset: s; padding: 0; margin: 6px 0 0; }
+  ol.steps > li { counter-increment: s; position: relative; padding: 4px 0 16px 44px; border-left: 2px solid var(--line); margin-left: 15px; }
+  ol.steps > li:last-child { border-left-color: transparent; padding-bottom: 0; }
+  ol.steps > li::before { content: counter(s); position: absolute; left: -15px; top: 0; width: 30px; height: 30px; border-radius: 50%; background: var(--marinho); color: #fff; font-size: 14px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+  ol.steps > li b { color: var(--ink); }
+  ol.steps > li p { margin: 3px 0 0; color: var(--muted); font-size: 13.5px; }
+
+  /* Mini-mockup da tela Nova conversa */
+  .mock { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; max-width: 360px; margin: 6px auto 0; box-shadow: var(--shadow); background: var(--card); }
+  .mock .mh { background: var(--soft); padding: 10px 14px; font-size: 13px; font-weight: 700; color: var(--ink); border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; }
+  .mock .mb { padding: 12px 14px; display: grid; gap: 9px; }
+  .mock label { font-size: 10.5px; font-weight: 600; color: var(--muted); display: block; margin-bottom: 3px; }
+  .mock .fld { border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; font-size: 12px; color: var(--faint); background: var(--card); }
+  .mock .fld.sel { color: var(--ink); }
+  .mock .prev { background: #DCF3F5; border: 1px solid #bfe8ec; border-radius: 8px; padding: 9px 11px; font-size: 11.5px; color: #0b3a41; line-height: 1.5; }
+  .mock .prev .v { background: var(--turq); color: #fff; padding: 0 5px; border-radius: 4px; font-weight: 700; font-size: 10.5px; }
+  .mock .go { background: var(--turq); color: #fff; text-align: center; padding: 8px; border-radius: 8px; font-size: 12px; font-weight: 700; }
+
+  .call { display: flex; gap: 11px; align-items: flex-start; padding: 14px 16px; border-radius: 12px; background: color-mix(in srgb, var(--turq) 8%, var(--card)); border: 1px solid color-mix(in srgb, var(--turq) 25%, var(--line)); margin-top: 8px; }
+  .call .mk { font-size: 18px; }
+  .call p { margin: 0; font-size: 13.5px; color: var(--muted); }
+  .call b { color: var(--ink); }
+
+  /* decisão */
+  .dec { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 6px; }
+  .dcard { border-radius: 12px; padding: 14px 16px; border: 1px solid var(--line); background: var(--soft); }
+  .dcard h4 { margin: 0 0 4px; font-size: 14px; display: flex; gap: 7px; align-items: center; }
+  .dcard p { margin: 0; font-size: 13px; color: var(--muted); }
+  @media (max-width: 560px) { .dec { grid-template-columns: 1fr; } }
+
+  footer.foot { text-align: center; color: var(--faint); font-size: 12px; margin-top: 26px; }
+  @media print { .wrap { background: #fff; padding: 0; } section, header.hero { box-shadow: none; break-inside: avoid; } header.hero { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+</style>
+
+<div class="wrap">
+  <header class="hero">
+    <p class="eyebrow">🐾 Empório do Pet · Academia · WhatsApp</p>
+    <h1>Como funciona o WhatsApp API e os Modelos</h1>
+    <p>Por que às vezes você digita à vontade e às vezes precisa de um "modelo". Entenda a regra das 24 horas e como iniciar uma conversa nova pelo sistema.</p>
+  </header>
+
+  <div class="container">
+
+    <section>
+      <h2>📡 O que é o WhatsApp Business API</h2>
+      <p class="tx">É o WhatsApp <b>oficial</b> da Meta pra empresas — o mesmo que a gente usa dentro do sistema. Diferente do WhatsApp do celular, ele permite <b>vários atendentes no mesmo número</b>, guarda todo o histórico e conecta com a ficha do cliente.</p>
+      <p class="tx">Em troca dessa robustez, a Meta impõe <b>uma regra</b> pra evitar spam — e é ela que explica o comportamento que às vezes confunde: a <b>janela de 24 horas</b>.</p>
+    </section>
+
+    <section>
+      <h2>⏱️ A regra das 24 horas</h2>
+      <p class="lead">Tudo gira em torno de <b>quando o cliente falou com a gente pela última vez</b>.</p>
+      <div class="janela">
+        <div class="jcard aberta">
+          <div class="top">🟢 Janela ABERTA</div>
+          <p>O cliente te mandou mensagem <b>nas últimas 24h</b>.</p>
+          <span class="can">Pode mandar texto livre ✍️</span>
+          <p style="margin-top:9px">Responde normalmente, do jeito que quiser — como num WhatsApp comum.</p>
+        </div>
+        <div class="jcard fechada">
+          <div class="top">🟠 Janela FECHADA</div>
+          <p>Passaram <b>mais de 24h</b> sem o cliente escrever.</p>
+          <span class="can">Só com um Modelo aprovado 📋</span>
+          <p style="margin-top:9px">A Meta bloqueia texto livre. Pra falar, você usa um <b>modelo</b> (veja abaixo). Quando o cliente responder, a janela abre de novo.</p>
+        </div>
+      </div>
+      <div class="call">
+        <span class="mk">💡</span>
+        <p>Por isso, quando você tenta mandar texto livre pra alguém que não escreve há dias, aparece um <b>erro do Meta</b>. Não é bug — é a janela fechada. A saída é o modelo.</p>
+      </div>
+    </section>
+
+    <section>
+      <h2>📋 O que é um Modelo (template)</h2>
+      <p class="tx">É uma mensagem <b>pré-aprovada pela Meta</b> pra iniciar conversa fora das 24h (confirmação de agenda, lembrete, aviso de exame…). Como é aprovada antes, ela tem <b>partes fixas</b> e <b>lacunas</b> que você preenche na hora — as <b>variáveis</b>.</p>
+      <div class="modelo">
+        Olá, <span class="v">{{1}}</span>! 🐾 Informamos que amanhã o seu pet <span class="v">{{2}}</span> tem fisioterapia. Podemos confirmar? Atenciosamente, <span class="v">{{3}}</span>.
+      </div>
+      <div class="varleg">
+        <div class="row"><span class="k">{{1}}</span><span>nome do <b>cliente</b></span></div>
+        <div class="row"><span class="k">{{2}}</span><span>nome do <b>pet</b></span></div>
+        <div class="row"><span class="k">{{3}}</span><span><b>quem está atendendo</b> (seu nome, preenchido pelo sistema)</span></div>
+      </div>
+      <p class="tx" style="margin-top:14px">Os modelos são criados e enviados pra aprovação da Meta em <b>Agentes de IA › Templates</b>. Depois de aprovados, aparecem na lista pra usar.</p>
+    </section>
+
+    <section>
+      <h2>🚀 Como iniciar uma conversa nova (fora das 24h)</h2>
+      <p class="lead">Pelo botão <b>➕ Nova mensagem</b> (canto superior direito do Inbox Meta).</p>
+      <div style="display:grid;grid-template-columns:1.1fr .9fr;gap:20px;align-items:start;">
+        <ol class="steps">
+          <li><b>Clique em ➕ Nova mensagem.</b><p>Abre a tela "Nova conversa".</p></li>
+          <li><b>Escolha o cliente</b> (busca por nome ou telefone) — e, se tiver mais de um pet, <b>qual pet</b>.<p>O telefone é preenchido sozinho.</p></li>
+          <li><b>Escolha o Modelo</b> aprovado na lista "Modelo do Meta".</li>
+          <li><b>Confira e preencha as variáveis.</b><p>A prévia mostra a mensagem montada. Cliente e pet já vêm; seu nome entra como quem atende.</p></li>
+          <li><b>Envie</b> no 🚀 <b>Enviar modelo</b>.<p>A conversa começa e aparece na caixa.</p></li>
+        </ol>
+        <div class="mock" aria-label="Exemplo da tela Nova conversa">
+          <div class="mh"><span>Nova conversa</span><span style="color:var(--faint)">×</span></div>
+          <div class="mb">
+            <div><label>Para quem?</label><div class="fld sel">Milton Gehrmann Castro</div></div>
+            <div><label>Pet</label><div class="fld sel">Hayka</div></div>
+            <div><label>Modelo do Meta</label><div class="fld sel">confirmacao_fisioterapia ▾</div></div>
+            <div class="prev">Olá, <span class="v">Milton</span>! 🐾 Amanhã o <span class="v">Hayka</span> tem fisioterapia. Podemos confirmar? — <span class="v">Cintia</span></div>
+            <div class="go">🚀 Enviar modelo (iniciar conversa)</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>🧭 Na dúvida: texto livre ou modelo?</h2>
+      <div class="dec">
+        <div class="dcard">
+          <h4>✍️ Texto livre</h4>
+          <p>Quando o cliente <b>te respondeu nas últimas 24h</b>. É a maioria dos atendimentos do dia. Só digitar e enviar.</p>
+        </div>
+        <div class="dcard">
+          <h4>📋 Modelo</h4>
+          <p>Quando você vai <b>começar</b> a conversa (ou faz mais de 24h que ele não fala). Ex.: confirmar a agenda de amanhã.</p>
+        </div>
+      </div>
+      <div class="call" style="margin-top:14px">
+        <span class="mk">✅</span>
+        <p>Regra prática: <b>respondendo</b> um cliente que acabou de escrever? texto livre. <b>Puxando</b> conversa você mesma? modelo.</p>
+      </div>
+    </section>
+
+    <footer class="foot">
+      Empório do Pet · Academia · WhatsApp API e Modelos · dúvidas? avise a Cintia.
+    </footer>
+
+  </div>
+</div>
+</body></html>
