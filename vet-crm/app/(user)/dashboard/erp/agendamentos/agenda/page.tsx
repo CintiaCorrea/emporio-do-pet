@@ -151,7 +151,9 @@ export default function AgendaPage() {
 
   const visiveis = useMemo(() => profsAtende.filter((p: any) => !hidden.has(p.id) && profVisivelHoje(p)), [profsAtende, hidden, externosDia, diaStr, doDia]);
   const avulsasAtivas = useMemo(() => avulsas.filter((a: any) => a.ativo !== false), [avulsas]);
-  const avulsasVis = useMemo(() => avulsasAtivas.filter(avulsaVisivelHoje), [avulsasAtivas, diaStr, doDia]);
+  // Avulsa aparece se NÃO estiver desligada no seletor Filas (e for do dia); OU se já tiver
+  // agendamento no dia (assim, mesmo desligada, ela volta quando tem algo marcado).
+  const avulsasVis = useMemo(() => avulsasAtivas.filter((a: any) => (hidden.has(a.id) ? doDia.some((x: any) => x.agendaAvulsa === a.id) : avulsaVisivelHoje(a))), [avulsasAtivas, diaStr, doDia, hidden]);
   // Colunas da agenda = profissionais visíveis + agendas avulsas (Parceiro/MAP) que funcionam hoje.
   const colunas = useMemo(() => [
     ...visiveis.map((p: any) => ({ ...p, _avulsa: false })),
@@ -334,10 +336,10 @@ export default function AgendaPage() {
         </div>
         {/* Escala agora fica no cadastro do profissional: Configurações › Equipe. */}
         {/* Config da agenda agora só em Configurações › Agenda & Atendimento. */}
-        {profsAtende.length > 0 && (
+        {(profsAtende.length > 0 || avulsasAtivas.length > 0) && (
           <div className="relative">
             <button onClick={() => setFilasOpen((o) => !o)} className="inline-flex items-center gap-1.5 text-[13px] px-3 py-1.5 rounded-lg border" style={{ borderColor: "#E8E2D6", background: "#fff", color: "#5C6B70" }}>
-              👥 Filas · {profsAtende.filter((p: any) => !hidden.has(p.id)).length}/{profsAtende.length}
+              👥 Filas · {profsAtende.filter((p: any) => !hidden.has(p.id)).length + avulsasAtivas.filter((a: any) => !hidden.has(a.id)).length}/{profsAtende.length + avulsasAtivas.length}
               <span style={{ transform: filasOpen ? "rotate(180deg)" : "none", transition: "transform .15s" }}>▾</span>
             </button>
             {filasOpen && (
@@ -350,6 +352,17 @@ export default function AgendaPage() {
                       <button onClick={() => soEste(p.id)} title="Mostrar só este" className="text-[10px] pr-2.5 pl-1 py-1 opacity-70 hover:opacity-100">só</button>
                     </span>
                   ); })}
+                  {avulsasAtivas.length > 0 && (
+                    <>
+                      <div className="w-full border-t mt-1 pt-1.5" style={{ borderColor: "#F0EBE0" }} />
+                      <div className="w-full text-[9px] uppercase tracking-wide text-gray-400 px-1 -mb-0.5">Agendas avulsas (MAP, parceiros, RX…)</div>
+                      {avulsasAtivas.map((a: any) => { const on = !hidden.has(a.id); return (
+                        <span key={a.id} className="inline-flex items-center rounded-full border text-[11px]" style={on ? { background: "#E1F3F5", color: "#014D5E", borderColor: "#9ED8DE" } : { background: "#fff", color: "#8A989D", borderColor: "#E8E2D6" }}>
+                          <button onClick={() => toggleFila(a.id)} className="inline-flex items-center gap-1.5 px-2.5 py-1"><span className="w-2 h-2 rounded-full" style={{ background: a.cor || "#7C3AED" }} />{a.nome}{on ? <span className="text-[11px]">✓</span> : null}</button>
+                        </span>
+                      ); })}
+                    </>
+                  )}
                 </div>
               </>
             )}
