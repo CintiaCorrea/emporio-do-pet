@@ -18,6 +18,25 @@ const ESTADOS = [
 ];
 const PROGNOSTICOS = ["Bom", "Reservado", "Ruim", "Grave"];
 const VIAS = ["IV", "IM", "SC", "VO", "IV (BIC)", "SL", "IN", "Tópico", "Outro"];
+// Frequências clássicas: a partir da 1ª aplicação o sistema calcula os horários do dia.
+const FREQUENCIAS: Array<{ v: string; h: number }> = [
+  { v: "4/4h", h: 4 }, { v: "6/6h", h: 6 }, { v: "8/8h", h: 8 },
+  { v: "12/12h", h: 12 }, { v: "24h (1x ao dia)", h: 24 },
+];
+/** "06:00" + 8/8h → "06:00, 14:00, 22:00". Ciclo de 24h a partir da 1ª aplicação. */
+function calcularHorarios(primeira: string, frequencia: string): string {
+  const f = FREQUENCIAS.find((x) => x.v === frequencia);
+  const m = /^(\d{1,2}):(\d{2})$/.exec((primeira || "").trim());
+  if (!f || !m) return "";
+  const ini = parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+  if (isNaN(ini) || ini < 0 || ini >= 1440) return "";
+  const out: string[] = [];
+  for (let t = 0; t < 24 * 60; t += f.h * 60) {
+    const min = (ini + t) % 1440;
+    out.push(`${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`);
+  }
+  return out.join(", ");
+}
 const STATUS_MED: Record<string, { lbl: string; bg: string; fg: string }> = {
   atrasado: { lbl: "Atrasada", bg: "#FCE9EF", fg: "#CC3366" },
   pendente: { lbl: "Pendente", bg: "#FDF4DD", fg: "#8a6400" },
@@ -80,7 +99,7 @@ export default function FichaInternacaoPage() {
   const [prescricoes, setPrescricoes] = useState<any[]>([]);
   const [doses, setDoses] = useState<any[]>([]);
   const [prescOpen, setPrescOpen] = useState(false);
-  const [prescForm, setPrescForm] = useState<any>({ id: "", medicamento: "", via: "IV", dose: "", frequencia: "", horarios: "", observacao: "" });
+  const [prescForm, setPrescForm] = useState<any>({ id: "", medicamento: "", via: "IV", dose: "", primeira: "", frequencia: "", horarios: "", observacao: "", prescritoPor: "" });
   const [prescSaving, setPrescSaving] = useState(false);
 
   // Sinais vitais & fluidos (F4)
@@ -202,7 +221,9 @@ export default function FichaInternacaoPage() {
 
   // ── Prescrição & plantão (F3) ─────────────────────────────────────
   const abrirPresc = (p?: any) => {
-    setPrescForm(p ? { id: p.id, medicamento: p.medicamento || "", via: p.via || "IV", dose: p.dose || "", frequencia: p.frequencia || "", horarios: (p.horarios || []).join(", "), observacao: p.observacao || "" } : { id: "", medicamento: "", via: "IV", dose: "", frequencia: "", horarios: "", observacao: "" });
+    setPrescForm(p
+      ? { id: p.id, medicamento: p.medicamento || "", via: p.via || "IV", dose: p.dose || "", primeira: p.primeira || "", frequencia: p.frequencia || "", horarios: (p.horarios || []).join(", "), observacao: p.observacao || "", prescritoPor: p.prescritoPor || "" }
+      : { id: "", medicamento: "", via: "IV", dose: "", primeira: "", frequencia: "", horarios: "", observacao: "", prescritoPor: "" });
     setPrescOpen(true);
   };
   const salvarPresc = async () => {
@@ -210,7 +231,14 @@ export default function FichaInternacaoPage() {
     setPrescSaving(true);
     try {
       const horarios = String(prescForm.horarios || "").split(",").map((s: string) => s.trim()).filter(Boolean);
-      const payload = { medicamento: prescForm.medicamento.trim(), via: prescForm.via, dose: prescForm.dose.trim(), frequencia: prescForm.frequencia.trim(), horarios, observacao: prescForm.observacao.trim() };
+      // Quem prescreveu = usuário logado. Numa edição, preserva o prescritor original
+      // (é registro clínico — quem editou depois não vira o autor da prescrição).
+      const payload = {
+        medicamento: prescForm.medicamento.trim(), via: prescForm.via, dose: prescForm.dose.trim(),
+        primeira: prescForm.primeira || "", frequencia: prescForm.frequencia.trim(), horarios,
+        observacao: prescForm.observacao.trim(),
+        prescritoPor: prescForm.prescritoPor || userName || "",
+      };
       if (prescForm.id) {
         await fetch(`/api/listas/${prescForm.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ valor: JSON.stringify(payload) }) });
       } else {
@@ -708,7 +736,7 @@ export default function FichaInternacaoPage() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-[13px]">
                     <thead><tr className="text-[10.5px] text-[#8A989D] uppercase tracking-wide">
-                      <th className="text-left font-medium px-4 py-2">Medicação</th><th className="text-left font-medium px-2 py-2">Via</th><th className="text-left font-medium px-2 py-2">Dose</th><th className="text-left font-medium px-2 py-2">Freq.</th><th className="text-left font-medium px-2 py-2">Horários</th><th className="px-2 py-2"></th>
+                      <th className="text-left font-medium px-4 py-2">Medicação</th><th className="text-left font-medium px-2 py-2">Via</th><th className="text-left font-medium px-2 py-2">Dose</th><th className="text-left font-medium px-2 py-2">Freq.</th><th className="text-left font-medium px-2 py-2">Horários</th><th className="text-left font-medium px-2 py-2">Prescrito por</th><th className="px-2 py-2"></th>
                     </tr></thead>
                     <tbody>
                       {prescricoes.map((p) => (
@@ -718,6 +746,7 @@ export default function FichaInternacaoPage() {
                           <td className="px-2 py-2 tabular-nums whitespace-nowrap">{p.dose || "—"}</td>
                           <td className="px-2 py-2 whitespace-nowrap">{p.frequencia || "—"}</td>
                           <td className="px-2 py-2 tabular-nums text-[#5C6B70] whitespace-nowrap">{(p.horarios || []).join(" · ") || "contínuo"}</td>
+                          <td className="px-2 py-2 text-[#5C6B70] whitespace-nowrap">{p.prescritoPor || "—"}</td>
                           <td className="px-2 py-2 text-right whitespace-nowrap">{!alta && <><button onClick={() => abrirPresc(p)} className="text-[12px] px-1">✏️</button><button onClick={() => excluirPresc(p)} className="text-[12px] px-1">🗑️</button></>}</td>
                         </tr>
                       ))}
@@ -1001,11 +1030,21 @@ export default function FichaInternacaoPage() {
                 <select value={prescForm.via} onChange={(e) => setPrescForm({ ...prescForm, via: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }}>{VIAS.map((v) => <option key={v} value={v}>{v}</option>)}</select></div>
               <div><label className="text-[11px] text-[#8A989D] block mb-1">Dose</label>
                 <input value={prescForm.dose} onChange={(e) => setPrescForm({ ...prescForm, dose: e.target.value })} placeholder="3 mg/kg" className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
+              <div><label className="text-[11px] text-[#8A989D] block mb-1">1ª aplicação</label>
+                <input type="time" value={prescForm.primeira} onChange={(e) => { const primeira = e.target.value; const calc = calcularHorarios(primeira, prescForm.frequencia); setPrescForm({ ...prescForm, primeira, ...(calc ? { horarios: calc } : {}) }); }} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
               <div><label className="text-[11px] text-[#8A989D] block mb-1">Frequência</label>
-                <input value={prescForm.frequencia} onChange={(e) => setPrescForm({ ...prescForm, frequencia: e.target.value })} placeholder="8/8h" className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
+                <select value={prescForm.frequencia} onChange={(e) => { const frequencia = e.target.value; const calc = calcularHorarios(prescForm.primeira, frequencia); setPrescForm({ ...prescForm, frequencia, ...(calc ? { horarios: calc } : {}) }); }} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }}>
+                  <option value="">Contínua / sem frequência fixa</option>
+                  {FREQUENCIAS.map((f) => <option key={f.v} value={f.v}>{f.v}</option>)}
+                  {prescForm.frequencia && !FREQUENCIAS.some((f) => f.v === prescForm.frequencia) && <option value={prescForm.frequencia}>{prescForm.frequencia}</option>}
+                </select></div>
               <div><label className="text-[11px] text-[#8A989D] block mb-1">Horários (HH:MM)</label>
                 <input value={prescForm.horarios} onChange={(e) => setPrescForm({ ...prescForm, horarios: e.target.value })} placeholder="06:00, 14:00, 22:00" className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
-              <div className="col-span-2 -mt-1 text-[10.5px] text-[#8A989D]">Deixe os horários vazios para medicação <b>contínua</b> (não gera doses no plantão).</div>
+              <div className="col-span-2 -mt-1 text-[10.5px] text-[#8A989D]">
+                Preencha a <b>1ª aplicação</b> e a <b>frequência</b> que os horários são calculados sozinhos — e você pode editar depois.
+                Deixe os horários vazios para medicação <b>contínua</b> (não gera doses no plantão).
+                {(prescForm.prescritoPor || userName) && <> Prescrição registrada em nome de <b>{prescForm.prescritoPor || userName}</b>.</>}
+              </div>
               <div className="col-span-2"><label className="text-[11px] text-[#8A989D] block mb-1">Observação</label>
                 <input value={prescForm.observacao} onChange={(e) => setPrescForm({ ...prescForm, observacao: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
             </div>
