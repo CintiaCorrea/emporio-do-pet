@@ -1,0 +1,173 @@
+<!doctype html><html lang="pt-BR" data-theme="light"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Maquete — Agenda</title></head><body>
+<style>
+  :root{--turq:#009AAC;--marinho:#014D5E;--verde:#0F6E56;--verm:#A32D2D;--roxo:#7C3AED;--azul:#185FA5;--amber:#B45309;--bg:#F4F1EA;--panel:#fff;--line:#E6DFCE;--soft:#FBF9F4;--ink:#14253a;--muted:#5F5E5A;--faint:#95917f;}
+  @media (prefers-color-scheme:dark){:root{--bg:#0e1516;--panel:#16201f;--line:#26332f;--soft:#131c1b;--ink:#eaf1f2;--muted:#b8c2c4;--faint:#8f9a9c;}}
+  :root[data-theme="light"]{--bg:#F4F1EA;--panel:#fff;--line:#E6DFCE;--soft:#FBF9F4;--ink:#14253a;--muted:#5F5E5A;--faint:#95917f;}
+  :root[data-theme="dark"]{--bg:#0e1516;--panel:#16201f;--line:#26332f;--soft:#131c1b;--ink:#eaf1f2;--muted:#b8c2c4;--faint:#8f9a9c;}
+  *{box-sizing:border-box;} body{margin:0;}
+  .page{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);padding:22px 16px 90px;-webkit-font-smoothing:antialiased;}
+  .head{max-width:1080px;margin:0 auto 12px;} .head h1{margin:0;font-size:21px;font-weight:800;color:var(--marinho);}
+  @media (prefers-color-scheme:dark){.head h1{color:var(--turq);}} :root[data-theme="dark"] .head h1{color:var(--turq);}
+  .banner{max-width:1080px;margin:0 auto 14px;display:flex;align-items:center;gap:10px;background:linear-gradient(135deg,var(--marinho),var(--turq));color:#fff;padding:11px 16px;border-radius:12px;font-size:13.5px;font-weight:600;}
+  .pulse{width:9px;height:9px;border-radius:50%;background:#fff;box-shadow:0 0 0 0 rgba(255,255,255,.7);animation:pl 1.8s infinite;}
+  @keyframes pl{0%{box-shadow:0 0 0 0 rgba(255,255,255,.6);}70%{box-shadow:0 0 0 9px rgba(255,255,255,0);}100%{box-shadow:0 0 0 0 rgba(255,255,255,0);}}
+  @media (prefers-reduced-motion:reduce){.pulse{animation:none;}}
+
+  .frame{max-width:1080px;margin:0 auto;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 6px 24px rgba(1,77,94,.08);}
+  [data-tip]{cursor:help;border-radius:8px;transition:outline .12s;} [data-tip]:hover,[data-tip].on{outline:2px solid var(--turq);outline-offset:1px;}
+  [data-tip]:focus-visible{outline:2px solid var(--turq);outline-offset:1px;}
+
+  .tb{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line);background:var(--soft);flex-wrap:wrap;}
+  .btn{width:28px;height:28px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--muted);display:flex;align-items:center;justify-content:center;font-size:13px;}
+  .pill{height:28px;padding:0 11px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--muted);font-size:12px;display:inline-flex;align-items:center;gap:5px;}
+  .dt{font-size:14px;font-weight:700;color:var(--marinho);} .sp{flex:1;}
+  .seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;} .seg span{font-size:12px;padding:5px 11px;color:var(--muted);} .seg span.on{background:var(--turq);color:#fff;font-weight:600;}
+  .add{background:var(--turq);color:#fff;font-size:12.5px;font-weight:600;padding:6px 13px;border-radius:8px;}
+
+  /* sala de espera horizontal */
+  .sala{border-bottom:1px solid var(--line);}
+  .sala .sh{display:flex;align-items:center;gap:8px;padding:8px 14px;border-bottom:1px solid var(--line);}
+  .sala .sh b{font-size:12.5px;color:var(--marinho);font-weight:700;} .sala .cnt{font-size:11px;color:#fff;background:#854F0B;border-radius:999px;padding:1px 8px;}
+  .sala .strip{display:flex;gap:8px;padding:8px 14px;overflow-x:auto;}
+  .wc{min-width:186px;border-radius:9px;padding:7px 10px;flex-shrink:0;}
+  .wc .l1{display:flex;justify-content:space-between;gap:6px;} .wc .nm{font-size:12px;font-weight:700;color:var(--ink);} .wc .tm{font-size:10px;font-weight:700;} .wc .l2{font-size:10px;margin-top:2px;}
+
+  .gridwrap{overflow-x:auto;} .grid{min-width:860px;}
+  .ghead{display:grid;grid-template-columns:52px repeat(5,1fr);background:var(--soft);border-bottom:1px solid var(--line);}
+  .ghead .c{padding:9px 6px;text-align:center;border-left:1px solid var(--line);} .ghead .c:first-child{border-left:0;}
+  .ghead .nm{font-size:12px;font-weight:700;color:var(--marinho);display:flex;align-items:center;justify-content:center;gap:5px;}
+  .dot{width:8px;height:8px;border-radius:50%;display:inline-block;} .av{font-size:8px;font-weight:800;color:var(--roxo);background:#F3F0FF;padding:1px 5px;border-radius:4px;text-transform:uppercase;margin-top:2px;display:inline-block;}
+  .row{display:grid;grid-template-columns:52px repeat(5,1fr);border-bottom:1px dashed var(--line);min-height:58px;}
+  .hr{font-size:11px;color:var(--faint);text-align:right;padding:6px 8px 0 0;font-weight:600;}
+  .cell{border-left:1px solid var(--line);padding:4px;}
+
+  .appt{border-radius:10px;padding:6px 8px;border:1px solid var(--line);border-left:3px solid var(--turq);background:var(--panel);}
+  .appt.ch{border-left-color:var(--azul);} .appt.at{border-left-color:var(--amber);} .appt.ok{border-left-color:var(--verde);}
+  .appt .hora{font-size:10px;color:var(--muted);font-weight:600;}
+  .appt .who{font-size:12px;font-weight:700;color:var(--ink);margin:1px 0;}
+  .appt .svc{font-size:9.5px;color:var(--muted);display:flex;align-items:center;gap:4px;}
+  .stage{display:flex;align-items:center;border:1px solid var(--line);border-radius:7px;overflow:hidden;margin-top:5px;}
+  .stage .cur{flex:1;padding:3px 7px;font-size:9.5px;font-weight:700;} .stage .adv{padding:3px 7px;font-size:9.5px;font-weight:700;border-left:1px solid var(--line);color:var(--turq);background:var(--panel);}
+  .s-ag .cur{background:#EDEBE3;color:#6b6857;} .s-ch .cur{background:#E3EEFA;color:var(--azul);} .s-at .cur{background:#FDECD6;color:var(--amber);} .s-ok .cur{background:#DEF3E8;color:var(--verde);}
+  .steps{display:flex;gap:3px;margin-top:4px;} .steps i{height:3px;flex:1;border-radius:2px;background:var(--line);} .steps i.on{background:var(--turq);}
+
+  #tip{position:fixed;z-index:99;max-width:260px;background:var(--marinho);color:#fff;font-size:12.5px;line-height:1.45;padding:9px 12px;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);opacity:0;transform:translateY(4px);transition:opacity .12s,transform .12s;pointer-events:none;}
+  #tip.show{opacity:1;transform:translateY(0);} #tip b{color:#BFF0F5;}
+  #tip::after{content:"";position:absolute;width:10px;height:10px;background:var(--marinho);transform:rotate(45deg);}
+  #tip[data-pos="top"]::after{bottom:-5px;left:var(--ax,20px);} #tip[data-pos="bottom"]::after{top:-5px;left:var(--ax,20px);}
+  .legend{max-width:1080px;margin:14px auto 0;font-size:12px;color:var(--faint);text-align:center;}
+</style>
+
+<div class="page">
+  <div class="head"><h1>🖱️ Maquete interativa — Agenda</h1></div>
+  <div class="banner"><span class="pulse"></span> Passe o mouse (ou toque) em qualquer item da agenda pra ver o que é e pra que serve.</div>
+
+  <div class="frame">
+    <div class="tb">
+      <span class="btn" data-tip="Dia anterior.">‹</span>
+      <span class="pill" data-tip="Volta pro dia de hoje.">Hoje</span>
+      <span class="btn" data-tip="Próximo dia.">›</span>
+      <span class="dt" data-tip="O dia que está sendo mostrado.">Sábado, 18 jul</span>
+      <span class="sp"></span>
+      <span class="pill" data-tip="Escolher uma data específica no calendário.">📅 18/07/2026</span>
+      <span class="seg" data-tip="Ver por Dia, Semana ou Mês."><span class="on">Dia</span><span>Semana</span><span>Mês</span></span>
+      <span class="pill" data-tip="<b>Filas</b> — roll-up pra ligar/desligar quais colunas (profissionais e MAP) aparecem. '4/5' = mostrando 4 de 5.">👥 Filas · 4/5 ▾</span>
+      <span class="pill" data-tip="<b>Incluir profissional</b> — traz pra agenda de hoje alguém que está de folga ou é externo.">➕ Incluir profissional</span>
+      <span class="add" data-tip="<b>Agendar</b> — abre o Novo agendamento pra marcar um horário.">➕ Agendar</span>
+    </div>
+
+    <div class="sala">
+      <div class="sh" data-tip="<b>Sala de espera</b> — quem marcou 'Chegou' e está aguardando. Rola pro lado se tiver muitos."><b>🪑 Sala de espera</b><span class="cnt">2</span></div>
+      <div class="strip">
+        <div class="wc" style="background:#FAEEDA" data-tip="Card de quem aguarda: nome, horário e há quanto tempo espera."><div class="l1"><span class="nm">Marvin</span><span class="tm" style="color:#854F0B">⏱ há 8 min</span></div><div class="l2" style="color:#854F0B">🕐 09:00 · Sessão de fisio</div></div>
+        <div class="wc" style="background:#E1F5EE" data-tip="Verde = já entrou em atendimento."><div class="l1"><span class="nm">Zeus</span><span class="tm" style="color:#0F6E56">🩺 atendendo</span></div><div class="l2" style="color:#0F6E56">🕐 09:00 · Fisio</div></div>
+        <div class="wc" style="background:#FCEBEB" data-tip="Vermelho = atrasado (mais de 15 min esperando)."><div class="l1"><span class="nm">Bela</span><span class="tm" style="color:#A32D2D">⚠ atrasado 22 min</span></div><div class="l2" style="color:#A32D2D">🕐 08:30 · Consulta</div></div>
+      </div>
+    </div>
+
+    <div class="gridwrap"><div class="grid">
+      <div class="ghead">
+        <div class="c"></div>
+        <div class="c" data-tip="Coluna de um <b>profissional</b>. Some/aparece pelo roll-up Filas."><div class="nm"><span class="dot" style="background:var(--turq)"></span>Dra. Ana</div></div>
+        <div class="c" data-tip="Outro profissional."><div class="nm"><span class="dot" style="background:#B45309"></span>Dr. Léo</div></div>
+        <div class="c" data-tip="<b>MAP 1</b> — agenda avulsa da fisioterapia (sala MAP). Independente da MAP 2."><div class="nm"><span class="dot" style="background:#0F6E56"></span>MAP 1</div><span class="av">avulsa</span></div>
+        <div class="c" data-tip="<b>MAP 2</b> — segunda sala de fisio, independente da MAP 1."><div class="nm"><span class="dot" style="background:#7C3AED"></span>MAP 2</div><span class="av">avulsa</span></div>
+        <div class="c" data-tip="Mais uma coluna de profissional."><div class="nm"><span class="dot" style="background:#185FA5"></span>Dra. Vivian</div></div>
+      </div>
+
+      <div class="row">
+        <div class="hr">08:00</div>
+        <div class="cell" data-tip="<b>Horário vazio</b> — clique pra abrir o Novo agendamento já nesse horário e coluna."></div>
+        <div class="cell"></div>
+        <div class="cell">
+          <div class="appt ok" data-tip="Clique no card pra abrir as ações (confirmar, remarcar, cancelar, boletim…).">
+            <div class="hora">08:00 · 60min</div><div class="who">Café</div>
+            <div class="svc">Sessão de fisio <span data-tip="<b>Boletim já enviado</b> ✅. Se estivesse pendente, apareceria 🌿✉️.">🌿✅</span></div>
+            <div class="stage s-ok"><span class="cur">✅ Concluído</span></div>
+            <div class="steps"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></div>
+          </div>
+        </div>
+        <div class="cell"></div>
+        <div class="cell"></div>
+      </div>
+
+      <div class="row">
+        <div class="hr">09:00</div>
+        <div class="cell"></div>
+        <div class="cell"></div>
+        <div class="cell">
+          <div class="appt ch">
+            <div class="hora">09:00 · 60min</div><div class="who">Marvin</div>
+            <div class="svc">Sessão de fisio <span data-tip="Boletim ainda não enviado.">🌿✉️</span></div>
+            <div class="stage s-ch" data-tip="<b>Controle de estágio</b> — um elemento só. Clique em 'avançar' pra passar Chegou → Em atendimento → Concluído. Ao chegar em 'Chegou' numa fisio, a sessão dá baixa sozinha."><span class="cur">🚪 Chegou</span><span class="adv">avançar ›</span></div>
+            <div class="steps"><i class="on"></i><i class="on"></i><i></i><i></i></div>
+          </div>
+        </div>
+        <div class="cell">
+          <div class="appt at">
+            <div class="hora">09:00 · 60min</div><div class="who">Zeus</div>
+            <div class="svc">Fisio · hidroesteira</div>
+            <div class="stage s-at"><span class="cur">🩺 Em atendimento</span><span class="adv">avançar ›</span></div>
+            <div class="steps"><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div>
+          </div>
+        </div>
+        <div class="cell"></div>
+      </div>
+
+      <div class="row">
+        <div class="hr">10:00</div>
+        <div class="cell">
+          <div class="appt">
+            <div class="hora">10:00 · 30min <span data-tip="Confirmado no WhatsApp ✅.">✅</span></div><div class="who">Belinha</div>
+            <div class="svc">Consulta clínica</div>
+            <div class="stage s-ag" data-tip="Estágio inicial. Clique em 'chegou' quando o paciente entrar."><span class="cur">Agendado</span><span class="adv">chegou ›</span></div>
+            <div class="steps"><i class="on"></i><i></i><i></i><i></i></div>
+          </div>
+        </div>
+        <div class="cell"></div>
+        <div class="cell"></div>
+        <div class="cell"></div>
+        <div class="cell"></div>
+      </div>
+    </div></div>
+  </div>
+
+  <div class="legend">É uma <b>maquete</b> pra treinar — não mexe no sistema. Dados fictícios.</div>
+</div>
+
+<div id="tip" role="tooltip"></div>
+<script>
+(function(){
+  var tip=document.getElementById('tip'),current=null;
+  function show(el){var html=el.getAttribute('data-tip');if(!html)return;if(current&&current!==el)current.classList.remove('on');current=el;el.classList.add('on');tip.innerHTML=html;tip.classList.add('show');var r=el.getBoundingClientRect();var tw=Math.min(260,tip.offsetWidth||260),th=tip.offsetHeight;var below=r.top<th+16;tip.setAttribute('data-pos',below?'bottom':'top');var x=r.left;if(x+tw>window.innerWidth-8)x=window.innerWidth-tw-8;if(x<8)x=8;var y=below?r.bottom+9:r.top-th-9;tip.style.left=x+'px';tip.style.top=y+'px';var ax=Math.max(12,Math.min(r.left-x+r.width/2,tw-20));tip.style.setProperty('--ax',ax+'px');}
+  function hide(){tip.classList.remove('show');if(current){current.classList.remove('on');current=null;}}
+  document.addEventListener('pointerover',function(e){var el=e.target.closest('[data-tip]');if(el)show(el);});
+  document.addEventListener('pointerout',function(e){var el=e.target.closest('[data-tip]');if(el&&!el.contains(e.relatedTarget))hide();});
+  document.addEventListener('focusin',function(e){var el=e.target.closest('[data-tip]');if(el)show(el);});
+  document.addEventListener('focusout',hide);
+  document.addEventListener('click',function(e){var el=e.target.closest('[data-tip]');if(el){if(current===el){hide();}else{show(el);}e.stopPropagation();}else hide();});
+  window.addEventListener('scroll',hide,true);window.addEventListener('resize',hide);
+  document.querySelectorAll('[data-tip]').forEach(function(el){if(!el.hasAttribute('tabindex'))el.setAttribute('tabindex','0');});
+})();
+</script>
+</body></html>

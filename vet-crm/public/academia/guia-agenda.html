@@ -1,0 +1,143 @@
+<!doctype html><html lang="pt-BR" data-theme="light"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Guia — Agenda</title></head><body>
+<style>
+  :root{--turq:#009AAC;--marinho:#014D5E;--verde:#0F6E56;--vermelho:#A32D2D;--azul:#185FA5;--amber:#B45309;--roxo:#7C3AED;--ink:#14253a;--muted:#5F5E5A;--faint:#8A8778;--bg:#F6F2EA;--card:#fff;--line:#e8e1d2;--soft:#FBF9F4;--shadow:0 1px 3px rgba(1,77,94,.07),0 6px 20px rgba(1,77,94,.05);}
+  @media (prefers-color-scheme:dark){:root{--ink:#eaf1f2;--muted:#b8c2c4;--faint:#8f9a9c;--bg:#0e1516;--card:#16201f;--line:#26332f;--soft:#131c1b;--shadow:0 1px 3px rgba(0,0,0,.3),0 6px 20px rgba(0,0,0,.25);}}
+  :root[data-theme="light"]{--ink:#14253a;--muted:#5F5E5A;--faint:#8A8778;--bg:#F6F2EA;--card:#fff;--line:#e8e1d2;--soft:#FBF9F4;}
+  :root[data-theme="dark"]{--ink:#eaf1f2;--muted:#b8c2c4;--faint:#8f9a9c;--bg:#0e1516;--card:#16201f;--line:#26332f;--soft:#131c1b;}
+  *{box-sizing:border-box;} body{margin:0;}
+  .wrap{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.55;-webkit-font-smoothing:antialiased;padding:0 20px 80px;}
+  .container{max-width:860px;margin:0 auto;}
+  header.hero{background:linear-gradient(135deg,var(--marinho),var(--turq));color:#fff;border-radius:20px;padding:34px 30px 30px;margin:28px auto 26px;max-width:860px;box-shadow:var(--shadow);}
+  header.hero .eyebrow{text-transform:uppercase;letter-spacing:.12em;font-size:11px;font-weight:700;opacity:.85;margin:0 0 8px;}
+  header.hero h1{margin:0 0 8px;font-size:30px;line-height:1.15;font-weight:800;text-wrap:balance;}
+  header.hero p{margin:0;font-size:15px;opacity:.92;max-width:60ch;}
+  header.hero .meta{margin-top:16px;font-size:12px;opacity:.8;display:flex;gap:14px;flex-wrap:wrap;}
+  section{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px 26px;margin:0 0 18px;box-shadow:var(--shadow);}
+  section>h2{margin:0 0 4px;font-size:20px;color:var(--marinho);font-weight:800;display:flex;align-items:center;gap:9px;}
+  @media (prefers-color-scheme:dark){section>h2{color:var(--turq);}} :root[data-theme="dark"] section>h2{color:var(--turq);}
+  section>.lead{margin:0 0 18px;color:var(--muted);font-size:14px;}
+  h3{font-size:15px;margin:20px 0 8px;color:var(--ink);font-weight:700;}
+  p.tx{color:var(--muted);font-size:14px;margin:0 0 10px;} p.tx b{color:var(--ink);}
+  .cols3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+  .colbox{border:1.5px solid var(--line);border-radius:12px;padding:14px;background:var(--soft);}
+  .colbox .num{width:22px;height:22px;border-radius:50%;background:var(--turq);color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-bottom:8px;}
+  .colbox b{display:block;font-size:13.5px;color:var(--ink);margin-bottom:3px;} .colbox span{font-size:12.5px;color:var(--muted);}
+  @media (max-width:620px){.cols3{grid-template-columns:1fr;}}
+  /* estágios */
+  .flow{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:6px 0 4px;}
+  .st{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:999px;font-weight:700;font-size:12.5px;}
+  .st-ag{background:#EDEBE3;color:#6b6857;} .st-ch{background:#E3EEFA;color:var(--azul);} .st-at{background:#FDECD6;color:var(--amber);} .st-ok{background:#DEF3E8;color:var(--verde);}
+  .arrow{color:var(--faint);font-weight:700;}
+  ul.clean{list-style:none;padding:0;margin:8px 0 0;display:grid;gap:8px;}
+  ul.clean li{display:flex;gap:10px;align-items:baseline;font-size:13.5px;color:var(--muted);}
+  ul.clean li b{color:var(--ink);} ul.clean li .ic{font-size:15px;width:22px;text-align:center;flex-shrink:0;}
+  .ui{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--ink);white-space:nowrap;}
+  .ui.turq{background:var(--turq);color:#fff;border-color:var(--turq);} .ui.verde{background:var(--verde);color:#fff;border-color:var(--verde);}
+  .rules{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .rule{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:11px;font-size:13.5px;}
+  .rule.do{background:color-mix(in srgb,var(--verde) 10%,var(--card));border:1px solid color-mix(in srgb,var(--verde) 25%,var(--line));}
+  .rule.dont{background:color-mix(in srgb,var(--vermelho) 9%,var(--card));border:1px solid color-mix(in srgb,var(--vermelho) 22%,var(--line));}
+  .rule .mk{font-size:15px;flex-shrink:0;} .rule b{color:var(--ink);} .rule span{color:var(--muted);display:block;margin-top:1px;font-size:12.5px;}
+  @media (max-width:560px){.rules{grid-template-columns:1fr;}}
+  footer.foot{text-align:center;color:var(--faint);font-size:12px;margin-top:26px;}
+  @media print{.wrap{background:#fff;padding:0;} section,header.hero{box-shadow:none;break-inside:avoid;} header.hero{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}
+</style>
+
+<div class="wrap">
+  <header class="hero">
+    <p class="eyebrow">🐾 Empório do Pet · Guia da equipe</p>
+    <h1>Como funciona a Agenda</h1>
+    <p>Marcar, acompanhar a chegada do paciente e mover o atendimento até concluir — tudo numa tela. Fisioterapia dá baixa sozinha na chegada.</p>
+    <div class="meta"><span>📍 Menu: <b>Agenda</b></span><span>Atualizado em 18/07/2026</span></div>
+  </header>
+
+  <div class="container">
+
+    <section>
+      <h2>🗺️ A tela tem 3 partes</h2>
+      <p class="lead">De cima pra baixo: a barra de controle, a sala de espera e o quadro do dia.</p>
+      <div class="cols3">
+        <div class="colbox"><div class="num">1</div><b>Barra de controle</b><span>Trocar o dia, alternar Dia/Semana/Mês, o roll-up <b>Filas</b> (quais colunas mostrar), Incluir profissional e <b>➕ Agendar</b>.</span></div>
+        <div class="colbox"><div class="num">2</div><b>Sala de espera</b><span>Faixa no topo com quem já chegou e está aguardando — com o tempo de espera (fica vermelho se atrasar).</span></div>
+        <div class="colbox"><div class="num">3</div><b>O quadro do dia</b><span>Uma coluna por profissional + as agendas <b>MAP</b> (fisio). Cada agendamento é um card.</span></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>▶️ Os estágios do atendimento</h2>
+      <p class="lead">No card, um <b>controle único</b> move o paciente pelo fluxo — é só clicar em "avançar".</p>
+      <div class="flow">
+        <span class="st st-ag">Agendado</span><span class="arrow">→</span>
+        <span class="st st-ch">🚪 Chegou</span><span class="arrow">→</span>
+        <span class="st st-at">🩺 Em atendimento</span><span class="arrow">→</span>
+        <span class="st st-ok">✅ Concluído</span>
+      </div>
+      <ul class="clean">
+        <li><span class="ic">🚪</span><span><b>Chegou</b> — o paciente entrou na clínica. Ele aparece na <b>Sala de espera</b>. <b>Se for fisio, a sessão do pacote dá baixa automática aqui</b> (uma vez só).</span></li>
+        <li><span class="ic">🩺</span><span><b>Em atendimento</b> — está sendo atendido.</span></li>
+        <li><span class="ic">✅</span><span><b>Concluído</b> — terminou.</span></li>
+      </ul>
+      <p class="tx" style="margin-top:12px">A barrinha embaixo do controle mostra em que ponto do fluxo o atendimento está.</p>
+    </section>
+
+    <section>
+      <h2>🪑 Sala de espera</h2>
+      <p class="lead">A faixa no topo, logo abaixo da barra de controle.</p>
+      <ul class="clean">
+        <li><span class="ic">👤</span><span>Mostra quem marcou <b>🚪 Chegou</b> e ainda não foi concluído.</span></li>
+        <li><span class="ic">⏱</span><span>Cada card traz o <b>horário</b> e há <b>quanto tempo</b> a pessoa aguarda.</span></li>
+        <li><span class="ic">⚠️</span><span>Fica <b>vermelho (atrasado)</b> quando passa de 15 min de espera; <b>verde</b> quando entra em atendimento.</span></li>
+        <li><span class="ic">↔️</span><span>Se tiver muita gente, a faixa <b>rola pro lado</b>.</span></li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>📅 Como marcar um agendamento</h2>
+      <ul class="clean">
+        <li><span class="ic">1️⃣</span><span><b>Clique num horário vazio</b> na coluna do profissional (ou numa MAP) — abre o "Novo agendamento" já naquele horário.</span></li>
+        <li><span class="ic">2️⃣</span><span>Ou use <span class="ui turq">➕ Agendar</span> na barra e escolha a agenda/profissional.</span></li>
+        <li><span class="ic">🐾</span><span>Busque o cliente, escolha o <b>pet</b>, o tipo e um <b>horário livre</b>. As <b>MAP 1</b> e <b>MAP 2</b> são independentes.</span></li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>⋮ O menu do card (clique no agendamento)</h2>
+      <p class="lead">Clicar num card abre as ações daquele atendimento.</p>
+      <ul class="clean">
+        <li><span class="ic">📲</span><span><b>Confirmar no WhatsApp</b> — envia a confirmação pro tutor (modelo por serviço).</span></li>
+        <li><span class="ic">✅</span><span><b>Confirmar presença (manual)</b> — marca como confirmado sem enviar WhatsApp (ex.: confirmou por telefone).</span></li>
+        <li><span class="ic">📅</span><span><b>Remarcar / Editar</b> — muda horário, dados e observações.</span></li>
+        <li><span class="ic">❌</span><span><b>Cancelar</b> — sai do quadro e <b>libera o horário</b>; continua no histórico do pet.</span></li>
+        <li><span class="ic">🌿</span><span><b>Boletim de fisioterapia</b> (só em sessões de fisio) — abre o boletim já com a sessão preenchida.</span></li>
+        <li><span class="ic">🩺</span><span><b>Abrir atendimento / Gravar consulta</b>.</span></li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>🌿 Fisioterapia na Agenda</h2>
+      <ul class="clean">
+        <li><span class="ic">🐾</span><span>As sessões acontecem nas colunas <b>MAP 1</b> e <b>MAP 2</b>.</span></li>
+        <li><span class="ic">🚪</span><span><b>Ao marcar "Chegou", a sessão do pacote dá baixa sozinha</b> (o "X/12" na ficha do pet anda).</span></li>
+        <li><span class="ic">🌿✅</span><span>No card, um selo mostra se o <b>boletim já foi enviado</b> (🌿✅) ou está <b>pendente</b> (🌿✉️).</span></li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>📲 Confirmações automáticas</h2>
+      <p class="tx">O sistema manda a confirmação do dia seguinte sozinho, por faixa de horário: agendamentos da <b>manhã</b> às <b>17h</b> do dia anterior; da <b>tarde/noite</b> às <b>19h</b>. Só não envia pra quem está marcado como "não aceita WhatsApp" na ficha.</p>
+    </section>
+
+    <section>
+      <h2>⭐ Regras de ouro</h2>
+      <div class="rules">
+        <div class="rule do"><span class="mk">✅</span><div><b>Marque "Chegou" na hora</b><span>É o que põe o paciente na sala de espera e dá baixa na fisio.</span></div></div>
+        <div class="rule do"><span class="mk">✅</span><div><b>Avance até Concluído</b><span>Mantém a sala de espera limpa e o quadro fiel ao que está rolando.</span></div></div>
+        <div class="rule do"><span class="mk">✅</span><div><b>Cancelou? use o Cancelar</b><span>Assim libera o horário e o registro fica no histórico.</span></div></div>
+        <div class="rule dont"><span class="mk">🚫</span><div><b>Não apague agendamento</b><span>Cancelar ≠ apagar. Cancelar preserva o histórico.</span></div></div>
+      </div>
+    </section>
+
+    <footer class="foot">Empório do Pet · Guia interno da Agenda · dúvidas ou algo diferente na sua tela? avise a Cintia.</footer>
+  </div>
+</div>
+</body></html>
