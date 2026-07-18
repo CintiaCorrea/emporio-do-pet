@@ -114,6 +114,7 @@ export const PERM_SECTIONS: PermSection[] = [
   },
   {
     titulo: "Sistema", emoji: "⚙️", itens: [
+      { key: "/dashboard/academia", label: "Academia", emoji: "🎓" },
       {
         key: "cadastros", label: "Cadastros", emoji: "📁", children: [
           { key: "/dashboard/erp/contatos", label: "Contatos", emoji: "📇" },

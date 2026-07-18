@@ -147,6 +147,7 @@ const NAV: Entry[] = [
   },
 
   // ───────── SISTEMA ─────────
+  { href: "/dashboard/academia", label: "Academia", emoji: "🎓", roles: ALL, section: "SISTEMA" },
   {
     group: true, key: "cadastros", label: "Cadastros", emoji: "📁", roles: ["ADMIN", "RECEPTIONIST"], section: "SISTEMA",
     children: [

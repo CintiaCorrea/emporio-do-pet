@@ -1,0 +1,279 @@
+<!doctype html><html lang="pt-BR" data-theme="light"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Maquete — Caixa de WhatsApp</title></head><body>
+<style>
+  :root{
+    --turq:#009AAC;--marinho:#014D5E;--verde:#0F6E56;--verm:#A32D2D;--roxo:#7C3AED;
+    --bg:#F6F2EA;--panel:#fff;--line:#e8e1d2;--soft:#FBF9F4;--ink:#14253a;--muted:#5F5E5A;--faint:#8A8778;
+    --bubbleIn:#fff;--bubbleOut:#DCF3F5;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{--bg:#0e1516;--panel:#16201f;--line:#26332f;--soft:#131c1b;--ink:#eaf1f2;--muted:#b8c2c4;--faint:#8f9a9c;--bubbleIn:#1c2726;--bubbleOut:#123536;}
+  }
+  :root[data-theme="light"]{--bg:#F6F2EA;--panel:#fff;--line:#e8e1d2;--soft:#FBF9F4;--ink:#14253a;--muted:#5F5E5A;--faint:#8A8778;--bubbleIn:#fff;--bubbleOut:#DCF3F5;}
+  :root[data-theme="dark"]{--bg:#0e1516;--panel:#16201f;--line:#26332f;--soft:#131c1b;--ink:#eaf1f2;--muted:#b8c2c4;--faint:#8f9a9c;--bubbleIn:#1c2726;--bubbleOut:#123536;}
+
+  *{box-sizing:border-box;}
+  body{margin:0;}
+  .page{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);padding:22px 16px 90px;-webkit-font-smoothing:antialiased;}
+  .head{max-width:1080px;margin:0 auto 16px;}
+  .head h1{margin:0 0 4px;font-size:22px;font-weight:800;color:var(--marinho);}
+  @media (prefers-color-scheme:dark){.head h1{color:var(--turq);}}
+  :root[data-theme="dark"] .head h1{color:var(--turq);}
+  .banner{max-width:1080px;margin:0 auto 14px;display:flex;align-items:center;gap:10px;background:linear-gradient(135deg,var(--marinho),var(--turq));color:#fff;padding:11px 16px;border-radius:12px;font-size:13.5px;font-weight:600;}
+  .banner .pulse{width:9px;height:9px;border-radius:50%;background:#fff;box-shadow:0 0 0 0 rgba(255,255,255,.7);animation:pl 1.8s infinite;}
+  @keyframes pl{0%{box-shadow:0 0 0 0 rgba(255,255,255,.6);}70%{box-shadow:0 0 0 9px rgba(255,255,255,0);}100%{box-shadow:0 0 0 0 rgba(255,255,255,0);}}
+  @media (prefers-reduced-motion:reduce){.banner .pulse{animation:none;}}
+
+  .frame{max-width:1080px;margin:0 auto;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 6px 24px rgba(1,77,94,.08);}
+  .scroller{overflow-x:auto;}
+  .screen{display:grid;grid-template-columns:270px 1fr 300px;min-width:900px;height:560px;}
+  .col{display:flex;flex-direction:column;min-height:0;}
+  .col.left{border-right:1px solid var(--line);}
+  .col.right{border-left:1px solid var(--line);background:var(--soft);}
+
+  /* hotspots */
+  [data-tip]{cursor:help;transition:box-shadow .12s,outline .12s;border-radius:8px;}
+  [data-tip]:hover,[data-tip].on{outline:2px solid var(--turq);outline-offset:1px;}
+  [data-tip]:focus-visible{outline:2px solid var(--turq);outline-offset:1px;}
+
+  /* topo abas */
+  .tabs{display:flex;gap:4px;padding:9px 10px;border-bottom:1px solid var(--line);align-items:center;}
+  .tab{font-size:12px;font-weight:700;padding:5px 9px;border-radius:8px;color:var(--muted);}
+  .tab.active{background:#E1F3F5;color:var(--marinho);}
+  .tab .b{display:inline-block;background:var(--turq);color:#fff;border-radius:9px;font-size:10px;padding:0 5px;margin-left:4px;}
+  :root[data-theme="dark"] .tab.active{background:#123536;color:#eaf1f2;}
+  @media (prefers-color-scheme:dark){.tab.active{background:#123536;color:#eaf1f2;}}
+
+  .filterbar{padding:8px 10px;border-bottom:1px solid var(--line);}
+  .filterbtn{width:100%;display:flex;align-items:center;gap:6px;font-size:11.5px;border:1px solid #cfd8e0;background:var(--panel);color:var(--muted);border-radius:9px;padding:6px 9px;}
+  .search{padding:8px 10px;border-bottom:1px solid var(--line);}
+  .search .box{display:flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:9px;padding:6px 9px;color:var(--faint);font-size:12px;}
+
+  .list{flex:1;overflow:hidden;}
+  .conv{display:flex;gap:9px;padding:9px 10px;border-bottom:1px solid var(--line);align-items:flex-start;}
+  .conv.sel{background:#EAF6F7;}
+  :root[data-theme="dark"] .conv.sel{background:#12292a;}
+  @media (prefers-color-scheme:dark){.conv.sel{background:#12292a;}}
+  .av{width:34px;height:34px;border-radius:50%;background:var(--turq);color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .conv .who{flex:1;min-width:0;}
+  .conv .nm{font-size:12.5px;font-weight:700;color:var(--ink);display:flex;justify-content:space-between;gap:6px;}
+  .conv .nm .t{font-size:10px;color:var(--faint);font-weight:500;flex-shrink:0;}
+  .conv .pv{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:1px 0 3px;}
+  .chip{display:inline-block;font-size:9px;font-weight:700;padding:1px 6px;border-radius:6px;}
+  .chip.cli{background:#E1F3F5;color:var(--marinho);}
+  .chip.lead{background:#FCF0E0;color:#8a5a12;}
+  .chip.you{background:#E7F7EF;color:var(--verde);margin-left:4px;}
+
+  /* meio */
+  .cvhead{padding:9px 12px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;}
+  .cvhead .idn{display:flex;gap:9px;align-items:center;}
+  .cvhead .nm{font-size:12.5px;font-weight:700;color:var(--ink);display:flex;align-items:center;gap:6px;}
+  .cvhead .sub{font-size:10px;color:var(--faint);}
+  .cvhead .atd{font-size:10px;color:var(--verde);font-weight:700;margin-top:2px;}
+  .hbtns{display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
+  .pill{font-size:10px;font-weight:700;padding:4px 9px;border-radius:999px;display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);background:var(--panel);color:var(--muted);}
+  .pill.ia{background:#E1F5EE;color:var(--verde);border-color:transparent;}
+  .pill.enc{background:var(--verde);color:#fff;border-color:transparent;}
+  .pill.x{color:var(--muted);}
+  .pill.dots{padding:4px 8px;}
+
+  .msgs{flex:1;padding:14px 16px;background:var(--soft);display:flex;flex-direction:column;gap:8px;overflow:hidden;}
+  .bub{max-width:74%;font-size:12px;padding:7px 10px;border-radius:12px;line-height:1.4;box-shadow:0 1px 1px rgba(0,0,0,.04);}
+  .bub.in{background:var(--bubbleIn);align-self:flex-start;border:1px solid var(--line);}
+  .bub.out{background:var(--bubbleOut);align-self:flex-end;}
+  .bub .tm{display:block;font-size:9px;color:var(--faint);margin-top:3px;text-align:right;}
+
+  .composer{border-top:1px solid var(--line);padding:8px 10px;background:var(--panel);}
+  .qrow{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:7px;}
+  .toggle{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);}
+  .sw{width:30px;height:17px;border-radius:999px;background:var(--turq);position:relative;flex-shrink:0;}
+  .sw::after{content:"";position:absolute;width:13px;height:13px;border-radius:50%;background:#fff;top:2px;right:2px;}
+  .qb{font-size:10.5px;font-weight:600;padding:4px 9px;border-radius:999px;border:1px solid var(--line);background:var(--soft);color:var(--muted);}
+  .inrow{display:flex;gap:7px;align-items:center;}
+  .inbox2{flex:1;border:1px solid var(--line);border-radius:999px;padding:7px 12px;color:var(--faint);font-size:12px;background:var(--panel);}
+  .icobtn{width:30px;height:30px;border-radius:50%;border:1px solid var(--line);background:var(--panel);display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--muted);flex-shrink:0;}
+  .send{width:32px;height:32px;border-radius:50%;background:var(--turq);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+
+  /* direita */
+  .rhead{padding:9px 12px;border-bottom:1px solid var(--line);}
+  .fis{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:var(--roxo);border:1px solid #E3DAF7;background:#F6F3FF;border-radius:8px;padding:5px 8px;}
+  :root[data-theme="dark"] .fis{background:#241d38;border-color:#3a2f5c;}
+  @media (prefers-color-scheme:dark){.fis{background:#241d38;border-color:#3a2f5c;}}
+  .petof{font-size:10.5px;color:var(--faint);padding:8px 12px 0;}
+  .blk{margin:8px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:9px 11px;}
+  .blk .bt{font-size:10.5px;font-weight:700;color:var(--muted);display:flex;align-items:center;gap:6px;margin-bottom:5px;text-transform:uppercase;letter-spacing:.03em;}
+  .blk .val{font-size:12px;color:var(--ink);}
+  .paws{display:flex;gap:3px;flex-wrap:wrap;font-size:13px;margin-top:4px;}
+  .actions{margin:8px 12px;}
+  .bigbtn{width:100%;background:var(--marinho);color:#fff;font-size:12px;font-weight:700;border-radius:9px;padding:9px;display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:8px;}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;}
+  .gi{aspect-ratio:1;border:1px solid var(--line);border-radius:9px;background:var(--panel);display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--marinho);}
+
+  /* tooltip */
+  #tip{position:fixed;z-index:99;max-width:260px;background:var(--marinho);color:#fff;font-size:12.5px;line-height:1.45;padding:9px 12px;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);opacity:0;transform:translateY(4px);transition:opacity .12s,transform .12s;pointer-events:none;}
+  #tip.show{opacity:1;transform:translateY(0);}
+  #tip b{color:#BFF0F5;}
+  #tip::after{content:"";position:absolute;width:10px;height:10px;background:var(--marinho);transform:rotate(45deg);}
+  #tip[data-pos="top"]::after{bottom:-5px;left:var(--ax,20px);}
+  #tip[data-pos="bottom"]::after{top:-5px;left:var(--ax,20px);}
+
+  .legend{max-width:1080px;margin:14px auto 0;font-size:12px;color:var(--faint);text-align:center;}
+</style>
+
+<div class="page">
+  <div class="head"><h1>🖱️ Maquete interativa — Caixa de WhatsApp</h1></div>
+  <div class="banner"><span class="pulse"></span> Passe o mouse (ou toque, no celular/tablet) em qualquer item da tela pra ver o que é e pra que serve.</div>
+
+  <div class="frame"><div class="scroller"><div class="screen">
+
+    <!-- ESQUERDA -->
+    <div class="col left">
+      <div class="tabs">
+        <span class="tab active" data-tip="<b>Conversas</b> — os atendimentos com os tutores. É a aba do dia a dia. O número é quantas estão abertas.">Conversas <span class="b">23</span></span>
+        <span class="tab" data-tip="<b>Internas</b> — recados entre a equipe, sem envolver o cliente.">Internas</span>
+        <span class="tab" data-tip="<b>Encaminhadas</b> — conversas que outra pessoa transferiu pra você.">Encaminhadas</span>
+      </div>
+      <div class="filterbar">
+        <span class="filterbtn" data-tip="<b>Filtros</b> — mostra só Leads, só Clientes, só as SUAS conversas, as livres, as encerradas ou por etiqueta. Fecha sozinho quando você clica fora.">🎛️ Filtros: Todos · Todas <span style="margin-left:auto">▾</span></span>
+      </div>
+      <div class="search"><div class="box" data-tip="<b>Buscar</b> — procura a conversa pelo nome do cliente, do pet ou telefone.">🔎 Buscar...</div></div>
+      <div class="list">
+        <div class="conv sel" data-tip="<b>Conversa selecionada</b> — clicar aqui abre a conversa no meio e a ficha do cliente à direita.">
+          <div class="av">MG</div>
+          <div class="who">
+            <div class="nm">Milton Gehrmann <span class="t">37 min</span></div>
+            <div class="pv">Você: Até amanhã! Boa noite!</div>
+            <span class="chip cli" data-tip="<b>CLIENTE</b> — já tem cadastro. (Se fosse <b>LEAD</b>, seria um contato ainda sem cadastro.)">CLIENTE</span>
+            <span class="chip you" data-tip="<b>Quem atende</b> — mostra o responsável pela conversa. 'Você' quer dizer que é sua.">👤 Você</span>
+          </div>
+        </div>
+        <div class="conv" data-tip="Cada linha é uma conversa. Em <b>negrito</b> quando tem mensagem não lida.">
+          <div class="av" style="background:#7C3AED">DR</div>
+          <div class="who"><div class="nm">Dora Rabelo <span class="t">3h</span></div><div class="pv">Poderia ir amanhã fazer a fluidote…</div><span class="chip cli">CLIENTE</span></div>
+        </div>
+        <div class="conv" data-tip="Conversa <b>livre</b> (sem ninguém atendendo). Basta você responder que ela vira sua.">
+          <div class="av" style="background:#0F6E56">LM</div>
+          <div class="who"><div class="nm">Lívia Bomfim <span class="t">3h</span></div><div class="pv">Boa noite, Dra. Está bem</div><span class="chip cli">CLIENTE</span></div>
+        </div>
+        <div class="conv" data-tip="Contatos sem cadastro aparecem como LEAD — vale cadastrar pra virar cliente.">
+          <div class="av" style="background:#B45309">TO</div>
+          <div class="who"><div class="nm">Ticiane Martins <span class="t">3h</span></div><div class="pv">Consegui sim mas só chega uns 15…</div><span class="chip lead">LEAD</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MEIO -->
+    <div class="col mid">
+      <div class="cvhead">
+        <div class="idn">
+          <div class="av">MG</div>
+          <div>
+            <div class="nm" data-tip="<b>Nome do cliente.</b> O <b>lápis</b> ao lado abre a ficha completa pra editar.">Milton Gehrmann Castro <span data-tip="<b>Lápis</b> — abre a ficha completa do cliente pra editar." style="color:#c8d0d4">✏️</span></div>
+            <div class="sub" data-tip="Telefone do contato. 'no WhatsApp' mostra o nome que aparece no WhatsApp dele, se for diferente do cadastro.">📞 5511996862352 · no WhatsApp: Villa Bianca</div>
+            <div class="atd" data-tip="<b>Você está atendendo</b> — aparece quando a conversa é sua. Vira sua automaticamente quando você responde uma conversa livre.">👤 Você está atendendo</div>
+          </div>
+        </div>
+        <div class="hbtns">
+          <span class="pill ia" data-tip="<b>IA Ativa/Pausada</b> — liga ou desliga o robô de resposta automática SÓ nessa conversa.">🤖 IA Ativa</span>
+          <span class="pill enc" data-tip="<b>Encerrar</b> — marca como resolvida. A conversa sai da caixa e a ficha do lado fecha junto. Volta sozinha se o cliente escrever de novo.">✅ Encerrar</span>
+          <span class="pill x" data-tip="<b>Fechar</b> — só tira a conversa e a ficha da sua tela, SEM marcar como resolvida. Pra quando ainda precisa de retorno.">✕ Fechar</span>
+          <span class="pill dots" data-tip="<b>Mais ações</b> — Transferir de atendente, Etiquetas e Ver ficha completa.">⋮</span>
+        </div>
+      </div>
+      <div class="msgs">
+        <div class="bub in" data-tip="Mensagem que o <b>cliente</b> enviou. Clicar nela permite responder citando (igual ao WhatsApp business).">Amanhã?<span class="tm">20:46</span></div>
+        <div class="bub out" data-tip="Mensagem que <b>você</b> enviou. O nome na frente é a assinatura.">CINTIA: Isso<span class="tm">20:46</span></div>
+        <div class="bub in" data-tip="Resposta do cliente.">Combinado. Obrigado<span class="tm">20:46</span></div>
+        <div class="bub out" data-tip="Sua mensagem, assinada com seu nome.">CINTIA: Até amanhã! Boa noite!<span class="tm">20:46</span></div>
+      </div>
+      <div class="composer">
+        <div class="qrow">
+          <span class="toggle" data-tip="<b>Assinar</b> — coloca seu nome na frente da mensagem, pro tutor saber com quem fala. Deixe ligado no dia a dia."><span class="sw"></span> Assinar como CINTIA</span>
+          <span class="qb" data-tip="<b>Enviar cadastro</b> — cola o link do formulário pro tutor preencher os dados dele e do pet.">🔗 Enviar cadastro</span>
+          <span class="qb" data-tip="<b>Agendar consulta</b> — abre o agendamento já com esse cliente, sem sair do WhatsApp.">📅 Agendar consulta</span>
+          <span class="qb" data-tip="<b>Boletim</b> — envia o boletim de fisioterapia do pet. Se tiver mais de um pet, o sistema pergunta qual.">🌿 Boletim</span>
+          <span class="qb" data-tip="<b>Exame</b> — ligado ao acompanhamento de exames do pet.">🧪 Exame</span>
+        </div>
+        <div class="inrow">
+          <span class="qb" data-tip="<b>Prontas</b> — mensagens prontas que a clínica usa muito. Escolhe e revisa antes de enviar.">Prontas</span>
+          <span class="icobtn" data-tip="<b>Anexar</b> — foto, vídeo ou documento (ex.: resultado de exame).">📎</span>
+          <span class="inbox2" data-tip="Onde você <b>digita a mensagem</b>. Dica: /cadastro já vira o texto com o link.">Digite uma mensagem…</span>
+          <span class="icobtn" data-tip="Emojis.">🙂</span>
+          <span class="send" data-tip="<b>Enviar.</b> Ao enviar numa conversa livre, ela vira sua automaticamente.">➤</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- DIREITA -->
+    <div class="col right">
+      <div class="rhead"><span class="fis" data-tip="<b>Status do pacote de fisioterapia</b> desse pet — em andamento, finalizado etc.">FIS · Pacote em andamento ▾</span></div>
+      <div class="petof" data-tip="Tudo no painel da direita é sobre ESTE pet da conversa.">Tudo abaixo é do pet: <b>Hayka</b></div>
+      <div class="blk" data-tip="<b>Vacinas</b> — avisa em vermelho se tem vacina vencida, ou mostra 'em dia'.">
+        <div class="bt">💉 Vacinas a resolver</div>
+        <div class="val" style="color:var(--verde)">✅ Vacinas em dia.</div>
+      </div>
+      <div class="blk" data-tip="<b>Pacotes de fisioterapia</b> — as sessões viram patinhas conforme são usadas. As claras ainda faltam. Lançadas pela Agenda.">
+        <div class="bt">🐾 Pacotes de fisioterapia</div>
+        <div class="val">12 Renov Fisio · <b>2/12</b></div>
+        <div class="paws">🐾 🐾 <span style="opacity:.28">🐾 🐾 🐾 🐾 🐾 🐾 🐾 🐾 🐾 🐾</span></div>
+      </div>
+      <div class="blk" data-tip="<b>Próximo agendamento</b> — a próxima consulta marcada do pet. 'Nenhuma' quer dizer que ainda não foi marcada na Agenda.">
+        <div class="bt">📅 Próximo agendamento · Hayka</div>
+        <div class="val" style="color:var(--faint)">Nenhuma consulta agendada.</div>
+      </div>
+      <div class="actions">
+        <div class="bigbtn" data-tip="<b>Atendimento</b> — inicia o atendimento clínico do pet direto daqui.">🩺 Atendimento</div>
+        <div class="grid">
+          <span class="gi" data-tip="<b>Agendar</b> — marca uma consulta pra este pet, aqui mesmo.">📅</span>
+          <span class="gi" style="opacity:.5" data-tip="<b>Follow-up</b> — em breve.">🕐</span>
+          <span class="gi" data-tip="<b>Registrar interação</b> — anota um contato/observação no histórico do pet.">💬</span>
+          <span class="gi" data-tip="<b>Nova venda</b> — abre o Ponto de Venda já com esse cliente/pet.">💲</span>
+          <span class="gi" data-tip="<b>Sequência de cuidado</b> — inicia um acompanhamento programado pro pet.">🔁</span>
+          <span class="gi" data-tip="<b>E-mail</b> — envia um e-mail pro cliente.">✉️</span>
+          <span class="gi" data-tip="<b>Encaminhar</b> — passa o atendimento pra outro atendente.">🔗</span>
+          <span class="gi" data-tip="<b>Exames</b> — acompanha os exames do pet.">🧪</span>
+        </div>
+      </div>
+    </div>
+
+  </div></div></div>
+
+  <div class="legend">É uma <b>maquete</b> pra treinar — não mexe no sistema de verdade. Os dados são fictícios.</div>
+</div>
+
+<div id="tip" role="tooltip"></div>
+
+<script>
+(function(){
+  var tip=document.getElementById('tip');
+  var current=null;
+  function show(el){
+    var html=el.getAttribute('data-tip'); if(!html) return;
+    if(current&&current!==el) current.classList.remove('on');
+    current=el; el.classList.add('on');
+    tip.innerHTML=html; tip.classList.add('show');
+    var r=el.getBoundingClientRect();
+    var tw=Math.min(260, tip.offsetWidth||260), th=tip.offsetHeight;
+    var below=r.top < th+16;
+    tip.setAttribute('data-pos', below?'bottom':'top');
+    var x=r.left;
+    if(x+tw>window.innerWidth-8) x=window.innerWidth-tw-8;
+    if(x<8) x=8;
+    var y=below? r.bottom+9 : r.top-th-9;
+    tip.style.left=x+'px'; tip.style.top=y+'px';
+    var ax=Math.max(12, Math.min(r.left - x + r.width/2, tw-20));
+    tip.style.setProperty('--ax', ax+'px');
+  }
+  function hide(){ tip.classList.remove('show'); if(current){current.classList.remove('on');current=null;} }
+  document.addEventListener('pointerover',function(e){ var el=e.target.closest('[data-tip]'); if(el) show(el); });
+  document.addEventListener('pointerout',function(e){ var el=e.target.closest('[data-tip]'); if(el && !el.contains(e.relatedTarget)) hide(); });
+  document.addEventListener('focusin',function(e){ var el=e.target.closest('[data-tip]'); if(el) show(el); });
+  document.addEventListener('focusout',hide);
+  // toque: mostra ao tocar, esconde ao tocar fora
+  document.addEventListener('click',function(e){ var el=e.target.closest('[data-tip]'); if(el){ if(current===el){hide();} else {show(el);} e.stopPropagation(); } else hide(); });
+  window.addEventListener('scroll',hide,true);
+  window.addEventListener('resize',hide);
+  // deixa os hotspots focáveis por teclado
+  document.querySelectorAll('[data-tip]').forEach(function(el){ if(!el.hasAttribute('tabindex')) el.setAttribute('tabindex','0'); });
+})();
+</script>
+</body></html>
