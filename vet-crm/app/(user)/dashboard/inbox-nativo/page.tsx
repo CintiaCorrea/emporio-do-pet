@@ -1150,12 +1150,6 @@ export default function InboxUnificadoPage() {
                       style={{ background: "#0F6E56" }}>
                       <span style={{fontSize:"10px"}}>✅</span>{resolvendo ? "Encerrando…" : "Encerrar"}
                     </button>
-                    <button
-                      onClick={() => setSelectedId(null)}
-                      title="Fechar a conversa e o painel de contexto ao lado (não encerra o atendimento)"
-                      className="text-[11px] px-2 py-1 rounded-full inline-flex items-center gap-1 bg-white border border-[#e8e1d2] text-[#888780] hover:text-[#A32D2D] hover:border-[#e6c9c9]">
-                      ✕ Fechar
-                    </button>
                     {/* ⋮ ações secundárias (como no mockup) */}
                     <div className="relative">
                       <button onClick={() => setHeaderMenuOpen((o) => !o)} title="Mais ações"

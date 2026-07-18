@@ -722,7 +722,16 @@ export default function PetDetailPage() {
   }
   async function salvarEditAtd() {
     if (!verAtd) return;
-    try { const r = await fetch(`/api/appointments/${verAtd.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: editAtdForm.type, status: editAtdForm.status }) }); if (!r.ok) throw new Error(); toast.success("Atendimento atualizado"); setVerAtd({ ...verAtd, type: editAtdForm.type, status: editAtdForm.status }); setEditAtd(false); await loadAtendimentos(); } catch { toast.error("Erro ao salvar"); }
+    try {
+      const body: any = { type: editAtdForm.type, status: editAtdForm.status, notes: editAtdForm.notes ?? "" };
+      // Data/hora real da sessão (pra lançar as sessões que já aconteceram na data certa).
+      if (editAtdForm.date && editAtdForm.time) body.date = new Date(`${editAtdForm.date}T${editAtdForm.time}`).toISOString();
+      const r = await fetch(`/api/appointments/${verAtd.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (!r.ok) throw new Error();
+      toast.success("Atendimento atualizado");
+      setVerAtd({ ...verAtd, ...body, date: body.date || verAtd.date });
+      setEditAtd(false); await loadAtendimentos();
+    } catch { toast.error("Erro ao salvar"); }
   }
 
   const tutorWhats = useMemo(() => {
@@ -1865,11 +1874,14 @@ export default function PetDetailPage() {
               <div className="grid grid-cols-2 gap-1">
                 <div><span className="text-gray-400">Tipo:</span> {editAtd ? <select value={editAtdForm.type} onChange={(e) => setEditAtdForm((f: any) => ({ ...f, type: e.target.value }))} className="ml-1 px-1.5 py-0.5 border rounded" style={{ borderColor: "#E8DFC8" }}>{atdTipos.map((t) => <option key={t.v} value={t.v}>{t.l}</option>)}</select> : ATD_TIPO_LABEL(verAtd.type)}</div>
                 <div><span className="text-gray-400">Status:</span> {editAtd ? <select value={editAtdForm.status} onChange={(e) => setEditAtdForm((f: any) => ({ ...f, status: e.target.value }))} className="ml-1 px-1.5 py-0.5 border rounded" style={{ borderColor: "#E8DFC8" }}>{atdStatus.map((v) => <option key={v} value={v}>{v}</option>)}</select> : (verAtd.status || "—")}</div>
+                {editAtd && <div><span className="text-gray-400">Data:</span> <input type="date" value={editAtdForm.date || ""} onChange={(e) => setEditAtdForm((f: any) => ({ ...f, date: e.target.value }))} className="ml-1 px-1.5 py-0.5 border rounded" style={{ borderColor: "#E8DFC8" }} /></div>}
+                {editAtd && <div><span className="text-gray-400">Hora:</span> <input type="time" value={editAtdForm.time || ""} onChange={(e) => setEditAtdForm((f: any) => ({ ...f, time: e.target.value }))} className="ml-1 px-1.5 py-0.5 border rounded" style={{ borderColor: "#E8DFC8" }} /></div>}
                 <div><span className="text-gray-400">Profissional:</span> {verAtd.user?.name || "—"}</div>
                 <div><span className="text-gray-400">Duração:</span> {verAtd.duration ? `${verAtd.duration} min` : "—"}</div>
                 {verAtd.petWeight != null && <div><span className="text-gray-400">Peso:</span> {verAtd.petWeight} kg</div>}
                 {verAtd.temperature != null && <div><span className="text-gray-400">Temp.:</span> {verAtd.temperature} °C</div>}
               </div>
+              {editAtd && <div><span className="text-gray-400 block mb-0.5">Observações:</span><textarea value={editAtdForm.notes || ""} onChange={(e) => setEditAtdForm((f: any) => ({ ...f, notes: e.target.value }))} placeholder="Acrescente uma observação da sessão…" className="w-full px-2 py-1.5 border rounded text-xs" style={{ borderColor: "#E8DFC8", minHeight: 44 }} /></div>}
               {([["Queixa principal", "chiefComplaint"], ["Anamnese", "anamnesis"], ["Exame físico", "physicalExam"], ["Diagnóstico", "diagnosis"], ["Conduta", "conduct"], ["Prescrição", "prescription"], ["Exames solicitados", "examsRequested"]] as [string, string][]).map(([l, k]) => (verAtd as any)[k] ? <div key={k}><span className="text-gray-400">{l}:</span> <span style={{ color: "#0E2244" }}>{(verAtd as any)[k]}</span></div> : null)}
               {Array.isArray(verAtd.items) && verAtd.items.length > 0 && (
                 <div className="pt-1">
@@ -1902,7 +1914,7 @@ export default function PetDetailPage() {
                   </>
                 ) : (
                   <>
-                    <button onClick={() => { setEditAtdForm({ type: verAtd.type, status: verAtd.status }); setEditAtd(true); }} className="px-4 py-2 border rounded-lg text-sm" style={{ borderColor: "#009AAC", color: "#00798A" }}>Editar</button>
+                    <button onClick={() => { const d = new Date(verAtd.date); const z = (n: number) => String(n).padStart(2, "0"); setEditAtdForm({ type: verAtd.type, status: verAtd.status, date: `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`, time: `${z(d.getHours())}:${z(d.getMinutes())}`, notes: verAtd.notes || "" }); setEditAtd(true); }} className="px-4 py-2 border rounded-lg text-sm" style={{ borderColor: "#009AAC", color: "#00798A" }}>Editar</button>
                     <button onClick={() => setVerAtd(null)} className="px-4 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8", color: "#475569" }}>Fechar</button>
                   </>
                 )}

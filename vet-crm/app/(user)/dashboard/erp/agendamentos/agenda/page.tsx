@@ -99,7 +99,8 @@ export default function AgendaPage() {
   function temEscala(e: any) { return !!(e && e.semana && Object.keys(e.semana).length > 0); }
   function expedienteNoDia(e: any) { if (!temEscala(e)) return false; if (bloqueadoNoDia(e)) return false; return (e.semana[String(wdAtual)] || []).length > 0; }
 
-  const doDia = useMemo(() => appts.filter((a: any) => a.date && ymd(new Date(a.date)) === diaStr), [appts, diaStr]);
+  // Cancelado SAI da agenda (some do quadro e libera o horário), mas continua no histórico do pet (consulta à parte).
+  const doDia = useMemo(() => appts.filter((a: any) => a.date && ymd(new Date(a.date)) === diaStr && a.status !== "Cancelado"), [appts, diaStr]);
   function valorDe(a: any) { const tr = a.treatments || []; return tr.reduce((s: number, t: any) => s + (Number(t.product?.price) || Number(t.valorUnitario) || 0) * (Number(t.quantidade) || 1), 0); }
   const profUserIds = useMemo(() => new Set(profsAtende.map((p: any) => p.userId).filter(Boolean)), [profsAtende]);
   function ehDoProf(a: any, prof: any) {
@@ -212,6 +213,17 @@ export default function AgendaPage() {
       toast.success("Confirmação enviada no WhatsApp ✅");
       setConfirmData(null); load();
     } catch (e: any) { toast.error(e?.message || "Erro ao enviar"); }
+    setSending(false);
+  }
+  // Confirmar presença MANUALMENTE (sem enviar WhatsApp) — ex.: cliente confirmou por telefone/pessoalmente.
+  async function confirmarManual(a: any) {
+    setSending(true);
+    try {
+      const r = await fetch(`/api/appointments/${a.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ status: "Confirmado" }) });
+      if (!r.ok) throw new Error();
+      toast.success("Presença confirmada ✅");
+      load();
+    } catch (e: any) { toast.error("Não consegui confirmar. Tente de novo."); }
     setSending(false);
   }
   async function cancelarAgendamento(a: any) {
@@ -465,6 +477,7 @@ export default function AgendaPage() {
           <div className="fixed z-50 bg-white border rounded-lg shadow-lg py-1 text-[13px]" style={{ left: Math.min(menuAppt.x, (typeof window !== "undefined" ? window.innerWidth : 1200) - 230), top: Math.min(menuAppt.y, (typeof window !== "undefined" ? window.innerHeight : 800) - 330), minWidth: 216, borderColor: "#E8E2D6" }}>
             <div className="px-3 py-1.5 text-[11px] text-[#8A989D] border-b truncate" style={{ borderColor: "#F0EBE0" }}>{menuAppt.a.pet?.name || menuAppt.a.tutor?.name || "Agendamento"}</div>
             <button onClick={() => { const a = menuAppt.a; setMenuAppt(null); setConfirmData(a); }} className="w-full text-left px-3 py-2 flex items-center gap-2 font-medium" style={{ color: "#0B7A47", background: "#EAFBF0" }}>📲 Confirmar no WhatsApp</button>
+            <button onClick={() => { const a = menuAppt.a; setMenuAppt(null); confirmarManual(a); }} className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center gap-2" style={{ color: "#0B7A47" }}>✅ Confirmar presença (manual)</button>
             {tipoFisio(menuAppt.a) ? (
               <button onClick={() => { const a = menuAppt.a; setMenuAppt(null); abrirBoletim(a); }} className="w-full text-left px-3 py-2 flex items-center gap-2 font-medium" style={{ color: "#017E8C", background: "#E1F3F5" }}>🌿 Boletim de fisioterapia</button>
             ) : null}
