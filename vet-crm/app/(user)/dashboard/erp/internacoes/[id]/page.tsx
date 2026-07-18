@@ -58,6 +58,10 @@ export default function FichaInternacaoPage() {
   const [h, setH] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [boxCodigo, setBoxCodigo] = useState<string | null>(null);
+  const [boxIdAtual, setBoxIdAtual] = useState<string | null>(null);
+  const [boxesLivres, setBoxesLivres] = useState<any[]>([]);
+  const [trocaBoxOpen, setTrocaBoxOpen] = useState(false);
+  const [boxBusy, setBoxBusy] = useState(false);
   const [evolucoes, setEvolucoes] = useState<any[]>([]);
   const [evoTexto, setEvoTexto] = useState("");
   const [evoSaving, setEvoSaving] = useState(false);
@@ -116,6 +120,8 @@ export default function FichaInternacaoPage() {
       setH(d && d.id ? d : null);
       const card = Array.isArray(m?.boxes) ? m.boxes.find((c: any) => c.internacao?.id === id) : null;
       setBoxCodigo(card?.box?.codigo || null);
+      setBoxIdAtual(card?.box?.id || null);
+      setBoxesLivres(Array.isArray(m?.boxes) ? m.boxes.filter((c: any) => !c.ocupado).map((c: any) => c.box) : []);
       const parse = (raw: any) => { const a = Array.isArray(raw) ? raw : (raw.itens || raw.data || []); return a.map((x: any) => { try { return { id: x.id, ...JSON.parse(x.valor) }; } catch { return { id: x.id }; } }); };
       setEvolucoes(parse(ev));
       setPrescricoes(parse(pr));
@@ -357,6 +363,32 @@ export default function FichaInternacaoPage() {
     finally { setFinBusy(""); }
   };
 
+  // Troca/atribui o box desta internação. "" = remover do box (liberar).
+  const trocarBox = async (novoBoxId: string) => {
+    setBoxBusy(true);
+    try {
+      if (novoBoxId) {
+        // ocupar o novo box já encerra a ocupação anterior desta internação
+        await fetch(`/api/boxes/${novoBoxId}/ocupar`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ appointmentId: id }) });
+      } else if (boxIdAtual) {
+        await fetch(`/api/boxes/${boxIdAtual}/liberar`, { method: "POST", credentials: "include" });
+      }
+      setTrocaBoxOpen(false); load();
+    } catch { alert("Erro ao trocar o box."); }
+    finally { setBoxBusy(false); }
+  };
+
+  const excluirInternacao = async () => {
+    if (!confirm(`Excluir a internação de ${h.pet?.name || "este paciente"}? Essa ação não pode ser desfeita. O box será liberado e todos os registros (evoluções, boletins, conta) serão perdidos.`)) return;
+    setBoxBusy(true);
+    try {
+      if (boxIdAtual) await fetch(`/api/boxes/${boxIdAtual}/liberar`, { method: "POST", credentials: "include" }).catch(() => {});
+      const res = await fetch(`/api/hospitalizations/${id}`, { method: "DELETE", credentials: "include" });
+      if (!res.ok) throw new Error();
+      router.push("/dashboard/erp/internacoes");
+    } catch { alert("Erro ao excluir a internação."); setBoxBusy(false); }
+  };
+
   const darAlta = async () => {
     if (!confirm("Confirmar alta deste paciente? O box será liberado.")) return;
     try {
@@ -458,9 +490,40 @@ export default function FichaInternacaoPage() {
             <button onClick={() => openWhatsAppMeta(h.tutor?.phone)} className="text-[12.5px] font-medium text-white bg-[#009AAC] px-3 py-2 rounded-lg">💬 WhatsApp</button>
             {h.pet?.id && <Link href={`/dashboard/erp/pets/${h.pet.id}`} className="text-[12.5px] font-medium text-[#5C6B70] bg-white border px-3 py-2 rounded-lg" style={{ borderColor: "#E8E2D6" }}>📄 Ficha do pet</Link>}
             <button onClick={() => window.print()} className="text-[12.5px] font-medium text-[#5C6B70] bg-white border px-3 py-2 rounded-lg" style={{ borderColor: "#E8E2D6" }}>🖨️ Resumo de alta</button>
+            {!alta && <button onClick={() => setTrocaBoxOpen(true)} className="text-[12.5px] font-medium text-[#5C6B70] bg-white border px-3 py-2 rounded-lg" style={{ borderColor: "#E8E2D6" }}>🛏️ Trocar box</button>}
             {!alta && <button onClick={darAlta} className="text-[12.5px] font-medium text-[#CC3366] bg-white border px-3 py-2 rounded-lg" style={{ borderColor: "#EAC3C1" }}>🚪 Dar alta</button>}
+            <button onClick={excluirInternacao} disabled={boxBusy} className="text-[12.5px] font-medium text-[#8A989D] bg-white border px-3 py-2 rounded-lg disabled:opacity-50" style={{ borderColor: "#E8E2D6" }} title="Excluir internação">🗑️</button>
           </div>
         </div>
+
+        {/* ===== TROCAR BOX ===== */}
+        {trocaBoxOpen && (
+          <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50" onClick={() => setTrocaBoxOpen(false)}>
+            <div className="rounded-2xl shadow-xl max-w-sm w-full" style={{ background: "#FBF9F4", border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
+              <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "#E8E2D6" }}>
+                <h3 className="text-base font-medium text-[#014D5E]">🛏️ Trocar box</h3>
+                <button onClick={() => setTrocaBoxOpen(false)} className="text-[#8A989D] text-lg leading-none">✕</button>
+              </div>
+              <div className="p-5">
+                <div className="text-[12px] text-[#8A989D] mb-2">Box atual: <span className="font-medium text-[#1F2A2E]">{boxCodigo ? `Box ${boxCodigo}` : "sem box"}</span></div>
+                {boxesLivres.length === 0 ? (
+                  <div className="text-[12.5px] text-[#8A989D] py-2">Nenhum box livre no momento.</div>
+                ) : (
+                  <div className="space-y-1.5 max-h-[40vh] overflow-y-auto">
+                    {boxesLivres.map((b) => (
+                      <button key={b.id} onClick={() => trocarBox(b.id)} disabled={boxBusy} className="w-full text-left text-[13px] bg-white border rounded-lg px-3 py-2 hover:border-[#009AAC] disabled:opacity-50" style={{ borderColor: "#E8E2D6" }}>
+                        {b.codigo}{b.nome ? <span className="text-[11px] text-[#8A989D]"> · {b.nome}</span> : null}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {boxIdAtual && (
+                  <button onClick={() => trocarBox("")} disabled={boxBusy} className="w-full mt-3 text-[12.5px] text-[#CC3366] bg-white border py-2 rounded-lg disabled:opacity-50" style={{ borderColor: "#EAC3C1" }}>Remover do box (deixar sem box)</button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-4 items-start">
           {/* ===== COLUNA ESQUERDA ===== */}

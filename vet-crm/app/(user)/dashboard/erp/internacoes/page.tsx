@@ -47,6 +47,7 @@ export default function InternacoesPage() {
   const [petsModal, setPetsModal] = useState<any[]>([]);
   const [form, setForm] = useState<any>({ tutorId: "", petId: "", userId: "", reason: "", estado: "Estável", canal: "WhatsApp", estimatedDischargeDate: "", dailyRate: "", boletinsDia: 3, boletinsHorarios: "07:00, 14:00, 20:00", notes: "", boxId: "" });
   const [salvando, setSalvando] = useState(false);
+  const [buscaCli, setBuscaCli] = useState("");
 
   const [detId, setDetId] = useState<string | null>(null);
   const [boletins, setBoletins] = useState<any[]>([]);
@@ -218,6 +219,12 @@ export default function InternacoesPage() {
   const det = detId ? hosps.find((h) => h.id === detId) : null;
   const boxesOrdenados = useMemo(() => [...boxes].sort((a, c) => (a.ordem || 0) - (c.ordem || 0) || String(a.codigo).localeCompare(String(c.codigo))), [boxes]);
   const boxesLivres = useMemo(() => mapa.filter((c) => !c.ocupado).map((c) => c.box), [mapa]);
+  const tutorsFiltrados = useMemo(() => {
+    const q = buscaCli.trim().toLowerCase();
+    return [...tutors]
+      .filter((t) => t?.name && (!q || String(t.name).toLowerCase().includes(q)))
+      .sort((a, b) => String(a.name).localeCompare(String(b.name), "pt-BR", { sensitivity: "base" }));
+  }, [tutors, buscaCli]);
 
   // ── Card de box (usado no Mapa e no Modo painel) ──────────────────
   const BoxCard = ({ c, big }: { c: any; big?: boolean }) => {
@@ -462,7 +469,8 @@ export default function InternacoesPage() {
                 <div className="text-[11px] font-medium text-[#014D5E] mb-2 flex items-center gap-1.5">👤 Paciente</div>
                 <div className="space-y-3">
                   <div><label className="text-[10.5px] text-[#8A989D] uppercase tracking-wide block mb-1">Cliente *</label>
-                    <select value={form.tutorId} onChange={(e) => setForm({ ...form, tutorId: e.target.value })} className="w-full bg-white border rounded-lg px-3 py-2 text-[13px] text-[#1F2A2E] focus:outline-none focus:border-[#009AAC] focus:ring-2 focus:ring-[#E0F4F6]" style={{ borderColor: "#E8E2D6" }}><option value="">Selecione...</option>{tutors.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select></div>
+                    <input value={buscaCli} onChange={(e) => setBuscaCli(e.target.value)} placeholder="🔎 Buscar cliente pelo nome..." className="w-full bg-white border rounded-lg px-3 py-2 text-[13px] text-[#1F2A2E] mb-1.5 focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} />
+                    <select value={form.tutorId} onChange={(e) => setForm({ ...form, tutorId: e.target.value })} size={buscaCli ? 6 : undefined} className="w-full bg-white border rounded-lg px-3 py-2 text-[13px] text-[#1F2A2E] focus:outline-none focus:border-[#009AAC] focus:ring-2 focus:ring-[#E0F4F6]" style={{ borderColor: "#E8E2D6" }}><option value="">{tutorsFiltrados.length ? "Selecione..." : "Nenhum cliente encontrado"}</option>{tutorsFiltrados.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select></div>
                   <div><label className="text-[10.5px] text-[#8A989D] uppercase tracking-wide block mb-1">Pet *</label>
                     <select value={form.petId} onChange={(e) => setForm({ ...form, petId: e.target.value })} disabled={!form.tutorId} className="w-full bg-white border rounded-lg px-3 py-2 text-[13px] text-[#1F2A2E] focus:outline-none focus:border-[#009AAC] focus:ring-2 focus:ring-[#E0F4F6] disabled:bg-[#F0EBE0] disabled:text-[#8A989D]" style={{ borderColor: "#E8E2D6" }}><option value="">{form.tutorId ? "Selecione o pet..." : "Selecione um cliente primeiro"}</option>{petsModal.map((p) => <option key={p.id} value={p.id}>{especieEmoji(p.species)} {p.name}</option>)}</select></div>
                   <div><label className="text-[10.5px] text-[#8A989D] uppercase tracking-wide block mb-1">Box (opcional)</label>
