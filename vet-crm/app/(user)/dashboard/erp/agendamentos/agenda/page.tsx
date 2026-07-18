@@ -379,7 +379,40 @@ export default function AgendaPage() {
       </div>
 
       {view === "dia" && (<>
-      <div className="grid gap-3" style={{ gridTemplateColumns: "1fr 248px" }}>
+      {/* Sala de espera: faixa HORIZONTAL acima da agenda, com rolagem lateral. */}
+      <div className="bg-white border rounded-2xl mb-3" style={{ borderColor: "#E8E2D6" }}>
+        <div className="px-3.5 py-2 flex items-center gap-2 border-b" style={{ borderColor: "#F0EBE0" }}>
+          <span className="text-[14px]">🪑</span>
+          <span className="text-[13px] font-medium" style={{ color: "#014D5E" }}>Sala de espera</span>
+          <span className="text-[11px] text-white rounded-full px-2 py-0.5" style={{ background: "#854F0B" }}>{espera.length}</span>
+        </div>
+        {espera.length === 0 ? (
+          <div className="text-[12px] text-gray-400 px-3.5 py-3">Ninguém aguardando agora.</div>
+        ) : (
+          <div className="flex gap-2 p-2 overflow-x-auto">
+            {espera.map((a: any) => {
+              const emAtend = a.status === "Em atendimento";
+              const diff = Math.round((Date.now() - new Date(a.date).getTime()) / 60000);
+              const atrasado = !emAtend && diff > 15;
+              const bg = emAtend ? "#E1F5EE" : atrasado ? "#FCEBEB" : "#FAEEDA";
+              const cor = emAtend ? "#0F6E56" : atrasado ? "#A32D2D" : "#854F0B";
+              return (
+                <div key={a.id} className="rounded-lg px-2.5 py-2 shrink-0" style={{ background: bg, minWidth: 186, maxWidth: 230 }}>
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="text-[12px] font-medium truncate" style={{ color: "#014D5E" }}>{a.pet?.name ? `${a.pet.name}${a.tutor?.name ? ` · ${a.tutor.name}` : ""}` : (a.tutor?.name || "—")}</span>
+                    <span className="text-[10px] font-semibold whitespace-nowrap" style={{ color: cor }}>{emAtend ? "🩺 atendendo" : atrasado ? `⚠ atrasado ${diff} min` : diff > 0 ? `⏱ há ${diff} min` : "⏱ na hora"}</span>
+                  </div>
+                  <div className="text-[10px] flex items-center gap-1.5 mt-0.5" style={{ color: cor }}>
+                    <span>🕐 {hm(new Date(a.date))}</span><span className="opacity-60">·</span><span className="truncate">{a.type || "Atendimento"}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <div>
         <div className="bg-white border rounded-2xl overflow-hidden" style={{ borderColor: "#E8E2D6" }}>
           {loading ? (
             <div className="text-center text-sm text-gray-400 py-12">Carregando agenda...</div>
@@ -483,37 +516,6 @@ export default function AgendaPage() {
           </div>
         </div>
 
-        <aside className="bg-white border rounded-2xl overflow-hidden self-start" style={{ borderColor: "#E8E2D6" }}>
-          <div className="px-3.5 py-2.5 border-b flex items-center gap-2" style={{ borderColor: "#F0EBE0" }}>
-            <span className="text-[14px]">🪑</span>
-            <span className="text-[13px] font-medium" style={{ color: "#014D5E" }}>Sala de espera</span>
-            <span className="ml-auto text-[11px] text-white rounded-full px-2 py-0.5" style={{ background: "#854F0B" }}>{espera.length}</span>
-          </div>
-          {espera.length === 0 ? (
-            <div className="text-center text-[12px] text-gray-400 py-8 px-3">Ninguém aguardando agora.</div>
-          ) : (
-            <div className="p-2 space-y-1.5">
-              {espera.map((a: any) => {
-                const emAtend = a.status === "Em atendimento";
-                const diff = Math.round((Date.now() - new Date(a.date).getTime()) / 60000);
-                const atrasado = !emAtend && diff > 15;
-                const bg = emAtend ? "#E1F5EE" : atrasado ? "#FCEBEB" : "#FAEEDA";
-                const cor = emAtend ? "#0F6E56" : atrasado ? "#A32D2D" : "#854F0B";
-                return (
-                  <div key={a.id} className="rounded-lg px-2.5 py-2" style={{ background: bg }}>
-                    <div className="flex items-center justify-between gap-1">
-                      <span className="text-[12px] font-medium truncate" style={{ color: "#014D5E" }}>{a.pet?.name ? `${a.pet.name}${a.tutor?.name ? ` · ${a.tutor.name}` : ""}` : (a.tutor?.name || "—")}</span>
-                      <span className="text-[10px] font-semibold whitespace-nowrap" style={{ color: cor }}>{emAtend ? "🩺 atendendo" : atrasado ? `⚠ atrasado ${diff} min` : diff > 0 ? `⏱ há ${diff} min` : "⏱ na hora"}</span>
-                    </div>
-                    <div className="text-[10px] flex items-center gap-1.5 mt-0.5" style={{ color: cor }}>
-                      <span>🕐 {hm(new Date(a.date))}</span><span className="opacity-60">·</span><span className="truncate">{a.type || "Atendimento"}</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </aside>
       </div>
 
       </>)}
