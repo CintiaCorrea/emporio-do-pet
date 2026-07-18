@@ -19,7 +19,7 @@ export default function EquipamentosFisioEditor({ equipamentos, onChange }: {
       {EQUIP_DEFS.map((def) => {
         const v = eqVal(def.key); const on = !!v.on;
         return (
-          <div key={def.key} className={`py-1.5 border-b border-dashed border-[#F0EBE0] ${def.cinesio ? "md:col-span-2" : ""}`}>
+          <div key={def.key} className="py-1.5 border-b border-dashed border-[#F0EBE0]">
             <label className="flex items-center gap-2 cursor-pointer select-none">
               <input type="checkbox" checked={on} onChange={() => toggleEq(def.key)} className="accent-[#009AAC]" />
               <span className={`text-[12.5px] font-medium ${on ? "text-[#014D5E]" : "text-[#8A989D]"}`}>{def.key}</span>

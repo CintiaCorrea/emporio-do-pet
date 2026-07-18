@@ -20,13 +20,14 @@ export const EQUIP_DEFS: EquipDef[] = [
   { key: "Tens", params: [Pro, Int, T] },
   { key: "Haihua", params: [Pro, Int, Loc, T] },
   { key: "Hidroesteira", params: [Vel, T] },
-  { key: "Acupuntura", params: [] },
   { key: "Eletroacupuntura", params: [Reg, T] },
   { key: "Laser terapia", params: [Int, Reg, T] },
   { key: "Moxa", params: [Reg, T] },
   { key: "Ozonioterapia", params: [], free: true },
   { key: "Ultrassom", params: [], free: true },
   { key: "Farmacoacupuntura", params: [], free: true },
+  // Acupuntura e Cinesioterapia ficam lado a lado no fim (bloco maior, com espaço de escrita).
+  { key: "Acupuntura", params: [], free: true },
   { key: "Cinesioterapia", params: [T], cinesio: true },
 ];
 
