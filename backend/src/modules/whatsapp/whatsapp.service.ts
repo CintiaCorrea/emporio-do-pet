@@ -1005,6 +1005,28 @@ export class WhatsAppService {
       this.prisma.whatsAppConversation.count({ where }),
     ]);
 
+    // Religa conversas ÓRFÃS (sem cliente) que agora casam com um cadastro pelo telefone —
+    // ex.: o cliente escreveu de um número diferente e o número foi corrigido depois na ficha.
+    // Assim, corrigir o telefone faz a conversa reconhecer o cliente no próximo refresh, sem
+    // depender de uma mensagem nova chegar. Só liga quando o número é de UM único cliente.
+    const orfas = conversations.filter((c: any) => !c.tutorId && c.contactPhone);
+    if (orfas.length) {
+      await Promise.all(
+        orfas.map(async (c: any) => {
+          try {
+            const m = await this.matchTutorByPhone(c.contactPhone);
+            if (!m) return;
+            await this.prisma.whatsAppConversation.update({ where: { id: c.id }, data: { tutorId: m.tutorId } });
+            await this.prisma.contact.update({ where: { id: m.contactId }, data: { isWhatsApp: true } }).catch(() => undefined);
+            const t = await this.prisma.tutor.findUnique({ where: { id: m.tutorId }, select: { id: true, name: true } });
+            c.tutorId = m.tutorId;
+            c.tutor = t;
+            this.logger.log(`Conversa ${c.id} re-vinculada ao cliente ${m.tutorId} (telefone corrigido)`);
+          } catch { /* re-link é best-effort; nunca quebra a listagem */ }
+        }),
+      );
+    }
+
     return {
       data: conversations,
       pagination: {
