@@ -724,8 +724,10 @@ export class WhatsAppService {
     if (!existing) {
       const tail = formattedPhone.replace(/\D/g, '').slice(-8);
       if (tail.length >= 8) {
+        // Clínica tem 1 número: a mesma pessoa é UMA conversa, mesmo que o envio
+        // automático tenha usado outro usuário/formato. Reusa a de mais mensagens.
         existing = await this.prisma.whatsAppConversation.findFirst({
-          where: { userId, contactPhone: { endsWith: tail } },
+          where: { contactPhone: { endsWith: tail } },
           include: { assignedAgent: true, tutor: true },
           orderBy: { lastMessageAt: 'desc' },
         });
