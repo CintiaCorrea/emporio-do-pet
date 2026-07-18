@@ -73,12 +73,17 @@ export default function AgendaPage() {
   const [cancelObs, setCancelObs] = useState("");
   const [sending, setSending] = useState(false);
   const [boletimPet, setBoletimPet] = useState<any>(null); // pet (com tutor/contatos) p/ o popup de boletim
+  const [boletimAgenda, setBoletimAgenda] = useState<{ data?: string; entrada?: string; saida?: string } | null>(null);
   const MOTIVOS_CANCEL = ["Outro compromisso", "Pet indisposto", "Esqueceu", "Financeiro", "Não tenho interesse", "Outro"];
 
   async function abrirBoletim(a: any) {
     try {
       const p = await fetch(`/api/pets/${a.pet?.id || a.petId}`, { cache: "no-store" }).then((r) => r.json());
       if (!p?.id) throw new Error();
+      // Pré-preenche a Sessão do boletim com data/entrada/saída deste agendamento.
+      const d = new Date(a.date); const z = (n: number) => String(n).padStart(2, "0");
+      const fim = new Date(d.getTime() + (Number(a.duration) || 60) * 60000);
+      setBoletimAgenda({ data: ymd(d), entrada: `${z(d.getHours())}:${z(d.getMinutes())}`, saida: `${z(fim.getHours())}:${z(fim.getMinutes())}` });
       setBoletimPet(p);
     } catch { toast.error("Não consegui abrir o boletim (pet não encontrado)"); }
   }
@@ -612,7 +617,7 @@ export default function AgendaPage() {
         </div>
       )}
 
-      {boletimPet && <BoletimModal pet={boletimPet} boletimId={null} onClose={() => setBoletimPet(null)} onSaved={() => { setBoletimPet(null); load(); }} />}
+      {boletimPet && <BoletimModal pet={boletimPet} boletimId={null} agenda={boletimAgenda || undefined} onClose={() => { setBoletimPet(null); setBoletimAgenda(null); }} onSaved={() => { setBoletimPet(null); setBoletimAgenda(null); load(); }} />}
 
       <NovoAgendamentoModal open={novoOpen} defaults={novoDefaults} editAppt={editAppt} onClose={() => { setNovoOpen(false); setNovoDefaults(null); setEditAppt(null); }} onCreated={() => { setNovoOpen(false); setNovoDefaults(null); setEditAppt(null); load(); }} />
     </div>

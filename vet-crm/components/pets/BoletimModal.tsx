@@ -8,7 +8,8 @@ import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { ageFromBirth, genderLabel } from "@/lib/pets/labels";
 import { openWhatsAppMeta } from "@/lib/actions/whatsapp";
-import { EQUIPAMENTOS_FISIO, montarTextoBoletim, BoletimData } from "@/lib/pets/boletim";
+import { montarTextoBoletim, BoletimData, EquipVal } from "@/lib/pets/boletim";
+import EquipamentosFisioEditor from "@/components/pets/EquipamentosFisioEditor";
 
 interface PetLite {
   id: string; name: string; species?: string; breed?: string | null; gender?: string | null; birthDate?: string | null;
@@ -17,10 +18,11 @@ interface PetLite {
 
 async function safeJson<T>(res: Response, fb: T): Promise<T> { try { if (!res.ok) return fb; const d = await res.json(); return d == null ? fb : d; } catch { return fb; } }
 
-export default function BoletimModal({ pet, boletimId, fisioRec, onClose, onSaved }: {
+export default function BoletimModal({ pet, boletimId, fisioRec, agenda, onClose, onSaved }: {
   pet: PetLite;
   boletimId: string | null;
   fisioRec?: any; // dados do petfisio_ (diagnostico/encaminhado/exames) para auto-fill
+  agenda?: { data?: string; entrada?: string; saida?: string }; // pré-preenche a Sessão a partir da agenda
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -47,14 +49,15 @@ export default function BoletimModal({ pet, boletimId, fisioRec, onClose, onSave
     diagnostico: fisioRec?.diagnostico || "",
     cirurgias: "Não",
     examesData: fisioRec?.exames || fisioRec?.ultimosExames || "",
-    sessaoData: new Date().toISOString().slice(0, 10),
-    entrada: "", saida: "", sessaoNumero: "", mvResponsavel: "",
+    sessaoData: agenda?.data || new Date().toISOString().slice(0, 10),
+    entrada: agenda?.entrada || "", saida: agenda?.saida || "", sessaoNumero: "", mvResponsavel: "",
     equipamentos: {}, obsTutor: "", obsMv: "", paraCasa: "", metas: "", enviadoAt: null,
-  }), [pet, fisioRec]);
+  }), [pet, fisioRec, agenda?.data, agenda?.entrada, agenda?.saida]);
 
   const [b, setB] = useState<BoletimData>(initialData);
   const setF = (patch: Partial<BoletimData>) => setB((prev) => ({ ...prev, ...patch }));
-  const setEq = (nome: string, val: string) => setB((prev) => ({ ...prev, equipamentos: { ...(prev.equipamentos || {}), [nome]: val } }));
+  // Atualiza um equipamento (on + parâmetros). O editor (componente) chama isso.
+  const setEqObj = (key: string, patch: Partial<EquipVal>) => setB((prev) => { const cur = (prev.equipamentos || {})[key]; const base: EquipVal = (cur && typeof cur === "object") ? (cur as EquipVal) : {}; return { ...prev, equipamentos: { ...(prev.equipamentos || {}), [key]: { ...base, ...patch } } }; });
 
   useEffect(() => {
     (async () => {
@@ -107,6 +110,8 @@ export default function BoletimModal({ pet, boletimId, fisioRec, onClose, onSave
 
   async function handleSalvarEnviar() {
     if (!acceptsWA) { toast.error("O tutor ainda não autorizou receber por WhatsApp"); return; }
+    // Autorização explícita: nada é enviado sem esse OK.
+    if (!confirm(`Autorizar o envio do boletim do(a) ${pet.name} para ${pet.tutor?.name || "o tutor"} agora pelo WhatsApp?`)) return;
     setSaving(true);
     const ok = await persistir(true);
     if (!ok) { setSaving(false); return; }
@@ -162,7 +167,7 @@ export default function BoletimModal({ pet, boletimId, fisioRec, onClose, onSave
           </div>
           <div className="flex items-center gap-2 shrink-0">
             {/* Botão de envio no TOPO também (item 3) */}
-            <button onClick={handleSalvarEnviar} disabled={saving || !acceptsWA} title={!acceptsWA ? "Tutor sem consentimento de WhatsApp" : "Salvar e enviar pelo WhatsApp"} className="px-3 py-1.5 rounded-[9px] text-[12.5px] font-medium text-white disabled:opacity-50" style={{ background: "#009AAC" }}>💬 Salvar e enviar</button>
+            <button onClick={handleSalvarEnviar} disabled={saving || !acceptsWA} title={!acceptsWA ? "Tutor sem consentimento de WhatsApp" : "Autorizar e enviar pelo WhatsApp"} className="px-3 py-1.5 rounded-[9px] text-[12.5px] font-medium text-white disabled:opacity-50" style={{ background: "#009AAC" }}>💬 Autorizar e enviar</button>
             <button onClick={onClose} title="Fechar" className="w-8 h-8 rounded-[9px] border border-[#E8E2D6] text-[#5C6B70] hover:border-[#009AAC] hover:text-[#009AAC] flex items-center justify-center">✕</button>
           </div>
         </div>
@@ -211,15 +216,8 @@ export default function BoletimModal({ pet, boletimId, fisioRec, onClose, onSave
               {/* EQUIPAMENTOS */}
               <div className="bg-white border border-[#E8E2D6] rounded-[13px]" style={{ padding: "12px 14px" }}>
                 <div className={sec}>⚙️ Equipamentos / recursos</div>
-                <p className="text-[11px] text-[#8A989D] mb-2">Preencha só os usados — o texto do boletim mostra apenas os preenchidos.</p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  {EQUIPAMENTOS_FISIO.map((nome) => (
-                    <div key={nome} className="flex items-center gap-2">
-                      <span className="text-[12px] text-[#5C6B70] w-[120px] shrink-0">{nome}</span>
-                      <input value={(b.equipamentos || {})[nome] || ""} onChange={(e) => setEq(nome, e.target.value)} placeholder="parâmetros…" className="flex-1 px-2 py-1.5 border border-[#E8E2D6] rounded-[9px] text-[13px] bg-white" />
-                    </div>
-                  ))}
-                </div>
+                <p className="text-[11px] text-[#8A989D] mb-2">Marque só os usados. <b>Fr</b> frequência · <b>Int</b> intensidade · <b>T</b> tempo · <b>Pro</b> programa/protocolo · <b>Loc</b> local · <b>Vel</b> velocidade · <b>Reg</b> região</p>
+                <EquipamentosFisioEditor equipamentos={b.equipamentos || {}} onChange={setEqObj} />
               </div>
 
               {/* OBSERVAÇÕES */}
@@ -249,8 +247,8 @@ export default function BoletimModal({ pet, boletimId, fisioRec, onClose, onSave
         <div className="flex items-center justify-end gap-2 border-t border-[#E8E2D6] flex-wrap" style={{ padding: "12px 16px" }}>
           <button onClick={imprimir} className="px-4 py-2 rounded-[9px] text-[13px] border border-[#E8E2D6] text-[#5C6B70]">🖨️ Imprimir</button>
           <button onClick={onClose} className="px-4 py-2 rounded-[9px] text-[13px] border border-[#E8E2D6] text-[#5C6B70]">Cancelar</button>
-          <button onClick={handleSalvar} disabled={saving} className="px-4 py-2 rounded-[9px] text-[13px] font-medium text-white disabled:opacity-60" style={{ background: "#014D5E" }}>{saving ? "Salvando..." : "Salvar"}</button>
-          <button onClick={handleSalvarEnviar} disabled={saving || !acceptsWA} title={!acceptsWA ? "Tutor sem consentimento de WhatsApp" : "Salvar e enviar pelo WhatsApp"} className="px-4 py-2 rounded-[9px] text-[13px] font-medium text-white disabled:opacity-60" style={{ background: "#009AAC" }}>💬 Salvar e enviar (WhatsApp)</button>
+          <button onClick={handleSalvar} disabled={saving} className="px-4 py-2 rounded-[9px] text-[13px] font-medium text-white disabled:opacity-60" style={{ background: "#014D5E" }}>{saving ? "Salvando..." : "💾 Salvar rascunho"}</button>
+          <button onClick={handleSalvarEnviar} disabled={saving || !acceptsWA} title={!acceptsWA ? "Tutor sem consentimento de WhatsApp" : "Autorizar e enviar pelo WhatsApp"} className="px-4 py-2 rounded-[9px] text-[13px] font-medium text-white disabled:opacity-60" style={{ background: "#009AAC" }}>💬 Autorizar e enviar</button>
         </div>
       </div>
     </div>

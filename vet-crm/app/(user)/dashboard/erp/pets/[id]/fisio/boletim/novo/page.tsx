@@ -10,7 +10,8 @@ import Link from "next/link";
 import toast from "react-hot-toast";
 import { speciesLabel, ageFromBirth, genderLabel } from "@/lib/pets/labels";
 import { openWhatsAppMeta } from "@/lib/actions/whatsapp";
-import { EQUIPAMENTOS_FISIO, montarTextoBoletim, BoletimData } from "@/lib/pets/boletim";
+import { montarTextoBoletim, BoletimData, EquipVal } from "@/lib/pets/boletim";
+import EquipamentosFisioEditor from "@/components/pets/EquipamentosFisioEditor";
 
 interface Pet {
   id: string; name: string; species: string; breed?: string | null; gender?: string | null; birthDate?: string | null;
@@ -39,7 +40,7 @@ export default function BoletimFisioPage() {
     equipamentos: {}, obsTutor: "", obsMv: "", paraCasa: "", metas: "", enviadoAt: null,
   });
   const setF = (patch: Partial<BoletimData>) => setB((prev) => ({ ...prev, ...patch }));
-  const setEq = (nome: string, val: string) => setB((prev) => ({ ...prev, equipamentos: { ...(prev.equipamentos || {}), [nome]: val } }));
+  const setEqObj = (key: string, patch: Partial<EquipVal>) => setB((prev) => { const cur = (prev.equipamentos || {})[key]; const base: EquipVal = (cur && typeof cur === "object") ? (cur as EquipVal) : {}; return { ...prev, equipamentos: { ...(prev.equipamentos || {}), [key]: { ...base, ...patch } } }; });
 
   useEffect(() => {
     if (!petId) return;
@@ -196,14 +197,7 @@ export default function BoletimFisioPage() {
           <div className={card} style={{ padding: "13px 16px" }}>
             <div className={sec}>⚙️ Equipamentos / recursos</div>
             <p className="text-[11px] text-[#8A989D] mb-2">Preencha só os usados — o texto do boletim mostra apenas os preenchidos.</p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-              {EQUIPAMENTOS_FISIO.map((nome) => (
-                <div key={nome} className="flex items-center gap-2">
-                  <span className="text-[12px] text-[#5C6B70] w-[120px] shrink-0">{nome}</span>
-                  <input value={(b.equipamentos || {})[nome] || ""} onChange={(e) => setEq(nome, e.target.value)} placeholder="parâmetros…" className="flex-1 px-2 py-1.5 border border-[#E8E2D6] rounded-[9px] text-[13px] bg-white" />
-                </div>
-              ))}
-            </div>
+            <EquipamentosFisioEditor equipamentos={b.equipamentos || {}} onChange={setEqObj} />
           </div>
 
           {/* OBSERVAÇÕES */}
