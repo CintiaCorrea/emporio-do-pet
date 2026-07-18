@@ -39,8 +39,8 @@ Aponte com o mouse as **3 áreas**:
 **Fala:**
 > "Clico na conversa e ela abre no meio, com a ficha do cliente à direita."
 
-**Mostra:** o botão **👤 Assumir atendimento**.
-> "A primeira coisa: clico em **Assumir atendimento**. Isso avisa todo mundo que essa conversa é minha, pra ninguém responder por cima. Olha que aparece 'Você está atendendo'."
+**Mostra:** responda a conversa e aponte o "Você está atendendo".
+> "Aqui tem uma facilidade: **assim que eu respondo uma conversa que está livre, ela já vira minha automaticamente** — não preciso clicar em nada. Olha que aparece 'Você está atendendo'. Se eu quiser assumir antes de responder, o botão **Assumir atendimento** continua aqui. E uma conversa que já está com outra pessoa não vira minha sozinha."
 
 **Mostra:** o botão **Assinar como [nome]**.
 > "E deixo ligado o **Assinar** — assim meu nome vai antes da mensagem, e o tutor sabe com quem está falando. Isso fica ligado no dia a dia."

@@ -529,6 +529,15 @@ export default function InboxUnificadoPage() {
         alert(`Erro ao enviar (HTTP ${r.status}). Tenta de novo ou recarrega.`);
         return;
       }
+      // Assumir automaticamente: se a conversa está LIVRE, quem respondeu vira o
+      // responsável (sem precisar clicar em "Assumir"). Não rouba de quem já atende.
+      const convAtual = conversations.find((c) => c.id === selectedId);
+      if (meId && convAtual && !convAtual.assignedUser?.id) {
+        setConversations((prev) => prev.map((c) => c.id === selectedId ? { ...c, assignedUser: { id: meId, name: meNome || "você" } } : c));
+        fetch(`/api/whatsapp/conversations/${selectedId}/assign-user`, {
+          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: meId }),
+        }).catch(() => { /* assumir é best-effort; não trava o envio */ });
+      }
       const res = await fetch(`/api/whatsapp/conversations/${selectedId}/messages?limit=30`);
       const data = await res.json().catch(() => ({}));
       const list = Array.isArray(data?.data) ? data.data
