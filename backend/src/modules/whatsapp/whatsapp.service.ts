@@ -1345,7 +1345,7 @@ export class WhatsAppService {
     }
 
     const primeiroNome = (tutor.name || '').trim().split(/\s+/)[0] || 'tutor';
-    const res = await this.sendTemplateMessage(formatted, 'boletim_fisioterapia', [{ type: 'text', text: primeiroNome }, { type: 'text', text: petNome || 'seu pet' }]);
+    const res = await this.enviarTemplateRegistrando(formatted, 'boletim_fisioterapia', [{ type: 'text', text: primeiroNome }, { type: 'text', text: petNome || 'seu pet' }], `🌿 Enviei a mensagem que abre a conversa — o boletim do(a) ${petNome || 'pet'} vai assim que o cliente responder.`);
     if (!res.success) return { status: 'erro', error: res.error || 'Falha ao enviar a abridora' };
     await this.prisma.listaItem.deleteMany({ where: { lista: 'boletim_fila', valor: { contains: `"tutorId":"${tutorId}"` } } });
     await this.prisma.listaItem.create({ data: { lista: 'boletim_fila', valor: JSON.stringify({ tutorId, texto, petNome: petNome || '', criadoAt: new Date().toISOString() }) } });
@@ -1368,6 +1368,30 @@ export class WhatsAppService {
   /** Cancela o boletim na fila (cliente respondeu que não precisa). */
   async cancelarBoletimDaFila(tutorId: string): Promise<void> {
     await this.prisma.listaItem.deleteMany({ where: { lista: 'boletim_fila', valor: { contains: `"tutorId":"${tutorId}"` } } });
+  }
+
+  /**
+   * Envia um TEMPLATE e, se já existe conversa com esse número, REGISTRA a mensagem
+   * na conversa (aparece no inbox como enviada pelo sistema). Usado pelos lembretes
+   * (aniversário/protocolo) e pela abridora do boletim, pra não sumirem do histórico.
+   */
+  async enviarTemplateRegistrando(
+    phone: string,
+    templateName: string,
+    params: Array<{ type: 'text'; text: string }>,
+    textoLegivel?: string,
+  ): Promise<{ success: boolean; error?: string }> {
+    const res = await this.sendTemplateMessage(phone, templateName, params);
+    if (!res.success) return { success: false, error: res.error };
+    try {
+      const formatted = this.formatPhoneNumber(phone);
+      const conv = await this.prisma.whatsAppConversation.findFirst({ where: { contactPhone: formatted }, orderBy: { lastMessageAt: 'desc' } });
+      if (conv) {
+        await this.saveOutboundMessage(conv.id, textoLegivel || `[modelo enviado: ${templateName}]`, 'TEMPLATE', res.messageId, { template: templateName, fromSystem: true }, { senderType: 'SYSTEM', senderName: 'Sistema' });
+        await this.prisma.whatsAppConversation.update({ where: { id: conv.id }, data: { lastMessageAt: new Date() } }).catch(() => undefined);
+      }
+    } catch { /* registrar é best-effort — nunca trava o envio */ }
+    return { success: true };
   }
 
   // Map incoming message type to enum

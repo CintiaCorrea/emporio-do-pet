@@ -36,10 +36,10 @@ export class RemindersScheduler {
   private T(text: string) { return { type: 'text' as const, text }; }
 
   /** Envia 1x só: checa/marca em `reminder_sent` pela chave. */
-  private async enviarUmaVez(chave: string, phone: string, template: string, params: Array<{ type: 'text'; text: string }>): Promise<void> {
+  private async enviarUmaVez(chave: string, phone: string, template: string, params: Array<{ type: 'text'; text: string }>, textoLegivel?: string): Promise<void> {
     const ja = await this.prisma.listaItem.findFirst({ where: { lista: 'reminder_sent', valor: chave } });
     if (ja) return;
-    const res = await this.whatsapp.sendTemplateMessage(phone, template, params);
+    const res = await this.whatsapp.enviarTemplateRegistrando(phone, template, params, textoLegivel);
     if (!res.success) { this.logger.warn(`Falha ${template} (${chave}): ${res.error}`); return; }
     await this.prisma.listaItem.create({ data: { lista: 'reminder_sent', valor: chave } }).catch(() => undefined);
     this.logger.log(`${template} enviado (${chave})`);
@@ -58,7 +58,7 @@ export class RemindersScheduler {
       const b = this.fort(new Date(t.birthDate as Date));
       if (b.m !== h.m || b.d !== h.d) continue;
       const phone = this.telDe(t); if (!phone) continue;
-      await this.enviarUmaVez(`aniv-tutor:${t.id}:${ano}`, phone, 'aniversario_tutor', [this.T(this.primeiro(t.name))]);
+      await this.enviarUmaVez(`aniv-tutor:${t.id}:${ano}`, phone, 'aniversario_tutor', [this.T(this.primeiro(t.name))], `🎂 Mensagem de aniversário enviada para ${this.primeiro(t.name)}.`);
     }
     // Pets com data de nascimento hoje, cujo tutor aceita WhatsApp.
     const pets = await this.prisma.pet.findMany({
@@ -69,7 +69,7 @@ export class RemindersScheduler {
       const b = this.fort(new Date(p.birthDate as Date));
       if (b.m !== h.m || b.d !== h.d) continue;
       const phone = this.telDe(p.tutor); if (!phone) continue;
-      await this.enviarUmaVez(`aniv-pet:${p.id}:${ano}`, phone, 'aniversario_pet', [this.T(this.primeiro(p.tutor?.name)), this.T(p.name || 'seu pet')]);
+      await this.enviarUmaVez(`aniv-pet:${p.id}:${ano}`, phone, 'aniversario_pet', [this.T(this.primeiro(p.tutor?.name)), this.T(p.name || 'seu pet')], `🎂 Aniversário do pet ${p.name || ''} — mensagem enviada.`);
     }
   }
 
@@ -91,9 +91,13 @@ export class RemindersScheduler {
       const antes = this.ANTES.includes(diff);
       const depois = this.DEPOIS.includes(diff);
       if (!antes && !depois) continue;
-      const params = [this.T(this.primeiro(tutor.name)), this.T(prot.nomeProtocolo || 'o protocolo'), this.T(prot.pet?.name || 'seu pet'), this.T(this.ddmm(new Date(dose.dataPrevista as Date)))];
+      const petNome = prot.pet?.name || 'seu pet';
+      const protNome = prot.nomeProtocolo || 'o protocolo';
+      const data = this.ddmm(new Date(dose.dataPrevista as Date));
+      const params = [this.T(this.primeiro(tutor.name)), this.T(protNome), this.T(petNome), this.T(data)];
       const template = antes ? 'lembrete_protocolo' : 'protocolo_vencido';
-      await this.enviarUmaVez(`prot:${dose.id}:${diff}`, phone, template, params);
+      const legivel = antes ? `💉 Lembrete: ${protNome} do(a) ${petNome} vence em ${data}.` : `💉 Aviso: ${protNome} do(a) ${petNome} venceu em ${data} (sem proteção).`;
+      await this.enviarUmaVez(`prot:${dose.id}:${diff}`, phone, template, params, legivel);
     }
   }
 }
