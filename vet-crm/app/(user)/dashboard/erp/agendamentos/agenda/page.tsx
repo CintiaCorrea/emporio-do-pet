@@ -17,6 +17,21 @@ const STATUS_COR: Record<string, { c: string; bg: string }> = {
   "Cancelado": { c: "#5F5E5A", bg: "#F1EFE8" }, "Faltou": { c: "#A32D2D", bg: "#FCEBEB" },
 };
 function corDe(st?: string, cores?: any) { const base = STATUS_COR[st || ""] || { c: "#5F5E5A", bg: "#F1EFE8" }; return { c: base.c, bg: (cores && cores[st || ""]) || base.bg }; }
+// Estágios do atendimento (um controle só no card, em vez de vários botões).
+// Cada estágio aponta o próximo status e o rótulo da ação de avançar.
+const ESTAGIOS = [
+  { label: "Agendado", cor: "#6b6857", bg: "#EDEBE3", next: "Em espera", acao: "chegou ›" },
+  { label: "🚪 Chegou", cor: "#185FA5", bg: "#E3EEFA", next: "Em atendimento", acao: "atender ›" },
+  { label: "🩺 Em atendimento", cor: "#B45309", bg: "#FDECD6", next: "Atendido", acao: "concluir ›" },
+  { label: "✅ Concluído", cor: "#0F6E56", bg: "#DEF3E8", next: null as string | null, acao: null as string | null },
+];
+function estagioIdx(status?: string): number {
+  const s = status || "";
+  if (["Atendido", "Animal pronto", "Realizado", "Concluído", "CONCLUIDO"].includes(s)) return 3;
+  if (s === "Em atendimento") return 2;
+  if (["Em espera", "Aguardando"].includes(s)) return 1;
+  return 0; // Agendado, Confirmado, Atrasado, etc.
+}
 function ymd(d: Date) { const p = (n: number) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`; }
 function hm(d: Date) { const p = (n: number) => String(n).padStart(2, "0"); return `${p(d.getHours())}:${p(d.getMinutes())}`; }
 function brl(v: number) { return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }); }
@@ -50,6 +65,8 @@ export default function AgendaPage() {
   const [cfg, setCfg] = useState<any>(null);
   const [view, setView] = useState<"dia" | "semana" | "mes">("dia");
   const [menuAppt, setMenuAppt] = useState<{ a: any; x: number; y: number } | null>(null);
+  const [filasOpen, setFilasOpen] = useState(false); // roll-up do seletor de profissionais/filas
+  const [avancandoId, setAvancandoId] = useState<string | null>(null);
   const [confirmData, setConfirmData] = useState<any>(null); // agendamento na prévia de confirmação
   const [cancelData, setCancelData] = useState<any>(null); // agendamento na tela de cancelar
   const [cancelMotivo, setCancelMotivo] = useState("");
@@ -226,6 +243,37 @@ export default function AgendaPage() {
     } catch (e: any) { toast.error("Não consegui confirmar. Tente de novo."); }
     setSending(false);
   }
+  // Baixa AUTOMÁTICA da sessão de fisio quando o pet CHEGA. Idempotente: guarda o id
+  // do agendamento em `baixas` no pacote (petpac_<petId>) pra nunca baixar 2x.
+  async function darBaixaFisio(a: any) {
+    const petId = a.pet?.id || a.petId;
+    if (!petId) return;
+    try {
+      const r = await fetch(`/api/listas?lista=petpac_${petId}`, { cache: "no-store" });
+      const d = await r.json();
+      const arr = (Array.isArray(d) ? d : (d.itens || d.data || [])).map((i: any) => { try { return { id: i.id, data: JSON.parse(i.valor) }; } catch { return null; } }).filter(Boolean);
+      const pk = arr.find((x: any) => (x.data.used || 0) < (x.data.total || 0));
+      if (!pk) return; // sem pacote ativo — nada a baixar
+      const baixas: string[] = Array.isArray(pk.data.baixas) ? pk.data.baixas : [];
+      if (baixas.includes(a.id)) return; // já deu baixa nesse agendamento
+      const used = Math.min((pk.data.used || 0) + 1, pk.data.total);
+      await fetch(`/api/listas/${pk.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ valor: JSON.stringify({ ...pk.data, used, baixas: [...baixas, a.id] }) }) });
+      toast.success(`🐾 Baixa da fisio: ${used}/${pk.data.total}`);
+    } catch { /* baixa é best-effort; não trava o fluxo */ }
+  }
+  // Avança o atendimento pro próximo estágio (Agendado → Chegou → Em atendimento → Concluído).
+  async function avancarEstagio(a: any) {
+    const next = ESTAGIOS[estagioIdx(a.status)].next;
+    if (!next) return;
+    setAvancandoId(a.id);
+    try {
+      const r = await fetch(`/api/appointments/${a.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ status: next }) });
+      if (!r.ok) throw new Error();
+      if (next === "Em espera" && tipoFisio(a)) await darBaixaFisio(a); // chegou numa fisio → baixa
+      load();
+    } catch { toast.error("Não consegui atualizar o estágio."); }
+    setAvancandoId(null);
+  }
   async function cancelarAgendamento(a: any) {
     setSending(true);
     try {
@@ -284,14 +332,24 @@ export default function AgendaPage() {
       </div>
 
       {profsAtende.length > 0 ? (
-        <div className="flex items-center gap-2 mb-3 flex-wrap">
-          <span className="text-[11px] text-[#8A989D] flex items-center gap-1.5">🔎 Filas</span>
-          {profsAtende.map((p: any) => { const on = !hidden.has(p.id); return (
-            <span key={p.id} className="inline-flex items-center rounded-full border text-[11px]" style={on ? { background: "#E1F3F5", color: "#014D5E", borderColor: "#9ED8DE" } : { background: "#fff", color: "#8A989D", borderColor: "#E8E2D6" }}>
-              <button onClick={() => toggleFila(p.id)} className="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1"><span className="w-2 h-2 rounded-full" style={{ background: p.corAvatar || "#009AAC" }} />{nomeCurto(p)}{on ? <span className="text-[11px]">✓</span> : null}</button>
-              <button onClick={() => soEste(p.id)} title="Mostrar só este" className="text-[10px] pr-2.5 pl-1 py-1 opacity-70 hover:opacity-100">só</button>
-            </span>
-          ); })}
+        <div className="mb-3 relative">
+          <button onClick={() => setFilasOpen((o) => !o)} className="inline-flex items-center gap-2 text-[12px] px-3 h-8 rounded-lg border" style={{ borderColor: "#E8E2D6", background: "#fff", color: "#5C6B70" }}>
+            👥 Filas · {profsAtende.filter((p: any) => !hidden.has(p.id)).length} de {profsAtende.length}
+            <span style={{ transform: filasOpen ? "rotate(180deg)" : "none", transition: "transform .15s" }}>▾</span>
+          </button>
+          {filasOpen && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setFilasOpen(false)} />
+              <div className="absolute left-0 mt-1 z-20 bg-white border rounded-xl shadow-lg p-2 flex flex-wrap gap-1.5 max-w-[560px]" style={{ borderColor: "#E8E2D6" }}>
+                {profsAtende.map((p: any) => { const on = !hidden.has(p.id); return (
+                  <span key={p.id} className="inline-flex items-center rounded-full border text-[11px]" style={on ? { background: "#E1F3F5", color: "#014D5E", borderColor: "#9ED8DE" } : { background: "#fff", color: "#8A989D", borderColor: "#E8E2D6" }}>
+                    <button onClick={() => toggleFila(p.id)} className="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1"><span className="w-2 h-2 rounded-full" style={{ background: p.corAvatar || "#009AAC" }} />{nomeCurto(p)}{on ? <span className="text-[11px]">✓</span> : null}</button>
+                    <button onClick={() => soEste(p.id)} title="Mostrar só este" className="text-[10px] pr-2.5 pl-1 py-1 opacity-70 hover:opacity-100">só</button>
+                  </span>
+                ); })}
+              </div>
+            </>
+          )}
         </div>
       ) : null}
 
@@ -361,7 +419,22 @@ export default function AgendaPage() {
                               {travaSala(a) ? <span title="Ocupa a sala inteira" className="text-[10px]">🔒</span> : (mostrarValores && v > 0 ? <span className="text-[10px] font-medium" style={{ color: "#0F6E56" }}>{brl(v)}</span> : null)}
                             </div>
                             <div className="text-[12px] font-medium truncate" style={{ color: "#014D5E" }}>{quem}</div>
-                            <div className="text-[10px] truncate" style={{ color: cor.c }}>{a.type || "Atendimento"}{a.status ? ` · ${a.status}` : ""}</div>
+                            <div className="text-[10px] truncate" style={{ color: cor.c }}>{a.type || "Atendimento"}</div>
+                            {/* Controle de estágio: um elemento só que avança Agendado → Chegou → Em atendimento → Concluído. */}
+                            {!espelho && (() => {
+                              const idx = estagioIdx(a.status); const est = ESTAGIOS[idx];
+                              return (
+                                <div className="mt-1" onClick={(e) => e.stopPropagation()}>
+                                  <div className="flex items-center rounded-md overflow-hidden border" style={{ borderColor: "#00000010" }}>
+                                    <span className="flex-1 px-1.5 py-[3px] text-[9.5px] font-bold truncate" style={{ background: est.bg, color: est.cor }}>{est.label}</span>
+                                    {est.next && (
+                                      <button onClick={() => avancarEstagio(a)} disabled={avancandoId === a.id} className="px-1.5 py-[3px] text-[9.5px] font-bold border-l disabled:opacity-50" style={{ background: "#fff", color: "#009AAC", borderColor: "#00000010" }}>{avancandoId === a.id ? "…" : est.acao}</button>
+                                    )}
+                                  </div>
+                                  <div className="flex gap-0.5 mt-0.5">{[0, 1, 2, 3].map((i) => <span key={i} className="h-[2px] flex-1 rounded" style={{ background: i <= idx ? "#009AAC" : "#E8E2D6" }} />)}</div>
+                                </div>
+                              );
+                            })()}
                             {travaSala(a) && (
                               <div className="text-[9px] truncate" style={{ color: "#B23B39" }}>
                                 {String(a.pet?.temperament || "").toLowerCase()} · {espelho ? `está na ${donaNome}` : "ocupa as duas"}
