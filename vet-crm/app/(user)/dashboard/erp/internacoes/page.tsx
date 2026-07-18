@@ -6,6 +6,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
+import BuscaClientePet from "@/components/common/BuscaClientePet";
 
 const ESTADOS = [
   { v: "Estável", prio: "LOW", bg: "#E1F5EE", fg: "#0F6E56" },
@@ -33,7 +34,6 @@ export default function InternacoesPage() {
   const [loading, setLoading] = useState(true);
   const [hosps, setHosps] = useState<any[]>([]);
   const [listas, setListas] = useState<any[]>([]);
-  const [tutors, setTutors] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
 
   // Mapa / boxes
@@ -44,10 +44,10 @@ export default function InternacoesPage() {
   const [tv, setTv] = useState(false);
 
   const [novoOpen, setNovoOpen] = useState(false);
-  const [petsModal, setPetsModal] = useState<any[]>([]);
   const [form, setForm] = useState<any>({ tutorId: "", petId: "", userId: "", reason: "", estado: "Estável", canal: "WhatsApp", estimatedDischargeDate: "", dailyRate: "", boletinsDia: 3, boletinsHorarios: "07:00, 14:00, 20:00", notes: "", boxId: "" });
   const [salvando, setSalvando] = useState(false);
-  const [buscaCli, setBuscaCli] = useState("");
+  const [selCliente, setSelCliente] = useState<{ id: string; name: string } | null>(null);
+  const [selPet, setSelPet] = useState<{ id: string; name: string } | null>(null);
 
   const [detId, setDetId] = useState<string | null>(null);
   const [boletins, setBoletins] = useState<any[]>([]);
@@ -77,17 +77,12 @@ export default function InternacoesPage() {
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
+  // A lista de profissionais é a única que o modal ainda pré-carrega — cliente e pet
+  // agora vêm da busca padrão (BuscaClientePet), que consulta o servidor conforme se digita.
   useEffect(() => { if (!novoOpen) return; (async () => {
-    const [t, u] = await Promise.all([
-      fetch("/api/tutors?limit=1000").then((r) => r.json()).catch(() => []),
-      fetch("/api/users").then((r) => r.json()).catch(() => []),
-    ]);
-    setTutors(Array.isArray(t) ? t : (t.tutors || t.data || []));
+    const u = await fetch("/api/users").then((r) => r.json()).catch(() => []);
     setUsers(Array.isArray(u) ? u : (u.users || u.data || []));
   })(); }, [novoOpen]);
-  useEffect(() => { if (!form.tutorId) { setPetsModal([]); return; } (async () => {
-    try { const d = await fetch(`/api/tutors/${form.tutorId}/pets`).then((r) => r.json()); const arr = Array.isArray(d) ? d : (d.pets || d.data || []); setPetsModal(arr); setForm((f: any) => ({ ...f, petId: arr.length === 1 ? arr[0].id : "" })); } catch { setPetsModal([]); }
-  })(); }, [form.tutorId]);
 
   const hospById = useMemo(() => { const mp = new Map<string, any>(); hosps.forEach((h) => mp.set(h.id, h)); return mp; }, [hosps]);
 
@@ -147,6 +142,7 @@ export default function InternacoesPage() {
         await fetch(`/api/boxes/${form.boxId}/ocupar`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ appointmentId: created.id }) }).catch(() => {});
       }
       setNovoOpen(false);
+      setSelCliente(null); setSelPet(null);
       setForm({ tutorId: "", petId: "", userId: "", reason: "", estado: "Estável", canal: "WhatsApp", estimatedDischargeDate: "", dailyRate: "", boletinsDia: 3, boletinsHorarios: "07:00, 14:00, 20:00", notes: "", boxId: "" });
       load();
     } catch { alert("Erro ao criar internação."); }
@@ -219,12 +215,6 @@ export default function InternacoesPage() {
   const det = detId ? hosps.find((h) => h.id === detId) : null;
   const boxesOrdenados = useMemo(() => [...boxes].sort((a, c) => (a.ordem || 0) - (c.ordem || 0) || String(a.codigo).localeCompare(String(c.codigo))), [boxes]);
   const boxesLivres = useMemo(() => mapa.filter((c) => !c.ocupado).map((c) => c.box), [mapa]);
-  const tutorsFiltrados = useMemo(() => {
-    const q = buscaCli.trim().toLowerCase();
-    return [...tutors]
-      .filter((t) => t?.name && (!q || String(t.name).toLowerCase().includes(q)))
-      .sort((a, b) => String(a.name).localeCompare(String(b.name), "pt-BR", { sensitivity: "base" }));
-  }, [tutors, buscaCli]);
 
   // ── Card de box (usado no Mapa e no Modo painel) ──────────────────
   const BoxCard = ({ c, big }: { c: any; big?: boolean }) => {
@@ -468,11 +458,14 @@ export default function InternacoesPage() {
               <div>
                 <div className="text-[11px] font-medium text-[#014D5E] mb-2 flex items-center gap-1.5">👤 Paciente</div>
                 <div className="space-y-3">
-                  <div><label className="text-[10.5px] text-[#8A989D] uppercase tracking-wide block mb-1">Cliente *</label>
-                    <input value={buscaCli} onChange={(e) => setBuscaCli(e.target.value)} placeholder="🔎 Buscar cliente pelo nome..." className="w-full bg-white border rounded-lg px-3 py-2 text-[13px] text-[#1F2A2E] mb-1.5 focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} />
-                    <select value={form.tutorId} onChange={(e) => setForm({ ...form, tutorId: e.target.value })} size={buscaCli ? 6 : undefined} className="w-full bg-white border rounded-lg px-3 py-2 text-[13px] text-[#1F2A2E] focus:outline-none focus:border-[#009AAC] focus:ring-2 focus:ring-[#E0F4F6]" style={{ borderColor: "#E8E2D6" }}><option value="">{tutorsFiltrados.length ? "Selecione..." : "Nenhum cliente encontrado"}</option>{tutorsFiltrados.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select></div>
-                  <div><label className="text-[10.5px] text-[#8A989D] uppercase tracking-wide block mb-1">Pet *</label>
-                    <select value={form.petId} onChange={(e) => setForm({ ...form, petId: e.target.value })} disabled={!form.tutorId} className="w-full bg-white border rounded-lg px-3 py-2 text-[13px] text-[#1F2A2E] focus:outline-none focus:border-[#009AAC] focus:ring-2 focus:ring-[#E0F4F6] disabled:bg-[#F0EBE0] disabled:text-[#8A989D]" style={{ borderColor: "#E8E2D6" }}><option value="">{form.tutorId ? "Selecione o pet..." : "Selecione um cliente primeiro"}</option>{petsModal.map((p) => <option key={p.id} value={p.id}>{especieEmoji(p.species)} {p.name}</option>)}</select></div>
+                  <div><label className="text-[10.5px] text-[#8A989D] uppercase tracking-wide block mb-1">Cliente e pet *</label>
+                    <BuscaClientePet
+                      exigirPet
+                      tutorSelecionado={selCliente}
+                      petSelecionado={selPet}
+                      onSelecionar={({ tutor, pet }) => { setSelCliente({ id: tutor.id, name: tutor.name }); setSelPet(pet ? { id: pet.id, name: pet.name } : null); setForm((f: any) => ({ ...f, tutorId: tutor.id, petId: pet?.id || "" })); }}
+                      onLimpar={() => { setSelCliente(null); setSelPet(null); setForm((f: any) => ({ ...f, tutorId: "", petId: "" })); }}
+                    /></div>
                   <div><label className="text-[10.5px] text-[#8A989D] uppercase tracking-wide block mb-1">Box (opcional)</label>
                     <select value={form.boxId} onChange={(e) => setForm({ ...form, boxId: e.target.value })} className="w-full bg-white border rounded-lg px-3 py-2 text-[13px] text-[#1F2A2E] focus:outline-none focus:border-[#009AAC] focus:ring-2 focus:ring-[#E0F4F6]" style={{ borderColor: "#E8E2D6" }}><option value="">Sem box / definir depois</option>{form.boxId && !boxesLivres.find((b) => b.id === form.boxId) && (() => { const b = boxes.find((x) => x.id === form.boxId); return b ? <option value={b.id}>{TIPO_EMOJI[b.tipo] || ""} {b.codigo} (selecionado)</option> : null; })()}{boxesLivres.map((b) => <option key={b.id} value={b.id}>{TIPO_EMOJI[b.tipo] || ""} {b.codigo}{b.nome ? ` · ${b.nome}` : ""}</option>)}</select></div>
                 </div>
