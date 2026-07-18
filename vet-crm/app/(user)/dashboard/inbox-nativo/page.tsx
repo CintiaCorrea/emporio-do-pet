@@ -43,6 +43,8 @@ interface Message {
   waMessageId?: string | null;
   /** preenchido quando ESTA mensagem é resposta a outra */
   replyToWaMessageId?: string | null;
+  /** metadados (ex.: latitude/longitude de uma localização) */
+  metadata?: any;
 }
 
 interface Pet {
@@ -387,7 +389,7 @@ export default function InboxUnificadoPage() {
           createdAt: m?.createdAt || new Date().toISOString(),
           fromAgent: !!m?.metadata?.fromAgent || !!m?.fromAgent, mediaType: m?.mediaType || null, hasMedia: !!(m?.mediaCloudUrl || m?.mediaUrl),
           waMessageId: m?.waMessageId || null,
-          replyToWaMessageId: m?.metadata?.replyToWaMessageId || null})));
+          replyToWaMessageId: m?.metadata?.replyToWaMessageId || null, metadata: m?.metadata || null})));
       } catch { /* tropeço: mantém as mensagens que já estão na tela */ }
     };
     // Abrir a conversa já zera o unreadCount no servidor (getMessages) — avisa o menu p/ sumir o badge na hora.
@@ -550,7 +552,7 @@ export default function InboxUnificadoPage() {
         createdAt: m?.createdAt || new Date().toISOString(),
         fromAgent: !!m?.metadata?.fromAgent || !!m?.fromAgent, mediaType: m?.mediaType || null, hasMedia: !!(m?.mediaCloudUrl || m?.mediaUrl),
           waMessageId: m?.waMessageId || null,
-          replyToWaMessageId: m?.metadata?.replyToWaMessageId || null})));
+          replyToWaMessageId: m?.metadata?.replyToWaMessageId || null, metadata: m?.metadata || null})));
     } catch (e) { console.error(e); }
   };
 
@@ -1232,6 +1234,10 @@ export default function InboxUnificadoPage() {
                             <audio controls src={`/api/whatsapp/messages/${m.id}/media`} className="max-w-full" />
                           ) : (m.type === "VIDEO" || m.type === "DOCUMENT") && m.hasMedia ? (
                             <a href={`/api/whatsapp/messages/${m.id}/media`} target="_blank" rel="noreferrer" className="underline flex items-center gap-1">📎 {m.content && !m.content.startsWith("[") ? m.content : "Abrir arquivo"}</a>
+                          ) : (m.type === "LOCATION" || m.metadata?.latitude) ? (
+                            <a href={`https://www.google.com/maps?q=${m.metadata?.latitude},${m.metadata?.longitude}`} target="_blank" rel="noreferrer" className="underline flex items-center gap-1" style={{ color: "#009AAC" }}>📍 {m.metadata?.name || m.metadata?.address || "Ver localização no mapa"}</a>
+                          ) : (m.mediaType || m.type === "DOCUMENT" || m.type === "IMAGE" || m.type === "AUDIO" || m.type === "VIDEO") ? (
+                            <span className="italic text-[#888780]">📎 {m.content || "anexo"} <span className="text-[10px]">(não foi possível carregar o arquivo)</span></span>
                           ) : (
                             m.content || "(mídia)"
                           )}
