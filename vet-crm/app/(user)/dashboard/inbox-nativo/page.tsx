@@ -795,13 +795,14 @@ export default function InboxUnificadoPage() {
   async function uploadDocInterno(file: File) {
     setAnexandoDoc(true);
     try {
-      const sig = await fetch("/api/cloudinary/signature", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind: "internalDoc" }) }).then((r) => r.json());
-      if (!sig?.signature) throw new Error(sig?.error || "Erro ao preparar upload");
-      const form = new FormData();
-      form.append("file", file); form.append("api_key", sig.apiKey); form.append("timestamp", String(sig.timestamp)); form.append("signature", sig.signature); form.append("folder", sig.folder); form.append("public_id", sig.publicId); form.append("overwrite", String(Boolean(sig.overwrite))); form.append("invalidate", String(Boolean(sig.invalidate)));
-      const up = await fetch(`https://api.cloudinary.com/v1_1/${sig.cloudName}/auto/upload`, { method: "POST", body: form }).then((r) => r.json());
-      if (!up?.secure_url) throw new Error(up?.error?.message || "Falha no upload");
-      setInternasAnexo({ url: up.secure_url, name: file.name });
+      // Mesmo caminho de upload do WhatsApp/exames (storage S3 que já funciona) —
+      // antes ia pro Cloudinary, que não está configurado.
+      const fd = new FormData();
+      fd.append("file", file);
+      const r = await fetch("/api/media/upload?pasta=documentos&origem=interno", { method: "POST", body: fd });
+      const up = await r.json().catch(() => ({}));
+      if (!r.ok || !up?.url) throw new Error(up?.message || up?.error || "Falha no upload");
+      setInternasAnexo({ url: up.url, name: file.name });
     } catch (e: any) { window.alert("Erro ao anexar: " + (e?.message || "")); }
     finally { setAnexandoDoc(false); }
   }
