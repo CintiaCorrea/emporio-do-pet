@@ -1367,6 +1367,41 @@ export class WhatsAppService {
     return { status: 'na_fila' };
   }
 
+  /**
+   * Boletim de INTERNAÇÃO pro tutor. Mesma lógica do enviarBoletim (fisio), mas usa a
+   * abridora `boletim_internacao` (variável = nome do pet). Conversa aberta → texto direto
+   * registrando no inbox; fechada → abridora com botões + guarda na MESMA fila (o listener
+   * entrega quando o tutor toca "Ver o boletim").
+   */
+  async enviarBoletimInternacao(tutorId: string, texto: string, petNome?: string): Promise<{ status: 'enviado' | 'na_fila' | 'erro'; error?: string }> {
+    const tutor = await this.prisma.tutor.findUnique({ where: { id: tutorId }, include: { contacts: true } });
+    if (!tutor) return { status: 'erro', error: 'Tutor não encontrado' };
+    const cs = (tutor.contacts || []) as any[];
+    const wa = cs.find((x) => x.isWhatsApp) || cs.find((x) => x.isPrimary) || cs[0];
+    const phone = wa?.number;
+    if (!phone) return { status: 'erro', error: 'Tutor sem telefone' };
+    const formatted = this.formatPhoneNumber(phone);
+
+    const conv = await this.prisma.whatsAppConversation.findFirst({ where: { contactPhone: formatted }, orderBy: { lastMessageAt: 'desc' } });
+    let aberta = false;
+    if (conv) {
+      const lastIn = await this.prisma.whatsAppMessage.findFirst({ where: { conversationId: conv.id, direction: 'INBOUND' }, orderBy: { createdAt: 'desc' } });
+      aberta = !!lastIn && Date.now() - new Date(lastIn.createdAt).getTime() < 24 * 3600 * 1000;
+    }
+
+    if (aberta && conv) {
+      const r = await this.sendAndSaveMessage(conv.userId, conv.id, texto, 'TEXT', { senderType: 'SYSTEM', senderName: 'Boletim internação' });
+      if (!r?.response?.success) return { status: 'erro', error: r?.response?.error || 'Falha no envio' };
+      return { status: 'enviado' };
+    }
+
+    const res = await this.enviarTemplateRegistrando(formatted, 'boletim_internacao', [{ type: 'text', text: petNome || 'seu pet' }], `🏥 Enviei a mensagem que abre a conversa — o boletim do(a) ${petNome || 'pet'} vai assim que o tutor responder.`);
+    if (!res.success) return { status: 'erro', error: res.error || 'Falha ao enviar a abridora' };
+    await this.prisma.listaItem.deleteMany({ where: { lista: 'boletim_fila', valor: { contains: `"tutorId":"${tutorId}"` } } });
+    await this.prisma.listaItem.create({ data: { lista: 'boletim_fila', valor: JSON.stringify({ tutorId, texto, petNome: petNome || '', criadoAt: new Date().toISOString() }) } });
+    return { status: 'na_fila' };
+  }
+
   /** Entrega o boletim que estava na fila — chamado pelo listener quando o cliente responde. */
   async entregarBoletimDaFila(tutorId: string): Promise<boolean> {
     const item = await this.prisma.listaItem.findFirst({ where: { lista: 'boletim_fila', valor: { contains: `"tutorId":"${tutorId}"` } } });

@@ -66,6 +66,7 @@ import { TemplatesModule } from './modules/templates/templates.module';
 import { AutomationsModule } from './modules/automations/automations.module';
 import { WhatsAppModule } from './modules/whatsapp/whatsapp.module';
 import { RemindersModule } from './modules/reminders/reminders.module';
+import { InternacaoBoletimModule } from './modules/internacao-boletim/internacao-boletim.module';
 import { WhatsAppCampaignsModule } from './modules/whatsapp-campaigns/whatsapp-campaigns.module';
 import { WhatsAppTemplatesModule } from './modules/whatsapp-templates/whatsapp-templates.module';
 import { EmailModule } from './modules/email/email.module';
@@ -140,6 +141,7 @@ import configuration from './config/configuration';
     // Módulos de comunicação
     WhatsAppModule,
     RemindersModule,
+    InternacaoBoletimModule,
     WhatsAppCampaignsModule,
     WhatsAppTemplatesModule,
     EmailModule,

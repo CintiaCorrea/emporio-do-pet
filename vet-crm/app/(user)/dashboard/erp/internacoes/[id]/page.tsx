@@ -66,6 +66,12 @@ export default function FichaInternacaoPage() {
   const [evoTexto, setEvoTexto] = useState("");
   const [evoSaving, setEvoSaving] = useState(false);
 
+  // Boletins programados (envio automático nos horários)
+  const [bolProgId, setBolProgId] = useState<string | null>(null);
+  const [bolProg, setBolProg] = useState<Record<string, string>>({});
+  const [bolProgSaving, setBolProgSaving] = useState(false);
+  const [bolEnviando, setBolEnviando] = useState("");
+
   const [admOpen, setAdmOpen] = useState(false);
   const [admForm, setAdmForm] = useState<any>({ pesoEntrada: "", tempEntrada: "", diagnosis: "", prognostico: "", estimatedDischargeDate: "" });
   const [admSaving, setAdmSaving] = useState(false);
@@ -104,7 +110,7 @@ export default function FichaInternacaoPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const [d, m, ev, pr, ds, vt, fl, co, fe, sv, pd] = await Promise.all([
+      const [d, m, ev, pr, ds, vt, fl, co, fe, sv, pd, bp] = await Promise.all([
         fetch(`/api/hospitalizations/${id}`).then((r) => r.json()).catch(() => null),
         fetch(`/api/boxes/mapa`).then((r) => r.json()).catch(() => ({})),
         fetch(`/api/listas?lista=intevo_${id}`).then((r) => r.json()).catch(() => []),
@@ -116,6 +122,7 @@ export default function FichaInternacaoPage() {
         fetch(`/api/listas?lista=intfechamento_${id}`).then((r) => r.json()).catch(() => []),
         fetch(`/api/servicos/itens`).then((r) => r.json()).catch(() => []),
         fetch(`/api/products?excludeService=1&limit=1000`).then((r) => r.json()).catch(() => []),
+        fetch(`/api/listas?lista=intbolprog_${id}`).then((r) => r.json()).catch(() => []),
       ]);
       setH(d && d.id ? d : null);
       const card = Array.isArray(m?.boxes) ? m.boxes.find((c: any) => c.internacao?.id === id) : null;
@@ -130,6 +137,10 @@ export default function FichaInternacaoPage() {
       setFluidos(parse(fl));
       setConta(parse(co));
       setFechamentos(parse(fe));
+      const bpArr = Array.isArray(bp) ? bp : (bp.itens || bp.data || []);
+      const bpItem = bpArr[0] || null;
+      setBolProgId(bpItem?.id || null);
+      try { setBolProg(bpItem ? JSON.parse(bpItem.valor) : {}); } catch { setBolProg({}); }
       setServicos(Array.isArray(sv) ? sv : (sv.itens || sv.data || []));
       setProdutos(Array.isArray(pd) ? pd : (pd.products || pd.data || []));
       const tutorId = d?.tutor?.id;
@@ -363,6 +374,43 @@ export default function FichaInternacaoPage() {
     finally { setFinBusy(""); }
   };
 
+  // ── Boletins programados ──────────────────────────────────────────
+  // Horários vêm do que foi definido na internação (ex.: "07:00, 14:00, 20:00").
+  const horariosBoletim = useMemo(() => {
+    return String(h?.vitalSigns?.boletinsHorarios || "")
+      .split(",").map((s: string) => s.trim()).filter(Boolean).sort();
+  }, [h]);
+
+  const salvarBoletinsProgramados = async () => {
+    setBolProgSaving(true);
+    try {
+      const valor = JSON.stringify(bolProg);
+      if (bolProgId) {
+        await fetch(`/api/listas/${bolProgId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ valor }) });
+      } else {
+        await fetch("/api/listas", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ lista: `intbolprog_${id}`, valor }) });
+      }
+      load();
+    } catch { alert("Erro ao salvar os boletins programados."); }
+    finally { setBolProgSaving(false); }
+  };
+
+  // Envia na hora o boletim daquele horário (sem esperar o automático).
+  const enviarBoletimAgora = async (horario: string) => {
+    const texto = (bolProg[horario] || "").trim();
+    if (!texto) { alert("Escreva o boletim desse horário antes de enviar."); return; }
+    if (!confirm(`Enviar agora o boletim das ${horario} para ${h.tutor?.name || "o tutor"}?`)) return;
+    setBolEnviando(horario);
+    try {
+      const res = await fetch("/api/whatsapp/boletim-internacao", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ tutorId: h.tutor?.id, texto, petNome: h.pet?.name }) });
+      const d = await res.json().catch(() => ({}));
+      if (d?.status === "enviado") alert("Boletim enviado ao tutor. ✅");
+      else if (d?.status === "na_fila") alert("A conversa está fechada — mandei o convite com os botões. O boletim vai automaticamente quando o tutor responder. 📨");
+      else alert(d?.error || "Erro ao enviar o boletim.");
+    } catch { alert("Erro ao enviar o boletim."); }
+    finally { setBolEnviando(""); }
+  };
+
   // Troca/atribui o box desta internação. "" = remover do box (liberar).
   const trocarBox = async (novoBoxId: string) => {
     setBoxBusy(true);
@@ -554,6 +602,55 @@ export default function FichaInternacaoPage() {
                 <Field k="Veterinário responsável">{h.veterinarian?.name || "—"}</Field>
               </div>
             </div>
+
+            {/* boletins programados */}
+            {!alta && (
+              <div className="bg-white border rounded-[13px]" style={{ borderColor: "#E8E2D6" }}>
+                <Ch>🔔 Boletins programados</Ch>
+                <div className="p-4">
+                  {horariosBoletim.length === 0 ? (
+                    <div className="text-[12px] text-[#8A989D]">
+                      Nenhum horário definido nesta internação. Edite a internação e informe os horários (ex.: 07:00, 14:00, 20:00).
+                    </div>
+                  ) : (
+                    <>
+                      <div className="space-y-3">
+                        {horariosBoletim.map((hor: string) => {
+                          const txt = bolProg[hor] || "";
+                          return (
+                            <div key={hor}>
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-[11.5px] font-medium text-[#014D5E]">{hor}</span>
+                                <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={txt.trim() ? { background: "#E1F5EE", color: "#0F6E56" } : { background: "#F0EBE0", color: "#8A989D" }}>{txt.trim() ? "programado" : "vazio"}</span>
+                              </div>
+                              <textarea
+                                value={txt}
+                                onChange={(e) => setBolProg({ ...bolProg, [hor]: e.target.value })}
+                                rows={2}
+                                placeholder={`Boletim das ${hor}...`}
+                                className="w-full border rounded-lg px-3 py-2 text-[12.5px] resize-none focus:outline-none focus:border-[#009AAC]"
+                                style={{ borderColor: "#E8E2D6" }}
+                              />
+                              {txt.trim() && (
+                                <button onClick={() => enviarBoletimAgora(hor)} disabled={!!bolEnviando} className="mt-1 text-[11.5px] text-[#00798A] disabled:opacity-50">
+                                  {bolEnviando === hor ? "Enviando..." : "📲 Enviar agora"}
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <button onClick={salvarBoletinsProgramados} disabled={bolProgSaving} className="w-full mt-3 text-[12px] text-white bg-[#009AAC] py-2 rounded-lg disabled:opacity-60">
+                        {bolProgSaving ? "Salvando..." : "Salvar boletins"}
+                      </button>
+                      <div className="text-[10.5px] text-[#8A989D] mt-2">
+                        No horário, o sistema envia sozinho ao tutor. Horário vazio não envia nada.
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* tutor */}
             <div className="bg-white border rounded-[13px]" style={{ borderColor: "#E8E2D6" }}>

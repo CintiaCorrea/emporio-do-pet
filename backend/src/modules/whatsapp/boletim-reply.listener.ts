@@ -30,13 +30,13 @@ export class BoletimReplyListener {
       });
       if (!item) return;
 
-      if (content.includes('não preciso') || content.includes('nao preciso')) {
+      if (content.includes('não preciso') || content.includes('nao preciso') || content.includes('agora não') || content.includes('agora nao')) {
         await this.whatsapp.cancelarBoletimDaFila(tutorId);
-        this.logger.log(`Boletim na fila cancelado (tutor ${tutorId} disse que não precisa)`);
+        this.logger.log(`Boletim na fila cancelado (tutor ${tutorId} pediu para não enviar)`);
         return;
       }
 
-      // "Enviar o boletim" (ou qualquer resposta) → a janela abriu, entrega o boletim.
+      // "Ver o boletim" / "Enviar o boletim" / "Tirar dúvida" (ou qualquer resposta) → a janela abriu, entrega o boletim.
       await this.whatsapp.entregarBoletimDaFila(tutorId);
       this.logger.log(`Boletim da fila entregue ao tutor ${tutorId}`);
     } catch (e: any) {
