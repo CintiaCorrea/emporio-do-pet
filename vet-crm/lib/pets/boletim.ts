@@ -57,7 +57,9 @@ export interface BoletimData {
   enviadoAt?: string | null; createdAt?: string;
 }
 
-const fmtBR = (v?: string) => { if (!v) return "—"; const d = new Date(v); return isNaN(d.getTime()) ? v : d.toLocaleDateString("pt-BR"); };
+// Datas "YYYY-MM-DD" (do <input date>) precisam ser lidas no fuso LOCAL — senão o
+// new Date() interpreta como UTC e mostra o dia anterior (ex.: 18/07 vira 17/07).
+const fmtBR = (v?: string) => { if (!v) return "—"; const s = String(v); const d = new Date(/^\d{4}-\d{2}-\d{2}$/.test(s) ? s + "T00:00:00" : s); return isNaN(d.getTime()) ? s : d.toLocaleDateString("pt-BR"); };
 
 // Uma linha de texto pra um equipamento usado (ou null se não usar/sem nada).
 function linhaEquip(def: EquipDef, val: EquipVal | string): string | null {
