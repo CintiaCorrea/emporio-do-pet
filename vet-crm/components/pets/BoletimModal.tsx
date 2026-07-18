@@ -10,6 +10,7 @@ import { ageFromBirth, genderLabel } from "@/lib/pets/labels";
 import { openWhatsAppMeta } from "@/lib/actions/whatsapp";
 import { montarTextoBoletim, BoletimData, EquipVal } from "@/lib/pets/boletim";
 import EquipamentosFisioEditor from "@/components/pets/EquipamentosFisioEditor";
+import { imprimirDocumento } from "@/lib/print";
 
 interface PetLite {
   id: string; name: string; species?: string; breed?: string | null; gender?: string | null; birthDate?: string | null;
@@ -149,12 +150,14 @@ export default function BoletimModal({ pet, boletimId, fisioRec, agenda, onClose
     } catch { toast.error("Erro ao registrar consentimento"); }
   }
 
-  function imprimir() {
-    const w = window.open("", "_blank", "width=800,height=900");
-    if (!w) { toast.error("Permita pop-ups para imprimir"); return; }
+  async function imprimir() {
     const esc = (t: any) => String(t || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    w.document.write(`<html><head><title>Boletim de fisioterapia</title><style>body{font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#0E2244;padding:40px;max-width:720px;margin:0 auto;font-size:13px;line-height:1.55}h1{color:#014D5E;font-size:19px;margin:0 0 2px}.sub{color:#6B7280;font-size:12px;margin-bottom:16px}pre{white-space:pre-wrap;font-family:inherit;border-top:2px solid #009AAC;padding-top:14px}</style></head><body><h1>🌿 Boletim de Fisioterapia — Empório do Pet</h1><div class="sub">${esc(pet.name || "")} · ${esc(new Date(b.sessaoData || Date.now()).toLocaleDateString("pt-BR"))}</div><pre>${esc(textoPreview)}</pre></body></html>`);
-    w.document.close(); w.focus(); setTimeout(() => w.print(), 300);
+    const dataStr = b.sessaoData ? new Date(b.sessaoData + "T00:00:00").toLocaleDateString("pt-BR") : "";
+    // O logo/cabeçalho vêm do papel timbrado — aqui vai só o conteúdo.
+    const corpo = `<h1 style="font-size:19px">🌿 Boletim de Fisioterapia</h1>
+      <div style="color:#6B7280;font-size:12px;margin-bottom:14px">${esc(pet.name || "")}${dataStr ? ` · ${esc(dataStr)}` : ""}</div>
+      <pre style="border-top:2px solid #009AAC;padding-top:14px">${esc(textoPreview)}</pre>`;
+    await imprimirDocumento("Boletim de fisioterapia", corpo);
   }
 
   const inp = "w-full mt-0.5 px-3 py-2 border border-[#E8E2D6] rounded-[9px] text-[13px] text-[#1F2A2E] bg-white";

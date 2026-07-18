@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import { imprimirDocumento } from '@/lib/print';
 import {
   LuFileText,
   LuDownload,
@@ -92,40 +93,23 @@ export default function DocumentViewer({ document: doc, onBack, onUpdate }: Docu
     }
   };
 
-  // Print document
+  const tituloDoc = (doc as any).title || (doc as any).name || 'Documento';
+
+  // Print document — com o papel timbrado da clínica de fundo.
   const printDocument = () => {
     if (doc.htmlContent) {
-      const printWindow = window.open('', '_blank');
-      if (printWindow) {
-        printWindow.document.write(doc.htmlContent);
-        printWindow.document.close();
-        setTimeout(() => {
-          printWindow.print();
-        }, 500);
-      }
+      void imprimirDocumento(tituloDoc, doc.htmlContent);
     } else {
       window.print();
     }
   };
 
-  // Download as PDF (using browser print)
+  // Download as PDF (usa a mesma impressão com timbrado; o usuário escolhe "Salvar como PDF").
   const downloadPdf = () => {
     if (doc.htmlContent) {
-      const printWindow = window.open('', '_blank');
-      if (printWindow) {
-        printWindow.document.write(`
-          ${doc.htmlContent}
-          <script>
-            setTimeout(function() {
-              window.print();
-              setTimeout(function() { window.close(); }, 100);
-            }, 500);
-          </script>
-        `);
-        printWindow.document.close();
-      }
+      void imprimirDocumento(tituloDoc, doc.htmlContent);
+      toast.success('Use "Salvar como PDF" na janela de impressão');
     }
-    toast.success('Use "Salvar como PDF" na janela de impressão');
   };
 
   // Share via WhatsApp or Email
