@@ -362,8 +362,13 @@ export default function InboxUnificadoPage() {
     const p8 = phoneParam.slice(-8);
     const match = conversations.find((c) => (c.contactNumber || "").replace(/\D/g, "").slice(-8) === p8);
     autoPhoneDone.current = true;
-    if (match) setSelectedId(match.id);
-    else abrirNovaConversa({ phone: phoneParam, busca: phoneParam });
+    if (match) { setSelectedId(match.id); return; }
+    // Não há conversa ainda → abre "Nova conversa" JÁ com o cliente/pet (não só o telefone).
+    let nome = "", pet = "";
+    try { const u = new URLSearchParams(window.location.search); nome = u.get("nome") || ""; pet = u.get("pet") || ""; } catch {}
+    abrirNovaConversa({ phone: phoneParam, busca: nome || phoneParam });
+    if (nome) buscarContatoNova(nome); // mostra o cliente nos resultados pra escolher
+    if (pet) setNovaMsgPet(pet);
   }, [conversations, phoneParam, loading]);
 
   // Mensagens da conversa selecionada — carrega ao abrir + poll leve (12s).
