@@ -30,7 +30,7 @@ export class SurveyAvaliacaoService {
     const contato = tutor.contacts.find((c) => c.isPrimary) || tutor.contacts[0];
     const phone = contato?.number;
     if (!phone) return { success: false, error: 'Cliente sem telefone cadastrado' };
-    const res = await this.whatsapp.sendMessage({ to: phone, message: texto });
+    const res = await this.whatsapp.enviarTextoRegistrando(phone, texto);
     if (!res.success) {
       this.logger.error(`Falha ao enviar texto p/ tutor ${tutorId}: ${res.error}`);
       return { success: false, error: res.error || 'Falha ao enviar WhatsApp' };
@@ -65,7 +65,7 @@ export class SurveyAvaliacaoService {
       `Queremos muito saber sua opinião: de *1 a 5*, como foi o seu atendimento?\n` +
       `Responda com o número (5 = adorei!).`;
 
-    const res = await this.whatsapp.sendMessage({ to: phone, message: msg });
+    const res = await this.whatsapp.enviarTextoRegistrando(phone, msg);
     if (!res.success) {
       this.logger.error(`Falha ao enviar pesquisa p/ tutor ${tutorId}: ${res.error}`);
       return { success: false, error: res.error || 'Falha ao enviar WhatsApp' };
@@ -128,7 +128,7 @@ export class SurveyAvaliacaoService {
       : `Obrigado pela sua sinceridade! 🙏\n` +
         `Vamos usar o seu retorno para melhorar. Se quiser, conte pra gente o que podemos fazer melhor.`;
 
-    await this.whatsapp.sendMessage({ to: phone, message: reply });
+    await this.whatsapp.enviarTextoRegistrando(phone, reply);
     this.logger.log(`Resposta de pesquisa tratada: tutor ${tid}, nota ${nota}, gostou=${gostou}`);
     return true;
   }

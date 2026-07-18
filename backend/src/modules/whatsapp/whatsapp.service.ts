@@ -1410,6 +1410,25 @@ export class WhatsAppService {
     return { success: true };
   }
 
+  /**
+   * Envia TEXTO livre e REGISTRA na conversa (se já existir), pra avisos do sistema
+   * (pesquisa, confirmação em texto, etc.) aparecerem no inbox como enviados.
+   */
+  async enviarTextoRegistrando(phone: string, texto: string): Promise<{ success: boolean; error?: string }> {
+    const formatted = this.formatPhoneNumber(phone);
+    const tail = formatted.replace(/\D/g, '').slice(-8);
+    const conv = tail.length >= 8
+      ? await this.prisma.whatsAppConversation.findFirst({ where: { contactPhone: { endsWith: tail } }, orderBy: { lastMessageAt: 'desc' } })
+      : null;
+    if (conv) {
+      const r = await this.sendAndSaveMessage(conv.userId, conv.id, texto, 'TEXT', { senderType: 'SYSTEM', senderName: 'Sistema' });
+      return { success: !!r?.response?.success, error: r?.response?.error };
+    }
+    // Sem conversa ainda → envia direto (não há thread onde registrar).
+    const res = await this.sendMessage({ to: formatted, message: texto });
+    return { success: res.success, error: res.error };
+  }
+
   // Map incoming message type to enum
   private mapMessageType(type: string): WhatsAppMessageType {
     const typeMap: Record<string, WhatsAppMessageType> = {

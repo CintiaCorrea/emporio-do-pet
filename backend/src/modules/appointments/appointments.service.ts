@@ -75,7 +75,8 @@ export class AppointmentsService {
     }
 
     const { name: templateName, params } = this.confirmacaoTemplate(appt);
-    const res = await this.whatsapp.sendTemplateMessage(phone, templateName, params, 'pt_BR');
+    // Envia E registra na conversa (aparece no inbox como enviada pelo sistema).
+    const res = await this.whatsapp.enviarTemplateRegistrando(phone, templateName, params, '📲 Confirmação de agendamento enviada pelo WhatsApp.');
 
     if (!res.success) {
       return { success: false, error: res.error || 'Falha ao enviar pelo WhatsApp.' };
