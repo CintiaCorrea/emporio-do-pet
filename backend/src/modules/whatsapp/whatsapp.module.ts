@@ -9,6 +9,7 @@ import { WhatsAppWebhooksController } from './whatsapp-webhooks.controller';
 import { WhatsAppAIConfigController } from './whatsapp-ai-config.controller';
 import { WhatsAppAgentListener } from './whatsapp-agent.listener';
 import { WhatsAppOfflineReplyListener } from './whatsapp-offline-reply.listener';
+import { BoletimReplyListener } from './boletim-reply.listener';
 import { SurveyAvaliacaoController } from './survey-avaliacao.controller';
 import { SurveyAvaliacaoService } from './survey-avaliacao.service';
 import { SurveyAvaliacaoListener } from './survey-avaliacao.listener';
@@ -43,6 +44,7 @@ import {
     WhatsAppService,
     WhatsAppAgentListener,
     WhatsAppOfflineReplyListener,
+    BoletimReplyListener,
     SurveyAvaliacaoService,
     SurveyAvaliacaoListener,
     WebhookReplayService,

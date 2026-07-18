@@ -353,6 +353,14 @@ export class WhatsAppConversationsController {
     return result;
   }
 
+  // Envia o boletim de fisio: entrega já se a conversa está aberta (e registra no inbox),
+  // ou manda a abridora + deixa o boletim na fila se estiver fechada.
+  @Post('boletim')
+  async enviarBoletim(@Body() dto: { tutorId: string; texto: string; petNome?: string }) {
+    if (!dto?.tutorId || !dto?.texto) return { status: 'erro', error: 'tutorId e texto são obrigatórios' };
+    return this.whatsAppService.enviarBoletim(dto.tutorId, dto.texto, dto.petNome);
+  }
+
   // ============================================
   // Direct Send (without conversation)
   // ============================================

@@ -115,18 +115,23 @@ export default function BoletimModal({ pet, boletimId, fisioRec, agenda, onClose
     setSaving(true);
     const ok = await persistir(true);
     if (!ok) { setSaving(false); return; }
-    // Envio automático pela API oficial da Meta (mesmo caminho da pesquisa de avaliação do Google).
+    // Conversa ABERTA → envia o boletim completo e registra no inbox.
+    // Conversa FECHADA → manda a abridora e deixa o boletim na FILA (vai automático
+    // quando o cliente tocar "Enviar o boletim").
     try {
-      const r = await fetch(`/api/survey-avaliacao/mensagem-tutor`, {
+      const r = await fetch(`/api/whatsapp/boletim`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tutorId: pet.tutorId, texto: textoPreview }),
+        body: JSON.stringify({ tutorId: pet.tutorId, texto: textoPreview, petNome: pet.name }),
       });
-      const d = await safeJson<any>(r, { success: false });
+      const d = await safeJson<any>(r, { status: "erro" });
       setSaving(false);
-      if (d?.success) { toast.success("Boletim enviado pelo WhatsApp ✅"); onSaved(); return; }
-      // Meta recusou (ex.: fora da janela de 24h) → fallback manual, sem travar
-      toast.error("Envio automático não deu certo" + (d?.error ? `: ${d.error}` : "") + ". Abrindo o WhatsApp pra enviar manual.");
+      if (d?.status === "enviado") { toast.success("Boletim enviado pelo WhatsApp ✅"); onSaved(); return; }
+      if (d?.status === "na_fila") {
+        toast("Conversa fechada — enviei a mensagem que abre a conversa. O boletim completo vai automático quando o cliente responder. 🕐", { duration: 6500 });
+        onSaved(); return;
+      }
+      toast.error("Não consegui enviar automático" + (d?.error ? `: ${d.error}` : "") + ". Abrindo o WhatsApp pra enviar manual.");
     } catch {
       setSaving(false);
       toast.error("Envio automático falhou. Abrindo o WhatsApp pra enviar manual.");

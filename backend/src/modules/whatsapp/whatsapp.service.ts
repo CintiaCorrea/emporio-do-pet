@@ -1316,6 +1316,60 @@ export class WhatsAppService {
     return { message, response };
   }
 
+  /**
+   * Envia o BOLETIM pro tutor. Conversa ABERTA (cliente falou nas últimas 24h) → manda o
+   * texto completo REGISTRANDO na conversa (aparece no inbox). Conversa FECHADA → manda a
+   * abridora (template boletim_fisioterapia) e GUARDA na fila; quando o cliente responder,
+   * o listener entrega o boletim completo sozinho.
+   */
+  async enviarBoletim(tutorId: string, texto: string, petNome?: string): Promise<{ status: 'enviado' | 'na_fila' | 'erro'; error?: string }> {
+    const tutor = await this.prisma.tutor.findUnique({ where: { id: tutorId }, include: { contacts: true } });
+    if (!tutor) return { status: 'erro', error: 'Tutor não encontrado' };
+    const cs = (tutor.contacts || []) as any[];
+    const wa = cs.find((x) => x.isWhatsApp) || cs.find((x) => x.isPrimary) || cs[0];
+    const phone = wa?.number;
+    if (!phone) return { status: 'erro', error: 'Tutor sem telefone' };
+    const formatted = this.formatPhoneNumber(phone);
+
+    const conv = await this.prisma.whatsAppConversation.findFirst({ where: { contactPhone: formatted }, orderBy: { lastMessageAt: 'desc' } });
+    let aberta = false;
+    if (conv) {
+      const lastIn = await this.prisma.whatsAppMessage.findFirst({ where: { conversationId: conv.id, direction: 'INBOUND' }, orderBy: { createdAt: 'desc' } });
+      aberta = !!lastIn && Date.now() - new Date(lastIn.createdAt).getTime() < 24 * 3600 * 1000;
+    }
+
+    if (aberta && conv) {
+      const r = await this.sendAndSaveMessage(conv.userId, conv.id, texto, 'TEXT', { senderType: 'SYSTEM', senderName: 'Boletim' });
+      if (!r?.response?.success) return { status: 'erro', error: r?.response?.error || 'Falha no envio' };
+      return { status: 'enviado' };
+    }
+
+    const primeiroNome = (tutor.name || '').trim().split(/\s+/)[0] || 'tutor';
+    const res = await this.sendTemplateMessage(formatted, 'boletim_fisioterapia', [{ type: 'text', text: primeiroNome }, { type: 'text', text: petNome || 'seu pet' }]);
+    if (!res.success) return { status: 'erro', error: res.error || 'Falha ao enviar a abridora' };
+    await this.prisma.listaItem.deleteMany({ where: { lista: 'boletim_fila', valor: { contains: `"tutorId":"${tutorId}"` } } });
+    await this.prisma.listaItem.create({ data: { lista: 'boletim_fila', valor: JSON.stringify({ tutorId, texto, petNome: petNome || '', criadoAt: new Date().toISOString() }) } });
+    return { status: 'na_fila' };
+  }
+
+  /** Entrega o boletim que estava na fila — chamado pelo listener quando o cliente responde. */
+  async entregarBoletimDaFila(tutorId: string): Promise<boolean> {
+    const item = await this.prisma.listaItem.findFirst({ where: { lista: 'boletim_fila', valor: { contains: `"tutorId":"${tutorId}"` } } });
+    if (!item) return false;
+    let dados: any = {}; try { dados = JSON.parse(item.valor); } catch { return false; }
+    const conv = await this.prisma.whatsAppConversation.findFirst({ where: { tutorId }, orderBy: { lastMessageAt: 'desc' } });
+    if (conv && dados.texto) {
+      await this.sendAndSaveMessage(conv.userId, conv.id, dados.texto, 'TEXT', { senderType: 'SYSTEM', senderName: 'Boletim' });
+    }
+    await this.prisma.listaItem.delete({ where: { id: item.id } }).catch(() => undefined);
+    return true;
+  }
+
+  /** Cancela o boletim na fila (cliente respondeu que não precisa). */
+  async cancelarBoletimDaFila(tutorId: string): Promise<void> {
+    await this.prisma.listaItem.deleteMany({ where: { lista: 'boletim_fila', valor: { contains: `"tutorId":"${tutorId}"` } } });
+  }
+
   // Map incoming message type to enum
   private mapMessageType(type: string): WhatsAppMessageType {
     const typeMap: Record<string, WhatsAppMessageType> = {

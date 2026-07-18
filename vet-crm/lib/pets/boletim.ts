@@ -18,7 +18,7 @@ export const EQUIP_DEFS: EquipDef[] = [
   { key: "Fototerapia", params: [Fr, Int, T] },
   { key: "Fes", params: [Pro, Int, T] },
   { key: "Tens", params: [Pro, Int, T] },
-  { key: "Haihua", params: [Pro, Int, Loc, T] },
+  { key: "Haihua", params: [Pro, Int, Reg, T] },
   { key: "Hidroesteira", params: [Vel, T] },
   { key: "Eletroacupuntura", params: [Reg, T] },
   { key: "Laser terapia", params: [Int, Reg, T] },
@@ -33,7 +33,7 @@ export const EQUIP_DEFS: EquipDef[] = [
 
 export const CINESIO_EXERCICIOS = [
   "Cone + obstáculos", "Prancha de equilíbrio", "Disco proprioceptivo", "Circuito em oito",
-  "Isometria", "Equilíbrio", "Descarga de peso", "Estimulação de subida", "Agachamento",
+  "Isometria", "Equilíbrio", "Descarga de peso", "Estimulação de subida", "Agachamento", "Alongamento",
 ] as const;
 
 // Valor de um equipamento no boletim. `on` = foi usado. Params ficam por chave (Fr/Int/T…).
