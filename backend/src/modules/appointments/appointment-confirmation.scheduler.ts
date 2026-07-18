@@ -23,12 +23,23 @@ export class AppointmentConfirmationScheduler {
     private readonly appts: AppointmentsService,
   ) {}
 
-  // Todo dia às 9h de Fortaleza.
-  @Cron('0 9 * * *', { timeZone: 'America/Fortaleza' })
-  async cronDiario(): Promise<void> {
-    const r = await this.rodar(false);
+  // Confirmação por FAIXA do atendimento, pra manter a janela de 24h do WhatsApp aberta:
+  //  - Agendamentos da MANHÃ (até 12h59)  -> confirmados às 17h do dia anterior.
+  //  - Agendamentos da TARDE/NOITE (13h+)  -> confirmados às 19h do dia anterior.
+  // Juntos cobrem TODOS os horários, sem deixar agendamento sem confirmar.
+  @Cron('0 17 * * *', { timeZone: 'America/Fortaleza' })
+  async cronManha(): Promise<void> {
+    const r = await this.rodar(false, 'manha');
     this.logger.log(
-      `[confirmacao-amanha] enviados=${r.itens.filter((i) => i.ok).length}/${r.enviaveis} (${r.total} agendas, ${r.semOptIn} sem opt-in)`,
+      `[confirmacao-manha 17h] enviados=${r.itens.filter((i) => i.ok).length}/${r.enviaveis} (${r.total} agendas, ${r.semOptIn} sem opt-in)`,
+    );
+  }
+
+  @Cron('0 19 * * *', { timeZone: 'America/Fortaleza' })
+  async cronTarde(): Promise<void> {
+    const r = await this.rodar(false, 'tarde');
+    this.logger.log(
+      `[confirmacao-tarde 19h] enviados=${r.itens.filter((i) => i.ok).length}/${r.enviaveis} (${r.total} agendas, ${r.semOptIn} sem opt-in)`,
     );
   }
 
@@ -50,7 +61,7 @@ export class AppointmentConfirmationScheduler {
    * Executa a rotina. Com dryRun=true, NÃO envia nada — só devolve a lista
    * do que seria enviado (pra conferência/preview).
    */
-  async rodar(dryRun: boolean): Promise<{
+  async rodar(dryRun: boolean, faixa?: 'manha' | 'tarde'): Promise<{
     total: number;
     enviaveis: number;
     semOptIn: number;
@@ -58,6 +69,10 @@ export class AppointmentConfirmationScheduler {
     itens: Array<{ id: string; tutor?: string; pet?: string; date: Date; ok?: boolean; error?: string }>;
   }> {
     const { start, end } = this.amanhaRange();
+    // Hora do agendamento no fuso de Fortaleza (UTC-3). Manhã = até 12h59; tarde = 13h+.
+    const horaLocal = (d: Date) => (d.getUTCHours() + 24 - 3) % 24;
+    const naFaixa = (d: Date) =>
+      !faixa ? true : faixa === 'manha' ? horaLocal(d) < 13 : horaLocal(d) >= 13;
 
     const candidatos = await this.prisma.appointment.findMany({
       where: {
@@ -77,8 +92,9 @@ export class AppointmentConfirmationScheduler {
       orderBy: { date: 'asc' },
     });
 
-    const alvo = candidatos.filter((a) => a.tutor?.acceptsWhatsApp !== false);
-    const semOptIn = candidatos.length - alvo.length;
+    const naJanela = candidatos.filter((a) => naFaixa(a.date));
+    const alvo = naJanela.filter((a) => a.tutor?.acceptsWhatsApp !== false);
+    const semOptIn = naJanela.length - alvo.length;
 
     const itens: Array<{ id: string; tutor?: string; pet?: string; date: Date; ok?: boolean; error?: string }> = [];
     for (const a of alvo) {
@@ -95,6 +111,6 @@ export class AppointmentConfirmationScheduler {
       }
     }
 
-    return { total: candidatos.length, enviaveis: alvo.length, semOptIn, dryRun, itens };
+    return { total: naJanela.length, enviaveis: alvo.length, semOptIn, dryRun, itens };
   }
 }

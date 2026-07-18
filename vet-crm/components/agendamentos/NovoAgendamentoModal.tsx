@@ -147,7 +147,13 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
     // Padrão 30 min (igual à grade da agenda). Só usa 15 se estiver configurado assim.
     const step = Number(cfgAgenda?.intervalo) === 15 ? 15 : 30;
     const dur = Number(duration) || 30;
-    const busy = dayAppts.filter((a: any) => a.id !== editId && a.date).map((a: any) => { const d = new Date(a.date); const s = d.getHours() * 60 + d.getMinutes(); return [s, s + (Number(a.duration) || 30)]; });
+    // Ocupação é POR COLUNA: uma agenda avulsa (MAP 1) só considera os agendamentos DELA,
+    // não os da outra MAP nem os do profissional. Antes, como as MAP dividem o mesmo usuário
+    // logado, um horário no MAP 1 aparecia ocupado no MAP 2 (travava as duas, sem ser bravo).
+    const busy = dayAppts
+      .filter((a: any) => a.id !== editId && a.date)
+      .filter((a: any) => (agendaAvulsa ? a.agendaAvulsa === agendaAvulsa : !a.agendaAvulsa))
+      .map((a: any) => { const d = new Date(a.date); const s = d.getHours() * 60 + d.getMinutes(); return [s, s + (Number(a.duration) || 30)]; });
     const out: number[] = [];
     for (const win of windows) {
       for (let t = win[0]; t + dur <= win[1]; t += step) {
