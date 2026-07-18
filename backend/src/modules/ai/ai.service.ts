@@ -48,46 +48,38 @@ export class AIService {
     userId: string,
     provider: 'openai' | 'gemini' | 'deepseek',
   ): Promise<{ apiKey: string; baseUrl?: string }> {
+    // Fallback: chave do servidor (Fly secret) quando o usuário não tem uma própria.
+    const envKey = provider === 'openai' ? (process.env.OPENAI_API_KEY || '') : '';
+
     const settings = await this.prisma.integrationSettings.findUnique({
       where: { userId },
     });
 
-    if (!settings) {
-      throw new HttpException(
-        'Integration settings not configured. Please configure your AI provider in Settings.',
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-
-    // Get the config for the specific provider
-    const configKey = `${provider}Config` as keyof typeof settings;
-    const configJson = settings[configKey] as string | null;
-
-    if (!configJson) {
-      throw new HttpException(
-        `${provider} is not configured. Please add your API key in Settings.`,
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-
-    try {
-      const config = JSON.parse(configJson);
-      if (!config.apiKey) {
-        throw new HttpException(
-          `${provider} API key is missing. Please configure it in Settings.`,
-          HttpStatus.BAD_REQUEST,
-        );
+    // Config por usuário (prioridade). Se ausente/ inválida, cai no envKey.
+    let config: any = null;
+    const configJson = settings
+      ? (settings[`${provider}Config` as keyof typeof settings] as string | null)
+      : null;
+    if (configJson) {
+      try {
+        config = JSON.parse(configJson);
+      } catch {
+        config = null;
       }
-      return {
-        apiKey: config.apiKey,
-        baseUrl: config.baseUrl || undefined,
-      };
-    } catch (error) {
+    }
+
+    const apiKey = config && config.apiKey ? config.apiKey : envKey;
+    if (!apiKey) {
       throw new HttpException(
-        `Invalid ${provider} configuration. Please reconfigure in Settings.`,
+        `${provider} não configurado. Adicione sua chave em Configurações (ou defina OPENAI_API_KEY no servidor).`,
         HttpStatus.BAD_REQUEST,
       );
     }
+
+    return {
+      apiKey,
+      baseUrl: (config && config.baseUrl) || undefined,
+    };
   }
 
   /**

@@ -8,10 +8,19 @@ import {
   Query,
   UseGuards,
   Logger,
+  Res,
+  UploadedFile,
+  UseInterceptors,
+  BadRequestException,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { randomUUID } from 'crypto';
+import type { Response } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { WhatsAppService } from './whatsapp.service';
+import { CloudStorageService } from '../media/cloud-storage.service';
+import { PrismaService } from '../prisma/prisma.service';
 import {
   SendMessageDto,
   ListConversationsQuery,
@@ -31,7 +40,11 @@ interface JwtUser {
 export class WhatsAppConversationsController {
   private readonly logger = new Logger(WhatsAppConversationsController.name);
 
-  constructor(private readonly whatsAppService: WhatsAppService) {}
+  constructor(
+    private readonly whatsAppService: WhatsAppService,
+    private readonly cloudStorage: CloudStorageService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   // ============================================
   // Conversations
@@ -139,6 +152,14 @@ export class WhatsAppConversationsController {
     return this.whatsAppService.releaseConversation(id);
   }
 
+  @Post('conversations/:id/tags')
+  async setTags(
+    @Param('id') id: string,
+    @Body() body: { tags: string[] },
+  ) {
+    return this.whatsAppService.setConversationTags(id, Array.isArray(body?.tags) ? body.tags : []);
+  }
+
   @Post('conversations/:id/close')
   async closeConversation(
     @CurrentUser() user: JwtUser,
@@ -187,6 +208,126 @@ export class WhatsAppConversationsController {
     });
   }
 
+  // Serve a mídia (imagem/áudio) de uma mensagem, baixada do storage privado.
+  @Get('messages/:msgId/media')
+  async getMessageMedia(
+    @Param('msgId') msgId: string,
+    @Res() res: Response,
+  ) {
+    const media = await this.whatsAppService.getMessageMedia(msgId);
+    if (!media) {
+      res.status(404).json({ error: 'Mídia não encontrada' });
+      return;
+    }
+    res.setHeader('Content-Type', media.contentType);
+    res.setHeader('Content-Disposition', 'inline');
+    res.setHeader('Cache-Control', 'private, max-age=300');
+    res.send(media.buffer);
+  }
+
+  /**
+   * Envia ANEXO (foto, documento, vídeo, áudio, figurinha) numa conversa.
+   *
+   * Guarda em DOIS lugares de propósito: no nosso bucket (o Meta apaga a cópia dele
+   * em 30 dias — sem isso a conversa ficaria com anexo quebrado no histórico) e no
+   * Meta (que é quem entrega pro cliente).
+   *
+   * Vale a janela de 24h do WhatsApp: fora dela, só template. Se o Meta recusar por
+   * isso, o erro dele volta pra tela em vez de sumir.
+   */
+  @Post('conversations/:id/media')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 20 * 1024 * 1024 } }))
+  async sendMedia(
+    @CurrentUser() user: JwtUser,
+    @Param('id') conversationId: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Body('caption') caption?: string,
+    @Body('replyToWaMessageId') replyToWaMessageId?: string,
+  ) {
+    if (!file) throw new BadRequestException('Nenhum arquivo enviado.');
+
+    const conversation = await this.whatsAppService.getConversation(conversationId);
+    if (!conversation) throw new BadRequestException('Conversa não encontrada.');
+
+    const mime = file.mimetype || '';
+    // Figurinha do WhatsApp é sempre .webp — mandar JPG como sticker o Meta recusa.
+    const kind: 'image' | 'document' | 'video' | 'audio' | 'sticker' =
+      mime === 'image/webp' ? 'sticker'
+      : mime.startsWith('image/') ? 'image'
+      : mime.startsWith('video/') ? 'video'
+      : mime.startsWith('audio/') ? 'audio'
+      : 'document';
+
+    const config = await this.whatsAppService.getUserWhatsAppConfig(conversation.userId);
+
+    // 1) Nossa cópia (permanente). Prefixo único: dois "foto.jpg" gravariam na mesma
+    //    chave e o segundo apagaria o primeiro.
+    const guardado = await this.cloudStorage.upload(
+      file.buffer,
+      `${Date.now()}-${randomUUID().slice(0, 8)}-${file.originalname}`,
+      mime,
+      `whatsapp/${conversation.userId}`,
+    );
+
+    // 2) Cópia do Meta (temporária, é a que ele entrega) — reusa o upload que o
+    //    agente de IA já usa pra mandar áudio.
+    const subida = await this.whatsAppService.uploadMedia(
+      file.buffer, mime, file.originalname, config || undefined,
+    );
+    if (!subida.mediaId) {
+      throw new BadRequestException(`O WhatsApp não aceitou o arquivo: ${subida.error}`);
+    }
+
+    // 3) Envia
+    const resposta = await this.whatsAppService.sendMediaMessage(
+      conversation.contactPhone,
+      subida.mediaId,
+      kind,
+      caption || undefined,
+      file.originalname,
+      config || undefined,
+      replyToWaMessageId || undefined,
+    );
+    if (!resposta.success) {
+      throw new BadRequestException(`Não consegui enviar: ${resposta.error}`);
+    }
+
+    // 4) Registra na conversa (com a NOSSA url, que não expira)
+    const tipoBanco = kind === 'sticker' ? 'STICKER' : (kind.toUpperCase() as any);
+    const msg = await this.prisma.whatsAppMessage.create({
+      data: {
+        conversationId,
+        waMessageId: resposta.messageId,
+        direction: 'OUTBOUND',
+        type: tipoBanco,
+        status: 'SENT',
+        content: caption || file.originalname,
+        mediaType: mime,
+        mediaCaption: caption || null,
+        mediaCloudUrl: guardado.success ? guardado.url : null,
+        mediaCloudId: guardado.success ? guardado.publicId : null,
+        mediaStorageType: guardado.success ? guardado.provider : null,
+        mediaDownloadedAt: guardado.success ? new Date() : null,
+        sentAt: new Date(),
+        metadata: {
+          senderType: 'HUMAN',
+          senderName: user.name || 'Atendente',
+          senderUserId: user.id,
+          ...(replyToWaMessageId ? { replyToWaMessageId } : {}),
+        },
+      },
+      select: { id: true },
+    });
+
+    await this.prisma.whatsAppConversation.update({
+      where: { id: conversationId },
+      data: { lastMessageAt: new Date() },
+    }).catch(() => undefined);
+
+    this.logger.log(`Anexo ${kind} enviado na conversa ${conversationId} por ${user.id}`);
+    return { id: msg.id, kind, waMessageId: resposta.messageId };
+  }
+
   @Post('conversations/:id/messages')
   async sendMessage(
     @CurrentUser() user: JwtUser,
@@ -206,6 +347,7 @@ export class WhatsAppConversationsController {
       dto.content,
       dto.type,
       { senderType: 'HUMAN', senderName: user.name || 'Atendente', senderId: user.id },
+      dto.replyToWaMessageId,
     );
 
     return result;
@@ -241,6 +383,36 @@ export class WhatsAppConversationsController {
       conversationId: conversation.id,
       ...result,
     };
+  }
+
+  // Inicia conversa com TEMPLATE aprovado (necessário fora da janela de 24h).
+  @Post('send-template')
+  async sendTemplate(
+    @CurrentUser() user: JwtUser,
+    @Body() dto: { to: string; templateName: string; language?: string; params?: { type: 'text'; text: string }[]; preview?: string },
+  ) {
+    if (!dto?.to || !dto?.templateName) return { success: false, error: 'to e templateName são obrigatórios' };
+    const conversation = await this.whatsAppService.createOrGetConversation(user.id, dto.to);
+    const res = await this.whatsAppService.sendTemplateMessage(
+      dto.to,
+      dto.templateName,
+      dto.params || [],
+      dto.language || 'pt_BR',
+    );
+    if (!res.success) return { success: false, error: res.error || 'Falha ao enviar o template' };
+    try {
+      await this.whatsAppService.saveOutboundMessage(
+        conversation.id,
+        dto.preview || `[Modelo] ${dto.templateName}`,
+        'TEXT',
+        (res as any).messageId,
+        { template: dto.templateName },
+        { senderType: 'HUMAN', senderName: user.name || 'Atendente', senderId: user.id },
+      );
+    } catch {
+      /* salvar a msg é best-effort */
+    }
+    return { success: true, conversationId: conversation.id };
   }
 
   // ============================================

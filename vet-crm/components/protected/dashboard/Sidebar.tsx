@@ -55,9 +55,14 @@ const NAV: Entry[] = [
   { href: "/dashboard/inbox", label: "Inbox BC", emoji: "💬", roles: ALL, section: "DIA" },
   { href: "/dashboard/inbox-nativo", label: "Inbox Meta", emoji: "📲", roles: ALL, section: "DIA" },
   { href: "/dashboard/comercial", label: "Comercial", emoji: "🎯", roles: ["ADMIN", "RECEPTIONIST"], section: "DIA" },
-  { href: "/dashboard/erp/tutores", label: "Clientes", emoji: "👥", roles: ALL, section: "DIA" },
-  { href: "/dashboard/erp/aniversarios", label: "Aniversários", emoji: "🎂", roles: ALL, section: "DIA" },
-  { href: "/dashboard/erp/vacinacao", label: "Vacinação", emoji: "💉", roles: ALL, section: "DIA" },
+  {
+    group: true, key: "clientes", label: "Clientes", emoji: "👥", roles: ALL, section: "DIA",
+    children: [
+      { href: "/dashboard/erp/tutores", label: "Lista de clientes", emoji: "👥", roles: ALL },
+      { href: "/dashboard/erp/aniversarios", label: "Aniversários", emoji: "🎂", roles: ALL },
+      { href: "/dashboard/erp/vacinacao", label: "Vacinação", emoji: "💉", roles: ALL },
+    ],
+  },
   // LIXEIRA-PETS-MENU (Cintia 22/06): aba "Pets" removida do menu. Edicao do pet centralizada na ficha de Cliente; ficha clinica acessivel pelo nome do pet na lista de Clientes. Restaurar = descomentar a linha abaixo.
   // { href: "/dashboard/erp/pets", label: "Pets", emoji: "🐾", roles: ALL },
   { href: "/dashboard/erp/agendamentos/agenda", label: "Agenda", emoji: "📅", roles: ALL, section: "DIA" },
@@ -82,8 +87,7 @@ const NAV: Entry[] = [
       { href: "/dashboard/erp/recebimentos", label: "Recebimentos", emoji: "🧾", roles: ALL },
       { href: "/dashboard/erp/movimentos-caixa", label: "Movimentos de caixa", emoji: "🔄", roles: ALL },
       { href: "/dashboard/erp/saldo-clientes", label: "Saldo dos clientes", emoji: "👛", roles: ALL },
-      { href: "/dashboard/erp/formas-recebimento", label: "Formas de recebimento", emoji: "💳", roles: ["ADMIN"] },
-      { href: "/dashboard/erp/configuracoes-vendas", label: "Configuração de vendas", emoji: "⚙️", roles: ["ADMIN"] },
+      // Config de vendas e Formas de recebimento → agora só em Configurações › Vendas & Financeiro.
       { href: "/dashboard/erp/modelos-orcamento", label: "Modelo de orçamento", emoji: "📄", roles: ALL },
       { href: "/dashboard/erp/modelo-demonstrativo", label: "Modelo de demonstrativo", emoji: "🧾", roles: ["ADMIN"] },
       { href: "/dashboard/erp/importar-vendas", label: "Importar vendas", emoji: "📥", roles: ["ADMIN"] },
@@ -148,18 +152,12 @@ const NAV: Entry[] = [
     children: [
       { href: "/dashboard/erp/contatos", label: "Contatos", emoji: "📇", roles: ["ADMIN", "RECEPTIONIST"] },
       { href: "/dashboard/erp/duplicados", label: "Duplicados", emoji: "🔀", roles: ["ADMIN"] },
-      { href: "/dashboard/configuracoes/listas", label: "Listas (pelagem, marca…)", emoji: "🎨", roles: ["ADMIN"] },
-      { href: "/dashboard/configuracoes/grupos", label: "Grupos do catálogo", emoji: "📁", roles: ["ADMIN"] },
-      { href: "/dashboard/configuracoes/racas", label: "Raças", emoji: "🐾", roles: ["ADMIN"] },
-      { href: "/dashboard/configuracoes/exames", label: "Exames", emoji: "🔬", roles: ["ADMIN"] },
-      { href: "/dashboard/configuracoes/modelos-receita", label: "Modelo de receita", emoji: "💊", roles: ["ADMIN"] },
-      { href: "/dashboard/configuracoes/modelos-documento", label: "Modelo de documento", emoji: "📄", roles: ["ADMIN"] },
+      // Listas, Grupos, Raças, Exames, Modelos de receita/documento → agora só em Configurações.
     ],
   },
   { href: "/dashboard/erp/logs", label: "Log de auditoria", emoji: "🔎", roles: ["ADMIN"], section: "SISTEMA" },
-  { href: "/dashboard/erp/dados-clinica", label: "Dados da clínica", emoji: "🏢", roles: ["ADMIN"], section: "SISTEMA" },
-  { href: "/dashboard/configuracoes", label: "Configuração", emoji: "⚙️", roles: ["ADMIN"], section: "SISTEMA" },
-  { href: "/dashboard/configuracoes/permissoes", label: "Perfis de acesso", emoji: "🔐", roles: ["ADMIN"], section: "SISTEMA" },
+  { href: "/dashboard/configuracoes", label: "Configurações", emoji: "⚙️", roles: ["ADMIN"], section: "SISTEMA" },
+  // Dados da clínica e Perfis de acesso → agora só dentro de Configurações.
 ];
 
 const FUTURE = [
@@ -183,6 +181,8 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
 
   const [internasUnread, setInternasUnread] = useState(0);
   const [encfilaUnread, setEncfilaUnread] = useState(0);
+  const [msgUnread, setMsgUnread] = useState(0); // conversas do inbox com mensagem nova (WhatsApp/Meta)
+  const [ackMsg, setAckMsg] = useState<number>(() => { try { return Number(localStorage.getItem("inbox_ack") || 0); } catch { return 0; } }); // nível já "visto" (ao abrir o inbox)
   useEffect(() => {
     let alive = true;
     const load = async () => {
@@ -221,6 +221,31 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
     return () => { alive = false; clearInterval(id); window.removeEventListener("encfila:changed", onCh); };
   }, [pathname, meId]);
 
+  // Item 2: sinaliza no menu toda mensagem nova no inbox (conversas WhatsApp/Meta com unreadCount > 0).
+  // O badge é um AVISO de novidade: ao abrir o inbox, "reconhece" o nível atual (some); só reaparece
+  // quando chega algo novo (msgUnread sobe acima do reconhecido).
+  useEffect(() => {
+    let alive = true;
+    const onInbox = pathname === "/dashboard/inbox-nativo" || pathname === "/dashboard/inbox"
+      || pathname.startsWith("/dashboard/inbox-nativo/") || pathname.startsWith("/dashboard/inbox/");
+    const load = async () => {
+      try {
+        const r = await fetch("/api/whatsapp/stats", { cache: "no-store" });
+        if (!r.ok) return;
+        const d = await r.json();
+        const n = Number(d?.unreadConversations) || 0;
+        if (!alive) return;
+        setMsgUnread(n);
+        if (onInbox) { setAckMsg(n); try { localStorage.setItem("inbox_ack", String(n)); } catch {} }
+      } catch {}
+    };
+    load();
+    const id = setInterval(load, 20000);
+    const onRead = () => load(); // ao abrir/ler uma conversa, o inbox emite este evento → atualiza na hora
+    window.addEventListener("whatsapp:read", onRead);
+    return () => { alive = false; clearInterval(id); window.removeEventListener("whatsapp:read", onRead); };
+  }, [pathname]);
+
   // Fase B/C: nível de cada tela p/ o perfil atual (via contexto compartilhado)
   const { nivel: permNivel } = usePermissions();
 
@@ -238,7 +263,12 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
   const renderLink = (it: Item, indented = false) => {
     const active = isActive(it);
     const tag = tagFor(it);
-    const badge = it.href === "/dashboard/inbox-nativo" ? internasUnread : it.href === "/dashboard/hoje" ? encfilaUnread : (it.badge ?? 0);
+    // Inbox: AVISO de novidade. Some quando você está atendendo (active) e só mostra o que chegou de novo
+    // desde a última vez que você abriu o inbox (msgUnread acima do nível já reconhecido).
+    const novas = Math.max(0, msgUnread - ackMsg);
+    const badge = (it.href === "/dashboard/inbox-nativo" || it.href === "/dashboard/inbox")
+      ? (active ? 0 : novas)
+      : it.href === "/dashboard/hoje" ? encfilaUnread : (it.badge ?? 0);
     return (
       <Link
         key={it.href}

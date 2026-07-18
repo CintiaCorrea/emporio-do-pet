@@ -8,7 +8,9 @@ import {
   Delete,
   Query,
   UseGuards,
+  Res,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { PetsService } from './pets.service';
 import { CreatePetDto } from './dto/create-pet.dto';
@@ -26,6 +28,28 @@ export class PetsController {
   @ApiOperation({ summary: 'Cadastrar novo pet' })
   create(@Body() createPetDto: CreatePetDto) {
     return this.petsService.create(createPetDto);
+  }
+
+  @Get('historico/:histId')
+  @ApiOperation({ summary: 'Detalhe (texto completo) de um registro do histórico' })
+  getHistoricoItem(@Param('histId') histId: string) {
+    return this.petsService.getHistoricoItem(histId);
+  }
+
+  @Get('historico/:histId/arquivo')
+  @ApiOperation({ summary: 'Baixar/visualizar o arquivo (PDF) do registro — privado, só logado' })
+  async getArquivo(@Param('histId') histId: string, @Res() res: Response) {
+    const f = await this.petsService.getArquivo(histId);
+    if (!f) return res.status(404).json({ error: 'Arquivo não encontrado' });
+    res.setHeader('Content-Type', f.contentType);
+    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(f.nome)}"`);
+    return res.send(f.buffer);
+  }
+
+  @Get(':id/historico')
+  @ApiOperation({ summary: 'Histórico clínico (importado) do pet' })
+  getHistorico(@Param('id') id: string) {
+    return this.petsService.getHistorico(id);
   }
 
   @Get()

@@ -1,11 +1,12 @@
 // [EMP-COWORK] fix: bloco de `items` movido pra fora do if de `treatments` (servicos salvavam so com tratamento). Cintia 06/06.
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService, PrismaTransactionClient } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { BoardsService } from '../boards/boards.service';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { UpdateAppointmentDto } from './dto/update-appointment.dto';
 import { ensureNumeroVenda } from '../../common/venda-numero';
+import { WhatsAppService } from '../whatsapp/whatsapp.service';
 
 @Injectable()
 export class AppointmentsService {
@@ -13,7 +14,97 @@ export class AppointmentsService {
     private readonly prisma: PrismaService,
     private readonly eventsService: EventsService,
     private readonly boardsService: BoardsService,
+    private readonly whatsapp: WhatsAppService,
   ) {}
+
+  // ============================================
+  // Confirmação de agendamento (WhatsApp / futuro portal)
+  // ============================================
+
+  /** Escolhe o modelo (template Meta) pelo tipo de serviço E monta os parâmetros
+   *  na ORDEM que cada modelo espera (a estrutura muda de um pro outro).
+   *  - fisioterapia -> confirmacao_fisioterapia: {{1}} tutor, {{2}} data, {{3}} hora, {{4}} pet
+   *  - demais       -> confirmacao_agendamento : {{1}} tutor, {{2}} pet, {{3}} data, {{4}} hora, {{5}} profissional
+   */
+  /** Detecta se o agendamento é de fisioterapia pelo TIPO/descrição do próprio
+   *  agendamento (ex.: "Sessão de fisio", enum SESSAO_FISIO, "Reabilitação",
+   *  "Hidroesteira"). NÃO usa a especialidade do profissional de propósito:
+   *  o mesmo profissional faz várias especialidades (Clínica, Integrativa E Fisio),
+   *  então a especialidade não diz o serviço DAQUELA agenda. */
+  private isFisio(appt: any): boolean {
+    const txt = `${appt?.type || ''} ${appt?.description || ''}`.toLowerCase();
+    return /fisio|reabilit|hidroester/.test(txt);
+  }
+
+  private confirmacaoTemplate(appt: any): { name: string; params: Array<{ type: 'text'; text: string }> } {
+    const d = new Date(appt.date);
+    // Servidor roda em UTC — formata SEMPRE no fuso de Fortaleza pra não errar a hora.
+    const parts = new Intl.DateTimeFormat('pt-BR', {
+      timeZone: 'America/Fortaleza',
+      day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false,
+    }).formatToParts(d);
+    const get = (t: string) => parts.find((p) => p.type === t)?.value || '';
+    const dd = get('day');
+    const mm = get('month');
+    const hh = get('hour');
+    const mn = get('minute');
+    const data = `${dd}/${mm}`;
+    const hora = mn && mn !== '00' ? `${hh}h${mn}` : `${hh}h`;
+    const tutor = (appt.tutor?.name || 'tutor').trim().split(/\s+/)[0];
+    const pet = appt.pet?.name || 'seu pet';
+    const prof = (appt.user?.name || 'nossa equipe').trim();
+    const T = (text: string) => ({ type: 'text' as const, text });
+
+    if (this.isFisio(appt)) {
+      return { name: 'confirmacao_fisioterapia', params: [T(tutor), T(data), T(hora), T(pet)] };
+    }
+    return { name: 'confirmacao_agendamento', params: [T(tutor), T(pet), T(data), T(hora), T(prof)] };
+  }
+
+  /** Envia a confirmação do agendamento pelo WhatsApp (template aprovado). */
+  async sendConfirmation(id: string) {
+    const appt = await this.findById(id);
+    const contatos = await this.prisma.contact.findMany({
+      where: { tutorId: appt.tutorId },
+      orderBy: [{ isPrimary: 'desc' }, { isWhatsApp: 'desc' }],
+      take: 1,
+    });
+    const phone = contatos[0]?.number;
+    if (!phone) {
+      return { success: false, error: 'Tutor sem telefone/WhatsApp cadastrado.' };
+    }
+
+    const { name: templateName, params } = this.confirmacaoTemplate(appt);
+    const res = await this.whatsapp.sendTemplateMessage(phone, templateName, params, 'pt_BR');
+
+    if (!res.success) {
+      return { success: false, error: res.error || 'Falha ao enviar pelo WhatsApp.' };
+    }
+
+    await this.prisma.appointment.update({
+      where: { id },
+      data: { confirmacaoStatus: 'ENVIADA', confirmacaoEnviadaAt: new Date() },
+    });
+
+    return { success: true, to: phone, templateName };
+  }
+
+  /** Cancela o agendamento com motivo opcional (lista) + observação livre. */
+  async cancelWithReason(id: string, motivo?: string, observacao?: string) {
+    await this.findById(id);
+    return this.prisma.appointment.update({
+      where: { id },
+      data: {
+        status: 'Cancelado',
+        motivoCancelamento: motivo?.trim() || null,
+        observacaoCancelamento: observacao?.trim() || null,
+      },
+      include: {
+        tutor: { select: { id: true, name: true } },
+        pet: { select: { id: true, name: true } },
+      },
+    });
+  }
 
   async create(createAppointmentDto: CreateAppointmentDto) {
     // Validações mínimas (compatível com o antigo /api/appointments do Next)
@@ -71,6 +162,7 @@ export class AppointmentsService {
       tutorId: createAppointmentDto.tutorId,
       petId: finalPetId,
       userId: createAppointmentDto.userId,
+      agendaAvulsa: (createAppointmentDto as any).agendaAvulsa || null,
       date: appointmentDate,
       duration: createAppointmentDto.duration || 30,
       description: createAppointmentDto.description ?? null,
@@ -122,6 +214,41 @@ export class AppointmentsService {
       // Items (serviços/exames) — cobrança detalhada
       const itemsDto = (createAppointmentDto as any).items as any[] | undefined;
       if (itemsDto && itemsDto.length > 0) {
+        // O catálogo vendável agora é `Product`, e o front manda o mesmo id nos dois campos.
+        // `servicoId` aponta pra tabela `servicos` (legado, em aposentadoria): id que não
+        // existir lá violaria a FK e derrubaria a venda inteira. Ninguém LÊ esse campo —
+        // então guardamos só quando é válido, e `productId` segue como a ligação de verdade.
+        const idsServico = Array.from(
+          new Set(itemsDto.map((it: any) => it.servicoId).filter(Boolean)),
+        ) as string[];
+        const servicosValidos = new Set(
+          idsServico.length
+            ? (
+                await tx.servico.findMany({
+                  where: { id: { in: idsServico } },
+                  select: { id: true },
+                })
+              ).map((s) => s.id)
+            : [],
+        );
+        // Mesma proteção do outro lado: id de produto inexistente derrubaria a venda toda.
+        // A descrição e o valor do item já vão no próprio AppointmentItem, então perder o
+        // vínculo é bem menos grave do que perder a venda.
+        const idsProduto = Array.from(
+          new Set(
+            itemsDto.map((it: any) => it.productId ?? it.servicoId).filter(Boolean),
+          ),
+        ) as string[];
+        const produtosValidos = new Set(
+          idsProduto.length
+            ? (
+                await tx.product.findMany({
+                  where: { id: { in: idsProduto } },
+                  select: { id: true },
+                })
+              ).map((p) => p.id)
+            : [],
+        );
         await tx.appointmentItem.createMany({
           data: itemsDto.map((it: any) => {
             const qtd = Number(it.quantidade ?? 1);
@@ -130,8 +257,11 @@ export class AppointmentsService {
             const total = Number.isFinite(it.valorTotal) ? Number(it.valorTotal) : (qtd * unit - desc);
             return {
               appointmentId: appointment.id,
-              servicoId: it.servicoId ?? null,
-              productId: it.productId ?? null,
+              servicoId: it.servicoId && servicosValidos.has(it.servicoId) ? it.servicoId : null,
+              productId: (() => {
+                const pid = it.productId ?? it.servicoId ?? null;
+                return pid && produtosValidos.has(pid) ? pid : null;
+              })(),
               descricao: it.descricao ?? null,
               executorUserId: it.executorUserId ?? null,
               fornecedorId: it.fornecedorId ?? null,
@@ -270,7 +400,8 @@ export class AppointmentsService {
               contacts: { where: { isPrimary: true }, take: 1 },
             },
           },
-          pet: { select: { id: true, name: true, species: true, breed: true } },
+          // temperament: a agenda usa pra saber se o pet ocupa a sala inteira (MAP 1 + MAP 2)
+          pet: { select: { id: true, name: true, species: true, breed: true, temperament: true } },
           user: { select: { id: true, name: true, email: true } },
           treatments: {
             include: {
@@ -381,9 +512,17 @@ export class AppointmentsService {
     return appointment;
   }
 
-  async update(id: string, updateAppointmentDto: UpdateAppointmentDto) {
+  async update(id: string, updateAppointmentDto: UpdateAppointmentDto, requesterRole?: string) {
     const existingAppointment = await this.findById(id);
     const previousStatus = existingAppointment.status;
+
+    // Regra: venda que já tem recebimento só pode ter os itens/valor alterados pelo ADM.
+    if ((updateAppointmentDto as any).items !== undefined) {
+      const nRec = await this.prisma.recebimento.count({ where: { appointmentId: id } });
+      if (nRec > 0 && requesterRole && requesterRole.toUpperCase() !== 'ADMIN') {
+        throw new ForbiddenException('Esta venda já tem recebimento — só um administrador pode alterar os itens/valor.');
+      }
+    }
 
     // Validações de relacionamentos (compatível com o Next)
     if (updateAppointmentDto.tutorId) {
@@ -437,6 +576,7 @@ export class AppointmentsService {
     if (dto.petWeight !== undefined) updateData.petWeight = dto.petWeight;
     if (dto.temperature !== undefined) updateData.temperature = dto.temperature;
     if (dto.paymentMethod !== undefined) updateData.paymentMethod = dto.paymentMethod;
+    if (dto.agendaAvulsa !== undefined) updateData.agendaAvulsa = dto.agendaAvulsa;
     if (updateAppointmentDto.paymentStatus !== undefined)
       updateData.paymentStatus = updateAppointmentDto.paymentStatus;
     if (updateAppointmentDto.boardId !== undefined)
@@ -468,6 +608,40 @@ export class AppointmentsService {
         }
       }
 
+      // Itens da venda (appointmentItem): substitui a lista inteira quando `items` vier no update.
+      const itemsUpd = (updateAppointmentDto as any).items as any[] | undefined;
+      if (itemsUpd !== undefined) {
+        await tx.appointmentItem.deleteMany({ where: { appointmentId: id } });
+        if (itemsUpd && itemsUpd.length > 0) {
+          await tx.appointmentItem.createMany({
+            data: itemsUpd.map((it: any) => {
+              const qtd = Number(it.quantidade ?? 1);
+              const unit = Number(it.valorUnitario ?? 0);
+              const desc = Number(it.desconto ?? 0);
+              const total = Number.isFinite(it.valorTotal) ? Number(it.valorTotal) : (qtd * unit - desc);
+              return {
+                appointmentId: id,
+                servicoId: it.servicoId ?? null,
+                productId: it.productId ?? null,
+                descricao: it.descricao ?? null,
+                executorUserId: it.executorUserId ?? null,
+                fornecedorId: it.fornecedorId ?? null,
+                quantidade: qtd,
+                valorUnitario: unit,
+                custoUnitario: Number(it.custoUnitario ?? 0),
+                desconto: desc,
+                valorTotal: total,
+                comissaoBase: it.comissaoBase ?? null,
+                comissaoTipo: it.comissaoTipo ?? null,
+                comissaoValor: it.comissaoValor != null ? Number(it.comissaoValor) : null,
+                comissaoCalculada: it.comissaoCalculada != null ? Number(it.comissaoCalculada) : null,
+                observacoes: it.observacoes ?? null,
+              };
+            }),
+          });
+        }
+      }
+
       return tx.appointment.findUnique({
         where: { id },
         include: {
@@ -484,6 +658,20 @@ export class AppointmentsService {
     if (result && (Number(result.value) || 0) > 0) {
       try { (result as any).numeroVenda = await ensureNumeroVenda(this.prisma, result.id); }
       catch (e) { console.error('numeroVenda (update) falhou:', e); }
+    }
+
+    // Se o valor da venda mudou (edição de itens), reavalia se ainda está paga ou voltou a ter saldo.
+    if (result && ((updateAppointmentDto as any).items !== undefined || updateAppointmentDto.value !== undefined)) {
+      try {
+        const recs = await this.prisma.recebimento.findMany({ where: { appointmentId: id }, select: { valorTotal: true } });
+        const pago = recs.reduce((s, r) => s + Number(r.valorTotal), 0);
+        const valor = Number(result.value) || 0;
+        const novoStatus = pago >= valor - 0.001 && valor > 0 ? 'PAID' : (pago > 0 ? 'PENDING' : result.paymentStatus);
+        if (novoStatus !== result.paymentStatus) {
+          await this.prisma.appointment.update({ where: { id }, data: { paymentStatus: novoStatus } });
+          (result as any).paymentStatus = novoStatus;
+        }
+      } catch (e) { console.error('reavaliar paymentStatus (update) falhou:', e); }
     }
 
     // Emit events based on status change

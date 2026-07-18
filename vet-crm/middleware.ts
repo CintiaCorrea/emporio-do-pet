@@ -21,6 +21,9 @@ const publicRoutes = [
   '/login',
   '/register',
   '/api/auth',
+  '/cadastro',
+  '/queremos-te-conhecer',
+  '/api/public',
   '/'
 ]
 

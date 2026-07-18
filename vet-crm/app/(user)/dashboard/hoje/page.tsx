@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import toast from "react-hot-toast";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import {
@@ -11,6 +12,7 @@ import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { useRolePreview } from "@/lib/ui/RolePreview";
 import { roleShort } from "@/lib/ui/role";
 import { PageShell, ProgressBar, B44 } from "@/components/ui/base44";
+import { loadExameFases, EXAME_FASES_PADRAO, EXAME_FASES_CONCLUIDAS } from "@/lib/exameFases";
 
 interface HojeData {
   retornosVencidos: { id: string }[];
@@ -94,6 +96,7 @@ export default function HojePage() {
   const [data, setData] = useState<HojeData | null>(null);
   const [loading, setLoading] = useState(true);
   const [examesPend, setExamesPend] = useState<any[]>([]);
+  const [examFases, setExamFases] = useState<string[]>(EXAME_FASES_PADRAO);
   const [dosesPend, setDosesPend] = useState<any[]>([]);
   const [examesOpen, setExamesOpen] = useState(false);
   const [boletinsPend, setBoletinsPend] = useState<any[]>([]);
@@ -142,6 +145,19 @@ export default function HojePage() {
     } catch {}
   }
 
+  // Avança a fase de um exame direto do Hoje (mesmo dado das outras telas).
+  async function mudarFaseExameHoje(id: string, data: any, novo: string) {
+    setExamesPend((l) =>
+      EXAME_FASES_CONCLUIDAS.includes(novo)
+        ? l.filter((x) => x.id !== id) // concluído → sai de "a entregar"
+        : l.map((x) => (x.id === id ? { ...x, status: novo, data: { ...x.data, status: novo } } : x)),
+    );
+    try {
+      const r = await fetch(`/api/listas/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ valor: JSON.stringify({ ...data, status: novo }) }) });
+      if (!r.ok) throw new Error();
+    } catch { toast.error("Erro ao atualizar a fase do exame"); }
+  }
+
   useEffect(() => {
     (async () => {
       setLoading(true);
@@ -164,14 +180,15 @@ export default function HojePage() {
         for (const it of listArr) {
           if ((it.lista || "").startsWith("petexa_")) {
             let dd: any = {}; try { dd = JSON.parse(it.valor); } catch {}
-            const st = dd.status || "Solicitado";
-            if (st !== "Resultado entregue ao tutor" && st !== "Pago ao laboratório") {
+            const st = dd.status || EXAME_FASES_PADRAO[0];
+            if (!EXAME_FASES_CONCLUIDAS.includes(st)) {
               const petId = it.lista.replace("petexa_", "");
-              ex.push({ id: it.id, petId, petName: petMap[petId] || "Pet", nome: dd.nome, status: st });
+              ex.push({ id: it.id, petId, petName: petMap[petId] || "Pet", nome: dd.nome, status: st, data: dd });
             }
           }
         }
         setExamesPend(ex);
+        loadExameFases().then(setExamFases).catch(() => {});
         // 📋 Boletins de fisio pendentes = salvos com enviadoAt === null (rascunhos/não enviados)
         // Fase 2: detectar "sessao feita sem boletim" via agenda
         const bol: any[] = [];
@@ -245,10 +262,9 @@ export default function HojePage() {
         try {
           const ldNP = await safeJson<any>(await fetch("/api/leads"), []);
           const leadNew = Array.isArray(ldNP) ? ldNP : (ldNP.leads || ldNP.data || []);
-          // Acompanhamento da implantacao: conta a partir de um marco fixo (hoje, na 1a vez)
-          let inicio = listArr.find((it: any) => (it.lista || "") === "acompinicio")?.valor;
-          if (!inicio) { inicio = new Date().toISOString(); try { await fetch("/api/listas", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lista: "acompinicio", valor: inicio }) }); } catch {} }
-          const floor = new Date(inicio); floor.setHours(0, 0, 0, 0);
+          // Só as entradas de HOJE — zera sozinha à meia-noite (antes usava um marco fixo
+          // que ia acumulando: chegou a 4 mil pendências de mais de um mês).
+          const floor = new Date(); floor.setHours(0, 0, 0, 0);
           const baixados = new Set(listArr.filter((it: any) => (it.lista || "") === "acompbaixa").map((it: any) => it.valor));
           const isToday = (dt: any) => { if (!dt) return false; return new Date(dt).getTime() >= floor.getTime(); };
           const ent: any[] = [];
@@ -476,11 +492,15 @@ export default function HojePage() {
                       {examesPend.length === 0 ? (
                         <div className="px-[58px] py-3 text-xs border-b" style={{ color: B44.text3, borderColor: B44.lineSoft }}>Nenhum exame em acompanhamento.</div>
                       ) : examesPend.map((e: any) => (
-                        <Link key={e.id} href={`/dashboard/erp/pets/${e.petId}`} className="flex items-center gap-2 px-[58px] py-2.5 border-b hover:bg-[#E0F4F6]/60 text-xs" style={{ borderColor: B44.lineSoft }}>
-                          <span className="font-medium" style={{ color: B44.text1 }}>{e.petName}</span>
-                          <span style={{ color: B44.text2 }}>· {e.nome}</span>
-                          <span className="ml-auto text-[11px] px-2 py-0.5 rounded-full" style={{ background: B44.tint, color: "#00798A" }}>{e.status}</span>
-                        </Link>
+                        <div key={e.id} className="flex items-center gap-2 px-[58px] py-2.5 border-b text-xs" style={{ borderColor: B44.lineSoft }}>
+                          <Link href={`/dashboard/erp/pets/${e.petId}`} className="flex items-center gap-2 min-w-0 hover:underline">
+                            <span className="font-medium truncate" style={{ color: B44.text1 }}>{e.petName}</span>
+                            <span className="truncate" style={{ color: B44.text2 }}>· {e.nome}</span>
+                          </Link>
+                          <select value={e.status} onChange={(ev) => mudarFaseExameHoje(e.id, e.data, ev.target.value)} className="ml-auto text-[11px] border rounded-md px-2 py-1 bg-white flex-shrink-0" style={{ borderColor: B44.lineSoft, color: "#00798A" }}>
+                            {(examFases.includes(e.status) ? examFases : [e.status, ...examFases]).map((f: string) => <option key={f} value={f}>{f}</option>)}
+                          </select>
+                        </div>
                       ))}
                     </div>
                   )}

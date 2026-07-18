@@ -32,8 +32,14 @@ import PetProfilePanel from "@/components/profile/PetProfilePanel";
 import PetIcon from "@/components/profile/PetIcon";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { speciesLabel, ageFromBirth, genderLabel } from "@/lib/pets/labels";
+
+// Pelagem = enum CoatType no backend (mandar texto livre dava 400). Rótulos em pt-BR.
+const COAT_OPTS: [string, string][] = [["SHORT", "Curto"], ["LONG", "Longo"], ["SMOOTH", "Liso"], ["WAVY", "Ondulado"], ["CURLY", "Cacheado"], ["MIXED", "Misto"], ["GOLDEN", "Dourado"], ["BLACK", "Preto"], ["WHITE", "Branco"], ["BROWN", "Marrom"]];
+const COAT_VALID = new Set(COAT_OPTS.map(([v]) => v));
+const CORES_DEFAULT = ["Preto", "Branco", "Marrom", "Caramelo", "Cinza", "Dourado", "Rajado", "Tricolor", "Malhado", "Creme", "Amarelo", "Frajola"];
 import { openWhatsAppMeta } from "@/lib/actions/whatsapp";
 import { montarTextoBoletim } from "@/lib/pets/boletim";
+import { loadExameFases, EXAME_FASES_PADRAO } from "@/lib/exameFases";
 import BoletimModal from "@/components/pets/BoletimModal";
 
 // Emoji da espécie (avatar do cabeçalho — padrão Base44)
@@ -137,7 +143,7 @@ export default function PetDetailPage() {
   const [fuDate, setFuDate] = useState("");
   const [savingFu, setSavingFu] = useState(false);
   const [pipes, setPipes] = useState<{ clinico: string[]; fisio: string[] }>({ clinico: [], fisio: [] });
-  const [examFases, setExamFases] = useState<string[]>(["Solicitado", "Coleta realizada", "Resultado recebido", "Resultado entregue ao tutor"]);
+  const [examFases, setExamFases] = useState<string[]>(EXAME_FASES_PADRAO);
   const [savingPipe, setSavingPipe] = useState(false);
   const [petTags, setPetTags] = useState<{ id: string; texto: string }[]>([]);
   const [tagTpls, setTagTpls] = useState<any[]>([]);
@@ -151,6 +157,7 @@ export default function PetDetailPage() {
   const [pacForm, setPacForm] = useState<{ open: boolean; serviceId: string; nome: string; total: string; jaFeitas: string }>({ open: false, serviceId: "", nome: "", total: "4", jaFeitas: "0" });
   const [savingPac, setSavingPac] = useState(false);
   const [exames, setExames] = useState<{ id: string; data: any }[]>([]);
+  const [subindoEx, setSubindoEx] = useState<string | null>(null); // id do exame cujo arquivo está subindo
   const [exCat, setExCat] = useState<any[]>([]);
   const [exPick, setExPick] = useState("");
   const [savingEx, setSavingEx] = useState(false);
@@ -158,10 +165,20 @@ export default function PetDetailPage() {
   const [atdOpen, setAtdOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [savingAtd, setSavingAtd] = useState(false);
-  const [artefato, setArtefato] = useState<null | "PESO" | "OBS" | "RECEITA" | "DOCUMENTO" | "VIDEO" | "FOTO">(null);
+  const [artefato, setArtefato] = useState<null | "PESO" | "OBS" | "RECEITA" | "DOCUMENTO" | "VIDEO" | "FOTO" | "EXAME">(null);
+  // Exame pelo histórico: nome + arquivo de uma vez. Antes o card "Exame" só trocava de
+  // aba (e por isso não tinha como fechar/voltar), e anexar exigia "Solicitar" antes.
+  const [exNome, setExNome] = useState("");
+  const [exFile, setExFile] = useState<File | null>(null);
   const [fotoUrl, setFotoUrl] = useState("");
+  const [fotoFile, setFotoFile] = useState<File | null>(null);
   const [fotoLegenda, setFotoLegenda] = useState("");
   const [pesoVal, setPesoVal] = useState("");
+  const [racasCat, setRacasCat] = useState<{ nome: string; especie?: string }[]>([]);
+  const [coresCat, setCoresCat] = useState<string[]>([]);
+  const [tempCat, setTempCat] = useState<string[]>([]);      // opções de temperamento (Configurações › Listas)
+  const [tempTravam, setTempTravam] = useState<string[]>([]); // quais ocupam a sala inteira
+  const [savingTemp, setSavingTemp] = useState(false);
   const [recModelos, setRecModelos] = useState<{ nome: string; corpo: string }[]>([]);
   const [recModeloNome, setRecModeloNome] = useState("");
   const [recCorpo, setRecCorpo] = useState("");
@@ -171,6 +188,7 @@ export default function PetDetailPage() {
   const [docCorpo, setDocCorpo] = useState("");
   const [docVetId, setDocVetId] = useState("");
   const [vidUrl, setVidUrl] = useState("");
+  const [vidFile, setVidFile] = useState<File | null>(null);
   const [vidVetId, setVidVetId] = useState("");
   const [savingArt, setSavingArt] = useState(false);
   const ATD0 = { date: "", userId: "", type: "CONSULTA", status: "Realizado", duration: "30", chiefComplaint: "", anamnesis: "", physicalExam: "", petWeight: "", temperature: "", diagnosis: "", conduct: "", prescription: "", examsRequested: "", nextReturnDate: "", paymentMethod: "", followUpNotes: "", notes: "" };
@@ -195,6 +213,8 @@ export default function PetDetailPage() {
   const [savingInt, setSavingInt] = useState(false);
   const [atendimentos, setAtendimentos] = useState<any[]>([]);
   const [clinDocs, setClinDocs] = useState<any[]>([]);
+  const [historico, setHistorico] = useState<any[]>([]);
+  const [detalheHist, setDetalheHist] = useState<any>(null);
   const [verAtd, setVerAtd] = useState<any>(null);
   const [editAtd, setEditAtd] = useState(false);
   const [editAtdForm, setEditAtdForm] = useState<any>({});
@@ -227,8 +247,9 @@ export default function PetDetailPage() {
       const arr = Array.isArray(d) ? d : (d.pipelines || d.data || []);
       const pick = (kw: string) => { const p = arr.find((x: any) => (x.nome || "").toLowerCase().includes(kw) && x.ativo !== false); return p ? (p.estagios || []).slice().sort((a: any, b: any) => (a.ordem || 0) - (b.ordem || 0)).map((e: any) => e.nome) : []; };
       setPipes({ clinico: pick("cl\u00edn"), fisio: pick("fisio") });
-      setExamFases(pick("exame"));
     } catch {}
+    // Fases de exame: fonte \u00daNICA em Configura\u00e7\u00f5es \u203a Listas (exame_fases)
+    setExamFases(await loadExameFases());
   }
   async function loadProtocolos() { try { const r = await fetch(`/api/protocolos?petId=${petId}`, { cache: "no-store" }); const d = await r.json(); setProtocolos(Array.isArray(d) ? d : (d.data || [])); } catch {} }
   async function loadBoletins() {
@@ -282,7 +303,7 @@ export default function PetDetailPage() {
     w.document.write(`<html><head><title>Boletim de fisioterapia</title><style>body{font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#0E2244;padding:40px;max-width:720px;margin:0 auto;font-size:13px;line-height:1.55}h1{color:#014D5E;font-size:19px;margin:0 0 2px}.sub{color:#6B7280;font-size:12px;margin-bottom:16px}pre{white-space:pre-wrap;font-family:inherit;border-top:2px solid #009AAC;padding-top:14px}</style></head><body><h1>🌿 Boletim de Fisioterapia — Empório do Pet</h1><div class="sub">${esc(pet?.name || "")} · ${esc(new Date(b.data?.sessaoData || Date.now()).toLocaleDateString("pt-BR"))}</div><pre>${esc(montarTextoBoletim(b.data))}</pre></body></html>`);
     w.document.close(); w.focus(); setTimeout(() => w.print(), 300);
   }
-  useEffect(() => { if (petId) { load(); loadPipes(); loadPetColecoes(); loadCatalogos(); loadInteracoesPet(); loadAtendimentos(); loadClinDocs(); loadAtdConfig(); loadProtocolos(); loadBoletins(); loadFisioRec(); } /* eslint-disable-next-line */ }, [petId]);
+  useEffect(() => { if (petId) { load(); loadPipes(); loadPetColecoes(); loadCatalogos(); loadInteracoesPet(); loadAtendimentos(); loadClinDocs(); loadHistorico(); loadAtdConfig(); loadProtocolos(); loadBoletins(); loadFisioRec(); } /* eslint-disable-next-line */ }, [petId]);
   useEffect(() => { const t = searchParams?.get("tab"); if (t === "fisio") setMainTab("FISIO"); /* eslint-disable-next-line */ }, [searchParams]);
 
   async function handleDelete() {
@@ -316,10 +337,18 @@ export default function PetDetailPage() {
     const r = await fetch(`/api/pets/${petId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     if (!r.ok) throw new Error(String(r.status));
   }
+  // Vivo/Óbito: usa o campo status do pet (ACTIVE ↔ DECEASED).
+  async function toggleObito() {
+    const obito = pet?.status === "DECEASED";
+    if (!window.confirm(obito ? "Marcar este pet como VIVO novamente?" : "Confirmar o ÓBITO deste pet? (pode reverter depois)")) return;
+    try { await patchPet({ status: obito ? "ACTIVE" : "DECEASED" }); toast.success(obito ? "Pet marcado como vivo" : "Óbito registrado 🕊️"); await load(); }
+    catch { toast.error("Erro ao atualizar"); }
+  }
+  function iniciarConsulta() { router.push(`/dashboard/erp/pets/${petId}/atendimentos/novo`); }
   async function saveClin() {
     setSavingClin(true);
     try {
-      const body: any = { species: clinForm.species || undefined, breed: clinForm.breed || undefined, gender: clinForm.gender || undefined, sterilization: clinForm.sterilization || undefined, coat: clinForm.coat || undefined, coatColor: clinForm.coatColor || undefined, microchip: clinForm.microchip || undefined, medicalNotes: clinForm.medicalNotes || undefined, allergies: clinForm.allergies ? clinForm.allergies.split(",").map((x: string) => x.trim()).filter(Boolean) : [] };
+      const body: any = { species: clinForm.species || undefined, breed: clinForm.breed || undefined, gender: clinForm.gender || undefined, sterilization: clinForm.sterilization || undefined, coat: COAT_VALID.has(clinForm.coat) ? clinForm.coat : undefined, coatColor: clinForm.coatColor || undefined, microchip: clinForm.microchip || undefined, medicalNotes: clinForm.medicalNotes || undefined, allergies: clinForm.allergies ? clinForm.allergies.split(",").map((x: string) => x.trim()).filter(Boolean) : [] };
       if (clinForm.birthDate) body.birthDate = new Date(clinForm.birthDate + "T12:00:00").toISOString();
       if (clinForm.weight !== "" && clinForm.weight != null) body.weight = Number(clinForm.weight);
       await patchPet(body); toast.success("Dados cl\u00ednicos atualizados"); setEditClin(false); await load();
@@ -386,26 +415,72 @@ export default function PetDetailPage() {
       toast.success("Documento salvo"); setArtefato(null); await loadAtendimentos();
     } catch { toast.error("Erro ao salvar documento"); } finally { setSavingArt(false); }
   }
-  function abrirVideo() { setEditId(null); setAtdOpen(false); setArtefato("VIDEO"); setVidUrl(""); setVidVetId(vets[0]?.id || ""); }
+  function abrirVideo() { setEditId(null); setAtdOpen(false); setArtefato("VIDEO"); setVidUrl(""); setVidVetId(vets[0]?.id || ""); setVidFile(null); }
   async function salvarVideo() {
     if (!pet) return;
-    if (!vidUrl.trim()) { toast.error("Cole o link do vídeo"); return; }
+    if (!vidFile && !vidUrl.trim()) { toast.error("Escolha um arquivo ou cole um link"); return; }
     setSavingArt(true);
     try {
-      const body: any = { tutorId: pet.tutorId, petId: pet.id, userId: vidVetId || vets[0]?.id, date: new Date().toISOString(), type: "Video", status: "Realizado", prescription: vidUrl };
+      const urlV = vidFile ? await subirArquivo(vidFile, "pets") : vidUrl.trim();
+      const body: any = { tutorId: pet.tutorId, petId: pet.id, userId: vidVetId || vets[0]?.id, date: new Date().toISOString(), type: "Video", status: "Realizado", prescription: urlV };
       const r = await fetch(editId ? `/api/appointments/${editId}` : "/api/appointments", { method: editId ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (!r.ok) throw new Error(await r.text());
       toast.success("Vídeo anexado"); setArtefato(null); await loadAtendimentos();
     } catch { toast.error("Erro ao anexar vídeo"); } finally { setSavingArt(false); }
   }
   // 📷 Fotos — anexa por link/URL de imagem (mesmo padrão do Vídeo; upload de arquivo entra com Cloudinary na Fase B)
-  function abrirFoto() { setEditId(null); setAtdOpen(false); setArtefato("FOTO"); setFotoUrl(""); setFotoLegenda(""); }
-  async function salvarFoto() {
+  // Sobe um arquivo e devolve a URL. Usado por exame, foto e vídeo — os três antes
+  // só aceitavam link colado ("Cole o link da imagem").
+  async function subirArquivo(file: File, pasta: string): Promise<string> {
+    const fd = new FormData();
+    fd.append("file", file);
+    const up = await fetch(`/api/media/upload?pasta=${pasta}&origem=${pasta}&origemId=${petId}`, { method: "POST", body: fd });
+    const j = await up.json().catch(() => ({}));
+    if (!up.ok || !j?.url) throw new Error(j?.error || j?.message || "falha ao subir o arquivo");
+    return j.url as string;
+  }
+  function abrirExame() { setEditId(null); setAtdOpen(false); setArtefato("EXAME"); setExNome(""); setExFile(null); }
+  // Cria o exame e já anexa o laudo. Antes eram dois passos obrigatórios ("Solicitar"
+  // primeiro, anexar depois) — o que não faz sentido pra exame feito fora, que chega pronto.
+  async function salvarExameComArquivo() {
     if (!pet) return;
-    if (!fotoUrl.trim()) { toast.error("Cole o link da imagem"); return; }
+    const nome = exNome.trim();
+    if (!nome) { toast.error("Informe o nome do exame"); return; }
     setSavingArt(true);
     try {
-      const body: any = { tutorId: pet.tutorId, petId: pet.id, userId: vets[0]?.id, date: new Date().toISOString(), type: "Foto", status: "Realizado", prescription: fotoUrl, chiefComplaint: fotoLegenda || undefined };
+      const url = exFile ? await subirArquivo(exFile, "exames") : "";
+      const _cat = exCat.find((c: any) => (c.nome || "").trim().toLowerCase() === nome.toLowerCase());
+      const _snap = _cat ? { fornecedorId: _cat.fornecedorId || _cat.fornecedor?.id, fornecedorNome: _cat.fornecedor?.nome, custo: _cat.valorFornecedor ?? null, valor: _cat.valorClienteSugerido ?? null } : {};
+      // Com laudo já anexado, o exame nasce na fase de resultado; sem laudo, como solicitado.
+      const statusInicial = url
+        ? (examFases.find((f) => /resultado/i.test(f)) || examFases[0] || "Solicitado")
+        : (examFases[0] || "Solicitado");
+      await listasAdd(`petexa_${petId}`, JSON.stringify({
+        nome, status: statusInicial, date: new Date().toISOString(),
+        ...(url ? { resultadoUrl: url, resultadoArquivo: exFile?.name } : {}),
+        ..._snap,
+      }));
+      if (url) {
+        try {
+          await fetch("/api/appointments", { method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ tutorId: pet.tutorId, petId: pet.id, userId: vets[0]?.id, date: new Date().toISOString(), type: "Resultado de exames", status: "Realizado", prescription: url, chiefComplaint: nome }) });
+        } catch {}
+      }
+      toast.success(url ? "Exame anexado" : "Exame solicitado");
+      setArtefato(null); setExNome(""); setExFile(null);
+      await loadPetColecoes(); await loadAtendimentos();
+    } catch (e: any) {
+      toast.error(String(e?.message || e).slice(0, 130));
+    } finally { setSavingArt(false); }
+  }
+  function abrirFoto() { setEditId(null); setAtdOpen(false); setArtefato("FOTO"); setFotoUrl(""); setFotoLegenda(""); setFotoFile(null); }
+  async function salvarFoto() {
+    if (!pet) return;
+    if (!fotoFile && !fotoUrl.trim()) { toast.error("Escolha um arquivo ou cole um link"); return; }
+    setSavingArt(true);
+    try {
+      const url = fotoFile ? await subirArquivo(fotoFile, "pets") : fotoUrl.trim();
+      const body: any = { tutorId: pet.tutorId, petId: pet.id, userId: vets[0]?.id, date: new Date().toISOString(), type: "Foto", status: "Realizado", prescription: url, chiefComplaint: fotoLegenda || undefined };
       const r = await fetch("/api/appointments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (!r.ok) throw new Error(await r.text());
       toast.success("Foto anexada"); setArtefato(null); await loadAtendimentos();
@@ -491,6 +566,11 @@ export default function PetDetailPage() {
     try { const r = await fetch(`/api/servicos/itens`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.itens || d.data || d.servicos || []); setServicosCat(arr); setFisioSrv(arr.filter((srv: any) => JSON.stringify(srv).toLowerCase().includes("fisio"))); } catch {}
     try { const r = await fetch(`/api/fornecedores/exames/lista`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.exames || d.data || d.itens || []); setExCat(arr); } catch {}
     try { const r = await fetch(`/api/users`, { cache: "no-store" }); const d = await r.json(); setVets(Array.isArray(d) ? d : (d.users || d.data || [])); } catch {}
+    try { const r = await fetch(`/api/racas`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.racas || d.data || d.itens || []); setRacasCat(arr.map((x: any) => ({ nome: x.nome || x.name || x.valor || "", especie: x.especie || x.species || "" })).filter((x: any) => x.nome)); } catch {}
+    try { const r = await fetch(`/api/listas?lista=pet_cor`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.itens || d.data || []); setCoresCat(arr.map((i: any) => { try { const o = JSON.parse(i.valor); return o.nome || o.valor || i.valor; } catch { return i.valor; } }).filter(Boolean)); } catch {}
+    try { const r = await fetch(`/api/listas?lista=pet_temperamento`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.itens || d.data || []); setTempCat(arr.map((i: any) => { try { const o = JSON.parse(i.valor); return o.nome || o.valor || i.valor; } catch { return i.valor; } }).filter(Boolean)); } catch {}
+    // Quais temperamentos ocupam a sala inteira — configurado junto da agenda (é lá que a regra vale).
+    try { const r = await fetch(`/api/listas?lista=agenda_config`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.itens || d.data || []); if (arr[0]?.valor) { const cfg = JSON.parse(arr[0].valor); setTempTravam(Array.isArray(cfg.temperamentosQueTravam) ? cfg.temperamentosQueTravam : []); } } catch {}
   }
   async function addTag(texto: string) { setSavingTag(true); try { await listasAdd(`petetq_${petId}`, texto); toast.success("Etiqueta adicionada"); await loadPetColecoes(); } catch { toast.error("Erro (talvez já exista)"); } finally { setSavingTag(false); } }
   async function delTag(id: string) { try { await listasDel(id); await loadPetColecoes(); } catch { toast.error("Erro ao remover"); } }
@@ -529,17 +609,53 @@ export default function PetDetailPage() {
   async function updExameStatus(id: string, data: any, novoStatus: string) { try { const r = await fetch(`/api/listas/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ valor: JSON.stringify({ ...data, status: novoStatus }) }) }); if (!r.ok) throw new Error(); await loadPetColecoes(); } catch { toast.error("Erro ao atualizar fase"); } }
   async function delExame(id: string) { try { await listasDel(id); await loadPetColecoes(); } catch { toast.error("Erro"); } }
   // 📎 Anexa o resultado (link) ao exame e avança o status para "Resultado"
+  // Anexo de arquivo DE VERDADE (o antigo só aceitava link colado num window.prompt).
+  // Sobe pro storage da clínica e devolve a URL — que alimenta o mesmo `resultadoUrl`
+  // de sempre, então tudo que já lia o resultado continua funcionando.
+  async function subirResultado(id: string, data: any, file: File) {
+    setSubindoEx(id);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const up = await fetch(`/api/media/upload?pasta=exames&origem=exame&origemId=${petId}`, { method: "POST", body: fd });
+      const j = await up.json().catch(() => ({}));
+      if (!up.ok || !j?.url) throw new Error(j?.error || j?.message || "falha no upload");
+      await gravarResultado(id, data, j.url, file.name);
+      toast.success("Resultado anexado");
+    } catch (e: any) {
+      toast.error(String(e?.message || e).slice(0, 120));
+    } finally {
+      setSubindoEx(null);
+    }
+  }
+  // Gravação do resultado — uma só, usada pelo arquivo E pelo link. O que muda entre
+  // os dois é só de onde a URL veio.
+  async function gravarResultado(id: string, data: any, url: string, nomeArquivo?: string) {
+    const limpa = (url || "").trim();
+    const novoStatus = (examFases.find((f) => /resultado/i.test(f)) || data.status);
+    const r = await fetch(`/api/listas/${id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ valor: JSON.stringify({ ...data, resultadoUrl: limpa || null, resultadoArquivo: nomeArquivo || data.resultadoArquivo || null, status: limpa ? novoStatus : data.status }) }),
+    });
+    if (!r.ok) throw new Error("não consegui salvar o resultado no exame");
+    // Registra tambem como documento na timeline
+    if (limpa && pet) {
+      try {
+        await fetch("/api/appointments", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tutorId: pet.tutorId, petId: pet.id, userId: vets[0]?.id, date: new Date().toISOString(), type: "Resultado de exames", status: "Realizado", prescription: limpa, chiefComplaint: data.nome }),
+        });
+      } catch {}
+    }
+    await loadPetColecoes(); await loadAtendimentos();
+  }
   async function anexarResultado(id: string, data: any) {
     const url = window.prompt("Cole o link do resultado (Drive, PDF, imagem…):", data.resultadoUrl || "");
     if (url == null) return;
     try {
-      const novoStatus = (examFases.find((f) => /resultado/i.test(f)) || data.status);
-      const r = await fetch(`/api/listas/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ valor: JSON.stringify({ ...data, resultadoUrl: url.trim() || null, status: url.trim() ? novoStatus : data.status }) }) });
-      if (!r.ok) throw new Error();
-      // Registra tambem como documento na timeline
-      if (url.trim() && pet) { try { await fetch("/api/appointments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tutorId: pet.tutorId, petId: pet.id, userId: vets[0]?.id, date: new Date().toISOString(), type: "Resultado de exames", status: "Realizado", prescription: url.trim(), chiefComplaint: data.nome }) }); } catch {} }
-      toast.success("Resultado anexado"); await loadPetColecoes(); await loadAtendimentos();
-    } catch { toast.error("Erro ao anexar resultado"); }
+      await gravarResultado(id, data, url);
+      toast.success("Resultado anexado");
+    } catch (e: any) { toast.error(String(e?.message || "Erro ao anexar resultado").slice(0, 120)); }
   }
   async function criarAtendimento() {
     if (!pet) return;
@@ -596,6 +712,8 @@ export default function PetDetailPage() {
     } catch {}
   }
   async function loadAtendimentos() { try { const r = await fetch(`/api/appointments?petId=${petId}`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.appointments || d.data || []); setAtendimentos(arr.slice().sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())); } catch {} }
+  async function loadHistorico() { try { const r = await fetch(`/api/pets/${petId}/historico`, { cache: "no-store" }); const d = await r.json(); setHistorico(Array.isArray(d) ? d : (d.data || [])); } catch {} }
+  async function abrirDetalheHist(id: string) { try { const r = await fetch(`/api/pets/historico/${id}`, { cache: "no-store" }); const d = await r.json(); if (d?.id) setDetalheHist(d); } catch {} }
   async function loadClinDocs() { try { const r = await fetch(`/api/clinical-documents/pet/${petId}`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.documents || d.data || []); setClinDocs(arr); } catch {} }
   async function abrirAtd(id: string) { try { const a = await fetch(`/api/appointments/${id}`, { cache: "no-store" }).then(r => r.json()); setVerAtd(a); setEditAtd(false); } catch { toast.error("Erro ao abrir atendimento"); } }
   async function excluirAtendimento(id: string) {
@@ -711,6 +829,7 @@ export default function PetDetailPage() {
                 )}
                 {pet.codigo ? <span className="text-[13px] text-[#8A989D] font-medium" title="Código do pet">#{pet.codigo}</span> : null}
                 <button onClick={() => setStatusOpen(true)} title="Status de saúde — clique para alterar" className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: saude.bg, color: saude.color }}>{saude.label} ▾</button>
+                {pet.status === "DECEASED" && <span className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: "#EEF0F2", color: "#5b6470" }}>🕊️ Óbito</span>}
                 <button onClick={() => { setNotaVal(pet.medicalNotes || ""); setNotaOpen(true); }} title={pet.medicalNotes ? `Nota médica: ${pet.medicalNotes}` : "Adicionar nota médica"} className="text-[15px] leading-none">{(pet.medicalNotes || pet.observations) ? "❤️" : "🤍"}</button>
               </div>
               <p className="text-[12.5px] text-[#5C6B70] mt-0.5">
@@ -752,6 +871,8 @@ export default function PetDetailPage() {
             </div>
           </div>
           <div className="flex gap-1.5 flex-wrap items-center">
+            <button onClick={iniciarConsulta} className="bg-[#014D5E] text-white rounded-[9px] px-3.5 py-2 text-[12.5px] hover:opacity-90 flex items-center gap-1.5">🩺 Iniciar consulta</button>
+            <button onClick={toggleObito} title="Registrar óbito / marcar vivo" className="border rounded-[9px] px-3 py-2 text-[12.5px] flex items-center gap-1.5" style={pet.status === "DECEASED" ? { borderColor: "#0F6E56", color: "#0F6E56", background: "#fff" } : { borderColor: "#E8E2D6", color: "#5C6B70", background: "#fff" }}>{pet.status === "DECEASED" ? "↩️ Marcar vivo" : "🕊️ Óbito"}</button>
             <button onClick={() => setShowValues((v) => !v)} className="border border-[#EAD9B6] bg-[#FBF6EC] rounded-[9px] px-3 py-2 text-[12.5px] text-[#8A5A0B] hover:border-[#E0A100] flex items-center gap-1.5">{showValues ? "🙈 Ocultar valores" : "👁️ Mostrar valores"}</button>
             <button onClick={() => openWhatsAppMeta(tutorWhats || undefined)} className="bg-[#009AAC] text-white rounded-[9px] px-3.5 py-2 text-[12.5px] hover:bg-[#00808f] flex items-center gap-1.5">💬 WhatsApp</button>
             <div className="relative">
@@ -818,6 +939,7 @@ export default function PetDetailPage() {
                   <span className="text-[#5C6B70]">🐾 Fisioterapia <span className="text-[#8A989D]">(ligado à venda)</span></span>
                   <span className="flex items-center gap-2">
                     <span className="text-[#014D5E] font-medium">{pacUsed}/{pacTotal}</span>
+                    <span className="text-[10.5px] px-2 py-0.5 rounded-full" style={{ background: pacTotal - pacUsed > 0 ? "#FBF3E3" : "#E1F5EE", color: pacTotal - pacUsed > 0 ? "#8a6400" : "#0F6E56" }}>{Math.max(0, pacTotal - pacUsed)} pendente{pacTotal - pacUsed === 1 ? "" : "s"}</span>
                     <button onClick={() => usarSessao(pacFisio)} disabled={pacUsed >= pacTotal} className="text-[10.5px] px-2 py-0.5 rounded-full border disabled:opacity-40" style={{ borderColor: "#E8E2D6", color: "#009AAC" }}>{pacUsed >= pacTotal ? "🎉 concluído" : "usar sessão"}</button>
                   </span>
                 </div>
@@ -841,8 +963,9 @@ export default function PetDetailPage() {
                         {fisioSrv.map((srv: any) => <option key={srv.id} value={srv.id}>{srv.nome || srv.titulo || srv.descricao}</option>)}
                       </select>
                     </div>
-                    <div className="w-16"><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Total</label><input type="number" min="1" value={pacForm.total} onChange={(e) => setPacForm((f) => ({ ...f, total: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[12px]" /></div>
-                    <div className="w-16"><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Feitas</label><input type="number" min="0" value={pacForm.jaFeitas} onChange={(e) => setPacForm((f) => ({ ...f, jaFeitas: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[12px]" /></div>
+                    <div className="w-[76px]"><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Total</label><input inputMode="numeric" maxLength={3} value={pacForm.total} onChange={(e) => setPacForm((f) => ({ ...f, total: e.target.value.replace(/\D/g, "").slice(0, 3) }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[12px] text-center" /></div>
+                    <div className="w-[76px]"><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Feitas</label><input inputMode="numeric" maxLength={3} value={pacForm.jaFeitas} onChange={(e) => setPacForm((f) => ({ ...f, jaFeitas: e.target.value.replace(/\D/g, "").slice(0, 3) }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[12px] text-center" /></div>
+                    <div className="w-[86px]"><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Pendentes</label><div className="mt-0.5 px-2 py-1 border rounded text-[12px] text-center font-semibold" style={{ borderColor: "#E8E2D6", background: "#FBF9F4", color: "#014D5E" }}>{Math.max(0, (Number(pacForm.total) || 0) - (Number(pacForm.jaFeitas) || 0))}</div></div>
                     <button onClick={addPacote} disabled={savingPac} className="px-3 py-1 rounded text-[12px] text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingPac ? "..." : "Criar"}</button>
                   </div>
                 )}
@@ -1058,13 +1181,21 @@ export default function PetDetailPage() {
             {editClin && (
               <div className="mb-4 pb-4 border-b border-[#F0EBE0] grid grid-cols-2 md:grid-cols-3 gap-x-3 gap-y-2 text-[13px]">
                 <div><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Espécie</label><select value={clinForm.species ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, species: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[#1F2A2E]"><option value="">—</option>{["CANINE", "FELINE", "BIRD", "RODENT", "REPTILE", "OTHER"].map((sp) => <option key={sp} value={sp}>{speciesLabel(sp)}</option>)}</select></div>
-                <div><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Raça</label><input value={clinForm.breed ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, breed: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[#1F2A2E]" /></div>
+                <div><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Raça</label>
+                  <input list="pet-racas" value={clinForm.breed ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, breed: e.target.value }))} placeholder="Escolha ou digite…" className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[#1F2A2E]" />
+                  <datalist id="pet-racas">{racasCat.filter((r) => !clinForm.species || !r.especie || speciesEnum(r.especie) === clinForm.species || r.especie === clinForm.species).map((r, i) => <option key={i} value={r.nome} />)}</datalist>
+                </div>
                 <div><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Sexo</label><select value={clinForm.gender ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, gender: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[#1F2A2E]"><option value="">—</option><option value="MALE">Macho</option><option value="FEMALE">Fêmea</option><option value="OTHER">Outro</option></select></div>
                 <div><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Castração</label><select value={clinForm.sterilization ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, sterilization: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[#1F2A2E]"><option value="">—</option><option value="NOT_STERILIZED">Não castrado</option><option value="STERILIZED">Castrado</option><option value="SCHEDULED">Agendada</option></select></div>
                 <div><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Nascimento</label><input type="date" value={clinForm.birthDate ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, birthDate: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[#1F2A2E]" /></div>
                 <div><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Peso (kg)</label><input type="number" step="0.1" value={clinForm.weight ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, weight: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[#1F2A2E]" /></div>
-                <div><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Pelagem</label><input value={clinForm.coat ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, coat: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[#1F2A2E]" /></div>
-                <div><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Cor</label><input value={clinForm.coatColor ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, coatColor: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[#1F2A2E]" /></div>
+                <div><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Pelagem</label>
+                  <select value={COAT_VALID.has(clinForm.coat) ? clinForm.coat : ""} onChange={(e) => setClinForm((f: any) => ({ ...f, coat: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[#1F2A2E]"><option value="">—</option>{COAT_OPTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
+                </div>
+                <div><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Cor</label>
+                  <input list="pet-cores" value={clinForm.coatColor ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, coatColor: e.target.value }))} placeholder="Escolha ou digite…" className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[#1F2A2E]" />
+                  <datalist id="pet-cores">{[...coresCat, ...CORES_DEFAULT.filter((c) => !coresCat.includes(c))].map((c, i) => <option key={i} value={c} />)}</datalist>
+                </div>
                 <div><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Microchip</label><input value={clinForm.microchip ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, microchip: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[#1F2A2E]" /></div>
                 <div className="col-span-2 md:col-span-3"><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Alergias (vírgula)</label><input value={clinForm.allergies ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, allergies: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[#1F2A2E]" /></div>
                 <div className="col-span-2 md:col-span-3"><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Notas médicas</label><textarea value={clinForm.medicalNotes ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, medicalNotes: e.target.value }))} rows={2} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[#1F2A2E]" /></div>
@@ -1106,7 +1237,35 @@ export default function PetDetailPage() {
                 </div>
               )}
               <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-3">
-                <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Temperamento</div><div className="text-[13px] text-[#1F2A2E]">{pet.temperament || "—"}</div></div>
+                {/* Temperamento: era só leitura — não existia onde digitar, por isso os 6065
+                    pets estavam com o campo vazio. Agora é roll-up e ALIMENTA a trava da sala. */}
+                <div>
+                  <div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Temperamento</div>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <select
+                      value={pet.temperament || ""}
+                      disabled={savingTemp}
+                      onChange={async (e) => {
+                        const v = e.target.value;
+                        setSavingTemp(true);
+                        try { await patchPet({ temperament: v || null }); await load(); toast.success(v ? `Temperamento: ${v}` : "Temperamento limpo"); }
+                        catch { toast.error("Não consegui salvar o temperamento"); }
+                        finally { setSavingTemp(false); }
+                      }}
+                      className="text-[13px] px-2 py-1 border rounded-[7px] bg-white disabled:opacity-60"
+                      style={{ borderColor: "#E8E2D6", color: "#1F2A2E" }}>
+                      <option value="">—</option>
+                      {tempCat.map((t) => <option key={t} value={t}>{t}</option>)}
+                      {/* valor antigo fora da lista não some da tela */}
+                      {pet.temperament && !tempCat.includes(pet.temperament) && <option value={pet.temperament}>{pet.temperament}</option>}
+                    </select>
+                    {pet.temperament && tempTravam.includes(pet.temperament) && (
+                      <span title="Este pet ocupa MAP 1 e MAP 2 ao ser agendado" className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full whitespace-nowrap" style={{ background: "#FCEBEB", color: "#B23B39", border: "1px solid #F0C2C2" }}>
+                        🔒 ocupa a sala
+                      </span>
+                    )}
+                  </div>
+                </div>
                 <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">2º responsável</div><div className="text-[13px] text-[#1F2A2E]">{pet.secondaryTutorId || "—"}</div></div>
                 <div className="col-span-2 md:col-span-1"><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Observações</div><div className="text-[13px] text-[#1F2A2E]">{pet.observations || "—"}</div></div>
               </div>
@@ -1133,7 +1292,21 @@ export default function PetDetailPage() {
           <div className="p-5">
             <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-5 items-start">
               <div className="lg:order-1">
-                <FeedTimeline atendimentos={atendimentos} clinDocs={clinDocs} onEditar={editarEntrada} onExcluir={excluirEntrada} />
+                <FeedTimeline atendimentos={atendimentos} clinDocs={clinDocs} historico={historico} onEditar={editarEntrada} onExcluir={excluirEntrada} onDetalhe={abrirDetalheHist} />
+                {detalheHist && (
+                  <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ background: "rgba(20,35,40,.3)" }} onClick={() => setDetalheHist(null)}>
+                    <div className="bg-white rounded-2xl w-full flex flex-col" style={{ maxWidth: 680, maxHeight: "85vh", border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
+                      <div className="px-5 py-3 border-b flex items-center justify-between" style={{ borderColor: "#F0EBE0" }}>
+                        <div className="min-w-0">
+                          <div className="text-[15px] font-semibold truncate" style={{ color: "#014D5E" }}>{detalheHist.titulo || detalheHist.tipo}</div>
+                          <div className="text-[12px]" style={{ color: "#8A989D" }}>{new Date(detalheHist.data).toLocaleDateString("pt-BR")}{detalheHist.autor ? ` · ${detalheHist.autor}` : ""} · <span style={{ color: "#8A6D3B" }}>SimplesVet</span></div>
+                        </div>
+                        <button onClick={() => setDetalheHist(null)} className="w-8 h-8 rounded-lg border flex items-center justify-center text-[#5C6B70] shrink-0" style={{ borderColor: "#E8E2D6" }}>✕</button>
+                      </div>
+                      <div className="p-5 overflow-y-auto text-[13px] leading-relaxed" style={{ color: "#1F2A2E" }} dangerouslySetInnerHTML={{ __html: (detalheHist.texto || detalheHist.resumo || "<i>Sem conteúdo.</i>").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&").replace(/&nbsp;/g, " ").replace(/\*([^*\n]+)\*/g, "<b>$1</b>") }} />
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="lg:order-2">
                 {atdOpen ? (
@@ -1229,9 +1402,40 @@ export default function PetDetailPage() {
                         <button onClick={() => setArtefato(null)} className="px-3 py-1.5 rounded-lg text-xs border" style={{ borderColor: "#E8DFC8", color: "#475569" }}>Fechar</button>
                       </div>
                     </div>
-                    <label className="text-xs text-gray-500">Link do vídeo (YouTube, Drive, etc.)</label>
+                    <label className="text-xs text-gray-500">Arquivo do vídeo (até 20MB)</label>
+                    <input
+                      type="file" accept=".mp4,.mov,.webm"
+                      onChange={(e) => setVidFile(e.target.files?.[0] || null)}
+                      className="w-full mt-1 text-sm file:mr-3 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-[#E0F4F6] file:text-[#00798A] file:cursor-pointer"
+                    />
+                    {vidFile && <p className="text-[11px] text-[#0F6E56] mt-1.5">🎥 {vidFile.name} · {(vidFile.size / 1024 / 1024).toFixed(1)}MB</p>}
+                    <label className="text-xs text-gray-500 mt-2 block">…ou cole um link (YouTube, Drive — bom pra vídeo grande)</label>
                     <input value={vidUrl} onChange={(e) => setVidUrl(e.target.value)} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }} placeholder="https://…" />
                     <p className="text-[11px] text-gray-400 mt-2">Cole o link do vídeo. Upload de arquivo (Exame/Fotos) entra quando o Cloudinary estiver ativo.</p>
+                  </div>
+                ) : artefato === "EXAME" ? (
+                  <div className="bg-white">
+                    <div className="flex items-center justify-between border-b pb-2.5 mb-3" style={{ borderColor: "#E8DFC8" }}>
+                      <h3 className="text-sm font-semibold" style={{ color: "#0E2244" }}>🔬 Exame</h3>
+                      <div className="flex gap-2">
+                        <button onClick={salvarExameComArquivo} disabled={savingArt} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingArt ? "..." : "Salvar"}</button>
+                        <button onClick={() => setArtefato(null)} className="px-3 py-1.5 rounded-lg text-xs border" style={{ borderColor: "#E8DFC8", color: "#475569" }}>Fechar</button>
+                      </div>
+                    </div>
+                    <label className="text-xs text-gray-500">Exame *</label>
+                    <input list="exames-catalogo-hist" value={exNome} onChange={(e) => setExNome(e.target.value)} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }} placeholder="Busque no catálogo ou digite…" />
+                    <datalist id="exames-catalogo-hist">{exCat.slice(0, 1000).map((e: any, i: number) => <option key={i} value={e.nome || e.titulo || e.descricao} />)}</datalist>
+                    <label className="text-xs text-gray-500 mt-2 block">Laudo / resultado (opcional)</label>
+                    <input
+                      type="file"
+                      accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,.doc,.docx"
+                      onChange={(e) => setExFile(e.target.files?.[0] || null)}
+                      className="w-full mt-1 text-sm file:mr-3 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-[#E0F4F6] file:text-[#00798A] file:cursor-pointer"
+                    />
+                    {exFile && <p className="text-[11px] text-[#0F6E56] mt-1.5">📄 {exFile.name} · {(exFile.size / 1024 / 1024).toFixed(1)}MB</p>}
+                    <p className="text-[11px] text-gray-400 mt-2">
+                      Com laudo anexado, o exame já entra como resultado. Sem laudo, entra como solicitado — dá pra anexar depois na aba Exames.
+                    </p>
                   </div>
                 ) : artefato === "FOTO" ? (
                   <div className="bg-white">
@@ -1242,7 +1446,14 @@ export default function PetDetailPage() {
                         <button onClick={() => setArtefato(null)} className="px-3 py-1.5 rounded-lg text-xs border" style={{ borderColor: "#E8DFC8", color: "#475569" }}>Fechar</button>
                       </div>
                     </div>
-                    <label className="text-xs text-gray-500">Link da imagem (Drive, Cloudinary, etc.)</label>
+                    <label className="text-xs text-gray-500">Arquivo da foto</label>
+                    <input
+                      type="file" accept=".jpg,.jpeg,.png,.webp,.heic"
+                      onChange={(e) => setFotoFile(e.target.files?.[0] || null)}
+                      className="w-full mt-1 text-sm file:mr-3 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-[#E0F4F6] file:text-[#00798A] file:cursor-pointer"
+                    />
+                    {fotoFile && <p className="text-[11px] text-[#0F6E56] mt-1.5">📷 {fotoFile.name} · {(fotoFile.size / 1024 / 1024).toFixed(1)}MB</p>}
+                    <label className="text-xs text-gray-500 mt-2 block">…ou cole um link (Drive, etc.)</label>
                     <input value={fotoUrl} onChange={(e) => setFotoUrl(e.target.value)} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }} placeholder="https://…" />
                     <label className="text-xs text-gray-500 mt-2 block">Legenda (opcional)</label>
                     <input value={fotoLegenda} onChange={(e) => setFotoLegenda(e.target.value)} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }} placeholder="Ex.: lesão na pata dianteira" />
@@ -1251,25 +1462,24 @@ export default function PetDetailPage() {
                   </div>
                 ) : (
                   <div className="bg-white">
-                    <button onClick={() => router.push(`/dashboard/erp/pets/${petId}/atendimentos/novo`)} className="w-full bg-[#009AAC] text-white rounded-[10px] px-3.5 py-2.5 text-[13px] font-medium hover:bg-[#00808f] flex items-center justify-center gap-1.5">
-                      ＋ Novo atendimento
-                    </button>
-                    <div className="mt-3">
-                      <div className="text-[11px] text-[#8A989D] mb-1.5">adicionar:</div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {([
-                          { label: "⚖️ Peso", act: () => { setPesoVal(pet?.weight ? String(pet.weight) : ""); setAtdOpen(false); setArtefato("PESO"); } },
-                          { label: "💊 Receita", act: () => abrirReceita() },
-                          { label: "📄 Documento", act: () => abrirDocumento() },
-                          { label: "🎥 Vídeo", act: () => abrirVideo() },
-                          { label: "📷 Fotos", act: () => abrirFoto() },
-                          { label: "📝 Observação", act: () => { setObsVal(pet?.observations || ""); setAtdOpen(false); setArtefato("OBS"); } },
-                          { label: "🔬 Exame", act: () => setTab("EXAMES") },
-                          { label: "🦠 Patologia", act: async () => { await abrirDocumento(); setDocModeloNome("Laudo de patologia"); } },
-                        ] as const).map((c) => (
-                          <button key={c.label} onClick={c.act} className="text-[12px] px-3 py-1.5 rounded-full border border-[#E8E2D6] bg-white text-[#5C6B70] hover:border-[#009AAC] hover:text-[#009AAC] transition">{c.label}</button>
-                        ))}
-                      </div>
+                    <div className="text-[11px] text-[#8A989D] mb-2 font-semibold uppercase tracking-wide">Adicionar ao histórico</div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {([
+                        { label: "Atendimento", ic: "🩺", bg: "#E1F3F5", fg: "#017E8C", act: () => router.push(`/dashboard/erp/pets/${petId}/atendimentos/novo`) },
+                        { label: "Peso", ic: "⚖️", bg: "#F3ECDD", fg: "#8A6D3B", act: () => { setPesoVal(pet?.weight ? String(pet.weight) : ""); setAtdOpen(false); setArtefato("PESO"); } },
+                        { label: "Receita", ic: "💊", bg: "#EFE9FB", fg: "#6A4FB0", act: () => abrirReceita() },
+                        { label: "Documento", ic: "📄", bg: "#E4F3EA", fg: "#2E7D53", act: () => abrirDocumento() },
+                        { label: "Exame", ic: "🔬", bg: "#FCE9EE", fg: "#B0416B", act: () => abrirExame() },
+                        { label: "Fotos", ic: "📷", bg: "#E8F0FA", fg: "#3E6DA6", act: () => abrirFoto() },
+                        { label: "Vídeo", ic: "🎥", bg: "#E3F3EF", fg: "#2E8B72", act: () => abrirVideo() },
+                        { label: "Observação", ic: "📝", bg: "#EFEEE9", fg: "#6B6A63", act: () => { setObsVal(pet?.observations || ""); setAtdOpen(false); setArtefato("OBS"); } },
+                        { label: "Patologia", ic: "🦠", bg: "#F3E8F5", fg: "#8E4585", act: async () => { await abrirDocumento(); setDocModeloNome("Laudo de patologia"); } },
+                      ] as const).map((c) => (
+                        <button key={c.label} onClick={c.act} className="flex flex-col items-start gap-1 rounded-[13px] px-3 py-2.5 transition hover:brightness-95" style={{ background: c.bg, color: c.fg }}>
+                          <span className="text-[18px] leading-none">{c.ic}</span>
+                          <span className="text-[12px] font-bold">{c.label}</span>
+                        </button>
+                      ))}
                     </div>
                     {/* Timeline dos atendimentos (data · tipo em pill · vet · resumo com rótulo em negrito) */}
                     <div className="mt-4 pt-3 border-t border-[#F0EBE0] flex flex-col gap-1.5">
@@ -1295,7 +1505,7 @@ export default function PetDetailPage() {
             </div>
           </div>
         )}
-        {tab === "TIMELINE" && <div className="p-5"><FeedTimeline atendimentos={atendimentos} clinDocs={clinDocs} /></div>}
+        {tab === "TIMELINE" && <div className="p-5"><FeedTimeline atendimentos={atendimentos} clinDocs={clinDocs} historico={historico} onDetalhe={abrirDetalheHist} /></div>}
         {tab === "AGENDA" && <div className="p-5"><PetClinicaTabela view="agenda" atendimentos={atendimentos} tipoLabel={ATD_TIPO_LABEL} /></div>}
         {tab === "EXAMES" && (
           <div className="p-5">
@@ -1316,16 +1526,53 @@ export default function PetDetailPage() {
                     <div key={x.id} className="border border-[#E8E2D6] rounded-[12px]" style={{ padding: "11px 13px" }}>
                       <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
                         <div className="min-w-0">
-                          <span className="text-[13px] font-medium text-[#014D5E]">{x.data.nome}</span>
+                          {/* Nome editável: clica e corrige (regra — tudo editável e deletável) */}
+                          <span
+                            className="text-[13px] font-medium text-[#014D5E] cursor-pointer hover:underline"
+                            title="Clique para renomear"
+                            onClick={async () => {
+                              const novo = window.prompt("Nome do exame:", x.data.nome || "");
+                              if (novo == null || !novo.trim() || novo.trim() === x.data.nome) return;
+                              try {
+                                const r = await fetch(`/api/listas/${x.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ valor: JSON.stringify({ ...x.data, nome: novo.trim() }) }) });
+                                if (!r.ok) throw new Error();
+                                toast.success("Exame renomeado"); await loadPetColecoes();
+                              } catch { toast.error("Não consegui renomear"); }
+                            }}>
+                            {x.data.nome} <LuPencil size={10} className="inline -mt-0.5 text-gray-300" />
+                          </span>
                           {x.data.externo && <span className="ml-2 text-[10px] px-2 py-0.5 rounded-full" style={{ background: "#EDE9FA", color: "#3C3489" }}>externo</span>}
                           <span className="text-[11px] text-[#8A989D] ml-2">{x.data.date ? fmtDataBR(x.data.date) : ""}</span>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          <button onClick={() => anexarResultado(x.id, x.data)} className="text-[11px] px-2.5 py-1 rounded-full border border-[#E8E2D6] text-[#009AAC] hover:border-[#009AAC]">📎 {x.data.resultadoUrl ? "Ver/trocar resultado" : "Anexar resultado"}</button>
+                          {/* Anexar ARQUIVO — o label é um file picker disfarçado de botão */}
+                          <label
+                            title="Subir o PDF/foto do laudo (até 20MB)"
+                            className={`text-[11px] px-2.5 py-1 rounded-full border cursor-pointer transition ${subindoEx === x.id ? "opacity-60" : "hover:border-[#009AAC]"}`}
+                            style={{ borderColor: "#E8E2D6", color: "#fff", background: "#009AAC", borderWidth: 1 }}>
+                            {subindoEx === x.id ? "Enviando…" : "📎 Anexar arquivo"}
+                            <input
+                              type="file"
+                              className="hidden"
+                              accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,.doc,.docx,.xls,.xlsx"
+                              disabled={subindoEx === x.id}
+                              onChange={(e) => {
+                                const f = e.target.files?.[0];
+                                e.target.value = ""; // permite reenviar o mesmo arquivo
+                                if (f) subirResultado(x.id, x.data, f);
+                              }}
+                            />
+                          </label>
+                          <button onClick={() => anexarResultado(x.id, x.data)} title="Colar um link (Drive, etc.) em vez de subir arquivo" className="text-[11px] px-2.5 py-1 rounded-full border border-[#E8E2D6] text-[#009AAC] hover:border-[#009AAC]">🔗 Link</button>
                           <button onClick={() => delExame(x.id)} className="text-[11px] text-[#b23b39]">Excluir</button>
                         </div>
                       </div>
-                      {x.data.resultadoUrl && <a href={x.data.resultadoUrl} target="_blank" rel="noopener" className="text-[11.5px] text-[#009AAC] underline break-all block mb-2">📄 {x.data.resultadoUrl}</a>}
+                      {x.data.resultadoUrl && (
+                        // Mostra o NOME do arquivo quando temos; a URL crua do bucket é ilegível.
+                        <a href={x.data.resultadoUrl} target="_blank" rel="noopener" className="text-[11.5px] text-[#009AAC] underline break-all block mb-2">
+                          📄 {x.data.resultadoArquivo || x.data.resultadoUrl}
+                        </a>
+                      )}
                       {/* Status roll-up (mesmo formato do petexa_ que o Hoje lê) */}
                       <div className="flex items-center gap-1 flex-wrap">
                         {fases.map((f, fi) => (

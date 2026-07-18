@@ -29,6 +29,8 @@ interface WebhookMessage {
   id: string;
   timestamp: string;
   type: string;
+  /** Presente quando o cliente RESPONDE citando uma mensagem: `id` é a citada. */
+  context?: { id?: string; from?: string; forwarded?: boolean };
   text?: { body: string };
   image?: { id: string; caption?: string; mime_type?: string };
   document?: { id: string; filename?: string; mime_type?: string };
@@ -398,7 +400,11 @@ export class WhatsAppController {
       mediaType,
       mediaCaption,
       timestamp: message.timestamp,
-      metadata: messageMetadata,
+      // Quando o cliente responde citando, o Meta manda qual mensagem ele citou.
+      // Guardamos junto pra caixa mostrar "respondeu a isto" em vez de texto solto.
+      metadata: message.context?.id
+        ? { ...(messageMetadata || {}), replyToWaMessageId: message.context.id }
+        : messageMetadata,
     };
 
     // Save message to database

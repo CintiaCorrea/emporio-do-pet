@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { InboxContextService } from './inbox-context.service';
 
 @ApiTags('inbox-context')
@@ -22,10 +23,13 @@ export class InboxContextController {
     return this.service.staffList();
   }
 
-  // Encaminhar contato pra outro usuário
+  // Encaminhar contato pra outro usuário (reatribui a conversa + avisa o destinatário)
   @Post('forward')
-  forward(@Body() body: { tutorId?: string; leadId?: string; toUserId: string; observacao?: string }) {
-    return this.service.forward(body);
+  forward(
+    @CurrentUser() user: { userId: string },
+    @Body() body: { tutorId?: string; leadId?: string; toUserId: string; observacao?: string },
+  ) {
+    return this.service.forward({ ...body, fromUserId: user.userId });
   }
 
   // Resolver — marca conversa como atendida + cria interação

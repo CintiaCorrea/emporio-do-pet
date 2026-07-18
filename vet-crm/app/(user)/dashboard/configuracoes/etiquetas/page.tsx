@@ -170,7 +170,7 @@ export default function EtiquetasPage() {
           <Link href="/dashboard/configuracoes" className="p-2 rounded-lg hover:bg-gray-100"><LuArrowLeft size={18} /></Link>
           <div className="flex-1">
             <h1 className="text-xl font-semibold" style={{ color: "#0E2244" }}>Etiquetas</h1>
-            <p className="text-sm text-gray-500">Tags com cor pra organizar Lead, Cliente e Pet</p>
+            <p className="text-sm text-gray-500">Tags com cor pra organizar Lead, Cliente, Pet e Conversa (WhatsApp)</p>
           </div>
           <label className="flex items-center gap-2 text-sm cursor-pointer text-gray-600">
             <input type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)} />
@@ -343,7 +343,7 @@ export default function EtiquetasPage() {
               <div>
                 <label className="text-xs text-gray-600">Aplica em</label>
                 <div className="flex gap-3 mt-1">
-                  {["Lead", "Cliente", "Pet"].map(opt => (
+                  {["Lead", "Cliente", "Pet", "Conversa"].map(opt => (
                     <label key={opt} className="flex items-center gap-1.5 text-sm cursor-pointer">
                       <input type="checkbox" checked={(eForm.aplicaEm || []).includes(opt)}
                         onChange={e => {

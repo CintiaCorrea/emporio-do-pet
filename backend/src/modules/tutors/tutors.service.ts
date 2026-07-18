@@ -36,6 +36,16 @@ export class TutorsService {
         createTutorDto.contacts = createTutorDto.contacts.map(c => ({ ...c, number: normalizePhone(c.number) }));
       }
     }
+    // === Dedupe por CPF (SO DIGITOS — evita duplicado por formato "111.x" vs "111x") ===
+    const cpfDigits = ((createTutorDto as any).cpf || '').replace(/\D/g, '');
+    if (cpfDigits.length >= 11) {
+      const existingCpf = await this.prisma.tutor.findFirst({
+        where: { cpf: cpfDigits },
+        include: { contacts: true, pets: true },
+      });
+      if (existingCpf) return existingCpf; // ja existe cliente com esse CPF -> usa o existente
+      (createTutorDto as any).cpf = cpfDigits; // guarda sempre normalizado
+    }
     const { contacts, ...tutorData } = createTutorDto as any;
 
     const contactCreates = Array.isArray(contacts)
@@ -101,7 +111,15 @@ export class TutorsService {
   }
 
   async findAll(params?: { search?: string; skip?: number; take?: number }) {
-    const { search, skip = 0, take = 20 } = params || {};
+    const { search } = params || {};
+    // skip/take chegam da URL como TEXTO ("6", não 6) e o Prisma recusa Int em String —
+    // qualquer chamada com ?take= dava 500. Os autocompletes de cliente (PDV, agenda,
+    // nova conversa, cadastros recebidos) mandam take e estavam todos quebrados calados:
+    // o front lia a resposta de erro, não achava a lista e mostrava "nenhum resultado".
+    const skip = Number.isFinite(Number(params?.skip)) ? Math.max(0, Number(params?.skip)) : 0;
+    const take = Number.isFinite(Number(params?.take)) && Number(params?.take) > 0
+      ? Math.min(200, Number(params?.take))
+      : 20;
 
     // Normaliza telefone (remove não-dígitos) e usa últimos 9 dígitos
     // pra casar com qualquer formato (5585xxx ou 85xxx)
@@ -116,10 +134,14 @@ export class TutorsService {
                 ...(onlyDigits.length >= 4 ? [{ contacts: { some: { number: { contains: tail9 } } } }] : []),
               ]
             : [
-                // Termo com letras -> nome / email / CPF / telefone
+                // Termo com letras -> nome / email / CPF / telefone / NOME DO PET
                 { name: { contains: search, mode: 'insensitive' as const } },
                 { email: { contains: search, mode: 'insensitive' as const } },
                 { cpf: { contains: search } },
+                // Achar o dono pelo nome do bicho: quem atende lembra "a Luna", não "a Cláudia".
+                // Só entra no ramo de LETRAS — busca por telefone (usada na checagem de
+                // duplicidade) continua idêntica, sem risco de casar com nome de pet.
+                { pets: { some: { name: { contains: search, mode: 'insensitive' as const } } } },
                 ...(onlyDigits.length >= 4 ? [{ contacts: { some: { number: { contains: tail9 } } } }] : []),
               ],
         }
@@ -150,12 +172,75 @@ export class TutorsService {
     return this.prisma.tutor.findMany({
       select: {
         id: true, name: true, codigo: true, status: true, estadoRelacionamento: true,
+        classificacao: true, // etiqueta (Cliente/Fornecedor/Profissional) — reconhecida no inbox
+        email: true, // a tela de Clientes oferece busca por e-mail; sem isso ela falha calada
         birthDate: true, proximoFollowupAt: true, rankingAbc: true,
         contacts: { take: 1, orderBy: { isPrimary: 'desc' }, select: { number: true, isPrimary: true } },
         pets: { select: { id: true, name: true, species: true } },
       },
       orderBy: { name: 'asc' },
     });
+  }
+
+  /**
+   * Reclassifica um CLIENTE (Tutor) de volta pra LEAD. Usado pra limpar os
+   * "clientes-fantasma" (contato que entrou como cliente sem ser). PROTEÇÃO:
+   * só permite se NÃO tiver pet nem atendimento (senão é cliente real, não mexe).
+   * Move as interações pro lead (preserva histórico) e remove o cadastro fantasma.
+   */
+  async reclassifyAsLead(id: string) {
+    const tutor = await this.prisma.tutor.findUnique({
+      where: { id },
+      include: {
+        contacts: { orderBy: { isPrimary: 'desc' }, take: 1 },
+        _count: { select: { pets: true, appointments: true } },
+      },
+    });
+    if (!tutor) throw new NotFoundException('Cliente não encontrado');
+    if (tutor._count.pets > 0 || tutor._count.appointments > 0) {
+      throw new BadRequestException(
+        'Este cliente tem pets ou atendimentos — não dá para reclassificar como lead.',
+      );
+    }
+    const phone = tutor.contacts[0]?.number || '';
+    const phoneDigits = phone.replace(/\D/g, '');
+    const emailReal =
+      tutor.email &&
+      tutor.email.includes('@') &&
+      !tutor.email.includes('@emporiodopet.crm') &&
+      !tutor.email.includes('@whatsapp.lead')
+        ? tutor.email
+        : `${phoneDigits || tutor.id}@whatsapp.lead`;
+
+    // Reusa lead existente (mesmo email ou telefone) pra não violar o email único.
+    let lead = await this.prisma.lead.findFirst({
+      where: {
+        OR: [
+          { email: emailReal },
+          ...(phoneDigits.length >= 8 ? [{ phone: { contains: phoneDigits.slice(-8) } }] : []),
+        ],
+      },
+    });
+    if (!lead) {
+      lead = await this.prisma.lead.create({
+        data: {
+          name: tutor.name,
+          phone: phone || null,
+          email: emailReal,
+          source: 'WHATSAPP' as any,
+          sourceDetail: 'reclassificado_de_cliente',
+          status: 'NEW' as any,
+          firstSeenAt: new Date(),
+          lastSeenAt: new Date(),
+          lastActivityAt: new Date(),
+        } as any,
+      });
+    }
+    // Preserva histórico e desvincula conversas, depois remove o cadastro fantasma.
+    await this.prisma.interacao.updateMany({ where: { tutorId: id }, data: { tutorId: null, leadId: lead.id } });
+    await this.prisma.whatsAppConversation.updateMany({ where: { tutorId: id }, data: { tutorId: null } });
+    await this.prisma.tutor.delete({ where: { id } });
+    return { ok: true, leadId: lead.id };
   }
 
   async findById(id: string) {
@@ -201,9 +286,18 @@ export class TutorsService {
   async update(id: string, updateTutorDto: UpdateTutorDto) {
     await this.findById(id);
 
+    // Data no formato curto ("1986-08-29") — o que <input type="date"> produz — fazia o
+    // Prisma estourar ("premature end of input") e virava 500 no cadastro. Aceitamos os
+    // dois formatos aqui, na raiz, pra que NENHUMA tela precise lembrar de completar a hora.
+    const data: any = { ...updateTutorDto };
+    if (typeof data.birthDate === 'string') {
+      const d = data.birthDate.slice(0, 10);
+      data.birthDate = /^\d{4}-\d{2}-\d{2}$/.test(d) ? new Date(`${d}T00:00:00.000Z`) : (data.birthDate || null);
+    }
+
     return this.prisma.tutor.update({
       where: { id },
-      data: updateTutorDto,
+      data,
       include: {
         contacts: true,
         pets: true,

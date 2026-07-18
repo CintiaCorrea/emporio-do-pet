@@ -30,15 +30,39 @@ export class ServicosService {
   }
 
   // ===== Serviços =====
+  /**
+   * Catálogo vendável. A FONTE agora é o catálogo único (Product, type SERVICE) —
+   * a mesma lista que a tela "Produtos e Serviços" mostra. Antes lia a tabela
+   * `servicos`, paralela e mais pobre, o que deixava itens cadastrados no catálogo
+   * (ex.: as consultas) invisíveis no PDV, na agenda e na ficha.
+   *
+   * O FORMATO de saída continua o de `Servico` de propósito: os 8 consumidores
+   * (PDV, agenda, ficha, internação, orçamento, lista de preços, inbox) seguem
+   * funcionando sem alteração. Product e Servico já compartilham ServiceCategory,
+   * então `category` sai igual.
+   */
   async listServicos(includeInactive = false, categoryId?: string) {
-    return this.prisma.servico.findMany({
+    const itens = await this.prisma.product.findMany({
       where: {
+        type: 'SERVICE',
         ...(includeInactive ? {} : { ativo: true }),
         ...(categoryId ? { categoryId } : {}),
       },
-      orderBy: [{ ativo: 'desc' }, { nome: 'asc' }],
+      orderBy: [{ ativo: 'desc' }, { name: 'asc' }],
       include: { category: { select: { id: true, nome: true } } },
     });
+    return itens.map((p) => ({
+      id: p.id,
+      nome: p.name,
+      valorPadrao: p.price,
+      custoPadrao: p.custoPadrao,
+      comissaoBaseDefault: p.comissaoBaseDefault,
+      categoryId: p.categoryId,
+      ativo: p.ativo,
+      createdAt: p.createdAt,
+      updatedAt: p.updatedAt,
+      category: p.category,
+    }));
   }
   // Espelha o serviço no catálogo unificado (Product, type SERVICE, mesmo id) — Fase 3 da unificação.
   private async espelharProduto(svc: any) {

@@ -246,18 +246,28 @@ export class CreateWhatsAppTemplateDto {
   @IsOptional()
   language?: string = 'pt_BR';
 
+  /**
+   * Componentes no formato do Meta: [{ type: 'BODY', text: '...' }, ...].
+   *
+   * NÃO usar @ValidateNested + @Type(() => Object) aqui: `Object` não declara campo
+   * nenhum e, com forbidNonWhitelisted ligado, o validador rejeitava TODO componente
+   * ("property type should not exist") — nenhum modelo podia ser criado.
+   *
+   * O formato varia por tipo (HEADER/BODY/BUTTONS/CAROUSEL…) e cada um tem regras
+   * próprias que mudam quando o Meta muda. Quem valida isso de verdade é o Meta, na
+   * submissão — e o erro dele volta pra tela. Aqui só garantimos que é uma lista de
+   * objetos com `type`, que é o mínimo pra não mandar lixo.
+   */
   @IsArray()
-  @ValidateNested({ each: true })
+  @ArrayMinSize(1)
+  // @Type SEM @ValidateNested, e os dois são necessários por motivos OPOSTOS:
+  //  - sem @Type, o conversor (enableImplicitConversion) usa o tipo do campo (Array)
+  //    também nos itens e transforma cada {type:'BODY'} num [] vazio;
+  //  - com @ValidateNested, o whitelist rejeita todo campo do item ("property type
+  //    should not exist"), porque Object não declara nada.
+  // Assim o item chega intacto e sem validação local — quem valida é o Meta.
   @Type(() => Object)
-  components: Array<
-    | HeaderComponentDto
-    | BodyComponentDto
-    | FooterComponentDto
-    | ButtonsComponentDto
-    | CarouselComponentDto
-    | LimitedTimeOfferComponentDto
-    | OrderDetailsComponentDto
-  >;
+  components: any[];
 
   @IsBoolean()
   @IsOptional()

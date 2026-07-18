@@ -16,6 +16,11 @@ export class SendMessageDto {
   @IsOptional()
   @IsObject()
   templateParams?: Record<string, string>;
+
+  /** waMessageId da mensagem sendo respondida — manda como resposta citada. */
+  @IsOptional()
+  @IsString()
+  replyToWaMessageId?: string;
 }
 
 export class SendDirectMessageDto {

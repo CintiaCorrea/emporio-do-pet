@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Portal do Tutor — Empório do Pet</title>
+
+<!-- Metas que ajudam a virar PWA (instalável na tela inicial). Ver briefing. -->
+<meta name="theme-color" content="#0D2048" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Empório do Pet" />
+
+<!-- Ícones (Tabler) e fonte. No app real, servir localmente se preferir. -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.7.0/dist/tabler-icons.min.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700&display=swap" />
+
+<style>
+  :root {
+    --marinho: #0D2048;
+    --turquesa: #00A1AE;
+    --ceu: #D5F1F4;
+    --camurca: #DECBB2;
+    --chiclete: #F9B8C0;
+    --verde: #1D9E75;
+    --verde-bg: #E1F5EE;
+    --verde-txt: #04342C;
+    --alerta: #D4537E;
+    --alerta-bg: #FCEBEB;
+    --alerta-txt: #501313;
+    --rosa-txt: #4B1528;
+    --rosa-txt2: #72243E;
+    --cinza: #5F5E5A;
+    --cinza-claro: #888780;
+    --linha: #F1EFE8;
+    --borda: #DECBB2;
+    --app-bg: #FAFCFD;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #EAEFF2;
+    color: var(--marinho);
+    display: flex;
+    justify-content: center;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Coluna do app: largura de celular, centralizada. No dispositivo real ocupa a tela toda. */
+  .app {
+    width: 100%;
+    max-width: 400px;
+    background: var(--app-bg);
+    min-height: 100vh;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 0 40px rgba(13, 32, 72, 0.08);
+  }
+
+  .screen { display: none; padding-bottom: 24px; }
+  .screen.active { display: block; }
+
+  /* ---------- Cabeçalho com logo (home) ---------- */
+  .brand {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 18px 0 14px;
+  }
+  .brand-mark {
+    width: 28px; height: 28px; border-radius: 50%; background: var(--turquesa);
+    display: flex; align-items: center; justify-content: center; color: #fff; font-size: 16px;
+  }
+  .brand-name { font-size: 16px; font-weight: 600; color: var(--marinho); letter-spacing: .3px; }
+
+  /* ---------- Cabeçalho das telas internas ---------- */
+  .head {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 17px; font-weight: 600; color: var(--marinho);
+    padding: 18px 16px 12px;
+  }
+  .back {
+    width: 32px; height: 32px; border-radius: 50%; border: none; cursor: pointer;
+    background: var(--linha); color: var(--marinho);
+    display: flex; align-items: center; justify-content: center; font-size: 19px; flex-shrink: 0;
+  }
+  .back:active { transform: scale(.94); }
+
+  .pad { padding: 0 16px; }
+  .label { font-size: 12px; color: var(--cinza); margin: 4px 2px 8px; }
+
+  /* ---------- Linha do pet (home compacta) ---------- */
+  .pet-row {
+    margin: 0 16px 12px; display: flex; align-items: center; gap: 12px;
+    background: var(--ceu); border-radius: 14px; padding: 12px 14px;
+  }
+  .avatar-wrap { position: relative; flex-shrink: 0; }
+  .avatar {
+    width: 52px; height: 52px; border-radius: 50%; background: var(--turquesa);
+    display: flex; align-items: center; justify-content: center; color: #fff; font-size: 27px;
+    overflow: hidden;
+  }
+  .avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .avatar-cam {
+    position: absolute; right: -2px; bottom: -2px; width: 21px; height: 21px; border-radius: 50%;
+    background: var(--marinho); color: #fff; border: 2px solid var(--ceu);
+    display: flex; align-items: center; justify-content: center; font-size: 11px; cursor: pointer;
+  }
+  .pet-name { font-size: 18px; font-weight: 700; color: var(--marinho); }
+  .pet-sub { font-size: 12px; color: #0F6E56; }
+
+  /* ---------- Alerta de internação ---------- */
+  .alert {
+    width: calc(100% - 32px); margin: 0 16px 12px; text-align: left; border: none; cursor: pointer;
+    background: var(--chiclete); border-radius: 12px; padding: 12px 14px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .alert i.lead { font-size: 20px; color: var(--rosa-txt2); }
+  .alert-title { font-size: 13px; color: var(--rosa-txt); font-weight: 600; }
+  .alert-sub { font-size: 11px; color: var(--rosa-txt2); }
+  .alert i.chev { color: var(--rosa-txt2); margin-left: auto; }
+
+  /* ---------- Grade do menu (home) ---------- */
+  .menu-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 0 16px;
+  }
+  .menu-item {
+    background: #fff; border: 0.5px solid var(--borda); border-radius: 12px; padding: 14px 12px;
+    display: flex; flex-direction: column; align-items: flex-start; gap: 3px; text-align: left; cursor: pointer;
+    font-family: inherit;
+  }
+  .menu-item:active { transform: scale(.98); }
+  .menu-item i { font-size: 23px; color: var(--turquesa); margin-bottom: 4px; }
+  .menu-item span { font-size: 13px; color: var(--marinho); font-weight: 600; }
+  .menu-item small { font-size: 10px; color: var(--cinza-claro); }
+  /* Contato rápido: fecha a grade como 8º box, em turquesa */
+  .menu-item.contato { background: var(--turquesa); border-color: var(--turquesa); }
+  .menu-item.contato i, .menu-item.contato span { color: #fff; }
+
+  /* ---------- Cards e linhas de conteúdo ---------- */
+  .card {
+    background: #fff; border: 0.5px solid var(--borda); border-radius: 12px;
+    overflow: hidden; margin-bottom: 16px;
+  }
+  .row {
+    display: flex; align-items: center; gap: 10px; padding: 11px 14px;
+    border-bottom: 0.5px solid var(--linha);
+  }
+  .row:last-child { border-bottom: none; }
+  .row .rt { font-size: 13px; color: var(--marinho); }
+  .row .rs { font-size: 11px; color: var(--cinza); }
+  .row .grow { flex: 1; }
+  .link { font-size: 11px; color: var(--turquesa); font-weight: 600; }
+
+  /* ---------- Botões ---------- */
+  .btn {
+    width: 100%; border: none; border-radius: 12px; padding: 13px; font-size: 14px; cursor: pointer;
+    font-family: inherit; font-weight: 600;
+  }
+  .btn-primary { background: var(--marinho); color: #fff; }
+  .btn-wa {
+    background: var(--turquesa); color: #fff; font-size: 13px; padding: 12px;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .btn:active { transform: scale(.99); }
+
+  /* ---------- Alimentação ---------- */
+  .diet-ok { background: var(--verde-bg); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; }
+  .diet-ok .line { display: flex; gap: 8px; margin-bottom: 8px; }
+  .diet-ok .line:last-child { margin-bottom: 0; }
+  .diet-ok i { color: #0F6E56; font-size: 16px; margin-top: 2px; }
+  .diet-ok p { font-size: 12px; color: var(--verde-txt); line-height: 1.5; }
+  .diet-no { background: var(--alerta-bg); border-radius: 12px; padding: 12px 14px; margin-bottom: 16px; display: flex; gap: 8px; }
+  .diet-no i { color: #A32D2D; font-size: 16px; margin-top: 2px; }
+  .diet-no p { font-size: 12px; color: var(--alerta-txt); line-height: 1.5; }
+  .prescriber { display: flex; align-items: center; gap: 6px; margin-bottom: 14px; font-size: 11px; color: var(--cinza); }
+
+  /* ---------- Peso ---------- */
+  .chart-card { background: #fff; border: 0.5px solid var(--borda); border-radius: 12px; padding: 16px 14px 10px; }
+  .chart-legend { display: flex; justify-content: space-between; margin-top: 8px; font-size: 11px; color: var(--cinza); }
+  .insight { background: var(--ceu); border-radius: 12px; padding: 12px 14px; margin-top: 14px; font-size: 12px; color: var(--marinho); line-height: 1.6; }
+
+  /* ---------- Fisioterapia ---------- */
+  .fisio-card { background: var(--marinho); border-radius: 12px; padding: 16px; color: #fff; margin-bottom: 16px; }
+  .fisio-card .cat { font-size: 13px; color: #9FE1CB; }
+  .fisio-card .big { font-size: 22px; font-weight: 700; margin: 4px 0 10px; }
+  .fisio-card .big small { font-size: 14px; color: var(--ceu); font-weight: 400; }
+  .bar { background: #1a3a63; border-radius: 20px; height: 8px; overflow: hidden; }
+  .bar > div { height: 100%; background: var(--turquesa); }
+  .fisio-card .meta { font-size: 11px; color: var(--ceu); margin-top: 8px; }
+
+  /* ---------- Internação ---------- */
+  .status { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+  .pill { font-size: 11px; background: var(--chiclete); color: var(--rosa-txt); border-radius: 20px; padding: 3px 10px; }
+  .status .since { font-size: 11px; color: var(--cinza); }
+  .boletim { background: #fff; border: 0.5px solid var(--turquesa); border-radius: 12px; padding: 14px; margin-bottom: 16px; }
+  .boletim-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .boletim-head .t { font-size: 13px; color: var(--marinho); font-weight: 600; }
+  .boletim-head .d { font-size: 11px; color: var(--cinza); }
+  .boletim p { font-size: 12px; color: #444441; line-height: 1.6; }
+  .boletim .assin { display: flex; align-items: center; gap: 6px; margin-top: 10px; font-size: 11px; color: #0F6E56; }
+
+  /* ---------- Agendar ---------- */
+  .type-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+  .type {
+    border: 0.5px solid var(--borda); background: #fff; color: var(--marinho);
+    border-radius: 10px; padding: 10px; font-size: 12px; text-align: center; cursor: pointer; font-family: inherit;
+  }
+  .type.sel { background: var(--turquesa); color: #fff; border-color: var(--turquesa); }
+  .slots { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
+  .slot {
+    border: 0.5px solid var(--turquesa); background: #fff; color: var(--marinho);
+    border-radius: 20px; padding: 6px 14px; font-size: 12px; cursor: pointer; font-family: inherit;
+  }
+  .slot.sel { background: var(--turquesa); color: #fff; }
+  .priority { background: var(--chiclete); border-radius: 12px; padding: 10px 14px; margin-bottom: 14px; font-size: 12px; color: var(--rosa-txt); }
+
+  /* ---------- Ficha ---------- */
+  .form { background: #fff; border: 0.5px solid var(--borda); border-radius: 12px; padding: 6px 14px; margin-bottom: 16px; }
+  .field { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 0; border-bottom: 0.5px solid var(--linha); }
+  .field:last-child { border-bottom: none; }
+  .field label { font-size: 12px; color: var(--cinza); flex-shrink: 0; }
+  .field input {
+    border: none; background: none; text-align: right; font-size: 13px; color: var(--marinho);
+    width: 60%; outline: none; font-family: inherit;
+  }
+  .field input:disabled { color: var(--cinza-claro); }
+  .field .lock { display: flex; align-items: center; gap: 6px; }
+  .field .lock i { font-size: 14px; color: #B4B2A9; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ============================ HOME ============================ -->
+  <section class="screen active" id="inicio">
+    <div class="brand">
+      <div class="brand-mark"><i class="ti ti-paw"></i></div>
+      <span class="brand-name">Empório do Pet</span>
+    </div>
+
+    <!-- Linha compacta do pet: avatar (com troca de foto) + nome -->
+    <div class="pet-row">
+      <div class="avatar-wrap">
+        <div class="avatar" id="pet-avatar"><i class="ti ti-dog"></i></div>
+        <button class="avatar-cam" id="btn-foto" aria-label="Trocar foto do pet"><i class="ti ti-camera"></i></button>
+      </div>
+      <div>
+        <div class="pet-name">Thor</div>
+        <div class="pet-sub">Golden Retriever · 6 anos</div>
+      </div>
+    </div>
+
+    <!-- Alerta de internação: só aparece quando o pet está internado (ver briefing) -->
+    <button class="alert" onclick="go('internacao')">
+      <i class="ti ti-building-hospital lead"></i>
+      <div>
+        <div class="alert-title">Thor está internado</div>
+        <div class="alert-sub">ver boletim de hoje</div>
+      </div>
+      <i class="ti ti-chevron-right chev"></i>
+    </button>
+
+    <div class="label" style="margin-left:18px;">menu</div>
+    <div class="menu-grid">
+      <button class="menu-item" onclick="go('saude')"><i class="ti ti-heart"></i><span>Saúde</span><small>vacinas · exames · receitas</small></button>
+      <button class="menu-item" onclick="go('alimentacao')"><i class="ti ti-salad"></i><span>Alimentação</span><small>dieta e variações</small></button>
+      <button class="menu-item" onclick="go('peso')"><i class="ti ti-scale"></i><span>Peso</span><small>evolução e meta</small></button>
+      <button class="menu-item" onclick="go('fisio')"><i class="ti ti-activity"></i><span>Fisioterapia</span><small>pacote e sessões</small></button>
+      <button class="menu-item" onclick="go('internacao')"><i class="ti ti-building-hospital"></i><span>Internação</span><small>boletins do dia</small></button>
+      <button class="menu-item" onclick="go('agendar')"><i class="ti ti-calendar-plus"></i><span>Agendar</span><small>horário prioritário</small></button>
+      <button class="menu-item" onclick="go('ficha')"><i class="ti ti-id"></i><span>Minha ficha</span><small>manter dados em dia</small></button>
+      <button class="menu-item contato" id="btn-contato-home"><i class="ti ti-brand-whatsapp"></i><span>Contato rápido</span></button>
+    </div>
+  </section>
+
+  <!-- ============================ SAÚDE ============================ -->
+  <section class="screen" id="saude">
+    <div class="head"><button class="back" onclick="go('inicio')" aria-label="Voltar ao início"><i class="ti ti-chevron-left"></i></button>Saúde</div>
+    <div class="pad">
+      <div class="label">carteirinha de vacinas</div>
+      <div class="card">
+        <div class="row"><i class="ti ti-circle-check" style="color:var(--verde)"></i><div class="grow"><div class="rt">V10 (múltipla)</div><div class="rs">aplicada 12/2025 · reforço 12/2026</div></div></div>
+        <div class="row"><i class="ti ti-circle-check" style="color:var(--verde)"></i><div class="grow"><div class="rt">Antirrábica</div><div class="rs">aplicada 03/2026 · reforço 03/2027</div></div></div>
+        <div class="row"><i class="ti ti-alert-circle" style="color:var(--alerta)"></i><div class="grow"><div class="rt">Giárdia</div><div class="rs" style="color:var(--alerta)">vencida há 8 dias</div></div></div>
+      </div>
+
+      <div class="label">receitas ativas</div>
+      <div class="card">
+        <div class="row"><i class="ti ti-prescription" style="color:var(--turquesa);font-size:20px"></i><div class="grow"><div class="rt">Condroprotetor · 1x/dia</div><div class="rs">até 30/07/2026</div></div><i class="ti ti-download" style="color:var(--marinho)"></i></div>
+      </div>
+
+      <div class="label">exames</div>
+      <div class="card">
+        <div class="row"><i class="ti ti-file-text" style="color:var(--turquesa)"></i><div class="grow"><div class="rt">Hemograma completo</div><div class="rs">10/06/2026</div></div><span class="link">ver PDF</span></div>
+        <div class="row"><i class="ti ti-photo" style="color:var(--turquesa)"></i><div class="grow"><div class="rt">Raio-X do quadril</div><div class="rs">28/04/2026</div></div><span class="link">ver PDF</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ ALIMENTAÇÃO ============================ -->
+  <section class="screen" id="alimentacao">
+    <div class="head"><button class="back" onclick="go('inicio')" aria-label="Voltar ao início"><i class="ti ti-chevron-left"></i></button>Alimentação</div>
+    <div class="pad">
+      <div class="prescriber"><i class="ti ti-stethoscope"></i> prescrito por Dra. Vivian · 20/06/2026</div>
+
+      <div class="label">dieta prescrita</div>
+      <div class="card">
+        <div class="row"><i class="ti ti-bowl" style="color:var(--turquesa)"></i><div class="grow"><div class="rt">Ração de controle de peso</div><div class="rs">160 g/dia · 2 refeições (manhã e noite)</div></div></div>
+        <div class="row"><i class="ti ti-pill" style="color:var(--turquesa)"></i><div class="grow"><div class="rt">Ômega 3</div><div class="rs">1 cápsula/dia junto à refeição da noite</div></div></div>
+      </div>
+
+      <div class="label">variações que você pode fazer</div>
+      <div class="diet-ok">
+        <div class="line"><i class="ti ti-check"></i><p>1 refeição por semana pode ser comida natural (receita no anexo abaixo)</p></div>
+        <div class="line"><i class="ti ti-check"></i><p>Petiscos liberados: cenoura e maçã sem semente, com moderação</p></div>
+      </div>
+      <div class="diet-no">
+        <i class="ti ti-x"></i><p>Evitar: petiscos industrializados, ossos cozidos e sobras temperadas</p>
+      </div>
+
+      <div class="card">
+        <div class="row"><i class="ti ti-file-text" style="color:var(--turquesa);font-size:20px"></i><div class="grow"><div class="rt">Receita de comida natural</div><div class="rs">PDF · atualizado 20/06</div></div><i class="ti ti-download" style="color:var(--marinho)"></i></div>
+      </div>
+
+      <button class="btn btn-wa"><i class="ti ti-brand-whatsapp" style="font-size:18px"></i> Tirar dúvida sobre a dieta</button>
+    </div>
+  </section>
+
+  <!-- ============================ PESO ============================ -->
+  <section class="screen" id="peso">
+    <div class="head"><button class="back" onclick="go('inicio')" aria-label="Voltar ao início"><i class="ti ti-chevron-left"></i></button>Peso</div>
+    <div class="pad">
+      <div class="label">evolução do peso · meta 30 kg</div>
+      <div class="chart-card">
+        <svg viewBox="0 0 280 150" style="width:100%;height:auto" role="img" aria-label="Peso caindo de 34,2 kg em abril para 32,1 kg hoje">
+          <line x1="24" y1="120" x2="270" y2="120" stroke="#F1EFE8"/><line x1="24" y1="80" x2="270" y2="80" stroke="#F1EFE8"/><line x1="24" y1="40" x2="270" y2="40" stroke="#F1EFE8"/>
+          <polyline points="40,40 100,58 160,80 220,96 250,102" fill="none" stroke="#00A1AE" stroke-width="2.5"/>
+          <circle cx="40" cy="40" r="4" fill="#00A1AE"/><circle cx="100" cy="58" r="4" fill="#00A1AE"/><circle cx="160" cy="80" r="4" fill="#00A1AE"/><circle cx="220" cy="96" r="4" fill="#00A1AE"/><circle cx="250" cy="102" r="5" fill="#0D2048"/>
+          <line x1="24" y1="115" x2="270" y2="115" stroke="#F9B8C0" stroke-width="1.5" stroke-dasharray="4 3"/>
+          <text x="40" y="140" font-size="9" fill="#5F5E5A" text-anchor="middle">abr</text><text x="100" y="140" font-size="9" fill="#5F5E5A" text-anchor="middle">mai</text><text x="160" y="140" font-size="9" fill="#5F5E5A" text-anchor="middle">jun</text><text x="220" y="140" font-size="9" fill="#5F5E5A" text-anchor="middle">jul</text><text x="250" y="140" font-size="9" fill="#0D2048" text-anchor="middle">hoje</text>
+        </svg>
+        <div class="chart-legend"><span>34,2 kg em abril</span><span style="color:#993556">— meta</span></div>
+      </div>
+      <div class="insight"><i class="ti ti-bulb"></i> A fisioterapia e a dieta estão funcionando: -2,1 kg no acompanhamento. Faltam 2,1 kg para a meta.</div>
+    </div>
+  </section>
+
+  <!-- ============================ FISIOTERAPIA ============================ -->
+  <section class="screen" id="fisio">
+    <div class="head"><button class="back" onclick="go('inicio')" aria-label="Voltar ao início"><i class="ti ti-chevron-left"></i></button>Fisioterapia</div>
+    <div class="pad">
+      <div class="fisio-card">
+        <div class="cat">Reabilitação ortopédica</div>
+        <div class="big">sessão 6 <small>de 10</small></div>
+        <div class="bar"><div style="width:60%"></div></div>
+        <div class="meta">4 sessões restantes · válido até 20/08</div>
+      </div>
+      <div class="label">histórico recente</div>
+      <div class="card">
+        <div class="row"><i class="ti ti-wave-sine" style="color:var(--turquesa)"></i><div class="grow"><div class="rt">Sessão 6 · laserterapia</div><div class="rs">04/07 · boa resposta à marcha</div></div></div>
+        <div class="row"><i class="ti ti-swimming" style="color:var(--turquesa)"></i><div class="grow"><div class="rt">Sessão 5 · hidroterapia</div><div class="rs">27/06 · 8 min esteira</div></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ INTERNAÇÃO ============================ -->
+  <section class="screen" id="internacao">
+    <div class="head"><button class="back" onclick="go('inicio')" aria-label="Voltar ao início"><i class="ti ti-chevron-left"></i></button>Internação</div>
+    <div class="pad">
+      <div class="status">
+        <span class="pill"><i class="ti ti-point"></i> internado</span>
+        <span class="since">desde 02/07 · baia 4</span>
+      </div>
+
+      <div class="boletim">
+        <div class="boletim-head"><span class="t">Boletim de hoje</span><span class="d">04/07 · manhã</span></div>
+        <p>Thor passou bem a noite. Se alimentou pela manhã, sem vômitos. Hidratação mantida. Ânimo bom, recebeu visita da equipe de fisio.</p>
+        <div class="assin"><i class="ti ti-clock"></i> próxima medicação às 14h · assinado por Dra. Vivian 09h20</div>
+      </div>
+
+      <div class="label">boletins anteriores</div>
+      <div class="card">
+        <div class="row"><i class="ti ti-moon" style="color:#534AB7"></i><div class="grow"><div class="rt">03/07 · noite</div><div class="rs">Estável, dormiu bem, aceitou ração</div></div></div>
+        <div class="row"><i class="ti ti-sun" style="color:#BA7517"></i><div class="grow"><div class="rt">03/07 · manhã</div><div class="rs">Iniciada fluidoterapia, apetite parcial</div></div></div>
+        <div class="row"><i class="ti ti-moon" style="color:#534AB7"></i><div class="grow"><div class="rt">02/07 · noite</div><div class="rs">Entrada, exames coletados, monitorado</div></div></div>
+      </div>
+
+      <button class="btn btn-wa"><i class="ti ti-brand-whatsapp" style="font-size:18px"></i> Falar com a equipe de plantão</button>
+    </div>
+  </section>
+
+  <!-- ============================ AGENDAR ============================ -->
+  <section class="screen" id="agendar">
+    <div class="head"><button class="back" onclick="go('inicio')" aria-label="Voltar ao início"><i class="ti ti-chevron-left"></i></button>Agendar</div>
+    <div class="pad">
+      <div class="priority"><i class="ti ti-star"></i> Cliente Empório — agendamento prioritário liberado</div>
+      <div class="label">tipo de atendimento</div>
+      <div class="type-grid" id="type-grid">
+        <button class="type sel">Consulta</button>
+        <button class="type">Fisioterapia</button>
+        <button class="type">Alimentação</button>
+        <button class="type">Medicina integrativa</button>
+      </div>
+      <div class="label">horários — sexta 11/07</div>
+      <div class="slots" id="slots">
+        <button class="slot">09:00</button>
+        <button class="slot">10:30</button>
+        <button class="slot">14:00</button>
+        <button class="slot">16:30</button>
+      </div>
+      <button class="btn btn-primary" id="btn-agendar">Confirmar agendamento prioritário</button>
+    </div>
+  </section>
+
+  <!-- ============================ MINHA FICHA ============================ -->
+  <section class="screen" id="ficha">
+    <div class="head"><button class="back" onclick="go('inicio')" aria-label="Voltar ao início"><i class="ti ti-chevron-left"></i></button>Minha ficha</div>
+    <div class="pad">
+      <div class="label">seus dados</div>
+      <div class="form">
+        <div class="field"><label>Nome</label><input value="Cintia" /></div>
+        <div class="field"><label>Telefone</label><div class="lock"><input value="(85) 9••••-••••" disabled /><i class="ti ti-lock"></i></div></div>
+        <div class="field"><label>E-mail</label><input value="cintia@email.com" /></div>
+        <div class="field"><label>Endereço</label><input value="Edson Queiroz, Fortaleza" /></div>
+      </div>
+      <div class="label">dados do Thor</div>
+      <div class="form">
+        <div class="field"><label>Espécie / raça</label><input value="Cão · Golden Retriever" /></div>
+        <div class="field"><label>Nascimento</label><input value="14/03/2020" /></div>
+        <div class="field"><label>Alergias</label><input value="Nenhuma conhecida" /></div>
+      </div>
+      <button class="btn btn-primary" id="btn-salvar">Salvar alterações</button>
+    </div>
+  </section>
+
+</div>
+
+<script>
+  // Navegação entre telas (protótipo). No app real, usar o roteador do framework.
+  function go(id) {
+    document.querySelectorAll('.screen').forEach(function (s) { s.classList.remove('active'); });
+    var el = document.getElementById(id);
+    if (el) { el.classList.add('active'); }
+    document.querySelector('.app').scrollTop = 0;
+    window.scrollTo(0, 0);
+  }
+
+  // Seleção de tipo de atendimento (agendar)
+  var typeGrid = document.getElementById('type-grid');
+  if (typeGrid) {
+    typeGrid.querySelectorAll('.type').forEach(function (b) {
+      b.addEventListener('click', function () {
+        typeGrid.querySelectorAll('.type').forEach(function (x) { x.classList.remove('sel'); });
+        b.classList.add('sel');
+      });
+    });
+  }
+
+  // Seleção de horário (agendar)
+  var slots = document.getElementById('slots');
+  if (slots) {
+    slots.querySelectorAll('.slot').forEach(function (b) {
+      b.addEventListener('click', function () {
+        slots.querySelectorAll('.slot').forEach(function (x) { x.classList.remove('sel'); });
+        b.classList.add('sel');
+      });
+    });
+  }
+
+  // Feedbacks de ação (protótipo). No app real, chamam a API.
+  function feedback(btn, texto) {
+    if (!btn) return;
+    btn.addEventListener('click', function () {
+      btn.textContent = texto;
+      btn.style.background = '#1D9E75';
+    });
+  }
+  feedback(document.getElementById('btn-agendar'), 'Solicitação enviada — a recepção confirma no WhatsApp');
+  feedback(document.getElementById('btn-salvar'), 'Dados atualizados');
+
+  // Trocar foto do pet (protótipo). No app real, abre câmera/galeria e faz upload.
+  var btnFoto = document.getElementById('btn-foto');
+  if (btnFoto) {
+    btnFoto.addEventListener('click', function () {
+      btnFoto.innerHTML = '<i class="ti ti-check"></i>';
+    });
+  }
+</script>
+</body>
+</html>

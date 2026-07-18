@@ -1,9 +1,10 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { LuX, LuSearch, LuRepeat, LuPlus, LuTrash2, LuCheck, LuUserPlus, LuExternalLink } from "react-icons/lu";
 
-type Defaults = { date?: string; time?: string; userId?: string; duration?: number; tutor?: any; petId?: string } | null;
+type Defaults = { date?: string; time?: string; userId?: string; duration?: number; tutor?: any; petId?: string; agendaAvulsa?: string; avulsaNome?: string } | null;
 type Props = { open: boolean; onClose: () => void; onCreated?: () => void; defaults?: Defaults; editAppt?: any; inline?: boolean };
 
 const STATUS = ["Agendado", "Confirmado", "Em espera", "Em atendimento", "Atendido", "Animal pronto", "Atrasado", "Cancelado"];
@@ -15,10 +16,11 @@ const TIPOS_FALLBACK = ["Consulta Clínica", "Consulta Integrativa", "Consulta F
 
 export default function NovoAgendamentoModal({ open, onClose, onCreated, defaults, editAppt, inline }: Props) {
   const router = useRouter();
+  const { data: _sess } = useSession();
+  const meId = (_sess as any)?.user?.id as string | undefined;
   const lbl = inline ? "text-[10.5px] text-[#5b6470] font-medium block mb-0.5" : "text-[13px] text-[#334155] font-medium block mb-1";
   const inp = inline ? "w-full border border-[#E3DEC9] rounded-lg px-2 py-1.5 text-[12.5px] text-[#14253a] focus:outline-none focus:border-[#009AAC]" : "w-full border border-[#d8d0bc] rounded-lg px-3 py-2 text-[16px] text-[#14253a] focus:outline-none focus:border-[#009AAC]";
   const [step, setStep] = useState(1);
-  const [tutors, setTutors] = useState<any[]>([]);
   const [profs, setProfs] = useState<any[]>([]);
   const [tipos, setTipos] = useState<string[]>([]);
   const [busca, setBusca] = useState("");
@@ -32,7 +34,9 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
   const [duration, setDuration] = useState(30);
   const [status, setStatus] = useState("Agendado");
   const [obs, setObs] = useState("");
-  const [itens, setItens] = useState<{ descricao: string; qtd: string; valor: string }[]>([]);
+  const [itens, setItens] = useState<{ descricao: string; qtd: string; valor: string; servicoId?: string }[]>([]);
+  const [servicos, setServicos] = useState<any[]>([]); // catálogo (Config › Serviços e Produtos)
+  const [avulsas, setAvulsas] = useState<any[]>([]); // agendas avulsas (MAP / Parceiro) p/ poder trocar a agenda
   const [recOn, setRecOn] = useState(false);
   const [freq, setFreq] = useState("7");
   const [dias, setDias] = useState<string[]>([]);
@@ -44,22 +48,24 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
   const [nTel, setNTel] = useState("");
   const [savingCli, setSavingCli] = useState(false);
   const [cfgAgenda, setCfgAgenda] = useState<any>({});
+  const [agendaAvulsa, setAgendaAvulsa] = useState<string>("");
+  const [avulsaNome, setAvulsaNome] = useState<string>("");
   const [dayAppts, setDayAppts] = useState<any[]>([]);
   const [confirmarWa, setConfirmarWa] = useState(true);
 
   useEffect(() => {
     if (!open) return;
     (async () => {
-      const [t, p, c] = await Promise.all([
-        fetch("/api/tutors?limit=1000").then((r) => r.json()).catch(() => []),
+      const [p, c] = await Promise.all([
         fetch("/api/profissionais").then((r) => r.json()).catch(() => []),
         fetch("/api/listas?lista=agenda_config", { cache: "no-store" }).then((r) => r.json()).catch(() => []),
       ]);
       try { const ca = Array.isArray(c) ? c : (c.itens || c.data || []); if (ca[0]?.valor) setCfgAgenda(JSON.parse(ca[0].valor)); } catch {}
-      setTutors(Array.isArray(t) ? t : (t.tutors || t.data || []));
       const pl = Array.isArray(p) ? p : (p.data || []);
       setProfs(pl.filter((x: any) => x.ativo !== false && x.userId && !["RECEPCIONISTA", "GERENTE"].includes(x.tipo)));
       try { const r = await fetch("/api/listas?lista=atendimento_tipo", { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.itens || d.data || []); const ts = arr.map((i: any) => { try { const o = JSON.parse(i.valor); return o.l || o.nome || o.v || i.valor; } catch { return i.valor; } }).filter(Boolean); setTipos(ts.length ? ts : TIPOS_FALLBACK); } catch { setTipos(TIPOS_FALLBACK); }
+      try { const r = await fetch("/api/servicos/itens?limit=1000", { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.servicos || d.itens || d.data || []); setServicos(arr); } catch {}
+      try { const r = await fetch("/api/listas?lista=agenda_avulsa", { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.itens || d.data || []); setAvulsas(arr.map((i: any) => { try { return JSON.parse(i.valor); } catch { return null; } }).filter((a: any) => a && a.ativo !== false)); } catch {}
     })();
   }, [open]);
 
@@ -73,7 +79,8 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
       setType(editAppt.type || ""); setStatus(editAppt.status || "Agendado");
       setDate(`${dd.getFullYear()}-${z(dd.getMonth() + 1)}-${z(dd.getDate())}`); setTime(`${z(dd.getHours())}:${z(dd.getMinutes())}`);
       setDuration(editAppt.duration || 30); setObs(editAppt.notes || "");
-    } else if (defaults) { if (defaults.date) setDate(defaults.date); if (defaults.time) setTime(defaults.time); if (defaults.userId) setUserId(defaults.userId); if (defaults.duration) setDuration(Number(defaults.duration)); if (defaults.tutor) { setTutor(defaults.tutor); setStep(2); } if (defaults.petId) setPetId(defaults.petId); }
+      setAgendaAvulsa(editAppt.agendaAvulsa || ""); setAvulsaNome(editAppt.agendaAvulsaNome || "");
+    } else if (defaults) { if (defaults.date) setDate(defaults.date); if (defaults.time) setTime(defaults.time); if (defaults.userId) setUserId(defaults.userId); if (defaults.duration) setDuration(Number(defaults.duration)); if (defaults.tutor) { setTutor(defaults.tutor); setStep(2); } if (defaults.petId) setPetId(defaults.petId); if (defaults.agendaAvulsa) setAgendaAvulsa(defaults.agendaAvulsa); if (defaults.avulsaNome) setAvulsaNome(defaults.avulsaNome); }
   }, [open, editAppt, defaults]);
 
   useEffect(() => {
@@ -97,7 +104,25 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
 
   const telOf = (t: any) => (t?.contacts?.[0]?.number) || (t?.contacts?.[0]?.value) || t?.phone || "";
   const petNomes = (t: any) => (t?.pets || []).map((p: any) => p.name).filter(Boolean);
-  const resultados = useMemo(() => { const q = busca.trim().toLowerCase(); if (q.length < 2) return []; const qn = busca.replace(/\D/g, ""); return tutors.filter((t: any) => (t.name || "").toLowerCase().includes(q) || (qn && telOf(t).replace(/\D/g, "").includes(qn)) || petNomes(t).some((n: string) => n.toLowerCase().includes(q))).slice(0, 25); }, [busca, tutors]);
+  // Busca de cliente no SERVIDOR (entre todos os clientes), com debounce.
+  // Antes filtrava só os 1000 carregados no navegador -> clientes além disso não apareciam.
+  const [resultados, setResultados] = useState<any[]>([]);
+  const [buscandoCli, setBuscandoCli] = useState(false);
+  useEffect(() => {
+    const q = busca.trim();
+    if (q.length < 2) { setResultados([]); setBuscandoCli(false); return; }
+    let cancelled = false; setBuscandoCli(true);
+    const h = setTimeout(async () => {
+      try {
+        const r = await fetch(`/api/tutors?search=${encodeURIComponent(q)}&limit=25`, { cache: "no-store" });
+        const d = await r.json();
+        const arr = Array.isArray(d) ? d : (d.tutors || d.data || []);
+        if (!cancelled) setResultados(arr);
+      } catch { if (!cancelled) setResultados([]); }
+      if (!cancelled) setBuscandoCli(false);
+    }, 250);
+    return () => { cancelled = true; clearTimeout(h); };
+  }, [busca]);
   const previsao = itens.reduce((s, it) => s + ((Number(it.qtd) || 1) * (Number(it.valor) || 0)), 0);
   function escDe(p: any) { let o: any = p?.escala; if (typeof o === "string") { try { o = JSON.parse(o); } catch { o = null; } } return o && typeof o === "object" ? o : null; }
   const fmtMin = (t: number) => `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`;
@@ -107,7 +132,9 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
     const wd = new Date(`${date}T00:00:00`).getDay();
     const hm = (s: string) => { const [a, b] = (s || "0:0").split(":"); return (+a) * 60 + (+b); };
     let windows: number[][] = [];
-    const e = escDe(prof);
+    // Agenda avulsa (MAP/Parceiro) usa o HORÁRIO DELA; profissional usa a escala dele.
+    const av = agendaAvulsa ? avulsas.find((a: any) => a.id === agendaAvulsa) : null;
+    const e = av ? escDe({ escala: av.horario }) : escDe(prof);
     if (e && e.semana) {
       if (Array.isArray(e.bloqueios) && e.bloqueios.some((b: any) => b.inicio && date >= b.inicio && (!b.fim || date <= b.fim))) return [];
       const js = e.semana[String(wd)] || [];
@@ -117,7 +144,8 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
       const hi = Number(cfgAgenda?.horaInicio ?? 8), hf = Number(cfgAgenda?.horaFim ?? 19);
       windows = [[hi * 60, hf * 60]];
     }
-    const step = Number(cfgAgenda?.intervalo) === 30 ? 30 : 15;
+    // Padrão 30 min (igual à grade da agenda). Só usa 15 se estiver configurado assim.
+    const step = Number(cfgAgenda?.intervalo) === 15 ? 15 : 30;
     const dur = Number(duration) || 30;
     const busy = dayAppts.filter((a: any) => a.id !== editId && a.date).map((a: any) => { const d = new Date(a.date); const s = d.getHours() * 60 + d.getMinutes(); return [s, s + (Number(a.duration) || 30)]; });
     const out: number[] = [];
@@ -127,9 +155,9 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
       }
     }
     return out;
-  }, [userId, date, duration, profs, cfgAgenda, dayAppts, editId]);
+  }, [userId, date, duration, profs, cfgAgenda, dayAppts, editId, agendaAvulsa, avulsas]);
 
-  function reset() { setStep(1); setEditId(null); setNovoCli(false); setNNome(""); setNTel(""); setBusca(""); setTutor(null); setPets([]); setPetId(""); setUserId(""); setType(""); setDate(""); setTime(""); setDuration(30); setStatus("Agendado"); setObs(""); setItens([]); setRecOn(false); setFreq("7"); setDias([]); setAte(""); }
+  function reset() { setStep(1); setEditId(null); setNovoCli(false); setNNome(""); setNTel(""); setBusca(""); setTutor(null); setPets([]); setPetId(""); setUserId(""); setType(""); setDate(""); setTime(""); setDuration(30); setStatus("Agendado"); setObs(""); setItens([]); setRecOn(false); setFreq("7"); setDias([]); setAte(""); setAgendaAvulsa(""); setAvulsaNome(""); }
   function fechar() { reset(); onClose(); }
   function escolherTutor(t: any) { setTutor(t); setStep(2); }
   function toggleDia(d: string) { setDias((p) => p.includes(d) ? p.filter((x) => x !== d) : [...p, d]); }
@@ -163,13 +191,15 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
     try {
       if (editId) {
         const body: any = { petId, userId, date: new Date(`${date}T${time}`).toISOString(), type: type || "Consulta", status, duration: Number(duration) || 30, notes: obs };
+        if (agendaAvulsa) body.agendaAvulsa = agendaAvulsa;
         const res = await fetch(`/api/appointments/${editId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(body) });
         if (!res.ok) throw new Error();
       } else {
         for (const d of datasRecorrentes()) {
           const body: any = { tutorId: tutor.id, petId, userId, date: d.toISOString(), type: type || "Consulta", status, duration: Number(duration) || 30 };
+          if (agendaAvulsa) body.agendaAvulsa = agendaAvulsa;
           if (obs) body.notes = obs;
-          const its = itens.filter((i) => i.descricao || i.valor).map((i) => ({ descricao: i.descricao || "Item", quantidade: Number(i.qtd) || 1, valorUnitario: Number(i.valor) || 0 }));
+          const its = itens.filter((i) => i.descricao || i.valor).map((i) => ({ descricao: i.descricao || "Item", quantidade: Number(i.qtd) || 1, valorUnitario: Number(i.valor) || 0, ...(i.servicoId ? { servicoId: i.servicoId, productId: i.servicoId } : {}) }));
           if (its.length) body.items = its;
           const res = await fetch("/api/appointments", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(body) });
           if (!res.ok) throw new Error();
@@ -220,11 +250,13 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
           <div className="p-5">
             <div className="flex items-center gap-2 border border-[#d8d0bc] rounded-lg px-3 py-2 mb-3">
               <LuSearch size={16} className="text-[#94a3b8]" />
-              <input autoFocus value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por cliente ou pet…" className="flex-1 text-[16px] text-[#14253a] focus:outline-none" />
+              <input autoFocus value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar cliente (nome, telefone ou CPF)…" className="flex-1 text-[16px] text-[#14253a] focus:outline-none" />
             </div>
             <div className="space-y-1 max-h-[320px] overflow-y-auto">
               {busca.trim().length < 2 ? (
-                <div className="text-center text-[13px] text-[#475569] py-8">Digite ao menos 2 letras (cliente ou pet).</div>
+                <div className="text-center text-[13px] text-[#475569] py-8">Digite ao menos 2 letras do nome, telefone ou CPF.</div>
+              ) : buscandoCli ? (
+                <div className="text-center text-[13px] text-[#475569] py-8">Buscando…</div>
               ) : resultados.length === 0 ? (
                 <div className="text-center text-[13px] text-[#475569] py-8">Nenhum cliente encontrado.</div>
               ) : resultados.map((t: any) => (
@@ -275,10 +307,26 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
             </div>
 
             <div className={inline ? "grid grid-cols-2 gap-2" : "grid grid-cols-2 gap-3"}>
-              <div><label className={lbl}>Profissional *</label>
-                <select value={userId} onChange={(e) => setUserId(e.target.value)} className={inp}>
+              <div><label className={lbl}>Agenda / Profissional *</label>
+                <select
+                  value={agendaAvulsa ? `av:${agendaAvulsa}` : (userId ? `pf:${userId}` : "")}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (v.startsWith("av:")) { const id = v.slice(3); setAgendaAvulsa(id); setAvulsaNome(avulsas.find((a: any) => a.id === id)?.nome || ""); if (!userId) setUserId(meId || ""); }
+                    else if (v.startsWith("pf:")) { setAgendaAvulsa(""); setAvulsaNome(""); setUserId(v.slice(3)); }
+                    else { setAgendaAvulsa(""); setAvulsaNome(""); setUserId(""); }
+                  }}
+                  className={inp}
+                >
                   <option value="">Selecione...</option>
-                  {profs.map((p: any) => <option key={p.id} value={p.userId}>{p.nomeExibicao || p.nomeCompleto}</option>)}
+                  <optgroup label="👩‍⚕️ Profissionais">
+                    {profs.map((p: any) => <option key={p.id} value={`pf:${p.userId}`}>{p.nomeExibicao || p.nomeCompleto}</option>)}
+                  </optgroup>
+                  {avulsas.length > 0 && (
+                    <optgroup label="📋 Agendas avulsas">
+                      {avulsas.map((a: any) => <option key={a.id} value={`av:${a.id}`}>{a.nome}</option>)}
+                    </optgroup>
+                  )}
                 </select>
               </div>
               <div><label className={lbl}>Data *</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={inp} /></div>
@@ -348,12 +396,14 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
               </div>
               {itens.map((it, i) => (
                 <div key={i} className="flex items-center gap-2 mt-2">
-                  <input value={it.descricao} onChange={(e) => setItens((p) => p.map((x, idx) => idx === i ? { ...x, descricao: e.target.value } : x))} placeholder="Serviço/produto" className="flex-1 min-w-0 border border-[#d8d0bc] rounded-lg px-3 py-2 text-[16px] text-[#14253a] focus:outline-none focus:border-[#009AAC]" />
+                  <input list="ag-catalogo" value={it.descricao} onChange={(e) => { const val = e.target.value; const hit = servicos.find((s: any) => String(s.nome || "").toLowerCase() === val.toLowerCase()); setItens((p) => p.map((x, idx) => idx === i ? { ...x, descricao: val, ...(hit ? { valor: String(hit.valorPadrao ?? hit.valor ?? x.valor ?? ""), servicoId: hit.id } : { servicoId: undefined }) } : x)); }} placeholder="Buscar serviço/produto do catálogo…" className="flex-1 min-w-0 border border-[#d8d0bc] rounded-lg px-3 py-2 text-[16px] text-[#14253a] focus:outline-none focus:border-[#009AAC]" />
                   <input value={it.qtd} onChange={(e) => setItens((p) => p.map((x, idx) => idx === i ? { ...x, qtd: e.target.value } : x))} placeholder="Qtd" inputMode="numeric" title="Quantidade" className="flex-none border border-[#d8d0bc] rounded-lg px-2 py-2 text-[16px] text-[#14253a] text-center focus:outline-none focus:border-[#009AAC]" style={{ width: "58px" }} />
                   <input value={it.valor} onChange={(e) => setItens((p) => p.map((x, idx) => idx === i ? { ...x, valor: e.target.value } : x))} placeholder="Valor un." inputMode="decimal" title="Valor unitário" className="flex-none border border-[#d8d0bc] rounded-lg px-3 py-2 text-[16px] text-[#14253a] focus:outline-none focus:border-[#009AAC]" style={{ width: "96px" }} />
                   <button onClick={() => setItens((p) => p.filter((_, idx) => idx !== i))} className="text-[#94a3b8] hover:text-[#E24B4A]"><LuTrash2 size={15} /></button>
                 </div>
               ))}
+              <datalist id="ag-catalogo">{servicos.map((s: any) => <option key={s.id} value={s.nome}>{Number(s.valorPadrao ?? s.valor ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</option>)}</datalist>
+              {itens.some((it) => it.descricao && !it.servicoId) ? <div className="text-[11px] text-[#8a6400] mt-1">Itens sem vínculo com o catálogo entram como “avulso” (sem comissão/estoque). Escolha da lista pra vincular.</div> : null}
               {itens.length ? <div className="flex justify-between text-[13px] mt-2 pt-2 border-t" style={{ borderColor: "#eef0e6" }}><span className="text-[#6b7280]">Previsão de receita</span><span className="font-medium text-[#0F6E56]">{previsao.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span></div> : null}
             </div>
           </div>

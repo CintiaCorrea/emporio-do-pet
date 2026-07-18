@@ -1,8 +1,7 @@
 "use client";
 import { confirmDelete } from "@/lib/ui/confirmDelete";
 
-import { useEffect, useState, useMemo } from "react";
-import { criarPetEAbrir } from "@/lib/actions/pets";
+import { useEffect, useState, useMemo, useRef } from "react";
 import Link from "next/link";
 import {
   LuSearch, LuPhone, LuPlus, LuExternalLink, LuShare2, LuCheckCheck,
@@ -15,6 +14,11 @@ import { FaWhatsapp } from "react-icons/fa";
 import toast from "react-hot-toast";
 import { speciesKey, ageFromBirth } from "@/lib/pets/labels";
 import NovoAgendamentoModal from "@/components/agendamentos/NovoAgendamentoModal";
+import BoletimModal from "@/components/pets/BoletimModal";
+import ClienteEditModal from "@/components/inbox/ClienteEditModal";
+import PetEditModal from "@/components/inbox/PetEditModal";
+import { SendEmailModal } from "@/components/email/SendEmailModal";
+import { loadExameFases } from "@/lib/exameFases";
 
 function scorePie(score: number, max: number, color: string) {
   const f = Math.max(0, Math.min(1, max ? score / max : 0));
@@ -66,6 +70,7 @@ interface Pet {
   weight?: number | null; sterilization?: string | null; coatColor?: string | null; microchip?: string | null; insurancePlan?: string | null;
   pipelineClinicoEtapa?: string | null;
   pipelineFisioEtapa?: string | null;
+  proximoFollowupAt?: string | null;
 }
 interface HistoricoItem {
   id: string;
@@ -81,7 +86,10 @@ interface HistoricoItem {
 interface Staff { id: string; name: string | null; role: string; }
 interface IncomingItem {
   id: string;
+  /** Decide o que o clique abre (e o tipo de `raw`) — NÃO é a etiqueta. */
   kind: "LEAD" | "CLIENTE";
+  /** Registro de lead cujo telefone já pertence a um cliente: abre como lead, mas exibe "Cliente". */
+  jaECliente?: boolean;
   name: string;
   phone: string;
   petName?: string;
@@ -128,6 +136,9 @@ const SPECIES_EMOJI: Record<string, string> = { CANINE: "🐶", FELINE: "🐱", 
 function speciesEmoji(s?: string | null): string { return SPECIES_EMOJI[speciesKey(s)] || "🐾"; }
 function onlyDigits(s: string): string { return (s || "").replace(/\D/g, ""); }
 function last9(s: string): string { const d = onlyDigits(s); return d.length > 9 ? d.slice(-9) : d; }
+// last8 ignora o "9" do celular: telefone do Meta vem sem o 9 e o do cadastro com o 9,
+// então os últimos 8 dígitos são o denominador comum pra casar/juntar (evita card duplicado).
+function last8(s: string): string { const d = onlyDigits(s); return d.length > 8 ? d.slice(-8) : d; }
 function normalizePhone(raw: string): string {
   const d = onlyDigits(raw);
   if (!d) return "";
@@ -213,9 +224,18 @@ function extrairServico(resumo?: string | null, customField?: string | null): st
 type Tab = "inbox" | "contexto";
 
 // [EMP-COWORK] busca+acoes mesma linha (Cintia 07/06)
-export default function InboxRightPanel({ canal = "BotConversa", initialPhone }: { canal?: string; initialPhone?: string | null }) {
+export default function InboxRightPanel({ canal = "BotConversa", initialPhone, initialTutorId, soContexto = false }: { canal?: string; initialPhone?: string | null; initialTutorId?: string | null; soContexto?: boolean }) {
   // ===== Tab control =====
-  const [activeTab, setActiveTab] = useState<Tab>("inbox");
+  // soContexto: quando o inbox já tem lista própria (Meta), o painel mostra SÓ o Contexto
+  // (a ficha) — sem a 2ª "Caixa de entrada" redundante.
+  const [activeTab, setActiveTab] = useState<Tab>(soContexto ? "contexto" : "inbox");
+  const skipSearchRef = useRef(false); // evita a busca reabrir a "abinha" apos selecionar (item 1)
+  const [acaoFeita, setAcaoFeita] = useState(false); // libera o "finalizar" so apos registrar interacao (item 9)
+  const [clienteEditOpen, setClienteEditOpen] = useState(false); // pop-up editar cliente (item 2)
+  const [petEdit, setPetEdit] = useState<Pet | null>(null); // pop-up editar pet (item 4)
+  // Accordion: seções que estão FECHADAS (por padrão tudo aberto). Clicar no título alterna.
+  const [secFechadas, setSecFechadas] = useState<Set<string>>(new Set());
+  const toggleSec = (id: string) => setSecFechadas((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
   // ===== Caixa de Entrada =====
   const [incoming, setIncoming] = useState<IncomingItem[]>([]);
@@ -237,6 +257,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
   useEffect(() => { if (pets.length && !pets.some((p) => p.id === selectedPet?.id)) setSelectedPet(pets[0]); }, [pets]);
   const [breedOptions, setBreedOptions] = useState<string[]>([]);
   const [pacotesInbox, setPacotesInbox] = useState<{ id: string; data: any }[]>([]);
+  const [boletimOpen, setBoletimOpen] = useState(false); // popup de boletim de fisio (dentro do box)
   const [fisioSrvInbox, setFisioSrvInbox] = useState<any[]>([]);
   const [pacFormInbox, setPacFormInbox] = useState<{ open: boolean; serviceId: string; total: string; jaFeitas: string }>({ open: false, serviceId: "", total: "4", jaFeitas: "0" });
   const [savingPacInbox, setSavingPacInbox] = useState(false);
@@ -265,6 +286,17 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
   const [petActForward, setPetActForward] = useState(false);
   const [tutorScore, setTutorScore] = useState<{ total: number; label: string; dimensions: any } | null>(null);
   const [inscricoes, setInscricoes] = useState<any[]>([]);
+  // Seletor de sequência (cadência) pro pet — item 6
+  const [seqPickerOpen, setSeqPickerOpen] = useState(false);
+  const [seqModelos, setSeqModelos] = useState<any[]>([]);
+  const [seqLoading, setSeqLoading] = useState(false);
+  const [seqSaving, setSeqSaving] = useState(false);
+  const [emailOpen, setEmailOpen] = useState(false); // modal de e-mail pro cliente
+  // Exames do pet (Fatia 1 do item 8) — só acompanhar (avançar a fase)
+  const [exOpen, setExOpen] = useState(false);
+  const [exList, setExList] = useState<{ id: string; data: any }[]>([]);
+  const [exFases, setExFases] = useState<string[]>(["Solicitar", "Retirado", "Aguardando", "Resultado", "Entregue"]);
+  const [exLoading, setExLoading] = useState(false);
   const [vacPend, setVacPend] = useState<{ id: string; nome: string; numero: number; dataPrevista: string; vencida: boolean; dias: number }[]>([]);
 
   const [cadastroOpen, setCadastroOpen] = useState(false);
@@ -273,14 +305,14 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
 
   const [interacaoOpen, setInteracaoOpen] = useState(false);
   const [classifOpen, setClassifOpen] = useState(false);
-  const [classifCats, setClassifCats] = useState<string[]>(["Cliente", "Fornecedor", "Parceiro"]);
+  const [classifCats, setClassifCats] = useState<string[]>(["Cliente", "Fornecedor", "Profissional"]);
   useEffect(() => {
     fetch(`/api/listas?lista=classificacao_tutor`, { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => {
         const arr = Array.isArray(d) ? d : (d.itens || d.data || []);
         const extras = arr.map((i: any) => i.valor).filter(Boolean);
-        const base = ["Cliente", "Fornecedor", "Parceiro"];
+        const base = ["Cliente", "Fornecedor", "Profissional"];
         setClassifCats([...base, ...extras.filter((v: string) => !base.includes(v))]);
       })
       .catch(() => {});
@@ -360,6 +392,73 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
     setInscricoes(list => list.filter(x => x.id !== id));
   }
 
+  // Abre o seletor com as sequências (cadências) ATIVAS — os "modelos".
+  async function abrirSeletorSequencia() {
+    setSeqPickerOpen(true);
+    setSeqLoading(true);
+    try {
+      const r = await fetch(`/api/cadencias`); // sem includeInactive = só ativas
+      const arr = await safeJson<any[]>(r, []);
+      setSeqModelos(Array.isArray(arr) ? arr : []);
+    } catch { setSeqModelos([]); }
+    setSeqLoading(false);
+  }
+
+  // Inscreve o PET selecionado na sequência escolhida e SAI da caixa
+  // (reusa o resolve: some da caixa e só volta se o cliente responder).
+  async function iniciarSequencia(cad: any) {
+    if (!tutor || !selectedPet) return;
+    const phone = (tutor.contacts || [])[0]?.number || "";
+    if (!phone) { toast.error("Cliente sem telefone para a sequência."); return; }
+    setSeqSaving(true);
+    try {
+      const r = await fetch(`/api/cadencias/${cad.id}/inscrever`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ petId: selectedPet.id, tutorId: tutor.id, phone }),
+      });
+      if (!r.ok) throw new Error();
+      await fetch("/api/inbox/context/resolve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tutorId: tutor.id, texto: `Sequência "${cad.nome}" iniciada para ${selectedPet.name}` }),
+      }).catch(() => {});
+      toast.success(`Sequência "${cad.nome}" iniciada 🔁`);
+      setSeqPickerOpen(false);
+      setAcaoFeita(true);
+      loadIncoming();
+      reset();
+    } catch { toast.error("Não consegui iniciar a sequência."); }
+    setSeqSaving(false);
+  }
+
+  // Abre o painel de exames do pet (mesmo dado da ficha/Hoje: listas petexa_)
+  async function abrirExames() {
+    if (!selectedPet) return;
+    setExOpen(true);
+    setExLoading(true);
+    try {
+      // fases configuráveis (Configurações › Listas → exame_fases), fonte única
+      setExFases(await loadExameFases());
+      const r = await fetch(`/api/listas?lista=petexa_${selectedPet.id}`, { cache: "no-store" });
+      const d = await safeJson<any>(r, []);
+      const arr = Array.isArray(d) ? d : (d.itens || d.data || []);
+      setExList(arr.map((i: any) => { let o: any = {}; try { o = JSON.parse(i.valor); } catch {} return { id: i.id, data: o }; }));
+    } catch { setExList([]); }
+    setExLoading(false);
+  }
+
+  // Avança a fase de um exame (grava no mesmo lugar das outras telas)
+  async function mudarFaseExame(id: string, data: any, novo: string) {
+    setExList((l) => l.map((x) => (x.id === id ? { ...x, data: { ...x.data, status: novo } } : x))); // otimista
+    try {
+      const r = await fetch(`/api/listas/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ valor: JSON.stringify({ ...data, status: novo }) }) });
+      if (!r.ok) throw new Error();
+      setAcaoFeita(true);
+      toast.success("Fase do exame atualizada");
+    } catch { toast.error("Erro ao atualizar a fase"); abrirExames(); }
+  }
+
   // Vacinas a resolver (doses pendentes vencidas ou <=7 dias) do pet selecionado
   useEffect(() => {
     if (!selectedPet?.id) { setVacPend([]); return; }
@@ -394,23 +493,40 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
       const items: IncomingItem[] = [];
       // Carrega todos os tutores de uma vez (evita N+1 e o sumico de cards por limite)
       const tutorMap = new Map<string, any>();
+      const tutorByPhone = new Map<string, any>(); // ultimo-8 do telefone -> tutor (reconciliacao)
+      const ambiguousPhones = new Set<string>(); // telefones com 2+ clientes: NAO adivinhar (fica lead/nao resolvido)
+      let tutorsOk = false;
       try {
-        const rAllT = await fetch(`/api/tutors?take=10000`);
+        // Versao LEVE (mesma da tela de Clientes): id/nome/telefone/pets-resumo, sem include pesado.
+        // Antes puxava /api/tutors?take=10000 com pets+contatos -> travava o inbox.
+        const rAllT = await fetch(`/api/tutors/lista-simples`);
         const dAllT = await safeJson<any>(rAllT, {});
         const allT = Array.isArray(dAllT) ? dAllT : (dAllT.tutors || dAllT.data || []);
-        for (const t of allT) tutorMap.set(t.id, t);
+        for (const t of allT) {
+          tutorMap.set(t.id, t);
+          for (const c of (t.contacts || [])) {
+            const p9 = last8(c?.number || "");
+            if (!p9) continue;
+            const ex = tutorByPhone.get(p9);
+            if (!ex) tutorByPhone.set(p9, t);
+            else if (ex.id !== t.id) ambiguousPhones.add(p9); // 2+ clientes no mesmo número → ambíguo
+          }
+        }
+        if (rAllT.ok && allT.length > 0) tutorsOk = true;
       } catch { /* segue sem map */ }
-      // Últimas resoluções por lead/tutor (Interacao tipo RESOLVIDO)
+      // Últimas resoluções por lead/tutor — agora vêm da MARCA invisível (lista
+      // "inboxresolv", chave cli:<id> / lead:<id>, horário = updatedAt), não mais de uma
+      // interação. Assim a ficha do cliente não enche de "Conversa resolvida em...".
       const resolvedByTutor = new Map<string, number>();
       const resolvedByLead = new Map<string, number>();
       try {
-        const rR = await fetch(`/api/interacoes?tipo=RESOLVIDO&limit=200`);
+        const rR = await fetch(`/api/listas?lista=inboxresolv`);
         const arrR = await safeJson<any[]>(rR, []);
         for (const it of (Array.isArray(arrR) ? arrR : [])) {
-          if (it.tipo !== "RESOLVIDO") continue;
-          const ts = new Date(it.createdAt || 0).getTime();
-          if (it.tutorId && ts > (resolvedByTutor.get(it.tutorId) || 0)) resolvedByTutor.set(it.tutorId, ts);
-          if (it.leadId && ts > (resolvedByLead.get(it.leadId) || 0)) resolvedByLead.set(it.leadId, ts);
+          const v = String(it?.valor || "");
+          const ts = new Date(it?.updatedAt || it?.createdAt || 0).getTime();
+          if (v.startsWith("cli:")) { const id = v.slice(4); if (ts > (resolvedByTutor.get(id) || 0)) resolvedByTutor.set(id, ts); }
+          else if (v.startsWith("lead:")) { const id = v.slice(5); if (ts > (resolvedByLead.get(id) || 0)) resolvedByLead.set(id, ts); }
         }
       } catch { /* segue sem mapa de resolvidos */ }
       // Quem tem follow-up/sequência agendado sai da caixa (fica na ação)
@@ -418,6 +534,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
         !!x?.proximoFollowupAt && new Date(x.proximoFollowupAt).getTime() > Date.now();
       // Leads recentes (não-convertidos, não-resolvidos, sem follow-up futuro)
       const rL = await fetch(`/api/leads?source=WHATSAPP&limit=1000`);
+      const leadsOk = rL.ok;
       if (!rL.ok) hadError = true;
       const dL = await safeJson<any>(rL, {});
       const arrL = Array.isArray(dL) ? dL : (dL.leads || dL.data || []);
@@ -429,10 +546,20 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
         if (lastResolved && lastResolved >= lastActivity) return; // resolvido após última atividade
         const cf = l.customFields || {};
         const servico = extrairServico(l.resumoIa, cf.servicoInteresse || cf.servico_interesse);
+        // MESMA reconciliação do ramo das conversas do Meta (abaixo): o lead pode já ter
+        // virado cliente sem que o registro dele tenha sido marcado como convertido —
+        // aí a etiqueta ficava "LEAD" pra sempre. Telefone ambíguo (2+ clientes no mesmo
+        // número) continua como LEAD de propósito: não dá pra afirmar quem é.
+        const pL = last8(l.phone || "");
+        const tutorDoLead = pL && !ambiguousPhones.has(pL) ? (tutorByPhone.get(pL) || null) : null;
         items.push({
           id: `L-${l.id}`,
+          // kind continua LEAD: ele decide o que o CLIQUE abre (raw aqui é um Lead).
+          // Quem já é cliente muda só a ETIQUETA, via jaECliente.
           kind: "LEAD",
-          name: l.name || "Sem nome",
+          jaECliente: !!tutorDoLead,
+          classificacao: tutorDoLead?.classificacao,
+          name: tutorDoLead?.name || l.name || "Sem nome",
           phone: l.phone || "",
           petName: cf.petName || cf.pet_name || cf.petNome,
           petSpecies: cf.especie || cf.species,
@@ -481,24 +608,28 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
         for (const c of convs) {
           if (["RESOLVED", "CLOSED", "ARCHIVED"].includes(c.status)) continue;
           const phone = c.contactPhone || "";
-          const tutorId = c.tutorId || c.tutor?.id;
+          // Reconciliacao: usa o tutorId da conversa OU, se faltar, casa pelo telefone.
+          // Assim quem JA e cliente cadastrado nao aparece como LEAD so porque a
+          // conversa do Meta ainda nao foi vinculada ao Tutor no banco.
+          let tutor: any = (c.tutorId || c.tutor?.id) ? tutorMap.get(c.tutorId || c.tutor?.id) : null;
+          if (!tutor) { const p9 = last8(phone); if (p9 && !ambiguousPhones.has(p9)) tutor = tutorByPhone.get(p9) || null; }
+          const tutorId = tutor?.id || c.tutorId || c.tutor?.id || null;
           const lastMsg = new Date(c.lastMessageAt || c.updatedAt || 0).getTime();
-          let nome = c.contactName || c.contactPushName || c.tutor?.name || "Sem nome";
+          const nome = tutor?.name || c.contactName || c.contactPushName || c.tutor?.name || "Sem nome";
           if (tutorId) {
             const lr = resolvedByTutor.get(tutorId) || 0;
             if (lr && lr >= lastMsg) continue;
-            const t = tutorMap.get(tutorId);
-            if (t) { if (temFollowupFuturo(t)) continue; nome = t.name || nome; }
+            if (tutor && temFollowupFuturo(tutor)) continue;
           }
           items.push({
             id: `M-${c.id}`,
-            kind: tutorId ? "CLIENTE" : "LEAD",
+            kind: tutor ? "CLIENTE" : "LEAD",
             name: nome,
             phone,
             createdAt: c.lastMessageAt || c.updatedAt || new Date().toISOString(),
             canal: "Meta",
-            classificacao: tutorId ? tutorMap.get(tutorId)?.classificacao : undefined,
-            raw: (tutorMap.get(tutorId) || c) as any,
+            classificacao: tutor?.classificacao,
+            raw: (tutor || c) as any,
           });
         }
       } catch { /* ignora se Meta indisponivel */ }
@@ -508,7 +639,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
       const semPhone: IncomingItem[] = [];
       for (const it of ordenado) {
         const canal = it.canal || "BC";
-        const t = last9(it.phone);
+        const t = last8(it.phone);
         if (!t) { it.canais = [canal]; semPhone.push(it); continue; }
         const ex = porPhone.get(t);
         if (!ex) { it.canais = [canal]; porPhone.set(t, it); }
@@ -516,8 +647,15 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
       }
       const dedupado = [...porPhone.values(), ...semPhone]
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      setIncomingError(hadError);
-      setIncoming(dedupado);
+      // ESTABILIDADE: so troca a lista quando as buscas criticas (clientes + leads) deram certo.
+      // Se falharam, mantem as caixinhas que ja estavam na tela (evita o "pisca / some / volta").
+      if (tutorsOk && leadsOk) {
+        setIncomingError(hadError);
+        setIncoming(dedupado);
+      } else {
+        setIncomingError(true);
+        setIncoming((prev) => (prev.length > 0 ? prev : dedupado));
+      }
     } catch { setIncomingError(true); }
     setLoadingIncoming(false);
   }
@@ -531,6 +669,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
 
   // === Busca por texto/telefone ===
   useEffect(() => {
+    if (skipSearchRef.current) { skipSearchRef.current = false; setResults({ tutors: [], leads: [] }); return; }
     if (!search || search.length < 2) { setResults({ tutors: [], leads: [] }); return; }
     const t = setTimeout(async () => {
       setSearching(true);
@@ -560,8 +699,25 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
     return () => clearTimeout(t);
   }, [search]);
 
+  // initialTutorId: a conversa JÁ sabe quem é o cliente — carrega direto pelo id, sem
+  // depender do lookup por telefone (que às vezes não achava e deixava o Contexto vazio).
+  useEffect(() => {
+    if (!initialTutorId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/tutors/${initialTutorId}`);
+        const t = await safeJson<any>(res, null);
+        if (!cancelled && t?.id) await selectTutor(t);
+      } catch { /* cai no lookup por telefone */ }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialTutorId]);
+
   // initialPhone (Inbox Meta passa o phone do contato selecionado)
   useEffect(() => {
+    if (initialTutorId) return; // já carregou pelo id
     if (!initialPhone) return;
     const tail = last9(initialPhone);
     if (!tail || tail.length < 8) return;
@@ -674,7 +830,9 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
     setTutor(t);
     setLead(null);
     setLeadConversa(null);
+    setAcaoFeita(false);
     setResults({ tutors: [], leads: [] });
+    skipSearchRef.current = true;
     setSearch(t.name);
     setActiveTab("contexto"); // ABRE aba contexto
 
@@ -700,7 +858,9 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
   }
 
   async function selectLead(l: Lead, phoneHint?: string, createIfMissing?: { name?: string; phone?: string }) {
+    setAcaoFeita(false);
     setResults({ tutors: [], leads: [] });
+    skipSearchRef.current = true;
     setSearch(l.name || l.phone || "");
     setActiveTab("contexto"); // ABRE aba contexto
 
@@ -762,8 +922,8 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
     setSearch(""); setTutor(null); setLead(null); setLeadConversa(null); setLeadHistorico(null);
     setResults({ tutors: [], leads: [] }); setPets([]); setSelectedPet(null);
     setHistorico([]);
-    setCadastroOpen(false); setInteracaoOpen(false); setForwardOpen(false);
-    setActiveTab("inbox"); // volta pra Caixa
+    setCadastroOpen(false); setInteracaoOpen(false); setForwardOpen(false); setAcaoFeita(false);
+    setActiveTab(soContexto ? "contexto" : "inbox"); // sem a Caixa quando é só Contexto
   }
 
   // Garante um Lead REAL antes de uma acao. Se a conversa do Meta ainda nao virou Lead,
@@ -804,6 +964,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
     const res = await fetch(`/api/leads/${real.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pipelineComercialEtapa: value }) });
     if (!res.ok) { toast.error("Erro ao atualizar"); return; }
     toast.success("Etapa atualizada");
+    setAcaoFeita(true);
     setLead({ ...real, pipelineComercialEtapa: value });
   }
   async function salvarPetInteresse(nome: string, especie: string) {
@@ -823,6 +984,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
     const res = await fetch(`/api/pets/${selectedPet.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ [field]: value }) });
     if (!res.ok) { toast.error("Erro ao atualizar"); return; }
     toast.success("Etapa atualizada");
+    setAcaoFeita(true);
     const updated = { ...selectedPet, [field]: value } as Pet;
     setSelectedPet(updated);
     setPets(pets.map(p => p.id === selectedPet.id ? updated : p));
@@ -993,7 +1155,11 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
   }
   async function handleResolve() {
     if (!confirm("Marcar essa conversa como resolvida?")) return;
-    const res = await fetch("/api/inbox/context/resolve", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tutorId: tutor?.id, leadId: lead?.id }) });
+    // Telefone da seleção (fecha a conversa do Meta mesmo sem cliente/lead vinculado).
+    const phone = (tutor as any)?.contacts?.find((c: any) => c.isPrimary)?.number
+      || (tutor as any)?.contacts?.[0]?.number
+      || (lead as any)?.phone || leadConversa?.phone || initialPhone || "";
+    const res = await fetch("/api/inbox/context/resolve", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tutorId: tutor?.id, leadId: lead?.id, phone }) });
     if (!res.ok) { toast.error("Erro ao resolver"); return; }
     toast.success("Resolvido");
     loadIncoming();
@@ -1001,9 +1167,8 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
   }
   async function handleConverter(classif?: any) {
     const classificacao = typeof classif === "string" ? classif : undefined;
-    if (classificacao === "Fornecedor" || classificacao === "Parceiro") {
-      setClassifOpen(false);
-      if (await criarTerceiro(classificacao)) { reset(); loadIncoming(); }
+    if (classificacao === "Fornecedor" || classificacao === "Parceiro" || classificacao === "Profissional") {
+      await saveClassificacao(classificacao);
       return;
     }
     if (!lead) return;
@@ -1024,6 +1189,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
     if (!res.ok) { toast.error("Erro ao converter"); return; }
     const data = await res.json();
     toast.success(data.linked ? "Vinculado ao cliente existente" : "Cliente criado");
+    setAcaoFeita(true);
     if (data.tutorId) {
       if (classificacao) {
         try { await fetch(`/api/tutors/${data.tutorId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ classificacao }) }); } catch {}
@@ -1049,13 +1215,19 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
     if (!tutor) return;
     if (!confirm(`Reclassificar ${tutor.name} como Lead? O cadastro permanece, mas vai aparecer como Lead nas listagens.`)) return;
     const res = await fetch(`/api/tutors/${tutor.id}/reclassify-as-lead`, { method: "POST" });
-    if (!res.ok) { toast.error("Erro ao reclassificar (endpoint pode não existir ainda)"); return; }
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({} as any));
+      toast.error(d?.error || d?.message || "Não foi possível reclassificar como lead.");
+      return;
+    }
     toast.success("Reclassificado como Lead");
     reset();
     loadIncoming();
   }
 
-  const classifColor = (c?: string) => c === "Fornecedor" ? "#6D28D9" : c === "Parceiro" ? "#BE185D" : c === "Cliente" ? "#0E5560" : "#64748b";
+  const classifColor = (c?: string) => c === "Fornecedor" ? "#6D28D9" : (c === "Profissional" || c === "Parceiro") ? "#BE185D" : c === "Cliente" ? "#0E5560" : "#64748b";
+  // Fornecedor/Profissional = "terceiro": painel leve e sem exigir ação pra finalizar.
+  const isTerceiro = ["Fornecedor", "Profissional", "Parceiro"].includes((tutor?.classificacao as string) || "");
   // [EMP] Fornecedor/Parceiro vão pra LISTA DE FORNECEDORES (Configurações), não viram cliente.
   async function criarTerceiro(valor: string): Promise<boolean> {
     const tipo = valor === "Parceiro" ? "PARCEIRO" : "FORNECEDOR";
@@ -1071,18 +1243,32 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
       return true;
     } catch { toast.error("Erro ao adicionar em Fornecedores"); return false; }
   }
+  // Classifica no PRÓPRIO contato (uma verdade única): grava classificacao no cadastro.
+  // Se ainda for lead, materializa+converte em cliente pra guardar a etiqueta no mesmo registro.
+  // Assim, quando o contato volta, é reconhecido pelo telefone com a etiqueta salva.
   async function saveClassificacao(valor: string) {
+    const v = valor === "Parceiro" ? "Profissional" : valor; // nomenclatura unificada
     setClassifOpen(false);
-    if (valor === "Fornecedor" || valor === "Parceiro") {
-      if (await criarTerceiro(valor)) { reset(); loadIncoming(); }
-      return;
+    let tid = tutor?.id;
+    if (!tid && (lead || leadConversa)) {
+      const real = await materializarLead();
+      if (!real) return;
+      const res = await fetch(`/api/leads/${(real as any).id}/convert`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: "{}",
+      });
+      const data = await safeJson<any>(res, {});
+      tid = data?.tutorId;
+      if (!tid) { toast.error("Erro ao classificar"); return; }
     }
-    if (!tutor) return;
+    if (!tid) { toast.error("Selecione um contato para classificar."); return; }
     try {
-      const r = await fetch(`/api/tutors/${tutor.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ classificacao: valor }) });
+      const r = await fetch(`/api/tutors/${tid}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ classificacao: v }) });
       if (!r.ok) throw new Error();
-      setTutor({ ...tutor, classificacao: valor } as any);
-      toast.success("Classificacao: " + valor);
+      setTutor((t) => (t ? ({ ...t, classificacao: v } as any) : t));
+      setAcaoFeita(true);
+      toast.success("Classificação: " + v);
+      reset();
+      loadIncoming();
     } catch { toast.error("Erro ao classificar"); }
   }
   async function addClassifCat() {
@@ -1156,6 +1342,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
     const res = await fetch("/api/interacoes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
     if (!res.ok) { toast.error("Erro"); return; }
     toast.success("Interação registrada");
+    setAcaoFeita(true);
     setInteracaoOpen(false);
     setInteracaoForm({ texto: "", tipo: "NOTA", proximaAcao: "", proximoFollowupAt: "" });
     const hist = await carregarHistorico(tutor?.id, leadIdReal, leadHistorico?.id);
@@ -1259,6 +1446,9 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
     return extrairServico(resumo, cf.servicoInteresse || cf.servico_interesse);
   }, [resumo, lead]);
 
+  // Blocos legados escondidos no redesenho do inbox (tipado como boolean pra não
+  // virar "sempre falso" no TS e perder a checagem de null dentro do bloco).
+  const mostrarLegado: boolean = false;
   const SECTION = "rounded-xl border bg-white mb-2";
   const SECTION_STYLE: React.CSSProperties = { borderColor: "#E8E2D6", padding: 11 };
   // estilo só de borda (usado em inputs, busca, dropdowns) — NÃO leva padding de card
@@ -1270,8 +1460,8 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
 
   return (
     <div className="h-full flex flex-col bg-white" style={{ maxHeight: "calc(100vh - 60px)" }}>
-      {/* ========== ABAS ========== */}
-      <div className="flex border-b flex-shrink-0" style={{ borderColor: "#E8DFC8", background: "#FAFAF7" }}>
+      {/* ========== ABAS ========== (escondidas quando é só o Contexto) */}
+      <div className="flex border-b flex-shrink-0" style={{ borderColor: "#E8DFC8", background: "#FAFAF7", display: soContexto ? "none" : undefined }}>
         <button
           onClick={() => setActiveTab("inbox")}
           className={`flex-1 px-2 py-2.5 text-[11px] font-semibold flex items-center justify-center gap-1.5 transition`}
@@ -1301,8 +1491,8 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
         </button>
       </div>
 
-      {/* ========== Busca + ações (mesma linha) ========== */}
-      <div className="px-3 py-2 border-b flex-shrink-0 flex items-center gap-1.5" style={BORDER_STYLE}>
+      {/* ========== Busca + ações (mesma linha) ========== (escondida no modo só-contexto) */}
+      <div className="px-3 py-2 border-b flex-shrink-0 flex items-center gap-1.5" style={{ ...BORDER_STYLE, display: soContexto ? "none" : undefined }}>
         {/* BUSCA */}
         <div className="relative flex-1 min-w-0">
           <LuSearch size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -1353,7 +1543,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                 </div>
               )}
             </div>
-            <button onClick={handleResolve} title="Resolver" className="flex items-center justify-center w-7 h-7 rounded text-white flex-shrink-0" style={{ background: "#009AAC" }}>
+            <button onClick={handleResolve} title="Finalizar atendimento" className="flex items-center justify-center w-7 h-7 rounded text-white flex-shrink-0" style={{ background: "#009AAC" }}>
               <LuCheckCheck size={13} />
             </button>
             <button onClick={reset} className="text-gray-400 hover:text-red-500 flex-shrink-0" title="Voltar pra Caixa"><LuX size={13} /></button>
@@ -1389,11 +1579,12 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
             ) : (
               <>
                 {incoming.slice(0, incomingLimit).map(item => {
-                  const isLead = item.kind === "LEAD";
+                  // Etiqueta segue o FATO (o telefone já é de um cliente?), não a origem do registro.
+                  const isLead = item.kind === "LEAD" && !item.jaECliente;
                   const _cls = item.classificacao;
                   let tagLabel = isLead ? "Lead" : "Cliente"; let tagBg = isLead ? "#FEF3C7" : "#CCFBF1"; let tagFg = isLead ? "#92611A" : "#0E7490";
                   if (!isLead && _cls === "Fornecedor") { tagLabel = "Fornecedor"; tagBg = "#EDE9FE"; tagFg = "#6D28D9"; }
-                  else if (!isLead && _cls === "Parceiro") { tagLabel = "Parceiro"; tagBg = "#FCE7F3"; tagFg = "#BE185D"; }
+                  else if (!isLead && (_cls === "Profissional" || _cls === "Parceiro")) { tagLabel = "Profissional"; tagBg = "#FCE7F3"; tagFg = "#BE185D"; }
                   else if (!isLead && _cls === "Ex_cliente") { tagLabel = "Ex-cliente"; tagBg = "#FEE2E2"; tagFg = "#B91C1C"; }
                   return (
                     <div key={item.id} className="relative">
@@ -1401,10 +1592,10 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                       onClick={() => selectFromIncoming(item)}
                       className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg border text-left transition hover:translate-x-[2px] hover:shadow-sm"
                       style={{
-                        background: isLead ? "#FFFBEB" : "#F0FDFA",
+                        background: tagBg,
                         borderColor: "#E8DFC8",
                         borderLeftWidth: 4,
-                        borderLeftColor: isLead ? "#92611A" : "#009AAC",
+                        borderLeftColor: tagFg,
                       }}
                     >
                       <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[9.5px] font-bold flex-shrink-0" style={{ background: isLead ? "linear-gradient(135deg,#D97706,#92611A)" : "linear-gradient(135deg,#009AAC,#014D5E)" }}>
@@ -1426,7 +1617,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                       </div>
                       <div className="text-[9px] text-gray-400 flex-shrink-0">{fmtRelative(item.createdAt)}</div>
                     </button>
-                    <button onClick={(e) => { e.stopPropagation(); dismissIncoming(item); }} title="Resolver / remover da caixa" className="absolute top-1 right-1 w-5 h-5 rounded-full bg-white border flex items-center justify-center text-[11px] text-gray-400 hover:text-[#0F6E56] hover:border-[#0F6E56]" style={{ borderColor: "#E8DFC8" }}>✓</button>
+                    <button onClick={(e) => { e.stopPropagation(); selectFromIncoming(item); }} title="Abrir atendimento" className="absolute top-1 right-1 w-5 h-5 rounded-full bg-white border flex items-center justify-center text-[12px] text-gray-400 hover:text-[#009AAC] hover:border-[#009AAC]" style={{ borderColor: "#E8DFC8" }}>›</button>
                     </div>
                   );
                 })}
@@ -1443,9 +1634,12 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
         {/* Aba CONTEXTO */}
         {activeTab === "contexto" && (
           <div className="p-2.5" style={{ background: "#F6F2EA", minHeight: "100%" }}>
-            <button onClick={reset} className="w-full flex items-center gap-1.5 mb-2 px-2.5 py-2 text-[11.5px] font-semibold rounded-lg border" style={{ borderColor: "#bfe3e8", color: "#00798A", background: "#E0F4F6" }}>
-              <LuArrowLeft size={14} /> Voltar para a Caixa de entrada
-            </button>
+            {/* "Voltar para a Caixa de entrada" só quando existe a Caixa (não no modo só-contexto). */}
+            {!soContexto && (
+              <button onClick={reset} className="w-full flex items-center gap-1.5 mb-2 px-2.5 py-2 text-[11.5px] font-semibold rounded-lg border" style={{ borderColor: "#bfe3e8", color: "#00798A", background: "#E0F4F6" }}>
+                <LuArrowLeft size={14} /> Voltar para a Caixa de entrada
+              </button>
+            )}
             {/* Cadastro inline */}
             {cadastroOpen && (
               <section className={SECTION} style={SECTION_STYLE}>
@@ -1514,7 +1708,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                       </div>
                     )}
                   </div>
-                  <Link href={`/dashboard/erp/tutores/${tutor.id}`} className={LINK} style={{ color: "#009AAC" }}>Ficha <LuExternalLink size={9} className="inline -mt-0.5" /></Link>
+                  <Link href={`/dashboard/erp/tutores/${tutor.id}`} className={LINK} style={{ color: "#009AAC" }}>{["Fornecedor", "Profissional", "Parceiro"].includes((tutor as any)?.classificacao || "") ? "Cadastro" : "Ficha"} <LuExternalLink size={9} className="inline -mt-0.5" /></Link>
                 </div>
                 <div className="flex items-start gap-2">
                   <div className="w-11 h-11 rounded-full flex items-center justify-center text-[13px] font-semibold flex-shrink-0" style={{ background: "#E0F4F6", color: "#014D5E" }}>{initials(tutor.name)}</div>
@@ -1527,7 +1721,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                         <button onClick={() => setEditingName(false)} className="px-1.5 text-[10px] border rounded" style={{ borderColor: "#E8DFC8" }}>✕</button>
                       </div>
                     ) : (
-                      <div onClick={() => setFichaOpen((o) => !o)} className="text-[15px] font-semibold truncate cursor-pointer hover:underline" style={{ color: "#014D5E" }} title="Clique para editar">{tutor.name} <LuPencil className="inline -mt-0.5 text-gray-300" size={12} /></div>
+                      <div onClick={() => setClienteEditOpen(true)} className="text-[15px] font-semibold truncate cursor-pointer hover:underline" style={{ color: "#014D5E" }} title="Editar dados do cliente">{tutor.name} <LuPencil className="inline -mt-0.5 text-gray-300" size={12} /></div>
                     )}
                     <div className="text-[10.5px] text-gray-500 leading-snug">
                       {editingPhone ? (
@@ -1550,6 +1744,11 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                     </div>
                   </div>
                 </div>
+              </section>
+            )}
+            {tutor && clienteEditOpen && (
+              <section className={SECTION} style={SECTION_STYLE}>
+                <ClienteEditModal inline tutor={tutor} onClose={() => setClienteEditOpen(false)} onSaved={(patch) => setTutor((t) => (t ? ({ ...t, ...patch } as Tutor) : t))} />
               </section>
             )}
             {tutor && fichaOpen && (
@@ -1654,8 +1853,8 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
               </section>
             )}
 
-            {/* BLOCO 2.5: SCORE DO CLIENTE (F5) */}
-            {tutor && tutorScore && (
+            {/* BLOCO 2.5: SCORE DO CLIENTE (F5) — oculto no redesenho do inbox (não estava no mockup) */}
+            {tutor && tutorScore && mostrarLegado && (
               <section className={SECTION} style={SECTION_STYLE}>
                 <div className="flex items-center gap-3">
                   <svg width="46" height="46" viewBox="0 0 64 64" style={{ flexShrink: 0 }}>
@@ -1688,8 +1887,8 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
               </section>
             )}
 
-            {/* BLOCO 2.55: AVALIACAO GOOGLE */}
-          {tutor && (
+            {/* BLOCO 2.55: AVALIACAO GOOGLE — oculto (vira ação ⭐ no redesenho) */}
+          {mostrarLegado && tutor && (
             <section className={SECTION} style={{ ...SECTION_STYLE, background: "#FFFDF5", borderColor: "#F0E6C8" }}>
               <div className="flex items-center gap-2">
                 <span className="text-[15px]">⭐</span>
@@ -1737,8 +1936,8 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
               )}
             </section>
           )}
-          {/* BLOCO 2.6: SEQUENCIAS (S3) */}
-            {tutor && inscricoes.length > 0 && (
+          {/* BLOCO 2.6: SEQUENCIAS (S3) — oculto (o início da sequência vira ação 📨) */}
+            {mostrarLegado && tutor && inscricoes.length > 0 && (
               <section className={SECTION} style={SECTION_STYLE}>
                 <div className={LBL} style={LBL_STYLE}><span>🔁 Sequencias em andamento</span></div>
                 <div className="space-y-1.5">
@@ -1765,8 +1964,20 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
               <section className={SECTION} style={SECTION_STYLE}>
                 <div className={LBL} style={LBL_STYLE}>
                   <span>🐾 Pets {pets.length > 0 && `(${pets.length})`}{pets.length > 1 ? " · clique pra expandir" : ""}</span>
-                  <button onClick={() => criarPetEAbrir(tutor.id, true)} className={LINK} style={{ color: "#009AAC" }} type="button"><LuPlus size={10} className="inline" /> cadastrar</button>
+                  <button onClick={() => setPetEdit({ tutorId: tutor.id } as any)} className={LINK} style={{ color: "#009AAC" }} type="button"><LuPlus size={10} className="inline" /> cadastrar</button>
                 </div>
+                {/* O formulário abre AQUI, junto do lápis. Antes ele era renderizado lá em cima,
+                    perto do nome do cliente — abria fora da vista e parecia que nada acontecia. */}
+                {petEdit && (
+                  <div className="mb-2">
+                    <PetEditModal inline pet={petEdit} tutorId={tutor.id} onClose={() => setPetEdit(null)}
+                      onSaved={(patch) => {
+                        const eid = (petEdit as any)?.id;
+                        if (eid) { setPets((ps) => ps.map((x) => (x.id === eid ? ({ ...x, ...patch } as Pet) : x))); setSelectedPet((sp) => (sp && sp.id === eid ? ({ ...sp, ...patch } as Pet) : sp)); }
+                        else { setPets((ps) => [...ps, patch as Pet]); }
+                      }} />
+                  </div>
+                )}
                 {pets.length > 0 ? (
                   <div className="flex flex-wrap gap-2 items-start">
                     {pets.map(p => {
@@ -1781,8 +1992,28 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                                 <div className="text-[10px] text-gray-500 truncate">{[p.breed, p.birthDate ? ageFromBirth(p.birthDate) : null].filter(Boolean).join(" · ")}</div>
                               )}
                             </div>
-                            <span onClick={(e) => { e.stopPropagation(); setSelectedPet(p); setFichaPet(st => ({ ...st, [p.id]: !st[p.id] })); }} title="Ficha do pet" className="text-gray-300 hover:text-[#009AAC] flex-shrink-0 cursor-pointer"><LuPencil size={13} /></span>
+                            <span onClick={(e) => { e.stopPropagation(); setPetEdit(p); }} title="Editar pet" className="text-gray-300 hover:text-[#009AAC] flex-shrink-0 cursor-pointer"><LuPencil size={13} /></span>
                           </button>
+                          {active && (
+                            <div className="px-2 pt-1.5 pb-2 border-t space-y-1.5" style={{ borderColor: "#cfe8eb" }}>
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[8.5px] font-bold px-1.5 py-0.5 rounded" style={{ background: "#fef3c7", color: "#92400e", minWidth: 28, textAlign: "center" }}>CLI</span>
+                                <select value={p.pipelineClinicoEtapa || ""} onChange={e => updatePetEtapa("pipelineClinicoEtapa", e.target.value)} className="flex-1 text-[10.5px] px-2 py-1 border rounded font-medium" style={{ borderColor: "#fef3c7", color: "#014D5E", background: "white" }}>
+                                  <option value="">— sem etapa —</option>
+                                  {p.pipelineClinicoEtapa && !(pipeDyn.clinico.length ? pipeDyn.clinico : PIPELINE_CLINICO).includes(p.pipelineClinicoEtapa) && <option value={p.pipelineClinicoEtapa}>{p.pipelineClinicoEtapa}</option>}
+                                  {(pipeDyn.clinico.length ? pipeDyn.clinico : PIPELINE_CLINICO).map(et => <option key={et} value={et}>{et}</option>)}
+                                </select>
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[8.5px] font-bold px-1.5 py-0.5 rounded" style={{ background: "#ede9fe", color: "#5b21b6", minWidth: 28, textAlign: "center" }}>FIS</span>
+                                <select value={p.pipelineFisioEtapa || ""} onChange={e => updatePetEtapa("pipelineFisioEtapa", e.target.value)} className="flex-1 text-[10.5px] px-2 py-1 border rounded font-medium" style={{ borderColor: "#ede9fe", color: "#014D5E", background: "white" }}>
+                                  <option value="">— sem etapa —</option>
+                                  {p.pipelineFisioEtapa && !(pipeDyn.fisio.length ? pipeDyn.fisio : PIPELINE_FISIO).includes(p.pipelineFisioEtapa) && <option value={p.pipelineFisioEtapa}>{p.pipelineFisioEtapa}</option>}
+                                  {(pipeDyn.fisio.length ? pipeDyn.fisio : PIPELINE_FISIO).map(et => <option key={et} value={et}>{et}</option>)}
+                                </select>
+                              </div>
+                            </div>
+                          )}
                           {active && fichaPet[p.id] && (
                             <div className="px-2 pb-2 pt-1 border-t" style={{ borderColor: "#cfe8eb" }}>
                               {(() => { const cadCompleto = !!(p.gender && p.breed && p.birthDate); const aberto = cadAberto[p.id] ?? !cadCompleto; return (<>
@@ -1885,7 +2116,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                 ) : (
                   <div className="rounded-lg p-3 text-center text-[11px] text-gray-400" style={{ background: "#fafafa", border: "1px dashed #E8DFC8" }}>
                     Nenhum pet cadastrado ainda<br />
-                    <button onClick={() => criarPetEAbrir(tutor.id, true)} className="font-semibold mt-1" style={{ color: "#009AAC" }} type="button">+ Cadastrar pet</button>
+                    <button onClick={() => setPetEdit({ tutorId: tutor.id } as any)} className="font-semibold mt-1" style={{ color: "#009AAC" }} type="button">+ Cadastrar pet</button>
                   </div>
                 )}
               </section>
@@ -1896,11 +2127,19 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
               Tudo abaixo é do pet: <b style={{ fontWeight: 600 }}>{selectedPet.name}</b>
             </div>
           )}
-          {/* BLOCO 3.4: VACINAS A RESOLVER (F3) */}
-            {tutor && selectedPet && (
-              <section className={SECTION} style={SECTION_STYLE}>
-                <div className={LBL} style={LBL_STYLE}><span>💉 Vacinas a resolver</span></div>
-                {vacPend.length === 0 ? (
+          {/* BLOCO 3.4: VACINAS A RESOLVER (F3) — alerta vermelho quando há vencida (ajuda a recepção a oferecer) */}
+            {tutor && selectedPet && (() => {
+              const temVencida = vacPend.some((v: any) => v.vencida);
+              return (
+              <section className={SECTION} style={{ ...SECTION_STYLE, ...(temVencida ? { borderColor: "#F0C2C2", boxShadow: "0 0 0 2px #FBEBE9" } : {}) }}>
+                <div className={LBL} style={{ ...LBL_STYLE, cursor: "pointer" }} onClick={() => toggleSec("vac")}>
+                  <span style={temVencida ? { color: "#C0392B" } : undefined}>💉 Vacinas a resolver</span>
+                  <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
+                    {temVencida && <span style={{ fontSize: 9, fontWeight: 800, color: "#fff", background: "#C0392B", padding: "2px 8px", borderRadius: 999 }}>⚠️ VENCIDA</span>}
+                    <span style={{ color: "#A7ADA8", transition: "transform .15s", transform: secFechadas.has("vac") ? "rotate(-90deg)" : "none" }}>▾</span>
+                  </span>
+                </div>
+                {secFechadas.has("vac") ? null : vacPend.length === 0 ? (
                   <div className="flex items-center gap-2 text-[11px]" style={{ color: "#1c7a47" }}><span aria-hidden>✅</span> Vacinas em dia.</div>
                 ) : (
                   <div className="space-y-1.5">
@@ -1917,13 +2156,17 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                   </div>
                 )}
               </section>
-            )}
+              );
+            })()}
 
             {/* BLOCO 3.45: PACOTES DE FISIOTERAPIA (F4 - patinhas) */}
             {tutor && selectedPet && pacotesInbox.length > 0 && (
               <section className={SECTION} style={SECTION_STYLE}>
-                <div className={LBL} style={LBL_STYLE}><span>🏥 Pacotes de fisioterapia</span></div>
-                <div className="space-y-2">
+                <div className={LBL} style={{ ...LBL_STYLE, cursor: "pointer" }} onClick={() => toggleSec("fisio")}>
+                  <span>🏥 Pacotes de fisioterapia</span>
+                  <span style={{ marginLeft: "auto", color: "#A7ADA8", transition: "transform .15s", transform: secFechadas.has("fisio") ? "rotate(-90deg)" : "none" }}>▾</span>
+                </div>
+                <div className="space-y-2" style={{ display: secFechadas.has("fisio") ? "none" : undefined }}>
                   {pacotesInbox.map(pk => {
                     const used = pk.data.used || 0; const total = pk.data.total || 0; const done = total > 0 && used >= total;
                     return (
@@ -1944,10 +2187,112 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
               </section>
             )}
 
+            {/* PetEditModal agora é inline (renderizado no topo do painel). */}
+            {/* Popup do boletim (aberto de dentro do box) */}
+            {boletimOpen && tutor && selectedPet && (
+              <BoletimModal
+                pet={{ id: selectedPet.id, name: selectedPet.name, species: selectedPet.species, breed: selectedPet.breed, gender: selectedPet.gender, birthDate: selectedPet.birthDate, tutorId: tutor.id, tutor: { id: tutor.id, name: tutor.name, acceptsWhatsApp: (tutor as any).acceptsWhatsApp, contacts: tutor.contacts } }}
+                boletimId={null}
+                onClose={() => setBoletimOpen(false)}
+                onSaved={() => { setAcaoFeita(true); setBoletimOpen(false); if (selectedPet) loadPacotesInbox(selectedPet.id); }}
+              />
+            )}
+
+            {/* Seletor de sequência (cadência) — item 6 */}
+            {seqPickerOpen && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={() => !seqSaving && setSeqPickerOpen(false)}>
+                <div className="bg-white rounded-xl w-full max-w-sm p-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center gap-2 mb-3">
+                    <LuRepeat size={16} style={{ color: "#009AAC" }} />
+                    <div className="font-semibold text-[13px]" style={{ color: "#0E2244" }}>Iniciar sequência{selectedPet ? ` · ${selectedPet.name}` : ""}</div>
+                  </div>
+                  {seqLoading ? (
+                    <div className="text-sm text-gray-400 py-6 text-center">Carregando…</div>
+                  ) : seqModelos.length === 0 ? (
+                    <div className="text-[13px] text-gray-500 py-4 text-center leading-relaxed">
+                      Nenhuma sequência ativa.<br />
+                      <a href="/dashboard/configuracoes/cadencias" className="text-[#009AAC] font-medium hover:underline">Criar em Configurações › Cadências</a>
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5 max-h-72 overflow-y-auto">
+                      {seqModelos.map((cad) => (
+                        <button key={cad.id} type="button" disabled={seqSaving} onClick={() => iniciarSequencia(cad)}
+                          className="w-full text-left border rounded-lg px-3 py-2 transition hover:border-[#009AAC] hover:bg-[#F0FBFC] disabled:opacity-50" style={{ borderColor: "#E8DFC8" }}>
+                          <div className="text-[13px] font-medium" style={{ color: "#014D5E" }}>{cad.nome}</div>
+                          <div className="text-[11px] text-gray-400">{(cad.passos?.length || 0)} passo(s) automáticos</div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <button type="button" onClick={() => setSeqPickerOpen(false)} disabled={seqSaving} className="w-full mt-3 text-[12px] text-gray-500 py-1.5 disabled:opacity-50">Cancelar</button>
+                </div>
+              </div>
+            )}
+
+            {/* Modal de e-mail pro cliente */}
+            {tutor && (
+              <SendEmailModal
+                open={emailOpen}
+                onClose={() => setEmailOpen(false)}
+                defaultTo={tutor.email || ""}
+                tutorId={tutor.id}
+                petId={selectedPet?.id}
+                onSent={() => setAcaoFeita(true)}
+              />
+            )}
+
+            {/* Painel de exames do pet (Fatia 1 do item 8) — só acompanhar */}
+            {exOpen && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={() => setExOpen(false)}>
+                <div className="bg-white rounded-xl w-full max-w-md p-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center gap-2 mb-3">
+                    <LuFlaskConical size={16} style={{ color: "#009AAC" }} />
+                    <div className="font-semibold text-[13px]" style={{ color: "#0E2244" }}>Exames{selectedPet ? ` · ${selectedPet.name}` : ""}</div>
+                  </div>
+                  {exLoading ? (
+                    <div className="text-sm text-gray-400 py-6 text-center">Carregando…</div>
+                  ) : exList.length === 0 ? (
+                    <div className="text-[13px] text-gray-500 py-4 text-center leading-relaxed">
+                      Nenhum exame solicitado para este pet.<br />
+                      {selectedPet && <a href={`/dashboard/erp/pets/${selectedPet.id}/atendimentos/novo`} className="text-[#009AAC] font-medium hover:underline">Solicitar na ficha do pet</a>}
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5 max-h-80 overflow-y-auto">
+                      {exList.map((ex) => {
+                        const st = ex.data?.status || exFases[0];
+                        const opts = exFases.includes(st) ? exFases : [st, ...exFases];
+                        return (
+                          <div key={ex.id} className="border rounded-lg px-3 py-2 flex items-center gap-2" style={{ borderColor: "#E8DFC8" }}>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-[12.5px] font-medium truncate" style={{ color: "#014D5E" }}>{ex.data?.nome || "Exame"}{ex.data?.externo ? " · externo" : ""}</div>
+                            </div>
+                            <select value={st} onChange={(e) => mudarFaseExame(ex.id, ex.data, e.target.value)} className="text-[12px] border rounded-md px-2 py-1 bg-white flex-shrink-0" style={{ borderColor: "#E8DFC8", color: "#0E5560" }}>
+                              {opts.map((f) => <option key={f} value={f}>{f}</option>)}
+                            </select>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {selectedPet && exList.length > 0 && (
+                    <a href={`/dashboard/erp/pets/${selectedPet.id}/atendimentos/novo`} className="block text-center text-[11.5px] text-[#009AAC] hover:underline mt-3">+ Solicitar exame na ficha</a>
+                  )}
+                  <button type="button" onClick={() => setExOpen(false)} className="w-full mt-2 text-[12px] text-gray-500 py-1.5">Fechar</button>
+                </div>
+              </div>
+            )}
+
             {/* BLOCO 3.46: PROXIMAS CONSULTAS DO PET */}
             {tutor && selectedPet && (
               <section className={SECTION} style={SECTION_STYLE}>
                 <div className={LBL} style={LBL_STYLE}><span>📅 Próximo agendamento · {selectedPet.name}</span></div>
+                {/* Follow-up agendado (mesmo campo da ficha; setado pela interação "próxima ação") */}
+                {selectedPet.proximoFollowupAt && new Date(selectedPet.proximoFollowupAt).getTime() > Date.now() && (
+                  <div className="flex items-center gap-2 border rounded-lg px-2.5 py-1.5 mb-1.5" style={{ borderColor: "#F0D8A8", background: "#FFFDF5" }}>
+                    <span>📌</span>
+                    <div className="text-[11.5px]" style={{ color: "#8a6400" }}>Follow-up agendado: <b>{fmtDate(selectedPet.proximoFollowupAt)}</b></div>
+                  </div>
+                )}
                 {proximasConsultas.length === 0 ? (
                   <div className="text-[11px] text-gray-400 py-1">Nenhuma consulta agendada.</div>
                 ) : (
@@ -1977,13 +2322,13 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
                   <button type="button" onClick={() => setAgendaOpen((o) => !o)} title="Agendar para este pet" className="flex items-center justify-center h-11 rounded-lg border hover:bg-[#E1F2F4]" style={{ borderColor: "#009AAC", background: agendaOpen ? "#E1F2F4" : "white" }}><LuCalendar size={18} style={{ color: "#009AAC" }} /></button>
                   <button type="button" disabled title="Follow-up · em breve" className="flex items-center justify-center h-11 rounded-lg border cursor-not-allowed opacity-50" style={{ borderColor: "#E8DFC8", background: "#fafafa" }}><LuClock size={18} style={{ color: "#9aa0a8" }} /></button>
                   <button type="button" onClick={() => { setPetActForward(false); setInteracaoOpen(true); }} title="Registrar interação" className="flex items-center justify-center h-11 rounded-lg border hover:bg-[#E1F2F4]" style={{ borderColor: "#009AAC", background: "white" }}><LuMessageSquare size={18} style={{ color: "#009AAC" }} /></button>
-                  <button type="button" disabled title="Venda · em breve" className="flex items-center justify-center h-11 rounded-lg border cursor-not-allowed opacity-50" style={{ borderColor: "#E8DFC8", background: "#fafafa" }}><LuDollarSign size={18} style={{ color: "#9aa0a8" }} /></button>
-                  <button type="button" disabled title="Sequência · em breve" className="flex items-center justify-center h-11 rounded-lg border cursor-not-allowed opacity-50" style={{ borderColor: "#E8DFC8", background: "#fafafa" }}><LuRepeat size={18} style={{ color: "#9aa0a8" }} /></button>
-                  <button type="button" disabled title="E-mail · em breve" className="flex items-center justify-center h-11 rounded-lg border cursor-not-allowed opacity-50" style={{ borderColor: "#E8DFC8", background: "#fafafa" }}><LuMail size={18} style={{ color: "#9aa0a8" }} /></button>
+                  <button type="button" onClick={() => window.open(`/dashboard/erp/ponto-de-venda?tutorId=${tutor.id}${selectedPet ? `&petId=${selectedPet.id}` : ""}`, "_self")} title="Nova venda (Ponto de Venda)" className="flex items-center justify-center h-11 rounded-lg border transition hover:bg-[#E1F2F4]" style={{ borderColor: "#009AAC", background: "white" }}><LuDollarSign size={18} style={{ color: "#009AAC" }} /></button>
+                  <button type="button" onClick={abrirSeletorSequencia} title="Iniciar sequência de cuidado do pet" className="flex items-center justify-center h-11 rounded-lg border transition hover:bg-[#E1F2F4]" style={{ borderColor: "#009AAC", background: "white" }}><LuRepeat size={18} style={{ color: "#009AAC" }} /></button>
+                  <button type="button" onClick={() => setEmailOpen(true)} title="Enviar e-mail para o cliente" className="flex items-center justify-center h-11 rounded-lg border transition hover:bg-[#E1F2F4]" style={{ borderColor: "#009AAC", background: "white" }}><LuMail size={18} style={{ color: "#009AAC" }} /></button>
                   <button type="button" onClick={() => setPetActForward(o => !o)} title="Encaminhar" className="flex items-center justify-center h-11 rounded-lg border hover:bg-[#E1F2F4]" style={{ borderColor: "#009AAC", background: "white" }}><LuShare2 size={18} style={{ color: "#009AAC" }} /></button>
-                  <button type="button" disabled title="Exames · em breve" className="flex items-center justify-center h-11 rounded-lg border cursor-not-allowed opacity-50" style={{ borderColor: "#E8DFC8", background: "#fafafa" }}><LuFlaskConical size={18} style={{ color: "#9aa0a8" }} /></button>
+                  <button type="button" onClick={abrirExames} title="Acompanhar exames do pet" className="flex items-center justify-center h-11 rounded-lg border transition hover:bg-[#E1F2F4]" style={{ borderColor: "#009AAC", background: "white" }}><LuFlaskConical size={18} style={{ color: "#009AAC" }} /></button>
                 </div>
-                <NovoAgendamentoModal inline open={agendaOpen} onClose={() => setAgendaOpen(false)} defaults={agendaDefaults} onCreated={() => setProximasTick((t) => t + 1)} />
+                <NovoAgendamentoModal inline open={agendaOpen} onClose={() => setAgendaOpen(false)} defaults={agendaDefaults} onCreated={() => { setAcaoFeita(true); setProximasTick((t) => t + 1); }} />
                 {petActForward && (
                   <div className="mt-2 border rounded-lg overflow-hidden" style={{ borderColor: "#E8DFC8" }}>
                     {staff.length === 0 ? (
@@ -1999,8 +2344,8 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
               </section>
             )}
 
-            {/* BLOCO 1: RESUMO IA + SERVICO */}
-            {(tutor || lead) && (
+            {/* BLOCO 1: RESUMO IA + SERVICO — oculto no redesenho (não estava no mockup) */}
+            {mostrarLegado && (tutor || lead) && (
               <section className={SECTION} style={SECTION_STYLE}>
                 <div className={LBL} style={LBL_STYLE}>
                   <span><span className="mr-1" aria-hidden>✨</span>Resumo da conversa (IA){resumoWhen && <span className="font-normal text-gray-400 normal-case ml-1 text-[9.5px]">{fmtRelative(resumoWhen)}</span>}</span>
@@ -2038,12 +2383,17 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
               </section>
             )}
 
-            {/* BLOCO 4: REGISTRAR INTERACAO */}
-            {(tutor || lead) && (
+            {/* BLOCO 4: REGISTRAR INTERACAO — escondido quando as AÇÕES já têm o 💬 (cliente c/ pet);
+                mantido pra LEAD/sem-pet, que não têm o box de Ações. */}
+            {(tutor || lead) && !interacaoOpen && !(tutor && selectedPet) && (
+              <button onClick={() => setInteracaoOpen(true)} className="w-full flex items-center justify-center gap-2 rounded-lg py-2 border text-[12px] font-semibold hover:bg-[#E1F2F4] transition" style={{ borderColor: "#009AAC", color: "#009AAC", background: "white" }}>
+                <span aria-hidden>📝</span> Registrar interação
+              </button>
+            )}
+            {(tutor || lead) && interacaoOpen && (
               <section className={SECTION} style={SECTION_STYLE}>
                 <div className={LBL} style={LBL_STYLE}>
                   <span><span className="mr-1" aria-hidden>📝</span>Registrar interação</span>
-                  {!interacaoOpen && (<button onClick={() => setInteracaoOpen(true)} className={LINK} style={{ color: "#009AAC" }}><LuPlus size={10} className="inline" /> nova</button>)}
                 </div>
                 {interacaoOpen && (
                   <div className="space-y-2 rounded-lg p-2 border" style={{ background: "#f6fdfd", borderColor: "#E8DFC8" }}>
@@ -2072,9 +2422,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone }:
               <section className={SECTION} style={SECTION_STYLE}>
                 <div className={LBL} style={LBL_STYLE}>
                   <span>💬 Último atendimento{historico.length > 0 && ` (${historico.length})`}</span>
-                  {tutor && selectedPet && (
-                    <Link href={`/dashboard/erp/pets/${selectedPet.id}/atendimentos/novo`} className={LINK} style={{ color: "#009AAC" }}><LuPlus size={10} className="inline" /> novo</Link>
-                  )}
+                  {/* "+ novo" removido: registrar é só pelas Ações (💬 interação / 🩺 atendimento). */}
                 </div>
                 {historico.length === 0 ? (
                   <div className="rounded-lg p-3 text-center text-[11px] italic text-gray-400" style={{ background: "#fafafa", border: "1px dashed #E8DFC8" }}>

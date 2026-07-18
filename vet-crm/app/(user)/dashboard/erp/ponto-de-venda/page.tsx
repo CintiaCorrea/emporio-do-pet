@@ -6,6 +6,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
 import { usePageTitle } from '@/lib/ui/PageHeaderContext';
+import { useRolePreview } from '@/lib/ui/RolePreview';
 
 const TEAL = '#009AAC';
 const NAVY = '#014D5E';
@@ -47,10 +48,14 @@ const lbl: React.CSSProperties = { display: 'block', fontSize: 10.5, textTransfo
 export default function PDVPage() {
   usePageTitle('Ponto de venda', 'Registrar venda, orçamento e recebimento');
 
+  const { effectiveRole } = useRolePreview();
+  const isAdmin = effectiveRole === 'ADMIN';
+
   const [data, setData] = useState(hoje());
   const [tipo, setTipo] = useState<'VENDA' | 'ORCAMENTO'>('VENDA');
   const [tipoVenda, setTipoVenda] = useState(TIPOS_VENDA[0]);
   const [caixaAberto, setCaixaAberto] = useState<boolean | null>(null);
+  const [caixaAbertoId, setCaixaAbertoId] = useState<string | null>(null);
 
   const [profs, setProfs] = useState<Prof[]>([]);
   const [profId, setProfId] = useState('');
@@ -77,10 +82,118 @@ export default function PDVPage() {
   const [vendas, setVendas] = useState<Venda[]>([]);
   const [vendaTab, setVendaTab] = useState<'NAO' | 'PAGO'>('NAO');
   const buscaTimer = useRef<any>(null);
+  const [vendaDia, setVendaDia] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  const [vendaAbertas, setVendaAbertas] = useState(false); // ver abertas de TODOS os dias
+  const [detVenda, setDetVenda] = useState<any>(null);      // venda aberta no modal de detalhe
+  const [detLoad, setDetLoad] = useState(false);
+  const [detExcluindo, setDetExcluindo] = useState(false);
+  const [editItens, setEditItens] = useState<any[] | null>(null); // itens em edição no detalhe (null = modo leitura)
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [recOpen, setRecOpen] = useState(false);            // modal de recebimento de venda existente
+  const [recFormas, setRecFormas] = useState<Forma[]>([{ forma: 'Dinheiro', valor: 0 }]);
+  const [recSaving, setRecSaving] = useState(false);
 
   const loadVendas = useCallback(async () => {
-    try { const r = await fetch('/api/caixa/vendas', { cache: 'no-store' }); if (r.ok) setVendas(await r.json()); } catch { /* */ }
-  }, []);
+    try {
+      const qs = vendaAbertas
+        ? '?abertas=true'
+        : `?from=${vendaDia}&to=${vendaDia}`;
+      const r = await fetch(`/api/caixa/vendas${qs}`, { cache: 'no-store' });
+      if (r.ok) setVendas(await r.json());
+    } catch { /* */ }
+  }, [vendaDia, vendaAbertas]);
+
+  // Abre o detalhe de uma venda (itens) num modal.
+  async function abrirDetVenda(v: any) {
+    setDetVenda({ ...v, itens: null });
+    setDetLoad(true);
+    try {
+      const r = await fetch(`/api/atendimentos/${v.id}`, { cache: 'no-store' });
+      const d = await r.json().catch(() => ({}));
+      const itens = d.items || d.appointmentItems || d.itens || [];
+      setDetVenda((prev: any) => (prev ? { ...prev, itens } : prev));
+    } catch { setDetVenda((prev: any) => (prev ? { ...prev, itens: [] } : prev)); }
+    setDetLoad(false);
+  }
+  // ----- Editar itens da venda existente -----
+  function abrirEdicaoItens() {
+    const its = (detVenda?.itens || []).map((it: any) => ({
+      servicoId: it.servicoId ?? undefined,
+      productId: it.productId ?? undefined,
+      descricao: it.descricao || it.nome || '',
+      quantidade: Number(it.quantidade ?? it.qtd ?? 1),
+      valorUnitario: Number(it.valorUnitario ?? 0),
+      desconto: Number(it.desconto ?? 0),
+    }));
+    setEditItens(its.length ? its : [{ descricao: '', quantidade: 1, valorUnitario: 0, desconto: 0 }]);
+  }
+  const editTotal = useMemo(() => (editItens || []).reduce((s, it) => s + Math.max(0, it.quantidade * it.valorUnitario - (it.desconto || 0)), 0), [editItens]);
+  async function salvarEdicaoItens() {
+    if (!detVenda || !editItens) return;
+    const limpos = editItens.filter((it) => (it.descricao || '').trim());
+    if (limpos.length === 0) { toast.error('Adicione ao menos um item.'); return; }
+    setSavingEdit(true);
+    try {
+      const items = limpos.map((it) => ({
+        servicoId: it.servicoId || undefined, productId: it.productId || undefined,
+        descricao: it.descricao, quantidade: Number(it.quantidade) || 1,
+        valorUnitario: Number(it.valorUnitario) || 0, desconto: Number(it.desconto) || 0,
+        valorTotal: Math.max(0, (Number(it.quantidade) || 1) * (Number(it.valorUnitario) || 0) - (Number(it.desconto) || 0)),
+      }));
+      const value = items.reduce((s, it) => s + it.valorTotal, 0);
+      const r = await fetch(`/api/appointments/${detVenda.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items, value }) });
+      if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.message || 'Erro ao salvar'); }
+      toast.success('Venda atualizada!');
+      setEditItens(null);
+      await abrirDetVenda({ ...detVenda, valor: value });
+      await loadVendas();
+    } catch (e: any) { toast.error(e.message || 'Erro ao salvar'); } finally { setSavingEdit(false); }
+  }
+
+  // ----- Registrar recebimento de venda existente -----
+  function abrirRecVenda() {
+    if (!caixaAbertoId) { toast.error('Abra o caixa primeiro (Outros caixas › Novo caixa).'); return; }
+    const aReceber = Math.max(0, Number(detVenda.valor || 0) - Number(detVenda.pago || 0));
+    setRecFormas([{ forma: 'Dinheiro', valor: Number(aReceber.toFixed(2)) }]);
+    setRecOpen(true);
+  }
+  async function confirmarRecVenda() {
+    if (!detVenda || !caixaAbertoId) return;
+    const formasValidas = recFormas.filter((f) => Number(f.valor) > 0);
+    const soma = formasValidas.reduce((s, f) => s + Number(f.valor || 0), 0);
+    if (soma <= 0.001) { toast.error('Informe o valor recebido.'); return; }
+    const aReceber = Math.max(0, Number(detVenda.valor || 0) - Number(detVenda.pago || 0));
+    const temDin = formasValidas.some((f) => /dinheiro/i.test(f.forma));
+    const trocoR = temDin && soma > aReceber ? Number((soma - aReceber).toFixed(2)) : 0;
+    const valorAplicado = Math.max(0, Number((soma - trocoR).toFixed(2)));
+    setRecSaving(true);
+    try {
+      const r = await fetch(`/api/caixa/${caixaAbertoId}/recebimento`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ appointmentId: detVenda.id, valorTotal: valorAplicado, troco: trocoR, formas: formasValidas, observacao: 'Recebimento de venda' }),
+      });
+      if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.message || 'Erro ao receber'); }
+      toast.success('Recebimento registrado!' + (trocoR ? ` · troco ${brl(trocoR)}` : ''));
+      setRecOpen(false);
+      const novoPago = Number(detVenda.pago || 0) + valorAplicado;
+      await abrirDetVenda({ ...detVenda, pago: novoPago });
+      await loadVendas();
+    } catch (e: any) { toast.error(e.message || 'Erro ao receber'); } finally { setRecSaving(false); }
+  }
+
+  // Exclui a venda (appointment) com confirmação.
+  async function excluirVenda() {
+    if (!detVenda) return;
+    if (!window.confirm(`Excluir a venda de ${detVenda.tutor}${detVenda.pet ? ' · ' + detVenda.pet : ''} (${brl(detVenda.valor)})? Não dá pra desfazer.`)) return;
+    setDetExcluindo(true);
+    try {
+      const r = await fetch(`/api/appointments/${detVenda.id}`, { method: 'DELETE' });
+      if (!r.ok) throw new Error();
+      setDetVenda(null);
+      await loadVendas();
+    } catch { window.alert('Não consegui excluir. Tente de novo.'); }
+    setDetExcluindo(false);
+  }
 
   useEffect(() => {
     (async () => {
@@ -91,7 +204,7 @@ export default function PDVPage() {
       } catch { /* */ }
       try {
         const r = await fetch('/api/caixa', { cache: 'no-store' });
-        if (r.ok) { const d = await r.json(); const arr = Array.isArray(d) ? d : (d.data || []); setCaixaAberto(arr.some((c: any) => c.status === 'ABERTO')); }
+        if (r.ok) { const d = await r.json(); const arr = Array.isArray(d) ? d : (d.data || []); const ab = arr.find((c: any) => c.status === 'ABERTO'); setCaixaAberto(!!ab); setCaixaAbertoId(ab?.id || null); }
         else setCaixaAberto(false);
       } catch { setCaixaAberto(false); }
       try {
@@ -101,6 +214,43 @@ export default function PDVPage() {
     })();
     loadVendas();
   }, [loadVendas]);
+
+  // Fatia B: ?venda=<atendimentoId> — abre direto o detalhe dessa venda pra registrar recebimento.
+  useEffect(() => {
+    const vid = new URLSearchParams(window.location.search).get('venda');
+    if (!vid) return;
+    (async () => {
+      try {
+        const abertas = await fetch(`/api/caixa/vendas?abertas=true`, { cache: 'no-store' }).then((r) => r.json()).catch(() => []);
+        let v = (Array.isArray(abertas) ? abertas : []).find((x: any) => x.id === vid);
+        if (!v) {
+          const a = await fetch(`/api/atendimentos/${vid}`, { cache: 'no-store' }).then((r) => r.json()).catch(() => null);
+          if (a?.id) { const pago = (a.recebimentos || []).reduce((s: number, r: any) => s + Number(r.valorTotal || 0), 0); v = { id: a.id, tutor: a.tutor?.name || 'Cliente', pet: a.pet?.name || '', valor: Number(a.value || 0), pago, date: a.date, numeroVenda: a.numeroVenda ?? null }; }
+        }
+        if (v) abrirDetVenda(v);
+      } catch { /* */ }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Pré-seleciona cliente + pet vindos pela URL (ex.: botão Venda do inbox)
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search);
+    const tid = sp.get('tutorId');
+    const pid = sp.get('petId');
+    if (!tid) return;
+    (async () => {
+      try {
+        const r = await fetch(`/api/tutors/${tid}`, { cache: 'no-store' });
+        if (!r.ok) return;
+        const t = await r.json();
+        setCliente(t as Tutor);
+        const pets = (t.pets || []) as { id: string }[];
+        setPetId(pid && pets.some((p) => p.id === pid) ? pid : (pets.length === 1 ? pets[0].id : ''));
+      } catch { /* */ }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (buscaTimer.current) clearTimeout(buscaTimer.current);
@@ -353,8 +503,16 @@ export default function PDVPage() {
         <div style={{ flex: '1 1 230px', minWidth: 215, maxWidth: 340, display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={card}>
             <div style={{ ...chLeve, justifyContent: 'space-between' }}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, color: NAVY, fontSize: 13.5, fontWeight: 500 }}>🧾 Vendas de hoje</span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, color: NAVY, fontSize: 13.5, fontWeight: 500 }}>🧾 Vendas</span>
               <button onClick={loadVendas} style={{ border: 'none', background: 'none', color: MUT, cursor: 'pointer', fontSize: 14 }} aria-label="Atualizar">🔄</button>
+            </div>
+            <div style={{ padding: '2px 13px 0', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <input type="date" value={vendaDia} disabled={vendaAbertas} onChange={(e) => setVendaDia(e.target.value)}
+                style={{ padding: '5px 8px', border: `1px solid ${LINE}`, borderRadius: 8, fontSize: 12, color: INK, opacity: vendaAbertas ? 0.5 : 1 }} />
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: MUT, cursor: 'pointer' }}>
+                <input type="checkbox" checked={vendaAbertas} onChange={(e) => setVendaAbertas(e.target.checked)} />
+                Abertas (todos os dias)
+              </label>
             </div>
             <div style={{ padding: 13, display: 'flex', gap: 9 }}>
               <div style={{ flex: 1, background: OKB, borderRadius: 11, padding: '10px 12px' }}><div style={{ fontSize: 11, color: OK }}>Recebido</div><div style={{ fontSize: 16, fontWeight: 500, color: OK }}>{brl(recebidoHoje)}</div></div>
@@ -375,7 +533,8 @@ export default function PDVPage() {
                 </div>
               )}
               {vendasFiltradas.slice(0, 8).map((v) => (
-                <div key={v.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderTop: `1px solid ${SOFT}` }}>
+                <div key={v.id} onClick={() => abrirDetVenda(v)} title="Abrir venda" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 4px', borderTop: `1px solid ${SOFT}`, cursor: 'pointer', borderRadius: 8 }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = '#FAFAF7')} onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>
                   <span style={{ width: 32, height: 32, borderRadius: '50%', background: avatarOf(v.tutor).bg, color: avatarOf(v.tutor).fg, fontSize: 11.5, fontWeight: 500, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{iniciais(v.tutor)}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 500, color: INK, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.tutor}</div>
@@ -430,6 +589,144 @@ export default function PDVPage() {
           </div>
         </div>
       )}
+
+      {/* ===== DETALHE DA VENDA ===== */}
+      {detVenda && (
+        <div onClick={() => { setDetVenda(null); setEditItens(null); setRecOpen(false); }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 70, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: 440, maxWidth: '100%', maxHeight: '88vh', overflowY: 'auto', background: SUAVE, border: `1px solid ${LINE}`, borderRadius: 16 }}>
+            <div style={{ padding: '13px 18px', borderBottom: `1px solid ${LINE}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ color: NAVY, fontSize: 15, fontWeight: 500 }}>🧾 Venda {detVenda.numeroVenda ? `#${detVenda.numeroVenda}` : ''}</span>
+              <button onClick={() => { setDetVenda(null); setEditItens(null); setRecOpen(false); }} style={{ border: 'none', background: 'none', color: MUT, cursor: 'pointer', fontSize: 16 }} aria-label="Fechar">✕</button>
+            </div>
+            <div style={{ padding: 18 }}>
+              <div style={{ fontWeight: 600, color: INK, fontSize: 14 }}>{detVenda.tutor}{detVenda.pet ? ` · ${detVenda.pet}` : ''}</div>
+              <div style={{ fontSize: 12, color: MUT, marginBottom: 12 }}>{detVenda.date ? new Date(detVenda.date).toLocaleDateString('pt-BR') : ''}{detVenda.vet ? ` · ${detVenda.vet}` : ''}</div>
+
+              {(() => {
+                const temRecebimento = Number(detVenda.pago || 0) > 0.001;
+                const aReceber = Math.max(0, Number(detVenda.valor || 0) - Number(detVenda.pago || 0));
+                const podeEditar = !temRecebimento || isAdmin;
+                return (
+                  <>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                      <span style={{ fontSize: 11, color: MUT, textTransform: 'uppercase', letterSpacing: 0.4 }}>Itens</span>
+                      {editItens === null && !detLoad && (
+                        podeEditar
+                          ? <button onClick={abrirEdicaoItens} style={{ border: 'none', background: 'none', color: TEAL, fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>✏️ Editar</button>
+                          : <span style={{ fontSize: 11, color: MUT }}>🔒 só administrador</span>
+                      )}
+                    </div>
+
+                    {detLoad ? (
+                      <div style={{ color: MUT, fontSize: 13, padding: '8px 0' }}>Carregando…</div>
+                    ) : editItens !== null ? (
+                      <div style={{ border: `1px solid ${LINE}`, borderRadius: 10, overflow: 'hidden', marginBottom: 12, background: '#fff' }}>
+                        {editItens.map((it: any, i: number) => (
+                          <div key={i} style={{ borderBottom: `1px solid ${SOFT}`, padding: '8px 10px' }}>
+                            <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 5 }}>
+                              <input value={it.descricao} onChange={(e) => setEditItens((c) => c!.map((x, j) => j === i ? { ...x, descricao: e.target.value } : x))} placeholder="Descrição do item" style={{ ...inp, flex: 1, padding: '6px 8px' }} />
+                              <button onClick={() => setEditItens((c) => c!.filter((_, j) => j !== i))} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 13 }} title="Remover">🗑️</button>
+                            </div>
+                            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                              <input type="number" min={1} value={it.quantidade} onChange={(e) => setEditItens((c) => c!.map((x, j) => j === i ? { ...x, quantidade: Math.max(1, Math.floor(Number(e.target.value) || 1)) } : x))} title="Qtd" style={{ ...inp, width: 52, padding: '6px 6px', textAlign: 'center' }} />
+                              <span style={{ color: MUT, fontSize: 12 }}>×</span>
+                              <input value={it.valorUnitario || ''} inputMode="decimal" placeholder="Unit." onChange={(e) => setEditItens((c) => c!.map((x, j) => j === i ? { ...x, valorUnitario: num(e.target.value) } : x))} title="Valor unitário" style={{ ...inp, flex: 1, padding: '6px 8px' }} />
+                              <input value={it.desconto || ''} inputMode="decimal" placeholder="Desc." onChange={(e) => setEditItens((c) => c!.map((x, j) => j === i ? { ...x, desconto: num(e.target.value) } : x))} title="Desconto" style={{ ...inp, width: 66, padding: '6px 8px' }} />
+                              <span style={{ fontSize: 12.5, fontWeight: 500, color: NAVY, minWidth: 72, textAlign: 'right' }}>{brl(Math.max(0, it.quantidade * it.valorUnitario - (it.desconto || 0)))}</span>
+                            </div>
+                          </div>
+                        ))}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 10px' }}>
+                          <button onClick={() => setEditItens((c) => [...(c || []), { descricao: '', quantidade: 1, valorUnitario: 0, desconto: 0 }])} style={{ border: 'none', background: 'none', color: TEAL, fontSize: 12.5, fontWeight: 500, cursor: 'pointer' }}>➕ item</button>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: NAVY }}>Total {brl(editTotal)}</span>
+                        </div>
+                      </div>
+                    ) : (detVenda.itens && detVenda.itens.length > 0) ? (
+                      <div style={{ border: `1px solid ${LINE}`, borderRadius: 10, overflow: 'hidden', marginBottom: 12 }}>
+                        {detVenda.itens.map((it: any, i: number) => (
+                          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, padding: '7px 10px', borderTop: i ? `1px solid ${SOFT}` : 'none', fontSize: 12.5, color: INK }}>
+                            <span>{(it.quantidade || it.qtd || 1)}× {it.descricao || it.nome || 'Item'}</span>
+                            <span style={{ fontWeight: 500 }}>{brl(Number(it.valorTotal ?? (it.quantidade || 1) * (it.valorUnitario || 0)))}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{ color: MUT, fontSize: 12.5, padding: '4px 0 12px' }}>Sem itens detalhados.</div>
+                    )}
+
+                    {temRecebimento && editItens === null && !detLoad && (
+                      <div style={{ fontSize: 11.5, color: MUT, marginBottom: 12 }}>Esta venda já tem recebimento{isAdmin ? ' — como administrador, você pode editar os itens.' : ' — só um administrador pode alterar os itens.'}</div>
+                    )}
+
+                    <div style={{ display: 'flex', gap: 9, marginBottom: 14 }}>
+                      <div style={{ flex: 1, background: '#fff', border: `1px solid ${LINE}`, borderRadius: 10, padding: '8px 10px' }}><div style={{ fontSize: 10.5, color: MUT }}>Total</div><div style={{ fontSize: 14, fontWeight: 600, color: INK }}>{brl(editItens !== null ? editTotal : detVenda.valor)}</div></div>
+                      <div style={{ flex: 1, background: OKB, borderRadius: 10, padding: '8px 10px' }}><div style={{ fontSize: 10.5, color: OK }}>Pago</div><div style={{ fontSize: 14, fontWeight: 600, color: OK }}>{brl(detVenda.pago)}</div></div>
+                      <div style={{ flex: 1, background: WARNB, borderRadius: 10, padding: '8px 10px' }}><div style={{ fontSize: 10.5, color: WARN }}>A receber</div><div style={{ fontSize: 14, fontWeight: 600, color: WARN }}>{brl(aReceber)}</div></div>
+                    </div>
+
+                    {editItens !== null ? (
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button onClick={() => setEditItens(null)} style={{ flex: 1, background: '#fff', color: INK2, border: `1px solid ${LINE}`, borderRadius: 9, padding: 10, fontSize: 13, cursor: 'pointer' }}>Cancelar</button>
+                        <button onClick={salvarEdicaoItens} disabled={savingEdit} style={{ flex: 1.4, background: TEAL, color: '#fff', border: 'none', borderRadius: 9, padding: 10, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>{savingEdit ? 'Salvando…' : '💾 Salvar alterações'}</button>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        <button onClick={excluirVenda} disabled={detExcluindo} style={{ flex: 1, minWidth: 120, background: '#fff', color: '#A32D2D', border: '1px solid #F0C9C9', borderRadius: 9, padding: 10, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>{detExcluindo ? 'Excluindo…' : '🗑 Excluir'}</button>
+                        {aReceber > 0.001 && (
+                          <button onClick={abrirRecVenda} style={{ flex: 1.6, minWidth: 150, background: TEAL, color: '#fff', border: 'none', borderRadius: 9, padding: 10, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>💰 Registrar recebimento</button>
+                        )}
+                        <button onClick={() => { setDetVenda(null); setEditItens(null); setRecOpen(false); }} style={{ flex: 1, minWidth: 90, background: '#fff', color: INK2, border: `1px solid ${LINE}`, borderRadius: 9, padding: 10, fontSize: 13, cursor: 'pointer' }}>Fechar</button>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== RECEBIMENTO DE VENDA EXISTENTE ===== */}
+      {recOpen && detVenda && (() => {
+        const aReceber = Math.max(0, Number(detVenda.valor || 0) - Number(detVenda.pago || 0));
+        const soma = recFormas.reduce((s, f) => s + Number(f.valor || 0), 0);
+        const temDin = recFormas.some((f) => /dinheiro/i.test(f.forma));
+        const trocoR = temDin && soma > aReceber ? soma - aReceber : 0;
+        const pagoR = Math.max(0, soma - trocoR);
+        const restanteR = Math.max(0, aReceber - pagoR);
+        return (
+          <div onClick={() => setRecOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', zIndex: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+            <div onClick={(e) => e.stopPropagation()} style={{ width: 420, maxWidth: '100%', background: SUAVE, border: `1px solid ${LINE}`, borderRadius: 16, overflow: 'hidden' }}>
+              <div style={{ padding: '13px 18px', borderBottom: `1px solid ${LINE}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ color: NAVY, fontSize: 15, fontWeight: 500 }}>💰 Registrar recebimento</span>
+                <button onClick={() => setRecOpen(false)} style={{ border: 'none', background: 'none', color: MUT, cursor: 'pointer', fontSize: 16 }} aria-label="Fechar">✕</button>
+              </div>
+              <div style={{ padding: 18 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, background: '#fff', border: `1px solid ${LINE}`, borderRadius: 11, padding: '11px 14px' }}>
+                  <span style={{ fontSize: 13, color: INK2 }}>Saldo a receber</span>
+                  <span style={{ fontSize: 20, fontWeight: 500, color: NAVY }}>{brl(aReceber)}</span>
+                </div>
+                {recFormas.map((f, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 7 }}>
+                    <select value={f.forma} onChange={(e) => setRecFormas(recFormas.map((x, j) => j === i ? { ...x, forma: e.target.value } : x))} style={{ ...inp, flex: 1.3, padding: '8px' }}>{formasList.map((op) => <option key={op} value={op}>{op}</option>)}</select>
+                    <input value={f.valor || ''} inputMode="decimal" placeholder="R$" onChange={(e) => setRecFormas(recFormas.map((x, j) => j === i ? { ...x, valor: num(e.target.value) } : x))} style={{ ...inp, flex: 1, padding: '8px' }} />
+                    {recFormas.length > 1 && <button onClick={() => setRecFormas(recFormas.filter((_, j) => j !== i))} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 13 }}>🗑️</button>}
+                  </div>
+                ))}
+                <button onClick={() => setRecFormas([...recFormas, { forma: 'Pix', valor: 0 }])} style={{ border: 'none', background: 'none', color: TEAL, fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>➕ outra forma</button>
+
+                <div style={{ marginTop: 12, fontSize: 13, lineHeight: 2, borderTop: `1px solid ${SOFT}`, paddingTop: 8 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: INK2 }}>Recebido agora</span><b style={{ color: NAVY }}>{brl(pagoR)}</b></div>
+                  {trocoR > 0 && <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: INK2 }}>Troco</span><b style={{ color: OK }}>{brl(trocoR)}</b></div>}
+                  {restanteR > 0.001 && <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: INK2 }}>Ainda faltará</span><b style={{ color: WARN }}>{brl(restanteR)}</b></div>}
+                </div>
+
+                <button onClick={confirmarRecVenda} disabled={recSaving} style={{ width: '100%', marginTop: 14, background: TEAL, color: '#fff', border: 'none', fontSize: 14, fontWeight: 500, padding: 12, borderRadius: 9, cursor: 'pointer' }}>{recSaving ? 'Registrando…' : '✓ Confirmar recebimento'}</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

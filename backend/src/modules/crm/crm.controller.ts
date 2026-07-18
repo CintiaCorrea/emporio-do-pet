@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Body,
   Param,
   Query,
@@ -79,6 +80,23 @@ export class CrmController {
   @ApiOperation({ summary: 'Get CRM statistics' })
   async getStats(@CurrentUser() user: { userId: string }) {
     return this.crmService.getStats(user.userId);
+  }
+
+  @Get('inbox-settings')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Config da Caixa de Entrada (criar lead automatico do WhatsApp)' })
+  async getInboxSettings() {
+    return this.crmService.getInboxSettings();
+  }
+
+  @Patch('inbox-settings')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Liga/desliga criar lead automatico do WhatsApp' })
+  async setInboxSettings(
+    @CurrentUser() user: { userId: string },
+    @Body() body: { autoCreateLeadsFromWhatsApp: boolean },
+  ) {
+    return this.crmService.setInboxSettings(user.userId, !!body?.autoCreateLeadsFromWhatsApp);
   }
 
   @Get('duplicados')

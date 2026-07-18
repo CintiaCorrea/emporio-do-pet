@@ -3,7 +3,9 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { BullModule } from '@nestjs/bullmq';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ScheduleModule } from '@nestjs/schedule';
+import { CronLeaderService } from './common/cron-leader.service';
 import { PrismaModule } from './modules/prisma/prisma.module';
+import { PublicCadastroModule } from './modules/public-cadastro/public-cadastro.module';
 import { RedisModule } from './modules/redis/redis.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
@@ -132,6 +134,7 @@ import configuration from './config/configuration';
     // Módulos de infraestrutura
     PrismaModule,
     RedisModule,
+    PublicCadastroModule,
 
     // Módulos de comunicação
     WhatsAppModule,
@@ -232,5 +235,6 @@ import configuration from './config/configuration';
     // Health check
     HealthModule,
   ],
+  providers: [CronLeaderService],
 })
 export class AppModule {}

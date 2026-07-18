@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { AppointmentsService } from './appointments.service';
+import { AppointmentConfirmationScheduler } from './appointment-confirmation.scheduler';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { UpdateAppointmentDto } from './dto/update-appointment.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -21,7 +22,10 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class AppointmentsController {
-  constructor(private readonly appointmentsService: AppointmentsService) {}
+  constructor(
+    private readonly appointmentsService: AppointmentsService,
+    private readonly confirmScheduler: AppointmentConfirmationScheduler,
+  ) {}
 
   @Post()
   @ApiOperation({ summary: 'Criar agendamento' })
@@ -88,8 +92,30 @@ export class AppointmentsController {
 
   @Patch(':id')
   @ApiOperation({ summary: 'Atualizar agendamento' })
-  update(@Param('id') id: string, @Body() updateAppointmentDto: UpdateAppointmentDto) {
-    return this.appointmentsService.update(id, updateAppointmentDto);
+  update(@Param('id') id: string, @Body() updateAppointmentDto: UpdateAppointmentDto, @CurrentUser('role') role: string) {
+    return this.appointmentsService.update(id, updateAppointmentDto, role);
+  }
+
+  @Post(':id/confirmar-whatsapp')
+  @ApiOperation({ summary: 'Enviar confirmação do agendamento pelo WhatsApp' })
+  confirmarWhatsapp(@Param('id') id: string) {
+    return this.appointmentsService.sendConfirmation(id);
+  }
+
+  @Post('confirmacoes-amanha')
+  @ApiOperation({ summary: 'Confirmações das agendas de amanhã (dryRun=true só simula)' })
+  @ApiQuery({ name: 'dryRun', required: false })
+  confirmacoesAmanha(@Query('dryRun') dryRun?: string) {
+    return this.confirmScheduler.rodar(dryRun === 'true');
+  }
+
+  @Post(':id/cancelar')
+  @ApiOperation({ summary: 'Cancelar agendamento com motivo opcional' })
+  cancelar(
+    @Param('id') id: string,
+    @Body() body: { motivo?: string; observacao?: string },
+  ) {
+    return this.appointmentsService.cancelWithReason(id, body?.motivo, body?.observacao);
   }
 
   @Delete(':id')

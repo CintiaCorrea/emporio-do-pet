@@ -19,6 +19,20 @@ export interface CloudStorageConfig {
   cloudinaryFolder?: string;
 }
 
+/**
+ * Deixa o nome seguro pra virar chave no bucket: sem acento, sem espaço, sem barra.
+ * Preserva a extensão (o navegador usa pra saber que é PDF).
+ */
+export function sanitizarNome(nome: string): string {
+  const limpo = (nome || 'arquivo')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '') // tira acento
+    .replace(/[^a-zA-Z0-9._-]+/g, '-') // espaço, "/", "#", "?" etc viram "-"
+    .replace(/-{2,}/g, '-')
+    .replace(/^[-.]+|-+$/g, '');
+  return limpo.slice(0, 120) || 'arquivo';
+}
+
 export interface UploadResult {
   success: boolean;
   url?: string;
@@ -129,7 +143,12 @@ export class CloudStorageService {
     }
 
     try {
-      const key = `${folder}/${filename}`;
+      // O nome vai pra dentro da URL E da assinatura SigV4. Espaço, acento ou "/" no
+      // nome quebram o cálculo da assinatura e o bucket devolve 403 SignatureDoesNotMatch
+      // ("Exames - Luna_Claudia 16_07_26.pdf" quebrava; "laudo-teste.pdf" passava).
+      // O nome de verdade continua guardado em MediaFile.originalFilename, que é o que
+      // a tela mostra — isto aqui é só o endereço do arquivo no bucket.
+      const key = `${folder}/${sanitizarNome(filename)}`;
       const endpoint = this.config.s3Endpoint || `https://s3.${this.config.s3Region}.amazonaws.com`;
       const url = `${endpoint}/${this.config.s3Bucket}/${key}`;
       const date = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '');

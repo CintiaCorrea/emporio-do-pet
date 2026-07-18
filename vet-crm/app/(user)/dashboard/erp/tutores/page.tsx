@@ -120,7 +120,8 @@ const especieLabel = (species: string) => {
   return s.charAt(0) + s.slice(1).toLowerCase();
 };
 
-const semAcento = (s: string) =>
+// Minúsculas e SEM acento, pros dois lados da comparação: "galvao" acha "Galvão".
+const semAcento = (s?: string | null) =>
   (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
 export default function ClientesPage() {
@@ -130,12 +131,16 @@ export default function ClientesPage() {
   const [pets, setPets] = useState<PetSimples[] | null>(null);
   const [petsLoading, setPetsLoading] = useState(false);
   const [petSearch, setPetSearch] = useState("");
+  const [petSearchTutor, setPetSearchTutor] = useState("");
   const [petOrdem, setPetOrdem] = useState<"AZ" | "ZA">("AZ");
   const [cliOrdem, setCliOrdem] = useState<"AZ" | "ZA">("AZ");
   const [apptStats, setApptStats] = useState<Record<string, { last?: string; ltv: number }>>({});
   const [filter] = useState<Filter>("Cliente"); void filter;
   const [search, setSearch] = useState("");
-  useEffect(() => { const q = new URLSearchParams(window.location.search).get("q"); if (q) setSearch(q); }, []);
+  const [searchPet, setSearchPet] = useState("");
+  const qUrlRef = useRef<string | null>(null);
+  const qRoteadoRef = useRef(false);
+  useEffect(() => { const q = new URLSearchParams(window.location.search).get("q"); if (q) { qUrlRef.current = q; setSearch(q); } }, []);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
@@ -272,15 +277,17 @@ export default function ClientesPage() {
 
   const petsFiltrados = useMemo(() => {
     let list = pets || [];
-    const q = semAcento(petSearch.trim());
-    if (q) list = list.filter((p) =>
-      semAcento(p.name || "").includes(q) ||
-      semAcento(p.breed || "").includes(q) ||
-      semAcento(p.tutor?.name || "").includes(q)
+    // Mesma ideia da aba Clientes, invertida: pet primeiro, tutor depois. As duas se CRUZAM.
+    const qp = semAcento(petSearch.trim());
+    const qt = semAcento(petSearchTutor.trim());
+    if (qp) list = list.filter((p) =>
+      semAcento(p.name).includes(qp) ||
+      semAcento(p.breed).includes(qp)
     );
+    if (qt) list = list.filter((p) => semAcento(p.tutor?.name).includes(qt));
     if (petOrdem === "ZA") list = [...list].reverse();
     return list;
-  }, [pets, petSearch, petOrdem]);
+  }, [pets, petSearch, petSearchTutor, petOrdem]);
 
   const statusPetPill = (status: string) => {
     const s = (status || "").toUpperCase();
@@ -432,19 +439,45 @@ export default function ClientesPage() {
 
   const filtered = useMemo(() => {
     let arr = tutores.filter((t) => t.classificacao === "Cliente" || !t.classificacao);
-    if (search.trim()) {
-      const q = search.toLowerCase();
+    // Duas buscas independentes que se CRUZAM (E, não OU): "renata" + "zeus" = 1 linha.
+    const qc = search.trim();
+    const qp = searchPet.trim();
+    if (qc) {
+      const n = semAcento(qc);
+      const dig = qc.replace(/\D/g, "");
       arr = arr.filter((t) =>
-        t.name?.toLowerCase().includes(q) ||
-        t.email?.toLowerCase().includes(q) ||
-        t.contacts?.some((c) => c.number?.includes(q)) ||
-        t.pets?.some((p) => p.name?.toLowerCase().includes(q))
+        semAcento(t.name).includes(n) ||
+        semAcento(t.email).includes(n) ||
+        (!!dig && (t.contacts || []).some((c) => (c.number || "").includes(dig)))
       );
+    }
+    if (qp) {
+      const n = semAcento(qp);
+      arr = arr.filter((t) => (t.pets || []).some((p) => semAcento(p.name).includes(n)));
     }
     arr.sort((a, b) => (a.name || "").localeCompare(b.name || "", "pt-BR"));
     if (cliOrdem === "ZA") arr.reverse();
     return arr;
-  }, [tutores, search, cliOrdem]);
+  }, [tutores, search, searchPet, cliOrdem]);
+
+  // A lupa do topo manda UM termo (?q=) que pode ser nome de pet. Com uma caixinha só
+  // isso funcionava (ela olhava tudo); com duas, o termo cairia na de cliente e sumiria.
+  // Aqui ele é jogado na caixinha certa — uma única vez, e dá pra ver onde caiu.
+  useEffect(() => {
+    const q = qUrlRef.current;
+    if (!q || qRoteadoRef.current || tutores.length === 0) return;
+    qRoteadoRef.current = true;
+    const n = semAcento(q);
+    const dig = q.replace(/\D/g, "");
+    const ehCliente = tutores.some((t) =>
+      semAcento(t.name).includes(n) ||
+      semAcento(t.email).includes(n) ||
+      (!!dig && (t.contacts || []).some((c) => (c.number || "").includes(dig)))
+    );
+    if (ehCliente) return; // já está na caixinha de cliente
+    const ehPet = tutores.some((t) => (t.pets || []).some((p) => semAcento(p.name).includes(n)));
+    if (ehPet) { setSearch(""); setSearchPet(q); }
+  }, [tutores]);
 
   const counts = useMemo(() => {
     const c = tutores.filter((t) => t.classificacao === "Cliente" || !t.classificacao);
@@ -501,14 +534,32 @@ export default function ClientesPage() {
 
       {/* Toolbar */}
       <div className="flex gap-2 mb-3 flex-wrap items-center">
-        <div className="relative flex-1 min-w-[220px]">
+        <div className="relative flex-1 min-w-[210px]">
           <LuSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar nome, pet, telefone ou email…"
-            className="w-full bg-white border border-[#E8E2D6] rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-[#009AAC]"
+            placeholder="Buscar cliente — nome, telefone, e-mail…"
+            className="w-full bg-white border border-[#E8E2D6] rounded-lg pl-9 pr-8 py-2 text-sm focus:outline-none focus:border-[#009AAC]"
           />
+          {search && (
+            <button onClick={() => setSearch("")} title="Limpar" type="button"
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-300 hover:text-[#4d5a66] text-base leading-none px-1">×</button>
+          )}
+        </div>
+        {/* 2ª caixinha: cruza com a de cima. "renata" + "zeus" = 1 linha. */}
+        <div className="relative flex-1 min-w-[210px]">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] opacity-60 pointer-events-none">🐾</span>
+          <input
+            value={searchPet}
+            onChange={(e) => setSearchPet(e.target.value)}
+            placeholder="Buscar pet — nome do animal…"
+            className="w-full bg-white border border-[#E8E2D6] rounded-lg pl-9 pr-8 py-2 text-sm focus:outline-none focus:border-[#00798A]"
+          />
+          {searchPet && (
+            <button onClick={() => setSearchPet("")} title="Limpar" type="button"
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-300 hover:text-[#4d5a66] text-base leading-none px-1">×</button>
+          )}
         </div>
         <button
           onClick={() => setCliOrdem((o) => (o === "AZ" ? "ZA" : "AZ"))}
@@ -531,6 +582,19 @@ export default function ClientesPage() {
         </button>
       </div>
 
+      {/* Diz quantos sobraram e — quando as duas caixinhas estão cheias — que está cruzando */}
+      {(search.trim() || searchPet.trim()) && (
+        <div className="text-[11.5px] text-[#9a948a] mb-2.5 ml-0.5">
+          <b className="text-[#014D5E]">{filtered.length}</b>{" "}
+          {filtered.length === 1 ? "cliente" : "clientes"}
+          {search.trim() && searchPet.trim() && (
+            <span className="text-[#00798A] font-semibold">
+              {" "}· cruzando cliente “{search.trim()}” + pet “{searchPet.trim()}”
+            </span>
+          )}
+        </div>
+      )}
+
       <div className="bg-white rounded-xl border border-[#d8d0bc] overflow-hidden">
         <table className="w-full text-sm">
           <thead>
@@ -548,7 +612,11 @@ export default function ClientesPage() {
             {loading ? (
               <tr><td colSpan={7} className="py-12 text-center text-gray-400">Carregando...</td></tr>
             ) : filtered.length === 0 ? (
-              <tr><td colSpan={7} className="py-12 text-center text-gray-400">Nenhum cliente nesse filtro</td></tr>
+              <tr><td colSpan={7} className="py-12 text-center text-gray-400">
+                {search.trim() && searchPet.trim() ? (
+                  <>Nenhum cliente com esse cruzamento.<br /><span className="text-[#4d5a66]">Tente limpar uma das caixinhas.</span></>
+                ) : "Nenhum cliente nesse filtro"}
+              </td></tr>
             ) : (
               filtered.slice(0, 200).map((t) => {
                 const phone = t.contacts?.find((c) => c.isPrimary)?.number || t.contacts?.[0]?.number;
@@ -572,11 +640,20 @@ export default function ClientesPage() {
                     </td>
                     <td className="py-2.5 px-3">
                       <div className="flex gap-1 flex-wrap">
-                        {(t.pets || []).map((p) => (
-                          <Link key={p.id} href={`/dashboard/erp/pets/${p.id}`} title={`Abrir ficha de ${p.name}`} className="inline-flex items-center gap-1 bg-[#E0F4F6] text-[#00798A] text-[10px] px-2 py-0.5 rounded-full hover:bg-[#00798A] hover:text-white transition-colors">
-                            {PET_EMOJI(p.species)} {p.name}
-                          </Link>
-                        ))}
+                        {(t.pets || []).map((p) => {
+                          // Pet que casou com a busca fica em turquesa cheio: mostra POR QUE a linha veio.
+                          const bateu = !!searchPet.trim() && semAcento(p.name).includes(semAcento(searchPet));
+                          return (
+                            <Link key={p.id} href={`/dashboard/erp/pets/${p.id}`} title={`Abrir ficha de ${p.name}`}
+                              className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full transition-colors ${
+                                bateu
+                                  ? "bg-[#00798A] text-white font-semibold"
+                                  : "bg-[#E0F4F6] text-[#00798A] hover:bg-[#00798A] hover:text-white"
+                              }`}>
+                              {PET_EMOJI(p.species)} {p.name}
+                            </Link>
+                          );
+                        })}
                         {(t.pets?.length || 0) === 0 && <span className="text-[10px] text-gray-400">sem pet</span>}
                       </div>
                     </td>
@@ -610,14 +687,32 @@ export default function ClientesPage() {
         <div>
           {/* Toolbar */}
           <div className="flex gap-2 mb-3 flex-wrap items-center">
-            <div className="relative flex-1 min-w-[220px]">
-              <LuSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <div className="relative flex-1 min-w-[210px]">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] opacity-60 pointer-events-none">🐾</span>
               <input
                 value={petSearch}
                 onChange={(e) => setPetSearch(e.target.value)}
-                placeholder="Buscar por pet, raça ou tutor…"
-                className="w-full bg-white border border-[#E8E2D6] rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-[#009AAC]"
+                placeholder="Buscar pet — nome ou raça…"
+                className="w-full bg-white border border-[#E8E2D6] rounded-lg pl-9 pr-8 py-2 text-sm focus:outline-none focus:border-[#00798A]"
               />
+              {petSearch && (
+                <button onClick={() => setPetSearch("")} title="Limpar" type="button"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-300 hover:text-[#4d5a66] text-base leading-none px-1">×</button>
+              )}
+            </div>
+            {/* Aqui o par é invertido: o pet manda, o tutor refina. */}
+            <div className="relative flex-1 min-w-[210px]">
+              <LuSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                value={petSearchTutor}
+                onChange={(e) => setPetSearchTutor(e.target.value)}
+                placeholder="Buscar tutor — nome do dono…"
+                className="w-full bg-white border border-[#E8E2D6] rounded-lg pl-9 pr-8 py-2 text-sm focus:outline-none focus:border-[#009AAC]"
+              />
+              {petSearchTutor && (
+                <button onClick={() => setPetSearchTutor("")} title="Limpar" type="button"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-300 hover:text-[#4d5a66] text-base leading-none px-1">×</button>
+              )}
             </div>
             <button
               onClick={() => setPetOrdem((o) => (o === "AZ" ? "ZA" : "AZ"))}
@@ -640,6 +735,17 @@ export default function ClientesPage() {
             </button>
           </div>
 
+          {(petSearch.trim() || petSearchTutor.trim()) && (
+            <div className="text-[11.5px] text-[#9a948a] mb-2.5 ml-0.5">
+              <b className="text-[#014D5E]">{petsFiltrados.length}</b> {petsFiltrados.length === 1 ? "pet" : "pets"}
+              {petSearch.trim() && petSearchTutor.trim() && (
+                <span className="text-[#00798A] font-semibold">
+                  {" "}· cruzando pet “{petSearch.trim()}” + tutor “{petSearchTutor.trim()}”
+                </span>
+              )}
+            </div>
+          )}
+
           {/* Tabela de pets Base44 */}
           <div className="bg-white rounded-xl border border-[#E8E2D6] overflow-hidden">
             <table className="w-full text-sm">
@@ -655,7 +761,11 @@ export default function ClientesPage() {
                 {petsLoading ? (
                   <tr><td colSpan={4} className="py-12 text-center text-gray-400">Carregando pets…</td></tr>
                 ) : petsFiltrados.length === 0 ? (
-                  <tr><td colSpan={4} className="py-12 text-center text-gray-400">Nenhum pet encontrado.</td></tr>
+                  <tr><td colSpan={4} className="py-12 text-center text-gray-400">
+                    {petSearch.trim() && petSearchTutor.trim() ? (
+                      <>Nenhum pet com esse cruzamento.<br /><span className="text-[#4d5a66]">Tente limpar uma das caixinhas.</span></>
+                    ) : "Nenhum pet encontrado."}
+                  </td></tr>
                 ) : (
                   petsFiltrados.slice(0, 200).map((p) => {
                     const st = statusPetPill(p.status);

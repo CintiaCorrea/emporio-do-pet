@@ -70,8 +70,8 @@ export default function GravarConsultaPage({ params }: { params: Promise<{ id: s
           setStep('done');
         }
       } else {
-        toast.error('Consulta não encontrada');
-        router.push('/dashboard/erp/consultas');
+        toast.error('Atendimento não encontrado');
+        router.push('/dashboard/erp/agendamentos/agenda');
       }
     } catch {
       toast.error('Erro ao carregar consulta');
@@ -83,7 +83,7 @@ export default function GravarConsultaPage({ params }: { params: Promise<{ id: s
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <LuLoader className="w-8 h-8 animate-spin text-violet-600" />
+        <LuLoader className="w-8 h-8 animate-spin" style={{ color: "#009AAC" }} />
       </div>
     );
   }
@@ -91,22 +91,22 @@ export default function GravarConsultaPage({ params }: { params: Promise<{ id: s
   if (!appointment) return null;
 
   return (
-    <div className="max-w-5xl mx-auto p-6 space-y-6">
+    <div className="max-w-5xl mx-auto p-6 space-y-6 min-h-screen" style={{ background: "#F6F2EA" }}>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Link
-            href="/dashboard/erp/consultas"
-            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            href={`/dashboard/erp/atendimentos/${id}`}
+            className="p-2 rounded-lg hover:bg-black/5 transition-colors"
           >
             <span style={{fontSize:"12px"}}>◀</span>
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <h1 className="text-2xl font-bold flex items-center gap-2" style={{ color: "#014D5E" }}>
               <span style={{fontSize:"14px"}}>🎤</span>
-              Gravação & Documentos
+              Gravação &amp; Documentos
             </h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <p className="text-sm" style={{ color: "#5C6B70" }}>
               Grave a consulta, transcreva e gere documentos automaticamente
             </p>
           </div>
@@ -117,7 +117,7 @@ export default function GravarConsultaPage({ params }: { params: Promise<{ id: s
             onClick={() => setShowHistory(!showHistory)}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               showHistory
-                ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400'
+                ? 'bg-[#EAF6F7] text-[#014D5E]'
                 : 'bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-300'
             }`}
           >
@@ -128,7 +128,7 @@ export default function GravarConsultaPage({ params }: { params: Promise<{ id: s
           {generatedDocs.length > 0 && (
             <Link
               href={`/dashboard/erp/consultas/${id}/documentos`}
-              className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-sm font-medium transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-[#009AAC] hover:bg-[#017E8C] text-white rounded-lg text-sm font-medium transition-colors"
             >
               <LuFileText className="w-4 h-4" />
               Ver Documentos ({generatedDocs.length})
@@ -141,7 +141,7 @@ export default function GravarConsultaPage({ params }: { params: Promise<{ id: s
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
         <div className="flex items-center gap-6 text-sm">
           <div className="flex items-center gap-2">
-            <LuPawPrint className="w-4 h-4 text-violet-600" />
+            <LuPawPrint className="w-4 h-4 text-[#009AAC]" />
             <span className="font-medium text-gray-900 dark:text-white">{appointment.pet.name}</span>
             <span className="text-gray-500">({appointment.pet.species}{appointment.pet.breed ? ` - ${appointment.pet.breed}` : ''})</span>
           </div>
@@ -173,7 +173,7 @@ export default function GravarConsultaPage({ params }: { params: Promise<{ id: s
           onClick={() => setStep('record')}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
             step === 'record'
-              ? 'bg-violet-600 text-white'
+              ? 'bg-[#009AAC] text-white'
               : hasTranscription || hasAnalysis
               ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
               : 'bg-gray-100 text-gray-500 dark:bg-gray-700'
@@ -187,7 +187,7 @@ export default function GravarConsultaPage({ params }: { params: Promise<{ id: s
           onClick={() => (hasTranscription || hasAnalysis) && setStep('generate')}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
             step === 'generate'
-              ? 'bg-violet-600 text-white'
+              ? 'bg-[#009AAC] text-white'
               : generatedDocs.length > 0
               ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
               : 'bg-gray-100 text-gray-500 dark:bg-gray-700'
@@ -202,7 +202,7 @@ export default function GravarConsultaPage({ params }: { params: Promise<{ id: s
           onClick={() => generatedDocs.length > 0 && setStep('done')}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
             step === 'done'
-              ? 'bg-violet-600 text-white'
+              ? 'bg-[#009AAC] text-white'
               : 'bg-gray-100 text-gray-500 dark:bg-gray-700'
           }`}
           disabled={generatedDocs.length === 0}
@@ -282,7 +282,7 @@ export default function GravarConsultaPage({ params }: { params: Promise<{ id: s
                 className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-lg"
               >
                 <div className="flex items-center gap-3">
-                  <LuFileText className="w-5 h-5 text-violet-600" />
+                  <LuFileText className="w-5 h-5 text-[#009AAC]" />
                   <div>
                     <p className="font-medium text-sm text-gray-900 dark:text-white">{doc.title}</p>
                     <p className="text-xs text-gray-500">{doc.type}</p>
@@ -292,10 +292,19 @@ export default function GravarConsultaPage({ params }: { params: Promise<{ id: s
             ))}
           </div>
 
-          <div className="flex justify-center gap-4">
+          <div className="flex justify-center gap-4 flex-wrap">
+            {appointment.pet?.id && (
+              <Link
+                href={`/dashboard/erp/pets/${appointment.pet.id}/atendimentos/novo?edit=${id}`}
+                className="flex items-center gap-2 px-6 py-3 text-white rounded-xl font-medium transition-all hover:opacity-90"
+                style={{ background: "#014D5E" }}
+              >
+                🧠 Preencher a ficha com a IA →
+              </Link>
+            )}
             <Link
               href={`/dashboard/erp/consultas/${id}/documentos`}
-              className="flex items-center gap-2 px-6 py-3 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-medium transition-all"
+              className="flex items-center gap-2 px-6 py-3 bg-[#009AAC] hover:bg-[#017E8C] text-white rounded-xl font-medium transition-all"
             >
               <LuFileText className="w-5 h-5" />
               Visualizar e Baixar Documentos

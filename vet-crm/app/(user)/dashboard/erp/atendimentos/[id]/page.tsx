@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { LuArrowLeft, LuPencil, LuStethoscope, LuClipboardList, LuActivity, LuPill, LuCalendar, LuDollarSign } from "react-icons/lu";
+import toast from "react-hot-toast";
+import { LuArrowLeft, LuPencil, LuTrash2, LuStethoscope, LuClipboardList, LuActivity, LuPill, LuCalendar, LuDollarSign } from "react-icons/lu";
 import PetIcon from "@/components/profile/PetIcon";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { speciesLabel } from "@/lib/pets/labels";
@@ -88,9 +89,23 @@ function fmtDate(s?: string | null) {
 
 export default function AtendimentoDetailPage() {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const id = params?.id as string;
   const [data, setData] = useState<Atendimento | null>(null);
   const [loading, setLoading] = useState(true);
+  const [excluindo, setExcluindo] = useState(false);
+
+  async function excluirAtendimento() {
+    if (!data) return;
+    if (!window.confirm(`Excluir o atendimento de ${data.pet?.name || "este pet"}? Não dá pra desfazer.`)) return;
+    setExcluindo(true);
+    try {
+      const r = await fetch(`/api/appointments/${id}`, { method: "DELETE" });
+      if (!r.ok) throw new Error();
+      toast.success("Atendimento excluído");
+      router.push(`/dashboard/erp/pets/${data.petId}`);
+    } catch { toast.error("Erro ao excluir"); setExcluindo(false); }
+  }
 
   usePageTitle(data ? `Atendimento · ${TYPE_LABEL[data.type] || data.type}` : "Atendimento", data?.pet ? `${data.pet.name}` : undefined);
 
@@ -136,6 +151,11 @@ export default function AtendimentoDetailPage() {
                 {" "}({speciesLabel(data.pet.species)}) · Tutor: <Link href={`/dashboard/erp/tutores/${data.tutorId}`} className="hover:underline" style={{ color: "#009AAC" }}>{data.tutor.name}</Link>
               </div>
             )}
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Link href={`/dashboard/erp/consultas/${id}/gravar`} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-[13px] font-medium border" style={{ borderColor: "#009AAC", color: "#009AAC", background: "#fff" }}>🎤 Gravar</Link>
+            <Link href={`/dashboard/erp/pets/${data.petId}/atendimentos/novo?edit=${id}`} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-[13px] font-medium text-white" style={{ background: "#009AAC" }}><LuPencil size={15} /> Editar</Link>
+            <button onClick={excluirAtendimento} disabled={excluindo} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-[13px] font-medium border disabled:opacity-60" style={{ borderColor: "#F0C9C9", color: "#A32D2D", background: "#fff" }}><LuTrash2 size={15} /> {excluindo ? "Excluindo…" : "Excluir"}</button>
           </div>
         </div>
       </div>

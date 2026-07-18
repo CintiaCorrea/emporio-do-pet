@@ -13,11 +13,12 @@ interface SendEmailModalProps {
   tutorId?: string;
   leadId?: string;
   petId?: string;
+  onSent?: () => void; // chamado após envio bem-sucedido (opcional)
 }
 
 export function SendEmailModal({
   open, onClose, defaultTo, defaultSubject, defaultHtml,
-  tutorId, leadId, petId,
+  tutorId, leadId, petId, onSent,
 }: SendEmailModalProps) {
   const [to, setTo] = useState(defaultTo || "");
   const [subject, setSubject] = useState(defaultSubject || "");
@@ -48,6 +49,7 @@ export function SendEmailModal({
       const data = await res.json().catch(() => ({}));
       if (data.success || data.ok) {
         toast.success("Email enviado!");
+        onSent?.();
         onClose();
       } else {
         toast.error(data.error || "Erro ao enviar");

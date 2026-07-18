@@ -35,6 +35,13 @@ export default function NovoAtendimentoPage() {
   const [pet, setPet] = useState<Pet | null>(null);
   const [vets, setVets] = useState<Prof[]>([]);
   const [saving, setSaving] = useState(false);
+  // Modo edição (Fase 1): quando ?edit=<atendimentoId> na URL, a ficha carrega e SALVA POR CIMA do mesmo atendimento.
+  const [editId, setEditId] = useState<string | null>(null);
+  const [prescEdit, setPrescEdit] = useState("");   // prescrição existente (texto editável) no modo edição
+  const [examesEdit, setExamesEdit] = useState(""); // exames solicitados existentes (texto editável) no modo edição
+  const [itensOriginais, setItensOriginais] = useState<string>("[]"); // snapshot p/ detectar alteração de itens
+  const [iaPreenchido, setIaPreenchido] = useState(false); // banner "preenchido pela IA — revise"
+  const [iaLoading, setIaLoading] = useState(false);
   const [pesos, setPesos] = useState<{ id?: string; data: string; kg: number }[]>([]);
   const [exCat, setExCat] = useState<ExameCat[]>([]);
   const [recModelos, setRecModelos] = useState<{ nome: string; corpo: string }[]>([]);
@@ -115,6 +122,36 @@ export default function NovoAtendimentoPage() {
       setPacotes(lpacArr.map((i: any) => { let d: any = {}; try { d = JSON.parse(i.valor); } catch {} return { id: i.id, data: d }; }));
     })();
   }, [petId, session]);
+
+  // Modo edição: lê ?edit=<id> e carrega o atendimento existente na ficha.
+  useEffect(() => {
+    if (!petId) return;
+    const sp = new URLSearchParams(window.location.search);
+    const eid = sp.get("edit");
+    if (!eid) return;
+    setEditId(eid);
+    (async () => {
+      const a = await safeJson<any>(await fetch(`/api/atendimentos/${eid}`, { cache: "no-store" }), null);
+      if (!a) { toast.error("Atendimento não encontrado"); return; }
+      const d = new Date(a.date); const z = (n: number) => String(n).padStart(2, "0");
+      setForm((f) => ({
+        ...f,
+        date: `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}T${z(d.getHours())}:${z(d.getMinutes())}`,
+        type: a.type || f.type, userId: a.userId || a.user?.id || f.userId, status: a.status || f.status,
+        peso: a.petWeight != null ? String(a.petWeight) : "",
+        chiefComplaint: a.chiefComplaint || "", anamnesis: a.anamnesis || "",
+        physicalExam: a.physicalExam || "", diagnosis: a.diagnosis || "", conduct: a.conduct || "",
+        followUpNotes: a.followUpNotes || "",
+      }));
+      setPrescEdit(a.prescription || "");
+      setExamesEdit(a.examsRequested || "");
+      const its = (a.items || a.appointmentItems || a.itens || []);
+      const mapped = its.map((it: any) => ({ servicoId: it.servicoId || it.productId || "", descricao: it.descricao || it.nome || "", quantidade: Number(it.quantidade) || 1, valorUnitario: Number(it.valorUnitario) || 0, custoUnitario: Number(it.custoUnitario) || 0, executorUserId: it.executorUserId || "", comissaoValor: it.comissaoValor || 0 }));
+      setItens(mapped);
+      setItensOriginais(JSON.stringify(mapped));
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [petId]);
 
   // ── Itens da venda (coluna direita) ──
   function addItem() { setItens((p) => [...p, { servicoId: "", descricao: "", quantidade: 1, valorUnitario: 0, custoUnitario: 0, executorUserId: form.userId || "", comissaoValor: 0 }]); }
@@ -212,7 +249,11 @@ export default function NovoAtendimentoPage() {
 
   async function listasAdd(lista: string, valor: string) { try { await fetch(`/api/listas`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lista, valor }) }); } catch {} }
 
-  async function handleSave() {
+  function receberNoCaixa() {
+    if (!itens.some((i) => i.descricao || i.servicoId)) { toast.error("Adicione ao menos um serviço/produto para receber."); return; }
+    handleSave(true); // salva e vai pro Caixa com essa venda aberta
+  }
+  async function handleSave(irCaixa: boolean = false) {
     if (!pet) return;
     if (!form.userId) { toast.error("Selecione o profissional responsável"); return; }
     if (!form.date) { toast.error("Informe data e hora"); return; }
@@ -244,8 +285,43 @@ export default function NovoAtendimentoPage() {
         }));
         payload.value = payload.items.reduce((sm: number, it: any) => sm + (it.valorTotal || 0), 0);
       }
+      // ── MODO EDIÇÃO: salva por cima do mesmo atendimento (sem recriar histórico/peso/exames) ──
+      if (editId) {
+        const editPayload: any = {
+          userId: form.userId, date: new Date(form.date).toISOString(), type: form.type, status: form.status,
+          chiefComplaint: form.chiefComplaint || null, anamnesis: form.anamnesis || null,
+          physicalExam: form.physicalExam || null, diagnosis: form.diagnosis || null, conduct: form.conduct || null,
+          // prescrição: se a vet montou medicamentos estruturados, usa; senão mantém/edita o texto existente
+          prescription: (meds.length ? prescricao : (prescEdit || null)),
+          // exames: se escolheu no seletor, usa; senão mantém/edita o texto existente
+          examsRequested: ((exClinica.length || exExterno.length) ? examsReq : (examesEdit || null)),
+          followUpNotes: form.followUpNotes || null,
+          petWeight: form.peso ? Number(String(form.peso).replace(",", ".")) : null,
+        };
+        // Itens: só envia se MUDARAM (evita disparar a trava "venda com recebimento só ADM" em edição só de clínico)
+        const mudouItens = JSON.stringify(itensValidos.map((it) => ({ servicoId: it.servicoId || "", descricao: it.descricao || "", quantidade: Number(it.quantidade) || 1, valorUnitario: Number(it.valorUnitario) || 0, custoUnitario: Number(it.custoUnitario) || 0, executorUserId: it.executorUserId || "", comissaoValor: it.comissaoValor || 0 }))) !== itensOriginais;
+        if (mudouItens) {
+          editPayload.items = itensValidos.map((it) => ({
+            ...(it.servicoId ? { servicoId: it.servicoId, productId: it.servicoId } : {}),
+            ...(it.descricao ? { descricao: it.descricao } : {}),
+            ...(it.executorUserId ? { executorUserId: it.executorUserId } : {}),
+            quantidade: Number(it.quantidade) || 1, valorUnitario: Number(it.valorUnitario) || 0, custoUnitario: Number(it.custoUnitario) || 0,
+            valorTotal: (Number(it.quantidade) || 0) * (Number(it.valorUnitario) || 0),
+            ...(it.comissaoValor ? { comissaoTipo: "PERCENTUAL", comissaoValor: Number(it.comissaoValor) } : {}),
+          }));
+          editPayload.value = editPayload.items.reduce((sm: number, it: any) => sm + (it.valorTotal || 0), 0);
+        }
+        const resE = await fetch(`/api/appointments/${editId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(editPayload) });
+        if (!resE.ok) { const err = await resE.json().catch(() => null); toast.error(err?.message ? (Array.isArray(err.message) ? err.message.join(" ") : err.message) : `Erro ao salvar (${resE.status})`); setSaving(false); return; }
+        toast.success("Atendimento atualizado");
+        router.push(irCaixa ? `/dashboard/erp/ponto-de-venda?venda=${editId}` : `/dashboard/erp/pets/${pet.id}`);
+        return;
+      }
+
       const res = await fetch(`/api/atendimentos`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       if (!res.ok) { const err = await res.json().catch(() => null); toast.error(`Erro: ${err?.message || res.status}`); setSaving(false); return; }
+      const criado = await res.json().catch(() => null);
+      const novoAtdId = criado?.id || criado?.appointment?.id || null;
 
       // Peso: grava no pet + histórico petpeso_
       const kg = form.peso ? Number(String(form.peso).replace(",", ".")) : 0;
@@ -265,8 +341,52 @@ export default function NovoAtendimentoPage() {
       if (Object.keys(fuBody).length) { try { await fetch(`/api/pets/${pet.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(fuBody) }); } catch {} }
 
       toast.success("Atendimento registrado");
-      router.push(`/dashboard/erp/pets/${pet.id}`);
+      router.push(irCaixa && novoAtdId ? `/dashboard/erp/ponto-de-venda?venda=${novoAtdId}` : `/dashboard/erp/pets/${pet.id}`);
     } catch (e) { toast.error("Erro ao salvar"); setSaving(false); }
+  }
+
+  // Fase 3: puxa a análise da IA (da gravação deste atendimento) e PREENCHE os campos — a vet revisa antes de salvar.
+  async function preencherComIA() {
+    if (!editId) { toast.error("Salve o atendimento e grave a consulta primeiro."); return; }
+    setIaLoading(true);
+    try {
+      const arr = await safeJson<any[]>(await fetch(`/api/consultation-recordings/appointment/${editId}`, { cache: "no-store" }), []);
+      const rec = Array.isArray(arr) ? arr[0] : null;
+      if (!rec) { toast.error("Nenhuma gravação encontrada. Use 🎤 Gravar consulta primeiro."); return; }
+      if (!rec.aiAnalysis) { toast.error("A gravação ainda não foi analisada pela IA (passo 2 do Gravar)."); return; }
+      let a: any; try { a = typeof rec.aiAnalysis === "string" ? JSON.parse(rec.aiAnalysis) : rec.aiAnalysis; } catch { a = null; }
+      if (!a || typeof a !== "object") { toast.error("Não consegui ler a análise da IA."); return; }
+
+      const meds = (a.tratamento?.medicamentos || []).map((m: any) => {
+        const via = m.viaAdministracao ? ` — ${m.viaAdministracao}` : "";
+        const dose = [m.dosagem, m.frequencia, m.duracao].filter(Boolean).join(", ");
+        return `• ${m.nome || "(medicamento)"}${dose ? `: ${dose}` : ""}${via}`.trim();
+      });
+      const conduta = [
+        ...(a.tratamento?.procedimentos || []),
+        ...(a.tratamento?.orientacoes || []),
+      ].filter(Boolean).map((x: string) => `• ${x}`).join("\n");
+      const diag = [a.diagnostico, ...(a.diagnosticosDiferenciais || []).map((d: string) => `DD: ${d}`)].filter(Boolean).join("\n");
+      const exames = (a.examesSolicitados || []).filter(Boolean).join(", ");
+
+      // Preenche só campos vazios (não sobrescreve o que a vet já digitou).
+      let n = 0;
+      setForm((f) => {
+        const nf = { ...f };
+        const put = (k: keyof typeof f, v: string) => { if (v && !String((f as any)[k] || "").trim()) { (nf as any)[k] = v; n++; } };
+        put("chiefComplaint", a.queixaPrincipal || "");
+        put("anamnesis", a.historico || "");
+        put("physicalExam", a.exameClinico || "");
+        put("diagnosis", diag);
+        put("conduct", conduta);
+        put("followUpNotes", a.retorno || "");
+        return nf;
+      });
+      setPrescEdit((cur) => { if (meds.length && !cur.trim()) { n++; return meds.join("\n"); } return cur; });
+      setExamesEdit((cur) => { if (exames && !cur.trim()) { n++; return exames; } return cur; });
+      setIaPreenchido(true);
+      toast.success(n ? `Ficha preenchida pela IA (${n} campo${n > 1 ? "s" : ""}). Revise antes de salvar.` : "Nada novo pra preencher — os campos já tinham conteúdo.");
+    } catch { toast.error("Erro ao preencher com a IA."); } finally { setIaLoading(false); }
   }
 
   if (!pet) return <div className="p-10 text-center text-[#8A989D]">Carregando ficha de atendimento...</div>;
@@ -279,7 +399,7 @@ export default function NovoAtendimentoPage() {
     <div className="p-4 min-h-screen bg-[#F6F2EA]">
       {/* Breadcrumb */}
       <div className="text-[12px] text-[#8A989D] mb-2 px-1">
-        <Link href="/dashboard/erp/pets" className="hover:text-[#009AAC]">Pets</Link> / <Link href={`/dashboard/erp/pets/${pet.id}`} className="hover:text-[#009AAC]">{pet.name}</Link> / <b className="text-[#009AAC] font-medium">Novo atendimento</b>
+        <Link href="/dashboard/erp/pets" className="hover:text-[#009AAC]">Pets</Link> / <Link href={`/dashboard/erp/pets/${pet.id}`} className="hover:text-[#009AAC]">{pet.name}</Link> / <b className="text-[#009AAC] font-medium">{editId ? "Editar atendimento" : "Novo atendimento"}</b>
       </div>
 
       {/* Cabeçalho */}
@@ -288,12 +408,20 @@ export default function NovoAtendimentoPage() {
           <button onClick={() => router.back()} title="Voltar" className="w-9 h-9 rounded-[10px] border border-[#E8E2D6] text-[#5C6B70] hover:border-[#009AAC] hover:text-[#009AAC] flex items-center justify-center shrink-0">←</button>
           <div className="w-[46px] h-[46px] rounded-[13px] bg-[#FBF3E3] flex items-center justify-center text-[24px] shrink-0">{PET_EMOJI(pet.species)}</div>
           <div className="flex-1 min-w-0">
-            <h1 className="text-[18px] leading-tight text-[#014D5E] font-medium">🩺 Atendimento — {pet.name}</h1>
+            <h1 className="text-[18px] leading-tight text-[#014D5E] font-medium">{editId ? "✏️" : "🩺"} Atendimento — {pet.name}{editId ? <span className="ml-2 align-middle text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "#FBF3E3", color: "#8a6400" }}>editando</span> : null}</h1>
             <p className="text-[12.5px] text-[#5C6B70]">{[speciesLabel(pet.species), pet.breed, genderLabel(pet.gender), pet.birthDate ? ageFromBirth(pet.birthDate) : null].filter((x) => x && x !== "—").join(" · ")} · Tutor(a): {pet.tutor?.name || "—"}</p>
           </div>
+          {editId && <button onClick={preencherComIA} disabled={iaLoading} title="Preencher a ficha com a análise da IA" className="px-3 h-9 rounded-[10px] text-white hover:opacity-90 flex items-center gap-1.5 shrink-0 text-[13px] font-medium disabled:opacity-60" style={{ background: "#014D5E" }}>🧠 {iaLoading ? "Preenchendo…" : "Preencher com a IA"}</button>}
+          {editId && <Link href={`/dashboard/erp/consultas/${editId}/gravar`} title="Gravar consulta" className="px-3 h-9 rounded-[10px] border border-[#009AAC] text-[#009AAC] hover:bg-[#EAF6F7] flex items-center gap-1.5 shrink-0 text-[13px] font-medium">🎤 Gravar consulta</Link>}
           <Link href={`/dashboard/erp/pets/${pet.id}`} title="Fechar" className="w-9 h-9 rounded-[10px] border border-[#E8E2D6] text-[#5C6B70] hover:border-[#009AAC] hover:text-[#009AAC] flex items-center justify-center shrink-0">✕</Link>
         </div>
       </div>
+
+      {iaPreenchido && (
+        <div className="mb-3 rounded-[12px] px-4 py-2.5 text-[12.5px] flex items-center gap-2" style={{ background: "#FBF3E3", border: "1px solid #E8D9A8", color: "#8a6400" }}>
+          🧠 <span><b>Campos preenchidos pela IA</b> a partir da gravação. Revise tudo antes de salvar — a responsabilidade clínica é sua.</span>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-[1.5fr_1fr] gap-3 items-start">
       {/* ══════════ COLUNA ESQUERDA (~60%): clínico ══════════ */}
@@ -359,6 +487,13 @@ export default function NovoAtendimentoPage() {
             </div>
           </div>
           <div className="flex flex-col gap-2">
+            {editId && (
+              <div>
+                <label className={lbl}>Prescrição atual (editável)</label>
+                <textarea rows={3} value={prescEdit} onChange={(e) => setPrescEdit(e.target.value)} className={inp} placeholder="Prescrição registrada neste atendimento" />
+                <p className="text-[11px] text-[#8A989D] mt-0.5">Edite o texto acima ou adicione medicamentos abaixo (os medicamentos, se houver, substituem o texto ao salvar).</p>
+              </div>
+            )}
             {meds.length === 0 && <p className="text-[12px] text-[#8A989D]">Nenhum medicamento. Use "＋ adicionar medicamento" ou escolha um modelo.</p>}
             {meds.map((md, i) => (
               <div key={i} className="grid grid-cols-1 md:grid-cols-[1fr_1fr_150px_auto] gap-2 items-center">
@@ -381,6 +516,13 @@ export default function NovoAtendimentoPage() {
             <div className="text-[12px] font-medium uppercase tracking-wide text-[#014D5E]">🔬 Exames</div>
             <button onClick={imprimirSolicitacao} className="text-[12px] px-3 py-1.5 rounded-[9px] border border-[#E8E2D6] text-[#5C6B70] hover:border-[#009AAC] hover:text-[#009AAC]">🖨️ Imprimir solicitação</button>
           </div>
+          {editId && (
+            <div className="mb-3">
+              <label className={lbl}>Exames solicitados (editável)</label>
+              <textarea rows={2} value={examesEdit} onChange={(e) => setExamesEdit(e.target.value)} className={inp} placeholder="Exames registrados neste atendimento" />
+              <p className="text-[11px] text-[#8A989D] mt-0.5">Edite o texto acima ou escolha exames nas caixas abaixo (a escolha, se houver, substitui o texto ao salvar).</p>
+            </div>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
             {/* Fazemos na clínica */}
             <div className="border border-[#E8E2D6] rounded-[12px]" style={{ padding: "11px 13px" }}>
@@ -493,7 +635,10 @@ export default function NovoAtendimentoPage() {
                   <span className="text-[16px] text-[#014D5E] font-medium">{totalVenda.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
                 </div>
               )}
-              <p className="text-[10.5px] text-[#8A989D] mt-2">Os itens entram no MESMO atendimento ao salvar (uma única venda). Faturamento/pagamento fica no módulo Caixa (Fase B).</p>
+              {itens.some((i) => i.descricao || i.servicoId) && (
+                <button onClick={receberNoCaixa} disabled={saving} className="w-full mt-2.5 px-3 py-2 rounded-[10px] text-[13px] font-semibold text-white disabled:opacity-60 flex items-center justify-center gap-1.5" style={{ background: "#0F6E56" }}>💰 Receber no Caixa</button>
+              )}
+              <p className="text-[10.5px] text-[#8A989D] mt-2">Salva o atendimento e abre esta venda no Caixa pra registrar o pagamento (Dinheiro / Pix / Cartão).</p>
             </>
           ) : (
             <>
@@ -564,7 +709,7 @@ export default function NovoAtendimentoPage() {
       {/* Rodapé — largura total */}
       <div className="flex items-center justify-end gap-2 pt-3 pb-8">
         <Link href={`/dashboard/erp/pets/${pet.id}`} className="px-4 py-2 rounded-[9px] text-[13px] border border-[#E8E2D6] text-[#5C6B70]">Cancelar</Link>
-        <button onClick={handleSave} disabled={saving} className="px-5 py-2 rounded-[9px] text-[13px] font-medium text-white disabled:opacity-60" style={{ background: "#009AAC" }}>{saving ? "Salvando..." : "Salvar atendimento"}</button>
+        <button onClick={() => handleSave()} disabled={saving} className="px-5 py-2 rounded-[9px] text-[13px] font-medium text-white disabled:opacity-60" style={{ background: "#009AAC" }}>{saving ? "Salvando..." : (editId ? "💾 Salvar alterações" : "Salvar atendimento")}</button>
       </div>
       {/* Fase B (não incluída agora): pagamento/fechamento da venda e do exame externo fica no módulo Caixa. */}
     </div>

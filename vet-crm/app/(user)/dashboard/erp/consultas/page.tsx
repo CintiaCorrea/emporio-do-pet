@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import {
   LuSearch,
@@ -207,13 +208,22 @@ const appointmentToConsultation = (appointment: Appointment): Consultation => {
 
 export default function ConsultationsPage() {
   const router = useRouter();
+  const { data: _session } = useSession();
+  const meId = (_session as any)?.user?.id as string | undefined;
+  // Fatia C — unificação: abrir/editar/iniciar uma consulta leva pra FICHA NOVA de atendimento.
+  const irParaFicha = (cons: any) => {
+    const petId = cons?.pet?.id;
+    if (!petId) { toast.error("Consulta sem pet vinculado — abra pela ficha do pet."); return; }
+    router.push(`/dashboard/erp/pets/${petId}/atendimentos/novo?edit=${cons.id}`);
+  };
   const [consultations, setConsultations] = useState<Consultation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<ConsultationStatus | 'all'>('all');
   const [typeFilter, setTypeFilter] = useState<ConsultationType | 'all'>('all');
-  const [dateFilter, setDateFilter] = useState<string>('');
+  const [dateFilter, setDateFilter] = useState<string>(new Date().toISOString().split('T')[0]); // padrão: hoje
+  const [soMeus, setSoMeus] = useState(true); // padrão: só os atendimentos do vet logado
   const [selectedConsultation, setSelectedConsultation] = useState<Consultation | null>(null);
   const [consultationToDelete, setConsultationToDelete] = useState<Consultation | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -342,25 +352,28 @@ export default function ConsultationsPage() {
     const matchesStatus = statusFilter === 'all' || cons.status === statusFilter;
     const matchesType = typeFilter === 'all' || (cons.type && cons.type === typeFilter);
     const matchesDate = !dateFilter || cons.date === dateFilter;
+    // Só os atendimentos do vet logado (a menos que "todos os profissionais" esteja marcado).
+    const matchesVet = !soMeus || !meId || cons.veterinarian.id === meId;
 
-    return matchesSearch && matchesStatus && matchesType && matchesDate;
+    return matchesSearch && matchesStatus && matchesType && matchesDate && matchesVet;
   });
 
-  // Estatísticas
+  // Estatísticas — refletem o recorte visível (vet logado).
   const todayStr = new Date().toISOString().split('T')[0];
+  const meus = consultations.filter(c => !soMeus || !meId || c.veterinarian.id === meId);
   const stats = {
-    total: consultations.length,
-    today: consultations.filter(c => c.date === todayStr).length,
-    scheduled: consultations.filter(c => c.status === 'SCHEDULED' || c.status === 'CONFIRMED').length,
-    inProgress: consultations.filter(c => c.status === 'IN_PROGRESS').length,
-    completed: consultations.filter(c => c.status === 'COMPLETED').length,
-    totalRevenue: consultations.filter(c => c.paid).reduce((acc, c) => acc + c.value, 0)
+    total: meus.length,
+    today: meus.filter(c => c.date === todayStr).length,
+    scheduled: meus.filter(c => c.status === 'SCHEDULED' || c.status === 'CONFIRMED').length,
+    inProgress: meus.filter(c => c.status === 'IN_PROGRESS').length,
+    completed: meus.filter(c => c.status === 'COMPLETED').length,
+    totalRevenue: meus.filter(c => c.paid).reduce((acc, c) => acc + c.value, 0)
   };
 
   // Funções auxiliares
   const getStatusColor = (status: ConsultationStatus) => {
     switch (status) {
-      case 'SCHEDULED': return 'bg-blue-100 text-blue-800';
+      case 'SCHEDULED': return 'bg-[#D6EFF1] text-[#014D5E]';
       case 'CONFIRMED': return 'bg-green-100 text-green-800';
       case 'IN_PROGRESS': return 'bg-yellow-100 text-yellow-800';
       case 'COMPLETED': return 'bg-green-100 text-green-800';
@@ -385,12 +398,12 @@ export default function ConsultationsPage() {
   const getTypeColor = (type?: ConsultationType) => {
     if (!type) return 'bg-gray-100 text-gray-800';
     switch (type) {
-      case 'ROUTINE': return 'bg-blue-100 text-blue-800';
+      case 'ROUTINE': return 'bg-[#D6EFF1] text-[#014D5E]';
       case 'EMERGENCY': return 'bg-red-100 text-red-800';
       case 'FOLLOW_UP': return 'bg-purple-100 text-purple-800';
       case 'VACCINATION': return 'bg-green-100 text-green-800';
       case 'SURGERY_PREP': return 'bg-orange-100 text-orange-800';
-      case 'SPECIALIST': return 'bg-cyan-100 text-cyan-800';
+      case 'SPECIALIST': return 'bg-[#D6EFF1] text-[#014D5E]';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -687,9 +700,9 @@ export default function ConsultationsPage() {
 
   if (loading && consultations.length === 0) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/10 flex items-center justify-center">
+      <div className="min-h-screen bg-[#F6F2EA] flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#009AAC] mx-auto"></div>
           <p className="mt-4 text-gray-600">Carregando consultas...</p>
         </div>
       </div>
@@ -697,7 +710,7 @@ export default function ConsultationsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/10 w-full overflow-hidden">
+    <div className="min-h-screen bg-[#F6F2EA] w-full overflow-hidden">
       <ConfirmDeleteModal
         isOpen={Boolean(consultationToDelete)}
         entityLabel="Consulta"
@@ -717,7 +730,7 @@ export default function ConsultationsPage() {
             <div className="mb-8">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                  <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+                  <h1 className="text-3xl font-bold text-[#014D5E]">
                     Consultas
                   </h1>
                   <p className="text-gray-600 mt-2">
@@ -737,7 +750,7 @@ export default function ConsultationsPage() {
                       resetForm();
                       setIsCreateModalOpen(true);
                     }}
-                    className="group px-6 py-3 text-sm font-semibold text-white bg-gradient-to-r from-cyan-600 to-cyan-600 rounded-2xl hover:from-cyan-700 hover:to-cyan-700 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-cyan-500/25 flex items-center space-x-2 relative overflow-hidden"
+                    className="group px-6 py-3 text-sm font-semibold text-white bg-gradient-to-r from-[#009AAC] to-[#009AAC] rounded-2xl hover:from-[#017E8C] hover:to-[#017E8C] focus:outline-none focus:ring-2 focus:ring-[#009AAC]/50 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-[#009AAC]/25 flex items-center space-x-2 relative overflow-hidden"
                   >
                     <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent transform -skew-x-12 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
                     <LuPlus className="w-4 h-4 relative z-10" />
@@ -801,12 +814,12 @@ export default function ConsultationsPage() {
                   isFormatted: true
                 }
               ].map((stat, index) => (
-                <div key={index} className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-cyan-500/5 p-6 hover:shadow-2xl hover:shadow-cyan-500/10 transition-all duration-300 hover:scale-105">
+                <div key={index} className="bg-white/95 backdrop-blur-2xl border border-[#E8DFC8] rounded-2xl shadow-xl shadow-[#009AAC]/5 p-6 hover:shadow-2xl hover:shadow-[#009AAC]/10 transition-all duration-300 hover:scale-105">
                   <div className="flex items-center justify-between mb-4">
                     <div className={`p-3 bg-${stat.color}-50 rounded-xl`}>
                       <stat.icon className={`w-6 h-6 text-${stat.color}-600`} />
                     </div>
-                    <div className={`font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent ${stat.isFormatted ? 'text-lg' : 'text-2xl'}`}>
+                    <div className={`font-bold text-[#014D5E] ${stat.isFormatted ? 'text-lg' : 'text-2xl'}`}>
                       {stat.value}
                     </div>
                   </div>
@@ -818,7 +831,7 @@ export default function ConsultationsPage() {
             </div>
 
             {/* Filters and Search */}
-            <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-cyan-500/5 p-6 mb-6">
+            <div className="bg-white/95 backdrop-blur-2xl border border-[#E8DFC8] rounded-2xl shadow-xl shadow-[#009AAC]/5 p-6 mb-6">
               <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
                 <div className="flex flex-col sm:flex-row gap-4 w-full lg:w-auto">
                   <div className="relative flex-1">
@@ -830,14 +843,14 @@ export default function ConsultationsPage() {
                       placeholder="Buscar por tutor, pet, veterinário..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full pl-10 pr-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                      className="w-full pl-10 pr-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#009AAC]/50 focus:border-[#009AAC]/50 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm"
                     />
                   </div>
                   
                   <select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value as ConsultationStatus | 'all')}
-                    className="px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                    className="px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#009AAC]/50 focus:border-[#009AAC]/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm"
                   >
                     <option value="all">Todos os Status</option>
                     <option value="SCHEDULED">Agendadas</option>
@@ -854,13 +867,13 @@ export default function ConsultationsPage() {
                     type="date"
                     value={dateFilter}
                     onChange={(e) => setDateFilter(e.target.value)}
-                    className="px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm"
+                    className="px-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#009AAC]/50 focus:border-[#009AAC]/50 transition-all duration-300 text-gray-900 hover:bg-white hover:border-gray-300/50 shadow-sm"
                   />
                   <button
                     onClick={() => setDateFilter(todayStr)}
                     className={`flex items-center gap-2 px-4 py-3 text-sm font-semibold rounded-2xl transition-all duration-300 hover:scale-105 ${
                       dateFilter === todayStr
-                        ? 'text-white bg-cyan-500 hover:bg-cyan-600' 
+                        ? 'text-white bg-[#009AAC] hover:bg-[#009AAC]' 
                         : 'text-gray-600 bg-white/50 border border-gray-300/50 hover:bg-white hover:border-gray-400'
                     }`}
                   >
@@ -869,19 +882,24 @@ export default function ConsultationsPage() {
                   </button>
                   <button
                     onClick={fetchConsultations}
-                    className="flex items-center gap-2 px-4 py-3 text-sm font-semibold text-gray-600 bg-white/50 border border-gray-300/50 rounded-2xl hover:bg-white hover:border-gray-400 hover:shadow-lg transition-all duration-300 hover:scale-105 backdrop-blur-sm"
+                    className="flex items-center gap-2 px-4 py-3 text-sm font-semibold text-[#5C6B70] bg-white border rounded-xl hover:border-[#009AAC] hover:text-[#009AAC] transition-colors"
+                    style={{ borderColor: '#E8DFC8' }}
                   >
                     <LuSearch className="w-4 h-4" />
                     <span>Recarregar</span>
                   </button>
+                  <label className="flex items-center gap-2 px-3 text-sm text-[#5C6B70] cursor-pointer whitespace-nowrap" title="Ver os atendimentos de todos os profissionais">
+                    <input type="checkbox" checked={soMeus} onChange={(e) => setSoMeus(e.target.checked)} />
+                    Só os meus
+                  </label>
                 </div>
               </div>
             </div>
 
             {/* Consultations Table */}
-            <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-cyan-500/5 overflow-hidden">
+            <div className="bg-white/95 backdrop-blur-2xl border border-[#E8DFC8] rounded-2xl shadow-xl shadow-[#009AAC]/5 overflow-hidden">
               {/* Table Header */}
-              <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-100/50 border-b border-white/20">
+              <div className="px-6 py-4 bg-[#FBF9F4] border-b border-[#E8DFC8]">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-semibold text-gray-900">
                     Lista de Consultas
@@ -896,7 +914,7 @@ export default function ConsultationsPage() {
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="bg-gradient-to-r from-gray-50 to-gray-100/50 border-b border-white/20">
+                    <tr className="bg-[#FBF9F4] border-b border-[#E8DFC8]">
                       <th className="text-left p-6 font-semibold text-gray-700">Paciente/Tutor</th>
                       <th className="text-left p-6 font-semibold text-gray-700">Veterinário</th>
                       <th className="text-left p-6 font-semibold text-gray-700">Data/Hora</th>
@@ -912,7 +930,7 @@ export default function ConsultationsPage() {
                       return (
                         <tr 
                           key={cons.id} 
-                          className="border-b border-white/20 hover:bg-gray-50/50 transition-all duration-300 group cursor-pointer"
+                          className="border-b border-[#E8DFC8] hover:bg-gray-50/50 transition-all duration-300 group cursor-pointer"
                           onClick={() => openDetails(cons)}
                         >
                           <td className="p-6">
@@ -969,9 +987,9 @@ export default function ConsultationsPage() {
                             <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                               {cons.status === 'SCHEDULED' || cons.status === 'CONFIRMED' ? (
                                 <button
-                                  onClick={() => handleStartConsultation(cons.id)}
-                                  className="p-2 text-cyan-600 hover:bg-cyan-50 rounded-2xl transition-colors"
-                                  title="Iniciar consulta"
+                                  onClick={() => irParaFicha(cons)}
+                                  className="p-2 text-[#009AAC] hover:bg-[#EAF6F7] rounded-2xl transition-colors"
+                                  title="Iniciar consulta (abre a ficha)"
                                 >
                                   <span style={{fontSize:"14px"}}>⚡</span>
                                 </button>
@@ -996,22 +1014,22 @@ export default function ConsultationsPage() {
                               )}
                               <Link
                                 href={`/dashboard/erp/consultas/${cons.id}/gravar`}
-                                className="p-2 text-violet-600 hover:bg-violet-50 rounded-2xl transition-colors"
+                                className="p-2 text-[#014D5E] hover:bg-[#EAF6F7] rounded-2xl transition-colors"
                                 title="Gravar consulta & Gerar documentos"
                               >
                                 <span style={{fontSize:"14px"}}>🎤</span>
                               </Link>
                               <Link
                                 href={`/dashboard/erp/consultas/${cons.id}/documentos`}
-                                className="p-2 text-cyan-600 hover:bg-cyan-50 rounded-2xl transition-colors"
+                                className="p-2 text-[#009AAC] hover:bg-[#EAF6F7] rounded-2xl transition-colors"
                                 title="Ver documentos clínicos"
                               >
                                 <LuFileText className="w-4 h-4" />
                               </Link>
                               <button
-                                onClick={() => openEditModal(cons)}
-                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-2xl transition-colors"
-                                title="Editar consulta"
+                                onClick={() => irParaFicha(cons)}
+                                className="p-2 text-[#009AAC] hover:bg-[#EAF6F7] rounded-2xl transition-colors"
+                                title="Abrir na ficha de atendimento"
                               >
                                 <LuPencil className="w-4 h-4" />
                               </button>
@@ -1045,7 +1063,7 @@ export default function ConsultationsPage() {
               </div>
 
               {/* Table Footer */}
-              <div className="flex flex-col sm:flex-row justify-between items-center p-6 border-t border-white/20 bg-gradient-to-r from-gray-50 to-gray-100/50">
+              <div className="flex flex-col sm:flex-row justify-between items-center p-6 border-t border-[#E8DFC8] bg-[#FBF9F4]">
                 <div className="text-sm text-gray-600 mb-4 sm:mb-0">
                   Mostrando {filteredConsultations.length} de {consultations.length} consultas
                 </div>
@@ -1094,7 +1112,7 @@ export default function ConsultationsPage() {
               {/* Informações do Paciente */}
               <div>
                 <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <LuPawPrint className="w-5 h-5 text-cyan-600" />
+                  <LuPawPrint className="w-5 h-5 text-[#009AAC]" />
                   Informações do Paciente
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1193,29 +1211,29 @@ export default function ConsultationsPage() {
               </button>
               <Link
                 href={`/dashboard/erp/consultas/${selectedConsultation.id}/gravar`}
-                className="px-6 py-3 text-white bg-violet-600 rounded-2xl hover:bg-violet-700 transition-colors flex items-center gap-2"
+                className="px-6 py-3 text-white bg-[#014D5E] rounded-2xl hover:bg-[#013a47] transition-colors flex items-center gap-2"
               >
                 <span style={{fontSize:"14px"}}>🎤</span>
                 Gravar & Documentos
               </Link>
               <Link
                 href={`/dashboard/erp/consultas/${selectedConsultation.id}/documentos`}
-                className="px-6 py-3 text-white bg-cyan-600 rounded-2xl hover:bg-cyan-700 transition-colors flex items-center gap-2"
+                className="px-6 py-3 text-white bg-[#009AAC] rounded-2xl hover:bg-[#017E8C] transition-colors flex items-center gap-2"
               >
                 <LuFileText className="w-4 h-4" />
                 Documentos
               </Link>
               <button
-                onClick={() => openEditModal(selectedConsultation)}
-                className="px-6 py-3 text-white bg-cyan-600 rounded-2xl hover:bg-cyan-700 transition-colors flex items-center gap-2"
+                onClick={() => { setIsModalOpen(false); irParaFicha(selectedConsultation); }}
+                className="px-6 py-3 text-white bg-[#009AAC] rounded-2xl hover:bg-[#017E8C] transition-colors flex items-center gap-2"
               >
                 <LuPencil className="w-4 h-4" />
-                Editar
+                Abrir ficha
               </button>
               {selectedConsultation.status === 'SCHEDULED' || selectedConsultation.status === 'CONFIRMED' ? (
                 <button
-                  onClick={() => handleStartConsultation(selectedConsultation.id)}
-                  className="px-6 py-3 text-white bg-cyan-600 rounded-2xl hover:bg-cyan-700 transition-colors flex items-center gap-2"
+                  onClick={() => { setIsModalOpen(false); irParaFicha(selectedConsultation); }}
+                  className="px-6 py-3 text-white bg-[#009AAC] rounded-2xl hover:bg-[#017E8C] transition-colors flex items-center gap-2"
                 >
                   <span style={{fontSize:"14px"}}>⚡</span>
                   Iniciar Consulta
@@ -1263,7 +1281,7 @@ export default function ConsultationsPage() {
                 <select
                   value={formData.tutorId}
                   onChange={(e) => setFormData({...formData, tutorId: e.target.value, petId: ''})}
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-300 text-gray-900"
+                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#009AAC]/50 focus:border-[#009AAC]/50 transition-all duration-300 text-gray-900"
                   required
                   disabled={loadingData}
                 >
@@ -1279,7 +1297,7 @@ export default function ConsultationsPage() {
                 <select
                   value={formData.petId}
                   onChange={(e) => setFormData({...formData, petId: e.target.value})}
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-300 text-gray-900"
+                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#009AAC]/50 focus:border-[#009AAC]/50 transition-all duration-300 text-gray-900"
                   required
                   disabled={!formData.tutorId || loadingData || pets.length === 0}
                 >
@@ -1303,7 +1321,7 @@ export default function ConsultationsPage() {
                 <select
                   value={formData.userId}
                   onChange={(e) => setFormData({...formData, userId: e.target.value})}
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-300 text-gray-900"
+                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#009AAC]/50 focus:border-[#009AAC]/50 transition-all duration-300 text-gray-900"
                   required
                   disabled={loadingData}
                 >
@@ -1323,7 +1341,7 @@ export default function ConsultationsPage() {
                     type="date"
                     value={formData.date}
                     onChange={(e) => setFormData({...formData, date: e.target.value})}
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-300 text-gray-900"
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#009AAC]/50 focus:border-[#009AAC]/50 transition-all duration-300 text-gray-900"
                     required
                   />
                 </div>
@@ -1333,7 +1351,7 @@ export default function ConsultationsPage() {
                     type="time"
                     value={formData.time}
                     onChange={(e) => setFormData({...formData, time: e.target.value})}
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-300 text-gray-900"
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#009AAC]/50 focus:border-[#009AAC]/50 transition-all duration-300 text-gray-900"
                     required
                   />
                 </div>
@@ -1345,7 +1363,7 @@ export default function ConsultationsPage() {
                   <select
                     value={formData.duration}
                     onChange={(e) => setFormData({...formData, duration: parseInt(e.target.value)})}
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-300 text-gray-900"
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#009AAC]/50 focus:border-[#009AAC]/50 transition-all duration-300 text-gray-900"
                   >
                     <option value={15}>15 min</option>
                     <option value={30}>30 min</option>
@@ -1359,7 +1377,7 @@ export default function ConsultationsPage() {
                   <select
                     value={formData.status}
                     onChange={(e) => setFormData({...formData, status: e.target.value as ConsultationStatus})}
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-300 text-gray-900"
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#009AAC]/50 focus:border-[#009AAC]/50 transition-all duration-300 text-gray-900"
                   >
                     <option value="SCHEDULED">Agendada</option>
                     <option value="CONFIRMED">Confirmada</option>
@@ -1375,7 +1393,7 @@ export default function ConsultationsPage() {
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData({...formData, description: e.target.value})}
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-300 text-gray-900 resize-none"
+                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#009AAC]/50 focus:border-[#009AAC]/50 transition-all duration-300 text-gray-900 resize-none"
                   rows={3}
                   placeholder="Descreva o motivo da consulta"
                   required
@@ -1387,7 +1405,7 @@ export default function ConsultationsPage() {
                 <textarea
                   value={formData.notes}
                   onChange={(e) => setFormData({...formData, notes: e.target.value})}
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-300 text-gray-900 resize-none"
+                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#009AAC]/50 focus:border-[#009AAC]/50 transition-all duration-300 text-gray-900 resize-none"
                   rows={3}
                   placeholder="Observações, diagnóstico, prescrição..."
                 />
@@ -1400,7 +1418,7 @@ export default function ConsultationsPage() {
                     type="number"
                     value={formData.value}
                     onChange={(e) => setFormData({...formData, value: parseFloat(e.target.value) || 0})}
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-300 text-gray-900"
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#009AAC]/50 focus:border-[#009AAC]/50 transition-all duration-300 text-gray-900"
                     min="0"
                     step="0.01"
                     required
@@ -1411,7 +1429,7 @@ export default function ConsultationsPage() {
                   <select
                     value={formData.paymentStatus}
                     onChange={(e) => setFormData({...formData, paymentStatus: e.target.value as 'PAID' | 'PENDING' | 'OVERDUE' | 'CANCELLED'})}
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-300 text-gray-900"
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#009AAC]/50 focus:border-[#009AAC]/50 transition-all duration-300 text-gray-900"
                   >
                     <option value="PENDING">Pendente</option>
                     <option value="PAID">Pago</option>
@@ -1436,7 +1454,7 @@ export default function ConsultationsPage() {
               <button
                 onClick={isEditModalOpen ? handleUpdateConsultation : handleCreateConsultation}
                 disabled={submitting || !formData.tutorId || !formData.petId || !formData.userId || !formData.description}
-                className="px-6 py-3 text-white bg-gradient-to-r from-cyan-600 to-cyan-600 rounded-2xl hover:from-cyan-700 hover:to-cyan-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-6 py-3 text-white bg-gradient-to-r from-[#009AAC] to-[#009AAC] rounded-2xl hover:from-[#017E8C] hover:to-[#017E8C] transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {submitting ? (
                   <>

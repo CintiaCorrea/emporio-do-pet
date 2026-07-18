@@ -489,8 +489,34 @@ model Pet {
 
   orcamentos Orcamento[]
   protocolos ProtocoloAplicado[]
+  historicoClinico HistoricoClinico[]
 
   @@map("pets")
+}
+
+// Histórico clínico importado (SimplesVet) — linha do tempo só-leitura da ficha do pet.
+// Um registro por evento (atendimento, peso, receita, exame, observação, vacina), ligado ao pet.
+model HistoricoClinico {
+  id            String   @id @default(uuid())
+  petId         String
+  pet           Pet      @relation(fields: [petId], references: [id], onDelete: Cascade)
+  tutorCodigo   Int? // código do tutor no SimplesVet (referência)
+  tipo          String // ATENDIMENTO | PESO | RECEITA | OBSERVACAO | EXAME | VACINA
+  data          DateTime
+  titulo        String?
+  texto         String?  @db.Text
+  resumo        String?
+  autor         String? // veterinário/usuário responsável
+  valorNum      Float? // usado no peso (kg)
+  arquivoKey    String? // chave do arquivo no object storage (Tigris/S3), ex: anexos/xxx.pdf
+  arquivoNome   String? // nome original do arquivo (exibição/download)
+  origem        String   @default("SIMPLESVET")
+  codigoExterno String? // id original no SimplesVet (idempotência do import)
+  createdAt     DateTime @default(now())
+
+  @@unique([tipo, codigoExterno])
+  @@index([petId, data])
+  @@map("historico_clinico")
 }
 
 // Raças de pet (por espécie) para autocomplete/criação dinâmica
@@ -538,6 +564,13 @@ model Appointment {
   codigoExterno  String? // id da venda no SimplesVet (idempotencia na importacao)
   numeroVenda    Int?     @unique // numero sequencial VISIVEL da venda (comeca em 1001); atribuido qdo o atendimento vira venda (value>0)
   origem         String? // SIMPLESVET | PDV | AGENDA
+  agendaAvulsa   String? // id da agenda avulsa (Parceiro externo / MAP) quando NÃO é de um profissional
+
+  // Confirmação de agendamento (canal-agnóstico: WhatsApp hoje, portal do tutor depois)
+  confirmacaoStatus      String? // ENVIADA | CONFIRMADO | REMARCAR
+  confirmacaoEnviadaAt   DateTime?
+  motivoCancelamento     String? // motivo escolhido ao cancelar (lista)
+  observacaoCancelamento String? // texto livre opcional
 
   // Relacionamentos
   tutor        Tutor               @relation(fields: [tutorId], references: [id], onDelete: Cascade)

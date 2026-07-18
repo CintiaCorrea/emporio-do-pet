@@ -16,6 +16,7 @@ import toast, { Toaster } from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import { openWhatsAppMeta } from "@/lib/actions/whatsapp";
 import { criarPetEAbrir } from "@/lib/actions/pets";
+import { buscarCep } from "@/lib/cep";
 import { SendEmailModal } from "@/components/email/SendEmailModal";
 import EncaminharBox from "@/components/inbox/EncaminharBox";
 import ConfirmDeleteModal from "@/components/common/ConfirmDeleteModal";
@@ -23,6 +24,19 @@ import {
   LuArrowLeft, LuStickyNote, LuPencil, LuTriangleAlert,
   LuTrash, LuPhone, LuCalendar, LuUser, LuPlus, LuCheck, LuX} from "react-icons/lu";
 
+// O servidor responde em inglês ("email must be an email"). Quem usa a tela não tem
+// que decifrar isso — mas também não dá pra esconder o motivo, senão vira "Erro ao
+// salvar" mudo. Traduz o que conhece; o que não conhece, mostra como veio.
+const traduzErro = (msg: string): string => {
+  const t = String(msg);
+  if (/email must be an email/i.test(t)) return "E-mail inválido — confira se não sobrou espaço ou letra a mais.";
+  if (/cpf/i.test(t) && /must|invalid/i.test(t)) return "CPF inválido.";
+  if (/phone|number/i.test(t) && /must|invalid/i.test(t)) return "Telefone inválido.";
+  if (/should not exist/i.test(t)) return `Campo não aceito por este cadastro (${t}).`;
+  if (/must be a valid ISO 8601|date/i.test(t) && /must/i.test(t)) return "Data inválida.";
+  if (/already exists|unique|duplicat/i.test(t)) return "Já existe um cadastro com esse dado.";
+  return t;
+};
 const CONTATO_TIPO_LABEL: Record<string, string> = { MOBILE: "Celular", PHONE: "Fixo", BUSINESS: "Comercial" };
 const TIPO_PESSOA_LABEL: Record<string, string> = { INDIVIDUAL: "Pessoa física", LEGAL_ENTITY: "Pessoa jurídica" };
 const GENERO_LABEL: Record<string, string> = { MALE: "Masculino", FEMALE: "Feminino", OTHER: "Outro" };
@@ -190,6 +204,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
   const [nota, setNota] = useState("");
   const [notaSaving, setNotaSaving] = useState(false);
   const [editDados, setEditDados] = useState(false);
+  const [origensCat, setOrigensCat] = useState<string[]>([]); // "Como nos conheceu" (lista cliente_origem em Config › Listas)
   const [dadosForm, setDadosForm] = useState<any>({});
   const [savingDados, setSavingDados] = useState(false);
   const [tagPicker, setTagPicker] = useState(false);
@@ -233,12 +248,32 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
   async function saveDados() {
     setSavingDados(true);
     try {
-      const res = await fetch(`/api/tutors/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(dadosForm) });
-      if (!res.ok) throw new Error(String(res.status));
+      const payload: any = { ...dadosForm };
+      // Campos de ESCOLHA (tipo, sexo) só aceitam um código válido OU nada. Vazio ("")
+      // não é código — e 548 clientes têm sexo em branco, então a tela mandava "" e o
+      // servidor recusava tudo. Vazio nesses campos vira null (= "não informado").
+      for (const k of ["type", "gender"]) if (payload[k] === "") payload[k] = null;
+      // Data: o campo dá "1986-08-29" (sem hora), mas o banco exige a data COMPLETA com
+      // hora — sem isso dava 500 ("premature end of input"). Completa; se vazia, vira null.
+      if (payload.birthDate) {
+        const d = String(payload.birthDate).slice(0, 10);
+        payload.birthDate = /^\d{4}-\d{2}-\d{2}$/.test(d) ? `${d}T00:00:00.000Z` : payload.birthDate;
+      } else if (payload.birthDate === "") {
+        payload.birthDate = null;
+      }
+      const res = await fetch(`/api/tutors/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      if (!res.ok) {
+        // O servidor DIZ o que está errado ("email must be an email", "cpf inválido"…).
+        // Antes isso era descartado e virava um "Erro ao salvar" mudo — a pessoa ficava
+        // travada sem saber que era um espaço sobrando no e-mail.
+        const corpo = await res.json().catch(() => null);
+        const msg = Array.isArray(corpo?.message) ? corpo.message.join(" · ") : (corpo?.message || corpo?.error);
+        throw new Error(msg ? traduzErro(msg) : `Erro ${res.status} ao salvar`);
+      }
       toast.success("Dados atualizados");
       setEditDados(false);
       await load();
-    } catch (e) { toast.error("Erro ao salvar"); }
+    } catch (e: any) { toast.error(String(e?.message || "Erro ao salvar").slice(0, 160)); }
     finally { setSavingDados(false); }
   }
 
@@ -303,7 +338,10 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
   async function loadStats() {
     try { const r = await fetch(`/api/tutors/${id}/profile-stats`); if (r.ok) setStats(await r.json()); } catch {}
   }
-  useEffect(() => { load(); loadStats(); loadInteracoes(); loadTemplates(); loadPipelineCliente(); }, [id]);
+  useEffect(() => { load(); loadStats(); loadInteracoes(); loadTemplates(); loadPipelineCliente();
+    (async () => { try { const r = await fetch(`/api/listas?lista=cliente_origem`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.itens || d.data || []); setOrigensCat(arr.map((i: any) => { try { const o = JSON.parse(i.valor); return o.nome || o.valor || i.valor; } catch { return i.valor; } }).filter(Boolean)); } catch {} })();
+  }, [id]);
+  const ORIGENS_DEFAULT = ["Indicação de amigo", "Instagram", "Facebook", "Google", "Passando na rua", "Já era cliente", "WhatsApp", "Panfleto", "Outro"];
 
   const saveNota = async () => {
     setNotaSaving(true);
@@ -417,6 +455,8 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
     v == null ? "—" : !showValues ? "R$ ••••" : "R$ " + Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const scoreTotal = tutor.score?.total ?? 0;
   const nivel = nivelDoScore(scoreTotal);
+  // Não-cliente (Fornecedor/Profissional/Parceiro): ficha ENXUTA — sem gamificação/LTV/a receber/sequências etc.
+  const naoCliente = ["Fornecedor", "Profissional", "Parceiro"].includes(tutor.classificacao || "");
   const nivelProg = Math.round(((Math.min(100, Math.max(0, scoreTotal)) - nivel.min) / (nivel.max - nivel.min)) * 100);
   const faltamPts = Math.max(0, nivel.max - Math.round(scoreTotal));
   // Compras agrupadas por pet (o pet é o centro de tudo)
@@ -455,12 +495,14 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-[19px] leading-tight text-[#014D5E] font-medium">{tutor.name || "Sem nome"}</h1>
                 {tutor.codigo ? <span className="text-[13px] text-[#8A989D] font-medium" title="Código do cliente">#{tutor.codigo}</span> : null}
-                {tutor.score && <span className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: nivel.bg, color: nivel.fg }}>{nivel.emoji} {nivel.nome}</span>}
+                {naoCliente ? <span className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: "#EDE7F6", color: "#5B4B9E" }}>🤝 {tutor.classificacao}</span> : (tutor.score && <span className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: nivel.bg, color: nivel.fg }}>{nivel.emoji} {nivel.nome}</span>)}
                 <button onClick={() => setSituacaoOpen(true)} title="Situação — clique para alterar" className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: status.bg, color: status.color }}>{HUMANIZAR(tutor.estadoRelacionamento) || status.label} ▾</button>
                 <button onClick={() => { setNota(tutor.notaCliente || ""); setNotaOpen(true); }} title={tutor.notaCliente ? `Nota: ${tutor.notaCliente}` : "Adicionar nota"} className="text-[15px] leading-none">{tutor.notaCliente ? "❤️" : "🤍"}</button>
               </div>
               <p className="text-[12.5px] text-[#5C6B70] mt-0.5">
-                Cliente desde {new Date(tutor.primeiraCompraAt || tutor.createdAt).toLocaleDateString("pt-BR", { month: "short", year: "numeric" })} · {pets.length} {pets.length === 1 ? "pet" : "pets"}
+                {naoCliente
+                  ? <>{tutor.classificacao} · cadastro desde {new Date(tutor.createdAt).toLocaleDateString("pt-BR", { month: "short", year: "numeric" })}</>
+                  : <>Cliente desde {new Date(tutor.primeiraCompraAt || tutor.createdAt).toLocaleDateString("pt-BR", { month: "short", year: "numeric" })} · {pets.length} {pets.length === 1 ? "pet" : "pets"}</>}
               </p>
               <div className="flex flex-wrap gap-1.5 items-center mt-2">
                 <span className="text-[11.5px] text-[#8A989D]">🏷️</span>
@@ -512,12 +554,12 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
 
       {/* Barra de abas */}
       <div className="flex border-b border-[#E8E2D6] mb-3">
-        {([
+        {(([
           { k: "GERAL", label: "👤 Visão geral" },
           { k: "ANIMAIS", label: "🐾 Pets" },
           { k: "COMPRAS", label: "🧾 Compras" },
           { k: "CADASTRO", label: "📋 Cadastro" },
-        ] as const).map((t) => (
+        ] as const).filter((t) => !naoCliente || t.k === "GERAL" || t.k === "CADASTRO")).map((t) => (
           <button
             key={t.k}
             onClick={() => setTab(t.k)}
@@ -529,7 +571,18 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
         ))}
       </div>
 
-      {tab === "GERAL" && (
+      {tab === "GERAL" && naoCliente && (
+        <div className="mb-3 bg-white border border-[#E8E2D6] rounded-[14px]" style={{ padding: "16px 18px" }}>
+          <div className="text-[14px] text-[#014D5E] font-medium flex items-center gap-2">🤝 {tutor.classificacao}</div>
+          <p className="text-[12.5px] text-[#5C6B70] mt-1">Este contato é um <b>{tutor.classificacao?.toLowerCase()}</b>, não um cliente — por isso não mostramos métricas de fidelidade, compras ou "a receber".</p>
+          <div className="flex gap-2 mt-3 flex-wrap">
+            <button onClick={() => setTab("CADASTRO")} className="text-[12.5px] px-3 py-1.5 rounded-[9px] text-white" style={{ background: "#009AAC" }}>📋 Ver / editar cadastro</button>
+            <button onClick={() => openWhatsAppMeta(phone)} className="text-[12.5px] px-3 py-1.5 rounded-[9px] border border-[#E8E2D6] text-[#5C6B70] hover:border-[#009AAC] hover:text-[#009AAC]">💬 Conversar no WhatsApp</button>
+          </div>
+        </div>
+      )}
+
+      {tab === "GERAL" && !naoCliente && (
       <div className="mb-3 flex flex-col gap-3">
         {/* Gamificação: Score + Nível + selos */}
         <div className="grid gap-3" style={{ gridTemplateColumns: "minmax(0,auto) minmax(0,1fr)" }}>
@@ -690,7 +743,8 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
                 </div>
                 <div>
                   <label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Como conheceu</label>
-                  <input value={dadosForm.howFoundUs ?? ""} onChange={e => setDadosForm((f: any) => ({ ...f, howFoundUs: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[13px] text-[#1F2A2E]" />
+                  <input list="cliente-origem" value={dadosForm.howFoundUs ?? ""} onChange={e => setDadosForm((f: any) => ({ ...f, howFoundUs: e.target.value }))} placeholder="Escolha ou digite…" className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[13px] text-[#1F2A2E]" />
+                  <datalist id="cliente-origem">{[...origensCat, ...ORIGENS_DEFAULT.filter((o) => !origensCat.includes(o))].map((o, i) => <option key={i} value={o} />)}</datalist>
                 </div>
                 <div>
                   <label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Profissão</label>
@@ -703,7 +757,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
               <div className="grid grid-cols-2 md:grid-cols-3 gap-x-3 gap-y-2">
                 <div>
                   <label className="text-[10px] uppercase tracking-wide text-[#8A989D]">CEP</label>
-                  <input value={dadosForm.cep ?? ""} onChange={e => setDadosForm((f: any) => ({ ...f, cep: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[13px] text-[#1F2A2E]" />
+                  <input value={dadosForm.cep ?? ""} onChange={e => { const v = e.target.value; setDadosForm((f: any) => ({ ...f, cep: v })); if (v.replace(/\D/g, "").length === 8) buscarCep(v).then(info => { if (info) setDadosForm((f: any) => ({ ...f, address: info.logradouro || f.address, neighborhood: info.bairro || f.neighborhood, city: info.localidade || f.city, state: info.uf || f.state })); }); }} onBlur={e => { const v = e.target.value; if (v.replace(/\D/g, "").length === 8) buscarCep(v).then(info => { if (info) setDadosForm((f: any) => ({ ...f, address: info.logradouro || f.address, neighborhood: info.bairro || f.neighborhood, city: info.localidade || f.city, state: info.uf || f.state })); }); }} placeholder="00000-000" inputMode="numeric" className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[13px] text-[#1F2A2E]" />
                 </div>
                 <div>
                   <label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Logradouro</label>
@@ -930,7 +984,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
       </div>
       )}
 
-      {tab === "GERAL" && (
+      {tab === "GERAL" && !naoCliente && (
       <>
         <div className="text-[11px] text-[#8A989D] uppercase tracking-wide mb-2 mt-1 px-1">💬 Relacionamento</div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-start mb-3">

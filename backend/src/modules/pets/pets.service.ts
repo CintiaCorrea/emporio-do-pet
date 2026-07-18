@@ -12,6 +12,64 @@ export class PetsService {
     private readonly eventsService: EventsService,
   ) {}
 
+  /** Histórico clínico (importado do SimplesVet) do pet, mais recente primeiro.
+   *  Payload LEVE: não devolve o texto completo (HTML pesado) — só um resumo curto.
+   *  O texto integral é buscado sob demanda (getHistoricoItem) ao abrir o detalhe. */
+  async getHistorico(petId: string) {
+    const rows = await this.prisma.historicoClinico.findMany({
+      where: { petId },
+      orderBy: { data: 'desc' },
+      take: 500,
+      select: { id: true, tipo: true, data: true, titulo: true, resumo: true, autor: true, valorNum: true, origem: true, texto: true, arquivoKey: true },
+    });
+    const limpar = (s?: string | null) => (s || '').replace(/<[^>]+>/g, ' ').replace(/&[a-z]+;/gi, ' ').replace(/\s+/g, ' ').trim();
+    return rows.map((r) => ({
+      id: r.id, tipo: r.tipo, data: r.data, titulo: r.titulo, autor: r.autor, valorNum: r.valorNum, origem: r.origem,
+      temArquivo: !!r.arquivoKey,
+      resumo: (r.resumo && r.resumo.trim()) || limpar(r.texto).slice(0, 180) || null,
+    }));
+  }
+
+  /** Detalhe completo de um registro do histórico (texto integral). */
+  async getHistoricoItem(id: string) {
+    return this.prisma.historicoClinico.findUnique({ where: { id } });
+  }
+
+  /** Baixa o arquivo (PDF/imagem) de um registro do histórico direto do object storage (Tigris/S3),
+   *  autenticado por SigV4. Retorna os bytes p/ o app servir ao usuário logado (arquivo fica privado). */
+  async getArquivo(histId: string): Promise<{ buffer: Buffer; contentType: string; nome: string } | null> {
+    const h = await this.prisma.historicoClinico.findUnique({ where: { id: histId }, select: { arquivoKey: true, arquivoNome: true } });
+    if (!h?.arquivoKey) return null;
+    const key = h.arquivoKey;
+    const endpoint = process.env.S3_ENDPOINT || '';
+    const bucket = process.env.S3_BUCKET || '';
+    const region = process.env.S3_REGION || 'auto';
+    const ak = process.env.S3_ACCESS_KEY_ID || '';
+    const sk = process.env.S3_SECRET_ACCESS_KEY || '';
+    if (!endpoint || !bucket || !ak || !sk) return null;
+    const crypto = await import('crypto');
+    const date = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '');
+    const dateShort = date.substring(0, 8);
+    const emptyHash = crypto.createHash('sha256').update('').digest('hex');
+    const host = new URL(endpoint).host;
+    const canonicalHeaders = [`host:${host}`, `x-amz-content-sha256:${emptyHash}`, `x-amz-date:${date}`].join('\n');
+    const signedHeaders = 'host;x-amz-content-sha256;x-amz-date';
+    const canonicalRequest = ['GET', `/${bucket}/${key}`, '', canonicalHeaders, '', signedHeaders, emptyHash].join('\n');
+    const credentialScope = `${dateShort}/${region}/s3/aws4_request`;
+    const stringToSign = ['AWS4-HMAC-SHA256', date, credentialScope, crypto.createHash('sha256').update(canonicalRequest).digest('hex')].join('\n');
+    const kDate = crypto.createHmac('sha256', `AWS4${sk}`).update(dateShort).digest();
+    const kRegion = crypto.createHmac('sha256', kDate).update(region).digest();
+    const kService = crypto.createHmac('sha256', kRegion).update('s3').digest();
+    const signingKey = crypto.createHmac('sha256', kService).update('aws4_request').digest();
+    const signature = crypto.createHmac('sha256', signingKey).update(stringToSign).digest('hex');
+    const authorization = `AWS4-HMAC-SHA256 Credential=${ak}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
+    const res = await fetch(`${endpoint}/${bucket}/${key}`, { headers: { 'x-amz-content-sha256': emptyHash, 'x-amz-date': date, Authorization: authorization } });
+    if (!res.ok) return null;
+    const buffer = Buffer.from(await res.arrayBuffer());
+    const contentType = res.headers.get('content-type') || 'application/octet-stream';
+    return { buffer, contentType, nome: h.arquivoNome || 'arquivo' };
+  }
+
   async create(createPetDto: CreatePetDto) {
     let pet: any;
     for (let tentativa = 0; ; tentativa++) {

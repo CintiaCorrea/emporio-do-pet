@@ -11,7 +11,39 @@
  * ponto que precise reconhecer um cliente ja existente.
  */
 import { PrismaService } from '../modules/prisma/prisma.service';
-import { last8, onlyDigits } from './phone';
+import { last8, onlyDigits, samePhone } from './phone';
+
+/**
+ * Casa um telefone a um Tutor **sem decidir no escuro**: só devolve o cliente
+ * quando o número pertence a UM ÚNICO cliente. Se o mesmo número está em 2+
+ * cadastros (duplicado / telefone de família), retorna `ambiguous` — o chamador
+ * NÃO deve vincular automaticamente (vira revisão manual). Usado para ligar
+ * conversas do WhatsApp ao cliente com segurança.
+ */
+export type PhoneMatch =
+  | { status: 'none' }
+  | { status: 'unique'; tutorId: string; contactId: string }
+  | { status: 'ambiguous'; tutorIds: string[] };
+
+export async function findTutorByPhoneUnique(
+  prisma: PrismaService,
+  phone?: string | null,
+): Promise<PhoneMatch> {
+  const tail = last8(phone);
+  if (tail.length < 8) return { status: 'none' };
+  const contatos = await prisma.contact.findMany({
+    where: { number: { endsWith: tail } },
+    select: { id: true, tutorId: true, number: true, isPrimary: true },
+    orderBy: { isPrimary: 'desc' },
+  });
+  // Confirma que é o MESMO dono (samePhone trata o 9 do celular e o DDI).
+  const casam = contatos.filter((c) => samePhone(c.number, phone));
+  const tutorIds = Array.from(new Set(casam.map((c) => c.tutorId)));
+  if (tutorIds.length === 0) return { status: 'none' };
+  if (tutorIds.length > 1) return { status: 'ambiguous', tutorIds };
+  const c = casam.find((x) => x.tutorId === tutorIds[0])!;
+  return { status: 'unique', tutorId: tutorIds[0], contactId: c.id };
+}
 
 export interface TutorIdentity {
   phone?: string | null;

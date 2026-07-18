@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
-import { LuSearch, LuBell, LuSettings, LuLogOut, LuUser, LuChevronDown, LuArrowLeft } from "react-icons/lu";
+import { LuSearch, LuBell, LuSettings, LuLogOut, LuUser, LuChevronDown, LuArrowLeft, LuBug } from "react-icons/lu";
 import { usePageHeader } from "@/lib/ui/PageHeaderContext";
 import { useRolePreview } from "@/lib/ui/RolePreview";
 import { roleLabel } from "@/lib/ui/role";
@@ -144,6 +144,13 @@ export default function Header({ sidebarOpen }: Props) {
                   <LuSettings size={15} className="text-[#94a3b8]" /> Configuracoes
                 </Link>
               )}
+              <Link
+                href="/dashboard/reportar-bug"
+                onClick={() => setOpen(false)}
+                className="flex items-center gap-2.5 px-4 py-2.5 text-[13px] text-[#475569] hover:bg-[#f6f8f9] transition"
+              >
+                <LuBug size={15} className="text-[#94a3b8]" /> Reportar um bug
+              </Link>
               <div className="border-t my-1" style={{ borderColor: "#e8edf0" }} />
               <button
                 onClick={() => { setOpen(false); signOut({ callbackUrl: "/" }); }}

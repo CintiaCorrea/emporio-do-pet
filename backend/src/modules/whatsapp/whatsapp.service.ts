@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
 import { CloudStorageService } from '../media/cloud-storage.service';
+import { findTutorByPhoneUnique } from '../../common/tutor-match';
 import * as crypto from 'crypto';
 import {
   WhatsAppMessageType,
@@ -18,6 +19,8 @@ export interface SendWhatsAppMessagePayload {
   templateName?: string;
   templateParams?: Array<{ type: 'text'; text: string }>;
   language?: string;
+  /** waMessageId da mensagem que está sendo respondida — vira resposta citada no WhatsApp. */
+  replyToWaMessageId?: string;
 }
 
 export interface WhatsAppResponse {
@@ -247,6 +250,11 @@ export class WhatsAppService {
             preview_url: true,
             body: message.message,
           },
+          // Resposta citada: o WhatsApp do cliente mostra a mensagem original grudada
+          // em cima da resposta — igual ao "responder" do app.
+          ...(message.replyToWaMessageId
+            ? { context: { message_id: message.replyToWaMessageId } }
+            : {}),
         }),
       });
 
@@ -625,6 +633,69 @@ export class WhatsAppService {
   // Conversation Management Methods
   // ============================================
 
+  /**
+   * Baixa a mídia (imagem/áudio/etc) de uma mensagem direto do object storage
+   * (Tigris/S3, bucket PRIVADO) via SigV4, pra o app servir só a quem está logado.
+   * Mesmo padrão de pets.service.getArquivo.
+   */
+  async getMessageMedia(
+    messageId: string,
+  ): Promise<{ buffer: Buffer; contentType: string } | null> {
+    const msg = await this.prisma.whatsAppMessage.findUnique({
+      where: { id: messageId },
+      select: { mediaCloudUrl: true, mediaCloudId: true, mediaType: true },
+    });
+    if (!msg) return null;
+    const endpoint = process.env.S3_ENDPOINT || '';
+    const bucket = process.env.S3_BUCKET || '';
+    const region = process.env.S3_REGION || 'auto';
+    const ak = process.env.S3_ACCESS_KEY_ID || '';
+    const sk = process.env.S3_SECRET_ACCESS_KEY || '';
+    if (!endpoint || !bucket || !ak || !sk) return null;
+    // Deriva a KEY do objeto a partir da URL guardada (…/{bucket}/{key}) ou do id.
+    const prefix = `${endpoint}/${bucket}/`;
+    let key = '';
+    if (msg.mediaCloudUrl && msg.mediaCloudUrl.startsWith(prefix)) {
+      key = msg.mediaCloudUrl.slice(prefix.length);
+    } else if (msg.mediaCloudId) {
+      key = msg.mediaCloudId;
+    }
+    if (!key) return null;
+    const crypto = await import('crypto');
+    const date = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '');
+    const dateShort = date.substring(0, 8);
+    const emptyHash = crypto.createHash('sha256').update('').digest('hex');
+    const host = new URL(endpoint).host;
+    const canonicalHeaders = [`host:${host}`, `x-amz-content-sha256:${emptyHash}`, `x-amz-date:${date}`].join('\n');
+    const signedHeaders = 'host;x-amz-content-sha256;x-amz-date';
+    const canonicalRequest = ['GET', `/${bucket}/${key}`, '', canonicalHeaders, '', signedHeaders, emptyHash].join('\n');
+    const credentialScope = `${dateShort}/${region}/s3/aws4_request`;
+    const stringToSign = ['AWS4-HMAC-SHA256', date, credentialScope, crypto.createHash('sha256').update(canonicalRequest).digest('hex')].join('\n');
+    const kDate = crypto.createHmac('sha256', `AWS4${sk}`).update(dateShort).digest();
+    const kRegion = crypto.createHmac('sha256', kDate).update(region).digest();
+    const kService = crypto.createHmac('sha256', kRegion).update('s3').digest();
+    const signingKey = crypto.createHmac('sha256', kService).update('aws4_request').digest();
+    const signature = crypto.createHmac('sha256', signingKey).update(stringToSign).digest('hex');
+    const authorization = `AWS4-HMAC-SHA256 Credential=${ak}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
+    const res = await fetch(`${endpoint}/${bucket}/${key}`, { headers: { 'x-amz-content-sha256': emptyHash, 'x-amz-date': date, Authorization: authorization } });
+    if (!res.ok) return null;
+    const buffer = Buffer.from(await res.arrayBuffer());
+    const contentType = res.headers.get('content-type') || msg.mediaType || 'application/octet-stream';
+    return { buffer, contentType };
+  }
+
+  /**
+   * Casa um telefone a um Tutor existente — SÓ quando o número é de um único
+   * cliente (evita vincular ao cliente errado quando 2 cadastros compartilham
+   * o mesmo número). Telefone ambíguo → não vincula (vira revisão manual).
+   */
+  private async matchTutorByPhone(
+    phone: string,
+  ): Promise<{ tutorId: string; contactId: string } | null> {
+    const m = await findTutorByPhoneUnique(this.prisma, phone);
+    return m.status === 'unique' ? { tutorId: m.tutorId, contactId: m.contactId } : null;
+  }
+
   // Create or get existing conversation
   async createOrGetConversation(
     userId: string,
@@ -649,56 +720,51 @@ export class WhatsAppService {
     });
 
     if (existing) {
-      // Update contact name if provided and different
-      if ((contactName || contactPushName) && 
-          (contactName !== existing.contactName || contactPushName !== existing.contactPushName)) {
+      // Re-vincula conversa ÓRFÃ a um cliente existente: o telefone pode ter sido
+      // cadastrado DEPOIS que a conversa nasceu (ex.: cliente importado do SimplesVet).
+      let relinkTutorId: string | null = null;
+      if (!existing.tutorId) {
+        const m = await this.matchTutorByPhone(formattedPhone);
+        if (m) {
+          relinkTutorId = m.tutorId;
+          await this.prisma.contact
+            .update({ where: { id: m.contactId }, data: { isWhatsApp: true } })
+            .catch(() => undefined);
+          this.logger.log(`Conversa ${existing.id} re-vinculada ao cliente ${m.tutorId} pelo telefone`);
+        }
+      }
+      const precisaNome =
+        !!(contactName || contactPushName) &&
+        (contactName !== existing.contactName || contactPushName !== existing.contactPushName);
+      if (relinkTutorId || precisaNome) {
         return this.prisma.whatsAppConversation.update({
           where: { id: existing.id },
           data: {
-            contactName: contactName || existing.contactName,
-            contactPushName: contactPushName || existing.contactPushName,
+            ...(relinkTutorId ? { tutorId: relinkTutorId } : {}),
+            ...(precisaNome
+              ? {
+                  contactName: contactName || existing.contactName,
+                  contactPushName: contactPushName || existing.contactPushName,
+                }
+              : {}),
           },
-          include: {
-            assignedAgent: true,
-            tutor: true,
-          },
+          include: { assignedAgent: true, tutor: true },
         });
       }
       return existing;
     }
 
-    // Try to find tutor by phone
-    let contact = await this.prisma.contact.findFirst({
-      where: {
-        number: { contains: formattedPhone.slice(-8) },
-        isWhatsApp: true,
-      },
-      include: { tutor: true },
-    });
-
-    let tutorId = contact?.tutorId || null;
-
-    // Auto-create Tutor + Contact if not found
-    if (!tutorId) {
-      try {
-        const newTutor = await this.prisma.tutor.create({
-          data: {
-            name: contactName || contactPushName || `WhatsApp ${formattedPhone}`,
-            contacts: {
-              create: {
-                number: formattedPhone,
-                isWhatsApp: true,
-                isPrimary: true,
-              },
-            },
-          },
-        });
-        tutorId = newTutor.id;
-        this.logger.log(`Auto-created tutor ${newTutor.id} from WhatsApp contact ${formattedPhone}`);
-      } catch (error) {
-        this.logger.warn(`Failed to auto-create tutor: ${error instanceof Error ? error.message : 'Unknown'}`);
-      }
+    // Cliente já existe pelo telefone? (sem exigir a flag isWhatsApp — o número é o
+    // número, com ou sem o "9" do celular). Se achar, a conversa já nasce vinculada.
+    const match = await this.matchTutorByPhone(formattedPhone);
+    const tutorId = match?.tutorId || null;
+    if (match) {
+      await this.prisma.contact
+        .update({ where: { id: match.contactId }, data: { isWhatsApp: true } })
+        .catch(() => undefined);
     }
+    // Contato DESCONHECIDO não vira "cliente fantasma": a conversa entra sem tutor
+    // (como LEAD) e o listener de CRM cria o lead. Vira cliente quando for convertido.
 
     // Check for default AI agent for auto-reply
     const defaultAgentId = this.configService.get<string>('whatsapp.defaultAgentId');
@@ -1042,6 +1108,21 @@ export class WhatsAppService {
     });
   }
 
+  // Etiquetas da conversa: guardadas em metadata.tags (sem coluna nova no banco).
+  async setConversationTags(conversationId: string, tags: string[]) {
+    const conv = await this.prisma.whatsAppConversation.findUnique({
+      where: { id: conversationId },
+      select: { metadata: true },
+    });
+    const meta = (conv?.metadata && typeof conv.metadata === 'object' ? conv.metadata : {}) as Record<string, unknown>;
+    const limpas = Array.from(new Set((tags || []).map((t) => String(t).trim()).filter(Boolean)));
+    return this.prisma.whatsAppConversation.update({
+      where: { id: conversationId },
+      data: { metadata: { ...meta, tags: limpas } as any },
+      select: { id: true, metadata: true },
+    });
+  }
+
   // Human takeover: disable AI auto-reply and assign a human user
   async takeoverConversation(conversationId: string, userId: string) {
     const user = await this.prisma.user.findUnique({
@@ -1167,6 +1248,7 @@ export class WhatsAppService {
     content: string,
     type: WhatsAppMessageType = 'TEXT',
     senderInfo?: { senderType: 'AI' | 'HUMAN' | 'SYSTEM'; senderName?: string; senderId?: string },
+    replyToWaMessageId?: string,
   ): Promise<{ message: { id: string } | null; response: WhatsAppResponse }> {
     // Get conversation
     const conversation = await this.prisma.whatsAppConversation.findUnique({
@@ -1185,17 +1267,18 @@ export class WhatsAppService {
 
     // Send message
     const response = await this.sendMessage(
-      { to: conversation.contactPhone, message: content },
+      { to: conversation.contactPhone, message: content, replyToWaMessageId },
       config || undefined,
     );
 
-    // Save message
+    // Save message — guarda a citação também do NOSSO lado, senão o cliente vê a
+    // resposta grudada na pergunta e a caixa da recepção mostra ela solta.
     const message = await this.saveOutboundMessage(
       conversationId,
       content,
       type,
       response.messageId,
-      undefined,
+      replyToWaMessageId ? { replyToWaMessageId } : undefined,
       senderInfo,
     );
 
@@ -1576,10 +1659,14 @@ export class WhatsAppService {
   async sendMediaMessage(
     to: string,
     mediaId: string,
-    type: 'image' | 'document' | 'video' | 'audio',
+    // 'sticker' entrou pro anexo da caixa de entrada; os chamadores antigos
+    // (agente de IA mandando áudio) seguem iguais.
+    type: 'image' | 'document' | 'video' | 'audio' | 'sticker',
     caption?: string,
     filename?: string,
     config?: WhatsAppConfig,
+    /** Novo e opcional NO FIM de propósito: não mexe em quem já chama. */
+    replyToWaMessageId?: string,
   ): Promise<WhatsAppResponse> {
     const token = this.accessToken || config?.accessToken;
     const phoneId = this.phoneNumberId || config?.phoneNumberId;
@@ -1598,7 +1685,9 @@ export class WhatsAppService {
         id: mediaId,
       };
 
-      if (caption) {
+      // Só image/video/document aceitam legenda — o Meta recusa a mensagem inteira
+      // se vier caption em áudio ou figurinha.
+      if (caption && ['image', 'video', 'document'].includes(type)) {
         mediaPayload.caption = caption;
       }
 
@@ -1618,6 +1707,7 @@ export class WhatsAppService {
           to: phone,
           type,
           [type]: mediaPayload,
+          ...(replyToWaMessageId ? { context: { message_id: replyToWaMessageId } } : {}),
         }),
       });
 

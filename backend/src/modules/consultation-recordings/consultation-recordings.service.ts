@@ -188,6 +188,21 @@ export class ConsultationRecordingsService {
     });
   }
 
+  // Chave OpenAI: prioriza a configurada pelo usuário; senão usa a do servidor (OPENAI_API_KEY).
+  private async resolveOpenAiKey(userId: string): Promise<string> {
+    const settings = await this.prisma.integrationSettings.findUnique({ where: { userId } });
+    let key = '';
+    if (settings?.openaiConfig) {
+      try {
+        const c = typeof settings.openaiConfig === 'string' ? JSON.parse(settings.openaiConfig) : settings.openaiConfig;
+        key = c?.apiKey || '';
+      } catch { key = ''; }
+    }
+    if (!key) key = process.env.OPENAI_API_KEY || '';
+    if (!key) throw new BadRequestException('Chave OpenAI não configurada. Adicione em Configurações › IA (ou defina OPENAI_API_KEY no servidor).');
+    return key;
+  }
+
   async transcribeAudio(id: string, userId: string) {
     const recording = await this.findById(id);
 
@@ -195,19 +210,8 @@ export class ConsultationRecordingsService {
       throw new BadRequestException('Gravação sem URL de áudio');
     }
 
-    // Get OpenAI key from user's settings
-    const settings = await this.prisma.integrationSettings.findUnique({
-      where: { userId },
-    });
-
-    if (!settings?.openaiConfig) {
-      throw new BadRequestException('Configuração OpenAI não encontrada. Configure na seção de Integrações.');
-    }
-
-    const openaiConfig = JSON.parse(settings.openaiConfig);
-    if (!openaiConfig.apiKey) {
-      throw new BadRequestException('API Key OpenAI não configurada.');
-    }
+    // Chave OpenAI: do usuário ou, na ausência, a do servidor (OPENAI_API_KEY).
+    const apiKey = await this.resolveOpenAiKey(userId);
 
     // Update status to processing
     await this.prisma.consultationRecording.update({
@@ -218,7 +222,7 @@ export class ConsultationRecordingsService {
     try {
       const result = await this.audioService.transcribeFromUrl(
         recording.audioUrl,
-        openaiConfig.apiKey,
+        apiKey,
         recording.language || 'pt',
         'Consulta veterinária com tutor e veterinário. Termos médicos veterinários.',
       );
@@ -330,27 +334,8 @@ export class ConsultationRecordingsService {
   ) {
     const recording = await this.findById(id);
 
-    // Get OpenAI key
-    const settings = await this.prisma.integrationSettings.findUnique({
-      where: { userId },
-    });
-
-    if (!settings?.openaiConfig) {
-      throw new BadRequestException('Configuração OpenAI não encontrada. Configure na seção de Integrações.');
-    }
-
-    let openaiConfig: any;
-    try {
-      openaiConfig = typeof settings.openaiConfig === 'string'
-        ? JSON.parse(settings.openaiConfig)
-        : settings.openaiConfig;
-    } catch {
-      throw new BadRequestException('Configuração OpenAI inválida.');
-    }
-
-    if (!openaiConfig.apiKey) {
-      throw new BadRequestException('API Key OpenAI não configurada.');
-    }
+    // Chave OpenAI: do usuário ou, na ausência, a do servidor (OPENAI_API_KEY).
+    const apiKey = await this.resolveOpenAiKey(userId);
 
     // Update status to processing
     await this.prisma.consultationRecording.update({
@@ -367,7 +352,7 @@ export class ConsultationRecordingsService {
       const result = await this.audioService.transcribeFromBuffer(
         audioBuffer,
         filename,
-        openaiConfig.apiKey,
+        apiKey,
         language || recording.language || 'pt',
         prompt,
       );

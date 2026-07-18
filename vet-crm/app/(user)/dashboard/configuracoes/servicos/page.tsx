@@ -27,6 +27,7 @@ export default function ServicosPage() {
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [servicos, setServicos] = useState<Servico[]>([]);
   const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState<string | null>(null); // falha REAL de carga — nunca fingir "lista vazia"
   const [showInactive, setShowInactive] = useState(false);
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState<string>("ALL");
@@ -43,12 +44,34 @@ export default function ServicosPage() {
 
   async function load() {
     setLoading(true);
+    setErro(null);
     try {
       const qs = showInactive ? "?includeInactive=true" : "";
       const [rC, rS] = await Promise.all([fetch(`/api/servicos/categorias${qs}`), fetch(`/api/servicos/itens${qs}`)]);
-      setCategorias(await rC.json().then(d => Array.isArray(d) ? d : []));
-      setServicos(await rS.json().then(d => Array.isArray(d) ? d : []));
-    } catch (e) { console.error(e); }
+
+      const cRaw = await rC.text();
+      const sRaw = await rS.text();
+      const parse = (raw: string) => { try { return JSON.parse(raw); } catch { return raw; } };
+      const cJson = parse(cRaw);
+      const sJson = parse(sRaw);
+
+      // Antes: qualquer resposta estranha virava [] e a tela dizia "Nenhum serviço" —
+      // um erro de carga ficava indistinguível de catálogo vazio. Agora ela conta a verdade.
+      const explica = (nome: string, r: Response, j: any, raw: string) => {
+        if (!r.ok) return `${nome}: o servidor respondeu ${r.status}` + (j?.message || j?.error ? ` — ${j.message || j.error}` : "");
+        if (!Array.isArray(j)) return `${nome}: resposta em formato inesperado (${raw.slice(0, 120)})`;
+        return null;
+      };
+      const eC = explica("Categorias", rC, cJson, cRaw);
+      const eS = explica("Serviços", rS, sJson, sRaw);
+
+      setCategorias(Array.isArray(cJson) ? cJson : []);
+      setServicos(Array.isArray(sJson) ? sJson : []);
+      if (eC || eS) { setErro([eC, eS].filter(Boolean).join(" · ")); console.error("Falha ao carregar o catálogo:", { eC, eS }); }
+    } catch (e: any) {
+      setErro(`Não deu pra falar com o servidor: ${e?.message || e}`);
+      console.error(e);
+    }
     finally { setLoading(false); }
   }
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [showInactive]);
@@ -125,6 +148,19 @@ export default function ServicosPage() {
           </label>
         </div>
       </div>
+
+      {erro && (
+        <div className="max-w-7xl mx-auto px-6 pt-4">
+          <div className="rounded-lg border px-4 py-3 text-sm flex items-start gap-2" style={{ borderColor: "#F0C2C2", background: "#FCEBEB", color: "#8B2020" }}>
+            <span>⚠️</span>
+            <div>
+              <b>O catálogo não carregou.</b> A lista abaixo pode estar vazia por causa disso — não porque não existam serviços.
+              <div className="mt-1 text-[12px] font-mono opacity-80">{erro}</div>
+              <button onClick={load} className="mt-2 underline font-medium">Tentar de novo</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="max-w-7xl mx-auto px-6 pt-4 flex items-center justify-between gap-3 flex-wrap">
         <div className="flex gap-2">

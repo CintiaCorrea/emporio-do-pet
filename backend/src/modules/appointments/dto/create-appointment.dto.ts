@@ -56,6 +56,11 @@ export class CreateAppointmentDto {
   @IsUUID()
   userId: string;
 
+  @ApiPropertyOptional({ description: 'ID da agenda avulsa (Parceiro externo / MAP) — o agendamento pertence a ela; o userId é só quem lançou' })
+  @IsOptional()
+  @IsString()
+  agendaAvulsa?: string;
+
   @ApiProperty({ example: '2024-01-15T10:00:00Z' })
   @IsDateString()
   date: string;
@@ -194,6 +199,10 @@ export class CreateAppointmentItemDto {
   @ApiPropertyOptional({ description: 'ID do serviço (catálogo)' })
   @IsOptional() @IsUUID()
   servicoId?: string;
+
+  @ApiPropertyOptional({ description: 'ID do produto (catálogo) — usado p/ baixa de estoque' })
+  @IsOptional() @IsString()
+  productId?: string;
 
   @ApiPropertyOptional({ description: 'Descrição customizada (se não selecionar do catálogo)' })
   @IsOptional() @IsString()

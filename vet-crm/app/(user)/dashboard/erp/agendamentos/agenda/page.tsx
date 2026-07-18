@@ -1,8 +1,10 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
+import { useSession } from "next-auth/react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { useRolePreview } from "@/lib/ui/RolePreview";
 import NovoAgendamentoModal from "@/components/agendamentos/NovoAgendamentoModal";
+import BoletimModal from "@/components/pets/BoletimModal";
 import { LuChevronLeft, LuChevronRight } from "react-icons/lu";
 import toast from "react-hot-toast";
 
@@ -35,14 +37,34 @@ export default function AgendaPage() {
   const [dia, setDia] = useState<Date>(() => new Date());
   const [appts, setAppts] = useState<any[]>([]);
   const [profs, setProfs] = useState<any[]>([]);
+  const [avulsas, setAvulsas] = useState<any[]>([]); // agendas avulsas (Parceiro/MAP)
+  const { data: _sess } = useSession();
+  const meId = (_sess as any)?.user?.id as string | undefined;
   const [loading, setLoading] = useState(true);
   const [novoOpen, setNovoOpen] = useState(false);
   const [novoDefaults, setNovoDefaults] = useState<any>(null);
   const [editAppt, setEditAppt] = useState<any>(null);
   const [hidden, setHidden] = useState<Set<string>>(new Set());
+  const [externosDia, setExternosDia] = useState<Record<string, string[]>>({}); // profs habilitados sob demanda por dia (yyyy-mm-dd -> [profId])
+  const [incluirOpen, setIncluirOpen] = useState(false);
   const [cfg, setCfg] = useState<any>(null);
   const [view, setView] = useState<"dia" | "semana" | "mes">("dia");
   const [menuAppt, setMenuAppt] = useState<{ a: any; x: number; y: number } | null>(null);
+  const [confirmData, setConfirmData] = useState<any>(null); // agendamento na prévia de confirmação
+  const [cancelData, setCancelData] = useState<any>(null); // agendamento na tela de cancelar
+  const [cancelMotivo, setCancelMotivo] = useState("");
+  const [cancelObs, setCancelObs] = useState("");
+  const [sending, setSending] = useState(false);
+  const [boletimPet, setBoletimPet] = useState<any>(null); // pet (com tutor/contatos) p/ o popup de boletim
+  const MOTIVOS_CANCEL = ["Outro compromisso", "Pet indisposto", "Esqueceu", "Financeiro", "Não tenho interesse", "Outro"];
+
+  async function abrirBoletim(a: any) {
+    try {
+      const p = await fetch(`/api/pets/${a.pet?.id || a.petId}`, { cache: "no-store" }).then((r) => r.json());
+      if (!p?.id) throw new Error();
+      setBoletimPet(p);
+    } catch { toast.error("Não consegui abrir o boletim (pet não encontrado)"); }
+  }
 
   useEffect(() => { try { const s = localStorage.getItem("agenda_filas_hidden"); if (s) setHidden(new Set(JSON.parse(s))); } catch {} }, []);
   function persist(s: Set<string>) { try { localStorage.setItem("agenda_filas_hidden", JSON.stringify([...s])); } catch {} }
@@ -50,14 +72,16 @@ export default function AgendaPage() {
   async function load() {
     setLoading(true);
     try {
-      const [a, p, c] = await Promise.all([
+      const [a, p, c, av] = await Promise.all([
         fetch("/api/appointments?limit=1000", { cache: "no-store" }).then((r) => r.json()).catch(() => []),
         fetch("/api/profissionais", { cache: "no-store" }).then((r) => r.json()).catch(() => []),
         fetch("/api/listas?lista=agenda_config", { cache: "no-store" }).then((r) => r.json()).catch(() => []),
+        fetch("/api/listas?lista=agenda_avulsa", { cache: "no-store" }).then((r) => r.json()).catch(() => []),
       ]);
       setAppts(Array.isArray(a) ? a : (a.data || a.appointments || a.items || []));
       setProfs(Array.isArray(p) ? p : (p.data || p.items || []));
       try { const arr = Array.isArray(c) ? c : (c.itens || c.data || []); if (arr[0]?.valor) setCfg(JSON.parse(arr[0].valor)); } catch {}
+      try { const arr = Array.isArray(av) ? av : (av.itens || av.data || []); setAvulsas(arr.map((i: any) => { try { return { _id: i.id, ...JSON.parse(i.valor) }; } catch { return null; } }).filter(Boolean)); } catch {}
     } catch {}
     setLoading(false);
   }
@@ -66,13 +90,15 @@ export default function AgendaPage() {
   const profsAtende = useMemo(() => profs.filter((p: any) => p.ativo !== false && !["RECEPCIONISTA", "GERENTE"].includes(p.tipo) && !((cfg?.profsOcultos || []).includes(p.id))), [profs, cfg]);
   const hIni = Number(cfg?.horaInicio ?? 8); const hFim = Number(cfg?.horaFim ?? 19);
   const horas = useMemo(() => Array.from({ length: Math.max(hFim - hIni + 1, 1) }, (_, i) => i + hIni), [hIni, hFim]);
-  const slots = useMemo(() => (Number(cfg?.intervalo) === 30 ? [0, 30] : [0, 15, 30, 45]), [cfg]);
+  const slots = useMemo(() => (Number(cfg?.intervalo) === 15 ? [0, 15, 30, 45] : [0, 30]), [cfg]);
   const wdAtual = dia.getDay();
-  function escDe(p: any) { let o: any = p?.escala; if (typeof o === "string") { try { o = JSON.parse(o); } catch { o = null; } } return o && typeof o === "object" ? o : null; }
-  function foraDoHorario(p: any, h: number, m: number) { const e = escDe(p); if (!e || !e.semana) return false; if (Array.isArray(e.bloqueios) && e.bloqueios.some((b: any) => b.inicio && diaStr >= b.inicio && (!b.fim || diaStr <= b.fim))) return true; const js = e.semana[String(wdAtual)] || []; if (js.length === 0) return true; const t = h * 60 + m; return !js.some((par: any) => { const a = (par[0] || "0:0").split(":"); const b = (par[1] || "0:0").split(":"); return t >= (+a[0]) * 60 + (+a[1]) && t < (+b[0]) * 60 + (+b[1]); }); }
-  const visiveis = useMemo(() => profsAtende.filter((p: any) => !hidden.has(p.id)), [profsAtende, hidden]);
-
   const diaStr = ymd(dia);
+  function normEsc(v: any) { let o: any = v; if (typeof v === "string") { try { o = JSON.parse(v); } catch { o = null; } } return o && typeof o === "object" ? o : null; }
+  function escDe(p: any) { return normEsc(p?.escala); }
+  function bloqueadoNoDia(e: any) { return !!(e && Array.isArray(e.bloqueios) && e.bloqueios.some((b: any) => b.inicio && diaStr >= b.inicio && (!b.fim || diaStr <= b.fim))); }
+  function temEscala(e: any) { return !!(e && e.semana && Object.keys(e.semana).length > 0); }
+  function expedienteNoDia(e: any) { if (!temEscala(e)) return false; if (bloqueadoNoDia(e)) return false; return (e.semana[String(wdAtual)] || []).length > 0; }
+
   const doDia = useMemo(() => appts.filter((a: any) => a.date && ymd(new Date(a.date)) === diaStr), [appts, diaStr]);
   function valorDe(a: any) { const tr = a.treatments || []; return tr.reduce((s: number, t: any) => s + (Number(t.product?.price) || Number(t.valorUnitario) || 0) * (Number(t.quantidade) || 1), 0); }
   const profUserIds = useMemo(() => new Set(profsAtende.map((p: any) => p.userId).filter(Boolean)), [profsAtende]);
@@ -81,7 +107,80 @@ export default function AgendaPage() {
     if (!profUserIds.has(a.userId)) { const an = norm(a.user?.name); if (an && (an === norm(prof.nomeCompleto) || an === norm(prof.nomeExibicao))) return true; }
     return false;
   }
-  function apptsDe(prof: any, hora: number, minuto: number) { return doDia.filter((a: any) => { if (!ehDoProf(a, prof)) return false; const d = new Date(a.date); return d.getHours() === hora && Math.floor(d.getMinutes() / 15) * 15 === minuto; }); }
+  // Coluna do profissional aparece hoje? Expediente na escala OU já tem atendimento OU habilitado sob demanda.
+  function profVisivelHoje(p: any) {
+    const e = escDe(p);
+    const habilitado = (externosDia[diaStr] || []).includes(p.id);
+    const temAtend = doDia.some((a: any) => ehDoProf(a, p));
+    if (e && e.sobDemanda) return habilitado || temAtend;
+    if (temEscala(e)) return expedienteNoDia(e) || habilitado || temAtend;
+    return true; // sem escala configurada → coluna fixa (comportamento atual)
+  }
+  function foraDoHorario(p: any, h: number, m: number) {
+    const e = p._avulsa ? normEsc(p._horario) : escDe(p);
+    if (!temEscala(e)) return false;
+    if (bloqueadoNoDia(e)) return true;
+    const js = e.semana[String(wdAtual)] || []; if (js.length === 0) return true;
+    const t = h * 60 + m; return !js.some((par: any) => { const a = (par[0] || "0:0").split(":"); const b = (par[1] || "0:0").split(":"); return t >= (+a[0]) * 60 + (+a[1]) && t < (+b[0]) * 60 + (+b[1]); });
+  }
+  function avulsaVisivelHoje(a: any) { const e = normEsc(a.horario); if (!temEscala(e)) return true; if (bloqueadoNoDia(e)) return doDia.some((x: any) => x.agendaAvulsa === a.id); return expedienteNoDia(e) || doDia.some((x: any) => x.agendaAvulsa === a.id); }
+
+  const visiveis = useMemo(() => profsAtende.filter((p: any) => !hidden.has(p.id) && profVisivelHoje(p)), [profsAtende, hidden, externosDia, diaStr, doDia]);
+  const avulsasAtivas = useMemo(() => avulsas.filter((a: any) => a.ativo !== false), [avulsas]);
+  const avulsasVis = useMemo(() => avulsasAtivas.filter(avulsaVisivelHoje), [avulsasAtivas, diaStr, doDia]);
+  // Colunas da agenda = profissionais visíveis + agendas avulsas (Parceiro/MAP) que funcionam hoje.
+  const colunas = useMemo(() => [
+    ...visiveis.map((p: any) => ({ ...p, _avulsa: false })),
+    // grupo: agendas do mesmo grupo ("Sala MAP") se travam juntas quando o pet é bravo
+    ...avulsasVis.map((a: any) => ({ _avulsa: true, id: a.id, nomeCompleto: a.nome, nomeExibicao: a.nome, corAvatar: a.cor || "#7C3AED", userId: null, _horario: a.horario, grupo: a.grupo || null })),
+  ], [visiveis, avulsasVis]);
+  // Profissionais que NÃO estão na agenda hoje (folga ou externo) — podem ser incluídos sob demanda.
+  const foraHoje = useMemo(() => profsAtende.filter((p: any) => !hidden.has(p.id) && !profVisivelHoje(p)), [profsAtende, hidden, externosDia, diaStr, doDia]);
+  function incluirExterno(id: string) { setExternosDia((m) => ({ ...m, [diaStr]: [...(m[diaStr] || []), id] })); setIncluirOpen(false); }
+
+  // Observação que a recepção precisa VER (ex.: "está vomitando", "assinar o termo").
+  // O campo `notes` também é usado pela internação pra guardar JSON dela — isso não é
+  // recado pra ninguém e não pode aparecer na agenda como se fosse.
+  const obsDe = (a: any): string | null => {
+    const t = String(a?.notes || "").trim();
+    if (!t) return null;
+    if (t.startsWith("{") || t.startsWith("[")) return null; // payload técnico, não recado
+    return t;
+  };
+  // Pet bravo ocupa a SALA inteira, não só a coluna: a fisio dele numa MAP bloqueia a
+  // outra MAP no mesmo horário (animal bravo não pode cruzar com outro).
+  // Quais temperamentos travam vem de Configurações; o grupo ("Sala MAP") vem da própria
+  // agenda avulsa — MAP 3 amanhã é só pôr no mesmo grupo, sem tocar em código.
+  const travaSala = (a: any) => {
+    const t = a?.pet?.temperament;
+    return !!t && (cfg?.temperamentosQueTravam || []).includes(t);
+  };
+  const grupoDaAvulsa = (id: string) => avulsas.find((x: any) => x.id === id)?.grupo || null;
+  // Este agendamento (de OUTRA avulsa) ocupa a coluna `prof` por ser do mesmo grupo?
+  const ocupaEstaAvulsa = (a: any, prof: any) => {
+    if (!a.agendaAvulsa || a.agendaAvulsa === prof.id) return false;
+    if (!travaSala(a)) return false;
+    const g = grupoDaAvulsa(a.agendaAvulsa);
+    return !!g && g === prof.grupo;
+  };
+  function apptsDe(prof: any, hora: number, minuto: number) { const ss = slots[1] || 30; return doDia.filter((a: any) => { const d = new Date(a.date); if (d.getHours() !== hora || Math.floor(d.getMinutes() / ss) * ss !== minuto) return false; if (prof._avulsa) return a.agendaAvulsa === prof.id || ocupaEstaAvulsa(a, prof); return ehDoProf(a, prof) && !a.agendaAvulsa; }); }
+  // O agendamento OCUPA todo o seu tempo: aparece como card no slot em que começa e como
+  // faixa de continuação nos slots seguintes que a duração cobre (1h, 1h30 etc.).
+  function apptsCobrindo(prof: any, hora: number, minuto: number) {
+    const ss = slots[1] || 30;
+    const ini = hora * 60 + minuto, fim = ini + ss;
+    return doDia
+      .filter((a: any) => {
+        if (!a.date) return false;
+        const d = new Date(a.date);
+        const aIni = d.getHours() * 60 + d.getMinutes();
+        const aFim = aIni + (Number(a.duration) || 30);
+        if (!(aIni < fim && aFim > ini)) return false;
+        if (prof._avulsa) return a.agendaAvulsa === prof.id || ocupaEstaAvulsa(a, prof);
+        return ehDoProf(a, prof) && !a.agendaAvulsa;
+      })
+      .map((a: any) => { const d = new Date(a.date); const aIni = d.getHours() * 60 + d.getMinutes(); return { a, comeca: aIni >= ini && aIni < fim }; });
+  }
   const doDiaVis = useMemo(() => doDia.filter((a: any) => visiveis.some((p: any) => ehDoProf(a, p))), [doDia, visiveis, profUserIds]);
   const previsao = useMemo(() => doDiaVis.reduce((s: number, a: any) => s + valorDe(a), 0), [doDiaVis]);
   const espera = useMemo(() => doDiaVis.filter((a: any) => ["Em espera", "Aguardando", "Em atendimento"].includes(a.status)), [doDiaVis]);
@@ -91,10 +190,45 @@ export default function AgendaPage() {
   function toggleFila(id: string) { const s = new Set(hidden); s.has(id) ? s.delete(id) : s.add(id); setHidden(s); persist(s); }
   function soEste(id: string) { const s = new Set(profsAtende.filter((p: any) => p.id !== id).map((p: any) => p.id)); setHidden(s); persist(s); }
   function esperaDesde(a: any) { const diff = Math.round((Date.now() - new Date(a.date).getTime()) / 60000); return diff > 0 ? `há ${diff} min` : hm(new Date(a.date)); }
+
+  // ---- Confirmação por WhatsApp (Fatia 1) ----
+  function tipoFisio(a: any) { return `${a?.type || ""} ${a?.description || ""}`.toLowerCase().includes("fisio"); }
+  function tplConfirmacao(a: any) { return tipoFisio(a) ? "confirmacao_fisioterapia" : "confirmacao_agendamento"; }
+  function msgConfirmacao(a: any) {
+    const d = new Date(a.date); const dd = String(d.getDate()).padStart(2, "0"); const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const hh = String(d.getHours()).padStart(2, "0"); const min = d.getMinutes(); const hora = min ? `${hh}h${String(min).padStart(2, "0")}` : `${hh}h`;
+    const tutor = (a.tutor?.name || "tutor").trim().split(/\s+/)[0]; const pet = a.pet?.name || "seu pet"; const prof = (a.user?.name || "nossa equipe").trim();
+    if (tipoFisio(a)) {
+      return `Olá, ${tutor}! 🩵☀️🐾\n\nInformamos que amanhã, ${dd}/${mm}, às ${hora}, o seu pet ${pet} tem fisioterapia na Mundo à Parte.\n\n‼️ ATENÇÃO:\n\n➡️ Cancelamentos ou transferências deverão ser informados com até 04 (quatro) horas de antecedência. Caso este tempo seja excedido e a mensagem não for confirmada, ou ocorra o não comparecimento no horário agendado, ou atraso superior a 20 minutos, a sessão será automaticamente cancelada e considerada como realizada, sendo descontado o valor da mesma.\n\n➡️ Se seu pet realiza hidroesteira, lembre-se de trazer uma toalha.\n\n➡️ Para pacientes agendados com recorrência, ao renovar o pacote verifique novamente na recepção as próximas datas.\n\nPodemos confirmar o agendamento? Aguardamos seu retorno! ☺️`;
+    }
+    return `Olá, ${tutor}! Confirmamos o agendamento do(a) ${pet} no Empório do Pet para o dia ${dd}/${mm}, às ${hora}, com ${prof}. Podemos confirmar sua presença? Aguardamos seu retorno! 🐾`;
+  }
+  async function enviarConfirmacao(a: any) {
+    setSending(true);
+    try {
+      const r = await fetch(`/api/appointments/${a.id}/confirmar-whatsapp`, { method: "POST" });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || d?.success === false) throw new Error(d?.error || "Falha ao enviar");
+      toast.success("Confirmação enviada no WhatsApp ✅");
+      setConfirmData(null); load();
+    } catch (e: any) { toast.error(e?.message || "Erro ao enviar"); }
+    setSending(false);
+  }
+  async function cancelarAgendamento(a: any) {
+    setSending(true);
+    try {
+      const r = await fetch(`/api/appointments/${a.id}/cancelar`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ motivo: cancelMotivo || undefined, observacao: cancelObs || undefined }) });
+      if (!r.ok) throw new Error("Falha ao cancelar");
+      toast.success("Agendamento cancelado");
+      setCancelData(null); setCancelMotivo(""); setCancelObs(""); load();
+    } catch (e: any) { toast.error(e?.message || "Erro ao cancelar"); }
+    setSending(false);
+  }
+  const CONF_BADGE: Record<string, { t: string; c: string }> = { ENVIADA: { t: "📲", c: "#854F0B" }, CONFIRMADO: { t: "✅", c: "#0F6E56" }, REMARCAR: { t: "🔄", c: "#A32D2D" } };
   const label = dia.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "short" });
   const labelCap = label.charAt(0).toUpperCase() + label.slice(1);
   const tituloView = view === "mes" ? cap(dia.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })) : view === "semana" ? (() => { const i = startOfWeek(dia); const f = addD(i, 6); return `${i.getDate()}/${i.getMonth() + 1} – ${f.getDate()}/${f.getMonth() + 1}`; })() : labelCap;
-  const cols = `52px repeat(${Math.max(visiveis.length, 1)}, minmax(120px, 1fr))`;
+  const cols = `52px repeat(${Math.max(colunas.length, 1)}, minmax(120px, 1fr))`;
 
   return (
     <div className="p-4 min-h-screen bg-[#F6F2EA]">
@@ -112,8 +246,28 @@ export default function AgendaPage() {
             <button key={v} onClick={() => setView(v)} className="text-[12px] px-3 py-1.5 rounded-md" style={view === v ? { background: "#009AAC", color: "#fff" } : { color: "#5C6B70" }}>{lbl}</button>
           ))}
         </div>
-        <a href="/dashboard/erp/agendamentos/escala" title="Escala" className="w-8 h-8 rounded-lg border flex items-center justify-center text-[16px] hover:text-[#009AAC]" style={{ borderColor: "#E8E2D6" }}>📆</a>
-        <a href="/dashboard/erp/agendamentos/configuracoes" title="Configurações da agenda" className="w-8 h-8 rounded-lg border flex items-center justify-center text-[16px] hover:text-[#009AAC]" style={{ borderColor: "#E8E2D6" }}>⚙️</a>
+        {/* Escala agora fica no cadastro do profissional: Configurações › Equipe. */}
+        {/* Config da agenda agora só em Configurações › Agenda & Atendimento. */}
+        {foraHoje.length > 0 && (
+          <div className="relative">
+            <button onClick={() => setIncluirOpen((v) => !v)} className="text-[13px] px-3 py-1.5 rounded-lg border flex items-center gap-1.5" style={{ borderColor: "#009AAC", color: "#009AAC", background: "#fff" }}>➕ Incluir profissional</button>
+            {incluirOpen && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setIncluirOpen(false)} />
+                <div className="absolute right-0 mt-1 z-20 bg-white border rounded-xl shadow-lg py-1 min-w-[220px]" style={{ borderColor: "#E8E2D6" }}>
+                  <div className="px-3 py-1.5 text-[11px] text-gray-400">Não estão na agenda hoje</div>
+                  {foraHoje.map((p: any) => { const ext = escDe(p)?.sobDemanda; return (
+                    <button key={p.id} onClick={() => incluirExterno(p.id)} className="w-full text-left px-3 py-2 hover:bg-[#F6FDFD] text-[13px] flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full" style={{ background: p.corAvatar || "#009AAC" }} />
+                      <span className="flex-1">{p.nomeExibicao || p.nomeCompleto}</span>
+                      <span className="text-[11px] text-gray-400">{ext ? "externo" : "de folga"}</span>
+                    </button>
+                  ); })}
+                </div>
+              </>
+            )}
+          </div>
+        )}
         <button onClick={() => { setEditAppt(null); setNovoDefaults({ date: diaStr, duration: cfg?.duracaoPadrao }); setNovoOpen(true); }} className="text-[13px] px-3 py-1.5 rounded-lg text-white flex items-center gap-1.5" style={{ background: "#009AAC" }}>➕ Agendar</button>
       </div>
 
@@ -145,37 +299,74 @@ export default function AgendaPage() {
         <div className="bg-white border rounded-2xl overflow-hidden" style={{ borderColor: "#E8E2D6" }}>
           {loading ? (
             <div className="text-center text-sm text-gray-400 py-12">Carregando agenda...</div>
-          ) : visiveis.length === 0 ? (
-            <div className="text-center text-sm text-gray-400 py-12">{profsAtende.length === 0 ? "Cadastre profissionais em Configurações › Profissionais." : "Nenhuma fila selecionada — escolha acima."}</div>
+          ) : colunas.length === 0 ? (
+            <div className="text-center text-sm text-gray-400 py-12">{profsAtende.length === 0 ? "Cadastre profissionais em Configurações › Equipe (ou agendas avulsas em Configurações › Agenda)." : "Nenhuma fila selecionada — escolha acima."}</div>
           ) : (
             <div className="overflow-x-auto">
-              <div style={{ minWidth: `${64 + visiveis.length * 130}px` }}>
+              <div style={{ minWidth: `${64 + colunas.length * 130}px` }}>
                 <div className="grid border-b" style={{ gridTemplateColumns: cols, borderColor: "#F0EBE0", background: "#FBF9F4" }}>
                   <div />
-                  {visiveis.map((p: any) => (
-                    <div key={p.id} className="flex items-center justify-center gap-1.5 py-2.5 px-2 border-l" style={{ borderColor: "#F0EBE0" }}>
-                      <span className="w-2 h-2 rounded-full" style={{ background: p.corAvatar || "#009AAC" }} />
-                      <span className="text-[12px] font-medium" style={{ color: "#014D5E" }}>{nomeCurto(p)}</span>
+                  {colunas.map((p: any) => (
+                    <div key={p._avulsa ? "av-" + p.id : p.id} className="flex flex-col items-center justify-center gap-0.5 py-2 px-2 border-l" style={{ borderColor: "#ECE6D8" }}>
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full" style={{ background: p.corAvatar || "#009AAC" }} />
+                        <span className="text-[12px] font-medium" style={{ color: "#014D5E" }}>{nomeCurto(p)}</span>
+                      </div>
+                      {p._avulsa && <span className="text-[8px] font-bold uppercase px-1 rounded" style={{ color: "#7C3AED", background: "#F5F3FF" }}>avulsa</span>}
+                      {!p._avulsa && (externosDia[diaStr] || []).includes(p.id) && (
+                        <span className="text-[8px] font-bold uppercase px-1 rounded inline-flex items-center gap-0.5" style={{ color: "#B45309", background: "#FCF3E7" }}>
+                          externo hoje
+                          <button onClick={() => setExternosDia((m) => ({ ...m, [diaStr]: (m[diaStr] || []).filter((x) => x !== p.id) }))} title="Tirar da agenda de hoje" className="hover:text-[#A32D2D]">✕</button>
+                        </span>
+                      )}
                     </div>
                   ))}
                 </div>
                 {horas.flatMap((h) => slots.map((m) => (
-                  <div key={`${h}-${m}`} className="grid" style={{ gridTemplateColumns: cols, borderBottom: m === slots[slots.length - 1] ? "0.5px solid #F0EBE0" : "0.5px dashed #F0EBE0", minHeight: "22px" }}>
-                    <div className="text-[10px] text-right pr-2 pt-0.5" style={{ color: m === 0 ? "#8A989D" : "#cbd2cb" }}>{m === 0 ? `${String(h).padStart(2, "0")}:00` : `:${m}`}</div>
-                    {visiveis.map((p: any) => (
-                      <div key={p.id} onClick={() => { if (!p.userId) { toast("Profissional sem login — cadastre o acesso em Configurações › Profissionais"); return; } setEditAppt(null); setNovoDefaults({ date: diaStr, time: `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`, userId: p.userId, duration: cfg?.duracaoPadrao }); setNovoOpen(true); }} className="border-l p-0.5 cursor-pointer hover:bg-[#f9fbfb]" style={{ borderColor: "#F0EBE0", background: foraDoHorario(p, h, m) ? "repeating-linear-gradient(45deg,#f5f6f4,#f5f6f4 4px,#e9ebe6 4px,#e9ebe6 8px)" : undefined }}>
-                        {apptsDe(p, h, m).map((a: any) => { const cor = corDe(a.status, cfg?.cores); const v = valorDe(a); const quem = a.pet?.name ? `${a.pet.name}${a.tutor?.name ? ` · ${a.tutor.name}` : ""}` : (a.tutor?.name || "Agendamento"); return (
-                          <div key={a.id} onClick={(e) => cardMenu(e, a)} title="Clique para editar" className="rounded-r-md px-2 py-1 mb-0.5 cursor-pointer" style={{ borderLeft: `3px solid ${cor.c}`, background: cor.bg }}>
+                  <div key={`${h}-${m}`} className="grid" style={{ gridTemplateColumns: cols, borderBottom: m === slots[slots.length - 1] ? "1px solid #DED6C4" : "1px dashed #ECE6D8", minHeight: "42px" }}>
+                    <div className="text-[11px] text-right pr-2 pt-1" style={{ color: m === 0 ? "#4A5A5F" : "#93A0A0", fontWeight: m === 0 ? 600 : 400 }}>{m === 0 ? `${String(h).padStart(2, "0")}:00` : `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`}</div>
+                    {colunas.map((p: any) => {
+                      const cobre = apptsCobrindo(p, h, m);
+                      const ocupado = cobre.length > 0;
+                      return (
+                      <div key={(p._avulsa ? "av-" : "") + p.id} onClick={ocupado ? undefined : () => {
+                        if (p._avulsa) { if (!meId) { toast("Recarregue a página."); return; } setEditAppt(null); setNovoDefaults({ date: diaStr, time: `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`, agendaAvulsa: p.id, avulsaNome: p.nomeCompleto, userId: meId, duration: cfg?.duracaoPadrao }); setNovoOpen(true); return; }
+                        if (!p.userId) { toast("Profissional sem login — cadastre o acesso em Configurações › Equipe"); return; }
+                        setEditAppt(null); setNovoDefaults({ date: diaStr, time: `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`, userId: p.userId, duration: cfg?.duracaoPadrao }); setNovoOpen(true);
+                      }} className={"border-l p-0.5 " + (ocupado ? "" : "cursor-pointer hover:bg-[#EAF6F7]")} style={{ borderColor: "#ECE6D8", background: foraDoHorario(p, h, m) ? "repeating-linear-gradient(45deg,#f5f6f4,#f5f6f4 4px,#e9ebe6 4px,#e9ebe6 8px)" : undefined }}>
+                        {cobre.map(({ a, comeca }: any) => { const cor = corDe(a.status, cfg?.cores); const _conf = a.confirmacaoStatus; const cBorder = _conf === "CONFIRMADO" ? "#0F6E56" : _conf === "REMARCAR" ? "#A32D2D" : cor.c; const cBg = _conf === "CONFIRMADO" ? "#E7F7EF" : _conf === "REMARCAR" ? "#FCEBEB" : cor.bg; const v = valorDe(a); const quem = a.pet?.name ? `${a.pet.name}${a.tutor?.name ? ` · ${a.tutor.name}` : ""}` : (a.tutor?.name || "Agendamento");
+                          if (!comeca) return (
+                            <div key={a.id + "-c"} onClick={(e) => cardMenu(e, a)} title={`${quem} · ${a.duration || 30} min (continuação)`} className="rounded-r-md mb-0.5 cursor-pointer" style={{ borderLeft: `3px solid ${cBorder}`, background: cBg, opacity: 0.5, height: 30 }} />
+                          );
+                          // Esta coluna está travada POR TABELA (o agendamento é da outra MAP do grupo)
+                          const espelho = p._avulsa && a.agendaAvulsa !== p.id;
+                          const donaNome = espelho ? (colunas.find((x: any) => x._avulsa && x.id === a.agendaAvulsa)?.nomeCompleto || "outra agenda") : "";
+                          const obs = obsDe(a);
+                          return (
+                          <div key={a.id} onClick={(e) => cardMenu(e, a)} title={espelho ? `Sala ocupada: ${quem} está na ${donaNome} (pet ${String(a.pet?.temperament || "").toLowerCase()})` : (obs ? `📝 ${obs}` : "Clique para editar")} className="rounded-r-md px-2 py-1 mb-0.5 cursor-pointer" style={{ borderLeft: `3px solid ${cBorder}`, background: cBg, opacity: espelho ? 0.75 : 1 }}>
                             <div className="flex items-center justify-between gap-1">
-                              <span className="text-[11px] font-medium" style={{ color: cor.c }}>{hm(new Date(a.date))}</span>
-                              {mostrarValores && v > 0 ? <span className="text-[10px] font-medium" style={{ color: "#0F6E56" }}>{brl(v)}</span> : null}
+                              <span className="text-[11px] font-medium flex items-center gap-1" style={{ color: cor.c }}>{hm(new Date(a.date))}{a.duration ? <span className="text-[9.5px] font-normal" style={{ color: cor.c, opacity: .8 }}>· {a.duration}min</span> : null}{a.confirmacaoStatus && CONF_BADGE[a.confirmacaoStatus] ? <span title={`Confirmação: ${a.confirmacaoStatus}`}>{CONF_BADGE[a.confirmacaoStatus].t}</span> : null}{obs ? <span title={obs} style={{ fontSize: "10px" }}>📝</span> : null}</span>
+                              {travaSala(a) ? <span title="Ocupa a sala inteira" className="text-[10px]">🔒</span> : (mostrarValores && v > 0 ? <span className="text-[10px] font-medium" style={{ color: "#0F6E56" }}>{brl(v)}</span> : null)}
                             </div>
                             <div className="text-[12px] font-medium truncate" style={{ color: "#014D5E" }}>{quem}</div>
                             <div className="text-[10px] truncate" style={{ color: cor.c }}>{a.type || "Atendimento"}{a.status ? ` · ${a.status}` : ""}</div>
+                            {travaSala(a) && (
+                              <div className="text-[9px] truncate" style={{ color: "#B23B39" }}>
+                                {String(a.pet?.temperament || "").toLowerCase()} · {espelho ? `está na ${donaNome}` : "ocupa as duas"}
+                              </div>
+                            )}
+                            {/* Recado da recepção: aparece no card, não só no tooltip —
+                                recado que exige passar o mouse não é recado. */}
+                            {obs && (
+                              <div className="text-[9px] truncate mt-0.5 px-1 py-0.5 rounded" title={obs} style={{ color: "#8a6400", background: "#FBF3E3" }}>
+                                📝 {obs}
+                              </div>
+                            )}
                           </div>
                         ); })}
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )))}
               </div>
@@ -271,13 +462,74 @@ export default function AgendaPage() {
       {menuAppt && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setMenuAppt(null)} />
-          <div className="fixed z-50 bg-white border rounded-lg shadow-lg py-1 text-[13px]" style={{ left: Math.min(menuAppt.x, (typeof window !== "undefined" ? window.innerWidth : 1200) - 230), top: Math.min(menuAppt.y, (typeof window !== "undefined" ? window.innerHeight : 800) - 160), minWidth: 208, borderColor: "#E8E2D6" }}>
+          <div className="fixed z-50 bg-white border rounded-lg shadow-lg py-1 text-[13px]" style={{ left: Math.min(menuAppt.x, (typeof window !== "undefined" ? window.innerWidth : 1200) - 230), top: Math.min(menuAppt.y, (typeof window !== "undefined" ? window.innerHeight : 800) - 330), minWidth: 216, borderColor: "#E8E2D6" }}>
             <div className="px-3 py-1.5 text-[11px] text-[#8A989D] border-b truncate" style={{ borderColor: "#F0EBE0" }}>{menuAppt.a.pet?.name || menuAppt.a.tutor?.name || "Agendamento"}</div>
-            <button onClick={() => { const a = menuAppt.a; setMenuAppt(null); setNovoDefaults(null); setEditAppt(a); setNovoOpen(true); }} className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center gap-2">✏️ Editar agendamento</button>
+            <button onClick={() => { const a = menuAppt.a; setMenuAppt(null); setConfirmData(a); }} className="w-full text-left px-3 py-2 flex items-center gap-2 font-medium" style={{ color: "#0B7A47", background: "#EAFBF0" }}>📲 Confirmar no WhatsApp</button>
+            {tipoFisio(menuAppt.a) ? (
+              <button onClick={() => { const a = menuAppt.a; setMenuAppt(null); abrirBoletim(a); }} className="w-full text-left px-3 py-2 flex items-center gap-2 font-medium" style={{ color: "#017E8C", background: "#E1F3F5" }}>🌿 Boletim de fisioterapia</button>
+            ) : null}
+            <button onClick={() => { const a = menuAppt.a; setMenuAppt(null); setNovoDefaults(null); setEditAppt(a.agendaAvulsa ? { ...a, agendaAvulsaNome: (avulsas.find((x: any) => x.id === a.agendaAvulsa)?.nome || "Agenda avulsa") } : a); setNovoOpen(true); }} className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center gap-2">📅 Remarcar (editar horário)</button>
+            <button onClick={() => { const a = menuAppt.a; setMenuAppt(null); setCancelMotivo(""); setCancelObs(""); setCancelData(a); }} className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center gap-2" style={{ color: "#A32D2D" }}>❌ Cancelar agendamento</button>
+            <div style={{ borderTop: "1px solid #F0EBE0", margin: "3px 0" }} />
+            <button onClick={() => { const a = menuAppt.a; setMenuAppt(null); setNovoDefaults(null); setEditAppt(a.agendaAvulsa ? { ...a, agendaAvulsaNome: (avulsas.find((x: any) => x.id === a.agendaAvulsa)?.nome || "Agenda avulsa") } : a); setNovoOpen(true); }} className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center gap-2">✏️ Editar agendamento</button>
             <button onClick={() => { const id = menuAppt.a.id; setMenuAppt(null); window.location.href = `/dashboard/erp/atendimentos/${id}`; }} className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center gap-2">🩺 Abrir atendimento</button>
+            <button onClick={() => { const id = menuAppt.a.id; setMenuAppt(null); window.location.href = `/dashboard/erp/consultas/${id}/gravar`; }} className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center gap-2">🎤 Gravar consulta</button>
           </div>
         </>
       )}
+
+      {/* Prévia de confirmação pelo WhatsApp */}
+      {confirmData && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: "rgba(20,35,40,.28)" }} onClick={() => !sending && setConfirmData(null)}>
+          <div className="bg-white rounded-2xl overflow-hidden w-full" style={{ maxWidth: 420, border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
+            <div className="px-4 py-3 border-b" style={{ borderColor: "#F0EBE0" }}>
+              <div className="text-[15px] font-semibold" style={{ color: "#014D5E" }}>Confirmar agendamento</div>
+              <div className="text-[12px] mt-1 flex gap-3 flex-wrap" style={{ color: "#5C6B70" }}>
+                <span>👤 {confirmData.tutor?.name || "—"}</span><span>🐾 {confirmData.pet?.name || "—"}</span><span>📅 {hm(new Date(confirmData.date))}</span>
+              </div>
+            </div>
+            <div className="px-4 pt-3 text-[11px]" style={{ color: "#5C6B70" }}>Modelo: <b style={{ color: "#0F6E56" }}>{tplConfirmacao(confirmData)}</b></div>
+            <div className="p-4">
+              <div style={{ background: "#DCF8C6", borderRadius: "10px 10px 10px 2px", padding: "10px 12px", fontSize: 12.5, color: "#1f2a2e", whiteSpace: "pre-wrap", maxHeight: 320, overflowY: "auto" }}>{msgConfirmacao(confirmData)}</div>
+              <div className="text-[11px] mt-2" style={{ color: "#8A989D" }}>Nome, data, hora e pet vêm do agendamento.</div>
+            </div>
+            <div className="px-4 py-3 border-t flex gap-2" style={{ borderColor: "#F0EBE0" }}>
+              <button disabled={sending} onClick={() => setConfirmData(null)} className="px-4 py-2.5 rounded-xl text-[13px]" style={{ background: "#fff", border: "1px solid #E8E2D6", color: "#5C6B70" }}>Cancelar</button>
+              <button disabled={sending} onClick={() => enviarConfirmacao(confirmData)} className="flex-1 py-2.5 rounded-xl text-[13.5px] font-semibold text-white flex items-center justify-center gap-2" style={{ background: "#25D366" }}>{sending ? "Enviando…" : "📲 Enviar confirmação"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cancelar agendamento com motivo */}
+      {cancelData && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: "rgba(20,35,40,.28)" }} onClick={() => !sending && setCancelData(null)}>
+          <div className="bg-white rounded-2xl overflow-hidden w-full" style={{ maxWidth: 400, border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
+            <div className="px-4 py-3 border-b" style={{ borderColor: "#F0EBE0" }}>
+              <div className="text-[15px] font-semibold" style={{ color: "#014D5E" }}>Cancelar agendamento</div>
+              <div className="text-[12px] mt-1 flex gap-3 flex-wrap" style={{ color: "#5C6B70" }}>
+                <span>🐾 {cancelData.pet?.name || "—"}</span><span>👤 {cancelData.tutor?.name || "—"}</span><span>📅 {hm(new Date(cancelData.date))}</span>
+              </div>
+            </div>
+            <div className="p-4">
+              <div className="text-[12px] font-medium mb-2" style={{ color: "#5C6B70" }}>Motivo <span style={{ color: "#8A989D", fontWeight: 400 }}>(opcional)</span></div>
+              <div className="flex flex-wrap gap-1.5">
+                {MOTIVOS_CANCEL.map((m) => (
+                  <button key={m} onClick={() => setCancelMotivo(m === cancelMotivo ? "" : m)} className="text-[11.5px] px-2.5 py-1 rounded-full border" style={m === cancelMotivo ? { background: "#FCEBEB", borderColor: "#eecccc", color: "#A32D2D", fontWeight: 600 } : { background: "#FBF9F4", borderColor: "#E8E2D6", color: "#5C6B70" }}>{m}</button>
+                ))}
+              </div>
+              <div className="text-[12px] font-medium mt-3 mb-1" style={{ color: "#5C6B70" }}>Observação <span style={{ color: "#8A989D", fontWeight: 400 }}>(opcional)</span></div>
+              <textarea value={cancelObs} onChange={(e) => setCancelObs(e.target.value)} placeholder="Ex: cliente vai viajar, remarca na volta…" className="w-full rounded-lg border px-3 py-2 text-[13px]" style={{ borderColor: "#E8E2D6", minHeight: 56, resize: "none", color: "#1F2A2E", fontFamily: "inherit" }} />
+            </div>
+            <div className="px-4 py-3 border-t flex gap-2" style={{ borderColor: "#F0EBE0" }}>
+              <button disabled={sending} onClick={() => setCancelData(null)} className="px-4 py-2.5 rounded-xl text-[13px]" style={{ background: "#fff", border: "1px solid #E8E2D6", color: "#5C6B70" }}>Voltar</button>
+              <button disabled={sending} onClick={() => cancelarAgendamento(cancelData)} className="flex-1 py-2.5 rounded-xl text-[13.5px] font-semibold text-white" style={{ background: "#A32D2D" }}>{sending ? "Cancelando…" : "Confirmar cancelamento"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {boletimPet && <BoletimModal pet={boletimPet} boletimId={null} onClose={() => setBoletimPet(null)} onSaved={() => { setBoletimPet(null); load(); }} />}
 
       <NovoAgendamentoModal open={novoOpen} defaults={novoDefaults} editAppt={editAppt} onClose={() => { setNovoOpen(false); setNovoDefaults(null); setEditAppt(null); }} onCreated={() => { setNovoOpen(false); setNovoDefaults(null); setEditAppt(null); load(); }} />
     </div>

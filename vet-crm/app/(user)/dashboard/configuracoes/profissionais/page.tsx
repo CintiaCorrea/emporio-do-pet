@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { LuArrowLeft, LuPencil, LuX, LuPlus, LuSearch } from "react-icons/lu";
 import CsvImporter from "@/components/import/CsvImporter";
+import EscalaEditor, { parseEsc } from "@/components/agendamentos/EscalaEditor";
 
 type Tipo = "VETERINARIO" | "RECEPCIONISTA" | "ESTAGIARIO" | "GERENTE" | "OUTRO";
 
@@ -98,8 +99,8 @@ export default function ProfissionaisPage() {
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center gap-3">
           <Link href="/dashboard/configuracoes" className="p-2 rounded-lg hover:bg-gray-100"><LuArrowLeft size={18} /></Link>
           <div className="flex-1">
-            <h1 className="text-xl font-semibold" style={{ color: "#0E2244" }}>Profissionais</h1>
-            <p className="text-sm text-gray-500">Equipe da clínica + acessos ao sistema</p>
+            <h1 className="text-xl font-semibold" style={{ color: "#0E2244" }}>Equipe</h1>
+            <p className="text-sm text-gray-500">Sua equipe interna da clínica + acessos ao sistema (login)</p>
           </div>
           <label className="flex items-center gap-2 text-sm cursor-pointer text-gray-600">
             <input type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)} />
@@ -117,7 +118,7 @@ export default function ProfissionaisPage() {
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar nome/especialidade..." className="w-full pl-8 pr-3 py-2 border rounded-lg text-sm bg-white" style={{ borderColor: "#E8DFC8" }} />
         </div>
         <button onClick={openNew} className="px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-2 text-white" style={{ background: "#009AAC" }}>
-          <LuPlus size={14} /> Novo Profissional
+          <LuPlus size={14} /> Novo membro
         </button>
       </div>
 
@@ -190,7 +191,7 @@ export default function ProfissionaisPage() {
       {modalOpen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setModalOpen(false)}>
           <div className="bg-white rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <h2 className="text-lg font-semibold mb-4" style={{ color: "#0E2244" }}>{editId ? "Editar profissional" : "Novo profissional"}</h2>
+            <h2 className="text-lg font-semibold mb-4" style={{ color: "#0E2244" }}>{editId ? "Editar membro da equipe" : "Novo membro da equipe"}</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="md:col-span-2"><label className="text-xs text-gray-600">Nome completo *</label>
                 <input value={form.nomeCompleto || ""} onChange={e => setForm({ ...form, nomeCompleto: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }} /></div>
@@ -236,6 +237,11 @@ export default function ProfissionaisPage() {
                 <label className="flex items-center gap-2 text-sm cursor-pointer">
                   <input type="checkbox" checked={form.ativo} onChange={e => setForm({ ...form, ativo: e.target.checked })} /> Ativo
                 </label>
+              </div>
+
+              <div className="md:col-span-2 mt-2 pt-3 border-t" style={{ borderColor: "#E8DFC8" }}>
+                <p className="text-sm font-medium mb-2 flex items-center gap-1.5" style={{ color: "#0E2244" }}>📅 Escala / Jornada</p>
+                <EscalaEditor value={parseEsc(form.escala)} onChange={(e) => setForm({ ...form, escala: e })} allowSobDemanda />
               </div>
             </div>
             <div className="flex justify-end gap-2 mt-5">

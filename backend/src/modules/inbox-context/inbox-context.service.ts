@@ -80,12 +80,28 @@ export class InboxContextService {
     return users;
   }
 
-  async forward(body: { tutorId?: string; leadId?: string; toUserId: string; observacao?: string }) {
+  async forward(body: { tutorId?: string; leadId?: string; toUserId: string; observacao?: string; fromUserId?: string }) {
     if (!body.toUserId) return { ok: false, error: 'toUserId required' };
     const user = await this.prisma.user.findUnique({ where: { id: body.toUserId } });
     if (!user) return { ok: false, error: 'user not found' };
 
-    // Criar interação tipo ENCAMINHAMENTO
+    // Nome do contato (p/ a nota) + telefone (p/ achar a conversa se for lead)
+    let nome = 'contato';
+    let p8 = '';
+    if (body.tutorId) {
+      const t = await this.prisma.tutor.findUnique({
+        where: { id: body.tutorId },
+        select: { name: true, contacts: { select: { number: true }, orderBy: { isPrimary: 'desc' }, take: 1 } },
+      });
+      nome = t?.name || nome;
+      p8 = t?.contacts?.[0]?.number ? last9(onlyDigits(t.contacts[0].number)).slice(-8) : '';
+    } else if (body.leadId) {
+      const l = await this.prisma.lead.findUnique({ where: { id: body.leadId }, select: { name: true, phone: true } });
+      nome = l?.name || nome;
+      p8 = l?.phone ? last9(onlyDigits(l.phone)).slice(-8) : '';
+    }
+
+    // 1) Registro do encaminhamento
     const interacao = await (this.prisma as any).interacao.create({
       data: {
         tipo: 'ENCAMINHAMENTO',
@@ -96,59 +112,109 @@ export class InboxContextService {
       },
     });
 
+    // 2) REATRIBUI a(s) conversa(s) do Meta pro destinatário (responsável = assignedUserId)
+    try {
+      if (body.tutorId) {
+        await (this.prisma as any).whatsAppConversation.updateMany({
+          where: { tutorId: body.tutorId },
+          data: { assignedUserId: body.toUserId, humanTakeoverAt: new Date() },
+        });
+      }
+      if (p8.length >= 8) {
+        await (this.prisma as any).whatsAppConversation.updateMany({
+          where: { contactPhone: { endsWith: p8 } },
+          data: { assignedUserId: body.toUserId, humanTakeoverAt: new Date() },
+        });
+      }
+    } catch {
+      /* reatribuição best-effort */
+    }
+
+    // 3) Avisa o destinatário (nota interna — aparece na aba "Internas")
+    try {
+      if (body.fromUserId) {
+        await (this.prisma as any).internalNote.create({
+          data: {
+            fromUserId: body.fromUserId,
+            toUserId: body.toUserId,
+            content: `📨 Conversa de "${nome}" encaminhada para você${body.observacao ? ': ' + body.observacao : ''}.`,
+          },
+        });
+      }
+    } catch {
+      /* nota best-effort */
+    }
+
     return { ok: true, interacaoId: interacao.id, forwardedTo: { id: user.id, name: user.name } };
   }
 
-  async resolve(body: { tutorId?: string; leadId?: string; texto?: string }) {
-    const txt = body.texto || `Conversa resolvida em ${new Date().toLocaleString('pt-BR')}`;
+  async resolve(body: { tutorId?: string; leadId?: string; texto?: string; phone?: string }) {
     const tutorId = body.tutorId || null;
     const leadId = body.leadId || null;
+    const obs = (body.texto || '').trim();
 
-    // 1 registro por dia: se já houve uma resolução hoje para este tutor/lead,
-    // atualiza o registro do dia em vez de criar outro (evita acúmulo). Um texto
-    // explícito (ex.: resumo vindo do BotConversa) sobrescreve o do dia.
-    const inicioDia = new Date();
-    inicioDia.setHours(0, 0, 0, 0);
-    const fimDia = new Date();
-    fimDia.setHours(23, 59, 59, 999);
+    // MARCA INVISÍVEL de "resolvido" — é o que faz a conversa sair da Caixa de Entrada.
+    // Vive na tabela de listas (uma chave por tutor/lead), NÃO no histórico de interações.
+    // Antes isso era uma interação "Conversa resolvida em..." que poluía a ficha do cliente
+    // mesmo sem observação nenhuma. O horário da resolução = updatedAt desta marca.
+    const key = tutorId ? `cli:${tutorId}` : leadId ? `lead:${leadId}` : null;
+    if (key) {
+      await (this.prisma as any).listaItem
+        .upsert({
+          where: { lista_valor: { lista: 'inboxresolv', valor: key } },
+          create: { lista: 'inboxresolv', valor: key },
+          update: { ordem: { increment: 1 } }, // força o bump do updatedAt (= resolveu agora)
+        })
+        .catch(() => undefined);
+    }
 
-    const existente =
-      tutorId || leadId
-        ? await (this.prisma as any).interacao.findFirst({
-            where: {
-              tipo: 'RESOLVIDO',
-              canal: 'Sistema',
-              ...(tutorId ? { tutorId } : { leadId }),
-              createdAt: { gte: inicioDia, lte: fimDia },
-            },
-            orderBy: { createdAt: 'desc' },
-          })
-        : null;
-
-    let interacao;
-    if (existente) {
-      interacao =
-        body.texto && body.texto !== existente.texto
-          ? await (this.prisma as any).interacao.update({
-              where: { id: existente.id },
-              data: { texto: body.texto },
-            })
-          : existente;
-    } else {
+    // Interação SÓ quando há observação de verdade. Sem observação, foi resolvido de outra
+    // forma e não precisa de nota na ficha (pedido da Cintia).
+    let interacao: any = null;
+    if (obs && (tutorId || leadId)) {
       interacao = await (this.prisma as any).interacao.create({
-        data: {
-          tipo: 'RESOLVIDO',
-          texto: txt,
-          tutorId,
-          leadId,
-          canal: 'Sistema',
-        },
+        data: { tipo: 'RESOLVIDO', texto: obs, tutorId, leadId, canal: 'Sistema' },
       });
     }
 
     // Nao atualiza lastActivityAt: a Caixa de Entrada compara o horario da
     // resolucao com a ultima atividade pra decidir se o item ainda aparece.
 
-    return { ok: true, interacaoId: interacao.id };
+    // Box Meta-nativo: encerra a(s) conversa(s) do Meta desse contato (status CLOSED)
+    // pra sumir da caixa e nao voltar (so reabre com mensagem nova). Nao bloqueia o resolve.
+    try {
+      if (tutorId) {
+        await (this.prisma as any).whatsAppConversation.updateMany({
+          where: { tutorId, status: 'OPEN' },
+          data: { status: 'CLOSED' },
+        });
+        const t = await (this.prisma as any).tutor.findUnique({
+          where: { id: tutorId },
+          select: { contacts: { select: { number: true }, orderBy: { isPrimary: 'desc' }, take: 1 } },
+        });
+        const ph = t?.contacts?.[0]?.number
+          ? String(t.contacts[0].number).replace(/\D/g, '').slice(-9)
+          : '';
+        if (ph.length >= 8) {
+          await (this.prisma as any).whatsAppConversation.updateMany({
+            where: { contactPhone: { endsWith: ph.slice(-8) }, status: 'OPEN' },
+            data: { status: 'CLOSED' },
+          });
+        }
+      }
+      // Fecha TAMBÉM pelo telefone passado direto (conversa do Meta sem cliente/lead
+      // vinculado — ex.: número ambíguo). Assim "Finalizar" fecha em qualquer caso.
+      const ph2 = (body.phone || '').replace(/\D/g, '');
+      if (ph2.length >= 8) {
+        await (this.prisma as any).whatsAppConversation.updateMany({
+          where: { contactPhone: { endsWith: ph2.slice(-8) }, status: 'OPEN' },
+          data: { status: 'CLOSED' },
+        });
+      }
+    } catch {
+      /* se o Meta falhar, o resolve segue normal */
+    }
+
+    return { ok: true, interacaoId: interacao?.id || null };
   }
 }

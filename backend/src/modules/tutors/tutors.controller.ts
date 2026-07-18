@@ -49,6 +49,12 @@ export class TutorsController {
     return this.tutorsService.create(createTutorDto);
   }
 
+  @Post(':id/reclassify-as-lead')
+  @ApiOperation({ summary: 'Reclassifica um cliente-fantasma de volta pra lead (só se não tiver pet/atendimento)' })
+  reclassifyAsLead(@Param('id') id: string) {
+    return this.tutorsService.reclassifyAsLead(id);
+  }
+
   @Get()
   @ApiOperation({ summary: 'Listar tutores' })
   @ApiQuery({ name: 'search', required: false })

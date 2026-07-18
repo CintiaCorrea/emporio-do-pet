@@ -237,6 +237,10 @@ export class BotConversaController {
       const ehCliente =
         (body.tipo_contato || '').toLowerCase().includes('client') ||
         tagsArr.some(t => /^(fu-)?cliente$/i.test(t));
+      // TRANSIÇÃO p/ Meta: o BotConversa NÃO cria mais CLIENTE automático (gerava
+      // "cliente-fantasma sem pet"). Todo contato novo vira LEAD. Vira cliente só
+      // por cadastro/conversão manual. Flip pra true se um dia quiser voltar.
+      const BC_AUTO_CLIENTE = false;
 
       const ownerId = await this.getOwnerUserId();
       const textoInteracao = resumo || `Contato via BotConversa (trigger: ${body.trigger || 'desconhecido'})`;
@@ -288,7 +292,7 @@ export class BotConversaController {
 
       for (const l of leads) {
         // Se tag indica Cliente E nao tem tutor ainda, promove Lead -> Tutor
-        if (ehCliente && tutors.length === 0) {
+        if (BC_AUTO_CLIENTE && ehCliente && tutors.length === 0) {
           try {
             const tutor = await this.prisma.tutor.create({
               data: {
@@ -349,7 +353,7 @@ export class BotConversaController {
 
       // 3) Auto-criar Tutor (se BC marcou como Cliente) OU Lead (default)
       if (tutors.length === 0 && leads.length === 0) {
-        if (ehCliente) {
+        if (BC_AUTO_CLIENTE && ehCliente) {
           try {
             const tutor = await this.prisma.tutor.create({
               data: {

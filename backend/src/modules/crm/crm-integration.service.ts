@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
 import { LeadStatus, LeadSource } from '@prisma/client';
-import { findExistingTutor } from '../../common/tutor-match';
+import { findExistingTutor, findTutorByPhoneUnique } from '../../common/tutor-match';
 import { last8, onlyDigits, normalizePhone } from '../../common/phone';
 import { proximoCodigo } from '../../common/codigo';
 
@@ -55,6 +55,28 @@ export class CrmIntegrationService {
    */
   async createLeadFromWhatsApp(data: WhatsAppLeadData): Promise<string | null> {
     try {
+      // JÁ É CLIENTE? Se o telefone é de um Tutor cadastrado, NÃO cria lead
+      // (Cliente = Tutor é a mesma pessoa; criar lead aqui gera a duplicidade
+      // "cliente vira lead"). Número de UM cliente -> vincula a conversa.
+      // Número AMBÍGUO (2+ clientes) -> também não cria lead, mas não vincula
+      // (revisão manual decide de quem é).
+      const m = await findTutorByPhoneUnique(this.prisma, data.contactPhone);
+      if (m.status === 'unique') {
+        await this.prisma.whatsAppConversation
+          .update({ where: { id: data.conversationId }, data: { tutorId: m.tutorId } })
+          .catch(() => undefined);
+        this.logger.log(
+          `Conversa ${data.conversationId} é de CLIENTE ${m.tutorId} — vinculada, sem criar lead`,
+        );
+        return null;
+      }
+      if (m.status === 'ambiguous') {
+        this.logger.warn(
+          `Telefone ${data.contactPhone} pertence a ${m.tutorIds.length} clientes — não cria lead nem vincula (revisão manual)`,
+        );
+        return null;
+      }
+
       // Check if lead already exists by phone
       const existingLead = await this.prisma.lead.findFirst({
         where: {
@@ -145,6 +167,41 @@ export class CrmIntegrationService {
       this.logger.error(`Error creating lead from WhatsApp: ${error}`);
       return null;
     }
+  }
+
+  /**
+   * Configuração da Caixa de Entrada: ligar/desligar a criação automática de
+   * LEAD quando chega mensagem de um número desconhecido. (Cliente conhecido
+   * nunca vira lead — isso é sempre garantido.)
+   */
+  async getInboxSettings(): Promise<{ autoCreateLeadsFromWhatsApp: boolean }> {
+    const rows = await this.prisma.integrationSettings.findMany({ select: { metadata: true } });
+    // Desligado se QUALQUER config marcar explicitamente como false.
+    const autoCreateLeadsFromWhatsApp = !rows.some(
+      (r) => (r.metadata as Record<string, unknown> | null)?.autoCreateLeadsFromWhatsApp === false,
+    );
+    return { autoCreateLeadsFromWhatsApp };
+  }
+
+  async setInboxSettings(
+    userId: string,
+    autoCreateLeadsFromWhatsApp: boolean,
+  ): Promise<{ ok: true; autoCreateLeadsFromWhatsApp: boolean }> {
+    const rows = await this.prisma.integrationSettings.findMany();
+    if (rows.length === 0) {
+      await this.prisma.integrationSettings.create({
+        data: { userId, metadata: { autoCreateLeadsFromWhatsApp } },
+      });
+    } else {
+      for (const r of rows) {
+        const meta = (r.metadata as Record<string, unknown> | null) || {};
+        await this.prisma.integrationSettings.update({
+          where: { id: r.id },
+          data: { metadata: { ...meta, autoCreateLeadsFromWhatsApp } },
+        });
+      }
+    }
+    return { ok: true, autoCreateLeadsFromWhatsApp };
   }
 
   /**
