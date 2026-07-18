@@ -136,22 +136,30 @@ export default function ConsultationRecorder({
     setUploadProgress(0);
 
     try {
+      // 1) Cria o registro da gravação ANTES de enviar o áudio. Assim, se a transcrição
+      //    falhar (áudio grande, timeout…), a gravação NÃO some — fica salva pra tentar
+      //    de novo ou preencher a transcrição manualmente.
+      let rid = recordingId;
+      if (!rid) {
+        const cr = await fetch('/api/consultation-recordings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ appointmentId }) });
+        if (!cr.ok) {
+          const e = await cr.json().catch(() => ({}));
+          toast.error(e.error || e.message || 'Não consegui criar a gravação.');
+          setStatus('stopped');
+          return;
+        }
+        const cd = await cr.json();
+        rid = cd.id; setRecordingId(cd.id); onRecordingCreated?.(cd);
+      }
+
       const formData = new FormData();
       formData.append('audio', audioBlob, 'consulta.webm');
       formData.append('audioDuration', recordingTime.toString());
       formData.append('language', 'pt');
-
-      let url: string;
-      if (recordingId) {
-        url = `/api/consultation-recordings/${recordingId}/upload-and-transcribe`;
-      } else {
-        url = `/api/consultation-recordings/upload-and-transcribe`;
-        formData.append('appointmentId', appointmentId);
-      }
-
       setUploadProgress(30);
 
-      const res = await fetch(url, {
+      // 2) Envia o áudio pra transcrever (o registro rid já existe).
+      const res = await fetch(`/api/consultation-recordings/${rid}/upload-and-transcribe`, {
         method: 'POST',
         body: formData});
 
@@ -173,14 +181,15 @@ export default function ConsultationRecorder({
         }
       } else {
         const error = await res.json().catch(() => ({}));
-        toast.error(error.error || 'Erro na transcrição. Tente o modo manual.');
+        const msg = error.error || error.message || (res.status === 413 ? 'Áudio muito grande (máx. 25MB) — grave em partes.' : 'Erro na transcrição.');
+        toast.error(`${msg} A gravação foi salva — dá pra tentar de novo ou inserir manual.`);
         setStatus('stopped');
       }
 
       setUploadProgress(100);
     } catch (err) {
       console.error('Upload and transcribe error:', err);
-      toast.error('Erro ao enviar áudio. Verifique sua conexão e tente novamente.');
+      toast.error('Erro ao enviar o áudio (conexão/tamanho?). A gravação foi salva — tente de novo.');
       setStatus('stopped');
     } finally {
       setIsTranscribing(false);
