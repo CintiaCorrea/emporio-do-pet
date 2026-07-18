@@ -74,6 +74,7 @@ export default function AgendaPage() {
   const [sending, setSending] = useState(false);
   const [boletimPet, setBoletimPet] = useState<any>(null); // pet (com tutor/contatos) p/ o popup de boletim
   const [boletimAgenda, setBoletimAgenda] = useState<{ data?: string; entrada?: string; saida?: string } | null>(null);
+  const [boletinsEnv, setBoletinsEnv] = useState<Set<string>>(new Set()); // chave `${petId}|${data}` dos boletins já ENVIADOS
   const MOTIVOS_CANCEL = ["Outro compromisso", "Pet indisposto", "Esqueceu", "Financeiro", "Não tenho interesse", "Outro"];
 
   async function abrirBoletim(a: any) {
@@ -216,6 +217,26 @@ export default function AgendaPage() {
 
   // ---- Confirmação por WhatsApp (Fatia 1) ----
   function tipoFisio(a: any) { return `${a?.type || ""} ${a?.description || ""}`.toLowerCase().includes("fisio"); }
+  // Descobre quais sessões de fisio do dia já tiveram o boletim ENVIADO (marca no card do MAP).
+  useEffect(() => {
+    const petIds = [...new Set(doDia.filter((a: any) => tipoFisio(a) && (a.pet?.id || a.petId)).map((a: any) => a.pet?.id || a.petId))];
+    if (!petIds.length) { setBoletinsEnv(new Set()); return; }
+    let cancelled = false;
+    (async () => {
+      const set = new Set<string>();
+      await Promise.all(petIds.map(async (pid) => {
+        try {
+          const r = await fetch(`/api/listas?lista=petboletim_${pid}`, { cache: "no-store" });
+          const d = await r.json();
+          const arr = Array.isArray(d) ? d : (d.itens || d.data || []);
+          for (const it of arr) { let o: any = {}; try { o = JSON.parse(it.valor); } catch {} if (o.enviadoAt && o.sessaoData) set.add(`${pid}|${String(o.sessaoData).slice(0, 10)}`); }
+        } catch { /* best-effort */ }
+      }));
+      if (!cancelled) setBoletinsEnv(set);
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [diaStr, appts]);
   function tplConfirmacao(a: any) { return tipoFisio(a) ? "confirmacao_fisioterapia" : "confirmacao_agendamento"; }
   function msgConfirmacao(a: any) {
     const d = new Date(a.date); const dd = String(d.getDate()).padStart(2, "0"); const mm = String(d.getMonth() + 1).padStart(2, "0");
@@ -412,7 +433,10 @@ export default function AgendaPage() {
                               {travaSala(a) ? <span title="Ocupa a sala inteira" className="text-[10px]">🔒</span> : (mostrarValores && v > 0 ? <span className="text-[10px] font-medium" style={{ color: "#0F6E56" }}>{brl(v)}</span> : null)}
                             </div>
                             <div className="text-[12px] font-medium truncate" style={{ color: "#014D5E" }}>{quem}</div>
-                            <div className="text-[10px] truncate" style={{ color: cor.c }}>{a.type || "Atendimento"}</div>
+                            <div className="text-[10px] truncate flex items-center gap-1" style={{ color: cor.c }}>
+                              <span className="truncate">{a.type || "Atendimento"}</span>
+                              {tipoFisio(a) && (() => { const env = boletinsEnv.has(`${a.pet?.id || a.petId}|${ymd(new Date(a.date))}`); return <span title={env ? "Boletim enviado ✅" : "Boletim ainda não enviado"} className="shrink-0" style={{ fontSize: "9px" }}>{env ? "🌿✅" : "🌿✉️"}</span>; })()}
+                            </div>
                             {/* Controle de estágio: um elemento só que avança Agendado → Chegou → Em atendimento → Concluído. */}
                             {!espelho && (() => {
                               const idx = estagioIdx(a.status); const est = ESTAGIOS[idx];
