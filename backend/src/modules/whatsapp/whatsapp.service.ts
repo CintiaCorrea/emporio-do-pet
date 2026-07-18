@@ -706,7 +706,7 @@ export class WhatsAppService {
   ) {
     const formattedPhone = this.formatPhoneNumber(contactPhone);
 
-    const existing = await this.prisma.whatsAppConversation.findUnique({
+    let existing = await this.prisma.whatsAppConversation.findUnique({
       where: {
         userId_contactPhone: {
           userId,
@@ -718,6 +718,19 @@ export class WhatsAppService {
         tutor: true,
       },
     });
+
+    // Evita conversa DUPLICADA por causa do 9º dígito (ex.: cadastro 55859... x WhatsApp
+    // real 5585...): se não achou exato, reusa a mesma pessoa pelos últimos 8 dígitos.
+    if (!existing) {
+      const tail = formattedPhone.replace(/\D/g, '').slice(-8);
+      if (tail.length >= 8) {
+        existing = await this.prisma.whatsAppConversation.findFirst({
+          where: { userId, contactPhone: { endsWith: tail } },
+          include: { assignedAgent: true, tutor: true },
+          orderBy: { lastMessageAt: 'desc' },
+        });
+      }
+    }
 
     if (existing) {
       // Re-vincula conversa ÓRFÃ a um cliente existente: o telefone pode ter sido
@@ -1385,7 +1398,8 @@ export class WhatsAppService {
     if (!res.success) return { success: false, error: res.error };
     try {
       const formatted = this.formatPhoneNumber(phone);
-      const conv = await this.prisma.whatsAppConversation.findFirst({ where: { contactPhone: formatted }, orderBy: { lastMessageAt: 'desc' } });
+      const tail = formatted.replace(/\D/g, '').slice(-8);
+      const conv = await this.prisma.whatsAppConversation.findFirst({ where: { contactPhone: { endsWith: tail } }, orderBy: { lastMessageAt: 'desc' } });
       if (conv) {
         await this.saveOutboundMessage(conv.id, textoLegivel || `[modelo enviado: ${templateName}]`, 'TEMPLATE', res.messageId, { template: templateName, fromSystem: true }, { senderType: 'SYSTEM', senderName: 'Sistema' });
         await this.prisma.whatsAppConversation.update({ where: { id: conv.id }, data: { lastMessageAt: new Date() } }).catch(() => undefined);
