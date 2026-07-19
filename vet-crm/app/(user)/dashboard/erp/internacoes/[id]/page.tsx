@@ -81,6 +81,11 @@ export default function FichaInternacaoPage() {
   const [boxesLivres, setBoxesLivres] = useState<any[]>([]);
   const [trocaBoxOpen, setTrocaBoxOpen] = useState(false);
   const [boxBusy, setBoxBusy] = useState(false);
+
+  // Óbito
+  const [obitoOpen, setObitoOpen] = useState(false);
+  const [obitoForm, setObitoForm] = useState<any>({ data: "", causa: "" });
+  const [obitoSaving, setObitoSaving] = useState(false);
   const [evolucoes, setEvolucoes] = useState<any[]>([]);
   const [evoTexto, setEvoTexto] = useState("");
   const [evoSaving, setEvoSaving] = useState(false);
@@ -465,6 +470,23 @@ export default function FichaInternacaoPage() {
     } catch { alert("Erro ao excluir a internação."); setBoxBusy(false); }
   };
 
+  // Registra o óbito: encerra a internação, libera o box, marca o PET como falecido na
+  // ficha dele (PetStatus.DECEASED) e guarda o registro em `petobito_<petId>`.
+  // Marcar o pet é o que faz os automáticos (aniversário, vacina, confirmação) calarem.
+  const registrarObito = async () => {
+    const petId = h?.pet?.id;
+    if (!petId) { alert("Não foi possível identificar o pet desta internação."); return; }
+    setObitoSaving(true);
+    try {
+      const quando = obitoForm.data ? new Date(obitoForm.data).toISOString() : new Date().toISOString();
+      await fetch(`/api/hospitalizations/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ status: "DECEASED" }) });
+      await fetch(`/api/pets/${petId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ status: "DECEASED" }) });
+      await fetch("/api/listas", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ lista: `petobito_${petId}`, valor: JSON.stringify({ data: quando, causa: (obitoForm.causa || "").trim(), por: userName, appointmentId: id }) }) }).catch(() => {});
+      if (boxIdAtual) await fetch(`/api/boxes/${boxIdAtual}/liberar`, { method: "POST", credentials: "include" }).catch(() => {});
+      router.push("/dashboard/erp/internacoes");
+    } catch { alert("Erro ao registrar o óbito."); setObitoSaving(false); }
+  };
+
   const darAlta = async () => {
     if (!confirm("Confirmar alta deste paciente? O box será liberado.")) return;
     try {
@@ -568,9 +590,42 @@ export default function FichaInternacaoPage() {
             <button onClick={() => window.print()} className="text-[12.5px] font-medium text-[#5C6B70] bg-white border px-3 py-2 rounded-lg" style={{ borderColor: "#E8E2D6" }}>🖨️ Resumo de alta</button>
             {!alta && <button onClick={() => setTrocaBoxOpen(true)} className="text-[12.5px] font-medium text-[#5C6B70] bg-white border px-3 py-2 rounded-lg" style={{ borderColor: "#E8E2D6" }}>🛏️ Trocar box</button>}
             {!alta && <button onClick={darAlta} className="text-[12.5px] font-medium text-[#CC3366] bg-white border px-3 py-2 rounded-lg" style={{ borderColor: "#EAC3C1" }}>🚪 Dar alta</button>}
+            {!alta && h.status !== "DECEASED" && <button onClick={() => { setObitoForm({ data: new Date().toISOString().slice(0, 10), causa: "" }); setObitoOpen(true); }} className="text-[12.5px] font-medium text-[#5C6B70] bg-white border px-3 py-2 rounded-lg" style={{ borderColor: "#E8E2D6" }}>🕊️ Registrar óbito</button>}
             <button onClick={excluirInternacao} disabled={boxBusy} className="text-[12.5px] font-medium text-[#8A989D] bg-white border px-3 py-2 rounded-lg disabled:opacity-50" style={{ borderColor: "#E8E2D6" }} title="Excluir internação">🗑️</button>
           </div>
         </div>
+
+        {/* ===== REGISTRAR ÓBITO ===== */}
+        {obitoOpen && (
+          <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50" onClick={() => setObitoOpen(false)}>
+            <div className="rounded-2xl shadow-xl max-w-md w-full" style={{ background: "#FBF9F4", border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
+              <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "#E8E2D6" }}>
+                <h3 className="text-base font-medium text-[#014D5E]">🕊️ Registrar óbito — {h.pet?.name}</h3>
+                <button onClick={() => setObitoOpen(false)} className="text-[#8A989D] text-lg leading-none">✕</button>
+              </div>
+              <div className="p-5 space-y-3">
+                <div className="rounded-lg px-3 py-2.5 text-[12px]" style={{ background: "#FDF4DD", color: "#8a6400" }}>
+                  Ao registrar, o pet é marcado como <b>falecido</b> na ficha dele e o sistema <b>para de enviar</b>
+                  {" "}mensagens automáticas sobre ele — aniversário, lembrete de vacina e confirmação de agendamento.
+                  A internação é encerrada e o box liberado.
+                </div>
+                <div>
+                  <label className="text-[10.5px] text-[#8A989D] uppercase tracking-wide block mb-1">Data do óbito</label>
+                  <input type="date" value={obitoForm.data} onChange={(e) => setObitoForm({ ...obitoForm, data: e.target.value })} className="w-full bg-white border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} />
+                </div>
+                <div>
+                  <label className="text-[10.5px] text-[#8A989D] uppercase tracking-wide block mb-1">Causa / observação (opcional)</label>
+                  <textarea value={obitoForm.causa} onChange={(e) => setObitoForm({ ...obitoForm, causa: e.target.value })} rows={2} placeholder="Ex.: parada cardiorrespiratória decorrente de..." className="w-full bg-white border rounded-lg px-3 py-2 text-[13px] resize-none focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} />
+                </div>
+                <div className="text-[11px] text-[#8A989D]">Registrado por {userName || "—"}.</div>
+              </div>
+              <div className="px-5 py-4 border-t flex justify-end gap-2" style={{ borderColor: "#E8E2D6" }}>
+                <button onClick={() => setObitoOpen(false)} className="px-4 py-2 text-[13px] text-[#5C6B70] bg-white border rounded-lg" style={{ borderColor: "#E8E2D6" }}>Cancelar</button>
+                <button onClick={registrarObito} disabled={obitoSaving} className="px-4 py-2 text-[13px] font-medium text-white rounded-lg disabled:opacity-60" style={{ background: "#8A7B8F" }}>{obitoSaving ? "Registrando..." : "🕊️ Confirmar óbito"}</button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ===== TROCAR BOX ===== */}
         {trocaBoxOpen && (

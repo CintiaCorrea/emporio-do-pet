@@ -81,6 +81,8 @@ export class AppointmentConfirmationScheduler {
         status: {
           notIn: ['Cancelado', 'CANCELLED', 'Concluído', 'CONCLUIDO', 'Realizado', 'NO_SHOW'],
         },
+        // Não confirmar consulta de pet FALECIDO (o agendamento pode ter ficado no futuro).
+        pet: { status: { not: 'DECEASED' } },
       },
       select: {
         id: true,

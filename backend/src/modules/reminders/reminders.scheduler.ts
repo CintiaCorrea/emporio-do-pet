@@ -61,8 +61,9 @@ export class RemindersScheduler {
       await this.enviarUmaVez(`aniv-tutor:${t.id}:${ano}`, phone, 'aniversario_tutor', [this.T(this.primeiro(t.name))], `🎂 Mensagem de aniversário enviada para ${this.primeiro(t.name)}.`);
     }
     // Pets com data de nascimento hoje, cujo tutor aceita WhatsApp.
+    // NUNCA felicitar aniversário de pet FALECIDO — o tutor acabou de perdê-lo.
     const pets = await this.prisma.pet.findMany({
-      where: { birthDate: { not: null }, tutor: { acceptsWhatsApp: true } },
+      where: { birthDate: { not: null }, tutor: { acceptsWhatsApp: true }, status: { not: 'DECEASED' } },
       select: { id: true, name: true, birthDate: true, tutor: { select: { id: true, name: true, contacts: true } } },
     });
     for (const p of pets) {
@@ -78,7 +79,8 @@ export class RemindersScheduler {
     const ini = new Date(); ini.setDate(ini.getDate() - 17);
     const fim = new Date(); fim.setDate(fim.getDate() + 17);
     const doses = await this.prisma.protocoloDose.findMany({
-      where: { status: 'PENDENTE', dataPrevista: { gte: ini, lte: fim } },
+      // Pet FALECIDO não recebe lembrete de vacina/vermífugo (nem antes, nem "vencido").
+      where: { status: 'PENDENTE', dataPrevista: { gte: ini, lte: fim }, protocolo: { pet: { status: { not: 'DECEASED' } } } },
       include: { protocolo: { select: { nomeProtocolo: true, pet: { select: { name: true } }, tutor: { select: { id: true, name: true, acceptsWhatsApp: true, contacts: true } } } } },
       take: 1000,
     });
