@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guia — Boletim de Fisioterapia</title>
+<style>
+  :root{
+    --bg:#F6F2EA; --surface:#fff; --line:#E8E2D6; --line-soft:#F0EBE0;
+    --primary:#009AAC; --deep:#014D5E; --t1:#1F2A2E; --t2:#5C6B70; --t3:#8A989D;
+    --ok-bg:#E1F5EE; --ok-fg:#0F6E56; --warn-bg:#FDF4DD; --warn-fg:#8a6400;
+    --alert-bg:#FCE9EF; --alert-fg:#CC3366; --tint:#E0F4F6;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; background:var(--bg); color:var(--t1);
+       font-family:-apple-system,'Segoe UI',Inter,Roboto,sans-serif; font-size:14.5px; line-height:1.6}
+  .wrap{max-width:860px; margin:0 auto; padding:26px 20px 70px}
+  h1{font-size:22px; color:var(--deep); font-weight:600; margin:0 0 4px}
+  .sub{color:var(--t3); font-size:13px; margin-bottom:22px}
+  h2{font-size:16px; color:var(--deep); font-weight:600; margin:30px 0 10px; display:flex; align-items:center; gap:8px}
+  h3{font-size:14px; color:var(--deep); font-weight:600; margin:18px 0 6px}
+  p{margin:0 0 11px}
+  .card{background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:16px 18px; margin-bottom:14px}
+  .box{border-radius:12px; padding:12px 14px; margin:12px 0; font-size:13.5px}
+  .box.ok{background:var(--ok-bg); color:var(--ok-fg)}
+  .box.warn{background:var(--warn-bg); color:var(--warn-fg)}
+  .box.alert{background:var(--alert-bg); color:var(--alert-fg)}
+  .box.tint{background:var(--tint); color:#00707E}
+  .box b{font-weight:600}
+  ol,ul{margin:0 0 11px; padding-left:22px}
+  li{margin-bottom:7px}
+  table{width:100%; border-collapse:collapse; font-size:13.5px; margin:10px 0}
+  th{text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--t3);
+     font-weight:600; padding:0 8px 8px 0; border-bottom:1px solid var(--line)}
+  td{padding:9px 8px 9px 0; border-bottom:1px solid var(--line-soft); vertical-align:top}
+  tr:last-child td{border-bottom:0}
+  code{background:#F4F1E9; border:1px solid var(--line); border-radius:5px; padding:1px 6px; font-size:12.5px}
+  .tag{display:inline-block; font-size:11.5px; padding:2px 9px; border-radius:999px; background:var(--tint); color:#00707E; margin:2px 4px 2px 0}
+  .step{display:flex; gap:12px; margin-bottom:14px}
+  .num{flex:0 0 26px; height:26px; border-radius:50%; background:var(--primary); color:#fff;
+       display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600}
+  .msg{background:#DCF8C6; border-radius:10px; padding:11px 13px; font-size:13.5px; white-space:pre-wrap;
+       max-width:480px; margin:8px 0; color:#1F2A2E; border:1px solid #cbecb0}
+  @media print{ body{background:#fff} .card{break-inside:avoid} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>🌿 Boletim de Fisioterapia</h1>
+  <div class="sub">Como preencher e enviar o boletim da sessão para o tutor. Material da Academia — Empório do Pet.</div>
+
+  <div class="box tint">
+    <b>Por que isso importa.</b> O tutor não vê a sessão. O boletim é a única janela que ele tem para o
+    tratamento do pet dele — é o que transforma "levei o cachorro na fisio" em "estou acompanhando a
+    recuperação dele". Um boletim bem escrito vale mais que qualquer propaganda que a gente faça.
+  </div>
+
+  <h2>1. Onde fica</h2>
+  <div class="card">
+    <p>O boletim abre por <b>dois caminhos</b>, e os dois levam à mesma tela:</p>
+    <ul>
+      <li><b>Pela agenda</b> — no card do agendamento de fisioterapia, pelo atalho do boletim.</li>
+      <li><b>Pela ficha do pet</b> — na área de fisioterapia.</li>
+    </ul>
+    <p>Quando você abre pela agenda, os dados da sessão (data e horário) já vêm preenchidos — não precisa
+    digitar de novo.</p>
+  </div>
+
+  <h2>2. Preenchendo a sessão</h2>
+  <div class="card">
+    <h3>Equipamentos</h3>
+    <p>Marque só o que <b>realmente foi usado</b> na sessão. Ao marcar, aparecem os campos daquele
+    equipamento — cada um tem os seus:</p>
+    <table>
+      <thead><tr><th>Equipamento</th><th>Campos que aparecem</th></tr></thead>
+      <tbody>
+        <tr><td>Magneto</td><td>Fr · Int · T</td></tr>
+        <tr><td>Fototerapia</td><td>Fr · Int · T</td></tr>
+        <tr><td>Fes</td><td>Pro · Int · T</td></tr>
+        <tr><td>Tens</td><td>Pro · Int · T</td></tr>
+        <tr><td>Haihua</td><td>Pro · Int · Reg · T</td></tr>
+        <tr><td>Hidroesteira</td><td>Vel · T</td></tr>
+        <tr><td>Eletroacupuntura</td><td>Reg · T</td></tr>
+        <tr><td>Laser terapia</td><td>Int · Reg · T</td></tr>
+        <tr><td>Moxa</td><td>Reg · T</td></tr>
+        <tr><td>Ozonioterapia · Ultrassom · Farmacoacupuntura · Acupuntura</td><td>linha livre (escreva como foi feito)</td></tr>
+        <tr><td>Cinesioterapia</td><td>lista de exercícios + T</td></tr>
+      </tbody>
+    </table>
+    <p style="font-size:13px; color:var(--t2)">
+      <b>Fr</b> = frequência · <b>Int</b> = intensidade · <b>T</b> = tempo · <b>Pro</b> = programa ·
+      <b>Reg</b> = região · <b>Vel</b> = velocidade.
+    </p>
+
+    <h3>Cinesioterapia</h3>
+    <p>Abre a lista de exercícios; marque quantos forem feitos e informe o tempo total:</p>
+    <div>
+      <span class="tag">Cone + obstáculos</span><span class="tag">Prancha de equilíbrio</span>
+      <span class="tag">Disco proprioceptivo</span><span class="tag">Circuito em oito</span>
+      <span class="tag">Isometria</span><span class="tag">Equilíbrio</span>
+      <span class="tag">Descarga de peso</span><span class="tag">Estimulação de subida</span>
+      <span class="tag">Agachamento</span><span class="tag">Alongamento</span>
+    </div>
+
+    <div class="box warn">
+      <b>Regra de ouro:</b> não marque equipamento que não foi usado. O boletim é documento clínico —
+      ele fica no histórico do pet e pode ser lido por outro profissional depois.
+    </div>
+  </div>
+
+  <h2>3. Escrevendo para o tutor</h2>
+  <div class="card">
+    <p>Os campos técnicos contam <i>o que foi feito</i>. O que emociona o tutor é <i>como o pet estava</i>.
+    Escreva uma linha sobre a evolução, sempre concreta:</p>
+    <table>
+      <thead><tr><th>Em vez de…</th><th>Escreva…</th></tr></thead>
+      <tbody>
+        <tr><td>"Paciente evoluiu bem."</td><td>"Hoje ele subiu a rampa sozinho, coisa que na semana passada precisava de apoio."</td></tr>
+        <tr><td>"Boa resposta ao tratamento."</td><td>"Conseguiu apoiar a pata direita por mais tempo e não claudicou ao final."</td></tr>
+        <tr><td>"Sessão realizada."</td><td>"Chegou mais disposto e aceitou bem os exercícios de equilíbrio."</td></tr>
+      </tbody>
+    </table>
+    <p>Se a sessão foi difícil, diga com honestidade e com plano: <i>"Hoje ele estava mais sensível na
+    coxa esquerda, então reduzimos a carga e focamos em alongamento. Vamos reavaliar na próxima."</i></p>
+  </div>
+
+  <h2>4. Enviando</h2>
+  <div class="card">
+    <div class="step"><div class="num">1</div><div>
+      <b>Salvar e enviar.</b> O boletim é gravado no histórico do pet e segue para o WhatsApp do tutor.
+    </div></div>
+    <div class="step"><div class="num">2</div><div>
+      <b>Se a conversa estiver aberta</b> (o tutor falou com a gente nas últimas 24h), o boletim chega
+      na hora e aparece na conversa dele, no nosso inbox.
+    </div></div>
+    <div class="step"><div class="num">3</div><div>
+      <b>Se estiver fechada</b>, o WhatsApp não deixa a gente mandar texto livre. Então o sistema envia
+      uma mensagem de convite com botões, e o boletim fica <b>na fila</b>.
+    </div></div>
+    <div class="step"><div class="num">4</div><div>
+      <b>Quando o tutor responde</b> — tocando em "Enviar o boletim" — o boletim completo é entregue
+      <b>automaticamente</b>. Ninguém precisa lembrar de mandar depois.
+    </div></div>
+
+    <p style="margin-top:14px"><b>O que o tutor vê quando a conversa está fechada:</b></p>
+    <div class="msg">Olá, [Tutor]! 🌿 Aqui é do Empório do Pet.
+O boletim da sessão de fisioterapia do(a) [Pet] está pronto.
+
+  [ Enviar o boletim ]   [ Tirar dúvida ]   [ Não preciso do boletim ]</div>
+
+    <div class="box alert">
+      <b>Atenção:</b> se o tutor tocar em <b>"Não preciso do boletim"</b>, o envio é cancelado — o boletim
+      continua salvo no histórico, mas não vai para ele. Isso é uma escolha dele, respeite.
+    </div>
+  </div>
+
+  <h2>5. Como saber se já foi enviado</h2>
+  <div class="card">
+    <p>No card da agenda aparece um indicador:</p>
+    <ul>
+      <li><b>🌿✅</b> — boletim já enviado ao tutor.</li>
+      <li><b>🌿✉️</b> — boletim na fila, esperando o tutor responder.</li>
+      <li><b>sem marca</b> — a sessão ainda não tem boletim.</li>
+    </ul>
+    <div class="box ok">
+      <b>Antes de fechar o dia,</b> bata o olho na agenda: toda sessão de fisio realizada deveria ter
+      a marca do boletim. Sem marca = tutor sem notícia.
+    </div>
+  </div>
+
+  <h2>6. Perguntas frequentes</h2>
+  <div class="card">
+    <h3>Posso imprimir o boletim?</h3>
+    <p>Sim. Ele sai no papel timbrado da clínica, para entregar em mãos ou anexar a um encaminhamento.</p>
+
+    <h3>Errei o preenchimento depois de enviar. E agora?</h3>
+    <p>O boletim enviado não some do WhatsApp do tutor. Corrija o registro e, se a informação errada for
+    relevante, mande uma mensagem explicando — honestidade vale mais que disfarce.</p>
+
+    <h3>O tutor não respondeu e o boletim está na fila há dias.</h3>
+    <p>A fila espera. Assim que ele mandar qualquer mensagem, o boletim é entregue. Se for urgente,
+    ligue — nem tudo se resolve por texto.</p>
+  </div>
+
+  <div class="box tint" style="margin-top:26px">
+    Dúvida que este guia não respondeu? Fale com a Cintia — e se a dúvida for boa, ela vira material aqui.
+  </div>
+
+</div>
+</body>
+</html>

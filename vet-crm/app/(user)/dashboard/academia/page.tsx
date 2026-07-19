@@ -6,7 +6,7 @@ import { useState } from "react";
 // O conteúdo (guia + maquete) vive em /public/academia/*.html e entra por iframe,
 // então não depende de link externo — qualquer pessoa logada acessa por aqui.
 
-type Tema = "whatsapp" | "agenda" | "regras";
+type Tema = "whatsapp" | "agenda" | "fisio" | "regras";
 type ConteudoWa = "guia" | "maquete" | "api";
 type ConteudoAg = "guia" | "maquete";
 
@@ -18,6 +18,7 @@ export default function AcademiaPage() {
   const temas: { key: Tema; label: string; emoji: string }[] = [
     { key: "whatsapp", label: "WhatsApp", emoji: "📲" },
     { key: "agenda", label: "Agenda", emoji: "📅" },
+    { key: "fisio", label: "Boletim de Fisio", emoji: "🌿" },
     { key: "regras", label: "Regras da empresa", emoji: "📋" },
   ];
 
@@ -115,6 +116,23 @@ export default function AcademiaPage() {
       )}
 
       {/* TEMA: Regras da empresa (a preencher) */}
+      {/* TEMA: Boletim de Fisioterapia */}
+      {tema === "fisio" && (
+        <div className="bg-white rounded-2xl border overflow-hidden" style={{ borderColor: "#E8DFC8" }}>
+          <div className="flex items-center gap-2 px-4 py-3 border-b flex-wrap" style={{ borderColor: "#F0EBE0" }}>
+            <span className="text-[12px] font-bold uppercase tracking-wide mr-1" style={{ color: "#8A8778" }}>Boletim de Fisioterapia</span>
+            <span className="text-[12.5px] font-semibold px-3 py-1.5 rounded-full border" style={{ background: "#0F6E56", color: "#fff", borderColor: "#0F6E56" }}>📖 Guia visual</span>
+            <span className="text-[11.5px] ml-auto" style={{ color: "#8A8778" }}>Como preencher e enviar. Dá pra imprimir.</span>
+          </div>
+          <iframe
+            src="/academia/guia-boletim-fisio.html"
+            title="Guia do Boletim de Fisioterapia"
+            className="w-full block"
+            style={{ height: "calc(100vh - 250px)", minHeight: 520, border: 0 }}
+          />
+        </div>
+      )}
+
       {tema === "regras" && (
         <div className="bg-white rounded-2xl border p-10 text-center" style={{ borderColor: "#E8DFC8" }}>
           <div className="text-[40px] mb-2">📋</div>
