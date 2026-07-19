@@ -1373,7 +1373,37 @@ export class WhatsAppService {
    * registrando no inbox; fechada → abridora com botões + guarda na MESMA fila (o listener
    * entrega quando o tutor toca "Ver o boletim").
    */
-  async enviarBoletimInternacao(tutorId: string, texto: string, petNome?: string): Promise<{ status: 'enviado' | 'na_fila' | 'erro'; error?: string }> {
+  /**
+   * Baixa a mídia da NOSSA url (S3) e manda pelo WhatsApp com legenda.
+   * A Meta só aceita mídia por `mediaId`, então tem que subir o arquivo antes.
+   */
+  private async enviarMidiaDeUrl(
+    phone: string,
+    url: string,
+    tipo: 'image' | 'video',
+    caption?: string,
+  ): Promise<{ success: boolean; messageId?: string; error?: string }> {
+    try {
+      const r = await fetch(url);
+      if (!r.ok) return { success: false, error: `Não consegui baixar o arquivo (${r.status})` };
+      const mime = r.headers.get('content-type') || (tipo === 'image' ? 'image/jpeg' : 'video/mp4');
+      const buf = Buffer.from(await r.arrayBuffer());
+      const nome = (url.split('/').pop() || '').split('?')[0] || (tipo === 'image' ? 'foto.jpg' : 'video.mp4');
+      const up = await this.uploadMedia(buf, mime, nome);
+      if (!up.mediaId) return { success: false, error: up.error || 'Falha ao subir o arquivo para a Meta' };
+      const res = await this.sendMediaMessage(phone, up.mediaId, tipo, caption);
+      return { success: res.success, messageId: (res as any).messageId, error: res.error };
+    } catch (e: any) {
+      return { success: false, error: e?.message || 'Erro ao enviar o arquivo' };
+    }
+  }
+
+  async enviarBoletimInternacao(
+    tutorId: string,
+    texto: string,
+    petNome?: string,
+    midia?: { url: string; tipo: 'image' | 'video' },
+  ): Promise<{ status: 'enviado' | 'na_fila' | 'erro'; error?: string }> {
     const tutor = await this.prisma.tutor.findUnique({ where: { id: tutorId }, include: { contacts: true } });
     if (!tutor) return { status: 'erro', error: 'Tutor não encontrado' };
     const cs = (tutor.contacts || []) as any[];
@@ -1390,6 +1420,14 @@ export class WhatsAppService {
     }
 
     if (aberta && conv) {
+      if (midia?.url) {
+        // Foto/vídeo vai com o boletim como legenda — uma mensagem só.
+        const r = await this.enviarMidiaDeUrl(formatted, midia.url, midia.tipo, texto);
+        if (!r.success) return { status: 'erro', error: r.error || 'Falha ao enviar o arquivo' };
+        await this.saveOutboundMessage(conv.id, texto, midia.tipo === 'image' ? 'IMAGE' : 'VIDEO', r.messageId, { mediaUrl: midia.url, fromSystem: true }, { senderType: 'SYSTEM', senderName: 'Boletim internação' });
+        await this.prisma.whatsAppConversation.update({ where: { id: conv.id }, data: { lastMessageAt: new Date() } }).catch(() => undefined);
+        return { status: 'enviado' };
+      }
       const r = await this.sendAndSaveMessage(conv.userId, conv.id, texto, 'TEXT', { senderType: 'SYSTEM', senderName: 'Boletim internação' });
       if (!r?.response?.success) return { status: 'erro', error: r?.response?.error || 'Falha no envio' };
       return { status: 'enviado' };
@@ -1398,7 +1436,9 @@ export class WhatsAppService {
     const res = await this.enviarTemplateRegistrando(formatted, 'boletim_internacao', [{ type: 'text', text: petNome || 'seu pet' }], `🏥 Enviei a mensagem que abre a conversa — o boletim do(a) ${petNome || 'pet'} vai assim que o tutor responder.`);
     if (!res.success) return { status: 'erro', error: res.error || 'Falha ao enviar a abridora' };
     await this.prisma.listaItem.deleteMany({ where: { lista: 'boletim_fila', valor: { contains: `"tutorId":"${tutorId}"` } } });
-    await this.prisma.listaItem.create({ data: { lista: 'boletim_fila', valor: JSON.stringify({ tutorId, texto, petNome: petNome || '', criadoAt: new Date().toISOString() }) } });
+    // A mídia fica guardada na fila junto com o texto — quando o tutor responder,
+    // o listener entrega os dois (o arquivo continua no S3 até lá).
+    await this.prisma.listaItem.create({ data: { lista: 'boletim_fila', valor: JSON.stringify({ tutorId, texto, petNome: petNome || '', midia: midia || null, criadoAt: new Date().toISOString() }) } });
     return { status: 'na_fila' };
   }
 
@@ -1409,7 +1449,20 @@ export class WhatsAppService {
     let dados: any = {}; try { dados = JSON.parse(item.valor); } catch { return false; }
     const conv = await this.prisma.whatsAppConversation.findFirst({ where: { tutorId }, orderBy: { lastMessageAt: 'desc' } });
     if (conv && dados.texto) {
-      await this.sendAndSaveMessage(conv.userId, conv.id, dados.texto, 'TEXT', { senderType: 'SYSTEM', senderName: 'Boletim' });
+      if (dados.midia?.url) {
+        // Boletim com foto/vídeo: entrega o arquivo com o texto como legenda.
+        const r = await this.enviarMidiaDeUrl(conv.contactPhone, dados.midia.url, dados.midia.tipo, dados.texto);
+        if (r.success) {
+          await this.saveOutboundMessage(conv.id, dados.texto, dados.midia.tipo === 'image' ? 'IMAGE' : 'VIDEO', r.messageId, { mediaUrl: dados.midia.url, fromSystem: true }, { senderType: 'SYSTEM', senderName: 'Boletim' });
+          await this.prisma.whatsAppConversation.update({ where: { id: conv.id }, data: { lastMessageAt: new Date() } }).catch(() => undefined);
+        } else {
+          // Se a mídia falhar, pelo menos o texto do boletim chega.
+          this.logger.warn(`Mídia do boletim falhou (tutor ${tutorId}): ${r.error}`);
+          await this.sendAndSaveMessage(conv.userId, conv.id, dados.texto, 'TEXT', { senderType: 'SYSTEM', senderName: 'Boletim' });
+        }
+      } else {
+        await this.sendAndSaveMessage(conv.userId, conv.id, dados.texto, 'TEXT', { senderType: 'SYSTEM', senderName: 'Boletim' });
+      }
     }
     await this.prisma.listaItem.delete({ where: { id: item.id } }).catch(() => undefined);
     return true;

@@ -44,10 +44,13 @@ export class InternacaoBoletimScheduler {
 
         const prog = await this.prisma.listaItem.findFirst({ where: { lista: `intbolprog_${apt.id}` } });
         if (!prog) continue;
-        let mapa: Record<string, string> = {};
+        // Cada horário guarda ou um texto puro (formato antigo) ou { texto, midia }.
+        let mapa: Record<string, any> = {};
         try { mapa = JSON.parse(prog.valor); } catch { continue; }
 
-        for (const [horario, texto] of Object.entries(mapa)) {
+        for (const [horario, bruto] of Object.entries(mapa)) {
+          const texto = typeof bruto === 'string' ? bruto : bruto?.texto;
+          const midia = typeof bruto === 'string' ? undefined : (bruto?.midia || undefined);
           if (!texto || !String(texto).trim()) continue;
           const [h, m] = String(horario).split(':').map((x) => parseInt(x, 10));
           if (isNaN(h)) continue;
@@ -59,7 +62,7 @@ export class InternacaoBoletimScheduler {
           const ja = await this.prisma.listaItem.findFirst({ where: { lista: 'intbolprog_sent', valor: chave } });
           if (ja) continue;
 
-          const res = await this.whatsapp.enviarBoletimInternacao(apt.tutorId, String(texto).trim(), apt.pet?.name || 'seu pet');
+          const res = await this.whatsapp.enviarBoletimInternacao(apt.tutorId, String(texto).trim(), apt.pet?.name || 'seu pet', midia);
           if (res.status === 'erro') {
             this.logger.warn(`Boletim internação ${apt.id} ${horario} falhou: ${res.error}`);
             continue; // não marca — tenta na próxima rodada (ainda dentro da janela)

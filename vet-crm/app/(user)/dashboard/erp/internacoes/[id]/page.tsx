@@ -92,7 +92,8 @@ export default function FichaInternacaoPage() {
 
   // Boletins programados (envio automático nos horários)
   const [bolProgId, setBolProgId] = useState<string | null>(null);
-  const [bolProg, setBolProg] = useState<Record<string, string>>({});
+  const [bolProg, setBolProg] = useState<Record<string, any>>({});
+  const [anexando, setAnexando] = useState("");
   const [bolProgSaving, setBolProgSaving] = useState(false);
   const [bolEnviando, setBolEnviando] = useState("");
   const [modelosBoletim, setModelosBoletim] = useState<Array<{ id: string; nome: string; texto: string }>>([]);
@@ -438,14 +439,36 @@ export default function FichaInternacaoPage() {
     finally { setBolProgSaving(false); }
   };
 
+  // Cada horário guarda texto puro (formato antigo) ou { texto, midia }. Os helpers
+  // abaixo leem os dois e sempre gravam no formato novo.
+  const textoDoHorario = (hor: string) => { const v = bolProg[hor]; return typeof v === "string" ? v : (v?.texto || ""); };
+  const midiaDoHorario = (hor: string): any => { const v = bolProg[hor]; return typeof v === "string" ? null : (v?.midia || null); };
+  const setTextoHorario = (hor: string, texto: string) => setBolProg({ ...bolProg, [hor]: { texto, midia: midiaDoHorario(hor) } });
+  const setMidiaHorario = (hor: string, midia: any) => setBolProg({ ...bolProg, [hor]: { texto: textoDoHorario(hor), midia } });
+
+  const anexarMidia = async (hor: string, file: File) => {
+    const tipo = file.type.startsWith("video") ? "video" : "image";
+    if (file.size > 15 * 1024 * 1024) { alert("Arquivo muito grande (máximo 15 MB)."); return; }
+    setAnexando(hor);
+    try {
+      const fd = new FormData(); fd.append("file", file);
+      const r = await fetch("/api/media/upload?pasta=boletins", { method: "POST", body: fd, credentials: "include" });
+      const up = await r.json().catch(() => ({}));
+      if (!r.ok || !up?.url) throw new Error(up?.message || up?.error || "Falha no upload");
+      setMidiaHorario(hor, { url: up.url, tipo, nome: file.name });
+    } catch (e: any) { alert(e?.message || "Erro ao anexar o arquivo."); }
+    finally { setAnexando(""); }
+  };
+
   // Envia na hora o boletim daquele horário (sem esperar o automático).
   const enviarBoletimAgora = async (horario: string) => {
-    const texto = (bolProg[horario] || "").trim();
+    const texto = textoDoHorario(horario).trim();
+    const midia = midiaDoHorario(horario);
     if (!texto) { alert("Escreva o boletim desse horário antes de enviar."); return; }
     if (!confirm(`Enviar agora o boletim das ${horario} para ${h.tutor?.name || "o tutor"}?`)) return;
     setBolEnviando(horario);
     try {
-      const res = await fetch("/api/whatsapp/boletim-internacao", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ tutorId: h.tutor?.id, texto, petNome: h.pet?.name }) });
+      const res = await fetch("/api/whatsapp/boletim-internacao", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ tutorId: h.tutor?.id, texto, petNome: h.pet?.name, midia: midia?.url ? { url: midia.url, tipo: midia.tipo } : undefined }) });
       const d = await res.json().catch(() => ({}));
       if (d?.status === "enviado") alert("Boletim enviado ao tutor. ✅");
       else if (d?.status === "na_fila") alert("A conversa está fechada — mandei o convite com os botões. O boletim vai automaticamente quando o tutor responder. 📨");
@@ -709,7 +732,8 @@ export default function FichaInternacaoPage() {
                     <>
                       <div className="space-y-3">
                         {horariosBoletim.map((hor: string) => {
-                          const txt = bolProg[hor] || "";
+                          const txt = textoDoHorario(hor);
+                          const mid = midiaDoHorario(hor);
                           return (
                             <div key={hor}>
                               <div className="flex items-center justify-between mb-1">
@@ -724,7 +748,7 @@ export default function FichaInternacaoPage() {
                               ) : (
                                 <select
                                   value=""
-                                  onChange={(e) => { const m = modelosBoletim.find((x) => x.id === e.target.value); if (m) setBolProg({ ...bolProg, [hor]: m.texto.replace(/\[PET\]/g, h.pet?.name || "seu pet") }); }}
+                                  onChange={(e) => { const m = modelosBoletim.find((x) => x.id === e.target.value); if (m) setTextoHorario(hor, m.texto.replace(/\[PET\]/g, h.pet?.name || "seu pet")); }}
                                   className="w-full border rounded-lg px-2 py-1 text-[11.5px] mb-1 text-[#5C6B70] focus:outline-none focus:border-[#009AAC]"
                                   style={{ borderColor: "#E8E2D6" }}
                                 >
@@ -735,17 +759,35 @@ export default function FichaInternacaoPage() {
 
                               <textarea
                                 value={txt}
-                                onChange={(e) => setBolProg({ ...bolProg, [hor]: e.target.value })}
+                                onChange={(e) => setTextoHorario(hor, e.target.value)}
                                 rows={3}
                                 placeholder={`Boletim das ${hor}...`}
                                 className="w-full border rounded-lg px-3 py-2 text-[12.5px] resize-y focus:outline-none focus:border-[#009AAC]"
                                 style={{ borderColor: "#E8E2D6" }}
                               />
-                              {txt.trim() && (
-                                <button onClick={() => enviarBoletimAgora(hor)} disabled={!!bolEnviando} className="mt-1 text-[11.5px] text-[#00798A] disabled:opacity-50">
-                                  {bolEnviando === hor ? "Enviando..." : "📲 Enviar agora"}
-                                </button>
+                              {mid?.url && (
+                                <div className="mt-1 flex items-center gap-2 bg-[#FBF9F4] border rounded-lg px-2 py-1.5" style={{ borderColor: "#E8E2D6" }}>
+                                  {mid.tipo === "video"
+                                    ? <span className="text-base">🎥</span>
+                                    : <img src={mid.url} alt="" className="w-8 h-8 rounded object-cover flex-shrink-0" />}
+                                  <span className="text-[11px] text-[#5C6B70] truncate flex-1">{mid.nome || (mid.tipo === "video" ? "vídeo" : "foto")}</span>
+                                  <button onClick={() => setMidiaHorario(hor, null)} className="text-[11px] text-[#CC3366] flex-shrink-0" title="Remover anexo">✕</button>
+                                </div>
                               )}
+                              <div className="mt-1 flex items-center gap-3 flex-wrap">
+                                {txt.trim() && (
+                                  <button onClick={() => enviarBoletimAgora(hor)} disabled={!!bolEnviando} className="text-[11.5px] text-[#00798A] disabled:opacity-50">
+                                    {bolEnviando === hor ? "Enviando..." : "📲 Enviar agora"}
+                                  </button>
+                                )}
+                                {!mid?.url && (
+                                  <label className="text-[11.5px] text-[#5C6B70] cursor-pointer hover:text-[#00798A]">
+                                    {anexando === hor ? "Enviando arquivo..." : "📎 Anexar foto/vídeo"}
+                                    <input type="file" accept="image/*,video/*" className="hidden" disabled={!!anexando}
+                                      onChange={(e) => { const f = e.target.files?.[0]; if (f) anexarMidia(hor, f); e.target.value = ""; }} />
+                                  </label>
+                                )}
+                              </div>
                             </div>
                           );
                         })}

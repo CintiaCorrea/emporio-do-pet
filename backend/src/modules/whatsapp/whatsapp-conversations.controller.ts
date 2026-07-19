@@ -364,9 +364,11 @@ export class WhatsAppConversationsController {
   // Boletim de internação: entrega já se a conversa está aberta, ou manda a abridora
   // (boletim_internacao, com botões) + deixa na fila se estiver fechada.
   @Post('boletim-internacao')
-  async enviarBoletimInternacao(@Body() dto: { tutorId: string; texto: string; petNome?: string }) {
+  async enviarBoletimInternacao(
+    @Body() dto: { tutorId: string; texto: string; petNome?: string; midia?: { url: string; tipo: 'image' | 'video' } },
+  ) {
     if (!dto?.tutorId || !dto?.texto) return { status: 'erro', error: 'tutorId e texto são obrigatórios' };
-    return this.whatsAppService.enviarBoletimInternacao(dto.tutorId, dto.texto, dto.petNome);
+    return this.whatsAppService.enviarBoletimInternacao(dto.tutorId, dto.texto, dto.petNome, dto.midia);
   }
 
   // ============================================
