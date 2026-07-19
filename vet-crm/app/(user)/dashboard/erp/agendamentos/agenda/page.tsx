@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { useRolePreview } from "@/lib/ui/RolePreview";
@@ -92,8 +92,13 @@ export default function AgendaPage() {
   useEffect(() => { try { const s = localStorage.getItem("agenda_filas_hidden"); if (s) setHidden(new Set(JSON.parse(s))); } catch {} }, []);
   function persist(s: Set<string>) { try { localStorage.setItem("agenda_filas_hidden", JSON.stringify([...s])); } catch {} }
 
+  // "Carregando..." só na PRIMEIRA carga. Depois de confirmar, avançar estágio, dar
+  // baixa etc., os dados são trocados por baixo sem desmontar a tela — senão a agenda
+  // inteira some e volta, jogando o usuário pro topo a cada clique.
+  const jaCarregou = useRef(false);
+
   async function load() {
-    setLoading(true);
+    if (!jaCarregou.current) setLoading(true);
     try {
       const [a, p, c, av] = await Promise.all([
         fetch("/api/appointments?limit=1000", { cache: "no-store" }).then((r) => r.json()).catch(() => []),
@@ -106,6 +111,7 @@ export default function AgendaPage() {
       try { const arr = Array.isArray(c) ? c : (c.itens || c.data || []); if (arr[0]?.valor) setCfg(JSON.parse(arr[0].valor)); } catch {}
       try { const arr = Array.isArray(av) ? av : (av.itens || av.data || []); setAvulsas(arr.map((i: any) => { try { return { _id: i.id, ...JSON.parse(i.valor) }; } catch { return null; } }).filter(Boolean)); } catch {}
     } catch {}
+    jaCarregou.current = true;
     setLoading(false);
   }
   useEffect(() => { load(); /* eslint-disable-next-line */ }, []);

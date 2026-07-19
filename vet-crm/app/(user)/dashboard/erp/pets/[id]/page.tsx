@@ -10,7 +10,7 @@ import { confirmDelete } from "@/lib/ui/confirmDelete";
      Toda mudança = commit pequeno e direto. Em dúvida, perguntar.
    ───────────────────────────────────────────────────────────── */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -233,11 +233,16 @@ export default function PetDetailPage() {
 
   usePageTitle("", undefined); // F1-rev: barra global minima (info fica no sub-header da pagina)
 
+  // "Carregando..." só na PRIMEIRA carga — nas recargas depois de uma ação os dados
+  // são trocados por baixo, sem desmontar a ficha (evita o "pulo" a cada clique).
+  const jaCarregou = useRef(false);
+
   async function load() {
-    setLoading(true);
+    if (!jaCarregou.current) setLoading(true);
     const res = await fetch(`/api/pets/${petId}`);
     const d = await safeJson<Pet | null>(res, null);
     setPet(d);
+    jaCarregou.current = true;
     setLoading(false);
   }
   async function loadPipes() {

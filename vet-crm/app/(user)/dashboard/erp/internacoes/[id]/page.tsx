@@ -716,7 +716,12 @@ export default function FichaInternacaoPage() {
                                 <span className="text-[11.5px] font-medium text-[#014D5E]">{hor}</span>
                                 <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={txt.trim() ? { background: "#E1F5EE", color: "#0F6E56" } : { background: "#F0EBE0", color: "#8A989D" }}>{txt.trim() ? "programado" : "vazio"}</span>
                               </div>
-                              {modelosBoletim.length > 0 && (
+                              {modelosBoletim.length === 0 ? (
+                                <div className="text-[11px] mb-1">
+                                  <Link href="/dashboard/configuracoes/modelos-boletim" className="text-[#00798A] hover:underline">📋 Cadastrar modelos de boletim</Link>
+                                  <span className="text-[#8A989D]"> — textos prontos, pra não escrever do zero</span>
+                                </div>
+                              ) : (
                                 <select
                                   value=""
                                   onChange={(e) => { const m = modelosBoletim.find((x) => x.id === e.target.value); if (m) setBolProg({ ...bolProg, [hor]: m.texto.replace(/\[PET\]/g, h.pet?.name || "seu pet") }); }}
@@ -727,6 +732,7 @@ export default function FichaInternacaoPage() {
                                   {modelosBoletim.map((m) => <option key={m.id} value={m.id}>{m.nome}</option>)}
                                 </select>
                               )}
+
                               <textarea
                                 value={txt}
                                 onChange={(e) => setBolProg({ ...bolProg, [hor]: e.target.value })}

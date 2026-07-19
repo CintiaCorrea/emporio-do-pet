@@ -10,7 +10,7 @@ import { confirmDelete } from "@/lib/ui/confirmDelete";
      Toda mudança = commit pequeno e direto. Em dúvida, perguntar.
    ───────────────────────────────────────────────────────────── */
 
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import toast, { Toaster } from "react-hot-toast";
 import { useRouter } from "next/navigation";
@@ -227,8 +227,12 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
   const [editContatoId, setEditContatoId] = useState<string | null>(null);
   const [savingContato, setSavingContato] = useState(false);
 
+  // "Carregando..." só na PRIMEIRA carga — nas recargas depois de uma ação os dados
+  // são trocados por baixo, sem desmontar a ficha (evita o "pulo" a cada clique).
+  const jaCarregou = useRef(false);
+
   const load = async () => {
-    setLoading(true);
+    if (!jaCarregou.current) setLoading(true);
     try {
       const res = await fetch(`/api/tutors/${id}`);
       const data = await res.json().catch(() => null);
@@ -242,7 +246,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
       console.error(e);
       setTutor(null);
     }
-    finally { setLoading(false); }
+    finally { jaCarregou.current = true; setLoading(false); }
   };
 
   async function saveDados() {
