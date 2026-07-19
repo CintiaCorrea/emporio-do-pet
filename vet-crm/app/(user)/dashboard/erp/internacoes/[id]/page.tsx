@@ -547,6 +547,23 @@ export default function FichaInternacaoPage() {
     return arr;
   }, [prescricoes, doses]);
   const contMed = useMemo(() => ({ atras: plantao.filter((s) => s.status === "atrasado").length, pend: plantao.filter((s) => s.status === "pendente").length, feito: plantao.filter((s) => s.status === "feito").length }), [plantao]);
+  // O que ainda precisa de ação fica SEMPRE à vista; o que já foi aplicado é recolhido
+  // e agrupado por data — numa internação longa a lista cresceria sem fim.
+  const plantaoPendentes = useMemo(() => plantao.filter((s) => s.status !== "feito"), [plantao]);
+  const plantaoFeitasHoje = useMemo(() => plantao.filter((s) => s.status === "feito"), [plantao]);
+  const aplicacoesPorData = useMemo(() => {
+    const hj = hojeISO();
+    const mapa = new Map<string, any[]>();
+    for (const d of doses) {
+      const dia = d.date || (d.at ? String(d.at).slice(0, 10) : "");
+      if (!dia || dia === hj) continue; // hoje já aparece no plantão acima
+      if (!mapa.has(dia)) mapa.set(dia, []);
+      mapa.get(dia)!.push(d);
+    }
+    return [...mapa.entries()]
+      .sort((a, b) => b[0].localeCompare(a[0]))
+      .map(([dia, itens]) => ({ dia, itens: itens.sort((a, b) => String(a.slot || "").localeCompare(String(b.slot || ""))) }));
+  }, [doses]);
   const vitaisOrd = useMemo(() => [...vitais].sort((a, b) => new Date(b.at || 0).getTime() - new Date(a.at || 0).getTime()), [vitais]);
   const fluidosOrd = useMemo(() => [...fluidos].sort((a, b) => new Date(b.at || 0).getTime() - new Date(a.at || 0).getTime()), [fluidos]);
   const sparkTemp = useMemo(() => {
@@ -724,6 +741,21 @@ export default function FichaInternacaoPage() {
               <div className="bg-white border rounded-[13px]" style={{ borderColor: "#E8E2D6" }}>
                 <Ch>🔔 Boletins programados</Ch>
                 <div className="p-4">
+                  {/* Alguns tutores não querem boletim, e animais da própria casa também
+                      ficam "internados" sem precisar de aviso periódico. */}
+                  <label className="flex items-center gap-2 mb-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={!!h?.vitalSigns?.boletinsDesativados}
+                      onChange={(e) => salvarVital({ vitalSigns: { boletinsDesativados: e.target.checked } })}
+                    />
+                    <span className="text-[12px] text-[#5C6B70]">🔕 Não enviar boletins nesta internação</span>
+                  </label>
+                  {h?.vitalSigns?.boletinsDesativados && (
+                    <div className="rounded-lg px-3 py-2 mb-3 text-[11.5px]" style={{ background: "#F0EBE0", color: "#8A7B63" }}>
+                      Envio automático <b>desligado</b>. Os textos abaixo ficam salvos, mas nada é enviado ao tutor.
+                    </div>
+                  )}
                   {horariosBoletim.length === 0 ? (
                     <div className="text-[12px] text-[#8A989D]">
                       Nenhum horário definido nesta internação. Edite a internação e informe os horários (ex.: 07:00, 14:00, 20:00).
@@ -892,6 +924,8 @@ export default function FichaInternacaoPage() {
               </div>
               {plantao.length === 0 ? (
                 <div className="px-4 py-6 text-center text-[12.5px] text-[#8A989D]">Sem doses com horário hoje. Adicione medicações com horários na prescrição.</div>
+              ) : plantaoPendentes.length === 0 ? (
+                <div className="px-4 py-6 text-center text-[12.5px]" style={{ color: "#0F6E56" }}>✅ Todas as doses de hoje foram aplicadas.</div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-[13px]">
@@ -899,7 +933,7 @@ export default function FichaInternacaoPage() {
                       <th className="text-left font-medium px-4 py-2">Hora</th><th className="text-left font-medium px-2 py-2">Medicação</th><th className="text-left font-medium px-2 py-2">Dose</th><th className="text-left font-medium px-2 py-2">Status</th><th className="text-left font-medium px-2 py-2">Aplicada às</th><th className="text-left font-medium px-2 py-2">Por</th><th className="px-2 py-2 text-center">Feita</th>
                     </tr></thead>
                     <tbody>
-                      {plantao.map((s) => { const stt = STATUS_MED[s.status]; const done = s.status === "feito"; return (
+                      {plantaoPendentes.map((s) => { const stt = STATUS_MED[s.status]; const done = s.status === "feito"; return (
                         <tr key={s.p.id + s.hhmm} className="border-t" style={{ borderColor: "#F0EBE0", opacity: done ? 0.6 : 1 }}>
                           <td className="px-4 py-2 tabular-nums font-medium whitespace-nowrap">{s.hhmm}</td>
                           <td className="px-2 py-2 whitespace-nowrap">{s.p.medicamento} <span className="text-[11px] text-[#8A989D]">{s.p.via}</span></td>
@@ -919,6 +953,56 @@ export default function FichaInternacaoPage() {
                   </table>
                 </div>
               )}
+              {/* Aplicadas hoje — recolhido, pra não empurrar o que ainda falta pra baixo. */}
+              {plantaoFeitasHoje.length > 0 && (
+                <details className="border-t" style={{ borderColor: "#F0EBE0" }}>
+                  <summary className="px-4 py-2.5 text-[12px] cursor-pointer" style={{ color: "#0F6E56" }}>
+                    ✅ Aplicadas hoje ({plantaoFeitasHoje.length})
+                  </summary>
+                  <div className="px-4 pb-3">
+                    {plantaoFeitasHoje.map((s) => (
+                      <div key={s.p.id + s.hhmm} className="flex items-center gap-2 py-1.5 text-[12.5px] border-b last:border-b-0" style={{ borderColor: "#F0EBE0" }}>
+                        <span className="tabular-nums text-[#8A989D] w-[42px] flex-shrink-0">{s.hhmm}</span>
+                        <span className="flex-1 min-w-0 truncate">{s.p.medicamento} <span className="text-[11px] text-[#8A989D]">{s.p.via} · {s.p.dose || "—"}</span></span>
+                        <span className="text-[11px] text-[#5C6B70] flex-shrink-0">
+                          {s.log?.at ? (() => { try { return new Date(s.log.at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }); } catch { return ""; } })() : ""} · {s.log?.por || "—"}
+                        </span>
+                        <button onClick={() => { if (!alta) marcarDose(s); }} disabled={alta} title="Desmarcar" className="text-[11px] text-[#B4BCC0] hover:text-[#CC3366] flex-shrink-0 disabled:opacity-40">✕</button>
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              )}
+
+              {/* Dias anteriores — um bloco recolhido por data. Internação longa não vira lista sem fim. */}
+              {aplicacoesPorData.length > 0 && (
+                <details className="border-t" style={{ borderColor: "#F0EBE0" }}>
+                  <summary className="px-4 py-2.5 text-[12px] cursor-pointer text-[#5C6B70]">
+                    🗓️ Aplicações de dias anteriores ({aplicacoesPorData.length} dia{aplicacoesPorData.length > 1 ? "s" : ""})
+                  </summary>
+                  <div className="px-4 pb-3">
+                    {aplicacoesPorData.map(({ dia, itens }) => (
+                      <details key={dia} className="mb-1.5">
+                        <summary className="text-[12px] py-1.5 cursor-pointer text-[#014D5E]">
+                          {fmtData(dia)} <span className="text-[11px] text-[#8A989D]">— {itens.length} aplicação(ões)</span>
+                        </summary>
+                        <div className="pl-3">
+                          {itens.map((d: any) => (
+                            <div key={d.id} className="flex items-center gap-2 py-1 text-[12px] border-b last:border-b-0" style={{ borderColor: "#F0EBE0" }}>
+                              <span className="tabular-nums text-[#8A989D] w-[42px] flex-shrink-0">{d.slot || "—"}</span>
+                              <span className="flex-1 min-w-0 truncate">{d.med} <span className="text-[11px] text-[#8A989D]">{d.via} · {d.dose || "—"}</span></span>
+                              <span className="text-[11px] text-[#5C6B70] flex-shrink-0">
+                                {d.at ? (() => { try { return new Date(d.at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }); } catch { return ""; } })() : ""} · {d.por || "—"}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    ))}
+                  </div>
+                </details>
+              )}
+
               {!alta && <div className="px-4 py-2.5 text-[11px] text-[#8A989D] border-t" style={{ borderColor: "#F0EBE0" }}>Marcar a dose registra quem aplicou ({userName || "você"}) e a hora.</div>}
             </div>
 

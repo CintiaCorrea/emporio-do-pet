@@ -41,6 +41,9 @@ export class InternacaoBoletimScheduler {
         let meta: any = null;
         try { meta = apt.notes ? JSON.parse(apt.notes) : null; } catch { continue; }
         if (meta?.type !== 'HOSPITALIZATION' || !apt.tutorId) continue;
+        // Bloqueador: internação marcada para não receber boletim (tutor não quer,
+        // ou é animal da própria casa). Os textos ficam salvos, só não são enviados.
+        if (meta?.vitalSigns?.boletinsDesativados) continue;
 
         const prog = await this.prisma.listaItem.findFirst({ where: { lista: `intbolprog_${apt.id}` } });
         if (!prog) continue;
