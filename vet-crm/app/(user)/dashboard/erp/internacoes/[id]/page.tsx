@@ -896,7 +896,7 @@ export default function FichaInternacaoPage() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-[13px]">
                     <thead><tr className="text-[10.5px] text-[#8A989D] uppercase tracking-wide">
-                      <th className="text-left font-medium px-4 py-2">Hora</th><th className="text-left font-medium px-2 py-2">Medicação</th><th className="text-left font-medium px-2 py-2">Dose</th><th className="text-left font-medium px-2 py-2">Status</th><th className="text-left font-medium px-2 py-2">Por</th><th className="px-2 py-2 text-center">Feita</th>
+                      <th className="text-left font-medium px-4 py-2">Hora</th><th className="text-left font-medium px-2 py-2">Medicação</th><th className="text-left font-medium px-2 py-2">Dose</th><th className="text-left font-medium px-2 py-2">Status</th><th className="text-left font-medium px-2 py-2">Aplicada às</th><th className="text-left font-medium px-2 py-2">Por</th><th className="px-2 py-2 text-center">Feita</th>
                     </tr></thead>
                     <tbody>
                       {plantao.map((s) => { const stt = STATUS_MED[s.status]; const done = s.status === "feito"; return (
@@ -905,6 +905,12 @@ export default function FichaInternacaoPage() {
                           <td className="px-2 py-2 whitespace-nowrap">{s.p.medicamento} <span className="text-[11px] text-[#8A989D]">{s.p.via}</span></td>
                           <td className="px-2 py-2 tabular-nums whitespace-nowrap">{s.p.dose || "—"}</td>
                           <td className="px-2 py-2"><span className="text-[10.5px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap" style={{ background: stt.bg, color: stt.fg }}>{stt.lbl}</span></td>
+                          {/* Horário REAL do clique (s.log.at), que pode diferir do horário previsto. */}
+                          <td className="px-2 py-2 tabular-nums text-[#5C6B70] whitespace-nowrap">
+                            {s.log?.at
+                              ? (() => { try { return new Date(s.log.at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }); } catch { return s.log?.slot || "—"; } })()
+                              : "—"}
+                          </td>
                           <td className="px-2 py-2 text-[#5C6B70] whitespace-nowrap">{s.log?.por || "—"}</td>
                           <td className="px-2 py-2 text-center"><button onClick={() => { if (!alta) marcarDose(s); }} disabled={alta} className="w-5 h-5 rounded-md border inline-flex items-center justify-center text-[12px] disabled:cursor-default" style={done ? { background: "#0F6E56", borderColor: "#0F6E56", color: "#fff" } : { background: "#fff", borderColor: "#E8E2D6", color: "transparent" }}>✓</button></td>
                         </tr>

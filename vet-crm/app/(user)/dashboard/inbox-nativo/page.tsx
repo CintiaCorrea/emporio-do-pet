@@ -170,7 +170,17 @@ export default function InboxUnificadoPage() {
   const { data: __session } = useSession();
   const meId = (__session as any)?.user?.id as string | undefined;
   const meNome = ((__session as any)?.user?.name as string | undefined) || ""; // preenche o {{3}} dos modelos
-  const primeiroNome = (meNome.trim().split(/\s+/)[0]) || "";
+  // A assinatura pegava a 1ª palavra do nome: com "Dra. Vivian Corrêa" saía só "Dra.".
+  // Aqui o título é separado do nome, e a assinatura vira "Dra. Vivian".
+  const assinaturaNome = (() => {
+    const partes = meNome.trim().split(/\s+/).filter(Boolean);
+    if (!partes.length) return "";
+    const ehTitulo = /^(dr|dra|drª|sr|sra|srª|vet|prof)\.?$/i;
+    const titulo = partes.length > 1 && ehTitulo.test(partes[0]) ? partes[0] : "";
+    const nome = titulo ? partes[1] : partes[0];
+    return (titulo ? `${titulo} ${nome}` : nome).trim();
+  })();
+  const primeiroNome = assinaturaNome;
   const [assinar, setAssinar] = useState(true); // assina a mensagem com o nome de quem envia
   // Etiquetas de conversa (Fatia 4) — as que têm "Conversa" no aplicaEm, de Configurações › Etiquetas
   const [convEtiquetas, setConvEtiquetas] = useState<{ texto: string; cor: string }[]>([]);
@@ -519,7 +529,8 @@ export default function InboxUnificadoPage() {
       : raw;
     // Assinatura: sai o primeiro nome de quem está logado na frente da mensagem
     // (limpo, sem markup — fica legível tanto no WhatsApp quanto na nossa caixa).
-    if (assinar && primeiroNome) text = `${primeiroNome}:\n${text}`;
+    // *texto* = negrito no WhatsApp.
+    if (assinar && assinaturaNome) text = `*${assinaturaNome}*:\n${text}`;
     try {
       const r = await fetch(`/api/whatsapp/conversations/${selectedId}/messages`, {
         method: "POST",
