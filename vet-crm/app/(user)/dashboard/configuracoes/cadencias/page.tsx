@@ -1,7 +1,7 @@
 "use client";
 import { confirmDelete } from "@/lib/ui/confirmDelete";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { LuArrowLeft, LuPencil, LuX, LuPlus, LuSearch } from "react-icons/lu";
 
@@ -40,15 +40,19 @@ export default function CadenciasPage() {
   const [pCadId, setPCadId] = useState<string | null>(null);
   const [pForm, setPForm] = useState<any>(EMPTY_P);
 
+  // "Carregando..." so na PRIMEIRA carga: nas recargas depois de uma acao os dados
+  // sao trocados por baixo, sem desmontar a tela (evita o "pulo" a cada clique).
+  const jaCarregou = useRef(false);
+
   async function load() {
-    setLoading(true);
+    if (!jaCarregou.current) setLoading(true);
     try {
       const qs = showInactive ? "?includeInactive=true" : "";
       const res = await fetch(`/api/cadencias${qs}`);
       const data = await res.json();
       setList(Array.isArray(data) ? data : []);
     } catch (e) { console.error(e); }
-    finally { setLoading(false); }
+    finally { jaCarregou.current = true; setLoading(false); }
   }
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [showInactive]);
 

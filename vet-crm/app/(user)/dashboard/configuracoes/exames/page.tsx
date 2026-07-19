@@ -72,8 +72,12 @@ export default function ExamesConfigPage() {
   const [importing, setImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // "Carregando..." so na PRIMEIRA carga: nas recargas depois de uma acao os dados
+  // sao trocados por baixo, sem desmontar a tela (evita o "pulo" a cada clique).
+  const jaCarregou = useRef(false);
+
   async function load() {
-    setLoading(true);
+    if (!jaCarregou.current) setLoading(true);
     try {
       const [resF, resE] = await Promise.all([
         fetch(`/api/fornecedores?includeInactive=true`),
@@ -82,7 +86,7 @@ export default function ExamesConfigPage() {
       setFornecedores(await resF.json());
       setExames(await resE.json());
     } catch (e) { console.error(e); }
-    finally { setLoading(false); }
+    finally { jaCarregou.current = true; setLoading(false); }
   }
   useEffect(() => { load(); }, []);
 

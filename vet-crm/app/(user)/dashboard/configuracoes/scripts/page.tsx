@@ -1,7 +1,7 @@
 "use client";
 import { confirmDelete } from "@/lib/ui/confirmDelete";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { LuArrowLeft, LuPencil, LuX, LuPlus, LuSearch, LuCheck } from "react-icons/lu";
 import CsvImporter from "@/components/import/CsvImporter";
@@ -40,15 +40,19 @@ export default function ScriptsPage() {
 
   const [importOpen, setImportOpen] = useState(false);
 
+  // "Carregando..." so na PRIMEIRA carga: nas recargas depois de uma acao os dados
+  // sao trocados por baixo, sem desmontar a tela (evita o "pulo" a cada clique).
+  const jaCarregou = useRef(false);
+
   async function load() {
-    setLoading(true);
+    if (!jaCarregou.current) setLoading(true);
     try {
       const qs = showInactive ? "?includeInactive=true" : "";
       const [rC, rS] = await Promise.all([fetch(`/api/scripts/categories${qs}`), fetch(`/api/scripts${qs}`)]);
       setCats(await rC.json().then(d => Array.isArray(d) ? d : []));
       setScripts(await rS.json().then(d => Array.isArray(d) ? d : []));
     } catch (e) { console.error(e); }
-    finally { setLoading(false); }
+    finally { jaCarregou.current = true; setLoading(false); }
   }
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [showInactive]);
 
