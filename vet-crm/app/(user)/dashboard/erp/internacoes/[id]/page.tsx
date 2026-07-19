@@ -95,6 +95,7 @@ export default function FichaInternacaoPage() {
   const [bolProg, setBolProg] = useState<Record<string, string>>({});
   const [bolProgSaving, setBolProgSaving] = useState(false);
   const [bolEnviando, setBolEnviando] = useState("");
+  const [modelosBoletim, setModelosBoletim] = useState<Array<{ id: string; nome: string; texto: string }>>([]);
 
   const [admOpen, setAdmOpen] = useState(false);
   const [admForm, setAdmForm] = useState<any>({ pesoEntrada: "", tempEntrada: "", diagnosis: "", prognostico: "", estimatedDischargeDate: "" });
@@ -134,7 +135,7 @@ export default function FichaInternacaoPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const [d, m, ev, pr, ds, vt, fl, co, fe, sv, pd, bp] = await Promise.all([
+      const [d, m, ev, pr, ds, vt, fl, co, fe, sv, pd, bp, mb] = await Promise.all([
         fetch(`/api/hospitalizations/${id}`).then((r) => r.json()).catch(() => null),
         fetch(`/api/boxes/mapa`).then((r) => r.json()).catch(() => ({})),
         fetch(`/api/listas?lista=intevo_${id}`).then((r) => r.json()).catch(() => []),
@@ -147,6 +148,7 @@ export default function FichaInternacaoPage() {
         fetch(`/api/servicos/itens`).then((r) => r.json()).catch(() => []),
         fetch(`/api/products?excludeService=1&limit=1000`).then((r) => r.json()).catch(() => []),
         fetch(`/api/listas?lista=intbolprog_${id}`).then((r) => r.json()).catch(() => []),
+        fetch(`/api/listas?lista=modelo_boletim`).then((r) => r.json()).catch(() => []),
       ]);
       setH(d && d.id ? d : null);
       const card = Array.isArray(m?.boxes) ? m.boxes.find((c: any) => c.internacao?.id === id) : null;
@@ -161,6 +163,8 @@ export default function FichaInternacaoPage() {
       setFluidos(parse(fl));
       setConta(parse(co));
       setFechamentos(parse(fe));
+      const mbArr = Array.isArray(mb) ? mb : (mb.itens || mb.data || []);
+      setModelosBoletim(mbArr.map((x: any) => { try { const v = JSON.parse(x.valor); return { id: x.id, nome: v.nome || "(sem nome)", texto: v.texto || "" }; } catch { return { id: x.id, nome: "(sem nome)", texto: String(x.valor || "") }; } }));
       const bpArr = Array.isArray(bp) ? bp : (bp.itens || bp.data || []);
       const bpItem = bpArr[0] || null;
       setBolProgId(bpItem?.id || null);
@@ -706,12 +710,23 @@ export default function FichaInternacaoPage() {
                                 <span className="text-[11.5px] font-medium text-[#014D5E]">{hor}</span>
                                 <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={txt.trim() ? { background: "#E1F5EE", color: "#0F6E56" } : { background: "#F0EBE0", color: "#8A989D" }}>{txt.trim() ? "programado" : "vazio"}</span>
                               </div>
+                              {modelosBoletim.length > 0 && (
+                                <select
+                                  value=""
+                                  onChange={(e) => { const m = modelosBoletim.find((x) => x.id === e.target.value); if (m) setBolProg({ ...bolProg, [hor]: m.texto.replace(/\[PET\]/g, h.pet?.name || "seu pet") }); }}
+                                  className="w-full border rounded-lg px-2 py-1 text-[11.5px] mb-1 text-[#5C6B70] focus:outline-none focus:border-[#009AAC]"
+                                  style={{ borderColor: "#E8E2D6" }}
+                                >
+                                  <option value="">📋 Usar um modelo…</option>
+                                  {modelosBoletim.map((m) => <option key={m.id} value={m.id}>{m.nome}</option>)}
+                                </select>
+                              )}
                               <textarea
                                 value={txt}
                                 onChange={(e) => setBolProg({ ...bolProg, [hor]: e.target.value })}
-                                rows={2}
+                                rows={3}
                                 placeholder={`Boletim das ${hor}...`}
-                                className="w-full border rounded-lg px-3 py-2 text-[12.5px] resize-none focus:outline-none focus:border-[#009AAC]"
+                                className="w-full border rounded-lg px-3 py-2 text-[12.5px] resize-y focus:outline-none focus:border-[#009AAC]"
                                 style={{ borderColor: "#E8E2D6" }}
                               />
                               {txt.trim() && (

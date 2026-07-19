@@ -20,6 +20,7 @@ const ITEMS: Item[] = [
   { href: "/dashboard/configuracoes/racas", title: "Raças", description: "Lista de raças por espécie", emoji: "🐾", group: "CADASTROS" },
   { href: "/dashboard/configuracoes/modelos-receita", title: "Modelos de Receita", description: "Modelos editáveis da ficha do pet", emoji: "💊", group: "CADASTROS" },
   { href: "/dashboard/configuracoes/modelos-documento", title: "Modelos de Documento", description: "Modelos editáveis da ficha do pet", emoji: "📄", group: "CADASTROS" },
+  { href: "/dashboard/configuracoes/modelos-boletim", title: "Modelos de boletim", description: "Textos prontos para os boletins de internação", emoji: "🔔", group: "CADASTROS", novo: true },
   { href: "/dashboard/configuracoes/listas", title: "Listas customizáveis", description: "Canais, origens, motivos, fases…", emoji: "📋", group: "CADASTROS" },
   { href: "/dashboard/configuracoes/protocolos", title: "Protocolos", description: "Vacinas, vermífugos e ectoparasitas", emoji: "💉", group: "CADASTROS" },
 
