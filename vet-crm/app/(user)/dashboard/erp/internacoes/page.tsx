@@ -3,7 +3,7 @@
 // Mapa lê /api/boxes/mapa (boxes + ocupação + internação) cruzado com /api/hospitalizations (custo/estado/boletins).
 // Internação = appointment c/ metadata em notes. Box = recurso físico (CRUD em /api/boxes). Boletins via Listas intbol_<id>.
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import BuscaClientePet from "@/components/common/BuscaClientePet";
@@ -60,8 +60,12 @@ export default function InternacoesPage() {
   const [boxForm, setBoxForm] = useState<any>({ id: "", codigo: "", nome: "", tipo: "CANINO", ativa: true, ordem: 0, observacao: "" });
   const [boxSaving, setBoxSaving] = useState(false);
 
+  // "Carregando..." só na PRIMEIRA carga — depois os dados são trocados por baixo,
+  // sem desmontar a tela (evita o "pulo" a cada ação).
+  const jaCarregou = useRef(false);
+
   const load = async () => {
-    setLoading(true);
+    if (!jaCarregou.current) setLoading(true);
     try {
       const [h, l, m, b] = await Promise.all([
         fetch("/api/hospitalizations?limit=1000").then((r) => r.json()).catch(() => ({})),
@@ -74,6 +78,7 @@ export default function InternacoesPage() {
       setMapa(Array.isArray(m?.boxes) ? m.boxes : []);
       setBoxes(Array.isArray(b) ? b : (b.data || []));
     } catch {}
+    jaCarregou.current = true;
     setLoading(false);
   };
   useEffect(() => { load(); }, []);

@@ -3,7 +3,7 @@
 // Internação = appointment (/api/hospitalizations/[id]); extras em vitalSigns (admissao). Evolução em listas intevo_<id>.
 // Blocos de F3 (plantão) / F4 (sinais vitais) / F5 (conta) ficam como gancho "próxima fase".
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
@@ -132,8 +132,13 @@ export default function FichaInternacaoPage() {
   const [caucaoForm, setCaucaoForm] = useState<any>({ valor: "", descricao: "Caução de internação" });
   const [finBusy, setFinBusy] = useState("");
 
+  // "Carregando..." só na PRIMEIRA carga. Nas recargas depois de uma ação os dados são
+  // trocados por baixo, sem desmontar a tela — é isso que tirava o usuário do lugar
+  // (a sensação de "pulo"/página recarregando a cada clique).
+  const jaCarregou = useRef(false);
+
   const load = async () => {
-    setLoading(true);
+    if (!jaCarregou.current) setLoading(true);
     try {
       const [d, m, ev, pr, ds, vt, fl, co, fe, sv, pd, bp, mb] = await Promise.all([
         fetch(`/api/hospitalizations/${id}`).then((r) => r.json()).catch(() => null),
@@ -174,6 +179,7 @@ export default function FichaInternacaoPage() {
       const tutorId = d?.tutor?.id;
       if (tutorId) { try { const cr = await fetch(`/api/credito/tutor/${tutorId}`).then((r) => r.json()); setCaucaoSaldo(Number(cr?.saldo) || 0); } catch { setCaucaoSaldo(0); } }
     } catch {}
+    jaCarregou.current = true;
     setLoading(false);
   };
   useEffect(() => { if (id) load(); /* eslint-disable-next-line */ }, [id]);
