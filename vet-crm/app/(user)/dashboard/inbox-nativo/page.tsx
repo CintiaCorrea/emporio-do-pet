@@ -311,6 +311,7 @@ export default function InboxUnificadoPage() {
         }
         for (const u of usersRaw) {
           if (!u?.id || usados.has(u.id)) continue;
+          if (u?.isBlocked) continue; // funcionário removido/bloqueado não aparece no chat interno
           list.push({ id: u.id, name: u?.name || "—", role: u?.role || "", hasLogin: true });
         }
         // ativos com login primeiro

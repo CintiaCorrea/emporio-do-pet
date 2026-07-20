@@ -87,7 +87,7 @@ export class ProfissionaisService {
   async update(id: string, dto: UpdateProfissionalDto & any) {
     const existing = await this.findOne(id);
     const userId = await this.ensureUser(dto, existing.userId);
-    return this.prisma.profissional.update({
+    const prof = await this.prisma.profissional.update({
       where: { id },
       data: {
         nomeCompleto: dto.nomeCompleto,
@@ -109,10 +109,21 @@ export class ProfissionaisService {
       },
       include: { user: { select: { id: true, name: true, email: true, role: true } } },
     });
+    // Desativar a profissional também BLOQUEIA o login dela (e reativar libera) — assim
+    // ela some do inbox interno e não acessa mais quando removida.
+    if (dto.ativo !== undefined && userId) {
+      await this.prisma.user.update({ where: { id: userId }, data: { isBlocked: dto.ativo === false } }).catch(() => undefined);
+    }
+    return prof;
   }
 
   async remove(id: string) {
-    await this.findOne(id);
+    const existing = await this.findOne(id);
+    // Excluir a profissional bloqueia o login dela (a conta de usuário não é apagada,
+    // pra preservar histórico, mas ela some do inbox interno e não acessa mais).
+    if (existing.userId) {
+      await this.prisma.user.update({ where: { id: existing.userId }, data: { isBlocked: true } }).catch(() => undefined);
+    }
     return this.prisma.profissional.delete({ where: { id } });
   }
 
