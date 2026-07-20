@@ -7,6 +7,10 @@ import {
   LuCheck} from 'react-icons/lu';
 import toast from 'react-hot-toast';
 
+// TEMPORÁRIO (fase de teste): guarda o áudio no armazenamento até o sistema estar 100%.
+// Padrão de LGPD é NÃO guardar o áudio (só a transcrição) — trocar para false para voltar.
+const MANTER_AUDIO = true;
+
 interface ConsultationRecorderProps {
   appointmentId: string;
   recordingId?: string;
@@ -35,6 +39,7 @@ export default function ConsultationRecorder({
   const [manualTranscription, setManualTranscription] = useState('');
   const [showManualInput, setShowManualInput] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [storedAudioUrl, setStoredAudioUrl] = useState(''); // áudio salvo no armazenamento (fase de teste)
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -139,9 +144,22 @@ export default function ConsultationRecorder({
       // 1) Cria o registro da gravação ANTES de enviar o áudio. Assim, se a transcrição
       //    falhar (áudio grande, timeout…), a gravação NÃO some — fica salva pra tentar
       //    de novo ou preencher a transcrição manualmente.
+      // Fase de teste: sobe o áudio pro armazenamento ANTES, pra ficar guardado (e ouvível
+      // depois). Se falhar, segue só com a transcrição — não trava a consulta.
+      let audioUrlSalvo = '';
+      if (MANTER_AUDIO) {
+        try {
+          const fd = new FormData();
+          fd.append('file', audioBlob, `consulta-${appointmentId}-${recordingTime}s.webm`);
+          const up = await fetch('/api/media/upload?pasta=documentos', { method: 'POST', body: fd });
+          const ud = await up.json().catch(() => ({}));
+          if (up.ok && ud?.url) { audioUrlSalvo = ud.url; setStoredAudioUrl(ud.url); }
+        } catch { /* guardar o áudio é best-effort na fase de teste */ }
+      }
+
       let rid = recordingId;
       if (!rid) {
-        const cr = await fetch('/api/consultation-recordings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ appointmentId }) });
+        const cr = await fetch('/api/consultation-recordings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ appointmentId, ...(audioUrlSalvo ? { audioUrl: audioUrlSalvo, audioFileName: 'consulta.webm', audioDuration: recordingTime } : {}) }) });
         if (!cr.ok) {
           const e = await cr.json().catch(() => ({}));
           toast.error(e.error || e.message || 'Não consegui criar a gravação.');
@@ -518,6 +536,15 @@ export default function ConsultationRecorder({
               {transcription}
             </p>
           </div>
+
+          {/* Fase de teste: áudio guardado — dá pra reouvir e conferir a transcrição. */}
+          {MANTER_AUDIO && (storedAudioUrl || audioUrl) && (
+            <div className="mt-3 flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
+              <span style={{fontSize:"14px"}}>🔊</span>
+              <audio controls src={storedAudioUrl || audioUrl} className="w-full h-8" />
+              <span className="text-[11px] text-gray-400 whitespace-nowrap">{storedAudioUrl ? 'áudio guardado' : 'áudio da sessão'}</span>
+            </div>
+          )}
 
           {/* Analyze Button */}
           {!analysis && (

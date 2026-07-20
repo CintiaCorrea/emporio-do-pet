@@ -43,6 +43,9 @@ const TIPOS_OK = [
   'video/mp4',
   'audio/mpeg',
   'audio/ogg',
+  'audio/webm', // gravação de consulta (MediaRecorder gera webm/opus)
+  'audio/wav',
+  'audio/mp4',
 ];
 
 /** Pastas permitidas no bucket — evita gravar em caminho arbitrário vindo da URL. */
