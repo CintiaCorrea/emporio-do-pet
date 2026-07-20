@@ -1,6 +1,6 @@
 "use client";
 import { confirmDelete } from "@/lib/ui/confirmDelete";
-import { useEffect, useState } from "react";
+import { useEffect, useState , useRef} from "react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 
 const MODELOS_DEFAULT: { nome: string; corpo: string }[] = [{"nome": "Hepatopata", "corpo": "MANDAR AVIAR\nUSO ORAL:\n\n- N – acetilcisteína: 100mg/ 10kg\n- Arginina: 70mg/ 10 Kg\n- Ornitina: 60 mg/ 10 Kg\n- Taurina: 70 mg/ 10 Kg\n- Silimarina: 100mg/ 10Kg\n- Glicina: 50 mg/ 10Kg\n- Ácido lipóico: 15 – 25 mg/ 10kg\n- Extrato chá verde: 20 mg/ 10Kg"}, {"nome": "Modelo padrão com Logo", "corpo": "@USUARIO_ASSINATURA@\n@CLINICA_CIDADE@, @CLINICA_ESTADO@, @GERAL_DATA@\n@USUARIO_TRATAMENTO@ @USUARIO_NOMEPUBLICO@\n@USUARIO_CRMV@"}, {"nome": "Modelo padrão sem logo", "corpo": ""}, {"nome": "Orientação Alimentação Natural", "corpo": "- CARBOIDRATO - ARROZ PARBORIZADO OU ARROZ BRANCO, BATATA DOCE.\n- PROTEÍNA - CARNE BOVINA MAGRA SEM GORDURA, PEITO DE FRANGO, ATUM EM ÁGUA.\n- LEGUMES - ABOBRINHA, CHUCHU, VAGEM, ABÓBORA, INHAME, CENOURA.\n\n___ GRS DE CARBOIDRATO / 2 VEZES AO DIA.\n___ GRS DE PROTEÍNA / 2 VEZES AO DIA.\n___ GRS DE LEGUMES / 2 VEZES AO DIA.\nTOTAL DE ___ GRS POR REFEIÇÃO.\n\nTODOS OS INGREDIENTES DEVEM SER PESADOS COZIDOS.\nCozinhar os legumes, carboidratos e proteínas em panelas diferentes e após o preparo misturá-los."}, {"nome": "Gel Cicatrizante e Antifúngico Natural", "corpo": ""}, {"nome": "Nutracêuticos - Erliquiose", "corpo": ""}, {"nome": "Prescrição para Erliquiose", "corpo": ""}, {"nome": "Receituário de Controle Especial", "corpo": ""}, {"nome": "Spray antifúngico e bactericida", "corpo": ""}, {"nome": "Spray de Mupirocina - Alergia", "corpo": ""}, {"nome": "Tratamento Otológico", "corpo": ""}];
@@ -10,6 +10,7 @@ export default function ConfigModelosReceitaPage() {
   const [modelos, setModelos] = useState<{ id: string; nome: string; corpo: string }[]>([]);
   const [novo, setNovo] = useState("");
   const [loading, setLoading] = useState(true);
+  const jaCarregou = useRef(false);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Record<string, string>>({});
 
@@ -25,7 +26,7 @@ export default function ConfigModelosReceitaPage() {
     await fetch(`/api/listas/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ valor: JSON.stringify({ nome, corpo }) }) });
   }
   async function load() {
-    setLoading(true);
+    if (!jaCarregou.current) setLoading(true);
     try {
       let ms = await fetchLista("receita_modelo");
       if (ms.length === 0) {
@@ -45,7 +46,7 @@ export default function ConfigModelosReceitaPage() {
       setModelos(parsed);
       setDraft(Object.fromEntries(parsed.map((m: any) => [m.id, m.corpo])));
     } catch {}
-    setLoading(false);
+    jaCarregou.current = true; setLoading(false);
   }
   useEffect(() => { load(); }, []);
 

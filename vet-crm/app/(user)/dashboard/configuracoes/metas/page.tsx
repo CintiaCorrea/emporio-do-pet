@@ -1,7 +1,7 @@
 "use client";
 import { confirmDelete } from "@/lib/ui/confirmDelete";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState , useRef} from "react";
 import Link from "next/link";
 import { LuArrowLeft, LuPencil, LuX, LuPlus, LuSearch, LuTarget } from "react-icons/lu";
 
@@ -31,6 +31,7 @@ async function safeJson<T>(res: Response, fb: T): Promise<T> { try { if (!res.ok
 export default function MetasPage() {
   const [list, setList] = useState<Meta[]>([]);
   const [loading, setLoading] = useState(true);
+  const jaCarregou = useRef(false);
   const [search, setSearch] = useState("");
   const [filterPer, setFilterPer] = useState<"ALL" | Periodo>("ALL");
   const [modalOpen, setModalOpen] = useState(false);
@@ -38,9 +39,9 @@ export default function MetasPage() {
   const [form, setForm] = useState<any>(EMPTY);
 
   async function load() {
-    setLoading(true);
+    if (!jaCarregou.current) setLoading(true);
     try { const res = await fetch("/api/metas"); const data = await safeJson<any[]>(res, []); setList(Array.isArray(data) ? data : []); }
-    catch (e) { console.error(e); } finally { setLoading(false); }
+    catch (e) { console.error(e); } finally { jaCarregou.current = true; setLoading(false); }
   }
   useEffect(() => { load(); }, []);
 

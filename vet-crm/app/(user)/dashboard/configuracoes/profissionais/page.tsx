@@ -1,7 +1,7 @@
 "use client";
 import { confirmDelete } from "@/lib/ui/confirmDelete";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState , useRef} from "react";
 import Link from "next/link";
 import { LuArrowLeft, LuPencil, LuX, LuPlus, LuSearch } from "react-icons/lu";
 import CsvImporter from "@/components/import/CsvImporter";
@@ -29,6 +29,7 @@ const EMPTY: any = { nomeCompleto: "", nomeExibicao: "", iniciais: "", tipo: "VE
 export default function ProfissionaisPage() {
   const [list, setList] = useState<Profissional[]>([]);
   const [loading, setLoading] = useState(true);
+  const jaCarregou = useRef(false);
   const [showInactive, setShowInactive] = useState(false);
   const [search, setSearch] = useState("");
   const [filterTipo, setFilterTipo] = useState<"ALL" | Tipo>("ALL");
@@ -39,14 +40,14 @@ export default function ProfissionaisPage() {
   const [importOpen, setImportOpen] = useState(false);
 
   async function load() {
-    setLoading(true);
+    if (!jaCarregou.current) setLoading(true);
     try {
       const qs = showInactive ? "?includeInactive=true" : "";
       const res = await fetch(`/api/profissionais${qs}`);
       const data = await res.json();
       setList(Array.isArray(data) ? data : []);
     } catch (e) { console.error(e); }
-    finally { setLoading(false); }
+    finally { jaCarregou.current = true; setLoading(false); }
   }
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [showInactive]);
 

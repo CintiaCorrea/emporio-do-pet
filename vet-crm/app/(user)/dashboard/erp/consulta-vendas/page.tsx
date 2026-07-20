@@ -1,7 +1,7 @@
 // DESTINO: vet-crm/app/(user)/dashboard/erp/consulta-vendas/page.tsx
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { usePageTitle } from '@/lib/ui/PageHeaderContext';
 
@@ -186,9 +186,10 @@ export default function ConsultaVendasPage() {
 
   const [data, setData] = useState<Resp | null>(null);
   const [loading, setLoading] = useState(true);
+  const jaCarregou = useRef(false);
 
   const load = useCallback(async () => {
-    setLoading(true);
+    if (!jaCarregou.current) setLoading(true);
     try {
       const p = new URLSearchParams();
       if (de) p.set('de', de);
@@ -203,7 +204,7 @@ export default function ConsultaVendasPage() {
     } catch {
       setData({ vendas: [], totais: { qtd: 0, liquido: 0, ticket: 0, descontos: 0 } });
     } finally {
-      setLoading(false);
+      jaCarregou.current = true; setLoading(false);
     }
   }, [de, ate, status, marca, busca, cod]);
 

@@ -7,7 +7,7 @@
    Persistência: /api/listas (perfis_acesso + permissoes_acesso).
    ───────────────────────────────────────────────────────────── */
 
-import { useEffect, useState } from "react";
+import { useEffect, useState , useRef} from "react";
 import toast from "react-hot-toast";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { confirmDelete } from "@/lib/ui/confirmDelete";
@@ -94,6 +94,7 @@ export default function PermissoesPage() {
   const [active, setActive] = useState<string>("");
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
+  const jaCarregou = useRef(false);
   const [saving, setSaving] = useState(false);
 
   async function fetchAll(): Promise<ListaItem[]> {
@@ -110,7 +111,7 @@ export default function PermissoesPage() {
   }
 
   async function load() {
-    setLoading(true);
+    if (!jaCarregou.current) setLoading(true);
     try {
       let all = await fetchAll();
       let perfilItems = all.filter((i) => i.lista === LISTA_PERFIS);
@@ -152,7 +153,7 @@ export default function PermissoesPage() {
     } catch {
       toast.error("Erro ao carregar permissões");
     } finally {
-      setLoading(false);
+      jaCarregou.current = true; setLoading(false);
     }
   }
 

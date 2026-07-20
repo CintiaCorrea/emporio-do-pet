@@ -2,7 +2,7 @@
 // [EMP-COWORK] Grupos (categorias do catálogo) — cadastro simples: listar, criar, renomear, excluir.
 // Reusa /api/servicos/categorias (o "Grupo" do item = categoria).
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState , useRef} from "react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import toast from "react-hot-toast";
 
@@ -13,15 +13,16 @@ export default function GruposPage() {
   usePageTitle("Grupos", "Categorias de produtos e serviços do catálogo.");
   const [cats, setCats] = useState<Cat[]>([]);
   const [loading, setLoading] = useState(true);
+  const jaCarregou = useRef(false);
   const [novo, setNovo] = useState("");
 
   const load = useCallback(async () => {
-    setLoading(true);
+    if (!jaCarregou.current) setLoading(true);
     try {
       const d = await fetch("/api/servicos/categorias", { cache: "no-store" }).then((r) => r.json());
       setCats(Array.isArray(d) ? d : (d.data || d.itens || []));
     } catch { toast.error("Erro ao carregar grupos"); }
-    setLoading(false);
+    jaCarregou.current = true; setLoading(false);
   }, []);
   useEffect(() => { load(); }, [load]);
 

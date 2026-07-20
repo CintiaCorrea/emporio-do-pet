@@ -3,7 +3,7 @@
 // Comanda aberta = appointment com value>0 e paymentStatus != PAID (exceto internação, faturada pela conta da F5).
 // Baixar = POST /api/caixa/{caixaAberto}/recebimento {appointmentId, valorTotal, formas}. Valores sensíveis com olhinho.
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState , useRef} from "react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 
 const FORMAS = ["Dinheiro", "Pix", "Cartão de crédito", "Cartão de débito", "Crédito do cliente"];
@@ -19,6 +19,7 @@ const hojeISO = () => new Date().toISOString().slice(0, 10);
 export default function ComandasPage() {
   usePageTitle("Em atendimento", "Comandas abertas para baixar no caixa");
   const [loading, setLoading] = useState(true);
+  const jaCarregou = useRef(false);
   const [comandas, setComandas] = useState<any[]>([]);
   const [caixaAberto, setCaixaAberto] = useState<string | null>(null);
   const [baixadoHoje, setBaixadoHoje] = useState(0);
@@ -33,7 +34,7 @@ export default function ComandasPage() {
   const [detGrupo, setDetGrupo] = useState<any | null>(null); // baixar todas as comandas de um cliente (1B)
 
   const load = async () => {
-    setLoading(true);
+    if (!jaCarregou.current) setLoading(true);
     try {
       const hoje = hojeISO();
       const [c, cx, rec, fm] = await Promise.all([
@@ -51,7 +52,7 @@ export default function ComandasPage() {
       const fmArr = (Array.isArray(fm) ? fm : (fm.itens || fm.data || [])).map((x: any) => { try { return JSON.parse(x.valor); } catch { return null; } }).filter((v: any) => v && v.ativo !== false).map((v: any) => v.nome);
       setFormasCfg(fmArr);
     } catch {}
-    setLoading(false);
+    jaCarregou.current = true; setLoading(false);
   };
   useEffect(() => { load(); }, []);
 

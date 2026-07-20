@@ -1,7 +1,7 @@
 "use client";
 import { confirmDelete } from "@/lib/ui/confirmDelete";
 // [EMP-COWORK] NPS — avaliações via Listas npsava_<id> (Cintia 07/06, Marketing)
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState , useRef} from "react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { LuPlus, LuTrash, LuX } from "react-icons/lu";
 
@@ -13,6 +13,7 @@ const fmtData = (s?: string) => { if (!s) return "—"; try { return new Date(s)
 export default function NpsPage() {
   usePageTitle("NPS", "Avaliações de satisfação dos clientes");
   const [loading, setLoading] = useState(true);
+  const jaCarregou = useRef(false);
   const [rows, setRows] = useState<any[]>([]);
   const [tutors, setTutors] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
@@ -23,7 +24,7 @@ export default function NpsPage() {
   const [saving, setSaving] = useState(false);
 
   const load = async () => {
-    setLoading(true);
+    if (!jaCarregou.current) setLoading(true);
     try {
       const [l, t, u] = await Promise.all([
         fetch("/api/listas", { cache: "no-store" }).then((r) => r.json()).catch(() => []),
@@ -35,7 +36,7 @@ export default function NpsPage() {
       setTutors(Array.isArray(t) ? t : (t.tutors || t.data || []));
       setUsers(Array.isArray(u) ? u : (u.users || u.data || []));
     } catch {}
-    setLoading(false);
+    jaCarregou.current = true; setLoading(false);
   };
   useEffect(() => { load(); }, []);
   useEffect(() => { if (!form.tutorId) { setPets([]); return; } (async () => { try { const d = await fetch(`/api/tutors/${form.tutorId}/pets`).then((r) => r.json()); setPets(Array.isArray(d) ? d : (d.pets || d.data || [])); } catch { setPets([]); } })(); }, [form.tutorId]);

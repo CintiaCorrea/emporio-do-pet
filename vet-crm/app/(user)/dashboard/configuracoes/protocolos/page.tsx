@@ -1,6 +1,6 @@
 "use client";
 import { confirmDelete } from "@/lib/ui/confirmDelete";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState , useRef} from "react";
 import Link from "next/link";
 import { LuArrowLeft, LuPencil, LuX, LuPlus, LuSearch } from "react-icons/lu";
 
@@ -37,6 +37,7 @@ function cronograma(t: Template): string {
 export default function ProtocolosConfigPage() {
   const [list, setList] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
+  const jaCarregou = useRef(false);
   const [search, setSearch] = useState("");
   const [filterTipo, setFilterTipo] = useState<"ALL" | Tipo>("ALL");
   const [modalOpen, setModalOpen] = useState(false);
@@ -45,13 +46,13 @@ export default function ProtocolosConfigPage() {
   const [seeding, setSeeding] = useState(false);
 
   async function load() {
-    setLoading(true);
+    if (!jaCarregou.current) setLoading(true);
     try {
       const res = await fetch(`/api/protocolos/templates`);
       const data = await res.json();
       setList(Array.isArray(data) ? data : []);
     } catch (e) { console.error(e); }
-    finally { setLoading(false); }
+    finally { jaCarregou.current = true; setLoading(false); }
   }
   useEffect(() => { load(); }, []);
 

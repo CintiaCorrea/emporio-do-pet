@@ -3,7 +3,7 @@
 // Textos prontos que o vet escolhe na ficha da internação (bloco "Boletins programados"),
 // pra não escrever do zero 3x por dia. Guardados em listas `modelo_boletim` (JSON {nome, texto}).
 
-import { useEffect, useState } from "react";
+import { useEffect, useState , useRef} from "react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 
 type Modelo = { id: string; nome: string; texto: string };
@@ -53,12 +53,13 @@ export default function ModelosBoletimPage() {
 
   const [modelos, setModelos] = useState<Modelo[]>([]);
   const [loading, setLoading] = useState(true);
+  const jaCarregou = useRef(false);
   const [form, setForm] = useState<{ id: string; nome: string; texto: string }>({ id: "", nome: "", texto: "" });
   const [salvando, setSalvando] = useState(false);
   const [excluindo, setExcluindo] = useState<Modelo | null>(null);
 
   const load = async () => {
-    setLoading(true);
+    if (!jaCarregou.current) setLoading(true);
     try {
       const d = await fetch("/api/listas?lista=modelo_boletim").then((r) => r.json());
       const arr = Array.isArray(d) ? d : (d.itens || d.data || []);
@@ -69,7 +70,7 @@ export default function ModelosBoletimPage() {
         }),
       );
     } catch { setModelos([]); }
-    setLoading(false);
+    jaCarregou.current = true; setLoading(false);
   };
   useEffect(() => { load(); }, []);
 

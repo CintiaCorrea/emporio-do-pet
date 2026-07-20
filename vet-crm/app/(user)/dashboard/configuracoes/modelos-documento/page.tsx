@@ -1,6 +1,6 @@
 "use client";
 import { confirmDelete } from "@/lib/ui/confirmDelete";
-import { useEffect, useState } from "react";
+import { useEffect, useState , useRef} from "react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 
 const MODELOS_DEFAULT: { nome: string; corpo: string }[] = [
@@ -23,6 +23,7 @@ export default function ConfigModelosDocumentoPage() {
   const [modelos, setModelos] = useState<{ id: string; nome: string; corpo: string }[]>([]);
   const [novo, setNovo] = useState("");
   const [loading, setLoading] = useState(true);
+  const jaCarregou = useRef(false);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Record<string, string>>({});
 
@@ -38,7 +39,7 @@ export default function ConfigModelosDocumentoPage() {
     await fetch(`/api/listas/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ valor: JSON.stringify({ nome, corpo }) }) });
   }
   async function load() {
-    setLoading(true);
+    if (!jaCarregou.current) setLoading(true);
     try {
       let ms = await fetchLista("documento_modelo");
       if (ms.length === 0) {
@@ -58,7 +59,7 @@ export default function ConfigModelosDocumentoPage() {
       setModelos(parsed);
       setDraft(Object.fromEntries(parsed.map((m: any) => [m.id, m.corpo])));
     } catch {}
-    setLoading(false);
+    jaCarregou.current = true; setLoading(false);
   }
   useEffect(() => { load(); }, []);
 

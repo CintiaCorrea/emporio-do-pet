@@ -1,7 +1,7 @@
 "use client";
 import { confirmDelete } from "@/lib/ui/confirmDelete";
 // [EMP-COWORK] Avaliações Google — fluxo de solicitação via Listas googleava_<id> + link em cfg_googlelink (Cintia 07/06, Marketing)
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState , useRef} from "react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { LuSend, LuX, LuTrash, LuStar } from "react-icons/lu";
 
@@ -12,6 +12,7 @@ const stars = (n: number) => "★".repeat(n) + "☆".repeat(5 - n);
 export default function AvaliacoesGooglePage() {
   usePageTitle("Avaliações Google", "Gestão do fluxo de avaliações no Google");
   const [loading, setLoading] = useState(true);
+  const jaCarregou = useRef(false);
   const [rows, setRows] = useState<any[]>([]);
   const [tutors, setTutors] = useState<any[]>([]);
   const [link, setLink] = useState("");
@@ -23,7 +24,7 @@ export default function AvaliacoesGooglePage() {
   const [saving, setSaving] = useState(false);
 
   const load = async () => {
-    setLoading(true);
+    if (!jaCarregou.current) setLoading(true);
     try {
       const [l, t] = await Promise.all([
         fetch("/api/listas", { cache: "no-store" }).then((r) => r.json()).catch(() => []),
@@ -35,7 +36,7 @@ export default function AvaliacoesGooglePage() {
       if (cfg) { setLinkRowId(cfg.id); try { setLink(JSON.parse(cfg.valor).url || ""); setLinkEdit(JSON.parse(cfg.valor).url || ""); } catch { setLink(cfg.valor); setLinkEdit(cfg.valor); } }
       setTutors(Array.isArray(t) ? t : (t.tutors || t.data || []));
     } catch {}
-    setLoading(false);
+    jaCarregou.current = true; setLoading(false);
   };
   useEffect(() => { load(); }, []);
 

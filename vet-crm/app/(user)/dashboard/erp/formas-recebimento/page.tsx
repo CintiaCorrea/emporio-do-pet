@@ -2,7 +2,7 @@
 // [EMP-COWORK] Formas de recebimento (Vendas · Fase 2 config). Cada maquininha (cartão) abre taxas por parcela.
 // Guardado na lista genérica `formasrecebimento` (JSON no valor). Alimenta as formas do PDV / baixar comanda.
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState , useRef} from "react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 
 const TIPOS = ["Dinheiro", "Pix", "Maquininha (cartão)", "Crédito do cliente", "Boleto", "Outro"];
@@ -18,6 +18,7 @@ const novaForma = () => ({ id: "", nome: "", tipo: "Dinheiro", conta: "", ativo:
 export default function FormasRecebimentoPage() {
   usePageTitle("Formas de recebimento", "Configurar formas de pagamento e taxas");
   const [loading, setLoading] = useState(true);
+  const jaCarregou = useRef(false);
   const [formas, setFormas] = useState<any[]>([]);
   const [expandido, setExpandido] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
@@ -25,13 +26,13 @@ export default function FormasRecebimentoPage() {
   const [saving, setSaving] = useState(false);
 
   const load = async () => {
-    setLoading(true);
+    if (!jaCarregou.current) setLoading(true);
     try {
       const d = await fetch("/api/listas?lista=formasrecebimento").then((r) => r.json()).catch(() => []);
       const arr = Array.isArray(d) ? d : (d.itens || d.data || []);
       setFormas(arr.map((x: any) => { try { return { id: x.id, ...JSON.parse(x.valor) }; } catch { return { id: x.id }; } }));
     } catch {}
-    setLoading(false);
+    jaCarregou.current = true; setLoading(false);
   };
   useEffect(() => { load(); }, []);
 

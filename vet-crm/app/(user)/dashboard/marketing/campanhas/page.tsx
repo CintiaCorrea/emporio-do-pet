@@ -1,7 +1,7 @@
 "use client";
 import { confirmDelete } from "@/lib/ui/confirmDelete";
 // [EMP-COWORK] Campanhas — Listas campanha_<id>; Leads/Conv. auto por Tag Origem (match nos leads do CRM) (Cintia 07/06, Marketing)
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState , useRef} from "react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { LuPlus, LuTrash, LuX, LuPencil } from "react-icons/lu";
 
@@ -15,6 +15,7 @@ const EMPTY = { nome: "", plataforma: "Meta Ads", tipo: "Aquisição", segmento:
 export default function CampanhasPage() {
   usePageTitle("Campanhas", "Campanhas de mídia · CAC e ROI");
   const [loading, setLoading] = useState(true);
+  const jaCarregou = useRef(false);
   const [rows, setRows] = useState<any[]>([]);
   const [leads, setLeads] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
@@ -23,7 +24,7 @@ export default function CampanhasPage() {
   const [saving, setSaving] = useState(false);
 
   const load = async () => {
-    setLoading(true);
+    if (!jaCarregou.current) setLoading(true);
     try {
       const [l, ld] = await Promise.all([
         fetch("/api/listas", { cache: "no-store" }).then((r) => r.json()).catch(() => []),
@@ -33,7 +34,7 @@ export default function CampanhasPage() {
       setRows(la.filter((x: any) => (x.lista || "").startsWith("campanha_")).map((x: any) => { let d: any = {}; try { d = JSON.parse(x.valor); } catch {} return { id: x.id, ...d }; }));
       setLeads(Array.isArray(ld) ? ld : (ld.leads || ld.data || []));
     } catch {}
-    setLoading(false);
+    jaCarregou.current = true; setLoading(false);
   };
   useEffect(() => { load(); }, []);
 

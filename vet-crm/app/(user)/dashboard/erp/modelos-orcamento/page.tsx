@@ -3,7 +3,7 @@
 // Guardado na lista `orcamentomodelo` (JSON: {nome, ativo, itens:[{descricao, servicoId, quantidade, valorUnitario}]}).
 // A tela cadastra; o "usar modelo" no orçamento/PDV é ligado depois (como as formas).
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState , useRef} from "react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 
 const fmtBRL = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
@@ -13,6 +13,7 @@ const novoModelo = () => ({ id: "", nome: "", ativo: true, itens: [] as any[] })
 export default function ModelosOrcamentoPage() {
   usePageTitle("Modelo de orçamento", "Orçamentos-modelo reutilizáveis");
   const [loading, setLoading] = useState(true);
+  const jaCarregou = useRef(false);
   const [modelos, setModelos] = useState<any[]>([]);
   const [servicos, setServicos] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
@@ -21,7 +22,7 @@ export default function ModelosOrcamentoPage() {
   const [busca, setBusca] = useState("");
 
   const load = async () => {
-    setLoading(true);
+    if (!jaCarregou.current) setLoading(true);
     try {
       const [m, s] = await Promise.all([
         fetch("/api/listas?lista=orcamentomodelo").then((r) => r.json()).catch(() => []),
@@ -31,7 +32,7 @@ export default function ModelosOrcamentoPage() {
       setModelos(arr.map((x: any) => { try { return { id: x.id, ...JSON.parse(x.valor) }; } catch { return { id: x.id, nome: "?", itens: [] }; } }));
       setServicos(Array.isArray(s) ? s : (s.itens || s.data || []));
     } catch {}
-    setLoading(false);
+    jaCarregou.current = true; setLoading(false);
   };
   useEffect(() => { load(); }, []);
 

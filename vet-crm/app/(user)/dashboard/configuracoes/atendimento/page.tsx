@@ -1,6 +1,6 @@
 "use client";
 import { confirmDelete } from "@/lib/ui/confirmDelete";
-import { useEffect, useState } from "react";
+import { useEffect, useState , useRef} from "react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 
 const TIPOS_DEFAULT: [string, string][] = [["CONSULTA","Consulta"],["RETORNO","Retorno"],["AVALIACAO","Avaliação"],["EMERGENCIA","Emergência"],["PROCEDIMENTO","Procedimento"],["VACINACAO","Vacinação"],["CIRURGIA","Cirurgia"],["SESSAO_FISIO","Sessão de fisio"],["OUTRO","Outro"]];
@@ -13,6 +13,7 @@ export default function ConfigAtendimentoPage() {
   const [novoTipo, setNovoTipo] = useState("");
   const [novoStatus, setNovoStatus] = useState("");
   const [loading, setLoading] = useState(true);
+  const jaCarregou = useRef(false);
 
   async function fetchLista(lista: string) {
     const r = await fetch(`/api/listas?lista=${lista}`, { cache: "no-store" });
@@ -20,7 +21,7 @@ export default function ConfigAtendimentoPage() {
     return Array.isArray(d) ? d : (d.itens || d.data || []);
   }
   async function load() {
-    setLoading(true);
+    if (!jaCarregou.current) setLoading(true);
     try {
       let at = await fetchLista("atendimento_tipo");
       let st = await fetchLista("atendimento_status");
@@ -35,7 +36,7 @@ export default function ConfigAtendimentoPage() {
       setTipos(at.map((i: any) => { let o: any = {}; try { o = JSON.parse(i.valor); } catch { o = { l: i.valor }; } return { id: i.id, l: o.l || o.v || i.valor }; }));
       setStatus(st.map((i: any) => ({ id: i.id, valor: i.valor })));
     } catch {}
-    setLoading(false);
+    jaCarregou.current = true; setLoading(false);
   }
   useEffect(() => { load(); }, []);
 

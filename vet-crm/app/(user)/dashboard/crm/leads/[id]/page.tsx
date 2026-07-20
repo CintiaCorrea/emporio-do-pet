@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useState , useRef} from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import toast, { Toaster } from "react-hot-toast";
@@ -61,6 +61,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
   const [delOpen, setDelOpen] = useState(false);
   const [lead, setLead] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const jaCarregou = useRef(false);
   const [showScripts, setShowScripts] = useState(false);
   const [scriptCat, setScriptCat] = useState<keyof typeof SCRIPTS>("Saudação");
   const [pipeComercial, setPipeComercial] = useState<string[]>([]);
@@ -87,7 +88,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
     qualQuemDecide: ""});
 
   const load = async () => {
-    setLoading(true);
+    if (!jaCarregou.current) setLoading(true);
     try {
       const res = await fetch(`/api/leads/${id}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -101,7 +102,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
         qualQuemDecide: data.qualQuemDecide || ""});
     } catch (e: any) {
       toast.error("Erro ao carregar o lead: " + e.message);
-    } finally { setLoading(false); }
+    } finally { jaCarregou.current = true; setLoading(false); }
   };
 
   async function loadComercial() { try { const r = await fetch(`/api/pipelines`, { cache: "no-store" }); if (!r.ok) throw new Error(); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.pipelines || d.data || []); const p = arr.find((x: any) => (x.escopo === "LEAD" || (x.nome || "").toLowerCase().includes("comercial")) && x.ativo !== false); if (p) setPipeComercial((p.estagios || []).slice().sort((a: any, b: any) => (a.ordem || 0) - (b.ordem || 0)).map((e: any) => e.nome)); } catch { console.error("Falha ao carregar pipeline comercial"); } }

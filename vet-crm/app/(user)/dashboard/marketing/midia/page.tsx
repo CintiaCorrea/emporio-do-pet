@@ -1,7 +1,7 @@
 "use client";
 import { confirmDelete } from "@/lib/ui/confirmDelete";
 // [EMP-COWORK] Mídia — lançamentos de investimento (Listas midia_<id>), ligados a campanhas (Cintia 07/06, Marketing)
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState , useRef} from "react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { LuTrash } from "react-icons/lu";
 
@@ -14,20 +14,21 @@ const EMPTY = { campanhaId: "", plataforma: "Meta Ads", periodicidade: "Semanal"
 export default function MidiaPage() {
   usePageTitle("Mídia", "Lançamentos de investimento de mídia");
   const [loading, setLoading] = useState(true);
+  const jaCarregou = useRef(false);
   const [rows, setRows] = useState<any[]>([]);
   const [campanhas, setCampanhas] = useState<any[]>([]);
   const [form, setForm] = useState<any>({ ...EMPTY });
   const [saving, setSaving] = useState(false);
 
   const load = async () => {
-    setLoading(true);
+    if (!jaCarregou.current) setLoading(true);
     try {
       const l = await fetch("/api/listas", { cache: "no-store" }).then((r) => r.json()).catch(() => []);
       const la = Array.isArray(l) ? l : (l.itens || l.data || []);
       setRows(la.filter((x: any) => (x.lista || "").startsWith("midia_")).map((x: any) => { let d: any = {}; try { d = JSON.parse(x.valor); } catch {} return { id: x.id, ...d }; }).sort((a: any, b: any) => (b.ini || "").localeCompare(a.ini || "")));
       setCampanhas(la.filter((x: any) => (x.lista || "").startsWith("campanha_")).map((x: any) => { let d: any = {}; try { d = JSON.parse(x.valor); } catch {} return { id: x.id, nome: d.nome, plataforma: d.plataforma }; }));
     } catch {}
-    setLoading(false);
+    jaCarregou.current = true; setLoading(false);
   };
   useEffect(() => { load(); }, []);
 
