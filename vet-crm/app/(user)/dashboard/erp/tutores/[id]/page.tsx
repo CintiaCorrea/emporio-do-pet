@@ -204,6 +204,16 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
   const [nota, setNota] = useState("");
   const [notaSaving, setNotaSaving] = useState(false);
   const [editDados, setEditDados] = useState(false);
+  const [editName, setEditName] = useState(false);
+  const [nameVal, setNameVal] = useState("");
+  const [savingName, setSavingName] = useState(false);
+  async function salvarNome() {
+    const nome = nameVal.trim();
+    if (!nome) { toast.error("Informe o nome"); return; }
+    setSavingName(true);
+    try { const r = await fetch(`/api/tutors/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: nome }) }); if (!r.ok) throw new Error(); setEditName(false); await load(); }
+    catch { toast.error("Erro ao salvar o nome"); } finally { setSavingName(false); }
+  }
   const [origensCat, setOrigensCat] = useState<string[]>([]); // "Como nos conheceu" (lista cliente_origem em Config › Listas)
   const [dadosForm, setDadosForm] = useState<any>({});
   const [savingDados, setSavingDados] = useState(false);
@@ -497,7 +507,18 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
             </div>
             <div className="flex-1">
               <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-[19px] leading-tight text-[#014D5E] font-medium">{tutor.name || "Sem nome"}</h1>
+                {editName ? (
+                  <span className="flex items-center gap-1">
+                    <input autoFocus value={nameVal} onChange={(e) => setNameVal(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") salvarNome(); if (e.key === "Escape") setEditName(false); }} className="text-[17px] px-2 py-0.5 border rounded" style={{ borderColor: "#009AAC", color: "#014D5E" }} />
+                    <button onClick={salvarNome} disabled={savingName} className="text-[12px] text-white px-2 py-1 rounded disabled:opacity-50" style={{ background: "#009AAC" }}>{savingName ? "…" : "Salvar"}</button>
+                    <button onClick={() => setEditName(false)} className="text-[12px] text-[#8A989D] px-1">✕</button>
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1.5 group">
+                    <h1 className="text-[19px] leading-tight text-[#014D5E] font-medium">{tutor.name || "Sem nome"}</h1>
+                    <button onClick={() => { setNameVal(tutor.name || ""); setEditName(true); }} className="p-0.5 rounded text-[#c8d0d4] hover:text-[#009AAC]" title="Editar nome">✏️</button>
+                  </span>
+                )}
                 {tutor.codigo ? <span className="text-[13px] text-[#8A989D] font-medium" title="Código do cliente">#{tutor.codigo}</span> : null}
                 {naoCliente ? <span className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: "#EDE7F6", color: "#5B4B9E" }}>🤝 {tutor.classificacao}</span> : (tutor.score && <span className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: nivel.bg, color: nivel.fg }}>{nivel.emoji} {nivel.nome}</span>)}
                 <button onClick={() => setSituacaoOpen(true)} title="Situação — clique para alterar" className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: status.bg, color: status.color }}>{HUMANIZAR(tutor.estadoRelacionamento) || status.label} ▾</button>
