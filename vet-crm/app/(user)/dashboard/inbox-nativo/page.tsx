@@ -1,7 +1,7 @@
 "use client";
 import { confirmDelete } from "@/lib/ui/confirmDelete";
 
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef, type ReactNode } from "react";
 import toast from "react-hot-toast";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
@@ -98,6 +98,29 @@ const SCRIPTS_PLACEHOLDER = [
   { categoria: "Qualificação", titulo: "Qual o pet", texto: "Pra entender melhor, qual o nome e a espécie do seu pet?" },
   { categoria: "Orçamento", titulo: "Pedir agenda", texto: "Posso te oferecer um horário com a Dra. Vivian. Manhã ou tarde fica melhor?" },
 ];
+
+// Renderiza texto do WhatsApp no nosso inbox: quebras de linha + *negrito* _itálico_
+// ~tachado~ — igual o cliente vê no app. Antes o inbox mostrava os asteriscos crus.
+function inlineWa(s: string): ReactNode[] {
+  const out: ReactNode[] = [];
+  const re = /(\*[^*\n]+\*|_[^_\n]+_|~[^~\n]+~)/g;
+  let last = 0; let m: RegExpExecArray | null; let k = 0;
+  while ((m = re.exec(s)) !== null) {
+    if (m.index > last) out.push(s.slice(last, m.index));
+    const tok = m[0]; const inner = tok.slice(1, -1);
+    if (tok[0] === "*") out.push(<b key={k++}>{inner}</b>);
+    else if (tok[0] === "_") out.push(<i key={k++}>{inner}</i>);
+    else out.push(<s key={k++}>{inner}</s>);
+    last = m.index + tok.length;
+  }
+  if (last < s.length) out.push(s.slice(last));
+  return out;
+}
+function renderWa(texto: string): ReactNode {
+  return (texto || "").split("\n").map((linha, i) => (
+    <span key={i}>{i > 0 && <br />}{inlineWa(linha)}</span>
+  ));
+}
 
 export default function InboxUnificadoPage() {
   usePageTitle("Inbox Meta", "Conversas WhatsApp Business via API Meta");
@@ -1256,7 +1279,7 @@ export default function InboxUnificadoPage() {
                           ) : (m.mediaType || m.type === "DOCUMENT" || m.type === "IMAGE" || m.type === "AUDIO" || m.type === "VIDEO") ? (
                             <span className="italic text-[#888780]">📎 {m.content || "anexo"} <span className="text-[10px]">(não foi possível carregar o arquivo)</span></span>
                           ) : (
-                            m.content || "(mídia)"
+                            m.content ? renderWa(m.content) : "(mídia)"
                           )}
                         </div>
                         <div className={`text-[9px] text-[#888780] mt-0.5 px-1 flex items-center gap-2 ${outbound ? "justify-end" : ""}`}>
