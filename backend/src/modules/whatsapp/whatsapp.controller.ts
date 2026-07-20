@@ -545,6 +545,13 @@ export class WhatsAppController {
         }
         break;
 
+      case 'reaction':
+        // Cliente reagiu a uma mensagem com um emoji (👍 ❤️ 😂 …). Antes caía no
+        // default e aparecia "[reaction]". Mostra o emoji; emoji vazio = reação removida.
+        content = message.reaction?.emoji || '↩️ reação removida';
+        messageMetadata = { reaction: true, emoji: message.reaction?.emoji || '', reactionTo: message.reaction?.message_id };
+        break;
+
       default:
         content = `[${message.type}]`;
     }
