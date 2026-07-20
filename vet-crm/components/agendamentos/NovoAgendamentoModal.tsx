@@ -51,7 +51,6 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
   const [agendaAvulsa, setAgendaAvulsa] = useState<string>("");
   const [avulsaNome, setAvulsaNome] = useState<string>("");
   const [dayAppts, setDayAppts] = useState<any[]>([]);
-  const [confirmarWa, setConfirmarWa] = useState(true);
 
   useEffect(() => {
     if (!open) return;
@@ -210,16 +209,9 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
           const res = await fetch("/api/appointments", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(body) });
           if (!res.ok) throw new Error();
         }
-        if (confirmarWa && tutor) {
-          try {
-            const profNome = (profs.find((p: any) => p.userId === userId)?.nomeExibicao) || "nossa equipe";
-            const [yy, mm, dd] = date.split("-");
-            const texto = `Olá ${(tutor.name || "").split(" ")[0] || ""}! 🐾 Sua consulta no Empório do Pet está agendada para ${dd}/${mm}/${yy} às ${time}, com ${profNome}. Qualquer dúvida, responda por aqui. Até breve! 💙`;
-            const rc = await fetch(`/api/survey-avaliacao/mensagem-tutor`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tutorId: tutor.id, texto }) });
-            const dc = await rc.json().catch(() => null);
-            if (!rc.ok || !dc?.success) alert("Agendamento salvo! Mas a confirmação por WhatsApp não saiu agora (a Meta só permite mensagem fora da janela de 24h com um modelo aprovado).");
-          } catch {}
-        }
+        // A confirmação NÃO sai mais na hora que salva. Ela é enviada automaticamente no
+        // dia anterior (17h/19h) pelo agendador, ou na hora pelo botão "Enviar confirmação"
+        // no card da agenda — evita mandar confirmação para agendamento de dias à frente.
       }
       fechar(); if (onCreated) onCreated();
     } catch { alert("Erro ao criar agendamento. Tente novamente."); } finally { setSaving(false); }
@@ -417,9 +409,9 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
 
         {!editId && step === 2 && (
           <div className={inline ? "px-3 pb-1" : "px-5 pb-1"}>
-            <label className="flex items-center gap-2 cursor-pointer" style={{ fontSize: inline ? "11.5px" : "13px", color: "#0E2244" }}>
-              <input type="checkbox" checked={confirmarWa} onChange={(e) => setConfirmarWa(e.target.checked)} /> Enviar confirmação por WhatsApp
-            </label>
+            <p style={{ fontSize: inline ? "11px" : "12px", color: "#6B7A80" }}>
+              💬 A confirmação por WhatsApp é enviada automaticamente <b>no dia anterior</b> (17h manhã · 19h tarde). Para mandar na hora, use o botão <b>Enviar confirmação</b> no card da agenda.
+            </p>
           </div>
         )}
         <div className="px-5 py-4 border-t flex items-center gap-2" style={{ borderColor: "#eef0e6" }}>

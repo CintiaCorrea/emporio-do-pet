@@ -1478,6 +1478,28 @@ export class WhatsAppService {
    * na conversa (aparece no inbox como enviada pelo sistema). Usado pelos lembretes
    * (aniversário/protocolo) e pela abridora do boletim, pra não sumirem do histórico.
    */
+  // Dono das conversas de WhatsApp (clínica single-tenant = admin). Usado para CRIAR a
+  // conversa quando um envio automático vai para alguém que ainda não tem thread — assim
+  // toda mensagem que o sistema manda APARECE no inbox, não só para quem já falou antes.
+  private _donoWhatsApp: string | null = null;
+  private async resolverDonoWhatsApp(): Promise<string | null> {
+    if (this._donoWhatsApp) return this._donoWhatsApp;
+    const admin = await this.prisma.user.findFirst({ where: { role: 'ADMIN' }, select: { id: true } }).catch(() => null);
+    this._donoWhatsApp = admin?.id || (await this.prisma.user.findFirst({ select: { id: true } }).catch(() => null))?.id || null;
+    return this._donoWhatsApp;
+  }
+  /** Acha a conversa pelo telefone (últimos 8) ou CRIA uma nova (dono = admin). */
+  private async acharOuCriarConversa(formatted: string) {
+    const tail = formatted.replace(/\D/g, '').slice(-8);
+    if (tail.length >= 8) {
+      const existente = await this.prisma.whatsAppConversation.findFirst({ where: { contactPhone: { endsWith: tail } }, orderBy: { lastMessageAt: 'desc' } });
+      if (existente) return existente;
+    }
+    const dono = await this.resolverDonoWhatsApp();
+    if (!dono) return null;
+    return this.createOrGetConversation(dono, formatted);
+  }
+
   async enviarTemplateRegistrando(
     phone: string,
     templateName: string,
@@ -1488,8 +1510,7 @@ export class WhatsAppService {
     if (!res.success) return { success: false, error: res.error };
     try {
       const formatted = this.formatPhoneNumber(phone);
-      const tail = formatted.replace(/\D/g, '').slice(-8);
-      const conv = await this.prisma.whatsAppConversation.findFirst({ where: { contactPhone: { endsWith: tail } }, orderBy: { lastMessageAt: 'desc' } });
+      const conv = await this.acharOuCriarConversa(formatted);
       if (conv) {
         await this.saveOutboundMessage(conv.id, textoLegivel || `[modelo enviado: ${templateName}]`, 'TEMPLATE', res.messageId, { template: templateName, fromSystem: true }, { senderType: 'SYSTEM', senderName: 'Sistema' });
         await this.prisma.whatsAppConversation.update({ where: { id: conv.id }, data: { lastMessageAt: new Date() } }).catch(() => undefined);
@@ -1504,15 +1525,13 @@ export class WhatsAppService {
    */
   async enviarTextoRegistrando(phone: string, texto: string): Promise<{ success: boolean; error?: string }> {
     const formatted = this.formatPhoneNumber(phone);
-    const tail = formatted.replace(/\D/g, '').slice(-8);
-    const conv = tail.length >= 8
-      ? await this.prisma.whatsAppConversation.findFirst({ where: { contactPhone: { endsWith: tail } }, orderBy: { lastMessageAt: 'desc' } })
-      : null;
+    const conv = await this.acharOuCriarConversa(formatted);
     if (conv) {
+      // sendAndSaveMessage envia E registra na conversa (mesmo que a thread tenha nascido agora).
       const r = await this.sendAndSaveMessage(conv.userId, conv.id, texto, 'TEXT', { senderType: 'SYSTEM', senderName: 'Sistema' });
       return { success: !!r?.response?.success, error: r?.response?.error };
     }
-    // Sem conversa ainda → envia direto (não há thread onde registrar).
+    // Sem como resolver o dono → envia direto (sem thread onde registrar).
     const res = await this.sendMessage({ to: formatted, message: texto });
     return { success: res.success, error: res.error };
   }
