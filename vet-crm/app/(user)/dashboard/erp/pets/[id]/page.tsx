@@ -154,7 +154,7 @@ export default function PetDetailPage() {
   const [savingCad, setSavingCad] = useState(false);
   const [pacotes, setPacotes] = useState<{ id: string; data: any }[]>([]);
   const [fisioSrv, setFisioSrv] = useState<any[]>([]);
-  const [pacForm, setPacForm] = useState<{ open: boolean; serviceId: string; nome: string; total: string; jaFeitas: string }>({ open: false, serviceId: "", nome: "", total: "4", jaFeitas: "0" });
+  const [pacForm, setPacForm] = useState<{ open: boolean; id?: string; serviceId: string; nome: string; total: string; jaFeitas: string }>({ open: false, serviceId: "", nome: "", total: "4", jaFeitas: "0" });
   const [savingPac, setSavingPac] = useState(false);
   const [exames, setExames] = useState<{ id: string; data: any }[]>([]);
   const [subindoEx, setSubindoEx] = useState<string | null>(null); // id do exame cujo arquivo está subindo
@@ -588,6 +588,19 @@ export default function PetDetailPage() {
   async function addCad(c: any) { setSavingCad(true); try { await listasAdd(`petcad_${petId}`, JSON.stringify({ cadenciaId: c.id, nome: c.nome || c.titulo, startedAt: new Date().toISOString() })); toast.success("Cadência iniciada"); setCadPick(false); await loadPetColecoes(); } catch { toast.error("Erro"); } finally { setSavingCad(false); } }
   async function delCad(id: string) { try { await listasDel(id); toast.success("Cadência encerrada"); await loadPetColecoes(); } catch { toast.error("Erro"); } }
   async function addPacote() {
+    // EDIÇÃO: corrige nome/total/feitas de um pacote já lançado (fase de migração).
+    if (pacForm.id) {
+      const p = pacotes.find((x) => x.id === pacForm.id);
+      const nomeE = pacForm.nome.trim() || p?.data?.nome || "Pacote";
+      const totalE = Number(pacForm.total) || 0; if (totalE <= 0) { toast.error("Informe o total de sessões"); return; }
+      const usedE = Math.min(Math.max(Number(pacForm.jaFeitas) || 0, 0), totalE);
+      setSavingPac(true);
+      try {
+        await fetch(`/api/listas/${pacForm.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ valor: JSON.stringify({ ...(p?.data || {}), nome: nomeE, total: totalE, used: usedE }) }) });
+        toast.success("Pacote atualizado"); setPacForm({ open: false, serviceId: "", nome: "", total: "4", jaFeitas: "0" }); await loadPetColecoes();
+      } catch { toast.error("Erro ao atualizar o pacote"); } finally { setSavingPac(false); }
+      return;
+    }
     const srv = fisioSrv.find((s: any) => String(s.id) === pacForm.serviceId);
     // Aceita serviço do catálogo OU nome livre (migração de pacote já em andamento)
     const nome = srv ? (srv.nome || srv.titulo || srv.descricao) : pacForm.nome.trim();
@@ -963,6 +976,8 @@ export default function PetDetailPage() {
                     <span className="text-[#014D5E] font-medium">{pacUsed}/{pacTotal}</span>
                     <span className="text-[10.5px] px-2 py-0.5 rounded-full" style={{ background: pacTotal - pacUsed > 0 ? "#FBF3E3" : "#E1F5EE", color: pacTotal - pacUsed > 0 ? "#8a6400" : "#0F6E56" }}>{Math.max(0, pacTotal - pacUsed)} pendente{pacTotal - pacUsed === 1 ? "" : "s"}</span>
                     <button onClick={() => usarSessao(pacFisio)} disabled={pacUsed >= pacTotal} className="text-[10.5px] px-2 py-0.5 rounded-full border disabled:opacity-40" style={{ borderColor: "#E8E2D6", color: "#009AAC" }}>{pacUsed >= pacTotal ? "🎉 concluído" : "usar sessão"}</button>
+                    <button onClick={() => setPacForm({ open: true, id: pacFisio.id, serviceId: pacFisio.data?.serviceId || "", nome: pacFisio.data?.nome || "", total: String(pacFisio.data?.total ?? ""), jaFeitas: String(pacFisio.data?.used ?? 0) })} title="Editar total e sessões feitas" className="text-[10.5px] px-2 py-0.5 rounded-full border" style={{ borderColor: "#E8E2D6", color: "#5C6B70" }}>✏️ editar</button>
+                    <button onClick={() => delPacote(pacFisio.id)} title="Remover pacote" className="text-[10.5px] px-2 py-0.5 rounded-full border" style={{ borderColor: "#EAC3C1", color: "#CC3366" }}>🗑️</button>
                   </span>
                 </div>
                 <div className="flex flex-wrap gap-0.5">
@@ -970,6 +985,16 @@ export default function PetDetailPage() {
                     <span key={i} style={{ fontSize: "15px" }} title={`Sessão ${i + 1}`}>{i < pacUsed ? "🐾" : "⚪"}</span>
                   ))}
                 </div>
+                {pacForm.open && pacForm.id === pacFisio.id && (
+                  <div className="mt-2 pt-2 border-t border-[#F0EBE0] flex flex-wrap items-end gap-2">
+                    <div className="flex-1 min-w-[140px]"><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Nome do pacote</label><input value={pacForm.nome} onChange={(e) => setPacForm((f) => ({ ...f, nome: e.target.value }))} placeholder="Ex.: Fisioterapia" className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[12px]" /></div>
+                    <div className="w-[76px]"><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Total</label><input inputMode="numeric" maxLength={3} value={pacForm.total} onChange={(e) => setPacForm((f) => ({ ...f, total: e.target.value.replace(/\D/g, "").slice(0, 3) }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[12px] text-center" /></div>
+                    <div className="w-[76px]"><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Feitas</label><input inputMode="numeric" maxLength={3} value={pacForm.jaFeitas} onChange={(e) => setPacForm((f) => ({ ...f, jaFeitas: e.target.value.replace(/\D/g, "").slice(0, 3) }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[12px] text-center" /></div>
+                    <div className="w-[86px]"><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Pendentes</label><div className="mt-0.5 px-2 py-1 border rounded text-[12px] text-center font-semibold" style={{ borderColor: "#E8E2D6", background: "#FBF9F4", color: "#014D5E" }}>{Math.max(0, (Number(pacForm.total) || 0) - (Number(pacForm.jaFeitas) || 0))}</div></div>
+                    <button onClick={addPacote} disabled={savingPac} className="px-3 py-1 rounded text-[12px] text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingPac ? "..." : "Salvar"}</button>
+                    <button onClick={() => setPacForm({ open: false, serviceId: "", nome: "", total: "4", jaFeitas: "0" })} className="px-3 py-1 rounded text-[12px]" style={{ color: "#5C6B70", background: "#F1EFE8" }}>Cancelar</button>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="pt-2 border-t border-[#F0EBE0]">
