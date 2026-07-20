@@ -43,7 +43,9 @@ export default function AgendaConfigPage() {
     if (!avForm?.nome?.trim()) { toast.error("Dê um nome à agenda."); return; }
     setAvSaving(true);
     try {
-      const payload = { id: avForm.id, nome: avForm.nome.trim(), cor: avForm.cor || CORES_AVULSA[0], ativo: avForm.ativo !== false, horario: avForm.horario || null };
+      // Preserva campos que não estão no formulário (grupo, etc.) — antes eram perdidos ao salvar.
+      const { _id, ...rest } = avForm;
+      const payload = { ...rest, id: avForm.id, nome: avForm.nome.trim(), cor: avForm.cor || CORES_AVULSA[0], ativo: avForm.ativo !== false, horario: avForm.horario || null, sobDemanda: !!avForm.sobDemanda, permiteSobreposicao: !!avForm.permiteSobreposicao };
       const valor = JSON.stringify(payload);
       if (avForm._id) await fetch(`/api/listas/${avForm._id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ valor }) });
       else await fetch("/api/listas", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ lista: "agenda_avulsa", valor }) });
@@ -56,7 +58,7 @@ export default function AgendaConfigPage() {
     catch { toast.error("Erro ao excluir"); }
   }
   async function toggleAvulsa(a: any) {
-    try { await fetch(`/api/listas/${a._id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ valor: JSON.stringify({ id: a.id, nome: a.nome, cor: a.cor, ativo: !(a.ativo !== false), horario: a.horario || null }) }) }); await loadAvulsas(); }
+    try { const { _id, ...rest } = a; await fetch(`/api/listas/${a._id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ valor: JSON.stringify({ ...rest, id: a.id, nome: a.nome, cor: a.cor, ativo: !(a.ativo !== false), horario: a.horario || null }) }) }); await loadAvulsas(); }
     catch { toast.error("Erro ao atualizar"); }
   }
 
@@ -156,6 +158,20 @@ export default function AgendaConfigPage() {
               <p className="text-[13px] font-medium mb-1 flex items-center gap-1.5" style={{ color: "#0E2244" }}><LuClock size={15} /> Horário de funcionamento</p>
               <p className="text-[12px] text-gray-400 mb-2">Fora desses horários os espaços ficam bloqueados. Dia sem janela = a coluna não aparece. Deixe vazio pra aparecer sempre.</p>
               <EscalaEditor value={parseEsc(avForm.horario)} onChange={(h) => setAvForm((f: any) => ({ ...f, horario: h }))} />
+            </div>
+            <div className="mt-4 pt-3 border-t space-y-2.5" style={{ borderColor: "#E8DFC8" }}>
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input type="checkbox" className="mt-0.5" checked={!!avForm.sobDemanda} onChange={(e) => setAvForm((f: any) => ({ ...f, sobDemanda: e.target.checked }))} />
+                <span className="text-[13px]" style={{ color: "#0E2244" }}>Só aparece quando há agendamento
+                  <span className="block text-[11.5px] text-gray-400">A coluna fica escondida nos dias sem agendamento (e você pode ligar na mão pelo seletor de Filas).</span>
+                </span>
+              </label>
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input type="checkbox" className="mt-0.5" checked={!!avForm.permiteSobreposicao} onChange={(e) => setAvForm((f: any) => ({ ...f, permiteSobreposicao: e.target.checked }))} />
+                <span className="text-[13px]" style={{ color: "#0E2244" }}>Aceita mais de um atendimento no mesmo horário
+                  <span className="block text-[11.5px] text-gray-400">Para agendas de terceiros/parceiros que não dividem espaço físico. Nas agendas normais, deixe desligado.</span>
+                </span>
+              </label>
             </div>
             <div className="flex justify-end gap-2 mt-5">
               <button onClick={() => setAvForm(null)} className="px-4 py-2 text-[14px] text-[#5b6470] bg-[#f3f1ea] rounded-lg">Cancelar</button>
