@@ -16,6 +16,27 @@ type Prof = {
 
 const temEscala = (e: any) => { try { const o = typeof e === "string" ? JSON.parse(e) : e; return !!o && o.semana && Object.keys(o.semana).length > 0; } catch { return false; } };
 
+// Segunda-feira da semana de uma data (âncora da escala semanal de plantão).
+function segundaDaSemana(d: Date): Date {
+  const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const dow = x.getDay(); // 0=Dom … 6=Sáb
+  x.setDate(x.getDate() + (dow === 0 ? -6 : 1 - dow));
+  return x;
+}
+const fmtYMD = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const fmtDiaMes = (d: Date) => `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+const addDias = (d: Date, n: number) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+// Linhas do quadro: Seg..Sáb só noturno; Domingo tem diurno e noturno. (0=Dom)
+const DIAS_PLANTAO: Array<{ dow: number; label: string; turnos: Array<"dia" | "noite"> }> = [
+  { dow: 1, label: "Segunda", turnos: ["noite"] },
+  { dow: 2, label: "Terça", turnos: ["noite"] },
+  { dow: 3, label: "Quarta", turnos: ["noite"] },
+  { dow: 4, label: "Quinta", turnos: ["noite"] },
+  { dow: 5, label: "Sexta", turnos: ["noite"] },
+  { dow: 6, label: "Sábado", turnos: ["noite"] },
+  { dow: 0, label: "Domingo", turnos: ["dia", "noite"] },
+];
+
 export default function AcessoHorarioPage() {
   usePageTitle("Acesso por horário", "Restringe o login ao horário de escala de cada um");
 
@@ -26,16 +47,21 @@ export default function AcessoHorarioPage() {
   const [loading, setLoading] = useState(true);
   const [salvandoCfg, setSalvandoCfg] = useState(false);
   const [mexendo, setMexendo] = useState("");
+  const [semanaBase, setSemanaBase] = useState<Date>(() => segundaDaSemana(new Date()));
+  const [plantaoTodos, setPlantaoTodos] = useState<any[]>([]); // todos os itens plantao_escala
+  const [salvandoPlantao, setSalvandoPlantao] = useState(false);
   const jaCarregou = useRef(false);
 
   const load = async () => {
     if (!jaCarregou.current) setLoading(true);
     try {
-      const [c, l, p] = await Promise.all([
+      const [c, l, p, pl] = await Promise.all([
         fetch("/api/listas?lista=config_acesso_login").then((r) => r.json()).catch(() => []),
         fetch("/api/listas?lista=acesso_livre").then((r) => r.json()).catch(() => []),
         fetch("/api/profissionais").then((r) => r.json()).catch(() => []),
+        fetch("/api/listas?lista=plantao_escala").then((r) => r.json()).catch(() => []),
       ]);
+      setPlantaoTodos(Array.isArray(pl) ? pl : (pl.itens || pl.data || []));
       const cArr = Array.isArray(c) ? c : (c.itens || c.data || []);
       if (cArr[0]) { setCfgId(cArr[0].id); try { const v = JSON.parse(cArr[0].valor); setCfg({ ativo: !!v.ativo, toleranciaMin: Number(v.toleranciaMin) || 60, avisarAdmin: v.avisarAdmin !== false }); } catch {} }
       const lArr = Array.isArray(l) ? l : (l.itens || l.data || []);
@@ -74,6 +100,26 @@ export default function AcessoHorarioPage() {
   };
 
   const comLogin = useMemo(() => profs.filter((p) => p.ativo && p.user?.id), [profs]);
+  const nomeDoUser = (uid: string) => { const p = comLogin.find((x) => x.user?.id === uid); return p ? (p.nomeExibicao || p.nomeCompleto) : uid; };
+
+  // ── Plantão da semana selecionada ──────────────────────────────────
+  const semanaKey = fmtYMD(semanaBase);
+  const plantaoItem = useMemo(() => plantaoTodos.find((it) => { try { return JSON.parse(it.valor).semana === semanaKey; } catch { return false; } }), [plantaoTodos, semanaKey]);
+  const slots: Record<string, string[]> = useMemo(() => { try { return plantaoItem ? (JSON.parse(plantaoItem.valor).slots || {}) : {}; } catch { return {}; } }, [plantaoItem]);
+
+  const salvarPlantao = async (novoSlots: Record<string, string[]>) => {
+    setSalvandoPlantao(true);
+    try {
+      const valor = JSON.stringify({ semana: semanaKey, slots: novoSlots });
+      if (plantaoItem) await fetch(`/api/listas/${plantaoItem.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ valor }) });
+      else await fetch("/api/listas", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ lista: "plantao_escala", valor }) });
+      const pl = await fetch("/api/listas?lista=plantao_escala").then((r) => r.json()).catch(() => []);
+      setPlantaoTodos(Array.isArray(pl) ? pl : (pl.itens || pl.data || []));
+    } catch { alert("Erro ao salvar o plantão."); }
+    finally { setSalvandoPlantao(false); }
+  };
+  const addNoSlot = (key: string, uid: string) => { if (!uid) return; const atual = slots[key] || []; if (atual.includes(uid)) return; salvarPlantao({ ...slots, [key]: [...atual, uid] }); };
+  const removeDoSlot = (key: string, uid: string) => { salvarPlantao({ ...slots, [key]: (slots[key] || []).filter((x) => x !== uid) }); };
 
   const Switch = ({ on, onClick, disabled }: { on: boolean; onClick: () => void; disabled?: boolean }) => (
     <button onClick={onClick} disabled={disabled} className="relative w-11 h-6 rounded-full transition disabled:opacity-50" style={{ background: on ? "#009AAC" : "#d8d0bc" }}>
@@ -147,6 +193,72 @@ export default function AcessoHorarioPage() {
             })}
           </div>
         )}
+      </div>
+
+      {/* plantão semanal (revezamento) */}
+      <div className="bg-white border rounded-[13px] mt-4" style={{ borderColor: "#E8E2D6" }}>
+        <div className="px-4 py-3 border-b flex items-center justify-between gap-2 flex-wrap" style={{ borderColor: "#F0EBE0" }}>
+          <div>
+            <h3 className="text-[13px] font-medium text-[#014D5E]">🌙 Plantão — escala semanal</h3>
+            <p className="text-[11.5px] text-[#8A989D] mt-0.5">Quem está de plantão entra no turno + tolerância, mesmo fora da escala normal.</p>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <button onClick={() => setSemanaBase((d) => addDias(d, -7))} className="w-8 h-8 rounded-lg border text-[#5C6B70] hover:border-[#009AAC] hover:text-[#009AAC]" style={{ borderColor: "#E8E2D6" }}>‹</button>
+            <div className="text-[12px] text-[#1F2A2E] text-center min-w-[120px]">
+              {fmtDiaMes(semanaBase)} – {fmtDiaMes(addDias(semanaBase, 6))}
+              {salvandoPlantao && <span className="text-[10px] text-[#8A989D] block">salvando…</span>}
+            </div>
+            <button onClick={() => setSemanaBase((d) => addDias(d, 7))} className="w-8 h-8 rounded-lg border text-[#5C6B70] hover:border-[#009AAC] hover:text-[#009AAC]" style={{ borderColor: "#E8E2D6" }}>›</button>
+            <button onClick={() => setSemanaBase(segundaDaSemana(new Date()))} className="text-[11.5px] text-[#00798A] px-2">Hoje</button>
+          </div>
+        </div>
+        <div className="p-4 overflow-x-auto">
+          <table className="w-full text-[13px]">
+            <thead>
+              <tr className="text-[10.5px] text-[#8A989D] uppercase tracking-wide">
+                <th className="text-left font-medium py-2 pr-3">Dia</th>
+                <th className="text-left font-medium py-2 pr-3">Diurno <span className="normal-case font-normal">(07–19)</span></th>
+                <th className="text-left font-medium py-2">Noturno <span className="normal-case font-normal">(19:01–06:59)</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              {DIAS_PLANTAO.map((dia) => (
+                <tr key={dia.dow} className="border-t align-top" style={{ borderColor: "#F0EBE0" }}>
+                  <td className="py-2.5 pr-3 whitespace-nowrap font-medium text-[#014D5E]">{dia.label}<div className="text-[10.5px] text-[#8A989D] font-normal">{fmtDiaMes(addDias(semanaBase, dia.dow === 0 ? 6 : dia.dow - 1))}</div></td>
+                  {(["dia", "noite"] as const).map((turno) => {
+                    const habilitado = dia.turnos.includes(turno);
+                    const key = `${dia.dow}-${turno}`;
+                    const sel = slots[key] || [];
+                    const disponiveis = comLogin.filter((p) => !sel.includes(p.user!.id));
+                    return (
+                      <td key={turno} className="py-2.5 pr-3">
+                        {!habilitado ? (
+                          <span className="text-[#B4BCC0] text-[12px]">—</span>
+                        ) : (
+                          <div className="flex flex-wrap gap-1.5 items-center">
+                            {sel.map((uid) => (
+                              <span key={uid} className="inline-flex items-center gap-1 text-[11.5px] px-2 py-1 rounded-full" style={{ background: "#E0F4F6", color: "#00707E" }}>
+                                {nomeDoUser(uid)}
+                                <button onClick={() => removeDoSlot(key, uid)} className="text-[#00707E] hover:text-[#CC3366]">✕</button>
+                              </span>
+                            ))}
+                            {disponiveis.length > 0 && (
+                              <select value="" onChange={(e) => { addNoSlot(key, e.target.value); e.currentTarget.selectedIndex = 0; }} className="text-[11.5px] border rounded-lg px-2 py-1 text-[#5C6B70] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }}>
+                                <option value="">+ adicionar</option>
+                                {disponiveis.map((p) => <option key={p.id} value={p.user!.id}>{p.nomeExibicao || p.nomeCompleto}</option>)}
+                              </select>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="text-[10.5px] text-[#8A989D] mt-3">Só domingo tem plantão diurno. O plantão noturno não vira à meia-noite: quem começa às 22h de sexta segue no plantão de sexta até as 06h59 de sábado.</div>
+        </div>
       </div>
     </div>
   );
