@@ -55,12 +55,100 @@ export class AuthService {
     return result;
   }
 
+  // ───────────────────────── Acesso por horário (escala/plantão) ─────────────────────────
+  private hm(s: any): number | null { const m = /^(\d{1,2}):(\d{2})$/.exec(String(s || '').trim()); return m ? Number(m[1]) * 60 + Number(m[2]) : null; }
+  private temEscala(escala: any): boolean { try { const o = typeof escala === 'string' ? JSON.parse(escala) : escala; return !!o && o.semana && Object.keys(o.semana).length > 0; } catch { return false; } }
+  private dentroDaEscala(escala: any, dow: number, mins: number, tol: number): boolean {
+    let o: any = escala; if (typeof escala === 'string') { try { o = JSON.parse(escala); } catch { return false; } }
+    const janelas: any[] = o?.semana?.[String(dow)] || [];
+    for (const par of janelas) {
+      const ini = this.hm(par?.[0]); const fim = this.hm(par?.[1]);
+      if (ini == null || fim == null) continue;
+      if (mins >= ini && mins <= fim + tol) return true; // tolerância só no FIM
+    }
+    return false;
+  }
+  private segundaYMD(f: Date): string {
+    const d = new Date(Date.UTC(f.getUTCFullYear(), f.getUTCMonth(), f.getUTCDate()));
+    const dow = d.getUTCDay();
+    d.setUTCDate(d.getUTCDate() + (dow === 0 ? -6 : 1 - dow));
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+  }
+  private async slotsDaSemana(anchorYMD: string): Promise<Record<string, string[]>> {
+    const itens = await this.prisma.listaItem.findMany({ where: { lista: 'plantao_escala' } });
+    const item = itens.find((it) => { try { return JSON.parse(it.valor).semana === anchorYMD; } catch { return false; } });
+    if (!item) return {};
+    try { return JSON.parse(item.valor).slots || {}; } catch { return {}; }
+  }
+
+  /**
+   * Barra o login fora do horário de escala/plantão — SÓ se o interruptor mestre estiver
+   * ligado (Config › Acesso por horário). Entra quem: é admin, tem acesso livre, não tem
+   * escala, está dentro da própria escala (+tol) ou está no plantão do dia (+tol).
+   * FALHA LIBERANDO: qualquer erro na checagem NÃO tranca ninguém — só o bloqueio proposital
+   * lança 401. Plantão noturno (19:01–06:59) não vira à meia-noite (madrugada = noite de ontem).
+   */
+  private async verificarAcessoPorHorario(user: any): Promise<void> {
+    try {
+      const cfgItem = await this.prisma.listaItem.findFirst({ where: { lista: 'config_acesso_login' } });
+      let cfg = { ativo: false, toleranciaMin: 60, avisarAdmin: true };
+      if (cfgItem) { try { const v = JSON.parse(cfgItem.valor); cfg = { ativo: !!v.ativo, toleranciaMin: Number(v.toleranciaMin) || 60, avisarAdmin: v.avisarAdmin !== false }; } catch { /* config ilegível = libera */ } }
+      if (!cfg.ativo) return;                       // interruptor desligado
+      if (user.role === 'ADMIN') return;            // admin sempre entra
+
+      const livre = await this.prisma.listaItem.findFirst({ where: { lista: 'acesso_livre', valor: user.id } });
+      if (livre) return;                            // acesso livre
+
+      const prof = await this.prisma.profissional.findFirst({ where: { userId: user.id }, select: { escala: true } });
+      if (!prof || !this.temEscala(prof.escala)) return; // sem escala = entra (default seguro)
+
+      const tol = cfg.toleranciaMin;
+      const nowF = new Date(Date.now() - 3 * 3600 * 1000); // relógio de Fortaleza (UTC-3)
+      const dow = nowF.getUTCDay();
+      const mins = nowF.getUTCHours() * 60 + nowF.getUTCMinutes();
+
+      if (this.dentroDaEscala(prof.escala, dow, mins, tol)) return; // dentro da própria escala
+
+      // Plantão diurno (só domingo): 07:00–19:00 (+tol)
+      if (dow === 0 && mins >= 7 * 60 && mins <= 19 * 60 + tol) {
+        const slots = await this.slotsDaSemana(this.segundaYMD(nowF));
+        if ((slots[`0-dia`] || []).includes(user.id)) return;
+      }
+      // Plantão noturno, parte da noite (mesmo dia): 19:01–23:59
+      if (mins >= 19 * 60 + 1) {
+        const slots = await this.slotsDaSemana(this.segundaYMD(nowF));
+        if ((slots[`${dow}-noite`] || []).includes(user.id)) return;
+      }
+      // Plantão noturno, madrugada (pertence à noite de ONTEM): 00:00–06:59 (+tol)
+      if (mins <= 6 * 60 + 59 + tol) {
+        const yF = new Date(nowF.getTime() - 24 * 3600 * 1000);
+        const slots = await this.slotsDaSemana(this.segundaYMD(yF));
+        if ((slots[`${yF.getUTCDay()}-noite`] || []).includes(user.id)) return;
+      }
+
+      // Bloqueado — registra aviso pra administração (se ligado) e barra o login.
+      if (cfg.avisarAdmin) {
+        try { await this.prisma.listaItem.create({ data: { lista: 'acesso_bloqueio', valor: JSON.stringify({ userId: user.id, email: user.email, nome: user.name || '', at: new Date().toISOString() }) } }); } catch { /* aviso é best-effort */ }
+      }
+      this.logger.warn(`Login bloqueado por horário: ${user.email}`);
+      throw new UnauthorizedException('Acesso liberado apenas no seu horário de escala ou plantão. Fale com a administração.');
+    } catch (e) {
+      if (e instanceof UnauthorizedException) throw e; // bloqueio proposital
+      this.logger.warn(`Checagem de horário falhou (liberando por segurança): ${e instanceof Error ? e.message : String(e)}`);
+      return; // qualquer outro erro NÃO tranca ninguém
+    }
+  }
+
   async login(loginDto: LoginDto) {
     const user = await this.validateUser(loginDto.email, loginDto.password);
 
     if (!user) {
       throw new UnauthorizedException('Credenciais inválidas');
     }
+
+    // Restrição por escala/plantão (só barra login NOVO; sessão ativa não é derrubada).
+    // Interruptor mestre em Config › Acesso por horário; começa DESLIGADO.
+    await this.verificarAcessoPorHorario(user);
 
     const payload: JwtPayload = {
       sub: user.id,
