@@ -314,6 +314,19 @@ export default function AgendaPage() {
     } catch { toast.error("Não consegui atualizar o estágio."); }
     setAvancandoId(null);
   }
+  // Volta o atendimento pro estágio anterior (corrigir clique errado). Por índice de estágio.
+  const PREV_STATUS = [null, "Agendado", "Em espera", "Em atendimento"];
+  async function retrocederEstagio(a: any) {
+    const prev = PREV_STATUS[estagioIdx(a.status)];
+    if (!prev) return;
+    setAvancandoId(a.id);
+    try {
+      const r = await fetch(`/api/appointments/${a.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ status: prev }) });
+      if (!r.ok) throw new Error();
+      load();
+    } catch { toast.error("Não consegui voltar o estágio."); }
+    setAvancandoId(null);
+  }
   async function cancelarAgendamento(a: any) {
     setSending(true);
     try {
@@ -502,6 +515,9 @@ export default function AgendaPage() {
                               return (
                                 <div className="mt-1" onClick={(e) => e.stopPropagation()}>
                                   <div className="flex items-center rounded-md overflow-hidden border" style={{ borderColor: "#00000010" }}>
+                                    {idx > 0 && (
+                                      <button onClick={() => retrocederEstagio(a)} disabled={avancandoId === a.id} title="Voltar o estágio" className="px-1.5 py-[3px] text-[9.5px] font-bold border-r disabled:opacity-50" style={{ background: "#fff", color: "#8A989D", borderColor: "#00000010" }}>‹</button>
+                                    )}
                                     <span className="flex-1 px-1.5 py-[3px] text-[9.5px] font-bold truncate" style={{ background: est.bg, color: est.cor }}>{est.label}</span>
                                     {est.next && (
                                       <button onClick={() => avancarEstagio(a)} disabled={avancandoId === a.id} className="px-1.5 py-[3px] text-[9.5px] font-bold border-l disabled:opacity-50" style={{ background: "#fff", color: "#009AAC", borderColor: "#00000010" }}>{avancandoId === a.id ? "…" : est.acao}</button>
