@@ -402,7 +402,8 @@ export class AppointmentsService {
             },
           },
           // temperament: a agenda usa pra saber se o pet ocupa a sala inteira (MAP 1 + MAP 2)
-          pet: { select: { id: true, name: true, species: true, breed: true, temperament: true } },
+          // insurancePlan: selo de convênio (Petlife) no card da agenda
+          pet: { select: { id: true, name: true, species: true, breed: true, temperament: true, insurancePlan: true } },
           user: { select: { id: true, name: true, email: true } },
           treatments: {
             include: {

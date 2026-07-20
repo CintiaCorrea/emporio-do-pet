@@ -17,6 +17,7 @@ interface Pet {
   gender?: string | null; birthDate?: string | null; weight?: number | null;
   tutorId: string; tutor?: { id: string; name: string };
   followUpNotes?: string | null; proximoFollowupAt?: string | null;
+  insurancePlan?: string | null;
 }
 interface Prof { id: string; name: string; }
 interface ExameCat { id: string; nome: string; codigo?: string | null; categoria?: string | null; fornecedor?: { id: string; nome: string; tipo?: string } | null; }
@@ -436,7 +437,7 @@ export default function NovoAtendimentoPage() {
           <button onClick={() => router.back()} title="Voltar" className="w-9 h-9 rounded-[10px] border border-[#E8E2D6] text-[#5C6B70] hover:border-[#009AAC] hover:text-[#009AAC] flex items-center justify-center shrink-0">←</button>
           <div className="w-[46px] h-[46px] rounded-[13px] bg-[#FBF3E3] flex items-center justify-center text-[24px] shrink-0">{PET_EMOJI(pet.species)}</div>
           <div className="flex-1 min-w-0">
-            <h1 className="text-[18px] leading-tight text-[#014D5E] font-medium">{editId ? "✏️" : "🩺"} Atendimento — {pet.name}{editId ? <span className="ml-2 align-middle text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "#FBF3E3", color: "#8a6400" }}>editando</span> : null}</h1>
+            <h1 className="text-[18px] leading-tight text-[#014D5E] font-medium">{editId ? "✏️" : "🩺"} Atendimento — {pet.name}{/petlife/i.test(pet.insurancePlan || "") ? <span className="ml-2 align-middle text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: "#E6F0FF", color: "#0C447C" }}>🩺 Petlife</span> : null}{editId ? <span className="ml-2 align-middle text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "#FBF3E3", color: "#8a6400" }}>editando</span> : null}</h1>
             <p className="text-[12.5px] text-[#5C6B70]">{[speciesLabel(pet.species), pet.breed, genderLabel(pet.gender), pet.birthDate ? ageFromBirth(pet.birthDate) : null].filter((x) => x && x !== "—").join(" · ")} · Tutor(a): {pet.tutor?.name || "—"}</p>
           </div>
           {editId && <button onClick={preencherComIA} disabled={iaLoading} title="Preencher a ficha com a análise da IA" className="px-3 h-9 rounded-[10px] text-white hover:opacity-90 flex items-center gap-1.5 shrink-0 text-[13px] font-medium disabled:opacity-60" style={{ background: "#014D5E" }}>🧠 {iaLoading ? "Preenchendo…" : "Preencher com a IA"}</button>}

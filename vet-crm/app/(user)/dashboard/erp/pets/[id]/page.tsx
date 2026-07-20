@@ -342,6 +342,12 @@ export default function PetDetailPage() {
     const r = await fetch(`/api/pets/${petId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     if (!r.ok) throw new Error(String(r.status));
   }
+  // Convênio Petlife: reaproveita o campo insurancePlan (texto "Petlife" = conveniado).
+  async function togglePetlife() {
+    const on = /petlife/i.test(pet?.insurancePlan || "");
+    try { await patchPet({ insurancePlan: on ? "" : "Petlife" }); toast.success(on ? "Petlife removido" : "Marcado como Petlife 🩺"); await load(); }
+    catch { toast.error("Não consegui atualizar o convênio"); }
+  }
   // Vivo/Óbito: usa o campo status do pet (ACTIVE ↔ DECEASED).
   async function toggleObito() {
     const obito = pet?.status === "DECEASED";
@@ -844,6 +850,7 @@ export default function PetDetailPage() {
                 {pet.codigo ? <span className="text-[13px] text-[#8A989D] font-medium" title="Código do pet">#{pet.codigo}</span> : null}
                 <button onClick={() => setStatusOpen(true)} title="Status de saúde — clique para alterar" className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: saude.bg, color: saude.color }}>{saude.label} ▾</button>
                 {pet.status === "DECEASED" && <span className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: "#EEF0F2", color: "#5b6470" }}>🕊️ Óbito</span>}
+                {/petlife/i.test(pet.insurancePlan || "") && <span className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: "#E6F0FF", color: "#0C447C" }}>🩺 Petlife</span>}
                 <button onClick={() => { setNotaVal(pet.medicalNotes || ""); setNotaOpen(true); }} title={pet.medicalNotes ? `Nota médica: ${pet.medicalNotes}` : "Adicionar nota médica"} className="text-[15px] leading-none">{(pet.medicalNotes || pet.observations) ? "❤️" : "🤍"}</button>
               </div>
               <p className="text-[12.5px] text-[#5C6B70] mt-0.5">
@@ -887,6 +894,7 @@ export default function PetDetailPage() {
           <div className="flex gap-1.5 flex-wrap items-center">
             <button onClick={iniciarConsulta} className="bg-[#014D5E] text-white rounded-[9px] px-3.5 py-2 text-[12.5px] hover:opacity-90 flex items-center gap-1.5">🩺 Iniciar consulta</button>
             <button onClick={toggleObito} title="Registrar óbito / marcar vivo" className="border rounded-[9px] px-3 py-2 text-[12.5px] flex items-center gap-1.5" style={pet.status === "DECEASED" ? { borderColor: "#0F6E56", color: "#0F6E56", background: "#fff" } : { borderColor: "#E8E2D6", color: "#5C6B70", background: "#fff" }}>{pet.status === "DECEASED" ? "↩️ Marcar vivo" : "🕊️ Óbito"}</button>
+            <button onClick={togglePetlife} title="Convênio Petlife" className="border rounded-[9px] px-3 py-2 text-[12.5px] flex items-center gap-1.5" style={/petlife/i.test(pet.insurancePlan || "") ? { borderColor: "#0C447C", color: "#0C447C", background: "#fff" } : { borderColor: "#E8E2D6", color: "#5C6B70", background: "#fff" }}>🩺 {/petlife/i.test(pet.insurancePlan || "") ? "Petlife ✓" : "Marcar Petlife"}</button>
             <button onClick={() => setShowValues((v) => !v)} className="border border-[#EAD9B6] bg-[#FBF6EC] rounded-[9px] px-3 py-2 text-[12.5px] text-[#8A5A0B] hover:border-[#E0A100] flex items-center gap-1.5">{showValues ? "🙈 Ocultar valores" : "👁️ Mostrar valores"}</button>
             <button onClick={() => openWhatsAppMeta(tutorWhats || undefined, { nome: pet.tutor?.name, pet: pet.name })} className="bg-[#009AAC] text-white rounded-[9px] px-3.5 py-2 text-[12.5px] hover:bg-[#00808f] flex items-center gap-1.5">💬 WhatsApp</button>
             <div className="relative">
