@@ -159,7 +159,9 @@ export class TutorsService {
             select: { appointments: true },
           },
         },
-        orderBy: { createdAt: 'desc' },
+        // Ordem alfabética por nome (antes vinha por data de cadastro, o que bagunçava
+        // a busca e as listas de tutor).
+        orderBy: { name: 'asc' },
       }),
       this.prisma.tutor.count({ where }),
     ]);
