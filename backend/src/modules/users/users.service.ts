@@ -68,8 +68,10 @@ export class UsersService {
   }
 
   async findByEmail(email: string) {
-    return this.prisma.user.findUnique({
-      where: { email },
+    // Insensível a maiúsculas: o e-mail pode chegar com a 1ª letra em maiúscula
+    // (autocorreção do teclado do celular). Evita login/duplicado por diferença de caixa.
+    return this.prisma.user.findFirst({
+      where: { email: { equals: (email || '').trim(), mode: 'insensitive' } },
     });
   }
 

@@ -27,7 +27,11 @@ export class AuthService {
   ) {}
 
   async validateUser(email: string, password: string) {
-    const user = await this.usersService.findByEmail(email);
+    // Normaliza o e-mail: no celular o teclado deixa a 1ª letra maiúscula por padrão,
+    // e a busca no banco é sensível a maiúsculas — sem isso o login falha com a senha
+    // certa. Todos os e-mails cadastrados são minúsculos, então baixar a caixa é seguro.
+    const emailNorm = (email || '').trim().toLowerCase();
+    const user = await this.usersService.findByEmail(emailNorm);
     if (!user || !user.password) {
       return null;
     }
