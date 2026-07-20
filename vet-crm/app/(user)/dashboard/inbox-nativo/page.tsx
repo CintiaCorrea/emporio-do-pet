@@ -3,7 +3,7 @@ import { confirmDelete } from "@/lib/ui/confirmDelete";
 
 import { useEffect, useMemo, useState, useRef, type ReactNode } from "react";
 import toast from "react-hot-toast";
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
 import {
   LuPlus, LuSearch, LuUserPlus, LuPencil, LuPhone, LuCalendar, LuInbox, LuTrash} from "react-icons/lu";
@@ -132,6 +132,7 @@ export default function InboxUnificadoPage() {
   const [search, setSearch] = useState("");
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [convError, setConvError] = useState<string | null>(null);
+  const [sessaoExpirada, setSessaoExpirada] = useState(false);
   const msgEndRef = useRef<HTMLDivElement>(null); // âncora p/ rolar até a última mensagem
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -345,6 +346,9 @@ export default function InboxUnificadoPage() {
           // Tropeço NUNCA apaga conversas já carregadas — a atendente continua vendo a
           // caixa mesmo durante um reinício/soluço. Só mostra aviso; só fica vazio se
           // ainda não havia nada (primeira carga sem nenhum dado).
+          // 401 (sessão expirada) é sinalizado SEMPRE, mesmo no poll silencioso — senão
+          // a lista trava sem aviso e parece que "as mensagens pararam de entrar".
+          if (res.status === 401) setSessaoExpirada(true);
           if (!silent) {
             setConvError(res.status === 401
               ? "Sua sessão expirou. Saia e entre de novo para ver as conversas."
@@ -352,7 +356,7 @@ export default function InboxUnificadoPage() {
           }
           return;
         }
-        setConvError(null);
+        setConvError(null); setSessaoExpirada(false);
         const data = await res.json().catch(() => ({}));
         const raw = Array.isArray(data?.conversations) ? data.conversations
                   : Array.isArray(data?.data) ? data.data
@@ -972,6 +976,18 @@ export default function InboxUnificadoPage() {
 
  return (
     <div className="bg-white border border-[#e8e1d2] rounded-xl overflow-hidden mt-1 mb-3 flex flex-col h-[calc(100vh-84px)]" style={{background:"#ffffff"}}>
+      {/* Sessão expirada: aviso GRANDE e impossível de ignorar. Sem isso a lista trava
+          sem explicação e parece que "as mensagens pararam de entrar". */}
+      {sessaoExpirada && (
+        <div className="px-4 py-3 flex items-center gap-3 flex-wrap" style={{ background: "#FCE9EF", borderBottom: "2px solid #E9A6B8" }}>
+          <span className="text-[18px]">🔒</span>
+          <div className="flex-1 min-w-[220px]">
+            <div className="text-[13px] font-semibold" style={{ color: "#B23A57" }}>Sua sessão expirou — o inbox parou de atualizar</div>
+            <div className="text-[12px]" style={{ color: "#8a4a5a" }}>Nenhuma mensagem foi perdida. Entre de novo para voltar a receber as conversas em tempo real.</div>
+          </div>
+          <button onClick={() => signOut({ callbackUrl: "/" })} className="text-[13px] font-medium text-white px-4 py-2 rounded-lg" style={{ background: "#B23A57" }}>Entrar de novo</button>
+        </div>
+      )}
       {/* Tabs */}
       <div className="px-4 border-b border-[#e8e1d2] flex gap-5 bg-white items-center">
         <button onClick={() => setTab("conversas")} className={`py-2.5 text-xs font-medium border-b-2 flex items-center gap-1.5 ${tab === "conversas" ? "border-[#009AAC] text-[#0E2244]" : "border-transparent text-[#888780]"}`}>
