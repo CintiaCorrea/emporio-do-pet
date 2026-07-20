@@ -48,6 +48,7 @@ const ITEMS: Item[] = [
   // Sistema & Acesso
   { href: "/dashboard/erp/dados-clinica", title: "Dados da clínica", description: "Nome, CNPJ, endereço e marcas", emoji: "🏢", group: "SISTEMA", novo: true },
   { href: "/dashboard/configuracoes/metas", title: "Metas", description: "Faturamento, atendimentos, conversões", emoji: "🎯", group: "SISTEMA" },
+  { href: "/dashboard/configuracoes/acesso-horario", title: "Acesso por horário", description: "Restringe o login ao horário de escala de cada um", emoji: "🔒", group: "SISTEMA", novo: true },
   { href: "/dashboard/configuracoes/timbrado", title: "Papel timbrado", description: "A folha com o logo pros documentos impressos (boletim, receituário…)", emoji: "📄", group: "SISTEMA", novo: true },
 ];
 
