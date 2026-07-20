@@ -10,6 +10,7 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import toast from "react-hot-toast";
 import { speciesLabel, ageFromBirth, genderLabel } from "@/lib/pets/labels";
+import ConsultationRecorder from "@/components/protected/dashboard/clinical-documents/ConsultationRecorder";
 
 interface Pet {
   id: string; name: string; species: string; breed?: string | null;
@@ -42,6 +43,8 @@ export default function NovoAtendimentoPage() {
   const [itensOriginais, setItensOriginais] = useState<string>("[]"); // snapshot p/ detectar alteração de itens
   const [iaPreenchido, setIaPreenchido] = useState(false); // banner "preenchido pela IA — revise"
   const [iaLoading, setIaLoading] = useState(false);
+  const [showRec, setShowRec] = useState(false);   // painel do microfone aberto
+  const [criandoRasc, setCriandoRasc] = useState(false); // criando o rascunho pra poder gravar
   const [pesos, setPesos] = useState<{ id?: string; data: string; kg: number }[]>([]);
   const [exCat, setExCat] = useState<ExameCat[]>([]);
   const [recModelos, setRecModelos] = useState<{ nome: string; corpo: string }[]>([]);
@@ -345,6 +348,31 @@ export default function NovoAtendimentoPage() {
     } catch (e) { toast.error("Erro ao salvar"); setSaving(false); }
   }
 
+  // Abre o microfone AQUI na tela. A gravação precisa que o atendimento exista, então,
+  // se ainda não foi salvo, cria um rascunho (com o profissional/data já preenchidos) e
+  // entra em modo edição — o vet grava no começo e preenche/salva por cima ao final.
+  async function abrirGravador() {
+    if (editId) { setShowRec(true); return; }
+    if (!pet) return;
+    if (!form.userId) { toast.error("Selecione o profissional responsável antes de gravar."); return; }
+    if (!form.date) { toast.error("Informe data e hora antes de gravar."); return; }
+    setCriandoRasc(true);
+    try {
+      const payload = { tutorId: pet.tutorId, petId: pet.id, userId: form.userId, date: new Date(form.date).toISOString(), type: form.type, status: form.status };
+      const res = await fetch(`/api/atendimentos`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      if (!res.ok) { const err = await res.json().catch(() => null); toast.error(`Não consegui iniciar a gravação: ${err?.message || res.status}`); return; }
+      const criado = await res.json().catch(() => null);
+      const nid = criado?.id || criado?.appointment?.id || null;
+      if (!nid) { toast.error("Não consegui iniciar a gravação (sem identificador)."); return; }
+      setEditId(nid);
+      // reflete o modo edição na URL, sem recarregar a página (não perde o formulário)
+      try { window.history.replaceState(null, "", `?edit=${nid}`); } catch {}
+      setShowRec(true);
+      toast.success("Pronto para gravar. O atendimento foi iniciado — preencha e salve ao final.");
+    } catch { toast.error("Erro ao iniciar a gravação."); }
+    finally { setCriandoRasc(false); }
+  }
+
   // Fase 3: puxa a análise da IA (da gravação deste atendimento) e PREENCHE os campos — a vet revisa antes de salvar.
   async function preencherComIA() {
     if (!editId) { toast.error("Salve o atendimento e grave a consulta primeiro."); return; }
@@ -412,7 +440,7 @@ export default function NovoAtendimentoPage() {
             <p className="text-[12.5px] text-[#5C6B70]">{[speciesLabel(pet.species), pet.breed, genderLabel(pet.gender), pet.birthDate ? ageFromBirth(pet.birthDate) : null].filter((x) => x && x !== "—").join(" · ")} · Tutor(a): {pet.tutor?.name || "—"}</p>
           </div>
           {editId && <button onClick={preencherComIA} disabled={iaLoading} title="Preencher a ficha com a análise da IA" className="px-3 h-9 rounded-[10px] text-white hover:opacity-90 flex items-center gap-1.5 shrink-0 text-[13px] font-medium disabled:opacity-60" style={{ background: "#014D5E" }}>🧠 {iaLoading ? "Preenchendo…" : "Preencher com a IA"}</button>}
-          {editId && <Link href={`/dashboard/erp/consultas/${editId}/gravar`} title="Gravar consulta" className="px-3 h-9 rounded-[10px] border border-[#009AAC] text-[#009AAC] hover:bg-[#EAF6F7] flex items-center gap-1.5 shrink-0 text-[13px] font-medium">🎤 Gravar consulta</Link>}
+          <button onClick={abrirGravador} disabled={criandoRasc || showRec} title="Gravar a consulta pelo microfone" className="px-3 h-9 rounded-[10px] border border-[#009AAC] text-[#009AAC] hover:bg-[#EAF6F7] flex items-center gap-1.5 shrink-0 text-[13px] font-medium disabled:opacity-60">🎤 {criandoRasc ? "Preparando…" : showRec ? "Gravando" : "Gravar consulta"}</button>
           <Link href={`/dashboard/erp/pets/${pet.id}`} title="Fechar" className="w-9 h-9 rounded-[10px] border border-[#E8E2D6] text-[#5C6B70] hover:border-[#009AAC] hover:text-[#009AAC] flex items-center justify-center shrink-0">✕</Link>
         </div>
       </div>
@@ -420,6 +448,22 @@ export default function NovoAtendimentoPage() {
       {iaPreenchido && (
         <div className="mb-3 rounded-[12px] px-4 py-2.5 text-[12.5px] flex items-center gap-2" style={{ background: "#FBF3E3", border: "1px solid #E8D9A8", color: "#8a6400" }}>
           🧠 <span><b>Campos preenchidos pela IA</b> a partir da gravação. Revise tudo antes de salvar — a responsabilidade clínica é sua.</span>
+        </div>
+      )}
+
+      {/* Microfone embutido: grava a consulta aqui mesmo. Ao terminar de analisar, os
+          campos são preenchidos pela IA automaticamente (o vet revisa antes de salvar). */}
+      {showRec && editId && (
+        <div className={`${card} mb-3`} style={{ padding: "14px 16px" }}>
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-[13px] font-medium text-[#014D5E]">🎤 Gravar consulta</div>
+            <button onClick={() => setShowRec(false)} className="text-[12px] text-[#5C6B70] hover:text-[#014D5E]">Recolher ✕</button>
+          </div>
+          <div className="text-[11.5px] text-[#8A989D] mb-3">Fale naturalmente durante a consulta. Por LGPD, o áudio não é guardado — só a transcrição. Ao analisar, a ficha é preenchida sozinha e você revisa.</div>
+          <ConsultationRecorder
+            appointmentId={editId}
+            onAnalysisComplete={() => { preencherComIA(); }}
+          />
         </div>
       )}
 
