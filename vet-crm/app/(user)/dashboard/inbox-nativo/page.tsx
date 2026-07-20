@@ -1380,7 +1380,7 @@ export default function InboxUnificadoPage() {
 
           {/* RIGHT - Painel CRM unificado (igual ao Inbox BC) — fecha junto com a conversa */}
   {selectedId ? (
-  <InboxRightPanel canal="WhatsApp Meta" initialPhone={selectedConv?.contactNumber} initialTutorId={selectedConv?.tutor?.id} soContexto />
+  <InboxRightPanel canal="WhatsApp Meta" initialPhone={selectedConv?.contactNumber} initialTutorId={selectedConv?.tutor?.id} conversationId={selectedConv?.id} soContexto onVinculado={() => { setRefreshTick((t) => t + 1); }} />
   ) : (
   <div className="border-l border-[#e8e1d2] bg-white flex items-center justify-center text-center p-6">
     <p className="text-[11px] text-[#B4B2A9]">O contexto do cliente aparece aqui quando você abrir uma conversa.</p>

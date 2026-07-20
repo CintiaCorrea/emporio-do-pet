@@ -63,37 +63,42 @@ const fmtBR = (v?: string) => { if (!v) return "—"; const s = String(v); const
 
 // Uma linha de texto pra um equipamento usado (ou null se não usar/sem nada).
 function linhaEquip(def: EquipDef, val: EquipVal | string): string | null {
-  if (typeof val === "string") { return val.trim() ? `• ${def.key}: ${val.trim()}` : null; } // boletim antigo
+  if (typeof val === "string") { return val.trim() ? `• ${def.key} — ${val.trim()}` : null; } // boletim antigo
   if (!val || !val.on) return null;
   if (def.cinesio) {
     const ex = (val.exercicios || []).join(", ");
     const t = val.T ? ` (${val.T} min)` : "";
-    return `• ${def.key}: ${ex || "—"}${t}`;
+    return `• ${def.key} — ${ex || "—"}${t}`;
   }
-  if (def.free) return `• ${def.key}: ${(val.livre || "").trim() || "—"}`;
+  if (def.free) return `• ${def.key} — ${(val.livre || "").trim() || "—"}`;
   const parts = def.params.map((p) => (val[p.k] ? `${p.label} ${String(val[p.k]).trim()}` : null)).filter(Boolean).join(" · ");
-  return `• ${def.key}${parts ? `: ${parts}` : ""}`;
+  return `• ${def.key}${parts ? ` — ${parts}` : ""}`;
 }
 
 // Monta o texto formatado do boletim (só os equipamentos usados).
+// Formato do WhatsApp: *texto* vira negrito. Na impressão os asteriscos são
+// convertidos para negrito de verdade (ver BoletimModal.imprimir).
 export function montarTextoBoletim(b: BoletimData): string {
   const L: string[] = [];
-  L.push("🌿 BOLETIM DE FISIOTERAPIA — Empório do Pet");
-  L.push("");
-  L.push(`🐾 Animal: ${b.animal || "—"}${b.raca ? ` (${b.raca})` : ""}`);
+  L.push("*🌿 Boletim de Fisioterapia*");
+  L.push("_Empório do Pet_");
+  L.push("━━━━━━━━━━━━━━━━━━");
+  L.push(`🐾 *${b.animal || "—"}*${b.raca ? ` · ${b.raca}` : ""}`);
   if (b.tutor) L.push(`🧑 Tutor(a): ${b.tutor}`);
-  const sessaoLinha = [b.sessaoNumero ? `Sessão ${b.sessaoNumero}` : null, b.sessaoData ? fmtBR(b.sessaoData) : null].filter(Boolean).join(" · ");
-  if (sessaoLinha) L.push(`📅 ${sessaoLinha}`);
-  const horas = [b.entrada ? `entrada ${b.entrada}` : null, b.saida ? `saída ${b.saida}` : null].filter(Boolean).join(" · ");
-  if (horas) L.push(`🕓 ${horas}`);
-  if (b.mvResponsavel) L.push(`🧑‍⚕️ M.V.: ${b.mvResponsavel}`);
-  if (b.diagnostico) L.push(`🩺 Diagnóstico: ${b.diagnostico}`);
+  const sessao = [
+    b.sessaoNumero ? `Sessão ${b.sessaoNumero}` : null,
+    b.sessaoData ? fmtBR(b.sessaoData) : null,
+    (b.entrada || b.saida) ? [b.entrada, b.saida].filter(Boolean).join("–") : null,
+  ].filter(Boolean).join(" · ");
+  if (sessao) L.push(`📅 ${sessao}`);
+  if (b.mvResponsavel) L.push(`🩺 ${b.mvResponsavel}`);
+  if (b.diagnostico) L.push(`🔎 ${b.diagnostico}`);
 
   const linhas = EQUIP_DEFS.map((def) => linhaEquip(def, (b.equipamentos || {})[def.key])).filter(Boolean) as string[];
-  if (linhas.length) { L.push(""); L.push("⚙️ Recursos utilizados:"); L.push(...linhas); }
+  if (linhas.length) { L.push(""); L.push("*Recursos utilizados*"); L.push(...linhas); }
 
-  if (b.obsMv) { L.push(""); L.push(`📝 Observações do M.V.: ${b.obsMv}`); }
-  if (b.paraCasa) { L.push(""); L.push(`🏠 Para casa: ${b.paraCasa}`); }
-  if (b.metas) { L.push(""); L.push(`🎯 Metas p/ próxima sessão: ${b.metas}`); }
+  if (b.obsMv) { L.push(""); L.push("*Como foi a sessão*"); L.push(b.obsMv); }
+  if (b.paraCasa) { L.push(""); L.push("*Para casa*"); L.push(b.paraCasa); }
+  if (b.metas) { L.push(""); L.push(`🎯 *Próxima sessão:* ${b.metas}`); }
   return L.join("\n");
 }

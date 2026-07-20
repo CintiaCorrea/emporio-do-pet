@@ -154,9 +154,17 @@ export default function BoletimModal({ pet, boletimId, fisioRec, agenda, onClose
     const esc = (t: any) => String(t || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     const dataStr = b.sessaoData ? new Date(b.sessaoData + "T00:00:00").toLocaleDateString("pt-BR") : "";
     // O logo/cabeçalho vêm do papel timbrado — aqui vai só o conteúdo.
+    // Impressão: converte a marcação do WhatsApp (*negrito* _itálico_) e tira o cabeçalho
+    // repetido (já vem no <h1>) e a régua ━, que no papel viram traços feios.
+    const paraImpressao = textoPreview
+      .replace(/^\*🌿 Boletim de Fisioterapia\*\n_Empório do Pet_\n━+\n/, "")
+      .replace(/━+/g, "");
+    const rich = esc(paraImpressao)
+      .replace(/\*([^*\n]+)\*/g, "<b>$1</b>")
+      .replace(/_([^_\n]+)_/g, "<i>$1</i>");
     const corpo = `<h1 style="font-size:19px">🌿 Boletim de Fisioterapia</h1>
       <div style="color:#6B7280;font-size:12px;margin-bottom:14px">${esc(pet.name || "")}${dataStr ? ` · ${esc(dataStr)}` : ""}</div>
-      <pre style="border-top:2px solid #009AAC;padding-top:14px">${esc(textoPreview)}</pre>`;
+      <pre style="border-top:2px solid #009AAC;padding-top:14px;white-space:pre-wrap;font-family:inherit">${rich}</pre>`;
     await imprimirDocumento("Boletim de fisioterapia", corpo);
   }
 

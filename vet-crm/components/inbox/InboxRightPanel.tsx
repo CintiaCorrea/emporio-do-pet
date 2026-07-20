@@ -224,7 +224,7 @@ function extrairServico(resumo?: string | null, customField?: string | null): st
 type Tab = "inbox" | "contexto";
 
 // [EMP-COWORK] busca+acoes mesma linha (Cintia 07/06)
-export default function InboxRightPanel({ canal = "BotConversa", initialPhone, initialTutorId, soContexto = false }: { canal?: string; initialPhone?: string | null; initialTutorId?: string | null; soContexto?: boolean }) {
+export default function InboxRightPanel({ canal = "BotConversa", initialPhone, initialTutorId, conversationId, soContexto = false, onVinculado }: { canal?: string; initialPhone?: string | null; initialTutorId?: string | null; conversationId?: string | null; soContexto?: boolean; onVinculado?: () => void }) {
   // ===== Tab control =====
   // soContexto: quando o inbox já tem lista própria (Meta), o painel mostra SÓ o Contexto
   // (a ficha) — sem a 2ª "Caixa de entrada" redundante.
@@ -824,6 +824,22 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
         <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); excluirHistorico(h); }} className="text-gray-300 hover:text-[#A32D2D] opacity-0 group-hover:opacity-100 flex-shrink-0" title="Excluir atendimento"><LuTrash size={11} /></button>
       </Tag>
     );
+  }
+
+  // Vincula ESTA conversa ao cliente selecionado. Necessário quando um telefone é
+  // compartilhado por 2+ clientes (família) — o sistema não adivinha, então a recepção
+  // fixa manualmente. O backend já aceita tutorId no PATCH da conversa.
+  const [vinculando, setVinculando] = useState(false);
+  async function vincularConversa() {
+    if (!conversationId || !tutor?.id) return;
+    if (!confirm(`Vincular esta conversa ao cliente ${tutor.name}?`)) return;
+    setVinculando(true);
+    try {
+      const r = await fetch(`/api/whatsapp/conversations/${conversationId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tutorId: tutor.id }) });
+      if (!r.ok) throw new Error();
+      onVinculado?.();
+    } catch { alert("Não consegui vincular a conversa. Tente de novo."); }
+    finally { setVinculando(false); }
   }
 
   async function selectTutor(t: Tutor) {
@@ -1523,6 +1539,12 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
             </div>
           )}
         </div>
+        {/* VINCULAR: conversa não ligada a este cliente (ex.: telefone compartilhado por família) */}
+        {conversationId && tutor?.id && tutor.id !== initialTutorId && (
+          <button onClick={vincularConversa} disabled={vinculando} title={`Vincular esta conversa a ${tutor.name}`} className="flex-shrink-0 text-[11px] font-medium px-2.5 h-7 rounded border disabled:opacity-60" style={{ borderColor: "#009AAC", color: "#00798A", background: "#EAF6F7" }}>
+            🔗 {vinculando ? "Vinculando…" : "Vincular"}
+          </button>
+        )}
         {/* AÇÕES */}
         {(tutor || lead) && (
           <>
