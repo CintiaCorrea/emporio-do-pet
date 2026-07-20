@@ -51,6 +51,8 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
   const [agendaAvulsa, setAgendaAvulsa] = useState<string>("");
   const [avulsaNome, setAvulsaNome] = useState<string>("");
   const [dayAppts, setDayAppts] = useState<any[]>([]);
+  const [parceiros, setParceiros] = useState<any[]>([]); // fornecedores tipo Profissional/Parceiro (terceiros)
+  const [parceiroId, setParceiroId] = useState<string>("");
 
   useEffect(() => {
     if (!open) return;
@@ -65,6 +67,8 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
       try { const r = await fetch("/api/listas?lista=atendimento_tipo", { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.itens || d.data || []); const ts = arr.map((i: any) => { try { const o = JSON.parse(i.valor); return o.l || o.nome || o.v || i.valor; } catch { return i.valor; } }).filter(Boolean); setTipos(ts.length ? ts : TIPOS_FALLBACK); } catch { setTipos(TIPOS_FALLBACK); }
       try { const r = await fetch("/api/servicos/itens?limit=1000", { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.servicos || d.itens || d.data || []); setServicos(arr); } catch {}
       try { const r = await fetch("/api/listas?lista=agenda_avulsa", { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.itens || d.data || []); setAvulsas(arr.map((i: any) => { try { return JSON.parse(i.valor); } catch { return null; } }).filter((a: any) => a && a.ativo !== false)); } catch {}
+      // Parceiros/terceirizados (fornecedores tipo Profissional/Parceiro) — fonte do "quem atende".
+      try { const r = await fetch("/api/fornecedores?includeInactive=false", { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.data || d.itens || []); setParceiros(arr.filter((f: any) => f.tipo === "PROFISSIONAL" || f.tipo === "PARCEIRO")); } catch {}
     })();
   }, [open]);
 
@@ -79,6 +83,8 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
       setDate(`${dd.getFullYear()}-${z(dd.getMonth() + 1)}-${z(dd.getDate())}`); setTime(`${z(dd.getHours())}:${z(dd.getMinutes())}`);
       setDuration(editAppt.duration || 30); setObs(editAppt.notes || "");
       setAgendaAvulsa(editAppt.agendaAvulsa || ""); setAvulsaNome(editAppt.agendaAvulsaNome || "");
+      // carrega o parceiro que atende (agendas de terceiros)
+      fetch(`/api/listas?lista=agenda_terceiro_prof`).then((r) => r.json()).then((d) => { const arr = Array.isArray(d) ? d : (d.itens || d.data || []); const it = arr.find((x: any) => { try { return JSON.parse(x.valor).appointmentId === editAppt.id; } catch { return false; } }); try { setParceiroId(it ? JSON.parse(it.valor).id : ""); } catch {} }).catch(() => {});
     } else if (defaults) { if (defaults.date) setDate(defaults.date); if (defaults.time) setTime(defaults.time); if (defaults.userId) setUserId(defaults.userId); if (defaults.duration) setDuration(Number(defaults.duration)); if (defaults.tutor) { setTutor(defaults.tutor); setStep(2); } if (defaults.petId) setPetId(defaults.petId); if (defaults.agendaAvulsa) setAgendaAvulsa(defaults.agendaAvulsa); if (defaults.avulsaNome) setAvulsaNome(defaults.avulsaNome); }
   }, [open, editAppt, defaults]);
 
@@ -125,6 +131,9 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
   const previsao = itens.reduce((s, it) => s + ((Number(it.qtd) || 1) * (Number(it.valor) || 0)), 0);
   function escDe(p: any) { let o: any = p?.escala; if (typeof o === "string") { try { o = JSON.parse(o); } catch { o = null; } } return o && typeof o === "object" ? o : null; }
   const fmtMin = (t: number) => `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`;
+  // Agenda avulsa selecionada (pra saber se aceita sobreposição = agenda de terceiros).
+  const avSel = useMemo(() => (agendaAvulsa ? avulsas.find((a: any) => a.id === agendaAvulsa) : null), [agendaAvulsa, avulsas]);
+
   const slotsLivres = useMemo(() => {
     if (!userId || !date) return [] as number[];
     const prof = profs.find((p: any) => p.userId === userId);
@@ -164,7 +173,7 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
     return out;
   }, [userId, date, duration, profs, cfgAgenda, dayAppts, editId, agendaAvulsa, avulsas]);
 
-  function reset() { setStep(1); setEditId(null); setNovoCli(false); setNNome(""); setNTel(""); setBusca(""); setTutor(null); setPets([]); setPetId(""); setUserId(""); setType(""); setDate(""); setTime(""); setDuration(30); setStatus("Agendado"); setObs(""); setItens([]); setRecOn(false); setFreq("7"); setDias([]); setAte(""); setAgendaAvulsa(""); setAvulsaNome(""); }
+  function reset() { setStep(1); setEditId(null); setNovoCli(false); setNNome(""); setNTel(""); setBusca(""); setTutor(null); setPets([]); setPetId(""); setUserId(""); setType(""); setDate(""); setTime(""); setDuration(30); setStatus("Agendado"); setObs(""); setItens([]); setRecOn(false); setFreq("7"); setDias([]); setAte(""); setAgendaAvulsa(""); setAvulsaNome(""); setParceiroId(""); }
   function fechar() { reset(); onClose(); }
   function escolherTutor(t: any) { setTutor(t); setStep(2); }
   function toggleDia(d: string) { setDias((p) => p.includes(d) ? p.filter((x) => x !== d) : [...p, d]); }
@@ -192,6 +201,22 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
     return out;
   }
 
+  // Guarda quem atende (parceiro) para um agendamento — só nas agendas de terceiros.
+  // Sem campo no banco: lista única `agenda_terceiro_prof`, valor = { appointmentId, id, nome }
+  // (única pra a agenda conseguir carregar todos de uma vez e colorir os cards).
+  const salvarParceiro = async (apptId: string) => {
+    if (!apptId || !avSel?.permiteSobreposicao) return;
+    const parc = parceiros.find((p) => p.id === parceiroId);
+    const valor = JSON.stringify({ appointmentId: apptId, id: parc?.id || "", nome: parc?.nome || "" });
+    try {
+      const all = await fetch(`/api/listas?lista=agenda_terceiro_prof`).then((r) => r.json());
+      const arr = Array.isArray(all) ? all : (all.itens || all.data || []);
+      const ex = arr.find((x: any) => { try { return JSON.parse(x.valor).appointmentId === apptId; } catch { return false; } });
+      if (ex?.id) await fetch(`/api/listas/${ex.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ valor }) });
+      else if (parc) await fetch("/api/listas", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ lista: "agenda_terceiro_prof", valor }) });
+    } catch {}
+  };
+
   const salvar = async () => {
     if (!tutor || !petId || !userId || !date || !time) { alert("Preencha cliente, pet, profissional, data e horário."); return; }
     setSaving(true);
@@ -201,6 +226,7 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
         if (agendaAvulsa) body.agendaAvulsa = agendaAvulsa;
         const res = await fetch(`/api/appointments/${editId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(body) });
         if (!res.ok) throw new Error();
+        await salvarParceiro(editId);
       } else {
         for (const d of datasRecorrentes()) {
           const body: any = { tutorId: tutor.id, petId, userId, date: d.toISOString(), type: type || "Consulta", status, duration: Number(duration) || 30 };
@@ -210,6 +236,9 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
           if (its.length) body.items = its;
           const res = await fetch("/api/appointments", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(body) });
           if (!res.ok) throw new Error();
+          const dc = await res.json().catch(() => null);
+          const nid = dc?.id || dc?.appointment?.id || null;
+          if (nid) await salvarParceiro(nid);
         }
         // A confirmação NÃO sai mais na hora que salva. Ela é enviada automaticamente no
         // dia anterior (17h/19h) pelo agendador, ou na hora pelo botão "Enviar confirmação"
@@ -370,6 +399,17 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
             </div>
 
             {profs.length === 0 ? <p className="text-[11px] text-amber-600">Nenhum profissional com login cadastrado. Cadastre/vincule em Configurações › Profissionais.</p> : null}
+
+            {avSel?.permiteSobreposicao && (
+              <div>
+                <label className={lbl}>🤝 Quem atende (terceirizado/parceiro)</label>
+                <select value={parceiroId} onChange={(e) => setParceiroId(e.target.value)} className={inp}>
+                  <option value="">Selecione o profissional…</option>
+                  {parceiros.map((p: any) => <option key={p.id} value={p.id}>{p.nome}</option>)}
+                </select>
+                {parceiros.length === 0 && <p className="text-[11px] text-amber-600 mt-1">Nenhum parceiro cadastrado. Cadastre em Configurações › Exames, Fornecedores e Profissionais.</p>}
+              </div>
+            )}
 
             <div><label className={lbl}>Observações</label><textarea value={obs} onChange={(e) => setObs(e.target.value)} placeholder="Anotações do agendamento…" className={inp} style={{ minHeight: "48px" }} /></div>
 

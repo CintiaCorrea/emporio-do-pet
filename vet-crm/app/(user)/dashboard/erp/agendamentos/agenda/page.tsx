@@ -17,6 +17,9 @@ const STATUS_COR: Record<string, { c: string; bg: string }> = {
   "Cancelado": { c: "#5F5E5A", bg: "#F1EFE8" }, "Faltou": { c: "#A32D2D", bg: "#FCEBEB" },
 };
 function corDe(st?: string, cores?: any) { const base = STATUS_COR[st || ""] || { c: "#5F5E5A", bg: "#F1EFE8" }; return { c: base.c, bg: (cores && cores[st || ""]) || base.bg }; }
+// Cor automática por parceiro terceirizado (sempre a mesma pra o mesmo id).
+const CORES_PARCEIRO = ["#0F6E56", "#7C3AED", "#B45309", "#0C447C", "#CC3366", "#00707E", "#8a6400", "#4d5a66"];
+function corParceiro(id?: string): string { const s = String(id || ""); let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return CORES_PARCEIRO[h % CORES_PARCEIRO.length]; }
 // Estágios do atendimento (um controle só no card, em vez de vários botões).
 // Cada estágio aponta o próximo status e o rótulo da ação de avançar.
 const ESTAGIOS = [
@@ -53,6 +56,7 @@ export default function AgendaPage() {
   const [appts, setAppts] = useState<any[]>([]);
   const [profs, setProfs] = useState<any[]>([]);
   const [avulsas, setAvulsas] = useState<any[]>([]); // agendas avulsas (Parceiro/MAP)
+  const [terceiroProf, setTerceiroProf] = useState<Record<string, { id: string; nome: string }>>({}); // appointmentId -> parceiro que atende
   const { data: _sess } = useSession();
   const meId = (_sess as any)?.user?.id as string | undefined;
   const [loading, setLoading] = useState(true);
@@ -100,16 +104,18 @@ export default function AgendaPage() {
   async function load() {
     if (!jaCarregou.current) setLoading(true);
     try {
-      const [a, p, c, av] = await Promise.all([
+      const [a, p, c, av, tp] = await Promise.all([
         fetch("/api/appointments?limit=1000", { cache: "no-store" }).then((r) => r.json()).catch(() => []),
         fetch("/api/profissionais", { cache: "no-store" }).then((r) => r.json()).catch(() => []),
         fetch("/api/listas?lista=agenda_config", { cache: "no-store" }).then((r) => r.json()).catch(() => []),
         fetch("/api/listas?lista=agenda_avulsa", { cache: "no-store" }).then((r) => r.json()).catch(() => []),
+        fetch("/api/listas?lista=agenda_terceiro_prof", { cache: "no-store" }).then((r) => r.json()).catch(() => []),
       ]);
       setAppts(Array.isArray(a) ? a : (a.data || a.appointments || a.items || []));
       setProfs(Array.isArray(p) ? p : (p.data || p.items || []));
       try { const arr = Array.isArray(c) ? c : (c.itens || c.data || []); if (arr[0]?.valor) setCfg(JSON.parse(arr[0].valor)); } catch {}
       try { const arr = Array.isArray(av) ? av : (av.itens || av.data || []); setAvulsas(arr.map((i: any) => { try { return { _id: i.id, ...JSON.parse(i.valor) }; } catch { return null; } }).filter(Boolean)); } catch {}
+      try { const arr = Array.isArray(tp) ? tp : (tp.itens || tp.data || []); const m: Record<string, { id: string; nome: string }> = {}; arr.forEach((x: any) => { try { const v = JSON.parse(x.valor); if (v.appointmentId) m[v.appointmentId] = { id: v.id, nome: v.nome }; } catch {} }); setTerceiroProf(m); } catch {}
     } catch {}
     jaCarregou.current = true;
     setLoading(false);
@@ -470,7 +476,7 @@ export default function AgendaPage() {
                         if (!p.userId) { toast("Profissional sem login — cadastre o acesso em Configurações › Equipe"); return; }
                         setEditAppt(null); setNovoDefaults({ date: diaStr, time: `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`, userId: p.userId, duration: cfg?.duracaoPadrao }); setNovoOpen(true);
                       }} className={"border-l p-0.5 " + (ocupado ? "" : "cursor-pointer hover:bg-[#EAF6F7]")} style={{ borderColor: "#ECE6D8", background: foraDoHorario(p, h, m) ? "repeating-linear-gradient(45deg,#f5f6f4,#f5f6f4 4px,#e9ebe6 4px,#e9ebe6 8px)" : undefined }}>
-                        {cobre.map(({ a, comeca }: any) => { const cor = corDe(a.status, cfg?.cores); const _conf = a.confirmacaoStatus; const cBorder = _conf === "CONFIRMADO" ? "#0F6E56" : _conf === "REMARCAR" ? "#A32D2D" : cor.c; const cBg = _conf === "CONFIRMADO" ? "#E7F7EF" : _conf === "REMARCAR" ? "#FCEBEB" : cor.bg; const v = valorDe(a); const quem = a.pet?.name ? `${a.pet.name}${a.tutor?.name ? ` · ${a.tutor.name}` : ""}` : (a.tutor?.name || "Agendamento");
+                        {cobre.map(({ a, comeca }: any) => { const cor = corDe(a.status, cfg?.cores); const _conf = a.confirmacaoStatus; const terc = terceiroProf[a.id]; const cBorder = terc ? corParceiro(terc.id) : (_conf === "CONFIRMADO" ? "#0F6E56" : _conf === "REMARCAR" ? "#A32D2D" : cor.c); const cBg = _conf === "CONFIRMADO" ? "#E7F7EF" : _conf === "REMARCAR" ? "#FCEBEB" : cor.bg; const v = valorDe(a); const quem = a.pet?.name ? `${a.pet.name}${a.tutor?.name ? ` · ${a.tutor.name}` : ""}` : (a.tutor?.name || "Agendamento");
                           if (!comeca) return (
                             <div key={a.id + "-c"} onClick={(e) => cardMenu(e, a)} title={`${quem} · ${a.duration || 30} min (continuação)`} className="rounded-r-md mb-0.5 cursor-pointer" style={{ borderLeft: `3px solid ${cBorder}`, background: cBg, opacity: 0.5, height: 30 }} />
                           );
@@ -485,6 +491,7 @@ export default function AgendaPage() {
                               {travaSala(a) ? <span title="Ocupa a sala inteira" className="text-[10px]">🔒</span> : (mostrarValores && v > 0 ? <span className="text-[10px] font-medium" style={{ color: "#0F6E56" }}>{brl(v)}</span> : null)}
                             </div>
                             <div className="text-[12px] font-medium truncate hover:underline cursor-pointer" style={{ color: "#014D5E" }} title="Abrir a ficha completa" onClick={(e) => { e.stopPropagation(); const url = a.pet?.id ? `/dashboard/erp/pets/${a.pet.id}` : (a.tutor?.id ? `/dashboard/erp/tutores/${a.tutor.id}` : null); if (url) window.open(url, "_blank"); }}>{quem}</div>
+                            {terc?.nome && <div className="text-[10px] truncate font-medium" style={{ color: corParceiro(terc.id) }}>🤝 {terc.nome}</div>}
                             <div className="text-[10px] truncate flex items-center gap-1" style={{ color: cor.c }}>
                               <span className="truncate">{a.type || "Atendimento"}</span>
                               {tipoFisio(a) && (() => { const env = boletinsEnv.has(`${a.pet?.id || a.petId}|${ymd(new Date(a.date))}`); return <span title={env ? "Boletim enviado ✅" : "Boletim ainda não enviado"} className="shrink-0" style={{ fontSize: "9px" }}>{env ? "🌿✅" : "🌿✉️"}</span>; })()}
