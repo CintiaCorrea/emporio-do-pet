@@ -1730,6 +1730,11 @@ export class WhatsAppService {
     userId: string,
   ): Promise<{ success: boolean; cloudUrl?: string; localUrl?: string; error?: string }> {
     try {
+      // Preserva a metadata que já existe (mediaId, replyToWaMessageId…) ao atualizar —
+      // senão o backfill perderia o mediaId e não conseguiria re-tentar.
+      const _msgAtual = await this.prisma.whatsAppMessage.findUnique({ where: { id: messageId }, select: { metadata: true } });
+      const _baseMeta: any = (_msgAtual?.metadata as any) || {};
+
       // Get user config
       const config = await this.getUserWhatsAppConfig(userId);
 
@@ -1764,6 +1769,7 @@ export class WhatsAppService {
               mediaStorageType: uploadResult.provider,
               mediaDownloadedAt: new Date(),
               metadata: {
+                ..._baseMeta,
                 mediaMimeType: mimeType,
                 mediaSize: mediaResult.buffer.length,
                 mediaDownloaded: true,
@@ -1799,6 +1805,7 @@ export class WhatsAppService {
         data: {
           mediaDownloadedAt: new Date(),
           metadata: {
+            ..._baseMeta,
             mediaDownloaded: true,
             mediaMimeType: mimeType,
             mediaSize: mediaResult.buffer.length,
