@@ -42,7 +42,14 @@ const STATUS_MED: Record<string, { lbl: string; bg: string; fg: string }> = {
   pendente: { lbl: "Pendente", bg: "#FDF4DD", fg: "#8a6400" },
   feito: { lbl: "Feita", bg: "#E1F5EE", fg: "#0F6E56" },
 };
-const hojeISO = () => new Date().toISOString().slice(0, 10);
+// Dia no fuso de Fortaleza (UTC-3). Usar UTC puro jogava as aplicações da noite
+// (após 21h Fortaleza = meia-noite UTC) para o "dia seguinte", embaralhando "hoje" x "dias anteriores".
+const diaFortaleza = (at?: string | null) => {
+  const t = at ? new Date(at).getTime() : Date.now();
+  if (isNaN(t)) return "";
+  return new Date(t - 3 * 3600 * 1000).toISOString().slice(0, 10);
+};
+const hojeISO = () => diaFortaleza();
 const MUCOSAS = ["Rósea", "Pálida", "Congesta", "Cianótica", "Ictérica", "Porcelana"];
 const TREND_ST: Record<string, { bg: string; fg: string }> = {
   up: { bg: "#FBEFE0", fg: "#B45309" }, down: { bg: "#E1F5EE", fg: "#0F6E56" }, flat: { bg: "#FBF9F4", fg: "#8A989D" },
@@ -63,7 +70,14 @@ function estadoStyle(e: string) { return ESTADOS.find((x) => x.v === e) || ESTAD
 function especieEmoji(s?: string) { const k = (s || "").toUpperCase(); if (k.startsWith("CAN") || k.startsWith("DOG")) return "🐶"; if (k.startsWith("FEL") || k.startsWith("CAT") || k.startsWith("GAT")) return "🐱"; return "🐾"; }
 const fmtBRL = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
 function diasInternado(adm?: string): number { if (!adm) return 1; try { const ms = Date.now() - new Date(adm).getTime(); return Math.max(1, Math.ceil(ms / 86400000)); } catch { return 1; } }
-function fmtData(s?: string) { if (!s) return "—"; try { return new Date(s).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }); } catch { return "—"; } }
+function fmtData(s?: string) {
+  if (!s) return "—";
+  // Data pura "YYYY-MM-DD" é formatada direto — new Date("YYYY-MM-DD") vira meia-noite UTC
+  // e apareceria um dia antes no fuso de Fortaleza.
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+  try { return new Date(s).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }); } catch { return "—"; }
+}
 function fmtDataHora(s?: string) { if (!s) return "—"; try { return new Date(s).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }); } catch { return "—"; } }
 function idadeDe(bd?: string) { if (!bd) return null; try { const anos = Math.floor((Date.now() - new Date(bd).getTime()) / (365.25 * 86400000)); return anos >= 1 ? `${anos} ano${anos > 1 ? "s" : ""}` : "< 1 ano"; } catch { return null; } }
 
@@ -536,7 +550,7 @@ export default function FichaInternacaoPage() {
     const now = new Date(); const hj = hojeISO(); const arr: any[] = [];
     for (const p of prescricoes) {
       for (const hhmm of (p.horarios || [])) {
-        const log = doses.find((d) => d.prescId === p.id && d.slot === hhmm && d.date === hj);
+        const log = doses.find((d) => d.prescId === p.id && d.slot === hhmm && (d.at ? diaFortaleza(d.at) : d.date) === hj);
         let status: "feito" | "atrasado" | "pendente";
         if (log) status = "feito";
         else { const [hh, mm] = String(hhmm).split(":").map(Number); const dt = new Date(); dt.setHours(hh || 0, mm || 0, 0, 0); status = dt < now ? "atrasado" : "pendente"; }
@@ -555,7 +569,7 @@ export default function FichaInternacaoPage() {
     const hj = hojeISO();
     const mapa = new Map<string, any[]>();
     for (const d of doses) {
-      const dia = d.date || (d.at ? String(d.at).slice(0, 10) : "");
+      const dia = d.at ? diaFortaleza(d.at) : (d.date || "");
       if (!dia || dia === hj) continue; // hoje já aparece no plantão acima
       if (!mapa.has(dia)) mapa.set(dia, []);
       mapa.get(dia)!.push(d);

@@ -130,6 +130,7 @@ export default function InternacoesPage() {
 
   const criar = async () => {
     if (!form.tutorId || !form.petId || !form.userId || !form.reason.trim()) { alert("Preencha cliente, pet, profissional e motivo."); return; }
+    if (!form.boxId) { alert("Escolha um box para a internação — sem box o paciente não aparece no Mapa. Se não houver box livre, cadastre um em '⚙️ Gerenciar boxes'."); return; }
     setSalvando(true);
     try {
       const est = estadoStyle(form.estado);
@@ -471,8 +472,8 @@ export default function InternacoesPage() {
                       onSelecionar={({ tutor, pet }) => { setSelCliente({ id: tutor.id, name: tutor.name }); setSelPet(pet ? { id: pet.id, name: pet.name } : null); setForm((f: any) => ({ ...f, tutorId: tutor.id, petId: pet?.id || "" })); }}
                       onLimpar={() => { setSelCliente(null); setSelPet(null); setForm((f: any) => ({ ...f, tutorId: "", petId: "" })); }}
                     /></div>
-                  <div><label className="text-[10.5px] text-[#8A989D] uppercase tracking-wide block mb-1">Box (opcional)</label>
-                    <select value={form.boxId} onChange={(e) => setForm({ ...form, boxId: e.target.value })} className="w-full bg-white border rounded-lg px-3 py-2 text-[13px] text-[#1F2A2E] focus:outline-none focus:border-[#009AAC] focus:ring-2 focus:ring-[#E0F4F6]" style={{ borderColor: "#E8E2D6" }}><option value="">Sem box / definir depois</option>{form.boxId && !boxesLivres.find((b) => b.id === form.boxId) && (() => { const b = boxes.find((x) => x.id === form.boxId); return b ? <option value={b.id}>{TIPO_EMOJI[b.tipo] || ""} {b.codigo} (selecionado)</option> : null; })()}{boxesLivres.map((b) => <option key={b.id} value={b.id}>{TIPO_EMOJI[b.tipo] || ""} {b.codigo}{b.nome ? ` · ${b.nome}` : ""}</option>)}</select></div>
+                  <div><label className="text-[10.5px] text-[#8A989D] uppercase tracking-wide block mb-1">Box *</label>
+                    <select value={form.boxId} onChange={(e) => setForm({ ...form, boxId: e.target.value })} className="w-full bg-white border rounded-lg px-3 py-2 text-[13px] text-[#1F2A2E] focus:outline-none focus:border-[#009AAC] focus:ring-2 focus:ring-[#E0F4F6]" style={{ borderColor: "#E8E2D6" }}><option value="">{boxesLivres.length ? "Selecione um box..." : "Nenhum box livre — cadastre em ⚙️ Gerenciar boxes"}</option>{form.boxId && !boxesLivres.find((b) => b.id === form.boxId) && (() => { const b = boxes.find((x) => x.id === form.boxId); return b ? <option value={b.id}>{TIPO_EMOJI[b.tipo] || ""} {b.codigo} (selecionado)</option> : null; })()}{boxesLivres.map((b) => <option key={b.id} value={b.id}>{TIPO_EMOJI[b.tipo] || ""} {b.codigo}{b.nome ? ` · ${b.nome}` : ""}</option>)}</select></div>
                 </div>
               </div>
 
