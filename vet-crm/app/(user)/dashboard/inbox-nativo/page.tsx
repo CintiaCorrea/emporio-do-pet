@@ -484,6 +484,9 @@ export default function InboxUnificadoPage() {
 
   // Encaminhadas pra mim e ainda não abertas — vira o badge da aba Encaminhadas.
   const encaminhadasCount = useMemo(() => conversations.filter((c) => c.assignedUser?.id === meId && (c.unreadCount || 0) > 0).length, [conversations, meId]);
+  // TODAS as conversas atribuídas a mim — uma conversa transferida SEM mensagem nova também
+  // precisa aparecer, senão quem recebeu a transferência não vê nada.
+  const minhasAtribuidas = useMemo(() => conversations.filter((c) => c.assignedUser?.id === meId), [conversations, meId]);
   const internasNaoLidas = useMemo(() => internasRecebidas.filter((n: any) => n.toUserId === meId && !n.readAt).length, [internasRecebidas, meId]);
 
   // Transferir pra outro atendente. Usa o MESMO endpoint do "assumir" (assign-user),
@@ -1003,8 +1006,8 @@ export default function InboxUnificadoPage() {
         </button>
         <button onClick={() => setTab("encaminhadas")} className={`py-2.5 text-xs font-medium border-b-2 flex items-center gap-1.5 ${tab === "encaminhadas" ? "border-[#009AAC] text-[#0E2244]" : "border-transparent text-[#888780]"}`}>
           Encaminhadas
-          {encaminhadasCount > 0 && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold bg-[#E24B4A] text-white">{encaminhadasCount}</span>
+          {minhasAtribuidas.length > 0 && (
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${encaminhadasCount > 0 ? "bg-[#E24B4A] text-white" : "bg-[#E0F4F6] text-[#00798A]"}`}>{minhasAtribuidas.length}</span>
           )}
         </button>
         <div className="ml-auto flex items-center gap-2.5">
@@ -1534,16 +1537,35 @@ export default function InboxUnificadoPage() {
       )}
 
       {tab === "encaminhadas" && (
-        <div className="p-8 text-center text-[#5F5E5A] text-sm flex flex-col items-center gap-3">
-          <div style={{ fontSize: 34 }}>↪️</div>
-          {encaminhadasCount > 0 ? (
-            <p><b>{encaminhadasCount}</b> conversa{encaminhadasCount > 1 ? "s" : ""} encaminhada{encaminhadasCount > 1 ? "s" : ""} pra você e ainda não aberta{encaminhadasCount > 1 ? "s" : ""}.</p>
+        <div className="flex-1 overflow-y-auto">
+          {minhasAtribuidas.length === 0 ? (
+            <div className="p-8 text-center text-[#5F5E5A] text-sm flex flex-col items-center gap-3">
+              <div style={{ fontSize: 34 }}>↪️</div>
+              <p>Nenhuma conversa encaminhada pra você no momento.</p>
+            </div>
           ) : (
-            <p>Nenhuma conversa encaminhada pra você no momento.</p>
+            <>
+              <div className="px-3 py-2 text-[11.5px] text-[#5F5E5A] border-b" style={{ borderColor: "#e8e1d2" }}>
+                <b>{minhasAtribuidas.length}</b> conversa{minhasAtribuidas.length > 1 ? "s" : ""} atribuída{minhasAtribuidas.length > 1 ? "s" : ""} a você
+                {encaminhadasCount > 0 ? ` · ${encaminhadasCount} com mensagem nova` : ""}
+              </div>
+              {minhasAtribuidas.map((c) => (
+                <button key={c.id} onClick={() => { setSelectedId(c.id); setTab("conversas"); }}
+                  className="w-full text-left px-3 py-2.5 border-b hover:bg-[#F0FBFC] flex items-center gap-2.5" style={{ borderColor: "#F0EBE0" }}>
+                  <div className="w-9 h-9 rounded-full bg-[#E0F4F6] text-[#014D5E] flex items-center justify-center text-[12px] font-semibold shrink-0">
+                    {getInitials(c.tutor?.name || c.contactName)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[13px] font-medium text-[#0E2244] truncate">{c.tutor?.name || c.contactName || c.contactNumber}</div>
+                    <div className="text-[11.5px] text-[#374151] truncate">{c.lastMessage?.content || "—"}</div>
+                  </div>
+                  {(c.unreadCount || 0) > 0 && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold bg-[#E24B4A] text-white shrink-0">{c.unreadCount}</span>
+                  )}
+                </button>
+              ))}
+            </>
           )}
-          <p className="text-[12px] text-[#888780]">As conversas encaminhadas ficam atribuídas a você — na aba <b>Conversas</b>, filtro <b>👤 Minhas</b>.</p>
-          <button onClick={() => { setTab("conversas"); setViewResp("minhas"); }}
-            className="bg-[#009AAC] text-white px-4 py-2 rounded-lg text-xs font-medium">Ver minhas conversas</button>
         </div>
       )}
 

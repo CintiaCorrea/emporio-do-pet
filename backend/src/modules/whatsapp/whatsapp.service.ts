@@ -1735,8 +1735,9 @@ export class WhatsAppService {
       const _msgAtual = await this.prisma.whatsAppMessage.findUnique({ where: { id: messageId }, select: { metadata: true } });
       const _baseMeta: any = (_msgAtual?.metadata as any) || {};
 
-      // Get user config
-      const config = await this.getUserWhatsAppConfig(userId);
+      // Get user config — cai pro config GLOBAL (mesma lógica do download no webhook),
+      // senão usuários sem config própria nunca baixam a mídia e o backfill falha em tudo.
+      const config = (await this.getUserWhatsAppConfig(userId)) || this.getConfig();
 
       // Download media from WhatsApp
       const mediaResult = await this.downloadMedia(mediaId, config || undefined);

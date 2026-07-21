@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
+import { WhatsAppMessageType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { WhatsAppService } from './whatsapp.service';
 
@@ -18,6 +19,8 @@ export class WhatsAppMediaBackfillScheduler {
   private readonly logger = new Logger(WhatsAppMediaBackfillScheduler.name);
   private readonly INICIO = new Date('2026-07-01T00:00:00.000Z');
   private readonly MAX_TENTATIVAS = 6;
+  // Só mídia DE VERDADE tem arquivo pra salvar (BUTTON/TEMPLATE/LOCATION não são mídia).
+  private readonly TIPOS_MIDIA: WhatsAppMessageType[] = ['IMAGE', 'VIDEO', 'AUDIO', 'DOCUMENT', 'STICKER'] as WhatsAppMessageType[];
 
   constructor(
     private readonly prisma: PrismaService,
@@ -31,7 +34,7 @@ export class WhatsAppMediaBackfillScheduler {
       const desde = janela > this.INICIO ? janela : this.INICIO;
       const pendentes = await this.prisma.whatsAppMessage.findMany({
         where: {
-          type: { not: 'TEXT' },
+          type: { in: this.TIPOS_MIDIA },
           mediaCloudUrl: null,
           createdAt: { gte: desde },
         },
