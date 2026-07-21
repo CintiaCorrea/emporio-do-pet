@@ -4,6 +4,7 @@ import { confirmDelete } from "@/lib/ui/confirmDelete";
 import { useEffect, useMemo, useState, useRef, type ReactNode } from "react";
 import toast from "react-hot-toast";
 import { useSession, signOut } from "next-auth/react";
+import { imprimirDocumento } from "@/lib/print";
 import Link from "next/link";
 import {
   LuPlus, LuSearch, LuUserPlus, LuPencil, LuPhone, LuCalendar, LuInbox, LuTrash} from "react-icons/lu";
@@ -506,6 +507,100 @@ export default function InboxUnificadoPage() {
     } catch { toast.error("Não consegui transferir a conversa."); }
     finally { setTransferindo(false); }
   }
+  // === Exportar conversa em PDF (documento com papel timbrado) ===
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportAuto, setExportAuto] = useState(true);
+  const [exportando, setExportando] = useState(false);
+
+  function ehMsgAutomatica(m: any): boolean {
+    const meta = m?.metadata || {};
+    return meta.fromSystem === true || meta.senderType === "SYSTEM" || meta.senderType === "AI" || m?.type === "TEMPLATE";
+  }
+  function escHtml(s: any): string {
+    return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+  function waHtml(s: any): string {
+    let t = escHtml(s);
+    t = t.replace(/\*(.+?)\*/g, "<b>$1</b>").replace(/_(.+?)_/g, "<i>$1</i>").replace(/~(.+?)~/g, "<s>$1</s>");
+    return t.replace(/\n/g, "<br>");
+  }
+  async function imgDataUri(id: string): Promise<string | null> {
+    try {
+      const r = await fetch(`/api/whatsapp/messages/${id}/media`);
+      if (!r.ok) return null;
+      const blob = await r.blob();
+      return await new Promise((res) => { const fr = new FileReader(); fr.onload = () => res(fr.result as string); fr.onerror = () => res(null); fr.readAsDataURL(blob); });
+    } catch { return null; }
+  }
+  async function exportarConversa() {
+    if (!selectedId) return;
+    setExportando(true);
+    try {
+      const r = await fetch(`/api/whatsapp/conversations/${selectedId}/messages?limit=3000`);
+      const d = await r.json().catch(() => ({}));
+      let lista: any[] = Array.isArray(d?.data) ? d.data : Array.isArray(d?.messages) ? d.messages : Array.isArray(d) ? d : [];
+      lista = [...lista].sort((a, b) => new Date(a.createdAt || a.sentAt || 0).getTime() - new Date(b.createdAt || b.sentAt || 0).getTime());
+      if (!exportAuto) lista = lista.filter((m) => !ehMsgAutomatica(m));
+      if (lista.length === 0) { toast.error("Sem mensagens para exportar."); setExportando(false); return; }
+
+      const clienteNome = selectedConv?.tutor?.name || selectedConv?.contactName || selectedConv?.contactNumber || "Cliente";
+      const tel = selectedConv?.contactNumber || "";
+      const petNome = (tutor?.pets?.[0] as any)?.name || "";
+      const fmtDH = (v: any) => { try { return new Date(v).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }); } catch { return ""; } };
+      const fmtD = (v: any) => { try { return new Date(v).toLocaleDateString("pt-BR"); } catch { return ""; } };
+
+      // Pré-carrega imagens como dataURI (máx 60) — assim aparecem no PDF sem depender de rede.
+      const MAX_IMG = 60; let imgCount = 0; const imgs: Record<string, string> = {};
+      for (const m of lista) {
+        if (m.type === "IMAGE" && imgCount < MAX_IMG) { const du = await imgDataUri(m.id); if (du) { imgs[m.id] = du; imgCount++; } }
+      }
+
+      const linhas = lista.map((m) => {
+        const inbound = m.direction === "INBOUND";
+        const meta = m.metadata || {};
+        const quem = inbound ? clienteNome : `Empório do Pet · ${meta.senderName || (meta.senderType === "SYSTEM" || meta.fromSystem ? "Sistema" : meta.senderType === "AI" ? "Atendimento (IA)" : "Equipe")}`;
+        const cap = m.mediaCaption ? waHtml(m.mediaCaption) : "";
+        let corpo = "";
+        if (m.type === "IMAGE") corpo = (imgs[m.id] ? `<div><img src="${imgs[m.id]}" style="max-width:280px;max-height:210px;border-radius:5px;border:1px solid #dfe7e9;margin-top:4px" /></div>` : `<span class="anx">📷 imagem</span>`) + (cap ? `<div>${cap}</div>` : "");
+        else if (m.type === "AUDIO") corpo = `<span class="anx">🎤 áudio</span>${cap ? " " + cap : ""}`;
+        else if (m.type === "DOCUMENT") corpo = `<span class="anx">📄 documento${cap ? " · " + cap : ""}</span>`;
+        else if (m.type === "VIDEO") corpo = `<span class="anx">🎬 vídeo</span>${cap ? " " + cap : ""}`;
+        else if (m.type === "STICKER") corpo = `<span class="anx">🩹 figurinha</span>`;
+        else if (m.type === "LOCATION") corpo = `<span class="anx">📍 localização</span>`;
+        else if (m.type === "BUTTON") corpo = `<span class="anx">🔘 ${escHtml(meta.payload || m.content || "resposta")}</span>`;
+        else corpo = waHtml(m.content || "");
+        return `<div class="msg ${inbound ? "cli" : "emp"}"><div class="qd">${fmtDH(m.createdAt)}</div><div><span class="qm">${escHtml(quem)}:</span> ${corpo}</div></div>`;
+      }).join("");
+
+      const html = `
+        <div class="cab"><h2>Registro de Conversa — WhatsApp</h2>
+          <div class="emit">Emitido em ${fmtDH(new Date().toISOString())}${meNome ? ` por ${escHtml(meNome)}` : ""}</div></div>
+        <table class="ident"><tbody>
+          <tr><td><b>Cliente:</b> ${escHtml(clienteNome)}</td><td><b>Telefone:</b> ${escHtml(tel)}</td></tr>
+          <tr><td><b>Pet:</b> ${escHtml(petNome || "—")}</td><td><b>Período:</b> ${fmtD(lista[0].createdAt)} a ${fmtD(lista[lista.length - 1].createdAt)}</td></tr>
+          <tr><td><b>Total de mensagens:</b> ${lista.length}</td><td><b>Canal:</b> WhatsApp Business (API Meta)</td></tr>
+        </tbody></table>
+        <h3 class="tt">Transcrição${exportAuto ? "" : " (só conversa real)"}</h3>
+        <div>${linhas}</div>
+        <style>
+          .cab { border-bottom: 2px solid #009AAC; padding-bottom: 8px; margin-bottom: 12px; }
+          .cab .emit { font-size: 11px; color: #4b5563; }
+          .ident { background: #FAF8F3; border: 1px solid #E7E2D6; border-radius: 6px; font-size: 12px; margin-bottom: 14px; }
+          .ident td { padding: 5px 12px; }
+          .tt { text-transform: uppercase; letter-spacing: .04em; font-size: 13px; }
+          .msg { display: grid; grid-template-columns: 96px 1fr; gap: 10px; padding: 6px 0; border-bottom: 1px solid #F2EFE8; font-size: 12px; page-break-inside: avoid; }
+          .msg .qd { color: #4b5563; font-size: 11px; }
+          .msg .qm { font-weight: 700; }
+          .cli .qm { color: #8a5a00; } .emp .qm { color: #00798A; }
+          .anx { display: inline-block; background: #F4F7F8; border: 1px solid #dfe7e9; border-radius: 5px; padding: 2px 7px; font-size: 11px; color: #37474f; }
+        </style>`;
+
+      await imprimirDocumento(`Conversa - ${clienteNome}`, html);
+      setExportOpen(false);
+    } catch { toast.error("Erro ao exportar a conversa."); }
+    finally { setExportando(false); }
+  }
+
   // Assumir o atendimento: fico responsável (assignedUserId = eu). Não esconde de ninguém.
   async function assumirAtendimento() {
     if (!selectedId || !meId) return;
@@ -1222,6 +1317,7 @@ export default function InboxUnificadoPage() {
                       {headerMenuOpen && (
                         <div className="absolute right-0 top-9 z-30 bg-white border border-[#e8e1d2] rounded-lg shadow-lg w-56 overflow-hidden">
                           <button onClick={() => { setHeaderMenuOpen(false); setEncaminharOpen(true); }} className="w-full text-left px-3 py-2.5 text-[12px] hover:bg-[#F0FBFC] flex items-center gap-2 text-[#0E2244]">↪ Transferir de atendente</button>
+                          <button onClick={() => { setHeaderMenuOpen(false); setExportAuto(true); setExportOpen(true); }} className="w-full text-left px-3 py-2.5 text-[12px] hover:bg-[#F0FBFC] flex items-center gap-2 text-[#0E2244]">📄 Exportar conversa (PDF)</button>
                           <button onClick={() => { setHeaderMenuOpen(false); setTagsOpen(true); }} className="w-full text-left px-3 py-2.5 text-[12px] hover:bg-[#F0FBFC] flex items-center gap-2 text-[#0E2244]">🏷️ Etiquetas{(selectedConv?.tags?.length || 0) > 0 ? ` (${selectedConv!.tags!.length})` : ""}</button>
                           {selectedConv?.tutor?.id && (
                             <button onClick={() => { setHeaderMenuOpen(false); window.open(`/dashboard/erp/tutores/${selectedConv.tutor!.id}`, "_blank"); }} className="w-full text-left px-3 py-2.5 text-[12px] hover:bg-[#F0FBFC] flex items-center gap-2 text-[#0E2244]">📂 Ver ficha completa</button>
@@ -1597,6 +1693,24 @@ export default function InboxUnificadoPage() {
       <NovoAgendamentoModal open={agendarOpen} onClose={() => setAgendarOpen(false)}
         defaults={selectedConv?.tutor ? { tutor: { id: selectedConv.tutor.id, name: selectedConv.tutor.name } } : undefined}
         onCreated={() => { setAgendarOpen(false); toast.success("Consulta agendada"); }} />
+
+      {/* MODAL Exportar conversa (PDF) */}
+      {exportOpen && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => !exportando && setExportOpen(false)}>
+          <div className="bg-white rounded-xl p-5 max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-base text-[#0E2244] font-medium mb-1">📄 Exportar conversa</h3>
+            <p className="text-[12px] text-[#5F5E5A] mb-3">Gera um PDF com papel timbrado (cliente, telefone, datas e todas as mensagens). Use "Salvar como PDF" na janela de impressão.</p>
+            <label className="flex items-start gap-2 text-[13px] text-[#0E2244] cursor-pointer mb-4">
+              <input type="checkbox" checked={exportAuto} onChange={(e) => setExportAuto(e.target.checked)} className="mt-0.5" />
+              <span>Incluir mensagens automáticas <span className="text-[11px] text-[#888780]">(aniversário, confirmação, boletim, IA). Desmarque para "só conversa real".</span></span>
+            </label>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setExportOpen(false)} disabled={exportando} className="px-3 py-1.5 text-xs text-[#5F5E5A] disabled:opacity-50">Cancelar</button>
+              <button onClick={exportarConversa} disabled={exportando} className="px-4 py-1.5 text-xs text-white rounded-lg font-medium disabled:opacity-60" style={{ background: "#009AAC" }}>{exportando ? "Gerando…" : "Exportar PDF"}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* MODAL Nova mensagem com agendamento + scripts */}
       {novaMsgOpen && (
