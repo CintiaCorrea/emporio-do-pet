@@ -43,7 +43,9 @@ const EMPTY_FORN: any = { nome: "", tipo: "LABORATORIO", modeloPagamento: "LOTE_
 const EMPTY_EX: any = { nome: "", codigo: "", categoria: "OUTROS", fornecedorId: "", valorFornecedor: null, valorClienteSugerido: null, tempoResultadoDias: null, ativo: true };
 
 export default function ExamesConfigPage() {
-  const [tab, setTab] = useState<"exames" | "fornecedores" | "profissionais">("exames");
+  // A aba "exames" foi aposentada: os exames viraram itens em Produtos/Serviços (com custo + laboratório).
+  // O bloco de conteúdo continua no código como segurança, mas não é mais acessível pela navegação.
+  const [tab, setTab] = useState<"exames" | "fornecedores" | "profissionais">("fornecedores");
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
   const [exames, setExames] = useState<Exame[]>([]);
   const [loading, setLoading] = useState(true);
@@ -246,18 +248,16 @@ export default function ExamesConfigPage() {
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center gap-3">
           <Link href="/dashboard/configuracoes" className="p-2 rounded-lg hover:bg-gray-100"><LuArrowLeft size={18} /></Link>
           <div className="flex-1">
-            <h1 className="text-xl font-semibold" style={{ color: "#009AAC" }}>Exames, Fornecedores e Profissionais</h1>
-            <p className="text-sm text-gray-600">Catálogo de exames + fornecedores (laboratórios/empresas) e profissionais (parceiros/liberais).</p>
+            <h1 className="text-xl font-semibold" style={{ color: "#009AAC" }}>Fornecedores e Profissionais</h1>
+            <p className="text-sm text-gray-600">Fornecedores (laboratórios/empresas) e profissionais (parceiros/liberais). Os exames agora ficam em Produtos/Serviços.</p>
           </div>
-          <button onClick={() => setImportOpen(true)} className="px-3 py-2 rounded-lg text-sm flex items-center gap-2 border" style={{ borderColor: "#E5DCC9", color: "#009AAC" }}>
-            <LuUpload size={16} /> Importar planilha
-          </button>
+          {tab === "exames" && (
+            <button onClick={() => setImportOpen(true)} className="px-3 py-2 rounded-lg text-sm flex items-center gap-2 border" style={{ borderColor: "#E5DCC9", color: "#009AAC" }}>
+              <LuUpload size={16} /> Importar planilha
+            </button>
+          )}
         </div>
         <div className="max-w-7xl mx-auto px-6 flex gap-1">
-          <button onClick={() => setTab("exames")} className="px-4 py-2 text-sm font-medium border-b-2"
-            style={{ borderColor: tab === "exames" ? "#009AAC" : "transparent", color: tab === "exames" ? "#009AAC" : "#666" }}>
-            🧪 Catálogo de Exames ({exames.length})
-          </button>
           <button onClick={() => { setTab("fornecedores"); setFFornTipo(""); }} className="px-4 py-2 text-sm font-medium border-b-2"
             style={{ borderColor: tab === "fornecedores" ? "#009AAC" : "transparent", color: tab === "fornecedores" ? "#009AAC" : "#666" }}>
             📦 Fornecedores ({fornecedores.filter(f => BUCKET_FORNECEDOR.includes(f.tipo)).length})
