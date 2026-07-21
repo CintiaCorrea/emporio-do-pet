@@ -49,6 +49,8 @@ export default function ExamesConfigPage() {
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
   const [exames, setExames] = useState<Exame[]>([]);
   const [loading, setLoading] = useState(true);
+  // CRMV dos profissionais guardado sem tocar no schema: lista `forn_crmv`, valor = "fornecedorId::CRMV".
+  const [crmvItems, setCrmvItems] = useState<Array<{ id: string; valor: string }>>([]);
 
   // Filtros do catálogo
   const [search, setSearch] = useState("");
@@ -81,16 +83,35 @@ export default function ExamesConfigPage() {
   async function load() {
     if (!jaCarregou.current) setLoading(true);
     try {
-      const [resF, resE] = await Promise.all([
+      const [resF, resE, resC] = await Promise.all([
         fetch(`/api/fornecedores?includeInactive=true`),
         fetch(`/api/fornecedores/exames/lista?includeInactive=true`),
+        fetch(`/api/listas?lista=forn_crmv`, { cache: "no-store" }),
       ]);
       setFornecedores(await resF.json());
       setExames(await resE.json());
+      const dc = await resC.json().catch(() => []);
+      const arrC = Array.isArray(dc) ? dc : (dc.itens || dc.data || []);
+      setCrmvItems(arrC.map((i: any) => ({ id: i.id, valor: i.valor })));
     } catch (e) { console.error(e); }
     finally { jaCarregou.current = true; setLoading(false); }
   }
   useEffect(() => { load(); }, []);
+
+  // Mapa fornecedorId -> CRMV (a partir de "id::crmv")
+  const crmvMap = useMemo(() => {
+    const m: Record<string, string> = {};
+    for (const it of crmvItems) { const i = it.valor.indexOf("::"); if (i > 0) m[it.valor.slice(0, i)] = it.valor.slice(i + 2); }
+    return m;
+  }, [crmvItems]);
+
+  // Salva/atualiza o CRMV de um fornecedor na lista `forn_crmv` (apaga o antigo e recria).
+  async function salvarCrmv(fid: string, crmv: string) {
+    const antiga = crmvItems.find((it) => it.valor.split("::")[0] === fid);
+    if (antiga) await fetch(`/api/listas/${antiga.id}`, { method: "DELETE" }).catch(() => null);
+    const v = (crmv || "").trim();
+    if (v) await fetch(`/api/listas`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lista: "forn_crmv", valor: `${fid}::${v}` }) }).catch(() => null);
+  }
 
   const examesFilt = useMemo(() => {
     let arr = exames;
@@ -142,10 +163,11 @@ export default function ExamesConfigPage() {
 
   // ===== Fornecedor CRUD =====
   function openFornNew() { setFEditId(null); setFForm({ ...EMPTY_FORN, tipo: tab === "profissionais" ? "PROFISSIONAL" : "LABORATORIO" }); setFModalOpen(true); }
-  function openFornEdit(f: Fornecedor) { setFEditId(f.id); setFForm({ ...f }); setFModalOpen(true); }
+  function openFornEdit(f: Fornecedor) { setFEditId(f.id); setFForm({ ...f, crmv: crmvMap[f.id] || "" }); setFModalOpen(true); }
   async function saveForn() {
     try {
-      const { id, createdAt, updatedAt, exames, _count, ...payload } = fForm as any;
+      // crmv NÃO existe no modelo Fornecedor — separa antes de enviar (senão a validação recusa).
+      const { id, createdAt, updatedAt, exames, _count, crmv, ...payload } = fForm as any;
       const url = fEditId ? `/api/fornecedores/${fEditId}` : "/api/fornecedores";
       const method = fEditId ? "PATCH" : "POST";
       const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
@@ -154,6 +176,9 @@ export default function ExamesConfigPage() {
         alert(`Erro: ${err?.message ? (Array.isArray(err.message) ? err.message.join("\n") : err.message) : res.status}`);
         return;
       }
+      const saved = await res.json().catch(() => null);
+      const fid = fEditId || saved?.id;
+      if (fid) await salvarCrmv(fid, crmv || "");
       setFModalOpen(false); await load();
     } catch (e) { alert(`Erro: ${e}`); }
   }
@@ -378,6 +403,7 @@ export default function ExamesConfigPage() {
                   <th className="text-left px-3 py-2 font-medium text-gray-600">Nome</th>
                   <th className="text-left px-3 py-2 font-medium text-gray-600 hidden md:table-cell">Tipo</th>
                   <th className="text-left px-3 py-2 font-medium text-gray-600 hidden md:table-cell">Especialidade</th>
+                  {tab === "profissionais" && <th className="text-left px-3 py-2 font-medium text-gray-600 hidden md:table-cell">CRMV</th>}
                   <th className="text-right px-3 py-2 font-medium text-gray-600">Exames</th>
                   <th className="text-center px-3 py-2 font-medium text-gray-600">Ativo</th>
                   <th className="text-center px-3 py-2 font-medium text-gray-600">Ações</th>
@@ -385,13 +411,14 @@ export default function ExamesConfigPage() {
               </thead>
               <tbody>
                 {fornecedores.filter(f => (tab === "profissionais" ? BUCKET_PROFISSIONAL : BUCKET_FORNECEDOR).includes(f.tipo) && (!fFornTipo || f.tipo === fFornTipo)).length === 0 && (
-                  <tr><td colSpan={6} className="px-3 py-6 text-center text-gray-400 text-sm">Nenhum registro nesse tipo.</td></tr>
+                  <tr><td colSpan={tab === "profissionais" ? 7 : 6} className="px-3 py-6 text-center text-gray-400 text-sm">Nenhum registro nesse tipo.</td></tr>
                 )}
                 {fornecedores.filter(f => (tab === "profissionais" ? BUCKET_PROFISSIONAL : BUCKET_FORNECEDOR).includes(f.tipo) && (!fFornTipo || f.tipo === fFornTipo)).map(f => (
                   <tr key={f.id} className="border-b hover:bg-gray-50" style={{ borderColor: "#F0EBE0", opacity: f.ativo ? 1 : 0.55 }}>
                     <td className="px-3 py-2 font-medium">{f.nome}</td>
                     <td className="px-3 py-2 hidden md:table-cell text-gray-600">{TIPO_LABEL[f.tipo] || f.tipo}</td>
                     <td className="px-3 py-2 hidden md:table-cell text-gray-600">{f.especialidade || "—"}</td>
+                    {tab === "profissionais" && <td className="px-3 py-2 hidden md:table-cell text-gray-600">{crmvMap[f.id] || "—"}</td>}
                     <td className="px-3 py-2 text-right">{f._count?.exames || 0}</td>
                     <td className="px-3 py-2 text-center">{f.ativo ? "✅" : "—"}</td>
                     <td className="px-3 py-2 text-center">
@@ -480,6 +507,10 @@ export default function ExamesConfigPage() {
                 </select></div>
               <div><label className="text-xs text-gray-600">Especialidade</label>
                 <input value={fForm.especialidade || ""} onChange={e => setFForm({ ...fForm, especialidade: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E5DCC9" }} /></div>
+              {fForm.tipo === "PROFISSIONAL" && (
+                <div><label className="text-xs text-gray-600">CRMV</label>
+                  <input value={fForm.crmv || ""} onChange={e => setFForm({ ...fForm, crmv: e.target.value })} placeholder="Ex.: CRMV-CE 12345" className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E5DCC9" }} /></div>
+              )}
               <div><label className="text-xs text-gray-600">Telefone</label>
                 <input value={fForm.telefone || ""} onChange={e => setFForm({ ...fForm, telefone: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E5DCC9" }} /></div>
               <div><label className="text-xs text-gray-600">E-mail</label>
