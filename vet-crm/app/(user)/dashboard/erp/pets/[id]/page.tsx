@@ -243,10 +243,7 @@ export default function PetDetailPage() {
     const res = await fetch(`/api/pets/${petId}`);
     const d = await safeJson<Pet | null>(res, null);
     setPet(d);
-    // resolve o nome do 2º responsável (o pet guarda só o id)
-    if ((d as any)?.secondaryTutorId) {
-      try { const rt = await fetch(`/api/tutors/${(d as any).secondaryTutorId}`); const t = await rt.json().catch(() => null); setSecNome(t?.name || ""); } catch { setSecNome(""); }
-    } else setSecNome("");
+    carregarResp2(); // 2º responsável (info leve)
     jaCarregou.current = true;
     setLoading(false);
   }
@@ -348,12 +345,11 @@ export default function PetDetailPage() {
     if (!r.ok) throw new Error(String(r.status));
   }
 
-  // === Transferir pet de tutor + 2º responsável (co-tutor) ===
-  const [tutorPicker, setTutorPicker] = useState<null | "transferir" | "sec">(null);
+  // === Transferir pet de tutor ===
+  const [tutorPicker, setTutorPicker] = useState<null | "transferir">(null);
   const [tutorBusca, setTutorBusca] = useState("");
   const [tutorRes, setTutorRes] = useState<any[]>([]);
   const [tutorSaving, setTutorSaving] = useState(false);
-  const [secNome, setSecNome] = useState<string>("");
   async function buscarTutores(q: string) {
     setTutorBusca(q);
     if (q.trim().length < 2) { setTutorRes([]); return; }
@@ -374,16 +370,41 @@ export default function PetDetailPage() {
       setTutorPicker(null); setTutorBusca(""); setTutorRes([]); await load();
     } catch { toast.error("Não consegui transferir o pet."); } finally { setTutorSaving(false); }
   }
-  async function definirSecundario(t: any) {
-    setTutorSaving(true);
-    try { await patchPet({ secondaryTutorId: t.id }); toast.success(`2º responsável: ${t.name}`); setSecNome(t.name); setTutorPicker(null); setTutorBusca(""); setTutorRes([]); await load(); }
-    catch { toast.error("Não consegui salvar o 2º responsável."); } finally { setTutorSaving(false); }
+
+  // === 2º responsável (co-tutor) — info LEVE (nome + telefone), guardada em listaItem `pet_resp2` ===
+  const [resp2, setResp2] = useState<{ nome: string; telefone: string } | null>(null);
+  const [resp2ItemId, setResp2ItemId] = useState<string | null>(null);
+  const [resp2Open, setResp2Open] = useState(false);
+  const [resp2Form, setResp2Form] = useState<{ nome: string; telefone: string }>({ nome: "", telefone: "" });
+  const [resp2Saving, setResp2Saving] = useState(false);
+  async function carregarResp2() {
+    try {
+      const r = await fetch(`/api/listas?lista=pet_resp2`, { cache: "no-store" });
+      const d = await r.json();
+      const arr = Array.isArray(d) ? d : (d.itens || d.data || []);
+      let found: any = null;
+      for (const it of arr) { try { const v = JSON.parse(it.valor); if (v.petId === petId) { found = { id: it.id, ...v }; break; } } catch { /* ignora */ } }
+      if (found) { setResp2({ nome: found.nome || "", telefone: found.telefone || "" }); setResp2ItemId(found.id); }
+      else { setResp2(null); setResp2ItemId(null); }
+    } catch { setResp2(null); setResp2ItemId(null); }
   }
-  async function removerSecundario() {
-    if (!window.confirm("Remover o 2º responsável deste pet?")) return;
-    setTutorSaving(true);
-    try { await patchPet({ secondaryTutorId: null }); toast.success("2º responsável removido"); setSecNome(""); await load(); }
-    catch { toast.error("Não consegui remover."); } finally { setTutorSaving(false); }
+  async function salvarResp2() {
+    const nome = resp2Form.nome.trim();
+    if (!nome) { toast.error("Informe ao menos o nome."); return; }
+    setResp2Saving(true);
+    try {
+      if (resp2ItemId) await fetch(`/api/listas/${resp2ItemId}`, { method: "DELETE" }).catch(() => null);
+      await fetch(`/api/listas`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lista: "pet_resp2", valor: JSON.stringify({ petId, nome, telefone: resp2Form.telefone.trim() }) }) });
+      toast.success("2º responsável salvo");
+      setResp2Open(false); await carregarResp2();
+    } catch { toast.error("Não consegui salvar."); } finally { setResp2Saving(false); }
+  }
+  async function removerResp2() {
+    if (!resp2ItemId) return;
+    if (!window.confirm("Remover o 2º responsável?")) return;
+    setResp2Saving(true);
+    try { await fetch(`/api/listas/${resp2ItemId}`, { method: "DELETE" }).catch(() => null); toast.success("Removido"); await carregarResp2(); }
+    catch { toast.error("Não consegui remover."); } finally { setResp2Saving(false); }
   }
   // Convênio Petlife: reaproveita o campo insurancePlan (texto "Petlife" = conveniado).
   async function togglePetlife() {
@@ -952,6 +973,7 @@ export default function PetDetailPage() {
             <button onClick={toggleObito} title="Registrar óbito / marcar vivo" className="border rounded-[9px] px-3 py-2 text-[12.5px] flex items-center gap-1.5" style={pet.status === "DECEASED" ? { borderColor: "#0F6E56", color: "#0F6E56", background: "#fff" } : { borderColor: "#E8E2D6", color: "#5C6B70", background: "#fff" }}>{pet.status === "DECEASED" ? "↩️ Marcar vivo" : "🕊️ Óbito"}</button>
             <button onClick={togglePetlife} title="Convênio Petlife" className="border rounded-[9px] px-3 py-2 text-[12.5px] flex items-center gap-1.5" style={/petlife/i.test(pet.insurancePlan || "") ? { borderColor: "#0C447C", color: "#0C447C", background: "#fff" } : { borderColor: "#E8E2D6", color: "#5C6B70", background: "#fff" }}>🩺 {/petlife/i.test(pet.insurancePlan || "") ? "Petlife ✓" : "Marcar Petlife"}</button>
             <button onClick={() => setShowValues((v) => !v)} className="border border-[#EAD9B6] bg-[#FBF6EC] rounded-[9px] px-3 py-2 text-[12.5px] text-[#8A5A0B] hover:border-[#E0A100] flex items-center gap-1.5">{showValues ? "🙈 Ocultar valores" : "👁️ Mostrar valores"}</button>
+            <button onClick={() => { setTutorPicker("transferir"); setTutorBusca(""); setTutorRes([]); }} title="Transferir pet para outro tutor" className="border rounded-[9px] px-3 py-2 text-[12.5px] flex items-center gap-1.5" style={{ borderColor: "#E8E2D6", color: "#5C6B70", background: "#fff" }}>↔ Transferir tutor</button>
             <button onClick={() => openWhatsAppMeta(tutorWhats || undefined, { nome: pet.tutor?.name, pet: pet.name })} className="bg-[#009AAC] text-white rounded-[9px] px-3.5 py-2 text-[12.5px] hover:bg-[#00808f] flex items-center gap-1.5">💬 WhatsApp</button>
             <div className="relative">
               <button onClick={() => setMoreOpen((v) => !v)} className="border border-[#E8E2D6] bg-white rounded-[9px] px-3 py-2 text-[12.5px] text-[#5C6B70] hover:border-[#009AAC] hover:text-[#009AAC]">⋯ Mais</button>
@@ -1109,16 +1131,18 @@ export default function PetDetailPage() {
                 </Link>
               ) : <p className="text-[12px] text-[#374151]">Sem tutor vinculado.</p>}
 
-              {/* 2º responsável (co-tutor) + transferir de tutor */}
-              <div className="mt-2.5 pt-2.5 border-t flex flex-col gap-2" style={{ borderColor: "#F0EBE0" }}>
+              {/* 2º responsável (co-tutor) — info leve: nome + telefone, sem precisar cadastrar cliente inteiro */}
+              <div className="mt-2.5 pt-2.5 border-t" style={{ borderColor: "#F0EBE0" }}>
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[11.5px] text-[#5C6B70]">👥 2º responsável: <b className="text-[#014D5E]">{secNome || (pet.secondaryTutorId ? "…" : "—")}</b></span>
+                  <span className="text-[11.5px] text-[#5C6B70]">
+                    👥 2º responsável: <b className="text-[#014D5E]">{resp2?.nome || "—"}</b>
+                    {resp2?.telefone ? <span className="font-normal"> · 📞 {resp2.telefone}</span> : null}
+                  </span>
                   <span className="flex items-center gap-2 shrink-0">
-                    {pet.secondaryTutorId && <button onClick={removerSecundario} disabled={tutorSaving} className="text-[10.5px] text-[#A32D2D] hover:underline disabled:opacity-50">remover</button>}
-                    <button onClick={() => { setTutorPicker("sec"); setTutorBusca(""); setTutorRes([]); }} className="text-[10.5px] text-[#00798A] font-medium hover:underline">{pet.secondaryTutorId ? "trocar" : "+ adicionar"}</button>
+                    {resp2?.nome && <button onClick={removerResp2} disabled={resp2Saving} className="text-[10.5px] text-[#A32D2D] hover:underline disabled:opacity-50">remover</button>}
+                    <button onClick={() => { setResp2Form({ nome: resp2?.nome || "", telefone: resp2?.telefone || "" }); setResp2Open(true); }} className="text-[10.5px] text-[#00798A] font-medium hover:underline">{resp2?.nome ? "editar" : "+ adicionar"}</button>
                   </span>
                 </div>
-                <button onClick={() => { setTutorPicker("transferir"); setTutorBusca(""); setTutorRes([]); }} className="self-start text-[11px] text-[#5C6B70] border rounded-lg px-2.5 py-1 hover:bg-[#FBF9F4]" style={{ borderColor: "#E8E2D6" }}>↔ Transferir pet para outro tutor</button>
               </div>
             </div>
           </div>
@@ -1368,7 +1392,7 @@ export default function PetDetailPage() {
                     )}
                   </div>
                 </div>
-                <div><div className="text-[10px] uppercase tracking-wide text-[#374151]">2º responsável</div><div className="text-[13px] text-[#1F2A2E]">{secNome || "—"}</div></div>
+                <div><div className="text-[10px] uppercase tracking-wide text-[#374151]">2º responsável</div><div className="text-[13px] text-[#1F2A2E]">{resp2?.nome ? `${resp2.nome}${resp2.telefone ? " · " + resp2.telefone : ""}` : "—"}</div></div>
                 <div className="col-span-2 md:col-span-1"><div className="text-[10px] uppercase tracking-wide text-[#374151]">Observações</div><div className="text-[13px] text-[#1F2A2E]">{pet.observations || "—"}</div></div>
               </div>
             </div>
@@ -1939,18 +1963,12 @@ export default function PetDetailPage() {
         </div>
       )}
 
-      {/* Modal: escolher tutor (transferir OU 2º responsável) */}
-      {tutorPicker && (
+      {/* Modal: transferir pet para outro tutor */}
+      {tutorPicker === "transferir" && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.45)" }} onClick={() => !tutorSaving && setTutorPicker(null)}>
           <div className="bg-white rounded-[16px] w-full max-w-[420px] p-5" style={{ border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-[15px] font-medium text-[#014D5E] mb-1">
-              {tutorPicker === "transferir" ? "↔ Transferir pet para outro tutor" : "👥 2º responsável pelo pet"}
-            </h3>
-            <p className="text-[12px] text-[#5C6B70] mb-3">
-              {tutorPicker === "transferir"
-                ? `${pet.name} passa a pertencer ao tutor que você escolher (sai da ficha do tutor atual).`
-                : `Escolha um segundo responsável por ${pet.name} (o tutor principal continua sendo ${pet.tutor?.name || "o atual"}).`}
-            </p>
+            <h3 className="text-[15px] font-medium text-[#014D5E] mb-1">↔ Transferir pet para outro tutor</h3>
+            <p className="text-[12px] text-[#5C6B70] mb-3">{pet.name} passa a pertencer ao tutor que você escolher (sai da ficha do tutor atual).</p>
             <input autoFocus value={tutorBusca} onChange={(e) => buscarTutores(e.target.value)} placeholder="Buscar cliente por nome, telefone ou CPF…"
               className="w-full px-3 py-2 border rounded-[9px] text-[13px] bg-white focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} />
             <div className="mt-2 max-h-[280px] overflow-y-auto flex flex-col">
@@ -1959,8 +1977,7 @@ export default function PetDetailPage() {
               ) : tutorRes.length === 0 ? (
                 <div className="text-[12px] text-[#8A989D] px-1 py-3 text-center">Nenhum cliente encontrado.</div>
               ) : tutorRes.map((t) => (
-                <button key={t.id} disabled={tutorSaving}
-                  onClick={() => tutorPicker === "transferir" ? confirmarTransferir(t) : definirSecundario(t)}
+                <button key={t.id} disabled={tutorSaving} onClick={() => confirmarTransferir(t)}
                   className="text-left px-3 py-2 rounded-[9px] hover:bg-[#F0FBFC] border-b last:border-b-0 disabled:opacity-50" style={{ borderColor: "#F0EBE0" }}>
                   <div className="text-[13px] text-[#014D5E] font-medium">{t.name}</div>
                   <div className="text-[11px] text-[#5C6B70]">{(t.contacts || []).map((c: any) => c.number).filter(Boolean)[0] || t.cpf || "sem telefone"}</div>
@@ -1969,6 +1986,26 @@ export default function PetDetailPage() {
             </div>
             <div className="flex justify-end mt-3">
               <button onClick={() => setTutorPicker(null)} disabled={tutorSaving} className="px-3 py-1.5 text-[12px] text-[#5F5E5A] disabled:opacity-50">Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: 2º responsável — info leve (nome + telefone) */}
+      {resp2Open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.45)" }} onClick={() => !resp2Saving && setResp2Open(false)}>
+          <div className="bg-white rounded-[16px] w-full max-w-[380px] p-5" style={{ border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-[15px] font-medium text-[#014D5E] mb-1">👥 2º responsável pelo pet</h3>
+            <p className="text-[12px] text-[#5C6B70] mb-3">O outro tutor/responsável por {pet.name}. Não precisa cadastrar cliente inteiro — só o nome (e o telefone, se quiser).</p>
+            <label className="text-[11px] text-[#5C6B70]">Nome *</label>
+            <input autoFocus value={resp2Form.nome} onChange={(e) => setResp2Form({ ...resp2Form, nome: e.target.value })} placeholder="Ex.: Sergio (esposo)"
+              className="w-full mt-0.5 mb-2 px-3 py-2 border rounded-[9px] text-[13px] bg-white focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} />
+            <label className="text-[11px] text-[#5C6B70]">Telefone (opcional)</label>
+            <input value={resp2Form.telefone} onChange={(e) => setResp2Form({ ...resp2Form, telefone: e.target.value })} placeholder="(85) 9....."
+              className="w-full mt-0.5 px-3 py-2 border rounded-[9px] text-[13px] bg-white focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} />
+            <div className="flex justify-end gap-2 mt-4">
+              <button onClick={() => setResp2Open(false)} disabled={resp2Saving} className="px-3 py-1.5 text-[12px] text-[#5F5E5A] disabled:opacity-50">Cancelar</button>
+              <button onClick={salvarResp2} disabled={resp2Saving} className="px-4 py-1.5 text-[12px] text-white rounded-lg font-medium disabled:opacity-60" style={{ background: "#009AAC" }}>{resp2Saving ? "Salvando…" : "Salvar"}</button>
             </div>
           </div>
         </div>
