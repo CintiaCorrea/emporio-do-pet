@@ -30,9 +30,10 @@ enum ContactType {
 }
 
 export class CreateTutorContactDto {
-  @ApiProperty({ enum: ContactType })
+  @ApiPropertyOptional({ enum: ContactType, default: ContactType.MOBILE })
+  @IsOptional()
   @IsEnum(ContactType)
-  type: ContactType;
+  type?: ContactType;
 
   @ApiProperty({ example: '11999999999' })
   @IsString()
@@ -58,6 +59,12 @@ export class CreateTutorDto {
   @ApiProperty({ example: 'Maria Silva' })
   @IsString()
   name: string;
+
+  @ApiPropertyOptional({ example: 'Cliente', description: 'Cliente ou Lead' })
+  @IsOptional()
+  @Transform(({ value }) => (value === '' ? undefined : value))
+  @IsString()
+  classificacao?: string;
 
   @ApiPropertyOptional({ example: true, default: true, description: 'Status do tutor' })
   @IsOptional()

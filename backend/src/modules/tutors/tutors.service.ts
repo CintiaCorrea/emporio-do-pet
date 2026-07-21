@@ -52,7 +52,7 @@ export class TutorsService {
       ? contacts
           .filter((c: any) => typeof c?.number === 'string' && c.number.trim().length > 0)
           .map((c: any) => ({
-            type: c.type,
+            type: c.type || 'MOBILE',
             number: c.number.trim(),
             isWhatsApp: c.isWhatsApp ?? false,
             observations: c.observations || undefined,

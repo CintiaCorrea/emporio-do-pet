@@ -81,12 +81,14 @@ export class RemindersScheduler {
     const doses = await this.prisma.protocoloDose.findMany({
       // Pet FALECIDO não recebe lembrete de vacina/vermífugo (nem antes, nem "vencido").
       where: { status: 'PENDENTE', dataPrevista: { gte: ini, lte: fim }, protocolo: { pet: { status: { not: 'DECEASED' } } } },
-      include: { protocolo: { select: { nomeProtocolo: true, pet: { select: { name: true } }, tutor: { select: { id: true, name: true, acceptsWhatsApp: true, contacts: true } } } } },
+      include: { protocolo: { select: { nomeProtocolo: true, pet: { select: { name: true, tutor: { select: { id: true, name: true, acceptsWhatsApp: true, contacts: true } } } }, tutor: { select: { id: true, name: true, acceptsWhatsApp: true, contacts: true } } } } },
       take: 1000,
     });
     for (const dose of doses) {
       const prot = (dose as any).protocolo;
-      const tutor = prot?.tutor;
+      // A maioria dos protocolos guarda o tutor SÓ via pet (protocolo.tutor fica vazio).
+      // Buscar direto e, se faltar, cair pro tutor do pet — senão nenhum lembrete de vacina sai.
+      const tutor = prot?.tutor || prot?.pet?.tutor;
       if (!tutor || tutor.acceptsWhatsApp === false) continue;
       const phone = this.telDe(tutor); if (!phone) continue;
       const diff = this.diffDias(new Date(dose.dataPrevista as Date));

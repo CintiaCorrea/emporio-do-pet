@@ -699,6 +699,17 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
     return () => clearTimeout(t);
   }, [search]);
 
+  // Ao TROCAR de conversa, zera o contexto antes de recarregar — senão o cliente/lead da
+  // conversa anterior fica "preso" no painel quando o lookup do novo contato não resolve.
+  // Precisa vir ANTES dos efeitos de carga (efeitos rodam de cima pra baixo).
+  const primeiraConversa = useRef(true);
+  useEffect(() => {
+    if (primeiraConversa.current) { primeiraConversa.current = false; return; }
+    setTutor(null); setLead(null); setLeadConversa(null); setLeadHistorico(null);
+    setHistorico([]); setTutorScore(null); setSearch("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversationId]);
+
   // initialTutorId: a conversa JÁ sabe quem é o cliente — carrega direto pelo id, sem
   // depender do lookup por telefone (que às vezes não achava e deixava o Contexto vazio).
   useEffect(() => {
