@@ -224,7 +224,7 @@ function extrairServico(resumo?: string | null, customField?: string | null): st
 type Tab = "inbox" | "contexto";
 
 // [EMP-COWORK] busca+acoes mesma linha (Cintia 07/06)
-export default function InboxRightPanel({ canal = "BotConversa", initialPhone, initialTutorId, conversationId, soContexto = false, onVinculado }: { canal?: string; initialPhone?: string | null; initialTutorId?: string | null; conversationId?: string | null; soContexto?: boolean; onVinculado?: () => void }) {
+export default function InboxRightPanel({ canal = "BotConversa", initialPhone, initialName, initialTutorId, conversationId, soContexto = false, onVinculado }: { canal?: string; initialPhone?: string | null; initialName?: string | null; initialTutorId?: string | null; conversationId?: string | null; soContexto?: boolean; onVinculado?: () => void }) {
   // ===== Tab control =====
   // soContexto: quando o inbox já tem lista própria (Meta), o painel mostra SÓ o Contexto
   // (a ficha) — sem a 2ª "Caixa de entrada" redundante.
@@ -729,7 +729,11 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
           const leadMatch = d?.unified?.lead || (d.leads || [])[0];
           if (tutorMatch) { await selectTutor(tutorMatch); return; }
           if (leadMatch) { await selectLead(leadMatch); return; }
-          setSearch(initialPhone);
+          // Contato NOVO do Meta (sem cliente/lead no CRM): mostra como LEAD PROVISÓRIO,
+          // com o nome/telefone da conversa, pra equipe fazer o acompanhamento. Vira Lead
+          // real quando alguém age (registrar interação, mudar etapa, converter) — materializarLead.
+          if (cancelled) return;
+          await selectLead({ id: "", name: initialName || "" } as any, initialPhone, { name: initialName || "", phone: initialPhone });
         }
       } catch { /* mantém limpo */ }
     })();

@@ -1424,7 +1424,7 @@ export default function InboxUnificadoPage() {
           {/* RIGHT - Painel CRM (contexto). No celular fica escondido pra o chat ocupar a tela toda. */}
           <div className="hidden md:flex flex-col min-h-0">
   {selectedId ? (
-  <InboxRightPanel canal="WhatsApp Meta" initialPhone={selectedConv?.contactNumber} initialTutorId={selectedConv?.tutor?.id} conversationId={selectedConv?.id} soContexto onVinculado={() => { setRefreshTick((t) => t + 1); }} />
+  <InboxRightPanel canal="WhatsApp Meta" initialPhone={selectedConv?.contactNumber} initialName={selectedConv?.contactName || (selectedConv as any)?.contactPushName} initialTutorId={selectedConv?.tutor?.id} conversationId={selectedConv?.id} soContexto onVinculado={() => { setRefreshTick((t) => t + 1); }} />
   ) : (
   <div className="border-l border-[#e8e1d2] bg-white flex-1 flex items-center justify-center text-center p-6">
     <p className="text-[11px] text-[#B4B2A9]">O contexto do cliente aparece aqui quando você abrir uma conversa.</p>
