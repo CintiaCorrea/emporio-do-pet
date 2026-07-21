@@ -1013,9 +1013,9 @@ export default function InboxUnificadoPage() {
       </div>
 
       {tab === "conversas" && (
-        <div className="grid grid-cols-[310px_1fr_340px] grid-rows-[minmax(0,1fr)] flex-1 min-h-0">
-          {/* LEFT - Lista */}
-          <div className="border-r border-[#e8e1d2] bg-white flex flex-col min-h-0">
+        <div className="grid grid-cols-1 md:grid-cols-[310px_1fr_340px] grid-rows-[minmax(0,1fr)] flex-1 min-h-0">
+          {/* LEFT - Lista (no celular: some quando uma conversa está aberta) */}
+          <div className={"border-r border-[#e8e1d2] bg-white flex-col min-h-0 " + (selectedId ? "hidden md:flex" : "flex")}>
             {/* FILTROS EM ROLL-UP — ocupa 1 linha; abre o resto ao clicar */}
             <div className="px-2.5 py-1.5 border-b border-[#e8e1d2] relative">
               {(() => {
@@ -1147,8 +1147,8 @@ export default function InboxUnificadoPage() {
             </div>
           </div>
 
-          {/* CENTER - Chat */}
-          <div className="bg-white flex flex-col min-h-0 overflow-hidden">
+          {/* CENTER - Chat (no celular: só aparece quando há conversa aberta) */}
+          <div className={"bg-white flex-col min-h-0 overflow-hidden " + (selectedId ? "flex" : "hidden md:flex")}>
             {!selectedId ? (
               <div className="flex-1 flex items-center justify-center text-center p-8">
                 <div>
@@ -1160,6 +1160,7 @@ export default function InboxUnificadoPage() {
               <>
                 <div className="px-4 py-2.5 border-b border-[#e8e1d2] flex items-center justify-between relative">
                   <div className="flex items-center gap-2.5">
+                    <button onClick={() => setSelectedId(null)} title="Voltar para a lista" className="md:hidden -ml-1 mr-0.5 w-8 h-8 rounded-lg text-[#5F5E5A] hover:bg-gray-100 flex items-center justify-center text-lg shrink-0">‹</button>
                     <div className="w-8 h-8 rounded-full bg-[#009AAC] text-white flex items-center justify-center text-[11px] font-medium">
                       {getInitials(selectedConv?.tutor?.name || selectedConv?.contactName)}
                     </div>
@@ -1418,14 +1419,16 @@ export default function InboxUnificadoPage() {
             )}
           </div>
 
-          {/* RIGHT - Painel CRM unificado (igual ao Inbox BC) — fecha junto com a conversa */}
+          {/* RIGHT - Painel CRM (contexto). No celular fica escondido pra o chat ocupar a tela toda. */}
+          <div className="hidden md:flex flex-col min-h-0">
   {selectedId ? (
   <InboxRightPanel canal="WhatsApp Meta" initialPhone={selectedConv?.contactNumber} initialTutorId={selectedConv?.tutor?.id} conversationId={selectedConv?.id} soContexto onVinculado={() => { setRefreshTick((t) => t + 1); }} />
   ) : (
-  <div className="border-l border-[#e8e1d2] bg-white flex items-center justify-center text-center p-6">
+  <div className="border-l border-[#e8e1d2] bg-white flex-1 flex items-center justify-center text-center p-6">
     <p className="text-[11px] text-[#B4B2A9]">O contexto do cliente aparece aqui quando você abrir uma conversa.</p>
   </div>
   )}
+          </div>
           </div>
 
     )}
