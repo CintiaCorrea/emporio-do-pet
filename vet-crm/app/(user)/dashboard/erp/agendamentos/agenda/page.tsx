@@ -522,7 +522,9 @@ export default function AgendaPage() {
                           // Continuação: MESMA cor/opacidade do card (não desbotada) e colada nele,
                           // pra um agendamento de 1h aparecer como UM bloco inteiro, não 2 de 30min.
                           if (!comeca) return (
-                            <div key={a.id + "-c"} onClick={(e) => cardMenu(e, a)} title={`${quem} · ${a.duration || 30} min`} className="cursor-pointer rounded-br-md" style={{ borderLeft: `3px solid ${cBorder}`, background: cBg, height: "100%", minHeight: 42 }} />
+                            // marginTop negativo cobre a linha tracejada da grade que passava
+                            // no meio do agendamento de 1h; relative+z pra ficar por cima dela.
+                            <div key={a.id + "-c"} onClick={(e) => cardMenu(e, a)} title={`${quem} · ${a.duration || 30} min`} className="cursor-pointer rounded-br-md relative" style={{ borderLeft: `3px solid ${cBorder}`, background: cBg, height: "calc(100% + 8px)", minHeight: 46, marginTop: -6, zIndex: 1 }} />
                           );
                           // Esta coluna está travada POR TABELA (o agendamento é da outra MAP do grupo)
                           const espelho = p._avulsa && a.agendaAvulsa !== p.id;
