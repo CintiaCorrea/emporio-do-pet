@@ -1346,7 +1346,12 @@ export class WhatsAppService {
     if (!phone) return { status: 'erro', error: 'Tutor sem telefone' };
     const formatted = this.formatPhoneNumber(phone);
 
-    const conv = await this.prisma.whatsAppConversation.findFirst({ where: { contactPhone: formatted }, orderBy: { lastMessageAt: 'desc' } });
+    // Acha a conversa pelo FINAL do número (últimos 8) — o Meta corta o 9 do celular no
+    // Brasil, então o match exato falhava e a janela parecia fechada mesmo aberta.
+    const tail = formatted.replace(/\D/g, '').slice(-8);
+    const conv = tail.length >= 8
+      ? await this.prisma.whatsAppConversation.findFirst({ where: { contactPhone: { endsWith: tail } }, orderBy: { lastMessageAt: 'desc' } })
+      : await this.prisma.whatsAppConversation.findFirst({ where: { contactPhone: formatted }, orderBy: { lastMessageAt: 'desc' } });
     let aberta = false;
     if (conv) {
       const lastIn = await this.prisma.whatsAppMessage.findFirst({ where: { conversationId: conv.id, direction: 'INBOUND' }, orderBy: { createdAt: 'desc' } });
@@ -1412,7 +1417,11 @@ export class WhatsAppService {
     if (!phone) return { status: 'erro', error: 'Tutor sem telefone' };
     const formatted = this.formatPhoneNumber(phone);
 
-    const conv = await this.prisma.whatsAppConversation.findFirst({ where: { contactPhone: formatted }, orderBy: { lastMessageAt: 'desc' } });
+    // Acha a conversa pelo FINAL do número (últimos 8) — o Meta corta o 9 do celular no Brasil.
+    const tail = formatted.replace(/\D/g, '').slice(-8);
+    const conv = tail.length >= 8
+      ? await this.prisma.whatsAppConversation.findFirst({ where: { contactPhone: { endsWith: tail } }, orderBy: { lastMessageAt: 'desc' } })
+      : await this.prisma.whatsAppConversation.findFirst({ where: { contactPhone: formatted }, orderBy: { lastMessageAt: 'desc' } });
     let aberta = false;
     if (conv) {
       const lastIn = await this.prisma.whatsAppMessage.findFirst({ where: { conversationId: conv.id, direction: 'INBOUND' }, orderBy: { createdAt: 'desc' } });
