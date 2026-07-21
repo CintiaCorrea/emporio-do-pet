@@ -15,6 +15,10 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { randomUUID } from 'crypto';
+import { spawn } from 'child_process';
+import { writeFile, readFile, unlink } from 'fs/promises';
+import { tmpdir } from 'os';
+import { join } from 'path';
 import type { Response } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -235,6 +239,35 @@ export class WhatsAppConversationsController {
    * Vale a janela de 24h do WhatsApp: fora dela, só template. Se o Meta recusar por
    * isso, o erro dele volta pra tela em vez de sumir.
    */
+  /**
+   * O navegador grava áudio em webm/opus, que o WhatsApp NÃO aceita. Converte pra
+   * ogg/opus (formato de mensagem de voz aceito pelo Meta) com ffmpeg. Formatos que o
+   * WhatsApp já aceita (ogg, mp3, aac, amr, mp4) passam direto (retorna null).
+   */
+  private async audioParaOgg(buffer: Buffer, mime: string): Promise<Buffer | null> {
+    if (/audio\/(ogg|mpeg|mp3|aac|amr|mp4)/i.test(mime)) return null;
+    const base = join(tmpdir(), `wa_aud_${Date.now()}_${randomUUID().slice(0, 8)}`);
+    const inPath = `${base}.in`;
+    const outPath = `${base}.ogg`;
+    try {
+      await writeFile(inPath, buffer);
+      await new Promise<void>((resolve, reject) => {
+        const ff = spawn('ffmpeg', ['-y', '-i', inPath, '-c:a', 'libopus', '-b:a', '32k', outPath]);
+        let err = '';
+        ff.stderr.on('data', (d) => { err += d.toString(); });
+        ff.on('error', reject);
+        ff.on('close', (code) => (code === 0 ? resolve() : reject(new Error(err.slice(-200)))));
+      });
+      return await readFile(outPath);
+    } catch (e) {
+      this.logger.warn(`Falha ao converter áudio p/ ogg: ${e}`);
+      return null;
+    } finally {
+      unlink(inPath).catch(() => undefined);
+      unlink(outPath).catch(() => undefined);
+    }
+  }
+
   @Post('conversations/:id/media')
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 20 * 1024 * 1024 } }))
   async sendMedia(
@@ -260,19 +293,32 @@ export class WhatsAppConversationsController {
 
     const config = await this.whatsAppService.getUserWhatsAppConfig(conversation.userId);
 
+    // Áudio gravado no navegador vem em webm/opus — o WhatsApp não aceita. Converte p/ ogg/opus.
+    let envBuffer = file.buffer;
+    let envMime = mime;
+    let envNome = file.originalname;
+    if (kind === 'audio') {
+      const ogg = await this.audioParaOgg(file.buffer, mime);
+      if (ogg) {
+        envBuffer = ogg;
+        envMime = 'audio/ogg';
+        envNome = (file.originalname || 'audio').replace(/\.[^.]+$/, '') + '.ogg';
+      }
+    }
+
     // 1) Nossa cópia (permanente). Prefixo único: dois "foto.jpg" gravariam na mesma
     //    chave e o segundo apagaria o primeiro.
     const guardado = await this.cloudStorage.upload(
-      file.buffer,
-      `${Date.now()}-${randomUUID().slice(0, 8)}-${file.originalname}`,
-      mime,
+      envBuffer,
+      `${Date.now()}-${randomUUID().slice(0, 8)}-${envNome}`,
+      envMime,
       `whatsapp/${conversation.userId}`,
     );
 
     // 2) Cópia do Meta (temporária, é a que ele entrega) — reusa o upload que o
     //    agente de IA já usa pra mandar áudio.
     const subida = await this.whatsAppService.uploadMedia(
-      file.buffer, mime, file.originalname, config || undefined,
+      envBuffer, envMime, envNome, config || undefined,
     );
     if (!subida.mediaId) {
       throw new BadRequestException(`O WhatsApp não aceitou o arquivo: ${subida.error}`);

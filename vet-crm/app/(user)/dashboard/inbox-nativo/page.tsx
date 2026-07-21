@@ -189,6 +189,45 @@ export default function InboxUnificadoPage() {
       setAnexando(false);
     }
   }
+  // === Gravar áudio (microfone) e enviar como mensagem de voz ===
+  const [gravando, setGravando] = useState(false);
+  const [gravSeg, setGravSeg] = useState(0);
+  const gravRecRef = useRef<MediaRecorder | null>(null);
+  const gravChunksRef = useRef<Blob[]>([]);
+  const gravTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const gravCancelRef = useRef(false);
+  async function iniciarGravacao() {
+    if (gravando || anexando || !selectedId) return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mime = typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus"
+        : (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "");
+      const rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+      gravChunksRef.current = [];
+      gravCancelRef.current = false;
+      rec.ondataavailable = (e) => { if (e.data && e.data.size > 0) gravChunksRef.current.push(e.data); };
+      rec.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        if (gravTimerRef.current) { clearInterval(gravTimerRef.current); gravTimerRef.current = null; }
+        setGravando(false); setGravSeg(0);
+        if (gravCancelRef.current) return;
+        const blob = new Blob(gravChunksRef.current, { type: rec.mimeType || "audio/webm" });
+        if (blob.size < 800) { toast.error("Gravação muito curta."); return; }
+        const file = new File([blob], `audio_${Date.now()}.webm`, { type: blob.type });
+        await enviarAnexo(file);
+      };
+      gravRecRef.current = rec;
+      rec.start();
+      setGravando(true); setGravSeg(0);
+      gravTimerRef.current = setInterval(() => setGravSeg((s) => s + 1), 1000);
+    } catch {
+      toast.error("Não consegui acessar o microfone. Permita o acesso no navegador.");
+    }
+  }
+  function pararEnviarGravacao() { gravCancelRef.current = false; gravRecRef.current?.stop(); }
+  function cancelarGravacao() { gravCancelRef.current = true; gravRecRef.current?.stop(); }
+
   const [tutor, setTutor] = useState<TutorFull | null>(null);
   const [selectedPetId, setSelectedPetId] = useState<string | null>(null);
   const [refreshTick, setRefreshTick] = useState(0);
@@ -1506,14 +1545,33 @@ export default function InboxUnificadoPage() {
                         }}
                       />
                     </label>
-                    <input value={messageInput} onChange={(e) => setMessageInput(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendMessage()}
-                      placeholder="Digite uma mensagem…  (dica: /cadastro envia o link de cadastro)"
-                      className="flex-1 px-3 py-1.5 border border-[#e8e1d2] rounded-lg text-xs focus:outline-none focus:border-[#009AAC]" />
-                    <EmojiPicker onPick={(em) => setMessageInput((v) => v + em)} />
-                    <button onClick={() => sendMessage()} className="bg-[#009AAC] text-white w-8 h-8 rounded-lg flex items-center justify-center" title="Enviar">
-                      <span style={{fontSize:"13px"}}>➤</span>
-                    </button>
+                    {gravando ? (
+                      <div className="flex-1 flex items-center gap-2 px-3 py-1.5 border rounded-lg" style={{ borderColor: "#E24B4A", background: "#FDECEC" }}>
+                        <span className="w-2.5 h-2.5 rounded-full bg-[#E24B4A] animate-pulse shrink-0" />
+                        <span className="text-xs text-[#A32D2D] font-medium tabular-nums">Gravando… {Math.floor(gravSeg / 60)}:{String(gravSeg % 60).padStart(2, "0")}</span>
+                        <button onClick={cancelarGravacao} className="ml-auto text-[11px] text-[#5F5E5A] hover:underline">Cancelar</button>
+                        <button onClick={pararEnviarGravacao} className="bg-[#009AAC] text-white w-8 h-8 rounded-lg flex items-center justify-center shrink-0" title="Enviar áudio">
+                          <span style={{ fontSize: "13px" }}>➤</span>
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <input value={messageInput} onChange={(e) => setMessageInput(e.target.value)}
+                          onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendMessage()}
+                          placeholder="Digite uma mensagem…  (dica: /cadastro envia o link de cadastro)"
+                          className="flex-1 px-3 py-1.5 border border-[#e8e1d2] rounded-lg text-xs focus:outline-none focus:border-[#009AAC]" />
+                        <EmojiPicker onPick={(em) => setMessageInput((v) => v + em)} />
+                        {messageInput.trim() ? (
+                          <button onClick={() => sendMessage()} className="bg-[#009AAC] text-white w-8 h-8 rounded-lg flex items-center justify-center shrink-0" title="Enviar">
+                            <span style={{fontSize:"13px"}}>➤</span>
+                          </button>
+                        ) : (
+                          <button onClick={iniciarGravacao} disabled={anexando} className="bg-[#009AAC] text-white w-8 h-8 rounded-lg flex items-center justify-center shrink-0 disabled:opacity-50" title="Gravar áudio de voz">
+                            <span style={{fontSize:"14px"}}>🎤</span>
+                          </button>
+                        )}
+                      </>
+                    )}
                   </div>
                 </div>
               </>

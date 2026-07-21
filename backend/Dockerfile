@@ -29,8 +29,8 @@ FROM node:20-alpine AS production
 
 WORKDIR /app
 
-# Instalar dependências necessárias para Prisma e healthcheck
-RUN apk add --no-cache wget openssl
+# Instalar dependências necessárias para Prisma, healthcheck e conversão de áudio (voz do WhatsApp)
+RUN apk add --no-cache wget openssl ffmpeg
 
 # Criar usuário não-root para segurança
 RUN addgroup -g 1001 -S nodejs && \
