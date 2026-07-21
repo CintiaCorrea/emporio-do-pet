@@ -97,6 +97,7 @@ interface Pet {
   codigo?: number | null;
   tutorName?: string | null;
   tutorId: string;
+  secondaryTutorId?: string | null;
   tutor?: { id: string; name: string; acceptsWhatsApp?: boolean; contacts?: { number: string; isPrimary?: boolean; isWhatsApp?: boolean }[] };
   createdAt: string;
   _count?: { appointments: number; treatments: number };
@@ -242,6 +243,10 @@ export default function PetDetailPage() {
     const res = await fetch(`/api/pets/${petId}`);
     const d = await safeJson<Pet | null>(res, null);
     setPet(d);
+    // resolve o nome do 2º responsável (o pet guarda só o id)
+    if ((d as any)?.secondaryTutorId) {
+      try { const rt = await fetch(`/api/tutors/${(d as any).secondaryTutorId}`); const t = await rt.json().catch(() => null); setSecNome(t?.name || ""); } catch { setSecNome(""); }
+    } else setSecNome("");
     jaCarregou.current = true;
     setLoading(false);
   }
@@ -341,6 +346,44 @@ export default function PetDetailPage() {
   async function patchPet(body: any) {
     const r = await fetch(`/api/pets/${petId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     if (!r.ok) throw new Error(String(r.status));
+  }
+
+  // === Transferir pet de tutor + 2º responsável (co-tutor) ===
+  const [tutorPicker, setTutorPicker] = useState<null | "transferir" | "sec">(null);
+  const [tutorBusca, setTutorBusca] = useState("");
+  const [tutorRes, setTutorRes] = useState<any[]>([]);
+  const [tutorSaving, setTutorSaving] = useState(false);
+  const [secNome, setSecNome] = useState<string>("");
+  async function buscarTutores(q: string) {
+    setTutorBusca(q);
+    if (q.trim().length < 2) { setTutorRes([]); return; }
+    try {
+      const r = await fetch(`/api/tutors?search=${encodeURIComponent(q.trim())}&limit=8`, { cache: "no-store" });
+      const d = await r.json();
+      const arr = Array.isArray(d) ? d : (d.tutors || d.data || []);
+      setTutorRes(arr.filter((t: any) => t.id !== pet?.tutorId)); // não repete o tutor atual
+    } catch { setTutorRes([]); }
+  }
+  async function confirmarTransferir(t: any) {
+    if (!window.confirm(`Transferir ${pet?.name || "o pet"} para ${t.name}?\n\nO pet deixa de aparecer na ficha do tutor atual e passa para ${t.name}.`)) return;
+    setTutorSaving(true);
+    try {
+      const r = await fetch(`/api/pets/${petId}/transferir`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tutorId: t.id }) });
+      if (!r.ok) throw new Error();
+      toast.success(`Pet transferido para ${t.name}`);
+      setTutorPicker(null); setTutorBusca(""); setTutorRes([]); await load();
+    } catch { toast.error("Não consegui transferir o pet."); } finally { setTutorSaving(false); }
+  }
+  async function definirSecundario(t: any) {
+    setTutorSaving(true);
+    try { await patchPet({ secondaryTutorId: t.id }); toast.success(`2º responsável: ${t.name}`); setSecNome(t.name); setTutorPicker(null); setTutorBusca(""); setTutorRes([]); await load(); }
+    catch { toast.error("Não consegui salvar o 2º responsável."); } finally { setTutorSaving(false); }
+  }
+  async function removerSecundario() {
+    if (!window.confirm("Remover o 2º responsável deste pet?")) return;
+    setTutorSaving(true);
+    try { await patchPet({ secondaryTutorId: null }); toast.success("2º responsável removido"); setSecNome(""); await load(); }
+    catch { toast.error("Não consegui remover."); } finally { setTutorSaving(false); }
   }
   // Convênio Petlife: reaproveita o campo insurancePlan (texto "Petlife" = conveniado).
   async function togglePetlife() {
@@ -1065,6 +1108,18 @@ export default function PetDetailPage() {
                   <span className="text-[#374151] text-[16px]">›</span>
                 </Link>
               ) : <p className="text-[12px] text-[#374151]">Sem tutor vinculado.</p>}
+
+              {/* 2º responsável (co-tutor) + transferir de tutor */}
+              <div className="mt-2.5 pt-2.5 border-t flex flex-col gap-2" style={{ borderColor: "#F0EBE0" }}>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11.5px] text-[#5C6B70]">👥 2º responsável: <b className="text-[#014D5E]">{secNome || (pet.secondaryTutorId ? "…" : "—")}</b></span>
+                  <span className="flex items-center gap-2 shrink-0">
+                    {pet.secondaryTutorId && <button onClick={removerSecundario} disabled={tutorSaving} className="text-[10.5px] text-[#A32D2D] hover:underline disabled:opacity-50">remover</button>}
+                    <button onClick={() => { setTutorPicker("sec"); setTutorBusca(""); setTutorRes([]); }} className="text-[10.5px] text-[#00798A] font-medium hover:underline">{pet.secondaryTutorId ? "trocar" : "+ adicionar"}</button>
+                  </span>
+                </div>
+                <button onClick={() => { setTutorPicker("transferir"); setTutorBusca(""); setTutorRes([]); }} className="self-start text-[11px] text-[#5C6B70] border rounded-lg px-2.5 py-1 hover:bg-[#FBF9F4]" style={{ borderColor: "#E8E2D6" }}>↔ Transferir pet para outro tutor</button>
+              </div>
             </div>
           </div>
           <div className="bg-[#FBF3E3] border border-[#F0DCB0] rounded-[13px]" style={{ padding: "12px 15px" }}>
@@ -1313,7 +1368,7 @@ export default function PetDetailPage() {
                     )}
                   </div>
                 </div>
-                <div><div className="text-[10px] uppercase tracking-wide text-[#374151]">2º responsável</div><div className="text-[13px] text-[#1F2A2E]">{pet.secondaryTutorId || "—"}</div></div>
+                <div><div className="text-[10px] uppercase tracking-wide text-[#374151]">2º responsável</div><div className="text-[13px] text-[#1F2A2E]">{secNome || "—"}</div></div>
                 <div className="col-span-2 md:col-span-1"><div className="text-[10px] uppercase tracking-wide text-[#374151]">Observações</div><div className="text-[13px] text-[#1F2A2E]">{pet.observations || "—"}</div></div>
               </div>
             </div>
@@ -1879,6 +1934,41 @@ export default function PetDetailPage() {
             <div className="flex justify-end gap-2 mt-4">
               <button onClick={() => setNotaOpen(false)} className="text-[12.5px] px-3 py-2 rounded-[9px] text-[#5C6B70]">Cancelar</button>
               <button onClick={saveNotaMedica} disabled={savingNota} className="text-[12.5px] px-4 py-2 rounded-[9px] text-white" style={{ background: "#009AAC", opacity: savingNota ? 0.5 : 1 }}>{savingNota ? "Salvando…" : "Salvar"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: escolher tutor (transferir OU 2º responsável) */}
+      {tutorPicker && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.45)" }} onClick={() => !tutorSaving && setTutorPicker(null)}>
+          <div className="bg-white rounded-[16px] w-full max-w-[420px] p-5" style={{ border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-[15px] font-medium text-[#014D5E] mb-1">
+              {tutorPicker === "transferir" ? "↔ Transferir pet para outro tutor" : "👥 2º responsável pelo pet"}
+            </h3>
+            <p className="text-[12px] text-[#5C6B70] mb-3">
+              {tutorPicker === "transferir"
+                ? `${pet.name} passa a pertencer ao tutor que você escolher (sai da ficha do tutor atual).`
+                : `Escolha um segundo responsável por ${pet.name} (o tutor principal continua sendo ${pet.tutor?.name || "o atual"}).`}
+            </p>
+            <input autoFocus value={tutorBusca} onChange={(e) => buscarTutores(e.target.value)} placeholder="Buscar cliente por nome, telefone ou CPF…"
+              className="w-full px-3 py-2 border rounded-[9px] text-[13px] bg-white focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} />
+            <div className="mt-2 max-h-[280px] overflow-y-auto flex flex-col">
+              {tutorBusca.trim().length < 2 ? (
+                <div className="text-[12px] text-[#8A989D] px-1 py-3 text-center">Digite pelo menos 2 letras pra buscar.</div>
+              ) : tutorRes.length === 0 ? (
+                <div className="text-[12px] text-[#8A989D] px-1 py-3 text-center">Nenhum cliente encontrado.</div>
+              ) : tutorRes.map((t) => (
+                <button key={t.id} disabled={tutorSaving}
+                  onClick={() => tutorPicker === "transferir" ? confirmarTransferir(t) : definirSecundario(t)}
+                  className="text-left px-3 py-2 rounded-[9px] hover:bg-[#F0FBFC] border-b last:border-b-0 disabled:opacity-50" style={{ borderColor: "#F0EBE0" }}>
+                  <div className="text-[13px] text-[#014D5E] font-medium">{t.name}</div>
+                  <div className="text-[11px] text-[#5C6B70]">{(t.contacts || []).map((c: any) => c.number).filter(Boolean)[0] || t.cpf || "sem telefone"}</div>
+                </button>
+              ))}
+            </div>
+            <div className="flex justify-end mt-3">
+              <button onClick={() => setTutorPicker(null)} disabled={tutorSaving} className="px-3 py-1.5 text-[12px] text-[#5F5E5A] disabled:opacity-50">Cancelar</button>
             </div>
           </div>
         </div>
