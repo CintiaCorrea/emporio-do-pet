@@ -484,6 +484,7 @@ export default function InboxUnificadoPage() {
 
   // Encaminhadas pra mim e ainda não abertas — vira o badge da aba Encaminhadas.
   const encaminhadasCount = useMemo(() => conversations.filter((c) => c.assignedUser?.id === meId && (c.unreadCount || 0) > 0).length, [conversations, meId]);
+  const internasNaoLidas = useMemo(() => internasRecebidas.filter((n: any) => n.toUserId === meId && !n.readAt).length, [internasRecebidas, meId]);
 
   // Transferir pra outro atendente. Usa o MESMO endpoint do "assumir" (assign-user),
   // que sempre aceitou qualquer userId — só faltava a tela pra escolher quem.
@@ -995,9 +996,10 @@ export default function InboxUnificadoPage() {
           Conversas
           <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${tab === "conversas" ? "bg-[#E1F5EE] text-[#0F6E56]" : "bg-[#f0e8d4] text-[#5F5E5A]"}`}>{counts.total}</span>
         </button>
-        <button onClick={() => setTab("internas")} className={`py-2.5 text-xs font-medium border-b-2 flex items-center gap-1.5 ${tab === "internas" ? "border-[#009AAC] text-[#0E2244]" : "border-transparent text-[#888780]"}`}>
+        <button onClick={() => setTab("internas")} className={`py-2.5 text-xs font-medium border-b-2 flex items-center gap-1.5 px-2 -mx-2 rounded-t-md ${tab === "internas" ? "border-[#009AAC] text-[#0E2244]" : internasNaoLidas > 0 ? "border-[#0F6E56] text-[#0F6E56] bg-[#E1F5EE]" : "border-transparent text-[#888780]"}`}>
+          {internasNaoLidas > 0 && tab !== "internas" && <span className="w-2 h-2 rounded-full bg-[#0F6E56] animate-pulse" />}
           Internas
-          <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${tab === "internas" ? "bg-[#FEF3C7] text-[#A16207]" : "bg-[#f0e8d4] text-[#5F5E5A]"}`}>{internasRecebidas.filter((n: any) => n.toUserId === meId && !n.readAt).length}</span>
+          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${internasNaoLidas > 0 && tab !== "internas" ? "bg-[#0F6E56] text-white" : tab === "internas" ? "bg-[#FEF3C7] text-[#A16207]" : "bg-[#f0e8d4] text-[#5F5E5A]"}`}>{internasNaoLidas}</span>
         </button>
         <button onClick={() => setTab("encaminhadas")} className={`py-2.5 text-xs font-medium border-b-2 flex items-center gap-1.5 ${tab === "encaminhadas" ? "border-[#009AAC] text-[#0E2244]" : "border-transparent text-[#888780]"}`}>
           Encaminhadas

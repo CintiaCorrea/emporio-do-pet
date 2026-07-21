@@ -34,6 +34,9 @@ interface Service {
   type: ServiceType;
   price: number;
   stock: number;
+  custoPadrao?: number | null;
+  category?: { id: string; nome: string } | null;
+  fornecedor?: { id: string; nome: string } | null;
   treatments: Treatment[];
   _count: {
     treatments: number;
@@ -41,6 +44,8 @@ interface Service {
   createdAt: string;
   updatedAt: string;
 }
+
+interface Opcao { id: string; nome: string }
 
 interface ServiceStats {
   total: number;
@@ -64,6 +69,14 @@ export default function ServicesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterCategoria, setFilterCategoria] = useState('');
+  const [filterFornecedor, setFilterFornecedor] = useState('');
+  const [categorias, setCategorias] = useState<Opcao[]>([]);
+  const [fornecedores, setFornecedores] = useState<Opcao[]>([]);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItens, setTotalItens] = useState(0);
+  const LIMITE = 30;
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [serviceToDelete, setServiceToDelete] = useState<Service | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -78,26 +91,27 @@ export default function ServicesPage() {
     stock: 0
   });
 
-  // Buscar services da API (apenas SERVICE)
-  const fetchServices = async () => {
+  // Buscar services da API (apenas SERVICE) — filtro por categoria/laboratório no servidor + paginação
+  const fetchServices = async (pagina = page) => {
     try {
       setLoading(true);
       setError(null);
-      
+
       const params = new URLSearchParams();
       if (searchTerm) params.append('search', searchTerm);
       params.append('type', 'SERVICE');
-      
+      if (filterCategoria) params.append('categoryId', filterCategoria);
+      if (filterFornecedor) params.append('fornecedorId', filterFornecedor);
+      params.append('page', String(pagina));
+      params.append('limit', String(LIMITE));
+
       const response = await fetch(`/api/products?${params}`);
-      
-      if (!response.ok) {
-        throw new Error('Erro ao carregar serviços');
-      }
-      
+      if (!response.ok) throw new Error('Erro ao carregar serviços');
+
       const data: ApiResponse = await response.json();
-      // Garantir que só temos serviços
-      const filteredServices = data.products.filter(p => p.type === 'SERVICE');
-      setServices(filteredServices);
+      setServices(data.products.filter(p => p.type === 'SERVICE'));
+      setTotalPages(data.pagination?.pages || 1);
+      setTotalItens(data.pagination?.total || data.products.length);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro desconhecido');
       console.error('Erro ao buscar services:', err);
@@ -106,32 +120,47 @@ export default function ServicesPage() {
     }
   };
 
-  // Carregar services inicial
+  // Carrega as opções dos filtros (categorias + laboratórios) uma vez
   useEffect(() => {
-    fetchServices();
+    (async () => {
+      try {
+        const [rc, rf] = await Promise.all([
+          fetch('/api/servicos/categorias'),
+          fetch('/api/fornecedores'),
+        ]);
+        const dc = await rc.json().catch(() => []);
+        const df = await rf.json().catch(() => []);
+        const cats = (Array.isArray(dc) ? dc : (dc.data || [])).map((c: any) => ({ id: c.id, nome: c.nome }));
+        const forns = (Array.isArray(df) ? df : (df.data || [])).map((f: any) => ({ id: f.id, nome: f.nome }));
+        // Categorias de exame primeiro (começam com "Exames ·"), depois o resto — tudo alfabético
+        cats.sort((a: Opcao, b: Opcao) => a.nome.localeCompare(b.nome, 'pt-BR'));
+        forns.sort((a: Opcao, b: Opcao) => a.nome.localeCompare(b.nome, 'pt-BR'));
+        setCategorias(cats);
+        setFornecedores(forns);
+      } catch { /* filtros ficam vazios */ }
+    })();
   }, []);
 
-  // Recarregar quando filtros mudarem
+  // Recarregar quando busca/filtros mudarem — volta pra página 1
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      fetchServices();
+      setPage(1);
+      fetchServices(1);
     }, 300);
-    
     return () => clearTimeout(timeoutId);
-  }, [searchTerm]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm, filterCategoria, filterFornecedor]);
 
+  // Trocar de página
+  const irParaPagina = (p: number) => {
+    const alvo = Math.min(Math.max(1, p), totalPages);
+    setPage(alvo);
+    fetchServices(alvo);
+  };
 
-  // Filtrar serviços localmente (backup)
-  const filteredServices = services.filter(service => {
-    return service.name.toLowerCase().includes(searchTerm.toLowerCase());
-  });
-
-  // Estatísticas locais
-  const localStats = {
-    total: services.length,
-    totalRevenue: services.reduce((acc, s) => acc + (s.price * s._count.treatments), 0),
-    averagePrice: services.length > 0 ? services.reduce((acc, s) => acc + s.price, 0) / services.length : 0,
-    totalTreatments: services.reduce((acc, s) => acc + s._count.treatments, 0)
+  const margemPct = (s: Service): number | null => {
+    if (s.custoPadrao == null || s.custoPadrao <= 0 || !s.price) return null;
+    return Math.round(((s.price - s.custoPadrao) / s.custoPadrao) * 100);
   };
 
   // Funções para manipular serviços
@@ -273,7 +302,7 @@ export default function ServicesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/10 w-full overflow-hidden">
+    <div className="min-h-screen w-full overflow-hidden" style={{ background: "#FAF7F2" }}>
       <ConfirmDeleteModal
         isOpen={Boolean(serviceToDelete)}
         entityLabel="Serviço"
@@ -286,31 +315,32 @@ export default function ServicesPage() {
       <div className="p-6">
         <div className="max-w-7xl mx-auto">
             {/* Header */}
-            <div className="mb-8">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="mb-5">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
-                  <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-                    Serviços
+                  <h1 className="text-2xl font-bold" style={{ color: "#014D5E" }}>
+                    Produtos e Serviços
                   </h1>
-                  <p className="text-gray-600 mt-2">
-                    Gerencie os serviços oferecidos pela clínica veterinária
+                  <p className="text-gray-600 mt-1 text-sm">
+                    Catálogo único — serviços, exames e produtos. Os exames trazem o custo do laboratório.
                   </p>
                 </div>
-                <div className="flex gap-3">
+                <div className="flex gap-2">
                   <Link
                     href="/dashboard/erp/servicos/relatorio"
-                    className="group px-6 py-3 text-sm font-semibold text-gray-700 bg-white/80 border border-gray-200/80 rounded-2xl hover:bg-white hover:border-gray-300 hover:shadow-lg transition-all duration-300 hover:scale-105 flex items-center space-x-2"
+                    className="px-4 py-2 text-sm font-semibold text-gray-700 bg-white border rounded-xl hover:bg-gray-50 flex items-center gap-2"
+                    style={{ borderColor: "#E8DFC8" }}
                   >
                     <span style={{fontSize:"14px"}}>📈</span>
                     <span>Relatório</span>
                   </Link>
-                  <button 
+                  <button
                     onClick={openCreateModal}
-                    className="group px-6 py-3 text-sm font-semibold text-white bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl hover:from-purple-700 hover:to-pink-700 focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-purple-500/25 flex items-center space-x-2 relative overflow-hidden"
+                    className="px-4 py-2 text-sm font-semibold text-white rounded-xl flex items-center gap-2"
+                    style={{ background: "#009AAC" }}
                   >
-                    <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent transform -skew-x-12 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
-                    <LuPlus className="w-4 h-4 relative z-10" />
-                    <span className="relative z-10">Novo Serviço</span>
+                    <LuPlus className="w-4 h-4" />
+                    <span>Novo item</span>
                   </button>
                 </div>
               </div>
@@ -329,218 +359,165 @@ export default function ServicesPage() {
               </div>
             )}
 
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            {/* Chips de resumo */}
+            <div className="flex flex-wrap gap-2.5 mb-4">
               {[
-                { 
-                  label: "Total de Serviços", 
-                  value: localStats.total, 
-                  color: "purple", 
-                  icon: () => <span style={{fontSize:"14px"}}>🔧</span>
-                },
-                { 
-                  label: "Preço Médio", 
-                  value: formatCurrency(localStats.averagePrice), 
-                  color: "blue", 
-                  icon: LuDollarSign,
-                  isFormatted: true
-                },
-                { 
-                  label: "Atendimentos", 
-                  value: localStats.totalTreatments, 
-                  color: "green", 
-                  icon: () => <span style={{fontSize:"14px"}}>⚡</span>
-                },
-                { 
-                  label: "Receita Estimada", 
-                  value: formatCurrency(localStats.totalRevenue), 
-                  color: "teal", 
-                  icon: () => <span style={{fontSize:"14px"}}>📈</span>,
-                  isFormatted: true
-                }
-              ].map((stat, index) => (
-                <div key={index} className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-purple-500/5 p-6 hover:shadow-2xl hover:shadow-purple-500/10 transition-all duration-300 hover:scale-105">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className={`p-3 bg-${stat.color}-50 rounded-xl`}>
-                      <stat.icon className={`w-6 h-6 text-${stat.color}-600`} />
-                    </div>
-                    <div className={`text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent ${stat.isFormatted ? 'text-lg' : ''}`}>
-                      {stat.value}
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-600">{stat.label}</p>
-                  </div>
+                { n: totalItens, l: filterCategoria || filterFornecedor || searchTerm ? "Itens no filtro" : "Itens no total" },
+                { n: categorias.length, l: "Categorias" },
+                { n: fornecedores.length, l: "Laboratórios" },
+              ].map((c, i) => (
+                <div key={i} className="bg-white border rounded-xl px-4 py-2 min-w-[120px]" style={{ borderColor: "#E8DFC8" }}>
+                  <div className="text-lg font-bold" style={{ color: "#014D5E" }}>{c.n.toLocaleString('pt-BR')}</div>
+                  <div className="text-[11px] uppercase tracking-wide text-gray-500">{c.l}</div>
                 </div>
               ))}
             </div>
 
-            {/* Filters and Search */}
-            <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-purple-500/5 p-6 mb-6">
-              <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
-                <div className="flex flex-col sm:flex-row gap-4 w-full lg:w-auto">
-                  <div className="relative flex-1 min-w-[300px]">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <LuSearch className="w-5 h-5 text-gray-400" />
-                    </div>
-                    <input
-                      type="text"
-                      placeholder="Buscar por nome do serviço..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full pl-10 pr-4 py-3 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm"
-                    />
+            {/* Filtros e busca */}
+            <div className="bg-white border rounded-2xl p-3 mb-4" style={{ borderColor: "#E8DFC8" }}>
+              <div className="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center">
+                <div className="relative flex-1 min-w-[200px]">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <LuSearch className="w-4 h-4 text-gray-400" />
                   </div>
+                  <input
+                    type="text"
+                    placeholder="Buscar por nome…"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 bg-white border rounded-xl focus:outline-none focus:ring-2 text-sm text-gray-900"
+                    style={{ borderColor: "#E8DFC8" }}
+                  />
                 </div>
-
-                <div className="flex gap-3 w-full lg:w-auto">
-                  <button 
-                    onClick={fetchServices}
-                    className="flex items-center gap-2 px-4 py-3 text-sm font-semibold text-gray-600 bg-white/50 border border-gray-300/50 rounded-2xl hover:bg-white hover:border-gray-400 hover:shadow-lg transition-all duration-300 hover:scale-105 backdrop-blur-sm"
+                <select
+                  value={filterCategoria}
+                  onChange={(e) => setFilterCategoria(e.target.value)}
+                  className="px-3 py-2 border rounded-xl bg-white text-sm text-gray-900"
+                  style={{ borderColor: "#E8DFC8" }}
+                >
+                  <option value="">Categoria: Todas</option>
+                  {categorias.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                </select>
+                <select
+                  value={filterFornecedor}
+                  onChange={(e) => setFilterFornecedor(e.target.value)}
+                  className="px-3 py-2 border rounded-xl bg-white text-sm text-gray-900"
+                  style={{ borderColor: "#E8DFC8" }}
+                >
+                  <option value="">Laboratório: Todos</option>
+                  {fornecedores.map((f) => <option key={f.id} value={f.id}>{f.nome}</option>)}
+                </select>
+                {(searchTerm || filterCategoria || filterFornecedor) && (
+                  <button
+                    onClick={() => { setSearchTerm(''); setFilterCategoria(''); setFilterFornecedor(''); }}
+                    className="px-3 py-2 text-sm text-gray-600 border rounded-xl hover:bg-gray-50 whitespace-nowrap"
+                    style={{ borderColor: "#E8DFC8" }}
                   >
-                    <LuSearch className="w-4 h-4" />
-                    <span>Recarregar</span>
+                    Limpar
                   </button>
-                </div>
+                )}
               </div>
             </div>
 
-            {/* Services Table */}
-            <div className="bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-xl shadow-purple-500/5 overflow-hidden">
-              {/* Table Header */}
-              <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-100/50 border-b border-white/20">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    Catálogo de Serviços
-                  </h3>
-                  <div className="text-sm text-gray-600">
-                    {filteredServices.length} serviços encontrados
-                  </div>
-                </div>
-              </div>
-
-              {/* Table */}
+            {/* Tabela */}
+            <div className="bg-white border rounded-2xl overflow-hidden" style={{ borderColor: "#E8DFC8" }}>
               <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className="w-full" style={{ minWidth: 820 }}>
                   <thead>
-                    <tr className="bg-gradient-to-r from-gray-50 to-gray-100/50 border-b border-white/20">
-                      <th className="text-left p-6 font-semibold text-gray-700">Serviço</th>
-                      <th className="text-left p-6 font-semibold text-gray-700">Preço</th>
-                      <th className="text-left p-6 font-semibold text-gray-700">Atendimentos</th>
-                      <th className="text-left p-6 font-semibold text-gray-700">Receita</th>
-                      <th className="text-left p-6 font-semibold text-gray-700">Última Atualização</th>
-                      <th className="text-left p-6 font-semibold text-gray-700">Ações</th>
+                    <tr style={{ borderBottom: "1px solid #EFE9DC" }}>
+                      <th className="text-left px-4 py-2.5 text-[11px] uppercase tracking-wide font-semibold text-gray-500">Item</th>
+                      <th className="text-left px-4 py-2.5 text-[11px] uppercase tracking-wide font-semibold text-gray-500">Categoria</th>
+                      <th className="text-left px-4 py-2.5 text-[11px] uppercase tracking-wide font-semibold text-gray-500">Laboratório</th>
+                      <th className="text-right px-4 py-2.5 text-[11px] uppercase tracking-wide font-semibold text-gray-500">Custo</th>
+                      <th className="text-right px-4 py-2.5 text-[11px] uppercase tracking-wide font-semibold text-gray-500">Preço venda</th>
+                      <th className="text-right px-4 py-2.5 text-[11px] uppercase tracking-wide font-semibold text-gray-500">Margem</th>
+                      <th className="text-left px-4 py-2.5 text-[11px] uppercase tracking-wide font-semibold text-gray-500">Ações</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredServices.map((service) => (
-                      <tr 
-                        key={service.id} 
-                        className="border-b border-white/20 hover:bg-gray-50/50 transition-all duration-300 group cursor-pointer"
+                    {services.map((service) => {
+                      const m = margemPct(service);
+                      const semPreco = !service.price || service.price <= 0;
+                      return (
+                      <tr
+                        key={service.id}
+                        className="hover:bg-[#F6FBFC] cursor-pointer"
+                        style={{ borderBottom: "1px solid #EFE9DC" }}
                         onClick={() => openServiceDetails(service)}
                       >
-                        <td className="p-6">
-                          <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-xl bg-purple-100 text-purple-800">
-                              <span style={{fontSize:"14px"}}>🔧</span>
-                            </div>
-                            <div>
-                              <div className="font-semibold text-gray-900">{service.name}</div>
-                              <div className="text-sm text-gray-500">
-                                ID: {service.id.slice(0, 8)}...
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="p-6">
-                          <div className="font-semibold text-gray-900 flex items-center gap-1">
-                            <LuDollarSign className="w-4 h-4 text-green-600" />
-                            {formatCurrency(service.price)}
-                          </div>
-                        </td>
-                        <td className="p-6">
-                          <div className="flex items-center gap-2">
-                            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                              <span style={{fontSize:"14px"}}>⚡</span>
-                              {service._count.treatments} atendimentos
+                        <td className="px-4 py-2.5 font-medium text-gray-900">{service.name}</td>
+                        <td className="px-4 py-2.5">
+                          {service.category ? (
+                            <span className="inline-block text-[11px] px-2.5 py-0.5 rounded-full" style={{ background: "#EAF6F7", color: "#00798A", border: "1px solid #CDEAEE" }}>
+                              {service.category.nome.replace(/^Exames · /, "")}
                             </span>
-                          </div>
+                          ) : <span className="text-gray-300">—</span>}
                         </td>
-                        <td className="p-6">
-                          <div className="font-semibold text-gray-900">
-                            {formatCurrency(service.price * service._count.treatments)}
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            receita total
-                          </div>
+                        <td className="px-4 py-2.5 text-gray-700">{service.fornecedor?.nome || <span className="text-gray-300">—</span>}</td>
+                        <td className="px-4 py-2.5 text-right tabular-nums text-gray-700">{service.custoPadrao != null ? formatCurrency(service.custoPadrao) : <span className="text-gray-300">—</span>}</td>
+                        <td className="px-4 py-2.5 text-right tabular-nums">
+                          {semPreco ? (
+                            <span className="text-[12px] font-semibold px-2 py-0.5 rounded-md" style={{ background: "#FEF3E2", color: "#B45309", border: "1px solid #F3D9AE" }}>definir</span>
+                          ) : (
+                            <span className="font-semibold text-gray-900">{formatCurrency(service.price)}</span>
+                          )}
                         </td>
-                        <td className="p-6">
-                          <div className="flex items-center gap-1 text-gray-600">
-                            <span style={{fontSize:"14px"}}>⏱</span>
-                            {formatDate(service.updatedAt)}
-                          </div>
+                        <td className="px-4 py-2.5 text-right tabular-nums font-semibold" style={{ color: m != null ? "#0F6E56" : "#cbd5e1" }}>
+                          {m != null ? `+${m}%` : "—"}
                         </td>
-                        <td className="p-6">
-                          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                        <td className="px-4 py-2.5">
+                          <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
                             <button
                               onClick={() => {
                                 setSelectedService(service);
-                                setFormData({
-                                  name: service.name,
-                                  type: 'SERVICE',
-                                  price: service.price,
-                                  stock: 0
-                                });
+                                setFormData({ name: service.name, type: 'SERVICE', price: service.price, stock: 0 });
                                 setIsEditMode(true);
                                 setIsModalOpen(true);
                               }}
-                              className="p-2 text-purple-600 hover:bg-purple-50 rounded-2xl transition-colors"
-                              title="Editar serviço"
+                              className="w-8 h-8 flex items-center justify-center border rounded-lg text-gray-500 hover:text-[#009AAC] hover:border-[#009AAC]"
+                              style={{ borderColor: "#E8DFC8" }}
+                              title="Editar / definir preço"
                             >
                               <LuPencil className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => requestDeleteService(service)}
-                              className="p-2 text-gray-400 hover:bg-gray-50 hover:text-red-600 rounded-2xl transition-colors"
-                              title="Excluir serviço"
+                              className="w-8 h-8 flex items-center justify-center border rounded-lg text-gray-400 hover:text-red-600 hover:border-red-300"
+                              style={{ borderColor: "#E8DFC8" }}
+                              title="Excluir"
                             >
                               <LuTrash className="w-4 h-4" />
                             </button>
                           </div>
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
 
-                {filteredServices.length === 0 && !loading && (
+                {services.length === 0 && !loading && (
                   <div className="text-center py-12">
-                    <span style={{fontSize:"14px"}}>🔧</span>
-                    <p className="text-gray-500 text-lg">Nenhum serviço encontrado</p>
-                    <p className="text-gray-400 mt-2">
-                      {services.length === 0 
-                        ? 'Comece adicionando seu primeiro serviço' 
-                        : 'Tente ajustar os filtros de busca'
-                      }
-                    </p>
+                    <p className="text-gray-500">Nenhum item encontrado</p>
+                    <p className="text-gray-400 mt-1 text-sm">Tente ajustar a busca ou os filtros</p>
                   </div>
+                )}
+                {loading && (
+                  <div className="text-center py-8 text-gray-400 text-sm">Carregando…</div>
                 )}
               </div>
 
-              {/* Table Footer */}
-              <div className="flex flex-col sm:flex-row justify-between items-center p-6 border-t border-white/20 bg-gradient-to-r from-gray-50 to-gray-100/50">
-                <div className="text-sm text-gray-600 mb-4 sm:mb-0">
-                  Mostrando {filteredServices.length} de {services.length} serviços
+              {/* Rodapé + paginação */}
+              <div className="flex flex-col sm:flex-row justify-between items-center px-4 py-3 gap-2" style={{ borderTop: "1px solid #EFE9DC" }}>
+                <div className="text-[12.5px] text-gray-500">
+                  Página {page} de {totalPages} · {totalItens.toLocaleString('pt-BR')} {totalItens === 1 ? 'item' : 'itens'}
                 </div>
-                
-                <div className="flex items-center space-x-4">
-                  <button className="px-4 py-2 text-sm text-gray-600 bg-white/80 border border-gray-200/80 rounded-2xl hover:bg-white hover:border-gray-300 transition-all duration-300">
-                    Anterior
-                  </button>
-                  <span className="text-sm text-gray-600">Página 1 de 1</span>
-                  <button className="px-4 py-2 text-sm text-gray-600 bg-white/80 border border-gray-200/80 rounded-2xl hover:bg-white hover:border-gray-300 transition-all duration-300">
-                    Próxima
-                  </button>
+                <div className="flex items-center gap-1">
+                  <button onClick={() => irParaPagina(page - 1)} disabled={page <= 1}
+                    className="min-w-[30px] h-[30px] px-2 border rounded-lg text-[12.5px] disabled:opacity-40 hover:bg-gray-50" style={{ borderColor: "#E8DFC8" }}>‹</button>
+                  <span className="text-[12.5px] text-gray-600 px-2">{page} / {totalPages}</span>
+                  <button onClick={() => irParaPagina(page + 1)} disabled={page >= totalPages}
+                    className="min-w-[30px] h-[30px] px-2 border rounded-lg text-[12.5px] disabled:opacity-40 hover:bg-gray-50" style={{ borderColor: "#E8DFC8" }}>›</button>
                 </div>
               </div>
             </div>
