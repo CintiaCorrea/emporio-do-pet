@@ -699,55 +699,43 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
     return () => clearTimeout(t);
   }, [search]);
 
-  // Ao TROCAR de conversa, zera o contexto antes de recarregar — senão o cliente/lead da
-  // conversa anterior fica "preso" no painel quando o lookup do novo contato não resolve.
-  // Precisa vir ANTES dos efeitos de carga (efeitos rodam de cima pra baixo).
-  const primeiraConversa = useRef(true);
+  // Contexto do painel amarrado à CONVERSA selecionada. UM único efeito por conversa:
+  //  (1) zera o que era da conversa anterior — senão o cliente/lead antigo fica "preso"
+  //      no painel, principalmente quando a nova conversa é um LEAD que não resolve no lookup;
+  //  (2) recarrega pelo tutorId da conversa OU pelo telefone. Tudo sob o mesmo `cancelled`,
+  //      pra um carregamento antigo (de outra conversa) nunca sobrescrever o atual.
   useEffect(() => {
-    if (primeiraConversa.current) { primeiraConversa.current = false; return; }
+    let cancelled = false;
+    // (1) limpa imediatamente ao trocar de conversa
     setTutor(null); setLead(null); setLeadConversa(null); setLeadHistorico(null);
-    setHistorico([]); setTutorScore(null); setSearch("");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversationId]);
-
-  // initialTutorId: a conversa JÁ sabe quem é o cliente — carrega direto pelo id, sem
-  // depender do lookup por telefone (que às vezes não achava e deixava o Contexto vazio).
-  useEffect(() => {
-    if (!initialTutorId) return;
-    let cancelled = false;
+    setHistorico([]); setTutorScore(null); setPets([]); setSelectedPet(null); setSearch("");
     (async () => {
       try {
-        const res = await fetch(`/api/tutors/${initialTutorId}`);
-        const t = await safeJson<any>(res, null);
-        if (!cancelled && t?.id) await selectTutor(t);
-      } catch { /* cai no lookup por telefone */ }
+        // (2a) a conversa já sabe quem é o cliente -> carrega direto pelo id
+        if (initialTutorId) {
+          const res = await fetch(`/api/tutors/${initialTutorId}`);
+          const t = await safeJson<any>(res, null);
+          if (!cancelled && t?.id) await selectTutor(t);
+          return;
+        }
+        // (2b) senão, resolve pelo telefone do contato da conversa
+        if (initialPhone) {
+          const tail = last9(initialPhone);
+          if (!tail || tail.length < 8) return;
+          const res = await fetch(`/api/inbox/context/lookup?phone=${encodeURIComponent(initialPhone)}`);
+          const d = await safeJson<any>(res, {});
+          if (cancelled) return;
+          const tutorMatch = d?.unified?.tutor || (d.tutors || [])[0];
+          const leadMatch = d?.unified?.lead || (d.leads || [])[0];
+          if (tutorMatch) { await selectTutor(tutorMatch); return; }
+          if (leadMatch) { await selectLead(leadMatch); return; }
+          setSearch(initialPhone);
+        }
+      } catch { /* mantém limpo */ }
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialTutorId]);
-
-  // initialPhone (Inbox Meta passa o phone do contato selecionado)
-  useEffect(() => {
-    if (initialTutorId) return; // já carregou pelo id
-    if (!initialPhone) return;
-    const tail = last9(initialPhone);
-    if (!tail || tail.length < 8) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch(`/api/inbox/context/lookup?phone=${encodeURIComponent(initialPhone)}`);
-        const d = await safeJson<any>(res, {});
-        if (cancelled) return;
-        const tutorMatch = d?.unified?.tutor || (d.tutors || [])[0];
-        const leadMatch = d?.unified?.lead || (d.leads || [])[0];
-        if (tutorMatch) { await selectTutor(tutorMatch); return; }
-        if (leadMatch) { await selectLead(leadMatch); return; }
-        setSearch(initialPhone);
-      } catch { /* ignore */ }
-    })();
-    return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialPhone]);
+  }, [conversationId, initialTutorId, initialPhone]);
 
   async function carregarHistorico(tutorId?: string, leadId?: string, leadHistoricoId?: string) {
     const items: HistoricoItem[] = [];
