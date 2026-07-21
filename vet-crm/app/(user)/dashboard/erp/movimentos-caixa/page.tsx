@@ -74,8 +74,8 @@ export default function MovimentosPage() {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead><tr><th style={th}>Data</th><th style={th}>Tipo</th><th style={th}>Descrição</th><th style={th}>Conta</th><th style={{ ...th, textAlign: 'right' }}>Valor</th></tr></thead>
               <tbody>
-                {loading && <tr><td colSpan={5} style={{ ...td, textAlign: 'center', color: '#8A989D', padding: 18 }}>Carregando…</td></tr>}
-                {!loading && rows.length === 0 && <tr><td colSpan={5} style={{ ...td, textAlign: 'center', color: '#8A989D', padding: 18 }}>Nenhum movimento no período.</td></tr>}
+                {loading && <tr><td colSpan={5} style={{ ...td, textAlign: 'center', color: '#374151', padding: 18 }}>Carregando…</td></tr>}
+                {!loading && rows.length === 0 && <tr><td colSpan={5} style={{ ...td, textAlign: 'center', color: '#374151', padding: 18 }}>Nenhum movimento no período.</td></tr>}
                 {rows.map((m) => {
                   const ent = ehEntrada(m.tipo);
                   return (
@@ -83,7 +83,7 @@ export default function MovimentosPage() {
                       <td style={{ ...td, color: '#5C6B70' }}>{dh(m.data)}</td>
                       <td style={{ ...td, color: ent ? GREEN : ORANGE }}>{tipoLabel[m.tipo] || m.tipo}</td>
                       <td style={{ ...td, color: '#5C6B70' }}>{m.descricao || '—'}</td>
-                      <td style={{ ...td, color: '#8A989D' }}>{m.conta || (m.forma || '—')}</td>
+                      <td style={{ ...td, color: '#374151' }}>{m.conta || (m.forma || '—')}</td>
                       <td style={{ ...td, textAlign: 'right', fontWeight: 500, color: ent ? GREEN : ORANGE }}>{ent ? '' : '− '}{money(Number(m.valor))}</td>
                     </tr>
                   );

@@ -111,7 +111,7 @@ export default function CadastroPublicoPage() {
             {sending ? "Enviando…" : "Enviar cadastro"}
           </button>
         </div>
-        <p style={{ textAlign: "center", fontSize: 12, color: "#8A989D", marginTop: 14 }}>Empório do Pet · Cuidando de quem você ama</p>
+        <p style={{ textAlign: "center", fontSize: 12, color: "#374151", marginTop: 14 }}>Empório do Pet · Cuidando de quem você ama</p>
       </div>
     </div>
   );

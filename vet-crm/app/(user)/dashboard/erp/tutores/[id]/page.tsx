@@ -494,7 +494,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
       <Toaster position="top-right" />
 
       {/* Breadcrumb */}
-      <div className="text-[12px] text-[#8A989D] mb-2 px-1">
+      <div className="text-[12px] text-[#374151] mb-2 px-1">
         <Link href="/dashboard/erp/tutores" className="hover:text-[#009AAC]">Clientes</Link> / <b className="text-[#009AAC] font-medium">{tutor.name || "Sem nome"}</b>
       </div>
 
@@ -511,7 +511,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
                   <span className="flex items-center gap-1">
                     <input autoFocus value={nameVal} onChange={(e) => setNameVal(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") salvarNome(); if (e.key === "Escape") setEditName(false); }} className="text-[17px] px-2 py-0.5 border rounded" style={{ borderColor: "#009AAC", color: "#014D5E" }} />
                     <button onClick={salvarNome} disabled={savingName} className="text-[12px] text-white px-2 py-1 rounded disabled:opacity-50" style={{ background: "#009AAC" }}>{savingName ? "…" : "Salvar"}</button>
-                    <button onClick={() => setEditName(false)} className="text-[12px] text-[#8A989D] px-1">✕</button>
+                    <button onClick={() => setEditName(false)} className="text-[12px] text-[#374151] px-1">✕</button>
                   </span>
                 ) : (
                   <span className="flex items-center gap-1.5 group">
@@ -519,7 +519,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
                     <button onClick={() => { setNameVal(tutor.name || ""); setEditName(true); }} className="p-0.5 rounded text-[#c8d0d4] hover:text-[#009AAC]" title="Editar nome">✏️</button>
                   </span>
                 )}
-                {tutor.codigo ? <span className="text-[13px] text-[#8A989D] font-medium" title="Código do cliente">#{tutor.codigo}</span> : null}
+                {tutor.codigo ? <span className="text-[13px] text-[#374151] font-medium" title="Código do cliente">#{tutor.codigo}</span> : null}
                 {naoCliente ? <span className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: "#EDE7F6", color: "#5B4B9E" }}>🤝 {tutor.classificacao}</span> : (tutor.score && <span className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: nivel.bg, color: nivel.fg }}>{nivel.emoji} {nivel.nome}</span>)}
                 <button onClick={() => setSituacaoOpen(true)} title="Situação — clique para alterar" className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: status.bg, color: status.color }}>{HUMANIZAR(tutor.estadoRelacionamento) || status.label} ▾</button>
                 <button onClick={() => { setNota(tutor.notaCliente || ""); setNotaOpen(true); }} title={tutor.notaCliente ? `Nota: ${tutor.notaCliente}` : "Adicionar nota"} className="text-[15px] leading-none">{tutor.notaCliente ? "❤️" : "🤍"}</button>
@@ -530,7 +530,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
                   : <>Cliente desde {new Date(tutor.primeiraCompraAt || tutor.createdAt).toLocaleDateString("pt-BR", { month: "short", year: "numeric" })} · {pets.length} {pets.length === 1 ? "pet" : "pets"}</>}
               </p>
               <div className="flex flex-wrap gap-1.5 items-center mt-2">
-                <span className="text-[11.5px] text-[#8A989D]">🏷️</span>
+                <span className="text-[11.5px] text-[#374151]">🏷️</span>
                 {tutor.tags?.map((t) => {
                   const tpl = tplTags.find((x: any) => x.texto === t);
                   const cor = tpl?.cor || "#009AAC";
@@ -541,12 +541,12 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
                     </span>
                   );
                 })}
-                <button onClick={() => setTagPicker((v) => !v)} className="border border-dashed border-[#E8E2D6] text-[#8A989D] text-[10px] px-2 py-0.5 rounded-full">+ tag</button>
+                <button onClick={() => setTagPicker((v) => !v)} className="border border-dashed border-[#E8E2D6] text-[#374151] text-[10px] px-2 py-0.5 rounded-full">+ tag</button>
               </div>
               {tagPicker && (
                 <div className="mt-2 pt-2 border-t border-[#F0EBE0]">
                   {tplTags.filter((t: any) => !(tutor.tags || []).includes(t.texto)).length === 0 ? (
-                    <p className="text-[10px] text-[#8A989D]">Nenhuma etiqueta de Cliente disponível. Cadastre em Configurações → Etiquetas.</p>
+                    <p className="text-[10px] text-[#374151]">Nenhuma etiqueta de Cliente disponível. Cadastre em Configurações → Etiquetas.</p>
                   ) : (
                     <div className="flex flex-wrap gap-1">
                       {tplTags.filter((t: any) => !(tutor.tags || []).includes(t.texto)).map((t: any) => (
@@ -589,7 +589,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
             key={t.k}
             onClick={() => setTab(t.k)}
             className="px-4 py-2 text-sm font-medium border-b-2 transition -mb-px"
-            style={{ borderColor: tab === t.k ? "#009AAC" : "transparent", color: tab === t.k ? "#009AAC" : "#8A989D" }}
+            style={{ borderColor: tab === t.k ? "#009AAC" : "transparent", color: tab === t.k ? "#009AAC" : "#374151" }}
           >
             {t.label}
           </button>
@@ -622,17 +622,17 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
               </div>
               <div>
                 <div className="text-[13.5px] font-medium text-[#014D5E]">{tutor.score.label || "Cliente"}</div>
-                <div className="text-[11.5px] text-[#8A989D]">Score {scoreTotal}/100</div>
+                <div className="text-[11.5px] text-[#374151]">Score {scoreTotal}/100</div>
               </div>
             </div>
           )}
           <div className="bg-white border border-[#E8E2D6] rounded-[14px]" style={{ padding: "13px 16px" }}>
             <div className="flex justify-between items-center text-[13px] mb-1.5">
               <span className="font-medium" style={{ color: nivel.fg }}>{nivel.emoji} Nível {nivel.nome}</span>
-              {nivel.prox && <span className="text-[#8A989D]">próximo: {nivel.proxEmoji} {nivel.prox}</span>}
+              {nivel.prox && <span className="text-[#374151]">próximo: {nivel.proxEmoji} {nivel.prox}</span>}
             </div>
             <div className="h-[9px] bg-[#F0EBE0] rounded-full overflow-hidden"><div className="h-full rounded-full" style={{ width: `${nivelProg}%`, background: nivel.bar }} /></div>
-            <div className="text-[11px] text-[#8A989D] mt-1.5">{nivel.prox ? `Faltam ${faltamPts} pontos pra ${nivel.proxEmoji} ${nivel.prox}` : "Nível máximo alcançado 🎉"}</div>
+            <div className="text-[11px] text-[#374151] mt-1.5">{nivel.prox ? `Faltam ${faltamPts} pontos pra ${nivel.proxEmoji} ${nivel.prox}` : "Nível máximo alcançado 🎉"}</div>
             {selos.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mt-2.5">
                 {selos.map((s) => (<span key={s.txt} className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: s.bg, color: s.fg }}>{s.txt}</span>))}
@@ -660,7 +660,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
             { emoji: "⏳", label: "A receber", value: money(stats?.valorAReceber) },
           ].map((k) => (
             <div key={k.label} className="bg-white border border-[#E8E2D6] rounded-[13px]" style={{ padding: "11px 13px" }}>
-              <div className="text-[11px] text-[#8A989D]">{k.emoji} {k.label}</div>
+              <div className="text-[11px] text-[#374151]">{k.emoji} {k.label}</div>
               <div className="text-[19px] text-[#014D5E] font-medium mt-0.5">{k.value}</div>
             </div>
           ))}
@@ -670,10 +670,10 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
           {/* Pets */}
           <div className="bg-white border border-[#E8E2D6] rounded-[13px]">
             <div className="border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
-              <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">🐾 Pets {pets.length > 0 && <span className="text-[#8A989D] font-normal">({pets.length})</span>}</h3>
+              <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">🐾 Pets {pets.length > 0 && <span className="text-[#374151] font-normal">({pets.length})</span>}</h3>
             </div>
             <div style={{ padding: "8px 14px" }}>
-              {pets.length === 0 && <p className="text-[12px] text-[#8A989D] py-1">Nenhum pet vinculado.</p>}
+              {pets.length === 0 && <p className="text-[12px] text-[#374151] py-1">Nenhum pet vinculado.</p>}
               {pets.map((p, i) => (
                 <Link key={p.id} href={`/dashboard/erp/pets/${p.id}`} className="flex items-center gap-3 py-2 hover:bg-[#FBF9F4] rounded-[9px]" style={{ borderBottom: i < pets.length - 1 ? "1px solid #F0EBE0" : "none" }}>
                   <div className="w-[38px] h-[38px] rounded-[12px] bg-[#E0F4F6] flex items-center justify-center text-[19px] shrink-0">{PET_EMOJI(p.species)}</div>
@@ -681,7 +681,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
                     <div className="text-[13.5px] text-[#014D5E] font-medium truncate">{p.name}{p.status && p.status !== "ACTIVE" && <span className="text-[10px] text-[#b23b39]"> · inativo</span>}</div>
                     <div className="text-[12px] text-[#5C6B70] truncate">{[ESPECIE_LABEL(p.species), p.breed, PET_IDADE(p.birthDate)].filter(Boolean).join(" · ")}</div>
                   </div>
-                  <span className="text-[#8A989D] text-[16px]">›</span>
+                  <span className="text-[#374151] text-[16px]">›</span>
                 </Link>
               ))}
             </div>
@@ -693,12 +693,12 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
               <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">🎯 Onde gasta (por marca)</h3>
             </div>
             <div style={{ padding: "13px 14px" }}>
-              {porMarca.length === 0 && <p className="text-[12px] text-[#8A989D]">Aparece quando houver compras registradas.</p>}
+              {porMarca.length === 0 && <p className="text-[12px] text-[#374151]">Aparece quando houver compras registradas.</p>}
               {porMarca.map((s) => {
                 const mi = marcaInfo(s.marca);
                 return (
                   <div key={s.marca} className="mb-2.5 last:mb-0">
-                    <div className="flex justify-between text-[12px] mb-1"><span className="text-[#1F2A2E]">{mi.emoji} {mi.label}</span><span className="text-[#8A989D]">{money(s.valor)} · {s.pct}%</span></div>
+                    <div className="flex justify-between text-[12px] mb-1"><span className="text-[#1F2A2E]">{mi.emoji} {mi.label}</span><span className="text-[#374151]">{money(s.valor)} · {s.pct}%</span></div>
                     <div className="h-2 bg-[#F0EBE0] rounded-full overflow-hidden"><div className="h-full rounded-full" style={{ width: `${s.pct}%`, background: mi.bar }} /></div>
                   </div>
                 );
@@ -726,15 +726,15 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
             <div className="mb-4 pb-4 border-b border-[#F0EBE0] flex flex-col gap-2.5">
               <div className="grid grid-cols-2 md:grid-cols-3 gap-x-3 gap-y-2">
                 <div>
-                  <label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Nome</label>
+                  <label className="text-[10px] uppercase tracking-wide text-[#374151]">Nome</label>
                   <input value={dadosForm.name ?? ""} onChange={e => setDadosForm((f: any) => ({ ...f, name: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[13px] text-[#1F2A2E]" />
                 </div>
                 <div>
-                  <label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Email</label>
+                  <label className="text-[10px] uppercase tracking-wide text-[#374151]">Email</label>
                   <input value={dadosForm.email ?? ""} onChange={e => setDadosForm((f: any) => ({ ...f, email: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[13px] text-[#1F2A2E]" />
                 </div>
                 <div>
-                  <label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Tipo</label>
+                  <label className="text-[10px] uppercase tracking-wide text-[#374151]">Tipo</label>
                   <select value={dadosForm.type ?? ""} onChange={e => setDadosForm((f: any) => ({ ...f, type: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[13px] text-[#1F2A2E]">
                     <option value="">—</option>
                     <option value="INDIVIDUAL">Pessoa física</option>
@@ -742,19 +742,19 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
                   </select>
                 </div>
                 <div>
-                  <label className="text-[10px] uppercase tracking-wide text-[#8A989D]">CPF</label>
+                  <label className="text-[10px] uppercase tracking-wide text-[#374151]">CPF</label>
                   <input value={dadosForm.cpf ?? ""} onChange={e => setDadosForm((f: any) => ({ ...f, cpf: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[13px] text-[#1F2A2E]" />
                 </div>
                 <div>
-                  <label className="text-[10px] uppercase tracking-wide text-[#8A989D]">RG</label>
+                  <label className="text-[10px] uppercase tracking-wide text-[#374151]">RG</label>
                   <input value={dadosForm.rg ?? ""} onChange={e => setDadosForm((f: any) => ({ ...f, rg: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[13px] text-[#1F2A2E]" />
                 </div>
                 <div>
-                  <label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Nascimento</label>
+                  <label className="text-[10px] uppercase tracking-wide text-[#374151]">Nascimento</label>
                   <input type="date" value={dadosForm.birthDate ?? ""} onChange={e => setDadosForm((f: any) => ({ ...f, birthDate: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[13px] text-[#1F2A2E]" />
                 </div>
                 <div>
-                  <label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Sexo</label>
+                  <label className="text-[10px] uppercase tracking-wide text-[#374151]">Sexo</label>
                   <select value={dadosForm.gender ?? ""} onChange={e => setDadosForm((f: any) => ({ ...f, gender: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[13px] text-[#1F2A2E]">
                     <option value="">—</option>
                     <option value="MALE">Masculino</option>
@@ -763,16 +763,16 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
                   </select>
                 </div>
                 <div>
-                  <label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Nacionalidade</label>
+                  <label className="text-[10px] uppercase tracking-wide text-[#374151]">Nacionalidade</label>
                   <input value={dadosForm.nationality ?? ""} onChange={e => setDadosForm((f: any) => ({ ...f, nationality: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[13px] text-[#1F2A2E]" />
                 </div>
                 <div>
-                  <label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Como conheceu</label>
+                  <label className="text-[10px] uppercase tracking-wide text-[#374151]">Como conheceu</label>
                   <input list="cliente-origem" value={dadosForm.howFoundUs ?? ""} onChange={e => setDadosForm((f: any) => ({ ...f, howFoundUs: e.target.value }))} placeholder="Escolha ou digite…" className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[13px] text-[#1F2A2E]" />
                   <datalist id="cliente-origem">{[...origensCat, ...ORIGENS_DEFAULT.filter((o) => !origensCat.includes(o))].map((o, i) => <option key={i} value={o} />)}</datalist>
                 </div>
                 <div>
-                  <label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Profissão</label>
+                  <label className="text-[10px] uppercase tracking-wide text-[#374151]">Profissão</label>
                   <input value={dadosForm.profession ?? ""} onChange={e => setDadosForm((f: any) => ({ ...f, profession: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[13px] text-[#1F2A2E]" />
                 </div>
               </div>
@@ -781,35 +781,35 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
               <div className="text-[12px] font-medium uppercase tracking-wide text-[#014D5E] mt-1">📍 Endereço</div>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-x-3 gap-y-2">
                 <div>
-                  <label className="text-[10px] uppercase tracking-wide text-[#8A989D]">CEP</label>
+                  <label className="text-[10px] uppercase tracking-wide text-[#374151]">CEP</label>
                   <input value={dadosForm.cep ?? ""} onChange={e => { const v = e.target.value; setDadosForm((f: any) => ({ ...f, cep: v })); if (v.replace(/\D/g, "").length === 8) buscarCep(v).then(info => { if (info) setDadosForm((f: any) => ({ ...f, address: info.logradouro || f.address, neighborhood: info.bairro || f.neighborhood, city: info.localidade || f.city, state: info.uf || f.state })); }); }} onBlur={e => { const v = e.target.value; if (v.replace(/\D/g, "").length === 8) buscarCep(v).then(info => { if (info) setDadosForm((f: any) => ({ ...f, address: info.logradouro || f.address, neighborhood: info.bairro || f.neighborhood, city: info.localidade || f.city, state: info.uf || f.state })); }); }} placeholder="00000-000" inputMode="numeric" className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[13px] text-[#1F2A2E]" />
                 </div>
                 <div>
-                  <label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Logradouro</label>
+                  <label className="text-[10px] uppercase tracking-wide text-[#374151]">Logradouro</label>
                   <input value={dadosForm.address ?? ""} onChange={e => setDadosForm((f: any) => ({ ...f, address: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[13px] text-[#1F2A2E]" />
                 </div>
                 <div>
-                  <label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Número</label>
+                  <label className="text-[10px] uppercase tracking-wide text-[#374151]">Número</label>
                   <input value={dadosForm.addressNumber ?? ""} onChange={e => setDadosForm((f: any) => ({ ...f, addressNumber: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[13px] text-[#1F2A2E]" />
                 </div>
                 <div>
-                  <label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Complemento</label>
+                  <label className="text-[10px] uppercase tracking-wide text-[#374151]">Complemento</label>
                   <input value={dadosForm.complement ?? ""} onChange={e => setDadosForm((f: any) => ({ ...f, complement: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[13px] text-[#1F2A2E]" />
                 </div>
                 <div>
-                  <label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Ponto de referência</label>
+                  <label className="text-[10px] uppercase tracking-wide text-[#374151]">Ponto de referência</label>
                   <input value={dadosForm.referencePoint ?? ""} onChange={e => setDadosForm((f: any) => ({ ...f, referencePoint: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[13px] text-[#1F2A2E]" />
                 </div>
                 <div>
-                  <label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Bairro</label>
+                  <label className="text-[10px] uppercase tracking-wide text-[#374151]">Bairro</label>
                   <input value={dadosForm.neighborhood ?? ""} onChange={e => setDadosForm((f: any) => ({ ...f, neighborhood: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[13px] text-[#1F2A2E]" />
                 </div>
                 <div>
-                  <label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Cidade</label>
+                  <label className="text-[10px] uppercase tracking-wide text-[#374151]">Cidade</label>
                   <input value={dadosForm.city ?? ""} onChange={e => setDadosForm((f: any) => ({ ...f, city: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[13px] text-[#1F2A2E]" />
                 </div>
                 <div>
-                  <label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Estado</label>
+                  <label className="text-[10px] uppercase tracking-wide text-[#374151]">Estado</label>
                   <input value={dadosForm.state ?? ""} onChange={e => setDadosForm((f: any) => ({ ...f, state: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[13px] text-[#1F2A2E]" />
                 </div>
               </div>
@@ -819,7 +819,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
               <div className="grid grid-cols-2 md:grid-cols-4 gap-x-3 gap-y-2">
                 {(([["acceptsEmail", "E-mail"], ["acceptsWhatsApp", "WhatsApp"], ["acceptsSMS", "SMS"], ["acceptsSmsCampaign", "Campanha SMS"]]) as [string, string][]).map(([k, label]) => (
                   <div key={k}>
-                    <label className="text-[10px] uppercase tracking-wide text-[#8A989D]">{label}</label>
+                    <label className="text-[10px] uppercase tracking-wide text-[#374151]">{label}</label>
                     <select value={dadosForm[k] ? "1" : "0"} onChange={e => setDadosForm((f: any) => ({ ...f, [k]: e.target.value === "1" }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[13px] text-[#1F2A2E]">
                       <option value="1">Sim</option>
                       <option value="0">Não</option>
@@ -838,17 +838,17 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
           {/* SEÇÃO a) DADOS */}
           <div className="text-[12px] font-medium uppercase tracking-wide text-[#014D5E] mb-2">Dados</div>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-3">
-            <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Tipo</div><div className="text-[13px] text-[#1F2A2E]">{tutor.type ? (TIPO_PESSOA_LABEL[tutor.type] || tutor.type) : "—"}</div></div>
-            <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">CPF</div><div className="text-[13px] text-[#1F2A2E]">{ouTraco(tutor.cpf)}</div></div>
-            <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">RG</div><div className="text-[13px] text-[#1F2A2E]">{ouTraco(tutor.rg)}</div></div>
-            <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Nascimento</div><div className="text-[13px] text-[#1F2A2E]">{fmtDataBR(tutor.birthDate)}</div></div>
-            <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Sexo</div><div className="text-[13px] text-[#1F2A2E]">{tutor.gender ? (GENERO_LABEL[tutor.gender] || tutor.gender) : "—"}</div></div>
-            <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Nacionalidade</div><div className="text-[13px] text-[#1F2A2E]">{ouTraco(tutor.nationality)}</div></div>
-            <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Como conheceu</div><div className="text-[13px] text-[#1F2A2E]">{ouTraco(tutor.howFoundUs)}</div></div>
-            <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Profissão</div><div className="text-[13px] text-[#1F2A2E]">{ouTraco(tutor.profession)}</div></div>
-            <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Primeira visita</div><div className="text-[13px] text-[#1F2A2E]">{fmtDataBR(tutor.createdAt)}</div></div>
+            <div><div className="text-[10px] uppercase tracking-wide text-[#374151]">Tipo</div><div className="text-[13px] text-[#1F2A2E]">{tutor.type ? (TIPO_PESSOA_LABEL[tutor.type] || tutor.type) : "—"}</div></div>
+            <div><div className="text-[10px] uppercase tracking-wide text-[#374151]">CPF</div><div className="text-[13px] text-[#1F2A2E]">{ouTraco(tutor.cpf)}</div></div>
+            <div><div className="text-[10px] uppercase tracking-wide text-[#374151]">RG</div><div className="text-[13px] text-[#1F2A2E]">{ouTraco(tutor.rg)}</div></div>
+            <div><div className="text-[10px] uppercase tracking-wide text-[#374151]">Nascimento</div><div className="text-[13px] text-[#1F2A2E]">{fmtDataBR(tutor.birthDate)}</div></div>
+            <div><div className="text-[10px] uppercase tracking-wide text-[#374151]">Sexo</div><div className="text-[13px] text-[#1F2A2E]">{tutor.gender ? (GENERO_LABEL[tutor.gender] || tutor.gender) : "—"}</div></div>
+            <div><div className="text-[10px] uppercase tracking-wide text-[#374151]">Nacionalidade</div><div className="text-[13px] text-[#1F2A2E]">{ouTraco(tutor.nationality)}</div></div>
+            <div><div className="text-[10px] uppercase tracking-wide text-[#374151]">Como conheceu</div><div className="text-[13px] text-[#1F2A2E]">{ouTraco(tutor.howFoundUs)}</div></div>
+            <div><div className="text-[10px] uppercase tracking-wide text-[#374151]">Profissão</div><div className="text-[13px] text-[#1F2A2E]">{ouTraco(tutor.profession)}</div></div>
+            <div><div className="text-[10px] uppercase tracking-wide text-[#374151]">Primeira visita</div><div className="text-[13px] text-[#1F2A2E]">{fmtDataBR(tutor.createdAt)}</div></div>
             <div>
-              <div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Tipo de relacionamento</div>
+              <div className="text-[10px] uppercase tracking-wide text-[#374151]">Tipo de relacionamento</div>
               <select value={tutor.classificacao || "Cliente"} onChange={(e) => saveClassificacao(e.target.value)} className="bg-[#E0F4F6] text-[#009AAC] text-[12px] px-1.5 py-0.5 rounded border border-[#bfe3e8] mt-0.5">
                 <option value="Cliente">Cliente</option>
                 <option value="Fornecedor">Fornecedor</option>
@@ -869,7 +869,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
             )}
             <div className="flex flex-col gap-1.5">
               {(tutor.contacts || []).length === 0 && !addingContato && (
-                <p className="text-[12px] text-[#8A989D]">Nenhum telefone cadastrado.</p>
+                <p className="text-[12px] text-[#374151]">Nenhum telefone cadastrado.</p>
               )}
               {(tutor.contacts || []).map((c) => (
                 <div key={c.id} className="flex items-start gap-1.5 text-[11px] border-b border-[#F0EBE0] pb-1.5 last:border-0">
@@ -878,7 +878,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
                     <div className="text-[13px] text-[#1F2A2E] font-medium flex items-center gap-1.5 flex-wrap">
                       {c.number}
                       {c.isWhatsApp && <span className="bg-[#E0F4F6] text-[#009AAC] px-1 py-px rounded text-[9px]">WhatsApp</span>}
-                      <span className="text-[#8A989D] text-[10px]">{CONTATO_TIPO_LABEL[c.type] || c.type}</span>
+                      <span className="text-[#374151] text-[10px]">{CONTATO_TIPO_LABEL[c.type] || c.type}</span>
                     </div>
                     {c.observations && <div className="text-[#5C6B70] text-[10px]">{c.observations}</div>}
                   </div>
@@ -890,11 +890,11 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
             {addingContato && (
               <div className="mt-2 pt-2 border-t border-[#F0EBE0] flex flex-col gap-1.5 text-[11px]">
                 <div>
-                  <label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Número</label>
+                  <label className="text-[10px] uppercase tracking-wide text-[#374151]">Número</label>
                   <input value={contatoForm.number} onChange={(e) => setContatoForm((f: any) => ({ ...f, number: e.target.value }))} placeholder="(85) 99999-9999" className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[13px] text-[#1F2A2E]" />
                 </div>
                 <div>
-                  <label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Identificação (ex: Esposo, Trabalho, Filha)</label>
+                  <label className="text-[10px] uppercase tracking-wide text-[#374151]">Identificação (ex: Esposo, Trabalho, Filha)</label>
                   <input value={contatoForm.observations} onChange={(e) => setContatoForm((f: any) => ({ ...f, observations: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[13px] text-[#1F2A2E]" />
                 </div>
                 <div className="flex items-center gap-3">
@@ -930,15 +930,15 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
               <button onClick={() => { setDadosForm({ name: tutor.name || "", email: tutor.email || "", type: tutor.type || "", cpf: tutor.cpf || "", rg: tutor.rg || "", birthDate: tutor.birthDate ? String(tutor.birthDate).slice(0, 10) : "", gender: tutor.gender || "", nationality: tutor.nationality || "", howFoundUs: tutor.howFoundUs || "", profession: tutor.profession || "", cep: tutor.cep || "", address: tutor.address || "", addressNumber: tutor.addressNumber || "", complement: tutor.complement || "", referencePoint: tutor.referencePoint || "", neighborhood: tutor.neighborhood || "", city: tutor.city || "", state: tutor.state || "", acceptsEmail: !!tutor.acceptsEmail, acceptsWhatsApp: !!tutor.acceptsWhatsApp, acceptsSMS: !!tutor.acceptsSMS, acceptsSmsCampaign: !!tutor.acceptsSmsCampaign }); setEditDados(true); }} className="text-[11px] text-[#009AAC] hover:underline">✏️ Editar</button>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-3">
-              {tutor.cep && <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">CEP</div><div className="text-[13px] text-[#1F2A2E]">{tutor.cep}</div></div>}
-              {(tutor.address || tutor.addressNumber) && <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Logradouro</div><div className="text-[13px] text-[#1F2A2E]">{(tutor.address || "") + (tutor.addressNumber ? ", " + tutor.addressNumber : "")}</div></div>}
-              {tutor.complement && <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Complemento</div><div className="text-[13px] text-[#1F2A2E]">{tutor.complement}</div></div>}
-              {tutor.referencePoint && <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Ponto de referência</div><div className="text-[13px] text-[#1F2A2E]">{tutor.referencePoint}</div></div>}
-              {tutor.neighborhood && <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Bairro</div><div className="text-[13px] text-[#1F2A2E]">{tutor.neighborhood}</div></div>}
-              {tutor.city && <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Cidade</div><div className="text-[13px] text-[#1F2A2E]">{tutor.city}</div></div>}
-              {tutor.state && <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Estado</div><div className="text-[13px] text-[#1F2A2E]">{tutor.state}</div></div>}
+              {tutor.cep && <div><div className="text-[10px] uppercase tracking-wide text-[#374151]">CEP</div><div className="text-[13px] text-[#1F2A2E]">{tutor.cep}</div></div>}
+              {(tutor.address || tutor.addressNumber) && <div><div className="text-[10px] uppercase tracking-wide text-[#374151]">Logradouro</div><div className="text-[13px] text-[#1F2A2E]">{(tutor.address || "") + (tutor.addressNumber ? ", " + tutor.addressNumber : "")}</div></div>}
+              {tutor.complement && <div><div className="text-[10px] uppercase tracking-wide text-[#374151]">Complemento</div><div className="text-[13px] text-[#1F2A2E]">{tutor.complement}</div></div>}
+              {tutor.referencePoint && <div><div className="text-[10px] uppercase tracking-wide text-[#374151]">Ponto de referência</div><div className="text-[13px] text-[#1F2A2E]">{tutor.referencePoint}</div></div>}
+              {tutor.neighborhood && <div><div className="text-[10px] uppercase tracking-wide text-[#374151]">Bairro</div><div className="text-[13px] text-[#1F2A2E]">{tutor.neighborhood}</div></div>}
+              {tutor.city && <div><div className="text-[10px] uppercase tracking-wide text-[#374151]">Cidade</div><div className="text-[13px] text-[#1F2A2E]">{tutor.city}</div></div>}
+              {tutor.state && <div><div className="text-[10px] uppercase tracking-wide text-[#374151]">Estado</div><div className="text-[13px] text-[#1F2A2E]">{tutor.state}</div></div>}
               {!(tutor.cep || tutor.address || tutor.addressNumber || tutor.complement || tutor.referencePoint || tutor.neighborhood || tutor.city || tutor.state) && (
-                <p className="text-[12px] text-[#8A989D]">Endereço não cadastrado.</p>
+                <p className="text-[12px] text-[#374151]">Endereço não cadastrado.</p>
               )}
             </div>
           </div>
@@ -963,9 +963,9 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
               <div className="flex-1 min-w-0">
                 <div className="text-[14px] text-[#014D5E] font-medium truncate">{pet.name}</div>
                 <div className="text-[12px] text-[#5C6B70] truncate">{[ESPECIE_LABEL(pet.species), pet.breed, PET_IDADE(pet.birthDate)].filter(Boolean).join(" · ")}</div>
-                {pet.codigo ? <div className="text-[10px] text-[#8A989D]">#{pet.codigo}</div> : null}
+                {pet.codigo ? <div className="text-[10px] text-[#374151]">#{pet.codigo}</div> : null}
               </div>
-              <span className="text-[#8A989D] text-[18px]">›</span>
+              <span className="text-[#374151] text-[18px]">›</span>
             </Link>
           ))}
           <button onClick={() => criarPetEAbrir(tutor.id)} className="flex items-center justify-center gap-2 border border-dashed border-[#E8E2D6] rounded-[13px] text-[#009AAC] hover:border-[#009AAC] transition text-[13px]" style={{ padding: "13px 14px", minHeight: "74px" }}>
@@ -977,7 +977,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
 
       {tab === "COMPRAS" && (
       <div className="mb-3">
-        <div className="text-[12px] text-[#8A989D] mb-2">🐾 Toda compra é registrada no pet. Filtre por pet ou veja tudo. Valores ocultos — use o 👁️ no topo.</div>
+        <div className="text-[12px] text-[#374151] mb-2">🐾 Toda compra é registrada no pet. Filtre por pet ou veja tudo. Valores ocultos — use o 👁️ no topo.</div>
         <div className="flex gap-1.5 flex-wrap mb-3">
           <button onClick={() => setComprasPet("")} className="text-[12px] px-3 py-1 rounded-full border" style={{ borderColor: comprasPet === "" ? "#009AAC" : "#E8E2D6", color: comprasPet === "" ? "#009AAC" : "#5C6B70", background: comprasPet === "" ? "#E0F4F6" : "#fff" }}>Todos</button>
           {pets.map((p) => (
@@ -986,23 +986,23 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
         </div>
         <div className="flex gap-2.5 mb-3 flex-wrap">
           <div className="bg-white border border-[#E8E2D6] rounded-[12px] flex-1 min-w-[130px]" style={{ padding: "11px 14px" }}>
-            <div className="text-[11px] text-[#8A989D]">💰 Total {comprasPet ? `(${comprasPet})` : "gasto"}</div>
+            <div className="text-[11px] text-[#374151]">💰 Total {comprasPet ? `(${comprasPet})` : "gasto"}</div>
             <div className="text-[19px] font-medium text-[#014D5E]" >{money(comprasFiltradas.reduce((s, a) => s + (a.value || 0), 0))}</div>
           </div>
           <div className="bg-white border border-[#E8E2D6] rounded-[12px] flex-1 min-w-[130px]" style={{ padding: "11px 14px" }}>
-            <div className="text-[11px] text-[#8A989D]">🛒 Nº de compras</div>
+            <div className="text-[11px] text-[#374151]">🛒 Nº de compras</div>
             <div className="text-[19px] font-medium text-[#014D5E]">{comprasFiltradas.length}</div>
           </div>
         </div>
         <div className="bg-white border border-[#E8E2D6] rounded-[13px]" style={{ padding: "6px 15px" }}>
-          {comprasFiltradas.length === 0 && <p className="text-[12.5px] text-[#8A989D] py-3 text-center">Nenhuma compra registrada{comprasPet ? ` para ${comprasPet}` : ""} ainda.</p>}
+          {comprasFiltradas.length === 0 && <p className="text-[12.5px] text-[#374151] py-3 text-center">Nenhuma compra registrada{comprasPet ? ` para ${comprasPet}` : ""} ainda.</p>}
           {comprasFiltradas.map((a, i) => (
             <Link key={a.id} href={`/dashboard/erp/atendimentos/${a.id}`} className="flex items-center gap-2.5 py-2.5 hover:opacity-70 transition-opacity" style={{ borderBottom: i < comprasFiltradas.length - 1 ? "1px solid #F0EBE0" : "none" }}>
-              <span className="text-[11.5px] text-[#8A989D] w-[46px] shrink-0">{fmtDataBR(a.date).slice(0, 5)}</span>
+              <span className="text-[11.5px] text-[#374151] w-[46px] shrink-0">{fmtDataBR(a.date).slice(0, 5)}</span>
               <span className="flex-1 text-[12.5px] text-[#1F2A2E] truncate">{a.description || a.type || "Atendimento"}</span>
-              {a.pet?.name && <span className="text-[11px] text-[#8A989D] shrink-0">🐾 {a.pet.name}</span>}
+              {a.pet?.name && <span className="text-[11px] text-[#374151] shrink-0">🐾 {a.pet.name}</span>}
               <span className="text-[12.5px] text-[#014D5E] font-medium shrink-0">{money(a.value)}</span>
-              <span className="text-[#8A989D] text-[12px] shrink-0">›</span>
+              <span className="text-[#374151] text-[12px] shrink-0">›</span>
             </Link>
           ))}
         </div>
@@ -1011,7 +1011,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
 
       {tab === "GERAL" && !naoCliente && (
       <>
-        <div className="text-[11px] text-[#8A989D] uppercase tracking-wide mb-2 mt-1 px-1">💬 Relacionamento</div>
+        <div className="text-[11px] text-[#374151] uppercase tracking-wide mb-2 mt-1 px-1">💬 Relacionamento</div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-start mb-3">
           {/* Follow-up */}
           <div className="bg-white border border-[#E8E2D6] rounded-[13px]">
@@ -1022,7 +1022,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
               {tutor.proximoFollowupAt ? (
                 <div className="text-[12.5px] text-[#5C6B70]">Próximo em <b className="text-[#014D5E]">{fmtDataBR(tutor.proximoFollowupAt)}</b></div>
               ) : (
-                <div className="text-[12.5px] text-[#8A989D]">Nenhum follow-up agendado.</div>
+                <div className="text-[12.5px] text-[#374151]">Nenhum follow-up agendado.</div>
               )}
               <div className="flex gap-1.5 mt-2.5">
                 <button onClick={() => { setFuDate(tutor.proximoFollowupAt ? String(tutor.proximoFollowupAt).slice(0, 10) : ""); setFuOpen(true); }} className="bg-[#E0F4F6] text-[#014D5E] text-[11px] px-2.5 py-1 rounded-[8px]">{tutor.proximoFollowupAt ? "Reagendar" : "Agendar"}</button>
@@ -1049,7 +1049,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
               <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">⭐ Avaliações Google</h3>
             </div>
             <div style={{ padding: "13px 14px" }}>
-              <p className="text-[12px] text-[#8A989D] mb-2">Nenhuma avaliação solicitada</p>
+              <p className="text-[12px] text-[#374151] mb-2">Nenhuma avaliação solicitada</p>
               <button onClick={() => openWhatsAppMeta(phone)} className="bg-[#E0F4F6] text-[#014D5E] text-[11px] px-2.5 py-1 rounded-[8px]">+ Solicitar por WhatsApp</button>
             </div>
           </div>
@@ -1087,7 +1087,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
               <button onClick={addInteracao} disabled={savingInt} className="bg-[#009AAC] text-white px-2.5 py-1 rounded text-[11px] font-medium disabled:opacity-50">{savingInt ? "..." : "Salvar"}</button>
             </div>
             {interacoes.length === 0 ? (
-              <p className="text-center text-[12px] text-[#8A989D] py-4">Nenhuma interação ainda</p>
+              <p className="text-center text-[12px] text-[#374151] py-4">Nenhuma interação ainda</p>
             ) : (
               <div className="flex flex-col gap-1.5 max-h-72 overflow-auto">
                 {interacoes.map((it: any) => (
@@ -1095,11 +1095,11 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-medium text-[#009AAC]">{it.tipo}{it.canal ? ` · ${it.canal}` : ""}</span>
                       <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] text-[#8A989D]">{new Date(it.createdAt).toLocaleDateString("pt-BR")} {new Date(it.createdAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</span>
+                        <span className="text-[10px] text-[#374151]">{new Date(it.createdAt).toLocaleDateString("pt-BR")} {new Date(it.createdAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</span>
                         {editIntId !== it.id && (
                           <>
-                            <button onClick={() => { setEditIntId(it.id); setEditIntTexto(it.texto || ""); }} className="text-[#8A989D] hover:text-[#009AAC]" title="Editar"><LuPencil className="w-3 h-3" /></button>
-                            <button onClick={() => deleteInteracao(it.id)} className="text-[#8A989D] hover:text-[#b23b39]" title="Excluir"><LuTrash className="w-3 h-3" /></button>
+                            <button onClick={() => { setEditIntId(it.id); setEditIntTexto(it.texto || ""); }} className="text-[#374151] hover:text-[#009AAC]" title="Editar"><LuPencil className="w-3 h-3" /></button>
+                            <button onClick={() => deleteInteracao(it.id)} className="text-[#374151] hover:text-[#b23b39]" title="Excluir"><LuTrash className="w-3 h-3" /></button>
                           </>
                         )}
                       </div>
@@ -1113,7 +1113,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
                     ) : (
                       <p className="text-[12px] text-[#1F2A2E] mt-0.5">{it.texto}</p>
                     )}
-                    {it.autor?.name && <p className="text-[10px] text-[#8A989D] mt-0.5">por {it.autor.name}</p>}
+                    {it.autor?.name && <p className="text-[10px] text-[#374151] mt-0.5">por {it.autor.name}</p>}
                   </div>
                 ))}
               </div>
@@ -1124,11 +1124,11 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
         {/* E-mails (largura total, no fim) */}
         <div className="bg-white border border-[#E8E2D6] rounded-[13px] mb-3">
           <div className="flex items-center justify-between border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
-            <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">✉️ E-mails <span className="text-[#8A989D] font-normal">(0)</span></h3>
+            <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">✉️ E-mails <span className="text-[#374151] font-normal">(0)</span></h3>
             <button onClick={() => setEmailOpen(true)} className="text-[11px] text-[#009AAC] hover:underline">+ Enviar</button>
           </div>
           <div style={{ padding: "12px 14px" }}>
-            <p className="text-center text-[12px] text-[#8A989D]">Nenhum email enviado.</p>
+            <p className="text-center text-[12px] text-[#374151]">Nenhum email enviado.</p>
           </div>
         </div>
       </>
@@ -1138,7 +1138,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.45)" }} onClick={() => setFuOpen(false)}>
           <div className="bg-[#FBF9F4] rounded-[16px] w-full max-w-[360px] p-5" style={{ border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
             <h3 className="text-[15px] font-medium text-[#014D5E] mb-1">📞 Agendar follow-up</h3>
-            <p className="text-[12px] text-[#8A989D] mb-3">Quando falar de novo com {tutor.name?.split(" ")[0] || "o cliente"}?</p>
+            <p className="text-[12px] text-[#374151] mb-3">Quando falar de novo com {tutor.name?.split(" ")[0] || "o cliente"}?</p>
             <input type="date" value={fuDate} onChange={(e) => setFuDate(e.target.value)} className="w-full px-3 py-2 border border-[#E8E2D6] rounded-[9px] text-[13px] bg-white" />
             <div className="flex justify-between items-center mt-4">
               {tutor.proximoFollowupAt ? <button onClick={async () => { await clearFollowup(); setFuOpen(false); }} className="text-[12px] text-[#b23b39]">Remover</button> : <span />}
@@ -1155,7 +1155,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.45)" }} onClick={() => setNotaOpen(false)}>
           <div className="bg-[#FBF9F4] rounded-[16px] w-full max-w-[400px] p-5" style={{ border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
             <h3 className="text-[15px] font-medium text-[#014D5E] mb-1">💗 Nota do cliente</h3>
-            <p className="text-[12px] text-[#8A989D] mb-3">Algo que vale lembrar sobre {tutor.name?.split(" ")[0] || "o cliente"}.</p>
+            <p className="text-[12px] text-[#374151] mb-3">Algo que vale lembrar sobre {tutor.name?.split(" ")[0] || "o cliente"}.</p>
             <textarea value={nota} onChange={(e) => setNota(e.target.value)} rows={3} placeholder="Ex.: prefere ser atendida à tarde…" className="w-full px-3 py-2 border border-[#E8E2D6] rounded-[9px] text-[13px] bg-white" />
             <div className="flex justify-end gap-2 mt-4">
               <button onClick={() => setNotaOpen(false)} className="text-[12.5px] px-3 py-2 rounded-[9px] text-[#5C6B70]">Cancelar</button>
@@ -1176,7 +1176,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
                 ))}
               </div>
             ) : (
-              <p className="text-[12px] text-[#8A989D]">Nenhum estágio configurado. Cadastre em Configurações → Pipelines.</p>
+              <p className="text-[12px] text-[#374151]">Nenhum estágio configurado. Cadastre em Configurações → Pipelines.</p>
             )}
             <div className="flex justify-end mt-4"><button onClick={() => setSituacaoOpen(false)} className="text-[12.5px] px-3 py-2 rounded-[9px] text-[#5C6B70]">Fechar</button></div>
           </div>

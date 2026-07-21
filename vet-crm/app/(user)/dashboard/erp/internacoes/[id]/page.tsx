@@ -52,7 +52,7 @@ const diaFortaleza = (at?: string | null) => {
 const hojeISO = () => diaFortaleza();
 const MUCOSAS = ["Rósea", "Pálida", "Congesta", "Cianótica", "Ictérica", "Porcelana"];
 const TREND_ST: Record<string, { bg: string; fg: string }> = {
-  up: { bg: "#FBEFE0", fg: "#B45309" }, down: { bg: "#E1F5EE", fg: "#0F6E56" }, flat: { bg: "#FBF9F4", fg: "#8A989D" },
+  up: { bg: "#FBEFE0", fg: "#B45309" }, down: { bg: "#E1F5EE", fg: "#0F6E56" }, flat: { bg: "#FBF9F4", fg: "#374151" },
 };
 function tendencia(cur: any, prev: any) {
   const c = parseFloat(cur), p = parseFloat(prev);
@@ -589,11 +589,11 @@ export default function FichaInternacaoPage() {
     return { poly: coords.join(" "), last: coords[coords.length - 1].split(","), min, max, W, H };
   }, [vitais]);
 
-  if (loading) return <div className="p-6 text-center text-sm text-[#8A989D]">Carregando ficha...</div>;
+  if (loading) return <div className="p-6 text-center text-sm text-[#374151]">Carregando ficha...</div>;
   if (!h) return (
     <div className="p-6 max-w-3xl mx-auto">
       <button onClick={() => router.push("/dashboard/erp/internacoes")} className="text-[13px] text-[#009AAC] mb-3">← Voltar ao mapa</button>
-      <div className="bg-white border rounded-xl px-6 py-12 text-center text-sm text-[#8A989D]" style={{ borderColor: "#E8E2D6" }}>Internação não encontrada.</div>
+      <div className="bg-white border rounded-xl px-6 py-12 text-center text-sm text-[#374151]" style={{ borderColor: "#E8E2D6" }}>Internação não encontrada.</div>
     </div>
   );
 
@@ -610,17 +610,17 @@ export default function FichaInternacaoPage() {
   const Ch = ({ children, editar }: { children: React.ReactNode; editar?: () => void }) => (
     <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "#F0EBE0" }}>
       <h3 className="text-[13px] font-medium text-[#014D5E] flex items-center gap-2">{children}</h3>
-      {editar && <button onClick={editar} className="text-[13px] text-[#8A989D] hover:text-[#009AAC]">✏️</button>}
+      {editar && <button onClick={editar} className="text-[13px] text-[#374151] hover:text-[#009AAC]">✏️</button>}
     </div>
   );
   const Field = ({ k, children }: { k: string; children: React.ReactNode }) => (
-    <div className="mb-2.5 last:mb-0"><div className="text-[10.5px] text-[#8A989D] uppercase tracking-wide mb-0.5">{k}</div><div className="text-[13.5px] text-[#1F2A2E] font-medium">{children}</div></div>
+    <div className="mb-2.5 last:mb-0"><div className="text-[10.5px] text-[#374151] uppercase tracking-wide mb-0.5">{k}</div><div className="text-[13.5px] text-[#1F2A2E] font-medium">{children}</div></div>
   );
   const GanchoCard = ({ emoji, titulo, desc }: { emoji: string; titulo: string; desc: string }) => (
     <div className="bg-white border rounded-[13px] px-4 py-3.5 flex items-center gap-3 opacity-90" style={{ borderColor: "#E8E2D6" }}>
       <div className="text-xl">{emoji}</div>
-      <div className="flex-1 min-w-0"><div className="text-[13px] font-medium text-[#014D5E]">{titulo}</div><div className="text-[11.5px] text-[#8A989D]">{desc}</div></div>
-      <span className="text-[10px] font-medium px-2 py-0.5 rounded-full flex-shrink-0" style={{ background: "#F0EBE0", color: "#8A989D" }}>🔒 próxima fase</span>
+      <div className="flex-1 min-w-0"><div className="text-[13px] font-medium text-[#014D5E]">{titulo}</div><div className="text-[11.5px] text-[#374151]">{desc}</div></div>
+      <span className="text-[10px] font-medium px-2 py-0.5 rounded-full flex-shrink-0" style={{ background: "#F0EBE0", color: "#374151" }}>🔒 próxima fase</span>
     </div>
   );
 
@@ -629,8 +629,8 @@ export default function FichaInternacaoPage() {
       {/* ===== APP (oculto na impressão) ===== */}
       <div className="p-6 max-w-6xl mx-auto print:hidden">
         {/* breadcrumb + voltar */}
-        <div className="flex items-center gap-2 text-[12.5px] text-[#8A989D] mb-2">
-          <button onClick={() => router.push("/dashboard/erp/internacoes")} className="text-[#8A989D] hover:text-[#009AAC]">←</button>
+        <div className="flex items-center gap-2 text-[12.5px] text-[#374151] mb-2">
+          <button onClick={() => router.push("/dashboard/erp/internacoes")} className="text-[#374151] hover:text-[#009AAC]">←</button>
           <Link href="/dashboard/erp/internacoes" className="hover:text-[#009AAC]">Internação</Link>
           <span>/</span><span className="text-[#009AAC] font-medium">{boxCodigo ? `Box ${boxCodigo}` : "Ficha"}</span>
         </div>
@@ -644,7 +644,7 @@ export default function FichaInternacaoPage() {
               <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-full" style={{ background: st.bg, color: st.fg }}>{estado}</span>
               {!alta ? <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-full" style={{ background: "#E8F1F8", color: "#1f5a82" }}>D{diasInternado(h.admissionDate)} de internação</span> : <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-full" style={{ background: "#E1F5EE", color: "#0F6E56" }}>Alta • {fmtData(h.actualDischargeDate)}</span>}
             </h1>
-            <div className="text-[12.5px] text-[#8A989D] mt-0.5">
+            <div className="text-[12.5px] text-[#374151] mt-0.5">
               {[h.pet?.breed, h.pet?.gender, idadeDe(h.pet?.birthDate), h.pet?.weight ? `${h.pet.weight} kg` : null, boxCodigo ? `Box ${boxCodigo}` : null, h.tutor?.name ? `Tutor(a): ${h.tutor.name}` : null].filter(Boolean).join(" · ")}
             </div>
           </div>
@@ -655,7 +655,7 @@ export default function FichaInternacaoPage() {
             {!alta && <button onClick={() => setTrocaBoxOpen(true)} className="text-[12.5px] font-medium text-[#5C6B70] bg-white border px-3 py-2 rounded-lg" style={{ borderColor: "#E8E2D6" }}>🛏️ Trocar box</button>}
             {!alta && <button onClick={darAlta} className="text-[12.5px] font-medium text-[#CC3366] bg-white border px-3 py-2 rounded-lg" style={{ borderColor: "#EAC3C1" }}>🚪 Dar alta</button>}
             {!alta && h.status !== "DECEASED" && <button onClick={() => { setObitoForm({ data: new Date().toISOString().slice(0, 10), causa: "" }); setObitoOpen(true); }} className="text-[12.5px] font-medium text-[#5C6B70] bg-white border px-3 py-2 rounded-lg" style={{ borderColor: "#E8E2D6" }}>🕊️ Registrar óbito</button>}
-            <button onClick={excluirInternacao} disabled={boxBusy} className="text-[12.5px] font-medium text-[#8A989D] bg-white border px-3 py-2 rounded-lg disabled:opacity-50" style={{ borderColor: "#E8E2D6" }} title="Excluir internação">🗑️</button>
+            <button onClick={excluirInternacao} disabled={boxBusy} className="text-[12.5px] font-medium text-[#374151] bg-white border px-3 py-2 rounded-lg disabled:opacity-50" style={{ borderColor: "#E8E2D6" }} title="Excluir internação">🗑️</button>
           </div>
         </div>
 
@@ -665,7 +665,7 @@ export default function FichaInternacaoPage() {
             <div className="rounded-2xl shadow-xl max-w-md w-full" style={{ background: "#FBF9F4", border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
               <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "#E8E2D6" }}>
                 <h3 className="text-base font-medium text-[#014D5E]">🕊️ Registrar óbito — {h.pet?.name}</h3>
-                <button onClick={() => setObitoOpen(false)} className="text-[#8A989D] text-lg leading-none">✕</button>
+                <button onClick={() => setObitoOpen(false)} className="text-[#374151] text-lg leading-none">✕</button>
               </div>
               <div className="p-5 space-y-3">
                 <div className="rounded-lg px-3 py-2.5 text-[12px]" style={{ background: "#FDF4DD", color: "#8a6400" }}>
@@ -674,14 +674,14 @@ export default function FichaInternacaoPage() {
                   A internação é encerrada e o box liberado.
                 </div>
                 <div>
-                  <label className="text-[10.5px] text-[#8A989D] uppercase tracking-wide block mb-1">Data do óbito</label>
+                  <label className="text-[10.5px] text-[#374151] uppercase tracking-wide block mb-1">Data do óbito</label>
                   <input type="date" value={obitoForm.data} onChange={(e) => setObitoForm({ ...obitoForm, data: e.target.value })} className="w-full bg-white border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} />
                 </div>
                 <div>
-                  <label className="text-[10.5px] text-[#8A989D] uppercase tracking-wide block mb-1">Causa / observação (opcional)</label>
+                  <label className="text-[10.5px] text-[#374151] uppercase tracking-wide block mb-1">Causa / observação (opcional)</label>
                   <textarea value={obitoForm.causa} onChange={(e) => setObitoForm({ ...obitoForm, causa: e.target.value })} rows={2} placeholder="Ex.: parada cardiorrespiratória decorrente de..." className="w-full bg-white border rounded-lg px-3 py-2 text-[13px] resize-none focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} />
                 </div>
-                <div className="text-[11px] text-[#8A989D]">Registrado por {userName || "—"}.</div>
+                <div className="text-[11px] text-[#374151]">Registrado por {userName || "—"}.</div>
               </div>
               <div className="px-5 py-4 border-t flex justify-end gap-2" style={{ borderColor: "#E8E2D6" }}>
                 <button onClick={() => setObitoOpen(false)} className="px-4 py-2 text-[13px] text-[#5C6B70] bg-white border rounded-lg" style={{ borderColor: "#E8E2D6" }}>Cancelar</button>
@@ -697,17 +697,17 @@ export default function FichaInternacaoPage() {
             <div className="rounded-2xl shadow-xl max-w-sm w-full" style={{ background: "#FBF9F4", border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
               <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "#E8E2D6" }}>
                 <h3 className="text-base font-medium text-[#014D5E]">🛏️ Trocar box</h3>
-                <button onClick={() => setTrocaBoxOpen(false)} className="text-[#8A989D] text-lg leading-none">✕</button>
+                <button onClick={() => setTrocaBoxOpen(false)} className="text-[#374151] text-lg leading-none">✕</button>
               </div>
               <div className="p-5">
-                <div className="text-[12px] text-[#8A989D] mb-2">Box atual: <span className="font-medium text-[#1F2A2E]">{boxCodigo ? `Box ${boxCodigo}` : "sem box"}</span></div>
+                <div className="text-[12px] text-[#374151] mb-2">Box atual: <span className="font-medium text-[#1F2A2E]">{boxCodigo ? `Box ${boxCodigo}` : "sem box"}</span></div>
                 {boxesLivres.length === 0 ? (
-                  <div className="text-[12.5px] text-[#8A989D] py-2">Nenhum box livre no momento.</div>
+                  <div className="text-[12.5px] text-[#374151] py-2">Nenhum box livre no momento.</div>
                 ) : (
                   <div className="space-y-1.5 max-h-[40vh] overflow-y-auto">
                     {boxesLivres.map((b) => (
                       <button key={b.id} onClick={() => trocarBox(b.id)} disabled={boxBusy} className="w-full text-left text-[13px] bg-white border rounded-lg px-3 py-2 hover:border-[#009AAC] disabled:opacity-50" style={{ borderColor: "#E8E2D6" }}>
-                        {b.codigo}{b.nome ? <span className="text-[11px] text-[#8A989D]"> · {b.nome}</span> : null}
+                        {b.codigo}{b.nome ? <span className="text-[11px] text-[#374151]"> · {b.nome}</span> : null}
                       </button>
                     ))}
                   </div>
@@ -730,10 +730,10 @@ export default function FichaInternacaoPage() {
                 <div className="grid grid-cols-2 gap-1.5">
                   {ESTADOS.map((e) => {
                     const on = estado === e.v;
-                    return <button key={e.v} onClick={() => mudarRisco(e.v)} disabled={alta} className="text-[11.5px] font-medium py-2 px-1 rounded-lg border text-center disabled:opacity-60" style={on ? { background: e.bg, color: e.fg, borderColor: e.fg } : { background: "#FBF9F4", color: "#8A989D", borderColor: "transparent" }}>{e.v}</button>;
+                    return <button key={e.v} onClick={() => mudarRisco(e.v)} disabled={alta} className="text-[11.5px] font-medium py-2 px-1 rounded-lg border text-center disabled:opacity-60" style={on ? { background: e.bg, color: e.fg, borderColor: e.fg } : { background: "#FBF9F4", color: "#374151", borderColor: "transparent" }}>{e.v}</button>;
                   })}
                 </div>
-                <div className="text-[10.5px] text-[#8A989D] mt-2.5">Sinaliza a cor no mapa e no painel da TV.</div>
+                <div className="text-[10.5px] text-[#374151] mt-2.5">Sinaliza a cor no mapa e no painel da TV.</div>
               </div>
             </div>
 
@@ -771,7 +771,7 @@ export default function FichaInternacaoPage() {
                     </div>
                   )}
                   {horariosBoletim.length === 0 ? (
-                    <div className="text-[12px] text-[#8A989D]">
+                    <div className="text-[12px] text-[#374151]">
                       Nenhum horário definido nesta internação. Edite a internação e informe os horários (ex.: 07:00, 14:00, 20:00).
                     </div>
                   ) : (
@@ -784,12 +784,12 @@ export default function FichaInternacaoPage() {
                             <div key={hor}>
                               <div className="flex items-center justify-between mb-1">
                                 <span className="text-[11.5px] font-medium text-[#014D5E]">{hor}</span>
-                                <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={txt.trim() ? { background: "#E1F5EE", color: "#0F6E56" } : { background: "#F0EBE0", color: "#8A989D" }}>{txt.trim() ? "programado" : "vazio"}</span>
+                                <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={txt.trim() ? { background: "#E1F5EE", color: "#0F6E56" } : { background: "#F0EBE0", color: "#374151" }}>{txt.trim() ? "programado" : "vazio"}</span>
                               </div>
                               {modelosBoletim.length === 0 ? (
                                 <div className="text-[11px] mb-1">
                                   <Link href="/dashboard/configuracoes/modelos-boletim" className="text-[#00798A] hover:underline">📋 Cadastrar modelos de boletim</Link>
-                                  <span className="text-[#8A989D]"> — textos prontos, pra não escrever do zero</span>
+                                  <span className="text-[#374151]"> — textos prontos, pra não escrever do zero</span>
                                 </div>
                               ) : (
                                 <select
@@ -841,7 +841,7 @@ export default function FichaInternacaoPage() {
                       <button onClick={salvarBoletinsProgramados} disabled={bolProgSaving} className="w-full mt-3 text-[12px] text-white bg-[#009AAC] py-2 rounded-lg disabled:opacity-60">
                         {bolProgSaving ? "Salvando..." : "Salvar boletins"}
                       </button>
-                      <div className="text-[10.5px] text-[#8A989D] mt-2">
+                      <div className="text-[10.5px] text-[#374151] mt-2">
                         No horário, o sistema envia sozinho ao tutor. Horário vazio não envia nada.
                       </div>
                     </>
@@ -877,13 +877,13 @@ export default function FichaInternacaoPage() {
                   </div>
                 )}
                 {evolucoesOrd.length === 0 ? (
-                  <div className="text-[12.5px] text-[#8A989D] py-3 text-center">Nenhuma evolução registrada ainda.</div>
+                  <div className="text-[12.5px] text-[#374151] py-3 text-center">Nenhuma evolução registrada ainda.</div>
                 ) : (
                   <div className="space-y-0">
                     {evolucoesOrd.map((e, i) => (
                       <div key={e.id} className="py-3 border-b last:border-b-0 pl-3" style={{ borderColor: "#F0EBE0", borderLeft: i === 0 ? "2px solid #009AAC" : "2px solid #E8E2D6" }}>
                         <div className="flex items-center justify-between">
-                          <div className="text-[11px] text-[#8A989D]">{fmtDataHora(e.at)}</div>
+                          <div className="text-[11px] text-[#374151]">{fmtDataHora(e.at)}</div>
                           <button onClick={() => excluirEvolucao(e.id)} className="text-[11px] text-[#B4BCC0] hover:text-[#CC3366]">🗑️</button>
                         </div>
                         <div className="text-[13px] text-[#5C6B70] mt-0.5">{e.texto}</div>
@@ -901,11 +901,11 @@ export default function FichaInternacaoPage() {
                 {!alta && <button onClick={() => abrirPresc()} className="text-[12px] font-medium text-white bg-[#009AAC] px-3 py-1.5 rounded-lg">➕ Adicionar</button>}
               </div>
               {prescricoes.length === 0 ? (
-                <div className="px-4 py-6 text-center text-[12.5px] text-[#8A989D]">Nenhuma medicação prescrita ainda.</div>
+                <div className="px-4 py-6 text-center text-[12.5px] text-[#374151]">Nenhuma medicação prescrita ainda.</div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-[13px]">
-                    <thead><tr className="text-[10.5px] text-[#8A989D] uppercase tracking-wide">
+                    <thead><tr className="text-[10.5px] text-[#374151] uppercase tracking-wide">
                       <th className="text-left font-medium px-4 py-2">Medicação</th><th className="text-left font-medium px-2 py-2">Via</th><th className="text-left font-medium px-2 py-2">Dose</th><th className="text-left font-medium px-2 py-2">Freq.</th><th className="text-left font-medium px-2 py-2">Horários</th><th className="text-left font-medium px-2 py-2">Prescrito por</th><th className="px-2 py-2"></th>
                     </tr></thead>
                     <tbody>
@@ -937,20 +937,20 @@ export default function FichaInternacaoPage() {
                 </div>
               </div>
               {plantao.length === 0 ? (
-                <div className="px-4 py-6 text-center text-[12.5px] text-[#8A989D]">Sem doses com horário hoje. Adicione medicações com horários na prescrição.</div>
+                <div className="px-4 py-6 text-center text-[12.5px] text-[#374151]">Sem doses com horário hoje. Adicione medicações com horários na prescrição.</div>
               ) : plantaoPendentes.length === 0 ? (
                 <div className="px-4 py-6 text-center text-[12.5px]" style={{ color: "#0F6E56" }}>✅ Todas as doses de hoje foram aplicadas.</div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-[13px]">
-                    <thead><tr className="text-[10.5px] text-[#8A989D] uppercase tracking-wide">
+                    <thead><tr className="text-[10.5px] text-[#374151] uppercase tracking-wide">
                       <th className="text-left font-medium px-4 py-2">Hora</th><th className="text-left font-medium px-2 py-2">Medicação</th><th className="text-left font-medium px-2 py-2">Dose</th><th className="text-left font-medium px-2 py-2">Status</th><th className="text-left font-medium px-2 py-2">Aplicada às</th><th className="text-left font-medium px-2 py-2">Por</th><th className="px-2 py-2 text-center">Feita</th>
                     </tr></thead>
                     <tbody>
                       {plantaoPendentes.map((s) => { const stt = STATUS_MED[s.status]; const done = s.status === "feito"; return (
                         <tr key={s.p.id + s.hhmm} className="border-t" style={{ borderColor: "#F0EBE0", opacity: done ? 0.6 : 1 }}>
                           <td className="px-4 py-2 tabular-nums font-medium whitespace-nowrap">{s.hhmm}</td>
-                          <td className="px-2 py-2 whitespace-nowrap">{s.p.medicamento} <span className="text-[11px] text-[#8A989D]">{s.p.via}</span></td>
+                          <td className="px-2 py-2 whitespace-nowrap">{s.p.medicamento} <span className="text-[11px] text-[#374151]">{s.p.via}</span></td>
                           <td className="px-2 py-2 tabular-nums whitespace-nowrap">{s.p.dose || "—"}</td>
                           <td className="px-2 py-2"><span className="text-[10.5px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap" style={{ background: stt.bg, color: stt.fg }}>{stt.lbl}</span></td>
                           {/* Horário REAL do clique (s.log.at), que pode diferir do horário previsto. */}
@@ -976,8 +976,8 @@ export default function FichaInternacaoPage() {
                   <div className="px-4 pb-3">
                     {plantaoFeitasHoje.map((s) => (
                       <div key={s.p.id + s.hhmm} className="flex items-center gap-2 py-1.5 text-[12.5px] border-b last:border-b-0" style={{ borderColor: "#F0EBE0" }}>
-                        <span className="tabular-nums text-[#8A989D] w-[42px] flex-shrink-0">{s.hhmm}</span>
-                        <span className="flex-1 min-w-0 truncate">{s.p.medicamento} <span className="text-[11px] text-[#8A989D]">{s.p.via} · {s.p.dose || "—"}</span></span>
+                        <span className="tabular-nums text-[#374151] w-[42px] flex-shrink-0">{s.hhmm}</span>
+                        <span className="flex-1 min-w-0 truncate">{s.p.medicamento} <span className="text-[11px] text-[#374151]">{s.p.via} · {s.p.dose || "—"}</span></span>
                         <span className="text-[11px] text-[#5C6B70] flex-shrink-0">
                           {s.log?.at ? (() => { try { return new Date(s.log.at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }); } catch { return ""; } })() : ""} · {s.log?.por || "—"}
                         </span>
@@ -998,13 +998,13 @@ export default function FichaInternacaoPage() {
                     {aplicacoesPorData.map(({ dia, itens }) => (
                       <details key={dia} className="mb-1.5">
                         <summary className="text-[12px] py-1.5 cursor-pointer text-[#014D5E]">
-                          {fmtData(dia)} <span className="text-[11px] text-[#8A989D]">— {itens.length} aplicação(ões)</span>
+                          {fmtData(dia)} <span className="text-[11px] text-[#374151]">— {itens.length} aplicação(ões)</span>
                         </summary>
                         <div className="pl-3">
                           {itens.map((d: any) => (
                             <div key={d.id} className="flex items-center gap-2 py-1 text-[12px] border-b last:border-b-0" style={{ borderColor: "#F0EBE0" }}>
-                              <span className="tabular-nums text-[#8A989D] w-[42px] flex-shrink-0">{d.slot || "—"}</span>
-                              <span className="flex-1 min-w-0 truncate">{d.med} <span className="text-[11px] text-[#8A989D]">{d.via} · {d.dose || "—"}</span></span>
+                              <span className="tabular-nums text-[#374151] w-[42px] flex-shrink-0">{d.slot || "—"}</span>
+                              <span className="flex-1 min-w-0 truncate">{d.med} <span className="text-[11px] text-[#374151]">{d.via} · {d.dose || "—"}</span></span>
                               <span className="text-[11px] text-[#5C6B70] flex-shrink-0">
                                 {d.at ? (() => { try { return new Date(d.at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }); } catch { return ""; } })() : ""} · {d.por || "—"}
                               </span>
@@ -1017,17 +1017,17 @@ export default function FichaInternacaoPage() {
                 </details>
               )}
 
-              {!alta && <div className="px-4 py-2.5 text-[11px] text-[#8A989D] border-t" style={{ borderColor: "#F0EBE0" }}>Marcar a dose registra quem aplicou ({userName || "você"}) e a hora.</div>}
+              {!alta && <div className="px-4 py-2.5 text-[11px] text-[#374151] border-t" style={{ borderColor: "#F0EBE0" }}>Marcar a dose registra quem aplicou ({userName || "você"}) e a hora.</div>}
             </div>
 
             {/* Sinais vitais (F4) */}
             <div className="bg-white border rounded-[13px]" style={{ borderColor: "#E8E2D6" }}>
               <div className="flex items-center justify-between px-4 py-3 border-b flex-wrap gap-2" style={{ borderColor: "#F0EBE0" }}>
-                <h3 className="text-[13px] font-medium text-[#014D5E] flex items-center gap-2">🩺 Sinais vitais{ultVital?.hora ? <span className="text-[11px] text-[#8A989D] font-normal">· última {ultVital.hora}</span> : null}</h3>
+                <h3 className="text-[13px] font-medium text-[#014D5E] flex items-center gap-2">🩺 Sinais vitais{ultVital?.hora ? <span className="text-[11px] text-[#374151] font-normal">· última {ultVital.hora}</span> : null}</h3>
                 {!alta && <button onClick={() => setVitalOpen(true)} className="text-[12px] font-medium text-white bg-[#009AAC] px-3 py-1.5 rounded-lg">➕ Registrar aferição</button>}
               </div>
               {vitaisOrd.length === 0 ? (
-                <div className="px-4 py-6 text-center text-[12.5px] text-[#8A989D]">Nenhuma aferição registrada ainda.</div>
+                <div className="px-4 py-6 text-center text-[12.5px] text-[#374151]">Nenhuma aferição registrada ainda.</div>
               ) : (
                 <div className="p-4">
                   <div className="grid grid-cols-4 gap-2">
@@ -1035,8 +1035,8 @@ export default function FichaInternacaoPage() {
                       const val = ultVital?.[f]; const tr = tendencia(ultVital?.[f], antVital?.[f]); const trS = TREND_ST[tr.dir]; const al = f === "temp" && tempForaFaixa(val);
                       return (
                         <div key={f} className="rounded-[11px] border px-2 py-3 text-center" style={{ background: "#FBF9F4", borderColor: "#F0EBE0" }}>
-                          <div className="text-[22px] leading-none font-medium tabular-nums" style={{ color: al ? "#CC3366" : "#014D5E" }}>{val || "—"}<small className="text-[11px] text-[#8A989D] font-normal">{un}</small></div>
-                          <div className="text-[10px] text-[#8A989D] uppercase tracking-wide mt-1.5">{lbl}</div>
+                          <div className="text-[22px] leading-none font-medium tabular-nums" style={{ color: al ? "#CC3366" : "#014D5E" }}>{val || "—"}<small className="text-[11px] text-[#374151] font-normal">{un}</small></div>
+                          <div className="text-[10px] text-[#374151] uppercase tracking-wide mt-1.5">{lbl}</div>
                           {antVital && <div className="inline-flex items-center gap-1 text-[10px] mt-1 px-2 py-0.5 rounded-full" style={{ background: trS.bg, color: trS.fg }}>{tr.ar} {al && f === "temp" ? "alerta" : tr.txt}</div>}
                         </div>
                       );
@@ -1044,18 +1044,18 @@ export default function FichaInternacaoPage() {
                   </div>
                   {sparkTemp && (
                     <div className="flex items-center gap-2.5 mt-3.5">
-                      <span className="text-[10px] text-[#8A989D] uppercase tracking-wide">Temp · últimas</span>
+                      <span className="text-[10px] text-[#374151] uppercase tracking-wide">Temp · últimas</span>
                       <svg width={sparkTemp.W} height={sparkTemp.H} viewBox={`0 0 ${sparkTemp.W} ${sparkTemp.H}`} className="max-w-full">
                         <line x1="0" y1={sparkTemp.H - 4} x2={sparkTemp.W} y2={sparkTemp.H - 4} stroke="#F0EBE0" strokeWidth="1" />
                         <polyline points={sparkTemp.poly} fill="none" stroke="#009AAC" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                         <circle cx={sparkTemp.last[0]} cy={sparkTemp.last[1]} r="3.5" fill="#009AAC" />
                       </svg>
-                      <span className="text-[11px] text-[#8A989D] tabular-nums">{sparkTemp.min.toFixed(1)} → {sparkTemp.max.toFixed(1)} °C</span>
+                      <span className="text-[11px] text-[#374151] tabular-nums">{sparkTemp.min.toFixed(1)} → {sparkTemp.max.toFixed(1)} °C</span>
                     </div>
                   )}
                   <div className="overflow-x-auto mt-3">
                     <table className="w-full text-[12.5px]">
-                      <thead><tr className="text-[10px] text-[#8A989D] uppercase tracking-wide">
+                      <thead><tr className="text-[10px] text-[#374151] uppercase tracking-wide">
                         <th className="text-left font-medium px-3 py-2">Hora</th><th className="text-left font-medium px-2 py-2">FC</th><th className="text-left font-medium px-2 py-2">FR</th><th className="text-left font-medium px-2 py-2">Temp</th><th className="text-left font-medium px-2 py-2">PA</th><th className="text-left font-medium px-2 py-2">Mucosa</th><th className="text-left font-medium px-2 py-2">Dor</th><th className="text-left font-medium px-2 py-2">Por</th><th className="px-2 py-2"></th>
                       </tr></thead>
                       <tbody>
@@ -1078,11 +1078,11 @@ export default function FichaInternacaoPage() {
             {/* Fluidos, dejetos & alimentação (F4) */}
             <div className="bg-white border rounded-[13px]" style={{ borderColor: "#E8E2D6" }}>
               <div className="flex items-center justify-between px-4 py-3 border-b flex-wrap gap-2" style={{ borderColor: "#F0EBE0" }}>
-                <h3 className="text-[13px] font-medium text-[#014D5E] flex items-center gap-2">💧 Fluidos, dejetos &amp; alimentação{ultFluido?.hora ? <span className="text-[11px] text-[#8A989D] font-normal">· último {ultFluido.hora}</span> : null}</h3>
+                <h3 className="text-[13px] font-medium text-[#014D5E] flex items-center gap-2">💧 Fluidos, dejetos &amp; alimentação{ultFluido?.hora ? <span className="text-[11px] text-[#374151] font-normal">· último {ultFluido.hora}</span> : null}</h3>
                 {!alta && <button onClick={() => setFluidoOpen(true)} className="text-[12px] font-medium text-white bg-[#009AAC] px-3 py-1.5 rounded-lg">➕ Registrar controle</button>}
               </div>
               {!ultFluido ? (
-                <div className="px-4 py-6 text-center text-[12.5px] text-[#8A989D]">Nenhum controle registrado ainda.</div>
+                <div className="px-4 py-6 text-center text-[12.5px] text-[#374151]">Nenhum controle registrado ainda.</div>
               ) : (
                 <div className="p-4">
                   <div className="grid grid-cols-2 rounded-[11px] border overflow-hidden" style={{ borderColor: "#F0EBE0" }}>
@@ -1096,7 +1096,7 @@ export default function FichaInternacaoPage() {
                     <div className="mt-3 space-y-0">
                       {fluidosOrd.map((f) => (
                         <div key={f.id} className="flex items-start gap-2 text-[12px] py-1.5 border-t" style={{ borderColor: "#F0EBE0" }}>
-                          <span className="text-[#8A989D] tabular-nums whitespace-nowrap w-[92px] flex-shrink-0">{f.hora}{f.por ? ` · ${f.por}` : ""}</span>
+                          <span className="text-[#374151] tabular-nums whitespace-nowrap w-[92px] flex-shrink-0">{f.hora}{f.por ? ` · ${f.por}` : ""}</span>
                           <span className="text-[#5C6B70] flex-1">{[f.entradaFluido && `fluido ${f.entradaFluido} ml`, f.agua && `água ${f.agua} ml`, f.diurese && `diurese ${f.diurese}`, f.fezes && `fezes ${f.fezes}`, f.alimentacao && `alim. ${f.alimentacao}`, f.emese && `êmese ${f.emese}`].filter(Boolean).join(" · ") || "—"}</span>
                           {!alta && <button onClick={() => excluirFluido(f.id)} className="text-[11px] text-[#B4BCC0] hover:text-[#CC3366]">🗑️</button>}
                         </div>
@@ -1115,7 +1115,7 @@ export default function FichaInternacaoPage() {
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-[13px]">
-                  <thead><tr className="text-[10.5px] text-[#8A989D] uppercase tracking-wide">
+                  <thead><tr className="text-[10.5px] text-[#374151] uppercase tracking-wide">
                     <th className="text-left font-medium px-4 py-2">Item</th><th className="text-left font-medium px-2 py-2">Categoria</th><th className="text-right font-medium px-2 py-2">Qtd</th><th className="text-right font-medium px-2 py-2">Valor</th><th className="text-right font-medium px-2 py-2">Total</th><th className="px-2 py-2"></th>
                   </tr></thead>
                   <tbody>
@@ -1145,7 +1145,7 @@ export default function FichaInternacaoPage() {
                 {caucAplic > 0 && <div className="flex justify-between text-[13px] text-[#5a3b9b]"><span>Caução aplicada</span><span className="tabular-nums font-medium">− {fmtBRL(caucAplic)}</span></div>}
                 <div className="flex justify-between text-[15px] text-[#014D5E] border-t pt-2 mt-0.5" style={{ borderColor: "#F0EBE0" }}><span className="font-medium">Saldo a pagar</span><span className="tabular-nums font-medium">{fmtBRL(saldoPagar)}</span></div>
               </div>
-              <div className="px-4 pb-3 text-[10.5px] text-[#8A989D]">Diárias entram automáticas (dias × valor/dia). Insumos “só estoque” não somam na conta.</div>
+              <div className="px-4 pb-3 text-[10.5px] text-[#374151]">Diárias entram automáticas (dias × valor/dia). Insumos “só estoque” não somam na conta.</div>
             </div>
 
             {/* Caução (F5) */}
@@ -1156,7 +1156,7 @@ export default function FichaInternacaoPage() {
               </div>
               <div className="px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
                 <div>
-                  <div className="text-[10.5px] text-[#8A989D] uppercase tracking-wide">Saldo disponível de {h.tutor?.name || "tutor"}</div>
+                  <div className="text-[10.5px] text-[#374151] uppercase tracking-wide">Saldo disponível de {h.tutor?.name || "tutor"}</div>
                   <div className="text-[22px] font-medium tabular-nums" style={{ color: "#5a3b9b" }}>{fmtBRL(caucaoSaldo)}</div>
                 </div>
                 {caucaoSaldo > 0 && cc.totalFaturavel > 0 && !alta && (
@@ -1182,7 +1182,7 @@ export default function FichaInternacaoPage() {
                     ))}
                   </div>
                 )}
-                <div className="text-[10.5px] text-[#8A989D] mt-2.5">“Enviar pro Caixa” cria a venda (a receber) com os itens faturáveis e aplica a caução como pagamento. “Baixar insumos” dá saída no estoque dos itens vinculados a produto.</div>
+                <div className="text-[10.5px] text-[#374151] mt-2.5">“Enviar pro Caixa” cria a venda (a receber) com os itens faturáveis e aplica a caução como pagamento. “Baixar insumos” dá saída no estoque dos itens vinculados a produto.</div>
               </div>
             </div>
           </div>
@@ -1196,12 +1196,12 @@ export default function FichaInternacaoPage() {
         <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
           <tbody>
             {[["Entrada", fmtDataHora(h.admissionDate)], ["Peso / temp. de entrada", [adm.pesoEntrada ? `${adm.pesoEntrada} kg` : null, adm.tempEntrada ? `${adm.tempEntrada} °C` : null].filter(Boolean).join(" · ") || "—"], ["Motivo / diagnóstico", h.diagnosis || h.reason || "—"], ["Prognóstico", adm.prognostico || "—"], ["Veterinário responsável", h.veterinarian?.name || "—"], ["Estado atual", estado], ["Alta prevista", h.estimatedDischargeDate ? fmtData(h.estimatedDischargeDate) : "—"], ["Dias internado", String(diasInternado(h.admissionDate))], ["Total acumulado", fmtBRL(h.totalCost)]].map(([k, v]) => (
-              <tr key={k as string}><td style={{ padding: "6px 8px", color: "#8A989D", width: 200, borderBottom: "1px solid #F0EBE0" }}>{k}</td><td style={{ padding: "6px 8px", borderBottom: "1px solid #F0EBE0" }}>{v}</td></tr>
+              <tr key={k as string}><td style={{ padding: "6px 8px", color: "#374151", width: 200, borderBottom: "1px solid #F0EBE0" }}>{k}</td><td style={{ padding: "6px 8px", borderBottom: "1px solid #F0EBE0" }}>{v}</td></tr>
             ))}
           </tbody>
         </table>
         <h2 style={{ fontSize: 14, color: "#014D5E", margin: "18px 0 6px" }}>Evolução médica</h2>
-        {evolucoesOrd.length === 0 ? <div style={{ fontSize: 12, color: "#8A989D" }}>Sem registros.</div> : evolucoesOrd.slice().reverse().map((e) => (
+        {evolucoesOrd.length === 0 ? <div style={{ fontSize: 12, color: "#374151" }}>Sem registros.</div> : evolucoesOrd.slice().reverse().map((e) => (
           <div key={e.id} style={{ fontSize: 12.5, marginBottom: 6 }}><b style={{ color: "#5C6B70" }}>{fmtDataHora(e.at)}:</b> {e.texto}</div>
         ))}
         <h2 style={{ fontSize: 14, color: "#014D5E", margin: "18px 0 6px" }}>Conta</h2>
@@ -1221,18 +1221,18 @@ export default function FichaInternacaoPage() {
           <div className="rounded-2xl shadow-xl max-w-md w-full" style={{ background: "#FBF9F4", border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "#E8E2D6" }}>
               <h3 className="text-base font-medium text-[#014D5E]">📋 Editar admissão</h3>
-              <button onClick={() => setAdmOpen(false)} className="text-[#8A989D]">✕</button>
+              <button onClick={() => setAdmOpen(false)} className="text-[#374151]">✕</button>
             </div>
             <div className="p-5 grid grid-cols-2 gap-3 text-[13px]">
-              <div><label className="text-[11px] text-[#8A989D] block mb-1">Peso de entrada (kg)</label>
+              <div><label className="text-[11px] text-[#374151] block mb-1">Peso de entrada (kg)</label>
                 <input type="number" step="0.01" value={admForm.pesoEntrada} onChange={(e) => setAdmForm({ ...admForm, pesoEntrada: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
-              <div><label className="text-[11px] text-[#8A989D] block mb-1">Temp. de entrada (°C)</label>
+              <div><label className="text-[11px] text-[#374151] block mb-1">Temp. de entrada (°C)</label>
                 <input type="number" step="0.1" value={admForm.tempEntrada} onChange={(e) => setAdmForm({ ...admForm, tempEntrada: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
-              <div className="col-span-2"><label className="text-[11px] text-[#8A989D] block mb-1">Diagnóstico / motivo</label>
+              <div className="col-span-2"><label className="text-[11px] text-[#374151] block mb-1">Diagnóstico / motivo</label>
                 <input value={admForm.diagnosis} onChange={(e) => setAdmForm({ ...admForm, diagnosis: e.target.value })} placeholder="Ex.: Pós-op esplenectomia" className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
-              <div><label className="text-[11px] text-[#8A989D] block mb-1">Prognóstico</label>
+              <div><label className="text-[11px] text-[#374151] block mb-1">Prognóstico</label>
                 <select value={admForm.prognostico} onChange={(e) => setAdmForm({ ...admForm, prognostico: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }}><option value="">—</option>{PROGNOSTICOS.map((p) => <option key={p} value={p}>{p}</option>)}</select></div>
-              <div><label className="text-[11px] text-[#8A989D] block mb-1">Predição de alta</label>
+              <div><label className="text-[11px] text-[#374151] block mb-1">Predição de alta</label>
                 <input type="date" value={admForm.estimatedDischargeDate} onChange={(e) => setAdmForm({ ...admForm, estimatedDischargeDate: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
             </div>
             <div className="px-5 py-4 border-t flex justify-end gap-2" style={{ borderColor: "#E8E2D6" }}>
@@ -1249,31 +1249,31 @@ export default function FichaInternacaoPage() {
           <div className="rounded-2xl shadow-xl max-w-md w-full" style={{ background: "#FBF9F4", border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "#E8E2D6" }}>
               <h3 className="text-base font-medium text-[#014D5E]">💊 {prescForm.id ? "Editar medicação" : "Adicionar medicação"}</h3>
-              <button onClick={() => setPrescOpen(false)} className="text-[#8A989D]">✕</button>
+              <button onClick={() => setPrescOpen(false)} className="text-[#374151]">✕</button>
             </div>
             <div className="p-5 grid grid-cols-2 gap-3 text-[13px]">
-              <div className="col-span-2"><label className="text-[11px] text-[#8A989D] block mb-1">Medicação *</label>
+              <div className="col-span-2"><label className="text-[11px] text-[#374151] block mb-1">Medicação *</label>
                 <input value={prescForm.medicamento} onChange={(e) => setPrescForm({ ...prescForm, medicamento: e.target.value })} placeholder="Ex.: Tramadol" className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
-              <div><label className="text-[11px] text-[#8A989D] block mb-1">Via</label>
+              <div><label className="text-[11px] text-[#374151] block mb-1">Via</label>
                 <select value={prescForm.via} onChange={(e) => setPrescForm({ ...prescForm, via: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }}>{VIAS.map((v) => <option key={v} value={v}>{v}</option>)}</select></div>
-              <div><label className="text-[11px] text-[#8A989D] block mb-1">Dose</label>
+              <div><label className="text-[11px] text-[#374151] block mb-1">Dose</label>
                 <input value={prescForm.dose} onChange={(e) => setPrescForm({ ...prescForm, dose: e.target.value })} placeholder="3 mg/kg" className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
-              <div><label className="text-[11px] text-[#8A989D] block mb-1">1ª aplicação</label>
+              <div><label className="text-[11px] text-[#374151] block mb-1">1ª aplicação</label>
                 <input type="time" value={prescForm.primeira} onChange={(e) => { const primeira = e.target.value; const calc = calcularHorarios(primeira, prescForm.frequencia); setPrescForm({ ...prescForm, primeira, ...(calc ? { horarios: calc } : {}) }); }} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
-              <div><label className="text-[11px] text-[#8A989D] block mb-1">Frequência</label>
+              <div><label className="text-[11px] text-[#374151] block mb-1">Frequência</label>
                 <select value={prescForm.frequencia} onChange={(e) => { const frequencia = e.target.value; const calc = calcularHorarios(prescForm.primeira, frequencia); setPrescForm({ ...prescForm, frequencia, ...(calc ? { horarios: calc } : {}) }); }} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }}>
                   <option value="">Contínua / sem frequência fixa</option>
                   {FREQUENCIAS.map((f) => <option key={f.v} value={f.v}>{f.v}</option>)}
                   {prescForm.frequencia && !FREQUENCIAS.some((f) => f.v === prescForm.frequencia) && <option value={prescForm.frequencia}>{prescForm.frequencia}</option>}
                 </select></div>
-              <div><label className="text-[11px] text-[#8A989D] block mb-1">Horários (HH:MM)</label>
+              <div><label className="text-[11px] text-[#374151] block mb-1">Horários (HH:MM)</label>
                 <input value={prescForm.horarios} onChange={(e) => setPrescForm({ ...prescForm, horarios: e.target.value })} placeholder="06:00, 14:00, 22:00" className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
-              <div className="col-span-2 -mt-1 text-[10.5px] text-[#8A989D]">
+              <div className="col-span-2 -mt-1 text-[10.5px] text-[#374151]">
                 Preencha a <b>1ª aplicação</b> e a <b>frequência</b> que os horários são calculados sozinhos — e você pode editar depois.
                 Deixe os horários vazios para medicação <b>contínua</b> (não gera doses no plantão).
                 {(prescForm.prescritoPor || userName) && <> Prescrição registrada em nome de <b>{prescForm.prescritoPor || userName}</b>.</>}
               </div>
-              <div className="col-span-2"><label className="text-[11px] text-[#8A989D] block mb-1">Observação</label>
+              <div className="col-span-2"><label className="text-[11px] text-[#374151] block mb-1">Observação</label>
                 <input value={prescForm.observacao} onChange={(e) => setPrescForm({ ...prescForm, observacao: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
             </div>
             <div className="px-5 py-4 border-t flex justify-end gap-2" style={{ borderColor: "#E8E2D6" }}>
@@ -1290,20 +1290,20 @@ export default function FichaInternacaoPage() {
           <div className="rounded-2xl shadow-xl max-w-md w-full" style={{ background: "#FBF9F4", border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "#E8E2D6" }}>
               <h3 className="text-base font-medium text-[#014D5E]">🩺 Registrar aferição</h3>
-              <button onClick={() => setVitalOpen(false)} className="text-[#8A989D]">✕</button>
+              <button onClick={() => setVitalOpen(false)} className="text-[#374151]">✕</button>
             </div>
             <div className="p-5 grid grid-cols-2 gap-3 text-[13px]">
-              <div><label className="text-[11px] text-[#8A989D] block mb-1">FC (bpm)</label>
+              <div><label className="text-[11px] text-[#374151] block mb-1">FC (bpm)</label>
                 <input type="number" value={vitalForm.fc} onChange={(e) => setVitalForm({ ...vitalForm, fc: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
-              <div><label className="text-[11px] text-[#8A989D] block mb-1">FR (mpm)</label>
+              <div><label className="text-[11px] text-[#374151] block mb-1">FR (mpm)</label>
                 <input type="number" value={vitalForm.fr} onChange={(e) => setVitalForm({ ...vitalForm, fr: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
-              <div><label className="text-[11px] text-[#8A989D] block mb-1">Temp (°C)</label>
+              <div><label className="text-[11px] text-[#374151] block mb-1">Temp (°C)</label>
                 <input type="number" step="0.1" value={vitalForm.temp} onChange={(e) => setVitalForm({ ...vitalForm, temp: e.target.value })} placeholder="38.5" className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
-              <div><label className="text-[11px] text-[#8A989D] block mb-1">PA (mmHg)</label>
+              <div><label className="text-[11px] text-[#374151] block mb-1">PA (mmHg)</label>
                 <input value={vitalForm.pa} onChange={(e) => setVitalForm({ ...vitalForm, pa: e.target.value })} placeholder="110/70" className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
-              <div><label className="text-[11px] text-[#8A989D] block mb-1">Mucosa</label>
+              <div><label className="text-[11px] text-[#374151] block mb-1">Mucosa</label>
                 <select value={vitalForm.mucosa} onChange={(e) => setVitalForm({ ...vitalForm, mucosa: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }}>{MUCOSAS.map((m) => <option key={m} value={m}>{m}</option>)}</select></div>
-              <div><label className="text-[11px] text-[#8A989D] block mb-1">Dor (0–4)</label>
+              <div><label className="text-[11px] text-[#374151] block mb-1">Dor (0–4)</label>
                 <select value={vitalForm.dor} onChange={(e) => setVitalForm({ ...vitalForm, dor: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }}>{["0", "1", "2", "3", "4"].map((d) => <option key={d} value={d}>{d}</option>)}</select></div>
             </div>
             <div className="px-5 py-4 border-t flex justify-end gap-2" style={{ borderColor: "#E8E2D6" }}>
@@ -1320,20 +1320,20 @@ export default function FichaInternacaoPage() {
           <div className="rounded-2xl shadow-xl max-w-md w-full" style={{ background: "#FBF9F4", border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "#E8E2D6" }}>
               <h3 className="text-base font-medium text-[#014D5E]">💧 Registrar controle</h3>
-              <button onClick={() => setFluidoOpen(false)} className="text-[#8A989D]">✕</button>
+              <button onClick={() => setFluidoOpen(false)} className="text-[#374151]">✕</button>
             </div>
             <div className="p-5 grid grid-cols-2 gap-3 text-[13px]">
-              <div><label className="text-[11px] text-[#8A989D] block mb-1">Entrada fluido (ml)</label>
+              <div><label className="text-[11px] text-[#374151] block mb-1">Entrada fluido (ml)</label>
                 <input type="number" value={fluidoForm.entradaFluido} onChange={(e) => setFluidoForm({ ...fluidoForm, entradaFluido: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
-              <div><label className="text-[11px] text-[#8A989D] block mb-1">Ingestão água (ml)</label>
+              <div><label className="text-[11px] text-[#374151] block mb-1">Ingestão água (ml)</label>
                 <input type="number" value={fluidoForm.agua} onChange={(e) => setFluidoForm({ ...fluidoForm, agua: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
-              <div><label className="text-[11px] text-[#8A989D] block mb-1">Diurese</label>
+              <div><label className="text-[11px] text-[#374151] block mb-1">Diurese</label>
                 <input value={fluidoForm.diurese} onChange={(e) => setFluidoForm({ ...fluidoForm, diurese: e.target.value })} placeholder="2× normal" className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
-              <div><label className="text-[11px] text-[#8A989D] block mb-1">Fezes</label>
+              <div><label className="text-[11px] text-[#374151] block mb-1">Fezes</label>
                 <input value={fluidoForm.fezes} onChange={(e) => setFluidoForm({ ...fluidoForm, fezes: e.target.value })} placeholder="1× pastosa" className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
-              <div><label className="text-[11px] text-[#8A989D] block mb-1">Alimentação</label>
+              <div><label className="text-[11px] text-[#374151] block mb-1">Alimentação</label>
                 <input value={fluidoForm.alimentacao} onChange={(e) => setFluidoForm({ ...fluidoForm, alimentacao: e.target.value })} placeholder="Aceitou 40%" className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
-              <div><label className="text-[11px] text-[#8A989D] block mb-1">Êmese (vômito)</label>
+              <div><label className="text-[11px] text-[#374151] block mb-1">Êmese (vômito)</label>
                 <input value={fluidoForm.emese} onChange={(e) => setFluidoForm({ ...fluidoForm, emese: e.target.value })} placeholder="Ausente" className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
             </div>
             <div className="px-5 py-4 border-t flex justify-end gap-2" style={{ borderColor: "#E8E2D6" }}>
@@ -1350,24 +1350,24 @@ export default function FichaInternacaoPage() {
           <div className="rounded-2xl shadow-xl max-w-md w-full" style={{ background: "#FBF9F4", border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "#E8E2D6" }}>
               <h3 className="text-base font-medium text-[#014D5E]">🧾 {itemForm.id ? "Editar item" : "Adicionar item"}</h3>
-              <button onClick={() => setItemOpen(false)} className="text-[#8A989D]">✕</button>
+              <button onClick={() => setItemOpen(false)} className="text-[#374151]">✕</button>
             </div>
             <div className="p-5 grid grid-cols-2 gap-3 text-[13px]">
-              <div className="col-span-2"><label className="text-[11px] text-[#8A989D] block mb-1">Categoria</label>
+              <div className="col-span-2"><label className="text-[11px] text-[#374151] block mb-1">Categoria</label>
                 <select value={itemForm.categoria} onChange={(e) => setItemForm({ ...itemForm, categoria: e.target.value, servicoId: "", productId: "" })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }}>{CAT_CONTA.map((c) => <option key={c} value={c}>{c === "Insumo" ? "Insumo (só estoque, não cobra)" : c}</option>)}</select></div>
               {itemForm.categoria !== "Insumo" ? (
-                <div className="col-span-2"><label className="text-[11px] text-[#8A989D] block mb-1">Serviço do catálogo (opcional)</label>
+                <div className="col-span-2"><label className="text-[11px] text-[#374151] block mb-1">Serviço do catálogo (opcional)</label>
                   <select value={itemForm.servicoId} onChange={(e) => pickServico(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }}><option value="">— digitar manualmente —</option>{servicos.map((s) => <option key={s.id} value={s.id}>{s.nome}{s.valorPadrao != null ? ` · ${fmtBRL(s.valorPadrao)}` : ""}</option>)}</select></div>
               ) : (
-                <div className="col-span-2"><label className="text-[11px] text-[#8A989D] block mb-1">Produto (p/ baixar do estoque)</label>
+                <div className="col-span-2"><label className="text-[11px] text-[#374151] block mb-1">Produto (p/ baixar do estoque)</label>
                   <select value={itemForm.productId} onChange={(e) => pickProduto(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }}><option value="">— sem vínculo (não baixa) —</option>{produtos.map((p) => <option key={p.id} value={p.id}>{p.name}{typeof p.stock === "number" ? ` · estoque ${p.stock}` : ""}</option>)}</select></div>
               )}
-              <div className="col-span-2"><label className="text-[11px] text-[#8A989D] block mb-1">Descrição *</label>
+              <div className="col-span-2"><label className="text-[11px] text-[#374151] block mb-1">Descrição *</label>
                 <input value={itemForm.descricao} onChange={(e) => setItemForm({ ...itemForm, descricao: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
-              <div><label className="text-[11px] text-[#8A989D] block mb-1">Quantidade</label>
+              <div><label className="text-[11px] text-[#374151] block mb-1">Quantidade</label>
                 <input type="number" min={1} value={itemForm.quantidade} onChange={(e) => setItemForm({ ...itemForm, quantidade: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
               {itemForm.categoria !== "Insumo" && (
-                <div><label className="text-[11px] text-[#8A989D] block mb-1">Valor unitário (R$)</label>
+                <div><label className="text-[11px] text-[#374151] block mb-1">Valor unitário (R$)</label>
                   <input type="number" min={0} step="0.01" value={itemForm.valorUnitario} onChange={(e) => setItemForm({ ...itemForm, valorUnitario: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
               )}
             </div>
@@ -1385,14 +1385,14 @@ export default function FichaInternacaoPage() {
           <div className="rounded-2xl shadow-xl max-w-sm w-full" style={{ background: "#FBF9F4", border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "#E8E2D6" }}>
               <h3 className="text-base font-medium text-[#014D5E]">💳 Adicionar caução</h3>
-              <button onClick={() => setCaucaoOpen(false)} className="text-[#8A989D]">✕</button>
+              <button onClick={() => setCaucaoOpen(false)} className="text-[#374151]">✕</button>
             </div>
             <div className="p-5 space-y-3 text-[13px]">
-              <div><label className="text-[11px] text-[#8A989D] block mb-1">Valor (R$) *</label>
+              <div><label className="text-[11px] text-[#374151] block mb-1">Valor (R$) *</label>
                 <input type="number" min={0} step="0.01" value={caucaoForm.valor} onChange={(e) => setCaucaoForm({ ...caucaoForm, valor: e.target.value })} placeholder="0,00" className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
-              <div><label className="text-[11px] text-[#8A989D] block mb-1">Descrição</label>
+              <div><label className="text-[11px] text-[#374151] block mb-1">Descrição</label>
                 <input value={caucaoForm.descricao} onChange={(e) => setCaucaoForm({ ...caucaoForm, descricao: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
-              <div className="text-[10.5px] text-[#8A989D]">Adiciona crédito ao tutor {h.tutor?.name}. Fica como saldo e pode abater da conta.</div>
+              <div className="text-[10.5px] text-[#374151]">Adiciona crédito ao tutor {h.tutor?.name}. Fica como saldo e pode abater da conta.</div>
             </div>
             <div className="px-5 py-4 border-t flex justify-end gap-2" style={{ borderColor: "#E8E2D6" }}>
               <button onClick={() => setCaucaoOpen(false)} className="px-4 py-2 text-[13px] text-[#5C6B70] bg-white border rounded-lg" style={{ borderColor: "#E8E2D6" }}>Cancelar</button>

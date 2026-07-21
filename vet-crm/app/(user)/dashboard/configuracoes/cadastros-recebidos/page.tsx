@@ -187,7 +187,7 @@ export default function CadastrosRecebidosPage() {
                         {s.dupId && <button onClick={() => vincular(s, s.dupId!, s.dupNome || undefined)} disabled={busy === s._id} className="px-3 py-2 rounded-lg text-[13px] font-medium border disabled:opacity-60" style={{ borderColor: "#009AAC", color: "#009AAC", background: "#fff" }}>🔗 Vincular a {s.dupNome}</button>}
                       </div>
                       <div className="md:col-span-2">
-                        <div className="text-[11px] text-[#8A989D] mb-1">Ou vincular a outro cliente:</div>
+                        <div className="text-[11px] text-[#374151] mb-1">Ou vincular a outro cliente:</div>
                         <input value={buscaVinc[s._id] || ""} onChange={(e) => buscarClientes(s._id, e.target.value)} placeholder="Buscar cliente por nome…" className="w-full px-2.5 py-1.5 text-[13px] border rounded-lg" style={{ borderColor: "#D9E6E8" }} />
                         {(resVinc[s._id] || []).length > 0 && (
                           <div className="border rounded-lg mt-1 divide-y" style={{ borderColor: "#EFEAE0" }}>

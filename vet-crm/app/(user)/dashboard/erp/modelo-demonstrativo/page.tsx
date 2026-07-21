@@ -53,7 +53,7 @@ export default function ModeloDemonstrativoPage() {
 
   const Field = ({ k, label, ph }: { k: string; label: string; ph?: string }) => (
     <div className="mb-2.5">
-      <label className="text-[10.5px] text-[#8A989D] uppercase tracking-wide block mb-1">{label}</label>
+      <label className="text-[10.5px] text-[#374151] uppercase tracking-wide block mb-1">{label}</label>
       <input value={cfg[k]} onChange={(e) => set(k, e.target.value)} placeholder={ph} className="w-full border rounded-lg px-3 py-2 text-[13px] bg-white focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} />
     </div>
   );
@@ -68,11 +68,11 @@ export default function ModeloDemonstrativoPage() {
     </div>
   );
 
-  if (loading) return <div className="p-6 text-center text-sm text-[#8A989D]">Carregando...</div>;
+  if (loading) return <div className="p-6 text-center text-sm text-[#374151]">Carregando...</div>;
 
   return (
     <div className="p-6 w-full">
-      <div className="text-[12.5px] text-[#8A989D] mb-4">O recibo/comprovante que sai da venda e do orçamento. Personalize e veja a prévia ao lado.</div>
+      <div className="text-[12.5px] text-[#374151] mb-4">O recibo/comprovante que sai da venda e do orçamento. Personalize e veja a prévia ao lado.</div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start" style={{ maxWidth: 920 }}>
         {/* CONFIG */}
         <div>
@@ -89,7 +89,7 @@ export default function ModeloDemonstrativoPage() {
           <div className="bg-white border rounded-[14px] mb-3.5 overflow-hidden" style={{ borderColor: "#E8E2D6" }}>
             <div className="px-4 py-3 border-b text-[13px] font-medium text-[#014D5E]" style={{ borderColor: "#F0EBE0" }}>📐 Formato &amp; conteúdo</div>
             <div className="p-4">
-              <label className="text-[10.5px] text-[#8A989D] uppercase tracking-wide block mb-1.5">Formato padrão de impressão</label>
+              <label className="text-[10.5px] text-[#374151] uppercase tracking-wide block mb-1.5">Formato padrão de impressão</label>
               <div className="inline-flex border rounded-lg overflow-hidden mb-2" style={{ borderColor: "#E8E2D6" }}>
                 {["A4", "A5", "Bobina"].map((f) => (
                   <button key={f} onClick={() => set("formato", f)} className="px-4 py-1.5 text-[12.5px]" style={cfg.formato === f ? { background: "#009AAC", color: "#fff" } : { background: "#fff", color: "#5C6B70" }}>{f === "Bobina" ? "Bobina (térmica)" : f}</button>
@@ -111,7 +111,7 @@ export default function ModeloDemonstrativoPage() {
 
         {/* PRÉVIA */}
         <div className="md:sticky md:top-4">
-          <div className="text-[11px] text-[#8A989D] uppercase tracking-wide mb-2">👁️ Prévia ({cfg.formato})</div>
+          <div className="text-[11px] text-[#374151] uppercase tracking-wide mb-2">👁️ Prévia ({cfg.formato})</div>
           <div className="bg-white border rounded-[10px] p-5 text-[11.5px] text-[#222] shadow-sm" style={{ borderColor: "#E8E2D6", maxWidth: cfg.formato === "Bobina" ? 300 : "100%", margin: cfg.formato === "Bobina" ? "0 auto" : undefined }}>
             <div className="flex gap-3 items-center border-b pb-2.5 mb-2.5" style={{ borderColor: "#e5e5e5" }}>
               {cfg.mostrarLogo && (cfg.logo ? <img src={cfg.logo} alt="logo" className="w-11 h-11 rounded-lg object-contain" onError={(e) => ((e.target as HTMLImageElement).style.display = "none")} /> : <span className="w-11 h-11 rounded-lg flex items-center justify-center text-2xl" style={{ background: "#E0F4F6" }}>🏥</span>)}

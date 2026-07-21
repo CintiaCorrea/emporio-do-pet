@@ -13,15 +13,15 @@ function InboxStats() {
     <div className="flex items-center gap-5">
       <div className="flex flex-col items-end leading-tight">
         <div className="text-[13px] font-medium" style={{ color: "#014D5E" }}>+1h</div>
-        <div className="text-[9.5px] uppercase font-medium text-[#8A989D] tracking-wide">⏱ esperando</div>
+        <div className="text-[9.5px] uppercase font-medium text-[#374151] tracking-wide">⏱ esperando</div>
       </div>
       <div className="flex flex-col items-end leading-tight">
         <div className="text-[13px] font-medium" style={{ color: "#014D5E" }}>—</div>
-        <div className="text-[9.5px] uppercase font-medium text-[#8A989D] tracking-wide">⌛ tempo méd.</div>
+        <div className="text-[9.5px] uppercase font-medium text-[#374151] tracking-wide">⌛ tempo méd.</div>
       </div>
       <div className="flex flex-col items-end leading-tight">
         <div className="text-[13px] font-medium" style={{ color: "#014D5E" }}>—</div>
-        <div className="text-[9.5px] uppercase font-medium text-[#8A989D] tracking-wide">🏆 streak</div>
+        <div className="text-[9.5px] uppercase font-medium text-[#374151] tracking-wide">🏆 streak</div>
       </div>
     </div>
   );

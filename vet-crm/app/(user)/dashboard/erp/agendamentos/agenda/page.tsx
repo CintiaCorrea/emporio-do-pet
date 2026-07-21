@@ -398,7 +398,7 @@ export default function AgendaPage() {
                 <div className="fixed inset-0 z-10" onClick={() => setFilasOpen(false)} />
                 <div className="absolute right-0 mt-1 z-20 bg-white border rounded-xl shadow-lg p-2 flex flex-wrap gap-1.5 w-[320px]" style={{ borderColor: "#E8E2D6" }}>
                   {profsAtende.map((p: any) => { const on = !hidden.has(p.id); return (
-                    <span key={p.id} className="inline-flex items-center rounded-full border text-[11px]" style={on ? { background: "#E1F3F5", color: "#014D5E", borderColor: "#9ED8DE" } : { background: "#fff", color: "#8A989D", borderColor: "#E8E2D6" }}>
+                    <span key={p.id} className="inline-flex items-center rounded-full border text-[11px]" style={on ? { background: "#E1F3F5", color: "#014D5E", borderColor: "#9ED8DE" } : { background: "#fff", color: "#374151", borderColor: "#E8E2D6" }}>
                       <button onClick={() => toggleFila(p.id)} className="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1"><span className="w-2 h-2 rounded-full" style={{ background: p.corAvatar || "#009AAC" }} />{nomeCurto(p)}{on ? <span className="text-[11px]">✓</span> : null}</button>
                       <button onClick={() => soEste(p.id)} title="Mostrar só este" className="text-[10px] pr-2.5 pl-1 py-1 opacity-70 hover:opacity-100">só</button>
                     </span>
@@ -408,7 +408,7 @@ export default function AgendaPage() {
                       <div className="w-full border-t mt-1 pt-1.5" style={{ borderColor: "#F0EBE0" }} />
                       <div className="w-full text-[9px] uppercase tracking-wide text-gray-400 px-1 -mb-0.5">Agendas avulsas (MAP, parceiros, RX…)</div>
                       {avulsasAtivas.map((a: any) => { const on = !hidden.has(a.id); return (
-                        <span key={a.id} className="inline-flex items-center rounded-full border text-[11px]" style={on ? { background: "#E1F3F5", color: "#014D5E", borderColor: "#9ED8DE" } : { background: "#fff", color: "#8A989D", borderColor: "#E8E2D6" }}>
+                        <span key={a.id} className="inline-flex items-center rounded-full border text-[11px]" style={on ? { background: "#E1F3F5", color: "#014D5E", borderColor: "#9ED8DE" } : { background: "#fff", color: "#374151", borderColor: "#E8E2D6" }}>
                           <button onClick={() => toggleFila(a.id)} className="inline-flex items-center gap-1.5 px-2.5 py-1"><span className="w-2 h-2 rounded-full" style={{ background: a.cor || "#7C3AED" }} />{a.nome}{on ? <span className="text-[11px]">✓</span> : null}</button>
                         </span>
                       ); })}
@@ -553,7 +553,7 @@ export default function AgendaPage() {
                                 <div className="mt-1" onClick={(e) => e.stopPropagation()}>
                                   <div className="flex items-center rounded-md overflow-hidden border" style={{ borderColor: "#00000010" }}>
                                     {idx > 0 && (
-                                      <button onClick={() => retrocederEstagio(a)} disabled={avancandoId === a.id} title="Voltar o estágio" className="px-1.5 py-[3px] text-[9.5px] font-bold border-r disabled:opacity-50" style={{ background: "#fff", color: "#8A989D", borderColor: "#00000010" }}>‹</button>
+                                      <button onClick={() => retrocederEstagio(a)} disabled={avancandoId === a.id} title="Voltar o estágio" className="px-1.5 py-[3px] text-[9.5px] font-bold border-r disabled:opacity-50" style={{ background: "#fff", color: "#374151", borderColor: "#00000010" }}>‹</button>
                                     )}
                                     <span className="flex-1 px-1.5 py-[3px] text-[9.5px] font-bold truncate" style={{ background: est.bg, color: est.cor }}>{est.label}</span>
                                     {est.next && (
@@ -608,7 +608,7 @@ export default function AgendaPage() {
               return (
                 <div key={ds} className="border-l first:border-l-0 min-h-[360px]" style={{ borderColor: "#F0EBE0" }}>
                   <button onClick={() => { setDia(d); setView("dia"); }} className="w-full text-center py-2 border-b hover:bg-[#f6fdfd]" style={{ borderColor: "#F0EBE0", background: hoje ? "#E1F3F5" : "#FBF9F4" }}>
-                    <div className="text-[10px] uppercase text-[#8A989D]">{DIAS_SEM[d.getDay()]}</div>
+                    <div className="text-[10px] uppercase text-[#374151]">{DIAS_SEM[d.getDay()]}</div>
                     <div className="text-[13px] font-medium" style={{ color: hoje ? "#014D5E" : "#014D5E" }}>{d.getDate()}</div>
                   </button>
                   <div className="p-1 space-y-1">
@@ -628,7 +628,7 @@ export default function AgendaPage() {
 
       {view === "mes" && (
         <div className="bg-white border rounded-2xl overflow-hidden" style={{ borderColor: "#E8E2D6" }}>
-          <div className="grid text-center text-[10px] uppercase text-[#8A989D] border-b" style={{ gridTemplateColumns: "repeat(7,1fr)", borderColor: "#F0EBE0", background: "#FBF9F4" }}>
+          <div className="grid text-center text-[10px] uppercase text-[#374151] border-b" style={{ gridTemplateColumns: "repeat(7,1fr)", borderColor: "#F0EBE0", background: "#FBF9F4" }}>
             {DIAS_SEM.map((d) => <div key={d} className="py-1.5">{d}</div>)}
           </div>
           <div className="grid" style={{ gridTemplateColumns: "repeat(7,1fr)" }}>
@@ -655,7 +655,7 @@ export default function AgendaPage() {
         <>
           <div className="fixed inset-0 z-40" onClick={() => setMenuAppt(null)} />
           <div className="fixed z-50 bg-white border rounded-lg shadow-lg py-1 text-[13px]" style={{ left: Math.min(menuAppt.x, (typeof window !== "undefined" ? window.innerWidth : 1200) - 230), top: Math.min(menuAppt.y, (typeof window !== "undefined" ? window.innerHeight : 800) - 330), minWidth: 216, borderColor: "#E8E2D6" }}>
-            <div className="px-3 py-1.5 text-[11px] text-[#8A989D] border-b truncate" style={{ borderColor: "#F0EBE0" }}>{menuAppt.a.pet?.name || menuAppt.a.tutor?.name || "Agendamento"}</div>
+            <div className="px-3 py-1.5 text-[11px] text-[#374151] border-b truncate" style={{ borderColor: "#F0EBE0" }}>{menuAppt.a.pet?.name || menuAppt.a.tutor?.name || "Agendamento"}</div>
             <button onClick={() => { const a = menuAppt.a; setMenuAppt(null); setConfirmData(a); }} className="w-full text-left px-3 py-2 flex items-center gap-2 font-medium" style={{ color: "#0B7A47", background: "#EAFBF0" }}>📲 Confirmar no WhatsApp</button>
             <button onClick={() => { const a = menuAppt.a; setMenuAppt(null); confirmarManual(a); }} className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center gap-2" style={{ color: "#0B7A47" }}>✅ Confirmar presença (manual)</button>
             {tipoFisio(menuAppt.a) ? (
@@ -684,7 +684,7 @@ export default function AgendaPage() {
             <div className="px-4 pt-3 text-[11px]" style={{ color: "#5C6B70" }}>Modelo: <b style={{ color: "#0F6E56" }}>{tplConfirmacao(confirmData)}</b></div>
             <div className="p-4">
               <div style={{ background: "#DCF8C6", borderRadius: "10px 10px 10px 2px", padding: "10px 12px", fontSize: 12.5, color: "#1f2a2e", whiteSpace: "pre-wrap", maxHeight: 320, overflowY: "auto" }}>{msgConfirmacao(confirmData)}</div>
-              <div className="text-[11px] mt-2" style={{ color: "#8A989D" }}>Nome, data, hora e pet vêm do agendamento.</div>
+              <div className="text-[11px] mt-2" style={{ color: "#374151" }}>Nome, data, hora e pet vêm do agendamento.</div>
             </div>
             <div className="px-4 py-3 border-t flex gap-2" style={{ borderColor: "#F0EBE0" }}>
               <button disabled={sending} onClick={() => setConfirmData(null)} className="px-4 py-2.5 rounded-xl text-[13px]" style={{ background: "#fff", border: "1px solid #E8E2D6", color: "#5C6B70" }}>Cancelar</button>
@@ -705,13 +705,13 @@ export default function AgendaPage() {
               </div>
             </div>
             <div className="p-4">
-              <div className="text-[12px] font-medium mb-2" style={{ color: "#5C6B70" }}>Motivo <span style={{ color: "#8A989D", fontWeight: 400 }}>(opcional)</span></div>
+              <div className="text-[12px] font-medium mb-2" style={{ color: "#5C6B70" }}>Motivo <span style={{ color: "#374151", fontWeight: 400 }}>(opcional)</span></div>
               <div className="flex flex-wrap gap-1.5">
                 {MOTIVOS_CANCEL.map((m) => (
                   <button key={m} onClick={() => setCancelMotivo(m === cancelMotivo ? "" : m)} className="text-[11.5px] px-2.5 py-1 rounded-full border" style={m === cancelMotivo ? { background: "#FCEBEB", borderColor: "#eecccc", color: "#A32D2D", fontWeight: 600 } : { background: "#FBF9F4", borderColor: "#E8E2D6", color: "#5C6B70" }}>{m}</button>
                 ))}
               </div>
-              <div className="text-[12px] font-medium mt-3 mb-1" style={{ color: "#5C6B70" }}>Observação <span style={{ color: "#8A989D", fontWeight: 400 }}>(opcional)</span></div>
+              <div className="text-[12px] font-medium mt-3 mb-1" style={{ color: "#5C6B70" }}>Observação <span style={{ color: "#374151", fontWeight: 400 }}>(opcional)</span></div>
               <textarea value={cancelObs} onChange={(e) => setCancelObs(e.target.value)} placeholder="Ex: cliente vai viajar, remarca na volta…" className="w-full rounded-lg border px-3 py-2 text-[13px]" style={{ borderColor: "#E8E2D6", minHeight: 56, resize: "none", color: "#1F2A2E", fontFamily: "inherit" }} />
             </div>
             <div className="px-4 py-3 border-t flex gap-2" style={{ borderColor: "#F0EBE0" }}>

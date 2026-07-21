@@ -125,11 +125,11 @@ export default function ModelosBoletimPage() {
         </div>
         <div className="p-4 space-y-3">
           <div>
-            <label className="text-[10.5px] text-[#8A989D] uppercase tracking-wide block mb-1">Nome do modelo *</label>
+            <label className="text-[10.5px] text-[#374151] uppercase tracking-wide block mb-1">Nome do modelo *</label>
             <input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} placeholder="Ex.: Manhã — evolução boa" className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} />
           </div>
           <div>
-            <label className="text-[10.5px] text-[#8A989D] uppercase tracking-wide block mb-1">Texto do boletim *</label>
+            <label className="text-[10.5px] text-[#374151] uppercase tracking-wide block mb-1">Texto do boletim *</label>
             <textarea value={form.texto} onChange={(e) => setForm({ ...form, texto: e.target.value })} rows={6} placeholder="Bom dia! Boletim do [PET]..." className="w-full border rounded-lg px-3 py-2 text-[13px] resize-y focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} />
           </div>
           <button onClick={salvar} disabled={salvando} className="text-[12.5px] font-medium text-white bg-[#009AAC] px-4 py-2 rounded-lg disabled:opacity-60">
@@ -147,12 +147,12 @@ export default function ModelosBoletimPage() {
           )}
         </div>
         {loading ? (
-          <div className="px-4 py-10 text-center text-[12.5px] text-[#8A989D]">Carregando...</div>
+          <div className="px-4 py-10 text-center text-[12.5px] text-[#374151]">Carregando...</div>
         ) : modelos.length === 0 ? (
           <div className="px-4 py-10 text-center">
             <div className="text-2xl mb-2">📝</div>
             <div className="text-[13px] text-[#5C6B70] mb-1">Nenhum modelo cadastrado ainda.</div>
-            <div className="text-[12px] text-[#8A989D]">Crie o seu acima ou comece pelos modelos sugeridos.</div>
+            <div className="text-[12px] text-[#374151]">Crie o seu acima ou comece pelos modelos sugeridos.</div>
           </div>
         ) : (
           <div className="divide-y" style={{ borderColor: "#F0EBE0" }}>

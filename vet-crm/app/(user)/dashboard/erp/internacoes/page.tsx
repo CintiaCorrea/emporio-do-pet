@@ -229,7 +229,7 @@ export default function InternacoesPage() {
       return (
         <div className="rounded-[13px] border border-dashed flex flex-col items-center justify-center text-center px-3 py-6" style={{ borderColor: "#E8E2D6", background: "#FBF9F4" }}>
           <div className={big ? "text-3xl mb-1" : "text-2xl mb-1"}>🛏️</div>
-          <div className="text-[12px] text-[#8A989D] font-medium">{TIPO_EMOJI[b.tipo] || "🛏️"} {b.codigo} — Livre</div>
+          <div className="text-[12px] text-[#374151] font-medium">{TIPO_EMOJI[b.tipo] || "🛏️"} {b.codigo} — Livre</div>
           <button onClick={() => internarNoBox(b.id)} className="mt-2 text-[12px] font-medium text-[#009AAC]">+ Internar paciente</button>
         </div>
       );
@@ -241,14 +241,14 @@ export default function InternacoesPage() {
         <div style={{ height: 4, background: est.fg }} />
         <div className={big ? "p-4" : "p-3"}>
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[11px] font-medium text-[#8A989D] tracking-wide">{TIPO_EMOJI[b.tipo] || "📍"} {b.codigo}</span>
+            <span className="text-[11px] font-medium text-[#374151] tracking-wide">{TIPO_EMOJI[b.tipo] || "📍"} {b.codigo}</span>
             <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: est.bg, color: est.fg }}>{estadoCard(c)}</span>
           </div>
           <div className="flex items-center gap-2 mb-1.5">
             <div className={(big ? "w-9 h-9 text-lg " : "w-8 h-8 text-base ") + "rounded-lg flex items-center justify-center flex-shrink-0"} style={{ background: est.bg }}>{especieEmoji(i?.pet?.species)}</div>
             <div className="min-w-0">
               <div className="text-[14px] font-medium text-[#1F2A2E] leading-tight truncate">{i?.pet?.name || "Pet"}</div>
-              <div className="text-[11px] text-[#8A989D] truncate">{i?.pet?.breed || i?.pet?.species || "—"}{i?.pet?.weight ? ` · ${i.pet.weight} kg` : ""}</div>
+              <div className="text-[11px] text-[#374151] truncate">{i?.pet?.breed || i?.pet?.species || "—"}{i?.pet?.weight ? ` · ${i.pet.weight} kg` : ""}</div>
             </div>
           </div>
           <div className="text-[11.5px] text-[#5C6B70] flex flex-col gap-0.5 mb-2">
@@ -272,7 +272,7 @@ export default function InternacoesPage() {
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
-        <div className="text-[13px] text-[#8A989D]">{kpis.ocupados}/{kpis.total} box(es) ocupado(s) · {ativas.length} internado(s)</div>
+        <div className="text-[13px] text-[#374151]">{kpis.ocupados}/{kpis.total} box(es) ocupado(s) · {ativas.length} internado(s)</div>
         <div className="flex items-center gap-2">
           <button onClick={() => { novoBox(); setGerOpen(true); }} className="text-[12px] font-medium text-[#5C6B70] bg-white border px-3 py-1.5 rounded-lg" style={{ borderColor: "#E8E2D6" }}>⚙️ Gerenciar boxes</button>
           <button onClick={() => { setForm((f: any) => ({ ...f, boxId: "" })); setNovoOpen(true); }} className="text-[12px] font-medium text-white bg-[#009AAC] px-3.5 py-1.5 rounded-lg">➕ Nova internação</button>
@@ -288,7 +288,7 @@ export default function InternacoesPage() {
       {/* ===== MAPA ===== */}
       {tab === "mapa" && (
         loading ? (
-          <div className="px-6 py-16 text-center text-sm text-[#8A989D]">Carregando...</div>
+          <div className="px-6 py-16 text-center text-sm text-[#374151]">Carregando...</div>
         ) : (
           <>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-4">
@@ -300,7 +300,7 @@ export default function InternacoesPage() {
                 { l: "Em aberto (diárias)", v: fmtBRL(kpis.emAberto), c: "#014D5E", e: "💰" },
               ].map((k) => (
                 <div key={k.l} className="bg-white border rounded-xl px-3.5 py-2.5" style={{ borderColor: "#E8E2D6" }}>
-                  <div className="text-[10.5px] text-[#8A989D] uppercase tracking-wide">{k.e} {k.l}</div>
+                  <div className="text-[10.5px] text-[#374151] uppercase tracking-wide">{k.e} {k.l}</div>
                   <div className="mt-1 font-medium" style={{ color: k.c, fontSize: String(k.v).length > 6 ? 16 : 22 }}>{k.v}</div>
                 </div>
               ))}
@@ -320,11 +320,11 @@ export default function InternacoesPage() {
               <div className="bg-white border rounded-xl px-6 py-12 text-center" style={{ borderColor: "#E8E2D6" }}>
                 <div className="text-3xl mb-2">🛏️</div>
                 <div className="text-sm text-[#5C6B70] mb-1">Nenhum box cadastrado ainda.</div>
-                <div className="text-[12px] text-[#8A989D] mb-3">Cadastre as baias/boxes da clínica para montar o mapa.</div>
+                <div className="text-[12px] text-[#374151] mb-3">Cadastre as baias/boxes da clínica para montar o mapa.</div>
                 <button onClick={() => { novoBox(); setGerOpen(true); }} className="text-[12px] font-medium text-white bg-[#009AAC] px-4 py-2 rounded-lg">⚙️ Cadastrar boxes</button>
               </div>
             ) : cardsFiltrados.length === 0 ? (
-              <div className="bg-white border rounded-xl px-6 py-12 text-center text-sm text-[#8A989D]" style={{ borderColor: "#E8E2D6" }}>Nenhum box com esse filtro/busca.</div>
+              <div className="bg-white border rounded-xl px-6 py-12 text-center text-sm text-[#374151]" style={{ borderColor: "#E8E2D6" }}>Nenhum box com esse filtro/busca.</div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 {cardsFiltrados.map((c) => <BoxCard key={c.box.id} c={c} />)}
@@ -337,9 +337,9 @@ export default function InternacoesPage() {
       {/* ===== ATIVAS / HISTÓRICO ===== */}
       {tab !== "mapa" && (
         loading ? (
-          <div className="px-6 py-16 text-center text-sm text-[#8A989D]">Carregando...</div>
+          <div className="px-6 py-16 text-center text-sm text-[#374151]">Carregando...</div>
         ) : lista.length === 0 ? (
-          <div className="bg-white border rounded-[14px] px-6 py-12 text-center text-sm text-[#8A989D]" style={{ borderColor: "#E8E2D6" }}>{tab === "ativas" ? "Nenhum paciente internado no momento." : "Nenhuma internação no histórico."}</div>
+          <div className="bg-white border rounded-[14px] px-6 py-12 text-center text-sm text-[#374151]" style={{ borderColor: "#E8E2D6" }}>{tab === "ativas" ? "Nenhum paciente internado no momento." : "Nenhuma internação no histórico."}</div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
             {lista.map((h) => {
@@ -349,15 +349,15 @@ export default function InternacoesPage() {
                   <div className="flex items-center gap-2.5 mb-2.5">
                     <div className="w-9 h-9 rounded-lg flex items-center justify-center text-base flex-shrink-0" style={{ background: est.bg }}>{especieEmoji(h.pet?.species)}</div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-[14px] font-medium text-[#014D5E] truncate">{h.pet?.name || "Pet"} <span className="text-[11px] text-[#8A989D] font-normal">· {h.tutor?.name}</span></div>
-                      <div className="text-[11px] text-[#8A989D]">{h.pet?.species}{h.pet?.breed ? ` · ${h.pet.breed}` : ""}</div>
+                      <div className="text-[14px] font-medium text-[#014D5E] truncate">{h.pet?.name || "Pet"} <span className="text-[11px] text-[#374151] font-normal">· {h.tutor?.name}</span></div>
+                      <div className="text-[11px] text-[#374151]">{h.pet?.species}{h.pet?.breed ? ` · ${h.pet.breed}` : ""}</div>
                     </div>
                     <span className="text-[10px] font-medium px-2.5 py-0.5 rounded-full" style={{ background: est.bg, color: est.fg }}>{estadoDe(h)}</span>
                   </div>
-                  <div className="text-[12px] text-[#5C6B70] mb-2">📋 {h.reason || "—"} <span className="text-[#8A989D]">· {h.veterinarian?.name || "Sem responsável"}</span></div>
+                  <div className="text-[12px] text-[#5C6B70] mb-2">📋 {h.reason || "—"} <span className="text-[#374151]">· {h.veterinarian?.name || "Sem responsável"}</span></div>
                   <div className="flex gap-4 text-[11.5px] text-[#5C6B70] mb-2.5 flex-wrap">
                     <span>📅 Dia {diasInternado(h.admissionDate)} · desde {fmtData(h.admissionDate)}</span>
-                    <span>💰 {fmtBRL(h.totalCost)} <span className="text-[#8A989D]">({fmtBRL(h.dailyRate)}/dia)</span></span>
+                    <span>💰 {fmtBRL(h.totalCost)} <span className="text-[#374151]">({fmtBRL(h.dailyRate)}/dia)</span></span>
                   </div>
                   {pb && (
                     <div className="rounded-lg px-3 py-2 mb-2.5 flex items-center justify-between" style={pb.atrasado ? { background: "#FCE9EF", border: "1px solid #F3D2DE" } : { background: "#E0F4F6", border: "1px solid #CFE9ED" }}>
@@ -396,22 +396,22 @@ export default function InternacoesPage() {
           <div className="bg-[#FBF9F4] rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()} style={{ border: "1px solid #E8E2D6" }}>
             <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "#E8E2D6" }}>
               <h3 className="text-base font-medium text-[#014D5E]">⚙️ Gerenciar boxes</h3>
-              <button onClick={() => setGerOpen(false)} className="text-[#8A989D] text-lg leading-none">✕</button>
+              <button onClick={() => setGerOpen(false)} className="text-[#374151] text-lg leading-none">✕</button>
             </div>
             {/* form add/edit */}
             <div className="p-5 border-b" style={{ borderColor: "#F0EBE0" }}>
               <div className="text-[12px] font-medium text-[#014D5E] mb-2">{boxForm.id ? "Editar box" : "Novo box"}</div>
               <div className="grid grid-cols-2 gap-3 text-[13px]">
-                <div><label className="text-[11px] text-[#8A989D] block mb-1">Código *</label>
+                <div><label className="text-[11px] text-[#374151] block mb-1">Código *</label>
                   <input value={boxForm.codigo} onChange={(e) => setBoxForm({ ...boxForm, codigo: e.target.value })} placeholder="B-01" className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
-                <div><label className="text-[11px] text-[#8A989D] block mb-1">Tipo</label>
+                <div><label className="text-[11px] text-[#374151] block mb-1">Tipo</label>
                   <select value={boxForm.tipo} onChange={(e) => setBoxForm({ ...boxForm, tipo: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }}>{TIPOS.map((t) => <option key={t} value={t}>{TIPO_EMOJI[t]} {t}</option>)}</select></div>
-                <div className="col-span-2"><label className="text-[11px] text-[#8A989D] block mb-1">Nome (opcional)</label>
+                <div className="col-span-2"><label className="text-[11px] text-[#374151] block mb-1">Nome (opcional)</label>
                   <input value={boxForm.nome} onChange={(e) => setBoxForm({ ...boxForm, nome: e.target.value })} placeholder="Ex.: Box grande porte" className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
-                <div><label className="text-[11px] text-[#8A989D] block mb-1">Ordem</label>
+                <div><label className="text-[11px] text-[#374151] block mb-1">Ordem</label>
                   <input type="number" value={boxForm.ordem} onChange={(e) => setBoxForm({ ...boxForm, ordem: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
                 <div className="flex items-end"><label className="flex items-center gap-2 text-[12px] text-[#5C6B70] cursor-pointer"><input type="checkbox" checked={boxForm.ativa} onChange={(e) => setBoxForm({ ...boxForm, ativa: e.target.checked })} /> Box ativo (aparece no mapa)</label></div>
-                <div className="col-span-2"><label className="text-[11px] text-[#8A989D] block mb-1">Observação</label>
+                <div className="col-span-2"><label className="text-[11px] text-[#374151] block mb-1">Observação</label>
                   <input value={boxForm.observacao} onChange={(e) => setBoxForm({ ...boxForm, observacao: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
               </div>
               <div className="flex gap-2 mt-3">
@@ -423,19 +423,19 @@ export default function InternacoesPage() {
             <div className="p-5">
               <div className="text-[12px] font-medium text-[#014D5E] mb-2">Boxes cadastrados ({boxes.length})</div>
               {boxesOrdenados.length === 0 ? (
-                <div className="text-[12px] text-[#8A989D] py-4 text-center">Nenhum box ainda. Adicione o primeiro acima.</div>
+                <div className="text-[12px] text-[#374151] py-4 text-center">Nenhum box ainda. Adicione o primeiro acima.</div>
               ) : (
                 <div className="space-y-1.5">
                   {boxesOrdenados.map((b, idx) => (
                     <div key={b.id} className="flex items-center gap-2 bg-white border rounded-lg px-3 py-2" style={{ borderColor: "#E8E2D6" }}>
                       <div className="flex flex-col">
-                        <button onClick={() => moverBox(b, -1)} disabled={idx === 0} className="text-[10px] text-[#8A989D] disabled:opacity-30 leading-none">▲</button>
-                        <button onClick={() => moverBox(b, 1)} disabled={idx === boxesOrdenados.length - 1} className="text-[10px] text-[#8A989D] disabled:opacity-30 leading-none">▼</button>
+                        <button onClick={() => moverBox(b, -1)} disabled={idx === 0} className="text-[10px] text-[#374151] disabled:opacity-30 leading-none">▲</button>
+                        <button onClick={() => moverBox(b, 1)} disabled={idx === boxesOrdenados.length - 1} className="text-[10px] text-[#374151] disabled:opacity-30 leading-none">▼</button>
                       </div>
                       <span className="text-base">{TIPO_EMOJI[b.tipo] || "🛏️"}</span>
                       <div className="flex-1 min-w-0">
-                        <div className="text-[13px] font-medium text-[#1F2A2E] truncate">{b.codigo} {b.nome ? <span className="text-[11px] text-[#8A989D] font-normal">· {b.nome}</span> : null}</div>
-                        <div className="text-[11px] text-[#8A989D]">{b.tipo}{b.ativa === false ? " · inativo" : ""}{b.observacao ? ` · ${b.observacao}` : ""}</div>
+                        <div className="text-[13px] font-medium text-[#1F2A2E] truncate">{b.codigo} {b.nome ? <span className="text-[11px] text-[#374151] font-normal">· {b.nome}</span> : null}</div>
+                        <div className="text-[11px] text-[#374151]">{b.tipo}{b.ativa === false ? " · inativo" : ""}{b.observacao ? ` · ${b.observacao}` : ""}</div>
                       </div>
                       <button onClick={() => editarBox(b)} className="text-[12px] text-[#00798A] px-2 py-1">✏️</button>
                       <button onClick={() => excluirBox(b)} className="text-[12px] px-2 py-1">🗑️</button>
@@ -455,16 +455,16 @@ export default function InternacoesPage() {
             <div className="px-5 py-4 border-b flex items-center justify-between sticky top-0 z-10" style={{ borderColor: "#E8E2D6", background: "#FBF9F4" }}>
               <div>
                 <h3 className="text-base font-medium text-[#014D5E]">🏥 Nova internação{form.boxId ? <span className="text-[12px] text-[#009AAC] font-normal"> · Box {boxes.find((b) => b.id === form.boxId)?.codigo || ""}</span> : null}</h3>
-                <p className="text-[11.5px] text-[#8A989D] mt-0.5">Interne o paciente e acompanhe por boletins.</p>
+                <p className="text-[11.5px] text-[#374151] mt-0.5">Interne o paciente e acompanhe por boletins.</p>
               </div>
-              <button onClick={() => setNovoOpen(false)} className="text-[#8A989D] hover:text-[#5C6B70] text-lg leading-none">✕</button>
+              <button onClick={() => setNovoOpen(false)} className="text-[#374151] hover:text-[#5C6B70] text-lg leading-none">✕</button>
             </div>
             <div className="p-5 space-y-4">
               {/* Paciente */}
               <div>
                 <div className="text-[11px] font-medium text-[#014D5E] mb-2 flex items-center gap-1.5">👤 Paciente</div>
                 <div className="space-y-3">
-                  <div><label className="text-[10.5px] text-[#8A989D] uppercase tracking-wide block mb-1">Cliente e pet *</label>
+                  <div><label className="text-[10.5px] text-[#374151] uppercase tracking-wide block mb-1">Cliente e pet *</label>
                     <BuscaClientePet
                       exigirPet
                       tutorSelecionado={selCliente}
@@ -472,7 +472,7 @@ export default function InternacoesPage() {
                       onSelecionar={({ tutor, pet }) => { setSelCliente({ id: tutor.id, name: tutor.name }); setSelPet(pet ? { id: pet.id, name: pet.name } : null); setForm((f: any) => ({ ...f, tutorId: tutor.id, petId: pet?.id || "" })); }}
                       onLimpar={() => { setSelCliente(null); setSelPet(null); setForm((f: any) => ({ ...f, tutorId: "", petId: "" })); }}
                     /></div>
-                  <div><label className="text-[10.5px] text-[#8A989D] uppercase tracking-wide block mb-1">Box *</label>
+                  <div><label className="text-[10.5px] text-[#374151] uppercase tracking-wide block mb-1">Box *</label>
                     <select value={form.boxId} onChange={(e) => setForm({ ...form, boxId: e.target.value })} className="w-full bg-white border rounded-lg px-3 py-2 text-[13px] text-[#1F2A2E] focus:outline-none focus:border-[#009AAC] focus:ring-2 focus:ring-[#E0F4F6]" style={{ borderColor: "#E8E2D6" }}><option value="">{boxesLivres.length ? "Selecione um box..." : "Nenhum box livre — cadastre em ⚙️ Gerenciar boxes"}</option>{form.boxId && !boxesLivres.find((b) => b.id === form.boxId) && (() => { const b = boxes.find((x) => x.id === form.boxId); return b ? <option value={b.id}>{TIPO_EMOJI[b.tipo] || ""} {b.codigo} (selecionado)</option> : null; })()}{boxesLivres.map((b) => <option key={b.id} value={b.id}>{TIPO_EMOJI[b.tipo] || ""} {b.codigo}{b.nome ? ` · ${b.nome}` : ""}</option>)}</select></div>
                 </div>
               </div>
@@ -481,14 +481,14 @@ export default function InternacoesPage() {
               <div className="pt-3 border-t" style={{ borderColor: "#F0EBE0" }}>
                 <div className="text-[11px] font-medium text-[#014D5E] mb-2 flex items-center gap-1.5">🩺 Internação</div>
                 <div className="space-y-3">
-                  <div><label className="text-[10.5px] text-[#8A989D] uppercase tracking-wide block mb-1">Profissional responsável</label>
+                  <div><label className="text-[10.5px] text-[#374151] uppercase tracking-wide block mb-1">Profissional responsável</label>
                     <select value={form.userId} onChange={(e) => setForm({ ...form, userId: e.target.value })} className="w-full bg-white border rounded-lg px-3 py-2 text-[13px] text-[#1F2A2E] focus:outline-none focus:border-[#009AAC] focus:ring-2 focus:ring-[#E0F4F6]" style={{ borderColor: "#E8E2D6" }}><option value="">Selecionar...</option>{users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}</select></div>
-                  <div><label className="text-[10.5px] text-[#8A989D] uppercase tracking-wide block mb-1">Motivo da internação *</label>
+                  <div><label className="text-[10.5px] text-[#374151] uppercase tracking-wide block mb-1">Motivo da internação *</label>
                     <input value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder="Ex.: Pós-operatório, crise convulsiva..." className="w-full bg-white border rounded-lg px-3 py-2 text-[13px] text-[#1F2A2E] focus:outline-none focus:border-[#009AAC] focus:ring-2 focus:ring-[#E0F4F6]" style={{ borderColor: "#E8E2D6" }} /></div>
-                  <div><label className="text-[10.5px] text-[#8A989D] uppercase tracking-wide block mb-1.5">Estado clínico inicial</label>
+                  <div><label className="text-[10.5px] text-[#374151] uppercase tracking-wide block mb-1.5">Estado clínico inicial</label>
                     <div className="grid grid-cols-4 gap-1.5">
                       {ESTADOS.map((e) => { const on = form.estado === e.v; return (
-                        <button type="button" key={e.v} onClick={() => setForm({ ...form, estado: e.v })} className="text-[11px] font-medium py-2 px-1 rounded-lg border text-center transition-colors" style={on ? { background: e.bg, color: e.fg, borderColor: e.fg } : { background: "#fff", color: "#8A989D", borderColor: "#E8E2D6" }}>{e.v}</button>
+                        <button type="button" key={e.v} onClick={() => setForm({ ...form, estado: e.v })} className="text-[11px] font-medium py-2 px-1 rounded-lg border text-center transition-colors" style={on ? { background: e.bg, color: e.fg, borderColor: e.fg } : { background: "#fff", color: "#374151", borderColor: "#E8E2D6" }}>{e.v}</button>
                       ); })}
                     </div>
                   </div>
@@ -499,22 +499,22 @@ export default function InternacoesPage() {
               <div className="pt-3 border-t" style={{ borderColor: "#F0EBE0" }}>
                 <div className="text-[11px] font-medium text-[#014D5E] mb-2 flex items-center gap-1.5">🔔 Acompanhamento</div>
                 <div className="grid grid-cols-2 gap-3">
-                  <div><label className="text-[10.5px] text-[#8A989D] uppercase tracking-wide block mb-1">Canal com tutor</label>
+                  <div><label className="text-[10.5px] text-[#374151] uppercase tracking-wide block mb-1">Canal com tutor</label>
                     <select value={form.canal} onChange={(e) => setForm({ ...form, canal: e.target.value })} className="w-full bg-white border rounded-lg px-3 py-2 text-[13px] text-[#1F2A2E] focus:outline-none focus:border-[#009AAC] focus:ring-2 focus:ring-[#E0F4F6]" style={{ borderColor: "#E8E2D6" }}>{CANAIS.map((c) => <option key={c} value={c}>{c}</option>)}</select></div>
-                  <div><label className="text-[10.5px] text-[#8A989D] uppercase tracking-wide block mb-1">Boletins/dia</label>
+                  <div><label className="text-[10.5px] text-[#374151] uppercase tracking-wide block mb-1">Boletins/dia</label>
                     <input type="number" min={0} value={form.boletinsDia} onChange={(e) => setForm({ ...form, boletinsDia: e.target.value })} className="w-full bg-white border rounded-lg px-3 py-2 text-[13px] text-[#1F2A2E] focus:outline-none focus:border-[#009AAC] focus:ring-2 focus:ring-[#E0F4F6]" style={{ borderColor: "#E8E2D6" }} /></div>
-                  <div><label className="text-[10.5px] text-[#8A989D] uppercase tracking-wide block mb-1">Valor diária (R$)</label>
+                  <div><label className="text-[10.5px] text-[#374151] uppercase tracking-wide block mb-1">Valor diária (R$)</label>
                     <input type="number" min={0} step="0.01" value={form.dailyRate} onChange={(e) => setForm({ ...form, dailyRate: e.target.value })} placeholder="0,00" className="w-full bg-white border rounded-lg px-3 py-2 text-[13px] text-[#1F2A2E] focus:outline-none focus:border-[#009AAC] focus:ring-2 focus:ring-[#E0F4F6]" style={{ borderColor: "#E8E2D6" }} /></div>
-                  <div><label className="text-[10.5px] text-[#8A989D] uppercase tracking-wide block mb-1">Alta prevista</label>
+                  <div><label className="text-[10.5px] text-[#374151] uppercase tracking-wide block mb-1">Alta prevista</label>
                     <input type="date" value={form.estimatedDischargeDate} onChange={(e) => setForm({ ...form, estimatedDischargeDate: e.target.value })} className="w-full bg-white border rounded-lg px-3 py-2 text-[13px] text-[#1F2A2E] focus:outline-none focus:border-[#009AAC] focus:ring-2 focus:ring-[#E0F4F6]" style={{ borderColor: "#E8E2D6" }} /></div>
-                  <div className="col-span-2"><label className="text-[10.5px] text-[#8A989D] uppercase tracking-wide block mb-1">Horários dos boletins (HH:MM, separados por vírgula)</label>
+                  <div className="col-span-2"><label className="text-[10.5px] text-[#374151] uppercase tracking-wide block mb-1">Horários dos boletins (HH:MM, separados por vírgula)</label>
                     <input value={form.boletinsHorarios} onChange={(e) => setForm({ ...form, boletinsHorarios: e.target.value })} placeholder="07:00, 14:00, 20:00" className="w-full bg-white border rounded-lg px-3 py-2 text-[13px] text-[#1F2A2E] focus:outline-none focus:border-[#009AAC] focus:ring-2 focus:ring-[#E0F4F6]" style={{ borderColor: "#E8E2D6" }} /></div>
                 </div>
               </div>
 
               {/* Observações */}
               <div className="pt-3 border-t" style={{ borderColor: "#F0EBE0" }}>
-                <label className="text-[10.5px] text-[#8A989D] uppercase tracking-wide block mb-1">Observações gerais</label>
+                <label className="text-[10.5px] text-[#374151] uppercase tracking-wide block mb-1">Observações gerais</label>
                 <textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} placeholder="Anotações da recepção/veterinário..." className="w-full bg-white border rounded-lg px-3 py-2 text-[13px] text-[#1F2A2E] focus:outline-none focus:border-[#009AAC] focus:ring-2 focus:ring-[#E0F4F6] resize-none" style={{ borderColor: "#E8E2D6" }} /></div>
             </div>
             <div className="px-5 py-4 border-t flex justify-end gap-2 sticky bottom-0" style={{ borderColor: "#E8E2D6", background: "#FBF9F4" }}>
@@ -530,19 +530,19 @@ export default function InternacoesPage() {
         <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50" onClick={() => setDetId(null)}>
           <div className="rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto" style={{ background: "#FBF9F4", border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "#E8E2D6" }}>
-              <div><h3 className="text-base font-medium text-[#014D5E]">{especieEmoji(det.pet?.species)} {det.pet?.name} <span className="text-[12px] text-[#8A989D] font-normal">· {det.tutor?.name}</span></h3></div>
-              <button onClick={() => setDetId(null)} className="text-[#8A989D] text-lg leading-none">✕</button>
+              <div><h3 className="text-base font-medium text-[#014D5E]">{especieEmoji(det.pet?.species)} {det.pet?.name} <span className="text-[12px] text-[#374151] font-normal">· {det.tutor?.name}</span></h3></div>
+              <button onClick={() => setDetId(null)} className="text-[#374151] text-lg leading-none">✕</button>
             </div>
             <div className="p-5 space-y-3 text-[13px]">
               <div className="grid grid-cols-2 gap-3">
-                <div><div className="text-[10.5px] text-[#8A989D] uppercase tracking-wide">Estado</div><span className="inline-flex text-[11px] font-medium px-2 py-0.5 rounded-full mt-0.5" style={{ background: estadoStyle(estadoDe(det)).bg, color: estadoStyle(estadoDe(det)).fg }}>{estadoDe(det)}</span></div>
-                <div><div className="text-[10.5px] text-[#8A989D] uppercase tracking-wide">Responsável</div><div className="text-[#1F2A2E]">{det.veterinarian?.name || "—"}</div></div>
-                <div className="col-span-2"><div className="text-[10.5px] text-[#8A989D] uppercase tracking-wide">Motivo</div><div className="text-[#1F2A2E]">{det.reason || "—"}</div></div>
-                <div><div className="text-[10.5px] text-[#8A989D] uppercase tracking-wide">Início</div><div className="text-[#1F2A2E]">{fmtData(det.admissionDate)} (dia {diasInternado(det.admissionDate)})</div></div>
-                <div><div className="text-[10.5px] text-[#8A989D] uppercase tracking-wide">Alta prevista</div><div className="text-[#1F2A2E]">{fmtData(det.estimatedDischargeDate)}</div></div>
-                <div><div className="text-[10.5px] text-[#8A989D] uppercase tracking-wide">Diária / acumulado</div><div className="text-[#1F2A2E]">{fmtBRL(det.dailyRate)} · {fmtBRL(det.totalCost)}</div></div>
-                <div><div className="text-[10.5px] text-[#8A989D] uppercase tracking-wide">Canal</div><div className="text-[#1F2A2E]">{det.vitalSigns?.canalTutor || "—"}</div></div>
-                {det.notes && <div className="col-span-2"><div className="text-[10.5px] text-[#8A989D] uppercase tracking-wide">Observações</div><div className="text-[#5C6B70]">{typeof det.notes === "string" ? det.notes : ""}</div></div>}
+                <div><div className="text-[10.5px] text-[#374151] uppercase tracking-wide">Estado</div><span className="inline-flex text-[11px] font-medium px-2 py-0.5 rounded-full mt-0.5" style={{ background: estadoStyle(estadoDe(det)).bg, color: estadoStyle(estadoDe(det)).fg }}>{estadoDe(det)}</span></div>
+                <div><div className="text-[10.5px] text-[#374151] uppercase tracking-wide">Responsável</div><div className="text-[#1F2A2E]">{det.veterinarian?.name || "—"}</div></div>
+                <div className="col-span-2"><div className="text-[10.5px] text-[#374151] uppercase tracking-wide">Motivo</div><div className="text-[#1F2A2E]">{det.reason || "—"}</div></div>
+                <div><div className="text-[10.5px] text-[#374151] uppercase tracking-wide">Início</div><div className="text-[#1F2A2E]">{fmtData(det.admissionDate)} (dia {diasInternado(det.admissionDate)})</div></div>
+                <div><div className="text-[10.5px] text-[#374151] uppercase tracking-wide">Alta prevista</div><div className="text-[#1F2A2E]">{fmtData(det.estimatedDischargeDate)}</div></div>
+                <div><div className="text-[10.5px] text-[#374151] uppercase tracking-wide">Diária / acumulado</div><div className="text-[#1F2A2E]">{fmtBRL(det.dailyRate)} · {fmtBRL(det.totalCost)}</div></div>
+                <div><div className="text-[10.5px] text-[#374151] uppercase tracking-wide">Canal</div><div className="text-[#1F2A2E]">{det.vitalSigns?.canalTutor || "—"}</div></div>
+                {det.notes && <div className="col-span-2"><div className="text-[10.5px] text-[#374151] uppercase tracking-wide">Observações</div><div className="text-[#5C6B70]">{typeof det.notes === "string" ? det.notes : ""}</div></div>}
               </div>
 
               {det.status !== "DISCHARGED" && (
@@ -559,7 +559,7 @@ export default function InternacoesPage() {
               <div className="border-t pt-3" style={{ borderColor: "#F0EBE0" }}>
                 <div className="text-[12px] font-medium text-[#014D5E] mb-2">Boletins ({boletins.length})</div>
                 {boletins.length === 0 ? (
-                  <div className="text-[12px] text-[#8A989D]">Nenhum boletim ainda.</div>
+                  <div className="text-[12px] text-[#374151]">Nenhum boletim ainda.</div>
                 ) : (
                   <div className="space-y-2">
                     {boletins.slice().sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime()).map((b) => { const es = estadoStyle(b.estado || ""); return (
@@ -576,7 +576,7 @@ export default function InternacoesPage() {
               </div>
             </div>
             <div className="px-5 py-4 border-t flex justify-between gap-2" style={{ borderColor: "#E8E2D6" }}>
-              {det.status !== "DISCHARGED" ? <button onClick={() => darAlta(det.id)} className="px-4 py-2 text-[13px] text-[#0F6E56] bg-[#E1F5EE] rounded-lg">Dar alta</button> : <span className="text-[12px] text-[#8A989D] py-2">Paciente já recebeu alta</span>}
+              {det.status !== "DISCHARGED" ? <button onClick={() => darAlta(det.id)} className="px-4 py-2 text-[13px] text-[#0F6E56] bg-[#E1F5EE] rounded-lg">Dar alta</button> : <span className="text-[12px] text-[#374151] py-2">Paciente já recebeu alta</span>}
               <button onClick={() => setDetId(null)} className="px-4 py-2 text-[13px] text-[#5C6B70] bg-white border rounded-lg" style={{ borderColor: "#E8E2D6" }}>Fechar</button>
             </div>
           </div>

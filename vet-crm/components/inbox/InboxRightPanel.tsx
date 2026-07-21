@@ -1470,7 +1470,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
   const BORDER_STYLE: React.CSSProperties = { borderColor: "#E8DFC8" };
   const NUM = "inline-flex items-center justify-center w-4 h-4 rounded-full bg-amber-100 text-amber-800 text-[9px] font-bold mr-1.5";
   const LBL = "text-[10px] font-bold tracking-wide uppercase mb-1.5 flex items-center justify-between";
-  const LBL_STYLE: React.CSSProperties = { color: "#8A989D" };
+  const LBL_STYLE: React.CSSProperties = { color: "#374151" };
   const LINK = "text-[10.5px] font-semibold normal-case cursor-pointer";
 
   return (
@@ -1702,7 +1702,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
             {/* BLOCO 2: CLIENTE com toggle Lead↔Cliente */}
             {tutor && (
               <section className={SECTION} style={SECTION_STYLE}>
-                <div className="flex items-center gap-1.5 mb-2.5" style={{ color: "#8A989D" }}><span className="text-[13px] leading-none" aria-hidden>🏪</span><span className="text-[11px] font-medium">Empório do Pet</span></div>
+                <div className="flex items-center gap-1.5 mb-2.5" style={{ color: "#374151" }}><span className="text-[13px] leading-none" aria-hidden>🏪</span><span className="text-[11px] font-medium">Empório do Pet</span></div>
                 <div className={LBL}>
                   <div className="relative inline-flex ml-1" style={{ verticalAlign: "middle" }}>
                     <button type="button" onClick={() => setClassifOpen((o) => !o)} className="inline-flex items-center gap-1 text-[10px] font-bold uppercase rounded-full px-2 py-0.5" style={{ background: "#FAFAF7", border: "1px solid #E8DFC8", color: classifColor(tutor.classificacao || "Cliente") }}>
@@ -1796,7 +1796,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
           {/* BLOCO 2: LEAD com toggle Lead↔Cliente + PET DE INTERESSE */}
             {!tutor && lead && (
               <section className={SECTION} style={{ ...SECTION_STYLE, background: "#FFFBEB" }}>
-                <div className="flex items-center gap-1.5 mb-2.5" style={{ color: "#8A989D" }}><span className="text-[13px] leading-none" aria-hidden>🎯</span><span className="text-[11px] font-medium">Lead</span></div>
+                <div className="flex items-center gap-1.5 mb-2.5" style={{ color: "#374151" }}><span className="text-[13px] leading-none" aria-hidden>🎯</span><span className="text-[11px] font-medium">Lead</span></div>
                 <div className={LBL}>
                   <div className="relative inline-flex" style={{ verticalAlign: "middle" }}>
                     <button type="button" onClick={() => setClassifOpen((o) => !o)} className="inline-flex items-center gap-1 text-[10px] font-bold uppercase rounded-full px-2 py-0.5" style={{ background: "#FFFBEB", border: "1px solid #FDE68A", color: "#D97706" }}>
@@ -1890,19 +1890,19 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
                 <div className="grid grid-cols-4 gap-1.5 mt-2.5">
                   <div className="rounded-lg text-center px-1 py-1.5" style={{ background: "#FBF9F4", border: "1px solid #F0EBE0" }}>
                     <div className="text-[15px] font-bold leading-none" style={{ color: "#014D5E" }}>{tutorScore.dimensions?.visitas?.score ?? 0}</div>
-                    <div className="text-[8.5px] mt-1" style={{ color: "#8A989D" }}>Visitas</div>
+                    <div className="text-[8.5px] mt-1" style={{ color: "#374151" }}>Visitas</div>
                   </div>
                   <div className="rounded-lg text-center px-1 py-1.5" style={{ background: "#FBF9F4", border: "1px solid #F0EBE0" }}>
                     <div className="text-[15px] font-bold leading-none" style={{ color: "#014D5E" }}>{tutorScore.dimensions?.ltv?.score ?? 0}</div>
-                    <div className="text-[8.5px] mt-1" style={{ color: "#8A989D" }}>LTV</div>
+                    <div className="text-[8.5px] mt-1" style={{ color: "#374151" }}>LTV</div>
                   </div>
                   <div className="rounded-lg text-center px-1 py-1.5" style={{ background: "#FBF9F4", border: "1px solid #F0EBE0" }}>
                     <div className="text-[15px] font-bold leading-none" style={{ color: "#014D5E" }}>{tutorScore.dimensions?.recencia?.score ?? 0}</div>
-                    <div className="text-[8.5px] mt-1" style={{ color: "#8A989D" }}>Recência</div>
+                    <div className="text-[8.5px] mt-1" style={{ color: "#374151" }}>Recência</div>
                   </div>
                   <div className="rounded-lg text-center px-1 py-1.5" style={{ background: "#FBF9F4", border: "1px solid #F0EBE0" }}>
                     <div className="text-[15px] font-bold leading-none" style={{ color: "#014D5E" }}>{tutorScore.dimensions?.nps?.score ?? 0}</div>
-                    <div className="text-[8.5px] mt-1" style={{ color: "#8A989D" }}>NPS</div>
+                    <div className="text-[8.5px] mt-1" style={{ color: "#374151" }}>NPS</div>
                   </div>
                 </div>
               </section>

@@ -274,7 +274,7 @@ export default function CaixaPage() {
           <div style={{ ...cardStyle, textAlign: 'center', padding: 40 }}>
             <LuWallet size={28} style={{ color: TEAL }} />
             <p style={{ color: '#5C6B70', margin: '10px 0 0' }}>Nenhum caixa neste dia.</p>
-            <p style={{ color: '#8A989D', fontSize: 13, margin: '4px 0 0' }}>Clique em “Abrir caixa” para começar.</p>
+            <p style={{ color: '#374151', fontSize: 13, margin: '4px 0 0' }}>Clique em “Abrir caixa” para começar.</p>
           </div>
         )}
 
@@ -315,7 +315,7 @@ export default function CaixaPage() {
                     <div><span style={{ color: '#014D5E', fontWeight: 500 }}>Esperado:</span> {money(Number(detail.valorEsperado ?? saldoDinheiro))}</div>
                     <div><span style={{ color: '#014D5E', fontWeight: 500 }}>Contado:</span> {detail.valorContado != null ? money(Number(detail.valorContado)) : '—'}</div>
                     <div><span style={{ color: '#014D5E', fontWeight: 500 }}>Diferença:</span>{' '}
-                      <b style={{ color: detail.diferenca == null ? '#8A989D' : Math.abs(Number(detail.diferenca)) < 0.005 ? GREEN : Number(detail.diferenca) > 0 ? GREEN : ORANGE }}>
+                      <b style={{ color: detail.diferenca == null ? '#374151' : Math.abs(Number(detail.diferenca)) < 0.005 ? GREEN : Number(detail.diferenca) > 0 ? GREEN : ORANGE }}>
                         {detail.diferenca == null ? '—' : (Number(detail.diferenca) > 0 ? 'Sobra ' : Number(detail.diferenca) < 0 ? 'Falta ' : '') + money(Math.abs(Number(detail.diferenca)))}
                       </b>
                     </div>
@@ -338,7 +338,7 @@ export default function CaixaPage() {
                     <button onClick={reabrirCaixa} style={{ gridColumn: '1 / -1', background: '#fff', color: '#5C6B70', border: '1px solid #E8E2D6', fontSize: 12, fontWeight: 500, padding: '9px', borderRadius: 9, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><LuLockOpen size={14} /> Reabrir caixa</button>
                   )}
                 </div>
-                {!aberto && <p style={{ fontSize: 11, color: '#8A989D', margin: '8px 0 0' }}>Reabra o caixa para lançar ou excluir registros.</p>}
+                {!aberto && <p style={{ fontSize: 11, color: '#374151', margin: '8px 0 0' }}>Reabra o caixa para lançar ou excluir registros.</p>}
               </div>
             </div>
 
@@ -355,7 +355,7 @@ export default function CaixaPage() {
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                       <thead><tr><th style={thStyle}>Forma de recebimento</th><th style={{ ...thStyle, textAlign: 'right' }}>Vendas</th><th style={{ ...thStyle, textAlign: 'right' }}>Suprimentos</th><th style={{ ...thStyle, textAlign: 'right' }}>Resultado</th></tr></thead>
                       <tbody>
-                        {resumo.linhas.length === 0 && (<tr><td colSpan={4} style={{ ...tdStyle, textAlign: 'center', color: '#8A989D', padding: 16 }}>Nenhum valor recebido ainda.</td></tr>)}
+                        {resumo.linhas.length === 0 && (<tr><td colSpan={4} style={{ ...tdStyle, textAlign: 'center', color: '#374151', padding: 16 }}>Nenhum valor recebido ainda.</td></tr>)}
                         {resumo.linhas.map((l) => (
                           <tr key={l.forma}>
                             <td style={{ ...tdStyle, color: '#014D5E' }}>{l.forma}</td>
@@ -396,13 +396,13 @@ export default function CaixaPage() {
                               ))}
                             </div>
                           </details>
-                        ) : (<p style={{ fontSize: 13, color: '#8A989D' }}>Nenhuma venda em aberto neste dia.</p>)}
+                        ) : (<p style={{ fontSize: 13, color: '#374151' }}>Nenhuma venda em aberto neste dia.</p>)}
                       </div>
                     )}
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                       <thead><tr><th style={thStyle}>Venda</th><th style={thStyle}>Hora</th><th style={thStyle}>Cliente · Pet</th><th style={thStyle}>Formas</th><th style={{ ...thStyle, textAlign: 'right' }}>Valor</th><th style={{ ...thStyle, textAlign: 'right' }}>Status</th>{aberto && <th style={{ ...thStyle, textAlign: 'right' }} className="no-print"></th>}</tr></thead>
                       <tbody>
-                        {(detail.recebimentos || []).length === 0 && (<tr><td colSpan={aberto ? 7 : 6} style={{ ...tdStyle, textAlign: 'center', color: '#8A989D', padding: 16 }}>Nenhum recebimento registrado.</td></tr>)}
+                        {(detail.recebimentos || []).length === 0 && (<tr><td colSpan={aberto ? 7 : 6} style={{ ...tdStyle, textAlign: 'center', color: '#374151', padding: 16 }}>Nenhum recebimento registrado.</td></tr>)}
                         {(detail.recebimentos || []).map((rec) => {
                           const value = Number(rec.appointment?.value || 0);
                           const pago = rec.appointmentId ? pagoPorAppt.get(rec.appointmentId) || 0 : 0;
@@ -412,7 +412,7 @@ export default function CaixaPage() {
                               <td style={{ ...tdStyle, color: '#014D5E', fontWeight: 500, whiteSpace: 'nowrap' }}>{vendaLabel(rec.appointment)}</td>
                               <td style={{ ...tdStyle, color: '#5C6B70' }}>{hora(rec.data)}</td>
                               <td style={{ ...tdStyle, color: '#1F2A2E' }}>{rec.appointment?.tutor?.name || 'Cliente'} · {rec.appointment?.pet?.name || 'Pet'}</td>
-                              <td style={{ ...tdStyle, color: '#8A989D' }}>{(rec.formas || []).map((f) => f.forma).join(' + ') || '—'}</td>
+                              <td style={{ ...tdStyle, color: '#374151' }}>{(rec.formas || []).map((f) => f.forma).join(' + ') || '—'}</td>
                               <td style={{ ...tdStyle, textAlign: 'right' }}>{money(Number(rec.valorTotal))}</td>
                               <td style={{ ...tdStyle, textAlign: 'right' }}><span style={{ fontSize: 11, padding: '3px 9px', borderRadius: 20, background: st.bg, color: st.fg }}>{st.label}</span></td>
                               {aberto && <td style={{ ...tdStyle, textAlign: 'right' }} className="no-print">{delBtn(() => delRec(rec.id))}</td>}
@@ -428,13 +428,13 @@ export default function CaixaPage() {
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                     <thead><tr><th style={thStyle}>Data</th><th style={thStyle}>Tipo</th><th style={thStyle}>Descrição</th><th style={thStyle}>Conta</th><th style={{ ...thStyle, textAlign: 'right' }}>Valor</th>{aberto && <th style={{ ...thStyle }} className="no-print"></th>}</tr></thead>
                     <tbody>
-                      {movLinhas.length === 0 && (<tr><td colSpan={aberto ? 6 : 5} style={{ ...tdStyle, textAlign: 'center', color: '#8A989D', padding: 16 }}>Sem movimentações.</td></tr>)}
+                      {movLinhas.length === 0 && (<tr><td colSpan={aberto ? 6 : 5} style={{ ...tdStyle, textAlign: 'center', color: '#374151', padding: 16 }}>Sem movimentações.</td></tr>)}
                       {movLinhas.map((m, i) => (
                         <tr key={m.id || i}>
                           <td style={{ ...tdStyle, color: '#5C6B70' }}>{dataHora(m.data)}</td>
                           <td style={{ ...tdStyle, color: m.entrada ? GREEN : ORANGE }}>{m.tipo}</td>
                           <td style={{ ...tdStyle, color: '#5C6B70' }}>{m.descricao}</td>
-                          <td style={{ ...tdStyle, color: '#8A989D' }}>{m.conta}</td>
+                          <td style={{ ...tdStyle, color: '#374151' }}>{m.conta}</td>
                           <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 500, color: m.entrada ? GREEN : ORANGE }}>{m.entrada ? '' : '− '}{money(m.valor)}</td>
                           {aberto && <td style={{ ...tdStyle, textAlign: 'right' }} className="no-print">{m.id ? delBtn(() => delMov(m.id!)) : null}</td>}
                         </tr>
@@ -447,12 +447,12 @@ export default function CaixaPage() {
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                     <thead><tr><th style={thStyle}>Data</th><th style={thStyle}>Cliente</th><th style={thStyle}>Descrição</th><th style={{ ...thStyle, textAlign: 'right' }}>Valor</th>{aberto && <th style={{ ...thStyle }} className="no-print"></th>}</tr></thead>
                     <tbody>
-                      {(detail.creditosUtilizados || []).length === 0 && (<tr><td colSpan={aberto ? 5 : 4} style={{ ...tdStyle, textAlign: 'center', color: '#8A989D', padding: 16 }}>Nenhum crédito utilizado.</td></tr>)}
+                      {(detail.creditosUtilizados || []).length === 0 && (<tr><td colSpan={aberto ? 5 : 4} style={{ ...tdStyle, textAlign: 'center', color: '#374151', padding: 16 }}>Nenhum crédito utilizado.</td></tr>)}
                       {(detail.creditosUtilizados || []).map((c) => (
                         <tr key={c.id}>
                           <td style={{ ...tdStyle, color: '#5C6B70' }}>{dataHora(c.data)}</td>
                           <td style={{ ...tdStyle, color: '#1F2A2E' }}>{c.tutor?.name || 'Cliente'}</td>
-                          <td style={{ ...tdStyle, color: '#8A989D' }}>{c.descricao || '—'}</td>
+                          <td style={{ ...tdStyle, color: '#374151' }}>{c.descricao || '—'}</td>
                           <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 500, color: ORANGE }}>− {money(Number(c.valor))}</td>
                           {aberto && <td style={{ ...tdStyle, textAlign: 'right' }} className="no-print">{delBtn(() => delCred(c.id))}</td>}
                         </tr>
@@ -538,7 +538,7 @@ export default function CaixaPage() {
                 <select value={f.forma} onChange={(e) => setFormas(formas.map((x, j) => j === i ? { ...x, forma: e.target.value } : x))} style={{ ...inp, flex: 1.4 }}>{FORMAS_PADRAO.map((op) => <option key={op} value={op}>{op}</option>)}</select>
                 <input value={f.valor || ''} inputMode="decimal" placeholder="R$" onChange={(e) => setFormas(formas.map((x, j) => j === i ? { ...x, valor: Number(String(e.target.value).replace(',', '.')) || 0 } : x))} style={{ ...inp, flex: 1 }} />
                 <input value={f.parcelas || 1} type="number" min={1} title="Parcelas" onChange={(e) => setFormas(formas.map((x, j) => j === i ? { ...x, parcelas: Number(e.target.value) || 1 } : x))} style={{ ...inp, width: 52, textAlign: 'center' }} />
-                {formas.length > 1 && <button onClick={() => setFormas(formas.filter((_, j) => j !== i))} aria-label="Remover" style={{ border: 'none', background: 'none', cursor: 'pointer' }}><LuTrash2 size={15} color="#8A989D" /></button>}
+                {formas.length > 1 && <button onClick={() => setFormas(formas.filter((_, j) => j !== i))} aria-label="Remover" style={{ border: 'none', background: 'none', cursor: 'pointer' }}><LuTrash2 size={15} color="#374151" /></button>}
               </div>
             ))}
             <button onClick={() => setFormas([...formas, { forma: 'Pix', valor: 0, parcelas: 1, nsu: '' }])} style={{ border: 'none', background: 'none', color: TEAL, fontSize: 12, fontWeight: 500, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}><LuPlus size={13} /> adicionar forma</button>
@@ -546,7 +546,7 @@ export default function CaixaPage() {
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <div style={{ flex: 1 }}><Field label="Desconto"><input value={desconto || ''} inputMode="decimal" placeholder="0,00" onChange={(e) => setDesconto(Number(String(e.target.value).replace(',', '.')) || 0)} style={inp} /></Field></div>
-            <div style={{ flex: 1 }}><Field label="Troco (auto)"><div style={{ ...inp, color: '#8A989D', background: '#FBF9F4' }}>{brl(troco)}</div></Field></div>
+            <div style={{ flex: 1 }}><Field label="Troco (auto)"><div style={{ ...inp, color: '#374151', background: '#FBF9F4' }}>{brl(troco)}</div></Field></div>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', background: '#e8f7f9', borderRadius: 8, padding: '10px 12px', fontSize: 13 }}>
             <span style={{ color: '#014D5E' }}>Total pago <b style={{ color: TEAL_DARK }}>{brl(somaFormas)}</b></span>
@@ -572,7 +572,7 @@ function Modal({ title, children, onClose, onConfirm, confirmLabel, confirmDisab
       <div style={{ background: '#fff', borderRadius: 14, width: '100%', maxWidth: 430, maxHeight: '92vh', overflow: 'auto' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '15px 18px', borderBottom: '1px solid #F0EBE0' }}>
           <h3 style={{ fontSize: 16, fontWeight: 600, margin: 0, color: '#1F2A2E' }}>{title}</h3>
-          <button onClick={onClose} style={{ border: 'none', background: 'none', cursor: 'pointer' }}><LuX size={18} color="#8A989D" /></button>
+          <button onClick={onClose} style={{ border: 'none', background: 'none', cursor: 'pointer' }}><LuX size={18} color="#374151" /></button>
         </div>
         <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 13 }}>{children}</div>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, padding: '15px 18px', borderTop: '1px solid #F0EBE0' }}>

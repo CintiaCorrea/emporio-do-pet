@@ -56,7 +56,7 @@ export default function ListaPrecosPage() {
       <div style={{ width: '100%', padding: '20px 26px 60px', boxSizing: 'border-box' }}>
         <div className="no-print" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
           <div style={{ position: 'relative', flex: '1 1 240px', maxWidth: 320 }}>
-            <LuSearch size={15} style={{ position: 'absolute', left: 10, top: 10, color: '#8A989D' }} />
+            <LuSearch size={15} style={{ position: 'absolute', left: 10, top: 10, color: '#374151' }} />
             <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar serviço…" style={{ ...inp, width: '100%', paddingLeft: 32, boxSizing: 'border-box' }} />
           </div>
           <select value={cat} onChange={(e) => setCat(e.target.value)} style={inp}>
@@ -75,13 +75,13 @@ export default function ListaPrecosPage() {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead><tr><th style={th}>Serviço</th><th style={th}>Categoria</th><th style={{ ...th, textAlign: 'right' }}>Custo</th><th style={{ ...th, textAlign: 'right' }}>Valor</th></tr></thead>
               <tbody>
-                {loading && <tr><td colSpan={4} style={{ ...td, textAlign: 'center', color: '#8A989D', padding: 18 }}>Carregando…</td></tr>}
-                {!loading && filtradas.length === 0 && <tr><td colSpan={4} style={{ ...td, textAlign: 'center', color: '#8A989D', padding: 18 }}>Nenhum serviço encontrado.</td></tr>}
+                {loading && <tr><td colSpan={4} style={{ ...td, textAlign: 'center', color: '#374151', padding: 18 }}>Carregando…</td></tr>}
+                {!loading && filtradas.length === 0 && <tr><td colSpan={4} style={{ ...td, textAlign: 'center', color: '#374151', padding: 18 }}>Nenhum serviço encontrado.</td></tr>}
                 {filtradas.map((s) => (
                   <tr key={s.id}>
-                    <td style={{ ...td, color: '#1F2A2E' }}>{s.nome}{!s.ativo && <span style={{ fontSize: 10.5, color: '#8A989D', marginLeft: 6 }}>(inativo)</span>}</td>
+                    <td style={{ ...td, color: '#1F2A2E' }}>{s.nome}{!s.ativo && <span style={{ fontSize: 10.5, color: '#374151', marginLeft: 6 }}>(inativo)</span>}</td>
                     <td style={{ ...td, color: '#5C6B70' }}>{s.category?.nome || '—'}</td>
-                    <td style={{ ...td, textAlign: 'right', color: '#8A989D' }}>{s.custoPadrao != null ? money(s.custoPadrao) : '—'}</td>
+                    <td style={{ ...td, textAlign: 'right', color: '#374151' }}>{s.custoPadrao != null ? money(s.custoPadrao) : '—'}</td>
                     <td style={{ ...td, textAlign: 'right', fontWeight: 600, color: TEAL_DARK }}>{money(s.valorPadrao)}</td>
                   </tr>
                 ))}

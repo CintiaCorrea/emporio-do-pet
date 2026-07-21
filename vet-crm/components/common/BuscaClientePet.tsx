@@ -107,7 +107,7 @@ export default function BuscaClientePet({
           <div className="text-[13px] text-[#1F2A2E] truncate">
             {petSelecionado ? <><span className="font-medium">{petSelecionado.name}</span> · {tutorSelecionado.name}</> : tutorSelecionado.name}
           </div>
-          {!petSelecionado && <div className="text-[11px] text-[#8A989D]">sem pet selecionado</div>}
+          {!petSelecionado && <div className="text-[11px] text-[#374151]">sem pet selecionado</div>}
         </div>
         <button type="button" onClick={limpar} className="text-[12px] text-[#00798A] flex-shrink-0">Trocar</button>
       </div>
@@ -151,9 +151,9 @@ export default function BuscaClientePet({
       {termoServidor.length >= 2 && (
         <div className="mt-2 border rounded-lg bg-white max-h-[220px] overflow-y-auto" style={{ borderColor: "#E8E2D6" }}>
           {carregando ? (
-            <div className="px-3 py-3 text-[12.5px] text-[#8A989D]">Buscando...</div>
+            <div className="px-3 py-3 text-[12.5px] text-[#374151]">Buscando...</div>
           ) : linhas.length === 0 ? (
-            <div className="px-3 py-3 text-[12.5px] text-[#8A989D]">Nada encontrado com esses termos.</div>
+            <div className="px-3 py-3 text-[12.5px] text-[#374151]">Nada encontrado com esses termos.</div>
           ) : (
             linhas.map((l) => (
               <button
@@ -164,9 +164,9 @@ export default function BuscaClientePet({
                 style={{ borderColor: "#F0EBE0" }}
               >
                 {l.pet ? (
-                  <><span>{especieEmoji(l.pet.species)}</span> <span className="font-medium text-[#1F2A2E]">{l.pet.name}</span> <span className="text-[#8A989D]">· {l.tutor.name}</span></>
+                  <><span>{especieEmoji(l.pet.species)}</span> <span className="font-medium text-[#1F2A2E]">{l.pet.name}</span> <span className="text-[#374151]">· {l.tutor.name}</span></>
                 ) : (
-                  <><span>👤</span> <span className="text-[#1F2A2E]">{l.tutor.name}</span> <span className="text-[11px] text-[#8A989D]">· sem pet cadastrado</span></>
+                  <><span>👤</span> <span className="text-[#1F2A2E]">{l.tutor.name}</span> <span className="text-[11px] text-[#374151]">· sem pet cadastrado</span></>
                 )}
               </button>
             ))
@@ -174,7 +174,7 @@ export default function BuscaClientePet({
         </div>
       )}
       {termoServidor.length > 0 && termoServidor.length < 2 && (
-        <div className="mt-1 text-[11px] text-[#8A989D]">Digite pelo menos 2 letras.</div>
+        <div className="mt-1 text-[11px] text-[#374151]">Digite pelo menos 2 letras.</div>
       )}
     </div>
   );

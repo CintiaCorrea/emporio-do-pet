@@ -837,7 +837,7 @@ export default function PetDetailPage() {
   return (
     <div className="p-4 min-h-screen bg-[#F6F2EA]">
       {/* Breadcrumb */}
-      <div className="text-[12px] text-[#8A989D] mb-2 px-1">
+      <div className="text-[12px] text-[#374151] mb-2 px-1">
         <Link href="/dashboard/erp/pets" className="hover:text-[#009AAC]">Pets</Link> / <b className="text-[#009AAC] font-medium">{pet.name}</b>
       </div>
 
@@ -860,7 +860,7 @@ export default function PetDetailPage() {
                     <button onClick={() => { setNameVal(pet.name || ""); setEditName(true); }} className="p-0.5 rounded text-[#c8d0d4] hover:text-[#009AAC]" title="Editar nome"><LuPencil size={12} /></button>
                   </span>
                 )}
-                {pet.codigo ? <span className="text-[13px] text-[#8A989D] font-medium" title="Código do pet">#{pet.codigo}</span> : null}
+                {pet.codigo ? <span className="text-[13px] text-[#374151] font-medium" title="Código do pet">#{pet.codigo}</span> : null}
                 <button onClick={() => setStatusOpen(true)} title="Status de saúde — clique para alterar" className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: saude.bg, color: saude.color }}>{saude.label} ▾</button>
                 {pet.status === "DECEASED" && <span className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: "#EEF0F2", color: "#5b6470" }}>🕊️ Óbito</span>}
                 {/petlife/i.test(pet.insurancePlan || "") && <span className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: "#E6F0FF", color: "#0C447C" }}>🩺 Petlife</span>}
@@ -876,7 +876,7 @@ export default function PetDetailPage() {
               )}
               {/* Etiquetas (chips + tag) */}
               <div className="flex flex-wrap gap-1.5 items-center mt-2">
-                <span className="text-[11.5px] text-[#8A989D]">🏷️</span>
+                <span className="text-[11.5px] text-[#374151]">🏷️</span>
                 {(pet.tags || []).map((t) => {
                   const tpl = tagTpls.find((x: any) => x.texto === t);
                   const cor = tpl?.cor || "#009AAC";
@@ -887,7 +887,7 @@ export default function PetDetailPage() {
                     </span>
                   );
                 })}
-                <button onClick={() => setTagPickerOpen((v) => !v)} className="border border-dashed border-[#E8E2D6] text-[#8A989D] text-[10px] px-2 py-0.5 rounded-full">+ tag</button>
+                <button onClick={() => setTagPickerOpen((v) => !v)} className="border border-dashed border-[#E8E2D6] text-[#374151] text-[10px] px-2 py-0.5 rounded-full">+ tag</button>
               </div>
               {tagPickerOpen && (
                 <div className="mt-2 pt-2 border-t border-[#F0EBE0]">
@@ -934,7 +934,7 @@ export default function PetDetailPage() {
           { k: "FISIO", label: "🌿 Fisioterapia" },
           { k: "COMPRAS", label: "🧾 Compras" },
         ] as const).map((t) => (
-          <button key={t.k} onClick={() => setMainTab(t.k)} className="px-4 py-2 text-sm font-medium border-b-2 transition -mb-px" style={{ borderColor: mainTab === t.k ? "#009AAC" : "transparent", color: mainTab === t.k ? "#009AAC" : "#8A989D" }}>{t.label}</button>
+          <button key={t.k} onClick={() => setMainTab(t.k)} className="px-4 py-2 text-sm font-medium border-b-2 transition -mb-px" style={{ borderColor: mainTab === t.k ? "#009AAC" : "transparent", color: mainTab === t.k ? "#009AAC" : "#374151" }}>{t.label}</button>
         ))}
       </div>
 
@@ -953,13 +953,13 @@ export default function PetDetailPage() {
             </div>
             <div>
               <div className="text-[13.5px] font-medium text-[#014D5E]">🐾 Saúde</div>
-              <div className="text-[11.5px] text-[#8A989D]">Índice {healthIndex}/100</div>
+              <div className="text-[11.5px] text-[#374151]">Índice {healthIndex}/100</div>
             </div>
           </div>
           <div className="bg-white border border-[#E8E2D6] rounded-[14px]" style={{ padding: "13px 16px" }}>
             <div className="flex justify-between items-center text-[13px] mb-1.5">
               <span className="font-medium" style={{ color: saude.color }}>{saude.label}</span>
-              <button onClick={() => setStatusOpen(true)} className="text-[#8A989D] hover:text-[#009AAC] text-[11.5px]">alterar ▾</button>
+              <button onClick={() => setStatusOpen(true)} className="text-[#374151] hover:text-[#009AAC] text-[11.5px]">alterar ▾</button>
             </div>
             {/* Selos reais */}
             <div className="flex flex-wrap gap-1.5 mb-2">
@@ -971,7 +971,7 @@ export default function PetDetailPage() {
             {pacFisio ? (
               <div className="pt-2 border-t border-[#F0EBE0]">
                 <div className="flex justify-between items-center text-[11.5px] mb-1">
-                  <span className="text-[#5C6B70]">🐾 Fisioterapia <span className="text-[#8A989D]">(ligado à venda)</span></span>
+                  <span className="text-[#5C6B70]">🐾 Fisioterapia <span className="text-[#374151]">(ligado à venda)</span></span>
                   <span className="flex items-center gap-2">
                     <span className="text-[#014D5E] font-medium">{pacUsed}/{pacTotal}</span>
                     <span className="text-[10.5px] px-2 py-0.5 rounded-full" style={{ background: pacTotal - pacUsed > 0 ? "#FBF3E3" : "#E1F5EE", color: pacTotal - pacUsed > 0 ? "#8a6400" : "#0F6E56" }}>{Math.max(0, pacTotal - pacUsed)} pendente{pacTotal - pacUsed === 1 ? "" : "s"}</span>
@@ -987,10 +987,10 @@ export default function PetDetailPage() {
                 </div>
                 {pacForm.open && pacForm.id === pacFisio.id && (
                   <div className="mt-2 pt-2 border-t border-[#F0EBE0] flex flex-wrap items-end gap-2">
-                    <div className="flex-1 min-w-[140px]"><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Nome do pacote</label><input value={pacForm.nome} onChange={(e) => setPacForm((f) => ({ ...f, nome: e.target.value }))} placeholder="Ex.: Fisioterapia" className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[12px]" /></div>
-                    <div className="w-[76px]"><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Total</label><input inputMode="numeric" maxLength={3} value={pacForm.total} onChange={(e) => setPacForm((f) => ({ ...f, total: e.target.value.replace(/\D/g, "").slice(0, 3) }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[12px] text-center" /></div>
-                    <div className="w-[76px]"><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Feitas</label><input inputMode="numeric" maxLength={3} value={pacForm.jaFeitas} onChange={(e) => setPacForm((f) => ({ ...f, jaFeitas: e.target.value.replace(/\D/g, "").slice(0, 3) }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[12px] text-center" /></div>
-                    <div className="w-[86px]"><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Pendentes</label><div className="mt-0.5 px-2 py-1 border rounded text-[12px] text-center font-semibold" style={{ borderColor: "#E8E2D6", background: "#FBF9F4", color: "#014D5E" }}>{Math.max(0, (Number(pacForm.total) || 0) - (Number(pacForm.jaFeitas) || 0))}</div></div>
+                    <div className="flex-1 min-w-[140px]"><label className="text-[10px] uppercase tracking-wide text-[#374151]">Nome do pacote</label><input value={pacForm.nome} onChange={(e) => setPacForm((f) => ({ ...f, nome: e.target.value }))} placeholder="Ex.: Fisioterapia" className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[12px]" /></div>
+                    <div className="w-[76px]"><label className="text-[10px] uppercase tracking-wide text-[#374151]">Total</label><input inputMode="numeric" maxLength={3} value={pacForm.total} onChange={(e) => setPacForm((f) => ({ ...f, total: e.target.value.replace(/\D/g, "").slice(0, 3) }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[12px] text-center" /></div>
+                    <div className="w-[76px]"><label className="text-[10px] uppercase tracking-wide text-[#374151]">Feitas</label><input inputMode="numeric" maxLength={3} value={pacForm.jaFeitas} onChange={(e) => setPacForm((f) => ({ ...f, jaFeitas: e.target.value.replace(/\D/g, "").slice(0, 3) }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[12px] text-center" /></div>
+                    <div className="w-[86px]"><label className="text-[10px] uppercase tracking-wide text-[#374151]">Pendentes</label><div className="mt-0.5 px-2 py-1 border rounded text-[12px] text-center font-semibold" style={{ borderColor: "#E8E2D6", background: "#FBF9F4", color: "#014D5E" }}>{Math.max(0, (Number(pacForm.total) || 0) - (Number(pacForm.jaFeitas) || 0))}</div></div>
                     <button onClick={addPacote} disabled={savingPac} className="px-3 py-1 rounded text-[12px] text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingPac ? "..." : "Salvar"}</button>
                     <button onClick={() => setPacForm({ open: false, serviceId: "", nome: "", total: "4", jaFeitas: "0" })} className="px-3 py-1 rounded text-[12px]" style={{ color: "#5C6B70", background: "#F1EFE8" }}>Cancelar</button>
                   </div>
@@ -999,20 +999,20 @@ export default function PetDetailPage() {
             ) : (
               <div className="pt-2 border-t border-[#F0EBE0]">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11.5px] text-[#8A989D]">Sem pacote de fisioterapia ativo.</span>
+                  <span className="text-[11.5px] text-[#374151]">Sem pacote de fisioterapia ativo.</span>
                   <button onClick={() => setPacForm((f) => ({ ...f, open: !f.open }))} className="text-[10.5px] px-2 py-0.5 rounded-full border" style={{ borderColor: "#E8E2D6", color: "#009AAC" }}>＋ pacote</button>
                 </div>
                 {pacForm.open && (
                   <div className="mt-2 pt-2 border-t border-[#F0EBE0] flex flex-wrap items-end gap-2">
-                    <div className="flex-1 min-w-[150px]"><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Serviço de fisioterapia</label>
+                    <div className="flex-1 min-w-[150px]"><label className="text-[10px] uppercase tracking-wide text-[#374151]">Serviço de fisioterapia</label>
                       <select value={pacForm.serviceId} onChange={(e) => setPacForm((f) => ({ ...f, serviceId: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[12px]">
                         <option value="">— selecionar —</option>
                         {fisioSrv.map((srv: any) => <option key={srv.id} value={srv.id}>{srv.nome || srv.titulo || srv.descricao}</option>)}
                       </select>
                     </div>
-                    <div className="w-[76px]"><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Total</label><input inputMode="numeric" maxLength={3} value={pacForm.total} onChange={(e) => setPacForm((f) => ({ ...f, total: e.target.value.replace(/\D/g, "").slice(0, 3) }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[12px] text-center" /></div>
-                    <div className="w-[76px]"><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Feitas</label><input inputMode="numeric" maxLength={3} value={pacForm.jaFeitas} onChange={(e) => setPacForm((f) => ({ ...f, jaFeitas: e.target.value.replace(/\D/g, "").slice(0, 3) }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[12px] text-center" /></div>
-                    <div className="w-[86px]"><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Pendentes</label><div className="mt-0.5 px-2 py-1 border rounded text-[12px] text-center font-semibold" style={{ borderColor: "#E8E2D6", background: "#FBF9F4", color: "#014D5E" }}>{Math.max(0, (Number(pacForm.total) || 0) - (Number(pacForm.jaFeitas) || 0))}</div></div>
+                    <div className="w-[76px]"><label className="text-[10px] uppercase tracking-wide text-[#374151]">Total</label><input inputMode="numeric" maxLength={3} value={pacForm.total} onChange={(e) => setPacForm((f) => ({ ...f, total: e.target.value.replace(/\D/g, "").slice(0, 3) }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[12px] text-center" /></div>
+                    <div className="w-[76px]"><label className="text-[10px] uppercase tracking-wide text-[#374151]">Feitas</label><input inputMode="numeric" maxLength={3} value={pacForm.jaFeitas} onChange={(e) => setPacForm((f) => ({ ...f, jaFeitas: e.target.value.replace(/\D/g, "").slice(0, 3) }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[12px] text-center" /></div>
+                    <div className="w-[86px]"><label className="text-[10px] uppercase tracking-wide text-[#374151]">Pendentes</label><div className="mt-0.5 px-2 py-1 border rounded text-[12px] text-center font-semibold" style={{ borderColor: "#E8E2D6", background: "#FBF9F4", color: "#014D5E" }}>{Math.max(0, (Number(pacForm.total) || 0) - (Number(pacForm.jaFeitas) || 0))}</div></div>
                     <button onClick={addPacote} disabled={savingPac} className="px-3 py-1 rounded text-[12px] text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingPac ? "..." : "Criar"}</button>
                   </div>
                 )}
@@ -1031,7 +1031,7 @@ export default function PetDetailPage() {
             { emoji: "🧾", label: "Gasto no pet", value: money(ltvPet) },
           ].map((k) => (
             <div key={k.label} className="bg-white border border-[#E8E2D6] rounded-[13px]" style={{ padding: "11px 13px" }}>
-              <div className="text-[11px] text-[#8A989D]">{k.emoji} {k.label}</div>
+              <div className="text-[11px] text-[#374151]">{k.emoji} {k.label}</div>
               <div className="text-[19px] text-[#014D5E] font-medium mt-0.5">{k.value}</div>
             </div>
           ))}
@@ -1062,9 +1062,9 @@ export default function PetDetailPage() {
                     <div className="text-[13.5px] text-[#014D5E] font-medium truncate">{pet.tutor.name}</div>
                     {tutorWhats && <div className="text-[12px] text-[#5C6B70]">📞 {tutorWhats}</div>}
                   </div>
-                  <span className="text-[#8A989D] text-[16px]">›</span>
+                  <span className="text-[#374151] text-[16px]">›</span>
                 </Link>
-              ) : <p className="text-[12px] text-[#8A989D]">Sem tutor vinculado.</p>}
+              ) : <p className="text-[12px] text-[#374151]">Sem tutor vinculado.</p>}
             </div>
           </div>
           <div className="bg-[#FBF3E3] border border-[#F0DCB0] rounded-[13px]" style={{ padding: "12px 15px" }}>
@@ -1088,10 +1088,10 @@ export default function PetDetailPage() {
             <button onClick={() => setMainTab("PRONTUARIO")} className="text-[11px] text-[#009AAC] hover:underline">ver prontuário →</button>
           </div>
           <div style={{ padding: "6px 15px" }}>
-            {(atendimentos || []).length === 0 && <p className="text-[12.5px] text-[#8A989D] py-3 text-center">Nenhum atendimento registrado ainda.</p>}
+            {(atendimentos || []).length === 0 && <p className="text-[12.5px] text-[#374151] py-3 text-center">Nenhum atendimento registrado ainda.</p>}
             {(atendimentos || []).slice(0, 3).map((a: any, i: number) => (
               <button key={a.id} onClick={() => abrirAtd(a.id)} className="w-full flex items-center gap-2.5 py-2.5 text-left" style={{ borderBottom: i < Math.min(3, atendimentos.length) - 1 ? "1px solid #F0EBE0" : "none" }}>
-                <span className="text-[11.5px] text-[#8A989D] w-[46px] shrink-0">{fmtDataBR(a.date).slice(0, 5)}</span>
+                <span className="text-[11.5px] text-[#374151] w-[46px] shrink-0">{fmtDataBR(a.date).slice(0, 5)}</span>
                 <span className="flex-1 text-[12.5px] text-[#1F2A2E] truncate">{ATD_TIPO_LABEL(a.type)}{a.chiefComplaint ? ` · ${a.chiefComplaint}` : ""}</span>
                 <span className="text-[12.5px] text-[#014D5E] font-medium shrink-0">{money(a.value)}</span>
               </button>
@@ -1100,7 +1100,7 @@ export default function PetDetailPage() {
         </div>
 
         {/* 6. Relacionamento / tratamento */}
-        <div className="text-[11px] text-[#8A989D] uppercase tracking-wide mb-1 mt-1 px-1">💬 Relacionamento / tratamento</div>
+        <div className="text-[11px] text-[#374151] uppercase tracking-wide mb-1 mt-1 px-1">💬 Relacionamento / tratamento</div>
 
         {/* Tratamento em andamento — pipelines roll-up LADO A LADO */}
         <div className="text-[12px] text-[#014D5E] font-medium flex items-center gap-1.5 px-1">🔄 Tratamento em andamento</div>
@@ -1114,20 +1114,20 @@ export default function PetDetailPage() {
             return (
               <div key={row.key} className="bg-white border border-[#E8E2D6] rounded-[13px]" style={{ padding: "11px 14px" }}>
                 <button onClick={() => setPipeOpen((o) => ({ ...o, [row.key]: !o[row.key] }))} className="w-full flex items-center justify-between gap-2">
-                  <span className="text-[10px] uppercase tracking-wide text-[#8A989D]">{row.label}</span>
+                  <span className="text-[10px] uppercase tracking-wide text-[#374151]">{row.label}</span>
                   <span className="flex items-center gap-2">
                     {row.atual ? (
                       <span className="text-[11px] px-2.5 py-1 rounded-full font-medium" style={{ background: "#009AAC", color: "#fff" }}>{row.atual}</span>
                     ) : (
-                      <span className="text-[11.5px] text-[#8A989D]">— sem etapa —</span>
+                      <span className="text-[11.5px] text-[#374151]">— sem etapa —</span>
                     )}
-                    <span className="text-[11px] text-[#8A989D]">{aberto ? "▴" : "▾"}</span>
+                    <span className="text-[11px] text-[#374151]">{aberto ? "▴" : "▾"}</span>
                   </span>
                 </button>
                 {aberto && (
                   <div className="flex flex-wrap gap-1 mt-2 pt-2 border-t border-[#F0EBE0]">
-                    <button onClick={async () => { await savePipe(row.field, ""); setPipeOpen((o) => ({ ...o, [row.key]: false })); }} disabled={savingPipe} className="text-[11px] px-2.5 py-1 rounded-full border transition disabled:opacity-50" style={!row.atual ? { background: "#E0F4F6", color: "#014D5E", borderColor: "#009AAC" } : { background: "#fff", color: "#8A989D", borderColor: "#E8E2D6" }}>— sem etapa —</button>
-                    {lista.length === 0 && <span className="text-[12px] text-[#8A989D]">Nenhuma etapa configurada.</span>}
+                    <button onClick={async () => { await savePipe(row.field, ""); setPipeOpen((o) => ({ ...o, [row.key]: false })); }} disabled={savingPipe} className="text-[11px] px-2.5 py-1 rounded-full border transition disabled:opacity-50" style={!row.atual ? { background: "#E0F4F6", color: "#014D5E", borderColor: "#009AAC" } : { background: "#fff", color: "#374151", borderColor: "#E8E2D6" }}>— sem etapa —</button>
+                    {lista.length === 0 && <span className="text-[12px] text-[#374151]">Nenhuma etapa configurada.</span>}
                     {lista.map((e) => (
                       <button key={e} onClick={async () => { await savePipe(row.field, e); setPipeOpen((o) => ({ ...o, [row.key]: false })); }} disabled={savingPipe} className="text-[11px] px-2.5 py-1 rounded-full border transition disabled:opacity-50" style={row.atual === e ? { background: "#009AAC", color: "#fff", borderColor: "#009AAC" } : { background: "#fff", color: "#5C6B70", borderColor: "#E8E2D6" }}>{e}</button>
                     ))}
@@ -1148,7 +1148,7 @@ export default function PetDetailPage() {
             <div style={{ padding: "12px 14px" }}>
               {pet.proximoFollowupAt ? (
                 <div className="text-[12.5px] text-[#5C6B70]">Próximo em <b className="text-[#014D5E]">{fmtDataBR(pet.proximoFollowupAt)}</b></div>
-              ) : <div className="text-[12.5px] text-[#8A989D]">Nenhum follow-up agendado.</div>}
+              ) : <div className="text-[12.5px] text-[#374151]">Nenhum follow-up agendado.</div>}
               <div className="flex gap-1.5 mt-2.5">
                 <button onClick={() => { setFuDate(pet.proximoFollowupAt ? String(pet.proximoFollowupAt).slice(0, 10) : ""); setFuOpen(true); }} className="bg-[#E0F4F6] text-[#014D5E] text-[11px] px-2.5 py-1 rounded-[8px]">{pet.proximoFollowupAt ? "Reagendar" : "Agendar"}</button>
                 {pet.proximoFollowupAt && <button onClick={clearFu} className="bg-[#FBF9F4] text-[#5C6B70] text-[11px] px-2.5 py-1 rounded-[8px] border border-[#F0EBE0]">Concluir</button>}
@@ -1162,7 +1162,7 @@ export default function PetDetailPage() {
               <button onClick={() => setCadPick((v) => !v)} className="text-[11px] text-[#009AAC] hover:underline">+ iniciar</button>
             </div>
             <div style={{ padding: "10px 14px" }} className="flex flex-col gap-1.5">
-              {cadAtivas.length === 0 && !cadPick && <p className="text-[12px] text-[#8A989D]">Nenhuma cadência ativa.</p>}
+              {cadAtivas.length === 0 && !cadPick && <p className="text-[12px] text-[#374151]">Nenhuma cadência ativa.</p>}
               {cadAtivas.map((c) => (
                 <div key={c.id} className="bg-[#FBF9F4] border border-[#F0EBE0] rounded-[10px] px-2.5 py-1.5 flex items-center justify-between text-[11.5px]">
                   <span className="text-[#1F2A2E]">⚡ {c.data?.nome || "Cadência"}</span>
@@ -1171,7 +1171,7 @@ export default function PetDetailPage() {
               ))}
               {cadPick && (
                 <div className="pt-1.5 border-t border-[#F0EBE0] flex flex-wrap gap-1.5">
-                  {cadOpts.length === 0 ? <p className="text-[11px] text-[#8A989D]">Nenhuma cadência cadastrada em Configurações.</p> :
+                  {cadOpts.length === 0 ? <p className="text-[11px] text-[#374151]">Nenhuma cadência cadastrada em Configurações.</p> :
                     cadOpts.map((c: any) => (<button key={c.id} disabled={savingCad} onClick={() => addCad(c)} className="text-[11px] px-2 py-1 rounded-lg border disabled:opacity-50" style={{ borderColor: "#E8E2D6", color: "#009AAC" }}>+ {c.nome || c.titulo}</button>))}
                 </div>
               )}
@@ -1196,17 +1196,17 @@ export default function PetDetailPage() {
               <button onClick={addInteracaoPet} disabled={savingInt} className="bg-[#009AAC] text-white px-2.5 py-1 rounded text-[11px] font-medium disabled:opacity-50">{savingInt ? "..." : "Salvar"}</button>
             </div>
             {petInteracoes.length === 0 ? (
-              <p className="text-center text-[12px] text-[#8A989D] py-4">Nenhuma interação ainda</p>
+              <p className="text-center text-[12px] text-[#374151] py-4">Nenhuma interação ainda</p>
             ) : (
               <div className="flex flex-col gap-1.5 max-h-72 overflow-auto">
                 {petInteracoes.map((it: any) => (
                   <div key={it.id} className="bg-[#FBF9F4] border border-[#F0EBE0] rounded-[11px] px-2.5 py-1.5">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-medium text-[#009AAC]">{it.tipo}{it.canal ? ` · ${it.canal}` : ""}</span>
-                      <span className="text-[10px] text-[#8A989D]">{new Date(it.createdAt).toLocaleDateString("pt-BR")}</span>
+                      <span className="text-[10px] text-[#374151]">{new Date(it.createdAt).toLocaleDateString("pt-BR")}</span>
                     </div>
                     <p className="text-[12px] text-[#1F2A2E] mt-0.5">{it.texto}</p>
-                    {it.autor?.name && <p className="text-[10px] text-[#8A989D] mt-0.5">por {it.autor.name}</p>}
+                    {it.autor?.name && <p className="text-[10px] text-[#374151] mt-0.5">por {it.autor.name}</p>}
                   </div>
                 ))}
               </div>
@@ -1227,48 +1227,48 @@ export default function PetDetailPage() {
           <div style={{ padding: "13px 14px" }}>
             {editClin && (
               <div className="mb-4 pb-4 border-b border-[#F0EBE0] grid grid-cols-2 md:grid-cols-3 gap-x-3 gap-y-2 text-[13px]">
-                <div><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Espécie</label><select value={clinForm.species ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, species: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[#1F2A2E]"><option value="">—</option>{["CANINE", "FELINE", "BIRD", "RODENT", "REPTILE", "OTHER"].map((sp) => <option key={sp} value={sp}>{speciesLabel(sp)}</option>)}</select></div>
-                <div><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Raça</label>
+                <div><label className="text-[10px] uppercase tracking-wide text-[#374151]">Espécie</label><select value={clinForm.species ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, species: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[#1F2A2E]"><option value="">—</option>{["CANINE", "FELINE", "BIRD", "RODENT", "REPTILE", "OTHER"].map((sp) => <option key={sp} value={sp}>{speciesLabel(sp)}</option>)}</select></div>
+                <div><label className="text-[10px] uppercase tracking-wide text-[#374151]">Raça</label>
                   <input list="pet-racas" value={clinForm.breed ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, breed: e.target.value }))} placeholder="Escolha ou digite…" className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[#1F2A2E]" />
                   <datalist id="pet-racas">{racasCat.filter((r) => !clinForm.species || !r.especie || speciesEnum(r.especie) === clinForm.species || r.especie === clinForm.species).map((r, i) => <option key={i} value={r.nome} />)}</datalist>
                 </div>
-                <div><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Sexo</label><select value={clinForm.gender ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, gender: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[#1F2A2E]"><option value="">—</option><option value="MALE">Macho</option><option value="FEMALE">Fêmea</option><option value="OTHER">Outro</option></select></div>
-                <div><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Castração</label><select value={clinForm.sterilization ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, sterilization: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[#1F2A2E]"><option value="">—</option><option value="NOT_STERILIZED">Não castrado</option><option value="STERILIZED">Castrado</option><option value="SCHEDULED">Agendada</option></select></div>
-                <div><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Nascimento</label><input type="date" value={clinForm.birthDate ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, birthDate: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[#1F2A2E]" /></div>
-                <div><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Peso (kg)</label><input type="number" step="0.1" value={clinForm.weight ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, weight: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[#1F2A2E]" /></div>
-                <div><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Pelagem</label>
+                <div><label className="text-[10px] uppercase tracking-wide text-[#374151]">Sexo</label><select value={clinForm.gender ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, gender: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[#1F2A2E]"><option value="">—</option><option value="MALE">Macho</option><option value="FEMALE">Fêmea</option><option value="OTHER">Outro</option></select></div>
+                <div><label className="text-[10px] uppercase tracking-wide text-[#374151]">Castração</label><select value={clinForm.sterilization ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, sterilization: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[#1F2A2E]"><option value="">—</option><option value="NOT_STERILIZED">Não castrado</option><option value="STERILIZED">Castrado</option><option value="SCHEDULED">Agendada</option></select></div>
+                <div><label className="text-[10px] uppercase tracking-wide text-[#374151]">Nascimento</label><input type="date" value={clinForm.birthDate ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, birthDate: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[#1F2A2E]" /></div>
+                <div><label className="text-[10px] uppercase tracking-wide text-[#374151]">Peso (kg)</label><input type="number" step="0.1" value={clinForm.weight ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, weight: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[#1F2A2E]" /></div>
+                <div><label className="text-[10px] uppercase tracking-wide text-[#374151]">Pelagem</label>
                   <select value={COAT_VALID.has(clinForm.coat) ? clinForm.coat : ""} onChange={(e) => setClinForm((f: any) => ({ ...f, coat: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[#1F2A2E]"><option value="">—</option>{COAT_OPTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
                 </div>
-                <div><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Cor</label>
+                <div><label className="text-[10px] uppercase tracking-wide text-[#374151]">Cor</label>
                   <input list="pet-cores" value={clinForm.coatColor ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, coatColor: e.target.value }))} placeholder="Escolha ou digite…" className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[#1F2A2E]" />
                   <datalist id="pet-cores">{[...coresCat, ...CORES_DEFAULT.filter((c) => !coresCat.includes(c))].map((c, i) => <option key={i} value={c} />)}</datalist>
                 </div>
-                <div><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Microchip</label><input value={clinForm.microchip ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, microchip: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[#1F2A2E]" /></div>
-                <div className="col-span-2 md:col-span-3"><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Alergias (vírgula)</label><input value={clinForm.allergies ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, allergies: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[#1F2A2E]" /></div>
-                <div className="col-span-2 md:col-span-3"><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Notas médicas</label><textarea value={clinForm.medicalNotes ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, medicalNotes: e.target.value }))} rows={2} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[#1F2A2E]" /></div>
+                <div><label className="text-[10px] uppercase tracking-wide text-[#374151]">Microchip</label><input value={clinForm.microchip ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, microchip: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[#1F2A2E]" /></div>
+                <div className="col-span-2 md:col-span-3"><label className="text-[10px] uppercase tracking-wide text-[#374151]">Alergias (vírgula)</label><input value={clinForm.allergies ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, allergies: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[#1F2A2E]" /></div>
+                <div className="col-span-2 md:col-span-3"><label className="text-[10px] uppercase tracking-wide text-[#374151]">Notas médicas</label><textarea value={clinForm.medicalNotes ?? ""} onChange={(e) => setClinForm((f: any) => ({ ...f, medicalNotes: e.target.value }))} rows={2} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[#1F2A2E]" /></div>
                 <div className="col-span-2 md:col-span-3 flex gap-2"><button onClick={saveClin} disabled={savingClin} className="px-3 py-1 rounded text-[11px] text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingClin ? "Salvando..." : "Salvar"}</button><button onClick={() => setEditClin(false)} className="px-3 py-1 rounded text-[11px] border border-[#E8E2D6] text-[#5C6B70]">Cancelar</button></div>
               </div>
             )}
             {/* Dados */}
             <div className="text-[12px] font-medium uppercase tracking-wide text-[#014D5E] mb-2">Dados do pet</div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-3">
-              <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Espécie</div><div className="text-[13px] text-[#1F2A2E]">{speciesLabel(pet.species)}</div></div>
-              <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Raça</div><div className="text-[13px] text-[#1F2A2E]">{pet.breed || "—"}</div></div>
-              <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Sexo</div><div className="text-[13px] text-[#1F2A2E]">{genderLabel(pet.gender)}</div></div>
-              <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Nascimento</div><div className="text-[13px] text-[#1F2A2E]">{fmtDataBR(pet.birthDate)}</div></div>
-              <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Porte</div><div className="text-[13px] text-[#1F2A2E]">{pet.weight ? (pet.weight < 10 ? "Pequeno" : pet.weight < 25 ? "Médio" : "Grande") : "—"}</div></div>
-              <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Castração</div><div className="text-[13px] text-[#1F2A2E]">{sterilLabel(pet.sterilization)}</div></div>
-              <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Pelagem / cor</div><div className="text-[13px] text-[#1F2A2E]">{[pet.coat, pet.coatColor].filter(Boolean).join(" · ") || "—"}</div></div>
-              <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Peso</div><div className="text-[13px] text-[#1F2A2E]">{pet.weight ? `${pet.weight} kg` : "—"}</div></div>
-              <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Microchip</div><div className="text-[13px] text-[#1F2A2E]">{pet.microchip || "—"}</div></div>
+              <div><div className="text-[10px] uppercase tracking-wide text-[#374151]">Espécie</div><div className="text-[13px] text-[#1F2A2E]">{speciesLabel(pet.species)}</div></div>
+              <div><div className="text-[10px] uppercase tracking-wide text-[#374151]">Raça</div><div className="text-[13px] text-[#1F2A2E]">{pet.breed || "—"}</div></div>
+              <div><div className="text-[10px] uppercase tracking-wide text-[#374151]">Sexo</div><div className="text-[13px] text-[#1F2A2E]">{genderLabel(pet.gender)}</div></div>
+              <div><div className="text-[10px] uppercase tracking-wide text-[#374151]">Nascimento</div><div className="text-[13px] text-[#1F2A2E]">{fmtDataBR(pet.birthDate)}</div></div>
+              <div><div className="text-[10px] uppercase tracking-wide text-[#374151]">Porte</div><div className="text-[13px] text-[#1F2A2E]">{pet.weight ? (pet.weight < 10 ? "Pequeno" : pet.weight < 25 ? "Médio" : "Grande") : "—"}</div></div>
+              <div><div className="text-[10px] uppercase tracking-wide text-[#374151]">Castração</div><div className="text-[13px] text-[#1F2A2E]">{sterilLabel(pet.sterilization)}</div></div>
+              <div><div className="text-[10px] uppercase tracking-wide text-[#374151]">Pelagem / cor</div><div className="text-[13px] text-[#1F2A2E]">{[pet.coat, pet.coatColor].filter(Boolean).join(" · ") || "—"}</div></div>
+              <div><div className="text-[10px] uppercase tracking-wide text-[#374151]">Peso</div><div className="text-[13px] text-[#1F2A2E]">{pet.weight ? `${pet.weight} kg` : "—"}</div></div>
+              <div><div className="text-[10px] uppercase tracking-wide text-[#374151]">Microchip</div><div className="text-[13px] text-[#1F2A2E]">{pet.microchip || "—"}</div></div>
             </div>
             {/* Saúde */}
             <div className="border-t border-[#F0EBE0] pt-3 mt-4">
               <div className="text-[12px] font-medium uppercase tracking-wide text-[#014D5E] mb-2">🩺 Saúde</div>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-3">
-                <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Alergias</div><div className="text-[13px] text-[#1F2A2E]">{(pet.allergies && pet.allergies.length) ? pet.allergies.join(", ") : "—"}</div></div>
-                <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Convênio / plano</div><div className="text-[13px] text-[#1F2A2E]">{pet.insurancePlan || "—"}</div></div>
-                <div className="col-span-2 md:col-span-1"><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Notas médicas</div><div className="text-[13px] text-[#1F2A2E]">{pet.medicalNotes || "—"}</div></div>
+                <div><div className="text-[10px] uppercase tracking-wide text-[#374151]">Alergias</div><div className="text-[13px] text-[#1F2A2E]">{(pet.allergies && pet.allergies.length) ? pet.allergies.join(", ") : "—"}</div></div>
+                <div><div className="text-[10px] uppercase tracking-wide text-[#374151]">Convênio / plano</div><div className="text-[13px] text-[#1F2A2E]">{pet.insurancePlan || "—"}</div></div>
+                <div className="col-span-2 md:col-span-1"><div className="text-[10px] uppercase tracking-wide text-[#374151]">Notas médicas</div><div className="text-[13px] text-[#1F2A2E]">{pet.medicalNotes || "—"}</div></div>
               </div>
             </div>
             {/* Extras */}
@@ -1287,7 +1287,7 @@ export default function PetDetailPage() {
                 {/* Temperamento: era só leitura — não existia onde digitar, por isso os 6065
                     pets estavam com o campo vazio. Agora é roll-up e ALIMENTA a trava da sala. */}
                 <div>
-                  <div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Temperamento</div>
+                  <div className="text-[10px] uppercase tracking-wide text-[#374151]">Temperamento</div>
                   <div className="flex items-center gap-1.5 mt-0.5">
                     <select
                       value={pet.temperament || ""}
@@ -1313,8 +1313,8 @@ export default function PetDetailPage() {
                     )}
                   </div>
                 </div>
-                <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">2º responsável</div><div className="text-[13px] text-[#1F2A2E]">{pet.secondaryTutorId || "—"}</div></div>
-                <div className="col-span-2 md:col-span-1"><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Observações</div><div className="text-[13px] text-[#1F2A2E]">{pet.observations || "—"}</div></div>
+                <div><div className="text-[10px] uppercase tracking-wide text-[#374151]">2º responsável</div><div className="text-[13px] text-[#1F2A2E]">{pet.secondaryTutorId || "—"}</div></div>
+                <div className="col-span-2 md:col-span-1"><div className="text-[10px] uppercase tracking-wide text-[#374151]">Observações</div><div className="text-[13px] text-[#1F2A2E]">{pet.observations || "—"}</div></div>
               </div>
             </div>
           </div>
@@ -1346,7 +1346,7 @@ export default function PetDetailPage() {
                       <div className="px-5 py-3 border-b flex items-center justify-between" style={{ borderColor: "#F0EBE0" }}>
                         <div className="min-w-0">
                           <div className="text-[15px] font-semibold truncate" style={{ color: "#014D5E" }}>{detalheHist.titulo || detalheHist.tipo}</div>
-                          <div className="text-[12px]" style={{ color: "#8A989D" }}>{new Date(detalheHist.data).toLocaleDateString("pt-BR")}{detalheHist.autor ? ` · ${detalheHist.autor}` : ""} · <span style={{ color: "#8A6D3B" }}>SimplesVet</span></div>
+                          <div className="text-[12px]" style={{ color: "#374151" }}>{new Date(detalheHist.data).toLocaleDateString("pt-BR")}{detalheHist.autor ? ` · ${detalheHist.autor}` : ""} · <span style={{ color: "#8A6D3B" }}>SimplesVet</span></div>
                         </div>
                         <button onClick={() => setDetalheHist(null)} className="w-8 h-8 rounded-lg border flex items-center justify-center text-[#5C6B70] shrink-0" style={{ borderColor: "#E8E2D6" }}>✕</button>
                       </div>
@@ -1509,7 +1509,7 @@ export default function PetDetailPage() {
                   </div>
                 ) : (
                   <div className="bg-white">
-                    <div className="text-[11px] text-[#8A989D] mb-2 font-semibold uppercase tracking-wide">Adicionar ao histórico</div>
+                    <div className="text-[11px] text-[#374151] mb-2 font-semibold uppercase tracking-wide">Adicionar ao histórico</div>
                     <div className="grid grid-cols-3 gap-2">
                       {([
                         { label: "Atendimento", ic: "🩺", bg: "#E1F3F5", fg: "#017E8C", act: () => router.push(`/dashboard/erp/pets/${petId}/atendimentos/novo`) },
@@ -1530,13 +1530,13 @@ export default function PetDetailPage() {
                     </div>
                     {/* Timeline dos atendimentos (data · tipo em pill · vet · resumo com rótulo em negrito) */}
                     <div className="mt-4 pt-3 border-t border-[#F0EBE0] flex flex-col gap-1.5">
-                      {(atendimentos || []).length === 0 && <p className="text-[12px] text-[#8A989D] py-2 text-center">Nenhum atendimento registrado ainda.</p>}
+                      {(atendimentos || []).length === 0 && <p className="text-[12px] text-[#374151] py-2 text-center">Nenhum atendimento registrado ainda.</p>}
                       {(atendimentos || []).map((a: any) => {
                         const resumo = a.conduct ? { l: "Conduta", v: a.conduct } : a.chiefComplaint ? { l: "Queixa", v: a.chiefComplaint } : a.diagnosis ? { l: "Diag.", v: a.diagnosis } : a.prescription ? { l: "Prescrição", v: a.prescription } : null;
                         return (
                           <button key={a.id} onClick={() => abrirAtd(a.id)} className="w-full text-left bg-[#FBF9F4] border border-[#F0EBE0] rounded-[11px] px-3 py-2 hover:border-[#009AAC] transition">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-[11px] text-[#8A989D]">{fmtDataBR(a.date)}</span>
+                              <span className="text-[11px] text-[#374151]">{fmtDataBR(a.date)}</span>
                               <span className="text-[10px] px-2 py-0.5 rounded-full font-medium" style={{ background: "#E0F4F6", color: "#014D5E" }}>{ATD_TIPO_LABEL(a.type)}</span>
                               {a.user?.name && <span className="text-[11px] text-[#5C6B70]">🩺 {a.user.name}</span>}
                               <span className="ml-auto text-[12px] text-[#014D5E] font-medium">{money(a.value)}</span>
@@ -1563,7 +1563,7 @@ export default function PetDetailPage() {
               <button onClick={addExame} disabled={savingEx} className="px-3 py-2 rounded-[9px] text-[13px] font-medium text-white flex items-center gap-1.5" style={{ background: "#009AAC" }}><LuFlaskConical size={13} /> {savingEx ? "..." : "Solicitar"}</button>
             </div>
             {exames.length === 0 ? (
-              <div className="border border-[#E8E2D6] rounded-[12px] p-6 text-center text-[13px] text-[#8A989D]">Nenhum exame do pet ainda. Solicite acima ou pelo formulário de atendimento.</div>
+              <div className="border border-[#E8E2D6] rounded-[12px] p-6 text-center text-[13px] text-[#374151]">Nenhum exame do pet ainda. Solicite acima ou pelo formulário de atendimento.</div>
             ) : (
               <div className="flex flex-col gap-2">
                 {exames.map((x) => {
@@ -1589,7 +1589,7 @@ export default function PetDetailPage() {
                             {x.data.nome} <LuPencil size={10} className="inline -mt-0.5 text-gray-300" />
                           </span>
                           {x.data.externo && <span className="ml-2 text-[10px] px-2 py-0.5 rounded-full" style={{ background: "#EDE9FA", color: "#3C3489" }}>externo</span>}
-                          <span className="text-[11px] text-[#8A989D] ml-2">{x.data.date ? fmtDataBR(x.data.date) : ""}</span>
+                          <span className="text-[11px] text-[#374151] ml-2">{x.data.date ? fmtDataBR(x.data.date) : ""}</span>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
                           {/* Anexar ARQUIVO — o label é um file picker disfarçado de botão */}
@@ -1631,7 +1631,7 @@ export default function PetDetailPage() {
                 })}
               </div>
             )}
-            <p className="text-[11px] text-[#8A989D] mt-3">Os exames com status aparecem em "Exames a entregar" no Hoje até serem entregues ao tutor.</p>
+            <p className="text-[11px] text-[#374151] mt-3">Os exames com status aparecem em "Exames a entregar" no Hoje até serem entregues ao tutor.</p>
           </div>
         )}
       </div>
@@ -1647,12 +1647,12 @@ export default function PetDetailPage() {
             <button onClick={() => { setProtoAuto(true); setGerenciarProto(true); }} className="text-[11px] text-[#009AAC] hover:underline">＋ Aplicar</button>
           </div>
           <div style={{ padding: "10px 14px" }} className="flex flex-col gap-2">
-            {vacinasResumo.length === 0 && <p className="text-[12px] text-[#8A989D]">Nenhuma vacina registrada. Use "＋ Aplicar" para iniciar um protocolo.</p>}
+            {vacinasResumo.length === 0 && <p className="text-[12px] text-[#374151]">Nenhuma vacina registrada. Use "＋ Aplicar" para iniciar um protocolo.</p>}
             {vacinasResumo.map((v: any) => (
               <div key={v.id} className="bg-[#FBF9F4] border border-[#F0EBE0] rounded-[10px] px-3 py-2 flex items-center justify-between gap-2 flex-wrap">
                 <div className="min-w-0">
                   <div className="text-[12.5px] text-[#1F2A2E] truncate">{v.nome}</div>
-                  <div className="text-[11px] text-[#8A989D]">últ. {v.ultima ? fmtDataBR(v.ultima).slice(0, 5) : "—"}</div>
+                  <div className="text-[11px] text-[#374151]">últ. {v.ultima ? fmtDataBR(v.ultima).slice(0, 5) : "—"}</div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   {v.temPend ? (
@@ -1677,10 +1677,10 @@ export default function PetDetailPage() {
               <div key={m.nome} className="bg-[#FBF9F4] border border-[#F0EBE0] rounded-[10px] px-3 py-2 flex items-center justify-between gap-2 flex-wrap">
                 <div className="min-w-0">
                   <div className="text-[12.5px] text-[#1F2A2E]">{m.nome}</div>
-                  <div className="text-[11px] text-[#8A989D]">Aplicação {m.periodo}</div>
+                  <div className="text-[11px] text-[#374151]">Aplicação {m.periodo}</div>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
-                  <div className="text-right text-[11px] text-[#8A989D]">
+                  <div className="text-right text-[11px] text-[#374151]">
                     <div>últ. {m.ultima ? fmtDataBR(m.ultima).slice(0, 5) : "—"}</div>
                     <div>próx. {m.prox ? fmtDataBR(m.prox).slice(0, 5) : "—"}</div>
                   </div>
@@ -1695,7 +1695,7 @@ export default function PetDetailPage() {
         <div className="bg-white border border-[#E8E2D6] rounded-[13px]">
           <button onClick={() => setGerenciarProto((v) => !v)} className="w-full flex items-center justify-between border-b border-[#F0EBE0] hover:bg-[#FBF9F4]" style={{ padding: "11px 14px" }}>
             <span className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">🗂️ Gerenciar protocolos (vacinas, vermífugos, doses)</span>
-            <span className="text-[11px] text-[#8A989D]">{gerenciarProto ? "▴" : "▾"}</span>
+            <span className="text-[11px] text-[#374151]">{gerenciarProto ? "▴" : "▾"}</span>
           </button>
           {gerenciarProto && (
             <div className="p-5">
@@ -1726,22 +1726,22 @@ export default function PetDetailPage() {
                   <div className="flex justify-between text-[11.5px] mb-1"><span className="text-[#5C6B70]">🐾 {ativo.data.nome}</span><span className="text-[#014D5E] font-medium">{aUsed}/{aTotal} sessões</span></div>
                   <div className="flex flex-wrap gap-0.5">{Array.from({ length: Math.min(aTotal, 40) }).map((_, i) => <span key={i} style={{ fontSize: "16px" }} title={`Sessão ${i + 1}`}>{i < aUsed ? "🐾" : "⚪"}</span>)}</div>
                 </div>
-              ) : <p className="text-[12px] text-[#8A989D] mb-3">Sem pacote de fisioterapia ativo. Lance um pacote pela tela de atendimento.</p>}
+              ) : <p className="text-[12px] text-[#374151] mb-3">Sem pacote de fisioterapia ativo. Lance um pacote pela tela de atendimento.</p>}
               {/* Campos do tratamento */}
               {editFisio ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-3 border-t border-[#F0EBE0]">
-                  <div><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Frequência das sessões</label><input value={fisioForm.frequencia} onChange={(e) => setFisioForm((f: any) => ({ ...f, frequencia: e.target.value }))} placeholder="Ex.: a cada 15 dias" className="w-full mt-0.5 px-2 py-1.5 border border-[#E8E2D6] rounded text-[13px]" /></div>
-                  <div><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Encaminhado por</label><input value={fisioForm.encaminhadoPor} onChange={(e) => setFisioForm((f: any) => ({ ...f, encaminhadoPor: e.target.value }))} className="w-full mt-0.5 px-2 py-1.5 border border-[#E8E2D6] rounded text-[13px]" /></div>
-                  <div><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Diagnóstico</label><input value={fisioForm.diagnostico} onChange={(e) => setFisioForm((f: any) => ({ ...f, diagnostico: e.target.value }))} className="w-full mt-0.5 px-2 py-1.5 border border-[#E8E2D6] rounded text-[13px]" /></div>
-                  <div><label className="text-[10px] uppercase tracking-wide text-[#8A989D]">Últimos exames</label><input value={fisioForm.ultimosExames} onChange={(e) => setFisioForm((f: any) => ({ ...f, ultimosExames: e.target.value }))} className="w-full mt-0.5 px-2 py-1.5 border border-[#E8E2D6] rounded text-[13px]" /></div>
+                  <div><label className="text-[10px] uppercase tracking-wide text-[#374151]">Frequência das sessões</label><input value={fisioForm.frequencia} onChange={(e) => setFisioForm((f: any) => ({ ...f, frequencia: e.target.value }))} placeholder="Ex.: a cada 15 dias" className="w-full mt-0.5 px-2 py-1.5 border border-[#E8E2D6] rounded text-[13px]" /></div>
+                  <div><label className="text-[10px] uppercase tracking-wide text-[#374151]">Encaminhado por</label><input value={fisioForm.encaminhadoPor} onChange={(e) => setFisioForm((f: any) => ({ ...f, encaminhadoPor: e.target.value }))} className="w-full mt-0.5 px-2 py-1.5 border border-[#E8E2D6] rounded text-[13px]" /></div>
+                  <div><label className="text-[10px] uppercase tracking-wide text-[#374151]">Diagnóstico</label><input value={fisioForm.diagnostico} onChange={(e) => setFisioForm((f: any) => ({ ...f, diagnostico: e.target.value }))} className="w-full mt-0.5 px-2 py-1.5 border border-[#E8E2D6] rounded text-[13px]" /></div>
+                  <div><label className="text-[10px] uppercase tracking-wide text-[#374151]">Últimos exames</label><input value={fisioForm.ultimosExames} onChange={(e) => setFisioForm((f: any) => ({ ...f, ultimosExames: e.target.value }))} className="w-full mt-0.5 px-2 py-1.5 border border-[#E8E2D6] rounded text-[13px]" /></div>
                   <div className="md:col-span-2 flex gap-2"><button onClick={saveFisioRec} disabled={savingFisio} className="px-3 py-1.5 rounded text-[12px] text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingFisio ? "Salvando..." : "Salvar"}</button><button onClick={() => setEditFisio(false)} className="px-3 py-1.5 rounded text-[12px] border border-[#E8E2D6] text-[#5C6B70]">Cancelar</button></div>
                 </div>
               ) : (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-2 pt-3 border-t border-[#F0EBE0]">
-                  <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Frequência</div><div className="text-[13px] text-[#1F2A2E]">{fisioRec.data.frequencia || "—"}</div></div>
-                  <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Diagnóstico</div><div className="text-[13px] text-[#1F2A2E]">{fisioRec.data.diagnostico || "—"}</div></div>
-                  <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Encaminhado por</div><div className="text-[13px] text-[#1F2A2E]">{fisioRec.data.encaminhadoPor || "—"}</div></div>
-                  <div><div className="text-[10px] uppercase tracking-wide text-[#8A989D]">Últimos exames</div><div className="text-[13px] text-[#1F2A2E]">{fisioRec.data.ultimosExames || "—"}</div></div>
+                  <div><div className="text-[10px] uppercase tracking-wide text-[#374151]">Frequência</div><div className="text-[13px] text-[#1F2A2E]">{fisioRec.data.frequencia || "—"}</div></div>
+                  <div><div className="text-[10px] uppercase tracking-wide text-[#374151]">Diagnóstico</div><div className="text-[13px] text-[#1F2A2E]">{fisioRec.data.diagnostico || "—"}</div></div>
+                  <div><div className="text-[10px] uppercase tracking-wide text-[#374151]">Encaminhado por</div><div className="text-[13px] text-[#1F2A2E]">{fisioRec.data.encaminhadoPor || "—"}</div></div>
+                  <div><div className="text-[10px] uppercase tracking-wide text-[#374151]">Últimos exames</div><div className="text-[13px] text-[#1F2A2E]">{fisioRec.data.ultimosExames || "—"}</div></div>
                 </div>
               )}
             </div>
@@ -1753,15 +1753,15 @@ export default function PetDetailPage() {
                 <button onClick={() => { setBoletimEditId(null); setBoletimOpen(true); }} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white flex items-center gap-1.5" style={{ background: "#009AAC" }}>➕ Novo boletim</button>
               </div>
               <div style={{ padding: "6px 14px" }}>
-                {boletins.length === 0 && <p className="text-[12.5px] text-[#8A989D] py-4 text-center">Nenhum boletim registrado ainda.</p>}
+                {boletins.length === 0 && <p className="text-[12.5px] text-[#374151] py-4 text-center">Nenhum boletim registrado ainda.</p>}
                 {boletins.map((b, i) => {
                   const resumo = (b.data.obsMv || "").split("\n")[0] || (b.data.obsTutor || "").split("\n")[0] || "";
                   return (
                     <div key={b.id} className="flex items-center gap-2.5 py-2.5" style={{ borderBottom: i < boletins.length - 1 ? "1px solid #F0EBE0" : "none" }}>
                       <span className="text-[11px] px-2 py-0.5 rounded-full shrink-0" style={{ background: "#EAF3DE", color: "#3B6D11" }}>#{b.data.sessaoNumero || "—"}</span>
-                      <span className="text-[11.5px] text-[#8A989D] w-[42px] shrink-0">{b.data.sessaoData ? fmtDataBR(b.data.sessaoData).slice(0, 5) : "—"}</span>
+                      <span className="text-[11.5px] text-[#374151] w-[42px] shrink-0">{b.data.sessaoData ? fmtDataBR(b.data.sessaoData).slice(0, 5) : "—"}</span>
                       <span className="text-[11.5px] text-[#5C6B70] shrink-0 hidden sm:block">🧑‍⚕️ {b.data.mvResponsavel || "—"}</span>
-                      <span className="flex-1 text-[12.5px] text-[#1F2A2E] truncate">{resumo || <span className="text-[#8A989D]">sem observação</span>}</span>
+                      <span className="flex-1 text-[12.5px] text-[#1F2A2E] truncate">{resumo || <span className="text-[#374151]">sem observação</span>}</span>
                       {b.data.enviadoAt ? <span className="text-[10px] text-[#0F6E56] shrink-0" title="Enviado">✅</span> : <span className="text-[10px] text-[#8a6400] shrink-0" title="Não enviado">🕓</span>}
                       <div className="flex items-center gap-1.5 shrink-0">
                         <button onClick={() => { setBoletimEditId(b.id); setBoletimOpen(true); }} title="Ver / editar" className="text-[13px] text-[#5C6B70] hover:text-[#009AAC]">👁️</button>
@@ -1781,11 +1781,11 @@ export default function PetDetailPage() {
                 <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">🏆 Pacotes fechados</h3>
               </div>
               <div style={{ padding: "8px 14px" }}>
-                {fechados.length === 0 && <p className="text-[12px] text-[#8A989D] py-1">Nenhum pacote concluído ainda.</p>}
+                {fechados.length === 0 && <p className="text-[12px] text-[#374151] py-1">Nenhum pacote concluído ainda.</p>}
                 {fechados.map((p, i) => (
                   <div key={p.id} className="flex items-center justify-between py-2" style={{ borderBottom: i < fechados.length - 1 ? "1px solid #F0EBE0" : "none" }}>
                     <span className="text-[12.5px] text-[#1F2A2E]">🏆 {p.data.nome}</span>
-                    <span className="text-[11px] text-[#8A989D]">{p.data.used}/{p.data.total} sessões · concluído</span>
+                    <span className="text-[11px] text-[#374151]">{p.data.used}/{p.data.total} sessões · concluído</span>
                   </div>
                 ))}
               </div>
@@ -1814,13 +1814,13 @@ export default function PetDetailPage() {
             {/* Total gasto (com olhinho) + resumo por marca */}
             <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-3 items-start">
               <div className="bg-white border border-[#E8E2D6] rounded-[13px]" style={{ padding: "13px 16px" }}>
-                <div className="text-[11px] text-[#8A989D]">🧾 Total gasto no pet</div>
+                <div className="text-[11px] text-[#374151]">🧾 Total gasto no pet</div>
                 <div className="text-[22px] text-[#014D5E] font-medium mt-0.5">{money(totalGasto)}</div>
-                <div className="text-[11px] text-[#8A989D] mt-0.5">{atendimentos.length} atendimento(s)</div>
+                <div className="text-[11px] text-[#374151] mt-0.5">{atendimentos.length} atendimento(s)</div>
               </div>
               <div className="bg-white border border-[#E8E2D6] rounded-[13px]" style={{ padding: "13px 16px" }}>
-                <div className="text-[11px] text-[#8A989D] mb-1.5">Por marca</div>
-                {Object.keys(comMarca).length === 0 ? <p className="text-[12px] text-[#8A989D]">Sem compras ainda.</p> : (
+                <div className="text-[11px] text-[#374151] mb-1.5">Por marca</div>
+                {Object.keys(comMarca).length === 0 ? <p className="text-[12px] text-[#374151]">Sem compras ainda.</p> : (
                   <div className="flex flex-wrap gap-1.5">
                     {Object.entries(comMarca).map(([label, v]) => { const mi = Object.values(MARCA).find((m) => m.label === label) || MARCA.EMPORIO; return (
                       <span key={label} className="text-[11.5px] px-2.5 py-1 rounded-full" style={{ background: mi.bg, color: mi.fg }}>{mi.emoji} {label}: {money(v)}</span>
@@ -1834,13 +1834,13 @@ export default function PetDetailPage() {
             <div className="bg-white border border-[#E8E2D6] rounded-[13px]">
               <div className="flex items-center justify-between border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
                 <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">🧾 Histórico de compras</h3>
-                <span className="text-[11px] text-[#8A989D]">registre novas vendas pelo atendimento →</span>
+                <span className="text-[11px] text-[#374151]">registre novas vendas pelo atendimento →</span>
               </div>
               <div style={{ padding: "6px 15px" }}>
-                {atendimentos.length === 0 && <p className="text-[12.5px] text-[#8A989D] py-4 text-center">Nenhuma compra registrada ainda.</p>}
+                {atendimentos.length === 0 && <p className="text-[12.5px] text-[#374151] py-4 text-center">Nenhuma compra registrada ainda.</p>}
                 {atendimentos.map((a: any, i: number) => { const mi = marcaDe(a); return (
                   <button key={a.id} onClick={() => abrirAtd(a.id)} className="w-full flex items-center gap-2.5 py-2.5 text-left" style={{ borderBottom: i < atendimentos.length - 1 ? "1px solid #F0EBE0" : "none" }}>
-                    <span className="text-[11.5px] text-[#8A989D] w-[42px] shrink-0">{fmtDataBR(a.date).slice(0, 5)}</span>
+                    <span className="text-[11.5px] text-[#374151] w-[42px] shrink-0">{fmtDataBR(a.date).slice(0, 5)}</span>
                     <span className="text-[10px] px-2 py-0.5 rounded-full shrink-0" style={{ background: mi.bg, color: mi.fg }}>{mi.emoji} {mi.label}</span>
                     <span className="flex-1 text-[12.5px] text-[#1F2A2E] truncate">{resumoItens(a)}</span>
                     <span className="text-[12.5px] text-[#014D5E] font-medium shrink-0">{money(a.value)}</span>
@@ -1848,7 +1848,7 @@ export default function PetDetailPage() {
                 ); })}
               </div>
             </div>
-            <p className="text-[11px] text-[#8A989D] px-1">Somente leitura. Novas vendas, crédito e pacotes são lançados na tela de <b>Novo atendimento</b>.</p>
+            <p className="text-[11px] text-[#374151] px-1">Somente leitura. Novas vendas, crédito e pacotes são lançados na tela de <b>Novo atendimento</b>.</p>
           </div>
         );
       })()}
@@ -1858,12 +1858,12 @@ export default function PetDetailPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.45)" }} onClick={() => setStatusOpen(false)}>
           <div className="bg-[#FBF9F4] rounded-[16px] w-full max-w-[360px] p-5" style={{ border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
             <h3 className="text-[15px] font-medium text-[#014D5E] mb-1">🩺 Status de saúde</h3>
-            <p className="text-[12px] text-[#8A989D] mb-3">Atualize a etapa clínica de {pet.name}.</p>
+            <p className="text-[12px] text-[#374151] mb-3">Atualize a etapa clínica de {pet.name}.</p>
             <div className="flex flex-col gap-1.5">
               {(pipes.clinico.length ? pipes.clinico : (pet.pipelineClinicoEtapa ? [pet.pipelineClinicoEtapa] : [])).map((e) => (
                 <button key={e} onClick={async () => { await savePipe("pipelineClinicoEtapa", e); setStatusOpen(false); }} className="text-left text-[12.5px] px-3 py-2 rounded-[9px] border border-[#E8E2D6] hover:border-[#009AAC]" style={{ background: pet.pipelineClinicoEtapa === e ? "#E0F4F6" : "#fff", color: pet.pipelineClinicoEtapa === e ? "#014D5E" : "#1F2A2E" }}>{e}</button>
               ))}
-              {pipes.clinico.length === 0 && !pet.pipelineClinicoEtapa && <p className="text-[12px] text-[#8A989D]">Nenhuma etapa configurada. Cadastre em Configurações → Pipelines.</p>}
+              {pipes.clinico.length === 0 && !pet.pipelineClinicoEtapa && <p className="text-[12px] text-[#374151]">Nenhuma etapa configurada. Cadastre em Configurações → Pipelines.</p>}
             </div>
             <div className="flex justify-end mt-4"><button onClick={() => setStatusOpen(false)} className="text-[12.5px] px-3 py-2 rounded-[9px] text-[#5C6B70]">Fechar</button></div>
           </div>
@@ -1874,7 +1874,7 @@ export default function PetDetailPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.45)" }} onClick={() => setNotaOpen(false)}>
           <div className="bg-[#FBF9F4] rounded-[16px] w-full max-w-[400px] p-5" style={{ border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
             <h3 className="text-[15px] font-medium text-[#014D5E] mb-1">❤️ Nota médica</h3>
-            <p className="text-[12px] text-[#8A989D] mb-3">Algo clínico que vale lembrar sobre {pet.name}.</p>
+            <p className="text-[12px] text-[#374151] mb-3">Algo clínico que vale lembrar sobre {pet.name}.</p>
             <textarea value={notaVal} onChange={(e) => setNotaVal(e.target.value)} rows={3} placeholder="Ex.: sopro cardíaco grau II, sensível a anestesia…" className="w-full px-3 py-2 border border-[#E8E2D6] rounded-[9px] text-[13px] bg-white" />
             <div className="flex justify-end gap-2 mt-4">
               <button onClick={() => setNotaOpen(false)} className="text-[12.5px] px-3 py-2 rounded-[9px] text-[#5C6B70]">Cancelar</button>
@@ -1888,7 +1888,7 @@ export default function PetDetailPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.45)" }} onClick={() => setFuOpen(false)}>
           <div className="bg-[#FBF9F4] rounded-[16px] w-full max-w-[360px] p-5" style={{ border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
             <h3 className="text-[15px] font-medium text-[#014D5E] mb-1">📞 Agendar follow-up</h3>
-            <p className="text-[12px] text-[#8A989D] mb-3">Quando acompanhar o tratamento de {pet.name}?</p>
+            <p className="text-[12px] text-[#374151] mb-3">Quando acompanhar o tratamento de {pet.name}?</p>
             <input type="date" value={fuDate} onChange={(e) => setFuDate(e.target.value)} className="w-full px-3 py-2 border border-[#E8E2D6] rounded-[9px] text-[13px] bg-white" />
             <div className="flex justify-between items-center mt-4">
               {pet.proximoFollowupAt ? <button onClick={async () => { await clearFu(); setFuOpen(false); }} className="text-[12px] text-[#b23b39]">Remover</button> : <span />}

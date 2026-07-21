@@ -352,7 +352,7 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
     { key: "CRESCIMENTO", label: "Crescimento" },
     { key: "SISTEMA", label: "Sistema" },
   ];
-  const sectionLabelCls = "text-[9.5px] font-bold tracking-wide text-[#8A989D] uppercase px-3 py-1.5";
+  const sectionLabelCls = "text-[9.5px] font-bold tracking-wide text-[#374151] uppercase px-3 py-1.5";
 
   return (
     <aside
@@ -452,7 +452,7 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
             </div>
             <div className="flex flex-col leading-tight min-w-0">
               <span className="text-[12px] font-medium text-[#014D5E] truncate">{userName}</span>
-              <span className="text-[9px] text-[#8A989D]">{roleShort(realRole)}</span>
+              <span className="text-[9px] text-[#374151]">{roleShort(realRole)}</span>
             </div>
           </div>
         )}

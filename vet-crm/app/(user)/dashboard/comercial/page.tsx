@@ -314,7 +314,7 @@ export default function ComercialPage() {
               e.stopPropagation();
               setMenuLeadId(open ? null : lead.id);
             }}
-            className="text-[#8A989D] hover:text-[#014D5E] text-[13px] leading-none px-1 flex-shrink-0"
+            className="text-[#374151] hover:text-[#014D5E] text-[13px] leading-none px-1 flex-shrink-0"
             title="Mudar etapa"
           >
             ▾
@@ -337,7 +337,7 @@ export default function ComercialPage() {
             onClick={(e) => e.stopPropagation()}
             className="absolute right-1 top-8 z-30 w-44 max-h-56 overflow-auto bg-white border border-[#E8E2D6] rounded-lg shadow-lg py-1"
           >
-            <div className="px-2.5 py-1 text-[9px] text-[#8A989D] uppercase tracking-wide">Mover para</div>
+            <div className="px-2.5 py-1 text-[9px] text-[#374151] uppercase tracking-wide">Mover para</div>
             {columns.map((s) => (
               <button
                 key={s}
@@ -386,7 +386,7 @@ export default function ComercialPage() {
             className={`pb-2 -mb-px text-[13px] transition ${
               aba === key
                 ? "border-b-2 border-[#009AAC] text-[#014D5E] font-medium"
-                : "text-[#8A989D] hover:text-[#5C6B70]"
+                : "text-[#374151] hover:text-[#5C6B70]"
             }`}
           >
             {label}
@@ -402,28 +402,28 @@ export default function ComercialPage() {
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 mb-4">
         <div className={cardKpi}>
-          <div className="text-[11px] text-[#8A989D]">🎯 Leads ativos</div>
+          <div className="text-[11px] text-[#374151]">🎯 Leads ativos</div>
           <div className="text-[20px] text-[#014D5E] font-medium mt-0.5">{kpis.ativos}</div>
         </div>
         <div className={cardKpi}>
-          <div className="text-[11px] text-[#8A989D]">🔥 Quentes</div>
+          <div className="text-[11px] text-[#374151]">🔥 Quentes</div>
           <div className="text-[20px] font-medium mt-0.5 text-[#C2410C]">{kpis.quentes}</div>
         </div>
         <div className={cardKpi}>
-          <div className="text-[11px] text-[#8A989D]">📄 Orçamentos abertos</div>
+          <div className="text-[11px] text-[#374151]">📄 Orçamentos abertos</div>
           <div className="text-[20px] text-[#014D5E] font-medium mt-0.5">{kpis.orcamentos}</div>
         </div>
         <div className={cardKpi}>
-          <div className="text-[11px] text-[#8A989D]">📈 Conversão (mês)</div>
+          <div className="text-[11px] text-[#374151]">📈 Conversão (mês)</div>
           <div className="text-[20px] text-[#014D5E] font-medium mt-0.5">
             {kpis.conversao !== null ? `${kpis.conversao}%` : "—"}
           </div>
-          <div className="text-[9px] text-[#8A989D]">aprox.</div>
+          <div className="text-[9px] text-[#374151]">aprox.</div>
         </div>
       </div>
 
       {loading ? (
-        <div className="text-center text-[#8A989D] py-16">Carregando…</div>
+        <div className="text-center text-[#374151] py-16">Carregando…</div>
       ) : (
         <>
           {/* ABA FOLLOW-UP */}
@@ -439,10 +439,10 @@ export default function ComercialPage() {
                     {followupVencidos} vencido{followupVencidos > 1 ? "s" : ""}
                   </span>
                 )}
-                <span className="text-[10px] text-[#8A989D] ml-auto">follow-up pendente ou aguardando retorno</span>
+                <span className="text-[10px] text-[#374151] ml-auto">follow-up pendente ou aguardando retorno</span>
               </div>
               {followupLeads.length === 0 ? (
-                <div className="py-12 text-center text-[#8A989D] text-[13px]">
+                <div className="py-12 text-center text-[#374151] text-[13px]">
                   🎉 Ninguém aguardando retorno agora.
                 </div>
               ) : (
@@ -510,7 +510,7 @@ export default function ComercialPage() {
                 </button>
               </div>
               {leads.length === 0 ? (
-                <div className="py-12 text-center text-[#8A989D]">Nenhum lead ainda. Clique em “Novo lead”.</div>
+                <div className="py-12 text-center text-[#374151]">Nenhum lead ainda. Clique em “Novo lead”.</div>
               ) : (
                 <table className="w-full text-sm">
                   <thead>
@@ -564,7 +564,7 @@ export default function ComercialPage() {
                 </table>
               )}
               {leads.length > 200 && (
-                <div className="px-3 py-2 text-[11px] text-[#8A989D] bg-[#FBF9F4] border-t border-[#F0EBE0]">
+                <div className="px-3 py-2 text-[11px] text-[#374151] bg-[#FBF9F4] border-t border-[#F0EBE0]">
                   Mostrando 200 de {leads.length} leads.{" "}
                   <Link href="/dashboard/crm/leads" className="text-[#009AAC]">Abra a tela de Leads</Link> para filtrar.
                 </div>
@@ -596,7 +596,7 @@ export default function ComercialPage() {
                         </span>
                       </div>
                       {items.length === 0 ? (
-                        <p className="text-[10px] text-[#8A989D] py-2 text-center">—</p>
+                        <p className="text-[10px] text-[#374151] py-2 text-center">—</p>
                       ) : (
                         items.map((lead) => <LeadCard key={lead.id} lead={lead} />)
                       )}
@@ -611,7 +611,7 @@ export default function ComercialPage() {
           {aba === "orcamentos" && (
             <div>
               {orcamentoLeads.length === 0 ? (
-                <div className="bg-white rounded-[12px] border border-[#E8E2D6] py-12 text-center text-[#8A989D]">
+                <div className="bg-white rounded-[12px] border border-[#E8E2D6] py-12 text-center text-[#374151]">
                   Nenhum orçamento aberto.
                 </div>
               ) : (
@@ -644,7 +644,7 @@ export default function ComercialPage() {
                             <span className="text-[12px] font-medium text-[#0F6E56]">R$ {valor}</span>
                           )}
                         </div>
-                        <p className="text-[11px] text-[#8A989D] mt-2">📄 aguardando resposta</p>
+                        <p className="text-[11px] text-[#374151] mt-2">📄 aguardando resposta</p>
                       </Link>
                     );
                   })}
@@ -661,16 +661,16 @@ export default function ComercialPage() {
           <div className="bg-white rounded-2xl p-5 w-[420px] max-w-[92vw]" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-base font-medium text-[#014D5E]">Novo Lead</h2>
-              <button onClick={() => setNovoOpen(false)} className="text-[#8A989D] hover:text-[#5C6B70] text-lg leading-none">✕</button>
+              <button onClick={() => setNovoOpen(false)} className="text-[#374151] hover:text-[#5C6B70] text-lg leading-none">✕</button>
             </div>
-            <label className="text-[11px] text-[#8A989D]">Nome</label>
+            <label className="text-[11px] text-[#374151]">Nome</label>
             <input autoFocus value={novoNome} onChange={(e) => setNovoNome(e.target.value)} placeholder="Nome do lead" className="w-full h-9 mt-0.5 mb-3 px-3 border border-[#E8E2D6] rounded-lg text-sm focus:outline-none focus:border-[#009AAC]" />
-            <label className="text-[11px] text-[#8A989D]">Telefone</label>
+            <label className="text-[11px] text-[#374151]">Telefone</label>
             <input value={novoTel} onChange={(e) => setNovoTel(e.target.value)} placeholder="(85) 9 9999-9999" className="w-full h-9 mt-0.5 mb-3 px-3 border border-[#E8E2D6] rounded-lg text-sm focus:outline-none focus:border-[#009AAC]" />
-            <label className="text-[11px] text-[#8A989D]">Email (opcional)</label>
+            <label className="text-[11px] text-[#374151]">Email (opcional)</label>
             <input value={novoEmail} onChange={(e) => setNovoEmail(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") handleCriarLead(); }} placeholder="email@exemplo.com" className="w-full h-9 mt-0.5 px-3 border border-[#E8E2D6] rounded-lg text-sm focus:outline-none focus:border-[#009AAC]" />
-            <p className="text-[10px] text-[#8A989D] mt-1.5">Sem email, geramos um provisório a partir do telefone.</p>
-            <label className="text-[11px] text-[#8A989D] block mt-3">Pet de interesse (opcional)</label>
+            <p className="text-[10px] text-[#374151] mt-1.5">Sem email, geramos um provisório a partir do telefone.</p>
+            <label className="text-[11px] text-[#374151] block mt-3">Pet de interesse (opcional)</label>
             <div className="flex gap-2 mt-0.5">
               <input value={novoPetNome} onChange={(e) => setNovoPetNome(e.target.value)} placeholder="Nome do pet" className="flex-1 h-9 px-3 border border-[#E8E2D6] rounded-lg text-sm focus:outline-none focus:border-[#009AAC]" />
               <select value={novoPetEspecie} onChange={(e) => setNovoPetEspecie(e.target.value)} className="h-9 px-2 border border-[#E8E2D6] rounded-lg text-sm w-[90px] focus:outline-none focus:border-[#009AAC]">

@@ -84,7 +84,7 @@ export default function Header({ sidebarOpen }: Props) {
             onChange={(e) => setGlobalQ(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter" && globalQ.trim()) { router.push(`/dashboard/erp/tutores?q=${encodeURIComponent(globalQ.trim())}`); setGlobalQ(""); } }}
             placeholder="Buscar cliente, pet ou lead..."
-            className="bg-transparent outline-none text-[13px] text-[#1F2A2E] placeholder-[#8A989D] flex-1"
+            className="bg-transparent outline-none text-[13px] text-[#1F2A2E] placeholder-[#374151] flex-1"
           />
         </div>
 

@@ -121,7 +121,7 @@ export default function ComandasPage() {
   return (
     <div className="p-6 w-full">
       <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
-        <div className="text-[13px] text-[#8A989D]">{comandas.length} comanda(s) aberta(s){caixaAberto ? "" : " · ⚠️ sem caixa aberto"}</div>
+        <div className="text-[13px] text-[#374151]">{comandas.length} comanda(s) aberta(s){caixaAberto ? "" : " · ⚠️ sem caixa aberto"}</div>
         <button onClick={() => setOlho((v) => !v)} className="text-[12px] font-medium text-[#5C6B70] bg-white border px-3 py-1.5 rounded-lg" style={{ borderColor: "#E8E2D6" }}>{olho ? "🙈 Ocultar valores" : "👁️ Mostrar valores"}</button>
       </div>
 
@@ -132,19 +132,19 @@ export default function ComandasPage() {
           { l: "✅ Baixado hoje", v: money(baixadoHoje) },
         ].map((k) => (
           <div key={k.l} className="bg-white border rounded-xl px-4 py-3" style={{ borderColor: "#E8E2D6" }}>
-            <div className="text-[10.5px] text-[#8A989D] uppercase tracking-wide">{k.l}</div>
+            <div className="text-[10.5px] text-[#374151] uppercase tracking-wide">{k.l}</div>
             <div className="mt-1 text-[22px] font-medium text-[#014D5E] tabular-nums">{k.v}</div>
           </div>
         ))}
       </div>
 
       {loading ? (
-        <div className="px-6 py-16 text-center text-sm text-[#8A989D]">Carregando...</div>
+        <div className="px-6 py-16 text-center text-sm text-[#374151]">Carregando...</div>
       ) : comandas.length === 0 ? (
         <div className="bg-white border rounded-[14px] px-6 py-14 text-center" style={{ borderColor: "#E8E2D6" }}>
           <div className="text-3xl mb-2">🛎️</div>
           <div className="text-sm text-[#5C6B70]">Nenhuma comanda aberta no momento.</div>
-          <div className="text-[12px] text-[#8A989D] mt-1">Vendas em atendimento (consulta, balcão) aparecem aqui para baixar no caixa.</div>
+          <div className="text-[12px] text-[#374151] mt-1">Vendas em atendimento (consulta, balcão) aparecem aqui para baixar no caixa.</div>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -158,13 +158,13 @@ export default function ComandasPage() {
                     <div className="w-9 h-9 rounded-lg flex items-center justify-center text-lg flex-shrink-0" style={{ background: "#E0F4F6" }}>{especieEmoji(c.petSpecies)}</div>
                     <div className="flex-1 min-w-0">
                       <div className="text-[14px] font-medium text-[#014D5E] truncate">{c.tutor}</div>
-                      <div className="text-[11px] text-[#8A989D] truncate">{c.pet || "—"}{c.vet ? ` · ${c.vet}` : ""}</div>
+                      <div className="text-[11px] text-[#374151] truncate">{c.pet || "—"}{c.vet ? ` · ${c.vet}` : ""}</div>
                     </div>
                     <span className="text-[10px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap" style={{ background: org.bg, color: org.fg }}>{org.lbl}</span>
                   </div>
                   <div className="flex items-end justify-between mb-2.5">
                     <div className="text-[17px] font-medium text-[#014D5E] tabular-nums">{money(Number(c.aberto || c.valor || 0))}</div>
-                    <div className="text-[10.5px] text-[#8A989D]">{tempoDe(c.date)}</div>
+                    <div className="text-[10.5px] text-[#374151]">{tempoDe(c.date)}</div>
                   </div>
                   <div className="flex gap-2">
                     <button onClick={() => abrir(c)} className="flex-1 text-[11.5px] font-medium text-[#00798A] bg-[#E0F4F6] py-1.5 rounded-lg">Abrir</button>
@@ -180,7 +180,7 @@ export default function ComandasPage() {
                   <div className="w-9 h-9 rounded-lg flex items-center justify-center text-lg flex-shrink-0" style={{ background: "#E0F4F6" }}>{especieEmoji(g.petSpecies)}</div>
                   <div className="flex-1 min-w-0">
                     <div className="text-[14px] font-medium text-[#014D5E] truncate">{g.tutor}</div>
-                    <div className="text-[11px] text-[#8A989D]">{g.comandas.length} comandas abertas hoje</div>
+                    <div className="text-[11px] text-[#374151]">{g.comandas.length} comandas abertas hoje</div>
                   </div>
                   <span className="text-[10px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap" style={{ background: "#E0F4F6", color: "#00707E" }}>🧾 {g.comandas.length}</span>
                 </div>
@@ -193,7 +193,7 @@ export default function ComandasPage() {
                   ))}
                 </div>
                 <div className="flex items-center justify-between mb-2.5 border-t pt-2" style={{ borderColor: "#F0EBE0" }}>
-                  <div className="text-[10.5px] text-[#8A989D] uppercase tracking-wide">Total</div>
+                  <div className="text-[10.5px] text-[#374151] uppercase tracking-wide">Total</div>
                   <div className="text-[17px] font-medium text-[#014D5E] tabular-nums">{money(g.total)}</div>
                 </div>
                 <button onClick={() => { setForma("Dinheiro"); setDetGrupo(g); }} className="w-full text-[11.5px] font-medium text-white bg-[#009AAC] py-1.5 rounded-lg">💰 Baixar tudo</button>
@@ -209,21 +209,21 @@ export default function ComandasPage() {
           <div className="rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto" style={{ background: "#FBF9F4", border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "#E8E2D6" }}>
               <div>
-                <h3 className="text-base font-medium text-[#014D5E]">{especieEmoji(det.petSpecies)} {det.tutor} <span className="text-[12px] text-[#8A989D] font-normal">· {det.pet}</span></h3>
-                <div className="text-[11px] text-[#8A989D] mt-0.5">{(ORIGEM[det.origem] || ORIGEM.VENDA).lbl} · aberta {tempoDe(det.date)}</div>
+                <h3 className="text-base font-medium text-[#014D5E]">{especieEmoji(det.petSpecies)} {det.tutor} <span className="text-[12px] text-[#374151] font-normal">· {det.pet}</span></h3>
+                <div className="text-[11px] text-[#374151] mt-0.5">{(ORIGEM[det.origem] || ORIGEM.VENDA).lbl} · aberta {tempoDe(det.date)}</div>
               </div>
-              <button onClick={() => setDet(null)} className="text-[#8A989D] text-lg leading-none">✕</button>
+              <button onClick={() => setDet(null)} className="text-[#374151] text-lg leading-none">✕</button>
             </div>
 
             <div className="p-0">
               {detLoading ? (
-                <div className="px-5 py-6 text-center text-[12.5px] text-[#8A989D]">Carregando itens...</div>
+                <div className="px-5 py-6 text-center text-[12.5px] text-[#374151]">Carregando itens...</div>
               ) : detItens.length === 0 ? (
-                <div className="px-5 py-5 text-[12.5px] text-[#8A989D]">Sem itens detalhados nesta comanda.</div>
+                <div className="px-5 py-5 text-[12.5px] text-[#374151]">Sem itens detalhados nesta comanda.</div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-[12.5px]">
-                    <thead><tr className="text-[10px] text-[#8A989D] uppercase tracking-wide">
+                    <thead><tr className="text-[10px] text-[#374151] uppercase tracking-wide">
                       <th className="text-left font-medium px-5 py-2">Item</th><th className="text-left font-medium px-2 py-2">Profissional</th><th className="text-right font-medium px-2 py-2">Qtd</th><th className="text-right font-medium px-5 py-2">Valor</th>
                     </tr></thead>
                     <tbody>
@@ -249,7 +249,7 @@ export default function ComandasPage() {
             {caixaAberto ? (
               <>
                 <div className="px-5 py-3 border-t" style={{ borderColor: "#F0EBE0" }}>
-                  <div className="text-[10.5px] text-[#8A989D] uppercase tracking-wide mb-2">Forma de recebimento</div>
+                  <div className="text-[10.5px] text-[#374151] uppercase tracking-wide mb-2">Forma de recebimento</div>
                   <div className="flex gap-2 flex-wrap">
                     {formasList.map((f) => (
                       <button key={f} onClick={() => setForma(f)} className="text-[12px] px-3 py-1.5 rounded-full border" style={forma === f ? { background: "#E0F4F6", borderColor: "#009AAC", color: "#014D5E" } : { background: "#fff", borderColor: "#E8E2D6", color: "#5C6B70" }}>{f}</button>
@@ -277,9 +277,9 @@ export default function ComandasPage() {
             <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "#E8E2D6" }}>
               <div>
                 <h3 className="text-base font-medium text-[#014D5E]">{especieEmoji(detGrupo.petSpecies)} {detGrupo.tutor}</h3>
-                <div className="text-[11px] text-[#8A989D] mt-0.5">{detGrupo.comandas.length} comandas abertas · baixar tudo junto</div>
+                <div className="text-[11px] text-[#374151] mt-0.5">{detGrupo.comandas.length} comandas abertas · baixar tudo junto</div>
               </div>
-              <button onClick={() => setDetGrupo(null)} className="text-[#8A989D] text-lg leading-none">✕</button>
+              <button onClick={() => setDetGrupo(null)} className="text-[#374151] text-lg leading-none">✕</button>
             </div>
             <div className="px-5 py-3">
               {detGrupo.comandas.map((c: any) => (
@@ -296,7 +296,7 @@ export default function ComandasPage() {
             {caixaAberto ? (
               <>
                 <div className="px-5 py-3 border-t" style={{ borderColor: "#F0EBE0" }}>
-                  <div className="text-[10.5px] text-[#8A989D] uppercase tracking-wide mb-2">Forma de recebimento</div>
+                  <div className="text-[10.5px] text-[#374151] uppercase tracking-wide mb-2">Forma de recebimento</div>
                   <div className="flex gap-2 flex-wrap">
                     {formasList.map((f) => (
                       <button key={f} onClick={() => setForma(f)} className="text-[12px] px-3 py-1.5 rounded-full border" style={forma === f ? { background: "#E0F4F6", borderColor: "#009AAC", color: "#014D5E" } : { background: "#fff", borderColor: "#E8E2D6", color: "#5C6B70" }}>{f}</button>

@@ -125,7 +125,7 @@ export default function MinhasVendasPage() {
           </div>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: 22, fontWeight: 700, color: TEAL_DARK }}>{brl(total)}</div>
-            <div style={{ fontSize: 11.5, color: '#8A989D' }}>total vendido</div>
+            <div style={{ fontSize: 11.5, color: '#374151' }}>total vendido</div>
           </div>
         </div>
 
@@ -141,7 +141,7 @@ export default function MinhasVendasPage() {
           <div style={{ flex: '1.4 1 380px', minWidth: 0, ...card }}>
             <div style={{ background: '#FBF9F4', padding: '12px 16px', color: TEAL_DARK, fontSize: 13.5, fontWeight: 500, borderBottom: '1px solid #F0EBE0' }}>Vendas por tipo de serviço</div>
             <div style={{ padding: 16 }}>
-              {(!prod?.porGrupo || prod.porGrupo.length === 0) && <p style={{ fontSize: 12.5, color: '#8A989D', textAlign: 'center', margin: '6px 0' }}>Sem itens classificados neste período.</p>}
+              {(!prod?.porGrupo || prod.porGrupo.length === 0) && <p style={{ fontSize: 12.5, color: '#374151', textAlign: 'center', margin: '6px 0' }}>Sem itens classificados neste período.</p>}
               {(prod?.porGrupo || []).map((g, i) => (
                 <div key={g.grupo} style={{ marginBottom: 12 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, marginBottom: 4 }}>
@@ -161,14 +161,14 @@ export default function MinhasVendasPage() {
               <div style={card}>
                 <div style={{ background: '#FBF9F4', padding: '12px 16px', color: TEAL_DARK, fontSize: 13.5, fontWeight: 500, borderBottom: '1px solid #F0EBE0', display: 'inline-flex', alignItems: 'center', gap: 8, width: '100%', boxSizing: 'border-box' }}><LuTrophy size={16} color="#C08B2E" /> Ranking do período</div>
                 <div style={{ padding: 12 }}>
-                  {(!prod.ranking || prod.ranking.length === 0) && <p style={{ fontSize: 12, color: '#8A989D', textAlign: 'center', margin: '8px 0' }}>Sem vendas no período.</p>}
+                  {(!prod.ranking || prod.ranking.length === 0) && <p style={{ fontSize: 12, color: '#374151', textAlign: 'center', margin: '8px 0' }}>Sem vendas no período.</p>}
                   {(prod.ranking || []).map((r, i) => (
                     <div key={r.userId} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0', borderTop: i ? '1px solid #F0EBE0' : 'none' }}>
-                      <span style={{ width: 22, fontSize: 12.5, fontWeight: 700, color: i === 0 ? '#BA7517' : '#8A989D', textAlign: 'center' }}>{i + 1}º</span>
+                      <span style={{ width: 22, fontSize: 12.5, fontWeight: 700, color: i === 0 ? '#BA7517' : '#374151', textAlign: 'center' }}>{i + 1}º</span>
                       <span style={{ width: 30, height: 30, borderRadius: '50%', background: avatarOf(r.name).bg, color: avatarOf(r.name).fg, fontSize: 11, fontWeight: 600, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{iniciais(r.name)}</span>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontWeight: 500, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</div>
-                        <div style={{ fontSize: 11, color: '#8A989D' }}>{r.num} venda(s)</div>
+                        <div style={{ fontSize: 11, color: '#374151' }}>{r.num} venda(s)</div>
                       </div>
                       <span style={{ fontSize: 12.5, fontWeight: 600, color: TEAL_DARK }}>{brl(r.total)}</span>
                     </div>
@@ -180,14 +180,14 @@ export default function MinhasVendasPage() {
             <div style={card}>
               <div style={{ background: '#FBF9F4', padding: '12px 16px', color: TEAL_DARK, fontSize: 13.5, fontWeight: 500, borderBottom: '1px solid #F0EBE0' }}>Vendas do período ({prod?.lista?.length || 0})</div>
               <div style={{ padding: 12, maxHeight: 420, overflowY: 'auto' }}>
-                {loading && <p style={{ fontSize: 12, color: '#8A989D', textAlign: 'center', margin: '10px 0' }}>Carregando…</p>}
-                {!loading && (!prod?.lista || prod.lista.length === 0) && <p style={{ fontSize: 12, color: '#8A989D', textAlign: 'center', margin: '10px 0' }}>Nenhuma venda no período.</p>}
+                {loading && <p style={{ fontSize: 12, color: '#374151', textAlign: 'center', margin: '10px 0' }}>Carregando…</p>}
+                {!loading && (!prod?.lista || prod.lista.length === 0) && <p style={{ fontSize: 12, color: '#374151', textAlign: 'center', margin: '10px 0' }}>Nenhuma venda no período.</p>}
                 {(prod?.lista || []).map((v, i) => (
                   <div key={v.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderTop: i ? '1px solid #F0EBE0' : 'none' }}>
                     <span style={{ width: 30, height: 30, borderRadius: '50%', background: avatarOf(v.tutor).bg, color: avatarOf(v.tutor).fg, fontSize: 11, fontWeight: 600, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{iniciais(v.tutor)}</span>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontWeight: 500, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.tutor || 'Cliente'}</div>
-                      <div style={{ fontSize: 11, color: '#8A989D' }}>{v.numeroVenda != null && <b style={{ color: TEAL_DARK, fontWeight: 500 }}>{vendaNum(v.numeroVenda)} · </b>}{v.pet} · {new Date(v.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</div>
+                      <div style={{ fontSize: 11, color: '#374151' }}>{v.numeroVenda != null && <b style={{ color: TEAL_DARK, fontWeight: 500 }}>{vendaNum(v.numeroVenda)} · </b>}{v.pet} · {new Date(v.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</div>
                     </div>
                     <span style={{ fontSize: 12.5, fontWeight: 600, color: TEAL_DARK }}>{brl(v.valor)}</span>
                   </div>

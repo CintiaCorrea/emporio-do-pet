@@ -25,9 +25,9 @@ const CSS = `
 .rc-btn{border:1px solid #E8E2D6;background:#fff;color:#5C6B70;border-radius:9px;padding:8px 12px;font-size:12.5px;cursor:pointer;font-weight:500;display:inline-flex;align-items:center;gap:6px}
 .rc-adv{background:#FBF9F4;border:1px solid #E8E2D6;border-radius:12px;padding:14px 16px;margin-bottom:16px}
 .rc-adv .row{display:flex;gap:14px;flex-wrap:wrap}
-.rc-lb{font-size:10.5px;text-transform:uppercase;letter-spacing:.03em;color:#8A989D;display:block;margin-bottom:4px}
+.rc-lb{font-size:10.5px;text-transform:uppercase;letter-spacing:.03em;color:#374151;display:block;margin-bottom:4px}
 .rc-tabs{display:flex;gap:24px;border-bottom:1px solid #E8E2D6;margin-bottom:16px}
-.rc-tab{background:none;border:none;font-family:inherit;font-size:13.5px;color:#8A989D;padding:9px 2px;cursor:pointer;border-bottom:2px solid transparent}
+.rc-tab{background:none;border:none;font-family:inherit;font-size:13.5px;color:#374151;padding:9px 2px;cursor:pointer;border-bottom:2px solid transparent}
 .rc-tab.on{color:#014D5E;font-weight:500;border-bottom-color:#009AAC}
 /* KPIs — cores SUAVES, largura toda */
 .rc-kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:18px}
@@ -46,12 +46,12 @@ const CSS = `
 .rc-card{background:#fff;border:1px solid #E8E2D6;border-radius:14px;overflow:hidden}
 .rc-ch{padding:11px 15px;border-bottom:1px solid #F0EBE0;font-size:13px;font-weight:500;color:#014D5E;display:flex;justify-content:space-between;align-items:center}
 .rc-tbl{width:100%;border-collapse:collapse;font-size:13px}
-.rc-tbl th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;color:#8A989D;font-weight:500;padding:8px 14px;background:#FBF9F4;white-space:nowrap}
+.rc-tbl th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;color:#374151;font-weight:500;padding:8px 14px;background:#FBF9F4;white-space:nowrap}
 .rc-tbl th.r{text-align:right}
 .rc-tbl td{padding:9px 14px;border-bottom:1px solid #F0EBE0}
 .rc-tbl tr:last-child td{border-bottom:0}
 .rc-tbl td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:500;color:#014D5E}
-.rc-empty{padding:16px;text-align:center;color:#8A989D;font-size:12px}
+.rc-empty{padding:16px;text-align:center;color:#374151;font-size:12px}
 .rc-scroll{overflow-x:auto}
 .rc-print-h{display:none}
 @media print{
@@ -160,7 +160,7 @@ export default function RecebimentosPage() {
       <div className="rc-bar no-print">
         <span className="rc-field">📅
           <input className="rc-in" style={{ padding: "3px 6px", border: "none" }} type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
-          <span style={{ color: "#8A989D" }}>até</span>
+          <span style={{ color: "#374151" }}>até</span>
           <input className="rc-in" style={{ padding: "3px 6px", border: "none" }} type="date" value={to} onChange={(e) => setTo(e.target.value)} />
         </span>
         <select className="rc-sel" value={fUsuario} onChange={(e) => setFUsuario(e.target.value)}>
@@ -199,7 +199,7 @@ export default function RecebimentosPage() {
               </select>
             </div>
           </div>
-          <div style={{ fontSize: 11.5, color: "#8A989D", marginTop: 10 }}>Os filtros acima refinam a <b>lista de recebimentos</b>. O resumo mostra o período inteiro.</div>
+          <div style={{ fontSize: 11.5, color: "#374151", marginTop: 10 }}>Os filtros acima refinam a <b>lista de recebimentos</b>. O resumo mostra o período inteiro.</div>
         </div>
       )}
 
@@ -241,10 +241,10 @@ export default function RecebimentosPage() {
                 {filtered.map((r) => (
                   <tr key={r.id}>
                     <td style={{ color: "#014D5E", fontWeight: 500, whiteSpace: "nowrap" }}>{vendaLabel(r.appointment)}</td>
-                    <td style={{ color: "#8A989D", whiteSpace: "nowrap" }}>{dh(r.data)}</td>
+                    <td style={{ color: "#374151", whiteSpace: "nowrap" }}>{dh(r.data)}</td>
                     <td style={{ color: "#1F2A2E" }}>{r.appointment?.tutor?.id ? (<Link href={`/dashboard/erp/tutores/${r.appointment.tutor.id}`} style={{ color: "#014D5E", textDecoration: "none", fontWeight: 500 }}>{r.appointment?.tutor?.name || "Cliente"}</Link>) : (r.appointment?.tutor?.name || "Cliente")} · {r.appointment?.pet?.name || "Pet"}</td>
                     <td style={{ color: "#5C6B70" }}>{r.usuario || "—"}</td>
-                    <td style={{ color: "#8A989D" }}>{(r.formas || []).map((f: any) => f.forma).join(" + ") || "—"}</td>
+                    <td style={{ color: "#374151" }}>{(r.formas || []).map((f: any) => f.forma).join(" + ") || "—"}</td>
                     <td className="r">{money(Number(r.valorTotal))}</td>
                   </tr>
                 ))}

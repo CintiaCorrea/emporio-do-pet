@@ -61,8 +61,8 @@ export default function ConfigVendasPage() {
   const Row = ({ lab, desc, breve, children }: any) => (
     <div className="flex items-center justify-between gap-4 px-4 py-3 border-b last:border-b-0" style={{ borderColor: "#F0EBE0" }}>
       <div>
-        <div className="text-[13px] text-[#1F2A2E]">{lab}{breve && <span className="text-[9.5px] text-[#8A989D] bg-[#F0EBE0] rounded-full px-2 py-0.5 ml-2">em breve</span>}</div>
-        {desc && <div className="text-[11.5px] text-[#8A989D] mt-0.5">{desc}</div>}
+        <div className="text-[13px] text-[#1F2A2E]">{lab}{breve && <span className="text-[9.5px] text-[#374151] bg-[#F0EBE0] rounded-full px-2 py-0.5 ml-2">em breve</span>}</div>
+        {desc && <div className="text-[11.5px] text-[#374151] mt-0.5">{desc}</div>}
       </div>
       <div className="flex-shrink-0">{children}</div>
     </div>
@@ -70,7 +70,7 @@ export default function ConfigVendasPage() {
   const NumIn = ({ k, un }: { k: string; un: string }) => (
     <div className="flex items-center gap-1.5">
       <input type="number" value={cfg[k]} onChange={(e) => set(k, e.target.value)} className="w-[88px] border rounded-lg px-2 py-1.5 text-[13px] text-right tabular-nums bg-white focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} />
-      <span className="text-[12px] text-[#8A989D]">{un}</span>
+      <span className="text-[12px] text-[#374151]">{un}</span>
     </div>
   );
   const Card = ({ titulo, children }: any) => (
@@ -80,11 +80,11 @@ export default function ConfigVendasPage() {
     </div>
   );
 
-  if (loading) return <div className="p-6 text-center text-sm text-[#8A989D]">Carregando...</div>;
+  if (loading) return <div className="p-6 text-center text-sm text-[#374151]">Carregando...</div>;
 
   return (
     <div className="p-6 max-w-2xl mx-auto">
-      <div className="text-[12.5px] text-[#8A989D] mb-4">As regras do módulo de vendas. Cada ajuste é salvo e passa a valer no Ponto de venda, atendimento e caixa.</div>
+      <div className="text-[12.5px] text-[#374151] mb-4">As regras do módulo de vendas. Cada ajuste é salvo e passa a valer no Ponto de venda, atendimento e caixa.</div>
 
       <Card titulo="💵 Caixa">
         <Row lab="Fechar caixa automaticamente à meia-noite" desc="Caixas abertos são fechados às 23:59." breve><Toggle k="fecharCaixaMeiaNoite" /></Row>
@@ -123,7 +123,7 @@ export default function ConfigVendasPage() {
       <div className="flex justify-end mt-2">
         <button onClick={salvar} disabled={saving} className="bg-[#009AAC] text-white rounded-lg px-5 py-2.5 text-[13.5px] font-medium disabled:opacity-60">{saving ? "Salvando..." : "Salvar configurações"}</button>
       </div>
-      <div className="text-[11px] text-[#8A989D] text-center mt-3">"em breve" = salvo agora, passa a valer quando a função existir (agendador do caixa, campo NSU, fluxo de devolução).</div>
+      <div className="text-[11px] text-[#374151] text-center mt-3">"em breve" = salvo agora, passa a valer quando a função existir (agendador do caixa, campo NSU, fluxo de devolução).</div>
     </div>
   );
 }

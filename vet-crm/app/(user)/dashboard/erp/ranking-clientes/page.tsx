@@ -24,14 +24,14 @@ const CSS = `
 .rk-card{background:#fff;border:1px solid #E8E2D6;border-radius:14px;overflow:hidden}
 .rk-scroll{overflow-x:auto}
 .rk-tbl{width:100%;border-collapse:collapse;font-size:13px}
-.rk-tbl th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;color:#8A989D;font-weight:500;padding:10px 12px;border-bottom:1px solid #E8E2D6;white-space:nowrap;background:#FBF9F4}
+.rk-tbl th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;color:#374151;font-weight:500;padding:10px 12px;border-bottom:1px solid #E8E2D6;white-space:nowrap;background:#FBF9F4}
 .rk-tbl td{padding:10px 12px;border-bottom:1px solid #F0EBE0;white-space:nowrap}
 .rk-tbl td.r,.rk-tbl th.r{text-align:right;font-variant-numeric:tabular-nums}
 .rk-tbl tr:last-child td{border-bottom:0}
-.rk-pos{color:#8A989D;font-variant-numeric:tabular-nums}
+.rk-pos{color:#374151;font-variant-numeric:tabular-nums}
 .rk-nm{font-size:14px;font-weight:500;color:#014D5E;text-decoration:none}
 .rk-nm:hover{text-decoration:underline}
-.rk-pets{font-size:11.5px;color:#8A989D}
+.rk-pets{font-size:11.5px;color:#374151}
 .rk-cl{font-size:11px;font-weight:600;padding:2px 9px;border-radius:999px}
 .rk-cl.a{background:#E1F5EE;color:#0F6E56}.rk-cl.b{background:#E6F1FB;color:#0C447C}.rk-cl.c{background:#FBEFE0;color:#B45309}
 .rk-empty{padding:56px 24px;text-align:center;color:#5C6B70}
@@ -84,7 +84,7 @@ export default function RankingClientesPage() {
           {loading ? (
             <div className="rk-empty">Carregando ranking…</div>
           ) : lista.length === 0 ? (
-            <div className="rk-empty"><div style={{ fontSize: 30, marginBottom: 6 }}>🏆</div>Sem vendas nos últimos 12 meses para ranquear.<div style={{ fontSize: 12, color: "#8A989D", marginTop: 4 }}>Quando houver vendas registradas, o ranking aparece aqui.</div></div>
+            <div className="rk-empty"><div style={{ fontSize: 30, marginBottom: 6 }}>🏆</div>Sem vendas nos últimos 12 meses para ranquear.<div style={{ fontSize: 12, color: "#374151", marginTop: 4 }}>Quando houver vendas registradas, o ranking aparece aqui.</div></div>
           ) : (
             <div className="rk-scroll">
               <table className="rk-tbl">

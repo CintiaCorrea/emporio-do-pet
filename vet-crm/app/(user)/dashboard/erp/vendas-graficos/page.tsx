@@ -17,10 +17,10 @@ const CSS = `
 .vg-in{border:1px solid #E8E2D6;border-radius:9px;padding:7px 10px;font-size:13px;background:#fff;color:#1F2A2E}
 .vg-btn{border:1px solid #E8E2D6;background:#fff;color:#5C6B70;border-radius:9px;padding:8px 12px;font-size:12.5px;cursor:pointer;font-weight:500}
 .vg-btn.pri{background:#009AAC;border-color:#009AAC;color:#fff}
-.vg-sub{font-size:12.5px;color:#8A989D;margin-bottom:14px}
+.vg-sub{font-size:12.5px;color:#374151;margin-bottom:14px}
 .vg-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
 .vg-kpi{background:#fff;border:1px solid #E8E2D6;border-radius:12px;padding:12px 14px}
-.vg-kpi .l{font-size:10.5px;color:#8A989D;text-transform:uppercase;letter-spacing:.3px}
+.vg-kpi .l{font-size:10.5px;color:#374151;text-transform:uppercase;letter-spacing:.3px}
 .vg-kpi .v{font-size:22px;font-weight:500;color:#014D5E;margin-top:3px;font-variant-numeric:tabular-nums}
 .vg-card{background:#fff;border:1px solid #E8E2D6;border-radius:14px;overflow:hidden;margin-bottom:14px}
 .vg-ch{padding:11px 15px;border-bottom:1px solid #F0EBE0;font-size:13px;font-weight:500;color:#014D5E}
@@ -28,7 +28,7 @@ const CSS = `
 .vg-chart{display:flex;align-items:flex-end;gap:6px;height:130px}
 .vg-chart .col{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;height:100%;justify-content:flex-end}
 .vg-chart .b{width:100%;max-width:26px;background:#009AAC;border-radius:5px 5px 0 0;min-height:2px}
-.vg-chart .x{font-size:9.5px;color:#8A989D}
+.vg-chart .x{font-size:9.5px;color:#374151}
 .vg-hbar{display:flex;align-items:center;gap:10px;margin-bottom:9px}
 .vg-hbar:last-child{margin-bottom:0}
 .vg-hbar .nm{width:150px;font-size:12.5px;color:#5C6B70;flex-shrink:0;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -43,7 +43,7 @@ const CSS = `
 .vg-tbl td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:500;color:#014D5E}
 .vg-hbar .nm.e .dummy,.vg-mk{width:150px}
 .vg-fill.e{background:#009AAC}.vg-fill.m{background:#639922}.vg-fill.v{background:#7F77DD}
-.vg-empty{padding:26px;text-align:center;color:#8A989D;font-size:13px}
+.vg-empty{padding:26px;text-align:center;color:#374151;font-size:13px}
 `;
 
 export default function VendasGraficosPage() {
@@ -77,7 +77,7 @@ export default function VendasGraficosPage() {
       <div className="vg-wrap">
         <div className="vg-sub">Como as vendas evoluem e de onde vêm (grupo, marca, top itens). Valores ocultáveis pelo 👁️.</div>
         <div className="vg-bar">
-          <input className="vg-in" type="date" value={from} onChange={(e) => setFrom(e.target.value)} /><span style={{ color: "#8A989D" }}>a</span>
+          <input className="vg-in" type="date" value={from} onChange={(e) => setFrom(e.target.value)} /><span style={{ color: "#374151" }}>a</span>
           <input className="vg-in" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
           <button className="vg-btn pri" onClick={load}>🔍 Consultar</button>
           <button className="vg-btn" style={{ marginLeft: "auto" }} onClick={() => setOlho((v) => !v)}>{olho ? "🙈 Ocultar valores" : "👁️ Mostrar valores"}</button>
@@ -110,7 +110,7 @@ export default function VendasGraficosPage() {
               <div className="vg-card">
                 <div className="vg-ch">🗂️ Vendas por grupo</div>
                 <div className="vg-cb">
-                  {grupos.length === 0 ? <div style={{ fontSize: 12, color: "#8A989D" }}>Sem dados.</div> : grupos.slice(0, 8).map((g: any) => (
+                  {grupos.length === 0 ? <div style={{ fontSize: 12, color: "#374151" }}>Sem dados.</div> : grupos.slice(0, 8).map((g: any) => (
                     <div className="vg-hbar" key={g.nome}><span className="nm">{g.nome}</span><div className="track"><div className="fill" style={{ width: `${(Number(g.valor) || 0) / maxGrupo * 100}%` }} /></div><span className="val">{money(Number(g.valor) || 0)}</span></div>
                   ))}
                 </div>
@@ -118,7 +118,7 @@ export default function VendasGraficosPage() {
               <div className="vg-card">
                 <div className="vg-ch">🏥 Vendas por marca</div>
                 <div className="vg-cb">
-                  {marcas.length === 0 ? <div style={{ fontSize: 12, color: "#8A989D" }}>Sem dados.</div> : marcas.map((m: any) => { const info = MARCA[m.nome] || { lbl: m.nome, cls: "" }; return (
+                  {marcas.length === 0 ? <div style={{ fontSize: 12, color: "#374151" }}>Sem dados.</div> : marcas.map((m: any) => { const info = MARCA[m.nome] || { lbl: m.nome, cls: "" }; return (
                     <div className="vg-hbar" key={m.nome}><span className="nm">{info.lbl}</span><div className="track"><div className={`fill ${info.cls}`} style={{ width: `${(Number(m.valor) || 0) / maxMarca * 100}%` }} /></div><span className="val">{money(Number(m.valor) || 0)}</span></div>
                   ); })}
                 </div>

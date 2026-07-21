@@ -238,7 +238,7 @@ export default function AtendimentoDetailPage() {
               </table>
             </div>
           ) : (
-            <div className="text-sm" style={{ color: "#8A989D" }}>Sem serviços registrados.</div>
+            <div className="text-sm" style={{ color: "#374151" }}>Sem serviços registrados.</div>
           )}
         </Section>
 

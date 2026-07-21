@@ -39,7 +39,7 @@ const CSS = `
 .cat-chip.on{background:#009AAC;border-color:#009AAC;color:#fff}
 .cat-filtros{background:#FBF9F4;border:1px solid #E8E2D6;border-radius:12px;padding:14px 16px;margin-bottom:14px}
 .cat-fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px 14px}
-.cat-flbl{display:block;font-size:11px;color:#8A989D;font-weight:500;margin-bottom:4px;text-transform:uppercase;letter-spacing:.03em}
+.cat-flbl{display:block;font-size:11px;color:#374151;font-weight:500;margin-bottom:4px;text-transform:uppercase;letter-spacing:.03em}
 .cat-fin{width:100%;border:1px solid #E8E2D6;border-radius:9px;padding:8px 10px;font-size:13px;font-family:inherit;background:#fff;color:#1F2A2E;box-sizing:border-box}
 .cat-seg{display:inline-flex;border:1px solid #E8E2D6;border-radius:9px;overflow:hidden;width:100%}
 .cat-seg button{flex:1;border:none;background:#fff;font-family:inherit;font-size:12px;font-weight:500;color:#5C6B70;padding:8px 4px;cursor:pointer}
@@ -49,19 +49,19 @@ const CSS = `
 .cat-ch{padding:11px 15px;border-bottom:1px solid #F0EBE0;font-size:13px;font-weight:500;color:#014D5E;display:flex;justify-content:space-between;align-items:center}
 .cat-scroll{overflow-x:auto}
 .cat-tbl{width:100%;border-collapse:collapse;font-size:13px}
-.cat-tbl th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;color:#8A989D;font-weight:500;padding:9px 12px;background:#FBF9F4;white-space:nowrap}
+.cat-tbl th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;color:#374151;font-weight:500;padding:9px 12px;background:#FBF9F4;white-space:nowrap}
 .cat-tbl th.r{text-align:right}
 .cat-tbl td{padding:9px 11px;border-bottom:1px solid #F0EBE0;white-space:nowrap}
 .cat-tbl td.r{text-align:right;font-variant-numeric:tabular-nums}
 .cat-tbl tr:last-child td{border-bottom:0}
 .cat-nm{color:#1F2A2E;white-space:normal;min-width:150px}
-.cat-cod{font-size:11px;color:#8A989D;margin-top:1px}
+.cat-cod{font-size:11px;color:#374151;margin-top:1px}
 .cat-forn{max-width:130px;overflow:hidden;text-overflow:ellipsis}
 /* Custo/Markup somem cedo (notebook) p/ Estoque e Situação sempre caberem; Fornecedor some só em telas bem estreitas */
 @media(max-width:1400px){ .col-sec{display:none} }
 @media(max-width:1080px){ .col-sec2{display:none} }
 .cat-pill{font-size:11px;font-weight:500;padding:2px 9px;border-radius:999px;display:inline-flex;align-items:center;gap:4px}
-.cat-empty{padding:40px;text-align:center;color:#8A989D;font-size:13px}
+.cat-empty{padding:40px;text-align:center;color:#374151;font-size:13px}
 .cat-sit{font-size:11px;padding:2px 9px;border-radius:999px}
 @media print{ .no-print{display:none!important} body{background:#fff} .cat-page{padding:0} }
 `;
@@ -219,12 +219,12 @@ export default function CatalogoPage() {
                   <tr key={it.key} onClick={() => { if (it.rawId) { setEditId(it.rawId); setModalOpen(true); } }} style={{ cursor: it.rawId ? "pointer" : "default" }}>
                     <td><span className="cat-pill" style={{ background: pill.bg, color: pill.fg }}>{pill.emoji} {it.tipo}</span></td>
                     <td className="cat-nm">{it.nome}{it.codigo != null && it.codigo !== "" ? <div className="cat-cod">cód. {it.codigo}</div> : null}</td>
-                    <td className="cat-forn col-sec2" style={{ color: it.fornecedor ? "#5C6B70" : "#8A989D" }}>{it.fornecedor || "—"}</td>
+                    <td className="cat-forn col-sec2" style={{ color: it.fornecedor ? "#5C6B70" : "#374151" }}>{it.fornecedor || "—"}</td>
                     <td className="r col-sec" style={{ color: "#5C6B70" }}>{brl(it.custo)}</td>
-                    <td className="r col-sec" style={{ color: mk == null ? "#8A989D" : "#5C6B70" }}>{mk == null ? "—" : `${mk}%`}</td>
+                    <td className="r col-sec" style={{ color: mk == null ? "#374151" : "#5C6B70" }}>{mk == null ? "—" : `${mk}%`}</td>
                     <td className="r" style={{ color: "#014D5E", fontWeight: 500 }}>{brl(it.preco)}</td>
-                    <td className="r" style={{ color: it.estoque == null ? "#8A989D" : "#1F2A2E" }}>{it.estoque == null ? "—" : it.estoque}</td>
-                    <td><span className="cat-sit" style={it.ativo ? { background: "#E7F6EE", color: "#1c7a47" } : { background: "#F0EBE0", color: "#8A989D" }}>{it.ativo ? "Ativo" : "Inativo"}</span></td>
+                    <td className="r" style={{ color: it.estoque == null ? "#374151" : "#1F2A2E" }}>{it.estoque == null ? "—" : it.estoque}</td>
+                    <td><span className="cat-sit" style={it.ativo ? { background: "#E7F6EE", color: "#1c7a47" } : { background: "#F0EBE0", color: "#374151" }}>{it.ativo ? "Ativo" : "Inativo"}</span></td>
                   </tr>
                 );
               })}
@@ -233,7 +233,7 @@ export default function CatalogoPage() {
         </div>
       </div>
 
-      <p className="no-print" style={{ fontSize: 11.5, color: "#8A989D", marginTop: 12 }}>
+      <p className="no-print" style={{ fontSize: 11.5, color: "#374151", marginTop: 12 }}>
         📋 Clique num <b>Produto</b> ou <b>Serviço</b> pra editar, ou <b>➕ Novo item</b> pra cadastrar. Exames são editados na tela de Exames (têm laboratório).
       </p>
 

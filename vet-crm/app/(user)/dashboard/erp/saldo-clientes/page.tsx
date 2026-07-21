@@ -49,7 +49,7 @@ export default function SaldosPage() {
       <div style={{ width: '100%', padding: '20px 26px 60px', boxSizing: 'border-box' }}>
         <div className="no-print" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
           <div style={{ position: 'relative', flex: '1 1 260px', maxWidth: 360 }}>
-            <LuSearch size={15} style={{ position: 'absolute', left: 10, top: 10, color: '#8A989D' }} />
+            <LuSearch size={15} style={{ position: 'absolute', left: 10, top: 10, color: '#374151' }} />
             <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar cliente…" style={{ ...inp, width: '100%', paddingLeft: 32, boxSizing: 'border-box' }} />
           </div>
           <button onClick={() => setOcultar((v) => !v)} style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 500, padding: '9px 12px', borderRadius: 9, cursor: 'pointer', border: '1px solid #E8E2D6', background: '#fff', color: TEAL_DARK }}>
@@ -67,8 +67,8 @@ export default function SaldosPage() {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead><tr><th style={th}>Cliente</th><th style={{ ...th, textAlign: 'right' }}>Saldo</th></tr></thead>
               <tbody>
-                {loading && <tr><td colSpan={2} style={{ ...td, textAlign: 'center', color: '#8A989D', padding: 18 }}>Carregando…</td></tr>}
-                {!loading && filtradas.length === 0 && <tr><td colSpan={2} style={{ ...td, textAlign: 'center', color: '#8A989D', padding: 18 }}>Nenhum cliente com saldo.</td></tr>}
+                {loading && <tr><td colSpan={2} style={{ ...td, textAlign: 'center', color: '#374151', padding: 18 }}>Carregando…</td></tr>}
+                {!loading && filtradas.length === 0 && <tr><td colSpan={2} style={{ ...td, textAlign: 'center', color: '#374151', padding: 18 }}>Nenhum cliente com saldo.</td></tr>}
                 {filtradas.map((r) => (
                   <tr key={r.tutorId}>
                     <td style={{ ...td, color: '#1F2A2E' }}>{r.nome}</td>

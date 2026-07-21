@@ -418,16 +418,16 @@ export default function NovoAtendimentoPage() {
     } catch { toast.error("Erro ao preencher com a IA."); } finally { setIaLoading(false); }
   }
 
-  if (!pet) return <div className="p-10 text-center text-[#8A989D]">Carregando ficha de atendimento...</div>;
+  if (!pet) return <div className="p-10 text-center text-[#374151]">Carregando ficha de atendimento...</div>;
 
   const card = "bg-white border border-[#E8E2D6] rounded-[14px]";
   const inp = "w-full mt-0.5 px-3 py-2 border border-[#E8E2D6] rounded-[9px] text-[13px] text-[#1F2A2E] bg-white";
-  const lbl = "text-[10px] uppercase tracking-wide text-[#8A989D]";
+  const lbl = "text-[10px] uppercase tracking-wide text-[#374151]";
 
   return (
     <div className="p-4 min-h-screen bg-[#F6F2EA]">
       {/* Breadcrumb */}
-      <div className="text-[12px] text-[#8A989D] mb-2 px-1">
+      <div className="text-[12px] text-[#374151] mb-2 px-1">
         <Link href="/dashboard/erp/pets" className="hover:text-[#009AAC]">Pets</Link> / <Link href={`/dashboard/erp/pets/${pet.id}`} className="hover:text-[#009AAC]">{pet.name}</Link> / <b className="text-[#009AAC] font-medium">{editId ? "Editar atendimento" : "Novo atendimento"}</b>
       </div>
 
@@ -460,7 +460,7 @@ export default function NovoAtendimentoPage() {
             <div className="text-[13px] font-medium text-[#014D5E]">🎤 Gravar consulta</div>
             <button onClick={() => setShowRec(false)} className="text-[12px] text-[#5C6B70] hover:text-[#014D5E]">Recolher ✕</button>
           </div>
-          <div className="text-[11.5px] text-[#8A989D] mb-3">Fale naturalmente durante a consulta. Por LGPD, o áudio não é guardado — só a transcrição. Ao analisar, a ficha é preenchida sozinha e você revisa.</div>
+          <div className="text-[11.5px] text-[#374151] mb-3">Fale naturalmente durante a consulta. Por LGPD, o áudio não é guardado — só a transcrição. Ao analisar, a ficha é preenchida sozinha e você revisa.</div>
           <ConsultationRecorder
             appointmentId={editId}
             onAnalysisComplete={() => { preencherComIA(); }}
@@ -487,10 +487,10 @@ export default function NovoAtendimentoPage() {
             <div className="md:w-[200px]">
               <label className={lbl}>⚖️ Peso (kg)</label>
               <input type="number" step="0.01" value={form.peso} onChange={(e) => set("peso", e.target.value)} placeholder="Ex.: 6.25" className={inp} />
-              <p className="text-[11px] text-[#8A989D] mt-1">Grava no peso do pet e no histórico de pesagens.</p>
+              <p className="text-[11px] text-[#374151] mt-1">Grava no peso do pet e no histórico de pesagens.</p>
             </div>
             <div className="flex-1">
-              <div className="text-[11px] text-[#8A989D] mb-1">📈 Evolução do peso</div>
+              <div className="text-[11px] text-[#374151] mb-1">📈 Evolução do peso</div>
               {grafPeso ? (
                 <svg viewBox={`0 0 ${grafPeso.W} ${grafPeso.H}`} className="w-full" style={{ maxHeight: 80 }}>
                   <polyline fill="none" stroke="#009AAC" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" points={grafPeso.poly} />
@@ -498,7 +498,7 @@ export default function NovoAtendimentoPage() {
                     <g key={i}><circle cx={c.x} cy={c.y} r="2.5" fill="#014D5E" /><title>{`${c.kg} kg · ${new Date(c.data).toLocaleDateString("pt-BR")}`}</title></g>
                   ))}
                 </svg>
-              ) : <div className="text-[12px] text-[#8A989D] py-4">Sem pesagens registradas ainda. A primeira pesagem começa o gráfico.</div>}
+              ) : <div className="text-[12px] text-[#374151] py-4">Sem pesagens registradas ainda. A primeira pesagem começa o gráfico.</div>}
             </div>
           </div>
         </div>
@@ -536,10 +536,10 @@ export default function NovoAtendimentoPage() {
               <div>
                 <label className={lbl}>Prescrição atual (editável)</label>
                 <textarea rows={3} value={prescEdit} onChange={(e) => setPrescEdit(e.target.value)} className={inp} placeholder="Prescrição registrada neste atendimento" />
-                <p className="text-[11px] text-[#8A989D] mt-0.5">Edite o texto acima ou adicione medicamentos abaixo (os medicamentos, se houver, substituem o texto ao salvar).</p>
+                <p className="text-[11px] text-[#374151] mt-0.5">Edite o texto acima ou adicione medicamentos abaixo (os medicamentos, se houver, substituem o texto ao salvar).</p>
               </div>
             )}
-            {meds.length === 0 && <p className="text-[12px] text-[#8A989D]">Nenhum medicamento. Use "＋ adicionar medicamento" ou escolha um modelo.</p>}
+            {meds.length === 0 && <p className="text-[12px] text-[#374151]">Nenhum medicamento. Use "＋ adicionar medicamento" ou escolha um modelo.</p>}
             {meds.map((md, i) => (
               <div key={i} className="grid grid-cols-1 md:grid-cols-[1fr_1fr_150px_auto] gap-2 items-center">
                 <input value={md.nome} onChange={(e) => updMed(i, { nome: e.target.value })} placeholder="Medicamento" className="px-2 py-1.5 border border-[#E8E2D6] rounded-[9px] text-[13px]" />
@@ -565,7 +565,7 @@ export default function NovoAtendimentoPage() {
             <div className="mb-3">
               <label className={lbl}>Exames solicitados (editável)</label>
               <textarea rows={2} value={examesEdit} onChange={(e) => setExamesEdit(e.target.value)} className={inp} placeholder="Exames registrados neste atendimento" />
-              <p className="text-[11px] text-[#8A989D] mt-0.5">Edite o texto acima ou escolha exames nas caixas abaixo (a escolha, se houver, substitui o texto ao salvar).</p>
+              <p className="text-[11px] text-[#374151] mt-0.5">Edite o texto acima ou escolha exames nas caixas abaixo (a escolha, se houver, substitui o texto ao salvar).</p>
             </div>
           )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
@@ -575,20 +575,20 @@ export default function NovoAtendimentoPage() {
                 <h4 className="text-[12.5px] text-[#014D5E] font-medium">🏥 Fazemos na clínica</h4>
                 <button onClick={() => setPickClinica((v) => !v)} className="text-[11px] px-2 py-0.5 rounded-full border border-[#E8E2D6] text-[#009AAC]">＋ escolher ▾</button>
               </div>
-              <p className="text-[10.5px] text-[#8A989D] mb-2">Acompanhamos o resultado (entra no "Exames a entregar" do Hoje).</p>
+              <p className="text-[10.5px] text-[#374151] mb-2">Acompanhamos o resultado (entra no "Exames a entregar" do Hoje).</p>
               {pickClinica && (
                 <div className="mb-2 border border-[#F0EBE0] rounded-[9px] p-2 bg-[#FBF9F4]">
                   <input value={buscaC} onChange={(e) => setBuscaC(e.target.value)} placeholder="Buscar exame…" className="w-full mb-1 px-2 py-1 border border-[#E8E2D6] rounded text-[12px]" />
                   <div className="max-h-40 overflow-auto flex flex-col gap-0.5">
                     {catClinica.filter((e) => !buscaC || e.nome.toLowerCase().includes(buscaC.toLowerCase())).slice(0, 60).map((e) => (
-                      <button key={e.id} onClick={() => pickExameClinica(e)} className="text-left text-[12px] px-2 py-1 rounded hover:bg-white text-[#1F2A2E]">{e.nome}{e.fornecedor?.nome ? <span className="text-[#8A989D]"> · {e.fornecedor.nome}</span> : null}</button>
+                      <button key={e.id} onClick={() => pickExameClinica(e)} className="text-left text-[12px] px-2 py-1 rounded hover:bg-white text-[#1F2A2E]">{e.nome}{e.fornecedor?.nome ? <span className="text-[#374151]"> · {e.fornecedor.nome}</span> : null}</button>
                     ))}
-                    {catClinica.length === 0 && <span className="text-[11px] text-[#8A989D] px-2 py-1">Nada no catálogo. Cadastre em Configurações → Exames.</span>}
+                    {catClinica.length === 0 && <span className="text-[11px] text-[#374151] px-2 py-1">Nada no catálogo. Cadastre em Configurações → Exames.</span>}
                   </div>
                 </div>
               )}
               <div className="flex flex-col gap-1.5">
-                {exClinica.length === 0 && <span className="text-[11.5px] text-[#8A989D]">Nenhum exame da clínica.</span>}
+                {exClinica.length === 0 && <span className="text-[11.5px] text-[#374151]">Nenhum exame da clínica.</span>}
                 {exClinica.map((e, i) => (
                   <div key={i} className="bg-[#FBF9F4] border border-[#F0EBE0] rounded-[9px] px-2.5 py-1.5 flex items-center justify-between gap-2">
                     <span className="text-[12px] text-[#1F2A2E] truncate">{e.nome}</span>
@@ -608,20 +608,20 @@ export default function NovoAtendimentoPage() {
                 <h4 className="text-[12.5px] text-[#014D5E] font-medium">🔗 Solicitar (externo)</h4>
                 <button onClick={() => setPickExterno((v) => !v)} className="text-[11px] px-2 py-0.5 rounded-full border border-[#E8E2D6] text-[#009AAC]">＋ escolher ▾</button>
               </div>
-              <p className="text-[10.5px] text-[#8A989D] mb-2">Não acompanhamos — só entra na solicitação. {/* Fase B: exame externo → venda/caixa/terceiros entra depois */}</p>
+              <p className="text-[10.5px] text-[#374151] mb-2">Não acompanhamos — só entra na solicitação. {/* Fase B: exame externo → venda/caixa/terceiros entra depois */}</p>
               {pickExterno && (
                 <div className="mb-2 border border-[#F0EBE0] rounded-[9px] p-2 bg-[#FBF9F4]">
                   <input value={buscaE} onChange={(e) => setBuscaE(e.target.value)} placeholder="Buscar exame…" className="w-full mb-1 px-2 py-1 border border-[#E8E2D6] rounded text-[12px]" />
                   <div className="max-h-40 overflow-auto flex flex-col gap-0.5">
                     {catExterno.filter((e) => !buscaE || e.nome.toLowerCase().includes(buscaE.toLowerCase())).slice(0, 60).map((e) => (
-                      <button key={e.id} onClick={() => pickExameExterno(e)} className="text-left text-[12px] px-2 py-1 rounded hover:bg-white text-[#1F2A2E]">{e.nome}{e.fornecedor?.nome ? <span className="text-[#8A989D]"> · {e.fornecedor.nome}</span> : null}</button>
+                      <button key={e.id} onClick={() => pickExameExterno(e)} className="text-left text-[12px] px-2 py-1 rounded hover:bg-white text-[#1F2A2E]">{e.nome}{e.fornecedor?.nome ? <span className="text-[#374151]"> · {e.fornecedor.nome}</span> : null}</button>
                     ))}
-                    {catExterno.length === 0 && <span className="text-[11px] text-[#8A989D] px-2 py-1">Nada no catálogo. Cadastre em Configurações → Exames.</span>}
+                    {catExterno.length === 0 && <span className="text-[11px] text-[#374151] px-2 py-1">Nada no catálogo. Cadastre em Configurações → Exames.</span>}
                   </div>
                 </div>
               )}
               <div className="flex flex-col gap-1.5">
-                {exExterno.length === 0 && <span className="text-[11.5px] text-[#8A989D]">Nenhum exame externo.</span>}
+                {exExterno.length === 0 && <span className="text-[11.5px] text-[#374151]">Nenhum exame externo.</span>}
                 {exExterno.map((e, i) => (
                   <div key={i} className="bg-[#FBF9F4] border border-[#F0EBE0] rounded-[9px] px-2.5 py-1.5 flex items-center justify-between gap-2">
                     <span className="text-[12px] text-[#1F2A2E] truncate">{e.nome}</span>
@@ -640,7 +640,7 @@ export default function NovoAtendimentoPage() {
             <div><label className={lbl}>O que acompanhar</label><input value={form.followUpNotes} onChange={(e) => set("followUpNotes", e.target.value)} placeholder="Ex.: verificar se a coceira melhorou, se está tomando o remédio…" className={inp} /></div>
             <div><label className={lbl}>Data do follow-up</label><input type="date" value={form.followUpDate} onChange={(e) => set("followUpDate", e.target.value)} className={inp} /></div>
           </div>
-          <p className="text-[11px] text-[#8A989D] mt-1.5">Grava no follow-up do pet (aparece na Visão geral e no Hoje).</p>
+          <p className="text-[11px] text-[#374151] mt-1.5">Grava no follow-up do pet (aparece na Visão geral e no Hoje).</p>
         </div>
       </div>
 
@@ -655,9 +655,9 @@ export default function NovoAtendimentoPage() {
 
           {subVenda === "VENDA" ? (
             <>
-              <div className="text-[10px] uppercase tracking-wide text-[#8A989D] mb-1">Itens deste atendimento</div>
+              <div className="text-[10px] uppercase tracking-wide text-[#374151] mb-1">Itens deste atendimento</div>
               <div className="flex flex-col gap-1.5">
-                {itens.length === 0 && <p className="text-[12px] text-[#8A989D] py-1">Nenhum item lançado.</p>}
+                {itens.length === 0 && <p className="text-[12px] text-[#374151] py-1">Nenhum item lançado.</p>}
                 {itens.map((it, i) => (
                   <div key={i} className="border border-[#F0EBE0] rounded-[10px] p-2 bg-[#FBF9F4]">
                     <div className="flex items-center gap-1.5 mb-1">
@@ -665,9 +665,9 @@ export default function NovoAtendimentoPage() {
                       <button onClick={() => rmItem(i)} title="Remover" className="text-[#b23b39] text-[13px] shrink-0">✕</button>
                     </div>
                     <div className="grid grid-cols-3 gap-1.5">
-                      <div><label className="text-[9px] uppercase text-[#8A989D]">Qtd</label><input type="number" min="1" value={it.quantidade} onChange={(e) => updItem(i, { quantidade: e.target.value })} className="w-full px-1.5 py-1 border border-[#E8E2D6] rounded text-[12px] bg-white" /></div>
-                      <div><label className="text-[9px] uppercase text-[#8A989D]">Valor</label><input type="number" step="0.01" value={it.valorUnitario} onChange={(e) => updItem(i, { valorUnitario: e.target.value })} className="w-full px-1.5 py-1 border border-[#E8E2D6] rounded text-[12px] bg-white" /></div>
-                      <div><label className="text-[9px] uppercase text-[#8A989D]">Total</label><div className="px-1.5 py-1 text-[12px] text-[#014D5E] font-medium tabular-nums">{((Number(it.quantidade) || 0) * (Number(it.valorUnitario) || 0)).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</div></div>
+                      <div><label className="text-[9px] uppercase text-[#374151]">Qtd</label><input type="number" min="1" value={it.quantidade} onChange={(e) => updItem(i, { quantidade: e.target.value })} className="w-full px-1.5 py-1 border border-[#E8E2D6] rounded text-[12px] bg-white" /></div>
+                      <div><label className="text-[9px] uppercase text-[#374151]">Valor</label><input type="number" step="0.01" value={it.valorUnitario} onChange={(e) => updItem(i, { valorUnitario: e.target.value })} className="w-full px-1.5 py-1 border border-[#E8E2D6] rounded text-[12px] bg-white" /></div>
+                      <div><label className="text-[9px] uppercase text-[#374151]">Total</label><div className="px-1.5 py-1 text-[12px] text-[#014D5E] font-medium tabular-nums">{((Number(it.quantidade) || 0) * (Number(it.valorUnitario) || 0)).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</div></div>
                     </div>
                   </div>
                 ))}
@@ -683,13 +683,13 @@ export default function NovoAtendimentoPage() {
               {itens.some((i) => i.descricao || i.servicoId) && (
                 <button onClick={receberNoCaixa} disabled={saving} className="w-full mt-2.5 px-3 py-2 rounded-[10px] text-[13px] font-semibold text-white disabled:opacity-60 flex items-center justify-center gap-1.5" style={{ background: "#0F6E56" }}>💰 Receber no Caixa</button>
               )}
-              <p className="text-[10.5px] text-[#8A989D] mt-2">Salva o atendimento e abre esta venda no Caixa pra registrar o pagamento (Dinheiro / Pix / Cartão).</p>
+              <p className="text-[10.5px] text-[#374151] mt-2">Salva o atendimento e abre esta venda no Caixa pra registrar o pagamento (Dinheiro / Pix / Cartão).</p>
             </>
           ) : (
             <>
-              <div className="text-[10px] uppercase tracking-wide text-[#8A989D] mb-1">Orçamentos do pet</div>
+              <div className="text-[10px] uppercase tracking-wide text-[#374151] mb-1">Orçamentos do pet</div>
               {orcs.length === 0 ? (
-                <p className="text-[12px] text-[#8A989D] py-1">Nenhum orçamento. Orçamentos ficam na ficha do pet; aqui você lança a venda direta.</p>
+                <p className="text-[12px] text-[#374151] py-1">Nenhum orçamento. Orçamentos ficam na ficha do pet; aqui você lança a venda direta.</p>
               ) : (
                 <div className="flex flex-col gap-1.5">
                   {orcs.map((o: any) => (
@@ -711,7 +711,7 @@ export default function NovoAtendimentoPage() {
             <span className="bg-[#FBF3E3] text-[#8a6400] text-[10px] px-2 py-0.5 rounded-full">Em construção</span>
           </div>
           <div className="text-[18px] text-[#014D5E] font-medium mt-1">R$ 0,00</div>
-          <p className="text-[11px] text-[#8A989D] mt-1">Saldo a favor deste pet — transferível entre pets do mesmo tutor. Chega com o módulo Caixa (Fase B).</p>
+          <p className="text-[11px] text-[#374151] mt-1">Saldo a favor deste pet — transferível entre pets do mesmo tutor. Chega com o módulo Caixa (Fase B).</p>
         </div>
 
         {/* 📦 Pacotes em andamento */}
@@ -728,14 +728,14 @@ export default function NovoAtendimentoPage() {
               </select>
               {!pacForm.serviceId && <input value={pacForm.nome} onChange={(e) => setPacForm((f) => ({ ...f, nome: e.target.value }))} placeholder="Nome do pacote" className="px-2 py-1 border border-[#E8E2D6] rounded text-[12px] bg-white" />}
               <div className="grid grid-cols-2 gap-1.5">
-                <div><label className="text-[9px] uppercase text-[#8A989D]">Total sessões</label><input type="number" min="1" value={pacForm.total} onChange={(e) => setPacForm((f) => ({ ...f, total: e.target.value }))} className="w-full px-2 py-1 border border-[#E8E2D6] rounded text-[12px] bg-white" /></div>
-                <div><label className="text-[9px] uppercase text-[#8A989D]">Já feitas</label><input type="number" min="0" value={pacForm.jaFeitas} onChange={(e) => setPacForm((f) => ({ ...f, jaFeitas: e.target.value }))} className="w-full px-2 py-1 border border-[#E8E2D6] rounded text-[12px] bg-white" /></div>
+                <div><label className="text-[9px] uppercase text-[#374151]">Total sessões</label><input type="number" min="1" value={pacForm.total} onChange={(e) => setPacForm((f) => ({ ...f, total: e.target.value }))} className="w-full px-2 py-1 border border-[#E8E2D6] rounded text-[12px] bg-white" /></div>
+                <div><label className="text-[9px] uppercase text-[#374151]">Já feitas</label><input type="number" min="0" value={pacForm.jaFeitas} onChange={(e) => setPacForm((f) => ({ ...f, jaFeitas: e.target.value }))} className="w-full px-2 py-1 border border-[#E8E2D6] rounded text-[12px] bg-white" /></div>
               </div>
               <button onClick={addPacote} disabled={savingPac} className="self-end px-3 py-1 rounded text-[12px] text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingPac ? "..." : "Lançar"}</button>
             </div>
           )}
           {pacotes.length === 0 ? (
-            <p className="text-[12px] text-[#8A989D]">Nenhum pacote em andamento.</p>
+            <p className="text-[12px] text-[#374151]">Nenhum pacote em andamento.</p>
           ) : (
             <div className="flex flex-col gap-1.5">
               {pacotes.map((p) => { const used = p.data.used || 0, total = p.data.total || 0; return (
@@ -746,7 +746,7 @@ export default function NovoAtendimentoPage() {
               ); })}
             </div>
           )}
-          <p className="text-[10.5px] text-[#8A989D] mt-2">O progresso (patinhas) aparece na Visão geral do pet.</p>
+          <p className="text-[10.5px] text-[#374151] mt-2">O progresso (patinhas) aparece na Visão geral do pet.</p>
         </div>
       </div>
       </div>

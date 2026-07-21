@@ -163,7 +163,7 @@ export default function PacotesPage() {
             <div className="no-print" style={cardStyle}>
               {cardH(<LuSettings size={15} />, 'Ações')}
               <button onClick={() => setNovoOpen(true)} style={{ width: '100%', background: TEAL, color: '#fff', border: 'none', fontSize: 12.5, fontWeight: 500, padding: '9px', borderRadius: 9, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><LuPlus size={14} /> Novo pacote</button>
-              <p style={{ fontSize: 11, color: '#8A989D', margin: '9px 0 0' }}>A baixa de sessões também é feita ao confirmar o comparecimento do agendamento.</p>
+              <p style={{ fontSize: 11, color: '#374151', margin: '9px 0 0' }}>A baixa de sessões também é feita ao confirmar o comparecimento do agendamento.</p>
             </div>
           </div>
 
@@ -174,7 +174,7 @@ export default function PacotesPage() {
             </div>
             <div style={{ background: '#fff', border: `1px solid ${LINE}`, borderTop: 'none', borderRadius: '0 0 11px 11px', padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
               {loading && <p style={{ color: '#5C6B70' }}>Carregando…</p>}
-              {!loading && lista.length === 0 && <p style={{ color: '#8A989D', textAlign: 'center', padding: 18 }}>Nenhum pacote nesta aba.</p>}
+              {!loading && lista.length === 0 && <p style={{ color: '#374151', textAlign: 'center', padding: 18 }}>Nenhum pacote nesta aba.</p>}
               {lista.map((p) => {
                 const st = statusInfo[p.status] || statusInfo.ATIVO;
                 const restantes = Math.max(0, p.totalSessoes - p.sessoesUsadas);
@@ -251,7 +251,7 @@ function Modal({ title, children, onClose, onConfirm, confirmLabel }: { title: s
       <div style={{ background: '#fff', borderRadius: 14, width: '100%', maxWidth: 430, maxHeight: '92vh', overflow: 'auto' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '15px 18px', borderBottom: '1px solid #F0EBE0' }}>
           <h3 style={{ fontSize: 16, fontWeight: 600, margin: 0, color: '#1F2A2E' }}>{title}</h3>
-          <button onClick={onClose} style={{ border: 'none', background: 'none', cursor: 'pointer' }}><LuX size={18} color="#8A989D" /></button>
+          <button onClick={onClose} style={{ border: 'none', background: 'none', cursor: 'pointer' }}><LuX size={18} color="#374151" /></button>
         </div>
         <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 13 }}>{children}</div>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, padding: '15px 18px', borderTop: '1px solid #F0EBE0' }}>

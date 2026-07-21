@@ -27,7 +27,7 @@ export const B44 = {
   // texto
   text1: "#1F2A2E",       // corpo
   text2: "#5C6B70",       // secundário
-  text3: "#8A989D",       // dica / rótulo / placeholder
+  text3: "#374151",       // dica / rótulo / placeholder
   // linhas
   line: "#E8E2D6",        // borda padrão do cartão
   lineSoft: "#F0EBE0",    // divisória interna

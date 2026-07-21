@@ -177,8 +177,8 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
     } catch (e: any) { toast.error("Erro ao converter: " + e.message); } finally { setConverting(false); }
   };
 
-  if (loading) return <div className="p-6 text-center text-[#8A989D]">Carregando...</div>;
-  if (!lead) return <div className="p-6 text-center text-[#8A989D]">Lead não encontrado</div>;
+  if (loading) return <div className="p-6 text-center text-[#374151]">Carregando...</div>;
+  if (!lead) return <div className="p-6 text-center text-[#374151]">Lead não encontrado</div>;
 
   const temp = getTemp(lead.currentScore || 0);
   const answered = Object.values(qual).filter((v) => v.trim().length > 0).length;
@@ -195,7 +195,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
       <Toaster position="top-right" />
 
       {/* Breadcrumb */}
-      <div className="text-[12px] text-[#8A989D] mb-2">
+      <div className="text-[12px] text-[#374151] mb-2">
         <Link href="/dashboard/crm/leads" className="hover:text-[#009AAC]">Leads</Link> / <span className="text-[#014D5E]">{lead.name || "Sem nome"}</span>
       </div>
 
@@ -257,11 +257,11 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
       <div className="bg-[#FBF6EC] rounded-xl border border-[#ECE2CE] p-4 mb-3">
         <div className="grid grid-cols-3 gap-5 items-start">
           <div>
-            <div className="text-[10px] text-[#8A989D] tracking-wide font-medium mb-1">RESUMO DA CONVERSA</div>
-            <div className="text-[11px] text-[#1F2A2E]"><strong className="font-medium">Qualificação:</strong> <span className="italic text-[#8A989D]">{answered}/5 respondidas</span></div>
+            <div className="text-[10px] text-[#374151] tracking-wide font-medium mb-1">RESUMO DA CONVERSA</div>
+            <div className="text-[11px] text-[#1F2A2E]"><strong className="font-medium">Qualificação:</strong> <span className="italic text-[#374151]">{answered}/5 respondidas</span></div>
           </div>
           <div>
-            <div className="text-[10px] text-[#8A989D] tracking-wide font-medium mb-1">SCORE DE QUALIFICAÇÃO</div>
+            <div className="text-[10px] text-[#374151] tracking-wide font-medium mb-1">SCORE DE QUALIFICAÇÃO</div>
             <div className="flex items-center gap-2">
               <div className="flex-1 h-1.5 bg-[#EAE3D4] rounded-full">
                 <div style={{ width: `${lead.currentScore || 0}%`, background: temp.color }} className="h-full rounded-full" />
@@ -270,7 +270,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
             </div>
           </div>
           <div>
-            <div className="text-[10px] text-[#8A989D] tracking-wide font-medium mb-1">ÚLTIMAS INTERAÇÕES</div>
+            <div className="text-[10px] text-[#374151] tracking-wide font-medium mb-1">ÚLTIMAS INTERAÇÕES</div>
             <div className="text-[11px] text-[#5C6B70]">{customFields.resumoIA || lead.notes || "Sem registro"}</div>
           </div>
         </div>
@@ -282,13 +282,13 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
           <h3 className={h3Cls}>🔥 Score</h3>
           <div className="flex items-baseline gap-1 mb-1 mt-2">
             <span style={{ color: temp.color }} className="text-3xl font-medium">{lead.currentScore || 0}</span>
-            <span className="text-[10px] text-[#8A989D]">/100</span>
+            <span className="text-[10px] text-[#374151]">/100</span>
           </div>
           <span style={{ color: temp.color }} className="text-[10px] font-medium inline-flex items-center gap-1">{temp.icon} {temp.label}</span>
           <div className="relative h-1.5 bg-[#EAE3D4] rounded-full mt-2 mb-1">
             <div style={{ width: `${lead.currentScore || 0}%`, background: temp.color }} className="absolute left-0 top-0 bottom-0 rounded-full" />
           </div>
-          <div className="flex justify-between text-[9px] text-[#8A989D]">
+          <div className="flex justify-between text-[9px] text-[#374151]">
             <span>🧊</span><span>☕</span><span>🔥</span>
           </div>
         </div>
@@ -301,14 +301,14 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
             {lead.pipelineComercialEtapa && !stages.includes(lead.pipelineComercialEtapa) && <option value={lead.pipelineComercialEtapa}>{lead.pipelineComercialEtapa}</option>}
             {stages.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
-          <p className="text-[9px] text-[#8A989D]">"Compareceu" vira cliente</p>
+          <p className="text-[9px] text-[#374151]">"Compareceu" vira cliente</p>
           <div className="mt-2.5 pt-2.5 border-t border-[#F0EBE0]">
             <label className="text-[10px] text-[#5C6B70] font-medium">Motivo da perda</label>
             <select value={motivoPerda} onChange={(e) => saveMotivo(e.target.value)} className="w-full mt-1 border border-[#E8E2D6] rounded px-2 py-1 text-[11px] text-[#014D5E] bg-white focus:outline-none">
               <option value="">— sem motivo —</option>
               {MOTIVOS_PERDA.map((m) => <option key={m} value={m}>{m}</option>)}
             </select>
-            <p className="text-[9px] text-[#8A989D] mt-1">Preencha quando o lead for perdido (alimenta a dashboard)</p>
+            <p className="text-[9px] text-[#374151] mt-1">Preencha quando o lead for perdido (alimenta a dashboard)</p>
           </div>
         </div>
 
@@ -322,21 +322,21 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
               <div key={i} className="aspect-square bg-[#F0EBE0] rounded flex items-center justify-center opacity-40">🔒</div>
             ))}
           </div>
-          <p className="text-[9px] text-[#8A989D] mt-2">3 de 8 desbloqueadas</p>
+          <p className="text-[9px] text-[#374151] mt-2">3 de 8 desbloqueadas</p>
         </div>
 
         <div className={cardCls}>
           <h3 className={h3Cls}>🏷️ Etiquetas</h3>
           <div className="flex flex-wrap gap-1 items-center mt-2">
-            {leadTags.length === 0 && <span className="text-[10px] text-[#8A989D]">Sem etiquetas</span>}
+            {leadTags.length === 0 && <span className="text-[10px] text-[#374151]">Sem etiquetas</span>}
             {leadTags.map((t) => { const tpl = tagTpls.find((x: any) => x.texto === t.texto); const cor = tpl?.cor || "#009AAC"; return (
               <span key={t.id} className="text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1" style={{ background: cor + "22", color: cor }}>● {t.texto}<button onClick={() => delTagLead(t.id)} className="font-bold hover:opacity-60">×</button></span>
             ); })}
-            <button onClick={() => setTagPicker(v => !v)} className="border border-dashed border-[#E8E2D6] text-[#8A989D] text-[10px] px-2 py-0.5 rounded-full">+ tag</button>
+            <button onClick={() => setTagPicker(v => !v)} className="border border-dashed border-[#E8E2D6] text-[#374151] text-[10px] px-2 py-0.5 rounded-full">+ tag</button>
           </div>
           {tagPicker && (
             <div className="mt-2 pt-2 border-t border-[#F0EBE0] flex flex-wrap gap-1">
-              {tagTpls.filter((t: any) => !leadTags.some(p => p.texto === t.texto)).length === 0 ? <p className="text-[10px] text-[#8A989D]">Nenhuma etiqueta de Lead. Cadastre em Configurações.</p> :
+              {tagTpls.filter((t: any) => !leadTags.some(p => p.texto === t.texto)).length === 0 ? <p className="text-[10px] text-[#374151]">Nenhuma etiqueta de Lead. Cadastre em Configurações.</p> :
                 tagTpls.filter((t: any) => !leadTags.some(p => p.texto === t.texto)).map((t: any) => (<button key={t.texto} disabled={savingTag} onClick={() => addTagLead(t.texto)} className="text-[10px] px-2 py-0.5 rounded-full border disabled:opacity-50" style={{ borderColor: (t.cor || "#009AAC") + "66", color: t.cor || "#009AAC" }}>+ {t.texto}</button>))}
             </div>
           )}
@@ -355,7 +355,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
           </div>
           <div className="mt-3 pt-3 border-t border-[#F0EBE0]">
             <div className="flex items-center justify-between mb-2">
-              <h3 className="text-[11px] text-[#014D5E] tracking-wide font-medium flex items-center gap-1.5">✅ Qualificação <span className="text-[#8A989D]">· {answered}/5</span></h3>
+              <h3 className="text-[11px] text-[#014D5E] tracking-wide font-medium flex items-center gap-1.5">✅ Qualificação <span className="text-[#374151]">· {answered}/5</span></h3>
               <button onClick={saveQualification} className="bg-[#009AAC] text-white px-3 py-1 rounded-lg text-[10px] font-medium">Salvar</button>
             </div>
             <div className="space-y-2">
@@ -376,26 +376,26 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
               <span className="text-[11px] text-[#1F2A2E]">{new Date(lead.proximoFollowupAt).toLocaleDateString("pt-BR")}</span>
               <button onClick={clearFu} className="text-[10px] text-[#A32D2D]">Remover</button>
             </div>
-          ) : <p className="text-[11px] text-[#8A989D] mb-1.5">Sem follow-up agendado</p>}
+          ) : <p className="text-[11px] text-[#374151] mb-1.5">Sem follow-up agendado</p>}
           <div className="flex gap-1">
             <input type="date" value={fuDate} onChange={(e) => setFuDate(e.target.value)} className="flex-1 min-w-0 border border-[#E8E2D6] rounded px-1.5 py-1 text-[10px]" />
             <button onClick={saveFu} disabled={savingFu} className="bg-[#009AAC] text-white px-2 py-1 rounded text-[10px] disabled:opacity-50">{savingFu ? "..." : "Agendar"}</button>
           </div>
           </div>
           <div className="mt-3 pt-3 border-t border-[#F0EBE0]">
-            <h4 className="text-[11px] font-medium text-[#014D5E] flex items-center gap-1.5 mb-2">💬 Histórico de interações <span className="text-[10px] text-[#8A989D]">({leadInteracoes.length})</span></h4>
+            <h4 className="text-[11px] font-medium text-[#014D5E] flex items-center gap-1.5 mb-2">💬 Histórico de interações <span className="text-[10px] text-[#374151]">({leadInteracoes.length})</span></h4>
             <div className="flex gap-1.5 mb-2">
               <select value={intTipo} onChange={(e) => setIntTipo(e.target.value)} className="border border-[#E8E2D6] rounded px-1.5 py-1 text-[11px]"><option value="NOTA">Nota</option><option value="LIGACAO">Ligação</option><option value="WHATSAPP_ENVIADO">WhatsApp</option><option value="PRESENCIAL">Presencial</option></select>
               <input value={intTexto} onChange={(e) => setIntTexto(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addLeadInteracao(); }} placeholder="Registrar..." className="flex-1 min-w-0 border border-[#E8E2D6] rounded px-2 py-1 text-[11px]" />
               <button onClick={addLeadInteracao} disabled={savingInt} className="bg-[#009AAC] text-white px-2.5 py-1 rounded text-[11px] font-medium disabled:opacity-50">{savingInt ? "..." : "+"}</button>
             </div>
-            {leadInteracoes.length === 0 ? <p className="text-center text-[11px] text-[#8A989D] py-2">Nenhuma interação ainda</p> : (
+            {leadInteracoes.length === 0 ? <p className="text-center text-[11px] text-[#374151] py-2">Nenhuma interação ainda</p> : (
               <div className="flex flex-col gap-1.5 max-h-60 overflow-auto">
                 {leadInteracoes.map((it: any) => (
                   <div key={it.id} className="bg-[#FBF9F4] rounded px-2.5 py-1.5">
-                    <div className="flex items-center justify-between"><span className="text-[10px] font-medium text-[#00798A]">{it.tipo}{it.canal ? ` · ${it.canal}` : ""}</span><span className="text-[10px] text-[#8A989D]">{new Date(it.createdAt).toLocaleDateString("pt-BR")}</span></div>
+                    <div className="flex items-center justify-between"><span className="text-[10px] font-medium text-[#00798A]">{it.tipo}{it.canal ? ` · ${it.canal}` : ""}</span><span className="text-[10px] text-[#374151]">{new Date(it.createdAt).toLocaleDateString("pt-BR")}</span></div>
                     <p className="text-[11px] text-[#1F2A2E] mt-0.5">{it.texto}</p>
-                    {it.autor?.name && <p className="text-[10px] text-[#8A989D] mt-0.5">por {it.autor.name}</p>}
+                    {it.autor?.name && <p className="text-[10px] text-[#374151] mt-0.5">por {it.autor.name}</p>}
                   </div>
                 ))}
               </div>

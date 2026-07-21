@@ -89,7 +89,7 @@ export default function AnaliseComercial() {
   // Role gate: só Admin e Recepção veem análise comercial
   if (effectiveRole === "VETERINARIAN") return null;
 
-  if (loading) return <div className="mt-4 text-sm text-[#8A989D]">Carregando análise comercial...</div>;
+  if (loading) return <div className="mt-4 text-sm text-[#374151]">Carregando análise comercial...</div>;
 
   return (
     <div className="mt-4 flex flex-col gap-3">
@@ -117,7 +117,7 @@ export default function AnaliseComercial() {
       <div className="bg-white border border-[#E8E2D6] rounded-xl p-4">
         <div className="text-[14px] font-medium mb-3 flex items-center gap-2 text-[#014D5E]">🎯 Funil comercial — {period === "tudo" ? "todos" : "no período"}</div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2.5">
-          {estagios.length === 0 ? <div className="text-sm text-[#8A989D]">Nenhuma etapa no pipeline de leads.</div>
+          {estagios.length === 0 ? <div className="text-sm text-[#374151]">Nenhuma etapa no pipeline de leads.</div>
             : estagios.map(e => <Bar key={e} label={e} val={funil.c[e] || 0} max={funil.max} color={TURQ} bg="#E1F5EE" />)}
         </div>
       </div>
@@ -128,24 +128,24 @@ export default function AnaliseComercial() {
           <polyline fill="none" stroke={TURQ} strokeWidth="2.5" points={tendencia.months.map((m, i) => `${(i / 11) * 600},${85 - (m.leads / tendencia.max) * 78}`).join(" ")} />
           <polyline fill="none" stroke="#D4537E" strokeWidth="2" points={tendencia.months.map((m, i) => `${(i / 11) * 600},${85 - (m.conv / tendencia.max) * 78}`).join(" ")} />
         </svg>
-        <div className="flex justify-between text-[10px] text-[#8A989D] mt-1">{tendencia.months.map((m, i) => <span key={i}>{m.label}</span>)}</div>
+        <div className="flex justify-between text-[10px] text-[#374151] mt-1">{tendencia.months.map((m, i) => <span key={i}>{m.label}</span>)}</div>
         <div className="text-[11px] text-[#5C6B70] mt-1 flex gap-3"><span style={{ color: TURQ }}>● Leads</span><span style={{ color: "#D4537E" }}>● Convertidos</span></div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <div className="bg-white border border-[#E8E2D6] rounded-xl p-4">
           <div className="text-[14px] font-medium mb-3 text-[#014D5E]">📡 Leads por canal</div>
-          <div className="flex flex-col gap-2">{porCanal.length === 0 ? <div className="text-[13px] text-[#8A989D]">Sem dados no período.</div> : porCanal.map(([k, v]) => <Bar key={k} label={k} val={v} max={Math.max(1, ...porCanal.map(x => x[1]))} color={TURQ} bg="#E1F5EE" />)}</div>
+          <div className="flex flex-col gap-2">{porCanal.length === 0 ? <div className="text-[13px] text-[#374151]">Sem dados no período.</div> : porCanal.map(([k, v]) => <Bar key={k} label={k} val={v} max={Math.max(1, ...porCanal.map(x => x[1]))} color={TURQ} bg="#E1F5EE" />)}</div>
         </div>
         <div className="bg-white border border-[#E8E2D6] rounded-xl p-4">
           <div className="text-[14px] font-medium mb-3 text-[#014D5E]">🧭 Leads por origem / campanha</div>
-          <div className="flex flex-col gap-2">{porOrigem.length === 0 ? <div className="text-[13px] text-[#8A989D]">Sem dados no período.</div> : porOrigem.map(([k, v]) => <Bar key={k} label={k} val={v} max={Math.max(1, ...porOrigem.map(x => x[1]))} color="#185FA5" bg="#E6F1FB" />)}</div>
+          <div className="flex flex-col gap-2">{porOrigem.length === 0 ? <div className="text-[13px] text-[#374151]">Sem dados no período.</div> : porOrigem.map(([k, v]) => <Bar key={k} label={k} val={v} max={Math.max(1, ...porOrigem.map(x => x[1]))} color="#185FA5" bg="#E6F1FB" />)}</div>
         </div>
       </div>
 
       <div className="bg-white border border-[#E8E2D6] rounded-xl p-4">
         <div className="text-[14px] font-medium mb-3 flex items-center gap-2 text-[#014D5E]">❌ Top motivos de perda</div>
-        <div className="flex flex-col gap-2">{motivos.length === 0 ? <div className="text-[13px] text-[#8A989D]">Sem motivos registrados ainda. Preencha na ficha do lead perdido.</div> : motivos.map(([k, v]) => <Bar key={k} label={k} val={v} max={Math.max(1, ...motivos.map(x => x[1]))} color="#E24B4A" bg="#FCEBEB" />)}</div>
+        <div className="flex flex-col gap-2">{motivos.length === 0 ? <div className="text-[13px] text-[#374151]">Sem motivos registrados ainda. Preencha na ficha do lead perdido.</div> : motivos.map(([k, v]) => <Bar key={k} label={k} val={v} max={Math.max(1, ...motivos.map(x => x[1]))} color="#E24B4A" bg="#FCEBEB" />)}</div>
       </div>
     </div>
   );

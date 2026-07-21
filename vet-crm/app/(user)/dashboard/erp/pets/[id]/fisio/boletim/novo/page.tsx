@@ -142,16 +142,16 @@ export default function BoletimFisioPage() {
     w.document.close(); w.focus(); setTimeout(() => w.print(), 300);
   }
 
-  if (!pet) return <div className="p-10 text-center text-[#8A989D]">Carregando boletim...</div>;
+  if (!pet) return <div className="p-10 text-center text-[#374151]">Carregando boletim...</div>;
 
   const card = "bg-white border border-[#E8E2D6] rounded-[14px]";
   const inp = "w-full mt-0.5 px-3 py-2 border border-[#E8E2D6] rounded-[9px] text-[13px] text-[#1F2A2E] bg-white";
-  const lbl = "text-[10px] uppercase tracking-wide text-[#8A989D]";
+  const lbl = "text-[10px] uppercase tracking-wide text-[#374151]";
   const sec = "text-[12px] font-medium uppercase tracking-wide text-[#014D5E] mb-2";
 
   return (
     <div className="p-4 min-h-screen bg-[#F6F2EA]">
-      <div className="text-[12px] text-[#8A989D] mb-2 px-1">
+      <div className="text-[12px] text-[#374151] mb-2 px-1">
         <Link href="/dashboard/erp/pets" className="hover:text-[#009AAC]">Pets</Link> / <Link href={`/dashboard/erp/pets/${pet.id}`} className="hover:text-[#009AAC]">{pet.name}</Link> / <b className="text-[#009AAC] font-medium">{boletimId ? "Editar boletim" : "Novo boletim"}</b>
       </div>
 
@@ -201,7 +201,7 @@ export default function BoletimFisioPage() {
           {/* EQUIPAMENTOS */}
           <div className={card} style={{ padding: "13px 16px" }}>
             <div className={sec}>⚙️ Equipamentos / recursos</div>
-            <p className="text-[11px] text-[#8A989D] mb-2">Preencha só os usados — o texto do boletim mostra apenas os preenchidos.</p>
+            <p className="text-[11px] text-[#374151] mb-2">Preencha só os usados — o texto do boletim mostra apenas os preenchidos.</p>
             <EquipamentosFisioEditor equipamentos={b.equipamentos || {}} onChange={setEqObj} />
           </div>
 

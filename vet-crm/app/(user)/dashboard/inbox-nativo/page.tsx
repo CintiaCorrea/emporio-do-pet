@@ -417,7 +417,7 @@ export default function InboxUnificadoPage() {
     setMessages([]); // troca de conversa: limpa pra não mostrar msg da conversa anterior
     const carregar = async () => {
       try {
-        const res = await fetch(`/api/whatsapp/conversations/${selectedId}/messages?limit=30`);
+        const res = await fetch(`/api/whatsapp/conversations/${selectedId}/messages?limit=200`);
         // Tropeço não apaga as mensagens já na tela — mantém a conversa visível.
         if (!res.ok) return;
         const data = await res.json().catch(() => ({}));
@@ -585,7 +585,7 @@ export default function InboxUnificadoPage() {
           method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: meId }),
         }).catch(() => { /* assumir é best-effort; não trava o envio */ });
       }
-      const res = await fetch(`/api/whatsapp/conversations/${selectedId}/messages?limit=30`);
+      const res = await fetch(`/api/whatsapp/conversations/${selectedId}/messages?limit=200`);
       const data = await res.json().catch(() => ({}));
       const list = Array.isArray(data?.data) ? data.data
                   : Array.isArray(data?.messages) ? data.messages : [];
@@ -1503,7 +1503,7 @@ export default function InboxUnificadoPage() {
                     {c.msgs.map((m: any) => (
                       <div key={m.id} className={`max-w-[75%] ${m.mine ? "self-end" : "self-start"}`}>
                         <div className={`px-3 py-2 rounded-xl text-sm whitespace-pre-wrap ${m.mine ? "bg-[#009AAC] text-white rounded-br-sm" : "bg-[#F1EFE8] text-[#0E2244] rounded-bl-sm"}`}>{m.content}{m.attachmentUrl && (<a href={m.attachmentUrl} target="_blank" rel="noopener noreferrer" className={`mt-1 flex items-center gap-1 text-[12px] underline ${m.mine ? "text-white" : "text-[#0C447C]"}`}>📎 {m.attachmentName || "documento"}</a>)}</div>
-                        <div className={`text-[9.5px] text-[#8A989D] mt-0.5 flex items-center gap-1.5 ${m.mine ? "justify-end" : ""}`}>
+                        <div className={`text-[9.5px] text-[#374151] mt-0.5 flex items-center gap-1.5 ${m.mine ? "justify-end" : ""}`}>
                           <span>{(() => { try { return new Date(m.createdAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }); } catch { return ""; } })()}</span>
                           {String(m.id || "").indexOf("local_") !== 0 && <button onClick={() => excluirNotaInterna(m.id)} title="Excluir" className="text-[#B4B2A9] hover:text-[#A32D2D]"><LuTrash className="w-2.5 h-2.5" /></button>}
                         </div>

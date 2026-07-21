@@ -13,7 +13,7 @@ const TEAL = '#009AAC';
 const GREEN = '#0F6E56';
 const CORAL = '#D85A30';
 const GREY = '#5C6B70';
-const GREY2 = '#8A989D';
+const GREY2 = '#374151';
 
 /* ---------------- tipos ---------------- */
 interface Item {

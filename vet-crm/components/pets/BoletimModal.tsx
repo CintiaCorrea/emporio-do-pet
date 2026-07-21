@@ -169,7 +169,7 @@ export default function BoletimModal({ pet, boletimId, fisioRec, agenda, onClose
   }
 
   const inp = "w-full mt-0.5 px-3 py-2 border border-[#E8E2D6] rounded-[9px] text-[13px] text-[#1F2A2E] bg-white";
-  const lbl = "text-[10px] uppercase tracking-wide text-[#8A989D]";
+  const lbl = "text-[10px] uppercase tracking-wide text-[#374151]";
   const sec = "text-[12px] font-medium uppercase tracking-wide text-[#014D5E] mb-2";
 
   return (
@@ -232,7 +232,7 @@ export default function BoletimModal({ pet, boletimId, fisioRec, agenda, onClose
               {/* EQUIPAMENTOS */}
               <div className="bg-white border border-[#E8E2D6] rounded-[13px]" style={{ padding: "12px 14px" }}>
                 <div className={sec}>⚙️ Equipamentos / recursos</div>
-                <p className="text-[11px] text-[#8A989D] mb-2">Marque só os usados. <b>Fr</b> frequência · <b>Int</b> intensidade · <b>T</b> tempo · <b>Pro</b> programa/protocolo · <b>Loc</b> local · <b>Vel</b> velocidade · <b>Reg</b> região</p>
+                <p className="text-[11px] text-[#374151] mb-2">Marque só os usados. <b>Fr</b> frequência · <b>Int</b> intensidade · <b>T</b> tempo · <b>Pro</b> programa/protocolo · <b>Loc</b> local · <b>Vel</b> velocidade · <b>Reg</b> região</p>
                 <EquipamentosFisioEditor equipamentos={b.equipamentos || {}} onChange={setEqObj} />
               </div>
 

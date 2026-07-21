@@ -141,18 +141,18 @@ export default function AcessoHorarioPage() {
         <div className="px-4 py-3 border-b" style={{ borderColor: "#F0EBE0" }}><h3 className="text-[13px] font-medium text-[#014D5E]">🔒 Restrição de acesso por horário</h3></div>
         <div className="p-4 space-y-4">
           <div className="flex items-center justify-between gap-3">
-            <div><div className="text-[13px] text-[#1F2A2E] font-medium">Ligar a restrição</div><div className="text-[11.5px] text-[#8A989D]">Enquanto desligado, o login funciona como sempre.</div></div>
+            <div><div className="text-[13px] text-[#1F2A2E] font-medium">Ligar a restrição</div><div className="text-[11.5px] text-[#374151]">Enquanto desligado, o login funciona como sempre.</div></div>
             <Switch on={cfg.ativo} onClick={() => salvarCfg({ ativo: !cfg.ativo })} disabled={salvandoCfg} />
           </div>
           <div className="flex items-center justify-between gap-3 pt-3 border-t" style={{ borderColor: "#F0EBE0" }}>
-            <div><div className="text-[13px] text-[#1F2A2E] font-medium">Tolerância</div><div className="text-[11.5px] text-[#8A989D]">Minutos de folga depois do fim do horário.</div></div>
+            <div><div className="text-[13px] text-[#1F2A2E] font-medium">Tolerância</div><div className="text-[11.5px] text-[#374151]">Minutos de folga depois do fim do horário.</div></div>
             <div className="flex items-center gap-2">
               <input type="number" min={0} max={240} value={cfg.toleranciaMin} onChange={(e) => setCfg({ ...cfg, toleranciaMin: Number(e.target.value) })} onBlur={() => salvarCfg({ toleranciaMin: Math.max(0, Math.min(240, cfg.toleranciaMin || 0)) })} className="w-20 border rounded-lg px-2 py-1.5 text-[13px] text-right" style={{ borderColor: "#E8E2D6" }} />
-              <span className="text-[12px] text-[#8A989D]">min</span>
+              <span className="text-[12px] text-[#374151]">min</span>
             </div>
           </div>
           <div className="flex items-center justify-between gap-3 pt-3 border-t" style={{ borderColor: "#F0EBE0" }}>
-            <div><div className="text-[13px] text-[#1F2A2E] font-medium">Avisar a administração</div><div className="text-[11.5px] text-[#8A989D]">Quando alguém for bloqueado por horário, registra um aviso pra você.</div></div>
+            <div><div className="text-[13px] text-[#1F2A2E] font-medium">Avisar a administração</div><div className="text-[11.5px] text-[#374151]">Quando alguém for bloqueado por horário, registra um aviso pra você.</div></div>
             <Switch on={cfg.avisarAdmin} onClick={() => salvarCfg({ avisarAdmin: !cfg.avisarAdmin })} disabled={salvandoCfg} />
           </div>
         </div>
@@ -162,12 +162,12 @@ export default function AcessoHorarioPage() {
       <div className="bg-white border rounded-[13px]" style={{ borderColor: "#E8E2D6" }}>
         <div className="px-4 py-3 border-b" style={{ borderColor: "#F0EBE0" }}>
           <h3 className="text-[13px] font-medium text-[#014D5E]">🔑 Acesso livre (entra a qualquer hora)</h3>
-          <p className="text-[11.5px] text-[#8A989D] mt-0.5">Ligue a chave para quem pode acessar sem restrição de horário. Administradores já entram sempre.</p>
+          <p className="text-[11.5px] text-[#374151] mt-0.5">Ligue a chave para quem pode acessar sem restrição de horário. Administradores já entram sempre.</p>
         </div>
         {loading ? (
-          <div className="px-4 py-10 text-center text-[12.5px] text-[#8A989D]">Carregando...</div>
+          <div className="px-4 py-10 text-center text-[12.5px] text-[#374151]">Carregando...</div>
         ) : comLogin.length === 0 ? (
-          <div className="px-4 py-10 text-center text-[12.5px] text-[#8A989D]">Nenhum profissional com login ativo.</div>
+          <div className="px-4 py-10 text-center text-[12.5px] text-[#374151]">Nenhum profissional com login ativo.</div>
         ) : (
           <div className="divide-y" style={{ borderColor: "#F0EBE0" }}>
             {comLogin.map((p) => {
@@ -176,7 +176,7 @@ export default function AcessoHorarioPage() {
                 <div key={p.id} className="px-4 py-3 flex items-center gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="text-[13px] font-medium text-[#1F2A2E] truncate">{p.nomeExibicao || p.nomeCompleto}</div>
-                    <div className="text-[11px] text-[#8A989D]">
+                    <div className="text-[11px] text-[#374151]">
                       {admin ? "Administrador" : p.user!.role} · {escOk ? "tem escala" : <span className="text-[#B45309]">sem escala — entra sempre até preencher</span>}
                     </div>
                   </div>
@@ -184,7 +184,7 @@ export default function AcessoHorarioPage() {
                     <span className="text-[11px] font-medium px-2.5 py-1 rounded-full" style={{ background: "#E0F4F6", color: "#00707E" }}>sempre entra</span>
                   ) : (
                     <div className="flex items-center gap-2">
-                      <span className="text-[11px] text-[#8A989D]">{livres[uid] ? "livre" : "pelo horário"}</span>
+                      <span className="text-[11px] text-[#374151]">{livres[uid] ? "livre" : "pelo horário"}</span>
                       <Switch on={!!livres[uid]} onClick={() => toggleLivre(uid)} disabled={mexendo === uid} />
                     </div>
                   )}
@@ -200,13 +200,13 @@ export default function AcessoHorarioPage() {
         <div className="px-4 py-3 border-b flex items-center justify-between gap-2 flex-wrap" style={{ borderColor: "#F0EBE0" }}>
           <div>
             <h3 className="text-[13px] font-medium text-[#014D5E]">🌙 Plantão — escala semanal</h3>
-            <p className="text-[11.5px] text-[#8A989D] mt-0.5">Quem está de plantão entra no turno + tolerância, mesmo fora da escala normal.</p>
+            <p className="text-[11.5px] text-[#374151] mt-0.5">Quem está de plantão entra no turno + tolerância, mesmo fora da escala normal.</p>
           </div>
           <div className="flex items-center gap-1.5">
             <button onClick={() => setSemanaBase((d) => addDias(d, -7))} className="w-8 h-8 rounded-lg border text-[#5C6B70] hover:border-[#009AAC] hover:text-[#009AAC]" style={{ borderColor: "#E8E2D6" }}>‹</button>
             <div className="text-[12px] text-[#1F2A2E] text-center min-w-[120px]">
               {fmtDiaMes(semanaBase)} – {fmtDiaMes(addDias(semanaBase, 6))}
-              {salvandoPlantao && <span className="text-[10px] text-[#8A989D] block">salvando…</span>}
+              {salvandoPlantao && <span className="text-[10px] text-[#374151] block">salvando…</span>}
             </div>
             <button onClick={() => setSemanaBase((d) => addDias(d, 7))} className="w-8 h-8 rounded-lg border text-[#5C6B70] hover:border-[#009AAC] hover:text-[#009AAC]" style={{ borderColor: "#E8E2D6" }}>›</button>
             <button onClick={() => setSemanaBase(segundaDaSemana(new Date()))} className="text-[11.5px] text-[#00798A] px-2">Hoje</button>
@@ -215,7 +215,7 @@ export default function AcessoHorarioPage() {
         <div className="p-4 overflow-x-auto">
           <table className="w-full text-[13px]">
             <thead>
-              <tr className="text-[10.5px] text-[#8A989D] uppercase tracking-wide">
+              <tr className="text-[10.5px] text-[#374151] uppercase tracking-wide">
                 <th className="text-left font-medium py-2 pr-3">Dia</th>
                 <th className="text-left font-medium py-2 pr-3">Diurno <span className="normal-case font-normal">(07–19)</span></th>
                 <th className="text-left font-medium py-2">Noturno <span className="normal-case font-normal">(19:01–06:59)</span></th>
@@ -224,7 +224,7 @@ export default function AcessoHorarioPage() {
             <tbody>
               {DIAS_PLANTAO.map((dia) => (
                 <tr key={dia.dow} className="border-t align-top" style={{ borderColor: "#F0EBE0" }}>
-                  <td className="py-2.5 pr-3 whitespace-nowrap font-medium text-[#014D5E]">{dia.label}<div className="text-[10.5px] text-[#8A989D] font-normal">{fmtDiaMes(addDias(semanaBase, dia.dow === 0 ? 6 : dia.dow - 1))}</div></td>
+                  <td className="py-2.5 pr-3 whitespace-nowrap font-medium text-[#014D5E]">{dia.label}<div className="text-[10.5px] text-[#374151] font-normal">{fmtDiaMes(addDias(semanaBase, dia.dow === 0 ? 6 : dia.dow - 1))}</div></td>
                   {(["dia", "noite"] as const).map((turno) => {
                     const habilitado = dia.turnos.includes(turno);
                     const key = `${dia.dow}-${turno}`;
@@ -257,7 +257,7 @@ export default function AcessoHorarioPage() {
               ))}
             </tbody>
           </table>
-          <div className="text-[10.5px] text-[#8A989D] mt-3">Só domingo tem plantão diurno. O plantão noturno não vira à meia-noite: quem começa às 22h de sexta segue no plantão de sexta até as 06h59 de sábado.</div>
+          <div className="text-[10.5px] text-[#374151] mt-3">Só domingo tem plantão diurno. O plantão noturno não vira à meia-noite: quem começa às 22h de sexta segue no plantão de sexta até as 06h59 de sábado.</div>
         </div>
       </div>
     </div>
