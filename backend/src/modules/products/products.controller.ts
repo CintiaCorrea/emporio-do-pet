@@ -31,6 +31,8 @@ export class ProductsController {
   @ApiQuery({ name: 'search', required: false })
   @ApiQuery({ name: 'type', required: false })
   @ApiQuery({ name: 'lowStock', required: false, type: Boolean })
+  @ApiQuery({ name: 'categoryId', required: false })
+  @ApiQuery({ name: 'fornecedorId', required: false })
   findAll(
     @Query('page') page?: number,
     @Query('limit') limit?: number,
@@ -40,6 +42,8 @@ export class ProductsController {
     @Query('type') type?: string,
     @Query('lowStock') lowStock?: string,
     @Query('excludeService') excludeService?: string,
+    @Query('categoryId') categoryId?: string,
+    @Query('fornecedorId') fornecedorId?: string,
   ) {
     return this.productsService.findAll({
       page: page ? Number(page) : undefined,
@@ -50,6 +54,8 @@ export class ProductsController {
       type,
       lowStock: lowStock === 'true',
       excludeService: excludeService === 'true' || excludeService === '1',
+      categoryId: categoryId || undefined,
+      fornecedorId: fornecedorId || undefined,
     });
   }
 

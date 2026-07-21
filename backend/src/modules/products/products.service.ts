@@ -23,8 +23,10 @@ export class ProductsService {
     type?: string;
     lowStock?: boolean;
     excludeService?: boolean; // esconde itens tipo SERVICE (catálogo unificado) — p/ seletores de produto/estoque
+    categoryId?: string; // filtra por categoria de serviço (ex.: "Exames · Bioquímica")
+    fornecedorId?: string; // filtra por fornecedor/laboratório
   }) {
-    const { page = 1, limit = 10, skip, take, search, type, lowStock, excludeService } = params || {};
+    const { page = 1, limit = 10, skip, take, search, type, lowStock, excludeService, categoryId, fornecedorId } = params || {};
 
     const resolvedTake = Number.isFinite(take as any) ? (take as number) : limit;
     const resolvedSkip = Number.isFinite(skip as any)
@@ -35,6 +37,8 @@ export class ProductsService {
     if (type) where.type = type;
     else if (excludeService) where.type = { not: 'SERVICE' };
     if (lowStock) where.stock = { lt: 10 };
+    if (categoryId) where.categoryId = categoryId;
+    if (fornecedorId) where.fornecedorId = fornecedorId;
     if (search) {
       where.OR = [{ name: { contains: search, mode: 'insensitive' as const } }];
     }
