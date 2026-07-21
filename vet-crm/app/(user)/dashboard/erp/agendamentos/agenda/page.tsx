@@ -57,6 +57,7 @@ export default function AgendaPage() {
   const [profs, setProfs] = useState<any[]>([]);
   const [avulsas, setAvulsas] = useState<any[]>([]); // agendas avulsas (Parceiro/MAP)
   const [terceiroProf, setTerceiroProf] = useState<Record<string, { id: string; nome: string }>>({}); // appointmentId -> parceiro que atende
+  const [arrastando, setArrastando] = useState<any>(null); // agendamento sendo arrastado (drag pra mudar horário)
   const { data: _sess } = useSession();
   const meId = (_sess as any)?.user?.id as string | undefined;
   const [loading, setLoading] = useState(true);
@@ -327,6 +328,31 @@ export default function AgendaPage() {
     } catch { toast.error("Não consegui voltar o estágio."); }
     setAvancandoId(null);
   }
+  // Arrastar o card e soltar num horário/coluna → move o agendamento (muda a data e,
+  // se soltar em outra coluna, o profissional/agenda). Confirma antes, pra um arrasto
+  // sem querer não bagunçar a agenda.
+  async function moverAppt(a: any, p: any, h: number, m: number) {
+    if (!a || !p) { setArrastando(null); return; }
+    const hhmm = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+    const novaData = new Date(`${diaStr}T${hhmm}:00`);
+    const d0 = new Date(a.date);
+    const mesmoHorario = d0.getHours() === h && d0.getMinutes() === m;
+    const mesmaColuna = p._avulsa ? a.agendaAvulsa === p.id : (!a.agendaAvulsa && a.userId === p.userId);
+    if (mesmoHorario && mesmaColuna) { setArrastando(null); return; }
+    const quem = a.pet?.name ? `${a.pet.name}${a.tutor?.name ? " · " + a.tutor.name : ""}` : (a.tutor?.name || "agendamento");
+    const paraCol = p._avulsa || !mesmaColuna ? ` · ${p.nomeExibicao || p.nomeCompleto || p.nome || ""}` : "";
+    if (!confirm(`Mover ${quem} para ${hhmm}${paraCol}?`)) { setArrastando(null); return; }
+    const body: any = { date: novaData.toISOString() };
+    if (p._avulsa) body.agendaAvulsa = p.id;
+    else { body.userId = p.userId; body.agendaAvulsa = ""; } // coluna de profissional
+    try {
+      const r = await fetch(`/api/appointments/${a.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(body) });
+      if (!r.ok) throw new Error();
+      toast.success("Agendamento movido ✅");
+      load();
+    } catch { toast.error("Não consegui mover o agendamento."); }
+    finally { setArrastando(null); }
+  }
   async function cancelarAgendamento(a: any) {
     setSending(true);
     try {
@@ -488,17 +514,26 @@ export default function AgendaPage() {
                         if (p._avulsa) { if (!meId) { toast("Recarregue a página."); return; } setEditAppt(null); setNovoDefaults({ date: diaStr, time: `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`, agendaAvulsa: p.id, avulsaNome: p.nomeCompleto, userId: meId, duration: cfg?.duracaoPadrao }); setNovoOpen(true); return; }
                         if (!p.userId) { toast("Profissional sem login — cadastre o acesso em Configurações › Equipe"); return; }
                         setEditAppt(null); setNovoDefaults({ date: diaStr, time: `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`, userId: p.userId, duration: cfg?.duracaoPadrao }); setNovoOpen(true);
-                      }} className={"border-l p-0.5 " + (ocupado ? "" : "cursor-pointer hover:bg-[#EAF6F7]")} style={{ borderColor: "#ECE6D8", background: foraDoHorario(p, h, m) ? "repeating-linear-gradient(45deg,#f5f6f4,#f5f6f4 4px,#e9ebe6 4px,#e9ebe6 8px)" : undefined }}>
+                      }}
+                        onDragOver={(e) => { if (arrastando) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; } }}
+                        onDrop={(e) => { if (arrastando) { e.preventDefault(); moverAppt(arrastando, p, h, m); } }}
+                        className={"border-l p-0.5 " + (ocupado ? "" : "cursor-pointer hover:bg-[#EAF6F7]") + (arrastando ? " hover:bg-[#E0F4F6]" : "")} style={{ borderColor: "#ECE6D8", background: foraDoHorario(p, h, m) ? "repeating-linear-gradient(45deg,#f5f6f4,#f5f6f4 4px,#e9ebe6 4px,#e9ebe6 8px)" : undefined }}>
                         {cobre.map(({ a, comeca }: any) => { const cor = corDe(a.status, cfg?.cores); const _conf = a.confirmacaoStatus; const terc = terceiroProf[a.id]; const cBorder = terc ? corParceiro(terc.id) : (_conf === "CONFIRMADO" ? "#0F6E56" : _conf === "REMARCAR" ? "#A32D2D" : cor.c); const cBg = _conf === "CONFIRMADO" ? "#E7F7EF" : _conf === "REMARCAR" ? "#FCEBEB" : cor.bg; const v = valorDe(a); const quem = a.pet?.name ? `${a.pet.name}${a.tutor?.name ? ` · ${a.tutor.name}` : ""}` : (a.tutor?.name || "Agendamento");
+                          // Continuação: MESMA cor/opacidade do card (não desbotada) e colada nele,
+                          // pra um agendamento de 1h aparecer como UM bloco inteiro, não 2 de 30min.
                           if (!comeca) return (
-                            <div key={a.id + "-c"} onClick={(e) => cardMenu(e, a)} title={`${quem} · ${a.duration || 30} min (continuação)`} className="rounded-r-md mb-0.5 cursor-pointer" style={{ borderLeft: `3px solid ${cBorder}`, background: cBg, opacity: 0.5, height: 30 }} />
+                            <div key={a.id + "-c"} onClick={(e) => cardMenu(e, a)} title={`${quem} · ${a.duration || 30} min`} className="cursor-pointer" style={{ borderLeft: `3px solid ${cBorder}`, background: cBg, height: 44, marginTop: -3 }} />
                           );
                           // Esta coluna está travada POR TABELA (o agendamento é da outra MAP do grupo)
                           const espelho = p._avulsa && a.agendaAvulsa !== p.id;
                           const donaNome = espelho ? (colunas.find((x: any) => x._avulsa && x.id === a.agendaAvulsa)?.nomeCompleto || "outra agenda") : "";
                           const obs = obsDe(a);
                           return (
-                          <div key={a.id} onClick={(e) => cardMenu(e, a)} title={espelho ? `Sala ocupada: ${quem} está na ${donaNome} (pet ${String(a.pet?.temperament || "").toLowerCase()})` : (obs ? `📝 ${obs}` : "Clique para editar")} className="rounded-r-md px-2 py-1 mb-0.5 cursor-pointer" style={{ borderLeft: `3px solid ${cBorder}`, background: cBg, opacity: espelho ? 0.75 : 1 }}>
+                          <div key={a.id}
+                            draggable={!espelho}
+                            onDragStart={(e) => { if (espelho) return; setArrastando(a); try { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", a.id); } catch {} }}
+                            onDragEnd={() => setArrastando(null)}
+                            onClick={(e) => cardMenu(e, a)} title={espelho ? `Sala ocupada: ${quem} está na ${donaNome} (pet ${String(a.pet?.temperament || "").toLowerCase()})` : (obs ? `📝 ${obs}` : "Arraste para mudar o horário · clique para as ações")} className="rounded-r-md px-2 py-1 mb-0.5 cursor-pointer" style={{ borderLeft: `3px solid ${cBorder}`, background: cBg, opacity: espelho ? 0.75 : (arrastando?.id === a.id ? 0.4 : 1) }}>
                             <div className="flex items-center justify-between gap-1">
                               <span className="text-[11px] font-medium flex items-center gap-1" style={{ color: cor.c }}>{hm(new Date(a.date))}{a.duration ? <span className="text-[9.5px] font-normal" style={{ color: cor.c, opacity: .8 }}>· {a.duration}min</span> : null}{a.confirmacaoStatus && CONF_BADGE[a.confirmacaoStatus] ? <span title={`Confirmação: ${a.confirmacaoStatus}`}>{CONF_BADGE[a.confirmacaoStatus].t}</span> : null}{obs ? <span title={obs} style={{ fontSize: "10px" }}>📝</span> : null}</span>
                               {travaSala(a) ? <span title="Ocupa a sala inteira" className="text-[10px]">🔒</span> : (mostrarValores && v > 0 ? <span className="text-[10px] font-medium" style={{ color: "#0F6E56" }}>{brl(v)}</span> : null)}
