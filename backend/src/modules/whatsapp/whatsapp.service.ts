@@ -684,16 +684,52 @@ export class WhatsAppService {
     return { buffer, contentType };
   }
 
+  // Normaliza nome pra comparação: minúsculas, sem acento, só tokens ≥3 letras (ignora "da/de/dos").
+  private tokensNome(n?: string | null): string[] {
+    return String(n || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .replace(/[^a-z\s]/g, ' ')
+      .split(/\s+/)
+      .filter((t) => t.length >= 3 && !['dos', 'das', 'de', 'do', 'da'].includes(t));
+  }
+
   /**
-   * Casa um telefone a um Tutor existente — SÓ quando o número é de um único
-   * cliente (evita vincular ao cliente errado quando 2 cadastros compartilham
-   * o mesmo número). Telefone ambíguo → não vincula (vira revisão manual).
+   * Casa um telefone a um Tutor existente. Único → vincula. AMBÍGUO (o mesmo número está
+   * em >1 cliente) → desempata pelo NOME do WhatsApp: se UM cliente casa claramente melhor
+   * (mais tokens de nome em comum, sem empate no topo), vincula a ele; senão deixa pra
+   * revisão manual (não arrisca ligar ao cliente errado).
    */
   private async matchTutorByPhone(
     phone: string,
+    nome?: string | null,
   ): Promise<{ tutorId: string; contactId: string } | null> {
     const m = await findTutorByPhoneUnique(this.prisma, phone);
-    return m.status === 'unique' ? { tutorId: m.tutorId, contactId: m.contactId } : null;
+    if (m.status === 'unique') return { tutorId: m.tutorId, contactId: m.contactId };
+    if (m.status === 'ambiguous' && nome && nome.trim()) {
+      const tail = phone.replace(/\D/g, '').slice(-8);
+      const tutores = await this.prisma.tutor.findMany({
+        where: { id: { in: m.tutorIds } },
+        select: { id: true, name: true, contacts: { where: { number: { endsWith: tail } }, select: { id: true }, take: 1 } },
+      });
+      const alvo = this.tokensNome(nome);
+      if (alvo.length) {
+        let best: { tutorId: string; contactId: string } | null = null;
+        let bestScore = 0;
+        let tie = false;
+        for (const t of tutores) {
+          const contactId = (t.contacts as any[])[0]?.id;
+          if (!contactId) continue;
+          const bTokens = new Set(this.tokensNome(t.name));
+          const score = alvo.filter((x) => bTokens.has(x)).length;
+          if (score > bestScore) { bestScore = score; best = { tutorId: t.id, contactId }; tie = false; }
+          else if (score === bestScore && bestScore > 0) { tie = true; }
+        }
+        if (best && bestScore >= 1 && !tie) return best; // vencedor claro pelo nome
+      }
+    }
+    return null;
   }
 
   // Create or get existing conversation
@@ -739,7 +775,7 @@ export class WhatsAppService {
       // cadastrado DEPOIS que a conversa nasceu (ex.: cliente importado do SimplesVet).
       let relinkTutorId: string | null = null;
       if (!existing.tutorId) {
-        const m = await this.matchTutorByPhone(formattedPhone);
+        const m = await this.matchTutorByPhone(formattedPhone, contactPushName || contactName || existing.contactName || existing.contactPushName);
         if (m) {
           relinkTutorId = m.tutorId;
           await this.prisma.contact
@@ -771,7 +807,7 @@ export class WhatsAppService {
 
     // Cliente já existe pelo telefone? (sem exigir a flag isWhatsApp — o número é o
     // número, com ou sem o "9" do celular). Se achar, a conversa já nasce vinculada.
-    const match = await this.matchTutorByPhone(formattedPhone);
+    const match = await this.matchTutorByPhone(formattedPhone, contactPushName || contactName);
     const tutorId = match?.tutorId || null;
     if (match) {
       await this.prisma.contact
@@ -1029,7 +1065,7 @@ export class WhatsAppService {
       await Promise.all(
         orfas.map(async (c: any) => {
           try {
-            const m = await this.matchTutorByPhone(c.contactPhone);
+            const m = await this.matchTutorByPhone(c.contactPhone, c.contactName || c.contactPushName);
             if (!m) return;
             await this.prisma.whatsAppConversation.update({ where: { id: c.id }, data: { tutorId: m.tutorId } });
             await this.prisma.contact.update({ where: { id: m.contactId }, data: { isWhatsApp: true } }).catch(() => undefined);
