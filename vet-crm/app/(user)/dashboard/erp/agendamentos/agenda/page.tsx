@@ -521,11 +521,16 @@ export default function AgendaPage() {
                         {cobre.map(({ a, comeca }: any) => { const cor = corDe(a.status, cfg?.cores); const _conf = a.confirmacaoStatus; const terc = terceiroProf[a.id]; const cBorder = terc ? corParceiro(terc.id) : (_conf === "CONFIRMADO" ? "#0F6E56" : _conf === "REMARCAR" ? "#A32D2D" : cor.c); const cBg = _conf === "CONFIRMADO" ? "#E7F7EF" : _conf === "REMARCAR" ? "#FCEBEB" : cor.bg; const v = valorDe(a); const quem = a.pet?.name ? `${a.pet.name}${a.tutor?.name ? ` · ${a.tutor.name}` : ""}` : (a.tutor?.name || "Agendamento");
                           // Continuação: MESMA cor/opacidade do card (não desbotada) e colada nele,
                           // pra um agendamento de 1h aparecer como UM bloco inteiro, não 2 de 30min.
-                          if (!comeca) return (
-                            // marginTop negativo cobre a linha tracejada da grade que passava
-                            // no meio do agendamento de 1h; relative+z pra ficar por cima dela.
-                            <div key={a.id + "-c"} onClick={(e) => cardMenu(e, a)} title={`${quem} · ${a.duration || 30} min`} className="cursor-pointer rounded-br-md relative" style={{ borderLeft: `3px solid ${cBorder}`, background: cBg, height: "calc(100% + 8px)", minHeight: 46, marginTop: -6, zIndex: 1 }} />
-                          );
+                          if (!comeca) {
+                            // Último slot do agendamento? (arredonda embaixo só no fim, pra virar UM cartão só)
+                            const aEndMin = (() => { const d = new Date(a.date); return d.getHours() * 60 + d.getMinutes() + (a.duration || 30); })();
+                            const ultimo = aEndMin <= (h * 60 + m + (slots[1] || 30));
+                            return (
+                            // Continuação do MESMO cartão: flutua (mx) e cola no início; marginTop negativo
+                            // cobre a linha tracejada da grade; arredonda embaixo só no último slot.
+                            <div key={a.id + "-c"} onClick={(e) => cardMenu(e, a)} title={`${quem} · ${a.duration || 30} min`} className={"cursor-pointer relative mx-1 " + (ultimo ? "rounded-b-xl mb-1 shadow-sm" : "")} style={{ borderLeft: `3px solid ${cBorder}`, background: cBg, height: ultimo ? "calc(100% + 2px)" : "calc(100% + 8px)", minHeight: 40, marginTop: -6, zIndex: 1 }} />
+                            );
+                          }
                           // Esta coluna está travada POR TABELA (o agendamento é da outra MAP do grupo)
                           const espelho = p._avulsa && a.agendaAvulsa !== p.id;
                           const donaNome = espelho ? (colunas.find((x: any) => x._avulsa && x.id === a.agendaAvulsa)?.nomeCompleto || "outra agenda") : "";
@@ -535,7 +540,7 @@ export default function AgendaPage() {
                             draggable={!espelho}
                             onDragStart={(e) => { if (espelho) return; setArrastando(a); try { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", a.id); } catch {} }}
                             onDragEnd={() => setArrastando(null)}
-                            onClick={(e) => cardMenu(e, a)} title={espelho ? `Sala ocupada: ${quem} está na ${donaNome} (pet ${String(a.pet?.temperament || "").toLowerCase()})` : (obs ? `📝 ${obs}` : "Arraste para mudar o horário · clique para as ações")} className={((a.duration || 30) > 30 ? "rounded-tr-md" : "rounded-r-md mb-0.5") + " px-2 py-1 cursor-pointer"} style={{ borderLeft: `3px solid ${cBorder}`, background: cBg, opacity: espelho ? 0.75 : (arrastando?.id === a.id ? 0.4 : 1) }}>
+                            onClick={(e) => cardMenu(e, a)} title={espelho ? `Sala ocupada: ${quem} está na ${donaNome} (pet ${String(a.pet?.temperament || "").toLowerCase()})` : (obs ? `📝 ${obs}` : "Arraste para mudar o horário · clique para as ações")} className={"relative px-2 py-1 cursor-pointer mx-1 mt-0.5 shadow-sm " + ((a.duration || 30) > 30 ? "rounded-t-xl" : "rounded-xl mb-1")} style={{ borderLeft: `3px solid ${cBorder}`, background: cBg, opacity: espelho ? 0.75 : (arrastando?.id === a.id ? 0.4 : 1) }}>
                             <div className="flex items-center justify-between gap-1">
                               <span className="text-[11px] font-medium flex items-center gap-1" style={{ color: cor.c }}>{hm(new Date(a.date))}{a.duration ? <span className="text-[9.5px] font-normal" style={{ color: cor.c, opacity: .8 }}>· {a.duration}min</span> : null}{a.confirmacaoStatus && CONF_BADGE[a.confirmacaoStatus] ? <span title={`Confirmação: ${a.confirmacaoStatus}`}>{CONF_BADGE[a.confirmacaoStatus].t}</span> : null}{obs ? <span title={obs} style={{ fontSize: "10px" }}>📝</span> : null}</span>
                               {travaSala(a) ? <span title="Ocupa a sala inteira" className="text-[10px]">🔒</span> : (mostrarValores && v > 0 ? <span className="text-[10px] font-medium" style={{ color: "#0F6E56" }}>{brl(v)}</span> : null)}
