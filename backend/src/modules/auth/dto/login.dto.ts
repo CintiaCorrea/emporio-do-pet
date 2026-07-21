@@ -1,4 +1,5 @@
 import { IsEmail, IsString, MinLength } from 'class-validator';
+import { Transform } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class LoginDto {
@@ -6,6 +7,9 @@ export class LoginDto {
     example: 'usuario@email.com',
     description: 'Email do usuário',
   })
+  // Limpa espaços e maiúsculas ANTES da validação — assim o teclado do celular
+  // (que costuma inserir espaço ou capitalizar) nunca barra o login.
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim().toLowerCase() : value))
   @IsEmail({}, { message: 'Email inválido' })
   email: string;
 

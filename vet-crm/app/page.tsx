@@ -48,7 +48,7 @@ export default function LoginPage() {
     try {
       // Usar NextAuth para fazer login
       const result = await signIn("credentials", {
-        email,
+        email: email.trim().toLowerCase(),
         password,
         redirect: false});
 
@@ -221,7 +221,11 @@ export default function LoginPage() {
                     id="email"
                     name="email"
                     type="email"
+                    inputMode="email"
                     autoComplete="email"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
