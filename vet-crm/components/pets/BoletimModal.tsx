@@ -77,8 +77,37 @@ export default function BoletimModal({ pet, boletimId, fisioRec, agenda, onClose
         const row = arr.find((x: any) => x.id === boletimId);
         if (row) { let o: any = {}; try { o = JSON.parse(row.valor); } catch {} setB((prev) => ({ ...prev, ...o, equipamentos: o.equipamentos || {} })); }
       } else {
-        // novo: garante o auto-fill + nº da sessão
-        setB((prev) => ({ ...prev, ...initialData, sessaoNumero: prev.sessaoNumero || sessNum }));
+        // NOVO boletim = cópia do ÚLTIMO (traz tudo preenchido; atualiza só a sessão/data).
+        // Se não houver boletim anterior, cai no auto-fill do paciente (como era antes).
+        const rB = await safeJson<any>(await fetch(`/api/listas?lista=petboletim_${petId}`, { cache: "no-store" }), []);
+        const arrB = Array.isArray(rB) ? rB : (rB.itens || rB.data || []);
+        const ultimo = arrB
+          .map((x: any) => { try { return JSON.parse(x.valor); } catch { return null; } })
+          .filter(Boolean)
+          .sort((a: any, c: any) => String(c.createdAt || "").localeCompare(String(a.createdAt || "")))[0];
+        if (ultimo) {
+          // nº da sessão: prioriza o pacote ativo; se não tiver, incrementa o do último boletim.
+          let novaSessao = sessNum;
+          if (!novaSessao && ultimo.sessaoNumero) {
+            const m = String(ultimo.sessaoNumero).match(/^(\d+)\s*\/\s*(\d+)$/);
+            if (m) { const prox = Math.min(parseInt(m[1], 10) + 1, parseInt(m[2], 10)); novaSessao = `${String(prox).padStart(2, "0")}/${m[2]}`; }
+          }
+          setB((prev) => ({
+            ...prev,
+            ...ultimo,                       // repete TUDO do último (equipamentos, diagnóstico, observações…)
+            // dados do paciente sempre atuais (idade pode ter mudado):
+            animal: initialData.animal, raca: initialData.raca, sexo: initialData.sexo, idade: initialData.idade, tutor: initialData.tutor,
+            // campos da NOVA sessão:
+            sessaoNumero: novaSessao || "",
+            sessaoData: agenda?.data || new Date().toISOString().slice(0, 10),
+            entrada: agenda?.entrada || "",
+            saida: agenda?.saida || "",
+            enviadoAt: null,
+            createdAt: undefined,            // persistir gera um novo createdAt (fica sendo o mais recente)
+          }));
+        } else {
+          setB((prev) => ({ ...prev, ...initialData, sessaoNumero: prev.sessaoNumero || sessNum }));
+        }
       }
       setReady(true);
     })();
