@@ -334,6 +334,24 @@ export class CloudStorageService {
   }
 
   /**
+   * Apaga um objeto a partir da URL completa (deriva a "chave" pasta/arquivo do bucket).
+   * Usado pela limpeza automática de áudios antigos de consulta.
+   */
+  async deleteByUrl(url: string): Promise<DeleteResult> {
+    try {
+      const bucket = this.config.s3Bucket;
+      if (!bucket) return { success: false, error: 'S3 not configured' };
+      const marker = `/${bucket}/`;
+      const idx = url.indexOf(marker);
+      if (idx === -1) return { success: false, error: 'URL fora do bucket esperado' };
+      const key = url.slice(idx + marker.length);
+      return this.delete(key);
+    } catch (e: any) {
+      return { success: false, error: e?.message || String(e) };
+    }
+  }
+
+  /**
    * Delete from S3
    */
   private async deleteFromS3(key: string): Promise<DeleteResult> {

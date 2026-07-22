@@ -44,6 +44,7 @@ export default function ConsultationRecorder({
   const [audioSalvo, setAudioSalvo] = useState(false);      // áudio subiu + registro criado
   const [salvandoAudio, setSalvandoAudio] = useState(false);
   const [erroSalvar, setErroSalvar] = useState('');
+  const [copiaBaixada, setCopiaBaixada] = useState(false); // cópia local baixada no computador
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -78,6 +79,7 @@ export default function ConsultationRecorder({
       setAudioSalvo(false);
       setErroSalvar('');
       setStoredAudioUrl('');
+      setCopiaBaixada(false);
 
       mediaRecorder.ondataavailable = (e) => {
         if (e.data.size > 0) {
@@ -139,6 +141,24 @@ export default function ConsultationRecorder({
     }
   }, [isRecording, recordingTime]);
 
+  // REDE DE SEGURANÇA: baixa uma CÓPIA LOCAL do áudio no computador (pasta Downloads).
+  // Segunda via à prova de tudo — mesmo que internet/servidor falhem, o áudio sempre
+  // existe num arquivo. Nome claro: consulta-AAAA-MM-DD-HHMM.webm
+  const baixarCopiaLocal = (blob: Blob | null) => {
+    if (!blob) return;
+    try {
+      const d = new Date();
+      const z = (n: number) => n.toString().padStart(2, '0');
+      const nome = `consulta-${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}-${z(d.getHours())}${z(d.getMinutes())}.webm`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = nome;
+      document.body.appendChild(a); a.click();
+      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1500);
+      setCopiaBaixada(true);
+    } catch { /* silencioso — a cópia é um extra */ }
+  };
+
   // BLINDAGEM ponto 1: salva o áudio e cria o registro AUTOMATICAMENTE ao finalizar,
   // sem depender de clicar em "Transcrever". Assim, mesmo que a pessoa saia da tela,
   // a gravação não se perde. Se algo falhar, mostra aviso vermelho (nunca em silêncio).
@@ -180,6 +200,7 @@ export default function ConsultationRecorder({
   useEffect(() => {
     if (audioBlob && !salvouRef.current) {
       salvouRef.current = true;
+      baixarCopiaLocal(audioBlob);          // cópia local automática (segunda via)
       void salvarAudioERegistro(audioBlob);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -457,8 +478,8 @@ export default function ConsultationRecorder({
           </div>
         )}
 
-        {/* BLINDAGEM: status do salvamento do áudio (salvando / erro / salvo) */}
-        {(salvandoAudio || erroSalvar || audioSalvo) && (
+        {/* BLINDAGEM: status do salvamento do áudio (salvando / erro / salvo) + cópia local */}
+        {(salvandoAudio || erroSalvar || audioSalvo || audioBlob) && (
           <div className="mb-4">
             {salvandoAudio && (
               <div className="flex items-center gap-2 text-sm text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg px-3 py-2">
@@ -476,6 +497,19 @@ export default function ConsultationRecorder({
             {!salvandoAudio && !erroSalvar && audioSalvo && (
               <div className="flex items-center gap-2 text-sm text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg px-3 py-2">
                 <LuCheck className="w-4 h-4" /> Áudio salvo com segurança — pode transcrever ou sair sem perder.
+              </div>
+            )}
+            {/* REDE DE SEGURANÇA: cópia local no computador (segunda via) */}
+            {audioBlob && (
+              <div className="flex items-center justify-between gap-3 text-xs text-gray-600 dark:text-gray-300 mt-2">
+                <span className="flex items-center gap-1.5">
+                  {copiaBaixada
+                    ? <><span style={{ fontSize: '14px' }}>📥</span> Cópia salva no seu computador (pasta Downloads).</>
+                    : <><span style={{ fontSize: '14px' }}>💾</span> Ao finalizar, uma cópia do áudio é baixada no seu computador.</>}
+                </span>
+                <button onClick={() => audioBlob && baixarCopiaLocal(audioBlob)} className="shrink-0 px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg font-medium hover:bg-gray-100 dark:hover:bg-gray-700">
+                  📥 Baixar cópia
+                </button>
               </div>
             )}
           </div>
