@@ -28,32 +28,18 @@ export async function POST(
       authHeader['Authorization'] = `Bearer ${token.accessToken}`;
     }
 
-    // Read form data from request
-    const formData = await request.formData();
-    const audioFile = formData.get('audio') as File | null;
-
-    if (!audioFile) {
-      return NextResponse.json({ error: 'Arquivo de áudio é obrigatório' }, { status: 400 });
-    }
-
-    // Build new FormData to forward to backend
-    const backendFormData = new FormData();
-    backendFormData.append('audio', audioFile, audioFile.name || 'audio.webm');
-
-    const language = formData.get('language');
-    if (language) backendFormData.append('language', language.toString());
-
-    const audioDuration = formData.get('audioDuration');
-    if (audioDuration) backendFormData.append('audioDuration', audioDuration.toString());
-
+    // STREAM o corpo multipart direto pro backend, SEM ler com formData(). Áudio de
+    // consulta longa (40 MB) bufferizado na memória estourava o Next (OOM -> 502).
+    // Passa o content-type original (com o boundary) pro multer do backend entender.
     const apiBase = buildApiBase(BACKEND_URL);
     const upstreamUrl = `${apiBase}/consultation-recordings/${id}/upload-and-transcribe`;
 
     const response = await fetch(upstreamUrl, {
       method: 'POST',
-      headers: { ...authHeader },
-      body: backendFormData,
-    });
+      headers: { ...authHeader, 'content-type': request.headers.get('content-type') || 'application/octet-stream' },
+      body: request.body,
+      duplex: 'half',
+    } as any);
 
     const data = await response.json().catch(() => null);
 

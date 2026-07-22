@@ -18,9 +18,15 @@ export async function POST(request: NextRequest) {
   const upstream = `${buildApiBase(base)}/media/upload${qs}`;
 
   try {
-    const form = await request.formData();
-    // NÃO definir Content-Type na mão: o fetch monta o boundary do multipart sozinho.
-    const r = await fetch(upstream, { method: 'POST', headers: { ...auth }, body: form });
+    // STREAM o multipart direto pro backend (sem formData/buffer): arquivo grande
+    // carregado inteiro na memória estourava o Next (OOM -> 502). Mantém o content-type
+    // original (com o boundary) pro multer do backend parsear.
+    const r = await fetch(upstream, {
+      method: 'POST',
+      headers: { ...auth, 'content-type': request.headers.get('content-type') || 'application/octet-stream' },
+      body: request.body,
+      duplex: 'half',
+    } as any);
     const texto = await r.text();
     let dado: any;
     try { dado = JSON.parse(texto); } catch { dado = { error: texto || 'Resposta inesperada do servidor' }; }
