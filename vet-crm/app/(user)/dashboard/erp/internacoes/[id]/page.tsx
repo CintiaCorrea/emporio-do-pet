@@ -130,7 +130,7 @@ export default function FichaInternacaoPage() {
   const [vitalForm, setVitalForm] = useState<any>({ fc: "", fr: "", temp: "", pa: "", mucosa: "Rósea", dor: "0" });
   const [vitalSaving, setVitalSaving] = useState(false);
   const [fluidoOpen, setFluidoOpen] = useState(false);
-  const [fluidoForm, setFluidoForm] = useState<any>({ entradaFluido: "", agua: "", diurese: "", fezes: "", alimentacao: "", emese: "" });
+  const [fluidoForm, setFluidoForm] = useState<any>({ entradaFluido: "", agua: "", diurese: "", fezes: "", alimentacao: "", emese: "", observacao: "" });
   const [fluidoSaving, setFluidoSaving] = useState(false);
 
   // Financeiro (F5)
@@ -202,6 +202,21 @@ export default function FichaInternacaoPage() {
   const estado = h ? estadoDe(h) : "Estável";
   const adm = h?.vitalSigns?.admissao || {};
 
+  // ── Edição in-place + rastro invisível de alterações (internação) ──
+  const [evoEditId, setEvoEditId] = useState("");
+  const [evoEditTexto, setEvoEditTexto] = useState("");
+  const [vitalEditId, setVitalEditId] = useState("");
+  const [fluidoEditId, setFluidoEditId] = useState("");
+  // Rastro INVISÍVEL: guarda quem/quando/antes→depois numa lista escondida (intlog_<id>),
+  // que NÃO é carregada nem exibida em lugar nenhum. Só pra contestação/processo.
+  const logInterno = async (acao: string, tipo: string, itemId: string, antes: any, depois: any) => {
+    try {
+      const now = new Date();
+      const valor = JSON.stringify({ at: now.toISOString(), por: userName || "", acao, tipo, itemId: itemId || "", antes: antes ?? null, depois: depois ?? null });
+      await fetch("/api/listas", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ lista: `intlog_${id}`, valor }) });
+    } catch { /* nunca atrapalha a operação principal */ }
+  };
+
   const salvarVital = async (patch: any) => {
     // mescla vitalSigns preservando o que já existe
     const vitalSigns = { ...(h?.vitalSigns || {}), ...patch.vitalSigns };
@@ -238,15 +253,29 @@ export default function FichaInternacaoPage() {
     setEvoSaving(true);
     try {
       const now = new Date();
-      const valor = JSON.stringify({ at: now.toISOString(), hora: now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }), texto: evoTexto.trim() });
-      await fetch("/api/listas", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ lista: `intevo_${id}`, valor }) });
+      const texto = evoTexto.trim();
+      const valor = JSON.stringify({ at: now.toISOString(), hora: now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }), texto, autor: userName || "" });
+      const r = await fetch("/api/listas", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ lista: `intevo_${id}`, valor }) });
+      const cd = await r.json().catch(() => null);
+      await logInterno("criou", "evolucao", cd?.id || "", null, { texto });
       setEvoTexto(""); load();
     } catch { alert("Erro ao registrar evolução."); }
     finally { setEvoSaving(false); }
   };
+  const salvarEvoEdit = async (orig: any) => {
+    const texto = evoEditTexto.trim();
+    if (!texto) return;
+    try {
+      const valor = JSON.stringify({ at: orig.at, hora: orig.hora, texto, autor: orig.autor || "" });
+      await fetch(`/api/listas/${orig.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ valor }) });
+      await logInterno("editou", "evolucao", orig.id, { texto: orig.texto }, { texto });
+      setEvoEditId(""); setEvoEditTexto(""); load();
+    } catch { alert("Erro ao salvar evolução."); }
+  };
   const excluirEvolucao = async (evoId: string) => {
     if (!confirm("Excluir esta evolução?")) return;
-    try { await fetch(`/api/listas/${evoId}`, { method: "DELETE", credentials: "include" }); load(); } catch {}
+    const orig = evolucoes.find((x: any) => x.id === evoId);
+    try { await fetch(`/api/listas/${evoId}`, { method: "DELETE", credentials: "include" }); await logInterno("excluiu", "evolucao", evoId, orig ? { texto: orig.texto } : null, null); load(); } catch {}
   };
 
   // ── Prescrição & plantão (F3) ─────────────────────────────────────
@@ -296,31 +325,55 @@ export default function FichaInternacaoPage() {
   };
 
   // ── Sinais vitais & fluidos (F4) ──────────────────────────────────
+  const abrirVital = () => { setVitalEditId(""); setVitalForm({ fc: "", fr: "", temp: "", pa: "", mucosa: "Rósea", dor: "0" }); setVitalOpen(true); };
+  const abrirVitalEdit = (v: any) => { setVitalEditId(v.id); setVitalForm({ fc: v.fc ?? "", fr: v.fr ?? "", temp: v.temp ?? "", pa: v.pa ?? "", mucosa: v.mucosa || "Rósea", dor: String(v.dor ?? "0") }); setVitalOpen(true); };
   const registrarVital = async () => {
     if (![vitalForm.fc, vitalForm.fr, vitalForm.temp, vitalForm.pa].some((x) => String(x).trim())) { alert("Preencha ao menos um sinal vital."); return; }
     setVitalSaving(true);
     try {
-      const now = new Date();
-      const valor = JSON.stringify({ at: now.toISOString(), hora: now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }), fc: vitalForm.fc, fr: vitalForm.fr, temp: vitalForm.temp, pa: vitalForm.pa, mucosa: vitalForm.mucosa, dor: vitalForm.dor, por: userName });
-      await fetch("/api/listas", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ lista: `intvital_${id}`, valor }) });
-      setVitalForm({ fc: "", fr: "", temp: "", pa: "", mucosa: "Rósea", dor: "0" }); setVitalOpen(false); load();
+      const campos = { fc: vitalForm.fc, fr: vitalForm.fr, temp: vitalForm.temp, pa: vitalForm.pa, mucosa: vitalForm.mucosa, dor: vitalForm.dor };
+      if (vitalEditId) {
+        const orig = vitais.find((x: any) => x.id === vitalEditId) || {};
+        const valor = JSON.stringify({ at: orig.at, hora: orig.hora, ...campos, por: orig.por || userName });
+        await fetch(`/api/listas/${vitalEditId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ valor }) });
+        await logInterno("editou", "vital", vitalEditId, { fc: orig.fc, fr: orig.fr, temp: orig.temp, pa: orig.pa, mucosa: orig.mucosa, dor: orig.dor }, campos);
+      } else {
+        const now = new Date();
+        const valor = JSON.stringify({ at: now.toISOString(), hora: now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }), ...campos, por: userName });
+        const r = await fetch("/api/listas", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ lista: `intvital_${id}`, valor }) });
+        const cd = await r.json().catch(() => null);
+        await logInterno("criou", "vital", cd?.id || "", null, campos);
+      }
+      setVitalForm({ fc: "", fr: "", temp: "", pa: "", mucosa: "Rósea", dor: "0" }); setVitalEditId(""); setVitalOpen(false); load();
     } catch { alert("Erro ao registrar aferição."); }
     finally { setVitalSaving(false); }
   };
-  const excluirVital = async (vId: string) => { if (!confirm("Excluir esta aferição?")) return; try { await fetch(`/api/listas/${vId}`, { method: "DELETE", credentials: "include" }); load(); } catch {} };
+  const excluirVital = async (vId: string) => { if (!confirm("Excluir esta aferição?")) return; const orig = vitais.find((x: any) => x.id === vId); try { await fetch(`/api/listas/${vId}`, { method: "DELETE", credentials: "include" }); await logInterno("excluiu", "vital", vId, orig || null, null); load(); } catch {} };
 
+  const abrirFluido = () => { setFluidoEditId(""); setFluidoForm({ entradaFluido: "", agua: "", diurese: "", fezes: "", alimentacao: "", emese: "", observacao: "" }); setFluidoOpen(true); };
+  const abrirFluidoEdit = (f: any) => { setFluidoEditId(f.id); setFluidoForm({ entradaFluido: f.entradaFluido ?? "", agua: f.agua ?? "", diurese: f.diurese ?? "", fezes: f.fezes ?? "", alimentacao: f.alimentacao ?? "", emese: f.emese ?? "", observacao: f.observacao ?? "" }); setFluidoOpen(true); };
   const registrarFluido = async () => {
-    if (![fluidoForm.entradaFluido, fluidoForm.agua, fluidoForm.diurese, fluidoForm.fezes, fluidoForm.alimentacao, fluidoForm.emese].some((x) => String(x).trim())) { alert("Preencha ao menos um campo."); return; }
+    if (![fluidoForm.entradaFluido, fluidoForm.agua, fluidoForm.diurese, fluidoForm.fezes, fluidoForm.alimentacao, fluidoForm.emese, fluidoForm.observacao].some((x) => String(x).trim())) { alert("Preencha ao menos um campo."); return; }
     setFluidoSaving(true);
     try {
-      const now = new Date();
-      const valor = JSON.stringify({ at: now.toISOString(), hora: now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }), entradaFluido: fluidoForm.entradaFluido, agua: fluidoForm.agua, diurese: fluidoForm.diurese, fezes: fluidoForm.fezes, alimentacao: fluidoForm.alimentacao, emese: fluidoForm.emese, por: userName });
-      await fetch("/api/listas", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ lista: `intfluido_${id}`, valor }) });
-      setFluidoForm({ entradaFluido: "", agua: "", diurese: "", fezes: "", alimentacao: "", emese: "" }); setFluidoOpen(false); load();
+      const campos = { entradaFluido: fluidoForm.entradaFluido, agua: fluidoForm.agua, diurese: fluidoForm.diurese, fezes: fluidoForm.fezes, alimentacao: fluidoForm.alimentacao, emese: fluidoForm.emese, observacao: fluidoForm.observacao };
+      if (fluidoEditId) {
+        const orig = fluidos.find((x: any) => x.id === fluidoEditId) || {};
+        const valor = JSON.stringify({ at: orig.at, hora: orig.hora, ...campos, por: orig.por || userName });
+        await fetch(`/api/listas/${fluidoEditId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ valor }) });
+        await logInterno("editou", "fluido", fluidoEditId, { entradaFluido: orig.entradaFluido, agua: orig.agua, diurese: orig.diurese, fezes: orig.fezes, alimentacao: orig.alimentacao, emese: orig.emese, observacao: orig.observacao }, campos);
+      } else {
+        const now = new Date();
+        const valor = JSON.stringify({ at: now.toISOString(), hora: now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }), ...campos, por: userName });
+        const r = await fetch("/api/listas", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ lista: `intfluido_${id}`, valor }) });
+        const cd = await r.json().catch(() => null);
+        await logInterno("criou", "fluido", cd?.id || "", null, campos);
+      }
+      setFluidoForm({ entradaFluido: "", agua: "", diurese: "", fezes: "", alimentacao: "", emese: "", observacao: "" }); setFluidoEditId(""); setFluidoOpen(false); load();
     } catch { alert("Erro ao registrar controle."); }
     finally { setFluidoSaving(false); }
   };
-  const excluirFluido = async (fId: string) => { if (!confirm("Excluir este registro?")) return; try { await fetch(`/api/listas/${fId}`, { method: "DELETE", credentials: "include" }); load(); } catch {} };
+  const excluirFluido = async (fId: string) => { if (!confirm("Excluir este registro?")) return; const orig = fluidos.find((x: any) => x.id === fId); try { await fetch(`/api/listas/${fId}`, { method: "DELETE", credentials: "include" }); await logInterno("excluiu", "fluido", fId, orig || null, null); load(); } catch {} };
 
   // ── Financeiro (F5) ───────────────────────────────────────────────
   const contaCalc = () => {
@@ -883,10 +936,23 @@ export default function FichaInternacaoPage() {
                     {evolucoesOrd.map((e, i) => (
                       <div key={e.id} className="py-3 border-b last:border-b-0 pl-3" style={{ borderColor: "#F0EBE0", borderLeft: i === 0 ? "2px solid #009AAC" : "2px solid #E8E2D6" }}>
                         <div className="flex items-center justify-between">
-                          <div className="text-[11px] text-[#374151]">{fmtDataHora(e.at)}</div>
-                          <button onClick={() => excluirEvolucao(e.id)} className="text-[11px] text-[#B4BCC0] hover:text-[#CC3366]">🗑️</button>
+                          <div className="text-[11px] text-[#374151]">{fmtDataHora(e.at)}{e.autor ? ` · ${e.autor}` : ""}</div>
+                          {!alta && (
+                            <div className="flex gap-1.5">
+                              <button onClick={() => { setEvoEditId(e.id); setEvoEditTexto(e.texto || ""); }} className="text-[11px] text-[#B4BCC0] hover:text-[#009AAC]" title="Editar">✏️</button>
+                              <button onClick={() => excluirEvolucao(e.id)} className="text-[11px] text-[#B4BCC0] hover:text-[#CC3366]" title="Excluir">🗑️</button>
+                            </div>
+                          )}
                         </div>
-                        <div className="text-[13px] text-[#5C6B70] mt-0.5">{e.texto}</div>
+                        {evoEditId === e.id ? (
+                          <div className="flex gap-2 mt-1.5">
+                            <input value={evoEditTexto} onChange={(ev) => setEvoEditTexto(ev.target.value)} onKeyDown={(ev) => { if (ev.key === "Enter") salvarEvoEdit(e); if (ev.key === "Escape") { setEvoEditId(""); setEvoEditTexto(""); } }} autoFocus className="flex-1 border rounded-lg px-3 py-1.5 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#009AAC" }} />
+                            <button onClick={() => salvarEvoEdit(e)} className="text-[12px] text-white bg-[#009AAC] px-3 py-1.5 rounded-lg">Salvar</button>
+                            <button onClick={() => { setEvoEditId(""); setEvoEditTexto(""); }} className="text-[12px] text-[#5C6B70] bg-white border px-3 py-1.5 rounded-lg" style={{ borderColor: "#E8E2D6" }}>Cancelar</button>
+                          </div>
+                        ) : (
+                          <div className="text-[13px] text-[#5C6B70] mt-0.5">{e.texto}</div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -1024,7 +1090,7 @@ export default function FichaInternacaoPage() {
             <div className="bg-white border rounded-[13px]" style={{ borderColor: "#E8E2D6" }}>
               <div className="flex items-center justify-between px-4 py-3 border-b flex-wrap gap-2" style={{ borderColor: "#F0EBE0" }}>
                 <h3 className="text-[13px] font-medium text-[#014D5E] flex items-center gap-2">🩺 Sinais vitais{ultVital?.hora ? <span className="text-[11px] text-[#374151] font-normal">· última {ultVital.hora}</span> : null}</h3>
-                {!alta && <button onClick={() => setVitalOpen(true)} className="text-[12px] font-medium text-white bg-[#009AAC] px-3 py-1.5 rounded-lg">➕ Registrar aferição</button>}
+                {!alta && <button onClick={abrirVital} className="text-[12px] font-medium text-white bg-[#009AAC] px-3 py-1.5 rounded-lg">➕ Registrar aferição</button>}
               </div>
               {vitaisOrd.length === 0 ? (
                 <div className="px-4 py-6 text-center text-[12.5px] text-[#374151]">Nenhuma aferição registrada ainda.</div>
@@ -1065,7 +1131,7 @@ export default function FichaInternacaoPage() {
                             <td className="px-2 py-2 whitespace-nowrap" style={tempForaFaixa(v.temp) ? { color: "#CC3366", fontWeight: 500 } : {}}>{v.temp ? `${v.temp}°` : "—"}</td>
                             <td className="px-2 py-2 whitespace-nowrap">{v.pa || "—"}</td><td className="px-2 py-2">{v.mucosa || "—"}</td><td className="px-2 py-2">{v.dor ?? "—"}</td>
                             <td className="px-2 py-2 text-[#5C6B70] whitespace-nowrap">{v.por || "—"}</td>
-                            <td className="px-2 py-2 text-right">{!alta && <button onClick={() => excluirVital(v.id)} className="text-[12px]">🗑️</button>}</td>
+                            <td className="px-2 py-2 text-right whitespace-nowrap">{!alta && <><button onClick={() => abrirVitalEdit(v)} className="text-[12px] px-1" title="Editar">✏️</button><button onClick={() => excluirVital(v.id)} className="text-[12px] px-1" title="Excluir">🗑️</button></>}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -1079,7 +1145,7 @@ export default function FichaInternacaoPage() {
             <div className="bg-white border rounded-[13px]" style={{ borderColor: "#E8E2D6" }}>
               <div className="flex items-center justify-between px-4 py-3 border-b flex-wrap gap-2" style={{ borderColor: "#F0EBE0" }}>
                 <h3 className="text-[13px] font-medium text-[#014D5E] flex items-center gap-2">💧 Fluidos, dejetos &amp; alimentação{ultFluido?.hora ? <span className="text-[11px] text-[#374151] font-normal">· último {ultFluido.hora}</span> : null}</h3>
-                {!alta && <button onClick={() => setFluidoOpen(true)} className="text-[12px] font-medium text-white bg-[#009AAC] px-3 py-1.5 rounded-lg">➕ Registrar controle</button>}
+                {!alta && <button onClick={abrirFluido} className="text-[12px] font-medium text-white bg-[#009AAC] px-3 py-1.5 rounded-lg">➕ Registrar controle</button>}
               </div>
               {!ultFluido ? (
                 <div className="px-4 py-6 text-center text-[12.5px] text-[#374151]">Nenhum controle registrado ainda.</div>
@@ -1092,13 +1158,18 @@ export default function FichaInternacaoPage() {
                       </div>
                     ))}
                   </div>
+                  {ultFluido.observacao && (
+                    <div className="mt-2 text-[12.5px] text-[#5C6B70] border rounded-[9px] px-3.5 py-2.5" style={{ borderColor: "#F0EBE0", background: "#FBF9F4" }}>
+                      <span className="text-[#014D5E] font-medium">📝 Observação:</span> {ultFluido.observacao}
+                    </div>
+                  )}
                   {fluidosOrd.length > 0 && (
                     <div className="mt-3 space-y-0">
                       {fluidosOrd.map((f) => (
                         <div key={f.id} className="flex items-start gap-2 text-[12px] py-1.5 border-t" style={{ borderColor: "#F0EBE0" }}>
                           <span className="text-[#374151] tabular-nums whitespace-nowrap w-[92px] flex-shrink-0">{f.hora}{f.por ? ` · ${f.por}` : ""}</span>
-                          <span className="text-[#5C6B70] flex-1">{[f.entradaFluido && `fluido ${f.entradaFluido} ml`, f.agua && `água ${f.agua} ml`, f.diurese && `diurese ${f.diurese}`, f.fezes && `fezes ${f.fezes}`, f.alimentacao && `alim. ${f.alimentacao}`, f.emese && `êmese ${f.emese}`].filter(Boolean).join(" · ") || "—"}</span>
-                          {!alta && <button onClick={() => excluirFluido(f.id)} className="text-[11px] text-[#B4BCC0] hover:text-[#CC3366]">🗑️</button>}
+                          <span className="text-[#5C6B70] flex-1">{[f.entradaFluido && `fluido ${f.entradaFluido} ml`, f.agua && `água ${f.agua} ml`, f.diurese && `diurese ${f.diurese}`, f.fezes && `fezes ${f.fezes}`, f.alimentacao && `alim. ${f.alimentacao}`, f.emese && `êmese ${f.emese}`, f.observacao && `obs: ${f.observacao}`].filter(Boolean).join(" · ") || "—"}</span>
+                          {!alta && <div className="flex gap-1.5 flex-shrink-0"><button onClick={() => abrirFluidoEdit(f)} className="text-[11px] text-[#B4BCC0] hover:text-[#009AAC]" title="Editar">✏️</button><button onClick={() => excluirFluido(f.id)} className="text-[11px] text-[#B4BCC0] hover:text-[#CC3366]" title="Excluir">🗑️</button></div>}
                         </div>
                       ))}
                     </div>
@@ -1289,8 +1360,8 @@ export default function FichaInternacaoPage() {
         <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50 print:hidden" onClick={() => setVitalOpen(false)}>
           <div className="rounded-2xl shadow-xl max-w-md w-full" style={{ background: "#FBF9F4", border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "#E8E2D6" }}>
-              <h3 className="text-base font-medium text-[#014D5E]">🩺 Registrar aferição</h3>
-              <button onClick={() => setVitalOpen(false)} className="text-[#374151]">✕</button>
+              <h3 className="text-base font-medium text-[#014D5E]">{vitalEditId ? "🩺 Editar aferição" : "🩺 Registrar aferição"}</h3>
+              <button onClick={() => { setVitalOpen(false); setVitalEditId(""); }} className="text-[#374151]">✕</button>
             </div>
             <div className="p-5 grid grid-cols-2 gap-3 text-[13px]">
               <div><label className="text-[11px] text-[#374151] block mb-1">FC (bpm)</label>
@@ -1307,8 +1378,8 @@ export default function FichaInternacaoPage() {
                 <select value={vitalForm.dor} onChange={(e) => setVitalForm({ ...vitalForm, dor: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }}>{["0", "1", "2", "3", "4"].map((d) => <option key={d} value={d}>{d}</option>)}</select></div>
             </div>
             <div className="px-5 py-4 border-t flex justify-end gap-2" style={{ borderColor: "#E8E2D6" }}>
-              <button onClick={() => setVitalOpen(false)} className="px-4 py-2 text-[13px] text-[#5C6B70] bg-white border rounded-lg" style={{ borderColor: "#E8E2D6" }}>Cancelar</button>
-              <button onClick={registrarVital} disabled={vitalSaving} className="px-4 py-2 text-[13px] text-white bg-[#009AAC] rounded-lg disabled:opacity-60">{vitalSaving ? "Salvando..." : "Registrar"}</button>
+              <button onClick={() => { setVitalOpen(false); setVitalEditId(""); }} className="px-4 py-2 text-[13px] text-[#5C6B70] bg-white border rounded-lg" style={{ borderColor: "#E8E2D6" }}>Cancelar</button>
+              <button onClick={registrarVital} disabled={vitalSaving} className="px-4 py-2 text-[13px] text-white bg-[#009AAC] rounded-lg disabled:opacity-60">{vitalSaving ? "Salvando..." : (vitalEditId ? "Salvar" : "Registrar")}</button>
             </div>
           </div>
         </div>
@@ -1319,8 +1390,8 @@ export default function FichaInternacaoPage() {
         <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50 print:hidden" onClick={() => setFluidoOpen(false)}>
           <div className="rounded-2xl shadow-xl max-w-md w-full" style={{ background: "#FBF9F4", border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "#E8E2D6" }}>
-              <h3 className="text-base font-medium text-[#014D5E]">💧 Registrar controle</h3>
-              <button onClick={() => setFluidoOpen(false)} className="text-[#374151]">✕</button>
+              <h3 className="text-base font-medium text-[#014D5E]">{fluidoEditId ? "💧 Editar controle" : "💧 Registrar controle"}</h3>
+              <button onClick={() => { setFluidoOpen(false); setFluidoEditId(""); }} className="text-[#374151]">✕</button>
             </div>
             <div className="p-5 grid grid-cols-2 gap-3 text-[13px]">
               <div><label className="text-[11px] text-[#374151] block mb-1">Entrada fluido (ml)</label>
@@ -1335,10 +1406,12 @@ export default function FichaInternacaoPage() {
                 <input value={fluidoForm.alimentacao} onChange={(e) => setFluidoForm({ ...fluidoForm, alimentacao: e.target.value })} placeholder="Aceitou 40%" className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
               <div><label className="text-[11px] text-[#374151] block mb-1">Êmese (vômito)</label>
                 <input value={fluidoForm.emese} onChange={(e) => setFluidoForm({ ...fluidoForm, emese: e.target.value })} placeholder="Ausente" className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
+              <div className="col-span-2"><label className="text-[11px] text-[#374151] block mb-1">📝 Observação (outros itens do pet)</label>
+                <textarea value={fluidoForm.observacao} onChange={(e) => setFluidoForm({ ...fluidoForm, observacao: e.target.value })} rows={2} placeholder="Ex.: vomitou 1× amarelado às 11h; lambendo a pata direita…" className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC] resize-y" style={{ borderColor: "#E8E2D6" }} /></div>
             </div>
             <div className="px-5 py-4 border-t flex justify-end gap-2" style={{ borderColor: "#E8E2D6" }}>
-              <button onClick={() => setFluidoOpen(false)} className="px-4 py-2 text-[13px] text-[#5C6B70] bg-white border rounded-lg" style={{ borderColor: "#E8E2D6" }}>Cancelar</button>
-              <button onClick={registrarFluido} disabled={fluidoSaving} className="px-4 py-2 text-[13px] text-white bg-[#009AAC] rounded-lg disabled:opacity-60">{fluidoSaving ? "Salvando..." : "Registrar"}</button>
+              <button onClick={() => { setFluidoOpen(false); setFluidoEditId(""); }} className="px-4 py-2 text-[13px] text-[#5C6B70] bg-white border rounded-lg" style={{ borderColor: "#E8E2D6" }}>Cancelar</button>
+              <button onClick={registrarFluido} disabled={fluidoSaving} className="px-4 py-2 text-[13px] text-white bg-[#009AAC] rounded-lg disabled:opacity-60">{fluidoSaving ? "Salvando..." : (fluidoEditId ? "Salvar" : "Registrar")}</button>
             </div>
           </div>
         </div>
