@@ -1581,10 +1581,11 @@ export default function InboxUnificadoPage() {
                       </div>
                     ) : (
                       <>
-                        <input value={messageInput} onChange={(e) => setMessageInput(e.target.value)}
-                          onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendMessage()}
-                          placeholder="Digite uma mensagem…  (dica: /cadastro envia o link de cadastro)"
-                          className="flex-1 px-3 py-1.5 border border-[#e8e1d2] rounded-lg text-xs focus:outline-none focus:border-[#009AAC]" />
+                        <textarea value={messageInput} onChange={(e) => setMessageInput(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
+                          rows={1}
+                          placeholder="Digite uma mensagem…  (Enter envia · Shift+Enter pula linha)"
+                          className="flex-1 px-3 py-1.5 border border-[#e8e1d2] rounded-lg text-xs focus:outline-none focus:border-[#009AAC] resize-none leading-snug" style={{ maxHeight: 120 }} />
                         <EmojiPicker onPick={(em) => setMessageInput((v) => v + em)} />
                         {messageInput.trim() ? (
                           <button onClick={() => sendMessage()} className="bg-[#009AAC] text-white w-8 h-8 rounded-lg flex items-center justify-center shrink-0" title="Enviar">
