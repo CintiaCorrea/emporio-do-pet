@@ -25,6 +25,7 @@ export class PublicCadastroController {
       },
       pet: {
         name: (dto?.petName || '').toString().trim(),
+        species: (dto?.petSpecies || '').toString().trim(),
         birthDate: (dto?.petBirthDate || '').toString().trim(),
         breed: (dto?.petBreed || '').toString().trim(),
         age: (dto?.petAge || '').toString().trim(),

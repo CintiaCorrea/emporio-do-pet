@@ -18,7 +18,7 @@ function maskDate(v: string): string {
 export default function CadastroPublicoPage() {
   const [f, setF] = useState({
     name: "", cpf: "", birthDate: "", cep: "", address: "", phone: "", email: "",
-    petName: "", petBirthDate: "", petBreed: "", petAge: "", petWeight: "", howFoundUs: "",
+    petName: "", petSpecies: "", petBirthDate: "", petBreed: "", petAge: "", petWeight: "", howFoundUs: "",
   });
   const [consent, setConsent] = useState(false);
   const [sending, setSending] = useState(false);
@@ -88,7 +88,17 @@ export default function CadastroPublicoPage() {
           </div>
 
           <div style={{ ...secTit, marginTop: 6 }}>Seu pet</div>
-          <div><label style={lbl}>Nome do seu pet</label><input style={inp} value={f.petName} onChange={(e) => up("petName", e.target.value)} placeholder="Nome do pet" /></div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div><label style={lbl}>Nome do seu pet</label><input style={inp} value={f.petName} onChange={(e) => up("petName", e.target.value)} placeholder="Nome do pet" /></div>
+            <div><label style={lbl}>Espécie</label>
+              <select style={inp} value={f.petSpecies} onChange={(e) => up("petSpecies", e.target.value)}>
+                <option value="">Selecione…</option>
+                <option value="CANINE">🐶 Cão</option>
+                <option value="FELINE">🐱 Gato</option>
+                <option value="OTHER">🐾 Outro</option>
+              </select>
+            </div>
+          </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <div><label style={lbl}>Raça</label><input style={inp} value={f.petBreed} onChange={(e) => up("petBreed", e.target.value)} placeholder="Ex.: Golden, SRD…" /></div>
             <div><label style={lbl}>Data de nascimento</label><input style={inp} value={f.petBirthDate} onChange={(e) => up("petBirthDate", maskDate(e.target.value))} inputMode="numeric" placeholder="DD/MM/AAAA" maxLength={10} /></div>

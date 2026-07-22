@@ -68,6 +68,7 @@ export default function CadastrosRecebidosPage() {
     const petBirth = toISO(s.pet.birthDate);
     const body: any = {
       tutorId, name: s.pet.name.trim(),
+      species: s.pet.species || undefined,
       breed: s.pet.breed?.trim() || undefined,
       weight: s.pet.weight ? Number(String(s.pet.weight).replace(",", ".")) || undefined : undefined,
       birthDate: petBirth,
