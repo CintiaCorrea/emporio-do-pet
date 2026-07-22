@@ -135,7 +135,10 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
+  // As rotas de UPLOAD (áudio de consulta, mídia) ficam FORA do middleware: o middleware
+  // do Next limita o corpo da requisição a 10 MB e cortava áudios grandes (>10 MB),
+  // quebrando o multipart. Essas rotas fazem a própria autenticação no route handler.
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|api/media/upload|api/consultation-recordings/[^/]+/upload-and-transcribe|api/consultation-recordings/upload-and-transcribe|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
