@@ -692,7 +692,7 @@ export default function InboxUnificadoPage() {
     // Atalho: "/cadastro" vira a mensagem com o link público de cadastro.
     const linkCadastro = (typeof window !== "undefined" ? window.location.origin : "") + "/queremos-te-conhecer";
     let text = /^\/cadastro$/i.test(raw)
-      ? `Oi! 🐾 Pra gente te conhecer melhor e cuidar bem do seu pet, preenche rapidinho aqui: ${linkCadastro} 💙`
+      ? `Oi! 🐾 Para confirmar o atendimento do seu pet, precisamos te conhecer um pouquinho melhor — é rapidinho: ${linkCadastro}\n\nAssim que você preencher, seu agendamento fica confirmado! 💙`
       : raw;
     // Assinatura: sai o primeiro nome de quem está logado na frente da mensagem
     // (limpo, sem markup — fica legível tanto no WhatsApp quanto na nossa caixa).
@@ -1520,7 +1520,7 @@ export default function InboxUnificadoPage() {
                       <span className="text-[11px] text-[#5F5E5A]">{assinar ? <>Assinar como <b>{primeiroNome || "você"}</b></> : "Sem assinatura"}</span>
                     </button>
                     <div className="ml-auto flex items-center gap-1.5 flex-wrap">
-                      <button onClick={() => { const l = window.location.origin + "/queremos-te-conhecer"; setMessageInput(`Oi! 🐾 Pra gente te conhecer melhor, preenche rapidinho aqui: ${l} 💙`); }}
+                      <button onClick={() => { const l = window.location.origin + "/queremos-te-conhecer"; setMessageInput(`Oi! 🐾 Para confirmar o atendimento do seu pet, precisamos te conhecer um pouquinho melhor — é rapidinho: ${l}\n\nAssim que você preencher, seu agendamento fica confirmado! 💙`); }}
                         className="text-[10.5px] px-2 py-1 rounded-full border border-dashed border-[#009AAC] text-[#00798A] hover:bg-[#F0FBFC]">🔗 Enviar cadastro</button>
                       <button onClick={() => { if (!selectedConv?.tutor?.id) { toast("Agendar consulta é pra cliente com ficha — este contato ainda não tem cadastro.", { icon: "📅" }); return; } setAgendarOpen(true); }}
                         className="text-[10.5px] px-2 py-1 rounded-full border border-dashed border-[#009AAC] text-[#00798A] hover:bg-[#F0FBFC]">📅 Agendar consulta</button>
