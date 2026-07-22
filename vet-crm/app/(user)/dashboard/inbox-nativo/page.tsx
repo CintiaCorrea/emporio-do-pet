@@ -763,18 +763,27 @@ export default function InboxUnificadoPage() {
     setNovaMsgSending(true);
     try {
       if (novaMsgAnexo) {
-        // Anexo (documento/foto): garante a conversa e envia a mídia com o texto como legenda.
+        // Anexo (documento/foto/vídeo): o texto vai como LEGENDA (uma mensagem só).
+        // Áudio/figurinha não aceitam legenda no WhatsApp → o texto vai como mensagem separada.
         // (Agendamento não vale pra anexo — vai agora.)
         const re = await fetch("/api/whatsapp/conversations/ensure", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ to: phone }) });
         const rj = await re.json().catch(() => ({}));
         if (!re.ok || !rj?.conversationId) throw new Error(rj?.message || "Não consegui abrir a conversa");
+        const convId = rj.conversationId;
+        const mime = novaMsgAnexo.type || "";
+        const semLegenda = mime.startsWith("audio/") || mime === "image/webp";
+        const texto = novaMsgText.trim();
         const fd = new FormData();
         fd.append("file", novaMsgAnexo);
-        if (novaMsgText.trim()) fd.append("caption", novaMsgText.trim());
-        const rm = await fetch(`/api/whatsapp/conversations/${rj.conversationId}/media`, { method: "POST", body: fd });
+        if (texto && !semLegenda) fd.append("caption", texto);
+        const rm = await fetch(`/api/whatsapp/conversations/${convId}/media`, { method: "POST", body: fd });
         const mj = await rm.json().catch(() => ({}));
         if (!rm.ok) throw new Error(mj?.message || mj?.error || "Falha ao enviar o anexo");
-        toast.success("Anexo enviado");
+        // Áudio/figurinha: manda o texto logo em seguida pra ele não se perder.
+        if (texto && semLegenda) {
+          await fetch("/api/whatsapp/send", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ to: phone, content: texto, type: "TEXT" }) }).catch(() => null);
+        }
+        toast.success("Enviado");
       } else if (novaMsgScheduledAt) {
         // Agendamento via /api/whatsapp/schedule
         await fetch("/api/whatsapp/schedule", {
