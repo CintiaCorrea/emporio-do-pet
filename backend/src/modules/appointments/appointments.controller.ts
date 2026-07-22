@@ -120,7 +120,7 @@ export class AppointmentsController {
 
   @Delete(':id')
   @ApiOperation({ summary: 'Remover agendamento' })
-  remove(@Param('id') id: string) {
-    return this.appointmentsService.remove(id);
+  remove(@Param('id') id: string, @Query('force') force?: string) {
+    return this.appointmentsService.remove(id, force === 'true' || force === '1');
   }
 }

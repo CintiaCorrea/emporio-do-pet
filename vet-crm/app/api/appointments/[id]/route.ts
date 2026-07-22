@@ -28,5 +28,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  return proxyToBackend(request, `/appointments/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  const force = request.nextUrl.searchParams.get('force');
+  const qs = force === 'true' || force === '1' ? '?force=true' : '';
+  return proxyToBackend(request, `/appointments/${encodeURIComponent(id)}${qs}`, { method: 'DELETE' });
 }

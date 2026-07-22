@@ -1,5 +1,5 @@
 // [EMP-COWORK] fix: bloco de `items` movido pra fora do if de `treatments` (servicos salvavam so com tratamento). Cintia 06/06.
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService, PrismaTransactionClient } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { BoardsService } from '../boards/boards.service';
@@ -729,8 +729,23 @@ export class AppointmentsService {
     return result;
   }
 
-  async remove(id: string) {
+  async remove(id: string, force = false) {
     await this.findById(id);
+
+    // PROTEÇÃO (fase de teste): apagar um atendimento apaga em cascata a gravação de
+    // áudio da consulta. Se existir gravação, bloqueia — pra ninguém perder áudio sem querer.
+    // Só passa com force=true (confirmação explícita "apagar mesmo assim").
+    if (!force) {
+      const gravacao = await this.prisma.consultationRecording.findUnique({
+        where: { appointmentId: id },
+        select: { id: true },
+      });
+      if (gravacao) {
+        throw new ConflictException(
+          'TEM_GRAVACAO: Este atendimento tem uma gravação de áudio salva. Apagar o atendimento apagaria a gravação junto. Confirme se quer mesmo apagar tudo.',
+        );
+      }
+    }
 
     return this.prisma.appointment.delete({
       where: { id },

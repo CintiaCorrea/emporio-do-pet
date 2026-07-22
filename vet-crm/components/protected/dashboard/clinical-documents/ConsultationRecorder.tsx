@@ -40,11 +40,16 @@ export default function ConsultationRecorder({
   const [showManualInput, setShowManualInput] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [storedAudioUrl, setStoredAudioUrl] = useState(''); // áudio salvo no armazenamento (fase de teste)
+  // BLINDAGEM (fase de teste): salvar o áudio JÁ ao finalizar, e nunca falhar em silêncio.
+  const [audioSalvo, setAudioSalvo] = useState(false);      // áudio subiu + registro criado
+  const [salvandoAudio, setSalvandoAudio] = useState(false);
+  const [erroSalvar, setErroSalvar] = useState('');
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const salvouRef = useRef(false); // garante que o auto-salvamento roda uma vez por gravação
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -68,6 +73,11 @@ export default function ConsultationRecorder({
           : 'audio/webm'});
       mediaRecorderRef.current = mediaRecorder;
       chunksRef.current = [];
+      // nova gravação: zera os controles de salvamento
+      salvouRef.current = false;
+      setAudioSalvo(false);
+      setErroSalvar('');
+      setStoredAudioUrl('');
 
       mediaRecorder.ondataavailable = (e) => {
         if (e.data.size > 0) {
@@ -129,6 +139,61 @@ export default function ConsultationRecorder({
     }
   }, [isRecording, recordingTime]);
 
+  // BLINDAGEM ponto 1: salva o áudio e cria o registro AUTOMATICAMENTE ao finalizar,
+  // sem depender de clicar em "Transcrever". Assim, mesmo que a pessoa saia da tela,
+  // a gravação não se perde. Se algo falhar, mostra aviso vermelho (nunca em silêncio).
+  const salvarAudioERegistro = async (blob: Blob) => {
+    if (!blob) return;
+    setSalvandoAudio(true);
+    setErroSalvar('');
+    try {
+      let audioUrlSalvo = storedAudioUrl;
+      if (MANTER_AUDIO && !audioUrlSalvo) {
+        const fd = new FormData();
+        fd.append('file', blob, `consulta-${appointmentId}-${recordingTime}s.webm`);
+        const up = await fetch('/api/media/upload?pasta=documentos', { method: 'POST', body: fd });
+        const ud = await up.json().catch(() => ({}));
+        if (up.ok && ud?.url) { audioUrlSalvo = ud.url; setStoredAudioUrl(ud.url); }
+        else throw new Error('Falha ao enviar o áudio para o armazenamento.');
+      }
+      let rid = recordingId;
+      if (!rid) {
+        const cr = await fetch('/api/consultation-recordings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ appointmentId, ...(audioUrlSalvo ? { audioUrl: audioUrlSalvo, audioFileName: 'consulta.webm', audioDuration: recordingTime } : {}) }) });
+        if (!cr.ok) throw new Error('Falha ao criar o registro da gravação.');
+        const cd = await cr.json(); rid = cd.id; setRecordingId(cd.id); onRecordingCreated?.(cd);
+      } else if (audioUrlSalvo) {
+        // registro já existe — anexa o áudio a ele (best-effort)
+        await fetch(`/api/consultation-recordings/${rid}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'audio', audioUrl: audioUrlSalvo, audioDuration: recordingTime }) }).catch(() => {});
+      }
+      setAudioSalvo(true);
+      toast.success('Áudio salvo com segurança ✅');
+    } catch {
+      setAudioSalvo(false);
+      setErroSalvar('Não foi possível salvar o áudio. NÃO feche a página — clique em "Salvar áudio de novo".');
+      toast.error('⚠️ O áudio ainda NÃO foi salvo!');
+    } finally {
+      setSalvandoAudio(false);
+    }
+  };
+
+  // Assim que a gravação finaliza (blob pronto), dispara o auto-salvamento uma vez.
+  useEffect(() => {
+    if (audioBlob && !salvouRef.current) {
+      salvouRef.current = true;
+      void salvarAudioERegistro(audioBlob);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [audioBlob]);
+
+  // BLINDAGEM ponto 3: avisa antes de fechar/atualizar a página se houver áudio não salvo.
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (audioBlob && !audioSalvo) { e.preventDefault(); e.returnValue = ''; }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [audioBlob, audioSalvo]);
+
   // Upload audio and transcribe via Whisper (main flow)
   const uploadAndTranscribe = useCallback(async () => {
     if (!audioBlob) {
@@ -146,8 +211,9 @@ export default function ConsultationRecorder({
       //    de novo ou preencher a transcrição manualmente.
       // Fase de teste: sobe o áudio pro armazenamento ANTES, pra ficar guardado (e ouvível
       // depois). Se falhar, segue só com a transcrição — não trava a consulta.
-      let audioUrlSalvo = '';
-      if (MANTER_AUDIO) {
+      // Se o áudio já foi salvo ao finalizar (blindagem), reaproveita — não sobe de novo.
+      let audioUrlSalvo = storedAudioUrl;
+      if (MANTER_AUDIO && !audioUrlSalvo) {
         try {
           const fd = new FormData();
           fd.append('file', audioBlob, `consulta-${appointmentId}-${recordingTime}s.webm`);
@@ -388,6 +454,30 @@ export default function ConsultationRecorder({
                 style={{ width: `${uploadProgress}%` }}
               />
             </div>
+          </div>
+        )}
+
+        {/* BLINDAGEM: status do salvamento do áudio (salvando / erro / salvo) */}
+        {(salvandoAudio || erroSalvar || audioSalvo) && (
+          <div className="mb-4">
+            {salvandoAudio && (
+              <div className="flex items-center gap-2 text-sm text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg px-3 py-2">
+                <LuLoader className="w-4 h-4 animate-spin" /> Salvando o áudio com segurança…
+              </div>
+            )}
+            {!salvandoAudio && erroSalvar && (
+              <div className="flex items-center justify-between gap-3 text-sm text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/20 border border-red-300 dark:border-red-800 rounded-lg px-3 py-2">
+                <span>⚠️ {erroSalvar}</span>
+                <button onClick={() => audioBlob && salvarAudioERegistro(audioBlob)} className="shrink-0 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium">
+                  Salvar áudio de novo
+                </button>
+              </div>
+            )}
+            {!salvandoAudio && !erroSalvar && audioSalvo && (
+              <div className="flex items-center gap-2 text-sm text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg px-3 py-2">
+                <LuCheck className="w-4 h-4" /> Áudio salvo com segurança — pode transcrever ou sair sem perder.
+              </div>
+            )}
           </div>
         )}
 

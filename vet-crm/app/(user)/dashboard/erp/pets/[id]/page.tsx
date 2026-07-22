@@ -804,9 +804,24 @@ export default function PetDetailPage() {
   async function abrirDetalheHist(id: string) { try { const r = await fetch(`/api/pets/historico/${id}`, { cache: "no-store" }); const d = await r.json(); if (d?.id) setDetalheHist(d); } catch {} }
   async function loadClinDocs() { try { const r = await fetch(`/api/clinical-documents/pet/${petId}`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.documents || d.data || []); setClinDocs(arr); } catch {} }
   async function abrirAtd(id: string) { try { const a = await fetch(`/api/appointments/${id}`, { cache: "no-store" }).then(r => r.json()); setVerAtd(a); setEditAtd(false); } catch { toast.error("Erro ao abrir atendimento"); } }
-  async function excluirAtendimento(id: string) {
-    if (!(await confirmDelete({ entityLabel: "atendimento", itemName: "este atendimento" }))) return;
-    try { const r = await fetch(`/api/appointments/${id}`, { method: "DELETE" }); if (!r.ok) throw new Error(); toast.success("Atendimento excluído"); setVerAtd(null); await loadAtendimentos(); } catch { toast.error("Erro ao excluir"); }
+  async function excluirAtendimento(id: string, force = false) {
+    if (!force && !(await confirmDelete({ entityLabel: "atendimento", itemName: "este atendimento" }))) return;
+    try {
+      const r = await fetch(`/api/appointments/${id}${force ? "?force=true" : ""}`, { method: "DELETE" });
+      if (!r.ok) {
+        const corpo = await r.json().catch(() => null);
+        const msg = String(corpo?.message || corpo?.error || "");
+        // Backend bloqueia quando o atendimento tem gravação de áudio (pra não apagar o áudio junto).
+        if (!force && (r.status === 409 || msg.includes("TEM_GRAVACAO"))) {
+          if (window.confirm("⚠️ Este atendimento tem uma GRAVAÇÃO DE ÁUDIO salva.\n\nApagar o atendimento vai apagar a gravação junto, de vez. Tem certeza que quer apagar tudo?")) {
+            return excluirAtendimento(id, true);
+          }
+          return;
+        }
+        throw new Error(msg || "erro");
+      }
+      toast.success("Atendimento excluído"); setVerAtd(null); await loadAtendimentos();
+    } catch { toast.error("Erro ao excluir"); }
   }
   async function salvarEditAtd() {
     if (!verAtd) return;
