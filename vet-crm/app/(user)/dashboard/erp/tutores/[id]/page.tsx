@@ -263,6 +263,9 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
     setSavingDados(true);
     try {
       const payload: any = { ...dadosForm };
+      // "Como conheceu": monta a indicação composta ("Indicação · Cliente: Maria") e tira os auxiliares.
+      payload.howFoundUs = composeHowFound(payload.howFoundUs, payload._indicTipo, payload._indicNome);
+      delete payload._indicTipo; delete payload._indicNome;
       // Campos de ESCOLHA (tipo, sexo) só aceitam um código válido OU nada. Vazio ("")
       // não é código — e 548 clientes têm sexo em branco, então a tela mandava "" e o
       // servidor recusava tudo. Vazio nesses campos vira null (= "não informado").
@@ -353,9 +356,27 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
     try { const r = await fetch(`/api/tutors/${id}/profile-stats`); if (r.ok) setStats(await r.json()); } catch {}
   }
   useEffect(() => { load(); loadStats(); loadInteracoes(); loadTemplates(); loadPipelineCliente();
-    (async () => { try { const r = await fetch(`/api/listas?lista=cliente_origem`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.itens || d.data || []); setOrigensCat(arr.map((i: any) => { try { const o = JSON.parse(i.valor); return o.nome || o.valor || i.valor; } catch { return i.valor; } }).filter(Boolean)); } catch {} })();
+    (async () => { try { const r = await fetch(`/api/listas?lista=origens`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.itens || d.data || []); setOrigensCat(arr.map((i: any) => { const v = i?.valor; if (typeof v !== "string") return ""; const t = v.trim(); if (t.startsWith("{")) { try { const o = JSON.parse(t); return o.nome || o.valor || t; } catch { return t; } } return t; }).filter(Boolean)); } catch {} })();
   }, [id]);
-  const ORIGENS_DEFAULT = ["Indicação de amigo", "Instagram", "Facebook", "Google", "Passando na rua", "Já era cliente", "WhatsApp", "Panfleto", "Outro"];
+  const ORIGENS_DEFAULT = ["Indicação", "Google", "Instagram", "Facebook", "Passando na rua", "WhatsApp", "Outro"];
+  const origensOpcoes = Array.from(new Set([...origensCat, ...ORIGENS_DEFAULT]));
+  // "Como conheceu" pode guardar uma indicação composta: "Indicação · Cliente: Maria Silva".
+  const parseHowFound = (raw: string) => {
+    const s = (raw || "").trim();
+    if (!s) return { origem: "", indicTipo: "", indicNome: "" };
+    if (s.toLowerCase().startsWith("indica")) {
+      const partes = s.split("·").map((p) => p.trim());
+      let indicTipo = "", indicNome = "";
+      if (partes[1]) { const m = partes[1].split(":"); indicTipo = (m[0] || "").trim(); indicNome = m.slice(1).join(":").trim(); }
+      return { origem: "Indicação", indicTipo: indicTipo || "Cliente", indicNome };
+    }
+    return { origem: s, indicTipo: "", indicNome: "" };
+  };
+  const composeHowFound = (origem: string, indicTipo: string, indicNome: string) => {
+    if (!origem) return "";
+    if (origem === "Indicação") { const tipo = indicTipo || "Cliente"; const nome = (indicNome || "").trim(); return nome ? `Indicação · ${tipo}: ${nome}` : `Indicação · ${tipo}`; }
+    return origem;
+  };
 
   const saveNota = async () => {
     setNotaSaving(true);
@@ -716,7 +737,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
           {/* Cabeçalho do box único */}
           <div className="flex items-center justify-between border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
             <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">👤 Dados do cliente</h3>
-            <button onClick={() => { setDadosForm({ name: tutor.name || "", email: tutor.email || "", type: tutor.type || "", cpf: tutor.cpf || "", rg: tutor.rg || "", birthDate: tutor.birthDate ? String(tutor.birthDate).slice(0, 10) : "", gender: tutor.gender || "", nationality: tutor.nationality || "", howFoundUs: tutor.howFoundUs || "", profession: tutor.profession || "", cep: tutor.cep || "", address: tutor.address || "", addressNumber: tutor.addressNumber || "", complement: tutor.complement || "", referencePoint: tutor.referencePoint || "", neighborhood: tutor.neighborhood || "", city: tutor.city || "", state: tutor.state || "", acceptsEmail: !!tutor.acceptsEmail, acceptsWhatsApp: !!tutor.acceptsWhatsApp, acceptsSMS: !!tutor.acceptsSMS, acceptsSmsCampaign: !!tutor.acceptsSmsCampaign }); setEditDados(v => !v); }} className="text-[11px] text-[#009AAC] hover:underline">{editDados ? "✖️ Fechar" : "✏️ Editar"}</button>
+            <button onClick={() => { setDadosForm({ name: tutor.name || "", email: tutor.email || "", type: tutor.type || "", cpf: tutor.cpf || "", rg: tutor.rg || "", birthDate: tutor.birthDate ? String(tutor.birthDate).slice(0, 10) : "", gender: tutor.gender || "", nationality: tutor.nationality || "", ...((): any => { const p = parseHowFound(tutor.howFoundUs || ""); return { howFoundUs: p.origem, _indicTipo: p.indicTipo, _indicNome: p.indicNome }; })(), profession: tutor.profession || "", cep: tutor.cep || "", address: tutor.address || "", addressNumber: tutor.addressNumber || "", complement: tutor.complement || "", referencePoint: tutor.referencePoint || "", neighborhood: tutor.neighborhood || "", city: tutor.city || "", state: tutor.state || "", acceptsEmail: !!tutor.acceptsEmail, acceptsWhatsApp: !!tutor.acceptsWhatsApp, acceptsSMS: !!tutor.acceptsSMS, acceptsSmsCampaign: !!tutor.acceptsSmsCampaign }); setEditDados(v => !v); }} className="text-[11px] text-[#009AAC] hover:underline">{editDados ? "✖️ Fechar" : "✏️ Editar"}</button>
           </div>
 
           <div style={{ padding: "13px 14px" }}>
@@ -768,9 +789,28 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
                 </div>
                 <div>
                   <label className="text-[10px] uppercase tracking-wide text-[#374151]">Como conheceu</label>
-                  <input list="cliente-origem" value={dadosForm.howFoundUs ?? ""} onChange={e => setDadosForm((f: any) => ({ ...f, howFoundUs: e.target.value }))} placeholder="Escolha ou digite…" className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[13px] text-[#1F2A2E]" />
-                  <datalist id="cliente-origem">{[...origensCat, ...ORIGENS_DEFAULT.filter((o) => !origensCat.includes(o))].map((o, i) => <option key={i} value={o} />)}</datalist>
+                  <select value={dadosForm.howFoundUs ?? ""} onChange={e => setDadosForm((f: any) => ({ ...f, howFoundUs: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[13px] text-[#1F2A2E] bg-white">
+                    <option value="">Selecione…</option>
+                    {dadosForm.howFoundUs && dadosForm.howFoundUs !== "Indicação" && !origensOpcoes.includes(dadosForm.howFoundUs) && <option value={dadosForm.howFoundUs}>{dadosForm.howFoundUs}</option>}
+                    {origensOpcoes.map((o, i) => <option key={i} value={o}>{o}</option>)}
+                  </select>
                 </div>
+                {dadosForm.howFoundUs === "Indicação" && (
+                  <>
+                    <div>
+                      <label className="text-[10px] uppercase tracking-wide text-[#374151]">Tipo de indicação</label>
+                      <select value={dadosForm._indicTipo || "Cliente"} onChange={e => setDadosForm((f: any) => ({ ...f, _indicTipo: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[13px] text-[#1F2A2E] bg-white">
+                        <option value="Cliente">Cliente</option>
+                        <option value="Parceiro">Parceiro</option>
+                        <option value="Outro">Outro</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[10px] uppercase tracking-wide text-[#374151]">Nome de quem indicou</label>
+                      <input value={dadosForm._indicNome ?? ""} onChange={e => setDadosForm((f: any) => ({ ...f, _indicNome: e.target.value }))} placeholder="Digite o nome" className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[13px] text-[#1F2A2E]" />
+                    </div>
+                  </>
+                )}
                 <div>
                   <label className="text-[10px] uppercase tracking-wide text-[#374151]">Profissão</label>
                   <input value={dadosForm.profession ?? ""} onChange={e => setDadosForm((f: any) => ({ ...f, profession: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[13px] text-[#1F2A2E]" />
@@ -927,7 +967,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
           <div className="border-t border-[#F0EBE0] pt-3 mt-4">
             <div className="flex items-center justify-between mb-2">
               <div className="text-[12px] font-medium uppercase tracking-wide text-[#014D5E]">📍 Endereço</div>
-              <button onClick={() => { setDadosForm({ name: tutor.name || "", email: tutor.email || "", type: tutor.type || "", cpf: tutor.cpf || "", rg: tutor.rg || "", birthDate: tutor.birthDate ? String(tutor.birthDate).slice(0, 10) : "", gender: tutor.gender || "", nationality: tutor.nationality || "", howFoundUs: tutor.howFoundUs || "", profession: tutor.profession || "", cep: tutor.cep || "", address: tutor.address || "", addressNumber: tutor.addressNumber || "", complement: tutor.complement || "", referencePoint: tutor.referencePoint || "", neighborhood: tutor.neighborhood || "", city: tutor.city || "", state: tutor.state || "", acceptsEmail: !!tutor.acceptsEmail, acceptsWhatsApp: !!tutor.acceptsWhatsApp, acceptsSMS: !!tutor.acceptsSMS, acceptsSmsCampaign: !!tutor.acceptsSmsCampaign }); setEditDados(true); }} className="text-[11px] text-[#009AAC] hover:underline">✏️ Editar</button>
+              <button onClick={() => { setDadosForm({ name: tutor.name || "", email: tutor.email || "", type: tutor.type || "", cpf: tutor.cpf || "", rg: tutor.rg || "", birthDate: tutor.birthDate ? String(tutor.birthDate).slice(0, 10) : "", gender: tutor.gender || "", nationality: tutor.nationality || "", ...((): any => { const p = parseHowFound(tutor.howFoundUs || ""); return { howFoundUs: p.origem, _indicTipo: p.indicTipo, _indicNome: p.indicNome }; })(), profession: tutor.profession || "", cep: tutor.cep || "", address: tutor.address || "", addressNumber: tutor.addressNumber || "", complement: tutor.complement || "", referencePoint: tutor.referencePoint || "", neighborhood: tutor.neighborhood || "", city: tutor.city || "", state: tutor.state || "", acceptsEmail: !!tutor.acceptsEmail, acceptsWhatsApp: !!tutor.acceptsWhatsApp, acceptsSMS: !!tutor.acceptsSMS, acceptsSmsCampaign: !!tutor.acceptsSmsCampaign }); setEditDados(true); }} className="text-[11px] text-[#009AAC] hover:underline">✏️ Editar</button>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-3">
               {tutor.cep && <div><div className="text-[10px] uppercase tracking-wide text-[#374151]">CEP</div><div className="text-[13px] text-[#1F2A2E]">{tutor.cep}</div></div>}
