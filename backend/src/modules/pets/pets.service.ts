@@ -71,11 +71,15 @@ export class PetsService {
   }
 
   async create(createPetDto: CreatePetDto) {
+    // birthDate pode vir só como data ("2019-03-20") — o Prisma exige data-HORA e estoura 500.
+    // Converte pra Date (meia-noite) pra não quebrar (ex.: cadastro pelo link público).
+    const dados: any = { ...createPetDto };
+    if (dados.birthDate) { const d = new Date(dados.birthDate); dados.birthDate = isNaN(d.getTime()) ? undefined : d; }
     let pet: any;
     for (let tentativa = 0; ; tentativa++) {
       try {
         pet = await this.prisma.pet.create({
-          data: { ...createPetDto, codigo: await proximoCodigo(this.prisma, 'pet') },
+          data: { ...dados, codigo: await proximoCodigo(this.prisma, 'pet') },
           include: {
             tutor: true,
           },
@@ -213,9 +217,11 @@ export class PetsService {
   async update(id: string, updatePetDto: UpdatePetDto) {
     await this.findById(id);
 
+    const dados: any = { ...updatePetDto };
+    if (dados.birthDate) { const d = new Date(dados.birthDate); dados.birthDate = isNaN(d.getTime()) ? undefined : d; }
     return this.prisma.pet.update({
       where: { id },
-      data: updatePetDto,
+      data: dados,
       include: {
         tutor: true,
       },
