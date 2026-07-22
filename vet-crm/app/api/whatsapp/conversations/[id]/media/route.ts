@@ -15,9 +15,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const upstream = `${buildApiBase(base)}/whatsapp/conversations/${encodeURIComponent(id)}/media`;
 
   try {
-    const form = await request.formData();
-    // Sem Content-Type manual: o fetch monta o boundary do multipart sozinho.
-    const r = await fetch(upstream, { method: 'POST', headers: { ...auth }, body: form });
+    // STREAM o multipart direto pro backend (sem formData/buffer): vídeo grande carregado
+    // inteiro na memória estourava o Next (OOM). Mantém o content-type original (boundary).
+    const r = await fetch(upstream, {
+      method: 'POST',
+      headers: { ...auth, 'content-type': request.headers.get('content-type') || 'application/octet-stream' },
+      body: request.body,
+      duplex: 'half',
+    } as any);
     const texto = await r.text();
     let dado: any;
     try { dado = JSON.parse(texto); } catch { dado = { error: texto || 'Resposta inesperada' }; }

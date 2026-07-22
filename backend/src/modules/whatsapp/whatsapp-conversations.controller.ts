@@ -269,7 +269,7 @@ export class WhatsAppConversationsController {
   }
 
   @Post('conversations/:id/media')
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 20 * 1024 * 1024 } }))
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 60 * 1024 * 1024 } }))
   async sendMedia(
     @CurrentUser() user: JwtUser,
     @Param('id') conversationId: string,
