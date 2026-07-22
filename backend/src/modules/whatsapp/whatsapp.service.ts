@@ -875,21 +875,43 @@ export class WhatsAppService {
   ) {
     const messageType = this.mapMessageType(data.type);
 
-    const message = await this.prisma.whatsAppMessage.create({
-      data: {
-        conversationId,
-        waMessageId: data.waMessageId,
-        direction: 'INBOUND',
-        type: messageType,
-        status: 'DELIVERED',
-        content: data.content,
-        mediaUrl: data.mediaUrl,
-        mediaType: data.mediaType,
-        mediaCaption: data.mediaCaption,
-        metadata: data.metadata ? (data.metadata as Prisma.JsonObject) : undefined,
-        deliveredAt: new Date(),
-      },
-    });
+    // IDEMPOTÊNCIA: se a mensagem já existe (mesmo waMessageId), retorna a existente sem
+    // recriar nem reincrementar o não-lido. Sem isso, uma reentrega do Meta/replay batia
+    // na constraint única -> erro -> Meta reenviava -> tempestade que entupia o banco/pool.
+    if (data.waMessageId) {
+      const existente = await this.prisma.whatsAppMessage.findFirst({
+        where: { waMessageId: data.waMessageId },
+      });
+      if (existente) return existente;
+    }
+
+    let message;
+    try {
+      message = await this.prisma.whatsAppMessage.create({
+        data: {
+          conversationId,
+          waMessageId: data.waMessageId,
+          direction: 'INBOUND',
+          type: messageType,
+          status: 'DELIVERED',
+          content: data.content,
+          mediaUrl: data.mediaUrl,
+          mediaType: data.mediaType,
+          mediaCaption: data.mediaCaption,
+          metadata: data.metadata ? (data.metadata as Prisma.JsonObject) : undefined,
+          deliveredAt: new Date(),
+        },
+      });
+    } catch (e: any) {
+      // Corrida: dois webhooks iguais quase simultâneos. Se bateu na duplicata, retorna a existente.
+      if (e?.code === 'P2002' && data.waMessageId) {
+        const existente = await this.prisma.whatsAppMessage.findFirst({
+          where: { waMessageId: data.waMessageId },
+        });
+        if (existente) return existente;
+      }
+      throw e;
+    }
 
     // Update conversation
     await this.prisma.whatsAppConversation.update({
