@@ -3,6 +3,10 @@ import { ConfigService } from '@nestjs/config';
 import { RedisService } from '../redis/redis.service';
 import * as crypto from 'crypto';
 import OpenAI from 'openai';
+import { spawn } from 'child_process';
+import { writeFile, readFile, unlink } from 'fs/promises';
+import { tmpdir } from 'os';
+import { join } from 'path';
 
 export interface TranscriptionResult {
   text: string;
@@ -238,13 +242,54 @@ export class AudioService {
     language?: string,
     prompt?: string,
   ): Promise<TranscriptionResult> {
+    // Whisper aceita no máx. 25 MB — consultas longas passam disso. Se for grande,
+    // comprime pra ogg/opus (voz fica ótima em bitrate baixo) antes de enviar.
+    const comp = await this.comprimirParaWhisper(audioBuffer, filename);
+    audioBuffer = comp.buffer;
+    filename = comp.filename;
+
     // Use direct OpenAI API (default, simpler and more reliable)
     if (this.useDirectOpenAI) {
       return this.transcribeDirectOpenAI(audioBuffer, filename, openAiKey, language, prompt);
     }
-    
+
     // Fallback to AI Service if configured
     return this.transcribeViaAIService(audioBuffer, filename, openAiKey, language, prompt);
+  }
+
+  /**
+   * Comprime o áudio pra caber no limite do Whisper (25 MB). Só age se passar de ~24 MB.
+   * Converte pra ogg/opus mono 16 kHz 24 kbps — ótimo pra fala; ex.: 40 MB -> ~6 MB.
+   * Se o ffmpeg falhar, segue com o original (não trava a transcrição).
+   */
+  private async comprimirParaWhisper(
+    audioBuffer: Buffer,
+    filename: string,
+  ): Promise<{ buffer: Buffer; filename: string }> {
+    const LIMITE = 24 * 1024 * 1024;
+    if (audioBuffer.length <= LIMITE) return { buffer: audioBuffer, filename };
+    const base = join(tmpdir(), `whisper_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`);
+    const inPath = `${base}.in`;
+    const outPath = `${base}.ogg`;
+    try {
+      await writeFile(inPath, audioBuffer);
+      await new Promise<void>((resolve, reject) => {
+        const ff = spawn('ffmpeg', ['-y', '-i', inPath, '-ac', '1', '-ar', '16000', '-c:a', 'libopus', '-b:a', '24k', outPath]);
+        let err = '';
+        ff.stderr.on('data', (d) => { err += d.toString(); });
+        ff.on('error', reject);
+        ff.on('close', (code) => (code === 0 ? resolve() : reject(new Error(err.slice(-300)))));
+      });
+      const comprimido = await readFile(outPath);
+      this.logger.log(`Áudio comprimido p/ Whisper: ${(audioBuffer.length / 1048576).toFixed(1)}MB -> ${(comprimido.length / 1048576).toFixed(1)}MB`);
+      return { buffer: comprimido, filename: filename.replace(/\.[^.]+$/, '') + '.ogg' };
+    } catch (e) {
+      this.logger.warn(`Falha ao comprimir áudio p/ Whisper (segue com o original): ${e}`);
+      return { buffer: audioBuffer, filename };
+    } finally {
+      unlink(inPath).catch(() => undefined);
+      unlink(outPath).catch(() => undefined);
+    }
   }
 
   /**

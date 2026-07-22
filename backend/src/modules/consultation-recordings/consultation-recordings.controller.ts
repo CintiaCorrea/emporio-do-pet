@@ -85,7 +85,7 @@ export class ConsultationRecordingsController {
    * The audio buffer is sent directly to Whisper and only the transcription text is saved.
    */
   @Post(':id/upload-and-transcribe')
-  @UseInterceptors(FileInterceptor('audio', { limits: { fileSize: 25 * 1024 * 1024 } }))
+  @UseInterceptors(FileInterceptor('audio', { limits: { fileSize: 60 * 1024 * 1024 } }))
   uploadAndTranscribe(
     @Param('id') id: string,
     @Request() req: any,
@@ -111,7 +111,7 @@ export class ConsultationRecordingsController {
    * For when there's no existing recording yet.
    */
   @Post('upload-and-transcribe')
-  @UseInterceptors(FileInterceptor('audio', { limits: { fileSize: 25 * 1024 * 1024 } }))
+  @UseInterceptors(FileInterceptor('audio', { limits: { fileSize: 60 * 1024 * 1024 } }))
   createAndTranscribe(
     @Request() req: any,
     @UploadedFile() file: Express.Multer.File,

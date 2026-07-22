@@ -22,8 +22,8 @@ interface JwtUser {
   role: string;
 }
 
-/** 20 MB — cobre PDF de exame, foto e documento. Vídeo grande fica de fora de propósito. */
-const TAMANHO_MAX = 20 * 1024 * 1024;
+/** 60 MB — cobre PDF de exame, foto, documento e áudio de consulta longa (webm/opus). */
+const TAMANHO_MAX = 60 * 1024 * 1024;
 
 /**
  * Tipos aceitos. Lista fechada: arquivo que a clínica precisa guardar (laudo, foto,
