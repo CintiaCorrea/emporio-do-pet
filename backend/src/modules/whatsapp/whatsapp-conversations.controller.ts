@@ -449,6 +449,18 @@ export class WhatsAppConversationsController {
     };
   }
 
+  // Garante uma conversa pra um telefone (cria se não existir) SEM enviar nada.
+  // Usado pra anexar mídia por telefone (ex.: caixa "Nova mensagem").
+  @Post('conversations/ensure')
+  async ensureConversation(
+    @CurrentUser() user: JwtUser,
+    @Body() dto: { to: string },
+  ) {
+    if (!dto?.to) throw new BadRequestException('Telefone obrigatório.');
+    const conversation = await this.whatsAppService.createOrGetConversation(user.id, dto.to);
+    return { conversationId: conversation.id };
+  }
+
   // Inicia conversa com TEMPLATE aprovado (necessário fora da janela de 24h).
   @Post('send-template')
   async sendTemplate(

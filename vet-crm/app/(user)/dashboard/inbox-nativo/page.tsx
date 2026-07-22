@@ -272,6 +272,7 @@ export default function InboxUnificadoPage() {
   const [novaMsgOpen, setNovaMsgOpen] = useState(false);
   const [novaMsgPhone, setNovaMsgPhone] = useState("");
   const [novaMsgText, setNovaMsgText] = useState("");
+  const [novaMsgAnexo, setNovaMsgAnexo] = useState<File | null>(null);
   const [novaMsgSending, setNovaMsgSending] = useState(false);
 
   const [scriptsOpen, setScriptsOpen] = useState(false);
@@ -755,13 +756,26 @@ export default function InboxUnificadoPage() {
 
   const enviarNovaMensagem = async () => {
     const phone = novaMsgPhone.replace(/\D/g, "");
-    if (!phone || !novaMsgText.trim()) {
-      alert("Telefone e mensagem são obrigatórios.");
+    if (!phone || (!novaMsgText.trim() && !novaMsgAnexo)) {
+      alert("Telefone e mensagem (ou anexo) são obrigatórios.");
       return;
     }
     setNovaMsgSending(true);
     try {
-      if (novaMsgScheduledAt) {
+      if (novaMsgAnexo) {
+        // Anexo (documento/foto): garante a conversa e envia a mídia com o texto como legenda.
+        // (Agendamento não vale pra anexo — vai agora.)
+        const re = await fetch("/api/whatsapp/conversations/ensure", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ to: phone }) });
+        const rj = await re.json().catch(() => ({}));
+        if (!re.ok || !rj?.conversationId) throw new Error(rj?.message || "Não consegui abrir a conversa");
+        const fd = new FormData();
+        fd.append("file", novaMsgAnexo);
+        if (novaMsgText.trim()) fd.append("caption", novaMsgText.trim());
+        const rm = await fetch(`/api/whatsapp/conversations/${rj.conversationId}/media`, { method: "POST", body: fd });
+        const mj = await rm.json().catch(() => ({}));
+        if (!rm.ok) throw new Error(mj?.message || mj?.error || "Falha ao enviar o anexo");
+        toast.success("Anexo enviado");
+      } else if (novaMsgScheduledAt) {
         // Agendamento via /api/whatsapp/schedule
         await fetch("/api/whatsapp/schedule", {
           method: "POST",
@@ -770,6 +784,7 @@ export default function InboxUnificadoPage() {
             to: phone,
             content: novaMsgText.trim(),
             scheduledFor: new Date(novaMsgScheduledAt).toISOString()})});
+        toast.success("Agendado");
       } else {
         await fetch("/api/whatsapp/send", {
           method: "POST",
@@ -780,8 +795,9 @@ export default function InboxUnificadoPage() {
       setNovaMsgPhone("");
       setNovaMsgText("");
       setNovaMsgScheduledAt("");
+      setNovaMsgAnexo(null);
       setRefreshTick((t) => t + 1);
-    } catch (e) { console.error(e); alert("Erro ao enviar. Tente novamente."); }
+    } catch (e: any) { console.error(e); toast.error(String(e?.message || "Erro ao enviar").slice(0, 140)); }
     finally { setNovaMsgSending(false); }
   };
 
@@ -1884,23 +1900,42 @@ export default function InboxUnificadoPage() {
             )}
             <textarea value={novaMsgText} onChange={(e) => setNovaMsgText(e.target.value)} placeholder="Digite a mensagem..."
               rows={4}
-              className="w-full px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm mb-3 focus:outline-none focus:border-[#009AAC] resize-none" />
+              className="w-full px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm mb-2 focus:outline-none focus:border-[#009AAC] resize-none" />
 
-            <label className="block text-[11px] text-[#5F5E5A] mb-1 font-medium">
-              📅 Agendar para (opcional)
-            </label>
-            <input type="datetime-local" value={novaMsgScheduledAt} onChange={(e) => setNovaMsgScheduledAt(e.target.value)}
-              className="w-full px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm mb-3 focus:outline-none focus:border-[#009AAC]" />
-            {novaMsgScheduledAt && (
-              <p className="text-[10px] text-[#0F6E56] mb-2">
-                ⏰ Vai enviar em {new Date(novaMsgScheduledAt).toLocaleString("pt-BR")}
-              </p>
+            {/* Anexar documento/foto — vale pra qualquer mensagem (vai como legenda). */}
+            <div className="mb-3">
+              {novaMsgAnexo ? (
+                <span className="inline-flex items-center gap-2 text-[11px] bg-[#F1EFE8] rounded px-2 py-1">
+                  📎 {novaMsgAnexo.name}
+                  <button onClick={() => setNovaMsgAnexo(null)} className="text-[#A32D2D] font-medium">remover</button>
+                </span>
+              ) : (
+                <label className="inline-flex items-center gap-1 text-[11px] text-[#009AAC] cursor-pointer hover:underline">
+                  📎 Anexar documento ou foto
+                  <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,.doc,.docx,.xls,.xlsx,.mp4,.mp3,.ogg" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) setNovaMsgAnexo(f); }} />
+                </label>
+              )}
+            </div>
+
+            {!novaMsgAnexo && (
+              <>
+                <label className="block text-[11px] text-[#5F5E5A] mb-1 font-medium">
+                  📅 Agendar para (opcional)
+                </label>
+                <input type="datetime-local" value={novaMsgScheduledAt} onChange={(e) => setNovaMsgScheduledAt(e.target.value)}
+                  className="w-full px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm mb-3 focus:outline-none focus:border-[#009AAC]" />
+                {novaMsgScheduledAt && (
+                  <p className="text-[10px] text-[#0F6E56] mb-2">
+                    ⏰ Vai enviar em {new Date(novaMsgScheduledAt).toLocaleString("pt-BR")}
+                  </p>
+                )}
+              </>
             )}
 
             <div className="flex justify-end gap-2">
               <button onClick={() => setNovaMsgOpen(false)} className="px-3 py-1.5 text-xs text-[#5F5E5A]">Cancelar</button>
               <button onClick={enviarNovaMensagem} disabled={novaMsgSending} className="bg-[#009AAC] text-white px-4 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50">
-                {novaMsgSending ? (novaMsgScheduledAt ? "Agendando..." : "Enviando...") : (novaMsgScheduledAt ? "Agendar" : "Enviar agora")}
+                {novaMsgSending ? "Enviando..." : (novaMsgAnexo ? "Enviar com anexo" : (novaMsgScheduledAt ? "Agendar" : "Enviar agora"))}
               </button>
             </div>
           </div>
