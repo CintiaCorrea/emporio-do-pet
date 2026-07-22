@@ -54,6 +54,46 @@ export class ConsultationRecordingsService {
     private readonly audioService: AudioService,
   ) {}
 
+  /**
+   * Baixa o áudio da gravação do storage PRIVADO (Tigris/S3) com assinatura SigV4,
+   * pra servir num player (a URL crua dá 403). Mesma lógica do proxy de mídia do WhatsApp.
+   */
+  async getAudio(id: string): Promise<{ buffer: Buffer; contentType: string } | null> {
+    const rec = await this.prisma.consultationRecording.findUnique({ where: { id }, select: { audioUrl: true } });
+    if (!rec?.audioUrl) return null;
+    const endpoint = process.env.S3_ENDPOINT || '';
+    const bucket = process.env.S3_BUCKET || '';
+    const region = process.env.S3_REGION || 'auto';
+    const ak = process.env.S3_ACCESS_KEY_ID || '';
+    const sk = process.env.S3_SECRET_ACCESS_KEY || '';
+    if (!endpoint || !bucket || !ak || !sk) return null;
+    const prefix = `${endpoint}/${bucket}/`;
+    if (!rec.audioUrl.startsWith(prefix)) return null;
+    const key = rec.audioUrl.slice(prefix.length);
+    if (!key) return null;
+    const crypto = await import('crypto');
+    const date = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '');
+    const dateShort = date.substring(0, 8);
+    const emptyHash = crypto.createHash('sha256').update('').digest('hex');
+    const host = new URL(endpoint).host;
+    const canonicalHeaders = [`host:${host}`, `x-amz-content-sha256:${emptyHash}`, `x-amz-date:${date}`].join('\n');
+    const signedHeaders = 'host;x-amz-content-sha256;x-amz-date';
+    const canonicalRequest = ['GET', `/${bucket}/${key}`, '', canonicalHeaders, '', signedHeaders, emptyHash].join('\n');
+    const credentialScope = `${dateShort}/${region}/s3/aws4_request`;
+    const stringToSign = ['AWS4-HMAC-SHA256', date, credentialScope, crypto.createHash('sha256').update(canonicalRequest).digest('hex')].join('\n');
+    const kDate = crypto.createHmac('sha256', `AWS4${sk}`).update(dateShort).digest();
+    const kRegion = crypto.createHmac('sha256', kDate).update(region).digest();
+    const kService = crypto.createHmac('sha256', kRegion).update('s3').digest();
+    const signingKey = crypto.createHmac('sha256', kService).update('aws4_request').digest();
+    const signature = crypto.createHmac('sha256', signingKey).update(stringToSign).digest('hex');
+    const authorization = `AWS4-HMAC-SHA256 Credential=${ak}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
+    const res = await fetch(`${endpoint}/${bucket}/${key}`, { headers: { 'x-amz-content-sha256': emptyHash, 'x-amz-date': date, Authorization: authorization } });
+    if (!res.ok) return null;
+    const buffer = Buffer.from(await res.arrayBuffer());
+    const contentType = res.headers.get('content-type') || 'audio/webm';
+    return { buffer, contentType };
+  }
+
   async create(userId: string, dto: CreateRecordingDto) {
     // Verify appointment exists
     const appointment = await this.prisma.appointment.findUnique({

@@ -124,7 +124,8 @@ export default function RecordingHistory({
       audioElement.pause();
     }
 
-    const audio = new Audio(recording.audioUrl);
+    // A URL do storage é privada (dá 403) — toca pelo proxy autenticado do backend.
+    const audio = new Audio(`/api/consultation-recordings/${recording.id}/audio`);
     audio.onended = () => setPlayingId(null);
     audio.onerror = () => {
       toast.error('Erro ao reproduzir áudio');
@@ -278,7 +279,7 @@ export default function RecordingHistory({
                       <Volume2 className="w-4 h-4 text-gray-500" />
                       <audio
                         controls
-                        src={recording.audioUrl}
+                        src={`/api/consultation-recordings/${recording.id}/audio`}
                         className="flex-1 h-8"
                         style={{ minWidth: 0 }}
                       />

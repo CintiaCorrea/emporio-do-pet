@@ -11,8 +11,10 @@ import {
   UseInterceptors,
   UploadedFile,
   Request,
+  Res,
   BadRequestException,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import 'multer'; // Express.Multer type augmentation
 import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -51,6 +53,20 @@ export class ConsultationRecordingsController {
   @Get('appointment/:appointmentId')
   findByAppointment(@Param('appointmentId') appointmentId: string) {
     return this.service.findByAppointment(appointmentId);
+  }
+
+  // Serve o áudio da gravação (baixado do storage privado com assinatura) — pro player.
+  @Get(':id/audio')
+  async getAudio(@Param('id') id: string, @Res() res: Response) {
+    const audio = await this.service.getAudio(id);
+    if (!audio) {
+      res.status(404).json({ error: 'Áudio não encontrado' });
+      return;
+    }
+    res.setHeader('Content-Type', audio.contentType);
+    res.setHeader('Content-Disposition', 'inline');
+    res.setHeader('Cache-Control', 'private, max-age=300');
+    res.send(audio.buffer);
   }
 
   @Put(':id/transcription')
