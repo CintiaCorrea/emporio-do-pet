@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
+import { WhatsAppService } from '../whatsapp/whatsapp.service';
 
 /**
  * Atualiza o agendamento automaticamente quando o cliente responde à confirmação
@@ -20,7 +21,31 @@ import { PrismaService } from '../prisma/prisma.service';
 export class AppointmentConfirmationListener {
   private readonly logger = new Logger(AppointmentConfirmationListener.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly whatsapp: WhatsAppService,
+  ) {}
+
+  // Mensagem de agradecimento ao tutor que CONFIRMOU. "amanhã" se a consulta for amanhã;
+  // senão nomeia o dia. Saudação conforme a hora (nunca "bom dia" à noite).
+  private msgAgradecimento(appt: any): string {
+    const primeiro = (appt?.tutor?.name || '').trim().split(/\s+/)[0] || 'tudo bem';
+    const petNome = appt?.pet?.name || 'seu pet';
+    const fAppt = new Date(new Date(appt.date).getTime() - 3 * 3600 * 1000); // Fortaleza
+    const mm = fAppt.getUTCMinutes();
+    const horario = `${String(fAppt.getUTCHours()).padStart(2, '0')}h${mm ? String(mm).padStart(2, '0') : ''}`;
+    const fAgora = new Date(Date.now() - 3 * 3600 * 1000);
+    const h = fAgora.getUTCHours();
+    const saud = h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
+    const diaAppt = Date.UTC(fAppt.getUTCFullYear(), fAppt.getUTCMonth(), fAppt.getUTCDate());
+    const amanha = Date.UTC(fAgora.getUTCFullYear(), fAgora.getUTCMonth(), fAgora.getUTCDate()) + 86400000;
+    if (diaAppt === amanha) {
+      return `${saud}, ${primeiro}! 💛\n\nAgradecemos pela confirmação. Estamos ansiosos para receber a ${petNome} amanhã às ${horario}! Se precisar de algo mais, é só avisar. Até logo! 🐾✨`;
+    }
+    const SEM = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
+    const dia = `${SEM[fAppt.getUTCDay()]} (${String(fAppt.getUTCDate()).padStart(2, '0')}/${String(fAppt.getUTCMonth() + 1).padStart(2, '0')})`;
+    return `${saud}, ${primeiro}! 💛\n\nAgradecemos pela confirmação! Estamos ansiosos para receber a ${petNome} na ${dia} às ${horario}. Se precisar de algo, é só avisar! 🐾\n\nAté lá!`;
+  }
 
   @OnEvent('whatsapp.message.received')
   async handle(payload: any): Promise<void> {
@@ -71,7 +96,7 @@ export class AppointmentConfirmationListener {
       const appt = await this.prisma.appointment.findFirst({
         where: { tutorId: contato.tutorId, confirmacaoStatus: 'ENVIADA' },
         orderBy: { confirmacaoEnviadaAt: 'desc' },
-        select: { id: true },
+        select: { id: true, date: true, pet: { select: { name: true } }, tutor: { select: { name: true } } },
       });
       if (!appt) return;
 
@@ -86,6 +111,25 @@ export class AppointmentConfirmationListener {
       this.logger.log(
         `Agendamento ${appt.id} -> ${confirmStatus || apptStatus}${motivo ? ' (' + motivo + ')' : ''} (resposta WhatsApp de ${phone})`,
       );
+
+      // Agradecimento automático a quem CONFIRMOU (a janela de 24h está aberta — texto livre).
+      // Sai UMA vez só: o próximo confirm não acha mais agendamento com status ENVIADA.
+      if (confirmStatus === 'CONFIRMADO') {
+        try {
+          const conv = payload?.conversation;
+          if (conv?.id) {
+            await this.whatsapp.sendAndSaveMessage(
+              conv.userId || payload?.userId,
+              conv.id,
+              this.msgAgradecimento(appt),
+              'TEXT',
+              { senderType: 'SYSTEM', senderName: 'Confirmação' },
+            );
+          }
+        } catch (e: any) {
+          this.logger.warn(`Falha ao mandar o agradecimento de confirmação: ${e?.message || e}`);
+        }
+      }
     } catch (e: any) {
       this.logger.warn(`Falha ao processar confirmação por WhatsApp: ${e?.message || e}`);
     }
