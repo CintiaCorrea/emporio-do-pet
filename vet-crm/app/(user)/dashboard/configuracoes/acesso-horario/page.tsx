@@ -50,17 +50,21 @@ export default function AcessoHorarioPage() {
   const [semanaBase, setSemanaBase] = useState<Date>(() => segundaDaSemana(new Date()));
   const [plantaoTodos, setPlantaoTodos] = useState<any[]>([]); // todos os itens plantao_escala
   const [salvandoPlantao, setSalvandoPlantao] = useState(false);
+  const [bloqueios, setBloqueios] = useState<any[]>([]); // avisos de login barrado por horário
   const jaCarregou = useRef(false);
 
   const load = async () => {
     if (!jaCarregou.current) setLoading(true);
     try {
-      const [c, l, p, pl] = await Promise.all([
+      const [c, l, p, pl, bq] = await Promise.all([
         fetch("/api/listas?lista=config_acesso_login").then((r) => r.json()).catch(() => []),
         fetch("/api/listas?lista=acesso_livre").then((r) => r.json()).catch(() => []),
         fetch("/api/profissionais").then((r) => r.json()).catch(() => []),
         fetch("/api/listas?lista=plantao_escala").then((r) => r.json()).catch(() => []),
+        fetch("/api/listas?lista=acesso_bloqueio").then((r) => r.json()).catch(() => []),
       ]);
+      const bqArr = Array.isArray(bq) ? bq : (bq.itens || bq.data || []);
+      setBloqueios(bqArr.map((x: any) => { try { return { id: x.id, ...JSON.parse(x.valor) }; } catch { return { id: x.id }; } }).sort((a: any, b: any) => String(b.at || "").localeCompare(String(a.at || ""))));
       setPlantaoTodos(Array.isArray(pl) ? pl : (pl.itens || pl.data || []));
       const cArr = Array.isArray(c) ? c : (c.itens || c.data || []);
       if (cArr[0]) { setCfgId(cArr[0].id); try { const v = JSON.parse(cArr[0].valor); setCfg({ ativo: !!v.ativo, toleranciaMin: Number(v.toleranciaMin) || 60, avisarAdmin: v.avisarAdmin !== false }); } catch {} }
@@ -72,6 +76,11 @@ export default function AcessoHorarioPage() {
     jaCarregou.current = true; setLoading(false);
   };
   useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+
+  const limparBloqueios = async () => {
+    if (!confirm("Limpar todos os avisos de bloqueio?")) return;
+    try { await Promise.all(bloqueios.map((b: any) => fetch(`/api/listas/${b.id}`, { method: "DELETE", credentials: "include" }))); load(); } catch {}
+  };
 
   const salvarCfg = async (patch: Partial<typeof cfg>) => {
     const novo = { ...cfg, ...patch };
@@ -156,6 +165,33 @@ export default function AcessoHorarioPage() {
             <Switch on={cfg.avisarAdmin} onClick={() => salvarCfg({ avisarAdmin: !cfg.avisarAdmin })} disabled={salvandoCfg} />
           </div>
         </div>
+      </div>
+
+      {/* avisos: quem tentou entrar fora do horário (gravados pelo backend em acesso_bloqueio) */}
+      <div className="bg-white border rounded-[13px]" style={{ borderColor: "#E8E2D6" }}>
+        <div className="px-4 py-3 border-b flex items-center justify-between gap-3" style={{ borderColor: "#F0EBE0" }}>
+          <div>
+            <h3 className="text-[13px] font-medium text-[#014D5E]">🚫 Tentativas fora do horário</h3>
+            <p className="text-[11.5px] text-[#374151] mt-0.5">Quem foi bloqueado no login aparece aqui (mais recente primeiro).</p>
+          </div>
+          {bloqueios.length > 0 && (
+            <button onClick={limparBloqueios} className="text-[11.5px] text-[#CC3366] flex-shrink-0">Limpar tudo</button>
+          )}
+        </div>
+        {bloqueios.length === 0 ? (
+          <div className="px-4 py-6 text-center text-[12.5px] text-[#374151]">Nenhuma tentativa bloqueada até agora. ✅</div>
+        ) : (
+          <div className="px-4 py-1">
+            {bloqueios.slice(0, 30).map((b: any) => (
+              <div key={b.id} className="flex items-center gap-2 py-2 border-b last:border-b-0 text-[12.5px]" style={{ borderColor: "#F0EBE0" }}>
+                <span>🚫</span>
+                <span className="font-medium text-[#1F2A2E]">{b.nome || b.email || "—"}</span>
+                <span className="text-[#5C6B70] flex-1 truncate">{b.nome && b.email ? b.email : ""}</span>
+                <span className="text-[#374151] tabular-nums whitespace-nowrap">{b.at ? new Date(b.at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : ""}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* acesso livre por pessoa */}
