@@ -273,10 +273,10 @@ export class WhatsAppConversationsController {
   @Post('enviar-documentos')
   async enviarDocumentos(
     @CurrentUser() _user: JwtUser,
-    @Body() body: { tutorId: string; texto?: string; anexos?: Array<{ url: string; tipo?: 'document' | 'image'; nome?: string }>; petNome?: string },
+    @Body() body: { tutorId: string; texto?: string; anexos?: Array<{ url: string; tipo?: 'document' | 'image'; nome?: string }>; petNome?: string; template?: string; templateParams?: string[] },
   ) {
     if (!body?.tutorId) throw new BadRequestException('tutorId é obrigatório.');
-    return this.whatsAppService.enviarDocumentosProntuario(body.tutorId, body.texto || '', body.anexos || [], body.petNome);
+    return this.whatsAppService.enviarDocumentosProntuario(body.tutorId, body.texto || '', body.anexos || [], body.petNome, body.template, body.templateParams);
   }
 
   @Post('conversations/:id/media')

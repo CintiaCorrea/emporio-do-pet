@@ -1523,6 +1523,8 @@ export class WhatsAppService {
     texto: string,
     anexos: Array<{ url: string; tipo?: 'document' | 'image'; nome?: string }>,
     petNome?: string,
+    template?: string,
+    templateParams?: string[],
   ): Promise<{ status: 'enviado' | 'na_fila' | 'erro'; error?: string }> {
     const lista = (anexos || []).filter((a) => a?.url);
     if (!texto?.trim() && lista.length === 0) return { status: 'erro', error: 'Nada para enviar' };
@@ -1550,8 +1552,13 @@ export class WhatsAppService {
       return { status: 'enviado' };
     }
 
-    // Conversa fechada: template abridor (com botão) + guarda a mensagem e os anexos na fila.
-    const res = await this.enviarTemplateRegistrando(formatted, 'boletim_internacao', [{ type: 'text', text: petNome || 'seu pet' }], `📎 Enviei a mensagem que abre a conversa — os documentos do(a) ${petNome || 'pet'} vão assim que o tutor responder.`);
+    // Conversa fechada: template abridor (com botão) escolhido pela pessoa + guarda a
+    // mensagem e os anexos na fila. Sem template escolhido → cai no boletim_internacao.
+    const tplNome = template || 'boletim_internacao';
+    const params = (template && templateParams && templateParams.length)
+      ? templateParams.map((t) => ({ type: 'text' as const, text: t }))
+      : [{ type: 'text' as const, text: petNome || 'seu pet' }];
+    const res = await this.enviarTemplateRegistrando(formatted, tplNome, params, `📎 Enviei a mensagem que abre a conversa — os documentos do(a) ${petNome || 'pet'} vão assim que o tutor responder.`);
     if (!res.success) return { status: 'erro', error: res.error || 'Falha ao enviar a abridora' };
     await this.prisma.listaItem.deleteMany({ where: { lista: 'docs_fila', valor: { contains: `"tutorId":"${tutorId}"` } } });
     await this.prisma.listaItem.create({ data: { lista: 'docs_fila', valor: JSON.stringify({ tutorId, texto: texto || '', petNome: petNome || '', anexos: lista, criadoAt: new Date().toISOString() }) } });

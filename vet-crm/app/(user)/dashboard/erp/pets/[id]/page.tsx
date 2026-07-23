@@ -12,6 +12,7 @@ import { confirmDelete } from "@/lib/ui/confirmDelete";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import {
   LuArrowLeft, LuPencil, LuTrash, LuPlus, LuFlaskConical,
@@ -223,6 +224,11 @@ export default function PetDetailPage() {
   const [waMsg, setWaMsg] = useState("");
   const [waSel, setWaSel] = useState<Record<string, boolean>>({});
   const [waSending, setWaSending] = useState(false);
+  const [waTemplates, setWaTemplates] = useState<any[]>([]); // modelos Meta aprovados (abridor)
+  const [waTemplate, setWaTemplate] = useState(""); // modelo escolhido pra abrir a conversa
+  const [waTplVars, setWaTplVars] = useState<string[]>([]); // variáveis do modelo
+  const { data: pageSession } = useSession();
+  const meNome = (pageSession?.user as any)?.name || "";
   const [detalheHist, setDetalheHist] = useState<any>(null);
   const [verAtd, setVerAtd] = useState<any>(null);
   const [editAtd, setEditAtd] = useState(false);
@@ -827,18 +833,41 @@ export default function PetDetailPage() {
     return arr;
   }, [clinDocs, atendimentos]);
 
+  // Modelos Meta aprovados (abridor da conversa quando estiver fechada) — carrega ao abrir o modal.
+  useEffect(() => {
+    if (!waOpen) return;
+    (async () => {
+      try {
+        const r = await fetch("/api/whatsapp-templates", { cache: "no-store" });
+        const d = await r.json().catch(() => ({}));
+        const arr = Array.isArray(d?.templates) ? d.templates : Array.isArray(d) ? d : (d.data || []);
+        setWaTemplates(arr.filter((t: any) => (t.status || "").toUpperCase() === "APPROVED"));
+      } catch { setWaTemplates([]); }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [waOpen]);
+  const waTplBody = (name: string) => { const t = waTemplates.find((x) => x.name === name); const b = (t?.components || []).find((c: any) => (c.type || "").toUpperCase() === "BODY"); return b?.text || ""; };
+  const onSelectWaTemplate = (name: string) => {
+    setWaTemplate(name);
+    const nVars = (waTplBody(name).match(/\{\{\d+\}\}/g) || []).length;
+    const padrao = (i: number) => (i === 0 ? (pet?.tutor?.name || "") : i === 1 ? (pet?.name || "") : i === 2 ? meNome : "");
+    setWaTplVars(Array.from({ length: nVars }, (_, i) => padrao(i)));
+  };
+  const waTplPreview = () => { let s = waTplBody(waTemplate); waTplVars.forEach((v, i) => { s = s.replace(`{{${i + 1}}}`, v || `{{${i + 1}}}`); }); return s; };
+
   async function enviarDocsWhatsApp() {
     const anexos = anexaveisWA.filter((x) => waSel[x.key]).map((x, i) => ({ url: x.url, tipo: x.tipo, nome: (x.tipo === "image" ? "exame" : x.label.replace(/[^\wÀ-ÿ ]+/g, "").trim().slice(0, 40) || "documento") + `-${i + 1}` + (x.tipo === "image" ? ".jpg" : ".pdf") }));
     if (!waMsg.trim() && anexos.length === 0) { toast.error("Escreva a mensagem ou selecione um anexo."); return; }
     if (!pet?.tutorId) { toast.error("Este pet não tem tutor vinculado."); return; }
+    if (waTemplate && waTplVars.some((v) => !v.trim())) { toast.error("Preencha todas as variáveis do modelo de abertura."); return; }
     setWaSending(true);
     try {
-      const r = await fetch("/api/whatsapp/enviar-documentos", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ tutorId: pet.tutorId, texto: waMsg, anexos, petNome: pet.name }) });
+      const r = await fetch("/api/whatsapp/enviar-documentos", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ tutorId: pet.tutorId, texto: waMsg, anexos, petNome: pet.name, template: waTemplate || undefined, templateParams: waTemplate ? waTplVars : undefined }) });
       const d = await r.json().catch(() => ({}));
       if (d?.status === "enviado") toast.success("Enviado pelo WhatsApp! ✅");
       else if (d?.status === "na_fila") toast.success("Conversa fechada — mandei o convite; sai sozinho quando o tutor responder. 📨");
       else { toast.error(d?.error || d?.message || "Não consegui enviar."); return; }
-      setWaOpen(false); setWaMsg(""); setWaSel({});
+      setWaOpen(false); setWaMsg(""); setWaSel({}); setWaTemplate(""); setWaTplVars([]);
     } catch { toast.error("Erro ao enviar pelo WhatsApp."); }
     finally { setWaSending(false); }
   }
@@ -2179,7 +2208,24 @@ export default function PetDetailPage() {
               <button onClick={() => setWaOpen(false)} className="text-[#374151]">✕</button>
             </div>
             <div className="p-5 overflow-y-auto">
-              <label className="text-[11.5px] font-medium text-[#374151] block mb-1">Mensagem</label>
+              {/* MODELO DE ABERTURA (só usado se a conversa estiver FECHADA) — antes era outra tela */}
+              <div className="bg-[#EFF7F8] border rounded-lg p-3 mb-4" style={{ borderColor: "#cfe8ec" }}>
+                <label className="text-[11.5px] font-medium text-[#014D5E] block mb-1">Modelo pra abrir a conversa <span className="text-[#8A8778] font-normal">(usado só se estiver fechada)</span></label>
+                <select value={waTemplate} onChange={(e) => onSelectWaTemplate(e.target.value)} className="w-full border rounded-lg px-2 py-2 text-[12.5px] bg-white focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }}>
+                  <option value="">— nenhum (uso o padrão do sistema) —</option>
+                  {waTemplates.map((t: any) => <option key={t.name} value={t.name}>{t.name}</option>)}
+                </select>
+                {waTemplate && (
+                  <>
+                    {waTplVars.map((v, i) => (
+                      <input key={i} value={v} onChange={(e) => setWaTplVars((arr) => arr.map((x, j) => (j === i ? e.target.value : x)))} placeholder={i === 0 ? "Tutor" : i === 1 ? "Pet" : i === 2 ? "Responsável" : `Variável ${i + 1}`} className="w-full border rounded-lg px-2 py-1.5 text-[12.5px] mt-1.5 bg-white focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} />
+                    ))}
+                    <div className="text-[11px] text-[#5C6B70] bg-white border rounded-lg px-2 py-1.5 mt-1.5 whitespace-pre-wrap" style={{ borderColor: "#E8E2D6" }}>{waTplPreview()}</div>
+                  </>
+                )}
+              </div>
+
+              <label className="text-[11.5px] font-medium text-[#374151] block mb-1">Mensagem <span className="text-[#8A8778] font-normal">(vai junto dos anexos, quando a conversa abrir)</span></label>
               <textarea value={waMsg} onChange={(e) => setWaMsg(e.target.value)} rows={3} className="w-full border rounded-lg px-3 py-2 text-[13px] resize-y focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} />
 
               <div className="text-[11.5px] font-medium text-[#374151] mt-4 mb-1">Anexar do prontuário</div>
