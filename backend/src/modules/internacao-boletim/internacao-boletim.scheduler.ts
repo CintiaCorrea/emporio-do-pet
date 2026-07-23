@@ -71,6 +71,13 @@ export class InternacaoBoletimScheduler {
             continue; // não marca — tenta na próxima rodada (ainda dentro da janela)
           }
           await this.prisma.listaItem.create({ data: { lista: 'intbolprog_sent', valor: chave } }).catch(() => undefined);
+          // Histórico: guarda o boletim enviado (texto + quando) pra ficha mostrar com ✓.
+          await this.prisma.listaItem.create({
+            data: {
+              lista: `intboletim_hist_${apt.id}`,
+              valor: JSON.stringify({ at: new Date().toISOString(), horario, texto: String(texto).trim(), auto: true, status: res.status }),
+            },
+          }).catch(() => undefined);
           this.logger.log(`Boletim internação ${apt.id} ${horario} → ${res.status}`);
         }
       }

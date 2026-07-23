@@ -9,6 +9,7 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { openWhatsAppMeta } from "@/lib/actions/whatsapp";
+import { imprimirDocumento } from "@/lib/print";
 
 const ESTADOS = [
   { v: "Estável", prio: "LOW", bg: "#E1F5EE", fg: "#0F6E56" },
@@ -109,6 +110,8 @@ export default function FichaInternacaoPage() {
   const [bolProg, setBolProg] = useState<Record<string, any>>({});
   const [anexando, setAnexando] = useState("");
   const [bolProgSaving, setBolProgSaving] = useState(false);
+  const [boletinsHist, setBoletinsHist] = useState<any[]>([]); // boletins já ENVIADOS (histórico com ✓)
+  const [previewBol, setPreviewBol] = useState<{ titulo: string; texto: string; horario?: string } | null>(null); // visualizar antes de enviar / rever enviado
   const [bolEnviando, setBolEnviando] = useState("");
   const [modelosBoletim, setModelosBoletim] = useState<Array<{ id: string; nome: string; texto: string }>>([]);
 
@@ -155,7 +158,7 @@ export default function FichaInternacaoPage() {
   const load = async () => {
     if (!jaCarregou.current) setLoading(true);
     try {
-      const [d, m, ev, pr, ds, vt, fl, co, fe, sv, pd, bp, mb] = await Promise.all([
+      const [d, m, ev, pr, ds, vt, fl, co, fe, sv, pd, bp, mb, bh] = await Promise.all([
         fetch(`/api/hospitalizations/${id}`).then((r) => r.json()).catch(() => null),
         fetch(`/api/boxes/mapa`).then((r) => r.json()).catch(() => ({})),
         fetch(`/api/listas?lista=intevo_${id}`).then((r) => r.json()).catch(() => []),
@@ -169,6 +172,7 @@ export default function FichaInternacaoPage() {
         fetch(`/api/products?excludeService=1&limit=1000`).then((r) => r.json()).catch(() => []),
         fetch(`/api/listas?lista=intbolprog_${id}`).then((r) => r.json()).catch(() => []),
         fetch(`/api/listas?lista=modelo_boletim`).then((r) => r.json()).catch(() => []),
+        fetch(`/api/listas?lista=intboletim_hist_${id}`).then((r) => r.json()).catch(() => []),
       ]);
       setH(d && d.id ? d : null);
       const card = Array.isArray(m?.boxes) ? m.boxes.find((c: any) => c.internacao?.id === id) : null;
@@ -183,6 +187,7 @@ export default function FichaInternacaoPage() {
       setFluidos(parse(fl));
       setConta(parse(co));
       setFechamentos(parse(fe));
+      setBoletinsHist(parse(bh));
       const mbArr = Array.isArray(mb) ? mb : (mb.itens || mb.data || []);
       setModelosBoletim(mbArr.map((x: any) => { try { const v = JSON.parse(x.valor); return { id: x.id, nome: v.nome || "(sem nome)", texto: v.texto || "" }; } catch { return { id: x.id, nome: "(sem nome)", texto: String(x.valor || "") }; } }));
       const bpArr = Array.isArray(bp) ? bp : (bp.itens || bp.data || []);
@@ -540,14 +545,30 @@ export default function FichaInternacaoPage() {
       if (d?.status === "enviado") alert("Boletim enviado ao tutor. ✅");
       else if (d?.status === "na_fila") alert("A conversa está fechada — mandei o convite com os botões. O boletim vai automaticamente quando o tutor responder. 📨");
       else alert(d?.error || "Erro ao enviar o boletim.");
+      // Histórico: registra o boletim enviado (✓) pra rever/imprimir depois.
+      if (d?.status === "enviado" || d?.status === "na_fila") {
+        await fetch("/api/listas", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ lista: `intboletim_hist_${id}`, valor: JSON.stringify({ at: new Date().toISOString(), horario, texto, por: userName, status: d.status }) }) }).catch(() => {});
+        load();
+      }
     } catch { alert("Erro ao enviar o boletim."); }
     finally { setBolEnviando(""); }
+  };
+
+  // *negrito* → <b> e quebras de linha — pro preview (👁) e pra impressão (🖨).
+  const textoParaHtml = (t: string) => t
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/\*([^*\n]+)\*/g, "<b>$1</b>")
+    .replace(/\n/g, "<br/>");
+  const imprimirBoletim = (texto: string) => { imprimirDocumento(`Boletim — ${h?.pet?.name || ""}`, `<div style="font-size:14px;line-height:1.7;max-width:640px">${textoParaHtml(texto)}</div>`); };
+  const excluirBoletimHist = async (histId: string) => {
+    if (!confirm("Excluir este boletim do histórico?")) return;
+    try { await fetch(`/api/listas/${histId}`, { method: "DELETE", credentials: "include" }); load(); } catch {}
   };
 
   // Gera o texto do boletim (WhatsApp) a partir do que JÁ está preenchido na ficha.
   // Campos sem dado viram [preencher] pro vet completar na hora. Texto pensado pra
   // ficar legível no celular (negrito com *, emojis, blocos curtos).
-  const montarBoletimInternacao = (tipo: "resumo" | "completo"): string => {
+  const montarBoletimInternacao = (tipo: "resumo" | "completo" | "alta"): string => {
     const pet = h?.pet?.name || "o paciente";
     const agora = new Date();
     const dataStr = agora.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
@@ -576,6 +597,30 @@ export default function FichaInternacaoPage() {
         ``,
         `Qualquer dúvida, estamos à disposição! 💛`,
         `— Empório do Pet`,
+      ].join("\n");
+    }
+
+    if (tipo === "alta") {
+      const diasAlta = h?.admissionDate ? diasInternado(h.admissionDate) : null;
+      return [
+        `🏠 *Alta do ${pet}* — Empório do Pet`,
+        `🗓️ ${dataStr} · ${horaStr}${diasAlta != null ? ` · após ${diasAlta} dia(s) de internação` : ""}`,
+        ``,
+        `💛 *Como o ${pet} sai:* ${estado}. ${evo || ""}`.trim(),
+        ``,
+        `🩺 *Resumo do tratamento na internação:*`,
+        `${meds || PLC}`,
+        ``,
+        `🏡 *Cuidados em casa:* ${PLC}`,
+        ``,
+        `💊 *Medicações em casa:* [preencher: remédio, dose e horários]`,
+        ``,
+        `📅 *Retorno:* [preencher: quando voltar pra reavaliação]`,
+        ``,
+        `⚠️ *Fique de olho:* [preencher: sinais que pedem contato imediato]`,
+        ``,
+        `Foi um prazer cuidar do ${pet}! Qualquer dúvida, estamos à disposição. 💛`,
+        `— Dr(a). ${userName || "______"} · Empório do Pet`,
       ].join("\n");
     }
 
@@ -936,6 +981,7 @@ export default function FichaInternacaoPage() {
                               <div className="flex items-center gap-2 mb-1">
                                 <button onClick={() => setTextoHorario(hor, montarBoletimInternacao("resumo"))} className="text-[11px] font-medium text-white bg-[#009AAC] px-2.5 py-1 rounded-md">✨ Gerar resumo</button>
                                 <button onClick={() => setTextoHorario(hor, montarBoletimInternacao("completo"))} className="text-[11px] font-medium text-[#014D5E] bg-[#E0F4F6] border border-[#bfe3e8] px-2.5 py-1 rounded-md">✨ Gerar completo</button>
+                                <button onClick={() => setTextoHorario(hor, montarBoletimInternacao("alta"))} className="text-[11px] font-medium text-[#0F6E56] bg-[#E1F5EE] border border-[#bfe0d2] px-2.5 py-1 rounded-md">🏠 Gerar alta</button>
                               </div>
 
                               <textarea
@@ -956,6 +1002,11 @@ export default function FichaInternacaoPage() {
                                 </div>
                               )}
                               <div className="mt-1 flex items-center gap-3 flex-wrap">
+                                {txt.trim() && (
+                                  <button onClick={() => setPreviewBol({ titulo: `Boletim das ${hor}`, texto: txt, horario: hor })} className="text-[11.5px] text-[#5C6B70] hover:text-[#00798A]">
+                                    👁 Visualizar
+                                  </button>
+                                )}
                                 {txt.trim() && (
                                   <button onClick={() => enviarBoletimAgora(hor)} disabled={!!bolEnviando} className="text-[11.5px] text-[#00798A] disabled:opacity-50">
                                     {bolEnviando === hor ? "Enviando..." : "📲 Enviar agora"}
@@ -979,6 +1030,29 @@ export default function FichaInternacaoPage() {
                       <div className="text-[10.5px] text-[#374151] mt-2">
                         No horário, o sistema envia sozinho ao tutor. Horário vazio não envia nada.
                       </div>
+
+                      {/* Histórico dos boletins JÁ enviados (✓) — rever, imprimir, excluir */}
+                      {boletinsHist.length > 0 && (
+                        <details className="mt-2 border-t pt-2" style={{ borderColor: "#F0EBE0" }}>
+                          <summary className="text-[12px] cursor-pointer" style={{ color: "#0F6E56" }}>
+                            📚 Boletins enviados ({boletinsHist.length})
+                          </summary>
+                          <div className="mt-1.5">
+                            {[...boletinsHist].sort((a, b) => String(b.at || "").localeCompare(String(a.at || ""))).map((bh: any) => (
+                              <div key={bh.id} className="flex items-center gap-2 py-1.5 border-b last:border-b-0 text-[12px]" style={{ borderColor: "#F0EBE0" }}>
+                                <span title={bh.status === "enviado" ? "Enviado" : "Na fila (envia quando o tutor responder)"}>{bh.status === "enviado" ? "✅" : "📨"}</span>
+                                <span className="text-[#374151] tabular-nums whitespace-nowrap">
+                                  {bh.at ? new Date(bh.at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) : ""} {bh.at ? new Date(bh.at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : ""}
+                                </span>
+                                <span className="text-[#5C6B70] flex-1 truncate">{bh.horario ? `boletim das ${bh.horario}` : "boletim"}{bh.auto ? " · automático" : bh.por ? ` · ${bh.por}` : ""}</span>
+                                <button onClick={() => setPreviewBol({ titulo: `Boletim enviado ${bh.horario ? `(${bh.horario})` : ""}`, texto: bh.texto || "" })} title="Ver" className="text-[13px] px-0.5">👁</button>
+                                <button onClick={() => imprimirBoletim(bh.texto || "")} title="Imprimir" className="text-[13px] px-0.5">🖨</button>
+                                <button onClick={() => excluirBoletimHist(bh.id)} title="Excluir do histórico" className="text-[13px] px-0.5 text-[#B4BCC0] hover:text-[#CC3366]">🗑</button>
+                              </div>
+                            ))}
+                          </div>
+                        </details>
+                      )}
                     </>
                   )}
                 </div>
@@ -1438,6 +1512,29 @@ export default function FichaInternacaoPage() {
       )}
 
       {/* ===== POPUP AFERIÇÃO (sinais vitais) ===== */}
+      {/* ===== POPUP VISUALIZAR BOLETIM (preview estilo WhatsApp) ===== */}
+      {previewBol && (
+        <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50 print:hidden" onClick={() => setPreviewBol(null)}>
+          <div className="rounded-2xl shadow-xl max-w-md w-full max-h-[85vh] flex flex-col" style={{ background: "#FBF9F4", border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "#E8E2D6" }}>
+              <h3 className="text-base font-medium text-[#014D5E]">👁 {previewBol.titulo}</h3>
+              <button onClick={() => setPreviewBol(null)} className="text-[#374151]">✕</button>
+            </div>
+            <div className="p-4 overflow-y-auto" style={{ background: "#e5ddd5" }}>
+              <div className="bg-white rounded-xl px-3.5 py-3 text-[13px] text-[#1F2A2E] shadow-sm" style={{ borderTopLeftRadius: 4 }}
+                dangerouslySetInnerHTML={{ __html: textoParaHtml(previewBol.texto) }} />
+            </div>
+            <div className="px-5 py-3.5 border-t flex justify-end gap-2" style={{ borderColor: "#E8E2D6" }}>
+              <button onClick={() => imprimirBoletim(previewBol.texto)} className="px-3.5 py-2 text-[13px] text-[#5C6B70] bg-white border rounded-lg" style={{ borderColor: "#E8E2D6" }}>🖨 Imprimir</button>
+              {previewBol.horario && (
+                <button onClick={() => { const hor = previewBol.horario!; setPreviewBol(null); enviarBoletimAgora(hor); }} disabled={!!bolEnviando} className="px-3.5 py-2 text-[13px] text-white bg-[#009AAC] rounded-lg disabled:opacity-60">📲 Enviar agora</button>
+              )}
+              <button onClick={() => setPreviewBol(null)} className="px-3.5 py-2 text-[13px] text-[#5C6B70] bg-white border rounded-lg" style={{ borderColor: "#E8E2D6" }}>Fechar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {vitalOpen && (
         <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50 print:hidden" onClick={() => setVitalOpen(false)}>
           <div className="rounded-2xl shadow-xl max-w-md w-full" style={{ background: "#FBF9F4", border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
