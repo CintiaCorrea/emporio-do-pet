@@ -37,7 +37,7 @@
 <div class="wrap">
 <header>
   <h1>📘 Documentação — Empório do Pet CRM</h1>
-  <div class="sub">Tudo que foi construído, onde fica e como usar · atualizado em 23/07/2026</div>
+  <div class="sub">Tudo que foi construído, onde fica e como usar · atualizado em 23/07/2026 (v2)</div>
 </header>
 
 <nav class="toc">
@@ -62,6 +62,7 @@
     <li><b>Colunas por profissional</b> + colunas avulsas <b>MAP/Parceiro</b> e profissionais <b>externos sob demanda</b> (com cores por parceiro). O expediente de cada um manda na coluna.</li>
     <li><b>Confirmação por WhatsApp em 1 clique:</b> botão <b>📲 Confirmar no WhatsApp</b> no agendamento (com prévia da mensagem). Além disso, o sistema envia confirmações <b>automáticas às 17h e 19h</b> do dia anterior.</li>
     <li>Ao marcar, a <b>busca padrão</b> cruza cliente + pet nas telas novas (2 caixinhas).</li>
+    <li><b>🪑 Sala de espera:</b> a faixa no topo da agenda mostra quem <b>já chegou</b> (marcando "chegou ›" no cartão) — inclui as colunas de <b>MAP/Parceiro</b>, com tempo de espera e alerta de atraso.</li>
   </ul>
 </section>
 
@@ -73,6 +74,7 @@
     <li><b>Painel do cliente</b> (lado direito): ficha resumida, <b>editar cliente/pet sem sair do inbox</b>, histórico, exames (acompanhar fases) e <b>inscrever o pet numa sequência de follow-up</b> (cadências com modelos).</li>
     <li><b>📄 Exportar conversa em PDF</b> (menu da conversa) — sai com papel timbrado.</li>
     <li>Anexos de <b>foto, documento e vídeo</b> (vídeos grandes suportados; lembre que o próprio WhatsApp limita vídeo a ~16 MB).</li>
+    <li><b>⏰ Alerta de conversa esquecida:</b> cliente sem resposta há mais de <b>15 minutos</b> <b>sobe pro topo</b> da lista e ganha um <b>selo vermelho piscando</b> com o tempo de espera — pra ninguém ficar sem resposta.</li>
   </ul>
 </section>
 
@@ -82,6 +84,7 @@
   <ul>
     <li><b>Lupa global</b> no topo busca cliente, pet ou lead de qualquer tela.</li>
     <li><b>Ficha do pet:</b> dados, peso, atendimentos, boletins, protocolos/vacinas, <b>linha do tempo do histórico importado do SimplesVet</b> (peso, exames, receitas — com PDF), selo <b>Petlife</b>.</li>
+    <li><b>📲 Enviar exame/receita pelo WhatsApp</b> (botão no <b>Prontuário</b> do pet): escreve a mensagem, marca os exames/receitas da ficha e envia pro tutor. Dá pra escolher o <b>modelo de abertura</b> (template Meta, ex.: "resultado de exame disponível") ali mesmo. Conversa aberta → vai na hora; <b>fechada → manda o convite e entrega tudo (mensagem + anexos) quando o tutor responde</b>.</li>
     <li><b>Ficha do tutor:</b> "Como conheceu" (origens configuráveis + quem indicou), CEP com endereço automático, aniversário.</li>
     <li><b>Cadastro público:</b> o cliente preenche sozinho em <b>/queremos-te-conhecer</b>; os recebidos caem em <b>Configurações › Cadastros recebidos</b> com <b>anti-duplicidade por telefone</b> (Criar novo ou Vincular a existente).</li>
   </ul>
@@ -165,7 +168,9 @@
   <h2>🔐 Segurança & acessos</h2>
   <span class="onde">Configurações › Acesso por horário / Permissões</span>
   <ul>
-    <li><b>Login por escala:</b> com o interruptor ligado, cada pessoa só entra no horário da própria escala (tolerância de 60 min no fim) ou em plantão. <b>Tentativas fora do horário</b> aparecem na própria tela, com nome e hora.</li>
+    <li><b>Login por escala:</b> com o interruptor ligado, cada pessoa só entra no horário da própria escala (tolerância de 60 min no fim) ou em plantão. <b>Tentativas fora do horário</b> aparecem na própria tela (Config › Acesso por horário), com nome e hora.</li>
+    <li><b>🔑 Minha senha:</b> cada pessoa troca a própria senha em <b>menu Sistema › Minha senha</b> (pede a senha atual) — ninguém depende do suporte.</li>
+    <li><b>Sessão não “dorme”:</b> se o acesso interno vencer, o sistema <b>desloga sozinho e pede login</b> de novo (fim do “entrei mas nada carrega”).</li>
     <li><b>Chave de acesso livre:</b> exceção por pessoa (entra a qualquer hora). Admins sempre entram. Sem escala cadastrada = entra (proteção contra trancamento).</li>
     <li><b>Perfis de acesso:</b> telas podem ser ocultadas por perfil (menu + bloqueio de URL direto).</li>
     <li><b>Log de auditoria:</b> toda ação (criou/editou/excluiu) fica registrada com autor — já salvou diagnóstico de exclusões.</li>
