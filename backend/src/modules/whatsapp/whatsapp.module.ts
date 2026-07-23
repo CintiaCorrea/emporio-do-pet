@@ -13,6 +13,8 @@ import { WhatsAppOfflineReplyListener } from './whatsapp-offline-reply.listener'
 import { BoletimReplyListener } from './boletim-reply.listener';
 import { PresenteReplyListener } from './presente-reply.listener';
 import { SurveyAvaliacaoController } from './survey-avaliacao.controller';
+import { GhostSombraController } from './ghost-sombra.controller';
+import { GhostSombraListener } from './ghost-sombra.listener';
 import { SurveyAvaliacaoService } from './survey-avaliacao.service';
 import { SurveyAvaliacaoListener } from './survey-avaliacao.listener';
 import { PrismaModule } from '../prisma/prisma.module';
@@ -41,6 +43,7 @@ import {
     WhatsAppWebhooksController,
     WhatsAppAIConfigController,
     SurveyAvaliacaoController,
+    GhostSombraController,
   ],
   providers: [
     WhatsAppService,
@@ -49,6 +52,7 @@ import {
     WhatsAppOfflineReplyListener,
     BoletimReplyListener,
     PresenteReplyListener,
+    GhostSombraListener,
     SurveyAvaliacaoService,
     SurveyAvaliacaoListener,
     WebhookReplayService,
