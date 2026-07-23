@@ -1448,11 +1448,22 @@ export class WhatsAppService {
     nomeArquivo?: string,
   ): Promise<{ success: boolean; messageId?: string; error?: string }> {
     try {
-      const r = await fetch(url);
-      if (!r.ok) return { success: false, error: `Não consegui baixar o arquivo (${r.status})` };
       const mimePadrao = tipo === 'image' ? 'image/jpeg' : tipo === 'video' ? 'video/mp4' : 'application/pdf';
-      const mime = r.headers.get('content-type') || mimePadrao;
-      const buf = Buffer.from(await r.arrayBuffer());
+      let buf: Buffer;
+      let mime = mimePadrao;
+      const r = await fetch(url);
+      if (r.ok) {
+        buf = Buffer.from(await r.arrayBuffer());
+        mime = r.headers.get('content-type') || mimePadrao;
+      } else {
+        // Bucket PRIVADO (exames/receitas dão 403 no fetch simples) → baixa assinado (SigV4).
+        const assinado = await this.cloudStorageService.baixarPorUrl(url);
+        if (!assinado) return { success: false, error: `Não consegui baixar o arquivo (${r.status})` };
+        buf = assinado.buffer;
+        mime = assinado.contentType || mimePadrao;
+      }
+      // Documento sem mime claro → assume PDF (o WhatsApp recusa octet-stream genérico).
+      if (tipo === 'document' && (!mime || mime === 'application/octet-stream')) mime = 'application/pdf';
       const nome = nomeArquivo || (url.split('/').pop() || '').split('?')[0] || (tipo === 'image' ? 'foto.jpg' : tipo === 'video' ? 'video.mp4' : 'documento.pdf');
       const up = await this.uploadMedia(buf, mime, nome);
       if (!up.mediaId) return { success: false, error: up.error || 'Falha ao subir o arquivo para a Meta' };

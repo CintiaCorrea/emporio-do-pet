@@ -334,6 +334,44 @@ export class CloudStorageService {
   }
 
   /**
+   * Baixa um objeto do bucket PRIVADO assinando a requisição GET (SigV4). O `fetch` simples
+   * numa URL de bucket privado retorna 403 — por isso exames/receitas não iam pro WhatsApp.
+   */
+  async baixarPorUrl(url: string): Promise<{ buffer: Buffer; contentType: string } | null> {
+    try {
+      const bucket = this.config.s3Bucket;
+      if (!bucket || !this.config.s3AccessKeyId || !this.config.s3SecretAccessKey) return null;
+      const marker = `/${bucket}/`;
+      const idx = url.indexOf(marker);
+      if (idx === -1) return null;
+      const key = url.slice(idx + marker.length);
+      const endpoint = this.config.s3Endpoint || `https://s3.${this.config.s3Region}.amazonaws.com`;
+      const host = new URL(endpoint).host;
+      const date = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '');
+      const dateShort = date.substring(0, 8);
+      const contentHash = crypto.createHash('sha256').update('').digest('hex');
+      const canonicalHeaders = [`host:${host}`, `x-amz-content-sha256:${contentHash}`, `x-amz-date:${date}`].join('\n');
+      const signedHeaders = 'host;x-amz-content-sha256;x-amz-date';
+      const canonicalRequest = ['GET', `/${bucket}/${key}`, '', canonicalHeaders, '', signedHeaders, contentHash].join('\n');
+      const credentialScope = `${dateShort}/${this.config.s3Region}/s3/aws4_request`;
+      const stringToSign = ['AWS4-HMAC-SHA256', date, credentialScope, crypto.createHash('sha256').update(canonicalRequest).digest('hex')].join('\n');
+      const kDate = crypto.createHmac('sha256', `AWS4${this.config.s3SecretAccessKey}`).update(dateShort).digest();
+      const kRegion = crypto.createHmac('sha256', kDate).update(this.config.s3Region!).digest();
+      const kService = crypto.createHmac('sha256', kRegion).update('s3').digest();
+      const signingKey = crypto.createHmac('sha256', kService).update('aws4_request').digest();
+      const signature = crypto.createHmac('sha256', signingKey).update(stringToSign).digest('hex');
+      const authorization = `AWS4-HMAC-SHA256 Credential=${this.config.s3AccessKeyId}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
+      const res = await fetch(`${endpoint}/${bucket}/${key}`, { headers: { 'x-amz-content-sha256': contentHash, 'x-amz-date': date, Authorization: authorization } });
+      if (!res.ok) return null;
+      const buffer = Buffer.from(await res.arrayBuffer());
+      const contentType = res.headers.get('content-type') || 'application/octet-stream';
+      return { buffer, contentType };
+    } catch {
+      return null;
+    }
+  }
+
+  /**
    * Apaga um objeto a partir da URL completa (deriva a "chave" pasta/arquivo do bucket).
    * Usado pela limpeza automática de áudios antigos de consulta.
    */
