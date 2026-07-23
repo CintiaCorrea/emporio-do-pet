@@ -544,6 +544,82 @@ export default function FichaInternacaoPage() {
     finally { setBolEnviando(""); }
   };
 
+  // Gera o texto do boletim (WhatsApp) a partir do que JÁ está preenchido na ficha.
+  // Campos sem dado viram [preencher] pro vet completar na hora. Texto pensado pra
+  // ficar legível no celular (negrito com *, emojis, blocos curtos).
+  const montarBoletimInternacao = (tipo: "resumo" | "completo"): string => {
+    const pet = h?.pet?.name || "o paciente";
+    const agora = new Date();
+    const dataStr = agora.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+    const horaStr = agora.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    const PLC = "[preencher]";
+    const evo = (evolucoesOrd?.[0]?.texto || "").trim();
+    const v: any = ultVital || {};
+    const f: any = ultFluido || {};
+    const meds = (prescricoes || []).map((p: any) => `• ${p.medicamento}${p.dose ? ` ${p.dose}` : ""}${p.frequencia ? ` — ${p.frequencia}` : ""}`).join("\n");
+    const estadoEmoji = /crítico|instável/i.test(estado) ? "⚠️" : /observação/i.test(estado) ? "🟡" : "💛";
+    const vitaisLinha = [v.temp && `${v.temp}°C`, v.fc && `FC ${v.fc}`, v.mucosa && `mucosa ${String(v.mucosa).toLowerCase()}`].filter(Boolean).join(" · ") || PLC;
+
+    if (tipo === "resumo") {
+      return [
+        `🐾 *Boletim do ${pet}* — ${dataStr}, ${horaStr}`,
+        ``,
+        `${estadoEmoji} *Estado:* ${estado}.`,
+        ``,
+        `📋 *Hoje:* ${evo || "[preencher: como o pet está hoje]"}`,
+        ``,
+        `🌡️ *Sinais vitais:* ${vitaisLinha}.`,
+        ``,
+        `💊 *Tratamento:* ${meds ? "mantido nos horários." : PLC}`,
+        ``,
+        `🔜 *Próximo passo:* ${PLC}`,
+        ``,
+        `Qualquer dúvida, estamos à disposição! 💛`,
+        `— Empório do Pet`,
+      ].join("\n");
+    }
+
+    const especie = ({ CANINE: "Canino", FELINE: "Felino", CANINO: "Canino", FELINO: "Felino" } as any)[h?.pet?.species] || h?.pet?.species || "";
+    const petLinha = [especie, h?.pet?.breed || ""].filter(Boolean).join("/");
+    const peso = h?.pet?.weight ? `${h.pet.weight} kg` : "";
+    const dias = h?.admissionDate ? diasInternado(h.admissionDate) : null;
+    const diaTxt = dias != null ? ` · ${dias}º dia de internação` : "";
+    const xixiFezes = [f.diurese, f.fezes].filter(Boolean).join(" / ") || PLC;
+
+    return [
+      `🏥 *Boletim do ${pet}* — Empório do Pet`,
+      `🗓️ ${dataStr} · ${horaStr}${diaTxt}`,
+      ``,
+      `🐾 ${[petLinha, peso].filter(Boolean).join(" · ") || PLC}`,
+      `👤 Tutor(a): ${h?.tutor?.name || PLC}`,
+      ``,
+      `${estadoEmoji} *Estado geral:* ${estado}.`,
+      ``,
+      `*Como o ${pet} está agora:*`,
+      `${evo || "[preencher: comportamento, apetite, disposição]"}`,
+      ``,
+      `*Desde o último boletim:*`,
+      `[preencher: evolução, procedimentos e intercorrências]`,
+      ``,
+      `🌡️ *Sinais vitais:*`,
+      `• Temp: ${v.temp ? `${v.temp}°C` : PLC}  • FC: ${v.fc || PLC}  • FR: ${v.fr || PLC}`,
+      `• Mucosa: ${v.mucosa || PLC}`,
+      `• Alimentação: ${f.alimentacao || PLC}`,
+      `• Xixi/Fezes: ${xixiFezes}`,
+      ``,
+      `💊 *Tratamento em curso:*`,
+      `${meds || PLC}`,
+      ``,
+      `🔜 *Próximos passos:* ${PLC}`,
+      ``,
+      `⚠️ *Atenção especial:* ${PLC}`,
+      ``,
+      `💬 *Recado da equipe:* ${PLC}`,
+      ``,
+      `— Dr(a). ${userName || "______"} · Empório do Pet`,
+    ].join("\n");
+  };
+
   // Troca/atribui o box desta internação. "" = remover do box (liberar).
   const trocarBox = async (novoBoxId: string) => {
     setBoxBusy(true);
@@ -855,6 +931,12 @@ export default function FichaInternacaoPage() {
                                   {modelosBoletim.map((m) => <option key={m.id} value={m.id}>{m.nome}</option>)}
                                 </select>
                               )}
+
+                              {/* Gera o boletim já preenchido dos dados da ficha (o vet completa o que faltar) */}
+                              <div className="flex items-center gap-2 mb-1">
+                                <button onClick={() => setTextoHorario(hor, montarBoletimInternacao("resumo"))} className="text-[11px] font-medium text-white bg-[#009AAC] px-2.5 py-1 rounded-md">✨ Gerar resumo</button>
+                                <button onClick={() => setTextoHorario(hor, montarBoletimInternacao("completo"))} className="text-[11px] font-medium text-[#014D5E] bg-[#E0F4F6] border border-[#bfe3e8] px-2.5 py-1 rounded-md">✨ Gerar completo</button>
+                              </div>
 
                               <textarea
                                 value={txt}
