@@ -546,9 +546,10 @@ export default function AgendaPage() {
                               {travaSala(a) ? <span title="Ocupa a sala inteira" className="text-[10px]">🔒</span> : (mostrarValores && v > 0 ? <span className="text-[10px] font-medium" style={{ color: "#0F6E56" }}>{brl(v)}</span> : null)}
                             </div>
                             <div className="text-[12px] font-medium truncate hover:underline cursor-pointer flex items-center gap-1" style={{ color: "#014D5E" }} title="Abrir a ficha completa" onClick={(e) => { e.stopPropagation(); const url = a.pet?.id ? `/dashboard/erp/pets/${a.pet.id}` : (a.tutor?.id ? `/dashboard/erp/tutores/${a.tutor.id}` : null); if (url) window.open(url, "_blank"); }}>{/petlife/i.test(a.pet?.insurancePlan || "") && <span title="Convênio Petlife" className="shrink-0">🩺</span>}<span className="truncate">{quem}</span></div>
-                            {terc?.nome && <div className="text-[10px] truncate font-medium" style={{ color: corParceiro(terc.id) }}>🤝 {terc.nome}</div>}
+                            {/* Parceiro na MESMA linha do tipo: linha extra deixava o cartão mais alto e "quebrava" a grade. */}
                             <div className="text-[10px] truncate flex items-center gap-1" style={{ color: cor.c }}>
                               <span className="truncate">{a.type || "Atendimento"}</span>
+                              {terc?.nome && <span className="truncate font-medium" style={{ color: corParceiro(terc.id), maxWidth: "55%" }} title={`Parceiro: ${terc.nome}`}>· 🤝 {terc.nome}</span>}
                               {tipoFisio(a) && (() => { const env = boletinsEnv.has(`${a.pet?.id || a.petId}|${ymd(new Date(a.date))}`); return <span title={env ? "Boletim enviado ✅" : "Boletim ainda não enviado"} className="shrink-0" style={{ fontSize: "9px" }}>{env ? "🌿✅" : "🌿✉️"}</span>; })()}
                             </div>
                             {/* Controle de estágio: um elemento só que avança Agendado → Chegou → Em atendimento → Concluído. */}

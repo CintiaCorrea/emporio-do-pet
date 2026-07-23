@@ -1,0 +1,201 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Documentação — Empório do Pet CRM</title>
+<style>
+  :root{--turq:#009AAC;--marinho:#014D5E;--bg:#F4F1EA;--card:#fff;--borda:#E8E2D6;--linha:#F0EBE0;--sub:#5C6B70;--texto:#1F2A2E;--turqsuave:#E0F4F6;--verde:#0F6E56;--verdebg:#E1F5EE;--amarbg:#FDF4DD;--amar:#8a6400;--rosabg:#FCE9EF;--rosa:#B4232F}
+  @media (prefers-color-scheme:dark){:root{--bg:#12181a;--card:#1b2426;--borda:#2b383b;--linha:#243033;--sub:#a8b8bb;--texto:#eaf2f2;--turqsuave:#0c3238;--verdebg:#0e2a24;--amarbg:#2e2713;--rosabg:#2e1418}}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--texto);line-height:1.55;padding:30px 16px;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:820px;margin:0 auto}
+  header{text-align:center;margin-bottom:24px}
+  h1{font-size:24px;color:var(--marinho);font-weight:750;letter-spacing:-.015em}
+  @media (prefers-color-scheme:dark){h1{color:#7fd3dd}}
+  .sub{font-size:13.5px;color:var(--sub);margin-top:4px}
+  .toc{background:var(--card);border:1px solid var(--borda);border-radius:14px;padding:16px 20px;margin-bottom:22px;font-size:13.5px;columns:2;column-gap:24px}
+  @media(max-width:560px){.toc{columns:1}}
+  .toc a{color:var(--turq);text-decoration:none;display:block;padding:3px 0;break-inside:avoid}
+  .toc a:hover{text-decoration:underline}
+  section{background:var(--card);border:1px solid var(--borda);border-radius:14px;padding:20px 22px;margin-bottom:16px;scroll-margin-top:16px}
+  h2{font-size:17px;color:var(--marinho);font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+  @media (prefers-color-scheme:dark){h2{color:#7fd3dd}}
+  h3{font-size:14px;color:var(--texto);font-weight:650;margin:14px 0 4px}
+  p,li{font-size:13.5px;color:var(--texto)}
+  ul{padding-left:20px;margin:4px 0 8px}
+  li{margin:3px 0}
+  li::marker{color:var(--turq)}
+  .onde{display:inline-block;background:var(--turqsuave);color:var(--marinho);font-size:12px;border-radius:7px;padding:2px 9px;margin:2px 0 6px;font-weight:600}
+  @media (prefers-color-scheme:dark){.onde{color:#cdeef1}}
+  .regra{background:var(--rosabg);border-left:4px solid var(--rosa);border-radius:9px;padding:9px 13px;font-size:13px;margin:8px 0}
+  .regra b{color:var(--rosa)}
+  .dica{background:var(--amarbg);border-radius:9px;padding:8px 13px;font-size:12.5px;color:var(--amar);margin:8px 0}
+  .ok{background:var(--verdebg);border-radius:9px;padding:8px 13px;font-size:12.5px;color:var(--verde);margin:8px 0}
+  .foot{text-align:center;font-size:12px;color:var(--sub);margin:26px 0 8px}
+  hr.sep{border:none;border-top:1px dashed var(--linha);margin:14px 0}
+</style>
+
+<div class="wrap">
+<header>
+  <h1>📘 Documentação — Empório do Pet CRM</h1>
+  <div class="sub">Tudo que foi construído, onde fica e como usar · atualizado em 23/07/2026</div>
+</header>
+
+<nav class="toc">
+  <a href="#agenda">📅 Agenda & confirmações</a>
+  <a href="#inbox">💬 Caixa de entrada (WhatsApp)</a>
+  <a href="#fichas">🐾 Fichas de cliente & pet</a>
+  <a href="#atendimento">🩺 Atendimento clínico & gravação</a>
+  <a href="#internacao">🏥 Internação</a>
+  <a href="#fisio">💪 Fisioterapia</a>
+  <a href="#automacoes">🤖 Automações do WhatsApp</a>
+  <a href="#sombra">👻 Agente Sombra</a>
+  <a href="#vendas">💰 Vendas & caixa</a>
+  <a href="#seguranca">🔐 Segurança & acessos</a>
+  <a href="#protecoes">🛡️ Proteções de dados</a>
+  <a href="#configs">⚙️ Configurações úteis</a>
+</nav>
+
+<section id="agenda">
+  <h2>📅 Agenda & confirmações</h2>
+  <span class="onde">Dia a dia › Agenda</span>
+  <ul>
+    <li><b>Colunas por profissional</b> + colunas avulsas <b>MAP/Parceiro</b> e profissionais <b>externos sob demanda</b> (com cores por parceiro). O expediente de cada um manda na coluna.</li>
+    <li><b>Confirmação por WhatsApp em 1 clique:</b> botão <b>📲 Confirmar no WhatsApp</b> no agendamento (com prévia da mensagem). Além disso, o sistema envia confirmações <b>automáticas às 17h e 19h</b> do dia anterior.</li>
+    <li>Ao marcar, a <b>busca padrão</b> cruza cliente + pet nas telas novas (2 caixinhas).</li>
+  </ul>
+</section>
+
+<section id="inbox">
+  <h2>💬 Caixa de entrada (WhatsApp)</h2>
+  <span class="onde">Dia a dia › Caixa de entrada</span>
+  <ul>
+    <li><b>Filtros de atendimento:</b> 👤 Minhas · 🆓 Livres · Todas — e botão <b>↪ Transferir</b> pra passar a conversa a outra pessoa. Dá pra ver as encerradas.</li>
+    <li><b>Painel do cliente</b> (lado direito): ficha resumida, <b>editar cliente/pet sem sair do inbox</b>, histórico, exames (acompanhar fases) e <b>inscrever o pet numa sequência de follow-up</b> (cadências com modelos).</li>
+    <li><b>📄 Exportar conversa em PDF</b> (menu da conversa) — sai com papel timbrado.</li>
+    <li>Anexos de <b>foto, documento e vídeo</b> (vídeos grandes suportados; lembre que o próprio WhatsApp limita vídeo a ~16 MB).</li>
+  </ul>
+</section>
+
+<section id="fichas">
+  <h2>🐾 Fichas de cliente & pet</h2>
+  <span class="onde">Dia a dia › Clientes / lupa no topo</span>
+  <ul>
+    <li><b>Lupa global</b> no topo busca cliente, pet ou lead de qualquer tela.</li>
+    <li><b>Ficha do pet:</b> dados, peso, atendimentos, boletins, protocolos/vacinas, <b>linha do tempo do histórico importado do SimplesVet</b> (peso, exames, receitas — com PDF), selo <b>Petlife</b>.</li>
+    <li><b>Ficha do tutor:</b> "Como conheceu" (origens configuráveis + quem indicou), CEP com endereço automático, aniversário.</li>
+    <li><b>Cadastro público:</b> o cliente preenche sozinho em <b>/queremos-te-conhecer</b>; os recebidos caem em <b>Configurações › Cadastros recebidos</b> com <b>anti-duplicidade por telefone</b> (Criar novo ou Vincular a existente).</li>
+  </ul>
+</section>
+
+<section id="atendimento">
+  <h2>🩺 Atendimento clínico & gravação de consulta</h2>
+  <span class="onde">Consultas › (consulta) › 🎤 Gravar & Documentos</span>
+  <ul>
+    <li><b>Ficha clínica unificada</b> (editável) + <b>prescrição estruturada com modelos e 🖨️ impressão de receita</b>.</li>
+    <li><b>Gravação da consulta:</b> grava o áudio → transcreve por IA (Whisper) → a IA preenche a ficha. Consultas longas funcionam (o sistema comprime sozinho).</li>
+    <li><b>Blindagem:</b> ao <b>Finalizar</b>, o áudio é salvo <b>automaticamente</b> no sistema <b>e baixa uma cópia no computador</b> (pasta Downloads). Espere o <b>“✅ Áudio salvo com segurança”</b>. Falha vira aviso vermelho com “Salvar de novo”.</li>
+    <li>Rever depois: <b>⏳ Histórico</b> → ▶️ ouvir + transcrição + análise.</li>
+  </ul>
+  <div class="regra">🔒 <b>Proteção:</b> apagar um atendimento que tem gravação exige confirmação explícita (o áudio seria apagado junto).</div>
+  <div class="dica">🗓️ Áudios são apagados automaticamente após <b>30 dias</b> (a transcrição e a análise ficam pra sempre no prontuário).</div>
+</section>
+
+<section id="internacao">
+  <h2>🏥 Internação</h2>
+  <span class="onde">Dia a dia › Internação</span>
+  <ul>
+    <li><b>Mapa de boxes</b> + ficha completa por paciente: nível de risco, admissão, <b>evolução médica</b>, <b>prescrição + plantão de doses</b>, <b>sinais vitais</b> (com tendência), <b>fluidos/dejetos & alimentação</b> (com campo Observação), conta, caução e fechamento.</li>
+    <li><b>Tudo editável por todos</b> (✏️ em cada registro) enquanto a internação está ativa — e cada criação/edição/exclusão fica gravada num <b>rastro invisível</b> (quem, quando, antes→depois) para contestação, sem aparecer na tela.</li>
+    <li><b>Boletins pro tutor:</b> na seção 🔔 Boletins programados, os botões <b>✨ Gerar resumo</b> (manhã e fim do dia) e <b>✨ Gerar completo</b> (tarde) montam o texto sozinhos com os dados da ficha (o que faltar vira <code>[preencher]</code>). <b>👁 Visualizar</b> mostra como fica no WhatsApp antes de enviar; enviados ficam no histórico <b>📚 com ✅</b> (rever/🖨 imprimir).</li>
+    <li><b>🖨️ Resumo de alta</b> (botão no topo): documento completo com tratamento realizado + campos de cuidados em casa, medicações, retorno e sinais de alerta + assinatura do veterinário.</li>
+  </ul>
+</section>
+
+<section id="fisio">
+  <h2>💪 Fisioterapia</h2>
+  <span class="onde">Agenda (atalho) · Ficha do pet › Boletins</span>
+  <ul>
+    <li><b>Boletim de fisio:</b> paciente, sessão (nº automático do pacote), equipamentos com parâmetros, observações e metas — com prévia e envio pelo WhatsApp.</li>
+    <li><b>Novo boletim já vem preenchido igual ao último</b> — só o nº da sessão e a data mudam; você edita o que for diferente.</li>
+    <li><b>Fora da janela de 24h?</b> O sistema envia sozinho a mensagem que reabre a conversa e entrega o boletim automaticamente quando o tutor responde.</li>
+  </ul>
+</section>
+
+<section id="automacoes">
+  <h2>🤖 Automações do WhatsApp</h2>
+  <ul>
+    <li><b>🎂 Aniversários (9h):</b> mensagem automática pro tutor e pro pet aniversariante (nunca pra pet falecido).</li>
+    <li><b>🎁 Presente automático:</b> quando o tutor toca em “Receba seu presente” (ou escreve pedindo), o sistema responde sozinho com o presente — <b>10% de desconto nos serviços</b> — e registra na conversa. Validade: 7 dias após o parabéns.</li>
+    <li><b>💉 Vacinas/protocolos:</b> lembretes 15/7/3 dias antes do vencimento (e avisos de vencido).</li>
+    <li><b>🛟 Auto-cura:</b> se o lote das 9h falhar, o sistema re-tenta sozinho às 11h e 15h (sem duplicar nada).</li>
+    <li><b>🔔 Boletins de internação programados:</b> enviados sozinhos nos horários definidos na ficha.</li>
+    <li><b>📊 Confirmações de agenda:</b> automáticas às 17h/19h da véspera.</li>
+  </ul>
+</section>
+
+<section id="sombra">
+  <h2>👻 Agente Sombra <small style="font-size:11px;color:var(--verde)">— novo!</small></h2>
+  <span class="onde">Gestão › Inteligência › Agente Sombra (só admins)</span>
+  <p>É o <b>treino do futuro atendente por IA</b>. Ele lê cada mensagem de cliente e escreve a resposta que <i>ele</i> daria — usando a conversa, o cadastro do cliente/pets, a <b>tabela de preços real</b> e os dados da clínica. <b>Nunca envia nada:</b> as sugestões ficam guardadas só pra avaliação.</p>
+  <h3>Como usar</h3>
+  <ul>
+    <li>Ligue o <b>interruptor</b> no topo da tela. As sugestões aparecem conforme os clientes escrevem (1 por conversa a cada 3 min).</li>
+    <li>Compare lado a lado: 💬 cliente → 👻 sugestão → 👩‍⚕️ resposta real da equipe.</li>
+    <li>Avalie: <b>👍 Boa · 👎 Ruim · ✏️ Corrigir</b> — a correção é o que mais ensina.</li>
+  </ul>
+  <div class="regra">🔒 <b>Travas de ferro (valem pra sempre, sombra ou não):</b> o agente <b>NUNCA</b> dá diagnóstico, sugere tratamento/conduta ou indica/prescreve medicamento — assuntos clínicos ele acolhe e passa pra equipe veterinária. E <b>nunca inventa preço</b>: só usa a tabela de serviços cadastrada (vazia = “confirmo com a equipe”).</div>
+  <div class="dica">📈 Quanto mais completa a tabela de serviços (com valores), melhores as respostas dele. A agenda real (horários livres) entra na próxima fase.</div>
+  <div class="ok">Fase 2 (futuro, só com sua autorização): ele passa a responder de verdade — sempre com “passar pra humano” disponível.</div>
+</section>
+
+<section id="vendas">
+  <h2>💰 Vendas & caixa</h2>
+  <span class="onde">Gestão › Vendas / Inteligência</span>
+  <ul>
+    <li><b>Comandas</b> (em atendimento), <b>Ponto de venda</b>, <b>Caixa</b> e movimentos, <b>Recebimentos</b>, <b>Saldo dos clientes</b>, <b>Pacotes</b>.</li>
+    <li><b>Formas de recebimento</b> com taxas por maquininha/parcela (alimenta o PDV).</li>
+    <li><b>Comissionamento</b> (fechamentos e extratos por profissional).</li>
+    <li><b>Inteligência:</b> produtividade, consulta de vendas, ranking de clientes, gráficos.</li>
+    <li><b>Serviços & exames:</b> tabela unificada com categoria, laboratório, custo e margem.</li>
+    <li><b>Financeiro DRE multi-unidade:</b> em construção na frente paralela (lançamentos, DRE, conciliação de extrato, regras) — entra no menu quando for publicado.</li>
+  </ul>
+</section>
+
+<section id="seguranca">
+  <h2>🔐 Segurança & acessos</h2>
+  <span class="onde">Configurações › Acesso por horário / Permissões</span>
+  <ul>
+    <li><b>Login por escala:</b> com o interruptor ligado, cada pessoa só entra no horário da própria escala (tolerância de 60 min no fim) ou em plantão. <b>Tentativas fora do horário</b> aparecem na própria tela, com nome e hora.</li>
+    <li><b>Chave de acesso livre:</b> exceção por pessoa (entra a qualquer hora). Admins sempre entram. Sem escala cadastrada = entra (proteção contra trancamento).</li>
+    <li><b>Perfis de acesso:</b> telas podem ser ocultadas por perfil (menu + bloqueio de URL direto).</li>
+    <li><b>Log de auditoria:</b> toda ação (criou/editou/excluiu) fica registrada com autor — já salvou diagnóstico de exclusões.</li>
+    <li><b>Rastro invisível da internação:</b> alterações clínicas guardam quem/quando/antes→depois (não aparece na tela; só para contestação).</li>
+  </ul>
+</section>
+
+<section id="protecoes">
+  <h2>🛡️ Proteções de dados</h2>
+  <ul>
+    <li><b>Gravação de consulta:</b> salva no sistema ao Finalizar <b>+ cópia local automática</b> no computador + aviso ao sair com áudio não salvo + delete protegido.</li>
+    <li><b>Limpeza automática:</b> áudios de consulta são apagados após <b>30 dias</b> (transcrição/análise ficam). Roda toda madrugada.</li>
+    <li><b>Mídia do WhatsApp:</b> fotos/áudios das conversas são copiados pro nosso armazenamento (não dependem do link da Meta).</li>
+    <li><b>Lembretes com auto-cura</b> (11h/15h) e travas anti-duplicata nas mensagens.</li>
+  </ul>
+</section>
+
+<section id="configs">
+  <h2>⚙️ Configurações úteis (onde mexer)</h2>
+  <ul>
+    <li><b>Origens do “Como conheceu”</b> → Configurações › Listas › Origens</li>
+    <li><b>Modelos de boletim</b> (internação) → Configurações › Modelos de boletim</li>
+    <li><b>Modelos de receita</b> → Configurações › Modelos de receita</li>
+    <li><b>Papel timbrado</b> (fundo dos documentos impressos) → Configurações › Papel timbrado</li>
+    <li><b>Acesso por horário</b> (interruptor, chaves, bloqueios) → Configurações › Acesso por horário</li>
+    <li><b>Cadastros recebidos</b> (formulário público) → Configurações › Cadastros recebidos</li>
+    <li><b>Dados da clínica</b> (endereço/contato — o Agente Sombra usa!) → ERP › Dados da clínica</li>
+    <li><b>Academia</b> (treino da equipe: guia do WhatsApp etc.) → menu 🎓 Academia</li>
+  </ul>
+</section>
+
+<p class="foot">📘 Documentação viva — peça ao assistente para atualizar quando algo novo for construído. · Empório do Pet 🐾</p>
+</div>

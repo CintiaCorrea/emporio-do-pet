@@ -6,7 +6,7 @@ import { useState } from "react";
 // O conteúdo (guia + maquete) vive em /public/academia/*.html e entra por iframe,
 // então não depende de link externo — qualquer pessoa logada acessa por aqui.
 
-type Tema = "whatsapp" | "agenda" | "fisio" | "regras";
+type Tema = "whatsapp" | "agenda" | "fisio" | "gravacao" | "docs" | "regras";
 type ConteudoWa = "guia" | "maquete" | "api";
 type ConteudoAg = "guia" | "maquete";
 
@@ -19,6 +19,8 @@ export default function AcademiaPage() {
     { key: "whatsapp", label: "WhatsApp", emoji: "📲" },
     { key: "agenda", label: "Agenda", emoji: "📅" },
     { key: "fisio", label: "Boletim de Fisio", emoji: "🌿" },
+    { key: "gravacao", label: "Gravação de consulta", emoji: "🎤" },
+    { key: "docs", label: "Documentação do sistema", emoji: "📘" },
     { key: "regras", label: "Regras da empresa", emoji: "📋" },
   ];
 
@@ -127,6 +129,40 @@ export default function AcademiaPage() {
           <iframe
             src="/academia/guia-boletim-fisio.html"
             title="Guia do Boletim de Fisioterapia"
+            className="w-full block"
+            style={{ height: "calc(100vh - 250px)", minHeight: 520, border: 0 }}
+          />
+        </div>
+      )}
+
+      {/* TEMA: Gravação de consulta (guia passo a passo pra equipe) */}
+      {tema === "gravacao" && (
+        <div className="bg-white rounded-2xl border overflow-hidden" style={{ borderColor: "#E8DFC8" }}>
+          <div className="flex items-center gap-2 px-4 py-3 border-b flex-wrap" style={{ borderColor: "#F0EBE0" }}>
+            <span className="text-[12px] font-bold uppercase tracking-wide mr-1" style={{ color: "#8A8778" }}>Gravação de consulta</span>
+            <span className="text-[12.5px] font-semibold px-3 py-1.5 rounded-full border" style={{ background: "#0F6E56", color: "#fff", borderColor: "#0F6E56" }}>📖 Passo a passo</span>
+            <span className="text-[11.5px] ml-auto" style={{ color: "#8A8778" }}>Como gravar, transcrever e onde tudo fica salvo.</span>
+          </div>
+          <iframe
+            src="/academia/guia-gravacao.html"
+            title="Guia da Gravação de Consulta"
+            className="w-full block"
+            style={{ height: "calc(100vh - 250px)", minHeight: 520, border: 0 }}
+          />
+        </div>
+      )}
+
+      {/* TEMA: Documentação do sistema (visão geral de tudo, pra consulta) */}
+      {tema === "docs" && (
+        <div className="bg-white rounded-2xl border overflow-hidden" style={{ borderColor: "#E8DFC8" }}>
+          <div className="flex items-center gap-2 px-4 py-3 border-b flex-wrap" style={{ borderColor: "#F0EBE0" }}>
+            <span className="text-[12px] font-bold uppercase tracking-wide mr-1" style={{ color: "#8A8778" }}>Documentação do sistema</span>
+            <span className="text-[12.5px] font-semibold px-3 py-1.5 rounded-full border" style={{ background: "#0F6E56", color: "#fff", borderColor: "#0F6E56" }}>📘 Consulta</span>
+            <span className="text-[11.5px] ml-auto" style={{ color: "#8A8778" }}>Tudo que existe, onde fica e como usar.</span>
+          </div>
+          <iframe
+            src="/academia/documentacao-sistema.html"
+            title="Documentação do sistema"
             className="w-full block"
             style={{ height: "calc(100vh - 250px)", minHeight: 520, border: 0 }}
           />
