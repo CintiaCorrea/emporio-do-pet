@@ -128,6 +128,9 @@ export default function InboxUnificadoPage() {
   const [tab, setTab] = useState<Tab>("conversas");
   const [filter, setFilter] = useState<ListFilter>("todos");
   const [viewResp, setViewResp] = useState<"todas" | "minhas" | "livres">("todas");
+  // ⏰ SLA de resposta: cliente esperando há mais de X min = conversa sobe pro topo e
+  // pisca (pedido da Cintia 23/07, p/ ninguém ficar esquecido). Configurável depois.
+  const SLA_ESPERA_MIN = 15;
   const [verEncerradas, setVerEncerradas] = useState(false); // mostrar conversas já encerradas (pra reler)
   const [filtrosOpen, setFiltrosOpen] = useState(false); // roll-up dos filtros (ocupa menos espaço)
   const [search, setSearch] = useState("");
@@ -520,6 +523,11 @@ export default function InboxUnificadoPage() {
         c.contactNumber.includes(q),
       );
     }
+    // ⏰ Cliente esperando resposta há mais de SLA_ESPERA_MIN: sobe pro topo,
+    // quem espera há MAIS tempo primeiro. As demais mantêm a ordem normal.
+    const esperaDe = (c: any) => ((c.unreadCount || 0) > 0 && c.lastMessageAt) ? Date.now() - new Date(c.lastMessageAt).getTime() : -1;
+    const atrasou = (c: any) => esperaDe(c) > SLA_ESPERA_MIN * 60000;
+    arr.sort((a: any, b: any) => Number(atrasou(b)) - Number(atrasou(a)) || (atrasou(a) && atrasou(b) ? esperaDe(b) - esperaDe(a) : 0));
     return arr;
   }, [conversations, filter, search, viewResp, meId, filtroTag]);
 
@@ -1277,16 +1285,23 @@ export default function InboxUnificadoPage() {
                   }
                   return (lm.direction === "OUTBOUND" ? "Você: " : "") + corpo;
                 })();
+                // ⏰ Espera do cliente sem resposta (SLA): destaca e mostra o tempo.
+                const esperaMs = naoLida && c.lastMessageAt ? Date.now() - new Date(c.lastMessageAt).getTime() : -1;
+                const atrasada = esperaMs > SLA_ESPERA_MIN * 60000;
+                const esperaMin = Math.max(1, Math.floor(esperaMs / 60000));
+                const esperaLbl = esperaMin >= 60 ? `${Math.floor(esperaMin / 60)}h${String(esperaMin % 60).padStart(2, "0")}` : `${esperaMin} min`;
                 return (
                   <button key={c.id} onClick={() => setSelectedId(c.id)}
-                    className={`w-full text-left px-3 py-2.5 border-b border-[#f0e8d4] flex gap-2.5 items-start ${isSel ? "bg-[#F4FAFB] border-l-[3px] border-l-[#009AAC] pl-[9px]" : "bg-white hover:bg-[#FBF9F4]"}`}>
+                    className={`w-full text-left px-3 py-2.5 border-b border-[#f0e8d4] flex gap-2.5 items-start ${isSel ? "bg-[#F4FAFB] border-l-[3px] border-l-[#009AAC] pl-[9px]" : atrasada ? "bg-[#FDF1F1] hover:bg-[#FBE9E9] border-l-[3px] border-l-[#CC3366] pl-[9px]" : "bg-white hover:bg-[#FBF9F4]"}`}>
                     <div className="w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-semibold text-white flex-shrink-0"
                       style={{ background: isLead ? "#B7791F" : "#009AAC" }}>{getInitials(nome)}</div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
                         <span className={`text-[12.5px] truncate ${naoLida ? "font-bold text-[#0E2244]" : "font-medium text-[#0E2244]"}`}
                           title={c.tutor?.name && c.contactName && c.contactName !== c.tutor.name ? `No WhatsApp: ${c.contactName}` : undefined}>{nome}</span>
-                        <span className="ml-auto text-[10px] text-[#A7ADA8] whitespace-nowrap flex-shrink-0">{c.lastMessageAt ? timeAgo(c.lastMessageAt) : ""}</span>
+                        {atrasada
+                          ? <span title={`Cliente esperando resposta há ${esperaLbl}`} className="ml-auto text-[10px] font-bold text-white bg-[#CC3366] rounded-full px-1.5 py-0.5 animate-pulse whitespace-nowrap flex-shrink-0">⏰ {esperaLbl}</span>
+                          : <span className="ml-auto text-[10px] text-[#A7ADA8] whitespace-nowrap flex-shrink-0">{c.lastMessageAt ? timeAgo(c.lastMessageAt) : ""}</span>}
                       </div>
                       <div className={`text-[11.5px] truncate mt-0.5 ${naoLida ? "text-[#0E2244] font-medium" : "text-[#8A928F]"}`}>
                         {previa || <span className="italic text-[#B5AFA2]">sem mensagens</span>}

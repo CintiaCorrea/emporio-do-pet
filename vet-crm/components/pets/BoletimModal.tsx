@@ -67,8 +67,14 @@ export default function BoletimModal({ pet, boletimId, fisioRec, agenda, onClose
       // nº da sessão auto do pacote de fisio ativo (ex.: "06/06")
       const lpac = await safeJson<any>(await fetch(`/api/listas?lista=petpac_${petId}`, { cache: "no-store" }), []);
       const lpacArr = Array.isArray(lpac) ? lpac : (lpac.itens || lpac.data || []);
+      // A sessão é DESCONTADA na CHEGADA do cliente (agenda) — então, na hora do boletim,
+      // o nº da sessão atual é `used` (NÃO used+1: isso adiantava uma sessão — Cintia 23/07).
+      // Se used=0 (boletim antes da chegada), mostra 1. Pacote recém-terminado (used=total)
+      // ainda vale pra numerar o boletim da última sessão.
       let sessNum = "";
-      for (const i of lpacArr) { let d: any = {}; try { d = JSON.parse(i.valor); } catch {} if ((d.total || 0) > 0 && (d.used || 0) < (d.total || 0)) { sessNum = `${String((d.used || 0) + 1).padStart(2, "0")}/${String(d.total).padStart(2, "0")}`; break; } }
+      let pacote: any = null;
+      for (const i of lpacArr) { let d: any = {}; try { d = JSON.parse(i.valor); } catch {} if ((d.total || 0) <= 0) continue; if ((d.used || 0) < (d.total || 0)) { pacote = d; break; } if (!pacote && (d.used || 0) === (d.total || 0)) pacote = d; }
+      if (pacote) { const n = Math.max(pacote.used || 0, 1); sessNum = `${String(n).padStart(2, "0")}/${String(pacote.total).padStart(2, "0")}`; }
 
       if (boletimId) {
         // edição: carrega o boletim existente por cima do auto-fill

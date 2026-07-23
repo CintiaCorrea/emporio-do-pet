@@ -52,6 +52,18 @@ export class AuthController {
     return { message: 'Logout realizado com sucesso' };
   }
 
+  @Post('minha-senha')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Trocar a própria senha (exige a senha atual)' })
+  async minhaSenha(
+    @Request() req: { user: { id: string } },
+    @Body() body: { senhaAtual: string; novaSenha: string },
+  ) {
+    return this.authService.trocarMinhaSenha(req.user.id, body?.senhaAtual || '', body?.novaSenha || '');
+  }
+
   @Post('me')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)

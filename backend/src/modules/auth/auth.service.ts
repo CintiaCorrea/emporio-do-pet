@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -287,6 +287,19 @@ export class AuthService {
     } catch {
       return null;
     }
+  }
+
+  /** Troca de senha pelo PRÓPRIO usuário (tela "Minha senha"): exige a senha atual.
+   *  Senha atual errada devolve 400 (não 401 — 401 derrubaria a sessão no SessaoGuard). */
+  async trocarMinhaSenha(userId: string, senhaAtual: string, novaSenha: string) {
+    if (!novaSenha || novaSenha.length < 8) throw new BadRequestException('A nova senha precisa ter pelo menos 8 caracteres.');
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user || !user.password) throw new BadRequestException('Usuário não encontrado.');
+    const ok = await bcrypt.compare(senhaAtual || '', user.password);
+    if (!ok) throw new BadRequestException('Senha atual incorreta.');
+    const hash = await bcrypt.hash(novaSenha, 10);
+    await this.prisma.user.update({ where: { id: userId }, data: { password: hash } });
+    return { ok: true };
   }
 
   async changeOwnPassword(email: string, newPassword: string) {

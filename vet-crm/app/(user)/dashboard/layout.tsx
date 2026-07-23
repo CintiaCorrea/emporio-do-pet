@@ -9,6 +9,7 @@ import { PageHeaderProvider } from '@/lib/ui/PageHeaderContext';
 import { RolePreviewProvider } from '@/lib/ui/RolePreview';
 import { PermissionsProvider } from '@/lib/permissions/context';
 import PermGuard from '@/components/protected/dashboard/PermGuard';
+import SessaoGuard from '@/components/protected/dashboard/SessaoGuard';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -23,6 +24,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className="min-h-screen" style={{ background: "#F6F2EA" }}>
           <HotToaster />
           <PermGuard />
+          <SessaoGuard />
           <Sidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
           <Header sidebarOpen={sidebarOpen} />
           <main

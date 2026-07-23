@@ -51,7 +51,10 @@ const PET_EMOJI = (species: string) => {
 };
 const fmtDataBR = (v?: string | null) => {
   if (!v) return "—";
-  const d = new Date(v);
+  // "AAAA-MM-DD" puro: new Date() interpreta como UTC e mostra o DIA ANTERIOR
+  // (boletim do dia 23 saía como 22 — Cintia 23/07). O T00:00:00 força hora local.
+  const s = String(v);
+  const d = new Date(/^\d{4}-\d{2}-\d{2}$/.test(s) ? s + "T00:00:00" : s);
   return isNaN(d.getTime()) ? "—" : d.toLocaleDateString("pt-BR");
 };
 const diasTxt = (d: number | null | undefined) =>
@@ -307,7 +310,7 @@ export default function PetDetailPage() {
     const w = window.open("", "_blank", "width=800,height=900");
     if (!w) { toast.error("Permita pop-ups para imprimir"); return; }
     const esc = (t: any) => String(t || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    w.document.write(`<html><head><title>Boletim de fisioterapia</title><style>body{font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#0E2244;padding:40px;max-width:720px;margin:0 auto;font-size:13px;line-height:1.55}h1{color:#014D5E;font-size:19px;margin:0 0 2px}.sub{color:#6B7280;font-size:12px;margin-bottom:16px}pre{white-space:pre-wrap;font-family:inherit;border-top:2px solid #009AAC;padding-top:14px}</style></head><body><h1>🌿 Boletim de Fisioterapia — Empório do Pet</h1><div class="sub">${esc(pet?.name || "")} · ${esc(new Date(b.data?.sessaoData || Date.now()).toLocaleDateString("pt-BR"))}</div><pre>${esc(montarTextoBoletim(b.data))}</pre></body></html>`);
+    w.document.write(`<html><head><title>Boletim de fisioterapia</title><style>body{font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#0E2244;padding:40px;max-width:720px;margin:0 auto;font-size:13px;line-height:1.55}h1{color:#014D5E;font-size:19px;margin:0 0 2px}.sub{color:#6B7280;font-size:12px;margin-bottom:16px}pre{white-space:pre-wrap;font-family:inherit;border-top:2px solid #009AAC;padding-top:14px}</style></head><body><h1>🌿 Boletim de Fisioterapia — Empório do Pet</h1><div class="sub">${esc(pet?.name || "")} · ${esc(b.data?.sessaoData ? fmtDataBR(b.data.sessaoData) : new Date().toLocaleDateString("pt-BR"))}</div><pre>${esc(montarTextoBoletim(b.data))}</pre></body></html>`);
     w.document.close(); w.focus(); setTimeout(() => w.print(), 300);
   }
   useEffect(() => { if (petId) { load(); loadPipes(); loadPetColecoes(); loadCatalogos(); loadInteracoesPet(); loadAtendimentos(); loadClinDocs(); loadHistorico(); loadAtdConfig(); loadProtocolos(); loadBoletins(); loadFisioRec(); } /* eslint-disable-next-line */ }, [petId]);
