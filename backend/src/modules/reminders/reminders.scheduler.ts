@@ -35,14 +35,22 @@ export class RemindersScheduler {
   private telDe(tutor: any): string | null { const cs = tutor?.contacts || []; const wa = cs.find((x: any) => x.isWhatsApp) || cs.find((x: any) => x.isPrimary) || cs[0]; return wa?.number || null; }
   private T(text: string) { return { type: 'text' as const, text }; }
 
-  /** Envia 1x só: checa/marca em `reminder_sent` pela chave. */
-  private async enviarUmaVez(chave: string, phone: string, template: string, params: Array<{ type: 'text'; text: string }>, textoLegivel?: string): Promise<void> {
+  /** Envia 1x só: checa/marca em `reminder_sent` pela chave. Retorna true se ENVIOU agora. */
+  private async enviarUmaVez(chave: string, phone: string, template: string, params: Array<{ type: 'text'; text: string }>, textoLegivel?: string): Promise<boolean> {
     const ja = await this.prisma.listaItem.findFirst({ where: { lista: 'reminder_sent', valor: chave } });
-    if (ja) return;
+    if (ja) return false;
     const res = await this.whatsapp.enviarTemplateRegistrando(phone, template, params, textoLegivel);
-    if (!res.success) { this.logger.warn(`Falha ${template} (${chave}): ${res.error}`); return; }
+    if (!res.success) { this.logger.warn(`Falha ${template} (${chave}): ${res.error}`); return false; }
     await this.prisma.listaItem.create({ data: { lista: 'reminder_sent', valor: chave } }).catch(() => undefined);
     this.logger.log(`${template} enviado (${chave})`);
+    return true;
+  }
+
+  /** Deixa o PRESENTE de aniversário na FILA: quando o tutor responder pedindo o presente,
+   *  o PresenteReplyListener entrega o desconto sozinho. Validade: 7 dias. */
+  private async filaPresente(tutorId: string, pet?: string): Promise<void> {
+    await this.prisma.listaItem.deleteMany({ where: { lista: 'presente_fila', valor: { contains: `"tutorId":"${tutorId}"` } } }).catch(() => undefined);
+    await this.prisma.listaItem.create({ data: { lista: 'presente_fila', valor: JSON.stringify({ tutorId, pet: pet || null, criadoAt: new Date().toISOString() }) } }).catch(() => undefined);
   }
 
   // ---------- aniversários ----------
@@ -58,7 +66,8 @@ export class RemindersScheduler {
       const b = this.fort(new Date(t.birthDate as Date));
       if (b.m !== h.m || b.d !== h.d) continue;
       const phone = this.telDe(t); if (!phone) continue;
-      await this.enviarUmaVez(`aniv-tutor:${t.id}:${ano}`, phone, 'aniversario_tutor', [this.T(this.primeiro(t.name))], `🎂 Mensagem de aniversário enviada para ${this.primeiro(t.name)}.`);
+      const enviou = await this.enviarUmaVez(`aniv-tutor:${t.id}:${ano}`, phone, 'aniversario_tutor', [this.T(this.primeiro(t.name))], `🎂 Mensagem de aniversário enviada para ${this.primeiro(t.name)}.`);
+      if (enviou) await this.filaPresente(t.id); // presente (10% off) sai sozinho quando responder
     }
     // Pets com data de nascimento hoje, cujo tutor aceita WhatsApp.
     // NUNCA felicitar aniversário de pet FALECIDO — o tutor acabou de perdê-lo.
@@ -70,7 +79,8 @@ export class RemindersScheduler {
       const b = this.fort(new Date(p.birthDate as Date));
       if (b.m !== h.m || b.d !== h.d) continue;
       const phone = this.telDe(p.tutor); if (!phone) continue;
-      await this.enviarUmaVez(`aniv-pet:${p.id}:${ano}`, phone, 'aniversario_pet', [this.T(this.primeiro(p.tutor?.name)), this.T(p.name || 'seu pet')], `🎂 Aniversário do pet ${p.name || ''} — mensagem enviada.`);
+      const enviou = await this.enviarUmaVez(`aniv-pet:${p.id}:${ano}`, phone, 'aniversario_pet', [this.T(this.primeiro(p.tutor?.name)), this.T(p.name || 'seu pet')], `🎂 Aniversário do pet ${p.name || ''} — mensagem enviada.`);
+      if (enviou && p.tutor?.id) await this.filaPresente(p.tutor.id, p.name || undefined); // presente (10% off) sai sozinho quando responder
     }
   }
 

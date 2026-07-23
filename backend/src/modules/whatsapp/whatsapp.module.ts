@@ -11,6 +11,7 @@ import { WhatsAppAgentListener } from './whatsapp-agent.listener';
 import { WhatsAppMediaBackfillScheduler } from './whatsapp-media-backfill.scheduler';
 import { WhatsAppOfflineReplyListener } from './whatsapp-offline-reply.listener';
 import { BoletimReplyListener } from './boletim-reply.listener';
+import { PresenteReplyListener } from './presente-reply.listener';
 import { SurveyAvaliacaoController } from './survey-avaliacao.controller';
 import { SurveyAvaliacaoService } from './survey-avaliacao.service';
 import { SurveyAvaliacaoListener } from './survey-avaliacao.listener';
@@ -47,6 +48,7 @@ import {
     WhatsAppAgentListener,
     WhatsAppOfflineReplyListener,
     BoletimReplyListener,
+    PresenteReplyListener,
     SurveyAvaliacaoService,
     SurveyAvaliacaoListener,
     WebhookReplayService,
