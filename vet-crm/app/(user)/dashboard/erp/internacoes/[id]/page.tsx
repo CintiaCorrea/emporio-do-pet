@@ -981,7 +981,6 @@ export default function FichaInternacaoPage() {
                               <div className="flex items-center gap-2 mb-1">
                                 <button onClick={() => setTextoHorario(hor, montarBoletimInternacao("resumo"))} className="text-[11px] font-medium text-white bg-[#009AAC] px-2.5 py-1 rounded-md">✨ Gerar resumo</button>
                                 <button onClick={() => setTextoHorario(hor, montarBoletimInternacao("completo"))} className="text-[11px] font-medium text-[#014D5E] bg-[#E0F4F6] border border-[#bfe3e8] px-2.5 py-1 rounded-md">✨ Gerar completo</button>
-                                <button onClick={() => setTextoHorario(hor, montarBoletimInternacao("alta"))} className="text-[11px] font-medium text-[#0F6E56] bg-[#E1F5EE] border border-[#bfe0d2] px-2.5 py-1 rounded-md">🏠 Gerar alta</button>
                               </div>
 
                               <textarea
@@ -1431,6 +1430,28 @@ export default function FichaInternacaoPage() {
         {evolucoesOrd.length === 0 ? <div style={{ fontSize: 12, color: "#374151" }}>Sem registros.</div> : evolucoesOrd.slice().reverse().map((e) => (
           <div key={e.id} style={{ fontSize: 12.5, marginBottom: 6 }}><b style={{ color: "#5C6B70" }}>{fmtDataHora(e.at)}:</b> {e.texto}</div>
         ))}
+        <h2 style={{ fontSize: 14, color: "#014D5E", margin: "18px 0 6px" }}>Tratamento realizado na internação</h2>
+        {prescricoes.length === 0 ? <div style={{ fontSize: 12, color: "#374151" }}>—</div> : prescricoes.map((p) => (
+          <div key={p.id} style={{ fontSize: 12.5, marginBottom: 3 }}>• {p.medicamento}{p.dose ? ` ${p.dose}` : ""}{p.via ? ` (${p.via})` : ""}{p.frequencia ? ` — ${p.frequencia}` : ""}</div>
+        ))}
+
+        {/* Estrutura da ALTA — campos pro veterinário preencher na hora (linhas p/ escrita) */}
+        <h2 style={{ fontSize: 14, color: "#014D5E", margin: "18px 0 6px" }}>Cuidados em casa</h2>
+        <div style={{ borderBottom: "1px solid #C9CFD3", height: 24 }} />
+        <div style={{ borderBottom: "1px solid #C9CFD3", height: 24 }} />
+
+        <h2 style={{ fontSize: 14, color: "#014D5E", margin: "18px 0 6px" }}>Medicações em casa (remédio, dose e horários)</h2>
+        <div style={{ borderBottom: "1px solid #C9CFD3", height: 24 }} />
+        <div style={{ borderBottom: "1px solid #C9CFD3", height: 24 }} />
+        <div style={{ borderBottom: "1px solid #C9CFD3", height: 24 }} />
+
+        <h2 style={{ fontSize: 14, color: "#014D5E", margin: "18px 0 6px" }}>Retorno / reavaliação</h2>
+        <div style={{ borderBottom: "1px solid #C9CFD3", height: 24 }} />
+
+        <h2 style={{ fontSize: 14, color: "#014D5E", margin: "18px 0 6px" }}>Sinais de alerta — procurar a clínica se:</h2>
+        <div style={{ borderBottom: "1px solid #C9CFD3", height: 24 }} />
+        <div style={{ borderBottom: "1px solid #C9CFD3", height: 24 }} />
+
         <h2 style={{ fontSize: 14, color: "#014D5E", margin: "18px 0 6px" }}>Conta</h2>
         <table style={{ width: "100%", fontSize: 12.5, borderCollapse: "collapse" }}>
           <tbody>
@@ -1440,6 +1461,11 @@ export default function FichaInternacaoPage() {
             {caucaoSaldo > 0 && (<tr><td style={{ padding: "5px 8px", color: "#5a3b9b" }}>Caução em conta</td><td style={{ padding: "5px 8px", textAlign: "right", color: "#5a3b9b" }}>− {fmtBRL(caucaoSaldo)}</td></tr>)}
           </tbody>
         </table>
+
+        <div style={{ marginTop: 40, display: "flex", justifyContent: "space-between", fontSize: 12.5 }}>
+          <div style={{ width: "52%", borderTop: "1px solid #1F2A2E", paddingTop: 4, textAlign: "center" }}>Veterinário(a) responsável — CRMV</div>
+          <div style={{ width: "26%", borderTop: "1px solid #1F2A2E", paddingTop: 4, textAlign: "center" }}>Data</div>
+        </div>
       </div>
 
       {/* ===== POPUP EDITAR ADMISSÃO ===== */}
