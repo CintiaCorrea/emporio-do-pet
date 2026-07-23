@@ -222,7 +222,10 @@ export default function AgendaPage() {
   }
   const doDiaVis = useMemo(() => doDia.filter((a: any) => visiveis.some((p: any) => ehDoProf(a, p))), [doDia, visiveis, profUserIds]);
   const previsao = useMemo(() => doDiaVis.reduce((s: number, a: any) => s + valorDe(a), 0), [doDiaVis]);
-  const espera = useMemo(() => doDiaVis.filter((a: any) => ["Em espera", "Aguardando", "Em atendimento"].includes(a.status)), [doDiaVis]);
+  // Sala de espera = TODOS que chegaram hoje (inclui MAP/Parceiro/avulsas). Antes usava
+  // doDiaVis (só profs fixos via ehDoProf), então quem chegava numa coluna MAP não marcava
+  // presença (bug relatado pela Cintia 23/07). É uma sala compartilhada: mostra todo mundo.
+  const espera = useMemo(() => doDia.filter((a: any) => ["Em espera", "Aguardando", "Em atendimento"].includes(a.status)), [doDia]);
 
   function addDays(n: number) { const d = new Date(dia); if (view === "mes") d.setMonth(d.getMonth() + n); else if (view === "semana") d.setDate(d.getDate() + n * 7); else d.setDate(d.getDate() + n); setDia(d); }
   function cardMenu(e: any, a: any) { e.stopPropagation(); setMenuAppt({ a, x: e.clientX, y: e.clientY }); }
