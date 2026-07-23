@@ -23,8 +23,35 @@ export class RemindersScheduler {
 
   @Cron('0 9 * * *', { timeZone: 'America/Fortaleza' })
   async diario(): Promise<void> {
-    try { await this.aniversarios(); } catch (e: any) { this.logger.error(`aniversarios: ${e?.message || e}`); }
-    try { await this.protocolos(); } catch (e: any) { this.logger.error(`protocolos: ${e?.message || e}`); }
+    await this.rodarComMarcador();
+  }
+
+  // SALVAGUARDA (aprendizado de 22/07: o lote das 9h falhou EM SILÊNCIO durante o
+  // incidente do WhatsApp — 7 aniversários + 17 vacinas só saíram à noite, na mão).
+  // Se a rodada do dia não completou, re-tenta às 11h e às 15h. Sem risco de duplicar:
+  // a trava `reminder_sent` pula o que já foi enviado.
+  @Cron('0 11,15 * * *', { timeZone: 'America/Fortaleza' })
+  async reexecutarSeFalhou(): Promise<void> {
+    const hoje = this.dataHoje();
+    const marcador = await this.prisma.listaItem.findFirst({ where: { lista: 'reminder_run', valor: hoje } });
+    if (marcador) return; // rodada das 9h completou — nada a fazer
+    this.logger.warn(`⚠️ Lote de lembretes das 9h NÃO completou hoje (${hoje}) — reexecutando agora (auto-cura).`);
+    await this.rodarComMarcador();
+  }
+
+  /** Roda o lote e, se TUDO completou sem erro, grava o marcador do dia em `reminder_run`. */
+  private async rodarComMarcador(): Promise<void> {
+    let ok = true;
+    try { await this.aniversarios(); } catch (e: any) { ok = false; this.logger.error(`aniversarios: ${e?.message || e}`); }
+    try { await this.protocolos(); } catch (e: any) { ok = false; this.logger.error(`protocolos: ${e?.message || e}`); }
+    if (ok) {
+      await this.prisma.listaItem.create({ data: { lista: 'reminder_run', valor: this.dataHoje() } }).catch(() => undefined);
+    }
+  }
+
+  private dataHoje(): string {
+    const f = this.fort(new Date());
+    return `${f.y}-${String(f.m + 1).padStart(2, '0')}-${String(f.d).padStart(2, '0')}`;
   }
 
   // ---------- helpers ----------
