@@ -268,6 +268,17 @@ export class WhatsAppConversationsController {
     }
   }
 
+  // Envia uma mensagem + anexos (exames/receitas do prontuário) pro tutor.
+  // Aberta → na hora; fechada → template abridor + fila (entrega quando o tutor responde).
+  @Post('enviar-documentos')
+  async enviarDocumentos(
+    @CurrentUser() _user: JwtUser,
+    @Body() body: { tutorId: string; texto?: string; anexos?: Array<{ url: string; tipo?: 'document' | 'image'; nome?: string }>; petNome?: string },
+  ) {
+    if (!body?.tutorId) throw new BadRequestException('tutorId é obrigatório.');
+    return this.whatsAppService.enviarDocumentosProntuario(body.tutorId, body.texto || '', body.anexos || [], body.petNome);
+  }
+
   @Post('conversations/:id/media')
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 60 * 1024 * 1024 } }))
   async sendMedia(

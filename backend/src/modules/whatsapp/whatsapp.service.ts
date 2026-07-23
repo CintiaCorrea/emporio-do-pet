@@ -1443,18 +1443,21 @@ export class WhatsAppService {
   private async enviarMidiaDeUrl(
     phone: string,
     url: string,
-    tipo: 'image' | 'video',
+    tipo: 'image' | 'video' | 'document',
     caption?: string,
+    nomeArquivo?: string,
   ): Promise<{ success: boolean; messageId?: string; error?: string }> {
     try {
       const r = await fetch(url);
       if (!r.ok) return { success: false, error: `Não consegui baixar o arquivo (${r.status})` };
-      const mime = r.headers.get('content-type') || (tipo === 'image' ? 'image/jpeg' : 'video/mp4');
+      const mimePadrao = tipo === 'image' ? 'image/jpeg' : tipo === 'video' ? 'video/mp4' : 'application/pdf';
+      const mime = r.headers.get('content-type') || mimePadrao;
       const buf = Buffer.from(await r.arrayBuffer());
-      const nome = (url.split('/').pop() || '').split('?')[0] || (tipo === 'image' ? 'foto.jpg' : 'video.mp4');
+      const nome = nomeArquivo || (url.split('/').pop() || '').split('?')[0] || (tipo === 'image' ? 'foto.jpg' : tipo === 'video' ? 'video.mp4' : 'documento.pdf');
       const up = await this.uploadMedia(buf, mime, nome);
       if (!up.mediaId) return { success: false, error: up.error || 'Falha ao subir o arquivo para a Meta' };
-      const res = await this.sendMediaMessage(phone, up.mediaId, tipo, caption);
+      // Documento leva o nome do arquivo (aparece no WhatsApp); imagem/vídeo levam legenda.
+      const res = await this.sendMediaMessage(phone, up.mediaId, tipo, caption, tipo === 'document' ? nome : undefined);
       return { success: res.success, messageId: (res as any).messageId, error: res.error };
     } catch (e: any) {
       return { success: false, error: e?.message || 'Erro ao enviar o arquivo' };
@@ -1507,6 +1510,81 @@ export class WhatsAppService {
     // o listener entrega os dois (o arquivo continua no S3 até lá).
     await this.prisma.listaItem.create({ data: { lista: 'boletim_fila', valor: JSON.stringify({ tutorId, texto, petNome: petNome || '', midia: midia || null, criadoAt: new Date().toISOString() }) } });
     return { status: 'na_fila' };
+  }
+
+  /**
+   * Envia uma MENSAGEM + ANEXOS (exames/receitas do prontuário) pro tutor.
+   * Conversa aberta → manda na hora; fechada → template abridor + guarda em `docs_fila`
+   * (o DocsFilaReplyListener entrega quando o tutor responde). Isolado do boletim/presente.
+   * anexos: [{ url, tipo: 'document' | 'image', nome }].
+   */
+  async enviarDocumentosProntuario(
+    tutorId: string,
+    texto: string,
+    anexos: Array<{ url: string; tipo?: 'document' | 'image'; nome?: string }>,
+    petNome?: string,
+  ): Promise<{ status: 'enviado' | 'na_fila' | 'erro'; error?: string }> {
+    const lista = (anexos || []).filter((a) => a?.url);
+    if (!texto?.trim() && lista.length === 0) return { status: 'erro', error: 'Nada para enviar' };
+
+    const tutor = await this.prisma.tutor.findUnique({ where: { id: tutorId }, include: { contacts: true } });
+    if (!tutor) return { status: 'erro', error: 'Tutor não encontrado' };
+    const cs = (tutor.contacts || []) as any[];
+    const wa = cs.find((x) => x.isWhatsApp) || cs.find((x) => x.isPrimary) || cs[0];
+    const phone = wa?.number;
+    if (!phone) return { status: 'erro', error: 'Tutor sem telefone' };
+    const formatted = this.formatPhoneNumber(phone);
+
+    const tail = formatted.replace(/\D/g, '').slice(-8);
+    const conv = tail.length >= 8
+      ? await this.prisma.whatsAppConversation.findFirst({ where: { contactPhone: { endsWith: tail } }, orderBy: { lastMessageAt: 'desc' } })
+      : await this.prisma.whatsAppConversation.findFirst({ where: { contactPhone: formatted }, orderBy: { lastMessageAt: 'desc' } });
+    let aberta = false;
+    if (conv) {
+      const lastIn = await this.prisma.whatsAppMessage.findFirst({ where: { conversationId: conv.id, direction: 'INBOUND' }, orderBy: { createdAt: 'desc' } });
+      aberta = !!lastIn && Date.now() - new Date(lastIn.createdAt).getTime() < 24 * 3600 * 1000;
+    }
+
+    if (aberta && conv) {
+      await this.entregarDocumentos(conv, texto, lista);
+      return { status: 'enviado' };
+    }
+
+    // Conversa fechada: template abridor (com botão) + guarda a mensagem e os anexos na fila.
+    const res = await this.enviarTemplateRegistrando(formatted, 'boletim_internacao', [{ type: 'text', text: petNome || 'seu pet' }], `📎 Enviei a mensagem que abre a conversa — os documentos do(a) ${petNome || 'pet'} vão assim que o tutor responder.`);
+    if (!res.success) return { status: 'erro', error: res.error || 'Falha ao enviar a abridora' };
+    await this.prisma.listaItem.deleteMany({ where: { lista: 'docs_fila', valor: { contains: `"tutorId":"${tutorId}"` } } });
+    await this.prisma.listaItem.create({ data: { lista: 'docs_fila', valor: JSON.stringify({ tutorId, texto: texto || '', petNome: petNome || '', anexos: lista, criadoAt: new Date().toISOString() }) } });
+    return { status: 'na_fila' };
+  }
+
+  /** Entrega texto + anexos numa conversa ABERTA (usado no envio na hora e ao esvaziar a fila). */
+  private async entregarDocumentos(conv: any, texto: string, anexos: Array<{ url: string; tipo?: string; nome?: string }>): Promise<void> {
+    if (texto?.trim()) {
+      await this.sendAndSaveMessage(conv.userId, conv.id, texto.trim(), 'TEXT', { senderType: 'SYSTEM', senderName: 'Prontuário' });
+    }
+    for (const a of anexos || []) {
+      if (!a?.url) continue;
+      const tipo: 'image' | 'document' = a.tipo === 'image' ? 'image' : 'document';
+      const r = await this.enviarMidiaDeUrl(conv.contactPhone, a.url, tipo, undefined, a.nome);
+      if (r.success) {
+        await this.saveOutboundMessage(conv.id, a.nome || (tipo === 'image' ? 'imagem' : 'documento'), tipo === 'image' ? 'IMAGE' : 'DOCUMENT', r.messageId, { mediaUrl: a.url, fromSystem: true }, { senderType: 'SYSTEM', senderName: 'Prontuário' });
+      } else {
+        this.logger.warn(`Anexo do prontuário falhou (${a.nome}): ${r.error}`);
+      }
+    }
+    await this.prisma.whatsAppConversation.update({ where: { id: conv.id }, data: { lastMessageAt: new Date() } }).catch(() => undefined);
+  }
+
+  /** Entrega a fila de documentos quando o tutor responde (DocsFilaReplyListener). */
+  async entregarDocsDaFila(tutorId: string): Promise<boolean> {
+    const item = await this.prisma.listaItem.findFirst({ where: { lista: 'docs_fila', valor: { contains: `"tutorId":"${tutorId}"` } } });
+    if (!item) return false;
+    let dados: any = {}; try { dados = JSON.parse(item.valor); } catch { return false; }
+    const conv = await this.prisma.whatsAppConversation.findFirst({ where: { tutorId }, orderBy: { lastMessageAt: 'desc' } });
+    if (conv) await this.entregarDocumentos(conv, dados.texto || '', dados.anexos || []);
+    await this.prisma.listaItem.delete({ where: { id: item.id } }).catch(() => undefined);
+    return true;
   }
 
   /** Entrega o boletim que estava na fila — chamado pelo listener quando o cliente responde. */

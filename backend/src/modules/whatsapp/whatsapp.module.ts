@@ -12,6 +12,7 @@ import { WhatsAppMediaBackfillScheduler } from './whatsapp-media-backfill.schedu
 import { WhatsAppOfflineReplyListener } from './whatsapp-offline-reply.listener';
 import { BoletimReplyListener } from './boletim-reply.listener';
 import { PresenteReplyListener } from './presente-reply.listener';
+import { DocsFilaReplyListener } from './docs-fila-reply.listener';
 import { SurveyAvaliacaoController } from './survey-avaliacao.controller';
 import { GhostSombraController } from './ghost-sombra.controller';
 import { GhostSombraListener } from './ghost-sombra.listener';
@@ -52,6 +53,7 @@ import {
     WhatsAppOfflineReplyListener,
     BoletimReplyListener,
     PresenteReplyListener,
+    DocsFilaReplyListener,
     GhostSombraListener,
     SurveyAvaliacaoService,
     SurveyAvaliacaoListener,

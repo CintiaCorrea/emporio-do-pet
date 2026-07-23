@@ -218,6 +218,11 @@ export default function PetDetailPage() {
   const [atendimentos, setAtendimentos] = useState<any[]>([]);
   const [clinDocs, setClinDocs] = useState<any[]>([]);
   const [historico, setHistorico] = useState<any[]>([]);
+  // Enviar exame/receita do prontuário pelo WhatsApp (mensagem + anexos; fica no aguardo se fechada)
+  const [waOpen, setWaOpen] = useState(false);
+  const [waMsg, setWaMsg] = useState("");
+  const [waSel, setWaSel] = useState<Record<string, boolean>>({});
+  const [waSending, setWaSending] = useState(false);
   const [detalheHist, setDetalheHist] = useState<any>(null);
   const [verAtd, setVerAtd] = useState<any>(null);
   const [editAtd, setEditAtd] = useState(false);
@@ -806,6 +811,37 @@ export default function PetDetailPage() {
   async function loadHistorico() { try { const r = await fetch(`/api/pets/${petId}/historico`, { cache: "no-store" }); const d = await r.json(); setHistorico(Array.isArray(d) ? d : (d.data || [])); } catch {} }
   async function abrirDetalheHist(id: string) { try { const r = await fetch(`/api/pets/historico/${id}`, { cache: "no-store" }); const d = await r.json(); if (d?.id) setDetalheHist(d); } catch {} }
   async function loadClinDocs() { try { const r = await fetch(`/api/clinical-documents/pet/${petId}`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.documents || d.data || []); setClinDocs(arr); } catch {} }
+
+  // Documentos do pet que dá pra ANEXAR no WhatsApp (têm arquivo público): receitas/docs com PDF + exames.
+  const docLabelWA = (t?: string) => (({ PRESCRIPTION: "💊 Receita", EXAM_REQUEST: "🔬 Solicitação de exame", MEDICAL_CERTIFICATE: "📄 Atestado", DIAGNOSIS: "📄 Diagnóstico", DISCHARGE_SUMMARY: "🏠 Alta", VACCINATION_CARD: "💉 Carteira de vacina", GENERAL: "📄 Documento" } as any)[t || ""] || "📄 Documento");
+  const anexaveisWA = useMemo(() => {
+    const arr: { key: string; label: string; url: string; tipo: "document" | "image" }[] = [];
+    (clinDocs || []).forEach((d: any) => {
+      if (d?.pdfUrl) arr.push({ key: "doc:" + d.id, label: `${docLabelWA(d.type)} · ${fmtDataBR(d.createdAt || d.appointment?.date)}`, url: d.pdfUrl, tipo: "document" });
+    });
+    (atendimentos || []).forEach((a: any) => {
+      if ((a?.type === "Resultado de exames" || a?.type === "Exames") && a?.prescription && /^https?:\/\//.test(String(a.prescription))) {
+        arr.push({ key: "exame:" + a.id, label: `🔬 Exame · ${a.chiefComplaint || fmtDataBR(a.date)}`, url: a.prescription, tipo: /\.(png|jpe?g|webp)$/i.test(a.prescription) ? "image" : "document" });
+      }
+    });
+    return arr;
+  }, [clinDocs, atendimentos]);
+
+  async function enviarDocsWhatsApp() {
+    const anexos = anexaveisWA.filter((x) => waSel[x.key]).map((x, i) => ({ url: x.url, tipo: x.tipo, nome: (x.tipo === "image" ? "exame" : x.label.replace(/[^\wÀ-ÿ ]+/g, "").trim().slice(0, 40) || "documento") + `-${i + 1}` + (x.tipo === "image" ? ".jpg" : ".pdf") }));
+    if (!waMsg.trim() && anexos.length === 0) { toast.error("Escreva a mensagem ou selecione um anexo."); return; }
+    if (!pet?.tutorId) { toast.error("Este pet não tem tutor vinculado."); return; }
+    setWaSending(true);
+    try {
+      const r = await fetch("/api/whatsapp/enviar-documentos", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ tutorId: pet.tutorId, texto: waMsg, anexos, petNome: pet.name }) });
+      const d = await r.json().catch(() => ({}));
+      if (d?.status === "enviado") toast.success("Enviado pelo WhatsApp! ✅");
+      else if (d?.status === "na_fila") toast.success("Conversa fechada — mandei o convite; sai sozinho quando o tutor responder. 📨");
+      else { toast.error(d?.error || d?.message || "Não consegui enviar."); return; }
+      setWaOpen(false); setWaMsg(""); setWaSel({});
+    } catch { toast.error("Erro ao enviar pelo WhatsApp."); }
+    finally { setWaSending(false); }
+  }
   async function abrirAtd(id: string) { try { const a = await fetch(`/api/appointments/${id}`, { cache: "no-store" }).then(r => r.json()); setVerAtd(a); setEditAtd(false); } catch { toast.error("Erro ao abrir atendimento"); } }
   async function excluirAtendimento(id: string, force = false) {
     if (!force && !(await confirmDelete({ entityLabel: "atendimento", itemName: "este atendimento" }))) return;
@@ -1434,6 +1470,11 @@ export default function PetDetailPage() {
         </div>
         {(tab === "HISTORICO" || !["TIMELINE", "AGENDA", "EXAMES"].includes(tab)) && (
           <div className="p-5">
+            <div className="flex justify-end mb-3">
+              <button onClick={() => { setWaMsg(`Olá! 🐾 Segue o(s) documento(s) do(a) ${pet?.name || "seu pet"}. Qualquer dúvida, estamos à disposição! 💛`); setWaSel({}); setWaOpen(true); }} className="text-[12px] font-medium text-white px-3 py-2 rounded-lg" style={{ background: "#009AAC" }}>
+                📲 Enviar exame/receita pelo WhatsApp
+              </button>
+            </div>
             <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-5 items-start">
               <div className="lg:order-1">
                 <FeedTimeline atendimentos={atendimentos} clinDocs={clinDocs} historico={historico} onEditar={editarEntrada} onExcluir={excluirEntrada} onDetalhe={abrirDetalheHist} />
@@ -2127,6 +2168,44 @@ export default function PetDetailPage() {
           onClose={() => setBoletimOpen(false)}
           onSaved={async () => { setBoletimOpen(false); await loadBoletins(); }}
         />
+      )}
+
+      {/* ===== ENVIAR EXAME/RECEITA PELO WHATSAPP (mensagem + anexos; aguardo se fechada) ===== */}
+      {waOpen && (
+        <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-[80]" onClick={() => setWaOpen(false)}>
+          <div className="rounded-2xl shadow-xl max-w-md w-full max-h-[88vh] flex flex-col" style={{ background: "#FBF9F4", border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "#E8E2D6" }}>
+              <h3 className="text-base font-medium text-[#014D5E]">📲 Enviar pelo WhatsApp{pet?.tutor?.name ? ` — ${pet.tutor.name}` : ""}</h3>
+              <button onClick={() => setWaOpen(false)} className="text-[#374151]">✕</button>
+            </div>
+            <div className="p-5 overflow-y-auto">
+              <label className="text-[11.5px] font-medium text-[#374151] block mb-1">Mensagem</label>
+              <textarea value={waMsg} onChange={(e) => setWaMsg(e.target.value)} rows={3} className="w-full border rounded-lg px-3 py-2 text-[13px] resize-y focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} />
+
+              <div className="text-[11.5px] font-medium text-[#374151] mt-4 mb-1">Anexar do prontuário</div>
+              {anexaveisWA.length === 0 ? (
+                <div className="text-[12px] text-[#8A8778] bg-white border rounded-lg px-3 py-3" style={{ borderColor: "#E8E2D6" }}>
+                  Nenhum exame ou receita com arquivo (PDF/imagem) neste pet ainda. Você pode enviar só a mensagem.
+                </div>
+              ) : (
+                <div className="flex flex-col gap-1.5">
+                  {anexaveisWA.map((x) => (
+                    <label key={x.key} className="flex items-center gap-2 bg-white border rounded-lg px-3 py-2 text-[12.5px] cursor-pointer" style={{ borderColor: waSel[x.key] ? "#009AAC" : "#E8E2D6" }}>
+                      <input type="checkbox" checked={!!waSel[x.key]} onChange={(e) => setWaSel((s) => ({ ...s, [x.key]: e.target.checked }))} />
+                      <span className="flex-1 truncate text-[#1F2A2E]">{x.label}</span>
+                      <span className="text-[10px] text-[#8A8778]">{x.tipo === "image" ? "imagem" : "PDF"}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+              <p className="text-[11px] text-[#8A8778] mt-3">Se a conversa estiver fechada, mando o convite (template) e o envio sai sozinho quando o tutor responder.</p>
+            </div>
+            <div className="px-5 py-4 border-t flex justify-end gap-2" style={{ borderColor: "#E8E2D6" }}>
+              <button onClick={() => setWaOpen(false)} className="px-4 py-2 text-[13px] text-[#5C6B70] bg-white border rounded-lg" style={{ borderColor: "#E8E2D6" }}>Cancelar</button>
+              <button onClick={enviarDocsWhatsApp} disabled={waSending} className="px-4 py-2 text-[13px] text-white bg-[#009AAC] rounded-lg disabled:opacity-60">{waSending ? "Enviando..." : "📲 Enviar"}</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
