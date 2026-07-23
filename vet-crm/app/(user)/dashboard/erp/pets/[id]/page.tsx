@@ -1452,7 +1452,9 @@ export default function PetDetailPage() {
                   </div>
                 )}
               </div>
-              <div className="lg:order-2">
+              {/* min-w-0: sem isso, um texto longo (conduta grande) não corta com "…" e
+                  ESTOURA a coluna, empurrando os cartões pra fora da tela (bug da Dra. Vivian 23/07). */}
+              <div className="lg:order-2 min-w-0">
                 {atdOpen ? (
                   <PetAtendimentoPanel pet={pet} atd={atd} setAtd={setAtd} atdTipos={atdTipos} atdStatus={atdStatus} vets={vets} items={items} servicosCat={servicosCat} pickServico={pickServico} addItem={addItem} updItem={updItem} rmItem={rmItem} saving={savingAtd} onSalvar={criarAtendimento} onFechar={() => setAtdOpen(false)} />
                 ) : artefato === "PESO" ? (
