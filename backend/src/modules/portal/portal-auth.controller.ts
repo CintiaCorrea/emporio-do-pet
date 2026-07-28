@@ -8,12 +8,15 @@ import {
   Body,
   Controller,
   Get,
+  Patch,
   Post,
   Req,
   UseGuards,
 } from '@nestjs/common';
 import { PortalAuthService } from './portal-auth.service';
 import { PortalEscopoService } from './portal-escopo.service';
+import { PortalFichaService, FichaPayload } from './portal-ficha.service';
+import { PortalInicioService } from './portal-inicio.service';
 import { PortalTutorGuard, RequestDoPortal, tokenDoRequest } from './portal-tutor.guard';
 
 interface ReqComRede extends RequestDoPortal {
@@ -78,12 +81,13 @@ export class PortalAuthController {
 @Controller('portal')
 @UseGuards(PortalTutorGuard)
 export class PortalMeController {
-  constructor(private readonly escopo: PortalEscopoService) {}
+  constructor(
+    private readonly escopo: PortalEscopoService,
+    private readonly inicio: PortalInicioService,
+    private readonly ficha: PortalFichaService,
+  ) {}
 
-  /**
-   * Quem sou eu + meus pets. O front nunca manda tutorId — ele vem do guard.
-   * E a rota que a tela Inicio usa para montar tudo.
-   */
+  /** Quem sou eu + meus pets. O front nunca manda tutorId — ele vem do guard. */
   @Get('eu')
   async eu(@Req() req: RequestDoPortal) {
     const tutorId = req.portalTutorId!;
@@ -92,5 +96,23 @@ export class PortalMeController {
       this.escopo.petsDoTutor(tutorId),
     ]);
     return { tutor, pets };
+  }
+
+  /** Tela Início: pets + alerta de internação. */
+  @Get('inicio')
+  async telaInicio(@Req() req: RequestDoPortal) {
+    return this.inicio.home(req.portalTutorId!);
+  }
+
+  /** Tela Minha ficha (leitura). */
+  @Get('ficha')
+  async telaFicha(@Req() req: RequestDoPortal) {
+    return this.ficha.ficha(req.portalTutorId!);
+  }
+
+  /** Salvar a ficha. Entra direto no cadastro e fica no histórico. */
+  @Patch('ficha')
+  async salvarFicha(@Req() req: ReqComRede, @Body() corpo: FichaPayload) {
+    return this.ficha.salvar(req.portalTutorId!, corpo, ipDoRequest(req));
   }
 }

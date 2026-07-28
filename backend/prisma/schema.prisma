@@ -3429,3 +3429,23 @@ model PortalAcesso {
   @@index([tutorId])
   @@map("ptl_acessos")
 }
+
+/// Historico do que o tutor mudou na propria ficha pelo portal — inclusive o que
+/// apagou. Uma linha por campo alterado. Nunca e apagada.
+model PortalAlteracao {
+  id            String   @id @default(uuid())
+  tutorId       String   @map("tutor_id")
+  entidade      String // TUTOR | PET
+  entidadeId    String   @map("entidade_id")
+  entidadeNome  String?  @map("entidade_nome")
+  campo         String
+  valorAnterior String?  @map("valor_anterior")
+  valorNovo     String?  @map("valor_novo")
+  ip            String?
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([tutorId])
+  @@index([entidade, entidadeId])
+  @@index([createdAt])
+  @@map("ptl_alteracoes")
+}

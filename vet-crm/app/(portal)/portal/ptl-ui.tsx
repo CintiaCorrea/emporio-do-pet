@@ -111,7 +111,80 @@ export const PTL_CSS = `
 .ptl-card { background:#fff; border:1px solid var(--camurca); border-radius:13px; padding:15px; }
 .ptl-vazio { text-align:center; color:var(--cinza-claro); font-size:13px; padding:22px 10px; line-height:1.6; }
 
-@media (prefers-reduced-motion:reduce) { .ptl-btn:active:not(:disabled) { transform:none; } }
+/* ---------- Telas internas (Início, Minha ficha) — portado do protótipo ---------- */
+.ptl-head {
+  display:flex; align-items:center; gap:10px; font-size:17px; font-weight:700;
+  color:var(--marinho); padding:20px 0 12px;
+}
+.ptl-back {
+  width:32px; height:32px; border-radius:50%; border:none; cursor:pointer;
+  background:var(--linha); color:var(--marinho);
+  display:flex; align-items:center; justify-content:center; font-size:19px; flex:none;
+}
+.ptl-back:active { transform:scale(.94); }
+.ptl-label { font-size:12px; color:var(--cinza); margin:4px 2px 8px; }
+
+.ptl-avatar-wrap { position:relative; flex:none; }
+.ptl-avatar-cam {
+  position:absolute; right:-2px; bottom:-2px; width:21px; height:21px; border-radius:50%;
+  background:var(--marinho); color:#fff; border:2px solid var(--ceu); cursor:pointer;
+  display:flex; align-items:center; justify-content:center; font-size:10px; padding:0;
+}
+
+.ptl-alerta {
+  width:100%; text-align:left; border:none; cursor:pointer; background:var(--chiclete);
+  border-radius:12px; padding:12px 14px; display:flex; align-items:center; gap:10px; font:inherit;
+}
+.ptl-alerta .lead { font-size:20px; color:var(--rosa-txt2); }
+.ptl-alerta .t { font-size:13px; color:var(--rosa-txt); font-weight:700; }
+.ptl-alerta .s { font-size:11px; color:var(--rosa-txt2); }
+.ptl-alerta .chev { color:var(--rosa-txt2); margin-left:auto; }
+
+.ptl-menu { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.ptl-menu-item {
+  background:#fff; border:1px solid var(--camurca); border-radius:12px; padding:14px 12px;
+  display:flex; flex-direction:column; align-items:flex-start; gap:3px; text-align:left;
+  cursor:pointer; font:inherit; color:var(--marinho); text-decoration:none;
+}
+.ptl-menu-item:active { transform:scale(.98); }
+.ptl-menu-item em { font-size:22px; font-style:normal; margin-bottom:2px; line-height:1; }
+.ptl-menu-item span { font-size:13px; font-weight:700; }
+.ptl-menu-item small { font-size:10px; color:var(--cinza-claro); }
+.ptl-menu-item.contato { background:var(--turquesa); border-color:var(--turquesa); }
+.ptl-menu-item.contato span { color:#fff; }
+.ptl-menu-item.embreve { opacity:.62; cursor:default; }
+.ptl-menu-item.embreve:active { transform:none; }
+.ptl-tag-breve {
+  font-size:9px; font-weight:800; letter-spacing:.04em; text-transform:uppercase;
+  color:var(--cinza); background:var(--linha); border-radius:6px; padding:2px 6px; margin-top:3px;
+}
+
+.ptl-form { background:#fff; border:1px solid var(--camurca); border-radius:12px; padding:6px 14px; }
+.ptl-linha {
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  padding:10px 0; border-bottom:1px solid var(--linha);
+}
+.ptl-linha:last-child { border-bottom:none; }
+.ptl-linha label { font-size:12px; color:var(--cinza); flex:none; }
+.ptl-linha input {
+  border:none; background:none; text-align:right; font-size:13px; color:var(--marinho);
+  width:62%; outline:none; font-family:inherit;
+}
+.ptl-linha input:focus { color:var(--turquesa); }
+.ptl-linha input:disabled { color:var(--cinza-claro); }
+.ptl-linha .trava { display:flex; align-items:center; gap:6px; width:62%; justify-content:flex-end; }
+.ptl-linha .trava input { width:auto; }
+.ptl-linha .trava span { font-size:12px; color:#B4B2A9; }
+
+.ptl-salvo {
+  background:var(--verde-bg); color:#0F6E56; border-radius:10px; padding:11px 12px;
+  font-size:12.5px; font-weight:700; text-align:center;
+}
+.ptl-aviso { font-size:11px; color:var(--cinza-claro); line-height:1.55; }
+
+@media (prefers-reduced-motion:reduce) {
+  .ptl-btn:active:not(:disabled), .ptl-menu-item:active, .ptl-back:active { transform:none; }
+}
 `;
 
 /** Aplica o CSS do portal. Fica num componente para o Next injetar uma vez so. */

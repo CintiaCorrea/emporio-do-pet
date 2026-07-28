@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { PortalAuthController, PortalMeController } from './portal-auth.controller';
 import { PortalAuthService } from './portal-auth.service';
 import { PortalEscopoService } from './portal-escopo.service';
+import { PortalFichaService } from './portal-ficha.service';
+import { PortalInicioService } from './portal-inicio.service';
 import { PortalWhatsappService } from './portal-whatsapp.service';
 import { PortalTutorGuard } from './portal-tutor.guard';
 
@@ -18,7 +20,14 @@ import { PortalTutorGuard } from './portal-tutor.guard';
  */
 @Module({
   controllers: [PortalAuthController, PortalMeController],
-  providers: [PortalAuthService, PortalEscopoService, PortalWhatsappService, PortalTutorGuard],
-  exports: [PortalAuthService, PortalEscopoService],
+  providers: [
+    PortalAuthService,
+    PortalEscopoService,
+    PortalInicioService,
+    PortalFichaService,
+    PortalWhatsappService,
+    PortalTutorGuard,
+  ],
+  exports: [PortalAuthService, PortalEscopoService, PortalInicioService, PortalFichaService],
 })
 export class PortalModule {}
