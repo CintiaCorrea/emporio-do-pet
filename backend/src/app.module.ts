@@ -35,6 +35,7 @@ import { HospitalizationsModule } from './modules/hospitalizations/hospitalizati
 import { BoxesModule } from './modules/boxes/boxes.module';
 import { FinanceModule } from './modules/finance/finance.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { PortalModule } from './modules/portal/portal.module';
 // CRM B2C Modules
 import { LeadsModule } from './modules/leads/leads.module';
 import { InternalNotesModule } from './modules/internal-notes/internal-notes.module';
@@ -177,6 +178,10 @@ import configuration from './config/configuration';
     BoxesModule,
     FinanceModule,
     DashboardModule,
+
+    // Portal do Tutor (PTL) — app do cliente. Comodo proprio: tabelas ptl_,
+    // rotas /api/portal/*, le do CRM sempre filtrado por tutor.
+    PortalModule,
 
     // CRM B2C - Leads com Insights Preditivos
     LeadsModule,

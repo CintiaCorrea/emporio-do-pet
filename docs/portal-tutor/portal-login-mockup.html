@@ -1,0 +1,424 @@
+<title>Portal do Tutor — como o tutor entra</title>
+
+<style>
+  :root{
+    /* Paleta do portal (a mesma do protótipo do Empório) */
+    --marinho:#0D2048;
+    --turquesa:#00A1AE;
+    --ceu:#D5F1F4;
+    --camurca:#DECBB2;
+    --chiclete:#F9B8C0;
+    --rosa-txt:#4B1528;
+    --rosa-txt2:#72243E;
+    --verde:#1D9E75;
+    --verde-bg:#E1F5EE;
+    --cinza:#5F5E5A;
+    --cinza-claro:#8B8A84;
+    --linha:#F1EFE8;
+    --app-bg:#FAFCFD;
+
+    /* Chrome da página (fora do celular) */
+    --pg-bg:#EEF2F4;
+    --pg-surface:#FFFFFF;
+    --pg-ink:#0D2048;
+    --pg-ink-2:#4A5B70;
+    --pg-ink-3:#7D8CA0;
+    --pg-line:#DCE4E9;
+    --pg-accent:#00A1AE;
+    color-scheme:light;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --pg-bg:#0A1526; --pg-surface:#101F35; --pg-ink:#E8F1F4; --pg-ink-2:#A9BECD;
+      --pg-ink-3:#7089A0; --pg-line:#20344F; --pg-accent:#3FC6D2; color-scheme:dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --pg-bg:#0A1526; --pg-surface:#101F35; --pg-ink:#E8F1F4; --pg-ink-2:#A9BECD;
+    --pg-ink-3:#7089A0; --pg-line:#20344F; --pg-accent:#3FC6D2; color-scheme:dark;
+  }
+  :root[data-theme="light"]{
+    --pg-bg:#EEF2F4; --pg-surface:#FFFFFF; --pg-ink:#0D2048; --pg-ink-2:#4A5B70;
+    --pg-ink-3:#7D8CA0; --pg-line:#DCE4E9; --pg-accent:#00A1AE; color-scheme:light;
+  }
+
+  *{box-sizing:border-box}
+
+  .pg{
+    background:var(--pg-bg); color:var(--pg-ink); min-height:100vh;
+    font-family:'Nunito',-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased; padding:32px 20px 56px;
+  }
+  .wrap{max-width:1080px; margin:0 auto; display:flex; flex-direction:column; gap:30px}
+
+  h1,h2,h3,p{margin:0}
+  .eyebrow{font-size:11.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--pg-accent); font-weight:700}
+  h1{font-size:28px; font-weight:700; letter-spacing:-.02em; line-height:1.18; text-wrap:balance}
+  .lede{font-size:15.5px; line-height:1.6; color:var(--pg-ink-2); max-width:64ch}
+  .lede b{color:var(--pg-ink); font-weight:700}
+
+  .hero{
+    background:var(--pg-surface); border:1px solid var(--pg-line); border-radius:18px;
+    padding:26px 28px 28px; display:flex; flex-direction:column; gap:11px;
+  }
+
+  .sec-h{display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:14px}
+  .sec-h h2{font-size:18px; font-weight:700; letter-spacing:-.01em}
+  .sec-h span{font-size:13px; color:var(--pg-ink-3)}
+
+  /* ---------- Vitrine de celulares ---------- */
+  .frames{display:grid; grid-template-columns:repeat(auto-fit,minmax(268px,1fr)); gap:22px}
+  .frame{display:flex; flex-direction:column; gap:11px}
+  .cap{display:flex; align-items:flex-start; gap:9px}
+  .step{
+    flex:none; width:22px; height:22px; border-radius:7px; background:var(--pg-accent); color:#fff;
+    display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800;
+  }
+  .step.opt{background:var(--camurca); color:var(--rosa-txt)}
+  .step.err{background:var(--chiclete); color:var(--rosa-txt)}
+  .cap b{font-size:13.5px; font-weight:700; display:block; line-height:1.35}
+  .cap small{font-size:12px; color:var(--pg-ink-2); display:block; margin-top:2px; line-height:1.45}
+
+  /* aparelho */
+  .phone{
+    background:var(--app-bg); border-radius:26px; padding:0 0 20px; overflow:hidden;
+    border:1px solid var(--camurca); box-shadow:0 10px 26px rgba(13,32,72,.13);
+    color:var(--marinho); font-size:14px;
+  }
+  .bar{
+    height:26px; display:flex; align-items:center; justify-content:space-between;
+    padding:0 16px; font-size:10.5px; font-weight:700; color:var(--marinho); opacity:.55;
+    font-variant-numeric:tabular-nums;
+  }
+  .scr{padding:6px 18px 0; display:flex; flex-direction:column; gap:14px}
+
+  .brand{display:flex; flex-direction:column; align-items:center; gap:7px; padding:14px 0 2px}
+  .mark{
+    width:52px; height:52px; border-radius:50%; background:var(--turquesa); color:#fff;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .mark svg{width:28px; height:28px}
+  .bname{font-size:16px; font-weight:700; letter-spacing:.2px}
+  .btag{font-size:11.5px; color:var(--cinza); margin-top:-4px}
+
+  .h-scr{font-size:17px; font-weight:700; text-wrap:balance; line-height:1.3}
+  .p-scr{font-size:12.5px; color:var(--cinza); line-height:1.5}
+
+  .field{display:flex; flex-direction:column; gap:6px}
+  .field label{font-size:11.5px; color:var(--cinza); font-weight:600}
+  .input{
+    border:1px solid var(--camurca); background:#fff; border-radius:12px; padding:12px 14px;
+    font-size:16px; font-weight:700; letter-spacing:.4px; color:var(--marinho);
+  }
+  .input.ghost{color:var(--cinza-claro); font-weight:600; letter-spacing:0}
+  .caret{display:inline-block; width:1.5px; height:16px; background:var(--turquesa); vertical-align:-3px; margin-left:1px}
+
+  .btn{
+    border:none; border-radius:12px; padding:13px 16px; font:inherit; font-size:14px; font-weight:700;
+    background:var(--turquesa); color:#fff; display:flex; align-items:center; justify-content:center; gap:8px;
+    width:100%; cursor:default;
+  }
+  .btn svg{width:17px; height:17px}
+  .btn.ghost{background:#fff; color:var(--marinho); border:1px solid var(--camurca)}
+  .btn.quiet{background:var(--linha); color:var(--cinza)}
+  .btn.wa{background:#1D9E75}
+
+  .hint{font-size:11px; color:var(--cinza-claro); text-align:center; line-height:1.5}
+  .hint b{color:var(--cinza); font-weight:700}
+
+  /* código OTP */
+  .otp{display:flex; gap:9px; justify-content:center}
+  .otp i{
+    width:46px; height:56px; border-radius:12px; border:1px solid var(--camurca); background:#fff;
+    display:flex; align-items:center; justify-content:center;
+    font-size:24px; font-weight:800; font-style:normal; font-variant-numeric:tabular-nums;
+  }
+  .otp i.on{border-color:var(--turquesa); box-shadow:0 0 0 2px rgba(0,161,174,.16)}
+  .otp i.empty{color:var(--camurca)}
+
+  /* escolher cadastro */
+  .pick{
+    display:flex; align-items:center; gap:11px; background:#fff; border:1px solid var(--camurca);
+    border-radius:13px; padding:11px 13px;
+  }
+  .pick .av{
+    width:40px; height:40px; border-radius:50%; background:var(--ceu); color:var(--turquesa);
+    display:flex; align-items:center; justify-content:center; font-size:21px; flex:none;
+  }
+  .pick b{font-size:14px; font-weight:700; display:block}
+  .pick small{font-size:11px; color:var(--cinza); display:block}
+  .pick .radio{
+    margin-left:auto; width:19px; height:19px; border-radius:50%; border:1.5px solid var(--camurca); flex:none;
+  }
+  .pick.sel{border-color:var(--turquesa); background:var(--ceu)}
+  .pick.sel .radio{border-color:var(--turquesa); background:var(--turquesa); box-shadow:inset 0 0 0 3px var(--ceu)}
+  .pick.none{background:var(--linha); border-style:dashed}
+  .pick.none .av{background:#fff; color:var(--cinza-claro); font-size:17px}
+
+  /* erro */
+  .warn{
+    background:var(--chiclete); border-radius:13px; padding:14px;
+    display:flex; flex-direction:column; gap:5px; text-align:center;
+  }
+  .warn b{font-size:13.5px; color:var(--rosa-txt)}
+  .warn small{font-size:11.5px; color:var(--rosa-txt2); line-height:1.5}
+
+  /* home resumida */
+  .pet-row{display:flex; align-items:center; gap:11px; background:var(--ceu); border-radius:14px; padding:11px 13px}
+  .pet-row .av{
+    width:48px; height:48px; border-radius:50%; background:var(--turquesa); color:#fff;
+    display:flex; align-items:center; justify-content:center; font-size:25px; flex:none;
+  }
+  .pet-row b{font-size:17px; font-weight:800; display:block; line-height:1.2}
+  .pet-row small{font-size:11.5px; color:#0F6E56; display:block}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:8px}
+  .tile{
+    background:#fff; border:1px solid var(--camurca); border-radius:12px; padding:11px 12px;
+    display:flex; flex-direction:column; gap:2px; min-height:64px;
+  }
+  .tile em{font-size:19px; font-style:normal; line-height:1}
+  .tile b{font-size:12.5px; font-weight:700}
+  .tile small{font-size:9.5px; color:var(--cinza-claro)}
+  .tile.wa{background:var(--turquesa); border-color:var(--turquesa)}
+  .tile.wa b{color:#fff}
+
+  .locked{
+    display:flex; align-items:center; gap:7px; background:var(--verde-bg); border-radius:10px;
+    padding:9px 11px; font-size:11px; color:#0F6E56; font-weight:600; line-height:1.4;
+  }
+  .locked svg{width:15px; height:15px; flex:none}
+
+  /* ---------- Notas ---------- */
+  .notes{
+    background:var(--pg-surface); border:1px solid var(--pg-line); border-radius:16px; padding:24px 26px;
+    display:flex; flex-direction:column; gap:16px;
+  }
+  .note{display:flex; gap:13px; align-items:flex-start}
+  .note .ico{
+    flex:none; width:28px; height:28px; border-radius:9px; background:var(--ceu); color:var(--turquesa);
+    display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:800;
+  }
+  .note b{font-size:14px; font-weight:700; display:block}
+  .note p{font-size:13.5px; color:var(--pg-ink-2); line-height:1.55; margin-top:3px; max-width:70ch}
+  .note code{
+    font-family:'SF Mono',Consolas,monospace; font-size:12px; background:var(--pg-bg);
+    padding:1px 6px; border-radius:5px; color:var(--pg-accent); font-weight:700;
+  }
+
+  .ask{
+    background:var(--marinho); border-radius:16px; padding:24px 26px; color:#EAF3F4;
+    display:flex; flex-direction:column; gap:10px;
+  }
+  .ask h2{font-size:17px; color:#fff; font-weight:700}
+  .ask p{font-size:13.5px; color:#B9CEDA; line-height:1.6; max-width:68ch}
+  .ask p b{color:#fff; font-weight:700}
+
+  @media (max-width:640px){
+    .pg{padding:22px 14px 40px}
+    h1{font-size:23px}
+    .hero,.notes,.ask{padding:20px}
+  }
+</style>
+
+<div class="pg">
+<div class="wrap">
+
+  <div class="hero">
+    <span class="eyebrow">Portal do Tutor · Fatia 1</span>
+    <h1>Como o tutor entra no portal</h1>
+    <p class="lede">
+      Sem senha: o tutor digita o telefone, recebe um código no WhatsApp e pronto.
+      A tela <b>3 só aparece pra quem tem o número repetido em mais de um cadastro</b> —
+      quem tem número único entra em dois passos. A tela 5 é o que acontece quando o número não está na clínica.
+    </p>
+  </div>
+
+  <div>
+    <div class="sec-h">
+      <h2>As telas</h2>
+      <span>na largura real de um celular</span>
+    </div>
+
+    <div class="frames">
+
+      <!-- 1 -->
+      <div class="frame">
+        <div class="cap">
+          <span class="step">1</span>
+          <div><b>Digite seu telefone</b><small>Primeira e única coisa que ele preenche.</small></div>
+        </div>
+        <div class="phone">
+          <div class="bar"><span>9:41</span><span>▮▮▮ ⌁</span></div>
+          <div class="scr">
+            <div class="brand">
+              <div class="mark">
+                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <circle cx="7.5" cy="8" r="2.3"/><circle cx="12" cy="6.2" r="2.3"/><circle cx="16.5" cy="8" r="2.3"/>
+                  <path d="M12 10.4c-2.7 0-5.2 2.4-5.2 4.8 0 1.7 1.3 2.7 3 2.7h4.4c1.7 0 3-1 3-2.7 0-2.4-2.5-4.8-5.2-4.8z"/>
+                </svg>
+              </div>
+              <div class="bname">Empório do Pet</div>
+              <div class="btag">Portal do Tutor</div>
+            </div>
+            <div class="field">
+              <label>Seu celular com WhatsApp</label>
+              <div class="input">(11) 98876-5<span class="caret"></span></div>
+            </div>
+            <button class="btn wa">
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 00-8.6 15L2 22l5.2-1.4A10 10 0 1012 2zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .1-3.2-.8-2.7-1.1-4.4-3.9-4.5-4-.1-.2-1-1.4-1-2.6s.6-1.8.9-2.1c.2-.2.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 1.9c.1.2 0 .4-.1.5l-.4.5c-.1.2-.3.3-.1.6.1.3.7 1.2 1.5 1.9 1 .9 1.8 1.2 2.1 1.3.2.1.4.1.5-.1l.8-.9c.2-.2.3-.2.5-.1l1.8.9c.2.1.4.2.5.3 0 .1 0 .7-.3 1.3z"/></svg>
+              Receber código no WhatsApp
+            </button>
+            <p class="hint">Use o <b>mesmo número</b> que você deixou na clínica.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2 -->
+      <div class="frame">
+        <div class="cap">
+          <span class="step">2</span>
+          <div><b>Código do WhatsApp</b><small>Chega em segundos. Vale 5 minutos.</small></div>
+        </div>
+        <div class="phone">
+          <div class="bar"><span>9:41</span><span>▮▮▮ ⌁</span></div>
+          <div class="scr">
+            <div style="padding-top:12px"></div>
+            <div>
+              <h3 class="h-scr">Digite o código que te mandamos</h3>
+              <p class="p-scr" style="margin-top:5px">Enviado no WhatsApp do número (11) 9•••••-•765.</p>
+            </div>
+            <div class="otp"><i>4</i><i>7</i><i class="on">2<span class="caret"></span></i><i class="empty">•</i></div>
+            <button class="btn">Entrar</button>
+            <button class="btn quiet">Reenviar código em 0:42</button>
+            <p class="hint">Número errado? <b>Voltar e corrigir</b></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3 -->
+      <div class="frame">
+        <div class="cap">
+          <span class="step opt">3</span>
+          <div><b>Qual desses é seu? <em style="font-style:normal;color:var(--pg-ink-3)">(só se houver duplicidade)</em></b><small>Aparece quando o mesmo telefone está em mais de um cadastro.</small></div>
+        </div>
+        <div class="phone">
+          <div class="bar"><span>9:41</span><span>▮▮▮ ⌁</span></div>
+          <div class="scr">
+            <div style="padding-top:12px"></div>
+            <div>
+              <h3 class="h-scr">Encontramos mais de um cadastro com esse número</h3>
+              <p class="p-scr" style="margin-top:5px">Pra te mostrar as informações certas, qual desses pets é seu?</p>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:8px">
+              <div class="pick sel">
+                <span class="av">🐶</span>
+                <div><b>Thor</b><small>Golden Retriever · 4 anos</small></div>
+                <span class="radio"></span>
+              </div>
+              <div class="pick">
+                <span class="av">🐱</span>
+                <div><b>Mel</b><small>SRD · 2 anos</small></div>
+                <span class="radio"></span>
+              </div>
+              <div class="pick none">
+                <span class="av">?</span>
+                <div><b>Nenhum deles é meu</b><small>Falar com a recepção</small></div>
+                <span class="radio"></span>
+              </div>
+            </div>
+            <button class="btn">Continuar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4 -->
+      <div class="frame">
+        <div class="cap">
+          <span class="step">4</span>
+          <div><b>Dentro do portal</b><small>Daqui em diante é o protótipo que você já aprovou.</small></div>
+        </div>
+        <div class="phone">
+          <div class="bar"><span>9:41</span><span>▮▮▮ ⌁</span></div>
+          <div class="scr">
+            <div style="display:flex; align-items:center; justify-content:space-between; padding-top:8px">
+              <div>
+                <div style="font-size:12px;color:var(--cinza)">Olá, Cintia</div>
+                <div style="font-size:15px;font-weight:800">Bem-vinda de volta</div>
+              </div>
+              <span style="font-size:19px">🔔</span>
+            </div>
+            <div class="pet-row">
+              <span class="av">🐶</span>
+              <div><b>Thor</b><small>Tudo em dia · vacina em 12/09</small></div>
+            </div>
+            <div class="grid2">
+              <div class="tile"><em>💚</em><b>Saúde</b><small>vacinas, receitas, exames</small></div>
+              <div class="tile"><em>🍲</em><b>Alimentação</b><small>dieta do Thor</small></div>
+              <div class="tile"><em>⚖️</em><b>Peso</b><small>evolução</small></div>
+              <div class="tile wa"><em style="filter:grayscale(1) brightness(3)">💬</em><b>Falar com a clínica</b></div>
+            </div>
+            <div class="locked">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 018 0v3"/></svg>
+              O tutor vê apenas os pets do cadastro dele.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5 -->
+      <div class="frame">
+        <div class="cap">
+          <span class="step err">!</span>
+          <div><b>Número que não está na clínica</b><small>Ninguém fica olhando pra tela sem saber o que fazer.</small></div>
+        </div>
+        <div class="phone">
+          <div class="bar"><span>9:41</span><span>▮▮▮ ⌁</span></div>
+          <div class="scr">
+            <div style="padding-top:12px"></div>
+            <div class="warn">
+              <b>Não encontramos esse número</b>
+              <small>Talvez seu cadastro esteja com outro telefone. A recepção resolve num minutinho.</small>
+            </div>
+            <button class="btn wa">Falar com a recepção</button>
+            <button class="btn ghost">Tentar outro número</button>
+            <p class="hint">Nunca dizemos <b>se o número existe ou não</b> antes do código — é o que impede alguém de ficar testando telefones pra descobrir clientes.</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="notes">
+    <div class="sec-h" style="margin:0"><h2>O que fica valendo por baixo</h2></div>
+
+    <div class="note">
+      <span class="ico">🔒</span>
+      <div><b>O código é a porta, o cofre é outro</b>
+      <p>Entrar não basta: toda consulta do portal passa por um filtro que só devolve dado do tutor logado. Mesmo que alguém mexa no endereço da página, não aparece pet de outra pessoa. É a parte invisível da Fatia 1 — e a mais importante, porque é dado de saúde.</p></div>
+    </div>
+
+    <div class="note">
+      <span class="ico">🚪</span>
+      <div><b>Cômodo próprio, do jeito que combinamos</b>
+      <p>O portal nasce isolado: pasta própria, tabelas <code>ptl_</code> (só sessão, código e acesso), endereço próprio <code>/api/portal</code>. Ele <b>lê</b> ficha, vacina, peso e exame do CRM — e <b>não escreve nada</b> lá dentro, fora dos três casos combinados (editar ficha, pedir agendamento, mandar foto).</p></div>
+    </div>
+
+    <div class="note">
+      <span class="ico">📵</span>
+      <div><b>Perder o celular não abre o portal</b>
+      <p>O código vale 5 minutos e some depois de usado. Três erros seguidos e o número descansa por 15 minutos. A sessão do tutor dura 30 dias, e a recepção pode derrubá-la a qualquer momento.</p></div>
+    </div>
+  </div>
+
+  <div class="ask">
+    <h2>Uma coisa depende de você (e não de mim)</h2>
+    <p>
+      Pra mandar o código, o WhatsApp exige um modelo de mensagem aprovado pela Meta do tipo
+      <b>“autenticação”</b>. É um pedido rápido e costuma sair no mesmo dia — mas se deixar pro fim,
+      trava a entrega inteira. Vale abrir o pedido essa semana, enquanto eu construo o resto.
+    </p>
+  </div>
+
+</div>
+</div>

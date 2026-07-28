@@ -3368,3 +3368,64 @@ model FaturamentoBruto {
   @@index([unidadeId, competencia])
   @@map("fin_faturamentos_bruto")
 }
+
+// ============================================
+// MODULO PORTAL DO TUTOR (PTL) — Fatia 1: fundacao do acesso
+// Tabelas prefixadas com ptl_ para isolar o modulo no schema.
+// Sem FK para o CRM: tutorId e referencia solta (mesmo padrao do fin_/BoxOcupacao).
+// SQL cirurgico em prisma/portal/01-fundacao.sql — NAO usar prisma db push.
+// ============================================
+
+/// Codigo de acesso (OTP) enviado no WhatsApp. Guarda o HASH, nunca o codigo.
+model PortalCodigo {
+  id         String    @id @default(uuid())
+  telefone   String // normalizado: so digitos, com DDI
+  telefone8  String    @map("telefone8") // ultimos 8 digitos — chave de busca
+  tipo       String    @default("ACESSO") // ACESSO | DESEMPATE
+  codigoHash String    @map("codigo_hash")
+  tentativas Int       @default(0)
+  expiraEm   DateTime  @map("expira_em")
+  usadoEm    DateTime? @map("usado_em")
+  ip         String?
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@index([telefone8])
+  @@index([expiraEm])
+  @@index([createdAt])
+  @@map("ptl_codigos")
+}
+
+/// Sessao do tutor no portal (30 dias). Guarda o hash do token.
+model PortalSessao {
+  id           String    @id @default(uuid())
+  tokenHash    String    @unique @map("token_hash")
+  tutorId      String    @map("tutor_id") // referencia solta -> tutors.id
+  telefone     String
+  expiraEm     DateTime  @map("expira_em")
+  revogadaEm   DateTime? @map("revogada_em")
+  revogadaPor  String?   @map("revogada_por")
+  ultimoAcesso DateTime? @map("ultimo_acesso")
+  userAgent    String?   @map("user_agent")
+  ip           String?
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  @@index([tutorId])
+  @@index([expiraEm])
+  @@map("ptl_sessoes")
+}
+
+/// Rastro de acesso ao portal — exigencia de dado de saude (LGPD) e apoio a recepcao.
+model PortalAcesso {
+  id        String   @id @default(uuid())
+  telefone8 String   @map("telefone8")
+  evento    String // CODIGO_ENVIADO | CODIGO_ERRADO | ENTROU | SEM_CADASTRO | DESEMPATE | BLOQUEADO | SAIU
+  tutorId   String?  @map("tutor_id")
+  detalhe   String?
+  ip        String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([telefone8])
+  @@index([createdAt])
+  @@index([tutorId])
+  @@map("ptl_acessos")
+}
