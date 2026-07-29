@@ -8,6 +8,7 @@ import {
   Body,
   Controller,
   Get,
+  Param,
   Patch,
   Post,
   Req,
@@ -17,6 +18,7 @@ import { PortalAuthService } from './portal-auth.service';
 import { PortalEscopoService } from './portal-escopo.service';
 import { PortalFichaService, FichaPayload } from './portal-ficha.service';
 import { PortalInicioService } from './portal-inicio.service';
+import { PortalSaudeService } from './portal-saude.service';
 import { PortalTutorGuard, RequestDoPortal, tokenDoRequest } from './portal-tutor.guard';
 
 interface ReqComRede extends RequestDoPortal {
@@ -85,6 +87,7 @@ export class PortalMeController {
     private readonly escopo: PortalEscopoService,
     private readonly inicio: PortalInicioService,
     private readonly ficha: PortalFichaService,
+    private readonly saude: PortalSaudeService,
   ) {}
 
   /** Quem sou eu + meus pets. O front nunca manda tutorId — ele vem do guard. */
@@ -114,5 +117,29 @@ export class PortalMeController {
   @Patch('ficha')
   async salvarFicha(@Req() req: ReqComRede, @Body() corpo: FichaPayload) {
     return this.ficha.salvar(req.portalTutorId!, corpo, ipDoRequest(req));
+  }
+
+  // ---------------------------------------------------------------------------
+  // Telas por pet. O petId vem da URL, então TODAS passam pelo porteiro antes
+  // de qualquer consulta — é o que impede trocar o id no endereço e ver o pet
+  // de outra pessoa.
+  // ---------------------------------------------------------------------------
+
+  @Get('pets/:petId/saude')
+  async telaSaude(@Req() req: RequestDoPortal, @Param('petId') petId: string) {
+    await this.escopo.assertPetDoTutor(req.portalTutorId!, petId);
+    return this.saude.saude(petId);
+  }
+
+  @Get('pets/:petId/peso')
+  async telaPeso(@Req() req: RequestDoPortal, @Param('petId') petId: string) {
+    await this.escopo.assertPetDoTutor(req.portalTutorId!, petId);
+    return this.saude.peso(petId);
+  }
+
+  @Get('pets/:petId/fisio')
+  async telaFisio(@Req() req: RequestDoPortal, @Param('petId') petId: string) {
+    await this.escopo.assertPetDoTutor(req.portalTutorId!, petId);
+    return { pacotes: await this.saude.fisio(petId) };
   }
 }

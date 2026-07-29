@@ -77,6 +77,39 @@ o status nunca voltou — o modelo até foi aprovado, mas o painel não mostrava
 3. se a Meta disser que não há tradução → repete no **idioma reserva**;
 4. se ainda falhar, registra no log **qual modelo e idioma** foram tentados (nunca o código).
 
+## Testes (rodar sempre antes e depois de mexer)
+
+```bash
+cd backend && npm run build && npm run test:portal
+```
+
+Ver `scripts/portal/README.md`. São 110 verificações cobrindo acesso, ficha, saúde/peso/fisio e o
+envio do código.
+
+### Tabela do CRM que falta no espelho local
+
+Se o bloco de Saúde falhar dizendo que `historico_clinico` não existe, é o banco local que está
+incompleto (em produção ela existe — é o import do SimplesVet). Para criar só no local:
+
+```sql
+CREATE TABLE IF NOT EXISTS historico_clinico (
+  id TEXT PRIMARY KEY,
+  "petId" TEXT NOT NULL,
+  "tutorCodigo" INTEGER,
+  tipo TEXT NOT NULL,
+  data TIMESTAMP(3) NOT NULL,
+  titulo TEXT, texto TEXT, resumo TEXT, autor TEXT,
+  "valorNum" DOUBLE PRECISION,
+  "arquivoKey" TEXT, "arquivoNome" TEXT,
+  origem TEXT NOT NULL DEFAULT 'SIMPLESVET',
+  "codigoExterno" TEXT,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT historico_clinico_pet_fk FOREIGN KEY ("petId") REFERENCES pets(id) ON DELETE CASCADE
+);
+CREATE UNIQUE INDEX IF NOT EXISTS historico_clinico_tipo_codigo_key ON historico_clinico (tipo, "codigoExterno");
+CREATE INDEX IF NOT EXISTS historico_clinico_pet_data_idx ON historico_clinico ("petId", data);
+```
+
 ## Próximas fatias
 
 2. Início + Minha ficha · 3. Saúde/Peso/Fisio · 4. Internação + Agendar · 5. Alimentação

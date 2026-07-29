@@ -38,10 +38,10 @@ interface Home {
 
 /** Itens do menu, na ordem do protótipo. `rota: null` = ainda não construída. */
 const MENU: Array<{ emoji: string; titulo: string; sub: string; rota: string | null }> = [
-  { emoji: '💚', titulo: 'Saúde', sub: 'vacinas · exames · receitas', rota: null },
+  { emoji: '💚', titulo: 'Saúde', sub: 'vacinas · exames · receitas', rota: '/portal/saude' },
   { emoji: '🍲', titulo: 'Alimentação', sub: 'dieta e variações', rota: null },
-  { emoji: '⚖️', titulo: 'Peso', sub: 'evolução e meta', rota: null },
-  { emoji: '🤸', titulo: 'Fisioterapia', sub: 'pacote e sessões', rota: null },
+  { emoji: '⚖️', titulo: 'Peso', sub: 'evolução', rota: '/portal/peso' },
+  { emoji: '🤸', titulo: 'Fisioterapia', sub: 'pacote e sessões', rota: '/portal/fisio' },
   { emoji: '🏥', titulo: 'Internação', sub: 'boletins do dia', rota: null },
   { emoji: '📅', titulo: 'Agendar', sub: 'horário prioritário', rota: null },
   { emoji: '🪪', titulo: 'Minha ficha', sub: 'manter dados em dia', rota: '/portal/ficha' },

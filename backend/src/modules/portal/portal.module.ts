@@ -4,6 +4,7 @@ import { PortalAuthService } from './portal-auth.service';
 import { PortalEscopoService } from './portal-escopo.service';
 import { PortalFichaService } from './portal-ficha.service';
 import { PortalInicioService } from './portal-inicio.service';
+import { PortalSaudeService } from './portal-saude.service';
 import { PortalWhatsappService } from './portal-whatsapp.service';
 import { PortalTutorGuard } from './portal-tutor.guard';
 
@@ -25,9 +26,16 @@ import { PortalTutorGuard } from './portal-tutor.guard';
     PortalEscopoService,
     PortalInicioService,
     PortalFichaService,
+    PortalSaudeService,
     PortalWhatsappService,
     PortalTutorGuard,
   ],
-  exports: [PortalAuthService, PortalEscopoService, PortalInicioService, PortalFichaService],
+  exports: [
+    PortalAuthService,
+    PortalEscopoService,
+    PortalInicioService,
+    PortalFichaService,
+    PortalSaudeService,
+  ],
 })
 export class PortalModule {}

@@ -7,6 +7,10 @@
  */
 'use client';
 
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+
 export const PTL_CSS = `
 .ptl-root {
   --marinho:#0D2048; --turquesa:#00A1AE; --ceu:#D5F1F4; --camurca:#DECBB2;
@@ -182,6 +186,47 @@ export const PTL_CSS = `
 }
 .ptl-aviso { font-size:11px; color:var(--cinza-claro); line-height:1.55; }
 
+/* ---------- Saúde / Peso / Fisioterapia (Fatia 3) ---------- */
+.ptl-chips { display:flex; gap:7px; overflow-x:auto; padding:2px 0 6px; }
+.ptl-chip {
+  border:1px solid var(--camurca); background:#fff; color:var(--marinho); border-radius:20px;
+  padding:6px 13px; font:inherit; font-size:12.5px; font-weight:700; cursor:pointer; white-space:nowrap;
+}
+.ptl-chip.sel { background:var(--turquesa); border-color:var(--turquesa); color:#fff; }
+
+.ptl-card-lista { background:#fff; border:1px solid var(--camurca); border-radius:12px; overflow:hidden; }
+.ptl-row {
+  display:flex; align-items:center; gap:10px; padding:11px 14px;
+  border-bottom:1px solid var(--linha); width:100%; text-align:left; font:inherit;
+  background:none; border-left:none; border-right:none; border-top:none; color:var(--marinho);
+}
+.ptl-row:last-child { border-bottom:none; }
+.ptl-row .ico { font-size:17px; flex:none; line-height:1; }
+.ptl-row .grow { flex:1; min-width:0; }
+.ptl-row .rt { font-size:13px; color:var(--marinho); font-weight:600; }
+.ptl-row .rs { font-size:11px; color:var(--cinza); margin-top:1px; }
+.ptl-row .rs.alerta { color:#993556; font-weight:700; }
+.ptl-row .acao { font-size:11px; color:var(--turquesa); font-weight:700; flex:none; }
+
+.ptl-fisio {
+  background:var(--marinho); border-radius:12px; padding:16px; color:#fff;
+}
+.ptl-fisio .cat { font-size:13px; color:#9FE1CB; }
+.ptl-fisio .big { font-size:22px; font-weight:800; margin:4px 0 10px; }
+.ptl-fisio .big small { font-size:14px; color:var(--ceu); font-weight:400; }
+.ptl-barra { background:#1a3a63; border-radius:20px; height:8px; overflow:hidden; }
+.ptl-barra > div { height:100%; background:var(--turquesa); border-radius:20px; }
+.ptl-fisio .meta { font-size:11px; color:var(--ceu); margin-top:8px; }
+
+.ptl-grafico { background:#fff; border:1px solid var(--camurca); border-radius:12px; padding:16px 14px 10px; }
+.ptl-grafico-legenda {
+  display:flex; justify-content:space-between; margin-top:8px; font-size:11px; color:var(--cinza);
+}
+.ptl-insight {
+  background:var(--ceu); border-radius:12px; padding:12px 14px; font-size:12px;
+  color:var(--marinho); line-height:1.6;
+}
+
 @media (prefers-reduced-motion:reduce) {
   .ptl-btn:active:not(:disabled), .ptl-menu-item:active, .ptl-back:active { transform:none; }
 }
@@ -190,6 +235,127 @@ export const PTL_CSS = `
 /** Aplica o CSS do portal. Fica num componente para o Next injetar uma vez so. */
 export function PtlEstilos() {
   return <style dangerouslySetInnerHTML={{ __html: PTL_CSS }} />;
+}
+
+export interface PetDoPortal {
+  id: string;
+  nome: string;
+  especie: string;
+  raca: string | null;
+  idadeAnos: number | null;
+  foto: string | null;
+  segundoResponsavel: boolean;
+}
+
+/**
+ * Qual pet a tela esta mostrando.
+ *
+ * O protótipo assume um pet só. Quando o tutor tem mais de um, as telas ganham
+ * uma fileira de botões no topo — e a escolha fica guardada no aparelho, para
+ * ele não ter que repetir a cada tela.
+ */
+export function usePetSelecionado() {
+  const router = useRouter();
+  const [pets, setPets] = useState<PetDoPortal[]>([]);
+  const [petId, setPetId] = useState<string | null>(null);
+  const [carregando, setCarregando] = useState(true);
+
+  useEffect(() => {
+    let vivo = true;
+    (async () => {
+      try {
+        const r = await fetch('/api/portal/inicio', { cache: 'no-store' });
+        if (r.status === 401) {
+          router.replace('/portal/entrar');
+          return;
+        }
+        const d = await r.json();
+        if (!vivo) return;
+        const lista: PetDoPortal[] = d?.pets || [];
+        setPets(lista);
+
+        const guardado = typeof window !== 'undefined' ? localStorage.getItem('ptl_pet') : null;
+        const escolhido = lista.find((p) => p.id === guardado)?.id || lista[0]?.id || null;
+        setPetId(escolhido);
+      } finally {
+        if (vivo) setCarregando(false);
+      }
+    })();
+    return () => {
+      vivo = false;
+    };
+  }, [router]);
+
+  function selecionar(id: string) {
+    setPetId(id);
+    try {
+      localStorage.setItem('ptl_pet', id);
+    } catch {
+      // navegador sem armazenamento (aba anônima): segue sem lembrar
+    }
+  }
+
+  return {
+    pets,
+    petId,
+    pet: pets.find((p) => p.id === petId) || null,
+    selecionar,
+    carregando,
+  };
+}
+
+/** Fileira de pets. Some sozinha quando só há um. */
+export function SeletorDePet({
+  pets,
+  petId,
+  onSelecionar,
+}: {
+  pets: PetDoPortal[];
+  petId: string | null;
+  onSelecionar: (id: string) => void;
+}) {
+  if (pets.length < 2) return null;
+  return (
+    <div className="ptl-chips">
+      {pets.map((p) => (
+        <button
+          key={p.id}
+          className={`ptl-chip${p.id === petId ? ' sel' : ''}`}
+          onClick={() => onSelecionar(p.id)}
+        >
+          {emojiEspecie(p.especie)} {p.nome}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** Cabeçalho das telas internas, com o botão de voltar do protótipo. */
+export function PtlCabecalho({ titulo }: { titulo: string }) {
+  return (
+    <div className="ptl-head">
+      <Link href="/portal" className="ptl-back" aria-label="Voltar ao início">
+        ‹
+      </Link>
+      {titulo}
+    </div>
+  );
+}
+
+/** 14/03/2026 */
+export function dataBr(valor?: string | Date | null) {
+  if (!valor) return '';
+  const d = new Date(valor);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+}
+
+/** 14/03 — para listas, onde o ano polui. */
+export function dataCurta(valor?: string | Date | null) {
+  if (!valor) return '';
+  const d = new Date(valor);
+  if (Number.isNaN(d.getTime())) return '';
+  return `${String(d.getUTCDate()).padStart(2, '0')}/${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
 }
 
 /** Numero da clinica para os botoes de "falar com a gente". */
