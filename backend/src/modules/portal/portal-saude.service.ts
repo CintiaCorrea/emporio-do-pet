@@ -242,6 +242,39 @@ export class PortalSaudeService {
     return { pontos, atual, variacao };
   }
 
+  // ---------------------------------------------------------------- DIETA
+  /**
+   * Dieta ATIVA do pet, do jeito que a tela Alimentação mostra.
+   * A dieta é escrita pela equipe (módulo clínico `dietas`); aqui só lemos.
+   */
+  async dieta(petId: string) {
+    const d = await this.prisma.dieta.findFirst({
+      where: { petId, ativa: true },
+      orderBy: { data: 'desc' },
+    });
+    if (!d) return { tem: false as const };
+
+    const lista = (v: unknown): string[] =>
+      Array.isArray(v) ? v.map((x) => String(x)).filter(Boolean) : [];
+
+    return {
+      tem: true as const,
+      prescritorNome: d.prescritorNome,
+      data: d.data,
+      itens: Array.isArray(d.itens)
+        ? (d.itens as any[]).map((i) => ({
+            nome: String(i?.nome ?? ''),
+            detalhe: i?.detalhe ? String(i.detalhe) : null,
+          })).filter((i) => i.nome)
+        : [],
+      variacoes: lista(d.variacoes),
+      evitar: lista(d.evitar),
+      observacao: d.observacao,
+      temAnexo: !!d.anexoKey,
+      anexoNome: d.anexoNome,
+    };
+  }
+
   // ---------------------------------------------------------------- FISIO
   async fisio(petId: string): Promise<PacoteFisio[]> {
     const pacotes = await this.prisma.pacote.findMany({

@@ -152,6 +152,12 @@ export class PortalMeController {
     return { pacotes: await this.saude.fisio(petId) };
   }
 
+  @Get('pets/:petId/dieta')
+  async telaDieta(@Req() req: RequestDoPortal, @Param('petId') petId: string) {
+    await this.escopo.assertPetDoTutor(req.portalTutorId!, petId);
+    return this.saude.dieta(petId);
+  }
+
   @Get('pets/:petId/internacao')
   async telaInternacao(@Req() req: RequestDoPortal, @Param('petId') petId: string) {
     await this.escopo.assertPetDoTutor(req.portalTutorId!, petId);

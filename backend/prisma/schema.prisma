@@ -490,6 +490,7 @@ model Pet {
   orcamentos Orcamento[]
   protocolos ProtocoloAplicado[]
   historicoClinico HistoricoClinico[]
+  dietas     Dieta[]
 
   @@map("pets")
 }
@@ -3521,4 +3522,41 @@ model PortalLiberacao {
 
   @@index([tutorId, createdAt])
   @@map("ptl_liberacoes")
+}
+
+// ============================================
+// ALIMENTACAO / DIETA — dado CLINICO (dominio do CRM).
+// Quem prescreve e a veterinaria na ficha do pet; o Portal do Tutor apenas LE.
+// SQL em prisma/dietas/01-dietas.sql.
+// ============================================
+
+/// Dieta prescrita para um pet. Uma ATIVA por pet; as antigas viram historico.
+model Dieta {
+  id               String   @id @default(uuid())
+  petId            String
+  pet              Pet      @relation(fields: [petId], references: [id], onDelete: Cascade)
+  tutorId          String?
+  /// Snapshot do nome de quem prescreveu (o profissional pode sair da clinica).
+  prescritorNome   String?
+  prescritorUserId String?
+  data             DateTime @default(now())
+  ativa            Boolean  @default(true)
+
+  /// [{ nome, detalhe }] — o que o pet come
+  itens     Json @default("[]")
+  /// ["texto"] — o que o tutor pode variar (verde no portal)
+  variacoes Json @default("[]")
+  /// ["texto"] — o que evitar (vermelho no portal)
+  evitar    Json @default("[]")
+
+  observacao String?
+  anexoKey   String?
+  anexoNome  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@index([petId, data])
+  @@index([petId, ativa])
+  @@map("dietas")
 }
