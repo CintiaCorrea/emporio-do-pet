@@ -27,6 +27,7 @@ import PetFichaHeaderCard from "@/components/pets/PetFichaHeaderCard";
 import { LuPrinter } from "react-icons/lu";
 import PetVendaPanel from "@/components/pets/PetVendaPanel";
 import PetClinicaTabela from "@/components/pets/PetClinicaTabela";
+import DietaAba from "@/components/pets/DietaAba";
 import ConfirmDeleteModal from "@/components/common/ConfirmDeleteModal";
 import EncaminharBox from "@/components/inbox/EncaminharBox";
 import PetProfilePanel from "@/components/profile/PetProfilePanel";
@@ -234,7 +235,7 @@ export default function PetDetailPage() {
   const [editAtd, setEditAtd] = useState(false);
   const [editAtdForm, setEditAtdForm] = useState<any>({});
   // Nova estrutura Base44: 5 abas de topo + cabeçalho estilo ficha do cliente
-  const [mainTab, setMainTab] = useState<"GERAL" | "CADASTRO" | "PRONTUARIO" | "VACINAS" | "FISIO" | "COMPRAS">("GERAL");
+  const [mainTab, setMainTab] = useState<"GERAL" | "CADASTRO" | "PRONTUARIO" | "VACINAS" | "ALIMENTACAO" | "FISIO" | "COMPRAS">("GERAL");
   const [showValues, setShowValues] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [statusOpen, setStatusOpen] = useState(false);
@@ -1079,6 +1080,7 @@ export default function PetDetailPage() {
           { k: "CADASTRO", label: "📋 Cadastro" },
           { k: "PRONTUARIO", label: "🩺 Prontuário" },
           { k: "VACINAS", label: "💉 Vacinas & meds" },
+          { k: "ALIMENTACAO", label: "🥣 Alimentação" },
           { k: "FISIO", label: "🌿 Fisioterapia" },
           { k: "COMPRAS", label: "🧾 Compras" },
         ] as const).map((t) => (
@@ -1379,6 +1381,11 @@ export default function PetDetailPage() {
       )}
 
       {/* ═══════════ ABA 📋 CADASTRO ═══════════ */}
+      {/* ═══════════ ABA 🥣 ALIMENTAÇÃO ═══════════ */}
+      {mainTab === "ALIMENTACAO" && pet?.id && (
+        <DietaAba petId={pet.id} petNome={pet.name || "o pet"} />
+      )}
+
       {mainTab === "CADASTRO" && (
       <div className="mb-3">
         <div className="bg-white border border-[#E8E2D6] rounded-[13px]">
