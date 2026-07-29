@@ -10,6 +10,8 @@ import { PortalFichaService } from './portal-ficha.service';
 import { PortalInicioService } from './portal-inicio.service';
 import { PortalInternacaoService } from './portal-internacao.service';
 import { PortalPetsService } from './portal-pets.service';
+import { PortalPushService } from './portal-push.service';
+import { PortalPushScheduler } from './portal-push.scheduler';
 import { PortalSaudeService } from './portal-saude.service';
 import { PortalWhatsappService } from './portal-whatsapp.service';
 import { PortalTutorGuard } from './portal-tutor.guard';
@@ -38,6 +40,8 @@ import { PortalTutorGuard } from './portal-tutor.guard';
     PortalAgendaHorariosService,
     PortalAgendarService,
     PortalPetsService,
+    PortalPushService,
+    PortalPushScheduler,
     PortalWhatsappService,
     PortalTutorGuard,
   ],
@@ -52,6 +56,7 @@ import { PortalTutorGuard } from './portal-tutor.guard';
     PortalAgendaHorariosService,
     PortalAgendarService,
     PortalPetsService,
+    PortalPushService,
   ],
 })
 export class PortalModule {}

@@ -18,6 +18,7 @@ const TESTES = [
   ['8-agendar.js', 'Marcar, desmarcar e remarcar'],
   ['9-pet-novo.js', 'Cadastro de pet novo pelo tutor'],
   ['10-dieta.js', 'Alimentação (equipe prescreve, portal lê)'],
+  ['11-push.js', 'Notificações do portal (PWA)'],
 ];
 
 let quebrou = 0;

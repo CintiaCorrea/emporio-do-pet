@@ -12,6 +12,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { PtlEstilos, emojiEspecie, linkWhatsApp } from './ptl-ui';
+import { CartaoAvisos, DicaDeInstalar } from './ptl-pwa';
 
 interface Pet {
   id: string;
@@ -220,6 +221,10 @@ export default function PortalInicio() {
               </a>
             </div>
           </div>
+
+          {/* Fatia 6: instalar na tela inicial + avisos (somem se não der) */}
+          <DicaDeInstalar />
+          <CartaoAvisos />
         </div>
       </main>
     </div>

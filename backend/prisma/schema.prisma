@@ -3560,3 +3560,31 @@ model Dieta {
   @@index([petId, ativa])
   @@map("dietas")
 }
+
+/// Aparelho inscrito para receber notificacao do portal (um por celular/tablet).
+model PortalPush {
+  id          String    @id @default(uuid())
+  tutorId     String    @map("tutor_id")
+  endpoint    String    @unique
+  p256dh      String
+  auth        String
+  userAgent   String?   @map("user_agent")
+  ultimoEnvio DateTime? @map("ultimo_envio")
+  falhas      Int       @default(0)
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@index([tutorId])
+  @@map("ptl_push")
+}
+
+/// Rastro do que ja foi avisado — a chave (tutor + assunto) impede aviso repetido.
+model PortalPushEnviado {
+  id        String   @id @default(uuid())
+  tutorId   String   @map("tutor_id")
+  assunto   String
+  titulo    String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([tutorId, assunto])
+  @@map("ptl_push_enviados")
+}

@@ -1,0 +1,36 @@
+{
+  "name": "Empório do Pet — Portal do Tutor",
+  "short_name": "Empório do Pet",
+  "description": "A saúde do seu pet na palma da mão.",
+  "lang": "pt-BR",
+  "start_url": "/portal",
+  "scope": "/portal/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FAFCFD",
+  "theme_color": "#0D2048",
+  "icons": [
+    {
+      "src": "/portal/icone-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/portal/icone-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/portal/icone-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    { "name": "Agendar", "url": "/portal/agendar", "icons": [{ "src": "/portal/icone-192.png", "sizes": "192x192" }] },
+    { "name": "Saúde", "url": "/portal/saude", "icons": [{ "src": "/portal/icone-192.png", "sizes": "192x192" }] }
+  ]
+}

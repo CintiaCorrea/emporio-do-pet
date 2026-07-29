@@ -23,6 +23,7 @@ import { PortalAgendaHorariosService, SemHorarios } from './portal-agenda-horari
 import { PortalAgendarService } from './portal-agendar.service';
 import { PortalInternacaoService } from './portal-internacao.service';
 import { PortalPetsService, NovoPet } from './portal-pets.service';
+import { PortalPushService } from './portal-push.service';
 import { PortalSaudeService } from './portal-saude.service';
 import { PortalTutorGuard, RequestDoPortal, tokenDoRequest } from './portal-tutor.guard';
 
@@ -97,6 +98,7 @@ export class PortalMeController {
     private readonly agendar: PortalAgendarService,
     private readonly horarios: PortalAgendaHorariosService,
     private readonly pets: PortalPetsService,
+    private readonly push: PortalPushService,
   ) {}
 
   /** Quem sou eu + meus pets. O front nunca manda tutorId — ele vem do guard. */
@@ -171,6 +173,36 @@ export class PortalMeController {
   @Post('pets')
   async criarPet(@Req() req: ReqComRede, @Body() corpo: NovoPet) {
     return this.pets.criar(req.portalTutorId!, corpo || {}, ipDoRequest(req));
+  }
+
+  // ---------------------------------------------------------------------------
+  // Notificacoes (web push)
+  // ---------------------------------------------------------------------------
+
+  /** Chave publica (o navegador precisa dela) + se ja ha aparelho inscrito. */
+  @Get('push/estado')
+  async pushEstado(@Req() req: RequestDoPortal) {
+    return {
+      disponivel: this.push.ativo,
+      chavePublica: this.push.chavePublica || null,
+      aparelhos: await this.push.aparelhosDo(req.portalTutorId!),
+    };
+  }
+
+  @Post('push/inscrever')
+  async pushInscrever(@Req() req: ReqComRede, @Body() corpo: any) {
+    return this.push.inscrever(req.portalTutorId!, corpo, uaDoRequest(req));
+  }
+
+  @Post('push/sair')
+  async pushSair(@Req() req: RequestDoPortal, @Body() corpo: { endpoint?: string }) {
+    return this.push.desinscrever(req.portalTutorId!, corpo?.endpoint);
+  }
+
+  /** Aviso de teste, para o tutor conferir que funcionou. */
+  @Post('push/testar')
+  async pushTestar(@Req() req: RequestDoPortal) {
+    return this.push.testar(req.portalTutorId!);
   }
 
   // ---------------------------------------------------------------------------

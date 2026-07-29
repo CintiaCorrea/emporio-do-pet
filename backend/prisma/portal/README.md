@@ -61,6 +61,30 @@ pessoa poderia testar números para descobrir quem é cliente da clínica.
 | `PORTAL_OTP_IDIOMA` | idioma preferido | `pt_BR` |
 | `PORTAL_OTP_IDIOMA_RESERVA` | idioma usado se o preferido não existir | `en_US` |
 | `NEXT_PUBLIC_WHATSAPP_CLINICA` | número que os botões "falar com a recepção" abrem | — |
+| `PORTAL_VAPID_PUBLICA` | chave pública das notificações (o navegador precisa dela) | — |
+| `PORTAL_VAPID_PRIVADA` | chave privada das notificações — **segredo** | — |
+| `PORTAL_VAPID_CONTATO` | e-mail de contato exigido pelo padrão | adm.emporiodopet@gmail.com |
+
+### Notificações (Fatia 6)
+
+Sem as chaves VAPID o portal simplesmente **não mostra** o cartão de avisos — nada quebra. Um par já
+foi gerado e está no `.env` local (que não vai para o Git). Para gerar outro:
+
+```bash
+cd backend && node -e "const w=require('web-push');const k=w.generateVAPIDKeys();console.log(k)"
+```
+
+No deploy, as três variáveis viram secrets do Fly:
+
+```bash
+fly secrets set PORTAL_VAPID_PUBLICA=... PORTAL_VAPID_PRIVADA=... PORTAL_VAPID_CONTATO=mailto:...
+```
+
+⚠️ **Trocar o par de chaves invalida todas as inscrições existentes** — os tutores teriam que ligar
+os avisos de novo. Gerar uma vez e guardar.
+
+O aviso que existe hoje é o **lembrete do horário de amanhã** (18h, fuso de Fortaleza). Nunca colocar
+dado clínico no texto: a notificação aparece na tela de bloqueio, que qualquer pessoa vê.
 
 **Situação do modelo na Meta (29/07/2026):** `portal_tutor_codigo` está **Ativo**, categoria
 Autenticação, **mas só em English (US)** — o corpo sai como *"123456 is your verification code"* com
@@ -125,4 +149,6 @@ CREATE INDEX IF NOT EXISTS historico_clinico_pet_data_idx ON historico_clinico (
 ✅ 1. Fundação do acesso · ✅ 2. Início + Minha ficha · ✅ 3. Saúde/Peso/Fisio · ✅ 4A. Internação ·
 ✅ 4B. Agendamento online (regras + motor + marcar/desmarcar/remarcar + pet novo) ·
 ✅ 5. Alimentação (tabela clínica `dietas` + aba na ficha do pet + tela do portal) ·
-⬜ 6. PWA + push · ⬜ armazenamento de arquivos (PDF de exame/receita, foto do pet, anexo da dieta).
+✅ 6. PWA + notificações (manifesto, service worker no escopo `/portal/`, ícones, cartão de avisos,
+lembrete do dia anterior) · ⬜ armazenamento de arquivos (PDF de exame/receita, foto do pet, anexo
+da dieta) · ⬜ publicar no ar (domínio próprio).
