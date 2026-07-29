@@ -14,6 +14,7 @@ const TESTES = [
   ['4-whatsapp.js', 'Envio do código pelo WhatsApp'],
   ['5-internacao.js', 'Internação (boletins enviados)'],
   ['6-agenda-regras.js', 'Regras do agendamento online'],
+  ['7-horarios.js', 'Motor de horários livres'],
 ];
 
 let quebrou = 0;

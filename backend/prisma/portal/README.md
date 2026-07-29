@@ -86,6 +86,15 @@ cd backend && npm run build && npm run test:portal
 Ver `scripts/portal/README.md`. São 110 verificações cobrindo acesso, ficha, saúde/peso/fisio e o
 envio do código.
 
+### Colunas/tabelas do CRM que faltam no espelho local
+
+O banco local é um espelho **parcial** de produção. O portal precisa de duas coisas que podem faltar:
+
+```sql
+-- coluna da agenda de sala (MAP/parceiro) — existe em producao
+ALTER TABLE "Appointment" ADD COLUMN IF NOT EXISTS "agendaAvulsa" TEXT;
+```
+
 ### Tabela do CRM que falta no espelho local
 
 Se o bloco de Saúde falhar dizendo que `historico_clinico` não existe, é o banco local que está

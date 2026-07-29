@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { PortalAdminController } from './portal-admin.controller';
+import { PortalAgendaHorariosService } from './portal-agenda-horarios.service';
 import { PortalAgendaRegrasService } from './portal-agenda-regras.service';
 import { PortalAuthController, PortalMeController } from './portal-auth.controller';
 import { PortalAuthService } from './portal-auth.service';
@@ -32,6 +33,7 @@ import { PortalTutorGuard } from './portal-tutor.guard';
     PortalSaudeService,
     PortalInternacaoService,
     PortalAgendaRegrasService,
+    PortalAgendaHorariosService,
     PortalWhatsappService,
     PortalTutorGuard,
   ],
@@ -43,6 +45,7 @@ import { PortalTutorGuard } from './portal-tutor.guard';
     PortalSaudeService,
     PortalInternacaoService,
     PortalAgendaRegrasService,
+    PortalAgendaHorariosService,
   ],
 })
 export class PortalModule {}
