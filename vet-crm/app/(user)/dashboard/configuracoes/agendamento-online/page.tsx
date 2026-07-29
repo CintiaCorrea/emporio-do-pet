@@ -33,6 +33,7 @@ interface Servico {
   duracaoMin: number;
   agendas: string[];
   restricao: Restricao;
+  responsavelUserId: string | null;
 }
 
 interface OpcaoAgenda {
@@ -40,6 +41,19 @@ interface OpcaoAgenda {
   nome: string;
   origem: "profissional" | "sala";
   grupo: string | null;
+  permiteSobreposicao?: boolean;
+  sobDemanda?: boolean;
+}
+
+interface Responsavel {
+  userId: string;
+  nome: string;
+}
+
+interface Travado {
+  tutorId: string;
+  nome: string;
+  desmarcacoes: number;
 }
 
 const RESTRICOES: { v: Restricao; l: string }[] = [
@@ -161,6 +175,8 @@ export default function AgendamentoOnlinePage() {
   const [cfg, setCfg] = useState<Config | null>(null);
   const [servicos, setServicos] = useState<Servico[]>([]);
   const [agendas, setAgendas] = useState<OpcaoAgenda[]>([]);
+  const [responsaveis, setResponsaveis] = useState<Responsavel[]>([]);
+  const [travados, setTravados] = useState<Travado[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
   const [aviso, setAviso] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
@@ -177,6 +193,11 @@ export default function AgendamentoOnlinePage() {
         setCfg(d.config);
         setServicos(d.servicos || []);
         setAgendas(d.agendas || []);
+        setResponsaveis(d.responsaveis || []);
+        const t = await fetch("/api/portal-admin/agenda/travados", { cache: "no-store" })
+          .then((x) => x.json())
+          .catch(() => null);
+        setTravados(t?.travados || []);
       } catch (e: any) {
         setAviso({ tipo: "erro", texto: e?.message || "Não consegui carregar as regras" });
       } finally {
@@ -211,6 +232,25 @@ export default function AgendamentoOnlinePage() {
             },
       ),
     );
+  }
+
+  async function liberar(t: Travado) {
+    setSalvando(true);
+    setAviso(null);
+    try {
+      const r = await fetch(`/api/portal-admin/agenda/travados/${t.tutorId}/liberar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ motivo: "liberado na tela de regras" }),
+      });
+      if (!r.ok) throw new Error("Não consegui liberar");
+      setTravados((lista) => lista.filter((x) => x.tutorId !== t.tutorId));
+      setAviso({ tipo: "ok", texto: `${t.nome} liberado ✓` });
+    } catch (e: any) {
+      setAviso({ tipo: "erro", texto: e?.message || "Não consegui liberar" });
+    } finally {
+      setSalvando(false);
+    }
   }
 
   async function salvar() {
@@ -467,11 +507,77 @@ export default function AgendamentoOnlinePage() {
                       })}
                     </div>
                   )}
+
+                  {/* Sala escolhida: o CRM exige um responsável no agendamento. */}
+                  {s.agendas.some(
+                    (id) => agendas.find((a) => a.id === id)?.origem === "sala",
+                  ) && (
+                    <div className="mt-2.5">
+                      <div className="text-[11.5px] mb-1.5" style={{ color: B44.text2 }}>
+                        quem assina o atendimento na sala
+                      </div>
+                      <Select
+                        value={s.responsavelUserId || ""}
+                        onChange={(e) =>
+                          mudarServico(s.tipo, "responsavelUserId", e.target.value || null)
+                        }
+                        style={{ width: 220 }}
+                      >
+                        <option value="">— escolher profissional —</option>
+                        {responsaveis.map((r) => (
+                          <option key={r.userId} value={r.userId}>
+                            {r.nome}
+                          </option>
+                        ))}
+                      </Select>
+                      {!s.responsavelUserId && (
+                        <div className="text-[11.5px] mt-1" style={{ color: "#b23b39" }}>
+                          Sem responsável, a sala não é oferecida ao cliente.
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
           ))}
         </div>
+      </Card>
+
+      {/* CLIENTES TRAVADOS */}
+      <Card title="Clientes travados agora" emoji="🚫" count={travados.length}>
+        <div className="text-[12.5px] -mt-1 mb-2" style={{ color: B44.text2 }}>
+          Desmarcaram demais e não conseguem marcar pelo portal. A conta zera sozinha quando o
+          cliente comparece — ou você libera aqui, depois de cobrar a taxa.
+        </div>
+
+        {travados.length === 0 ? (
+          <div className="text-[13px] py-3 text-center" style={{ color: B44.text2 }}>
+            Ninguém travado. 🌿
+          </div>
+        ) : (
+          <div className="flex flex-col">
+            {travados.map((t) => (
+              <div
+                key={t.tutorId}
+                className="flex items-center gap-3 py-2.5"
+                style={{ borderBottom: `1px solid ${B44.lineSoft}` }}
+              >
+                <div className="flex-1">
+                  <div className="text-[13.5px] font-semibold" style={{ color: B44.navy }}>
+                    {t.nome}
+                  </div>
+                  <div className="text-[11.5px] mt-0.5" style={{ color: B44.text2 }}>
+                    {t.desmarcacoes} desmarcações seguidas
+                  </div>
+                </div>
+                <Btn variant="ghost" disabled={salvando} onClick={() => liberar(t)}>
+                  Liberar
+                </Btn>
+              </div>
+            ))}
+          </div>
+        )}
       </Card>
 
       {/* TRAVAS */}

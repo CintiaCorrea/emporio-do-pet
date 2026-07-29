@@ -16,6 +16,7 @@ const TESTES = [
   ['6-agenda-regras.js', 'Regras do agendamento online'],
   ['7-horarios.js', 'Motor de horários livres'],
   ['8-agendar.js', 'Marcar, desmarcar e remarcar'],
+  ['9-pet-novo.js', 'Cadastro de pet novo pelo tutor'],
 ];
 
 let quebrou = 0;

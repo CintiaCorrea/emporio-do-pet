@@ -22,6 +22,7 @@ import { PortalInicioService } from './portal-inicio.service';
 import { PortalAgendaHorariosService, SemHorarios } from './portal-agenda-horarios.service';
 import { PortalAgendarService } from './portal-agendar.service';
 import { PortalInternacaoService } from './portal-internacao.service';
+import { PortalPetsService, NovoPet } from './portal-pets.service';
 import { PortalSaudeService } from './portal-saude.service';
 import { PortalTutorGuard, RequestDoPortal, tokenDoRequest } from './portal-tutor.guard';
 
@@ -95,6 +96,7 @@ export class PortalMeController {
     private readonly internacao: PortalInternacaoService,
     private readonly agendar: PortalAgendarService,
     private readonly horarios: PortalAgendaHorariosService,
+    private readonly pets: PortalPetsService,
   ) {}
 
   /** Quem sou eu + meus pets. O front nunca manda tutorId — ele vem do guard. */
@@ -154,6 +156,15 @@ export class PortalMeController {
   async telaInternacao(@Req() req: RequestDoPortal, @Param('petId') petId: string) {
     await this.escopo.assertPetDoTutor(req.portalTutorId!, petId);
     return this.internacao.doPet(petId);
+  }
+
+  /**
+   * Cadastrar um pet novo. Sem `confirmado`, responde com os pets de nome
+   * parecido para o tutor dizer se e outro bicho mesmo.
+   */
+  @Post('pets')
+  async criarPet(@Req() req: ReqComRede, @Body() corpo: NovoPet) {
+    return this.pets.criar(req.portalTutorId!, corpo || {}, ipDoRequest(req));
   }
 
   // ---------------------------------------------------------------------------

@@ -144,12 +144,23 @@ export class PortalAgendaRegrasService {
    * atendimento — servico novo cadastrado pela equipe aparece aqui sozinho,
    * desligado, sem ninguem mexer em codigo.
    */
+  /** Quem pode assinar um agendamento de SALA (profissional com login). */
+  async responsaveisPossiveis() {
+    const profs = await this.prisma.profissional.findMany({
+      where: { ativo: true, userId: { not: null } },
+      select: { userId: true, nomeExibicao: true, nomeCompleto: true },
+      orderBy: { nomeCompleto: 'asc' },
+    });
+    return profs.map((p) => ({ userId: p.userId as string, nome: p.nomeExibicao || p.nomeCompleto }));
+  }
+
   async paraTela() {
-    const [config, tipos, salvos, agendas] = await Promise.all([
+    const [config, tipos, salvos, agendas, responsaveis] = await Promise.all([
       this.config(),
       this.tiposDeAtendimento(),
       this.prisma.portalAgendaServico.findMany(),
       this.opcoesDeAgenda(),
+      this.responsaveisPossiveis(),
     ]);
 
     const porTipo = new Map(salvos.map((s) => [s.tipo, s]));
@@ -168,7 +179,7 @@ export class PortalAgendaRegrasService {
       } as ServicoDaTela;
     });
 
-    return { config, servicos, agendas };
+    return { config, servicos, agendas, responsaveis };
   }
 
   async salvar(

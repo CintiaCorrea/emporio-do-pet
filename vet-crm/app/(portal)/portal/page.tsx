@@ -43,7 +43,7 @@ const MENU: Array<{ emoji: string; titulo: string; sub: string; rota: string | n
   { emoji: '⚖️', titulo: 'Peso', sub: 'evolução', rota: '/portal/peso' },
   { emoji: '🤸', titulo: 'Fisioterapia', sub: 'pacote e sessões', rota: '/portal/fisio' },
   { emoji: '🏥', titulo: 'Internação', sub: 'boletins do dia', rota: '/portal/internacao' },
-  { emoji: '📅', titulo: 'Agendar', sub: 'horário prioritário', rota: null },
+  { emoji: '📅', titulo: 'Agendar', sub: 'marcar um horário', rota: '/portal/agendar' },
   { emoji: '🪪', titulo: 'Minha ficha', sub: 'manter dados em dia', rota: '/portal/ficha' },
 ];
 
@@ -128,6 +128,14 @@ export default function PortalInicio() {
               </span>
             </div>
           ))}
+
+          <Link
+            href="/portal/pets/novo"
+            className="ptl-btn ghost"
+            style={{ textDecoration: 'none' }}
+          >
+            + Adicionar um pet
+          </Link>
 
           {avisoFoto && (
             <p className="ptl-aviso" style={{ textAlign: 'center' }}>
