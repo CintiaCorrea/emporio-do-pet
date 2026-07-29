@@ -20,6 +20,13 @@ Sai um placar por bloco e um resumo no fim. Qualquer linha `FALHOU` aponta o que
 | `3-saude.js` | carteirinha de vacinas (em dia / atrasada / importada), receitas, exames, gráfico de peso (uma pesagem por dia, variação) e pacote de fisioterapia |
 | `4-whatsapp.js` | envio do código: modelo com e sem botão, idioma faltando, modelo trocado por variável, sem credencial. **Não gasta mensagem** — as respostas da Meta são simuladas |
 
+## Se falhar sem motivo aparente
+
+O resumo no fim **nomeia o bloco** que falhou. Antes de suspeitar do código, confira se o
+**backend local não está rodando** contra o mesmo banco: os blocos 6 a 8 apagam e devolvem a linha
+única de configuração do agendamento, e um servidor no ar pode disputá-la. Derrube o servidor e rode
+de novo — aconteceu uma vez em 29/07 e não reproduziu em nenhuma das rodadas seguintes.
+
 ## O que eles fazem no banco
 
 Criam cadastros marcados (`[TESTE-...]`), exercitam o código de verdade e **apagam tudo no fim**,

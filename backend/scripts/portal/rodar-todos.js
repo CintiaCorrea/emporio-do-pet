@@ -17,6 +17,7 @@ const TESTES = [
   ['7-horarios.js', 'Motor de horários livres'],
   ['8-agendar.js', 'Marcar, desmarcar e remarcar'],
   ['9-pet-novo.js', 'Cadastro de pet novo pelo tutor'],
+  ['10-dieta.js', 'Alimentação (equipe prescreve, portal lê)'],
 ];
 
 let quebrou = 0;
