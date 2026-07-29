@@ -57,11 +57,18 @@ pessoa poderia testar números para descobrir quem é cliente da clínica.
 | Variável | Para quê | Padrão |
 |---|---|---|
 | `PORTAL_OTP_PEPPER` | segredo somado ao código antes do hash | cai no `JWT_SECRET` |
-| `PORTAL_OTP_TEMPLATE` | nome do modelo aprovado na Meta | `portal_tutor_codigo` |
+| `PORTAL_OTP_TEMPLATE` | nome do modelo aprovado na Meta | `verify_code_1` |
+| `PORTAL_OTP_IDIOMA` | idioma do modelo na Meta | `pt_BR` |
 | `NEXT_PUBLIC_WHATSAPP_CLINICA` | número que os botões "falar com a recepção" abrem | — |
 
-O template precisa ser criado na Meta na categoria **Autenticação**, em pt_BR, com botão
-**copiar código** e validade de 5 minutos.
+**Modelo na Meta (29/07):** criado pelo assistente da própria Meta em
+*Autenticação › Verificação de identidade › Verificar usuário*, e nasceu com o nome **`verify_code_1`**
+— por isso é esse o padrão. Criar pelo painel de um parceiro/BSP deu problema: o modelo era enviado
+mas o status nunca voltava. **Fazer sempre direto na Meta.**
+
+O envio se adapta ao modelo: manda o código no corpo **e** no botão "copiar código"; se o modelo
+aprovado não tiver botão, a Meta recusa por número de parâmetros e o serviço reenvia só com o corpo.
+Se o nome ou o idioma não baterem com o cadastrado, o log diz exatamente qual modelo tentou.
 
 ## Próximas fatias
 
