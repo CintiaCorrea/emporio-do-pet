@@ -25,6 +25,8 @@ export interface ServicoDaTela {
   duracaoMin: number;
   agendas: string[];
   restricao: Restricao;
+  /** Quem assina o agendamento quando o servico e marcado numa SALA. */
+  responsavelUserId: string | null;
 }
 
 export interface OpcaoAgenda {
@@ -33,6 +35,10 @@ export interface OpcaoAgenda {
   /** profissional | sala — só para agrupar na tela. */
   origem: 'profissional' | 'sala';
   grupo: string | null;
+  /** Sala que aceita dois atendimentos no mesmo horario. */
+  permiteSobreposicao?: boolean;
+  /** Agenda que só existe quando há atendimento (parceiro externo) — o portal não oferece. */
+  sobDemanda?: boolean;
 }
 
 /** Limites de sanidade: impedem regra impossivel (0 min, 5 anos de janela). */
@@ -122,6 +128,8 @@ export class PortalAgendaRegrasService {
           nome: String(v.nome || 'Agenda'),
           origem: 'sala',
           grupo: v.grupo ? String(v.grupo) : null,
+          permiteSobreposicao: !!v.permiteSobreposicao,
+          sobDemanda: !!v.sobDemanda,
         });
       } catch {
         // item fora do formato: ignorar em vez de quebrar a tela
@@ -155,6 +163,7 @@ export class PortalAgendaRegrasService {
         duracaoMin: s?.duracaoMin ?? 30,
         agendas: s?.agendas ?? [],
         restricao: (s?.restricao as Restricao) ?? 'TODOS',
+        responsavelUserId: s?.responsavelUserId ?? null,
         ordem: s?.ordem ?? i,
       } as ServicoDaTela;
     });
@@ -171,6 +180,7 @@ export class PortalAgendaRegrasService {
         duracaoMin?: number;
         agendas?: string[];
         restricao?: string;
+        responsavelUserId?: string | null;
       }>;
     },
     quem?: string,
@@ -235,10 +245,20 @@ export class PortalAgendaRegrasService {
         );
       }
 
+      // Responsavel so faz sentido/e aceito se existir de verdade.
+      let responsavelUserId: string | null = null;
+      if (s.responsavelUserId) {
+        const existe = await this.prisma.user.findUnique({
+          where: { id: s.responsavelUserId },
+          select: { id: true },
+        });
+        responsavelUserId = existe?.id ?? null;
+      }
+
       await this.prisma.portalAgendaServico.upsert({
         where: { tipo: s.tipo },
-        create: { tipo: s.tipo, ativo, duracaoMin: duracao, agendas, restricao },
-        update: { ativo, duracaoMin: duracao, agendas, restricao },
+        create: { tipo: s.tipo, ativo, duracaoMin: duracao, agendas, restricao, responsavelUserId },
+        update: { ativo, duracaoMin: duracao, agendas, restricao, responsavelUserId },
       });
     }
 

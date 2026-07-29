@@ -5,9 +5,10 @@
  * PortalTutorGuard. Sao dois publicos diferentes no mesmo modulo, e nenhuma
  * dessas rotas pode ser alcancada com sessao de tutor.
  */
-import { Body, Controller, Get, Put, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Put, Req, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PortalAgendaRegrasService } from './portal-agenda-regras.service';
+import { PortalAgendarService } from './portal-agendar.service';
 
 interface ReqComUsuario {
   user?: { name?: string; email?: string };
@@ -16,7 +17,10 @@ interface ReqComUsuario {
 @UseGuards(JwtAuthGuard)
 @Controller('portal/admin/agenda')
 export class PortalAdminController {
-  constructor(private readonly regras: PortalAgendaRegrasService) {}
+  constructor(
+    private readonly regras: PortalAgendaRegrasService,
+    private readonly agendar: PortalAgendarService,
+  ) {}
 
   /** Tudo que a tela de regras precisa: config + serviços + agendas disponíveis. */
   @Get('regras')
@@ -27,5 +31,21 @@ export class PortalAdminController {
   @Put('regras')
   async salvar(@Body() corpo: any, @Req() req: ReqComUsuario) {
     return this.regras.salvar(corpo, req?.user?.name || req?.user?.email);
+  }
+
+  /** Clientes travados por desmarcacoes — a lista que a equipe ve na tela. */
+  @Get('travados')
+  async travados() {
+    return { travados: await this.agendar.travados() };
+  }
+
+  /** Libera um cliente depois de cobrar a taxa. Fica registrado quem liberou. */
+  @Post('travados/:tutorId/liberar')
+  async liberar(
+    @Param('tutorId') tutorId: string,
+    @Body() corpo: { motivo?: string },
+    @Req() req: ReqComUsuario,
+  ) {
+    return this.agendar.liberar(tutorId, req?.user?.name || req?.user?.email, corpo?.motivo);
   }
 }

@@ -11,6 +11,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -18,6 +19,8 @@ import { PortalAuthService } from './portal-auth.service';
 import { PortalEscopoService } from './portal-escopo.service';
 import { PortalFichaService, FichaPayload } from './portal-ficha.service';
 import { PortalInicioService } from './portal-inicio.service';
+import { PortalAgendaHorariosService, SemHorarios } from './portal-agenda-horarios.service';
+import { PortalAgendarService } from './portal-agendar.service';
 import { PortalInternacaoService } from './portal-internacao.service';
 import { PortalSaudeService } from './portal-saude.service';
 import { PortalTutorGuard, RequestDoPortal, tokenDoRequest } from './portal-tutor.guard';
@@ -90,6 +93,8 @@ export class PortalMeController {
     private readonly ficha: PortalFichaService,
     private readonly saude: PortalSaudeService,
     private readonly internacao: PortalInternacaoService,
+    private readonly agendar: PortalAgendarService,
+    private readonly horarios: PortalAgendaHorariosService,
   ) {}
 
   /** Quem sou eu + meus pets. O front nunca manda tutorId — ele vem do guard. */
@@ -149,5 +154,68 @@ export class PortalMeController {
   async telaInternacao(@Req() req: RequestDoPortal, @Param('petId') petId: string) {
     await this.escopo.assertPetDoTutor(req.portalTutorId!, petId);
     return this.internacao.doPet(petId);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Agendar
+  // ---------------------------------------------------------------------------
+
+  /** Serviços liberados + se o cliente está travado por desmarcações. */
+  @Get('agendar/opcoes')
+  async agendarOpcoes(@Req() req: RequestDoPortal) {
+    return this.agendar.opcoes(req.portalTutorId!);
+  }
+
+  /** Dias com vaga para aquele pet e serviço. */
+  @Get('agendar/dias')
+  async agendarDias(
+    @Req() req: RequestDoPortal,
+    @Query('petId') petId: string,
+    @Query('tipo') tipo: string,
+  ) {
+    const tutorId = req.portalTutorId!;
+    await this.escopo.assertPetDoTutor(tutorId, petId);
+    try {
+      return { dias: await this.horarios.proximosDias(tutorId, petId, tipo) };
+    } catch (e) {
+      // Motivo de regra vira resposta explicável, não erro seco.
+      if (e instanceof SemHorarios) return { dias: [], motivo: e.motivo };
+      throw e;
+    }
+  }
+
+  /** Marca de verdade: entra na agenda da equipe com a marca do portal. */
+  @Post('agendar')
+  async criarAgendamento(
+    @Req() req: ReqComRede,
+    @Body() corpo: { petId?: string; tipo?: string; inicio?: string },
+  ) {
+    const tutorId = req.portalTutorId!;
+    await this.escopo.assertPetDoTutor(tutorId, corpo?.petId || '');
+    return this.agendar.agendar(
+      tutorId,
+      { petId: corpo!.petId!, tipo: corpo?.tipo || '', inicio: corpo?.inicio || '' },
+      ipDoRequest(req),
+    );
+  }
+
+  /** Meus próximos horários marcados pelo portal. */
+  @Get('agendamentos')
+  async meusAgendamentos(@Req() req: RequestDoPortal) {
+    return { agendamentos: await this.agendar.meus(req.portalTutorId!) };
+  }
+
+  @Post('agendamentos/:id/desmarcar')
+  async desmarcar(@Req() req: RequestDoPortal, @Param('id') id: string) {
+    return this.agendar.desmarcar(req.portalTutorId!, id);
+  }
+
+  @Post('agendamentos/:id/remarcar')
+  async remarcar(
+    @Req() req: ReqComRede,
+    @Param('id') id: string,
+    @Body() corpo: { inicio?: string },
+  ) {
+    return this.agendar.remarcar(req.portalTutorId!, id, corpo?.inicio || '', ipDoRequest(req));
   }
 }

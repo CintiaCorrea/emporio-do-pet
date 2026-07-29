@@ -59,6 +59,8 @@ interface Agenda {
   /** userId do profissional — é por ele que casamos os agendamentos. */
   userId: string | null;
   escala: unknown;
+  /** Sala que aceita dois atendimentos no mesmo horário (não bloqueia). */
+  permiteSobreposicao: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -153,6 +155,7 @@ export class PortalAgendaHorariosService {
       grupo: null,
       userId: p.userId,
       escala: p.escala,
+      permiteSobreposicao: false,
     }));
 
     for (const a of avulsas) {
@@ -160,6 +163,9 @@ export class PortalAgendaHorariosService {
         const v = JSON.parse(a.valor);
         const id = String(v.id || a.id);
         if (!ids.includes(id) || v?.ativo === false) continue;
+        // Agenda "sob demanda" (parceiro externo que só existe quando há
+        // atendimento) não é oferecida ao cliente.
+        if (v?.sobDemanda) continue;
         lista.push({
           id,
           nome: String(v.nome || 'Agenda'),
@@ -168,6 +174,7 @@ export class PortalAgendaHorariosService {
           userId: null,
           // Na agenda avulsa a escala mora em `horario`.
           escala: v.horario ?? v.escala ?? null,
+          permiteSobreposicao: !!v.permiteSobreposicao,
         });
       } catch {
         // item fora do formato: ignora
@@ -320,6 +327,9 @@ export class PortalAgendaHorariosService {
           if (inicioUtc.getTime() < minimo || inicioUtc.getTime() > maximo) continue;
 
           const conflita = (marcado: (typeof ocupacao)[number], alvo: Agenda) => {
+            // Sala marcada como "permite sobreposição": dois atendimentos no
+            // mesmo horário são intencionais, então nada bloqueia.
+            if (alvo.permiteSobreposicao) return false;
             const mesmaAgenda =
               alvo.origem === 'profissional'
                 ? marcado.userId === alvo.userId && !marcado.agendaAvulsa

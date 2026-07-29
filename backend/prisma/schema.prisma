@@ -3478,8 +3478,47 @@ model PortalAgendaServico {
   agendas    String[] @default([])
   restricao  String   @default("TODOS") // TODOS | JA_CLIENTE | TEM_PACOTE
   ordem      Int      @default(0)
+  /// Responsavel quando o servico e marcado numa SALA (o CRM exige um em todo agendamento).
+  responsavelUserId String? @map("responsavel_user_id")
   updatedAt  DateTime @default(now()) @updatedAt @map("updated_at")
 
   @@index([ativo])
   @@map("ptl_agenda_servico")
+}
+
+/// Rastro dos agendamentos feitos pelo cliente no portal. O agendamento em si e
+/// um `Appointment` do CRM; aqui guardamos o que o portal fez, para saber quem
+/// desmarcou quantas vezes e para travar dois clientes no mesmo horario
+/// (indice unico parcial em agenda_id + inicio quando situacao = MARCADO).
+model PortalAgendamento {
+  id              String    @id @default(uuid())
+  appointmentId   String    @map("appointment_id")
+  tutorId         String    @map("tutor_id")
+  petId           String    @map("pet_id")
+  tipo            String
+  agendaId        String    @map("agenda_id")
+  inicio          DateTime
+  duracaoMin      Int       @map("duracao_min")
+  situacao        String    @default("MARCADO") // MARCADO | DESMARCADO | REMARCADO
+  desmarcadoEm    DateTime? @map("desmarcado_em")
+  remarcadoParaId String?   @map("remarcado_para_id")
+  ip              String?
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@index([tutorId, createdAt])
+  @@index([appointmentId])
+  @@index([situacao, inicio])
+  @@map("ptl_agendamentos")
+}
+
+/// Liberacao manual do bloqueio por desmarcacoes (a equipe cobra a taxa e libera).
+model PortalLiberacao {
+  id          String   @id @default(uuid())
+  tutorId     String   @map("tutor_id")
+  liberadoPor String?  @map("liberado_por")
+  motivo      String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([tutorId, createdAt])
+  @@map("ptl_liberacoes")
 }
