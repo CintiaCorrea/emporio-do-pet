@@ -19,6 +19,14 @@ Sai um placar por bloco e um resumo no fim. Qualquer linha `FALHOU` aponta o que
 | `2-ficha.js` | Início (alerta de internação aparece e some na alta) e Minha ficha: edição real, **histórico do que o tutor apagou**, campos fora da lista ignorados, pet de outro tutor barrado |
 | `3-saude.js` | carteirinha de vacinas (em dia / atrasada / importada), receitas, exames, gráfico de peso (uma pesagem por dia, variação) e pacote de fisioterapia |
 | `4-whatsapp.js` | envio do código: modelo com e sem botão, idioma faltando, modelo trocado por variável, sem credencial. **Não gasta mensagem** — as respostas da Meta são simuladas |
+| `5-internacao.js` | boletins **enviados** aparecem; boletim **programado** (interno) NÃO vaza; automático não expõe "robô"; tudo some depois da alta |
+| `6-agenda-regras.js` | regras do agendamento online: padrão fechado, serviço novo nasce desligado, salvar/recarregar, e as travas contra regra impossível |
+| `7-horarios.js` | **o motor**: escala e férias, horário ocupado, cancelado liberando, atendimento longo, antecedência/janela, restrição de pacote, teto do dia e a **trava do pet bravo nos dois sentidos** |
+| `8-agendar.js` | marcar (com a marquinha `PORTAL`), **a corrida de dois clientes pelo mesmo horário**, remarcar sem contar como desmarcação, travar pela taxa, liberar, comparecer zerando e o prazo |
+| `9-pet-novo.js` | cadastro de pet pelo tutor: campos, selo de origem, histórico e a **anti-duplicidade** (ignora acento e maiúscula) |
+| `10-dieta.js` | a equipe prescreve e o portal lê; dieta nova **não apaga** a anterior; ajuste de gramagem; trava de mexer em dieta encerrada |
+
+Hoje são **262 verificações** em 10 blocos.
 
 ## Se falhar sem motivo aparente
 

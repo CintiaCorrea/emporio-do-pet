@@ -83,8 +83,9 @@ o status nunca voltou — o modelo até foi aprovado, mas o painel não mostrava
 cd backend && npm run build && npm run test:portal
 ```
 
-Ver `scripts/portal/README.md`. São 110 verificações cobrindo acesso, ficha, saúde/peso/fisio e o
-envio do código.
+Ver `scripts/portal/README.md`. São **262 verificações** em 10 blocos, cobrindo acesso, ficha,
+saúde/peso/fisio, internação, o agendamento online (regras, motor de horários, marcar/desmarcar/
+remarcar), pet novo e a dieta.
 
 ### Colunas/tabelas do CRM que faltam no espelho local
 
@@ -119,7 +120,9 @@ CREATE UNIQUE INDEX IF NOT EXISTS historico_clinico_tipo_codigo_key ON historico
 CREATE INDEX IF NOT EXISTS historico_clinico_pet_data_idx ON historico_clinico ("petId", data);
 ```
 
-## Próximas fatias
+## Fatias
 
-2. Início + Minha ficha · 3. Saúde/Peso/Fisio · 4. Internação + Agendar · 5. Alimentação
-(precisa de modelo novo + tela de prescrição no app da equipe) · 6. PWA + push.
+✅ 1. Fundação do acesso · ✅ 2. Início + Minha ficha · ✅ 3. Saúde/Peso/Fisio · ✅ 4A. Internação ·
+✅ 4B. Agendamento online (regras + motor + marcar/desmarcar/remarcar + pet novo) ·
+✅ 5. Alimentação (tabela clínica `dietas` + aba na ficha do pet + tela do portal) ·
+⬜ 6. PWA + push · ⬜ armazenamento de arquivos (PDF de exame/receita, foto do pet, anexo da dieta).
