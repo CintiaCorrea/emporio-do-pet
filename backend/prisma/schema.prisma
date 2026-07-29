@@ -3449,3 +3449,37 @@ model PortalAlteracao {
   @@index([createdAt])
   @@map("ptl_alteracoes")
 }
+
+/// Regras gerais do agendamento online (linha unica, id "unico"). Tudo editavel
+/// pela equipe em Configuracoes > Agenda > Agendamento online.
+model PortalAgendaConfig {
+  id                   String   @id
+  ativo                Boolean  @default(false)
+  antecedenciaMinHoras Int      @default(12) @map("antecedencia_min_horas")
+  janelaDias           Int      @default(30) @map("janela_dias")
+  prazoCancelarHoras   Int      @default(24) @map("prazo_cancelar_horas")
+  maxPorDia            Int      @default(2) @map("max_por_dia")
+  desmarcacoesParaTaxa Int      @default(2) @map("desmarcacoes_para_taxa")
+  taxaCentavos         Int      @default(0) @map("taxa_centavos")
+  mensagemTravado      String?  @map("mensagem_travado")
+  atualizadoPor        String?  @map("atualizado_por")
+  updatedAt            DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("ptl_agenda_config")
+}
+
+/// Regra de um servico (tipo de atendimento) no agendamento online.
+/// Servico novo aparece na tela sozinho e nasce DESLIGADO.
+model PortalAgendaServico {
+  id         String   @id @default(uuid())
+  tipo       String   @unique
+  ativo      Boolean  @default(false)
+  duracaoMin Int      @default(30) @map("duracao_min")
+  agendas    String[] @default([])
+  restricao  String   @default("TODOS") // TODOS | JA_CLIENTE | TEM_PACOTE
+  ordem      Int      @default(0)
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@index([ativo])
+  @@map("ptl_agenda_servico")
+}

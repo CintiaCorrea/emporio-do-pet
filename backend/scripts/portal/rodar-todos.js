@@ -13,6 +13,7 @@ const TESTES = [
   ['3-saude.js', 'Saúde, Peso e Fisioterapia'],
   ['4-whatsapp.js', 'Envio do código pelo WhatsApp'],
   ['5-internacao.js', 'Internação (boletins enviados)'],
+  ['6-agenda-regras.js', 'Regras do agendamento online'],
 ];
 
 let quebrou = 0;

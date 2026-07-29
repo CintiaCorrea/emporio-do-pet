@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { PortalAdminController } from './portal-admin.controller';
+import { PortalAgendaRegrasService } from './portal-agenda-regras.service';
 import { PortalAuthController, PortalMeController } from './portal-auth.controller';
 import { PortalAuthService } from './portal-auth.service';
 import { PortalEscopoService } from './portal-escopo.service';
@@ -21,7 +23,7 @@ import { PortalTutorGuard } from './portal-tutor.guard';
  * SQL em prisma/portal/01-fundacao.sql. Nao usar `prisma db push`.
  */
 @Module({
-  controllers: [PortalAuthController, PortalMeController],
+  controllers: [PortalAuthController, PortalMeController, PortalAdminController],
   providers: [
     PortalAuthService,
     PortalEscopoService,
@@ -29,6 +31,7 @@ import { PortalTutorGuard } from './portal-tutor.guard';
     PortalFichaService,
     PortalSaudeService,
     PortalInternacaoService,
+    PortalAgendaRegrasService,
     PortalWhatsappService,
     PortalTutorGuard,
   ],
@@ -39,6 +42,7 @@ import { PortalTutorGuard } from './portal-tutor.guard';
     PortalFichaService,
     PortalSaudeService,
     PortalInternacaoService,
+    PortalAgendaRegrasService,
   ],
 })
 export class PortalModule {}
