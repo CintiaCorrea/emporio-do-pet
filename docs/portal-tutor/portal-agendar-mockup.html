@@ -1,0 +1,407 @@
+<title>Portal do Tutor — Agendar (mockup)</title>
+
+<style>
+  :root{
+    --marinho:#0D2048; --turquesa:#00A1AE; --ceu:#D5F1F4; --camurca:#DECBB2;
+    --chiclete:#F9B8C0; --verde:#1D9E75; --verde-bg:#E1F5EE; --verde-txt:#04342C;
+    --rosa-txt:#4B1528; --rosa-txt2:#72243E;
+    --cinza:#5F5E5A; --cinza-claro:#8B8A84; --linha:#F1EFE8; --app-bg:#FAFCFD;
+
+    --pg-bg:#EEF2F4; --pg-surface:#FFFFFF; --pg-ink:#0D2048; --pg-ink-2:#4A5B70;
+    --pg-ink-3:#7D8CA0; --pg-line:#DCE4E9; --pg-accent:#00A1AE;
+    color-scheme:light;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{ --pg-bg:#0A1526; --pg-surface:#101F35; --pg-ink:#E8F1F4; --pg-ink-2:#A9BECD;
+      --pg-ink-3:#7089A0; --pg-line:#20344F; --pg-accent:#3FC6D2; color-scheme:dark; }
+  }
+  :root[data-theme="dark"]{ --pg-bg:#0A1526; --pg-surface:#101F35; --pg-ink:#E8F1F4;
+    --pg-ink-2:#A9BECD; --pg-ink-3:#7089A0; --pg-line:#20344F; --pg-accent:#3FC6D2; color-scheme:dark; }
+  :root[data-theme="light"]{ --pg-bg:#EEF2F4; --pg-surface:#FFFFFF; --pg-ink:#0D2048;
+    --pg-ink-2:#4A5B70; --pg-ink-3:#7D8CA0; --pg-line:#DCE4E9; --pg-accent:#00A1AE; color-scheme:light; }
+
+  *{box-sizing:border-box}
+  .pg{
+    background:var(--pg-bg); color:var(--pg-ink); min-height:100vh;
+    font-family:'Nunito',-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased; padding:32px 20px 56px;
+  }
+  .wrap{max-width:1120px; margin:0 auto; display:flex; flex-direction:column; gap:30px}
+  h1,h2,h3,p{margin:0}
+  .eyebrow{font-size:11.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--pg-accent); font-weight:700}
+  h1{font-size:28px; font-weight:700; letter-spacing:-.02em; line-height:1.18; text-wrap:balance}
+  .lede{font-size:15.5px; line-height:1.6; color:var(--pg-ink-2); max-width:66ch}
+  .lede b{color:var(--pg-ink); font-weight:700}
+  .hero{background:var(--pg-surface); border:1px solid var(--pg-line); border-radius:18px;
+    padding:26px 28px 28px; display:flex; flex-direction:column; gap:11px}
+  .sec-h{display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:14px}
+  .sec-h h2{font-size:18px; font-weight:700}
+  .sec-h span{font-size:13px; color:var(--pg-ink-3)}
+
+  .frames{display:grid; grid-template-columns:repeat(auto-fit,minmax(268px,1fr)); gap:22px}
+  .frame{display:flex; flex-direction:column; gap:11px}
+  .cap{display:flex; align-items:flex-start; gap:9px}
+  .step{flex:none; width:22px; height:22px; border-radius:7px; background:var(--pg-accent); color:#fff;
+    display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800}
+  .step.alt{background:var(--camurca); color:var(--rosa-txt)}
+  .step.err{background:var(--chiclete); color:var(--rosa-txt)}
+  .cap b{font-size:13.5px; font-weight:700; display:block; line-height:1.35}
+  .cap small{font-size:12px; color:var(--pg-ink-2); display:block; margin-top:2px; line-height:1.45}
+
+  /* aparelho */
+  .phone{background:var(--app-bg); border-radius:26px; overflow:hidden; padding-bottom:18px;
+    border:1px solid var(--camurca); box-shadow:0 10px 26px rgba(13,32,72,.13);
+    color:var(--marinho); font-size:14px}
+  .bar{height:26px; display:flex; align-items:center; justify-content:space-between; padding:0 16px;
+    font-size:10.5px; font-weight:700; opacity:.55; font-variant-numeric:tabular-nums}
+  .scr{padding:2px 16px 0; display:flex; flex-direction:column; gap:13px}
+  .head{display:flex; align-items:center; gap:10px; font-size:17px; font-weight:700; padding:6px 0 2px}
+  .back{width:30px; height:30px; border-radius:50%; background:var(--linha); display:flex;
+    align-items:center; justify-content:center; font-size:18px; flex:none}
+  .label{font-size:11.5px; color:var(--cinza); margin:2px 0 -4px}
+
+  .prio{background:var(--chiclete); border-radius:12px; padding:10px 13px; font-size:12px;
+    color:var(--rosa-txt); display:flex; gap:7px; align-items:center; line-height:1.45}
+
+  .chips{display:flex; gap:7px; flex-wrap:wrap}
+  .chip{border:1px solid var(--camurca); background:#fff; border-radius:20px; padding:6px 13px;
+    font-size:12.5px; font-weight:700; color:var(--marinho)}
+  .chip.sel{background:var(--turquesa); border-color:var(--turquesa); color:#fff}
+
+  .tipos{display:grid; grid-template-columns:1fr 1fr; gap:8px}
+  .tipo{border:1px solid var(--camurca); background:#fff; border-radius:11px; padding:11px 10px;
+    font-size:12.5px; text-align:center; color:var(--marinho); font-weight:600}
+  .tipo.sel{background:var(--turquesa); border-color:var(--turquesa); color:#fff}
+  .tipo small{display:block; font-size:10px; font-weight:400; opacity:.75; margin-top:2px}
+
+  .dias{display:flex; gap:7px; overflow:hidden}
+  .dia{border:1px solid var(--camurca); background:#fff; border-radius:12px; padding:7px 10px;
+    text-align:center; flex:none; min-width:52px}
+  .dia b{display:block; font-size:15px; font-weight:800; line-height:1.1}
+  .dia small{display:block; font-size:9.5px; color:var(--cinza); text-transform:lowercase}
+  .dia.sel{background:var(--marinho); border-color:var(--marinho); color:#fff}
+  .dia.sel small{color:var(--ceu)}
+
+  .slots{display:flex; gap:8px; flex-wrap:wrap}
+  .slot{border:1px solid var(--turquesa); background:#fff; color:var(--marinho); border-radius:20px;
+    padding:7px 15px; font-size:12.5px; font-weight:700; font-variant-numeric:tabular-nums}
+  .slot.sel{background:var(--turquesa); color:#fff}
+
+  .btn{width:100%; border:none; border-radius:12px; padding:13px 16px; font:inherit; font-size:14px;
+    font-weight:700; background:var(--turquesa); color:#fff; display:flex; align-items:center;
+    justify-content:center; gap:8px}
+  .btn.marinho{background:var(--marinho)}
+  .btn.ghost{background:#fff; color:var(--marinho); border:1px solid var(--camurca)}
+  .btn.wa{background:var(--verde)}
+  .btn.quiet{background:var(--linha); color:var(--cinza)}
+
+  .resumo{background:#fff; border:1px solid var(--camurca); border-radius:13px; padding:4px 14px}
+  .rl{display:flex; justify-content:space-between; align-items:center; gap:10px; padding:10px 0;
+    border-bottom:1px solid var(--linha); font-size:13px}
+  .rl:last-child{border-bottom:none}
+  .rl span:first-child{color:var(--cinza); font-size:12px}
+  .rl b{font-weight:700}
+
+  .ok{background:var(--verde-bg); border-radius:14px; padding:18px 14px; text-align:center;
+    display:flex; flex-direction:column; gap:6px; align-items:center}
+  .ok .mk{width:44px; height:44px; border-radius:50%; background:var(--verde); color:#fff;
+    display:flex; align-items:center; justify-content:center; font-size:22px}
+  .ok b{font-size:15px; color:var(--verde-txt)}
+  .ok small{font-size:12px; color:#0F6E56; line-height:1.5}
+
+  .warn{background:var(--chiclete); border-radius:13px; padding:15px; text-align:center;
+    display:flex; flex-direction:column; gap:5px}
+  .warn b{font-size:14px; color:var(--rosa-txt)}
+  .warn small{font-size:12px; color:var(--rosa-txt2); line-height:1.55}
+
+  .vazio{text-align:center; color:var(--cinza-claro); font-size:12.5px; padding:16px 8px; line-height:1.6}
+  .hint{font-size:11px; color:var(--cinza-claro); text-align:center; line-height:1.5}
+  .hint b{color:var(--cinza); font-weight:700}
+
+  /* notas */
+  .notes{background:var(--pg-surface); border:1px solid var(--pg-line); border-radius:16px;
+    padding:24px 26px; display:flex; flex-direction:column; gap:16px}
+  .note{display:flex; gap:13px; align-items:flex-start}
+  .note .ico{flex:none; width:28px; height:28px; border-radius:9px; background:var(--ceu);
+    color:var(--turquesa); display:flex; align-items:center; justify-content:center; font-size:14px}
+  .note b{font-size:14px; font-weight:700; display:block}
+  .note p{font-size:13.5px; color:var(--pg-ink-2); line-height:1.55; margin-top:3px; max-width:72ch}
+  .note code{font-family:'SF Mono',Consolas,monospace; font-size:12px; background:var(--pg-bg);
+    padding:1px 6px; border-radius:5px; color:var(--pg-accent); font-weight:700}
+
+  .ask{background:var(--marinho); border-radius:16px; padding:24px 26px; color:#EAF3F4;
+    display:flex; flex-direction:column; gap:10px}
+  .ask h2{font-size:17px; color:#fff; font-weight:700}
+  .ask p{font-size:13.5px; color:#B9CEDA; line-height:1.6; max-width:70ch}
+  .ask p b{color:#fff; font-weight:700}
+
+  @media (max-width:640px){ .pg{padding:22px 14px 40px} h1{font-size:23px} .hero,.notes,.ask{padding:20px} }
+</style>
+
+<div class="pg">
+<div class="wrap">
+
+  <div class="hero">
+    <span class="eyebrow">Portal do Tutor · Fatia 4B.3</span>
+    <h1>O cliente marca sozinho</h1>
+    <p class="lede">
+      Escolhe o pet, o serviço, o dia e a hora — e o horário <b>cai direto na agenda de vocês</b>,
+      com a marquinha de que veio do portal. Ele só vê horários que existem de verdade: a escala, o
+      que já está marcado e as travas (inclusive a do pet bravo) já foram consultadas antes de
+      desenhar a tela.
+    </p>
+  </div>
+
+  <div>
+    <div class="sec-h"><h2>O caminho normal</h2><span>quatro toques</span></div>
+    <div class="frames">
+
+      <!-- 1 -->
+      <div class="frame">
+        <div class="cap">
+          <span class="step">1</span>
+          <div><b>Quem e o quê</b><small>Só aparecem os serviços que você liberou.</small></div>
+        </div>
+        <div class="phone">
+          <div class="bar"><span>9:41</span><span>▮▮▮ ⌁</span></div>
+          <div class="scr">
+            <div class="head"><span class="back">‹</span> Agendar</div>
+            <div class="prio"><span>⭐</span> Você marca direto, sem esperar confirmação.</div>
+            <div class="label">para quem</div>
+            <div class="chips">
+              <span class="chip sel">🐶 Thor</span>
+              <span class="chip">🐱 Mel</span>
+            </div>
+            <div class="label">tipo de atendimento</div>
+            <div class="tipos">
+              <span class="tipo sel">Consulta<small>30 min</small></span>
+              <span class="tipo">Retorno<small>20 min</small></span>
+              <span class="tipo">Vacinação<small>20 min</small></span>
+              <span class="tipo">Fisioterapia<small>50 min</small></span>
+            </div>
+            <button class="btn">Ver horários</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2 -->
+      <div class="frame">
+        <div class="cap">
+          <span class="step">2</span>
+          <div><b>Dia e hora</b><small>Dias sem vaga simplesmente não aparecem.</small></div>
+        </div>
+        <div class="phone">
+          <div class="bar"><span>9:41</span><span>▮▮▮ ⌁</span></div>
+          <div class="scr">
+            <div class="head"><span class="back">‹</span> Agendar</div>
+            <div class="label">Consulta do Thor · 30 min</div>
+            <div class="dias">
+              <span class="dia sel"><b>31</b><small>sex</small></span>
+              <span class="dia"><b>03</b><small>seg</small></span>
+              <span class="dia"><b>04</b><small>ter</small></span>
+              <span class="dia"><b>06</b><small>qui</small></span>
+            </div>
+            <div class="label">horários de sexta, 31/07</div>
+            <div class="slots">
+              <span class="slot">08:30</span>
+              <span class="slot sel">09:00</span>
+              <span class="slot">10:30</span>
+              <span class="slot">11:00</span>
+              <span class="slot">14:00</span>
+              <span class="slot">16:30</span>
+            </div>
+            <button class="btn">Continuar</button>
+            <p class="hint">Horário some da lista se alguém pegar antes. 😉</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3 -->
+      <div class="frame">
+        <div class="cap">
+          <span class="step">3</span>
+          <div><b>Conferir</b><small>Última chance de mudar antes de valer.</small></div>
+        </div>
+        <div class="phone">
+          <div class="bar"><span>9:41</span><span>▮▮▮ ⌁</span></div>
+          <div class="scr">
+            <div class="head"><span class="back">‹</span> Confirmar</div>
+            <div class="resumo">
+              <div class="rl"><span>Pet</span><b>Thor</b></div>
+              <div class="rl"><span>Atendimento</span><b>Consulta</b></div>
+              <div class="rl"><span>Quando</span><b>sex, 31/07 · 09:00</b></div>
+              <div class="rl"><span>Duração</span><b>30 minutos</b></div>
+              <div class="rl"><span>Onde</span><b>Empório do Pet</b></div>
+            </div>
+            <button class="btn marinho">Confirmar agendamento</button>
+            <p class="hint">
+              Pode desmarcar ou remarcar até <b>24h antes</b>. Depois disso, só falando com a gente.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4 -->
+      <div class="frame">
+        <div class="cap">
+          <span class="step">4</span>
+          <div><b>Pronto</b><small>Já está na agenda da clínica neste instante.</small></div>
+        </div>
+        <div class="phone">
+          <div class="bar"><span>9:41</span><span>▮▮▮ ⌁</span></div>
+          <div class="scr">
+            <div class="head"><span class="back">‹</span> Agendar</div>
+            <div class="ok">
+              <span class="mk">✓</span>
+              <b>Agendado!</b>
+              <small>Consulta do Thor<br />sexta, 31/07 às 09:00</small>
+            </div>
+            <div class="resumo">
+              <div class="rl"><span>Chegue com</span><b>10 min de folga</b></div>
+              <div class="rl"><span>Desmarcar até</span><b>quinta, 09:00</b></div>
+            </div>
+            <button class="btn ghost">Desmarcar ou remarcar</button>
+            <button class="btn quiet">Voltar ao início</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div>
+    <div class="sec-h"><h2>Quando não dá</h2><span>cada caso com a explicação certa, nunca uma tela vazia</span></div>
+    <div class="frames">
+
+      <!-- travado -->
+      <div class="frame">
+        <div class="cap">
+          <span class="step err">!</span>
+          <div><b>Desmarcou demais</b><small>A regra da taxa, na prática.</small></div>
+        </div>
+        <div class="phone">
+          <div class="bar"><span>9:41</span><span>▮▮▮ ⌁</span></div>
+          <div class="scr">
+            <div class="head"><span class="back">‹</span> Agendar</div>
+            <div class="warn">
+              <b>Vamos combinar por aqui</b>
+              <small>
+                Os dois últimos horários foram desmarcados, então este agendamento a gente faz junto —
+                há uma taxa de agendamento de R$ 50,00.
+              </small>
+            </div>
+            <a class="btn wa">Falar com a recepção</a>
+            <p class="hint">A conta zera quando você comparece. 💚</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- precisa de pacote -->
+      <div class="frame">
+        <div class="cap">
+          <span class="step alt">?</span>
+          <div><b>Serviço com regra</b><small>Fisio só para quem tem pacote ativo.</small></div>
+        </div>
+        <div class="phone">
+          <div class="bar"><span>9:41</span><span>▮▮▮ ⌁</span></div>
+          <div class="scr">
+            <div class="head"><span class="back">‹</span> Agendar</div>
+            <div class="label">Fisioterapia do Thor</div>
+            <div class="resumo">
+              <p class="vazio">
+                A fisioterapia é marcada dentro de um pacote, e o Thor não tem pacote ativo agora.
+              </p>
+            </div>
+            <a class="btn wa">Falar sobre fisioterapia</a>
+            <button class="btn quiet">Escolher outro atendimento</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- sem horario -->
+      <div class="frame">
+        <div class="cap">
+          <span class="step alt">–</span>
+          <div><b>Agenda cheia</b><small>Sem vaga na janela liberada.</small></div>
+        </div>
+        <div class="phone">
+          <div class="bar"><span>9:41</span><span>▮▮▮ ⌁</span></div>
+          <div class="scr">
+            <div class="head"><span class="back">‹</span> Agendar</div>
+            <div class="label">Consulta do Thor</div>
+            <div class="resumo">
+              <p class="vazio">
+                Não encontrei horário livre nos próximos 30 dias. 😕<br />
+                Fala com a gente que a recepção dá um jeito.
+              </p>
+            </div>
+            <a class="btn wa">Falar com a recepção</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- desmarcar -->
+      <div class="frame">
+        <div class="cap">
+          <span class="step alt">↺</span>
+          <div><b>Desmarcar dentro do prazo</b><small>Libera a vaga na hora para outro cliente.</small></div>
+        </div>
+        <div class="phone">
+          <div class="bar"><span>9:41</span><span>▮▮▮ ⌁</span></div>
+          <div class="scr">
+            <div class="head"><span class="back">‹</span> Meu horário</div>
+            <div class="resumo">
+              <div class="rl"><span>Pet</span><b>Thor</b></div>
+              <div class="rl"><span>Atendimento</span><b>Consulta</b></div>
+              <div class="rl"><span>Quando</span><b>sex, 31/07 · 09:00</b></div>
+            </div>
+            <button class="btn ghost">Remarcar para outro horário</button>
+            <button class="btn ghost" style="color:#993556; border-color:#F9B8C0">Desmarcar</button>
+            <p class="hint">
+              Desmarcar duas vezes seguidas trava o agendamento pelo portal — depois disso é com a
+              recepção.
+            </p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="notes">
+    <div class="sec-h" style="margin:0"><h2>O que fica valendo por baixo</h2></div>
+
+    <div class="note">
+      <span class="ico">🔒</span>
+      <div><b>Dois clientes, o mesmo horário</b>
+      <p>O horário só é reservado no instante em que o cliente confirma, e a conferência acontece de novo nesse instante. Se alguém pegou primeiro, ele vê "esse horário acabou de ser preenchido" e a lista se atualiza — nunca dois agendamentos no mesmo lugar.</p></div>
+    </div>
+
+    <div class="note">
+      <span class="ico">📌</span>
+      <div><b>A marquinha na sua agenda</b>
+      <p>O agendamento nasce marcado como <code>veio do portal</code>, então vocês batem o olho e sabem que foi o cliente que marcou — sem virar um tipo de agendamento diferente, é o mesmo cartão da agenda com um selo.</p></div>
+    </div>
+
+    <div class="note">
+      <span class="ico">🐕‍🦺</span>
+      <div><b>As travas não dependem desta tela</b>
+      <p>Escala, horário ocupado, pet bravo ocupando a sala, antecedência, teto por dia: tudo é conferido no servidor, antes e no momento de confirmar. Mexer no endereço da página ou no aplicativo não fura nenhuma regra.</p></div>
+    </div>
+  </div>
+
+  <div class="ask">
+    <h2>Duas coisas que eu preciso confirmar com você</h2>
+    <p>
+      1. <b>"Chegue com 10 min de folga"</b> — invenção minha para o cliente não chegar em cima da hora.
+      Mantenho, mudo o texto ou tiro?
+    </p>
+    <p>
+      2. <b>Remarcar</b> — na minha proposta, remarcar é desmarcar e marcar de novo em um passo, e
+      <b>não</b> conta como desmarcação para a taxa (quem remarca não abandonou o horário; avisou).
+      Combina com o que você quer?
+    </p>
+  </div>
+
+</div>
+</div>
