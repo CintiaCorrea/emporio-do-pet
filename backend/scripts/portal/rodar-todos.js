@@ -12,6 +12,7 @@ const TESTES = [
   ['2-ficha.js', 'Início + Minha ficha (com histórico)'],
   ['3-saude.js', 'Saúde, Peso e Fisioterapia'],
   ['4-whatsapp.js', 'Envio do código pelo WhatsApp'],
+  ['5-internacao.js', 'Internação (boletins enviados)'],
 ];
 
 let quebrou = 0;

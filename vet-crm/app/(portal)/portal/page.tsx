@@ -42,7 +42,7 @@ const MENU: Array<{ emoji: string; titulo: string; sub: string; rota: string | n
   { emoji: '🍲', titulo: 'Alimentação', sub: 'dieta e variações', rota: null },
   { emoji: '⚖️', titulo: 'Peso', sub: 'evolução', rota: '/portal/peso' },
   { emoji: '🤸', titulo: 'Fisioterapia', sub: 'pacote e sessões', rota: '/portal/fisio' },
-  { emoji: '🏥', titulo: 'Internação', sub: 'boletins do dia', rota: null },
+  { emoji: '🏥', titulo: 'Internação', sub: 'boletins do dia', rota: '/portal/internacao' },
   { emoji: '📅', titulo: 'Agendar', sub: 'horário prioritário', rota: null },
   { emoji: '🪪', titulo: 'Minha ficha', sub: 'manter dados em dia', rota: '/portal/ficha' },
 ];
@@ -145,9 +145,19 @@ export default function PortalInicio() {
           )}
 
           {/* --------------------------------------------- alerta de internação */}
-          {/* Vira botão para a tela de boletins na Fatia 4. Por ora informa, não navega. */}
           {(dados?.internacoes || []).map((i) => (
-            <div key={i.petId} className="ptl-alerta" style={{ cursor: 'default' }}>
+            <Link
+              key={i.petId}
+              href="/portal/internacao"
+              className="ptl-alerta"
+              onClick={() => {
+                try {
+                  localStorage.setItem('ptl_pet', i.petId);
+                } catch {
+                  // aba anônima: a tela cai no primeiro pet
+                }
+              }}
+            >
               <span className="lead" aria-hidden="true">
                 🏥
               </span>
@@ -155,11 +165,12 @@ export default function PortalInicio() {
                 <span className="t" style={{ display: 'block' }}>
                   {i.petNome} está internado
                 </span>
-                <span className="s">
-                  desde {dataCurta(i.desde)} · boletins em breve por aqui
-                </span>
+                <span className="s">desde {dataCurta(i.desde)} · ver boletim</span>
               </span>
-            </div>
+              <span className="chev" aria-hidden="true">
+                ›
+              </span>
+            </Link>
           ))}
 
           {/* --------------------------------------------- menu */}

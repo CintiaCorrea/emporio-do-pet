@@ -18,6 +18,7 @@ import { PortalAuthService } from './portal-auth.service';
 import { PortalEscopoService } from './portal-escopo.service';
 import { PortalFichaService, FichaPayload } from './portal-ficha.service';
 import { PortalInicioService } from './portal-inicio.service';
+import { PortalInternacaoService } from './portal-internacao.service';
 import { PortalSaudeService } from './portal-saude.service';
 import { PortalTutorGuard, RequestDoPortal, tokenDoRequest } from './portal-tutor.guard';
 
@@ -88,6 +89,7 @@ export class PortalMeController {
     private readonly inicio: PortalInicioService,
     private readonly ficha: PortalFichaService,
     private readonly saude: PortalSaudeService,
+    private readonly internacao: PortalInternacaoService,
   ) {}
 
   /** Quem sou eu + meus pets. O front nunca manda tutorId — ele vem do guard. */
@@ -141,5 +143,11 @@ export class PortalMeController {
   async telaFisio(@Req() req: RequestDoPortal, @Param('petId') petId: string) {
     await this.escopo.assertPetDoTutor(req.portalTutorId!, petId);
     return { pacotes: await this.saude.fisio(petId) };
+  }
+
+  @Get('pets/:petId/internacao')
+  async telaInternacao(@Req() req: RequestDoPortal, @Param('petId') petId: string) {
+    await this.escopo.assertPetDoTutor(req.portalTutorId!, petId);
+    return this.internacao.doPet(petId);
   }
 }
