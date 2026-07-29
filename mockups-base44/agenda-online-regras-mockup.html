@@ -1,0 +1,305 @@
+<title>Agendamento online — regras (mockup)</title>
+
+<style>
+  .ag-wrap {
+    /* Tokens do kit base44 "delicada" — mesmos da ficha do cliente. */
+    --bg:#F6F2EA; --surface:#FFFFFF; --soft:#FBF9F4; --tint:#E0F4F6;
+    --primary:#009AAC; --primary-dark:#00808f; --navy:#014D5E;
+    --coral:#D85A30; --gold:#B8860B;
+    --text1:#1F2A2E; --text2:#5C6B70; --text3:#374151;
+    --line:#E8E2D6; --line-soft:#F0EBE0;
+    --ok-bg:#E7F6EE; --ok:#1c7a47;
+    --warn-bg:#FBF3E3; --warn:#8a6400;
+    --danger-bg:#FDECEC; --danger:#b23b39;
+
+    background:var(--bg); color:var(--text1); min-height:100vh; padding:22px 16px 60px;
+    font-family:-apple-system,'Segoe UI',Inter,system-ui,sans-serif; line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  .ag-wrap *, .ag-wrap *::before, .ag-wrap *::after { box-sizing:border-box; }
+  .ag-in { max-width:900px; margin:0 auto; display:flex; flex-direction:column; gap:16px; }
+
+  .ag-wrap h1,.ag-wrap h2,.ag-wrap h3,.ag-wrap p { margin:0; }
+  .ag-crumb { font-size:12px; color:var(--text2); }
+  .ag-crumb b { color:var(--navy); font-weight:600; }
+  h1 { font-size:22px; font-weight:700; color:var(--navy); letter-spacing:-.01em; }
+  .ag-sub { font-size:13.5px; color:var(--text2); max-width:70ch; }
+
+  .card { background:var(--surface); border:1px solid var(--line); border-radius:13px; padding:18px 20px; }
+  .card h2 { font-size:15px; font-weight:700; color:var(--navy); }
+  .card .hint { font-size:12.5px; color:var(--text2); margin-top:3px; }
+  .card + .card { margin-top:0; }
+
+  /* chave geral */
+  .master { display:flex; align-items:center; gap:14px; }
+  .master .grow { flex:1; }
+  .sw { width:44px; height:25px; border-radius:20px; background:var(--primary); position:relative; flex:none; }
+  .sw::after { content:""; position:absolute; right:3px; top:3px; width:19px; height:19px; border-radius:50%; background:#fff; }
+  .sw.off { background:#D9D3C6; }
+  .sw.off::after { right:auto; left:3px; }
+
+  .linha { display:flex; align-items:center; gap:12px; padding:11px 0; border-bottom:1px solid var(--line-soft); }
+  .linha:last-child { border-bottom:none; }
+  .linha .rot { flex:1; font-size:13.5px; }
+  .linha .rot small { display:block; font-size:11.5px; color:var(--text2); margin-top:2px; }
+  .campo {
+    border:1px solid var(--line); border-radius:12px; padding:7px 11px; font-size:13.5px;
+    background:var(--soft); color:var(--text1); font-weight:600; min-width:96px; text-align:center;
+    font-variant-numeric:tabular-nums;
+  }
+  .campo.larga { min-width:150px; text-align:left; }
+
+  /* tabela de serviços */
+  .tab { width:100%; border-collapse:collapse; font-size:13px; }
+  .tab th {
+    text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.06em;
+    color:var(--text2); font-weight:700; padding:0 10px 9px; border-bottom:1px solid var(--line);
+  }
+  .tab td { padding:11px 10px; border-bottom:1px solid var(--line-soft); vertical-align:middle; }
+  .tab tr:last-child td { border-bottom:none; }
+  .tab td.serv { font-weight:600; color:var(--navy); }
+  .tab td.serv small { display:block; font-weight:400; font-size:11.5px; color:var(--text2); }
+  .num { font-variant-numeric:tabular-nums; }
+  .rolar { overflow-x:auto; margin:0 -4px; }
+
+  .pill { display:inline-block; font-size:11.5px; font-weight:700; border-radius:20px; padding:3px 10px; white-space:nowrap; }
+  .pill.on { background:var(--ok-bg); color:var(--ok); }
+  .pill.off { background:#F3F1EC; color:var(--text2); }
+  .pill.warn { background:var(--warn-bg); color:var(--warn); }
+
+  .sw.sm { width:38px; height:21px; }
+  .sw.sm::after { width:15px; height:15px; }
+
+  /* travas */
+  .trava { display:flex; gap:12px; align-items:flex-start; background:var(--soft); border-radius:11px; padding:13px 14px; }
+  .trava .ico { font-size:17px; line-height:1; flex:none; }
+  .trava b { font-size:13.5px; color:var(--navy); }
+  .trava p { font-size:12.5px; color:var(--text2); margin-top:3px; }
+  .chips { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+  .chip { font-size:11.5px; font-weight:600; background:var(--tint); color:var(--navy); border-radius:20px; padding:3px 11px; }
+
+  .aviso { background:var(--warn-bg); border-radius:11px; padding:13px 15px; display:flex; gap:11px; }
+  .aviso .ico { font-size:16px; flex:none; line-height:1.3; }
+  .aviso b { font-size:13px; color:var(--warn); }
+  .aviso p { font-size:12.5px; color:#6b5200; margin-top:3px; }
+
+  .barra { display:flex; gap:10px; justify-content:flex-end; padding-top:2px; }
+  .btn {
+    border:none; border-radius:9px; padding:10px 18px; font:inherit; font-size:13.5px;
+    font-weight:700; background:var(--primary); color:#fff; cursor:default;
+  }
+  .btn.sec { background:var(--surface); color:var(--text2); border:1px solid var(--line); }
+
+  .nota { font-size:12px; color:var(--text2); font-style:italic; text-align:center; padding-top:6px; }
+
+  @media (max-width:640px) {
+    h1 { font-size:19px; }
+    .card { padding:15px; }
+    .linha { flex-wrap:wrap; }
+  }
+</style>
+
+<div class="ag-wrap">
+<div class="ag-in">
+
+  <div>
+    <p class="ag-crumb">Configurações › Agenda › <b>Agendamento online</b></p>
+    <h1 style="margin-top:4px">Agendamento pelo Portal do Tutor</h1>
+    <p class="ag-sub" style="margin-top:6px">
+      O que o cliente pode marcar sozinho pelo portal. O que ele agenda entra direto na agenda de vocês,
+      respeitando escala, duração e as travas de segurança.
+    </p>
+  </div>
+
+  <!-- CHAVE GERAL -->
+  <div class="card master">
+    <div class="grow">
+      <h2>Deixar o cliente agendar pelo portal</h2>
+      <p class="hint">Desligando aqui, o portal volta a só mostrar o botão de falar no WhatsApp.</p>
+    </div>
+    <span class="sw" aria-label="ligado"></span>
+  </div>
+
+  <!-- REGRAS GERAIS -->
+  <div class="card">
+    <h2>Regras que valem para todos os serviços</h2>
+    <div style="margin-top:8px">
+      <div class="linha">
+        <span class="rot">Antecedência mínima
+          <small>quanto antes ele precisa marcar — evita cliente pegando horário daqui a 10 minutos</small>
+        </span>
+        <span class="campo">12 horas</span>
+      </div>
+      <div class="linha">
+        <span class="rot">Pode marcar até
+          <small>quão longe no futuro a agenda fica aberta</small>
+        </span>
+        <span class="campo">30 dias</span>
+      </div>
+      <div class="linha">
+        <span class="rot">Desmarcar ou remarcar até
+          <small>depois desse prazo, só falando com a recepção</small>
+        </span>
+        <span class="campo">24 horas antes</span>
+      </div>
+      <div class="linha">
+        <span class="rot">Máximo por cliente por dia
+          <small>segura marcação em excesso sem querer</small>
+        </span>
+        <span class="campo">2 horários</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAXA -->
+  <div class="card">
+    <h2>Quando o cliente desmarca demais</h2>
+    <p class="hint">A conta zera sempre que ele comparece. Só desmarcações seguidas contam.</p>
+    <div style="margin-top:8px">
+      <div class="linha">
+        <span class="rot">Trava o agendamento online depois de
+          <small>a partir daí ele vê "fale com a recepção" em vez dos horários</small>
+        </span>
+        <span class="campo">2 desmarcações</span>
+      </div>
+      <div class="linha">
+        <span class="rot">Taxa de agendamento
+          <small>valor que a recepção cobra para liberar de novo</small>
+        </span>
+        <span class="campo">R$ 50,00</span>
+      </div>
+      <div class="linha">
+        <span class="rot">Mensagem que o cliente vê
+          <small>aparece no lugar dos horários</small>
+        </span>
+        <span class="campo larga">Fale com a gente 💬</span>
+      </div>
+    </div>
+
+    <div class="aviso" style="margin-top:14px">
+      <span class="ico">💳</span>
+      <div>
+        <b>A cobrança ainda é feita por vocês</b>
+        <p>
+          O portal trava o cliente e manda ele falar com a recepção — quem cobra a taxa é você, na hora
+          de remarcar. Cobrar automático por link de pagamento é um passo seguinte, junto do Financeiro.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- POR SERVIÇO -->
+  <div class="card">
+    <h2>Serviço por serviço</h2>
+    <p class="hint">Só o que estiver ligado aparece pro cliente. O resto continua sendo marcado por vocês.</p>
+
+    <div class="rolar" style="margin-top:12px">
+      <table class="tab">
+        <thead>
+          <tr>
+            <th>Serviço</th>
+            <th>Cliente marca</th>
+            <th>Duração</th>
+            <th>Com quem</th>
+            <th>Só para</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="serv">Consulta <small>clínica geral</small></td>
+            <td><span class="sw sm"></span></td>
+            <td class="num">30 min</td>
+            <td>Dra. Vivian, Dr. Gabriel</td>
+            <td><span class="pill off">todos</span></td>
+          </tr>
+          <tr>
+            <td class="serv">Retorno <small>até 15 dias da consulta</small></td>
+            <td><span class="sw sm"></span></td>
+            <td class="num">20 min</td>
+            <td>quem atendeu</td>
+            <td><span class="pill on">já é cliente</span></td>
+          </tr>
+          <tr>
+            <td class="serv">Vacinação</td>
+            <td><span class="sw sm"></span></td>
+            <td class="num">20 min</td>
+            <td>qualquer um</td>
+            <td><span class="pill off">todos</span></td>
+          </tr>
+          <tr>
+            <td class="serv">Fisioterapia <small>sessão de pacote</small></td>
+            <td><span class="sw sm"></span></td>
+            <td class="num">50 min</td>
+            <td>Sala MAP 1, MAP 2</td>
+            <td><span class="pill on">tem pacote ativo</span></td>
+          </tr>
+          <tr>
+            <td class="serv">Medicina integrativa</td>
+            <td><span class="sw sm off"></span></td>
+            <td class="num">60 min</td>
+            <td>Dra. Vivian</td>
+            <td><span class="pill off">—</span></td>
+          </tr>
+          <tr>
+            <td class="serv">Cirurgia <small>e procedimentos</small></td>
+            <td><span class="sw sm off"></span></td>
+            <td class="num">—</td>
+            <td>—</td>
+            <td><span class="pill warn">nunca pelo portal</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- TRAVAS -->
+  <div class="card">
+    <h2>Travas de segurança</h2>
+    <p class="hint">Valem sempre — inclusive para quem marca pelo portal.</p>
+
+    <div style="display:flex; flex-direction:column; gap:10px; margin-top:12px">
+      <div class="trava">
+        <span class="ico">🐕‍🦺</span>
+        <div>
+          <b>Pet bravo ocupa a sala inteira</b>
+          <p>
+            Na fisioterapia, um pet com esse temperamento bloqueia as duas MAPs no mesmo horário — o
+            portal não oferece esse horário para mais ninguém. Hoje essa regra só existe na tela da
+            agenda; ela vai passar a valer também por baixo, para os dois lados.
+          </p>
+          <div class="chips">
+            <span class="chip">Bravo</span>
+            <span class="chip">Agressivo</span>
+            <span class="chip">Reativo</span>
+          </div>
+          <p style="margin-top:7px">Editar a lista em <b>Configurações › Agenda</b>.</p>
+        </div>
+      </div>
+
+      <div class="trava">
+        <span class="ico">📅</span>
+        <div>
+          <b>Escala de quem atende</b>
+          <p>O portal só oferece horário dentro da escala cadastrada. Sem escala, o profissional não aparece.</p>
+        </div>
+      </div>
+
+      <div class="trava">
+        <span class="ico">🔒</span>
+        <div>
+          <b>Dois clientes, o mesmo horário</b>
+          <p>Se duas pessoas tentarem o mesmo horário ao mesmo tempo, só a primeira conclui — a outra vê o horário sumir e escolhe outro.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="barra">
+    <button class="btn sec">Cancelar</button>
+    <button class="btn">Salvar regras</button>
+  </div>
+
+  <p class="nota">Mockup — os serviços e valores acima são exemplo, para você ver a tela funcionando.</p>
+
+</div>
+</div>
