@@ -57,18 +57,25 @@ pessoa poderia testar números para descobrir quem é cliente da clínica.
 | Variável | Para quê | Padrão |
 |---|---|---|
 | `PORTAL_OTP_PEPPER` | segredo somado ao código antes do hash | cai no `JWT_SECRET` |
-| `PORTAL_OTP_TEMPLATE` | nome do modelo aprovado na Meta | `verify_code_1` |
-| `PORTAL_OTP_IDIOMA` | idioma do modelo na Meta | `pt_BR` |
+| `PORTAL_OTP_TEMPLATE` | nome do modelo aprovado na Meta | `portal_tutor_codigo` |
+| `PORTAL_OTP_IDIOMA` | idioma preferido | `pt_BR` |
+| `PORTAL_OTP_IDIOMA_RESERVA` | idioma usado se o preferido não existir | `en_US` |
 | `NEXT_PUBLIC_WHATSAPP_CLINICA` | número que os botões "falar com a recepção" abrem | — |
 
-**Modelo na Meta (29/07):** criado pelo assistente da própria Meta em
-*Autenticação › Verificação de identidade › Verificar usuário*, e nasceu com o nome **`verify_code_1`**
-— por isso é esse o padrão. Criar pelo painel de um parceiro/BSP deu problema: o modelo era enviado
-mas o status nunca voltava. **Fazer sempre direto na Meta.**
+**Situação do modelo na Meta (29/07/2026):** `portal_tutor_codigo` está **Ativo**, categoria
+Autenticação, **mas só em English (US)** — o corpo sai como *"123456 is your verification code"* com
+botão *Copy code*. ⬜ **Pendente: adicionar a tradução Português (BR)** no Gerenciador do WhatsApp
+(Gerenciar modelos › o modelo › Adicionar idioma). Quando existir, o portal passa a usar português
+sozinho, sem mexer em nada aqui.
 
-O envio se adapta ao modelo: manda o código no corpo **e** no botão "copiar código"; se o modelo
-aprovado não tiver botão, a Meta recusa por número de parâmetros e o serviço reenvia só com o corpo.
-Se o nome ou o idioma não baterem com o cadastrado, o log diz exatamente qual modelo tentou.
+⚠️ **Criar template sempre direto na Meta.** Pelo painel de um parceiro/BSP a submissão foi enviada e
+o status nunca voltou — o modelo até foi aprovado, mas o painel não mostrava.
+
+**O envio se adapta ao que existe** (`portal-whatsapp.service.ts`), nesta ordem:
+1. português + botão "copiar código";
+2. se a Meta reclamar de número de parâmetros → mesmo idioma, **só o corpo** (modelo sem botão);
+3. se a Meta disser que não há tradução → repete no **idioma reserva**;
+4. se ainda falhar, registra no log **qual modelo e idioma** foram tentados (nunca o código).
 
 ## Próximas fatias
 
