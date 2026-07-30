@@ -43,6 +43,10 @@ const inscricaoFalsa = (n) => ({
 async function limpar() {
   const tutores = await prisma.tutor.findMany({ where: { name: { startsWith: MARCA } }, select: { id: true } });
   const ids = tutores.map((t) => t.id);
+  if (ids.length) {
+    await prisma.$executeRawUnsafe(`DELETE FROM "Appointment" WHERE "tutorId" = ANY($1::text[])`, ids);
+    await prisma.pet.deleteMany({ where: { tutorId: { in: ids } } });
+  }
   await prisma.portalPush.deleteMany({ where: { endpoint: { contains: MARCA } } });
   if (!ids.length) return;
   await prisma.portalPushEnviado.deleteMany({ where: { tutorId: { in: ids } } });
@@ -123,7 +127,42 @@ async function main() {
   const aparelho = await prisma.portalPush.findFirst({ where: { tutorId: tutor.id } });
   checa('mas a falha ficou contada', aparelho.falhas === 1, String(aparelho.falhas));
 
-  console.log('\n8) Desligar avisos');
+  console.log('\n8) O lembrete do horario de amanha (a rotina automatica)');
+  const { PortalPushScheduler } = require('../../dist/modules/portal/portal-push.scheduler');
+  const { localParaUtc, ymdLocal } = require('../../dist/modules/portal/portal-agenda-horarios.service');
+  const rotina = new PortalPushScheduler(prisma, push);
+
+  const vet = await prisma.user.findFirst({ select: { id: true } });
+  if (!vet) {
+    console.log('  (pulado: sem usuario no banco local para criar o agendamento)');
+  } else {
+    const pet = await prisma.pet.create({
+      data: { tutorId: tutor.id, name: 'Thor', species: 'CANINE', status: 'ACTIVE' },
+    });
+    const amanha = ymdLocal(new Date(Date.now() + 24 * 60 * 60_000));
+    const apt = `t-push-${Date.now()}`;
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO "Appointment" (id, "tutorId", "petId", "userId", date, duration, status, "updatedAt")
+       VALUES ($1,$2,$3,$4,$5,$6,$7, NOW())`,
+      apt, tutor.id, pet.id, vet.id, localParaUtc(amanha, 9 * 60), 30, 'Agendado',
+    );
+
+    espionarEnvio();
+    let enviados = espionarEnvio();
+    await rotina.lembrarDeAmanha();
+    checa('avisa quem tem horario amanha', enviados.length === 1, String(enviados.length));
+    checa('com o nome do pet', enviados[0]?.carga.texto.includes('Thor'));
+    checa('e a hora certa', enviados[0]?.carga.texto.includes('09:00'), enviados[0]?.carga.texto);
+    checa('sem dado clinico no texto', !/vomit|febre|doen|exame/i.test(enviados[0]?.carga.texto || ''));
+
+    enviados = espionarEnvio();
+    await rotina.lembrarDeAmanha();
+    checa('rodar de novo NAO manda repetido', enviados.length === 0, String(enviados.length));
+
+    await prisma.$executeRawUnsafe(`DELETE FROM "Appointment" WHERE id = $1`, apt);
+  }
+
+  console.log('\n9) Desligar avisos');
   espionarEnvio();
   const fora = await push.desinscrever(tutor.id, aparelho.endpoint);
   checa('removeu o aparelho', fora.removido === 1);

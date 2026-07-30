@@ -25,9 +25,9 @@ Sai um placar por bloco e um resumo no fim. Qualquer linha `FALHOU` aponta o que
 | `8-agendar.js` | marcar (com a marquinha `PORTAL`), **a corrida de dois clientes pelo mesmo horário**, remarcar sem contar como desmarcação, travar pela taxa, liberar, comparecer zerando e o prazo |
 | `9-pet-novo.js` | cadastro de pet pelo tutor: campos, selo de origem, histórico e a **anti-duplicidade** (ignora acento e maiúscula) |
 | `10-dieta.js` | a equipe prescreve e o portal lê; dieta nova **não apaga** a anterior; ajuste de gramagem; trava de mexer em dieta encerrada |
-| `11-push.js` | notificações: inscrever aparelho, não duplicar, **nunca enviar o mesmo assunto duas vezes**, aparelho morto sai da lista, falha temporária não apaga, desligar. **Não envia notificação de verdade** |
+| `11-push.js` | notificações: inscrever aparelho, não duplicar, **nunca enviar o mesmo assunto duas vezes**, aparelho morto sai da lista, falha temporária não apaga, desligar, e a **rotina do lembrete de amanhã** (com o texto sem dado clínico e sem repetir) . **Não envia notificação de verdade** |
 
-Hoje são **284 verificações** em 11 blocos.
+Hoje são **289 verificações** em 11 blocos.
 
 ## Se falhar sem motivo aparente
 
