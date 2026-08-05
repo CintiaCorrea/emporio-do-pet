@@ -23,6 +23,28 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         .replace('localhost:55432', 'localhost:15432')
         .replace('127.0.0.1:55432', '127.0.0.1:15432');
     }
+    const portaAjustada = !!originalDatabaseUrl && databaseUrl !== originalDatabaseUrl;
+
+    // Estabilidade do pool (SOMENTE produção). O Postgres suporta max_connections=300, mas cada
+    // instância abria apenas 60 conexões — em picos de acesso simultâneo a 61ª requisição ficava
+    // na fila até estourar ("Timed out fetching a new connection from the connection pool").
+    // Elevamos o teto para 100 por instância (2 instâncias = 200, com folga sobre 300).
+    // Só em produção para não exceder o max_connections padrão (100) de um Postgres local de dev.
+    if (databaseUrl && process.env.NODE_ENV === 'production') {
+      // 40/máquina × 2 = 80 conexões (antes 100→~195, que sufocava o banco de CPU
+      // compartilhada e dava "Can't reach database"). Com o polling já afrouxado,
+      // 40 é suficiente e alivia MUITO o banco. Rever ao subir o banco (à noite).
+      const ALVO = 40;
+      // FORÇA o valor (não só aumenta) — precisamos poder REDUZIR pra aliviar o banco.
+      if (/([?&]connection_limit=)\d+/.test(databaseUrl)) {
+        databaseUrl = databaseUrl.replace(/([?&]connection_limit=)\d+/, `$1${ALVO}`);
+      } else {
+        databaseUrl += (databaseUrl.includes('?') ? '&' : '?') + `connection_limit=${ALVO}`;
+      }
+      if (!/[?&]pool_timeout=/.test(databaseUrl)) {
+        databaseUrl += '&pool_timeout=30';
+      }
+    }
 
     super({
       log: process.env.NODE_ENV === 'development' ? ['query', 'info', 'warn', 'error'] : ['error'],
@@ -38,8 +60,10 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     if (originalDatabaseUrl && databaseUrl !== originalDatabaseUrl) {
       // Mantém coerência para outros consumers que leem process.env diretamente.
       process.env.DATABASE_URL = databaseUrl;
+    }
+    if (portaAjustada) {
       this.logger.warn(
-        `DATABASE_URL apontava para uma porta antiga (55432). Ajustado automaticamente para ${databaseUrl}. ` +
+        `DATABASE_URL apontava para uma porta antiga (55432). Ajustado automaticamente. ` +
           `Se você não estiver usando o docker-compose.emporio.yml, atualize seu .env.`,
       );
     }

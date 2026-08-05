@@ -10,6 +10,7 @@ Analise a transcrição abaixo de uma consulta veterinária e extraia informaç�
 Retorne um JSON com a seguinte estrutura:
 {
   "resumo": "Resumo breve da consulta em 2-3 frases",
+  "prontuarioSugerido": "RASCUNHO DE PRONTUÁRIO COMPLETO, em texto corrido, pronto para o veterinário revisar e colar no prontuário. Organize em blocos com estes títulos, cada um em sua linha (pule linha entre blocos):\n\nANAMNESE / QUEIXA:\n(o que o tutor relatou, início e evolução dos sinais, histórico relevante)\n\nEXAME FÍSICO:\n(achados relatados pelo veterinário: estado geral, mucosas, TPC, temperatura, FC/FR, palpação, achados por sistema — só o que foi dito)\n\nAVALIAÇÃO / IMPRESSÃO:\n(diagnóstico ou suspeita e diferenciais, do jeito que o veterinário falou)\n\nCONDUTA:\n(medicamentos com dose/via/frequência/duração, procedimentos, exames solicitados)\n\nORIENTAÇÕES AO TUTOR:\n(cuidados em casa, sinais de alerta, dieta, repouso)\n\nRETORNO:\n(quando reavaliar / acompanhamento)\n\nSeja completo e detalhado, MAS 100% fiel à transcrição — não invente nada que não foi dito. Se um bloco não teve informação na consulta, escreva 'Não registrado na consulta.' nesse bloco.",
   "queixaPrincipal": "Motivo principal da consulta relatado pelo tutor",
   "historico": "Histórico relevante mencionado durante a consulta",
   "sintomasRelatados": ["lista", "de", "sintomas"],
@@ -36,8 +37,9 @@ Retorne um JSON com a seguinte estrutura:
 
 IMPORTANTE:
 - Preencha apenas os campos que foram mencionados na consulta
-- Use null para campos sem informação
-- Seja preciso e fiel à transcrição
+- Use null para campos sem informação (exceto dentro de "prontuarioSugerido", onde os blocos vazios recebem "Não registrado na consulta.")
+- Seja preciso e fiel à transcrição — este é um RASCUNHO de apoio para o veterinário revisar e assinar, NUNCA um documento final
+- NÃO invente diagnósticos, doses ou condutas que o veterinário não disse; apenas organize e detalhe o que foi falado
 - Nomes de medicamentos devem ter grafia correta
 - Dosagens devem incluir unidade de medida
 
@@ -340,6 +342,13 @@ export class ConsultationRecordingsService {
 
       const summary = analysisData.resumo || 'Análise concluída';
 
+      // 👻 Copiloto Clínico (modo sombra): se ligado, gera sugestões AO VETERINÁRIO em 2º
+      // plano e guarda pra avaliação em Gestão › Inteligência. Best-effort — não atrasa nem
+      // quebra a análise; o veterinário sempre decide (a IA nunca fala com o tutor).
+      void this.gerarGhostClinico(recording, analysisData, userId).catch((e) =>
+        this.logger.warn(`Copiloto clínico (sombra): ${e?.message || e}`),
+      );
+
       return this.prisma.consultationRecording.update({
         where: { id },
         data: {
@@ -358,6 +367,166 @@ export class ConsultationRecordingsService {
       });
       throw error;
     }
+  }
+
+  /**
+   * 👻 COPILOTO CLÍNICO (modo sombra). Gera sugestões AO VETERINÁRIO sobre a consulta que
+   * acabou de ser analisada e guarda em `ghost_clinico` para avaliação (👍/👎/✏️) na tela
+   * Gestão › Inteligência › Copiloto Clínico. NUNCA age, NUNCA fala com o tutor, NUNCA
+   * prescreve — é apoio à decisão; quem decide e assina é o profissional.
+   * Só roda se o interruptor `config_ghost_clinico` estiver ligado. Best-effort.
+   */
+  private async gerarGhostClinico(recording: any, analysisData: any, userId: string): Promise<void> {
+    // Interruptor mestre (tela Copiloto Clínico). Desligado = não gera nada.
+    const cfg = await this.prisma.listaItem.findFirst({ where: { lista: 'config_ghost_clinico' } });
+    let ativo = false;
+    if (cfg) { try { ativo = !!JSON.parse(cfg.valor).ativo; } catch { /* ilegível = desligado */ } }
+    if (!ativo) return;
+    if (!recording?.transcription) return;
+
+    const pet = recording.appointment?.pet;
+    const petCtx = pet
+      ? `${pet.name} (${[pet.species, pet.breed].filter(Boolean).join(' ') || 'sem raça'}${(pet as any).weight ? `, ${(pet as any).weight}kg` : ''})`
+      : 'paciente';
+
+    // 🧠 REPERTÓRIO: casos de referência da PRÓPRIA clínica (histórico do SimplesVet + casos
+    // que vocês aprovaram), mesma espécie e tema parecido. É o que dá "a cara do Empório" às
+    // sugestões — sem re-treinar modelo (few-shot: mostramos exemplos reais no prompt).
+    const especie = (pet as any)?.species || null;
+    const kw = this.palavraChaveClinica(analysisData?.queixaPrincipal, analysisData?.diagnostico);
+    const refs: string[] = [];
+    try {
+      if (especie) {
+        const whereBase: any = { tipo: 'ATENDIMENTO', pet: { is: { species: especie } } };
+        let hist = await this.prisma.historicoClinico.findMany({
+          where: { ...whereBase, texto: kw ? { contains: kw, mode: 'insensitive' } : { not: null } },
+          orderBy: { data: 'desc' },
+          take: 4,
+          select: { titulo: true, texto: true },
+        });
+        if (hist.length === 0 && kw) {
+          hist = await this.prisma.historicoClinico.findMany({
+            where: { ...whereBase, texto: { not: null } },
+            orderBy: { data: 'desc' },
+            take: 3,
+            select: { titulo: true, texto: true },
+          });
+        }
+        for (const h of hist) refs.push(`• ${h.titulo ? h.titulo + ': ' : ''}${(h.texto || '').replace(/\s+/g, ' ').slice(0, 600)}`);
+      }
+      // casos aprovados pela própria clínica (👍), mesma espécie
+      const aprovados = await this.prisma.listaItem.findMany({
+        where: { lista: 'ghost_clinico', valor: { contains: '"feedback":"boa"' } },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+        select: { valor: true },
+      });
+      const spNorm = String(especie || '').toLowerCase().slice(0, 3);
+      for (const a of aprovados) {
+        if (refs.length >= 6) break;
+        try {
+          const d = JSON.parse(a.valor);
+          if (spNorm && d.petInfo && !String(d.petInfo).toLowerCase().includes(spNorm)) continue;
+          const base = d.prontuarioSugerido || d.diagnostico;
+          if (base) refs.push(`• [caso aprovado pela clínica] ${String(base).replace(/\s+/g, ' ').slice(0, 500)}`);
+        } catch { /* item ilegível */ }
+      }
+    } catch { /* repertório é best-effort — se falhar, gera sem referência */ }
+    const referencia = refs.length
+      ? `\n\nCASOS DE REFERÊNCIA DA PRÓPRIA CLÍNICA (para calibrar ao jeito desta clínica — NÃO copie cegamente, cada paciente é único):\n${refs.join('\n')}`
+      : '';
+
+    const system = [
+      'Você é um assistente de APOIO À DECISÃO clínica veterinária. Você fala DIRETAMENTE COM O VETERINÁRIO — NUNCA com o tutor. Seu papel é ajudar o profissional a refletir sobre a consulta que acabou de acontecer. O veterinário sempre decide e assina.',
+      '',
+      'Com base na transcrição e no que o veterinário registrou, gere sugestões ÚTEIS e CONSERVADORAS:',
+      '- "diferenciais": diagnósticos diferenciais relevantes que valeria considerar (não repita o que o vet já concluiu).',
+      '- "perguntasFaltaram": perguntas de anamnese, achados de exame ou registros que talvez tenham faltado documentar.',
+      '- "redFlags": sinais de alerta/gravidade a não perder de vista neste caso.',
+      '',
+      'REGRAS:',
+      '- Tom de colega que sugere, nunca de quem manda.',
+      '- Seja específico ao caso; NÃO invente dados que não estão na consulta.',
+      '- Se não houver nada relevante numa categoria, devolva lista vazia.',
+      '- NUNCA dê ordem de dose/prescrição; no máximo "considerar X conforme avaliação".',
+      '- Cada item deve ser curto (1 frase).',
+      '- Se houver CASOS DE REFERÊNCIA DA PRÓPRIA CLÍNICA, use-os para calibrar ao padrão da clínica; ao se apoiar neles, pode sinalizar com "(padrão observado na clínica)".',
+      '- Responda SOMENTE com JSON válido: {"diferenciais":[],"perguntasFaltaram":[],"redFlags":[]}',
+    ].join('\n');
+
+    const resumoVet = {
+      queixa: analysisData?.queixaPrincipal ?? null,
+      exame: analysisData?.exameClinico ?? null,
+      diagnostico: analysisData?.diagnostico ?? null,
+      diferenciaisDoVet: analysisData?.diagnosticosDiferenciais ?? null,
+      conduta: analysisData?.tratamento ?? null,
+    };
+    const userMsg = `CONTEXTO DO PACIENTE: ${petCtx}\n\nO QUE O VETERINÁRIO REGISTROU:\n${JSON.stringify(resumoVet, null, 2)}${referencia}\n\nTRANSCRIÇÃO DA CONSULTA:\n${recording.transcription}`;
+
+    const result = await this.aiService.chatCompletion(userId, {
+      provider: 'openai' as any,
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: userMsg },
+      ],
+      temperature: 0.3,
+      maxTokens: 1200,
+    });
+
+    let cop: any = {};
+    try { const m = result.content.match(/\{[\s\S]*\}/); cop = m ? JSON.parse(m[0]) : {}; } catch { cop = {}; }
+    const limpar = (v: any) => (Array.isArray(v) ? v.filter((x) => typeof x === 'string' && x.trim()).slice(0, 6) : []);
+    const diferenciais = limpar(cop.diferenciais);
+    const perguntasFaltaram = limpar(cop.perguntasFaltaram);
+    const redFlags = limpar(cop.redFlags);
+
+    await this.prisma.listaItem.create({
+      data: {
+        lista: 'ghost_clinico',
+        valor: JSON.stringify({
+          recordingId: recording.id,
+          appointmentId: recording.appointmentId,
+          petNome: pet?.name || null,
+          petInfo: pet ? [pet.species, pet.breed].filter(Boolean).join(' ') : null,
+          tutorNome: recording.appointment?.tutor?.name || null,
+          vetNome: recording.appointment?.user?.name || null,
+          prontuarioSugerido: analysisData?.prontuarioSugerido || null,
+          diagnostico: analysisData?.diagnostico || null,
+          diferenciais,
+          perguntasFaltaram,
+          redFlags,
+          refsUsados: refs.length,
+          at: new Date().toISOString(),
+        }),
+      },
+    });
+    this.logger.log(`🩺 Sugestão do Copiloto Clínico gerada (gravação ${recording.id}, ${refs.length} refs do repertório)`);
+  }
+
+  /** Extrai uma palavra-chave clínica (>=5 letras, fora de stopwords) p/ buscar casos parecidos no repertório. */
+  private palavraChaveClinica(...campos: (string | null | undefined)[]): string | null {
+    const stop = new Set([
+      'para', 'com', 'sem', 'dos', 'das', 'uma', 'que', 'por', 'tutor', 'animal', 'relata',
+      'apresenta', 'dias', 'hora', 'horas', 'sendo', 'pelo', 'pela', 'consulta', 'paciente',
+      'queixa', 'principal', 'histórico', 'historico', 'desde', 'ontem', 'sinais',
+    ]);
+    for (const c of campos) {
+      if (!c) continue;
+      const palavras = String(c).toLowerCase().match(/[a-záàâãéêíóôõúüç]{5,}/gi) || [];
+      const w = palavras.find((p) => !stop.has(p.toLowerCase()));
+      if (w) return w;
+    }
+    return null;
+  }
+
+  /** Tamanho do repertório da clínica: atendimentos do SimplesVet + casos aprovados no copiloto. */
+  async repertorioStats(): Promise<{ simplesvet: number; aprovados: number; total: number }> {
+    const [simplesvet, aprovados] = await Promise.all([
+      this.prisma.historicoClinico.count({ where: { tipo: 'ATENDIMENTO', texto: { not: null } } }),
+      this.prisma.listaItem.count({ where: { lista: 'ghost_clinico', valor: { contains: '"feedback":"boa"' } } }),
+    ]);
+    return { simplesvet, aprovados, total: simplesvet + aprovados };
   }
 
   /**

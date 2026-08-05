@@ -92,9 +92,17 @@ export class AppointmentConfirmationListener {
       });
       if (!contato?.tutorId) return;
 
-      // Agendamento mais recente desse tutor que teve confirmação ENVIADA
+      // Só confirma agendamento de HOJE pra frente. Sem esse filtro, uma confirmação
+      // ENVIADA e nunca respondida de um agendamento JÁ PASSADO era casada com um "sim"
+      // dias depois → agradecimento com data velha (bug da Kira: 23/07 recebeu "21/07").
+      // 00:00 de hoje em Fortaleza (UTC-3) = 03:00 UTC de hoje.
+      const fAgora = new Date(Date.now() - 3 * 3600 * 1000);
+      const inicioHoje = new Date(Date.UTC(fAgora.getUTCFullYear(), fAgora.getUTCMonth(), fAgora.getUTCDate(), 3, 0, 0));
+
+      // Agendamento (de hoje pra frente) desse tutor com confirmação ENVIADA — o mais
+      // recentemente enviado (é ao qual o cliente está respondendo).
       const appt = await this.prisma.appointment.findFirst({
-        where: { tutorId: contato.tutorId, confirmacaoStatus: 'ENVIADA' },
+        where: { tutorId: contato.tutorId, confirmacaoStatus: 'ENVIADA', date: { gte: inicioHoje } },
         orderBy: { confirmacaoEnviadaAt: 'desc' },
         select: { id: true, date: true, pet: { select: { name: true } }, tutor: { select: { name: true } } },
       });
@@ -125,6 +133,14 @@ export class AppointmentConfirmationListener {
               'TEXT',
               { senderType: 'SYSTEM', senderName: 'Confirmação' },
             );
+            // 📴 Depois do agradecimento, ENCERRA a conversa (Cintia 31/07: às 19h já estamos fechados).
+            // PROTEÇÃO: só fecha se o cliente respondeu curto (botão/"sim"); mensagem longa = pergunta real → fica aberta.
+            const textoCliente = String(payload?.content || '').trim();
+            if (textoCliente.length <= 30) {
+              await this.prisma.whatsAppConversation
+                .update({ where: { id: conv.id }, data: { status: 'CLOSED', unreadCount: 0 } })
+                .catch(() => undefined);
+            }
           }
         } catch (e: any) {
           this.logger.warn(`Falha ao mandar o agradecimento de confirmação: ${e?.message || e}`);

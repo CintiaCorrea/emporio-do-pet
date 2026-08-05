@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
+import { WhatsAppService } from './whatsapp.service';
+import { AudioService } from '../audio/audio.service';
 
 /**
  * 👻 AGENTE SOMBRA (Fase 1 — treino). Lê cada mensagem de cliente e escreve a resposta
@@ -17,14 +19,19 @@ import { PrismaService } from '../prisma/prisma.service';
 export class GhostSombraListener {
   private readonly logger = new Logger(GhostSombraListener.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly whatsAppService: WhatsAppService,
+    private readonly audioService: AudioService,
+  ) {}
 
   @OnEvent('whatsapp.message.received')
   async handle(payload: any): Promise<void> {
     try {
       const conv = payload?.conversation;
-      const content = (payload?.content || '').toString().trim();
-      if (!conv?.id || !content) return;
+      let content = (payload?.content || '').toString().trim();
+      let viaAudio = false;
+      if (!conv?.id) return;   // áudio (sem texto) segue: transcrevemos mais abaixo
 
       // Interruptor mestre (tela Agente Sombra). Desligado = não gera nada.
       const cfgItem = await this.prisma.listaItem.findFirst({ where: { lista: 'config_ghost_sombra' } });
@@ -42,6 +49,27 @@ export class GhostSombraListener {
         where: { lista: 'ghost_sombra', valor: { contains: `"conversationId":"${conv.id}"` }, createdAt: { gte: tresMinAtras } },
       });
       if (recente) return;
+
+      // ---------- áudio → transcrição (Whisper) ----------
+      // Só aqui (DEPOIS de: agente ligado + no máx. 1 por 3 min) pra não gastar
+      // transcrição à toa. Sem texto e sem áudio válido = nada a sugerir.
+      if (!content) {
+        const tipo = String(payload?.type || payload?.messageType || '').toLowerCase();
+        const meta: any = payload?.message?.metadata;
+        const mediaId = meta && typeof meta === 'object' ? meta.mediaId : undefined;
+        if ((tipo === 'audio' || tipo === 'voice' || tipo === 'ptt') && mediaId) {
+          try {
+            const cfg = this.whatsAppService.getConfig();
+            const dl = await this.whatsAppService.downloadMedia(mediaId, cfg);
+            if (dl?.buffer && !dl.error) {
+              const tr = await this.audioService.transcribeFromBuffer(dl.buffer, 'audio.ogg', apiKey, 'pt');
+              content = (tr?.text || '').toString().trim();
+              if (content) { viaAudio = true; this.logger.log(`👻 Áudio transcrito p/ sombra (${content.length} caracteres)`); }
+            }
+          } catch (e: any) { this.logger.warn(`Ghost: falha ao transcrever áudio: ${e?.message || e}`); }
+        }
+      }
+      if (!content) return;
 
       // ---------- contexto ----------
       const msgs = await this.prisma.whatsAppMessage.findMany({
@@ -102,7 +130,7 @@ export class GhostSombraListener {
         tabela,
       ].filter((l) => l !== '').join('\n');
 
-      const userMsg = `HISTÓRICO DA CONVERSA (mais antiga primeiro):\n${historico}\n\nEscreva a resposta que você enviaria agora.`;
+      const userMsg = `HISTÓRICO DA CONVERSA (mais antiga primeiro):\n${historico}\n\n${viaAudio ? `A última mensagem do cliente foi um ÁUDIO, transcrito: "${content}"\n\n` : ''}Escreva a resposta que você enviaria agora.`;
 
       const resp = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -131,6 +159,7 @@ export class GhostSombraListener {
             tutorId: conv.tutorId || null,
             contato: conv.contactName || payload?.contactName || '',
             clienteMsg: content.slice(0, 600),
+            viaAudio,
             sugestao,
             at: new Date().toISOString(),
           }),

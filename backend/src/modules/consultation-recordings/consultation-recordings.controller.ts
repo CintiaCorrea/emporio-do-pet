@@ -45,6 +45,13 @@ export class ConsultationRecordingsController {
     });
   }
 
+  // Tamanho do repertório da clínica (SimplesVet + aprovados) — declarado ANTES de :id
+  // pra não ser capturado pela rota de parâmetro.
+  @Get('repertorio/stats')
+  repertorioStats() {
+    return this.service.repertorioStats();
+  }
+
   @Get(':id')
   findById(@Param('id') id: string) {
     return this.service.findById(id);

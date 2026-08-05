@@ -16,9 +16,15 @@ primary_region = "gru"
 [http_service]
   internal_port = 3000
   force_https = true
-  auto_stop_machines = "stop"
+  # 'off' = a máquina NUNCA desliga por ociosidade. Igual ao backend (que protege o
+  # atendimento com auto_stop=off). Motivo (04/08/2026): com "stop" a única máquina
+  # do frontend desligava ociosa e, num dia de Fly sem capacidade em gru, NÃO conseguia
+  # religar -> "could not find a good candidate" -> app fora pra todos (ninguém entrava).
+  auto_stop_machines = "off"
   auto_start_machines = true
-  min_machines_running = 1
+  # 2 máquinas sempre ligadas (igual ao backend) — redundância: se uma engasga, a
+  # outra segura o app no ar. Sem isso, a máquina única virava ponto de falha (04/08/2026).
+  min_machines_running = 2
   processes = ["app"]
 
   [http_service.concurrency]
@@ -34,5 +40,7 @@ primary_region = "gru"
   path = "/"
 
 [[vm]]
-  memory = "512mb"
+  # 1GB dá fôlego pro Next.js (SSR) — com 512MB a máquina sufocava sob carga e falhava
+  # o health check da porta 3000 (04/08/2026), gerando quedas intermitentes.
+  memory = "1024mb"
   cpu_kind = "shared"

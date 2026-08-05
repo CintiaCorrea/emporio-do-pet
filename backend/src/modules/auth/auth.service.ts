@@ -3,10 +3,13 @@ import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
+import * as crypto from 'crypto';
 import { UsersService } from '../users/users.service';
+import { EmailService } from '../email/email.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { RedisService } from '../redis/redis.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 export interface JwtPayload {
   sub: string;
@@ -24,6 +27,8 @@ export class AuthService {
     private readonly configService: ConfigService,
     private readonly redisService: RedisService,
     private readonly prisma: PrismaService,
+    private readonly email: EmailService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async validateUser(email: string, password: string) {
@@ -114,8 +119,8 @@ export class AuthService {
         const slots = await this.slotsDaSemana(this.segundaYMD(nowF));
         if ((slots[`0-dia`] || []).includes(user.id)) return;
       }
-      // Plantão noturno, parte da noite (mesmo dia): 19:01–23:59
-      if (mins >= 19 * 60 + 1) {
+      // Plantão noturno, parte da noite (mesmo dia): 18:00–23:59 (clínica fecha 18h — cobre a virada)
+      if (mins >= 18 * 60) {
         const slots = await this.slotsDaSemana(this.segundaYMD(nowF));
         if ((slots[`${dow}-noite`] || []).includes(user.id)) return;
       }
@@ -128,7 +133,10 @@ export class AuthService {
 
       // Bloqueado — registra aviso pra administração (se ligado) e barra o login.
       if (cfg.avisarAdmin) {
-        try { await this.prisma.listaItem.create({ data: { lista: 'acesso_bloqueio', valor: JSON.stringify({ userId: user.id, email: user.email, nome: user.name || '', at: new Date().toISOString() }) } }); } catch { /* aviso é best-effort */ }
+        const info = { userId: user.id, email: user.email, nome: user.name || '', at: new Date().toISOString() };
+        try { await this.prisma.listaItem.create({ data: { lista: 'acesso_bloqueio', valor: JSON.stringify(info) } }); } catch { /* aviso é best-effort */ }
+        // Avisa a administração no celular (WhatsApp) — tratado pelo AcessoBloqueioListener.
+        try { this.eventEmitter.emit('acesso.bloqueado', info); } catch { /* best-effort */ }
       }
       this.logger.warn(`Login bloqueado por horário: ${user.email}`);
       throw new UnauthorizedException('Acesso liberado apenas no seu horário de escala ou plantão. Fale com a administração.');
@@ -309,6 +317,94 @@ export class AuthService {
       data: { password: hash },
     });
     return { ok: true };
+  }
+
+  // ───────────────────────── Esqueci minha senha ─────────────────────────
+  // Token de reset guardado no KV `listaItem` (lista 'password_reset') pra NÃO
+  // alterar o schema (evita drift). Guarda só o HASH do token; validade 1h.
+
+  /** Pedido de redefinição: gera token, guarda o hash e manda o link por e-mail.
+   *  Responde SEMPRE `{ ok: true }` — não revela se o e-mail tem conta. */
+  async solicitarResetSenha(email: string) {
+    const alvo = (email || '').trim().toLowerCase();
+    const resposta = { ok: true };
+    if (!alvo) return resposta;
+
+    const user = await this.prisma.user.findFirst({
+      where: { email: { equals: alvo, mode: 'insensitive' }, isBlocked: false },
+      select: { id: true, name: true, email: true },
+    });
+    if (!user) { this.logger.log(`Reset de senha pedido p/ e-mail sem conta ativa: ${alvo}`); return resposta; }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const exp = Date.now() + 60 * 60 * 1000; // 1 hora
+
+    // Um pedido ativo por usuário: apaga os anteriores.
+    await this.prisma.listaItem.deleteMany({ where: { lista: 'password_reset', valor: { contains: `"userId":"${user.id}"` } } }).catch(() => undefined);
+    await this.prisma.listaItem.create({ data: { lista: 'password_reset', valor: JSON.stringify({ userId: user.id, tokenHash, exp, email: user.email }) } });
+
+    const base = (this.configService.get<string>('frontendUrl') || process.env.FRONTEND_URL || 'https://emporio-do-web.fly.dev').replace(/\/$/, '');
+    const link = `${base}/reset-password?token=${token}`;
+    try {
+      await this.email.sendEmail({
+        to: user.email,
+        subject: 'Redefinição de senha — Empório do Pet',
+        html: this.htmlResetSenha(user.name || '', link),
+        text: `Olá${user.name ? ' ' + user.name.split(/\s+/)[0] : ''}!\n\nRecebemos um pedido para redefinir sua senha no Empório do Pet.\nAbra este link (válido por 1 hora) para criar uma nova senha:\n${link}\n\nSe não foi você, pode ignorar este e-mail — sua senha continua a mesma.`,
+      });
+      this.logger.log(`E-mail de reset enviado para ${user.email}`);
+    } catch (e: any) { this.logger.warn(`Falha ao enviar e-mail de reset: ${e?.message || e}`); }
+    return resposta;
+  }
+
+  /** Redefine a senha a partir do token do link. */
+  async resetarSenha(token: string, novaSenha: string) {
+    if (!token) throw new BadRequestException('Link inválido.');
+    if (!novaSenha || novaSenha.length < 8) throw new BadRequestException('A nova senha precisa ter pelo menos 8 caracteres.');
+
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const item = await this.prisma.listaItem.findFirst({ where: { lista: 'password_reset', valor: { contains: `"tokenHash":"${tokenHash}"` } } });
+    if (!item) throw new BadRequestException('Este link é inválido ou já foi usado. Peça um novo.');
+
+    let dados: any = {};
+    try { dados = JSON.parse(item.valor); } catch { /* ilegível */ }
+    if (!dados.userId || !dados.exp || Date.now() > Number(dados.exp)) {
+      await this.prisma.listaItem.delete({ where: { id: item.id } }).catch(() => undefined);
+      throw new BadRequestException('O link expirou (vale 1 hora). Peça um novo.');
+    }
+
+    const hash = await bcrypt.hash(novaSenha, 10);
+    await this.prisma.user.update({ where: { id: dados.userId }, data: { password: hash } });
+    // Consome o token (e qualquer outro do mesmo usuário).
+    await this.prisma.listaItem.deleteMany({ where: { lista: 'password_reset', valor: { contains: `"userId":"${dados.userId}"` } } }).catch(() => undefined);
+    this.logger.log(`Senha redefinida via link (user ${dados.userId})`);
+    return { ok: true };
+  }
+
+  private htmlResetSenha(nome: string, link: string): string {
+    const primeiro = (nome || '').trim().split(/\s+/)[0] || '';
+    return `<!DOCTYPE html><html><head><meta charset="utf-8"></head>
+    <body style="margin:0;background:#F4F1EA;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#1F2A2E">
+      <div style="max-width:520px;margin:0 auto;padding:24px 16px">
+        <div style="background:#fff;border:1px solid #E8E2D6;border-radius:16px;overflow:hidden">
+          <div style="background:#009AAC;color:#fff;padding:22px 24px">
+            <div style="font-size:22px">🐾 Empório do Pet</div>
+            <div style="font-size:15px;opacity:.92;margin-top:2px">Redefinição de senha</div>
+          </div>
+          <div style="padding:24px">
+            <p style="font-size:15px;margin:0 0 12px">Olá${primeiro ? ' ' + primeiro : ''}! 💙</p>
+            <p style="font-size:14px;line-height:1.6;color:#374151;margin:0 0 20px">Recebemos um pedido para redefinir a sua senha. Clique no botão abaixo para criar uma nova. Este link é válido por <b>1 hora</b>.</p>
+            <p style="text-align:center;margin:24px 0">
+              <a href="${link}" style="display:inline-block;background:#009AAC;color:#fff;text-decoration:none;font-weight:600;font-size:15px;padding:13px 28px;border-radius:10px">Criar nova senha</a>
+            </p>
+            <p style="font-size:12.5px;line-height:1.6;color:#5C6B70;margin:18px 0 0">Se o botão não funcionar, copie e cole este endereço no navegador:<br><span style="color:#014D5E;word-break:break-all">${link}</span></p>
+            <p style="font-size:12.5px;line-height:1.6;color:#5C6B70;margin:18px 0 0">Se não foi você que pediu, pode ignorar este e-mail — sua senha continua a mesma.</p>
+          </div>
+        </div>
+        <p style="text-align:center;font-size:11px;color:#9aa;margin-top:14px">Empório do Pet · e-mail automático</p>
+      </div>
+    </body></html>`;
   }
 
 }

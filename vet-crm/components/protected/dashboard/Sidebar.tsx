@@ -17,6 +17,9 @@ import { useSession } from "next-auth/react";
 interface SidebarProps {
   isOpen: boolean;
   toggleSidebar: () => void;
+  isMobile?: boolean;
+  mobileOpen?: boolean;
+  closeMobile?: () => void;
 }
 
 type Section = "DIA" | "GESTAO" | "CRESCIMENTO" | "SISTEMA";
@@ -70,7 +73,6 @@ const NAV: Entry[] = [
     group: true, key: "clinico", label: "Atendimento clínico", emoji: "🩺", roles: ALL, section: "DIA",
     children: [
       { href: "/dashboard/erp/consultas", label: "Consultas", emoji: "🩺", roles: ALL },
-      { href: "/dashboard/erp/documentos", label: "Documentos", emoji: "📄", roles: ALL },
       { href: "/dashboard/erp/tratamentos", label: "Tratamentos", emoji: "💉", roles: ALL },
     ],
   },
@@ -102,6 +104,7 @@ const NAV: Entry[] = [
       { href: "/dashboard/erp/ranking-clientes", label: "Ranking de clientes", emoji: "🏆", roles: ["ADMIN", "RECEPTIONIST"] },
       { href: "/dashboard/erp/vendas-graficos", label: "Vendas — gráficos", emoji: "📊", roles: ["ADMIN", "RECEPTIONIST"] },
       { href: "/dashboard/agente-sombra", label: "Agente Sombra", emoji: "👻", roles: ["ADMIN"] },
+      { href: "/dashboard/copiloto-clinico", label: "Copiloto Clínico", emoji: "🩺", roles: ["ADMIN"] },
     ],
   },
   {
@@ -117,8 +120,10 @@ const NAV: Entry[] = [
   {
     group: true, key: "financeiro", label: "Financeiro", emoji: "💵", roles: ["ADMIN"], section: "GESTAO",
     children: [
-      { href: "/dashboard/erp/financeiro", label: "Financeiro", emoji: "💵", roles: ["ADMIN"] },
+      { href: "/dashboard/financeiro", label: "Financeiro", emoji: "💵", roles: ["ADMIN"] },
       { href: "/dashboard/erp/financeiro-terceiros", label: "Fin. Terceiros", emoji: "💸", roles: ["ADMIN"] },
+      // "Financeiro (antigo)" (/dashboard/erp/financeiro) REMOVIDO do menu 05/08 — código/tabela mantidos
+      // por baixo como rota de volta até a Cintia validar o novo em uso; religar = re-adicionar esta linha.
     ],
   },
 
@@ -168,8 +173,9 @@ const FUTURE = [
   { label: "Academia", emoji: "🎓", soon: "depois" },
 ];
 
-export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
-  const collapsed = !isOpen;
+export default function Sidebar({ isOpen, toggleSidebar, isMobile = false, mobileOpen = false, closeMobile }: SidebarProps) {
+  // No celular a gaveta é sempre "cheia" (nunca modo ícone) — só desktop recolhe.
+  const collapsed = !isMobile && !isOpen;
   const pathname = usePathname();
   const { realRole, effectiveRole, isPreviewing, setPreview } = useRolePreview();
   const { data: __session } = useSession();
@@ -198,7 +204,7 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
       } catch {}
     };
     load();
-    const id = setInterval(load, 10000);
+    const id = setInterval(load, 60000); // badge de fundo a 60s (a ação do próprio usuário atualiza na hora via evento "internas:changed")
     const onChanged = () => load();
     window.addEventListener("internas:changed", onChanged);
     return () => { alive = false; clearInterval(id); window.removeEventListener("internas:changed", onChanged); };
@@ -218,7 +224,7 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
       } catch {}
     };
     load();
-    const id = setInterval(load, 15000);
+    const id = setInterval(load, 60000); // badge de fundo a 60s (atualiza na hora via evento "encfila:changed")
     const onCh = () => load();
     window.addEventListener("encfila:changed", onCh);
     return () => { alive = false; clearInterval(id); window.removeEventListener("encfila:changed", onCh); };
@@ -243,7 +249,7 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
       } catch {}
     };
     load();
-    const id = setInterval(load, 20000);
+    const id = setInterval(load, 60000); // badge de fundo a 60s (ao abrir/ler conversa, o evento "whatsapp:read" atualiza na hora)
     const onRead = () => load(); // ao abrir/ler uma conversa, o inbox emite este evento → atualiza na hora
     window.addEventListener("whatsapp:read", onRead);
     return () => { alive = false; clearInterval(id); window.removeEventListener("whatsapp:read", onRead); };
@@ -276,6 +282,7 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
       <Link
         key={it.href}
         href={it.href}
+        onClick={() => { if (isMobile) closeMobile?.(); }}
         title={collapsed ? it.label : undefined}
         className={`flex items-center ${collapsed ? "justify-center" : "gap-3"} px-3 py-[9px] rounded-[9px] ${indented ? "text-[12.5px]" : "text-[13.5px]"} transition relative`}
         style={
@@ -358,17 +365,33 @@ export default function Sidebar({ isOpen, toggleSidebar }: SidebarProps) {
 
   return (
     <aside
-      className={`${collapsed ? "w-16" : "w-[252px]"} fixed top-0 left-0 h-screen z-50 shrink-0 transition-all duration-200 bg-white border-r flex flex-col`}
-      style={{ borderColor: "#e8edf0" }}
+      className={`${collapsed ? "w-16" : "w-[252px]"} fixed top-0 left-0 h-screen ${isMobile ? "z-[60]" : "z-50"} shrink-0 transition-all duration-200 bg-white border-r flex flex-col`}
+      style={{
+        borderColor: "#e8edf0",
+        transform: isMobile ? (mobileOpen ? "translateX(0)" : "translateX(-100%)") : "none",
+        boxShadow: isMobile && mobileOpen ? "0 0 40px rgba(0,0,0,.22)" : "none",
+      }}
     >
-      <button
-        onClick={toggleSidebar}
-        className="absolute top-[22px] -right-[11px] w-[22px] h-[22px] rounded-full bg-white border flex items-center justify-center text-[#94a3b8] z-10 shadow-sm hover:text-[#009AAC] transition"
-        style={{ borderColor: "#e8edf0" }}
-        title={collapsed ? "Expandir" : "Recolher"}
-      >
-        {collapsed ? <LuChevronRight size={11} /> : <LuChevronLeft size={11} />}
-      </button>
+      {!isMobile ? (
+        <button
+          onClick={toggleSidebar}
+          className="absolute top-[22px] -right-[11px] w-[22px] h-[22px] rounded-full bg-white border flex items-center justify-center text-[#94a3b8] z-10 shadow-sm hover:text-[#009AAC] transition"
+          style={{ borderColor: "#e8edf0" }}
+          title={collapsed ? "Expandir" : "Recolher"}
+        >
+          {collapsed ? <LuChevronRight size={11} /> : <LuChevronLeft size={11} />}
+        </button>
+      ) : (
+        <button
+          onClick={closeMobile}
+          className="absolute top-[16px] right-[12px] w-[30px] h-[30px] rounded-full bg-[#f6f8f9] border flex items-center justify-center text-[#64748b] z-10 hover:text-[#009AAC] transition"
+          style={{ borderColor: "#e8edf0" }}
+          title="Fechar menu"
+          aria-label="Fechar menu"
+        >
+          ✕
+        </button>
+      )}
 
       <div className={`px-4 ${collapsed ? "py-4" : "py-[18px]"} border-b flex items-center justify-center`} style={{ borderColor: "#e8edf0" }}>
         {collapsed ? (

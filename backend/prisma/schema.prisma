@@ -273,7 +273,6 @@ model User {
   notifications Notification[]
 
   // Documentos (templates)
-  documents Document[]
 
   // Documentos Clínicos
   clinicalDocuments ClinicalDocument[]
@@ -292,24 +291,8 @@ model User {
   updatedAt DateTime @updatedAt
 }
 
-model Document {
-  id       String         @id @default(uuid())
-  userId   String
-  title    String
-  content  String         @db.Text
-  status   DocumentStatus @default(DRAFT)
-  category String?
-  tags     String[]       @default([])
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([userId, status])
-  @@index([category])
-  @@map("documents")
-}
+// (Modelo Document / tabela documents REMOVIDO em 27/07 — sistema "Documentos" avulso aposentado,
+//  era duplicata do gravador clínico. Docs reais = clinical_documents.)
 
 // Landing Pages - Builder com export Elementor
 model LandingPage {
@@ -520,19 +503,8 @@ model HistoricoClinico {
   @@map("historico_clinico")
 }
 
-// Raças de pet (por espécie) para autocomplete/criação dinâmica
-model PetBreed {
-  id        String     @id @default(uuid())
-  species   PetSpecies
-  name      String
-  nameKey   String     @map("name_key") // lowercase/trim para unicidade
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-
-  @@unique([species, nameKey])
-  @@index([species])
-  @@map("pet_breeds")
-}
+// (Modelo PetBreed / tabela pet_breeds REMOVIDO em 27/07 — raças unificadas na tabela `racas`,
+//  gerenciadas em Configurações › Raças. A ficha do pet lê de /racas via adaptador /api/breeds.)
 
 // ATUALIZADO: Appointment com campos para a UI
 model Appointment {
@@ -661,6 +633,7 @@ model Product {
   pacoteTermos          String?         @db.Text
   composicao          ProdutoComposicao[] @relation("ProdutoPai")
   componenteDe        ProdutoComposicao[] @relation("ProdutoFilho")
+  estoqueMovimentos   EstoqueMovimento[]
   treatments          Treatment[]
   appointmentItems    AppointmentItem[]
   orcamentoItens      OrcamentoItem[]
@@ -686,6 +659,29 @@ model ProdutoComposicao {
 
   @@index([paiId])
   @@map("produto_composicao")
+}
+
+// Livro-caixa do estoque: cada entrada/saída/ajuste fica GRAVADA (Fatia 1 do módulo de estoque).
+// Insumo é compartilhado entre departamentos — o departamento vem do serviço/venda que consome (não fica aqui).
+model EstoqueMovimento {
+  id            String   @id @default(uuid())
+  productId     String
+  product       Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  tipo          String // IN | OUT | ADJUSTMENT
+  quantidade    Int
+  saldoAntes    Int
+  saldoDepois   Int
+  custoUnitario Float?
+  motivo        String?
+  origem        String   @default("MANUAL") // MANUAL | VENDA | COMPOSICAO | COMPRA
+  refId         String? // appointmentId etc. (origem da baixa)
+  userId        String?
+  userName      String?
+  createdAt     DateTime @default(now())
+
+  @@index([productId])
+  @@index([createdAt])
+  @@map("est_movimentos")
 }
 
 // ============================================
@@ -1678,7 +1674,7 @@ model ServiceCategory {
   updatedAt DateTime @updatedAt
 
   @@index([ativo])
-  @@map("service_categories")
+  @@map("svc_categorias")
 }
 
 model Servico {
@@ -2064,7 +2060,7 @@ model Fornecedor {
   appointmentItems AppointmentItem[] @relation("AppointmentItemFornecedor")
 
   @@index([tipo, ativo])
-  @@map("fornecedores")
+  @@map("forn_fornecedores")
 }
 
 model CatalogoExame {
@@ -2086,7 +2082,7 @@ model CatalogoExame {
 
   @@index([fornecedorId, ativo])
   @@index([categoria, ativo])
-  @@map("catalogo_exames")
+  @@map("exa_catalogo")
 }
 
 // ============================================
@@ -3255,10 +3251,36 @@ model Categoria {
 
 // ---------- Conta (banco/caixa) ----------
 
+// Tipo da conta: define como o saldo entra no DFC e o que NAO afeta o DRE.
+// Ideia aproveitada da modelagem do Meu Dinheiro.
+enum TipoConta {
+  DINHEIRO // caixa em especie
+  CONTA_CORRENTE // banco
+  CARTAO_CREDITO // fatura a pagar
+  CONTAS_A_RECEBER // recebiveis de cartao / maquineta
+  APLICACAO_FINANCEIRA // nao afeta DRE, so DFC
+  EMPRESTIMO_CONTRATADO // linha propria no DFC (financiamento)
+  IMOBILIZADO // capex: equipamentos, obras
+  CAPITAL_SOCIAL // aporte de socios
+}
+
 model ContaFinanceira {
-  id    String  @id @default(uuid())
+  id    String    @id @default(uuid())
   nome  String // "Cx Administrativo", "InfinitePay", "Nubank"
-  ativo Boolean @default(true)
+  tipo  TipoConta @default(CONTA_CORRENTE)
+  ativo Boolean   @default(true)
+
+  // Dados bancários (opcionais) — identificam a conta no banco
+  banco       String? // "Nubank", "Itaú"...
+  agencia     String?
+  numeroConta String? // número + dígito
+  titular     String? // nome do titular / razão social
+  pixChave    String?
+
+  // Saldo de abertura: ponto de partida do saldo. Pode ser NEGATIVO (conta no vermelho).
+  // Fica na conta (não vira lançamento) — não entra na DRE, só semeia o saldo/DFC.
+  saldoInicialCentavos Int       @default(0)
+  saldoInicialData     DateTime? // data a que esse saldo se refere
 
   // Conta pode pertencer a uma unidade (usado para inferir a unidade no import)
   unidadeId String?
@@ -3298,12 +3320,24 @@ model Lancamento {
   id          String           @id @default(uuid())
   data        DateTime // data de caixa (quando virou dinheiro)
   competencia DateTime // mes de competencia
+  // Emissao vem da NF no import (opcional). Vencimento = data-alvo do "a pagar".
+  // dataPagamento = caixa efetivo (null enquanto PENDENTE).
+  dataEmissao   DateTime?
+  vencimento    DateTime?
+  dataPagamento DateTime?
   tipo        TipoLancamento
   status      StatusLancamento @default(CONFIRMADO)
-  descricao   String?
+  descricao       String?
+  // Nº da nota/boleto — SEPARADO da descricao (as regras mexem na descricao, aqui nunca).
+  numeroDocumento String?
 
   // Centavos. Despesa entra negativa. NUNCA Float.
   valorCentavos Int
+  // Baixa: principal + juros + multa - desconto = total pago. No DRE, o principal fica na
+  // categoria; juros/multa vao p/ Financeiras; desconto p/ "Descontos Financeiros Obtidos".
+  jurosCentavos    Int @default(0)
+  multaCentavos    Int @default(0)
+  descontoCentavos Int @default(0)
 
   // Rastreabilidade da origem (deduplicacao de import)
   origem     OrigemDado @default(MANUAL)
@@ -3328,6 +3362,13 @@ model Lancamento {
   // Transferencia: conta de destino (referencia solta, sem FK)
   contaDestinoId String?
 
+  // Gerado por uma recorrencia (referencia solta; unique abaixo evita gerar 2x o mesmo mes)
+  recorrenciaId String?
+
+  // Apoios (referencias soltas dentro do fin_): fornecedor/cliente e forma de pagamento
+  contatoId        String?
+  formaPagamentoId String?
+
   // Ligacoes soltas com o CRM (sem FK, para nao acoplar)
   tutorId       String?
   appointmentId String?
@@ -3336,10 +3377,55 @@ model Lancamento {
   updatedAt DateTime @updatedAt
 
   @@unique([origem, externalId])
+  @@unique([recorrenciaId, vencimento]) // nao gerar 2x a mesma ocorrencia
   @@index([competencia])
   @@index([unidadeId, competencia])
   @@index([categoriaId])
+  @@index([status, vencimento]) // filtro "a pagar" / "vencidos"
   @@map("fin_lancamentos")
+}
+
+// ---------- Recorrencias: contas que se lancam sozinhas (aluguel, salarios...) ----------
+
+enum FrequenciaRecorrencia {
+  MENSAL // dia = dia do mes (1-31; meses curtos usam o ultimo dia)
+  SEMANAL // dia = dia da semana (0=domingo .. 6=sabado)
+  ANUAL // dia + mesReferencia
+}
+
+model Recorrencia {
+  id            String                @id @default(uuid())
+  descricao     String
+  tipo          TipoLancamento // RECEITA ou DESPESA
+  // Ultimo valor conhecido. Conta variavel (ex.: energia): gera com este e ajusta na baixa.
+  valorCentavos Int
+
+  frequencia    FrequenciaRecorrencia @default(MENSAL)
+  dia           Int
+  mesReferencia Int? // 1-12, so para ANUAL
+
+  antecedenciaDias Int @default(30) // a conta nasce N dias antes do vencimento
+
+  // Termino opcional: por data ou por quantidade
+  terminaEm      DateTime?
+  maxOcorrencias Int?
+
+  geradas                Int       @default(0)
+  ultimoVencimentoGerado DateTime? // controle da geracao (idempotente)
+  ativo                  Boolean   @default(true)
+
+  // Classificacao aplicada aos lancamentos gerados (referencias soltas dentro do fin_)
+  categoriaId    String?
+  contaId        String
+  unidadeId      String
+  marcaId        String?
+  linhaServicoId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ativo])
+  @@map("fin_recorrencias")
 }
 
 // ---------- Parceria: bruto + split (o que o caixa nao guarda) ----------
@@ -3587,4 +3673,200 @@ model PortalPushEnviado {
 
   @@unique([tutorId, assunto])
   @@map("ptl_push_enviados")
+}
+// ---------- Emprestimo interno: sede -> unidade (capex inicial) ----------
+// Fora do resultado operacional. Devolucao de parcela gera transferencia NEUTRA.
+
+model EmprestimoInterno {
+  id                String   @id @default(uuid())
+  descricao         String
+  unidadeTomadoraId String // referencia solta p/ fin_unidades
+  valorCentavos     Int
+  data              DateTime
+  // contas envolvidas (soltas): de onde saiu (sede) e onde entrou (unidade)
+  contaOrigemId  String?
+  contaDestinoId String?
+
+  parcelas ParcelaEmprestimo[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([unidadeTomadoraId])
+  @@map("fin_emprestimos_internos")
+}
+
+model ParcelaEmprestimo {
+  id            String            @id @default(uuid())
+  emprestimoId  String
+  emprestimo    EmprestimoInterno @relation(fields: [emprestimoId], references: [id], onDelete: Cascade)
+  numero        Int // 1..N
+  vencimento    DateTime
+  valorCentavos Int
+  pago          Boolean           @default(false)
+  dataPagamento DateTime?
+  // transferencia neutra gerada na devolucao (referencia solta)
+  lancamentoId  String?
+
+  @@unique([emprestimoId, numero])
+  @@index([pago, vencimento])
+  @@map("fin_parcelas_emprestimo")
+}
+
+// ---------- Contatos e formas de pagamento (apoios) ----------
+
+model Contato {
+  id        String   @id @default(uuid())
+  nome      String
+  documento String? // CNPJ/CPF (dado sensivel)
+  tipo      String? // "Fornecedor" | "Cliente" | "Ambos" | "Veterinario parceiro"
+  crmv      String? // p/ veterinarios parceiros
+  telefone  String?
+  email     String?
+  pixChave  String? // p/ pagamento (parceiros/fornecedores)
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("fin_contatos")
+}
+
+model FormaPagamento {
+  id        String   @id @default(uuid())
+  nome      String
+  ordem     Int      @default(0)
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("fin_formas_pagamento")
+}
+
+// ---------- Auditoria de taxas de cartao ----------
+// aliquota/percentual em BASIS POINTS (2.79% = 279 bps) — inteiro, sem float.
+
+model TaxaContratada {
+  id             String   @id @default(uuid())
+  adquirente     String   @default("InfinityPay") // "InfinityPay", "Nubank"... cada uma tem sua tabela
+  bandeira       String // "Visa/Mastercard", "Elo/Amex"
+  plano          String // "Padrao", "Nitro"...
+  forma          String // "Pix", "Debito", "Credito a vista", "Credito parcelado"
+  parcelas       Int // 1 p/ a vista/debito/pix; 2..12 parcelado
+  aliquotaBps    Int // 2.79% = 279
+  vigenciaInicio DateTime
+  observacao     String?
+  createdAt      DateTime @default(now())
+
+  @@index([vigenciaInicio])
+  @@index([adquirente, vigenciaInicio])
+  @@index([bandeira, forma, parcelas])
+  @@map("fin_taxas_contratadas")
+}
+
+model VendaCartao {
+  id              String   @id @default(uuid())
+  data            DateTime
+  brutoCentavos   Int
+  liquidoCentavos Int
+  taxaCentavos    Int
+  taxaBps         Int // % aplicado no extrato (4.07% = 407)
+  planoExtrato    String? // string crua do OFX ("1 Dia Util", "Pix"...)
+
+  // Atribuidos pelo usuario para calcular a esperada
+  adquirente String? // "InfinityPay", "Nubank"... de qual maquineta/adquirente veio
+  bandeira String?
+  forma    String?
+  parcelas Int?
+  plano    String? // default "Padrao"
+
+  unidadeId  String?
+  origem     OrigemDado @default(FINPET)
+  externalId String? // FITID do OFX
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([origem, externalId])
+  @@index([data])
+  @@map("fin_vendas_cartao")
+}
+
+// ---------- Regras de classificacao automatica por termo ----------
+// "Toda vez que a descricao contiver <termo>, ja classifique assim." Vale receita e despesa.
+// Alvos sao referencias soltas (sem FK) dentro do fin_ — a regra so preenche o que estiver setado.
+
+enum EscopoRegra {
+  RECEITA
+  DESPESA
+  AMBOS
+}
+
+model Regra {
+  id         String      @id @default(uuid())
+  termo      String // procurado na descricao (case/acento-insensitive na aplicacao)
+  escopo     EscopoRegra @default(AMBOS)
+  prioridade Int         @default(0) // desempate quando dois termos casam; menor = ganha
+  ativo      Boolean     @default(true)
+
+  // Alvos que a regra preenche (todos opcionais; deixe vazio o que varia caso a caso)
+  categoriaId    String?
+  unidadeId      String?
+  marcaId        String?
+  linhaServicoId String?
+  contaId        String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ativo, prioridade])
+  @@map("fin_regras")
+}
+
+// ---------- Contas a pagar de fornecedor (geradas do Caixa) ----------
+// O FIN LE as vendas do Caixa (appointment_items: fornecedor + custo) e o cadastro de
+// Fornecedor (tipo, modeloPagamento, diaFechamentoLote), e ESCREVE so aqui.
+// LOTE_MENSAL (laboratorio): acumula numa fatura mensal; ao fechar vira um fin_lancamento.
+// Demais (parceiro): cada item vira um a-pagar D+1 direto.
+// Refs ao CRM sao soltas (String, sem FK) para nao acoplar.
+
+model FaturaFornecedor {
+  id             String    @id @default(uuid())
+  fornecedorId   String // ref solta -> fornecedores (CRM)
+  fornecedorNome String // snapshot do nome
+  competencia    DateTime // 1o dia do mes de referencia
+  status         String    @default("ABERTA") // ABERTA | FECHADA
+  diaFechamento  Int? // dia do mes (do cadastro do fornecedor)
+  vencimento     DateTime?
+  totalCentavos  Int       @default(0)
+  qtdItens       Int       @default(0)
+  unidadeId      String?
+  lancamentoId   String? // a-pagar gerado no fechamento (ref solta)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  itens FaturaFornecedorItem[]
+
+  @@unique([fornecedorId, competencia])
+  @@index([status])
+  @@map("fin_faturas_fornecedor")
+}
+
+model FaturaFornecedorItem {
+  id                String            @id @default(uuid())
+  faturaId          String? // null quando o item vira a-pagar direto (parceiro D+1)
+  fatura            FaturaFornecedor? @relation(fields: [faturaId], references: [id], onDelete: SetNull)
+  appointmentItemId String            @unique // dedup: cada item do caixa vira conta 1x
+  fornecedorId      String
+  tipoFornecedor    String // LABORATORIO | PARCEIRO | ...
+  descricao         String
+  dataServico       DateTime
+  custoCentavos     Int
+  lancamentoId      String? // parceiro: o a-pagar direto gerado
+
+  createdAt DateTime @default(now())
+
+  @@index([fornecedorId])
+  @@index([faturaId])
+  @@map("fin_fatura_itens")
 }

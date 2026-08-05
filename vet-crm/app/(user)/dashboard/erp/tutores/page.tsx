@@ -1,5 +1,6 @@
 "use client";
 import { confirmDelete } from "@/lib/ui/confirmDelete";
+import { usePodeEditar } from "@/lib/permissions/context";
 /* ─────────────────────────────────────────────────────────────
    EMPÓRIO DO PET · versão Cintia + Claude (Cowork)   [EMP-COWORK]
    Tela........: Lista de Clientes/Tutores  (erp/tutores)
@@ -125,6 +126,7 @@ const semAcento = (s?: string | null) =>
   (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
 export default function ClientesPage() {
+  const podeEditar = usePodeEditar(); // perfil VISUALIZA = esconde criar/excluir
   const [tutores, setTutores] = useState<Tutor[]>([]);
   const [loading, setLoading] = useState(true);
   const [aba, setAba] = useState<"CLIENTES" | "PETS">("CLIENTES");
@@ -502,9 +504,11 @@ export default function ClientesPage() {
           <button onClick={() => importInputRef.current?.click()} className="bg-white border border-[#E8E2D6] px-3 py-1.5 rounded-lg text-xs text-[#5C6B70] flex items-center gap-1.5 hover:border-[#009AAC] hover:text-[#009AAC]">
             📥 Importar CSV
           </button>
+          {podeEditar && (
           <button onClick={() => { setNovoNome(""); setNovoTel(""); setNovoOpen(true); }} className="bg-[#009AAC] text-white px-3.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5">
             ➕ Novo cliente
           </button>
+          )}
         </div>
       </header>
 
@@ -666,9 +670,11 @@ export default function ClientesPage() {
                     </td>
                     <td className="py-2.5 px-3 text-right text-[#4d5a66] text-[11px]" title="Soma dos valores dos atendimentos">{fmtMoney(apptStats[t.id]?.ltv || 0)}</td>
                     <td className="py-2.5 px-3 text-right">
+                      {podeEditar && (
                       <button type="button" onClick={() => handleDeleteTutor(t)} disabled={deletingId === t.id} title="Excluir cliente" className="disabled:opacity-40 p-1 hover:bg-gray-100 rounded">
                         <LuTrash className="w-3.5 h-3.5 text-[#cfd8e0] hover:text-[#A32D2D]" />
                       </button>
+                      )}
                     </td>
                   </tr>
                 );

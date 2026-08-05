@@ -13,7 +13,9 @@ export class RacasService {
         ...(especie ? { especie } : {}),
         ...(includeInactive ? {} : { ativo: true }),
       },
-      orderBy: [{ especie: 'asc' }, { ordem: 'asc' }, { nome: 'asc' }],
+      // Ordem ALFABÉTICA por nome (dentro de cada espécie). O campo `ordem` deixou de reordenar
+      // a lista — a Cintia pediu alfabético (27/07).
+      orderBy: [{ especie: 'asc' }, { nome: 'asc' }],
     });
   }
 

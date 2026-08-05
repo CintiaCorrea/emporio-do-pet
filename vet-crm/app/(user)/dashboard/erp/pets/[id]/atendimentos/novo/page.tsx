@@ -10,7 +10,10 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import toast from "react-hot-toast";
 import { speciesLabel, ageFromBirth, genderLabel } from "@/lib/pets/labels";
+import { montarPetExame, faseInicialExame } from "@/lib/petExame";
+import PetComandaRail from "@/components/pets/PetComandaRail";
 import ConsultationRecorder from "@/components/protected/dashboard/clinical-documents/ConsultationRecorder";
+import { useAutoSaveDraft } from "@/hooks/useAutoSaveDraft";
 
 interface Pet {
   id: string; name: string; species: string; breed?: string | null;
@@ -20,7 +23,7 @@ interface Pet {
   insurancePlan?: string | null;
 }
 interface Prof { id: string; name: string; }
-interface ExameCat { id: string; nome: string; codigo?: string | null; categoria?: string | null; fornecedor?: { id: string; nome: string; tipo?: string } | null; }
+interface ExameCat { id: string; nome: string; codigo?: string | null; categoria?: string | null; fornecedor?: { id: string; nome: string; tipo?: string } | null; fornecedorId?: string | null; valorFornecedor?: number | null; valorClienteSugerido?: number | null; }
 
 const PET_EMOJI = (s: string) => { const u = (s || "").toUpperCase(); if (u.includes("FELIN") || u.includes("GAT")) return "🐱"; if (u.includes("CANIN") || u.includes("CACHORR")) return "🐶"; return "🐾"; };
 const VIAS = ["Oral (VO)", "Subcutânea (SC)", "Intramuscular (IM)", "Intravenosa (IV)", "Tópica", "Ocular", "Auricular", "Inalatória", "Outra"];
@@ -32,6 +35,7 @@ export default function NovoAtendimentoPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const { data: session } = useSession();
+  const meNome = (session?.user as any)?.name || "";
   const petId = params?.id as string;
 
   const [pet, setPet] = useState<Pet | null>(null);
@@ -39,6 +43,7 @@ export default function NovoAtendimentoPage() {
   const [saving, setSaving] = useState(false);
   // Modo edição (Fase 1): quando ?edit=<atendimentoId> na URL, a ficha carrega e SALVA POR CIMA do mesmo atendimento.
   const [editId, setEditId] = useState<string | null>(null);
+  const [prontoRasc, setProntoRasc] = useState(false); // liga o auto-save só depois dos dados-base
   const [prescEdit, setPrescEdit] = useState("");   // prescrição existente (texto editável) no modo edição
   const [examesEdit, setExamesEdit] = useState(""); // exames solicitados existentes (texto editável) no modo edição
   const [itensOriginais, setItensOriginais] = useState<string>("[]"); // snapshot p/ detectar alteração de itens
@@ -62,8 +67,8 @@ export default function NovoAtendimentoPage() {
   // Prescrição estruturada
   const [meds, setMeds] = useState<{ nome: string; posologia: string; via: string }[]>([]);
   // Exames escolhidos (duas caixas)
-  const [exClinica, setExClinica] = useState<{ nome: string; status: string; codigo?: string }[]>([]);
-  const [exExterno, setExExterno] = useState<{ nome: string; codigo?: string }[]>([]);
+  const [exClinica, setExClinica] = useState<{ nome: string; status: string; codigo?: string; _cat?: ExameCat }[]>([]);
+  const [exExterno, setExExterno] = useState<{ nome: string; codigo?: string; _cat?: ExameCat }[]>([]);
   const [pickClinica, setPickClinica] = useState(false);
   const [pickExterno, setPickExterno] = useState(false);
   const [buscaC, setBuscaC] = useState("");
@@ -86,7 +91,7 @@ export default function NovoAtendimentoPage() {
       setPet(p);
       if (p) setForm((f) => ({ ...f, peso: p.weight ? String(p.weight) : "", followUpNotes: p.followUpNotes || "", followUpDate: p.proximoFollowupAt ? String(p.proximoFollowupAt).slice(0, 10) : "" }));
       const users = await safeJson<any>(await fetch(`/api/users`), []);
-      const list = Array.isArray(users) ? users : (users.users || users.data || []);
+      const list = (Array.isArray(users) ? users : (users.users || users.data || [])).filter((u: any) => !u.isBlocked);
       setVets(list);
       if ((session as any)?.user?.id) setForm((f) => ({ ...f, userId: (session as any).user.id }));
       else if (list[0]?.id) setForm((f) => ({ ...f, userId: list[0].id }));
@@ -124,6 +129,8 @@ export default function NovoAtendimentoPage() {
       const lpac = await safeJson<any>(await fetch(`/api/listas?lista=petpac_${petId}`, { cache: "no-store" }), []);
       const lpacArr = Array.isArray(lpac) ? lpac : (lpac.itens || lpac.data || []);
       setPacotes(lpacArr.map((i: any) => { let d: any = {}; try { d = JSON.parse(i.valor); } catch {} return { id: i.id, data: d }; }));
+      // Novo atendimento (sem ?edit): dados-base prontos → liga o auto-save de rascunho.
+      if (!new URLSearchParams(window.location.search).get("edit")) setProntoRasc(true);
     })();
   }, [petId, session]);
 
@@ -153,9 +160,28 @@ export default function NovoAtendimentoPage() {
       const mapped = its.map((it: any) => ({ servicoId: it.servicoId || it.productId || "", descricao: it.descricao || it.nome || "", quantidade: Number(it.quantidade) || 1, valorUnitario: Number(it.valorUnitario) || 0, custoUnitario: Number(it.custoUnitario) || 0, executorUserId: it.executorUserId || "", comissaoValor: it.comissaoValor || 0 }));
       setItens(mapped);
       setItensOriginais(JSON.stringify(mapped));
+      setProntoRasc(true); // atendimento em edição carregado → liga o auto-save
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [petId]);
+
+  // ── Auto-save de rascunho (silencioso; restaura sozinho ao voltar) ──
+  const rascKey = petId ? `atdRasc:${petId}:${editId || "novo"}` : "";
+  const { clear: limparRascunho } = useAutoSaveDraft<any>({
+    key: rascKey,
+    enabled: prontoRasc && !!petId,
+    value: { form, meds, exClinica, exExterno, itens, prescEdit, examesEdit },
+    isVazio: (v) => !(v.form?.chiefComplaint || v.form?.anamnesis || v.form?.physicalExam || v.form?.diagnosis || v.form?.conduct || v.meds?.length || v.exClinica?.length || v.exExterno?.length || v.itens?.length),
+    onRestore: (s) => {
+      if (s.form) setForm((f) => ({ ...f, ...s.form }));
+      if (Array.isArray(s.meds)) setMeds(s.meds);
+      if (Array.isArray(s.exClinica)) setExClinica(s.exClinica);
+      if (Array.isArray(s.exExterno)) setExExterno(s.exExterno);
+      if (Array.isArray(s.itens)) setItens(s.itens);
+      if (typeof s.prescEdit === "string") setPrescEdit(s.prescEdit);
+      if (typeof s.examesEdit === "string") setExamesEdit(s.examesEdit);
+    },
+  });
 
   // ── Itens da venda (coluna direita) ──
   function addItem() { setItens((p) => [...p, { servicoId: "", descricao: "", quantidade: 1, valorUnitario: 0, custoUnitario: 0, executorUserId: form.userId || "", comissaoValor: 0 }]); }
@@ -224,15 +250,23 @@ export default function NovoAtendimentoPage() {
     }).join("\n");
   }
 
+  // Lança o exame na comanda lateral com o VALOR AO CLIENTE (tabela de exames por laboratório).
+  function lancarExameNaComanda(ex: ExameCat) {
+    const valor = Number((ex as any).valorClienteSugerido ?? (ex as any).valorCliente ?? 0) || 0;
+    try { window.dispatchEvent(new CustomEvent("comanda:add", { detail: { descricao: ex.nome, valorUnitario: valor, quantidade: 1 } })); } catch { /* noop */ }
+  }
   function pickExameClinica(ex: ExameCat) {
     if (exClinica.some((x) => x.nome === ex.nome)) return;
-    setExClinica((a) => [...a, { nome: ex.nome, codigo: ex.codigo || undefined, status: exFases[0] || "Solicitar" }]);
+    // guarda o item do catálogo (_cat) pra, ao salvar, gravar fornecedor+custo+valor no petexa_
+    setExClinica((a) => [...a, { nome: ex.nome, codigo: ex.codigo || undefined, status: faseInicialExame(exFases, false), _cat: ex }]);
     setPickClinica(false); setBuscaC("");
+    lancarExameNaComanda(ex); // → entra na comanda automaticamente
   }
   function pickExameExterno(ex: ExameCat) {
     if (exExterno.some((x) => x.nome === ex.nome)) return;
-    setExExterno((a) => [...a, { nome: ex.nome, codigo: ex.codigo || undefined }]);
+    setExExterno((a) => [...a, { nome: ex.nome, codigo: ex.codigo || undefined, _cat: ex }]);
     setPickExterno(false); setBuscaE("");
+    lancarExameNaComanda(ex); // → entra na comanda automaticamente
   }
 
   function imprimirFolha(titulo: string, corpo: string) {
@@ -318,6 +352,7 @@ export default function NovoAtendimentoPage() {
         const resE = await fetch(`/api/appointments/${editId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(editPayload) });
         if (!resE.ok) { const err = await resE.json().catch(() => null); toast.error(err?.message ? (Array.isArray(err.message) ? err.message.join(" ") : err.message) : `Erro ao salvar (${resE.status})`); setSaving(false); return; }
         toast.success("Atendimento atualizado");
+        limparRascunho();
         router.push(irCaixa ? `/dashboard/erp/ponto-de-venda?venda=${editId}` : `/dashboard/erp/pets/${pet.id}`);
         return;
       }
@@ -334,9 +369,10 @@ export default function NovoAtendimentoPage() {
       }
       if (kg > 0) await listasAdd(`petpeso_${pet.id}`, JSON.stringify({ data: new Date(form.date).toISOString(), kg }));
 
-      // Exames: clínica (acompanhamos → status, aparece no Hoje) + externos (só solicitação)
-      for (const e of exClinica) await listasAdd(`petexa_${pet.id}`, JSON.stringify({ nome: e.nome, status: e.status || exFases[0] || "Solicitar", date: new Date().toISOString(), acompanha: true, externo: false }));
-      for (const e of exExterno) await listasAdd(`petexa_${pet.id}`, JSON.stringify({ nome: e.nome, status: "Solicitado (externo)", date: new Date().toISOString(), acompanha: false, externo: true }));
+      // Exames: molde ÚNICO (lib/petExame) — grava fornecedor+custo+valor+histórico igual
+      // à ficha, pra o exame NÃO sumir do aviso-ao-lab nem do financeiro-terceiros.
+      for (const e of exClinica) await listasAdd(`petexa_${pet.id}`, JSON.stringify(montarPetExame({ nome: e.nome, catalogo: e._cat, fases: exFases, externo: false, acompanha: true, por: meNome, status: e.status })));
+      for (const e of exExterno) await listasAdd(`petexa_${pet.id}`, JSON.stringify(montarPetExame({ nome: e.nome, catalogo: e._cat, fases: exFases, externo: true, acompanha: false, por: meNome })));
 
       // Pós-atendimento → integra ao Follow-up do pet (mesmo FU da Visão geral)
       const fuBody: any = {};
@@ -345,6 +381,7 @@ export default function NovoAtendimentoPage() {
       if (Object.keys(fuBody).length) { try { await fetch(`/api/pets/${pet.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(fuBody) }); } catch {} }
 
       toast.success("Atendimento registrado");
+      limparRascunho();
       router.push(irCaixa && novoAtdId ? `/dashboard/erp/ponto-de-venda?venda=${novoAtdId}` : `/dashboard/erp/pets/${pet.id}`);
     } catch (e) { toast.error("Erro ao salvar"); setSaving(false); }
   }
@@ -426,6 +463,8 @@ export default function NovoAtendimentoPage() {
 
   return (
     <div className="p-4 min-h-screen bg-[#F6F2EA]">
+      {/* 🛒 Comanda lateral (venda/orçamento) — também na tela de atendimento */}
+      <PetComandaRail petId={petId} tutorId={(pet as any)?.tutorId} petNome={pet?.name} tutorNome={(pet as any)?.tutor?.name} />
       {/* Breadcrumb */}
       <div className="text-[12px] text-[#374151] mb-2 px-1">
         <Link href="/dashboard/erp/pets" className="hover:text-[#009AAC]">Pets</Link> / <Link href={`/dashboard/erp/pets/${pet.id}`} className="hover:text-[#009AAC]">{pet.name}</Link> / <b className="text-[#009AAC] font-medium">{editId ? "Editar atendimento" : "Novo atendimento"}</b>
@@ -468,7 +507,7 @@ export default function NovoAtendimentoPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-[1.5fr_1fr] gap-3 items-start">
+      <div className="grid grid-cols-1 gap-3 items-start">
       {/* ══════════ COLUNA ESQUERDA (~60%): clínico ══════════ */}
       <div className="flex flex-col gap-3 min-w-0">
         {/* DADOS BÁSICOS — uma linha */}
@@ -644,8 +683,8 @@ export default function NovoAtendimentoPage() {
         </div>
       </div>
 
-      {/* ══════════ COLUNA DIREITA (~40%): lançamento da venda ══════════ */}
-      <div className="flex flex-col gap-3 min-w-0">
+      {/* COLUNA DIREITA removida (realocada): venda/orçamento agora na comanda lateral 🛒; crédito e pacotes na Visão geral do pet. */}
+      <div className="hidden">
         {/* Venda / Orçamentos */}
         <div className={card} style={{ padding: "13px 16px" }}>
           <div className="flex items-center gap-1.5 mb-3">

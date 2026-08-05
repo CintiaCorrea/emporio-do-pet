@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsInt, IsOptional, IsString, IsUUID, Min } from 'class-validator';
+import { IsEnum, IsInt, IsNumber, IsOptional, IsString, IsUUID, Min } from 'class-validator';
 
 export enum MovementType {
   IN = 'IN',
@@ -25,4 +25,10 @@ export class CreateStockMovementDto {
   @IsOptional()
   @IsString()
   reason?: string;
+
+  // Entrada de compra: custo unitário pago — recalcula o custo médio ponderado do produto.
+  @ApiPropertyOptional({ example: 19.9 })
+  @IsOptional()
+  @IsNumber()
+  custoUnitario?: number;
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { usePodeEditar } from '@/lib/permissions/context';
 import {
   LuSearch,
   LuPlus,
@@ -68,6 +69,7 @@ interface Product {
 }
 
 export default function TratamentosPage() {
+  const podeEditar = usePodeEditar(); // perfil VISUALIZA = esconde criar/editar/excluir
   const [treatments, setTreatments] = useState<Treatment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -421,6 +423,7 @@ export default function TratamentosPage() {
                 </p>
               </div>
               <div className="flex gap-3">
+                {podeEditar && (
                 <button
                   onClick={() => setIsCreateModalOpen(true)}
                   className="group px-6 py-3 text-sm font-semibold text-white bg-gradient-to-r from-cyan-600 to-cyan-600 rounded-2xl hover:from-cyan-700 hover:to-cyan-700 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-cyan-500/25 flex items-center space-x-2 relative overflow-hidden"
@@ -429,6 +432,7 @@ export default function TratamentosPage() {
                   <LuPlus className="w-4 h-4 relative z-10" />
                   <span className="relative z-10">Novo Tratamento</span>
                 </button>
+                )}
               </div>
             </div>
           </div>
@@ -525,7 +529,7 @@ export default function TratamentosPage() {
                   ? 'Tente ajustar sua busca'
                   : 'Comece registrando um novo tratamento'}
               </p>
-              {!searchTerm && (
+              {podeEditar && !searchTerm && (
                 <button
                   onClick={() => setIsCreateModalOpen(true)}
                   className="px-6 py-3 bg-cyan-600 text-white rounded-2xl hover:bg-cyan-700 transition-colors"
@@ -606,6 +610,7 @@ export default function TratamentosPage() {
                           >
                             <LuEye className="w-4 h-4" />
                           </button>
+                          {podeEditar && (
                           <button
                             onClick={() => openEdit(treatment)}
                             className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors"
@@ -613,6 +618,8 @@ export default function TratamentosPage() {
                           >
                             <LuPencil className="w-4 h-4" />
                           </button>
+                          )}
+                          {podeEditar && (
                           <button
                             onClick={() => requestDelete(treatment)}
                             className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors"
@@ -620,6 +627,7 @@ export default function TratamentosPage() {
                           >
                             <LuTrash className="w-4 h-4" />
                           </button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -750,6 +758,7 @@ export default function TratamentosPage() {
                 </div>
               )}
             </div>
+            {podeEditar && (
             <div className="p-6 border-t border-gray-100 flex gap-3 justify-end">
               <button
                 onClick={() => openEdit(selectedTreatment)}
@@ -767,6 +776,7 @@ export default function TratamentosPage() {
                 <LuTrash className="w-4 h-4" /> Excluir
               </button>
             </div>
+            )}
           </div>
         </div>
       )}

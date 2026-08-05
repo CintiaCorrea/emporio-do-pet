@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { usePodeEditar } from '@/lib/permissions/context';
 import {
   LuActivity,
   LuBell,
@@ -57,6 +58,7 @@ interface Automation {
 }
 
 export default function AutomacoesPage() {
+  const podeEditar = usePodeEditar(); // perfil VISUALIZA = esconde criar/editar/status/executar
   const [automations, setAutomations] = useState<Automation[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -287,6 +289,7 @@ export default function AutomacoesPage() {
       <div className="max-w-[1600px] mx-auto">
             
             {/* Toolbar */}
+            {podeEditar && (
             <div className="flex justify-end mb-5">
               <Link
                 href="/dashboard/ai-agents/automacoes/nova"
@@ -296,6 +299,7 @@ export default function AutomacoesPage() {
                 Nova automação
               </Link>
             </div>
+            )}
 
             {/* Cards de estatísticas */}
             <div className="grid grid-cols-2 md:grid-cols-5 gap-2.5 mb-4">
@@ -419,9 +423,9 @@ export default function AutomacoesPage() {
             <div className="p-6 space-y-6">
               <div className="flex items-center justify-between">
                 <span className={`px-3 py-1.5 text-sm font-medium rounded-full ${getStatusColor(selectedAutomation.status)}`}>{getStatusText(selectedAutomation.status)}</span>
-                <div className="flex items-center gap-2">
+                {podeEditar && <div className="flex items-center gap-2">
                   {selectedAutomation.status === 'ACTIVE' ? (
-                    <button 
+                    <button
                       onClick={() => handleUpdateStatus(selectedAutomation.id, 'PAUSED')}
                       disabled={actionLoading === selectedAutomation.id}
                       className="flex items-center gap-2 px-4 py-2 bg-orange-50 hover:bg-orange-100 text-orange-700 rounded-lg transition-colors disabled:opacity-50"
@@ -454,7 +458,7 @@ export default function AutomacoesPage() {
                     {actionLoading === selectedAutomation.id ? <LuLoader className="w-4 h-4 animate-spin" /> : <span style={{fontSize:"14px"}}>⎘</span>}
                     Duplicar
                   </button>
-                </div>
+                </div>}
               </div>
               <div><h3 className="text-sm font-medium text-gray-500 mb-2">Descrição</h3><p className="text-gray-900">{selectedAutomation.description}</p></div>
               <div>
@@ -488,8 +492,8 @@ export default function AutomacoesPage() {
                 <div><h3 className="text-sm font-medium text-gray-500 mb-1">Criado em</h3><p className="text-gray-900">{formatDate(selectedAutomation.createdAt)}</p></div>
                 <div><h3 className="text-sm font-medium text-gray-500 mb-1">Atualizado em</h3><p className="text-gray-900">{formatDate(selectedAutomation.updatedAt)}</p></div>
               </div>
-              <div className="pt-4 border-t border-[#d8d0bc]">
-                <button 
+              {podeEditar && <div className="pt-4 border-t border-[#d8d0bc]">
+                <button
                   onClick={() => handleExecute(selectedAutomation.id)}
                   disabled={actionLoading === selectedAutomation.id}
                   className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[#009AAC] hover:bg-[#00798A] text-white rounded-xl font-semibold transition-all disabled:opacity-50"
@@ -506,7 +510,7 @@ export default function AutomacoesPage() {
                     </>
                   )}
                 </button>
-              </div>
+              </div>}
             </div>
           </div>
         </div>

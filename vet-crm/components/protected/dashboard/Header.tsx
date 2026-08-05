@@ -9,12 +9,15 @@ import { LuSearch, LuBell, LuSettings, LuLogOut, LuUser, LuChevronDown, LuArrowL
 import { usePageHeader } from "@/lib/ui/PageHeaderContext";
 import { useRolePreview } from "@/lib/ui/RolePreview";
 import { roleLabel } from "@/lib/ui/role";
+import NotificationBell from "@/components/protected/dashboard/NotificationBell";
 
 interface Props {
   sidebarOpen: boolean;
+  isMobile?: boolean;
+  onMenu?: () => void;
 }
 
-export default function Header({ sidebarOpen }: Props) {
+export default function Header({ sidebarOpen, isMobile = false, onMenu }: Props) {
   const { data: session } = useSession();
   const { effectiveRole, isPreviewing, realRole } = useRolePreview();
   const userName = session?.user?.name || "Usuario";
@@ -38,10 +41,23 @@ export default function Header({ sidebarOpen }: Props) {
 
   return (
     <header
-      className="h-16 bg-white border-b flex items-center justify-between px-6 fixed top-0 right-0 z-40 transition-all duration-200"
-      style={{ borderColor: "#e8edf0", left: sidebarOpen ? 252 : 64 }}
+      className="h-16 bg-white border-b flex items-center justify-between px-4 md:px-6 fixed top-0 right-0 z-40 transition-all duration-200"
+      style={{ borderColor: "#e8edf0", left: isMobile ? 0 : (sidebarOpen ? 252 : 64) }}
     >
-      <div className="min-w-0 flex-1 flex items-center gap-3">
+      <div className="min-w-0 flex-1 flex items-center gap-2 md:gap-3">
+        {isMobile && (
+          <button
+            onClick={onMenu}
+            title="Menu"
+            aria-label="Abrir menu"
+            className="w-9 h-9 rounded-[9px] border bg-white flex flex-col items-center justify-center gap-[3px] text-[#014D5E] flex-shrink-0"
+            style={{ borderColor: "#e8edf0" }}
+          >
+            <span className="block w-[16px] h-[2px] rounded bg-current" />
+            <span className="block w-[16px] h-[2px] rounded bg-current" />
+            <span className="block w-[16px] h-[2px] rounded bg-current" />
+          </button>
+        )}
         <button
           onClick={() => router.back()}
           title="Voltar"
@@ -88,14 +104,8 @@ export default function Header({ sidebarOpen }: Props) {
           />
         </div>
 
-        <button
-          className="w-[38px] h-[38px] rounded-[9px] border bg-white flex items-center justify-center text-[#64748b] hover:text-[#009AAC] relative transition"
-          style={{ borderColor: "#e8edf0" }}
-          title="Notificacoes"
-        >
-          <span style={{ fontSize: "17px", lineHeight: 1 }}>🔔</span>
-          <span className="absolute top-2 right-[9px] w-[7px] h-[7px] rounded-full bg-[#ef4444] border-2 border-white" />
-        </button>
+        {/* Sino REAL (dropdown + toast em tempo real via useNotifications) */}
+        <NotificationBell />
 
         <div className="relative" ref={wrapRef}>
           <button

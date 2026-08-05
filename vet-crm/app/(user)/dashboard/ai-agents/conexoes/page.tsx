@@ -2,6 +2,7 @@
 
 // Página de Integrações - AI Agents
 import { useState, useEffect } from 'react';
+import { usePodeEditar } from '@/lib/permissions/context';
 import {
   LuActivity,
   LuCheck,
@@ -85,6 +86,7 @@ const defaultConfig: IntegrationConfig = {
 };
 
 export default function IntegracoesPage() {
+  const podeEditar = usePodeEditar(); // perfil VISUALIZA = não salva chaves
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
   const [testing, setTesting] = useState<string | null>(null);
@@ -571,7 +573,7 @@ export default function IntegracoesPage() {
                       </button>
                       <button
                         onClick={() => handleSave('whatsapp')}
-                        disabled={saving === 'whatsapp'}
+                        disabled={!podeEditar || saving === 'whatsapp'}
                         className="flex w-full md:w-auto justify-center md:justify-start items-center gap-2 px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl font-semibold transition-colors disabled:opacity-50"
                       >
                         {saving === 'whatsapp' ? (
@@ -716,7 +718,7 @@ export default function IntegracoesPage() {
                       </button>
                       <button
                         onClick={() => handleSave('openai')}
-                        disabled={saving === 'openai'}
+                        disabled={!podeEditar || saving === 'openai'}
                         className="flex w-full md:w-auto justify-center md:justify-start items-center gap-2 px-6 py-2.5 bg-[#009AAC] hover:bg-[#00798A] text-white rounded-xl font-semibold transition-colors disabled:opacity-50"
                       >
                         {saving === 'openai' ? (
@@ -842,7 +844,7 @@ export default function IntegracoesPage() {
                       </button>
                       <button
                         onClick={() => handleSave('gemini')}
-                        disabled={saving === 'gemini'}
+                        disabled={!podeEditar || saving === 'gemini'}
                         className="flex w-full md:w-auto justify-center md:justify-start items-center gap-2 px-6 py-2.5 bg-[#009AAC] hover:bg-[#00798A] text-white rounded-xl font-semibold transition-colors disabled:opacity-50"
                       >
                         {saving === 'gemini' ? (
@@ -983,7 +985,7 @@ export default function IntegracoesPage() {
                       </button>
                       <button
                         onClick={() => handleSave('deepseek')}
-                        disabled={saving === 'deepseek'}
+                        disabled={!podeEditar || saving === 'deepseek'}
                         className="flex w-full md:w-auto justify-center md:justify-start items-center gap-2 px-6 py-2.5 bg-[#009AAC] hover:bg-[#00798A] text-white rounded-xl font-semibold transition-colors disabled:opacity-50"
                       >
                         {saving === 'deepseek' ? (

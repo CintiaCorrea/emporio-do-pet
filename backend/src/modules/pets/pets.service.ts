@@ -20,12 +20,18 @@ export class PetsService {
       where: { petId },
       orderBy: { data: 'desc' },
       take: 500,
-      select: { id: true, tipo: true, data: true, titulo: true, resumo: true, autor: true, valorNum: true, origem: true, texto: true, arquivoKey: true },
+      select: { id: true, tipo: true, data: true, titulo: true, resumo: true, autor: true, valorNum: true, origem: true, texto: true, arquivoKey: true, arquivoNome: true },
     });
     const limpar = (s?: string | null) => (s || '').replace(/<[^>]+>/g, ' ').replace(/&[a-z]+;/gi, ' ').replace(/\s+/g, ' ').trim();
+    // URL do bucket (privada) só p/ o envio pelo WhatsApp — o backend baixa assinado (SigV4) na hora.
+    const endpoint = process.env.S3_ENDPOINT || '';
+    const bucket = process.env.S3_BUCKET || '';
+    const montarUrl = (key?: string | null) => (endpoint && bucket && key ? `${endpoint}/${bucket}/${key}` : null);
     return rows.map((r) => ({
       id: r.id, tipo: r.tipo, data: r.data, titulo: r.titulo, autor: r.autor, valorNum: r.valorNum, origem: r.origem,
       temArquivo: !!r.arquivoKey,
+      arquivoUrl: montarUrl(r.arquivoKey),
+      arquivoNome: r.arquivoNome || null,
       resumo: (r.resumo && r.resumo.trim()) || limpar(r.texto).slice(0, 180) || null,
     }));
   }

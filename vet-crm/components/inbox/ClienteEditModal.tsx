@@ -2,6 +2,7 @@
 import { useState } from "react";
 import toast from "react-hot-toast";
 import { buscarCep } from "@/lib/cep";
+import { useAutoSaveDraft } from "@/hooks/useAutoSaveDraft";
 
 function onlyDigits(s: string) { return (s || "").replace(/\D/g, ""); }
 function normalizePhone(raw: string): string {
@@ -35,6 +36,14 @@ export default function ClienteEditModal({ tutor, onClose, onSaved, inline }: { 
   const [saving, setSaving] = useState(false);
   const [cepLoading, setCepLoading] = useState(false);
   const up = (k: string, v: string) => setF((s) => ({ ...s, [k]: v }));
+
+  // Auto-save de rascunho (silencioso; restaura ao reabrir a ficha deste cliente).
+  const { clear: limparRascunho } = useAutoSaveDraft<typeof f>({
+    key: tutor?.id ? `tutorRasc:${tutor.id}` : "",
+    enabled: !!tutor?.id,
+    value: f,
+    onRestore: (s) => setF((prev) => ({ ...prev, ...s })),
+  });
 
   async function autoCep(cep: string) {
     if (onlyDigits(cep).length !== 8) return;
@@ -94,6 +103,7 @@ export default function ClienteEditModal({ tutor, onClose, onSaved, inline }: { 
         } catch { /* não bloqueia o resto do cadastro */ }
       }
       toast.success("Cliente atualizado");
+      limparRascunho();
       onSaved(patch);
       onClose();
     } catch { toast.error("Sem conexão — tente de novo"); setSaving(false); }

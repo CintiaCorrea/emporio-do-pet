@@ -697,6 +697,11 @@ export class WhatsAppController {
       for (const error of status.errors) {
         this.logger.error(`Message delivery failed: ${error.title} (code: ${error.code})`);
       }
+      // 💳 Problema de PAGAMENTO/elegibilidade na Meta (131042 e afins) → avisa a administração por e-mail.
+      const billingCodes = [131042, 131044];
+      if (status.errors.some(e => billingCodes.includes(Number(e.code)))) {
+        try { this.eventEmitter.emit('whatsapp.billing.failed', { code: status.errors.map(e => e.code).join(','), reason: failedReason }); } catch { /* best-effort */ }
+      }
     }
 
     // Update message status in database

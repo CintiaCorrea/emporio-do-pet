@@ -25,6 +25,8 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { WhatsAppService } from './whatsapp.service';
 import { CloudStorageService } from '../media/cloud-storage.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '@prisma/client';
 import {
   SendMessageDto,
   ListConversationsQuery,
@@ -48,6 +50,7 @@ export class WhatsAppConversationsController {
     private readonly whatsAppService: WhatsAppService,
     private readonly cloudStorage: CloudStorageService,
     private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   // ============================================
@@ -125,7 +128,24 @@ export class WhatsAppConversationsController {
     @Param('id') id: string,
     @Body() body: { userId: string },
   ) {
-    return this.whatsAppService.updateConversation(id, { assignedUserId: body.userId } as any);
+    const updated = await this.whatsAppService.updateConversation(id, { assignedUserId: body.userId } as any);
+
+    // Popup em tempo real p/ quem RECEBEU a conversa (nunca p/ si mesmo). Best-effort.
+    if (body.userId && body.userId !== user.id) {
+      try {
+        const contato = (updated as any)?.tutor?.name || (updated as any)?.contactName || 'um cliente';
+        await this.notifications.create({
+          userId: body.userId,
+          type: NotificationType.INFO,
+          title: '📨 Conversa encaminhada pra você',
+          message: `${user.name || 'Um colega'} passou a conversa de ${contato} pra você.`,
+          link: `/dashboard/inbox-nativo?conversa=${id}`,
+          metadata: { kind: 'conversa_encaminhada', conversationId: id, fromUserId: user.id },
+        });
+      } catch (e: any) { this.logger.warn(`Falha ao notificar encaminhamento: ${e?.message || e}`); }
+    }
+
+    return updated;
   }
 
     @Post('conversations/:id/takeover')
@@ -508,22 +528,8 @@ export class WhatsAppConversationsController {
 
   @Get('stats')
   async getStats(@CurrentUser() user: JwtUser) {
-    const conversations = await this.whatsAppService.getConversations(null, undefined, { limit: 1000 });
-    
-    const stats = {
-      totalConversations: conversations.pagination.total,
-      openConversations: 0,
-      unreadConversations: 0,
-      assignedToAgent: 0,
-    };
-
-    for (const conv of conversations.data) {
-      if (conv.status === 'OPEN') stats.openConversations++;
-      if (conv.unreadCount > 0) stats.unreadConversations++;
-      if (conv.assignedAgentId) stats.assignedToAgent++;
-    }
-
-    return stats;
+    // 4 contagens diretas no banco — leve. (Antes carregava 1000 conversas + escrevia no banco.)
+    return this.whatsAppService.getStats();
   }
 
   // ============================================

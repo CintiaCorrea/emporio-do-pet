@@ -598,8 +598,8 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
         </div>
       </div>
 
-      {/* Barra de abas */}
-      <div className="flex border-b border-[#E8E2D6] mb-3">
+      {/* Barra de abas (no celular rola de lado) */}
+      <div className="flex border-b border-[#E8E2D6] mb-3 overflow-x-auto [&>button]:shrink-0 [&>button]:whitespace-nowrap">
         {(([
           { k: "GERAL", label: "👤 Visão geral" },
           { k: "ANIMAIS", label: "🐾 Pets" },
@@ -1090,7 +1090,19 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
             </div>
             <div style={{ padding: "13px 14px" }}>
               <p className="text-[12px] text-[#374151] mb-2">Nenhuma avaliação solicitada</p>
-              <button onClick={() => openWhatsAppMeta(phone)} className="bg-[#E0F4F6] text-[#014D5E] text-[11px] px-2.5 py-1 rounded-[8px]">+ Solicitar por WhatsApp</button>
+              {/* Envia a pesquisa de satisfação (NPS) DIRETO pela API — antes abria o compositor
+                  manual "Nova conversa" (openWhatsAppMeta), o que confundia. Agora manda sozinho. */}
+              <button
+                onClick={async () => {
+                  if (!tutor?.id) return;
+                  try {
+                    const r = await fetch(`/api/survey-avaliacao/enviar`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tutorId: tutor.id }) });
+                    const d = await r.json().catch(() => null);
+                    if (!r.ok || !d?.success) throw new Error(d?.error || "Falha ao enviar");
+                    toast.success("Pesquisa de avaliação enviada no WhatsApp 📲");
+                  } catch (e: any) { toast.error(e?.message || "Erro ao enviar a pesquisa"); }
+                }}
+                className="bg-[#E0F4F6] text-[#014D5E] text-[11px] px-2.5 py-1 rounded-[8px] hover:bg-[#c9edf1]">📲 Solicitar por WhatsApp</button>
             </div>
           </div>
         </div>

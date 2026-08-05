@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { usePodeEditar } from '@/lib/permissions/context';
 import { useRouter } from 'next/navigation';
 import ConfirmDeleteModal from '@/components/common/ConfirmDeleteModal';
 import {
@@ -55,6 +56,7 @@ interface AIAgent {
 }
 
 export default function AgentsPage() {
+  const podeEditar = usePodeEditar(); // perfil VISUALIZA = esconde criar/editar/excluir
   usePageTitle("Agentes", "Agentes inteligentes de atendimento");
   const router = useRouter();
   const [agents, setAgents] = useState<AIAgent[]>([]);
@@ -240,6 +242,7 @@ export default function AgentsPage() {
       <div className="max-w-[1600px] mx-auto">
             
             {/* Toolbar */}
+            {podeEditar && (
             <div className="flex justify-end mb-5">
               <Link
                 href="/dashboard/ai-agents/agents/novo"
@@ -249,6 +252,7 @@ export default function AgentsPage() {
                 Novo agente
               </Link>
             </div>
+            )}
 
             {/* Cards de estatísticas */}
             <div className="grid grid-cols-2 md:grid-cols-5 gap-2.5 mb-4">
@@ -426,9 +430,9 @@ export default function AgentsPage() {
                 <span className={`px-3 py-1.5 text-sm font-medium rounded-full ${getStatusColor(selectedAgent.status)}`}>
                   {getStatusText(selectedAgent.status)}
                 </span>
-                <div className="flex items-center gap-2">
+                {podeEditar && <div className="flex items-center gap-2">
                   {selectedAgent.status === 'ACTIVE' ? (
-                    <button 
+                    <button
                       onClick={() => handleUpdateStatus(selectedAgent.id, 'PAUSED')}
                       disabled={actionLoading === selectedAgent.id}
                       className="flex items-center gap-2 px-4 py-2 bg-orange-50 hover:bg-orange-100 text-orange-700 rounded-lg transition-colors disabled:opacity-50"
@@ -473,7 +477,7 @@ export default function AgentsPage() {
                     )}
                     Excluir
                   </button>
-                </div>
+                </div>}
               </div>
 
               {/* Descrição */}
@@ -553,13 +557,13 @@ export default function AgentsPage() {
                   <LuMessageCircle className="w-4 h-4" />
                   Testar Agente
                 </Link>
-                <button
+                {podeEditar && <button
                   onClick={() => router.push(`/dashboard/ai-agents/agents/${selectedAgent.id}/editar`)}
                   className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-all"
                 >
                   <LuSettings className="w-4 h-4" />
                   Configurações Avançadas
-                </button>
+                </button>}
               </div>
             </div>
           </div>

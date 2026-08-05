@@ -433,10 +433,31 @@ export class CaixaService {
       });
       for (const it of itens) {
         if (!it.productId) continue;
-        const prod = await this.prisma.product.findUnique({ where: { id: it.productId }, select: { type: true } });
-        if (!prod || prod.type === 'SERVICE') continue; // serviço não movimenta estoque
-        const qtd = Math.max(1, Math.round(Number(it.quantidade) || 1));
-        await this.prisma.product.update({ where: { id: it.productId }, data: { stock: { decrement: qtd } } });
+        const vendidos = Math.max(1, Math.round(Number(it.quantidade) || 1));
+        // 1) Tem FICHA TÉCNICA? baixa os INSUMOS (não o "pai"). Ex.: procedimento consome placa+parafusos.
+        const comps = await this.prisma.produtoComposicao.findMany({ where: { paiId: it.productId }, select: { itemId: true, quantidade: true } });
+        if (comps.length > 0) {
+          for (const c of comps) {
+            const insumo = await this.prisma.product.findUnique({ where: { id: c.itemId }, select: { type: true, stock: true } });
+            if (!insumo || insumo.type === 'SERVICE') continue;
+            const q = Math.max(0, Math.round((Number(c.quantidade) || 0) * vendidos));
+            if (q <= 0) continue;
+            const antes = insumo.stock, depois = antes - q;
+            await this.prisma.product.update({ where: { id: c.itemId }, data: { stock: depois } });
+            await this.prisma.estoqueMovimento.create({
+              data: { productId: c.itemId, tipo: 'OUT', quantidade: q, saldoAntes: antes, saldoDepois: depois, motivo: 'Baixa por ficha técnica (venda)', origem: 'COMPOSICAO', refId: appointmentId },
+            }).catch(() => undefined);
+          }
+          continue; // já baixou os insumos; o "pai" (serviço/kit) não movimenta
+        }
+        // 2) Sem ficha técnica: produto estocável baixa a si mesmo (serviço não movimenta).
+        const prod = await this.prisma.product.findUnique({ where: { id: it.productId }, select: { type: true, stock: true } });
+        if (!prod || prod.type === 'SERVICE') continue;
+        const antes = prod.stock, depois = antes - vendidos;
+        await this.prisma.product.update({ where: { id: it.productId }, data: { stock: depois } });
+        await this.prisma.estoqueMovimento.create({
+          data: { productId: it.productId, tipo: 'OUT', quantidade: vendidos, saldoAntes: antes, saldoDepois: depois, motivo: 'Baixa por venda', origem: 'VENDA', refId: appointmentId },
+        }).catch(() => undefined);
       }
     } catch (e: any) {
       // não pode quebrar o recebimento (a venda já foi registrada)

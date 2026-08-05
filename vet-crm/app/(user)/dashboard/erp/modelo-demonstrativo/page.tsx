@@ -4,6 +4,7 @@
 
 import { useEffect, useState } from "react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
+import { usePodeEditar } from "@/lib/permissions/context";
 
 const DEFAULTS = {
   nome: "Empório do Pet",
@@ -20,6 +21,7 @@ const DEFAULTS = {
 
 export default function ModeloDemonstrativoPage() {
   usePageTitle("Modelo de demonstrativo", "Personalizar o recibo de venda/orçamento");
+  const podeEditar = usePodeEditar(); // perfil VISUALIZA = esconde o Salvar
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [regId, setRegId] = useState<string | null>(null);
@@ -105,7 +107,9 @@ export default function ModeloDemonstrativoPage() {
             <div className="p-4"><Field k="rodape" label="Mensagem do rodapé" /></div>
           </div>
           <div className="flex justify-end">
-            <button onClick={salvar} disabled={saving} className="bg-[#009AAC] text-white rounded-lg px-5 py-2.5 text-[13.5px] font-medium disabled:opacity-60">{saving ? "Salvando..." : "Salvar modelo"}</button>
+            {podeEditar
+              ? <button onClick={salvar} disabled={saving} className="bg-[#009AAC] text-white rounded-lg px-5 py-2.5 text-[13.5px] font-medium disabled:opacity-60">{saving ? "Salvando..." : "Salvar modelo"}</button>
+              : <span className="text-[12px] text-[#5C6B70]">👁️ Somente leitura</span>}
           </div>
         </div>
 

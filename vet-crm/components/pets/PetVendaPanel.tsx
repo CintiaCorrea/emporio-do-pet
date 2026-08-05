@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { LuPackage, LuClipboardList, LuCircleDollarSign, LuPlus, LuTrash, LuCheck, LuArrowRight, LuWallet } from "react-icons/lu";
+import { LuPackage, LuClipboardList, LuCircleDollarSign, LuPlus, LuTrash, LuCheck, LuArrowRight, LuWallet, LuPrinter } from "react-icons/lu";
 import toast from "react-hot-toast";
+import { imprimirOrcamento } from "@/lib/documentos/orcamento-print";
 
 const BRL = (n: any) => Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const ST: any = {
@@ -154,13 +155,12 @@ export default function PetVendaPanel({ petId, pacotes = [], servicos = [], aten
                         {o.validade ? ` · vale até ${new Date(o.validade).toLocaleDateString("pt-BR")}` : ""}
                         {Array.isArray(o.itens) ? ` · ${o.itens.length} ${o.itens.length === 1 ? "item" : "itens"}` : ""}
                       </div>
-                      {!convertido && (
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {o.status === "RASCUNHO" && <button onClick={() => aprovar(o.id)} className="text-[10px] flex items-center gap-1 px-2 py-0.5 rounded border" style={{ borderColor: "#0F6E56", color: "#0F6E56" }}><LuCheck size={10} /> Aprovar</button>}
-                          {o.status === "APROVADO" && <button onClick={() => converter(o.id)} className="text-[10px] flex items-center gap-1 px-2 py-0.5 rounded text-white" style={{ background: "#009AAC" }}><LuArrowRight size={10} /> Converter em venda</button>}
-                          <button onClick={() => excluir(o.id)} className="text-[10px] flex items-center gap-1 px-2 py-0.5 rounded border" style={{ borderColor: "#f4baba", color: "#A32D2D" }}><LuTrash size={10} /> Excluir</button>
-                        </div>
-                      )}
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        <button onClick={() => imprimirOrcamento(o)} className="text-[10px] flex items-center gap-1 px-2 py-0.5 rounded border" style={{ borderColor: "#cfd8e0", color: "#0C447C" }}><LuPrinter size={10} /> Imprimir</button>
+                        {!convertido && o.status === "RASCUNHO" && <button onClick={() => aprovar(o.id)} className="text-[10px] flex items-center gap-1 px-2 py-0.5 rounded border" style={{ borderColor: "#0F6E56", color: "#0F6E56" }}><LuCheck size={10} /> Aprovar</button>}
+                        {!convertido && <button onClick={() => converter(o.id)} className="text-[10px] flex items-center gap-1 px-2 py-0.5 rounded text-white" style={{ background: "#009AAC" }}><LuArrowRight size={10} /> Transformar em venda</button>}
+                        {!convertido && <button onClick={() => excluir(o.id)} className="text-[10px] flex items-center gap-1 px-2 py-0.5 rounded border" style={{ borderColor: "#f4baba", color: "#A32D2D" }}><LuTrash size={10} /> Excluir</button>}
+                      </div>
                     </div>
                   );
                 })}

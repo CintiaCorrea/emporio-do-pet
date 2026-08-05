@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { useNotifications } from '@/hooks/useNotifications';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
@@ -85,7 +86,7 @@ export default function CalendarPage() {
   useEffect(() => {
     const fetchAppointments = async () => {
       try {
-        setLoading(true);
+        if (!jaCarregou.current) setLoading(true);
         setError(null);
 
         // Buscar agendamentos do mês atual
@@ -104,15 +105,30 @@ export default function CalendarPage() {
         setAppointments(data.appointments || []);
       } catch (err) {
         console.error('Erro ao buscar agendamentos:', err);
-        setError(err instanceof Error ? err.message : 'Erro desconhecido');
-        toast.error('Erro ao carregar agendamentos');
+        if (!jaCarregou.current) { setError(err instanceof Error ? err.message : 'Erro desconhecido'); toast.error('Erro ao carregar agendamentos'); }
       } finally {
+        jaCarregou.current = true;
         setLoading(false);
       }
     };
 
     fetchAppointments();
   }, [currentYear, currentMonth, refreshTick]);
+
+  // Atualização quase em tempo real (silenciosa; pausa com modal aberto ou aba em 2º plano).
+  const jaCarregou = useRef(false);
+  const interagindoRef = useRef(false);
+  interagindoRef.current = !!(novoOpen || isModalOpen);
+  // ⚡ Tempo real: mudança de agendamento atualiza na hora (respeita modal aberto / aba em 2º plano).
+  useNotifications({ onAgenda: () => { if (document.visibilityState === "visible" && !interagindoRef.current) setRefreshTick((t) => t + 1); } });
+  useEffect(() => {
+    const pode = () => document.visibilityState === "visible" && !interagindoRef.current;
+    const id = setInterval(() => { if (pode()) setRefreshTick((t) => t + 1); }, 45000);
+    const onVis = () => { if (pode()) setRefreshTick((t) => t + 1); };
+    document.addEventListener("visibilitychange", onVis);
+    return () => { clearInterval(id); document.removeEventListener("visibilitychange", onVis); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Agrupar agendamentos por data
   const appointmentsByDate = useMemo(() => {

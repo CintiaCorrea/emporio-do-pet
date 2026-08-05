@@ -698,6 +698,35 @@ export default function ConsultationRecorder({
             Análise da IA
           </h3>
 
+          {/* 🖊️ ESCRIBA: rascunho de prontuário COMPLETO, pronto pro vet revisar e copiar.
+              É um rascunho de apoio — quem revisa e assina é sempre o veterinário. */}
+          {analysis.prontuarioSugerido && (
+            <div className="mb-5 rounded-xl border border-violet-300 dark:border-violet-700 overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-2.5 bg-violet-50 dark:bg-violet-900/30 border-b border-violet-200 dark:border-violet-800">
+                <h4 className="text-sm font-semibold text-violet-700 dark:text-violet-300 flex items-center gap-2">
+                  <span style={{fontSize:"14px"}}>🖊️</span>
+                  Rascunho de prontuário
+                  <span className="font-normal text-xs text-violet-500 dark:text-violet-400">— revise e ajuste antes de salvar</span>
+                </h4>
+                <button
+                  onClick={() => {
+                    navigator.clipboard?.writeText(analysis.prontuarioSugerido)
+                      .then(() => toast.success('Prontuário copiado! Cole no prontuário do pet.'))
+                      .catch(() => toast.error('Não consegui copiar automaticamente.'));
+                  }}
+                  className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-violet-600 hover:bg-violet-700 text-white rounded-lg transition-all"
+                >
+                  <span style={{fontSize:"13px"}}>📋</span> Copiar
+                </button>
+              </div>
+              <div className="p-4 bg-white dark:bg-gray-900 max-h-96 overflow-y-auto">
+                <p className="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap leading-relaxed">
+                  {analysis.prontuarioSugerido}
+                </p>
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {analysis.resumo && (
               <div className="col-span-full p-4 bg-violet-50 dark:bg-violet-900/20 rounded-lg">
@@ -719,12 +748,34 @@ export default function ConsultationRecorder({
               </div>
             )}
 
+            {analysis.exameClinico && (
+              <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                <h4 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-1">
+                  Exame Clínico
+                </h4>
+                <p className="text-sm text-gray-700 dark:text-gray-300">{analysis.exameClinico}</p>
+              </div>
+            )}
+
             {analysis.diagnostico && (
               <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
                 <h4 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-1">
                   Diagnóstico
                 </h4>
                 <p className="text-sm text-gray-700 dark:text-gray-300">{analysis.diagnostico}</p>
+              </div>
+            )}
+
+            {analysis.diagnosticosDiferenciais?.length > 0 && (
+              <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                <h4 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-1">
+                  Diagnósticos Diferenciais
+                </h4>
+                <ul className="text-sm text-gray-700 dark:text-gray-300 list-disc list-inside">
+                  {analysis.diagnosticosDiferenciais.map((d: string, i: number) => (
+                    <li key={i}>{d}</li>
+                  ))}
+                </ul>
               </div>
             )}
 
@@ -770,6 +821,32 @@ export default function ConsultationRecorder({
                 <ul className="text-sm text-gray-700 dark:text-gray-300 list-disc list-inside">
                   {analysis.examesSolicitados.map((e: string, i: number) => (
                     <li key={i}>{e}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {analysis.tratamento?.procedimentos?.length > 0 && (
+              <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                <h4 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-1">
+                  Procedimentos
+                </h4>
+                <ul className="text-sm text-gray-700 dark:text-gray-300 list-disc list-inside">
+                  {analysis.tratamento.procedimentos.map((p: string, i: number) => (
+                    <li key={i}>{p}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {analysis.tratamento?.orientacoes?.length > 0 && (
+              <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                <h4 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-1">
+                  Orientações ao Tutor
+                </h4>
+                <ul className="text-sm text-gray-700 dark:text-gray-300 list-disc list-inside">
+                  {analysis.tratamento.orientacoes.map((o: string, i: number) => (
+                    <li key={i}>{o}</li>
                   ))}
                 </ul>
               </div>

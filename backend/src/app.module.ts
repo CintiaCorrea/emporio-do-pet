@@ -18,7 +18,6 @@ import { MetaLeadsWebhookModule } from './modules/webhooks/meta-leads/meta-leads
 import { MetaInsightsModule } from './modules/meta-insights/meta-insights.module';
 import { LegalModule } from './modules/legal/legal.module';
 import { PetsModule } from './modules/pets/pets.module';
-import { BreedsModule } from './modules/breeds/breeds.module';
 import { AppointmentsModule } from './modules/appointments/appointments.module';
 import { InteracoesModule } from './modules/interacoes/interacoes.module';
 import { InboxContextModule } from './modules/inbox-context/inbox-context.module';
@@ -79,7 +78,9 @@ import { IntegrationsModule } from './modules/integrations/integrations.module';
 import { MediaModule } from './modules/media/media.module';
 import { ConsultationRecordingsModule } from './modules/consultation-recordings/consultation-recordings.module';
 import { ClinicalDocumentsModule } from './modules/clinical-documents/clinical-documents.module';
-import { DocumentsModule } from './modules/documents/documents.module';
+import { InternacaoAlertasModule } from './modules/internacao-alertas/internacao-alertas.module';
+import { ExamesModule } from './modules/exames/exames.module';
+import { FinanceiroModule } from './modules/financeiro/financeiro.module';
 import { CrmModule } from './modules/crm/crm.module';
 import { KnowledgeBaseModule } from './modules/knowledge-base/knowledge-base.module';
 import { LandingPagesModule } from './modules/landing-pages/landing-pages.module';
@@ -161,7 +162,6 @@ import configuration from './config/configuration';
     MetaInsightsModule,
     LegalModule,
     PetsModule,
-    BreedsModule,
     AppointmentsModule,
     InteracoesModule,
     InboxContextModule,
@@ -178,6 +178,7 @@ import configuration from './config/configuration';
     HospitalizationsModule,
     BoxesModule,
     FinanceModule,
+    FinanceiroModule, // módulo Financeiro novo (DRE/parceria/fornecedores) — cômodo isolado fin_
     DashboardModule,
 
     // Portal do Tutor (PTL) — app do cliente. Comodo proprio: tabelas ptl_,
@@ -237,7 +238,6 @@ import configuration from './config/configuration';
     // Documentos Clínicos e Gravação de Consultas
     ConsultationRecordingsModule,
     ClinicalDocumentsModule,
-    DocumentsModule,
 
     // RAG - Knowledge Base
     KnowledgeBaseModule,
@@ -247,6 +247,8 @@ import configuration from './config/configuration';
 
     // Health check
     HealthModule,
+    InternacaoAlertasModule,
+    ExamesModule,
   ],
   providers: [CronLeaderService],
 })

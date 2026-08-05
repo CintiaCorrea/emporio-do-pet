@@ -12,6 +12,7 @@ import {
 } from 'react-icons/lu';
 import ConfirmDeleteModal from '@/components/common/ConfirmDeleteModal';
 import toast from 'react-hot-toast';
+import { usePodeEditar } from '@/lib/permissions/context';
 
 // Tipos baseados no schema Prisma (sem SERVICE)
 type ProductType = 'MEDICINE' | 'VACCINE';
@@ -63,6 +64,7 @@ interface ApiResponse {
 }
 
 export default function ProductsPage() {
+  const podeEditar = usePodeEditar(); // perfil VISUALIZA = esconde botões de mexer
   const [products, setProducts] = useState<Product[]>([]);
   const [stats, setStats] = useState<ProductStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -341,7 +343,8 @@ export default function ProductsPage() {
                     <span style={{fontSize:"14px"}}>📈</span>
                     <span>Relatório</span>
                   </Link>
-                  <button 
+                  {podeEditar && (
+                  <button
                     onClick={openCreateModal}
                     className="group px-6 py-3 text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-blue-500/25 flex items-center space-x-2 relative overflow-hidden"
                   >
@@ -349,6 +352,7 @@ export default function ProductsPage() {
                     <LuPlus className="w-4 h-4 relative z-10" />
                     <span className="relative z-10">Novo Produto</span>
                   </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -554,6 +558,7 @@ export default function ProductsPage() {
                             </div>
                           </td>
                           <td className="p-6">
+                            {podeEditar ? (
                             <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                               <button
                                 onClick={() => {
@@ -580,6 +585,9 @@ export default function ProductsPage() {
                                 <LuTrash className="w-4 h-4" />
                               </button>
                             </div>
+                            ) : (
+                              <span className="text-xs text-gray-400" title="Somente leitura">👁️</span>
+                            )}
                           </td>
                         </tr>
                       );
@@ -781,6 +789,7 @@ export default function ProductsPage() {
                   >
                     Fechar
                   </button>
+                  {podeEditar && (
                   <button
                     onClick={() => setIsEditMode(true)}
                     className="px-6 py-3 text-white bg-blue-600 rounded-2xl hover:bg-blue-700 transition-colors flex items-center gap-2"
@@ -788,6 +797,7 @@ export default function ProductsPage() {
                     <LuPencil className="w-4 h-4" />
                     Editar Produto
                   </button>
+                  )}
                 </>
               )}
             </div>

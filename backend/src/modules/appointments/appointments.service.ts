@@ -76,7 +76,7 @@ export class AppointmentsService {
 
     const { name: templateName, params } = this.confirmacaoTemplate(appt);
     // Envia E registra na conversa (aparece no inbox como enviada pelo sistema).
-    const res = await this.whatsapp.enviarTemplateRegistrando(phone, templateName, params, '📲 Confirmação de agendamento enviada pelo WhatsApp.');
+    const res = await this.whatsapp.enviarTemplateRegistrando(phone, templateName, params, '📲 Confirmação de agendamento enviada pelo WhatsApp.', true);
 
     if (!res.success) {
       return { success: false, error: res.error || 'Falha ao enviar pelo WhatsApp.' };
@@ -107,6 +107,61 @@ export class AppointmentsService {
     });
   }
 
+  // 🛡️ TRAVA DE HORÁRIO reutilizável (bug 31/07 + remarcação 04/08): recusa qualquer
+  // agendamento que SOBREPONHA um horário já ocupado na MESMA agenda/recurso (mesmo
+  // agendaAvulsa/MAP, ou mesmo profissional quando não-avulsa). Chamada nos TRÊS caminhos:
+  // criar, REMARCAR (fork) e mover — senão remarcar/arrastar furava a trava (Kate×Luna, MAP 2).
+  // Agendas com permiteSobreposicao (ex.: Terceiros) são exceção. `excludeId` ignora o próprio
+  // agendamento que está sendo movido/remarcado. Falha só o bloqueio proposital (BadRequest).
+  private async assertSemConflitoHorario(params: {
+    date: Date | string;
+    duration?: number | null;
+    userId?: string | null;
+    agendaAvulsa?: string | null;
+    status?: string | null;
+    type?: string | null;
+    excludeId?: string;
+  }): Promise<void> {
+    const avulsa = params.agendaAvulsa || null;
+    const _stt = String(params.status || '').toLowerCase();
+    const _tpp = String(params.type || '').toLowerCase();
+    // Só vale p/ AGENDAMENTO de agenda — não p/ venda/artefato instantâneo (senão bloqueava venda por falso conflito).
+    const ehAgenda =
+      !!avulsa ||
+      (!!params.userId &&
+        !/(realiz|conclu|complet|atend|venda|receita|documento|peso|observa|vacina|exame)/.test(`${_stt} ${_tpp}`));
+    if (!ehAgenda) return;
+    let permiteSobrepor = false;
+    if (avulsa) {
+      const cfgs = await this.prisma.listaItem.findMany({ where: { lista: 'agenda_avulsa' } });
+      for (const it of cfgs) {
+        try { const v = JSON.parse(it.valor); if (v.id === avulsa && v.permiteSobreposicao) permiteSobrepor = true; } catch { /* ilegível */ }
+      }
+    }
+    if (permiteSobrepor) return;
+    const inicio = new Date(params.date).getTime();
+    const fim = inicio + (params.duration || 30) * 60000;
+    const diaIni = new Date(params.date); diaIni.setHours(0, 0, 0, 0);
+    const diaFim = new Date(params.date); diaFim.setHours(23, 59, 59, 999);
+    const doDia = await this.prisma.appointment.findMany({
+      where: {
+        date: { gte: diaIni, lte: diaFim },
+        ...(avulsa ? { agendaAvulsa: avulsa } : { userId: params.userId ?? undefined, agendaAvulsa: null }),
+        ...(params.excludeId ? { id: { not: params.excludeId } } : {}),
+      },
+      select: { date: true, duration: true, status: true },
+    });
+    const conflito = doDia.some((a) => {
+      if (/(cancel|remarc)/i.test(String(a.status || ''))) return false; // cancelado/remarcado não ocupa
+      const ini = new Date(a.date).getTime();
+      const f = ini + ((a.duration || 30) * 60000);
+      return inicio < f && fim > ini; // sobreposição de janelas
+    });
+    if (conflito) {
+      throw new BadRequestException('Já existe um agendamento neste horário nesta agenda. Escolha outro horário.');
+    }
+  }
+
   async create(createAppointmentDto: CreateAppointmentDto) {
     // Validações mínimas (compatível com o antigo /api/appointments do Next)
     if (
@@ -126,6 +181,32 @@ export class AppointmentsService {
       where: { id: createAppointmentDto.userId },
     });
     if (!existingUser) throw new NotFoundException('Veterinário não encontrado');
+
+    // 🛡️ IDEMPOTÊNCIA anti-duplicado (bug 30/07): se JÁ existe agendamento do MESMO pet, com o
+    // MESMO profissional, no MESMO horário exato, devolve ele em vez de criar outro. Cobre o
+    // clique-duplo E o "retry" quando o 1º POST parecia ter falhado (banco lento) mas gravou —
+    // cenário que gerou os duplicados exatos na agenda.
+    if (createAppointmentDto.petId) {
+      const jaExiste = await this.prisma.appointment.findFirst({
+        where: {
+          petId: createAppointmentDto.petId,
+          userId: createAppointmentDto.userId,
+          date: new Date(createAppointmentDto.date),
+        },
+        orderBy: { createdAt: 'asc' },
+      });
+      if (jaExiste) return jaExiste;
+    }
+
+    // 🛡️ TRAVA DE HORÁRIO na CRIAÇÃO (ver assertSemConflitoHorario). Protege agenda E app/portal.
+    await this.assertSemConflitoHorario({
+      date: createAppointmentDto.date,
+      duration: createAppointmentDto.duration,
+      userId: createAppointmentDto.userId,
+      agendaAvulsa: (createAppointmentDto as any).agendaAvulsa,
+      status: (createAppointmentDto as any).status,
+      type: (createAppointmentDto as any).type,
+    });
 
     // Criar pet se necessário
     let finalPetId = createAppointmentDto.petId;
@@ -188,8 +269,35 @@ export class AppointmentsService {
       ...(createAppointmentDto.boardId && { boardId: createAppointmentDto.boardId }),
     };
 
+    // 🛡️ ANTI-DUPLICAÇÃO DO ATENDIMENTO (bug 04/08 — "dois agendamentos da mesma pessoa"):
+    // se este create é um ATENDIMENTO (status realizado/concluído/atendido) e o pet JÁ tem um
+    // agendamento ATIVO hoje, REAPROVEITA esse agendamento (atualiza, mantendo horário/coluna)
+    // em vez de criar outro — senão a agenda mostra o agendado + o atendimento como 2 cartões.
+    let reuseId: string | null = null;
+    if (/(realiz|conclu|atend)/.test(String(finalStatus).toLowerCase())) {
+      const d0 = new Date(appointmentDate); d0.setHours(0, 0, 0, 0);
+      const d1 = new Date(appointmentDate); d1.setHours(23, 59, 59, 999);
+      const agendado = await this.prisma.appointment.findFirst({
+        where: {
+          petId: finalPetId,
+          date: { gte: d0, lte: d1 },
+          status: { in: ['Em atendimento', 'Atendido', 'Em espera', 'Aguardando', 'Confirmado', 'Agendado', 'SCHEDULED'] },
+          type: { notIn: ['Documento', 'Peso', 'Receitas', 'Receita', 'Venda', 'Observação'] },
+        },
+        orderBy: { date: 'desc' }, // se houver +de um no dia, pega o mais próximo do fim do dia
+      });
+      if (agendado) reuseId = agendado.id;
+    }
+
     const result = await this.prisma.$transaction(async (tx: PrismaTransactionClient) => {
-      const appointment = await tx.appointment.create({ data: appointmentData });
+      let appointment: any;
+      if (reuseId) {
+        // mantém o HORÁRIO e a coluna (date/userId/agendaAvulsa) agendados; aplica o atendimento por cima.
+        const { date: _d, userId: _u, agendaAvulsa: _a, ...dadosAtendimento } = appointmentData;
+        appointment = await tx.appointment.update({ where: { id: reuseId }, data: dadosAtendimento });
+      } else {
+        appointment = await tx.appointment.create({ data: appointmentData });
+      }
 
       if (createAppointmentDto.treatments && createAppointmentDto.treatments.length > 0) {
         for (const t of createAppointmentDto.treatments) {
@@ -314,6 +422,7 @@ export class AppointmentsService {
         tutorPhone: primaryContact?.number,
         tutorEmail: (result.tutor as any)?.email,
       });
+      this.eventsService.emitAppointmentChanged(); // tempo real da agenda
 
       // Create card in Consultation board (async, don't block the response)
       const cardTitle = `${result.pet?.name || 'Pet'} - ${result.tutor?.name || 'Tutor'}`;
@@ -549,6 +658,71 @@ export class AppointmentsService {
         throw new NotFoundException('Pet não encontrado ou não pertence ao tutor informado');
     }
 
+    // 🔄 REMARCAÇÃO COM RASTRO (opção A — 31/07)
+    // Quando a DATA de um agendamento ATIVO de agenda muda, em vez de editar em cima:
+    // o antigo vira "Remarcado" (guarda o horário antigo p/ o histórico do pet) e cria-se um NOVO no horário novo.
+    {
+      const dRe = updateAppointmentDto as any;
+      const novaData = dRe.date !== undefined ? new Date(dRe.date) : null;
+      const mudouData =
+        !!novaData &&
+        Math.abs(novaData.getTime() - new Date(existingAppointment.date).getTime()) > 60000;
+      const st = String(existingAppointment.status || '').toLowerCase();
+      const ativo = !/(cancel|realiz|atend|conclu|complet|falt|no.?show|ausen|remarc|espera|aguard)/.test(st);
+      const ehArtefato = /^(receitas?|documento|peso|observa|obs|vacina|v[íi]deo|video|exame|atendimento)/i.test(
+        String(existingAppointment.type || ''),
+      );
+      const soAgenda =
+        dRe.treatments === undefined &&
+        dRe.items === undefined &&
+        dRe.prescription === undefined &&
+        dRe.diagnosis === undefined &&
+        dRe.anamnesis === undefined;
+      if (novaData && mudouData && ativo && !ehArtefato && soAgenda) {
+        const base: any = existingAppointment;
+        // 🛡️ TRAVA na REMARCAÇÃO (furo real 04/08: Kate×Luna na MAP 2 em 07/08): não deixa
+        // remarcar/arrastar p/ um horário já ocupado na mesma agenda. excludeId=id ignora o próprio.
+        await this.assertSemConflitoHorario({
+          date: novaData,
+          duration: dRe.duration ?? base.duration,
+          userId: dRe.userId ?? base.userId,
+          agendaAvulsa: dRe.agendaAvulsa ?? base.agendaAvulsa,
+          status: 'Agendado',
+          type: dRe.type ?? base.type,
+          excludeId: id,
+        });
+        const novo = await this.prisma.$transaction(async (tx: PrismaTransactionClient) => {
+          const criado = await tx.appointment.create({
+            data: {
+              tutorId: dRe.tutorId ?? base.tutorId,
+              petId: dRe.petId ?? base.petId,
+              userId: dRe.userId ?? base.userId,
+              date: novaData,
+              duration: dRe.duration ?? base.duration ?? 30,
+              type: dRe.type ?? base.type,
+              description: dRe.description ?? base.description,
+              notes: dRe.notes ?? base.notes,
+              value: dRe.value ?? base.value ?? 0,
+              status: dRe.status && !/remarc/i.test(String(dRe.status)) ? dRe.status : 'Agendado',
+              paymentStatus: base.paymentStatus ?? 'PENDING',
+              agendaAvulsa: dRe.agendaAvulsa ?? base.agendaAvulsa,
+              chiefComplaint: dRe.chiefComplaint ?? base.chiefComplaint,
+              ...(base.boardId ? { boardId: base.boardId } : {}),
+            },
+          });
+          const quando = novaData.toLocaleString('pt-BR', {
+            day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
+          });
+          await tx.appointment.update({
+            where: { id },
+            data: { status: 'Remarcado', motivoCancelamento: `Remarcado para ${quando}` },
+          });
+          return criado;
+        });
+        return this.findById(novo.id);
+      }
+    }
+
     const updateData: any = {};
     if (updateAppointmentDto.tutorId !== undefined)
       updateData.tutorId = updateAppointmentDto.tutorId;
@@ -583,6 +757,23 @@ export class AppointmentsService {
       updateData.paymentStatus = updateAppointmentDto.paymentStatus;
     if (updateAppointmentDto.boardId !== undefined)
       updateData.boardId = updateAppointmentDto.boardId;
+
+    // 🛡️ TRAVA no MOVER/editar em cima: se a DATA muda sem passar pelo fork de remarcação
+    // (ex.: edição que também carrega campos clínicos), ainda assim não pode cair sobre outro.
+    if (updateData.date) {
+      const dateMudou = Math.abs(new Date(updateData.date).getTime() - new Date(existingAppointment.date).getTime()) > 60000;
+      if (dateMudou) {
+        await this.assertSemConflitoHorario({
+          date: updateData.date,
+          duration: updateData.duration ?? existingAppointment.duration,
+          userId: updateData.userId ?? existingAppointment.userId,
+          agendaAvulsa: updateData.agendaAvulsa !== undefined ? updateData.agendaAvulsa : (existingAppointment as any).agendaAvulsa,
+          status: updateData.status ?? existingAppointment.status,
+          type: updateData.type ?? (existingAppointment as any).type,
+          excludeId: id,
+        });
+      }
+    }
 
     const result = await this.prisma.$transaction(async (tx: PrismaTransactionClient) => {
       const updatedAppointment = await tx.appointment.update({ where: { id }, data: updateData });
@@ -726,6 +917,7 @@ export class AppointmentsService {
       }
     }
 
+    this.eventsService.emitAppointmentChanged(); // tempo real da agenda (remarcar/status/etc.)
     return result;
   }
 
@@ -747,9 +939,11 @@ export class AppointmentsService {
       }
     }
 
-    return this.prisma.appointment.delete({
+    const removido = await this.prisma.appointment.delete({
       where: { id },
     });
+    this.eventsService.emitAppointmentChanged(); // tempo real da agenda
+    return removido;
   }
 
   async getUpcoming(userId?: string, days = 7) {

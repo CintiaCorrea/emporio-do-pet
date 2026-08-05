@@ -291,6 +291,9 @@ export class HospitalizationsService {
       metadata.actualDischargeDate = dto.actualDischargeDate;
     if (dto.diagnosis !== undefined) metadata.diagnosis = dto.diagnosis;
     if (dto.vitalSigns !== undefined) metadata.vitalSigns = dto.vitalSigns;
+    // Espelha o status DENTRO do metadata (notes) — os alertas de internação leem daqui.
+    // Sem isso, dar alta atualizava só a coluna e o alerta continuava disparando (bug 28/07).
+    if (dto.status !== undefined) (metadata as any).status = dto.status;
 
     const updateData: any = {
       notes: JSON.stringify(metadata),

@@ -3,6 +3,7 @@ import { ValidationPipe, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { RedisIoAdapter } from './adapters/redis-io.adapter';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -79,6 +80,20 @@ async function bootstrap() {
     SwaggerModule.setup('docs', app, document);
 
     logger.log(`📚 Swagger disponível em: http://localhost:${port}/docs`);
+  }
+
+  // Tempo real entre as 2 máquinas via Redis (com fallback seguro pra memória).
+  // Faz um WhatsApp que chega numa máquina avisar os usuários conectados na outra.
+  try {
+    const redisIoAdapter = new RedisIoAdapter(app);
+    const ok = await redisIoAdapter.connectToRedis();
+    if (ok) {
+      app.useWebSocketAdapter(redisIoAdapter);
+    } else {
+      logger.warn('⚠️ WebSocket seguindo SEM Redis adapter (modo memória).');
+    }
+  } catch (e) {
+    logger.error('Falha ao configurar Redis adapter de WebSocket; seguindo em memória.', e as any);
   }
 
   // Escutar em 0.0.0.0 para funcionar no Docker/Fly.io

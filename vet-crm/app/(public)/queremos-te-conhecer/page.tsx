@@ -1,6 +1,15 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { buscarCep } from "@/lib/cep";
+import { useAutoSaveDraft } from "@/hooks/useAutoSaveDraft";
+
+const ORIGENS_DEFAULT = ["Indicação", "Google", "Instagram", "Facebook", "Passando na rua", "WhatsApp", "Outro"];
+// "Como conheceu" pode virar indicação composta: "Indicação · Cliente: Maria Silva".
+const composeHowFound = (origem: string, indicTipo: string, indicNome: string) => {
+  if (!origem) return "";
+  if (origem === "Indicação") { const tipo = indicTipo || "Cliente"; const nome = (indicNome || "").trim(); return nome ? `Indicação · ${tipo}: ${nome}` : `Indicação · ${tipo}`; }
+  return origem;
+};
 
 const TEAL = "#009AAC";
 const NAVY = "#014D5E";
@@ -19,12 +28,35 @@ export default function CadastroPublicoPage() {
   const [f, setF] = useState({
     name: "", cpf: "", birthDate: "", cep: "", address: "", phone: "", email: "",
     petName: "", petSpecies: "", petBirthDate: "", petBreed: "", petAge: "", petWeight: "", howFoundUs: "",
+    indicTipo: "Cliente", indicNome: "",
   });
+  // Origens cadastradas em Config › Listas (mesma fonte da ficha do tutor) + padrões.
+  const [origens, setOrigens] = useState<string[]>([]);
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await fetch("/api/public/origens", { cache: "no-store" });
+        const d = await r.json().catch(() => null);
+        const arr = Array.isArray(d?.origens) ? d.origens : Array.isArray(d) ? d : [];
+        setOrigens(arr.filter(Boolean));
+      } catch { /* usa só os padrões */ }
+    })();
+  }, []);
+  const origensOpcoes = Array.from(new Set([...origens, ...ORIGENS_DEFAULT]));
   const [consent, setConsent] = useState(false);
   const [sending, setSending] = useState(false);
   const [done, setDone] = useState(false);
   const [erro, setErro] = useState("");
   const up = (k: string, v: string) => setF((s) => ({ ...s, [k]: v }));
+
+  // Auto-save de rascunho (silencioso). O cliente preenche no próprio celular —
+  // se sair e voltar, recarrega sozinho. Chave fixa (é o dispositivo dele).
+  const { clear: limparRascunho } = useAutoSaveDraft<typeof f>({
+    key: "cadastroPublicoRasc",
+    value: f,
+    isVazio: (v) => !(v.name || v.phone || v.email || v.cpf || v.petName),
+    onRestore: (s) => setF((prev) => ({ ...prev, ...s })),
+  });
 
   async function autoCep(cep: string) {
     if (onlyDigits(cep).length !== 8) return;
@@ -39,9 +71,13 @@ export default function CadastroPublicoPage() {
     if (!consent) { setErro("Marque a autorização de uso dos dados para continuar."); return; }
     setSending(true);
     try {
-      const r = await fetch("/api/public/cadastro", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(f) });
+      // Monta a indicação composta e tira os campos auxiliares antes de enviar.
+      const { indicTipo, indicNome, ...base } = f;
+      const payload = { ...base, howFoundUs: composeHowFound(f.howFoundUs, indicTipo, indicNome) };
+      const r = await fetch("/api/public/cadastro", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       const d = await r.json().catch(() => ({}));
       if (!r.ok || d?.ok === false) { setErro(d?.message || "Não foi possível enviar. Tente de novo."); setSending(false); return; }
+      limparRascunho();
       setDone(true);
     } catch { setErro("Sem conexão. Tente de novo em instantes."); setSending(false); }
   }
@@ -108,7 +144,21 @@ export default function CadastroPublicoPage() {
             <div><label style={lbl}>Peso (kg)</label><input style={inp} value={f.petWeight} onChange={(e) => up("petWeight", e.target.value)} inputMode="decimal" placeholder="Ex.: 8" /></div>
           </div>
 
-          <div><label style={lbl}>Como nos conheceu?</label><input style={inp} value={f.howFoundUs} onChange={(e) => up("howFoundUs", e.target.value)} placeholder="Indicação, Instagram, Google…" /></div>
+          <div><label style={lbl}>Como nos conheceu?</label>
+            <select style={inp} value={f.howFoundUs} onChange={(e) => up("howFoundUs", e.target.value)}>
+              <option value="">Selecione…</option>
+              {origensOpcoes.map((o, i) => <option key={i} value={o}>{o}</option>)}
+            </select></div>
+          {f.howFoundUs === "Indicação" && (
+            <>
+              <div><label style={lbl}>Tipo de indicação</label>
+                <select style={inp} value={f.indicTipo} onChange={(e) => up("indicTipo", e.target.value)}>
+                  <option value="Cliente">Cliente</option><option value="Parceiro">Parceiro</option><option value="Outro">Outro</option>
+                </select></div>
+              <div><label style={lbl}>Nome de quem indicou</label>
+                <input style={inp} value={f.indicNome} onChange={(e) => up("indicNome", e.target.value)} placeholder="Nome de quem te indicou" /></div>
+            </>
+          )}
 
           <label style={{ display: "flex", gap: 9, alignItems: "flex-start", fontSize: 13.5, color: "#5C6B70", cursor: "pointer", marginTop: 4 }}>
             <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} style={{ marginTop: 3 }} />

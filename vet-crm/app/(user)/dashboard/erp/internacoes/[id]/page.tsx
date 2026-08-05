@@ -10,6 +10,8 @@ import { useSession } from "next-auth/react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { openWhatsAppMeta } from "@/lib/actions/whatsapp";
 import { imprimirDocumento } from "@/lib/print";
+import { useAutoSaveDraft } from "@/hooks/useAutoSaveDraft";
+import { usePodeEditar } from "@/lib/permissions/context";
 
 const ESTADOS = [
   { v: "Estável", prio: "LOW", bg: "#E1F5EE", fg: "#0F6E56" },
@@ -24,15 +26,22 @@ const FREQUENCIAS: Array<{ v: string; h: number }> = [
   { v: "4/4h", h: 4 }, { v: "6/6h", h: 6 }, { v: "8/8h", h: 8 },
   { v: "12/12h", h: 12 }, { v: "24h (1x ao dia)", h: 24 },
 ];
+/** Extrai o intervalo em HORAS do texto da frequência (funciona pra frequências
+ *  customizadas em Config › Listas): "8/8h"→8, "24h (1x ao dia)"→24, "10/10h"→10,
+ *  "48h"→48. Texto sem horas (ex.: "quando necessário") → 0 (contínua, sem horário fixo). */
+function horasDaFreq(frequencia: string): number {
+  const m = /(\d+)\s*\/?\s*\d*\s*h/i.exec(String(frequencia || ""));
+  return m ? parseInt(m[1], 10) : 0;
+}
 /** "06:00" + 8/8h → "06:00, 14:00, 22:00". Ciclo de 24h a partir da 1ª aplicação. */
 function calcularHorarios(primeira: string, frequencia: string): string {
-  const f = FREQUENCIAS.find((x) => x.v === frequencia);
+  const h = horasDaFreq(frequencia);
   const m = /^(\d{1,2}):(\d{2})$/.exec((primeira || "").trim());
-  if (!f || !m) return "";
+  if (h <= 0 || !m) return "";
   const ini = parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
   if (isNaN(ini) || ini < 0 || ini >= 1440) return "";
   const out: string[] = [];
-  for (let t = 0; t < 24 * 60; t += f.h * 60) {
+  for (let t = 0; t < 24 * 60; t += h * 60) {
     const min = (ini + t) % 1440;
     out.push(`${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`);
   }
@@ -88,6 +97,7 @@ export default function FichaInternacaoPage() {
   const { data: session } = useSession();
   const userName = session?.user?.name || "";
   usePageTitle("Ficha de internação", "Paciente internado");
+  const podeEditar = usePodeEditar(); // perfil VISUALIZA = esconde TODAS as ações de mexer
 
   const [h, setH] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -114,6 +124,10 @@ export default function FichaInternacaoPage() {
   const [previewBol, setPreviewBol] = useState<{ titulo: string; texto: string; horario?: string } | null>(null); // visualizar antes de enviar / rever enviado
   const [bolEnviando, setBolEnviando] = useState("");
   const [modelosBoletim, setModelosBoletim] = useState<Array<{ id: string; nome: string; texto: string }>>([]);
+  const [intBolPronto, setIntBolPronto] = useState(false);  // liga o auto-save só depois do load dos boletins
+  const [bolAberto, setBolAberto] = useState<string>("");   // horário aberto na sanfona (um por vez)
+  const [addHoraOpen, setAddHoraOpen] = useState(false);    // caixinha "+ horário"
+  const [novaHora, setNovaHora] = useState("");
 
   const [admOpen, setAdmOpen] = useState(false);
   const [admForm, setAdmForm] = useState<any>({ pesoEntrada: "", tempEntrada: "", diagnosis: "", prognostico: "", estimatedDischargeDate: "" });
@@ -123,15 +137,18 @@ export default function FichaInternacaoPage() {
   const [prescricoes, setPrescricoes] = useState<any[]>([]);
   const [doses, setDoses] = useState<any[]>([]);
   const [prescOpen, setPrescOpen] = useState(false);
-  const [prescForm, setPrescForm] = useState<any>({ id: "", medicamento: "", via: "IV", dose: "", primeira: "", frequencia: "", horarios: "", observacao: "", prescritoPor: "" });
+  const [prescForm, setPrescForm] = useState<any>({ id: "", medicamento: "", via: "IV", dose: "", primeira: "", frequencia: "", horarios: "", observacao: "", prescritoPor: "", cobrarTipo: "", cobrarId: "", cobrarNome: "", cobrarValor: 0 });
   const [prescSaving, setPrescSaving] = useState(false);
 
   // Sinais vitais & fluidos (F4)
   const [vitais, setVitais] = useState<any[]>([]);
   const [fluidos, setFluidos] = useState<any[]>([]);
   const [vitalOpen, setVitalOpen] = useState(false);
-  const [vitalForm, setVitalForm] = useState<any>({ fc: "", fr: "", temp: "", pa: "", mucosa: "Rósea", dor: "0" });
+  const [vitalForm, setVitalForm] = useState<any>({ fc: "", fr: "", temp: "", pa: "", mucosa: "Rósea", dor: "0", peso: "" });
   const [vitalSaving, setVitalSaving] = useState(false);
+  // Agendamento das aferições (mesmo esquema das medicações) — guardado em vitalSigns.aferiCfg
+  const [aferiFreq, setAferiFreq] = useState("");
+  const [aferiPrim, setAferiPrim] = useState("");
   const [fluidoOpen, setFluidoOpen] = useState(false);
   const [fluidoForm, setFluidoForm] = useState<any>({ entradaFluido: "", agua: "", diurese: "", fezes: "", alimentacao: "", emese: "", observacao: "" });
   const [fluidoSaving, setFluidoSaving] = useState(false);
@@ -149,6 +166,17 @@ export default function FichaInternacaoPage() {
   const [caucaoOpen, setCaucaoOpen] = useState(false);
   const [caucaoForm, setCaucaoForm] = useState<any>({ valor: "", descricao: "Caução de internação" });
   const [finBusy, setFinBusy] = useState("");
+
+  // Opções de frequência: vêm de Config › Listas (lista `internacao_frequencia`), com as
+  // 5 padrão como reserva se a lista estiver vazia. Assim a Cintia edita sem depender de deploy.
+  const [freqOpcoes, setFreqOpcoes] = useState<string[]>(FREQUENCIAS.map((f) => f.v));
+  useEffect(() => {
+    fetch(`/api/listas?lista=internacao_frequencia`).then((r) => r.json()).then((d) => {
+      const arr = Array.isArray(d) ? d : (d?.itens || d?.data || []);
+      const vals = arr.map((i: any) => i?.valor).filter(Boolean);
+      if (vals.length) setFreqOpcoes(vals);
+    }).catch(() => {});
+  }, []);
 
   // "Carregando..." só na PRIMEIRA carga. Nas recargas depois de uma ação os dados são
   // trocados por baixo, sem desmontar a tela — é isso que tirava o usuário do lugar
@@ -194,6 +222,7 @@ export default function FichaInternacaoPage() {
       const bpItem = bpArr[0] || null;
       setBolProgId(bpItem?.id || null);
       try { setBolProg(bpItem ? JSON.parse(bpItem.valor) : {}); } catch { setBolProg({}); }
+      setIntBolPronto(true); // dados dos boletins carregados → liga o auto-save de rascunho
       setServicos(Array.isArray(sv) ? sv : (sv.itens || sv.data || []));
       setProdutos(Array.isArray(pd) ? pd : (pd.products || pd.data || []));
       const tutorId = d?.tutor?.id;
@@ -202,7 +231,19 @@ export default function FichaInternacaoPage() {
     jaCarregou.current = true;
     setLoading(false);
   };
-  useEffect(() => { if (id) load(); /* eslint-disable-next-line */ }, [id]);
+  useEffect(() => {
+    if (!id) return;
+    // 🛡️ RAIZ do bug 29/07 (boletim do Simba saiu com dados do Alex): ao TROCAR de
+    // internação, zera os textos do boletim e DESLIGA o auto-save ANTES de recarregar.
+    // Senão o auto-save gravava o texto da internação anterior na chave (intBolRasc) da
+    // NOVA internação — vazando o boletim de um paciente pro outro. O load() repovoa certo.
+    setIntBolPronto(false);
+    setBolProg({});
+    load();
+    /* eslint-disable-next-line */
+  }, [id]);
+  // seed do agendamento das aferições quando a internação carrega
+  useEffect(() => { const c = (h as any)?.vitalSigns?.aferiCfg; setAferiFreq(c?.frequencia || ""); setAferiPrim(c?.primeira || ""); /* eslint-disable-next-line */ }, [(h as any)?.id]);
 
   const estado = h ? estadoDe(h) : "Estável";
   const adm = h?.vitalSigns?.admissao || {};
@@ -231,6 +272,12 @@ export default function FichaInternacaoPage() {
     if (res.ok) load();
     return res.ok;
   };
+
+  // Config das aferições + avisos (reaproveitam salvarVital → vitalSigns)
+  const salvarAferiCfg = (freq: string, prim: string) => { setAferiFreq(freq); setAferiPrim(prim); salvarVital({ vitalSigns: { aferiCfg: { frequencia: freq, primeira: prim } } }); };
+  const avisos = ((h as any)?.vitalSigns?.avisos) || { popup: true, som: true, whatsapp: false, repetir: false };
+  const toggleAviso = (k: string) => salvarVital({ vitalSigns: { avisos: { ...avisos, [k]: !avisos[k] } } });
+  const horariosAferi = (calcularHorarios(aferiPrim, aferiFreq) || "").split(", ").filter(Boolean);
 
   const mudarRisco = async (e: string) => {
     const st = estadoStyle(e);
@@ -286,8 +333,8 @@ export default function FichaInternacaoPage() {
   // ── Prescrição & plantão (F3) ─────────────────────────────────────
   const abrirPresc = (p?: any) => {
     setPrescForm(p
-      ? { id: p.id, medicamento: p.medicamento || "", via: p.via || "IV", dose: p.dose || "", primeira: p.primeira || "", frequencia: p.frequencia || "", horarios: (p.horarios || []).join(", "), observacao: p.observacao || "", prescritoPor: p.prescritoPor || "" }
-      : { id: "", medicamento: "", via: "IV", dose: "", primeira: "", frequencia: "", horarios: "", observacao: "", prescritoPor: "" });
+      ? { id: p.id, medicamento: p.medicamento || "", via: p.via || "IV", dose: p.dose || "", primeira: p.primeira || "", frequencia: p.frequencia || "", horarios: (p.horarios || []).join(", "), observacao: p.observacao || "", prescritoPor: p.prescritoPor || "", cobrarTipo: p.cobrarTipo || "", cobrarId: p.cobrarId || "", cobrarNome: p.cobrarNome || "", cobrarValor: Number(p.cobrarValor) || 0 }
+      : { id: "", medicamento: "", via: "IV", dose: "", primeira: "", frequencia: "", horarios: "", observacao: "", prescritoPor: "", cobrarTipo: "", cobrarId: "", cobrarNome: "", cobrarValor: 0 });
     setPrescOpen(true);
   };
   const salvarPresc = async () => {
@@ -302,6 +349,9 @@ export default function FichaInternacaoPage() {
         primeira: prescForm.primeira || "", frequencia: prescForm.frequencia.trim(), horarios,
         observacao: prescForm.observacao.trim(),
         prescritoPor: prescForm.prescritoPor || userName || "",
+        // Vínculo p/ cobrança automática na conta a cada aplicação (opcional).
+        cobrarTipo: prescForm.cobrarTipo || "", cobrarId: prescForm.cobrarId || "",
+        cobrarNome: prescForm.cobrarNome || "", cobrarValor: Number(prescForm.cobrarValor) || 0,
       };
       if (prescForm.id) {
         await fetch(`/api/listas/${prescForm.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ valor: JSON.stringify(payload) }) });
@@ -319,29 +369,49 @@ export default function FichaInternacaoPage() {
   const marcarDose = async (slot: any) => {
     try {
       if (slot.log) {
+        // Desmarcou (foi engano): apaga o log E o lançamento automático dessa aplicação, se houver.
         await fetch(`/api/listas/${slot.log.id}`, { method: "DELETE", credentials: "include" });
+        const autoItem = conta.find((c: any) => c.medLogId === slot.log.id);
+        if (autoItem?.id) await fetch(`/api/listas/${autoItem.id}`, { method: "DELETE", credentials: "include" }).catch(() => undefined);
       } else {
         const now = new Date();
         const valor = JSON.stringify({ prescId: slot.p.id, med: slot.p.medicamento, via: slot.p.via, dose: slot.p.dose, slot: slot.hhmm, date: hojeISO(), at: now.toISOString(), por: userName });
-        await fetch("/api/listas", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ lista: `intmed_${id}`, valor }) });
+        const r = await fetch("/api/listas", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ lista: `intmed_${id}`, valor }) });
+        const cd = await r.json().catch(() => null);
+        const logId = cd?.id;
+        // COBRANÇA AUTOMÁTICA: prescrição vinculada ao catálogo → lança 1× na conta, amarrada a este log.
+        if (logId && !alta && slot.p?.cobrarId) {
+          const itemPayload = {
+            descricao: `${slot.p.cobrarNome || slot.p.medicamento} — aplicação ${slot.hhmm}`,
+            categoria: "Medicação",
+            quantidade: 1,
+            valorUnitario: precoAtualCobranca(slot.p),
+            servicoId: slot.p.cobrarTipo === "servico" ? slot.p.cobrarId : "",
+            productId: slot.p.cobrarTipo === "produto" ? slot.p.cobrarId : "",
+            baixado: false,
+            medLogId: logId,
+            auto: true,
+          };
+          await fetch("/api/listas", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ lista: `intconta_${id}`, valor: JSON.stringify(itemPayload) }) }).catch(() => undefined);
+        }
       }
       load();
     } catch {}
   };
 
   // ── Sinais vitais & fluidos (F4) ──────────────────────────────────
-  const abrirVital = () => { setVitalEditId(""); setVitalForm({ fc: "", fr: "", temp: "", pa: "", mucosa: "Rósea", dor: "0" }); setVitalOpen(true); };
-  const abrirVitalEdit = (v: any) => { setVitalEditId(v.id); setVitalForm({ fc: v.fc ?? "", fr: v.fr ?? "", temp: v.temp ?? "", pa: v.pa ?? "", mucosa: v.mucosa || "Rósea", dor: String(v.dor ?? "0") }); setVitalOpen(true); };
+  const abrirVital = () => { setVitalEditId(""); setVitalForm({ fc: "", fr: "", temp: "", pa: "", mucosa: "Rósea", dor: "0", peso: "" }); setVitalOpen(true); };
+  const abrirVitalEdit = (v: any) => { setVitalEditId(v.id); setVitalForm({ fc: v.fc ?? "", fr: v.fr ?? "", temp: v.temp ?? "", pa: v.pa ?? "", mucosa: v.mucosa || "Rósea", dor: String(v.dor ?? "0"), peso: v.peso ?? "" }); setVitalOpen(true); };
   const registrarVital = async () => {
-    if (![vitalForm.fc, vitalForm.fr, vitalForm.temp, vitalForm.pa].some((x) => String(x).trim())) { alert("Preencha ao menos um sinal vital."); return; }
+    if (![vitalForm.fc, vitalForm.fr, vitalForm.temp, vitalForm.pa, vitalForm.peso].some((x) => String(x).trim())) { alert("Preencha ao menos um sinal vital ou o peso."); return; }
     setVitalSaving(true);
     try {
-      const campos = { fc: vitalForm.fc, fr: vitalForm.fr, temp: vitalForm.temp, pa: vitalForm.pa, mucosa: vitalForm.mucosa, dor: vitalForm.dor };
+      const campos = { fc: vitalForm.fc, fr: vitalForm.fr, temp: vitalForm.temp, pa: vitalForm.pa, mucosa: vitalForm.mucosa, dor: vitalForm.dor, peso: vitalForm.peso };
       if (vitalEditId) {
         const orig = vitais.find((x: any) => x.id === vitalEditId) || {};
         const valor = JSON.stringify({ at: orig.at, hora: orig.hora, ...campos, por: orig.por || userName });
         await fetch(`/api/listas/${vitalEditId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ valor }) });
-        await logInterno("editou", "vital", vitalEditId, { fc: orig.fc, fr: orig.fr, temp: orig.temp, pa: orig.pa, mucosa: orig.mucosa, dor: orig.dor }, campos);
+        await logInterno("editou", "vital", vitalEditId, { fc: orig.fc, fr: orig.fr, temp: orig.temp, pa: orig.pa, mucosa: orig.mucosa, dor: orig.dor, peso: orig.peso }, campos);
       } else {
         const now = new Date();
         const valor = JSON.stringify({ at: now.toISOString(), hora: now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }), ...campos, por: userName });
@@ -349,7 +419,7 @@ export default function FichaInternacaoPage() {
         const cd = await r.json().catch(() => null);
         await logInterno("criou", "vital", cd?.id || "", null, campos);
       }
-      setVitalForm({ fc: "", fr: "", temp: "", pa: "", mucosa: "Rósea", dor: "0" }); setVitalEditId(""); setVitalOpen(false); load();
+      setVitalForm({ fc: "", fr: "", temp: "", pa: "", mucosa: "Rósea", dor: "0", peso: "" }); setVitalEditId(""); setVitalOpen(false); load();
     } catch { alert("Erro ao registrar aferição."); }
     finally { setVitalSaving(false); }
   };
@@ -394,6 +464,26 @@ export default function FichaInternacaoPage() {
   const abrirItem = (p?: any) => { setItemForm(p ? { id: p.id, descricao: p.descricao || "", categoria: p.categoria || "Procedimento", quantidade: String(p.quantidade || "1"), valorUnitario: String(p.valorUnitario ?? ""), servicoId: p.servicoId || "", productId: p.productId || "" } : { id: "", descricao: "", categoria: "Procedimento", quantidade: "1", valorUnitario: "", servicoId: "", productId: "" }); setItemOpen(true); };
   const pickServico = (sid: string) => { const s = servicos.find((x) => x.id === sid); setItemForm((f: any) => ({ ...f, servicoId: sid, descricao: s?.nome || f.descricao, valorUnitario: s?.valorPadrao != null ? String(s.valorPadrao) : f.valorUnitario })); };
   const pickProduto = (pid: string) => { const p = produtos.find((x) => x.id === pid); setItemForm((f: any) => ({ ...f, productId: pid, descricao: p?.name || f.descricao })); };
+  // Vínculo da PRESCRIÇÃO com o catálogo (serviço OU produto) p/ cobrança automática ao aplicar.
+  // val = "" | "s:<id>" (serviço) | "p:<id>" (produto).
+  const pickPrescCobranca = (val: string) => {
+    if (!val) { setPrescForm((f: any) => ({ ...f, cobrarTipo: "", cobrarId: "", cobrarNome: "", cobrarValor: 0 })); return; }
+    const tipo = val[0] === "s" ? "servico" : "produto";
+    const cid = val.slice(2);
+    if (tipo === "servico") {
+      const s = servicos.find((x) => x.id === cid);
+      setPrescForm((f: any) => ({ ...f, cobrarTipo: "servico", cobrarId: cid, cobrarNome: s?.nome || "", cobrarValor: Number(s?.valorPadrao) || 0, medicamento: String(f.medicamento || "").trim() ? f.medicamento : (s?.nome || f.medicamento) }));
+    } else {
+      const p = produtos.find((x) => x.id === cid);
+      setPrescForm((f: any) => ({ ...f, cobrarTipo: "produto", cobrarId: cid, cobrarNome: p?.name || "", cobrarValor: Number(p?.price ?? p?.valorPadrao) || 0, medicamento: String(f.medicamento || "").trim() ? f.medicamento : (p?.name || f.medicamento) }));
+    }
+  };
+  // Preço ATUAL do vínculo (busca no catálogo; cai pro valor salvo se sumiu).
+  const precoAtualCobranca = (p: any): number => {
+    if (p?.cobrarTipo === "servico") { const s = servicos.find((x) => x.id === p.cobrarId); return Number(s?.valorPadrao ?? p.cobrarValor) || 0; }
+    if (p?.cobrarTipo === "produto") { const pr = produtos.find((x) => x.id === p.cobrarId); return Number(pr?.price ?? pr?.valorPadrao ?? p.cobrarValor) || 0; }
+    return Number(p?.cobrarValor) || 0;
+  };
   const salvarItem = async () => {
     if (!itemForm.descricao.trim()) { alert("Informe a descrição do item."); return; }
     setItemSaving(true);
@@ -497,6 +587,41 @@ export default function FichaInternacaoPage() {
       .split(",").map((s: string) => s.trim()).filter(Boolean).sort();
   }, [h]);
 
+  // Auto-save de rascunho dos boletins (silencioso; restaura o texto digitado ao voltar).
+  const { clear: limparRascBol } = useAutoSaveDraft<Record<string, any>>({
+    key: `intBolRasc:${id}`,
+    enabled: intBolPronto,
+    value: bolProg,
+    isVazio: (v) => !Object.values(v || {}).some((x: any) => (typeof x === "string" ? x.trim() : x?.texto?.trim())),
+    onRestore: (s) => setBolProg((prev) => ({ ...prev, ...s })),
+  });
+
+  // Caixinhas: horários sugeridos + quaisquer já definidos que fujam da lista.
+  const HORARIOS_SUGERIDOS = ["07:00", "12:00", "14:00", "19:00", "20:00", "22:00"];
+  const chipsHorarios = useMemo(
+    () => Array.from(new Set([...HORARIOS_SUGERIDOS, ...horariosBoletim])).sort(),
+    [horariosBoletim]
+  );
+  // Grava a lista de horários ATIVOS (os que enviam) em vitalSigns.boletinsHorarios.
+  const persistirHorarios = async (lista: string[]) => {
+    const limpos = Array.from(new Set(lista.map((s) => s.trim()).filter(Boolean))).sort();
+    await salvarVital({ vitalSigns: { boletinsHorarios: limpos.join(", ") } });
+  };
+  const toggleHorario = async (hor: string) => {
+    const ativo = horariosBoletim.includes(hor);
+    if (ativo && bolAberto === hor) setBolAberto("");
+    await salvarBoletinsProgramados();  // salva os textos digitados antes do reload de horários
+    await persistirHorarios(ativo ? horariosBoletim.filter((x) => x !== hor) : [...horariosBoletim, hor]);
+  };
+  const adicionarHorario = async () => {
+    const v = novaHora.trim();
+    if (!/^\d{1,2}:\d{2}$/.test(v)) { alert("Informe o horário no formato HH:MM (ex.: 08:30)."); return; }
+    const hh = v.length === 4 ? `0${v}` : v;
+    setNovaHora(""); setAddHoraOpen(false); setBolAberto(hh);
+    await salvarBoletinsProgramados();  // idem: não perde texto em edição
+    await persistirHorarios([...horariosBoletim, hh]);
+  };
+
   const salvarBoletinsProgramados = async () => {
     setBolProgSaving(true);
     try {
@@ -506,6 +631,7 @@ export default function FichaInternacaoPage() {
       } else {
         await fetch("/api/listas", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ lista: `intbolprog_${id}`, valor }) });
       }
+      limparRascBol(); // salvo no banco → descarta o rascunho local
       load();
     } catch { alert("Erro ao salvar os boletins programados."); }
     finally { setBolProgSaving(false); }
@@ -537,7 +663,16 @@ export default function FichaInternacaoPage() {
     const texto = textoDoHorario(horario).trim();
     const midia = midiaDoHorario(horario);
     if (!texto) { alert("Escreva o boletim desse horário antes de enviar."); return; }
-    if (!confirm(`Enviar agora o boletim das ${horario} para ${h.tutor?.name || "o tutor"}?`)) return;
+    // 🛡️ TRAVA DE SEGURANÇA (bug 29/07): o boletim é do pet DESTA internação. Se o texto
+    // NÃO menciona o nome dele, é quase certo que é o boletim de OUTRO paciente (copiado
+    // por engano) — bloqueia com aviso forte pra não mandar info clínica pro tutor errado.
+    const petNome = (h?.pet?.name || "").trim();
+    const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+    if (petNome && !norm(texto).includes(norm(petNome))) {
+      if (!confirm(`⚠️ ATENÇÃO: este boletim NÃO menciona "${petNome}" (o paciente desta internação). Pode ser o boletim de OUTRO pet, colado por engano — enviar isso mandaria dados clínicos pro tutor errado.\n\nConfira o texto. Enviar mesmo assim para ${h.tutor?.name || "o tutor"}?`)) return;
+    } else {
+      if (!confirm(`Enviar o boletim das ${horario}?\n🐾 Paciente: ${petNome || "—"}\n👤 Tutor(a): ${h.tutor?.name || "—"}`)) return;
+    }
     setBolEnviando(horario);
     try {
       const res = await fetch("/api/whatsapp/boletim-internacao", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ tutorId: h.tutor?.id, texto, petNome: h.pet?.name, midia: midia?.url ? { url: midia.url, tipo: midia.tipo } : undefined }) });
@@ -559,7 +694,7 @@ export default function FichaInternacaoPage() {
     .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
     .replace(/\*([^*\n]+)\*/g, "<b>$1</b>")
     .replace(/\n/g, "<br/>");
-  const imprimirBoletim = (texto: string) => { imprimirDocumento(`Boletim — ${h?.pet?.name || ""}`, `<div style="font-size:14px;line-height:1.7;max-width:640px">${textoParaHtml(texto)}</div>`); };
+  const imprimirBoletim = (texto: string) => { imprimirDocumento(`Boletim — ${h?.pet?.name || ""}`, `<div style="font-size:14px;line-height:1.7;max-width:640px">${textoParaHtml(texto)}</div>`, undefined, { pet: h?.pet, tutor: (h as any)?.tutor }); };
   const excluirBoletimHist = async (histId: string) => {
     if (!confirm("Excluir este boletim do histórico?")) return;
     try { await fetch(`/api/listas/${histId}`, { method: "DELETE", credentials: "include" }); load(); } catch {}
@@ -774,6 +909,15 @@ export default function FichaInternacaoPage() {
   const st = estadoStyle(estado);
   const alta = h.status === "DISCHARGED";
   const ultVital = vitaisOrd[0]; const antVital = vitaisOrd[1]; const ultFluido = fluidosOrd[0];
+  // Peso ATUAL pra dosagem: última aferição com peso; se não houver, o peso de entrada.
+  const pesoAferido = vitaisOrd.find((v: any) => v?.peso != null && String(v.peso).trim() !== "");
+  const pesoAtual = pesoAferido?.peso || adm.pesoEntrada || "";
+  const pesoAtualHora = pesoAferido ? (pesoAferido.hora || "") : (adm.pesoEntrada ? "entrada" : "");
+  const PesoBadge = () => (pesoAtual ? (
+    <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[12px] font-semibold" style={{ background: "#E0F4F6", color: "#007B8A" }} title="Peso atual — base para cálculo de dosagem">
+      ⚖️ {pesoAtual} kg{pesoAtualHora ? <span className="font-normal text-[10px] text-[#5C6B70]">· {pesoAtualHora}</span> : null}
+    </span>
+  ) : null);
   const VITAIS_BIG: [string, string, string][] = [["FC", "bpm", "fc"], ["FR", "mpm", "fr"], ["Temp", "°C", "temp"], ["Dor", "/4", "dor"]];
   const cc = contaCalc();
   const caucAplic = Math.min(caucaoAplicada, cc.totalFaturavel);
@@ -784,7 +928,7 @@ export default function FichaInternacaoPage() {
   const Ch = ({ children, editar }: { children: React.ReactNode; editar?: () => void }) => (
     <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "#F0EBE0" }}>
       <h3 className="text-[13px] font-medium text-[#014D5E] flex items-center gap-2">{children}</h3>
-      {editar && <button onClick={editar} className="text-[13px] text-[#374151] hover:text-[#009AAC]">✏️</button>}
+      {editar && podeEditar && <button onClick={editar} className="text-[13px] text-[#374151] hover:text-[#009AAC]">✏️</button>}
     </div>
   );
   const Field = ({ k, children }: { k: string; children: React.ReactNode }) => (
@@ -823,13 +967,14 @@ export default function FichaInternacaoPage() {
             </div>
           </div>
           <div className="ml-auto flex gap-2 flex-wrap">
+            {!podeEditar && <span className="text-[11.5px] font-medium px-3 py-2 rounded-lg bg-[#FBF3E3] text-[#8a6400] border self-center" style={{ borderColor: "#F0DCB0" }}>👁️ Somente leitura</span>}
             <button onClick={() => openWhatsAppMeta(h.tutor?.phone)} className="text-[12.5px] font-medium text-white bg-[#009AAC] px-3 py-2 rounded-lg">💬 WhatsApp</button>
             {h.pet?.id && <Link href={`/dashboard/erp/pets/${h.pet.id}`} className="text-[12.5px] font-medium text-[#5C6B70] bg-white border px-3 py-2 rounded-lg" style={{ borderColor: "#E8E2D6" }}>📄 Ficha do pet</Link>}
             <button onClick={() => window.print()} className="text-[12.5px] font-medium text-[#5C6B70] bg-white border px-3 py-2 rounded-lg" style={{ borderColor: "#E8E2D6" }}>🖨️ Resumo de alta</button>
-            {!alta && <button onClick={() => setTrocaBoxOpen(true)} className="text-[12.5px] font-medium text-[#5C6B70] bg-white border px-3 py-2 rounded-lg" style={{ borderColor: "#E8E2D6" }}>🛏️ Trocar box</button>}
-            {!alta && <button onClick={darAlta} className="text-[12.5px] font-medium text-[#CC3366] bg-white border px-3 py-2 rounded-lg" style={{ borderColor: "#EAC3C1" }}>🚪 Dar alta</button>}
-            {!alta && h.status !== "DECEASED" && <button onClick={() => { setObitoForm({ data: new Date().toISOString().slice(0, 10), causa: "" }); setObitoOpen(true); }} className="text-[12.5px] font-medium text-[#5C6B70] bg-white border px-3 py-2 rounded-lg" style={{ borderColor: "#E8E2D6" }}>🕊️ Registrar óbito</button>}
-            <button onClick={excluirInternacao} disabled={boxBusy} className="text-[12.5px] font-medium text-[#374151] bg-white border px-3 py-2 rounded-lg disabled:opacity-50" style={{ borderColor: "#E8E2D6" }} title="Excluir internação">🗑️</button>
+            {!alta && podeEditar && <button onClick={() => setTrocaBoxOpen(true)} className="text-[12.5px] font-medium text-[#5C6B70] bg-white border px-3 py-2 rounded-lg" style={{ borderColor: "#E8E2D6" }}>🛏️ Trocar box</button>}
+            {!alta && podeEditar && <button onClick={darAlta} className="text-[12.5px] font-medium text-[#CC3366] bg-white border px-3 py-2 rounded-lg" style={{ borderColor: "#EAC3C1" }}>🚪 Dar alta</button>}
+            {!alta && podeEditar && h.status !== "DECEASED" && <button onClick={() => { setObitoForm({ data: new Date().toISOString().slice(0, 10), causa: "" }); setObitoOpen(true); }} className="text-[12.5px] font-medium text-[#5C6B70] bg-white border px-3 py-2 rounded-lg" style={{ borderColor: "#E8E2D6" }}>🕊️ Registrar óbito</button>}
+            {podeEditar && <button onClick={excluirInternacao} disabled={boxBusy} className="text-[12.5px] font-medium text-[#374151] bg-white border px-3 py-2 rounded-lg disabled:opacity-50" style={{ borderColor: "#E8E2D6" }} title="Excluir internação">🗑️</button>}
           </div>
         </div>
 
@@ -904,7 +1049,7 @@ export default function FichaInternacaoPage() {
                 <div className="grid grid-cols-2 gap-1.5">
                   {ESTADOS.map((e) => {
                     const on = estado === e.v;
-                    return <button key={e.v} onClick={() => mudarRisco(e.v)} disabled={alta} className="text-[11.5px] font-medium py-2 px-1 rounded-lg border text-center disabled:opacity-60" style={on ? { background: e.bg, color: e.fg, borderColor: e.fg } : { background: "#FBF9F4", color: "#374151", borderColor: "transparent" }}>{e.v}</button>;
+                    return <button key={e.v} onClick={() => mudarRisco(e.v)} disabled={alta || !podeEditar} className="text-[11.5px] font-medium py-2 px-1 rounded-lg border text-center disabled:opacity-60" style={on ? { background: e.bg, color: e.fg, borderColor: e.fg } : { background: "#FBF9F4", color: "#374151", borderColor: "transparent" }}>{e.v}</button>;
                   })}
                 </div>
                 <div className="text-[10.5px] text-[#374151] mt-2.5">Sinaliza a cor no mapa e no painel da TV.</div>
@@ -935,6 +1080,7 @@ export default function FichaInternacaoPage() {
                     <input
                       type="checkbox"
                       checked={!!h?.vitalSigns?.boletinsDesativados}
+                      disabled={!podeEditar}
                       onChange={(e) => salvarVital({ vitalSigns: { boletinsDesativados: e.target.checked } })}
                     />
                     <span className="text-[12px] text-[#5C6B70]">🔕 Não enviar boletins nesta internação</span>
@@ -944,115 +1090,161 @@ export default function FichaInternacaoPage() {
                       Envio automático <b>desligado</b>. Os textos abaixo ficam salvos, mas nada é enviado ao tutor.
                     </div>
                   )}
+                  {/* Caixinhas: marque quais horários enviam boletim (+ adicionar próprio) */}
+                  <div className="mb-3">
+                    <div className="text-[10px] uppercase tracking-wide text-[#374151] font-semibold mb-1.5">Horários de envio (marque quais)</div>
+                    <div className="flex flex-wrap gap-2">
+                      {chipsHorarios.map((hor) => {
+                        const on = horariosBoletim.includes(hor);
+                        return (
+                          <button key={hor} type="button" onClick={() => toggleHorario(hor)} disabled={!podeEditar}
+                            className={`flex items-center gap-1.5 rounded-[10px] px-2.5 py-1.5 text-[12.5px] border disabled:cursor-default ${on ? "border-[#009AAC] bg-[#E0F4F6] text-[#014D5E]" : "border-[#E8E2D6] bg-white text-[#5C6B70]"}`}>
+                            <span className={`w-4 h-4 rounded-[4px] flex items-center justify-center text-[10px] text-white border ${on ? "bg-[#009AAC] border-[#009AAC]" : "border-[#009AAC] bg-white"}`}>{on ? "✓" : ""}</span>
+                            <span className="font-medium">{hor}</span>
+                          </button>
+                        );
+                      })}
+                      {!podeEditar ? null : addHoraOpen ? (
+                        <span className="flex items-center gap-1">
+                          <input value={novaHora} onChange={(e) => setNovaHora(e.target.value)} type="time"
+                            className="w-[96px] border rounded-[10px] px-2 py-1.5 text-[12.5px]" style={{ borderColor: "#E8E2D6" }} />
+                          <button onClick={adicionarHorario} className="text-[12px] text-white bg-[#009AAC] px-2.5 py-1.5 rounded-[9px]">ok</button>
+                          <button onClick={() => { setAddHoraOpen(false); setNovaHora(""); }} className="text-[12px] text-[#5C6B70] px-1" title="Cancelar">✕</button>
+                        </span>
+                      ) : (
+                        <button type="button" onClick={() => setAddHoraOpen(true)}
+                          className="flex items-center gap-1 rounded-[10px] px-2.5 py-1.5 text-[12.5px] border border-dashed text-[#5C6B70]" style={{ borderColor: "#C9C2B2" }}>
+                          ＋ horário
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
                   {horariosBoletim.length === 0 ? (
                     <div className="text-[12px] text-[#374151]">
-                      Nenhum horário definido nesta internação. Edite a internação e informe os horários (ex.: 07:00, 14:00, 20:00).
+                      Nenhum horário marcado. Toque numa caixinha acima (ex.: 07:00, 14:00) para programar um boletim.
                     </div>
                   ) : (
                     <>
-                      <div className="space-y-3">
+                      <div className="text-[10px] uppercase tracking-wide text-[#374151] font-semibold mb-1.5">Escreva o boletim de cada horário</div>
+                      <div className="space-y-2">
                         {horariosBoletim.map((hor: string) => {
                           const txt = textoDoHorario(hor);
                           const mid = midiaDoHorario(hor);
+                          const aberto = bolAberto === hor;
                           return (
-                            <div key={hor}>
-                              <div className="flex items-center justify-between mb-1">
-                                <span className="text-[11.5px] font-medium text-[#014D5E]">{hor}</span>
+                            <div key={hor} className="border rounded-[11px] overflow-hidden" style={{ borderColor: "#E8E2D6" }}>
+                              {/* Cabeçalho clicável da sanfona */}
+                              <button type="button" onClick={() => setBolAberto(aberto ? "" : hor)}
+                                className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-left ${aberto ? "bg-[#E0F4F6]" : "bg-white"}`}>
+                                <span className="text-[13.5px] font-semibold text-[#014D5E] min-w-[46px]">{hor}</span>
                                 <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={txt.trim() ? { background: "#E1F5EE", color: "#0F6E56" } : { background: "#F0EBE0", color: "#374151" }}>{txt.trim() ? "programado" : "vazio"}</span>
-                              </div>
-                              {modelosBoletim.length === 0 ? (
-                                <div className="text-[11px] mb-1">
-                                  <Link href="/dashboard/configuracoes/modelos-boletim" className="text-[#00798A] hover:underline">📋 Cadastrar modelos de boletim</Link>
-                                  <span className="text-[#374151]"> — textos prontos, pra não escrever do zero</span>
-                                </div>
-                              ) : (
-                                <select
-                                  value=""
-                                  onChange={(e) => { const m = modelosBoletim.find((x) => x.id === e.target.value); if (m) setTextoHorario(hor, m.texto.replace(/\[PET\]/g, h.pet?.name || "seu pet")); }}
-                                  className="w-full border rounded-lg px-2 py-1 text-[11.5px] mb-1 text-[#5C6B70] focus:outline-none focus:border-[#009AAC]"
-                                  style={{ borderColor: "#E8E2D6" }}
-                                >
-                                  <option value="">📋 Usar um modelo…</option>
-                                  {modelosBoletim.map((m) => <option key={m.id} value={m.id}>{m.nome}</option>)}
-                                </select>
-                              )}
+                                {mid?.url && <span className="text-[11px] text-[#5C6B70]" title="Tem anexo">📎</span>}
+                                <span className={`ml-auto text-[#5C6B70] text-[12px] transition-transform ${aberto ? "rotate-180" : ""}`}>▾</span>
+                              </button>
 
-                              {/* Gera o boletim já preenchido dos dados da ficha (o vet completa o que faltar) */}
-                              <div className="flex items-center gap-2 mb-1">
-                                <button onClick={() => setTextoHorario(hor, montarBoletimInternacao("resumo"))} className="text-[11px] font-medium text-white bg-[#009AAC] px-2.5 py-1 rounded-md">✨ Gerar resumo</button>
-                                <button onClick={() => setTextoHorario(hor, montarBoletimInternacao("completo"))} className="text-[11px] font-medium text-[#014D5E] bg-[#E0F4F6] border border-[#bfe3e8] px-2.5 py-1 rounded-md">✨ Gerar completo</button>
-                              </div>
+                              {/* Corpo da sanfona (só o horário aberto) — caixa GRANDE */}
+                              {aberto && (
+                                <div className="p-3 border-t" style={{ borderColor: "#F0EBE0" }}>
+                                  {podeEditar && (modelosBoletim.length === 0 ? (
+                                    <div className="text-[11px] mb-2">
+                                      <Link href="/dashboard/configuracoes/modelos-boletim" className="text-[#00798A] hover:underline">📋 Cadastrar modelos de boletim</Link>
+                                      <span className="text-[#374151]"> — textos prontos, pra não escrever do zero</span>
+                                    </div>
+                                  ) : (
+                                    <select
+                                      value=""
+                                      onChange={(e) => { const m = modelosBoletim.find((x) => x.id === e.target.value); if (m) setTextoHorario(hor, m.texto.replace(/\[PET\]/g, h.pet?.name || "seu pet")); }}
+                                      className="w-full border rounded-lg px-2.5 py-2 text-[12.5px] mb-2 text-[#5C6B70] focus:outline-none focus:border-[#009AAC]"
+                                      style={{ borderColor: "#E8E2D6" }}
+                                    >
+                                      <option value="">📋 Usar um modelo…</option>
+                                      {modelosBoletim.map((m) => <option key={m.id} value={m.id}>{m.nome}</option>)}
+                                    </select>
+                                  ))}
 
-                              <textarea
-                                value={txt}
-                                onChange={(e) => setTextoHorario(hor, e.target.value)}
-                                rows={3}
-                                placeholder={`Boletim das ${hor}...`}
-                                className="w-full border rounded-lg px-3 py-2 text-[12.5px] resize-y focus:outline-none focus:border-[#009AAC]"
-                                style={{ borderColor: "#E8E2D6" }}
-                              />
-                              {mid?.url && (
-                                <div className="mt-1 flex items-center gap-2 bg-[#FBF9F4] border rounded-lg px-2 py-1.5" style={{ borderColor: "#E8E2D6" }}>
-                                  {mid.tipo === "video"
-                                    ? <span className="text-base">🎥</span>
-                                    : <img src={mid.url} alt="" className="w-8 h-8 rounded object-cover flex-shrink-0" />}
-                                  <span className="text-[11px] text-[#5C6B70] truncate flex-1">{mid.nome || (mid.tipo === "video" ? "vídeo" : "foto")}</span>
-                                  <button onClick={() => setMidiaHorario(hor, null)} className="text-[11px] text-[#CC3366] flex-shrink-0" title="Remover anexo">✕</button>
+                                  {/* Gera o boletim já preenchido dos dados da ficha (o vet completa o que faltar) */}
+                                  {podeEditar && (
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <button onClick={() => setTextoHorario(hor, montarBoletimInternacao("resumo"))} className="text-[11.5px] font-medium text-white bg-[#009AAC] px-3 py-1.5 rounded-md">✨ Gerar resumo</button>
+                                    <button onClick={() => setTextoHorario(hor, montarBoletimInternacao("completo"))} className="text-[11.5px] font-medium text-[#014D5E] bg-[#E0F4F6] border border-[#bfe3e8] px-3 py-1.5 rounded-md">✨ Gerar completo</button>
+                                  </div>
+                                  )}
+
+                                  <textarea
+                                    value={txt}
+                                    onChange={(e) => setTextoHorario(hor, e.target.value)}
+                                    readOnly={!podeEditar}
+                                    rows={8}
+                                    placeholder={`Boletim das ${hor}...  (espaço grande pra escrever com calma)`}
+                                    className="w-full border rounded-lg px-3 py-2.5 text-[13px] leading-relaxed resize-y focus:outline-none focus:border-[#009AAC]"
+                                    style={{ borderColor: "#E8E2D6", minHeight: "150px" }}
+                                  />
+                                  {mid?.url && (
+                                    <div className="mt-2 flex items-center gap-2 bg-[#FBF9F4] border rounded-lg px-2 py-1.5" style={{ borderColor: "#E8E2D6" }}>
+                                      {mid.tipo === "video"
+                                        ? <span className="text-base">🎥</span>
+                                        : <img src={mid.url} alt="" className="w-8 h-8 rounded object-cover flex-shrink-0" />}
+                                      <span className="text-[11px] text-[#5C6B70] truncate flex-1">{mid.nome || (mid.tipo === "video" ? "vídeo" : "foto")}</span>
+                                      {podeEditar && <button onClick={() => setMidiaHorario(hor, null)} className="text-[11px] text-[#CC3366] flex-shrink-0" title="Remover anexo">✕</button>}
+                                    </div>
+                                  )}
+                                  <div className="mt-2 flex items-center gap-4 flex-wrap">
+                                    {txt.trim() && (
+                                      <button onClick={() => setPreviewBol({ titulo: `Boletim das ${hor}`, texto: txt, horario: hor })} className="text-[12px] text-[#5C6B70] hover:text-[#00798A]">
+                                        👁 Visualizar
+                                      </button>
+                                    )}
+                                    {podeEditar && txt.trim() && (
+                                      <button onClick={() => enviarBoletimAgora(hor)} disabled={!!bolEnviando} className="text-[12px] text-[#00798A] disabled:opacity-50">
+                                        {bolEnviando === hor ? "Enviando..." : "📲 Enviar agora"}
+                                      </button>
+                                    )}
+                                    {podeEditar && !mid?.url && (
+                                      <label className="text-[12px] text-[#5C6B70] cursor-pointer hover:text-[#00798A]">
+                                        {anexando === hor ? "Enviando arquivo..." : "📎 Anexar foto/vídeo"}
+                                        <input type="file" accept="image/*,video/*" className="hidden" disabled={!!anexando}
+                                          onChange={(e) => { const f = e.target.files?.[0]; if (f) anexarMidia(hor, f); e.target.value = ""; }} />
+                                      </label>
+                                    )}
+                                  </div>
                                 </div>
                               )}
-                              <div className="mt-1 flex items-center gap-3 flex-wrap">
-                                {txt.trim() && (
-                                  <button onClick={() => setPreviewBol({ titulo: `Boletim das ${hor}`, texto: txt, horario: hor })} className="text-[11.5px] text-[#5C6B70] hover:text-[#00798A]">
-                                    👁 Visualizar
-                                  </button>
-                                )}
-                                {txt.trim() && (
-                                  <button onClick={() => enviarBoletimAgora(hor)} disabled={!!bolEnviando} className="text-[11.5px] text-[#00798A] disabled:opacity-50">
-                                    {bolEnviando === hor ? "Enviando..." : "📲 Enviar agora"}
-                                  </button>
-                                )}
-                                {!mid?.url && (
-                                  <label className="text-[11.5px] text-[#5C6B70] cursor-pointer hover:text-[#00798A]">
-                                    {anexando === hor ? "Enviando arquivo..." : "📎 Anexar foto/vídeo"}
-                                    <input type="file" accept="image/*,video/*" className="hidden" disabled={!!anexando}
-                                      onChange={(e) => { const f = e.target.files?.[0]; if (f) anexarMidia(hor, f); e.target.value = ""; }} />
-                                  </label>
-                                )}
-                              </div>
                             </div>
                           );
                         })}
                       </div>
-                      <button onClick={salvarBoletinsProgramados} disabled={bolProgSaving} className="w-full mt-3 text-[12px] text-white bg-[#009AAC] py-2 rounded-lg disabled:opacity-60">
+                      {podeEditar && <button onClick={salvarBoletinsProgramados} disabled={bolProgSaving} className="w-full mt-3 text-[12px] text-white bg-[#009AAC] py-2 rounded-lg disabled:opacity-60">
                         {bolProgSaving ? "Salvando..." : "Salvar boletins"}
-                      </button>
+                      </button>}
                       <div className="text-[10.5px] text-[#374151] mt-2">
                         No horário, o sistema envia sozinho ao tutor. Horário vazio não envia nada.
                       </div>
 
-                      {/* Histórico dos boletins JÁ enviados (✓) — rever, imprimir, excluir */}
-                      {boletinsHist.length > 0 && (
-                        <details className="mt-2 border-t pt-2" style={{ borderColor: "#F0EBE0" }}>
-                          <summary className="text-[12px] cursor-pointer" style={{ color: "#0F6E56" }}>
-                            📚 Boletins enviados ({boletinsHist.length})
-                          </summary>
-                          <div className="mt-1.5">
-                            {[...boletinsHist].sort((a, b) => String(b.at || "").localeCompare(String(a.at || ""))).map((bh: any) => (
-                              <div key={bh.id} className="flex items-center gap-2 py-1.5 border-b last:border-b-0 text-[12px]" style={{ borderColor: "#F0EBE0" }}>
-                                <span title={bh.status === "enviado" ? "Enviado" : "Na fila (envia quando o tutor responder)"}>{bh.status === "enviado" ? "✅" : "📨"}</span>
-                                <span className="text-[#374151] tabular-nums whitespace-nowrap">
-                                  {bh.at ? new Date(bh.at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) : ""} {bh.at ? new Date(bh.at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : ""}
-                                </span>
-                                <span className="text-[#5C6B70] flex-1 truncate">{bh.horario ? `boletim das ${bh.horario}` : "boletim"}{bh.auto ? " · automático" : bh.por ? ` · ${bh.por}` : ""}</span>
-                                <button onClick={() => setPreviewBol({ titulo: `Boletim enviado ${bh.horario ? `(${bh.horario})` : ""}`, texto: bh.texto || "" })} title="Ver" className="text-[13px] px-0.5">👁</button>
-                                <button onClick={() => imprimirBoletim(bh.texto || "")} title="Imprimir" className="text-[13px] px-0.5">🖨</button>
-                                <button onClick={() => excluirBoletimHist(bh.id)} title="Excluir do histórico" className="text-[13px] px-0.5 text-[#B4BCC0] hover:text-[#CC3366]">🗑</button>
-                              </div>
-                            ))}
-                          </div>
-                        </details>
-                      )}
                     </>
+                  )}
+
+                  {/* Histórico dos boletins JÁ enviados — SEMPRE à mostra (independe de ter horário marcado) */}
+                  {boletinsHist.length > 0 && (
+                    <details className="mt-2 border-t pt-2" style={{ borderColor: "#F0EBE0" }}>
+                      <summary className="text-[12px] cursor-pointer" style={{ color: "#0F6E56" }}>
+                        📚 Boletins enviados ({boletinsHist.length})
+                      </summary>
+                      <div className="mt-1.5">
+                        {[...boletinsHist].sort((a, b) => String(b.at || "").localeCompare(String(a.at || ""))).map((bh: any) => (
+                          <div key={bh.id} className="flex items-center gap-2 py-1.5 border-b last:border-b-0 text-[12px]" style={{ borderColor: "#F0EBE0" }}>
+                            <span title={bh.status === "enviado" ? "Enviado" : "Na fila (envia quando o tutor responder)"}>{bh.status === "enviado" ? "✅" : "📨"}</span>
+                            <span className="text-[#374151] tabular-nums whitespace-nowrap">
+                              {bh.at ? new Date(bh.at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) : ""} {bh.at ? new Date(bh.at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : ""}
+                            </span>
+                            <span className="text-[#5C6B70] flex-1 truncate">{bh.horario ? `boletim das ${bh.horario}` : "boletim"}{bh.auto ? " · automático" : bh.por ? ` · ${bh.por}` : ""}</span>
+                            <button onClick={() => setPreviewBol({ titulo: `Boletim enviado ${bh.horario ? `(${bh.horario})` : ""}`, texto: bh.texto || "" })} title="Ver" className="text-[13px] px-0.5">👁</button>
+                            <button onClick={() => imprimirBoletim(bh.texto || "")} title="Imprimir" className="text-[13px] px-0.5">🖨</button>
+                            {podeEditar && <button onClick={() => excluirBoletimHist(bh.id)} title="Excluir do histórico" className="text-[13px] px-0.5 text-[#B4BCC0] hover:text-[#CC3366]">🗑</button>}
+                          </div>
+                        ))}
+                      </div>
+                    </details>
                   )}
                 </div>
               </div>
@@ -1078,7 +1270,7 @@ export default function FichaInternacaoPage() {
             <div className="bg-white border rounded-[13px]" style={{ borderColor: "#E8E2D6" }}>
               <Ch>📝 Evolução médica</Ch>
               <div className="p-4">
-                {!alta && (
+                {!alta && podeEditar && (
                   <div className="flex gap-2 mb-3">
                     <input value={evoTexto} onChange={(e) => setEvoTexto(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") registrarEvolucao(); }} placeholder="Registrar evolução do paciente..." className="flex-1 border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} />
                     <button onClick={registrarEvolucao} disabled={evoSaving} className="text-[12.5px] text-white bg-[#009AAC] px-3.5 py-2 rounded-lg disabled:opacity-60">Registrar</button>
@@ -1092,7 +1284,7 @@ export default function FichaInternacaoPage() {
                       <div key={e.id} className="py-3 border-b last:border-b-0 pl-3" style={{ borderColor: "#F0EBE0", borderLeft: i === 0 ? "2px solid #009AAC" : "2px solid #E8E2D6" }}>
                         <div className="flex items-center justify-between">
                           <div className="text-[11px] text-[#374151]">{fmtDataHora(e.at)}{e.autor ? ` · ${e.autor}` : ""}</div>
-                          {!alta && (
+                          {!alta && podeEditar && (
                             <div className="flex gap-1.5">
                               <button onClick={() => { setEvoEditId(e.id); setEvoEditTexto(e.texto || ""); }} className="text-[11px] text-[#B4BCC0] hover:text-[#009AAC]" title="Editar">✏️</button>
                               <button onClick={() => excluirEvolucao(e.id)} className="text-[11px] text-[#B4BCC0] hover:text-[#CC3366]" title="Excluir">🗑️</button>
@@ -1118,8 +1310,8 @@ export default function FichaInternacaoPage() {
             {/* Prescrição (F3) */}
             <div className="bg-white border rounded-[13px]" style={{ borderColor: "#E8E2D6" }}>
               <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "#F0EBE0" }}>
-                <h3 className="text-[13px] font-medium text-[#014D5E] flex items-center gap-2">💊 Prescrição ativa</h3>
-                {!alta && <button onClick={() => abrirPresc()} className="text-[12px] font-medium text-white bg-[#009AAC] px-3 py-1.5 rounded-lg">➕ Adicionar</button>}
+                <div className="flex items-center gap-2 flex-wrap"><h3 className="text-[13px] font-medium text-[#014D5E] flex items-center gap-2">💊 Prescrição ativa</h3><PesoBadge /></div>
+                {!alta && podeEditar && <button onClick={() => abrirPresc()} className="text-[12px] font-medium text-white bg-[#009AAC] px-3 py-1.5 rounded-lg">➕ Adicionar</button>}
               </div>
               {prescricoes.length === 0 ? (
                 <div className="px-4 py-6 text-center text-[12.5px] text-[#374151]">Nenhuma medicação prescrita ainda.</div>
@@ -1132,13 +1324,13 @@ export default function FichaInternacaoPage() {
                     <tbody>
                       {prescricoes.map((p) => (
                         <tr key={p.id} className="border-t" style={{ borderColor: "#F0EBE0" }}>
-                          <td className="px-4 py-2 font-medium text-[#014D5E] whitespace-nowrap">{p.medicamento}</td>
+                          <td className="px-4 py-2 font-medium text-[#014D5E] whitespace-nowrap">{p.medicamento}{p.cobrarId ? <span title={`Cobra ${fmtBRL(precoAtualCobranca(p))} na conta a cada aplicação`} className="ml-1.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full" style={{ background: "#EDE9FA", color: "#5a3b9b" }}>💰 auto</span> : null}</td>
                           <td className="px-2 py-2"><span className="text-[11px] text-[#5C6B70] bg-[#FBF9F4] border rounded px-1.5 py-0.5 whitespace-nowrap" style={{ borderColor: "#E8E2D6" }}>{p.via}</span></td>
                           <td className="px-2 py-2 tabular-nums whitespace-nowrap">{p.dose || "—"}</td>
                           <td className="px-2 py-2 whitespace-nowrap">{p.frequencia || "—"}</td>
                           <td className="px-2 py-2 tabular-nums text-[#5C6B70] whitespace-nowrap">{(p.horarios || []).join(" · ") || "contínuo"}</td>
                           <td className="px-2 py-2 text-[#5C6B70] whitespace-nowrap">{p.prescritoPor || "—"}</td>
-                          <td className="px-2 py-2 text-right whitespace-nowrap">{!alta && <><button onClick={() => abrirPresc(p)} className="text-[12px] px-1">✏️</button><button onClick={() => excluirPresc(p)} className="text-[12px] px-1">🗑️</button></>}</td>
+                          <td className="px-2 py-2 text-right whitespace-nowrap">{!alta && podeEditar && <><button onClick={() => abrirPresc(p)} className="text-[12px] px-1">✏️</button><button onClick={() => excluirPresc(p)} className="text-[12px] px-1">🗑️</button></>}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -1244,9 +1436,31 @@ export default function FichaInternacaoPage() {
             {/* Sinais vitais (F4) */}
             <div className="bg-white border rounded-[13px]" style={{ borderColor: "#E8E2D6" }}>
               <div className="flex items-center justify-between px-4 py-3 border-b flex-wrap gap-2" style={{ borderColor: "#F0EBE0" }}>
-                <h3 className="text-[13px] font-medium text-[#014D5E] flex items-center gap-2">🩺 Sinais vitais{ultVital?.hora ? <span className="text-[11px] text-[#374151] font-normal">· última {ultVital.hora}</span> : null}</h3>
-                {!alta && <button onClick={abrirVital} className="text-[12px] font-medium text-white bg-[#009AAC] px-3 py-1.5 rounded-lg">➕ Registrar aferição</button>}
+                <div className="flex items-center gap-2 flex-wrap"><h3 className="text-[13px] font-medium text-[#014D5E] flex items-center gap-2">🩺 Sinais vitais{ultVital?.hora ? <span className="text-[11px] text-[#374151] font-normal">· última {ultVital.hora}</span> : null}</h3><PesoBadge /></div>
+                {!alta && podeEditar && <button onClick={abrirVital} className="text-[12px] font-medium text-white bg-[#009AAC] px-3 py-1.5 rounded-lg">➕ Registrar aferição</button>}
               </div>
+              {/* Agendamento das aferições — mesmo esquema das medicações */}
+              {!alta && (
+                <div className="px-4 py-3 border-b flex flex-wrap items-end gap-x-3 gap-y-2" style={{ borderColor: "#F0EBE0", background: "#F5FCFD" }}>
+                  <div>
+                    <label className="block text-[10px] font-semibold uppercase tracking-wide text-[#014D5E] mb-1">Frequência</label>
+                    <select value={aferiFreq} onChange={(e) => salvarAferiCfg(e.target.value, aferiPrim)} disabled={!podeEditar} className="border rounded-lg px-2 py-1.5 text-[13px] bg-white disabled:opacity-60" style={{ borderColor: "#E8DFC8", color: "#014D5E" }}>
+                      <option value="">—</option>
+                      {freqOpcoes.map((v) => <option key={v} value={v}>{v}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-semibold uppercase tracking-wide text-[#014D5E] mb-1">1ª aferição</label>
+                    <input type="time" value={aferiPrim} onChange={(e) => salvarAferiCfg(aferiFreq, e.target.value)} disabled={!podeEditar} className="border rounded-lg px-2 py-1.5 text-[13px] bg-white disabled:opacity-60" style={{ borderColor: "#E8DFC8", color: "#014D5E" }} />
+                  </div>
+                  <span className="text-[#7C8A8E] pb-2">→</span>
+                  <div className="flex flex-wrap gap-1.5 items-center pb-1">
+                    {horariosAferi.length > 0
+                      ? horariosAferi.map((hh) => <span key={hh} className="rounded-full px-2.5 py-1 text-[12px] font-semibold tabular-nums" style={{ background: "#E0F4F6", color: "#007B8A" }}>{hh}</span>)
+                      : <span className="text-[11px] text-[#7C8A8E]">defina a frequência e a 1ª aferição pra gerar os horários</span>}
+                  </div>
+                </div>
+              )}
               {vitaisOrd.length === 0 ? (
                 <div className="px-4 py-6 text-center text-[12.5px] text-[#374151]">Nenhuma aferição registrada ainda.</div>
               ) : (
@@ -1277,16 +1491,16 @@ export default function FichaInternacaoPage() {
                   <div className="overflow-x-auto mt-3">
                     <table className="w-full text-[12.5px]">
                       <thead><tr className="text-[10px] text-[#374151] uppercase tracking-wide">
-                        <th className="text-left font-medium px-3 py-2">Hora</th><th className="text-left font-medium px-2 py-2">FC</th><th className="text-left font-medium px-2 py-2">FR</th><th className="text-left font-medium px-2 py-2">Temp</th><th className="text-left font-medium px-2 py-2">PA</th><th className="text-left font-medium px-2 py-2">Mucosa</th><th className="text-left font-medium px-2 py-2">Dor</th><th className="text-left font-medium px-2 py-2">Por</th><th className="px-2 py-2"></th>
+                        <th className="text-left font-medium px-3 py-2">Hora</th><th className="text-left font-medium px-2 py-2">Peso</th><th className="text-left font-medium px-2 py-2">FC</th><th className="text-left font-medium px-2 py-2">FR</th><th className="text-left font-medium px-2 py-2">Temp</th><th className="text-left font-medium px-2 py-2">PA</th><th className="text-left font-medium px-2 py-2">Mucosa</th><th className="text-left font-medium px-2 py-2">Dor</th><th className="text-left font-medium px-2 py-2">Por</th><th className="px-2 py-2"></th>
                       </tr></thead>
                       <tbody>
                         {vitaisOrd.map((v) => (
                           <tr key={v.id} className="border-t tabular-nums" style={{ borderColor: "#F0EBE0" }}>
-                            <td className="px-3 py-2 whitespace-nowrap">{v.hora || "—"}</td><td className="px-2 py-2">{v.fc || "—"}</td><td className="px-2 py-2">{v.fr || "—"}</td>
+                            <td className="px-3 py-2 whitespace-nowrap">{v.hora || "—"}</td><td className="px-2 py-2 whitespace-nowrap font-medium" style={{ color: "#014D5E" }}>{v.peso ? `${v.peso} kg` : "—"}</td><td className="px-2 py-2">{v.fc || "—"}</td><td className="px-2 py-2">{v.fr || "—"}</td>
                             <td className="px-2 py-2 whitespace-nowrap" style={tempForaFaixa(v.temp) ? { color: "#CC3366", fontWeight: 500 } : {}}>{v.temp ? `${v.temp}°` : "—"}</td>
                             <td className="px-2 py-2 whitespace-nowrap">{v.pa || "—"}</td><td className="px-2 py-2">{v.mucosa || "—"}</td><td className="px-2 py-2">{v.dor ?? "—"}</td>
                             <td className="px-2 py-2 text-[#5C6B70] whitespace-nowrap">{v.por || "—"}</td>
-                            <td className="px-2 py-2 text-right whitespace-nowrap">{!alta && <><button onClick={() => abrirVitalEdit(v)} className="text-[12px] px-1" title="Editar">✏️</button><button onClick={() => excluirVital(v.id)} className="text-[12px] px-1" title="Excluir">🗑️</button></>}</td>
+                            <td className="px-2 py-2 text-right whitespace-nowrap">{!alta && podeEditar && <><button onClick={() => abrirVitalEdit(v)} className="text-[12px] px-1" title="Editar">✏️</button><button onClick={() => excluirVital(v.id)} className="text-[12px] px-1" title="Excluir">🗑️</button></>}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -1296,11 +1510,29 @@ export default function FichaInternacaoPage() {
               )}
             </div>
 
+            {/* Avisos (lembretes de medicação e aferição) */}
+            <div className="bg-white border rounded-[13px]" style={{ borderColor: "#E8E2D6" }}>
+              <div className="px-4 py-3 border-b" style={{ borderColor: "#F0EBE0" }}>
+                <h3 className="text-[13px] font-medium text-[#014D5E] flex items-center gap-2">🔔 Avisos</h3>
+              </div>
+              <div className="px-4 py-3 flex flex-wrap gap-2">
+                {([["popup", "Pop-up 15 min antes"], ["som", "Som do alerta"], ["whatsapp", "WhatsApp pro plantonista"], ["repetir", "Repetir se atrasar"]] as [string, string][]).map(([k, lbl]) => (
+                  <button key={k} onClick={() => podeEditar && !alta && toggleAviso(k)} disabled={!podeEditar || alta} className="flex items-center gap-2 border rounded-[10px] px-3 py-2 text-[12.5px] disabled:opacity-60" style={{ borderColor: "#E8DFC8", color: "#014D5E", background: "#fff" }}>
+                    <span className="relative inline-block flex-shrink-0" style={{ width: 34, height: 19, borderRadius: 20, background: (avisos as any)[k] ? "#009AAC" : "#cdd5d4", transition: "background .15s" }}>
+                      <span className="absolute" style={{ top: 2, left: (avisos as any)[k] ? 17 : 2, width: 15, height: 15, borderRadius: "50%", background: "#fff", transition: "left .15s" }} />
+                    </span>
+                    {lbl}
+                  </button>
+                ))}
+              </div>
+              <div className="px-4 pb-3 text-[11px] text-[#7C8A8E]">Valem para medicações e aferições. O aviso no celular (WhatsApp) chega ao veterinário de plantão, no horário da escala dele.</div>
+            </div>
+
             {/* Fluidos, dejetos & alimentação (F4) */}
             <div className="bg-white border rounded-[13px]" style={{ borderColor: "#E8E2D6" }}>
               <div className="flex items-center justify-between px-4 py-3 border-b flex-wrap gap-2" style={{ borderColor: "#F0EBE0" }}>
                 <h3 className="text-[13px] font-medium text-[#014D5E] flex items-center gap-2">💧 Fluidos, dejetos &amp; alimentação{ultFluido?.hora ? <span className="text-[11px] text-[#374151] font-normal">· último {ultFluido.hora}</span> : null}</h3>
-                {!alta && <button onClick={abrirFluido} className="text-[12px] font-medium text-white bg-[#009AAC] px-3 py-1.5 rounded-lg">➕ Registrar controle</button>}
+                {!alta && podeEditar && <button onClick={abrirFluido} className="text-[12px] font-medium text-white bg-[#009AAC] px-3 py-1.5 rounded-lg">➕ Registrar controle</button>}
               </div>
               {!ultFluido ? (
                 <div className="px-4 py-6 text-center text-[12.5px] text-[#374151]">Nenhum controle registrado ainda.</div>
@@ -1322,9 +1554,12 @@ export default function FichaInternacaoPage() {
                     <div className="mt-3 space-y-0">
                       {fluidosOrd.map((f) => (
                         <div key={f.id} className="flex items-start gap-2 text-[12px] py-1.5 border-t" style={{ borderColor: "#F0EBE0" }}>
-                          <span className="text-[#374151] tabular-nums whitespace-nowrap w-[92px] flex-shrink-0">{f.hora}{f.por ? ` · ${f.por}` : ""}</span>
-                          <span className="text-[#5C6B70] flex-1">{[f.entradaFluido && `fluido ${f.entradaFluido} ml`, f.agua && `água ${f.agua} ml`, f.diurese && `diurese ${f.diurese}`, f.fezes && `fezes ${f.fezes}`, f.alimentacao && `alim. ${f.alimentacao}`, f.emese && `êmese ${f.emese}`, f.observacao && `obs: ${f.observacao}`].filter(Boolean).join(" · ") || "—"}</span>
-                          {!alta && <div className="flex gap-1.5 flex-shrink-0"><button onClick={() => abrirFluidoEdit(f)} className="text-[11px] text-[#B4BCC0] hover:text-[#009AAC]" title="Editar">✏️</button><button onClick={() => excluirFluido(f.id)} className="text-[11px] text-[#B4BCC0] hover:text-[#CC3366]" title="Excluir">🗑️</button></div>}
+                          <span className="tabular-nums w-[92px] flex-shrink-0">
+                            <span className="block whitespace-nowrap text-[#374151]">{f.hora}</span>
+                            {f.por ? <span className="block text-[10px] text-[#94a3b8] truncate" title={f.por}>{f.por}</span> : null}
+                          </span>
+                          <span className="text-[#5C6B70] flex-1 min-w-0 break-words">{[f.entradaFluido && `fluido ${f.entradaFluido} ml`, f.agua && `água ${f.agua} ml`, f.diurese && `diurese ${f.diurese}`, f.fezes && `fezes ${f.fezes}`, f.alimentacao && `alim. ${f.alimentacao}`, f.emese && `êmese ${f.emese}`, f.observacao && `obs: ${f.observacao}`].filter(Boolean).join(" · ") || "—"}</span>
+                          {!alta && podeEditar && <div className="flex gap-1.5 flex-shrink-0"><button onClick={() => abrirFluidoEdit(f)} className="text-[11px] text-[#B4BCC0] hover:text-[#009AAC]" title="Editar">✏️</button><button onClick={() => excluirFluido(f.id)} className="text-[11px] text-[#B4BCC0] hover:text-[#CC3366]" title="Excluir">🗑️</button></div>}
                         </div>
                       ))}
                     </div>
@@ -1337,7 +1572,7 @@ export default function FichaInternacaoPage() {
             <div className="bg-white border rounded-[13px]" style={{ borderColor: "#E8E2D6" }}>
               <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "#F0EBE0" }}>
                 <h3 className="text-[13px] font-medium text-[#014D5E] flex items-center gap-2">🧾 Conta da internação</h3>
-                {!alta && <button onClick={() => abrirItem()} className="text-[12px] font-medium text-white bg-[#009AAC] px-3 py-1.5 rounded-lg">➕ Adicionar item</button>}
+                {!alta && podeEditar && <button onClick={() => abrirItem()} className="text-[12px] font-medium text-white bg-[#009AAC] px-3 py-1.5 rounded-lg">➕ Adicionar item</button>}
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-[13px]">
@@ -1360,7 +1595,7 @@ export default function FichaInternacaoPage() {
                         <td className="px-2 py-2 text-right tabular-nums">{i.quantidade}</td>
                         <td className="px-2 py-2 text-right tabular-nums">{insumo ? "—" : fmtBRL(Number(i.valorUnitario) || 0)}</td>
                         <td className="px-2 py-2 text-right tabular-nums">{insumo ? "—" : fmtBRL(tot)}</td>
-                        <td className="px-2 py-2 text-right whitespace-nowrap">{!alta && <><button onClick={() => abrirItem(i)} className="text-[12px] px-1">✏️</button><button onClick={() => excluirItem(i)} className="text-[12px] px-1">🗑️</button></>}</td>
+                        <td className="px-2 py-2 text-right whitespace-nowrap">{!alta && podeEditar && <><button onClick={() => abrirItem(i)} className="text-[12px] px-1">✏️</button><button onClick={() => excluirItem(i)} className="text-[12px] px-1">🗑️</button></>}</td>
                       </tr>
                     ); })}
                   </tbody>
@@ -1378,14 +1613,14 @@ export default function FichaInternacaoPage() {
             <div className="bg-white border rounded-[13px]" style={{ borderColor: "#E8E2D6" }}>
               <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "#F0EBE0" }}>
                 <h3 className="text-[13px] font-medium text-[#014D5E] flex items-center gap-2">💳 Caução (crédito do tutor)</h3>
-                {!alta && <button onClick={() => setCaucaoOpen(true)} className="text-[12px] font-medium text-[#5C6B70] bg-white border px-3 py-1.5 rounded-lg" style={{ borderColor: "#E8E2D6" }}>➕ Adicionar caução</button>}
+                {!alta && podeEditar && <button onClick={() => setCaucaoOpen(true)} className="text-[12px] font-medium text-[#5C6B70] bg-white border px-3 py-1.5 rounded-lg" style={{ borderColor: "#E8E2D6" }}>➕ Adicionar caução</button>}
               </div>
               <div className="px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
                 <div>
                   <div className="text-[10.5px] text-[#374151] uppercase tracking-wide">Saldo disponível de {h.tutor?.name || "tutor"}</div>
                   <div className="text-[22px] font-medium tabular-nums" style={{ color: "#5a3b9b" }}>{fmtBRL(caucaoSaldo)}</div>
                 </div>
-                {caucaoSaldo > 0 && cc.totalFaturavel > 0 && !alta && (
+                {caucaoSaldo > 0 && cc.totalFaturavel > 0 && !alta && podeEditar && (
                   <button onClick={aplicarCaucao} className="text-[12.5px] font-medium px-3.5 py-2 rounded-lg" style={caucaoAplicada > 0 ? { background: "#EDE9FA", color: "#5a3b9b" } : { background: "#009AAC", color: "#fff" }}>{caucaoAplicada > 0 ? "✓ Caução aplicada — remover" : "Aplicar à conta"}</button>
                 )}
               </div>
@@ -1507,6 +1742,22 @@ export default function FichaInternacaoPage() {
             <div className="p-5 grid grid-cols-2 gap-3 text-[13px]">
               <div className="col-span-2"><label className="text-[11px] text-[#374151] block mb-1">Medicação *</label>
                 <input value={prescForm.medicamento} onChange={(e) => setPrescForm({ ...prescForm, medicamento: e.target.value })} placeholder="Ex.: Tramadol" className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
+              <div className="col-span-2"><label className="text-[11px] text-[#374151] block mb-1">💰 Cobrar na conta a cada aplicação <span className="text-[#94a3b8]">(opcional)</span></label>
+                <select
+                  value={prescForm.cobrarId ? `${prescForm.cobrarTipo === "servico" ? "s" : "p"}:${prescForm.cobrarId}` : ""}
+                  onChange={(e) => pickPrescCobranca(e.target.value)}
+                  className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]"
+                  style={{ borderColor: "#E8E2D6" }}
+                >
+                  <option value="">— não cobrar (sem vínculo) —</option>
+                  {servicos.length > 0 && <optgroup label="🏷️ Serviços">{servicos.map((s) => <option key={`s${s.id}`} value={`s:${s.id}`}>{s.nome}{s.valorPadrao != null ? ` · ${fmtBRL(s.valorPadrao)}` : ""}</option>)}</optgroup>}
+                  {produtos.length > 0 && <optgroup label="📦 Produtos">{produtos.map((p) => <option key={`p${p.id}`} value={`p:${p.id}`}>{p.name}{(p.price ?? p.valorPadrao) != null ? ` · ${fmtBRL(p.price ?? p.valorPadrao)}` : ""}</option>)}</optgroup>}
+                </select>
+                {prescForm.cobrarId ? (
+                  <p className="text-[10.5px] text-[#0F6E56] mt-1">✓ Cada ✓ no plantão lança <b>1× {prescForm.cobrarNome}</b> ({fmtBRL(precoAtualCobranca(prescForm))}) na conta. Desmarcar o ✓ remove o lançamento.</p>
+                ) : (
+                  <p className="text-[10.5px] text-[#94a3b8] mt-1">Vincule a um item do catálogo com preço para lançar automaticamente na conta ao aplicar.</p>
+                )}</div>
               <div><label className="text-[11px] text-[#374151] block mb-1">Via</label>
                 <select value={prescForm.via} onChange={(e) => setPrescForm({ ...prescForm, via: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }}>{VIAS.map((v) => <option key={v} value={v}>{v}</option>)}</select></div>
               <div><label className="text-[11px] text-[#374151] block mb-1">Dose</label>
@@ -1516,7 +1767,7 @@ export default function FichaInternacaoPage() {
               <div><label className="text-[11px] text-[#374151] block mb-1">Frequência</label>
                 <select value={prescForm.frequencia} onChange={(e) => { const frequencia = e.target.value; const calc = calcularHorarios(prescForm.primeira, frequencia); setPrescForm({ ...prescForm, frequencia, ...(calc ? { horarios: calc } : {}) }); }} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }}>
                   <option value="">Contínua / sem frequência fixa</option>
-                  {FREQUENCIAS.map((f) => <option key={f.v} value={f.v}>{f.v}</option>)}
+                  {freqOpcoes.map((v) => <option key={v} value={v}>{v}</option>)}
                   {prescForm.frequencia && !FREQUENCIAS.some((f) => f.v === prescForm.frequencia) && <option value={prescForm.frequencia}>{prescForm.frequencia}</option>}
                 </select></div>
               <div><label className="text-[11px] text-[#374151] block mb-1">Horários (HH:MM)</label>
@@ -1569,6 +1820,8 @@ export default function FichaInternacaoPage() {
               <button onClick={() => { setVitalOpen(false); setVitalEditId(""); }} className="text-[#374151]">✕</button>
             </div>
             <div className="p-5 grid grid-cols-2 gap-3 text-[13px]">
+              <div className="col-span-2"><label className="text-[11px] text-[#014D5E] font-medium block mb-1">⚖️ Peso (kg) — base pra dosagem</label>
+                <input type="number" step="0.01" value={vitalForm.peso} onChange={(e) => setVitalForm({ ...vitalForm, peso: e.target.value })} placeholder="Ex.: 6.2" className="w-full border rounded-lg px-3 py-2 text-[14px] font-medium focus:outline-none" style={{ borderColor: "#009AAC", background: "#F0FBFC", color: "#014D5E" }} /></div>
               <div><label className="text-[11px] text-[#374151] block mb-1">FC (bpm)</label>
                 <input type="number" value={vitalForm.fc} onChange={(e) => setVitalForm({ ...vitalForm, fc: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
               <div><label className="text-[11px] text-[#374151] block mb-1">FR (mpm)</label>

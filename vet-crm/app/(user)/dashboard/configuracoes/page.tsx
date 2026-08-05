@@ -39,6 +39,7 @@ const ITEMS: Item[] = [
 
   // Catálogo & Terceiros
   { href: "/dashboard/configuracoes/exames", title: "Exames, Fornecedores e Profissionais", description: "Catálogo de exames + fornecedores (lab/empresa) e profissionais", emoji: "🔬", group: "CATALOGO" },
+  { href: "/dashboard/configuracoes/departamentos", title: "Departamentos (DRE)", description: "De-para: cada categoria do catálogo → departamento do Financeiro/DRE", emoji: "🔗", group: "CATALOGO", novo: true },
   { href: "/dashboard/configuracoes/grupos", title: "Grupos do catálogo", description: "Categorias de produtos e serviços", emoji: "📁", group: "CATALOGO" },
 
   // Vendas & Financeiro

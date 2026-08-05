@@ -14,6 +14,7 @@ function calcItemTotal(it: any): number {
 function mapItens(itens: any[] | undefined) {
   return (itens ?? []).map((it) => ({
     servicoId: it.servicoId ?? null,
+    productId: it.productId ?? null,
     descricao: it.descricao ?? null,
     quantidade: Number(it.quantidade ?? 1),
     valorUnitario: Number(it.valorUnitario ?? 0),
@@ -29,18 +30,46 @@ export class OrcamentosService {
     private readonly appointmentsService: AppointmentsService,
   ) {}
 
+  // include padrão — traz itens + autor + pet/tutor (necessários p/ impressão com timbrado)
+  private readonly ORC_INCLUDE = {
+    itens: true,
+    createdBy: { select: { id: true, name: true } },
+    pet: { select: { id: true, name: true, species: true, breed: true, birthDate: true, weight: true } },
+    tutor: { select: { id: true, name: true, contacts: { where: { isPrimary: true }, take: 1 } } },
+  } as const;
+
   async findByPet(petId: string) {
     return this.prisma.orcamento.findMany({
       where: { petId },
-      include: { itens: true, createdBy: { select: { id: true, name: true } } },
+      include: this.ORC_INCLUDE,
       orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  // Busca global de orçamentos (localizar) — filtro por status + busca por tutor/pet
+  async findAll(params?: { status?: string; busca?: string }) {
+    const { status, busca } = params || {};
+    const where: any = {};
+    if (status && status !== 'TODOS') where.status = status;
+    if (busca && busca.trim()) {
+      const q = busca.trim();
+      where.OR = [
+        { pet: { name: { contains: q, mode: 'insensitive' as const } } },
+        { tutor: { name: { contains: q, mode: 'insensitive' as const } } },
+      ];
+    }
+    return this.prisma.orcamento.findMany({
+      where,
+      include: this.ORC_INCLUDE,
+      orderBy: { createdAt: 'desc' },
+      take: 300,
     });
   }
 
   async findOne(id: string) {
     const o = await this.prisma.orcamento.findUnique({
       where: { id },
-      include: { itens: true, createdBy: { select: { id: true, name: true } } },
+      include: this.ORC_INCLUDE,
     });
     if (!o) throw new NotFoundException('Orçamento não encontrado');
     return o;
@@ -53,7 +82,7 @@ export class OrcamentosService {
     });
     if (!pet) throw new NotFoundException('Pet não encontrado');
 
-    const itens = mapItens(dto.itens);
+    const itens = await this.resolverItens(mapItens(dto.itens));
     const valorTotal = itens.reduce((s, it) => s + it.valorTotal, 0);
 
     return this.prisma.orcamento.create({
@@ -70,6 +99,29 @@ export class OrcamentosService {
     });
   }
 
+  // Resolve os FKs dos itens: um id só vira servicoId se existir em Servico; se for produto vai
+  // em productId; senão fica item livre (só descrição). Evita quebra de FK quando a comanda/PDV
+  // manda id de PRODUTO no campo servicoId (catálogo unificado). Também vale no update.
+  private async resolverItens(itensRaw: any[]) {
+    const ids = Array.from(new Set(itensRaw.flatMap((i) => [i.servicoId, i.productId]).filter(Boolean))) as string[];
+    let svSet = new Set<string>(), prSet = new Set<string>();
+    if (ids.length) {
+      const [svs, prs] = await Promise.all([
+        this.prisma.servico.findMany({ where: { id: { in: ids } }, select: { id: true } }).catch(() => []),
+        this.prisma.product.findMany({ where: { id: { in: ids } }, select: { id: true } }).catch(() => []),
+      ]);
+      svSet = new Set(svs.map((s: any) => s.id));
+      prSet = new Set(prs.map((p: any) => p.id));
+    }
+    return itensRaw.map((it) => {
+      let servicoId = it.servicoId && svSet.has(it.servicoId) ? it.servicoId : null;
+      let productId = it.productId && prSet.has(it.productId) ? it.productId : null;
+      // servicoId veio como id de produto (comanda/PDV) → move pra productId
+      if (!servicoId && !productId && it.servicoId && prSet.has(it.servicoId)) productId = it.servicoId;
+      return { servicoId, productId, descricao: it.descricao, quantidade: it.quantidade, valorUnitario: it.valorUnitario, desconto: it.desconto, valorTotal: it.valorTotal };
+    });
+  }
+
   async update(id: string, dto: UpdateOrcamentoDto) {
     await this.findOne(id);
     const data: any = {};
@@ -77,7 +129,7 @@ export class OrcamentosService {
     if (dto.validade !== undefined) data.validade = dto.validade ? new Date(dto.validade) : null;
     if (dto.observacao !== undefined) data.observacao = dto.observacao;
     if (dto.itens !== undefined) {
-      const itens = mapItens(dto.itens);
+      const itens = await this.resolverItens(mapItens(dto.itens));
       data.valorTotal = itens.reduce((s, it) => s + it.valorTotal, 0);
       await this.prisma.orcamentoItem.deleteMany({ where: { orcamentoId: id } });
       data.itens = { create: itens };
@@ -119,6 +171,7 @@ export class OrcamentosService {
       value: orc.valorTotal,
       items: orc.itens.map((it) => ({
         servicoId: it.servicoId ?? undefined,
+        productId: (it as any).productId ?? undefined,
         descricao: it.descricao ?? undefined,
         quantidade: it.quantidade,
         valorUnitario: it.valorUnitario,

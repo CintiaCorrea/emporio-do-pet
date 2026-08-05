@@ -11,6 +11,8 @@ import {
 } from 'react-icons/lu';
 import ConfirmDeleteModal from '@/components/common/ConfirmDeleteModal';
 import toast from 'react-hot-toast';
+import { usePodeEditar } from '@/lib/permissions/context';
+import { useCanSeeCost } from '@/lib/permissions/useCanSeeCost';
 
 // Tipo SERVICE
 type ServiceType = 'SERVICE';
@@ -65,6 +67,8 @@ interface ApiResponse {
 }
 
 export default function ServicesPage() {
+  const podeEditar = usePodeEditar(); // perfil VISUALIZA = esconde botões de mexer
+  const canSeeCost = useCanSeeCost(); // Custo/Margem só p/ ADMIN
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -334,6 +338,7 @@ export default function ServicesPage() {
                     <span style={{fontSize:"14px"}}>📈</span>
                     <span>Relatório</span>
                   </Link>
+                  {podeEditar && (
                   <button
                     onClick={openCreateModal}
                     className="px-4 py-2 text-sm font-semibold text-white rounded-xl flex items-center gap-2"
@@ -342,6 +347,7 @@ export default function ServicesPage() {
                     <LuPlus className="w-4 h-4" />
                     <span>Novo item</span>
                   </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -428,9 +434,9 @@ export default function ServicesPage() {
                       <th className="text-left px-4 py-2.5 text-[11px] uppercase tracking-wide font-semibold text-gray-500">Item</th>
                       <th className="text-left px-4 py-2.5 text-[11px] uppercase tracking-wide font-semibold text-gray-500">Categoria</th>
                       <th className="text-left px-4 py-2.5 text-[11px] uppercase tracking-wide font-semibold text-gray-500">Laboratório</th>
-                      <th className="text-right px-4 py-2.5 text-[11px] uppercase tracking-wide font-semibold text-gray-500">Custo</th>
+                      {canSeeCost && <th className="text-right px-4 py-2.5 text-[11px] uppercase tracking-wide font-semibold text-gray-500">Custo</th>}
                       <th className="text-right px-4 py-2.5 text-[11px] uppercase tracking-wide font-semibold text-gray-500">Preço venda</th>
-                      <th className="text-right px-4 py-2.5 text-[11px] uppercase tracking-wide font-semibold text-gray-500">Margem</th>
+                      {canSeeCost && <th className="text-right px-4 py-2.5 text-[11px] uppercase tracking-wide font-semibold text-gray-500">Margem</th>}
                       <th className="text-left px-4 py-2.5 text-[11px] uppercase tracking-wide font-semibold text-gray-500">Ações</th>
                     </tr>
                   </thead>
@@ -454,7 +460,7 @@ export default function ServicesPage() {
                           ) : <span className="text-gray-300">—</span>}
                         </td>
                         <td className="px-4 py-2.5 text-gray-700">{service.fornecedor?.nome || <span className="text-gray-300">—</span>}</td>
-                        <td className="px-4 py-2.5 text-right tabular-nums text-gray-700">{service.custoPadrao != null ? formatCurrency(service.custoPadrao) : <span className="text-gray-300">—</span>}</td>
+                        {canSeeCost && <td className="px-4 py-2.5 text-right tabular-nums text-gray-700">{service.custoPadrao != null ? formatCurrency(service.custoPadrao) : <span className="text-gray-300">—</span>}</td>}
                         <td className="px-4 py-2.5 text-right tabular-nums">
                           {semPreco ? (
                             <span className="text-[12px] font-semibold px-2 py-0.5 rounded-md" style={{ background: "#FEF3E2", color: "#B45309", border: "1px solid #F3D9AE" }}>definir</span>
@@ -462,10 +468,11 @@ export default function ServicesPage() {
                             <span className="font-semibold text-gray-900">{formatCurrency(service.price)}</span>
                           )}
                         </td>
-                        <td className="px-4 py-2.5 text-right tabular-nums font-semibold" style={{ color: m != null ? "#0F6E56" : "#cbd5e1" }}>
+                        {canSeeCost && <td className="px-4 py-2.5 text-right tabular-nums font-semibold" style={{ color: m != null ? "#0F6E56" : "#cbd5e1" }}>
                           {m != null ? `+${m}%` : "—"}
-                        </td>
+                        </td>}
                         <td className="px-4 py-2.5">
+                          {podeEditar ? (
                           <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
                             <button
                               onClick={() => {
@@ -489,6 +496,9 @@ export default function ServicesPage() {
                               <LuTrash className="w-4 h-4" />
                             </button>
                           </div>
+                          ) : (
+                            <span className="text-xs text-gray-400" title="Somente leitura">👁️</span>
+                          )}
                         </td>
                       </tr>
                       );
@@ -668,6 +678,7 @@ export default function ServicesPage() {
                   >
                     Fechar
                   </button>
+                  {podeEditar && (
                   <button
                     onClick={() => setIsEditMode(true)}
                     className="px-6 py-3 text-white bg-purple-600 rounded-2xl hover:bg-purple-700 transition-colors flex items-center gap-2"
@@ -675,6 +686,7 @@ export default function ServicesPage() {
                     <LuPencil className="w-4 h-4" />
                     Editar Serviço
                   </button>
+                  )}
                 </>
               )}
             </div>

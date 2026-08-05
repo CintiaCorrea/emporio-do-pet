@@ -15,10 +15,17 @@ export class OrcamentosController {
   constructor(private readonly orcamentosService: OrcamentosService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Listar orçamentos por pet' })
-  @ApiQuery({ name: 'petId', required: true })
-  findByPet(@Query('petId') petId: string) {
-    return this.orcamentosService.findByPet(petId);
+  @ApiOperation({ summary: 'Listar orçamentos (por pet, ou busca global se sem petId)' })
+  @ApiQuery({ name: 'petId', required: false })
+  @ApiQuery({ name: 'status', required: false })
+  @ApiQuery({ name: 'busca', required: false })
+  list(
+    @Query('petId') petId?: string,
+    @Query('status') status?: string,
+    @Query('busca') busca?: string,
+  ) {
+    if (petId) return this.orcamentosService.findByPet(petId);
+    return this.orcamentosService.findAll({ status, busca });
   }
 
   @Get(':id')

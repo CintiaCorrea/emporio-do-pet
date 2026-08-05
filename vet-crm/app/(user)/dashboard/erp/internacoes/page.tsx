@@ -129,7 +129,8 @@ export default function InternacoesPage() {
   }, [mapa, hospById]);
 
   const criar = async () => {
-    if (!form.tutorId || !form.petId || !form.userId || !form.reason.trim()) { alert("Preencha cliente, pet, profissional e motivo."); return; }
+    if (!form.tutorId || !form.petId) { alert("Selecione o CLIENTE e o PET clicando no resultado da busca — só digitar o nome não seleciona.\n\nDica: digite o nome do pet no campo 🐾 e clique na linha que aparecer na lista."); return; }
+    if (!form.userId || !form.reason.trim()) { alert("Falta o profissional responsável e/ou o motivo da internação."); return; }
     if (!form.boxId) { alert("Escolha um box para a internação — sem box o paciente não aparece no Mapa. Se não houver box livre, cadastre um em '⚙️ Gerenciar boxes'."); return; }
     setSalvando(true);
     try {
@@ -486,7 +487,7 @@ export default function InternacoesPage() {
                   <div><label className="text-[10.5px] text-[#374151] uppercase tracking-wide block mb-1">Motivo da internação *</label>
                     <input value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder="Ex.: Pós-operatório, crise convulsiva..." className="w-full bg-white border rounded-lg px-3 py-2 text-[13px] text-[#1F2A2E] focus:outline-none focus:border-[#009AAC] focus:ring-2 focus:ring-[#E0F4F6]" style={{ borderColor: "#E8E2D6" }} /></div>
                   <div><label className="text-[10.5px] text-[#374151] uppercase tracking-wide block mb-1.5">Estado clínico inicial</label>
-                    <div className="grid grid-cols-4 gap-1.5">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                       {ESTADOS.map((e) => { const on = form.estado === e.v; return (
                         <button type="button" key={e.v} onClick={() => setForm({ ...form, estado: e.v })} className="text-[11px] font-medium py-2 px-1 rounded-lg border text-center transition-colors" style={on ? { background: e.bg, color: e.fg, borderColor: e.fg } : { background: "#fff", color: "#374151", borderColor: "#E8E2D6" }}>{e.v}</button>
                       ); })}

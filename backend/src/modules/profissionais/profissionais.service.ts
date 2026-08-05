@@ -8,6 +8,17 @@ import { UpdateProfissionalDto } from './dto/update-profissional.dto';
 export class ProfissionaisService {
   constructor(private readonly prisma: PrismaService) {}
 
+  /** Profissional vinculado ao usuário LOGADO — payload mínimo (escala) para o
+   *  lembrete de fim de turno. Devolve null quando o usuário não é profissional
+   *  ou não tem escala cadastrada (aí nenhum lembrete aparece). */
+  async findByUserId(userId: string) {
+    const p = await this.prisma.profissional.findFirst({
+      where: { userId },
+      select: { id: true, nomeExibicao: true, nomeCompleto: true, escala: true },
+    });
+    return p || null;
+  }
+
   // Cria ou vincula um User quando dto traz acesso ao sistema
   private async ensureUser(dto: any, existingUserId?: string | null): Promise<string | null> {
     if (!dto.criarAcesso) return existingUserId || null;

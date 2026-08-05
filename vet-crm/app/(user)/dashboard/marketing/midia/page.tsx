@@ -4,6 +4,7 @@ import { confirmDelete } from "@/lib/ui/confirmDelete";
 import { useEffect, useMemo, useState , useRef} from "react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { LuTrash } from "react-icons/lu";
+import { usePodeEditar } from "@/lib/permissions/context";
 
 const PLATAFORMAS = ["Meta Ads", "Google Ads", "Instagram", "Facebook", "TikTok", "Outro"];
 const PERIODOS = ["Diário", "Semanal", "Quinzenal", "Mensal", "Avulso"];
@@ -13,6 +14,7 @@ const EMPTY = { campanhaId: "", plataforma: "Meta Ads", periodicidade: "Semanal"
 
 export default function MidiaPage() {
   usePageTitle("Mídia", "Lançamentos de investimento de mídia");
+  const podeEditar = usePodeEditar(); // perfil VISUALIZA = esconde registrar/excluir
   const [loading, setLoading] = useState(true);
   const jaCarregou = useRef(false);
   const [rows, setRows] = useState<any[]>([]);
@@ -65,7 +67,7 @@ export default function MidiaPage() {
           <div><label className="text-[11px] text-[#6b7280] block mb-1">Conversões</label><input type="number" min={0} value={form.conversoes} onChange={(e) => setForm({ ...form, conversoes: e.target.value })} className="w-full border border-[#d8d0bc] rounded-lg px-3 py-2 focus:outline-none focus:border-[#009AAC]" /></div>
           <div><label className="text-[11px] text-[#6b7280] block mb-1">Alcance</label><input type="number" min={0} value={form.alcance} onChange={(e) => setForm({ ...form, alcance: e.target.value })} className="w-full border border-[#d8d0bc] rounded-lg px-3 py-2 focus:outline-none focus:border-[#009AAC]" /></div>
           <div className="lg:col-span-2"><label className="text-[11px] text-[#6b7280] block mb-1">Observações</label><input value={form.obs} onChange={(e) => setForm({ ...form, obs: e.target.value })} className="w-full border border-[#d8d0bc] rounded-lg px-3 py-2 focus:outline-none focus:border-[#009AAC]" /></div>
-          <div className="col-span-2 lg:col-span-3 flex justify-end"><button onClick={registrar} disabled={saving} className="bg-[#009AAC] text-white px-3.5 py-1.5 rounded-lg text-xs font-medium disabled:opacity-60">{saving ? "Registrando..." : "Registrar lançamento"}</button></div>
+          <div className="col-span-2 lg:col-span-3 flex justify-end">{podeEditar && <button onClick={registrar} disabled={saving} className="bg-[#009AAC] text-white px-3.5 py-1.5 rounded-lg text-xs font-medium disabled:opacity-60">{saving ? "Registrando..." : "Registrar lançamento"}</button>}</div>
         </div>
         )}
       </div>
@@ -92,7 +94,7 @@ export default function MidiaPage() {
                   <td className="px-2 py-2 text-right">{r.cliques || 0}</td>
                   <td className="px-2 py-2 text-right">{r.conversoes || 0}</td>
                   <td className="px-2 py-2 text-right text-[#5b6470]">{cpc ? fmtBRL(cpc) : "—"}</td>
-                  <td className="px-2 py-2 text-right"><button onClick={() => excluir(r.id)} className="text-[#94a3b8] hover:text-[#A32D2D]"><LuTrash className="w-3.5 h-3.5" /></button></td>
+                  <td className="px-2 py-2 text-right">{podeEditar && <button onClick={() => excluir(r.id)} className="text-[#94a3b8] hover:text-[#A32D2D]"><LuTrash className="w-3.5 h-3.5" /></button>}</td>
                 </tr>
               ); })}
             </tbody>

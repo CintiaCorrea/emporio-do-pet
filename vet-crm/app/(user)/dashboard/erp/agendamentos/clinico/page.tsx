@@ -1,7 +1,8 @@
 "use client";
 // [EMP-COWORK] Calendário Clínico (FU) — objetivo + paleta do Base44 (Cintia 07/06)
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
+import { useNotifications } from "@/hooks/useNotifications";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { LuTriangleAlert, LuClock, LuCalendar, LuCake, LuChevronRight } from "react-icons/lu";
@@ -49,23 +50,35 @@ export default function CalendarioClinicoPage() {
   const [leads, setLeads] = useState<any[]>([]);
   const [appts, setAppts] = useState<any[]>([]);
 
+  const jaCarregou = useRef(false);
+  const load = async () => {
+    if (!jaCarregou.current) setLoading(true);
+    try {
+      const [t, p, l, a] = await Promise.all([
+        fetch("/api/tutors?limit=1000").then((r) => r.json()).catch(() => []),
+        fetch("/api/pets?limit=1000").then((r) => r.json()).catch(() => []),
+        fetch("/api/leads?limit=1000").then((r) => r.json()).catch(() => []),
+        fetch("/api/appointments?limit=1000").then((r) => r.json()).catch(() => []),
+      ]);
+      setTutors(Array.isArray(t) ? t : (t.tutors || t.data || []));
+      setPets(Array.isArray(p) ? p : (p.pets || p.data || []));
+      setLeads(Array.isArray(l) ? l : (l.leads || l.data || []));
+      setAppts(Array.isArray(a) ? a : (a.appointments || a.data || []));
+    } catch {}
+    jaCarregou.current = true; setLoading(false);
+  };
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+  // ⚡ Tempo real: mudança de agendamento recarrega na hora (pausa com a aba em 2º plano).
+  useNotifications({ onAgenda: () => { if (document.visibilityState === "visible") load(); } });
+  // Atualização automática silenciosa. Esta visão é mais pesada (clientes+pets+leads+agenda),
+  // então usa 30s. Pausa com a aba em 2º plano; atualiza ao voltar o foco.
   useEffect(() => {
-    (async () => {
-      setLoading(true);
-      try {
-        const [t, p, l, a] = await Promise.all([
-          fetch("/api/tutors?limit=1000").then((r) => r.json()).catch(() => []),
-          fetch("/api/pets?limit=1000").then((r) => r.json()).catch(() => []),
-          fetch("/api/leads?limit=1000").then((r) => r.json()).catch(() => []),
-          fetch("/api/appointments?limit=1000").then((r) => r.json()).catch(() => []),
-        ]);
-        setTutors(Array.isArray(t) ? t : (t.tutors || t.data || []));
-        setPets(Array.isArray(p) ? p : (p.pets || p.data || []));
-        setLeads(Array.isArray(l) ? l : (l.leads || l.data || []));
-        setAppts(Array.isArray(a) ? a : (a.appointments || a.data || []));
-      } catch {}
-      setLoading(false);
-    })();
+    const pode = () => document.visibilityState === "visible";
+    const id = setInterval(() => { if (pode()) load(); }, 60000);
+    const onVis = () => { if (pode()) load(); };
+    document.addEventListener("visibilitychange", onVis);
+    return () => { clearInterval(id); document.removeEventListener("visibilitychange", onVis); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const periodStart = useMemo(() => {

@@ -42,6 +42,7 @@ export class ClinicalDocumentsService {
         title: dto.title,
         content: dto.content,
         htmlContent: dto.htmlContent,
+        pdfUrl: dto.pdfUrl,
         status: 'PUBLISHED',
         isAiGenerated: false,
         signedBy: dto.signedBy,

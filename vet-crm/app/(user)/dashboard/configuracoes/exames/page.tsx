@@ -4,6 +4,7 @@ import { confirmDelete } from "@/lib/ui/confirmDelete";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { LuArrowLeft, LuPlus, LuPencil, LuTrash, LuSearch, LuUpload, LuSparkles } from "react-icons/lu";
+import { usePodeEditar } from "@/lib/permissions/context";
 
 type CategoriaExame = "HEMATOLOGIA" | "BIOQUIMICA" | "IMAGEM" | "CITOLOGIA" | "MICROBIOLOGIA" | "ENDOCRINOLOGIA" | "HISTOPATOLOGIA" | "OUTROS";
 type FornTipo = "LABORATORIO" | "PROFISSIONAL" | "PARCEIRO" | "FORNECEDOR" | "OUTRO";
@@ -43,6 +44,7 @@ const EMPTY_FORN: any = { nome: "", tipo: "LABORATORIO", modeloPagamento: "LOTE_
 const EMPTY_EX: any = { nome: "", codigo: "", categoria: "OUTROS", fornecedorId: "", valorFornecedor: null, valorClienteSugerido: null, tempoResultadoDias: null, ativo: true };
 
 export default function ExamesConfigPage() {
+  const podeEditar = usePodeEditar(); // perfil VISUALIZA = esconde importar/criar/editar/excluir
   // A aba "exames" foi aposentada: os exames viraram itens em Produtos/Serviços (com custo + laboratório).
   // O bloco de conteúdo continua no código como segurança, mas não é mais acessível pela navegação.
   const [tab, setTab] = useState<"exames" | "fornecedores" | "profissionais">("fornecedores");
@@ -276,7 +278,7 @@ export default function ExamesConfigPage() {
             <h1 className="text-xl font-semibold" style={{ color: "#009AAC" }}>Fornecedores e Profissionais</h1>
             <p className="text-sm text-gray-600">Fornecedores (laboratórios/empresas) e profissionais (parceiros/liberais). Os exames agora ficam em Produtos/Serviços.</p>
           </div>
-          {tab === "exames" && (
+          {podeEditar && tab === "exames" && (
             <button onClick={() => setImportOpen(true)} className="px-3 py-2 rounded-lg text-sm flex items-center gap-2 border" style={{ borderColor: "#E5DCC9", color: "#009AAC" }}>
               <LuUpload size={16} /> Importar planilha
             </button>
@@ -325,10 +327,10 @@ export default function ExamesConfigPage() {
               </div>
               <div className="flex items-end gap-2">
                 <span className="text-sm text-gray-500 mb-2">{examesFilt.length} exames</span>
-                <button onClick={openExNew} className="px-3 py-2 rounded-lg text-sm flex items-center gap-1"
+                {podeEditar && <button onClick={openExNew} className="px-3 py-2 rounded-lg text-sm flex items-center gap-1"
                   style={{ background: "#009AAC", color: "white" }}>
                   <LuPlus size={14} /> Novo
-                </button>
+                </button>}
               </div>
             </div>
 
@@ -370,8 +372,10 @@ export default function ExamesConfigPage() {
                           </button>
                         </td>
                         <td className="px-3 py-2 text-center">
+                          {podeEditar ? (<>
                           <button onClick={() => openExEdit(ex)} className="p-1 hover:bg-gray-200 rounded inline-block" title="Editar"><LuPencil size={14} /></button>
                           <button onClick={() => deleteEx(ex)} className="p-1 hover:bg-gray-200 rounded inline-block ml-1" style={{ color: "#A32D2D" }} title="Excluir"><LuTrash size={14} /></button>
+                          </>) : <span className="text-xs text-gray-300">👁️</span>}
                         </td>
                       </tr>
                     ))}
@@ -387,9 +391,9 @@ export default function ExamesConfigPage() {
             <div className="px-4 py-3 border-b" style={{ borderColor: "#E5DCC9" }}>
               <div className="flex items-center justify-between mb-2.5">
                 <div className="text-sm font-semibold" style={{ color: "#009AAC" }}>{fornecedores.filter(f => (tab === "profissionais" ? BUCKET_PROFISSIONAL : BUCKET_FORNECEDOR).includes(f.tipo) && (!fFornTipo || f.tipo === fFornTipo)).length} cadastrado(s)</div>
-                <button onClick={openFornNew} className="px-3 py-2 rounded-lg text-sm flex items-center gap-1" style={{ background: "#009AAC", color: "white" }}>
+                {podeEditar && <button onClick={openFornNew} className="px-3 py-2 rounded-lg text-sm flex items-center gap-1" style={{ background: "#009AAC", color: "white" }}>
                   <LuPlus size={14} /> {tab === "profissionais" ? "Novo profissional" : "Novo fornecedor"}
-                </button>
+                </button>}
               </div>
               <div className="flex gap-1.5 flex-wrap">
                 {TIPOS_FORN.filter(t => t.v === "" || (tab === "profissionais" ? BUCKET_PROFISSIONAL : BUCKET_FORNECEDOR).includes(t.v)).map(t => (
@@ -422,8 +426,10 @@ export default function ExamesConfigPage() {
                     <td className="px-3 py-2 text-right">{f._count?.exames || 0}</td>
                     <td className="px-3 py-2 text-center">{f.ativo ? "✅" : "—"}</td>
                     <td className="px-3 py-2 text-center">
+                      {podeEditar ? (<>
                       <button onClick={() => openFornEdit(f)} className="p-1 hover:bg-gray-200 rounded inline-block" title="Editar"><LuPencil size={14} /></button>
                       <button onClick={() => deleteForn(f)} className="p-1 hover:bg-gray-200 rounded inline-block ml-1" style={{ color: "#A32D2D" }} title="Excluir"><LuTrash size={14} /></button>
+                      </>) : <span className="text-xs text-gray-300">👁️</span>}
                     </td>
                   </tr>
                 ))}

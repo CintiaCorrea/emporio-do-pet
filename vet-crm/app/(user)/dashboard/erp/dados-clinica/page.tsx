@@ -28,6 +28,37 @@ function Field({ label, children, span }: { label: string; children: React.React
   return <div style={{ gridColumn: span ? `span ${span}` : undefined }}><Label>{label}</Label>{children}</div>;
 }
 
+// Converte a logo escolhida num data URI (base64) reduzido, embutido direto no cadastro.
+// Assim ela renderiza em qualquer lugar (tela, impressão, PDF) sem depender de bucket/URL —
+// era esse o problema do upload antigo (bucket privado devolvia 403 e a logo não aparecia).
+function logoParaDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("não consegui ler o arquivo"));
+    reader.onload = () => {
+      const src = String(reader.result || "");
+      const img = new Image();
+      img.onerror = () => reject(new Error("imagem inválida"));
+      img.onload = () => {
+        try {
+          const maxW = 700; // largura máxima — mantém a logo leve
+          const escala = Math.min(1, maxW / (img.width || maxW));
+          const w = Math.max(1, Math.round((img.width || maxW) * escala));
+          const h = Math.max(1, Math.round((img.height || maxW) * escala));
+          const canvas = document.createElement("canvas");
+          canvas.width = w; canvas.height = h;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) { resolve(src); return; }
+          ctx.drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL("image/png"));
+        } catch { resolve(src); }
+      };
+      img.src = src;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function DadosClinicaPage() {
   usePageTitle('Dados da clínica', 'Informações da empresa usadas em recibos e documentos');
   const podeEditar = usePodeEditar();
@@ -36,6 +67,16 @@ export default function DadosClinicaPage() {
   const [regId, setRegId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [subindoLogo, setSubindoLogo] = useState(false);
+  async function subirLogo(file: File) {
+    setSubindoLogo(true);
+    try {
+      const dataUrl = await logoParaDataUrl(file);
+      setCfg((c) => ({ ...c, logoUrl: dataUrl }));
+      toast.success('Logo carregada! Clique em Salvar para aplicar.');
+    } catch (e: any) { toast.error(e?.message || 'Não consegui carregar a logo'); }
+    finally { setSubindoLogo(false); }
+  }
 
   useEffect(() => {
     (async () => {
@@ -139,9 +180,17 @@ export default function DadosClinicaPage() {
                   : <span style={{ fontSize: 20, fontWeight: 600, color: B44.navy }}>{iniciais}</span>}
               </div>
               <div style={{ flex: '1 1 320px' }}>
-                <Label>URL da logo</Label>
+                <Label>Logo da clínica</Label>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#009AAC', color: '#fff', borderRadius: 9, padding: '9px 14px', fontSize: 13, fontWeight: 600, cursor: subindoLogo ? 'default' : 'pointer', opacity: subindoLogo ? 0.6 : 1 }}>
+                    {subindoLogo ? 'Enviando…' : '📤 Enviar imagem da logo'}
+                    <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" style={{ display: 'none' }} disabled={subindoLogo} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) subirLogo(f); }} />
+                  </label>
+                  {cfg.logoUrl && <button type="button" onClick={() => setCfg((c) => ({ ...c, logoUrl: '' }))} style={{ background: '#fff', border: `1px solid ${B44.line}`, color: '#b23b39', borderRadius: 9, padding: '8px 12px', fontSize: 12.5, cursor: 'pointer' }}>Remover</button>}
+                </div>
+                <div style={{ marginTop: 10 }}><Label>ou cole o link</Label></div>
                 <Input value={cfg.logoUrl} onChange={set('logoUrl')} placeholder="https://…/logo.png" />
-                <p style={{ fontSize: 11.5, color: B44.text3, margin: '6px 0 0' }}>Cole o link da imagem da logo. (Upload de arquivo será adicionado depois.)</p>
+                <p style={{ fontSize: 11.5, color: B44.text3, margin: '6px 0 0' }}>A logo aparece no cabeçalho de todos os documentos impressos/enviados. Ideal: PNG com fundo transparente.</p>
               </div>
             </div>
           </Card>

@@ -1,14 +1,18 @@
-import { IsString, IsOptional, IsDateString, IsIn } from 'class-validator';
+import { IsString, IsOptional, IsDateString, IsIn, IsInt, Min } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class AplicarProtocoloDto {
   @ApiProperty() @IsString() petId: string;
   @ApiPropertyOptional() @IsOptional() @IsString() tutorId?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() templateId?: string;
-  @ApiPropertyOptional() @IsOptional() @IsIn(['VACINA', 'VERMIFUGO', 'ECTOPARASITA']) tipo?: string;
+  @ApiPropertyOptional() @IsOptional() @IsIn(['VACINA', 'VERMIFUGO', 'ECTOPARASITA', 'OUTRO']) tipo?: string;
   @ApiPropertyOptional({ description: 'Nome do protocolo (se sem template)' })
   @IsOptional() @IsString() nomeProtocolo?: string;
   @ApiProperty() @IsDateString() dataInicial: string;
+  @ApiPropertyOptional({ description: 'Nº de doses (protocolo Outros; 0/omito = contínuo)' })
+  @IsOptional() @IsInt() @Min(0) doses?: number;
+  @ApiPropertyOptional({ description: 'Intervalo entre doses em dias (protocolo Outros)' })
+  @IsOptional() @IsInt() @Min(0) intervaloDias?: number;
   @ApiPropertyOptional() @IsOptional() @IsString() observacao?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() appointmentId?: string;
 }

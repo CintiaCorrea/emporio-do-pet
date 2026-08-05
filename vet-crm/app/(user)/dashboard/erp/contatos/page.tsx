@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
+import { usePodeEditar } from '@/lib/permissions/context';
 import {
   LuArrowLeft,
   LuDownload,
@@ -55,6 +56,7 @@ function formatContactType(type: ContactType) {
 }
 
 export default function ContactsPage() {
+  const podeEditar = usePodeEditar(); // perfil VISUALIZA = esconde criar/excluir
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -258,6 +260,7 @@ export default function ContactsPage() {
                 </td>
                 <td className="px-6 py-4 text-right text-sm font-medium">
                   <div className="flex justify-end space-x-2">
+                    {podeEditar ? (
                     <button
                       onClick={() => handleDelete(c.id)}
                       className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl transition-all duration-300 hover:scale-110"
@@ -265,6 +268,7 @@ export default function ContactsPage() {
                     >
                       <LuTrash className="w-4 h-4" />
                     </button>
+                    ) : <span className="text-xs text-gray-300">👁️</span>}
                   </div>
                 </td>
               </tr>
@@ -298,6 +302,7 @@ export default function ContactsPage() {
                 <p className="text-gray-600 mt-2">Gerencie os contatos vinculados aos tutores</p>
               </div>
 
+              {podeEditar && (
               <div className="flex flex-col sm:flex-row gap-3">
                 <Link
                   href="/dashboard/erp/tutores/novo"
@@ -314,6 +319,7 @@ export default function ContactsPage() {
                   <span className="font-semibold">Novo Contato</span>
                 </Link>
               </div>
+              )}
             </div>
           </div>
 
