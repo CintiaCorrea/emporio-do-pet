@@ -12,6 +12,7 @@ import PermGuard from '@/components/protected/dashboard/PermGuard';
 import SessaoGuard from '@/components/protected/dashboard/SessaoGuard';
 import LembreteFimTurno from '@/components/protected/dashboard/LembreteFimTurno';
 import AlertasInternacao from '@/components/internacao/AlertasInternacao';
+import RecadoPopup from '@/components/protected/dashboard/RecadoPopup';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(true); // desktop: menu expandido/recolhido
@@ -48,6 +49,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <SessaoGuard />
           <LembreteFimTurno />
           <AlertasInternacao />
+          <RecadoPopup />
           <Sidebar
             isOpen={sidebarOpen}
             toggleSidebar={toggleSidebar}
