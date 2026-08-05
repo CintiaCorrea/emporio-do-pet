@@ -169,7 +169,22 @@ export class PortalAuthService {
 
     // Mandamos o codigo mesmo para numero sem cadastro: e o que permite dizer
     // "nao encontramos seu cadastro" so DEPOIS de provar que o numero e dele.
-    await this.whatsapp.enviarCodigo(telefone, codigo);
+    const entregue = await this.whatsapp.enviarCodigo(telefone, codigo);
+
+    // FORA DE PRODUCAO, quando o WhatsApp nao esta configurado (maquina de
+    // desenvolvimento), o codigo aparece no log — senao nao ha como testar o
+    // login local. Duas travas: so quando o envio FALHOU e so quando
+    // NODE_ENV !== 'production'. Em producao isto nunca roda.
+    if (!entregue && process.env.NODE_ENV !== 'production') {
+      this.logger.warn(
+        `\n\n  ┌─ MODO LOCAL ─────────────────────────────┐\n` +
+          `  │  Código de acesso: ${codigo}              │\n` +
+          `  │  (aparece aqui porque o WhatsApp não     │\n` +
+          `  │   está configurado nesta máquina)        │\n` +
+          `  └──────────────────────────────────────────┘\n`,
+      );
+    }
+
     await this.registrar(telefone8, 'CODIGO_ENVIADO', { ip });
 
     return resposta;
