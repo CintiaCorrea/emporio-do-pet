@@ -1,4 +1,5 @@
 "use client";
+import toast from "react-hot-toast";
 import { confirmDelete } from "@/lib/ui/confirmDelete";
 import { useEffect, useState, useRef } from "react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
@@ -53,8 +54,19 @@ export default function ConfigModelosReceitaPage() {
   useEffect(() => { load(); }, []);
 
   async function addModelo() {
-    const nome = novo.trim(); if (!nome) return;
-    await postModelo(nome, ""); setNovo(""); await load();
+    const nome = novo.trim();
+    if (!nome) { toast.error("Digite o nome do modelo primeiro."); return; }
+    try {
+      const r = await fetch(`/api/listas`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lista: "receita_modelo", valor: JSON.stringify({ nome, corpo: "" }) }) });
+      const d = await r.json().catch(() => null);
+      if (!r.ok) throw new Error(d?.message || d?.error || `Erro ${r.status}`);
+      setNovo("");
+      await load();
+      toast.success("Modelo adicionado");
+      if (d?.id) abrirEditor({ id: d.id, nome, corpo: "" });
+    } catch (e: any) {
+      toast.error("Não consegui adicionar: " + (e?.message || "erro"));
+    }
   }
   async function remover(id: string) {
     if (!(await confirmDelete({ entityLabel: "modelo", itemName: "este modelo" }))) return;
