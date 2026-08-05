@@ -90,6 +90,16 @@ export class AppointmentsService {
     return { success: true, to: phone, templateName };
   }
 
+  /** Confirma a presença MANUALMENTE (cliente confirmou por telefone/pessoalmente, sem WhatsApp). */
+  async confirmarManual(id: string) {
+    await this.findById(id);
+    await this.prisma.appointment.update({
+      where: { id },
+      data: { confirmacaoStatus: 'CONFIRMADO' },
+    });
+    return { success: true };
+  }
+
   /** Cancela o agendamento com motivo opcional (lista) + observação livre. */
   async cancelWithReason(id: string, motivo?: string, observacao?: string) {
     await this.findById(id);

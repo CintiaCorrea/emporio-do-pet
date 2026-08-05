@@ -1,8 +1,9 @@
 "use client";
 import { confirmDelete } from "@/lib/ui/confirmDelete";
-import { useEffect, useState , useRef} from "react";
+import { useEffect, useState, useRef } from "react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { usePodeEditar } from "@/lib/permissions/context";
+import EditorDocumento from "@/components/documentos/EditorDocumento";
 
 const MODELOS_DEFAULT: { nome: string; corpo: string }[] = [{"nome": "Hepatopata", "corpo": "MANDAR AVIAR\nUSO ORAL:\n\n- N – acetilcisteína: 100mg/ 10kg\n- Arginina: 70mg/ 10 Kg\n- Ornitina: 60 mg/ 10 Kg\n- Taurina: 70 mg/ 10 Kg\n- Silimarina: 100mg/ 10Kg\n- Glicina: 50 mg/ 10Kg\n- Ácido lipóico: 15 – 25 mg/ 10kg\n- Extrato chá verde: 20 mg/ 10Kg"}, {"nome": "Modelo padrão com Logo", "corpo": "@USUARIO_ASSINATURA@\n@CLINICA_CIDADE@, @CLINICA_ESTADO@, @GERAL_DATA@\n@USUARIO_TRATAMENTO@ @USUARIO_NOMEPUBLICO@\n@USUARIO_CRMV@"}, {"nome": "Modelo padrão sem logo", "corpo": ""}, {"nome": "Orientação Alimentação Natural", "corpo": "- CARBOIDRATO - ARROZ PARBORIZADO OU ARROZ BRANCO, BATATA DOCE.\n- PROTEÍNA - CARNE BOVINA MAGRA SEM GORDURA, PEITO DE FRANGO, ATUM EM ÁGUA.\n- LEGUMES - ABOBRINHA, CHUCHU, VAGEM, ABÓBORA, INHAME, CENOURA.\n\n___ GRS DE CARBOIDRATO / 2 VEZES AO DIA.\n___ GRS DE PROTEÍNA / 2 VEZES AO DIA.\n___ GRS DE LEGUMES / 2 VEZES AO DIA.\nTOTAL DE ___ GRS POR REFEIÇÃO.\n\nTODOS OS INGREDIENTES DEVEM SER PESADOS COZIDOS.\nCozinhar os legumes, carboidratos e proteínas em panelas diferentes e após o preparo misturá-los."}, {"nome": "Gel Cicatrizante e Antifúngico Natural", "corpo": ""}, {"nome": "Nutracêuticos - Erliquiose", "corpo": ""}, {"nome": "Prescrição para Erliquiose", "corpo": ""}, {"nome": "Receituário de Controle Especial", "corpo": ""}, {"nome": "Spray antifúngico e bactericida", "corpo": ""}, {"nome": "Spray de Mupirocina - Alergia", "corpo": ""}, {"nome": "Tratamento Otológico", "corpo": ""}];
 
@@ -14,7 +15,6 @@ export default function ConfigModelosReceitaPage() {
   const [loading, setLoading] = useState(true);
   const jaCarregou = useRef(false);
   const [savingId, setSavingId] = useState<string | null>(null);
-  const [draft, setDraft] = useState<Record<string, string>>({});
 
   async function fetchLista(lista: string) {
     const r = await fetch(`/api/listas?lista=${lista}`, { cache: "no-store" });
@@ -31,6 +31,7 @@ export default function ConfigModelosReceitaPage() {
     if (!jaCarregou.current) setLoading(true);
     try {
       let ms = await fetchLista("receita_modelo");
+      const corpoSeed = (nome: string) => MODELOS_DEFAULT.find((d) => d.nome === nome)?.corpo || "";
       if (ms.length === 0) {
         for (const m of MODELOS_DEFAULT) await postModelo(m.nome, m.corpo);
       } else {
@@ -38,15 +39,14 @@ export default function ConfigModelosReceitaPage() {
           let o: any = {}; try { o = JSON.parse(i.valor); } catch { o = { nome: i.valor, corpo: "" }; }
           const nm = o.nome || i.valor;
           if (!o.corpo) {
-            const def = MODELOS_DEFAULT.find(d => d.nome === nm);
-            if (def && def.corpo) await patchModelo(i.id, nm, def.corpo);
+            const corpo = corpoSeed(nm);
+            if (corpo) await patchModelo(i.id, nm, corpo);
           }
         }
       }
       ms = await fetchLista("receita_modelo");
       const parsed = ms.map((i: any) => { let o: any = {}; try { o = JSON.parse(i.valor); } catch { o = { nome: i.valor, corpo: "" }; } return { id: i.id, nome: o.nome || i.valor, corpo: o.corpo || "" }; });
       setModelos(parsed);
-      setDraft(Object.fromEntries(parsed.map((m: any) => [m.id, m.corpo])));
     } catch {}
     jaCarregou.current = true; setLoading(false);
   }
@@ -56,46 +56,82 @@ export default function ConfigModelosReceitaPage() {
     const nome = novo.trim(); if (!nome) return;
     await postModelo(nome, ""); setNovo(""); await load();
   }
-  async function salvarCorpo(m: { id: string; nome: string }) {
-    setSavingId(m.id);
-    try { await patchModelo(m.id, m.nome, draft[m.id] || ""); await load(); } catch {} finally { setSavingId(null); }
-  }
   async function remover(id: string) {
     if (!(await confirmDelete({ entityLabel: "modelo", itemName: "este modelo" }))) return;
     await fetch(`/api/listas/${id}`, { method: "DELETE" }); await load();
   }
 
-  return (
-    <div className="p-4 max-w-3xl mx-auto space-y-4">
-      <p className="text-xs text-[#64748b]">Modelos de receita que aparecem no dropdown ao adicionar uma Receita na ficha do pet. Edite o corpo de cada um — as variáveis (nome do pet, tutor, veterinário) serão preenchidas ao gerar.</p>
-      {loading ? (
-        <div className="text-center text-sm text-gray-400 py-8">Carregando...</div>
-      ) : (
-        <div className="space-y-3">
-          {podeEditar && (
-          <div className="flex gap-2">
-            <input value={novo} onChange={(e) => setNovo(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addModelo()} placeholder="Novo modelo (ex.: Antibiótico pós-cirúrgico)" className="flex-1 px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }} />
-            <button onClick={addModelo} className="px-3 py-2 rounded-lg text-sm text-white" style={{ background: "#009AAC" }}>Adicionar</button>
+  // edição de um modelo (tela do editor)
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editNome, setEditNome] = useState("");
+  const [editCorpo, setEditCorpo] = useState("");
+  function abrirEditor(m: { id: string; nome: string; corpo: string }) {
+    setEditId(m.id); setEditNome(m.nome); setEditCorpo(m.corpo || "");
+  }
+  async function salvarEditor() {
+    if (!editId) return;
+    setSavingId(editId);
+    try { await patchModelo(editId, editNome.trim() || "Receita", editCorpo); await load(); setEditId(null); } catch {} finally { setSavingId(null); }
+  }
+  async function removerEditor() {
+    if (!editId) return;
+    if (!(await confirmDelete({ entityLabel: "modelo", itemName: editNome }))) return;
+    await fetch(`/api/listas/${editId}`, { method: "DELETE" }); setEditId(null); await load();
+  }
+
+  if (loading) return <div className="text-center text-sm text-gray-400 py-10">Carregando...</div>;
+
+  // ---- Tela do EDITOR (um modelo) ----
+  if (editId) {
+    return (
+      <div className="p-4 max-w-5xl mx-auto">
+        <div className="bg-white border rounded-2xl overflow-hidden" style={{ borderColor: "#E8DFC8" }}>
+          <div className="px-4 py-3 flex items-center justify-between border-b" style={{ borderColor: "#E8DFC8", background: "linear-gradient(180deg,#F7FCFD,#EFF9FA)" }}>
+            <span className="text-sm font-bold flex items-center gap-2" style={{ color: "#014D5E" }}>✏️ Editar modelo</span>
+            <button onClick={() => setEditId(null)} className="text-xs font-semibold" style={{ color: "#007B8A" }}>← Voltar</button>
           </div>
-          )}
-          {modelos.map((m) => (
-            <div key={m.id} className="bg-white border rounded-2xl overflow-hidden" style={{ borderColor: "#e8edf0" }}>
-              <div className="px-4 py-2.5 border-b flex items-center justify-between" style={{ borderColor: "#e8edf0" }}>
-                <span className="text-sm font-semibold" style={{ color: "#014D5E" }}>{m.nome}</span>
-                {podeEditar && <button onClick={() => remover(m.id)} className="text-gray-400 hover:text-[#E24B4A] text-xs">Remover</button>}
-              </div>
-              <div className="p-3">
-                <textarea value={draft[m.id] ?? ""} onChange={(e) => setDraft((d) => ({ ...d, [m.id]: e.target.value }))} placeholder="Corpo do modelo (texto da receita)…" className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8", minHeight: "80px" }} />
-                {podeEditar && (
-                <div className="mt-2 text-right">
-                  <button onClick={() => salvarCorpo(m)} disabled={savingId === m.id} className="px-3 py-1.5 rounded-lg text-xs text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingId === m.id ? "Salvando..." : "Salvar"}</button>
-                </div>
-                )}
-              </div>
+          <div className="p-4 space-y-4">
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-wide mb-1.5" style={{ color: "#014D5E" }}>Nome <span style={{ color: "#009AAC" }}>*</span></label>
+              <input value={editNome} onChange={(e) => setEditNome(e.target.value)} disabled={!podeEditar} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8", color: "#014D5E" }} />
             </div>
-          ))}
+            <div className="text-[11px] font-bold uppercase tracking-wide" style={{ color: "#7C8A8E" }}>Conteúdo da receita</div>
+            <EditorDocumento value={editCorpo} onChange={setEditCorpo} palette preview minHeight={260} />
+            {podeEditar && (
+              <div className="flex items-center justify-end gap-2 pt-3 border-t" style={{ borderColor: "#F0EBE0" }}>
+                <button onClick={() => setEditId(null)} className="px-4 py-2 rounded-lg text-sm border" style={{ borderColor: "#E8DFC8", color: "#475569" }}>Cancelar</button>
+                <button onClick={removerEditor} className="px-4 py-2 rounded-lg text-sm border" style={{ borderColor: "#f0d3d2", color: "#b23b39" }}>🗑 Excluir</button>
+                <button onClick={salvarEditor} disabled={savingId === editId} className="px-5 py-2 rounded-lg text-sm text-white font-bold disabled:opacity-50" style={{ background: "#009AAC" }}>{savingId === editId ? "Salvando..." : "✔ Salvar"}</button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ---- Tela da LISTA ----
+  return (
+    <div className="p-4 space-y-4">
+      <p className="text-xs text-[#64748b]">Modelos que aparecem no dropdown ao adicionar uma Receita na ficha do pet. Clique em <b>Editar</b> pra abrir o editor — as variáveis (nome do pet, tutor, veterinário) são preenchidas automaticamente ao gerar.</p>
+      {podeEditar && (
+        <div className="flex gap-2">
+          <input value={novo} onChange={(e) => setNovo(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addModelo()} placeholder="Novo modelo (ex.: Antibiótico pós-cirúrgico)" className="flex-1 px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }} />
+          <button onClick={addModelo} className="px-3 py-2 rounded-lg text-sm text-white" style={{ background: "#009AAC" }}>Adicionar</button>
         </div>
       )}
+      <div className="bg-white border rounded-2xl overflow-hidden" style={{ borderColor: "#E8DFC8" }}>
+        {modelos.map((m, i) => (
+          <div key={m.id} className="px-4 py-3 flex items-center justify-between" style={{ borderTop: i ? "1px solid #F0EBE0" : "none" }}>
+            <span className="text-sm font-semibold" style={{ color: "#014D5E" }}>{m.nome}</span>
+            <div className="flex items-center gap-3">
+              <button onClick={() => abrirEditor(m)} className="text-xs font-semibold px-3 py-1.5 rounded-lg" style={{ background: "#E0F4F6", color: "#007B8A" }}>{podeEditar ? "Editar" : "Ver"}</button>
+              {podeEditar && <button onClick={() => remover(m.id)} className="text-gray-400 hover:text-[#E24B4A] text-xs">Remover</button>}
+            </div>
+          </div>
+        ))}
+        {modelos.length === 0 && <div className="px-4 py-8 text-center text-sm text-gray-400">Nenhum modelo ainda.</div>}
+      </div>
     </div>
   );
 }

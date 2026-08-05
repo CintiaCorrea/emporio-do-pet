@@ -9,7 +9,7 @@
  * notificação em tempo real (metadata.kind = 'internal_note' | 'conversa_encaminhada').
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useNotifications } from '@/hooks/useNotifications';
@@ -27,6 +27,10 @@ export default function RecadoPopup() {
   const router = useRouter();
   const [fila, setFila] = useState<Item[]>([]);
   const [saindo, setSaindo] = useState(false);
+  // Só avisos NOVOS: nada criado antes de a tela abrir (com 2 min de graça pra pegar
+  // o que chegou logo antes do login). Evita ressurgir o histórico já resolvido.
+  const desdeRef = useRef<number>(Date.now() - 2 * 60 * 1000);
+  const novo = (createdAt: string) => { const t = new Date(createdAt).getTime(); return Number.isFinite(t) && t > desdeRef.current; };
 
   const carregar = useCallback(async () => {
     if (!meId) return;
@@ -37,7 +41,7 @@ export default function RecadoPopup() {
       ]);
 
       const recados: Item[] = (rNotas || [])
-        .filter((n: any) => n.toUserId === meId && n.fromUserId !== meId && !n.readAt)
+        .filter((n: any) => n.toUserId === meId && n.fromUserId !== meId && !n.readAt && novo(n.createdAt))
         .map((n: any) => ({
           tipo: 'recado' as const,
           id: n.id,
@@ -48,7 +52,7 @@ export default function RecadoPopup() {
         }));
 
       const transfers: Item[] = ((rNotifs?.data) || [])
-        .filter((n: any) => !n.read && (n.metadata as any)?.kind === 'conversa_encaminhada')
+        .filter((n: any) => !n.read && (n.metadata as any)?.kind === 'conversa_encaminhada' && novo(n.createdAt))
         .map((n: any) => ({
           tipo: 'transferencia' as const,
           id: n.id,

@@ -102,6 +102,12 @@ export class AppointmentsController {
     return this.appointmentsService.sendConfirmation(id);
   }
 
+  @Post(':id/confirmar-manual')
+  @ApiOperation({ summary: 'Confirma presença manualmente (sem WhatsApp) — marca CONFIRMADO' })
+  confirmarManual(@Param('id') id: string) {
+    return this.appointmentsService.confirmarManual(id);
+  }
+
   @Post('confirmacoes-amanha')
   @ApiOperation({ summary: 'Confirmações das agendas de amanhã (dryRun=true só simula)' })
   @ApiQuery({ name: 'dryRun', required: false })

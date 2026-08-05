@@ -304,7 +304,7 @@ export default function AgendaPage() {
   async function confirmarManual(a: any) {
     setSending(true);
     try {
-      const r = await fetch(`/api/appointments/${a.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ status: "Confirmado" }) });
+      const r = await fetch(`/api/appointments/${a.id}/confirmar-manual`, { method: "POST", credentials: "include" });
       if (!r.ok) throw new Error();
       toast.success("Presença confirmada ✅");
       load();
@@ -637,7 +637,7 @@ export default function AgendaPage() {
                             draggable={!espelho}
                             onDragStart={(e) => { if (espelho) return; setArrastando(a); try { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", a.id); } catch {} }}
                             onDragEnd={() => setArrastando(null)}
-                            onClick={(e) => cardMenu(e, a)} title={espelho ? `Sala ocupada: ${quem} está na ${donaNome} (pet ${String(a.pet?.temperament || "").toLowerCase()})` : (obs ? `📝 ${obs}` : "Arraste para mudar o horário · clique para as ações")} className={"relative px-2 py-1 cursor-pointer mx-1 mt-0.5 shadow-sm " + ((a.duration || 30) > 30 ? "rounded-t-xl" : "rounded-xl mb-1")} style={{ borderLeft: `3px solid ${cBorder}`, background: cBg, opacity: espelho ? 0.75 : (arrastando?.id === a.id ? 0.4 : 1) }}>
+                            onClick={(e) => cardMenu(e, a)} title={espelho ? `Sala ocupada: ${quem} está na ${donaNome} (pet ${String(a.pet?.temperament || "").toLowerCase()})` : (obs ? `📝 ${obs}` : "Arraste para mudar o horário · clique para as ações")} className={"relative px-2 py-1 cursor-pointer mx-1 shadow-sm " + ((a.duration || 30) > 30 ? "rounded-t-xl h-full" : "rounded-xl mb-1 mt-0.5")} style={{ borderLeft: `3px solid ${cBorder}`, background: cBg, opacity: espelho ? 0.75 : (arrastando?.id === a.id ? 0.4 : 1) }}>
                             <div className="flex items-center justify-between gap-1">
                               <span className="text-[11px] font-medium flex items-center gap-1" style={{ color: cor.c }}>{hm(new Date(a.date))}{a.duration ? <span className="text-[9.5px] font-normal" style={{ color: cor.c, opacity: .8 }}>· {a.duration}min</span> : null}{a.confirmacaoStatus && CONF_BADGE[a.confirmacaoStatus] ? <span title={`Confirmação: ${a.confirmacaoStatus}`}>{CONF_BADGE[a.confirmacaoStatus].t}</span> : null}{obs ? <span title={obs} style={{ fontSize: "10px" }}>📝</span> : null}</span>
                               {travaSala(a) ? <span title="Ocupa a sala inteira" className="text-[10px]">🔒</span> : (mostrarValores && v > 0 ? <span className="text-[10px] font-medium" style={{ color: "#0F6E56" }}>{brl(v)}</span> : null)}

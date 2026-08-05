@@ -135,7 +135,7 @@ export default function ConfigModelosDocumentoPage() {
 
   // ---- Tela da LISTA ----
   return (
-    <div className="p-4 max-w-3xl mx-auto space-y-4">
+    <div className="p-4 space-y-4">
       <p className="text-xs text-[#64748b]">Modelos que aparecem no dropdown ao adicionar um Documento na ficha do pet. Clique em <b>Editar</b> pra abrir o editor — as variáveis (nome do pet, tutor, veterinário) são preenchidas automaticamente ao gerar.</p>
       {podeEditar && (
         <div className="flex gap-2">
