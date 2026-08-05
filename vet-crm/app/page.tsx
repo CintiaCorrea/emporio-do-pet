@@ -52,8 +52,6 @@ export default function LoginPage() {
         password,
         redirect: false});
 
-      console.log("Login result:", result); // Debug
-
       if (result?.error) {
         const errorMessage = result.error.toLowerCase();
         
@@ -87,21 +85,16 @@ export default function LoginPage() {
             color: '#16a34a',
             border: '1px solid #bbf7d0'}});
 
-        console.log("Login successful, waiting for session...");
-        
         // Aguardar a session ser estabelecida
         await new Promise(resolve => setTimeout(resolve, 500));
-        
+
         // Verificar se a session foi criada
         const session = await getSession();
-        console.log("Session after login:", session);
-        
+
         if (session) {
-          console.log("Redirecting to dashboard...");
           router.push("/dashboard");
           router.refresh();
         } else {
-          console.log("No session found, but redirecting anyway...");
           router.push("/dashboard");
         }
       } else {

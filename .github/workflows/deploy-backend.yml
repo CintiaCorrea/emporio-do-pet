@@ -16,6 +16,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # 🛡️ PORTÃO ANTI-REGRESSÃO (Escudo 2): roda os testes ANTES de deployar. Se um
+      # teste falhar (algo que já funcionava quebrou), o deploy é ABORTADO — não vai pro ar.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Instalar pnpm
+        run: npm install -g pnpm
+      - name: Instalar dependências
+        working-directory: backend
+        run: pnpm install --no-frozen-lockfile
+      - name: Prisma generate
+        working-directory: backend
+        run: npx prisma generate
+      - name: 🛡️ Testes (portão anti-regressão)
+        working-directory: backend
+        run: pnpm test
+
       - uses: superfly/flyctl-actions/setup-flyctl@master
 
       - name: Deploy to Fly.io

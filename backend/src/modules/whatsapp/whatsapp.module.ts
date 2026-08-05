@@ -9,9 +9,12 @@ import { WhatsAppWebhooksController } from './whatsapp-webhooks.controller';
 import { WhatsAppAIConfigController } from './whatsapp-ai-config.controller';
 import { WhatsAppAgentListener } from './whatsapp-agent.listener';
 import { WhatsAppMediaBackfillScheduler } from './whatsapp-media-backfill.scheduler';
+import { WhatsAppAutoReleaseScheduler } from './whatsapp-auto-release.scheduler';
 import { WhatsAppOfflineReplyListener } from './whatsapp-offline-reply.listener';
 import { BoletimReplyListener } from './boletim-reply.listener';
 import { PresenteReplyListener } from './presente-reply.listener';
+import { AcessoBloqueioListener } from './acesso-bloqueio.listener';
+import { BillingAlertListener } from './billing-alert.listener';
 import { DocsFilaReplyListener } from './docs-fila-reply.listener';
 import { SurveyAvaliacaoController } from './survey-avaliacao.controller';
 import { GhostSombraController } from './ghost-sombra.controller';
@@ -22,6 +25,7 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { AgentsModule } from '../agents/agents.module';
 import { AudioModule } from '../audio/audio.module';
 import { MediaModule } from '../media/media.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import {
   WebhookReplayService,
   WhatsAppAnalyticsService,
@@ -36,6 +40,7 @@ import {
     forwardRef(() => AgentsModule),
     AudioModule,
     MediaModule,
+    NotificationsModule,
   ],
   controllers: [
     WhatsAppController,
@@ -49,10 +54,13 @@ import {
   providers: [
     WhatsAppService,
     WhatsAppMediaBackfillScheduler,
+    WhatsAppAutoReleaseScheduler,
     WhatsAppAgentListener,
     WhatsAppOfflineReplyListener,
     BoletimReplyListener,
     PresenteReplyListener,
+    AcessoBloqueioListener,
+    BillingAlertListener,
     DocsFilaReplyListener,
     GhostSombraListener,
     SurveyAvaliacaoService,

@@ -1,7 +1,21 @@
 "use client";
 import { confirmDelete } from "@/lib/ui/confirmDelete";
 
-import { useEffect, useMemo, useState, useRef, type ReactNode } from "react";
+import { useEffect, useMemo, useState, useRef, Fragment, type ReactNode } from "react";
+import { useNotifications } from "@/hooks/useNotifications";
+
+// Rótulo do separador de data entre mensagens (estilo WhatsApp): Hoje / Ontem / dd/mm/aaaa.
+function rotuloDia(iso: string): string {
+  try {
+    const d = new Date(iso);
+    const hoje = new Date();
+    const ontem = new Date(); ontem.setDate(hoje.getDate() - 1);
+    const mesmoDia = (a: Date, b: Date) => a.toDateString() === b.toDateString();
+    if (mesmoDia(d, hoje)) return "Hoje";
+    if (mesmoDia(d, ontem)) return "Ontem";
+    return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+  } catch { return ""; }
+}
 import toast from "react-hot-toast";
 import { useSession, signOut } from "next-auth/react";
 import { imprimirDocumento } from "@/lib/print";
@@ -24,6 +38,7 @@ interface Conversation {
   unreadCount: number;
   status: string;
   tutor?: { id: string; name: string } | null;
+  leadMotivoPerda?: string | null; // motivo da perda (lead sem cliente marcado como Perdido)
   assignedUser?: { id: string; name: string } | null;
   source?: string;
   metadata?: { source?: string; [k: string]: any };
@@ -131,6 +146,18 @@ export default function InboxUnificadoPage() {
   // ⏰ SLA de resposta: cliente esperando há mais de X min = conversa sobe pro topo e
   // pisca (pedido da Cintia 23/07, p/ ninguém ficar esquecido). Configurável depois.
   const SLA_ESPERA_MIN = 15;
+  // Há quanto tempo o cliente espera resposta (ms), ou -1 se não está esperando.
+  // "Esperando" = a ÚLTIMA mensagem foi DELE (INBOUND) e ainda não respondemos —
+  // vale mesmo depois de abrir/ler a conversa (abrir não é responder). Antes isso
+  // dependia de "não-lida", então ABRIR a conversa apagava o aviso de atrasada.
+  const esperaRespostaMs = (c: any): number => {
+    // Conversa ENCERRADA não espera resposta — sem relógio, sem destaque, sem subir pro topo.
+    // (Muitas terminam com um "ok"/emoji de confirmação; o relógio ali só polui.)
+    if (String(c?.status).toUpperCase() === "CLOSED") return -1;
+    const dir = (c as any)?.lastMessage?.direction;
+    const esperando = dir ? dir === "INBOUND" : (c?.unreadCount || 0) > 0; // fallback se a direção não vier
+    return esperando && c?.lastMessageAt ? Date.now() - new Date(c.lastMessageAt).getTime() : -1;
+  };
   const [verEncerradas, setVerEncerradas] = useState(false); // mostrar conversas já encerradas (pra reler)
   const [filtrosOpen, setFiltrosOpen] = useState(false); // roll-up dos filtros (ocupa menos espaço)
   const [search, setSearch] = useState("");
@@ -234,8 +261,23 @@ export default function InboxUnificadoPage() {
   const [tutor, setTutor] = useState<TutorFull | null>(null);
   const [selectedPetId, setSelectedPetId] = useState<string | null>(null);
   const [refreshTick, setRefreshTick] = useState(0);
+  const [msgTick, setMsgTick] = useState(0); // recarrega as mensagens da conversa aberta (tempo real)
   const { data: __session } = useSession();
   const meId = (__session as any)?.user?.id as string | undefined;
+
+  // ⚡ Tempo real: quando chega/sai uma mensagem no WhatsApp, atualiza a lista e, se for a
+  // conversa aberta, recarrega as mensagens — sem esperar o poll de 25–30s.
+  // ⚠️ DEBOUNCE (29/07): a lista NÃO recarrega uma vez por mensagem (isso martelava o banco
+  // com vários atendentes e reabria a instabilidade). Rajada de mensagens = UMA recarga da
+  // lista, ~1,2s depois. As mensagens da conversa ABERTA continuam atualizando na hora.
+  const refreshDebRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useNotifications({
+    onWhatsAppMessage: (e) => {
+      if (refreshDebRef.current) clearTimeout(refreshDebRef.current);
+      refreshDebRef.current = setTimeout(() => setRefreshTick((t) => t + 1), 1200);
+      if (e?.conversationId && e.conversationId === selectedId) setMsgTick((t) => t + 1);
+    },
+  });
   const meNome = ((__session as any)?.user?.name as string | undefined) || ""; // preenche o {{3}} dos modelos
   // A assinatura pegava a 1ª palavra do nome: com "Dra. Vivian Corrêa" saía só "Dra.".
   // Aqui o título é separado do nome, e a assinatura vira "Dra. Vivian".
@@ -279,6 +321,20 @@ export default function InboxUnificadoPage() {
   const [novaMsgSending, setNovaMsgSending] = useState(false);
 
   const [scriptsOpen, setScriptsOpen] = useState(false);
+  // Mensagens prontas REAIS (Configurações › Scripts) — antes usava um placeholder fixo, então
+  // os scripts cadastrados não apareciam aqui. Carrega ao abrir o painel.
+  const [scriptsList, setScriptsList] = useState<{ titulo: string; texto: string; categoria?: string }[]>([]);
+  useEffect(() => {
+    if (!scriptsOpen) return;
+    fetch("/api/scripts", { cache: "no-store" }).then((r) => r.json()).then((d) => {
+      const arr = Array.isArray(d) ? d : (d.scripts || d.data || d.itens || []);
+      setScriptsList(arr.filter((s: any) => s?.ativo !== false).map((s: any) => ({ titulo: s.nome, texto: s.conteudo || "", categoria: s.category?.nome || "" })));
+    }).catch(() => {});
+  }, [scriptsOpen]);
+  const [acoesOpen, setAcoesOpen] = useState(false);
+  // Atalhos rápidos de PIX e endereço (mockup aprovado 28/07). Dados fixos por enquanto (futuro: Config › Dados da Clínica).
+  const MSG_PIX = "💠 *Chave PIX (CNPJ)*\n45110096000189";
+  const MSG_ENDERECO = "📍 *Empório do Pet*\nAv. Eng. Leal Lima Verde, 205\nEdson Queiroz — Fortaleza/CE · CEP 60833-175\n\n🗺️ Como chegar:\nhttps://maps.google.com/?q=-3.7899632,-38.4759969";
   const [encaminharOpen, setEncaminharOpen] = useState(false);
   const [resolvendo, setResolvendo] = useState(false);
 
@@ -386,7 +442,7 @@ export default function InboxUnificadoPage() {
       if (!silent) setLoading(true);
       try {
         // Encerradas: busca só as CLOSED (pra reler). Normal: as abertas.
-        const res = await fetch(`/api/whatsapp/conversations?limit=50${verEncerradas ? "&status=CLOSED" : ""}`, { cache: "no-store" });
+        const res = await fetch(`/api/whatsapp/conversations?limit=400${verEncerradas ? "&status=CLOSED" : ""}`, { cache: "no-store" });
         if (!res.ok) {
           // Tropeço NUNCA apaga conversas já carregadas — a atendente continua vendo a
           // caixa mesmo durante um reinício/soluço. Só mostra aviso; só fica vazio se
@@ -415,6 +471,7 @@ export default function InboxUnificadoPage() {
           status: c?.status || "OPEN",
           tutor: c?.tutor ? { id: c.tutor.id, name: c.tutor.name } : null,
           assignedUser: c?.assignedUser ? { id: c.assignedUser.id, name: c.assignedUser.name } : null,
+          leadMotivoPerda: c?.leadMotivoPerda || null,
           source: c?.metadata?.source || c?.source || null,
           metadata: c?.metadata || null,
           // Prévia da última mensagem — o backend já manda (messages take:1), só não era usado.
@@ -430,7 +487,7 @@ export default function InboxUnificadoPage() {
       finally { if (!silent) setLoading(false); }
     };
     carregar(false);
-    const id = setInterval(() => carregar(true), 15000);
+    const id = setInterval(() => carregar(true), 25000);
     return () => { alive = false; clearInterval(id); };
   }, [refreshTick, verEncerradas]);
 
@@ -481,9 +538,9 @@ export default function InboxUnificadoPage() {
     };
     // Abrir a conversa já zera o unreadCount no servidor (getMessages) — avisa o menu p/ sumir o badge na hora.
     carregar().then(() => { if (!cancel) window.dispatchEvent(new Event("whatsapp:read")); });
-    const id = setInterval(carregar, 12000);
+    const id = setInterval(carregar, 30000);
     return () => { cancel = true; clearInterval(id); };
-  }, [selectedId]);
+  }, [selectedId, msgTick]);
 
   // Contexto (cliente) da conversa — só recarrega quando MUDA o cliente selecionado.
   const selTutorId = conversations.find((c) => c.id === selectedId)?.tutor?.id || null;
@@ -525,7 +582,7 @@ export default function InboxUnificadoPage() {
     }
     // ⏰ Cliente esperando resposta há mais de SLA_ESPERA_MIN: sobe pro topo,
     // quem espera há MAIS tempo primeiro. As demais mantêm a ordem normal.
-    const esperaDe = (c: any) => ((c.unreadCount || 0) > 0 && c.lastMessageAt) ? Date.now() - new Date(c.lastMessageAt).getTime() : -1;
+    const esperaDe = (c: any) => esperaRespostaMs(c);
     const atrasou = (c: any) => esperaDe(c) > SLA_ESPERA_MIN * 60000;
     arr.sort((a: any, b: any) => Number(atrasou(b)) - Number(atrasou(a)) || (atrasou(a) && atrasou(b) ? esperaDe(b) - esperaDe(a) : 0));
     return arr;
@@ -662,6 +719,50 @@ export default function InboxUnificadoPage() {
       toast.success("Você assumiu o atendimento");
       setRefreshTick((t) => t + 1);
     } catch { toast.error("Não consegui assumir o atendimento."); }
+  }
+
+  // Devolve a conversa pro GERAL (desatribui): fica livre pra qualquer atendente pegar.
+  // É o mesmo endpoint do assumir, só que com userId = null.
+  async function devolverAoGeral() {
+    if (!selectedId) return;
+    try {
+      const r = await fetch(`/api/whatsapp/conversations/${selectedId}/assign-user`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: null }),
+      });
+      if (!r.ok) throw new Error();
+      setConversations((prev) => prev.map((c) => c.id === selectedId ? { ...c, assignedUser: null } : c));
+      toast.success("Conversa devolvida ao geral");
+      setRefreshTick((t) => t + 1);
+    } catch { toast.error("Não consegui devolver a conversa."); }
+  }
+
+  // "Pedir a conversa": manda um recado INTERNO pro atendente que está com ela,
+  // em vez de responder por cima. Ele decide se devolve.
+  async function pedirConversa() {
+    if (!selectedId || !selectedConv?.assignedUser?.id) return;
+    const cliente = selectedConv?.tutor?.name || selectedConv?.contactName || "o cliente";
+    try {
+      const r = await fetch("/api/internal-notes", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ toUserId: selectedConv.assignedUser.id, content: `🙋 ${meNome || "Alguém da equipe"} quer assumir a conversa de ${cliente}. Se puder, devolve ao geral.` }),
+      });
+      if (!r.ok) throw new Error();
+      toast.success("Pedido enviado pro atendente 👍");
+    } catch { toast.error("Não consegui enviar o pedido."); }
+  }
+
+  // Solicitar avaliação (NPS → Google Meu Negócio) do cliente desta conversa. Só pra CLIENTE
+  // com ficha (tutor). Manda a pergunta "de 1 a 5" pela API — quando o cliente responde, o
+  // sistema envia o link do Google. Igual ao botão da ficha do cliente.
+  async function solicitarAvaliacaoNPS() {
+    const tid = selectedConv?.tutor?.id;
+    if (!tid) { toast("Avaliação é pra cliente com ficha — este contato ainda não tem cadastro.", { icon: "⭐" }); return; }
+    try {
+      const r = await fetch(`/api/survey-avaliacao/enviar`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tutorId: tid }) });
+      const d = await r.json().catch(() => null);
+      if (!r.ok || !d?.success) throw new Error(d?.error || "Falha ao enviar");
+      toast.success("Pesquisa de avaliação enviada 📲");
+    } catch (e: any) { toast.error(e?.message || "Erro ao enviar a avaliação"); }
   }
 
   const counts = useMemo(() => ({
@@ -976,7 +1077,7 @@ export default function InboxUnificadoPage() {
       } catch {}
     };
     load();
-    const id = setInterval(load, 15000);
+    const id = setInterval(load, 30000);
     return () => { alive = false; clearInterval(id); };
   }, [refreshTick, tab]);
 
@@ -1163,7 +1264,7 @@ export default function InboxUnificadoPage() {
         </div>
       )}
       {/* Tabs */}
-      <div className="px-4 border-b border-[#e8e1d2] flex gap-5 bg-white items-center">
+      <div className="px-4 border-b border-[#e8e1d2] flex gap-4 md:gap-5 bg-white items-center overflow-x-auto [&>button]:shrink-0">
         <button onClick={() => setTab("conversas")} className={`py-2.5 text-xs font-medium border-b-2 flex items-center gap-1.5 ${tab === "conversas" ? "border-[#009AAC] text-[#0E2244]" : "border-transparent text-[#888780]"}`}>
           Conversas
           <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${tab === "conversas" ? "bg-[#E1F5EE] text-[#0F6E56]" : "bg-[#f0e8d4] text-[#5F5E5A]"}`}>{counts.total}</span>
@@ -1179,8 +1280,20 @@ export default function InboxUnificadoPage() {
             <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${encaminhadasCount > 0 ? "bg-[#E24B4A] text-white" : "bg-[#E0F4F6] text-[#00798A]"}`}>{minhasAtribuidas.length}</span>
           )}
         </button>
-        <div className="ml-auto flex items-center gap-2.5">
-          <span className="text-[11px] text-[#5F5E5A] hidden lg:flex items-center gap-1.5">Hoje: <b className="text-[#0F6E56]">— resolvidas</b></span>
+        <div className="ml-auto flex items-center gap-2.5 shrink-0">
+          {/* Assinatura das mensagens — ligar/desligar aqui no cabeçalho (no lugar do "Hoje").
+              Controla o mesmo estado `assinar` do compositor: quando ligado, prefixa o nome de quem envia. */}
+          <button
+            onClick={() => setAssinar((v) => !v)}
+            title={assinar ? `Assinando as mensagens como "${primeiroNome || "você"}" — clique para desligar` : "Mensagens sem assinatura — clique para assinar com seu nome"}
+            className="flex items-center gap-1.5 text-[11px] px-2.5 py-1.5 rounded-lg border transition"
+            style={{ borderColor: assinar ? "#009AAC" : "#cfd8e0", background: assinar ? "#E0F4F6" : "#fff", color: assinar ? "#00798A" : "#5F5E5A" }}>
+            <span style={{ fontSize: "12px" }}>✍️</span>
+            <span className="hidden sm:inline">Assinar{assinar ? <>: <b>{primeiroNome || "on"}</b></> : ": off"}</span>
+            <span className={`w-7 h-3.5 rounded-full relative transition shrink-0 ${assinar ? "bg-[#009AAC]" : "bg-[#cfd8e0]"}`}>
+              <span className={`absolute top-[2px] w-2.5 h-2.5 rounded-full bg-white transition-all ${assinar ? "left-[15px]" : "left-[2px]"}`} />
+            </span>
+          </button>
           <button onClick={() => setRefreshTick((t) => t + 1)} title="Atualizar" className="bg-white border border-[#cfd8e0] px-3 py-1.5 rounded-lg text-xs text-[#5F5E5A] flex items-center gap-1.5 hover:bg-[#f9f9f9]"><span style={{fontSize:"12px"}}>↻</span>Atualizar</button>
           <button onClick={() => abrirNovaConversa()} className="bg-[#009AAC] text-white px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5"><LuPlus className="w-3.5 h-3.5" />Nova mensagem</button>
         </div>
@@ -1212,7 +1325,7 @@ export default function InboxUnificadoPage() {
                     <div className="text-[9.5px] text-[#888780] font-medium mb-1">TIPO</div>
                     <div className="flex gap-1.5 flex-wrap">
                       {(["todos", "leads", "clientes"] as ListFilter[]).map((f) => (
-                        <button key={f} onClick={() => setFilter(f)} className={`text-[11px] px-2.5 py-1 rounded-full font-medium ${filter === f ? "bg-[#009AAC] text-white" : "bg-white border border-[#cfd8e0] text-[#5F5E5A]"}`}>
+                        <button key={f} onClick={() => { setFilter(f); setFiltrosOpen(false); }} className={`text-[11px] px-2.5 py-1 rounded-full font-medium ${filter === f ? "bg-[#009AAC] text-white" : "bg-white border border-[#cfd8e0] text-[#5F5E5A]"}`}>
                           {f === "todos" ? `Todos ${counts.total}` : f === "leads" ? `Leads ${counts.leads}` : `Clientes ${counts.clientes}`}
                         </button>
                       ))}
@@ -1225,7 +1338,7 @@ export default function InboxUnificadoPage() {
                         const n = v === "minhas" ? conversations.filter((c) => c.assignedUser?.id === meId).length
                           : v === "livres" ? conversations.filter((c) => !c.assignedUser?.id).length : conversations.length;
                         return (
-                          <button key={v} onClick={() => setViewResp(v)} className={`text-[11px] px-2.5 py-1 rounded-full font-medium ${viewResp === v ? "bg-[#0F6E56] text-white" : "bg-white border border-[#cfd8e0] text-[#5F5E5A]"}`}>{label} {n}</button>
+                          <button key={v} onClick={() => { setViewResp(v); setFiltrosOpen(false); }} className={`text-[11px] px-2.5 py-1 rounded-full font-medium ${viewResp === v ? "bg-[#0F6E56] text-white" : "bg-white border border-[#cfd8e0] text-[#5F5E5A]"}`}>{label} {n}</button>
                         );
                       })}
                       <button onClick={() => setVerEncerradas((v) => !v)} className={`text-[11px] px-2.5 py-1 rounded-full font-medium ${verEncerradas ? "bg-[#5F5E5A] text-white" : "bg-white border border-[#cfd8e0] text-[#5F5E5A]"}`}>🗂️ Encerradas</button>
@@ -1288,7 +1401,9 @@ export default function InboxUnificadoPage() {
                   return (lm.direction === "OUTBOUND" ? "Você: " : "") + corpo;
                 })();
                 // ⏰ Espera do cliente sem resposta (SLA): destaca e mostra o tempo.
-                const esperaMs = naoLida && c.lastMessageAt ? Date.now() - new Date(c.lastMessageAt).getTime() : -1;
+                // Baseado em "última msg foi do cliente", não em "não-lida" — assim o
+                // aviso NÃO some quando você só abre a conversa sem responder.
+                const esperaMs = esperaRespostaMs(c);
                 const atrasada = esperaMs > SLA_ESPERA_MIN * 60000;
                 const esperaMin = Math.max(1, Math.floor(esperaMs / 60000));
                 const esperaLbl = esperaMin >= 60 ? `${Math.floor(esperaMin / 60)}h${String(esperaMin % 60).padStart(2, "0")}` : `${esperaMin} min`;
@@ -1310,6 +1425,9 @@ export default function InboxUnificadoPage() {
                       </div>
                       <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                         <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${isLead ? "bg-[#FCEBEB] text-[#A32D2D]" : "bg-[#E1F5EE] text-[#0F6E56]"}`}>{isLead ? "LEAD" : "CLIENTE"}</span>
+                        {isLead && c.leadMotivoPerda && (
+                          <span title={`Motivo da perda: ${c.leadMotivoPerda}`} className="text-[9px] px-1.5 py-0.5 rounded-full font-medium bg-[#FBEBEB] text-[#A32D2D] inline-flex items-center gap-1 max-w-[130px] truncate">❌ {c.leadMotivoPerda}</span>
+                        )}
                         {(c.tags || []).map((t) => (
                           <span key={t} className="text-[9px] px-1.5 py-0.5 rounded-full font-medium text-white" style={{ background: corTag(t) }}>{t}</span>
                         ))}
@@ -1361,14 +1479,14 @@ export default function InboxUnificadoPage() {
                       </div>
                       <div className="mt-0.5 flex items-center gap-1.5 flex-wrap">
                         {selectedConv?.assignedUser?.id === meId ? (
-                          <span className="text-[10px] font-medium" style={{ color: "#0F6E56" }}>👤 Você está atendendo</span>
+                          <span className="text-[10px] font-medium inline-flex items-center gap-1" style={{ color: "#0F6E56" }}>🔓 Você está atendendo</span>
                         ) : selectedConv?.assignedUser ? (
-                          <>
-                            <span className="text-[10px] font-medium" style={{ color: "#0F6E56" }}>👤 Em atendimento por {selectedConv.assignedUser.name}</span>
-                            <button onClick={assumirAtendimento} className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#E6F1FB] text-[#185FA5] hover:bg-[#cce0f5]">assumir p/ mim</button>
-                          </>
+                          <span className="text-[10px] font-medium inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full" style={{ background: "#FBF0DD", color: "#8a5a0b" }} title={`Responsável: ${selectedConv.assignedUser.name}`}>🔒 Com {(selectedConv.assignedUser.name || "").split(" ")[0]}</span>
                         ) : (
-                          <button onClick={assumirAtendimento} className="text-[9.5px] px-2 py-0.5 rounded-full text-white font-medium" style={{ background: "#0F6E56" }}>👤 Assumir atendimento</button>
+                          <>
+                            <span className="text-[10px] font-medium inline-flex items-center gap-1" style={{ color: "#888780" }}>● No geral</span>
+                            <button onClick={assumirAtendimento} className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#E6F1FB] text-[#185FA5] hover:bg-[#cce0f5]">pegar p/ mim</button>
+                          </>
                         )}
                       </div>
                     </div>
@@ -1433,14 +1551,26 @@ export default function InboxUnificadoPage() {
                 <div className="flex-1 overflow-y-auto p-4 bg-white flex flex-col gap-2">
                   {messages.length === 0 ? (
                     <p className="text-center text-[11px] text-[#888780]">Sem mensagens</p>
-                  ) : messages.map((m) => {
+                  ) : messages.map((m, i) => {
                     const outbound = m.direction === "OUTBOUND";
                     // A mensagem citada por esta (se ainda estiver carregada na conversa).
                     const citada = m.replyToWaMessageId
                       ? messages.find((x) => x.waMessageId && x.waMessageId === m.replyToWaMessageId)
                       : null;
+                    // Separador de data: aparece quando muda o dia em relação à mensagem anterior
+                    // (e sempre na primeira). Assim dá pra saber a data sem repetir em cada mensagem.
+                    const mudouDia = i === 0 || (() => {
+                      try { return new Date(m.createdAt).toDateString() !== new Date(messages[i - 1].createdAt).toDateString(); }
+                      catch { return false; }
+                    })();
                     return (
-                      <div key={m.id} className={`group max-w-[75%] ${outbound ? "self-end" : "self-start"}`}>
+                      <Fragment key={m.id}>
+                      {mudouDia && (
+                        <div className="self-center my-1.5 px-3 py-0.5 rounded-full text-[10px] font-medium" style={{ background: "#F0EBE0", color: "#8A857A" }}>
+                          {rotuloDia(m.createdAt)}
+                        </div>
+                      )}
+                      <div className={`group max-w-[75%] ${outbound ? "self-end" : "self-start"}`}>
                         <div className={`px-3 py-2 rounded-xl text-[13px] ${outbound ? "bg-[#009AAC] text-white rounded-br-sm" : "bg-white border border-[#e8e1d2] text-[#0E2244] rounded-bl-sm"}`}>
                           {m.replyToWaMessageId && (
                             <div
@@ -1494,6 +1624,7 @@ export default function InboxUnificadoPage() {
                           )}
                         </div>
                       </div>
+                      </Fragment>
                     );
                   })}
                   <div ref={msgEndRef} />
@@ -1501,22 +1632,6 @@ export default function InboxUnificadoPage() {
 
                 {/* Input com Scripts dropdown */}
                 <div className="px-4 py-2.5 border-t border-[#e8e1d2]">
-                  {/* AVISO (não trava): a conversa é de outra pessoa. Fica aqui em cima do
-                      campo — no cabeçalho ninguém vê na hora de digitar. */}
-                  {selectedConv?.assignedUser && selectedConv.assignedUser.id !== meId && (
-                    <div className="mb-2 flex items-center gap-2 rounded-lg px-3 py-2 text-[11.5px]"
-                      style={{ background: "#FBF3E3", border: "1px solid #efe1c2", color: "#8a6400" }}>
-                      <span>👤</span>
-                      <span className="flex-1">
-                        <b>{selectedConv.assignedUser.name}</b> está atendendo esta conversa. Você pode responder,
-                        mas combine antes pra não falar por cima.
-                      </span>
-                      <button onClick={assumirAtendimento} className="px-2 py-0.5 rounded-full text-[10px] font-medium whitespace-nowrap"
-                        style={{ background: "#8a6400", color: "white" }}>
-                        assumir p/ mim
-                      </button>
-                    </div>
-                  )}
                   {respondendo && (
                     <div className="mb-2 flex items-start gap-2 rounded-lg pl-2 pr-1 py-1.5" style={{ background: "#F4F8F9", borderLeft: "3px solid #009AAC" }}>
                       <div className="flex-1 min-w-0">
@@ -1528,25 +1643,49 @@ export default function InboxUnificadoPage() {
                       <button onClick={() => setRespondendo(null)} title="Cancelar resposta" className="text-[#888780] hover:text-[#0E2244] text-sm leading-none px-1">×</button>
                     </div>
                   )}
-                  {/* Assinar + botões rápidos (Fatia 2) */}
-                  <div className="flex items-center gap-2 mb-2 flex-wrap">
-                    <button onClick={() => setAssinar((v) => !v)} title="Assinar a mensagem com seu nome" className="flex items-center gap-1.5">
-                      <span className={`w-8 h-[18px] rounded-full relative transition ${assinar ? "bg-[#009AAC]" : "bg-[#d8d0bc]"}`}>
-                        <span className={`absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white transition-all ${assinar ? "left-[18px]" : "left-[2px]"}`} />
-                      </span>
-                      <span className="text-[11px] text-[#5F5E5A]">{assinar ? <>Assinar como <b>{primeiroNome || "você"}</b></> : "Sem assinatura"}</span>
-                    </button>
-                    <div className="ml-auto flex items-center gap-1.5 flex-wrap">
-                      <button onClick={() => { const l = window.location.origin + "/queremos-te-conhecer"; setMessageInput(`Vamos confirmar o atendimento do seu pet! 🐾 Para isso, precisamos te conhecer um pouquinho melhor — é rapidinho: ${l}\n\nAssim que você preencher, seu agendamento fica confirmado! 💙`); }}
-                        className="text-[10.5px] px-2 py-1 rounded-full border border-dashed border-[#009AAC] text-[#00798A] hover:bg-[#F0FBFC]">🔗 Enviar cadastro</button>
-                      <button onClick={() => { if (!selectedConv?.tutor?.id) { toast("Agendar consulta é pra cliente com ficha — este contato ainda não tem cadastro.", { icon: "📅" }); return; } setAgendarOpen(true); }}
-                        className="text-[10.5px] px-2 py-1 rounded-full border border-dashed border-[#009AAC] text-[#00798A] hover:bg-[#F0FBFC]">📅 Agendar consulta</button>
-                      <button onClick={abrirBoletim} disabled={boletimLoading}
-                        className="text-[10.5px] px-2 py-1 rounded-full border border-dashed border-[#009AAC] text-[#00798A] hover:bg-[#F0FBFC] disabled:opacity-50" title="Boletim de fisioterapia do pet">🌿 {boletimLoading ? "…" : "Boletim"}</button>
-                      <button onClick={() => toast("🧪 Resultado de exame entra quando terminarmos o módulo de exames.", { icon: "🛠️" })}
-                        className="text-[10.5px] px-2 py-1 rounded-full border border-dashed border-[#d8d0bc] text-[#9a948a] hover:bg-[#FBF9F4]" title="Em breve — módulo de exames em construção">🧪 Exame</button>
+                  {/* DONO DA CONVERSA (28/07): se OUTRA pessoa é a dona, o rodapé vira um painel
+                      de trava (pra não responderem por cima). Senão, o compositor normal. */}
+                  {(selectedConv?.assignedUser && selectedConv.assignedUser.id !== meId) ? (
+                    <div className="rounded-xl px-3.5 py-3 flex flex-col gap-2.5" style={{ background: "#FBF0DD", border: "1px solid #efe1c2" }}>
+                      <div className="flex items-center gap-2 text-[12.5px]" style={{ color: "#8a5a0b" }}>
+                        <span style={{ fontSize: "17px" }}>🔒</span>
+                        <span><b>{selectedConv.assignedUser.name}</b> está atendendo esta conversa.</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button onClick={pedirConversa} className="flex-1 py-2 rounded-lg text-[12px] font-medium hover:brightness-95" style={{ background: "#fff", border: "1px solid #e8c98a", color: "#8a5a0b" }}>🙋 Pedir a conversa</button>
+                        <button onClick={assumirAtendimento} className="py-2 px-3 rounded-lg text-[12px] font-medium whitespace-nowrap hover:brightness-110" style={{ background: "#8a6400", color: "#fff" }}>Assumir mesmo assim</button>
+                      </div>
+                      <p className="text-[10.5px] text-center leading-snug" style={{ color: "#a98a4b" }}>Peça e espere ela soltar — ou assuma, se for urgente.</p>
                     </div>
-                  </div>
+                  ) : (
+                  <>
+                  {/* Menu de Ações — abre pelo botão ➕ da barra (redesenho 28/07, mockup aprovado).
+                      Concentra tudo que antes eram pílulas soltas + Assinar, liberando o campo de escrever. */}
+                  {acoesOpen && (
+                    <div className="bg-white border border-[#e8e1d2] rounded-xl p-1.5 mb-2" style={{ boxShadow: "0 10px 28px rgba(20,37,58,.14)" }}>
+                      {/* Assinatura saiu daqui pro CABEÇALHO (✍️ Assinar). No lugar dela: pedir a
+                          avaliação (NPS → Google Meu Negócio) do cliente desta conversa. */}
+                      <button onClick={() => { setAcoesOpen(false); solicitarAvaliacaoNPS(); }} className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-[#F0FBFC] text-left">
+                        <span style={{ fontSize: "14px", width: "20px", textAlign: "center" }}>⭐</span>
+                        <span className="text-[12.5px] text-[#0E2244] flex-1">Solicitar avaliação <span className="text-[#888780]">(NPS / Google)</span></span>
+                      </button>
+                      <div className="h-px bg-[#e8e1d2] mx-1.5 my-1" />
+                      <button onClick={() => { setScriptsOpen(true); setAcoesOpen(false); }} className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-[#F0FBFC] text-left"><span style={{ fontSize: "14px", width: "20px", textAlign: "center" }}>📋</span><span className="text-[12.5px] text-[#0E2244]">Mensagens prontas</span></button>
+                      <button onClick={() => { const l = window.location.origin + "/queremos-te-conhecer"; setMessageInput(`Vamos confirmar o atendimento do seu pet! 🐾 Para isso, precisamos te conhecer um pouquinho melhor — é rapidinho: ${l}\n\nAssim que você preencher, seu agendamento fica confirmado! 💙`); setAcoesOpen(false); }} className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-[#F0FBFC] text-left"><span style={{ fontSize: "14px", width: "20px", textAlign: "center" }}>🔗</span><span className="text-[12.5px] text-[#0E2244]">Enviar cadastro</span></button>
+                      <button onClick={() => { setAgendarOpen(true); setAcoesOpen(false); }} className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-[#F0FBFC] text-left"><span style={{ fontSize: "14px", width: "20px", textAlign: "center" }}>📅</span><span className="text-[12.5px] text-[#0E2244]">Agendar consulta</span></button>
+                      <button onClick={() => { setAcoesOpen(false); abrirBoletim(); }} disabled={boletimLoading} className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-[#F0FBFC] text-left disabled:opacity-50"><span style={{ fontSize: "14px", width: "20px", textAlign: "center" }}>🌿</span><span className="text-[12.5px] text-[#0E2244]">Boletim de fisioterapia{boletimLoading ? " …" : ""}</span></button>
+                      <button onClick={() => { setAcoesOpen(false); toast("🧪 Resultado de exame entra quando terminarmos o módulo de exames.", { icon: "🛠️" }); }} className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-[#FBF9F4] text-left"><span style={{ fontSize: "14px", width: "20px", textAlign: "center" }}>🧪</span><span className="text-[12.5px] text-[#9a948a]">Exame</span></button>
+                      <div className="h-px bg-[#e8e1d2] mx-1.5 my-1" />
+                      <button onClick={() => { setAcoesOpen(false); sendMessage(MSG_PIX); }} className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-[#F0FBFC] text-left"><span style={{ fontSize: "14px", width: "20px", textAlign: "center" }}>💠</span><span className="text-[12.5px] text-[#0E2244] flex-1">Enviar chave PIX</span><span className="text-[8.5px] font-bold text-[#B45309] bg-[#FBF0DD] px-1.5 py-[1px] rounded-full">NOVO</span></button>
+                      <button onClick={() => { setAcoesOpen(false); sendMessage(MSG_ENDERECO); }} className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-[#F0FBFC] text-left"><span style={{ fontSize: "14px", width: "20px", textAlign: "center" }}>📍</span><span className="text-[12.5px] text-[#0E2244] flex-1">Enviar endereço + Maps</span><span className="text-[8.5px] font-bold text-[#B45309] bg-[#FBF0DD] px-1.5 py-[1px] rounded-full">NOVO</span></button>
+                      {selectedConv?.assignedUser?.id === meId && (
+                        <>
+                          <div className="h-px bg-[#e8e1d2] mx-1.5 my-1" />
+                          <button onClick={() => { setAcoesOpen(false); devolverAoGeral(); }} className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-[#FBF9F4] text-left"><span style={{ fontSize: "14px", width: "20px", textAlign: "center" }}>↩️</span><span className="text-[12.5px] text-[#0E2244]">Devolver ao geral</span></button>
+                        </>
+                      )}
+                    </div>
+                  )}
                   {scriptsOpen && (
                     <div className="bg-white border border-[#e8e1d2] rounded-lg p-2 mb-2 max-h-[160px] overflow-y-auto">
                       <div className="flex items-center justify-between mb-1.5">
@@ -1554,10 +1693,12 @@ export default function InboxUnificadoPage() {
                         <Link href="/dashboard/configuracoes/scripts" className="text-[10px] text-[#009AAC]">+ Gerenciar em Configurações</Link>
                       </div>
                       <div className="flex flex-col gap-1">
-                        {SCRIPTS_PLACEHOLDER.map((s) => (
-                          <button key={s.titulo} onClick={() => { setMessageInput(s.texto); setScriptsOpen(false); }}
+                        {scriptsList.length === 0 ? (
+                          <div className="text-[11px] text-[#888780] px-2 py-2">Nenhuma mensagem pronta cadastrada. Crie em <b>Configurações › Scripts</b>.</div>
+                        ) : scriptsList.map((s, i) => (
+                          <button key={`${s.titulo}-${i}`} onClick={() => { setMessageInput(s.texto); setScriptsOpen(false); }}
                             className="text-left px-2 py-1.5 rounded hover:bg-white border border-transparent hover:border-[#e8e1d2]">
-                            <div className="text-[10px] text-[#5F5E5A]"><b className="text-[#0E2244]">{s.categoria}</b> · {s.titulo}</div>
+                            <div className="text-[10px] text-[#5F5E5A]">{s.categoria ? <><b className="text-[#0E2244]">{s.categoria}</b> · </> : null}{s.titulo}</div>
                             <div className="text-[11px] text-[#5F5E5A] truncate">{s.texto}</div>
                           </button>
                         ))}
@@ -1565,9 +1706,10 @@ export default function InboxUnificadoPage() {
                     </div>
                   )}
                   <div className="flex gap-2 items-center">
-                    <button onClick={() => setScriptsOpen(!scriptsOpen)} title="Mensagens prontas"
-                      className={`px-2.5 py-1.5 border rounded-lg text-xs flex items-center gap-1 ${scriptsOpen ? "bg-[#FBF0DD] border-[#8a6313] text-[#8a6313]" : "bg-white border-[#e8e1d2] text-[#5F5E5A]"}`}>
-                      <span style={{fontSize:"12px"}}>📋</span>Prontas
+                    <button onClick={() => setAcoesOpen((v) => !v)} title="Ações rápidas — cadastro, agendar, boletim, PIX, endereço, mensagens prontas…"
+                      className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 transition text-white ${acoesOpen ? "bg-[#007E8D]" : "bg-[#009AAC] hover:bg-[#008395]"}`}
+                      style={{ boxShadow: "0 2px 6px rgba(0,154,172,.35)" }}>
+                      <span style={{ fontSize: "20px", lineHeight: 1, marginTop: "-1px" }}>{acoesOpen ? "×" : "+"}</span>
                     </button>
                     {/* Clipe: foto, documento, vídeo ou figurinha (.webp). O texto digitado
                         vira legenda. Fora da janela de 24h o Meta recusa — o erro aparece. */}
@@ -1601,8 +1743,8 @@ export default function InboxUnificadoPage() {
                         <textarea value={messageInput} onChange={(e) => setMessageInput(e.target.value)}
                           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
                           rows={1}
-                          placeholder="Digite uma mensagem…  (Enter envia · Shift+Enter pula linha)"
-                          className="flex-1 px-3 py-1.5 border border-[#e8e1d2] rounded-lg text-xs focus:outline-none focus:border-[#009AAC] resize-none leading-snug" style={{ maxHeight: 120 }} />
+                          placeholder="Digite sua mensagem…  (Enter envia · Shift+Enter pula linha)"
+                          className="flex-1 px-3.5 py-2.5 border border-[#e8e1d2] rounded-lg text-[13.5px] focus:outline-none focus:border-[#009AAC] resize-none leading-snug" style={{ maxHeight: 160 }} />
                         <EmojiPicker onPick={(em) => setMessageInput((v) => v + em)} />
                         {messageInput.trim() ? (
                           <button onClick={() => sendMessage()} className="bg-[#009AAC] text-white w-8 h-8 rounded-lg flex items-center justify-center shrink-0" title="Enviar">
@@ -1616,6 +1758,8 @@ export default function InboxUnificadoPage() {
                       </>
                     )}
                   </div>
+                  </>
+                  )}
                 </div>
               </>
             )}
@@ -1624,7 +1768,7 @@ export default function InboxUnificadoPage() {
           {/* RIGHT - Painel CRM (contexto). No celular fica escondido pra o chat ocupar a tela toda. */}
           <div className="hidden md:flex flex-col min-h-0">
   {selectedId ? (
-  <InboxRightPanel canal="WhatsApp Meta" initialPhone={selectedConv?.contactNumber} initialName={selectedConv?.contactName || (selectedConv as any)?.contactPushName} initialTutorId={selectedConv?.tutor?.id} conversationId={selectedConv?.id} soContexto onVinculado={() => { setRefreshTick((t) => t + 1); }} />
+  <InboxRightPanel canal="WhatsApp Meta" initialPhone={selectedConv?.contactNumber} initialName={selectedConv?.contactName || (selectedConv as any)?.contactPushName} initialTutorId={selectedConv?.tutor?.id} conversationId={selectedConv?.id} soContexto onVinculado={() => { setRefreshTick((t) => t + 1); }} onEnviarTexto={(t) => sendMessage(t)} />
   ) : (
   <div className="border-l border-[#e8e1d2] bg-white flex-1 flex items-center justify-center text-center p-6">
     <p className="text-[11px] text-[#B4B2A9]">O contexto do cliente aparece aqui quando você abrir uma conversa.</p>
@@ -1636,9 +1780,9 @@ export default function InboxUnificadoPage() {
     )}
 
       {tab === "internas" && (
-        <div className="grid grid-cols-[300px_1fr] grid-rows-[minmax(0,1fr)] flex-1 min-h-0">
-          {/* LEFT - conversas internas (agrupadas por colega) */}
-          <div className="border-r border-[#e8e1d2] bg-white flex flex-col min-h-0">
+        <div className="grid grid-cols-1 md:grid-cols-[300px_1fr] grid-rows-[minmax(0,1fr)] flex-1 min-h-0">
+          {/* LEFT - conversas internas (agrupadas por colega) — no celular some quando abre uma */}
+          <div className={"border-r border-[#e8e1d2] bg-white flex-col min-h-0 " + ((internasCompose || internasConvSel) ? "hidden md:flex" : "flex")}>
             <div className="px-3 py-2.5 border-b border-[#e8e1d2] flex items-center justify-between">
               <span className="text-[11px] text-[#888780] font-medium">CONVERSAS ({internasConversas.length})</span>
               <button onClick={() => { setInternasCompose(true); setInternasConvSel(null); setInternalSelected(null); setInternalNote(""); }} className="text-[11px] text-[#009AAC] font-medium flex items-center gap-1 hover:underline"><LuPlus className="w-3 h-3" />Nova</button>
@@ -1665,11 +1809,11 @@ export default function InboxUnificadoPage() {
               ); })}
             </div>
           </div>
-          {/* RIGHT - thread OU compor */}
-          <div className="bg-white flex flex-col min-h-0">
+          {/* RIGHT - thread OU compor — no celular só aparece quando abre uma/compõe */}
+          <div className={"bg-white flex-col min-h-0 " + ((internasCompose || internasConvSel) ? "flex" : "hidden md:flex")}>
             {internasCompose ? (
               <div className="p-6 flex flex-col min-h-0 overflow-y-auto">
-                <h3 className="text-sm text-[#0E2244] font-medium mb-3">Nova mensagem interna</h3>
+                <h3 className="text-sm text-[#0E2244] font-medium mb-3 flex items-center gap-1"><button onClick={() => setInternasCompose(false)} title="Voltar" className="md:hidden -ml-1 w-7 h-7 rounded-lg text-[#5F5E5A] hover:bg-gray-100 flex items-center justify-center text-lg">‹</button>Nova mensagem interna</h3>
                 <div className="mb-3">
                   <label className="text-[11px] text-[#888780] block mb-1">Para</label>
                   <select value={internalSelected || ""} onChange={(e) => setInternalSelected(e.target.value || null)} className="w-full px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm focus:outline-none focus:border-[#009AAC]">
@@ -1696,6 +1840,7 @@ export default function InboxUnificadoPage() {
               return (
                 <>
                   <div className="flex items-center gap-2.5 px-5 py-3 border-b border-[#e8e1d2] flex-shrink-0">
+                    <button onClick={() => setInternasConvSel(null)} title="Voltar" className="md:hidden -ml-2 w-8 h-8 rounded-lg text-[#5F5E5A] hover:bg-gray-100 flex items-center justify-center text-lg shrink-0">‹</button>
                     <div className="w-9 h-9 rounded-full bg-[#009AAC] text-white flex items-center justify-center text-[12px] font-medium">{getInitials(c.name)}</div>
                     <div className="text-sm text-[#0E2244] font-medium">{c.name}</div>
                   </div>
@@ -1792,8 +1937,26 @@ export default function InboxUnificadoPage() {
       )}
       {/* Agendar consulta em pop-up (o mesmo modal da agenda), já com o cliente da conversa */}
       <NovoAgendamentoModal open={agendarOpen} onClose={() => setAgendarOpen(false)}
-        defaults={selectedConv?.tutor ? { tutor: { id: selectedConv.tutor.id, name: selectedConv.tutor.name } } : undefined}
-        onCreated={() => { setAgendarOpen(false); toast.success("Consulta agendada"); }} />
+        agendarAposCriar={!selectedConv?.tutor?.id}
+        defaults={selectedConv?.tutor?.id
+          ? { tutor: { id: selectedConv.tutor.id, name: selectedConv.tutor.name } }
+          : { novoCliente: { nome: selectedConv?.contactName || "", tel: selectedConv?.contactNumber || "" } }}
+        onCreated={(info) => {
+          setAgendarOpen(false); toast.success("Consulta agendada");
+          // 📅 Envia AUTOMATICAMENTE a confirmação do agendamento pra conversa (pergunta 3, 31/07).
+          if (info?.date && info?.time) {
+            const [, mm, dd] = String(info.date).split("-");
+            const diaBR = dd && mm ? `${dd}/${mm}` : info.date;
+            const petTxt = info.petNome ? `${info.petNome} — ` : "";
+            const msg = `✅ Agendamento confirmado! ${petTxt}${diaBR} às ${info.time}. Qualquer coisa é só chamar por aqui. 🐾`;
+            sendMessage(msg);
+          }
+          // Contato sem cadastro: já deixa o link de cadastro pronto pra mandar ao tutor completar.
+          if (!selectedConv?.tutor?.id) {
+            const l = window.location.origin + "/queremos-te-conhecer";
+            setMessageInput(`Prontinho, agendei o atendimento do seu pet! 🐾 Pra confirmar, é só completar seu cadastro rapidinho: ${l}\n\nAssim que você preencher, está tudo certo! 💙`);
+          }
+        }} />
 
       {/* MODAL Exportar conversa (PDF) */}
       {exportOpen && (

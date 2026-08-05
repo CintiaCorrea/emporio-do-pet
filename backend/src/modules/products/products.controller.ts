@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Put,
   Body,
   Patch,
   Param,
@@ -65,6 +66,13 @@ export class ProductsController {
     return this.productsService.create(dto);
   }
 
+  // Importa catálogo por CSV. dryRun=true → só prévia (não grava).
+  @Post('importar-catalogo')
+  @ApiOperation({ summary: 'Importar catálogo (CSV) — serviços e produtos' })
+  importarCatalogo(@Body() body: { csv: string; dryRun?: boolean }) {
+    return this.productsService.importarCatalogo(body?.csv || '', { dryRun: !!body?.dryRun });
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Buscar produto por ID' })
   findOne(@Param('id') id: string) {
@@ -81,5 +89,21 @@ export class ProductsController {
   @ApiOperation({ summary: 'Excluir produto' })
   remove(@Param('id') id: string) {
     return this.productsService.remove(id);
+  }
+
+  // ── Ficha técnica (insumos que o procedimento/kit consome) ──
+  @Get(':id/composicao')
+  @ApiOperation({ summary: 'Ficha técnica: insumos que compõem este item' })
+  getComposicao(@Param('id') id: string) {
+    return this.productsService.getComposicao(id);
+  }
+
+  @Put(':id/composicao')
+  @ApiOperation({ summary: 'Definir a ficha técnica (substitui a lista de insumos)' })
+  setComposicao(
+    @Param('id') id: string,
+    @Body() body: { itens: Array<{ itemId: string; quantidade: number; custoUnitario?: number | null }> },
+  ) {
+    return this.productsService.setComposicao(id, body?.itens || []);
   }
 }

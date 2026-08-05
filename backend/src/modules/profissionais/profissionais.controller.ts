@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { ProfissionaisService } from './profissionais.service';
 import { CreateProfissionalDto } from './dto/create-profissional.dto';
 import { UpdateProfissionalDto } from './dto/update-profissional.dto';
@@ -20,6 +21,12 @@ export class ProfissionaisController {
   @Get()
   findAll(@Query('includeInactive') includeInactive?: string) {
     return this.service.findAll(includeInactive === 'true');
+  }
+
+  // ATENÇÃO: precisa vir ANTES de @Get(':id'), senão o Nest lê "me" como um id.
+  @Get('me')
+  meuProfissional(@CurrentUser() user: { id: string }) {
+    return this.service.findByUserId(user.id);
   }
 
   @Get(':id')

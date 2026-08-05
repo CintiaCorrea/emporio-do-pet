@@ -8,6 +8,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { usePageTitle } from '@/lib/ui/PageHeaderContext';
+import { usePodeEditar } from '@/lib/permissions/context';
 import {
   B44, PageShell, HeaderCard, Card, Kpi, KpiGrid, Btn, Pill, Tabs, Modal, Input, Select,
 } from '@/components/ui/base44';
@@ -125,6 +126,7 @@ type SubMinha = 'grupo' | 'produto' | 'data' | 'resumo';
 
 export default function ComissoesPage() {
   usePageTitle('Comissionamento', 'Comissões dos profissionais');
+  const podeEditar = usePodeEditar(); // perfil VISUALIZA = esconde fechar/pagar/configurar
 
   const [tab, setTab] = useState<TabKey>('aberto');
   const [config, setConfig] = useState<CommissionConfig | null>(null);
@@ -359,7 +361,7 @@ export default function ComissoesPage() {
               <span style={{ fontSize: 22 }}>🧾</span> Comissionamento
             </h1>
             <div style={{ display: 'flex', gap: 10 }}>
-              <Btn variant="ghost" onClick={openConfig}>⚙️ Configurar</Btn>
+              {podeEditar && <Btn variant="ghost" onClick={openConfig}>⚙️ Configurar</Btn>}
               <Btn variant="ghost" onClick={() => window.print()}>🖨️ Imprimir</Btn>
             </div>
           </div>
@@ -380,9 +382,11 @@ export default function ComissoesPage() {
                 <label style={labelStyle}>Vendas baixadas até</label>
                 <Input type="date" value={baixadasAte} onChange={(e) => setBaixadasAte(e.target.value)} style={{ width: 170 }} />
               </div>
+              {podeEditar && (
               <Btn variant="primary" onClick={handleFechar} disabled={fechando}>
                 🔒 {fechando ? 'Fechando...' : 'Fechar comissões do período'}
               </Btn>
+              )}
             </div>
 
             <div style={{ marginBottom: 22 }}>
@@ -526,6 +530,7 @@ export default function ComissoesPage() {
                                 <Pill tone={ex.status === 'PAGO' ? 'ok' : 'warn'}>{ex.status === 'PAGO' ? 'Pago' : 'A pagar'}</Pill>
                               </td>
                               <td style={{ ...tdStyle, textAlign: 'right' }}>
+                                {podeEditar && (
                                 <Btn
                                   variant="ghost"
                                   onClick={() => handleTogglePago(ex)}
@@ -533,6 +538,7 @@ export default function ComissoesPage() {
                                 >
                                   {ex.status === 'A_PAGAR' ? '✅ Marcar pago' : '↩️ Reabrir'}
                                 </Btn>
+                                )}
                               </td>
                             </tr>
                           ))}
@@ -641,7 +647,7 @@ export default function ComissoesPage() {
         onClose={() => setConfigOpen(false)}
         title="⚙️ Configuração de comissões"
         width={460}
-        footer={cfgDraft ? (
+        footer={cfgDraft && podeEditar ? (
           <Btn variant="primary" onClick={saveConfig} disabled={savingConfig} style={{ justifyContent: 'center', padding: '12px 18px', fontSize: 13.5 }}>
             {savingConfig ? 'Salvando...' : '💾 Salvar configuração'}
           </Btn>

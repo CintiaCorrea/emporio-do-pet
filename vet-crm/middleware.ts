@@ -118,7 +118,8 @@ export async function middleware(request: NextRequest) {
   })
 
   if (!token) {
-    const loginUrl = new URL('/login', request.url)
+    // A tela de login é a RAIZ "/" (não existe rota /login) — redirecionar pra /login dava 404.
+    const loginUrl = new URL('/', request.url)
     loginUrl.searchParams.set('callbackUrl', encodeURI(request.url))
     return NextResponse.redirect(loginUrl)
   }
@@ -127,7 +128,8 @@ export async function middleware(request: NextRequest) {
   const userRole = token.role as string
 
   if (!userRole || !allowedRoles.includes(userRole)) {
-    const deniedUrl = new URL('/acesso-negado', request.url)
+    // Não existe rota /acesso-negado — mandar pra raiz (login) com aviso, em vez de 404.
+    const deniedUrl = new URL('/?erro=sem-acesso', request.url)
     return NextResponse.redirect(deniedUrl)
   }
 

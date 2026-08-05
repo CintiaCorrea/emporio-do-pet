@@ -95,7 +95,7 @@ export class ContactsService {
       });
     }
 
-    return this.prisma.contact.create({
+    const created = await this.prisma.contact.create({
       data: {
         type: dto.type as any,
         number: dto.number,
@@ -106,6 +106,25 @@ export class ContactsService {
       },
       include: { tutor: { select: { id: true, name: true, cpf: true } } },
     });
+
+    // Cliente com 2+ telefones: ao adicionar um número, RELIGA as conversas de WhatsApp
+    // desse número (que ainda não têm cliente) a este cliente — assim caem na mesma ficha.
+    // Só religa se o número for EXCLUSIVO deste cliente (evita telefone de família/duplicado).
+    try {
+      const tail = (dto.number || '').replace(/\D/g, '').slice(-8);
+      if (tail.length >= 8) {
+        const donos = await this.prisma.contact.findMany({ where: { number: { endsWith: tail } }, select: { tutorId: true } });
+        const tutores = Array.from(new Set(donos.map((d) => d.tutorId)));
+        if (tutores.length === 1) {
+          await this.prisma.whatsAppConversation.updateMany({
+            where: { contactPhone: { endsWith: tail }, tutorId: null },
+            data: { tutorId: dto.tutorId },
+          });
+        }
+      }
+    } catch { /* religação é best-effort */ }
+
+    return created;
   }
 
   async update(id: string, dto: UpdateContactDto) {

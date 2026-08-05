@@ -40,6 +40,12 @@ export class FornecedoresController {
   @Delete('exames/:id')
   removeExame(@Param('id') id: string) { return this.service.removeExame(id); }
 
+  // Precifica exames em lote aplicando um markup % sobre o custo do laboratório.
+  @Post('exames/precificar-lote')
+  precificarLote(@Body() body: { percent: number; sobrescrever?: boolean }) {
+    return this.service.precificarEmLote(Number(body?.percent), !!body?.sobrescrever);
+  }
+
   // ===== Seed inicial =====
   @Post('seed-pacote-inicial')
   seed() { return this.service.seedPacoteInicial(); }

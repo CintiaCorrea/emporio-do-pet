@@ -230,10 +230,9 @@ export class NotificationsGateway
     content: string;
     messageType: string;
   }) {
-    this.sendToUser(data.userId, 'whatsapp:message', {
-      ...data,
-      eventType: 'received',
-    });
+    // Transmite pra TODOS (a caixa de entrada é compartilhada — todos os atendentes
+    // precisam ver a mensagem chegar na hora, não só o "dono" da conta).
+    this.server.emit('whatsapp:message', { ...data, type: 'received', eventType: 'received' });
   }
 
   @OnEvent('whatsapp.message.sent')
@@ -242,10 +241,13 @@ export class NotificationsGateway
     conversationId: string;
     messageId: string;
   }) {
-    this.sendToUser(data.userId, 'whatsapp:message', {
-      type: 'sent',
-      ...data,
-    });
+    this.server.emit('whatsapp:message', { type: 'sent', ...data });
+  }
+
+  // Tempo real da AGENDA: qualquer mudança de agendamento avisa todas as telas de agenda.
+  @OnEvent('appointment.changed')
+  handleAppointmentChanged(data: { at?: number }) {
+    this.server.emit('agenda:changed', data || {});
   }
 
   @OnEvent('whatsapp.message.status_updated')

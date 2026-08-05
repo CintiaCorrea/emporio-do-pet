@@ -42,6 +42,7 @@ interface UseNotificationsOptions {
   onWhatsAppMessage?: (event: WhatsAppMessageEvent) => void;
   onWhatsAppStatus?: (event: WhatsAppStatusEvent) => void;
   onCampaignCompleted?: (event: CampaignCompletedEvent) => void;
+  onAgenda?: () => void; // qualquer mudança de agendamento (tempo real da agenda)
   autoConnect?: boolean;
 }
 
@@ -134,6 +135,10 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
 
     socket.on('campaign:completed', (event: CampaignCompletedEvent) => {
       callbacksRef.current.onCampaignCompleted?.(event);
+    });
+
+    socket.on('agenda:changed', () => {
+      callbacksRef.current.onAgenda?.();
     });
 
     socket.on('connect_error', () => {

@@ -75,12 +75,17 @@ export default function BuscaClientePet({
 
     for (const t of tutores) {
       // filtro do cliente: nome (telefone/CPF/código já vieram filtrados do servidor)
-      if (qc && !semAcento(t.name).includes(qc)) {
-        // pode ter vindo por telefone/CPF/pet — só descarta se também não casar por pet
-        const casaPet = (t.pets || []).some((p) => semAcento(p.name).includes(qc));
-        if (!casaPet) continue;
+      const nomeCasaCli = !qc || semAcento(t.name).includes(qc);
+      let base = t.pets || [];
+      if (qc && !nomeCasaCli) {
+        // O cliente NÃO casou pelo NOME — veio pelo nome de um PET (ou tel/CPF/código).
+        // Se for por pet, mostra SÓ os bichos que casam com o termo — não todos os bichos
+        // do dono (senão a busca traz nomes sem nenhuma ligação com o que foi digitado).
+        const petsCasam = base.filter((p) => semAcento(p.name).includes(qc));
+        if (petsCasam.length > 0) base = petsCasam;
+        else if (!/\d{4,}/.test(qc)) continue; // nem nome, nem pet, e não parece tel/código → fora
       }
-      const pets = (t.pets || []).filter((p) => !qp || semAcento(p.name).includes(qp));
+      const pets = base.filter((p) => !qp || semAcento(p.name).includes(qp));
       if (qp && pets.length === 0) continue; // buscou pet e esse cliente não tem → fora
       if (pets.length === 0) {
         if (!exigirPet) out.push({ tutor: t, pet: null });

@@ -4,6 +4,7 @@ import { confirmDelete } from "@/lib/ui/confirmDelete";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { LuArrowLeft, LuPencil, LuX, LuPlus, LuSearch } from "react-icons/lu";
+import { usePodeEditar } from "@/lib/permissions/context";
 import CsvImporter from "@/components/import/CsvImporter";
 
 interface ListaTipo { id: string; nome: string; label?: string | null; emoji?: string | null; descricao?: string | null; ordem: number; ativo: boolean; _count?: { itens: number }; }
@@ -14,6 +15,7 @@ const EMPTY_T: any = { nome: "", label: "", emoji: "", descricao: "", ordem: 0, 
 const EMPTY_I: any = { valor: "", lista: "", ordem: 0, ativo: true };
 
 export default function ListasPage() {
+  const podeEditar = usePodeEditar(); // perfil VISUALIZA = esconde criar/editar/excluir
   const [tipos, setTipos] = useState<ListaTipo[]>([]);
   const [itens, setItens] = useState<ListaItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -120,18 +122,20 @@ export default function ListasPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-6 pt-4 flex items-center justify-between gap-3">
+        {podeEditar ? (
         <button onClick={openTNew} className="px-3 py-2 rounded-lg text-sm font-medium border flex items-center gap-2"
           style={{ borderColor: "#009AAC", color: "#009AAC", background: "white" }}>
           <LuPlus size={14} /> Nova Lista
         </button>
+        ) : <span />}
         <div className="relative flex-1 max-w-md mx-3">
           <LuSearch size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar itens..."
             className="w-full pl-8 pr-3 py-2 border rounded-lg text-sm bg-white" style={{ borderColor: "#E8DFC8" }} />
         </div>
-        <button onClick={openINew} className="px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-2 text-white" style={{ background: "#009AAC" }}>
+        {podeEditar && <button onClick={openINew} className="px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-2 text-white" style={{ background: "#009AAC" }}>
           <LuPlus size={14} /> Novo Item
-        </button>
+        </button>}
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-4">
@@ -157,14 +161,16 @@ export default function ListasPage() {
                     <td className="px-4 py-2.5 hidden md:table-cell text-gray-700">{t?.emoji} {t?.label || i.lista}</td>
                     <td className="px-4 py-2.5 hidden md:table-cell text-right tabular-nums text-gray-500">{i.ordem}</td>
                     <td className="px-4 py-2.5 text-center">
-                      <button onClick={() => toggleI(i)} className="inline-flex items-center w-10 h-5 rounded-full transition"
+                      <button onClick={() => toggleI(i)} disabled={!podeEditar} className="inline-flex items-center w-10 h-5 rounded-full transition disabled:cursor-default"
                         style={{ background: i.ativo ? "#009AAC" : "#CBD5E0" }}>
                         <span className="block w-4 h-4 rounded-full bg-white transition shadow" style={{ marginLeft: i.ativo ? 20 : 2 }} />
                       </button>
                     </td>
                     <td className="px-4 py-2.5 text-right">
+                      {podeEditar ? (<>
                       <button onClick={() => openIEdit(i)} className="p-1 hover:bg-gray-200 rounded inline-block text-gray-600" title="Editar"><LuPencil size={14} /></button>
                       <button onClick={() => removeI(i)} className="p-1 hover:bg-gray-200 rounded inline-block ml-1" style={{ color: "#EF4444" }} title="Excluir"><LuX size={14} /></button>
+                      </>) : <span className="text-xs text-gray-300">👁️</span>}
                     </td>
                   </tr>
                 );
@@ -199,13 +205,13 @@ export default function ListasPage() {
                   style={{ color: filterLista === t.nome ? "#009AAC" : "#4B5563" }}>
                   {t.emoji} {t.label || t.nome} <span className="text-gray-400">({t._count?.itens || 0})</span>
                 </button>
-                <button onClick={() => openTEdit(t)} className="p-1.5 hover:bg-gray-100 border-l text-gray-600" style={{ borderColor: "#E8DFC8" }} title="Editar lista"><LuPencil size={11} /></button>
-                <button onClick={() => removeT(t)} className="p-1.5 hover:bg-gray-100 border-l" style={{ borderColor: "#E8DFC8", color: "#EF4444" }} title="Excluir lista"><LuX size={11} /></button>
+                {podeEditar && <button onClick={() => openTEdit(t)} className="p-1.5 hover:bg-gray-100 border-l text-gray-600" style={{ borderColor: "#E8DFC8" }} title="Editar lista"><LuPencil size={11} /></button>}
+                {podeEditar && <button onClick={() => removeT(t)} className="p-1.5 hover:bg-gray-100 border-l" style={{ borderColor: "#E8DFC8", color: "#EF4444" }} title="Excluir lista"><LuX size={11} /></button>}
               </div>
             ))}
-            <button onClick={openTNew} className="px-3 py-1.5 rounded-lg text-xs font-medium border-2 border-dashed flex items-center gap-1.5 text-gray-500 hover:text-gray-700 hover:border-gray-400" style={{ borderColor: "#D1D5DB" }}>
+            {podeEditar && <button onClick={openTNew} className="px-3 py-1.5 rounded-lg text-xs font-medium border-2 border-dashed flex items-center gap-1.5 text-gray-500 hover:text-gray-700 hover:border-gray-400" style={{ borderColor: "#D1D5DB" }}>
               <LuPlus size={12} /> Nova lista
-            </button>
+            </button>}
           </div>
         </div>
       </div>

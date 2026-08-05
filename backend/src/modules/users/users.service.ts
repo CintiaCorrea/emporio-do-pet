@@ -39,6 +39,17 @@ export class UsersService {
         isBlocked: true,
         createdAt: true,
         updatedAt: true,
+        // Dados do profissional (CRMV, nome público, especialidade) — usados para
+        // preencher as variáveis @USUARIO_*@ dos modelos de documento/receita.
+        profissional: {
+          select: {
+            nomeExibicao: true,
+            crmv: true,
+            especialidade: true,
+            tipo: true,
+            telefone: true,
+          },
+        },
       },
     });
   }

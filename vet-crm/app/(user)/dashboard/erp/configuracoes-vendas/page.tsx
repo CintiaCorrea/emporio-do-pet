@@ -4,6 +4,7 @@
 
 import { useEffect, useState } from "react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
+import { usePodeEditar } from "@/lib/permissions/context";
 
 const DEFAULTS = {
   fecharCaixaMeiaNoite: false,
@@ -20,6 +21,7 @@ const DEFAULTS = {
 
 export default function ConfigVendasPage() {
   usePageTitle("Configuração de vendas", "Regras do módulo de vendas");
+  const podeEditar = usePodeEditar(); // perfil VISUALIZA = esconde o Salvar
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [regId, setRegId] = useState<string | null>(null);
@@ -121,7 +123,9 @@ export default function ConfigVendasPage() {
       </Card>
 
       <div className="flex justify-end mt-2">
-        <button onClick={salvar} disabled={saving} className="bg-[#009AAC] text-white rounded-lg px-5 py-2.5 text-[13.5px] font-medium disabled:opacity-60">{saving ? "Salvando..." : "Salvar configurações"}</button>
+        {podeEditar
+          ? <button onClick={salvar} disabled={saving} className="bg-[#009AAC] text-white rounded-lg px-5 py-2.5 text-[13.5px] font-medium disabled:opacity-60">{saving ? "Salvando..." : "Salvar configurações"}</button>
+          : <span className="text-[12px] text-[#5C6B70]">👁️ Somente leitura</span>}
       </div>
       <div className="text-[11px] text-[#374151] text-center mt-3">"em breve" = salvo agora, passa a valer quando a função existir (agendador do caixa, campo NSU, fluxo de devolução).</div>
     </div>

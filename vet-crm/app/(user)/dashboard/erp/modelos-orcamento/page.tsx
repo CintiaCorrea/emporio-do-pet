@@ -5,13 +5,15 @@
 
 import { useEffect, useMemo, useState , useRef} from "react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
+import { usePodeEditar } from "@/lib/permissions/context";
 
 const fmtBRL = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
 const num = (s: any) => Number(String(s ?? "").replace(",", ".")) || 0;
-const novoModelo = () => ({ id: "", nome: "", ativo: true, itens: [] as any[] });
+const novoModelo = () => ({ id: "", nome: "", ativo: true, observacao: "", itens: [] as any[] });
 
 export default function ModelosOrcamentoPage() {
   usePageTitle("Modelo de orçamento", "Orçamentos-modelo reutilizáveis");
+  const podeEditar = usePodeEditar(); // perfil VISUALIZA = esconde criar/editar/excluir
   const [loading, setLoading] = useState(true);
   const jaCarregou = useRef(false);
   const [modelos, setModelos] = useState<any[]>([]);
@@ -24,13 +26,20 @@ export default function ModelosOrcamentoPage() {
   const load = async () => {
     if (!jaCarregou.current) setLoading(true);
     try {
-      const [m, s] = await Promise.all([
+      const [m, s, p] = await Promise.all([
         fetch("/api/listas?lista=orcamentomodelo").then((r) => r.json()).catch(() => []),
         fetch("/api/servicos/itens?limit=1000").then((r) => r.json()).catch(() => []),
+        fetch("/api/products?limit=1000").then((r) => r.json()).catch(() => []),
       ]);
       const arr = Array.isArray(m) ? m : (m.itens || m.data || []);
       setModelos(arr.map((x: any) => { try { return { id: x.id, ...JSON.parse(x.valor) }; } catch { return { id: x.id, nome: "?", itens: [] }; } }));
-      setServicos(Array.isArray(s) ? s : (s.itens || s.data || []));
+      // Catálogo = serviços + produtos (o que existir), dedup por id, só ativos.
+      const sv = Array.isArray(s) ? s : (s.itens || s.data || []);
+      const prRaw = Array.isArray(p) ? p : (p.products || p.produtos || p.data || p.itens || []);
+      const pr = prRaw.map((x: any) => ({ id: x.id, nome: x.name || x.nome, valorPadrao: Number(x.price ?? x.preco ?? x.valorPadrao ?? 0), ativo: x.ativo }));
+      const byId = new Map<string, any>();
+      [...sv, ...pr].forEach((x: any) => { if (x && x.id && x.nome && x.ativo !== false) byId.set(x.id, x); });
+      setServicos(Array.from(byId.values()).sort((a, b) => String(a.nome).localeCompare(String(b.nome))));
     } catch {}
     jaCarregou.current = true; setLoading(false);
   };
@@ -39,7 +48,7 @@ export default function ModelosOrcamentoPage() {
   const totalDe = (m: any) => (m.itens || []).reduce((sm: number, it: any) => sm + (Number(it.quantidade) || 0) * (Number(it.valorUnitario) || 0), 0);
   const ordenados = useMemo(() => [...modelos].sort((a, b) => (a.nome || "").localeCompare(b.nome || "")), [modelos]);
 
-  const abrir = (m?: any) => { setForm(m ? { id: m.id, nome: m.nome || "", ativo: m.ativo !== false, itens: (m.itens || []).map((i: any) => ({ ...i })) } : novoModelo()); setBusca(""); setOpen(true); };
+  const abrir = (m?: any) => { setForm(m ? { id: m.id, nome: m.nome || "", ativo: m.ativo !== false, observacao: m.observacao || "", itens: (m.itens || []).map((i: any) => ({ ...i })) } : novoModelo()); setBusca(""); setOpen(true); };
   const addItem = (s?: any) => setForm((f: any) => ({ ...f, itens: [...f.itens, s ? { descricao: s.nome, servicoId: s.id, quantidade: 1, valorUnitario: Number(s.valorPadrao || 0) } : { descricao: "", servicoId: "", quantidade: 1, valorUnitario: 0 }] }));
   const updItem = (i: number, patch: any) => setForm((f: any) => ({ ...f, itens: f.itens.map((it: any, j: number) => j === i ? { ...it, ...patch } : it) }));
   const rmItem = (i: number) => setForm((f: any) => ({ ...f, itens: f.itens.filter((_: any, j: number) => j !== i) }));
@@ -48,7 +57,7 @@ export default function ModelosOrcamentoPage() {
     if (!form.nome.trim()) { alert("Informe o nome do modelo."); return; }
     setSaving(true);
     try {
-      const payload = { nome: form.nome.trim(), ativo: !!form.ativo, itens: form.itens.map((it: any) => ({ descricao: it.descricao || "", servicoId: it.servicoId || "", quantidade: Number(it.quantidade) || 1, valorUnitario: Number(it.valorUnitario) || 0 })) };
+      const payload = { nome: form.nome.trim(), ativo: !!form.ativo, observacao: (form.observacao || "").trim(), itens: form.itens.map((it: any) => ({ descricao: it.descricao || "", servicoId: it.servicoId || "", quantidade: Number(it.quantidade) || 1, valorUnitario: Number(it.valorUnitario) || 0 })) };
       const url = form.id ? `/api/listas/${form.id}` : "/api/listas";
       const res = await fetch(url, { method: form.id ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(form.id ? { valor: JSON.stringify(payload) } : { lista: "orcamentomodelo", valor: JSON.stringify(payload) }) });
       if (!res.ok) throw new Error();
@@ -65,7 +74,7 @@ export default function ModelosOrcamentoPage() {
     <div className="p-6 w-full">
       <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
         <div className="text-[13px] text-[#374151]">{modelos.length} modelo(s) · preenchem o orçamento/venda de uma vez</div>
-        <button onClick={() => abrir()} className="text-[12px] font-medium text-white bg-[#009AAC] px-3.5 py-1.5 rounded-lg">➕ Novo modelo</button>
+        {podeEditar && <button onClick={() => abrir()} className="text-[12px] font-medium text-white bg-[#009AAC] px-3.5 py-1.5 rounded-lg">➕ Novo modelo</button>}
       </div>
 
       {loading ? (
@@ -75,7 +84,7 @@ export default function ModelosOrcamentoPage() {
           <div className="text-3xl mb-2">📄</div>
           <div className="text-sm text-[#5C6B70] mb-1">Nenhum modelo ainda.</div>
           <div className="text-[12px] text-[#374151] mb-3">Crie modelos pros procedimentos comuns (castração, cirurgias, protocolos…).</div>
-          <button onClick={() => abrir()} className="text-[12px] font-medium text-white bg-[#009AAC] px-4 py-2 rounded-lg">➕ Novo modelo</button>
+          {podeEditar && <button onClick={() => abrir()} className="text-[12px] font-medium text-white bg-[#009AAC] px-4 py-2 rounded-lg">➕ Novo modelo</button>}
         </div>
       ) : (
         <div className="space-y-2.5">
@@ -88,8 +97,8 @@ export default function ModelosOrcamentoPage() {
               </div>
               <div className="text-[15px] font-medium text-[#014D5E] tabular-nums flex-shrink-0">{fmtBRL(totalDe(m))}</div>
               <div className="flex gap-1 flex-shrink-0 ml-2">
-                <button onClick={() => abrir(m)} className="text-[13px] px-1">✏️</button>
-                <button onClick={() => excluir(m)} className="text-[13px] px-1">🗑️</button>
+                {podeEditar && <button onClick={() => abrir(m)} className="text-[13px] px-1">✏️</button>}
+                {podeEditar && <button onClick={() => excluir(m)} className="text-[13px] px-1">🗑️</button>}
               </div>
             </div>
           ))}
@@ -107,12 +116,13 @@ export default function ModelosOrcamentoPage() {
             <div className="p-5">
               <label className="text-[11px] text-[#374151] block mb-1">Nome do modelo *</label>
               <input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} placeholder="Ex.: Castração de gata" className="w-full border rounded-lg px-3 py-2 text-[13px] bg-white focus:outline-none focus:border-[#009AAC] mb-3" style={{ borderColor: "#E8E2D6" }} />
+              <datalist id="cat-modelo-dl">{servicos.map((s: any) => <option key={s.id} value={s.nome} />)}</datalist>
 
               <div className="border rounded-[11px] overflow-hidden bg-white" style={{ borderColor: "#E8E2D6" }}>
                 {form.itens.length === 0 && <div className="px-4 py-4 text-center text-[12px] text-[#374151]">Adicione itens ao modelo abaixo.</div>}
                 {form.itens.map((it: any, i: number) => (
                   <div key={i} className="flex items-center gap-2 px-3 py-2 border-b last:border-b-0" style={{ borderColor: "#F0EBE0" }}>
-                    <input value={it.descricao} onChange={(e) => updItem(i, { descricao: e.target.value })} placeholder="Item" className="flex-1 min-w-0 border rounded px-2 py-1 text-[12.5px] bg-white focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} />
+                    <input list="cat-modelo-dl" value={it.descricao} onChange={(e) => { const nome = e.target.value; const cat = servicos.find((x: any) => x.nome === nome); updItem(i, cat ? { descricao: cat.nome, servicoId: cat.id, valorUnitario: Number(cat.valorPadrao || 0) } : { descricao: nome }); }} placeholder="Item ou catálogo…" className="flex-1 min-w-0 border rounded px-2 py-1 text-[12.5px] bg-white focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} />
                     <input value={it.quantidade} onChange={(e) => updItem(i, { quantidade: e.target.value })} title="Qtd" className="w-12 border rounded px-1 py-1 text-[12px] text-center bg-white" style={{ borderColor: "#E8E2D6" }} />
                     <span className="text-[#374151] text-[11px]">×</span>
                     <input value={it.valorUnitario} onChange={(e) => updItem(i, { valorUnitario: num(e.target.value) })} title="Valor" className="w-20 border rounded px-2 py-1 text-[12px] text-right tabular-nums bg-white" style={{ borderColor: "#E8E2D6" }} />
@@ -136,6 +146,9 @@ export default function ModelosOrcamentoPage() {
                   )}
                 </div>
               </div>
+
+              <label className="text-[11px] text-[#374151] block mb-1 mt-3">Observação (aparece no orçamento — ex.: condições, preparo)</label>
+              <textarea value={form.observacao || ""} onChange={(e) => setForm({ ...form, observacao: e.target.value })} rows={2} placeholder="Observação específica deste modelo…" className="w-full border rounded-lg px-3 py-2 text-[13px] bg-white focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} />
 
               <div className="flex justify-between items-center mt-3">
                 <label className="flex items-center gap-2 text-[12px] text-[#5C6B70] cursor-pointer"><input type="checkbox" checked={form.ativo} onChange={(e) => setForm({ ...form, ativo: e.target.checked })} /> Ativo</label>

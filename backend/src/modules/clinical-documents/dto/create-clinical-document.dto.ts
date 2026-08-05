@@ -43,6 +43,10 @@ export class CreateClinicalDocumentDto {
   crmv?: string;
 
   @IsOptional()
+  @IsString()
+  pdfUrl?: string;
+
+  @IsOptional()
   metadata?: any;
 }
 
@@ -103,6 +107,10 @@ export class UpdateClinicalDocumentDto {
   @IsOptional()
   @IsString()
   crmv?: string;
+
+  @IsOptional()
+  @IsString()
+  pdfUrl?: string;
 
   @IsOptional()
   metadata?: any;

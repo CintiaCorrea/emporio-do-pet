@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { speciesKey, ageFromBirth } from "@/lib/pets/labels";
+import { useAutoSaveDraft } from "@/hooks/useAutoSaveDraft";
 
 // Edição/cadastro do pet no inbox. inline = renderiza no painel (sem pop-up). Sem pet.id = cadastra novo (POST).
 export default function PetEditModal({ pet, tutorId, onClose, onSaved, inline }: { pet?: any; tutorId?: string; onClose: () => void; onSaved: (patch: any) => void; inline?: boolean }) {
@@ -23,6 +24,14 @@ export default function PetEditModal({ pet, tutorId, onClose, onSaved, inline }:
   const [breeds, setBreeds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const up = (k: string, v: string) => setF((s) => ({ ...s, [k]: v }));
+
+  // Auto-save de rascunho (silencioso). Novo pet: amarrado ao tutor; edição: ao pet.
+  const { clear: limparRascunho } = useAutoSaveDraft<typeof f>({
+    key: isNew ? `petRascNovo:${tutorId || p.tutorId || "sem"}` : `petRasc:${p.id}`,
+    value: f,
+    isVazio: (v) => !(v.name || v.breed || v.observations || v.microchip || v.coatColor || v.weight),
+    onRestore: (s) => setF((prev) => ({ ...prev, ...s })),
+  });
 
   useEffect(() => {
     let cancel = false;
@@ -67,6 +76,7 @@ export default function PetEditModal({ pet, tutorId, onClose, onSaved, inline }:
       }
       const saved = await r.json().catch(() => null);
       toast.success(isNew ? "Pet cadastrado" : "Pet atualizado");
+      limparRascunho();
       onSaved(isNew ? { ...patch, ...(saved || {}) } : patch);
       onClose();
     } catch { toast.error("Sem conexão — tente de novo"); setSaving(false); }

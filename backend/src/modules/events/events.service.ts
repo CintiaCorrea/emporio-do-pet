@@ -154,6 +154,12 @@ export class EventsService implements OnModuleInit {
     this.eventEmitter.emit('system.event', event);
   }
 
+  // Evento LEVE pro tempo real da AGENDA — qualquer mudança (criar/remarcar/cancelar/
+  // excluir) avisa as telas de agenda a recarregarem. Separado dos eventos ricos abaixo.
+  emitAppointmentChanged() {
+    this.eventEmitter.emit('appointment.changed', { at: Date.now() });
+  }
+
   // Helper methods to emit specific events
   emitTutorCreated(userId: string, data: TutorEventData) {
     this.emit({

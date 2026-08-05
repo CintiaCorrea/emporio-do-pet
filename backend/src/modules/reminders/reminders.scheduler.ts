@@ -66,7 +66,7 @@ export class RemindersScheduler {
   private async enviarUmaVez(chave: string, phone: string, template: string, params: Array<{ type: 'text'; text: string }>, textoLegivel?: string): Promise<boolean> {
     const ja = await this.prisma.listaItem.findFirst({ where: { lista: 'reminder_sent', valor: chave } });
     if (ja) return false;
-    const res = await this.whatsapp.enviarTemplateRegistrando(phone, template, params, textoLegivel);
+    const res = await this.whatsapp.enviarTemplateRegistrando(phone, template, params, textoLegivel, true);
     if (!res.success) { this.logger.warn(`Falha ${template} (${chave}): ${res.error}`); return false; }
     await this.prisma.listaItem.create({ data: { lista: 'reminder_sent', valor: chave } }).catch(() => undefined);
     this.logger.log(`${template} enviado (${chave})`);

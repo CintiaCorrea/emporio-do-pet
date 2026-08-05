@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { usePodeEditar } from '@/lib/permissions/context';
 import {
   LuCheck,
   LuFileText,
@@ -83,6 +84,7 @@ function getApiErrorMessage(data: any, fallback: string) {
 }
 
 export default function TemplatesPage() {
+  const podeEditar = usePodeEditar(); // perfil VISUALIZA = esconde criar/excluir
   const [templates, setTemplates] = useState<WhatsAppTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -293,13 +295,13 @@ export default function TemplatesPage() {
             Atualizar
           </button>
           <TemplateImportExport onImportComplete={() => loadTemplates()} />
-          <Link
+          {podeEditar && <Link
             href="/dashboard/ai-agents/templates/novo"
             className="flex items-center gap-2 bg-[#009AAC] hover:bg-[#00798A] text-white px-3.5 py-1.5 rounded-lg text-xs font-medium"
           >
             <LuPlus className="w-4 h-4" />
             Novo template
-          </Link>
+          </Link>}
         </div>
 
         {/* Cards de estatísticas */}
@@ -478,8 +480,8 @@ export default function TemplatesPage() {
                     </div>
                   )}
                 </div>
-                {selectedTemplate.status !== 'APPROVED' && (
-                  <button 
+                {podeEditar && selectedTemplate.status !== 'APPROVED' && (
+                  <button
                     onClick={() => handleDeleteTemplate(selectedTemplate.name)}
                     disabled={actionLoading === selectedTemplate.name}
                     className="flex items-center gap-2 px-4 py-2 bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/50 text-red-700 dark:text-red-400 rounded-lg transition-colors disabled:opacity-50"

@@ -98,7 +98,7 @@ export default function DocumentViewer({ document: doc, onBack, onUpdate }: Docu
   // Print document — com o papel timbrado da clínica de fundo.
   const printDocument = () => {
     if (doc.htmlContent) {
-      void imprimirDocumento(tituloDoc, doc.htmlContent);
+      void imprimirDocumento(tituloDoc, doc.htmlContent, undefined, { pet: doc.pet, tutor: doc.tutor });
     } else {
       window.print();
     }
@@ -107,7 +107,7 @@ export default function DocumentViewer({ document: doc, onBack, onUpdate }: Docu
   // Download as PDF (usa a mesma impressão com timbrado; o usuário escolhe "Salvar como PDF").
   const downloadPdf = () => {
     if (doc.htmlContent) {
-      void imprimirDocumento(tituloDoc, doc.htmlContent);
+      void imprimirDocumento(tituloDoc, doc.htmlContent, undefined, { pet: doc.pet, tutor: doc.tutor });
       toast.success('Use "Salvar como PDF" na janela de impressão');
     }
   };

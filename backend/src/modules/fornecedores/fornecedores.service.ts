@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateFornecedorDto, UpdateFornecedorDto } from './dto/fornecedor.dto';
 import { CreateExameDto, UpdateExameDto } from './dto/exame.dto';
@@ -59,6 +59,21 @@ export class FornecedoresService {
     const exists = await this.prisma.catalogoExame.findUnique({ where: { id } });
     if (!exists) throw new NotFoundException('Exame não encontrado');
     return this.prisma.catalogoExame.delete({ where: { id } });
+  }
+
+  /**
+   * Precifica exames em LOTE: aplica um markup % sobre o custo do laboratório (valorFornecedor)
+   * de cada exame, gerando o preço ao cliente (valorClienteSugerido = custo × (1 + %/100)).
+   * Por padrão (sobrescrever=false) só mexe nos exames que AINDA NÃO têm preço — assim não
+   * apaga ajustes manuais. Com sobrescrever=true, reaplica em todos.
+   */
+  async precificarEmLote(percent: number, sobrescrever = false) {
+    const fator = 1 + Number(percent) / 100;
+    if (!Number.isFinite(fator)) throw new BadRequestException('Percentual inválido');
+    const afetados = sobrescrever
+      ? await this.prisma.$executeRaw`UPDATE catalogo_exames SET "valorClienteSugerido" = round(("valorFornecedor" * ${fator})::numeric, 2), "updatedAt" = now() WHERE "valorFornecedor" > 0`
+      : await this.prisma.$executeRaw`UPDATE catalogo_exames SET "valorClienteSugerido" = round(("valorFornecedor" * ${fator})::numeric, 2), "updatedAt" = now() WHERE "valorFornecedor" > 0 AND ("valorClienteSugerido" IS NULL OR "valorClienteSugerido" = 0)`;
+    return { atualizados: Number(afetados) };
   }
 
   // ===== Seed Pacote Inicial =====

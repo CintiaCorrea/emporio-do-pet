@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import ConfirmDeleteModal from '@/components/common/ConfirmDeleteModal';
+import { usePodeEditar } from '@/lib/permissions/context';
 import {
   LuBook,
   LuFileText,
@@ -28,6 +29,7 @@ interface KnowledgeBase {
 }
 
 export default function KnowledgeBasesPage() {
+  const podeEditar = usePodeEditar(); // perfil VISUALIZA = esconde criar/excluir
   const router = useRouter();
   const [bases, setBases] = useState<KnowledgeBase[]>([]);
   const [loading, setLoading] = useState(true);
@@ -106,13 +108,13 @@ export default function KnowledgeBasesPage() {
     <div className="mx-auto w-full max-w-7xl space-y-4 px-3 pb-4 pt-4 sm:space-y-6 sm:px-5 sm:pb-6 sm:pt-6 md:px-6 md:pt-7 lg:px-8 lg:pt-8">
       {/* Toolbar */}
       <div className="flex justify-end">
-        <button
+        {podeEditar && <button
           onClick={() => setShowCreateModal(true)}
           className="flex items-center justify-center gap-2 rounded-lg bg-[#009AAC] px-3.5 py-1.5 text-xs font-medium text-white hover:bg-[#00798A]"
         >
           <LuPlus className="w-4 h-4" />
           Nova base
-        </button>
+        </button>}
       </div>
 
       {/* Search */}
@@ -143,7 +145,7 @@ export default function KnowledgeBasesPage() {
               ? 'Tente uma busca diferente'
               : 'Crie uma base de conhecimento para seus agentes usarem RAG'}
           </p>
-          {!search && (
+          {podeEditar && !search && (
             <button
               onClick={() => setShowCreateModal(true)}
               className="inline-flex items-center gap-2 bg-[#009AAC] hover:bg-[#00798A] text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors"
@@ -202,13 +204,13 @@ export default function KnowledgeBasesPage() {
                   </div>
                 </Link>
 
-                <button
+                {podeEditar && <button
                   onClick={() => setBaseToDelete(kb)}
                   className="flex items-center justify-center self-end rounded-lg p-2 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 sm:self-start"
                   title="Excluir"
                 >
                   <LuTrash className="w-4 h-4" />
-                </button>
+                </button>}
               </div>
             </div>
           ))}

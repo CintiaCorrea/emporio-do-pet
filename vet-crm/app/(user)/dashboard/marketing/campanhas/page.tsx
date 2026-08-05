@@ -4,6 +4,7 @@ import { confirmDelete } from "@/lib/ui/confirmDelete";
 import { useEffect, useMemo, useState , useRef} from "react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { LuPlus, LuTrash, LuX, LuPencil } from "react-icons/lu";
+import { usePodeEditar } from "@/lib/permissions/context";
 
 const PLATAFORMAS = ["Meta Ads", "Google Ads", "Instagram", "Facebook", "TikTok", "Indicação", "Outro"];
 const TIPOS = ["Aquisição", "Remarketing", "Branding", "Conteúdo", "Outro"];
@@ -14,6 +15,7 @@ const EMPTY = { nome: "", plataforma: "Meta Ads", tipo: "Aquisição", segmento:
 
 export default function CampanhasPage() {
   usePageTitle("Campanhas", "Campanhas de mídia · CAC e ROI");
+  const podeEditar = usePodeEditar(); // perfil VISUALIZA = esconde criar/editar/excluir
   const [loading, setLoading] = useState(true);
   const jaCarregou = useRef(false);
   const [rows, setRows] = useState<any[]>([]);
@@ -69,7 +71,7 @@ export default function CampanhasPage() {
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
         <span className="text-[12px] text-[#64748b]">{rows.length} campanha(s) · Leads e conversões automáticos pela Tag Origem</span>
-        <button onClick={() => { setEditId(null); setForm({ ...EMPTY }); setOpen(true); }} className="bg-[#009AAC] text-white px-3.5 py-1.5 rounded-lg text-xs font-medium inline-flex items-center gap-1.5"><LuPlus className="w-3.5 h-3.5" />Nova campanha</button>
+        {podeEditar && <button onClick={() => { setEditId(null); setForm({ ...EMPTY }); setOpen(true); }} className="bg-[#009AAC] text-white px-3.5 py-1.5 rounded-lg text-xs font-medium inline-flex items-center gap-1.5"><LuPlus className="w-3.5 h-3.5" />Nova campanha</button>}
       </div>
 
       <div className="bg-white rounded-xl border overflow-hidden" style={{ borderColor: "#d8d0bc" }}>
@@ -92,7 +94,7 @@ export default function CampanhasPage() {
                   <td className="px-2 py-2 text-right">{fmtBRL(m.rec)}</td>
                   <td className="px-2 py-2 text-right text-[#5b6470]">{m.leads ? fmtBRL(m.cac) : "—"}</td>
                   <td className="px-2 py-2 text-right font-semibold" style={{ color: m.roi === null ? "#94a3b8" : m.roi >= 0 ? "#0F6E56" : "#A32D2D" }}>{m.roi === null ? "—" : `${m.roi > 0 ? "+" : ""}${m.roi}%`}</td>
-                  <td className="px-2 py-2 text-right whitespace-nowrap"><button onClick={() => editar(c)} className="text-[#94a3b8] hover:text-[#009AAC] mr-1"><LuPencil className="w-3.5 h-3.5" /></button><button onClick={() => excluir(c.id)} className="text-[#94a3b8] hover:text-[#A32D2D]"><LuTrash className="w-3.5 h-3.5" /></button></td>
+                  <td className="px-2 py-2 text-right whitespace-nowrap">{podeEditar && <><button onClick={() => editar(c)} className="text-[#94a3b8] hover:text-[#009AAC] mr-1"><LuPencil className="w-3.5 h-3.5" /></button><button onClick={() => excluir(c.id)} className="text-[#94a3b8] hover:text-[#A32D2D]"><LuTrash className="w-3.5 h-3.5" /></button></>}</td>
                 </tr>
               ); })}
             </tbody>

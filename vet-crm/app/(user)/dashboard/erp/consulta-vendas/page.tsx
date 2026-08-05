@@ -4,6 +4,8 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { usePageTitle } from '@/lib/ui/PageHeaderContext';
+import OrcamentosBusca from '@/components/vendas/OrcamentosBusca';
+import { imprimirVenda } from '@/lib/documentos/venda-print';
 
 /* ---------------- paleta Base44 ---------------- */
 const BG = '#F6F2EA';
@@ -159,6 +161,7 @@ function LinhaVenda({ v }: { v: Venda }) {
               <div className="flex items-center gap-4 mt-2.5 flex-wrap" style={{ fontSize: 12, color: GREY2 }}>
                 {v.paymentMethod && <span>💳 {v.paymentMethod}</span>}
                 {v.funcionario && <span>🧑 {v.funcionario}</span>}
+                <button onClick={(e) => { e.stopPropagation(); imprimirVenda(v); }} className="inline-flex items-center gap-1.5" style={{ marginLeft: 'auto', border: `1px solid ${CARD_LINE}`, borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 600, color: NAVY, background: '#fff', cursor: 'pointer' }}>🖨️ Imprimir comprovante</button>
               </div>
             </div>
           </td>
@@ -183,6 +186,7 @@ export default function ConsultaVendasPage() {
   const [marca, setMarca] = useState('');
   const [busca, setBusca] = useState('');
   const [cod, setCod] = useState('');
+  const [modo, setModo] = useState<'VENDAS' | 'ORCAMENTOS'>('VENDAS');
 
   const [data, setData] = useState<Resp | null>(null);
   const [loading, setLoading] = useState(true);
@@ -215,6 +219,15 @@ export default function ConsultaVendasPage() {
   return (
     <div className="p-6 min-h-screen" style={{ background: BG }}>
       <style>{`@media print{ .no-print{display:none!important;} body{background:#fff;} .cv-print-h{display:block!important;} }`}</style>
+
+      {/* Abas: Vendas | Orçamentos (busca global de orçamentos) */}
+      <div className="flex gap-1 mb-4 no-print">
+        {(([['VENDAS', '🧾 Vendas'], ['ORCAMENTOS', '📄 Orçamentos']]) as [('VENDAS' | 'ORCAMENTOS'), string][]).map(([k, lbl]) => (
+          <button key={k} onClick={() => setModo(k)} style={{ fontSize: 13, fontWeight: 600, padding: '8px 16px', borderRadius: 9, border: `1px solid ${CARD_LINE}`, background: modo === k ? TEAL : '#fff', color: modo === k ? '#fff' : NAVY }}>{lbl}</button>
+        ))}
+      </div>
+
+      {modo === 'ORCAMENTOS' ? <OrcamentosBusca /> : (<>
 
       {/* cabeçalho só de impressão */}
       <div className="cv-print-h" style={{ display: 'none', marginBottom: 14 }}>
@@ -330,6 +343,7 @@ export default function ConsultaVendasPage() {
           </table>
         )}
       </div>
+      </>)}
     </div>
   );
 }

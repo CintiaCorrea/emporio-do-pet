@@ -4,6 +4,7 @@
 
 import { useEffect, useMemo, useState , useRef} from "react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
+import { usePodeEditar } from "@/lib/permissions/context";
 
 const TIPOS = ["Dinheiro", "Pix", "Maquininha (cartão)", "Crédito do cliente", "Boleto", "Outro"];
 const TIPO_EMOJI: Record<string, string> = { Dinheiro: "💵", Pix: "📱", "Maquininha (cartão)": "💳", "Crédito do cliente": "🏦", Boleto: "🧾", Outro: "💠" };
@@ -17,6 +18,7 @@ const novaForma = () => ({ id: "", nome: "", tipo: "Dinheiro", conta: "", ativo:
 
 export default function FormasRecebimentoPage() {
   usePageTitle("Formas de recebimento", "Configurar formas de pagamento e taxas");
+  const podeEditar = usePodeEditar(); // perfil VISUALIZA = esconde criar/editar/excluir
   const [loading, setLoading] = useState(true);
   const jaCarregou = useRef(false);
   const [formas, setFormas] = useState<any[]>([]);
@@ -77,7 +79,7 @@ export default function FormasRecebimentoPage() {
     <div className="p-6 w-full">
       <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
         <div className="text-[13px] text-[#374151]">{formas.length} forma(s) cadastrada(s) · aparecem no Ponto de venda e ao baixar comandas</div>
-        <button onClick={() => abrir()} className="text-[12px] font-medium text-white bg-[#009AAC] px-3.5 py-1.5 rounded-lg">➕ Adicionar forma</button>
+        {podeEditar && <button onClick={() => abrir()} className="text-[12px] font-medium text-white bg-[#009AAC] px-3.5 py-1.5 rounded-lg">➕ Adicionar forma</button>}
       </div>
 
       {loading ? (
@@ -88,7 +90,7 @@ export default function FormasRecebimentoPage() {
           <div className="text-sm text-[#5C6B70] mb-1">Nenhuma forma cadastrada ainda.</div>
           <div className="text-[12px] text-[#374151] mb-3">Cadastre suas formas de pagamento (dinheiro, Pix, maquininhas…).</div>
           <div className="flex gap-2 justify-center">
-            <button onClick={() => abrir()} className="text-[12px] font-medium text-white bg-[#009AAC] px-4 py-2 rounded-lg">➕ Adicionar forma</button>
+            {podeEditar && <button onClick={() => abrir()} className="text-[12px] font-medium text-white bg-[#009AAC] px-4 py-2 rounded-lg">➕ Adicionar forma</button>}
             <button onClick={seed} className="text-[12px] font-medium text-[#5C6B70] bg-white border px-4 py-2 rounded-lg" style={{ borderColor: "#E8E2D6" }}>Criar formas básicas</button>
           </div>
         </div>
@@ -107,8 +109,8 @@ export default function FormasRecebimentoPage() {
                   </div>
                   <div className="flex items-center gap-2.5 flex-shrink-0">
                     <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={f.ativo !== false ? { background: "#E1F5EE", color: "#0F6E56" } : { background: "#F0EBE0", color: "#374151" }}>{f.ativo !== false ? "Ativa" : "Inativa"}</span>
-                    <button onClick={(e) => { e.stopPropagation(); abrir(f); }} className="text-[13px]">✏️</button>
-                    <button onClick={(e) => { e.stopPropagation(); excluir(f); }} className="text-[13px]">🗑️</button>
+                    {podeEditar && <button onClick={(e) => { e.stopPropagation(); abrir(f); }} className="text-[13px]">✏️</button>}
+                    {podeEditar && <button onClick={(e) => { e.stopPropagation(); excluir(f); }} className="text-[13px]">🗑️</button>}
                   </div>
                 </div>
                 {cartao && aberto && (
@@ -124,7 +126,7 @@ export default function FormasRecebimentoPage() {
                         <div key={n} className="flex justify-between text-[12px]"><span className="text-[#5C6B70]">{n === 1 ? "À vista (1x)" : `${n}x`}</span><span className="text-[#014D5E] tabular-nums font-medium">{f.taxas?.[String(n)] ? `${f.taxas[String(n)]}%` : "—"}</span></div>
                       ))}
                     </div>
-                    <button onClick={() => abrir(f)} className="mt-3 text-[11.5px] font-medium text-[#00798A]">✏️ Editar taxas</button>
+                    {podeEditar && <button onClick={() => abrir(f)} className="mt-3 text-[11.5px] font-medium text-[#00798A]">✏️ Editar taxas</button>}
                   </div>
                 )}
               </div>

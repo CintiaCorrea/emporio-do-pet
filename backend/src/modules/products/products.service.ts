@@ -204,4 +204,188 @@ export class ProductsService {
     await this.prisma.product.delete({ where: { id } });
     return { message: 'Product excluído com sucesso' };
   }
+
+  // ===== Importação de catálogo por CSV (serviços + produtos) =====
+  // Formato: tipo;nome;categoria;preco;custo;ativo;aparece_no_pdv;marca;unidade;codigo_barras;estoque
+  // Regras (decididas com a Cintia): importa tudo; remove duplicados (fico com 1); preço 0 = INATIVO;
+  // itens atuais que NÃO estão na lista = INATIVOS (reversível). dryRun=true só devolve a prévia.
+  private csvNum(s?: string): number | null {
+    let t = (s || '').trim();
+    if (!t) return null;
+    if (t.includes(',')) t = t.replace(/\./g, '').replace(',', '.');
+    const n = Number(t);
+    return Number.isFinite(n) ? n : null;
+  }
+  private normNome(s?: string): string {
+    return (s || '').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ');
+  }
+
+  async importarCatalogo(csv: string, opts?: { dryRun?: boolean }) {
+    const dryRun = !!opts?.dryRun;
+    const linhas = String(csv || '').split(/\r?\n/).filter((l) => l.trim().length);
+    if (!linhas.length) throw new BadRequestException('CSV vazio');
+    // Detecta o separador de colunas (";" padrão pt-BR, ou TAB). Vírgula é evitada
+    // porque colide com o decimal (ex.: "1,50") — se vier só vírgula, avisamos.
+    const cont = (s: string, ch: string) => (s.match(new RegExp(ch === '\t' ? '\\t' : `\\${ch}`, 'g')) || []).length;
+    const h0 = linhas[0];
+    const sep = cont(h0, '\t') > cont(h0, ';') ? '\t' : ';';
+    const sepLabel = sep === '\t' ? 'TAB' : 'ponto e vírgula (;)';
+    const start = /tipo/i.test(linhas[0]) && /nome/i.test(linhas[0]) ? 1 : 0;
+
+    const vistos = new Set<string>();
+    const itens: any[] = [];
+    const suspeitos: string[] = [];
+    let duplicadosRemovidos = 0;
+
+    for (let i = start; i < linhas.length; i++) {
+      const c = linhas[i].split(sep);
+      const nome = (c[1] || '').trim();
+      if (!nome) continue;
+      const chave = this.normNome(nome);
+      if (vistos.has(chave)) { duplicadosRemovidos++; continue; }
+      vistos.add(chave);
+      const isProduto = (c[0] || '').trim().toLowerCase().startsWith('produto');
+      const preco = this.csvNum(c[3]) ?? 0;
+      const ativo = preco > 0; // preço 0 → inativo
+      if (preco <= 0) suspeitos.push(nome);
+      else if (/(rpro|repro|felinor)$/i.test(nome)) suspeitos.push(`${nome} (nome suspeito)`);
+      itens.push({
+        nome, isProduto, preco, ativo,
+        custo: this.csvNum(c[4]),
+        catNome: (c[2] || '').trim(),
+        marca: (c[7] || '').trim() || null,
+        unidade: (c[8] || '').trim() || null,
+        codBarras: (c[9] || '').trim() || null,
+        estoque: this.csvNum(c[10]),
+        fornNome: (c[11] || '').trim() || null, // coluna nova (opcional): fornecedor
+      });
+    }
+    if (!itens.length) {
+      const nCols = (linhas[start] || h0).split(sep).length;
+      const temVirgula = cont(h0, ',') > cont(h0, ';') && cont(h0, ';') === 0;
+      const dica = temVirgula
+        ? 'O arquivo parece separado por VÍRGULA. Reexporte como "CSV UTF-8" (que usa ; ) ou troque o separador para ponto e vírgula.'
+        : nCols < 2
+          ? 'Não consegui separar as colunas. Se você exportou do Excel, use "Salvar como > CSV UTF-8 (delimitado por ;)" — não envie .xlsx.'
+          : 'A 2ª coluna (nome) veio vazia em todas as linhas. Confira se a ordem é: tipo;nome;categoria;preco;custo;...';
+      throw new BadRequestException(`Nenhum item válido. Detectei separador "${sepLabel}" e ${nCols} coluna(s) na 1ª linha de dados. ${dica}`);
+    }
+
+    const existentes = await this.prisma.product.findMany({ select: { id: true, name: true, price: true, ativo: true } });
+    const mapaExist = new Map(existentes.map((e) => [this.normNome(e.name), e]));
+    const chavesLista = new Set(itens.map((i) => this.normNome(i.nome)));
+    let novos = 0, atualizados = 0;
+    for (const it of itens) (mapaExist.has(this.normNome(it.nome)) ? atualizados++ : novos++);
+    const foraDaLista = existentes.filter((e) => e.ativo && !chavesLista.has(this.normNome(e.name)));
+
+    const relatorio = {
+      totalItens: itens.length,
+      produtos: itens.filter((i) => i.isProduto).length,
+      servicos: itens.filter((i) => !i.isProduto).length,
+      novos, atualizados, duplicadosRemovidos,
+      precoZeroInativados: itens.filter((i) => !i.ativo).length,
+      foraDaListaInativados: foraDaLista.length,
+      totalSuspeitos: suspeitos.length,
+      suspeitos: suspeitos.slice(0, 60),
+    };
+    if (dryRun) return { dryRun: true, ...relatorio };
+
+    // ---------- IMPORT REAL (com backup) ----------
+    // Backup do que existe hoje (pra desfazer se preciso) — UM registro por item.
+    // (Não guardar o catálogo inteiro num único `valor`: passaria do limite do índice único de lista_itens.)
+    const backupLista = `backup_catalogo_${new Date().toISOString().slice(0, 19)}`;
+    await this.prisma.listaItem.createMany({
+      data: existentes.map((it) => ({ lista: backupLista, valor: JSON.stringify(it).slice(0, 6000) })),
+      skipDuplicates: true,
+    });
+
+    // Categorias: resolve/cria as distintas de uma vez.
+    const catNomes = [...new Set(itens.map((i) => i.catNome).filter(Boolean))];
+    const cats = await this.prisma.serviceCategory.findMany({ select: { id: true, nome: true } });
+    const catMap = new Map(cats.map((c) => [this.normNome(c.nome), c.id]));
+    for (const cn of catNomes) {
+      if (!catMap.has(this.normNome(cn))) {
+        const nova = await this.prisma.serviceCategory.create({ data: { nome: cn } });
+        catMap.set(this.normNome(cn), nova.id);
+      }
+    }
+
+    // Fornecedores: resolve/cria os distintos (coluna nova do CSV) — tipo default LABORATORIO.
+    const fornNomes = [...new Set(itens.map((i) => i.fornNome).filter(Boolean))];
+    const fornsAll = await this.prisma.fornecedor.findMany({ select: { id: true, nome: true } });
+    const fornMap = new Map(fornsAll.map((f) => [this.normNome(f.nome), f.id]));
+    for (const fn of fornNomes) {
+      if (!fornMap.has(this.normNome(fn))) {
+        const nova = await this.prisma.fornecedor.create({ data: { nome: fn } });
+        fornMap.set(this.normNome(fn), nova.id);
+      }
+    }
+
+    const dadosDe = (it: any) => ({
+      type: (it.isProduto ? 'MEDICINE' : 'SERVICE') as any,
+      price: it.preco,
+      custoPadrao: it.custo ?? undefined,
+      categoryId: it.catNome ? catMap.get(this.normNome(it.catNome)) : undefined,
+      marca: it.marca ?? undefined,
+      unidadeVenda: it.unidade ?? undefined,
+      codigoBarras: it.codBarras ?? undefined,
+      fornecedorId: it.fornNome ? (fornMap.get(this.normNome(it.fornNome)) ?? undefined) : undefined,
+      stock: it.isProduto ? Math.round(it.estoque ?? 0) : 0,
+      ativo: it.ativo,
+    });
+
+    let criados = 0, atualizadosN = 0;
+    for (const it of itens) {
+      const ex = mapaExist.get(this.normNome(it.nome));
+      if (ex) { await this.prisma.product.update({ where: { id: ex.id }, data: dadosDe(it) }); atualizadosN++; }
+      else { await this.prisma.product.create({ data: { name: it.nome, ...dadosDe(it) } }); criados++; }
+    }
+    // Itens atuais fora da lista → inativos (não apaga).
+    if (foraDaLista.length) {
+      await this.prisma.product.updateMany({ where: { id: { in: foraDaLista.map((f) => f.id) } }, data: { ativo: false } });
+    }
+
+    return { dryRun: false, ...relatorio, criados, atualizados: atualizadosN, inativados: foraDaLista.length };
+  }
+
+  // ── Ficha técnica (ProdutoComposicao): insumos que um procedimento/kit consome ──
+  async getComposicao(paiId: string) {
+    const rows = await this.prisma.produtoComposicao.findMany({
+      where: { paiId },
+      include: { item: { select: { id: true, name: true, type: true, stock: true, custoPadrao: true, unidadeVenda: true } } },
+      orderBy: { createdAt: 'asc' },
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      itemId: r.itemId,
+      quantidade: r.quantidade,
+      custoUnitario: r.precoUnitario ?? r.item?.custoPadrao ?? null,
+      item: r.item,
+    }));
+  }
+
+  async setComposicao(
+    paiId: string,
+    itens: Array<{ itemId: string; quantidade: number; custoUnitario?: number | null }>,
+  ) {
+    const pai = await this.prisma.product.findUnique({ where: { id: paiId }, select: { id: true } });
+    if (!pai) throw new NotFoundException('Item não encontrado');
+    const limpos = (itens || []).filter(
+      (i) => i && i.itemId && i.itemId !== paiId && Number(i.quantidade) > 0,
+    );
+    await this.prisma.$transaction([
+      this.prisma.produtoComposicao.deleteMany({ where: { paiId } }),
+      ...(limpos.length
+        ? [this.prisma.produtoComposicao.createMany({
+            data: limpos.map((i) => ({
+              paiId,
+              itemId: i.itemId,
+              quantidade: Number(i.quantidade),
+              precoUnitario: i.custoUnitario ?? null,
+            })),
+          })]
+        : []),
+    ]);
+    return this.getComposicao(paiId);
+  }
 }

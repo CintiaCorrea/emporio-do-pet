@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
+import { useNotifications } from "@/hooks/useNotifications";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { useRolePreview } from "@/lib/ui/RolePreview";
 import NovoAgendamentoModal from "@/components/agendamentos/NovoAgendamentoModal";
@@ -71,6 +72,7 @@ export default function AgendaPage() {
   const [view, setView] = useState<"dia" | "semana" | "mes">("dia");
   const [menuAppt, setMenuAppt] = useState<{ a: any; x: number; y: number } | null>(null);
   const [filasOpen, setFilasOpen] = useState(false); // roll-up do seletor de profissionais/filas
+  const [mobProf, setMobProf] = useState<string | null>(null); // filtro de profissional na lista do CELULAR
   const [avancandoId, setAvancandoId] = useState<string | null>(null);
   const [confirmData, setConfirmData] = useState<any>(null); // agendamento na prévia de confirmação
   const [cancelData, setCancelData] = useState<any>(null); // agendamento na tela de cancelar
@@ -123,6 +125,25 @@ export default function AgendaPage() {
   }
   useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
 
+  // Atualização quase em tempo real: recarrega sozinho a cada 10s — SILENCIOSO (sem "carregando")
+  // e SEM atrapalhar quando você está arrastando um card, com um modal ou menu aberto, ou com a
+  // aba em segundo plano. Ao voltar o foco pra aba, atualiza na hora.
+  const interagindoRef = useRef(false);
+  interagindoRef.current = !!(arrastando || novoOpen || cancelData || menuAppt);
+  // ⚡ Tempo real: qualquer mudança de agendamento (aqui ou em outra máquina) recarrega
+  // na hora — respeitando o mesmo cuidado do poll (não recarrega arrastando/com modal aberto).
+  useNotifications({
+    onAgenda: () => { if (document.visibilityState === "visible" && !interagindoRef.current) load(); },
+  });
+  useEffect(() => {
+    const podeRecarregar = () => document.visibilityState === "visible" && !interagindoRef.current;
+    const id = setInterval(() => { if (podeRecarregar()) load(); }, 30000);
+    const onVis = () => { if (podeRecarregar()) load(); };
+    document.addEventListener("visibilitychange", onVis);
+    return () => { clearInterval(id); document.removeEventListener("visibilitychange", onVis); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const profsAtende = useMemo(() => profs.filter((p: any) => p.ativo !== false && !["RECEPCIONISTA", "GERENTE"].includes(p.tipo) && !((cfg?.profsOcultos || []).includes(p.id))), [profs, cfg]);
   const hIni = Number(cfg?.horaInicio ?? 8); const hFim = Number(cfg?.horaFim ?? 19);
   const horas = useMemo(() => Array.from({ length: Math.max(hFim - hIni + 1, 1) }, (_, i) => i + hIni), [hIni, hFim]);
@@ -135,8 +156,11 @@ export default function AgendaPage() {
   function temEscala(e: any) { return !!(e && e.semana && Object.keys(e.semana).length > 0); }
   function expedienteNoDia(e: any) { if (!temEscala(e)) return false; if (bloqueadoNoDia(e)) return false; return (e.semana[String(wdAtual)] || []).length > 0; }
 
-  // Cancelado SAI da agenda (some do quadro e libera o horário), mas continua no histórico do pet (consulta à parte).
-  const doDia = useMemo(() => appts.filter((a: any) => a.date && ymd(new Date(a.date)) === diaStr && a.status !== "Cancelado"), [appts, diaStr]);
+  // Cancelado e Remarcado SAEM da agenda (somem do quadro e liberam o horário), mas continuam no histórico do pet (consulta à parte).
+  // "Artefatos" do atendimento (Documento, Receita, Peso, Venda, Observação) NÃO são agendamentos —
+  // não devem aparecer na agenda (viravam cartões "duplicados").
+  const ehArtefato = (t?: string) => /^(documento|receitas?|peso|venda|observa)/i.test(String(t || "").trim());
+  const doDia = useMemo(() => appts.filter((a: any) => a.date && ymd(new Date(a.date)) === diaStr && a.status !== "Cancelado" && a.status !== "Remarcado" && !ehArtefato(a.type)), [appts, diaStr]);
   function valorDe(a: any) { const tr = a.treatments || []; return tr.reduce((s: number, t: any) => s + (Number(t.product?.price) || Number(t.valorUnitario) || 0) * (Number(t.quantidade) || 1), 0); }
   const profUserIds = useMemo(() => new Set(profsAtende.map((p: any) => p.userId).filter(Boolean)), [profsAtende]);
   function ehDoProf(a: any, prof: any) {
@@ -382,8 +406,8 @@ export default function AgendaPage() {
           <span className="text-[14px] font-medium ml-2" style={{ color: "#014D5E" }}>{tituloView}</span>
         </div>
         <div className="flex-1" />
-        <input type="date" value={diaStr} onChange={(e) => { if (e.target.value) setDia(new Date(e.target.value + "T12:00:00")); }} className="text-[13px] px-2 py-1.5 rounded-lg border" style={{ borderColor: "#E8E2D6" }} />
-        <div className="flex gap-0.5 border rounded-lg p-0.5" style={{ borderColor: "#E8E2D6" }}>
+        <input type="date" value={diaStr} onChange={(e) => { if (e.target.value) setDia(new Date(e.target.value + "T12:00:00")); }} className="hidden md:block text-[13px] px-2 py-1.5 rounded-lg border" style={{ borderColor: "#E8E2D6" }} />
+        <div className="hidden md:flex gap-0.5 border rounded-lg p-0.5" style={{ borderColor: "#E8E2D6" }}>
           {(([["dia", "Dia"], ["semana", "Semana"], ["mes", "Mês"]]) as [any, string][]).map(([v, lbl]) => (
             <button key={v} onClick={() => setView(v)} className="text-[12px] px-3 py-1.5 rounded-md" style={view === v ? { background: "#009AAC", color: "#fff" } : { color: "#5C6B70" }}>{lbl}</button>
           ))}
@@ -391,7 +415,7 @@ export default function AgendaPage() {
         {/* Escala agora fica no cadastro do profissional: Configurações › Equipe. */}
         {/* Config da agenda agora só em Configurações › Agenda & Atendimento. */}
         {(profsAtende.length > 0 || avulsasAtivas.length > 0) && (
-          <div className="relative">
+          <div className="relative hidden md:block">
             <button onClick={() => setFilasOpen((o) => !o)} className="inline-flex items-center gap-1.5 text-[13px] px-3 py-1.5 rounded-lg border" style={{ borderColor: "#E8E2D6", background: "#fff", color: "#5C6B70" }}>
               👥 Filas · {profsAtende.filter((p: any) => !hidden.has(p.id)).length + avulsasAtivas.filter((a: any) => !hidden.has(a.id)).length}/{profsAtende.length + avulsasAtivas.length}
               <span style={{ transform: filasOpen ? "rotate(180deg)" : "none", transition: "transform .15s" }}>▾</span>
@@ -479,7 +503,77 @@ export default function AgendaPage() {
         )}
       </div>
 
-      <div>
+      {/* ═══════ AGENDA NO CELULAR — lista do dia (só telas pequenas) ═══════ */}
+      <div className="md:hidden mb-3">
+        {/* filtro por profissional */}
+        {colunas.length > 1 && (
+          <div className="flex gap-2 overflow-x-auto pb-2 mb-2" style={{ scrollbarWidth: "none" }}>
+            <button onClick={() => setMobProf(null)} className="shrink-0 text-[12px] font-semibold px-3 py-1.5 rounded-full border" style={mobProf === null ? { background: "#014D5E", color: "#fff", borderColor: "#014D5E" } : { background: "#fff", color: "#5C6B70", borderColor: "#E8E2D6" }}>Todos</button>
+            {colunas.map((p: any) => (
+              <button key={"m-" + p.id} onClick={() => setMobProf(p.id)} className="shrink-0 text-[12px] font-semibold px-3 py-1.5 rounded-full border inline-flex items-center gap-1.5" style={mobProf === p.id ? { background: "#014D5E", color: "#fff", borderColor: "#014D5E" } : { background: "#fff", color: "#5C6B70", borderColor: "#E8E2D6" }}>
+                <span className="w-2 h-2 rounded-full" style={{ background: p.corAvatar || p.cor || "#009AAC" }} />{nomeCurto(p)}
+              </button>
+            ))}
+          </div>
+        )}
+        {/* resumo em chips */}
+        <div className="flex gap-2 overflow-x-auto pb-2 mb-1" style={{ scrollbarWidth: "none" }}>
+          <span className="shrink-0 text-[12px] font-semibold px-3 py-1.5 rounded-full border" style={{ background: "#fff", color: "#5C6B70", borderColor: "#E8E2D6" }}>🗓️ {doDia.length} agendamento{doDia.length === 1 ? "" : "s"}</span>
+          {mostrarValores && previsao > 0 && <span className="shrink-0 text-[12px] font-semibold px-3 py-1.5 rounded-full border" style={{ background: "#E8F5EE", color: "#1c6e4c", borderColor: "#cfe9dc" }}>💰 {brl(previsao)}</span>}
+          {espera.length > 0 && <span className="shrink-0 text-[12px] font-semibold px-3 py-1.5 rounded-full border" style={{ background: "#FBF3E3", color: "#8a6400", borderColor: "#f0dcb0" }}>⏳ {espera.length} em espera</span>}
+        </div>
+        {/* lista do dia */}
+        {loading ? (
+          <div className="text-center text-sm text-gray-400 py-10">Carregando agenda...</div>
+        ) : (() => {
+          const col = mobProf ? colunas.find((c: any) => c.id === mobProf) : null;
+          let lista = [...doDia].sort((x: any, y: any) => new Date(x.date).getTime() - new Date(y.date).getTime());
+          if (col) lista = lista.filter((a: any) => col._avulsa ? a.agendaAvulsa === col.id : ehDoProf(a, col));
+          if (lista.length === 0) return <div className="text-center text-sm text-gray-400 py-10 bg-white border rounded-2xl" style={{ borderColor: "#E8E2D6" }}>Nenhum agendamento neste dia.</div>;
+          let periodo = "";
+          return (
+            <div className="flex flex-col gap-2">
+              {lista.map((a: any) => {
+                const d = new Date(a.date);
+                const per = d.getHours() < 12 ? "Manhã" : "Tarde";
+                const showHdr = per !== periodo; periodo = per;
+                const cor = corDe(a.status, cfg?.cores);
+                const v = valorDe(a);
+                const quem = a.pet?.name ? `${a.pet.name}${a.tutor?.name ? ` · ${a.tutor.name}` : ""}` : (a.tutor?.name || "Agendamento");
+                const c = colunas.find((x: any) => x._avulsa ? x.id === a.agendaAvulsa : ehDoProf(a, x));
+                const profNome = c ? (c.nomeExibicao || c.nomeCompleto || c.nome) : (a.user?.name || "—");
+                const profCor = c?.corAvatar || c?.cor || "#009AAC";
+                const idx = estagioIdx(a.status); const est = ESTAGIOS[idx];
+                const petlife = /petlife/i.test(a.pet?.insurancePlan || "");
+                return (
+                  <div key={"m-" + a.id}>
+                    {showHdr && <div className="text-[11px] font-bold uppercase tracking-wide text-[#8A857A] mt-2 mb-1 px-1">{per}</div>}
+                    <div onClick={(e) => cardMenu(e, a)} className="bg-white border rounded-[13px] p-3 flex gap-3 relative overflow-hidden active:bg-[#FBF9F4]" style={{ borderColor: "#E8E2D6" }}>
+                      <span className="absolute left-0 top-0 bottom-0 w-1" style={{ background: profCor }} />
+                      <div className="text-[13px] font-bold pl-1.5 w-[46px] shrink-0" style={{ color: "#014D5E" }}>{hm(d)}</div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[14px] font-semibold text-[#1F2A2E] flex items-center gap-1.5 truncate">
+                          {petlife && <span style={{ fontSize: "8.5px", fontWeight: 700, background: "#EDE7F6", color: "#5E35B1", borderRadius: 4, padding: "1px 5px" }}>🩺 Petlife</span>}
+                          <span className="truncate">{quem}</span>
+                        </div>
+                        <div className="text-[12px] text-[#5C6B70] mt-0.5 flex items-center gap-1.5 truncate"><span className="w-2 h-2 rounded-full shrink-0" style={{ background: profCor }} /><span className="truncate">{profNome} · {a.type || "Atendimento"}</span></div>
+                        <div className="mt-1.5 flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                          {idx > 0 && <button onClick={() => retrocederEstagio(a)} disabled={avancandoId === a.id} title="Voltar estágio" className="text-[12px] font-bold w-6 h-6 rounded-md border disabled:opacity-50" style={{ borderColor: "#E8E2D6", color: "#374151" }}>‹</button>}
+                          <span className="text-[10.5px] font-bold px-2.5 py-1 rounded-full" style={{ background: est.bg, color: est.cor }}>{est.label}</span>
+                          {est.next && <button onClick={() => avancarEstagio(a)} disabled={avancandoId === a.id} title={`Avançar para ${est.next}`} className="text-[12px] font-bold w-6 h-6 rounded-md border disabled:opacity-50" style={{ borderColor: "#E8E2D6", color: "#009AAC" }}>›</button>}
+                        </div>
+                      </div>
+                      {mostrarValores && v > 0 && <div className="text-[12px] font-semibold shrink-0" style={{ color: "#0F6E56" }}>{brl(v)}</div>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
+      </div>
+
+      <div className="hidden md:block">
         <div className="bg-white border rounded-2xl overflow-hidden" style={{ borderColor: "#E8E2D6" }}>
           {loading ? (
             <div className="text-center text-sm text-gray-400 py-12">Carregando agenda...</div>
@@ -531,7 +625,7 @@ export default function AgendaPage() {
                             return (
                             // Continuação do MESMO cartão: flutua (mx) e cola no início; marginTop negativo
                             // cobre a linha tracejada da grade; arredonda embaixo só no último slot.
-                            <div key={a.id + "-c"} onClick={(e) => cardMenu(e, a)} title={`${quem} · ${a.duration || 30} min`} className={"cursor-pointer relative mx-1 " + (ultimo ? "rounded-b-xl mb-1 shadow-sm" : "")} style={{ borderLeft: `3px solid ${cBorder}`, background: cBg, height: ultimo ? "calc(100% + 2px)" : "calc(100% + 8px)", minHeight: 40, marginTop: -6, zIndex: 1 }} />
+                            <div key={a.id + "-c"} onClick={(e) => cardMenu(e, a)} title={`${quem} · ${a.duration || 30} min`} className={"cursor-pointer relative mx-1 " + (ultimo ? "rounded-b-xl mb-1 shadow-sm" : "")} style={{ borderLeft: `3px solid ${cBorder}`, background: cBg, height: ultimo ? "calc(100% + 6px)" : "calc(100% + 12px)", minHeight: 40, marginTop: -10, zIndex: 1 }} />
                             );
                           }
                           // Esta coluna está travada POR TABELA (o agendamento é da outra MAP do grupo)
@@ -548,7 +642,7 @@ export default function AgendaPage() {
                               <span className="text-[11px] font-medium flex items-center gap-1" style={{ color: cor.c }}>{hm(new Date(a.date))}{a.duration ? <span className="text-[9.5px] font-normal" style={{ color: cor.c, opacity: .8 }}>· {a.duration}min</span> : null}{a.confirmacaoStatus && CONF_BADGE[a.confirmacaoStatus] ? <span title={`Confirmação: ${a.confirmacaoStatus}`}>{CONF_BADGE[a.confirmacaoStatus].t}</span> : null}{obs ? <span title={obs} style={{ fontSize: "10px" }}>📝</span> : null}</span>
                               {travaSala(a) ? <span title="Ocupa a sala inteira" className="text-[10px]">🔒</span> : (mostrarValores && v > 0 ? <span className="text-[10px] font-medium" style={{ color: "#0F6E56" }}>{brl(v)}</span> : null)}
                             </div>
-                            <div className="text-[12px] font-medium truncate hover:underline cursor-pointer flex items-center gap-1" style={{ color: "#014D5E" }} title="Abrir a ficha completa" onClick={(e) => { e.stopPropagation(); const url = a.pet?.id ? `/dashboard/erp/pets/${a.pet.id}` : (a.tutor?.id ? `/dashboard/erp/tutores/${a.tutor.id}` : null); if (url) window.open(url, "_blank"); }}>{/petlife/i.test(a.pet?.insurancePlan || "") && <span title="Convênio Petlife" className="shrink-0">🩺</span>}<span className="truncate">{quem}</span></div>
+                            <div className="text-[12px] font-medium truncate hover:underline cursor-pointer flex items-center gap-1" style={{ color: "#014D5E" }} title="Abrir a ficha completa" onClick={(e) => { e.stopPropagation(); const url = a.pet?.id ? `/dashboard/erp/pets/${a.pet.id}` : (a.tutor?.id ? `/dashboard/erp/tutores/${a.tutor.id}` : null); if (url) window.open(url, "_blank"); }}>{/petlife/i.test(a.pet?.insurancePlan || "") && <span title="Convênio Petlife" className="shrink-0" style={{ fontSize: "8px", fontWeight: 700, background: "#EDE7F6", color: "#5E35B1", borderRadius: 4, padding: "0 4px", lineHeight: "14px", whiteSpace: "nowrap", letterSpacing: ".02em" }}>🩺 Petlife</span>}<span className="truncate">{quem}</span></div>
                             {/* Parceiro na MESMA linha do tipo: linha extra deixava o cartão mais alto e "quebrava" a grade. */}
                             <div className="text-[10px] truncate flex items-center gap-1" style={{ color: cor.c }}>
                               <span className="truncate">{a.type || "Atendimento"}</span>

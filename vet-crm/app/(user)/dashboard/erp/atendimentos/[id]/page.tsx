@@ -194,7 +194,7 @@ export default function AtendimentoDetailPage() {
         </Section>
 
         <Section title="Prescrição & exames" emoji="💊">
-          <KV label="Prescrição" value={data.prescription} block />
+          <KV label="Prescrição" value={data.prescription} block html />
           <KV label="Exames solicitados" value={data.examsRequested} block />
         </Section>
 
@@ -269,11 +269,13 @@ function Section({ title, emoji, Icon, children }: { title: string; emoji?: stri
 function Grid({ cols = 2, children }: { cols?: 2 | 3; children: React.ReactNode }) {
   return <div className={`grid grid-cols-1 md:grid-cols-${cols} gap-3`}>{children}</div>;
 }
-function KV({ label, value, block }: { label: string; value?: string | number | null; block?: boolean }) {
+function KV({ label, value, block, html }: { label: string; value?: string | number | null; block?: boolean; html?: boolean }) {
+  const v = value != null && value !== "" ? String(value) : "";
+  const isHtml = !!html && /<[a-z/!][^>]*>/i.test(v);
   return (
     <div className={block ? "md:col-span-3" : ""}>
       <div className="text-[10.5px] uppercase tracking-wide text-gray-400 font-semibold mb-0.5">{label}</div>
-      <div className="text-sm text-gray-700 whitespace-pre-wrap">{value ? String(value) : <span className="text-gray-300">—</span>}</div>
+      <div className="text-sm text-gray-700 whitespace-pre-wrap">{v ? (isHtml ? <span dangerouslySetInnerHTML={{ __html: v }} /> : v) : <span className="text-gray-300">—</span>}</div>
     </div>
   );
 }

@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
+import { usePodeEditar } from '@/lib/permissions/context';
+import DocConteudo from '@/components/documentos/DocConteudo';
 import {
   LuSearch,
   LuPlus,
@@ -207,6 +209,7 @@ const appointmentToConsultation = (appointment: Appointment): Consultation => {
 };
 
 export default function ConsultationsPage() {
+  const podeEditar = usePodeEditar(); // perfil VISUALIZA = esconde ações de mexer
   const router = useRouter();
   const { data: _session } = useSession();
   const meId = (_session as any)?.user?.id as string | undefined;
@@ -745,7 +748,8 @@ export default function ConsultationsPage() {
                     <span style={{fontSize:"14px"}}>📈</span>
                     <span>Relatório</span>
                   </Link>
-                  <button 
+                  {podeEditar && (
+                  <button
                     onClick={() => {
                       resetForm();
                       setIsCreateModalOpen(true);
@@ -756,6 +760,7 @@ export default function ConsultationsPage() {
                     <LuPlus className="w-4 h-4 relative z-10" />
                     <span className="relative z-10">Nova Consulta</span>
                   </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -985,7 +990,7 @@ export default function ConsultationsPage() {
                           </td>
                           <td className="p-6">
                             <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                              {cons.status === 'SCHEDULED' || cons.status === 'CONFIRMED' ? (
+                              {podeEditar && (cons.status === 'SCHEDULED' || cons.status === 'CONFIRMED') ? (
                                 <button
                                   onClick={() => irParaFicha(cons)}
                                   className="p-2 text-[#009AAC] hover:bg-[#EAF6F7] rounded-2xl transition-colors"
@@ -994,7 +999,7 @@ export default function ConsultationsPage() {
                                   <span style={{fontSize:"14px"}}>⚡</span>
                                 </button>
                               ) : null}
-                              {cons.status === 'IN_PROGRESS' && (
+                              {podeEditar && cons.status === 'IN_PROGRESS' && (
                                 <button
                                   onClick={() => handleCompleteConsultation(cons.id)}
                                   className="p-2 text-green-600 hover:bg-green-50 rounded-2xl transition-colors"
@@ -1003,7 +1008,7 @@ export default function ConsultationsPage() {
                                   <span style={{fontSize:"14px"}}>✓</span>
                                 </button>
                               )}
-                              {(cons.status === 'SCHEDULED' || cons.status === 'CONFIRMED' || cons.status === 'IN_PROGRESS') && (
+                              {podeEditar && (cons.status === 'SCHEDULED' || cons.status === 'CONFIRMED' || cons.status === 'IN_PROGRESS') && (
                                 <button
                                   onClick={() => handleCancelConsultation(cons.id)}
                                   className="p-2 text-orange-600 hover:bg-orange-50 rounded-2xl transition-colors"
@@ -1012,6 +1017,7 @@ export default function ConsultationsPage() {
                                   <span style={{fontSize:"14px"}}>✕</span>
                                 </button>
                               )}
+                              {podeEditar && (
                               <Link
                                 href={`/dashboard/erp/consultas/${cons.id}/gravar`}
                                 className="p-2 text-[#014D5E] hover:bg-[#EAF6F7] rounded-2xl transition-colors"
@@ -1019,6 +1025,7 @@ export default function ConsultationsPage() {
                               >
                                 <span style={{fontSize:"14px"}}>🎤</span>
                               </Link>
+                              )}
                               <Link
                                 href={`/dashboard/erp/consultas/${cons.id}/documentos`}
                                 className="p-2 text-[#009AAC] hover:bg-[#EAF6F7] rounded-2xl transition-colors"
@@ -1026,6 +1033,7 @@ export default function ConsultationsPage() {
                               >
                                 <LuFileText className="w-4 h-4" />
                               </Link>
+                              {podeEditar && (
                               <button
                                 onClick={() => irParaFicha(cons)}
                                 className="p-2 text-[#009AAC] hover:bg-[#EAF6F7] rounded-2xl transition-colors"
@@ -1033,6 +1041,8 @@ export default function ConsultationsPage() {
                               >
                                 <LuPencil className="w-4 h-4" />
                               </button>
+                              )}
+                              {podeEditar && (
                               <button
                                 onClick={() => requestDeleteConsultation(cons)}
                                 className="p-2 text-gray-400 hover:bg-gray-50 hover:text-red-600 rounded-2xl transition-colors"
@@ -1040,6 +1050,7 @@ export default function ConsultationsPage() {
                               >
                                 <LuTrash className="w-4 h-4" />
                               </button>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -1171,7 +1182,7 @@ export default function ConsultationsPage() {
                         <span style={{fontSize:"14px"}}>💊</span>
                         Prescrição
                       </label>
-                      <p className="text-gray-900 bg-gray-50 p-3 rounded-xl">{selectedConsultation.prescription}</p>
+                      <DocConteudo text={selectedConsultation.prescription} className="text-gray-900 bg-gray-50 p-3 rounded-xl" />
                     </div>
                   )}
                 </div>

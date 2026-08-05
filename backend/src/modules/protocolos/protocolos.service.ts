@@ -127,8 +127,15 @@ export class ProtocolosService {
     if (!nomeProtocolo) throw new BadRequestException('Nome do protocolo e obrigatorio');
 
     const dataInicial = new Date(dto.dataInicial);
-    const nDoses = template?.doses ?? 1;
-    const intervalo = template?.intervaloDias ?? 0;
+    // Protocolo "Outros" (sem template) usa doses/intervalo informados; contínuo (doses=0) gera uma janela.
+    const nDosesRaw =
+      Number.isFinite(dto.doses as any) && (dto.doses as number) > 0
+        ? (dto.doses as number)
+        : (template?.doses ?? (tipo === 'OUTRO' ? 6 : 1));
+    const nDoses = Math.max(1, Math.min(nDosesRaw, 60));
+    const intervalo = Number.isFinite(dto.intervaloDias as any)
+      ? (dto.intervaloDias as number)
+      : (template?.intervaloDias ?? 0);
     const doses = Array.from({ length: nDoses }).map((_, k) => ({
       numero: k + 1,
       dataPrevista: addDays(dataInicial, k * intervalo),

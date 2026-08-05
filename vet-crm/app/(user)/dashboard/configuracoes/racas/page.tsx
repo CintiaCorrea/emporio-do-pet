@@ -4,6 +4,7 @@ import { confirmDelete } from "@/lib/ui/confirmDelete";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { LuArrowLeft, LuPencil, LuX, LuPlus, LuSearch } from "react-icons/lu";
+import { usePodeEditar } from "@/lib/permissions/context";
 import CsvImporter from "@/components/import/CsvImporter";
 
 type Especie = "CAO" | "GATO" | "OUTRO";
@@ -22,6 +23,7 @@ const ESP_DOT: Record<Especie, string> = { CAO: "#009AAC", GATO: "#A855F7", OUTR
 const EMPTY: any = { nome: "", especie: "CAO", ordem: 0, ativo: true };
 
 export default function RacasPage() {
+  const podeEditar = usePodeEditar(); // perfil VISUALIZA = esconde criar/editar/excluir
   const [list, setList] = useState<Raca[]>([]);
   const [loading, setLoading] = useState(true);
   const [showInactive, setShowInactive] = useState(false);
@@ -116,9 +118,9 @@ export default function RacasPage() {
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar raças..."
             className="w-full pl-8 pr-3 py-2 border rounded-lg text-sm bg-white" style={{ borderColor: "#E8DFC8" }} />
         </div>
-        <button onClick={openNew} className="px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-2 text-white" style={{ background: "#009AAC" }}>
+        {podeEditar && <button onClick={openNew} className="px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-2 text-white" style={{ background: "#009AAC" }}>
           <LuPlus size={14} /> Nova Raça
-        </button>
+        </button>}
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-4">
@@ -152,8 +154,10 @@ export default function RacasPage() {
                     </button>
                   </td>
                   <td className="px-4 py-2.5 text-right">
+                    {podeEditar ? (<>
                     <button onClick={() => openEdit(r)} className="p-1 hover:bg-gray-200 rounded inline-block text-gray-600" title="Editar"><LuPencil size={14} /></button>
                     <button onClick={() => remove(r)} className="p-1 hover:bg-gray-200 rounded inline-block ml-1" style={{ color: "#EF4444" }} title="Excluir"><LuX size={14} /></button>
+                    </>) : <span className="text-xs text-gray-300">👁️</span>}
                   </td>
                 </tr>
               ))}

@@ -51,7 +51,7 @@ primary_region = "gru"  # São Paulo, Brasil
 
 # Machine configuration
 [[vm]]
-  memory = "512mb"
-  cpu_kind = "shared"
+  memory = "2gb"
+  cpu_kind = "performance"
   cpus = 1
 

@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
+import { usePodeEditar } from '@/lib/permissions/context';
+import { useCanSeeCost } from '@/lib/permissions/useCanSeeCost';
 import {
   LuSearch,
   LuPlus,
@@ -52,6 +54,8 @@ interface ApiProduct {
 }
 
 export default function StockPage() {
+  const podeEditar = usePodeEditar(); // perfil VISUALIZA = esconde Entrada/Saída
+  const canSeeCost = useCanSeeCost(); // custo de compra só p/ ADMIN
   const [products, setProducts] = useState<Product[]>([]);
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [loading, setLoading] = useState(true);
@@ -67,7 +71,8 @@ export default function StockPage() {
   // Form state
   const [movementForm, setMovementForm] = useState({
     quantity: 1,
-    reason: ''
+    reason: '',
+    custoUnitario: ''
   });
 
   // Carregar dados da API
@@ -220,7 +225,7 @@ export default function StockPage() {
   const openMovementModal = (product: Product, type: 'IN' | 'OUT') => {
     setSelectedProduct(product);
     setMovementType(type);
-    setMovementForm({ quantity: 1, reason: '' });
+    setMovementForm({ quantity: 1, reason: '', custoUnitario: '' });
     setIsMovementModalOpen(true);
   };
 
@@ -249,7 +254,8 @@ export default function StockPage() {
           productId: selectedProduct.id,
           type: movementType,
           quantity: movementForm.quantity,
-          reason: movementForm.reason || (movementType === 'IN' ? 'Entrada de estoque' : 'Saída de estoque')
+          reason: movementForm.reason || (movementType === 'IN' ? (movementForm.custoUnitario ? 'Entrada de compra' : 'Entrada de estoque') : 'Saída de estoque'),
+          ...(movementType === 'IN' && movementForm.custoUnitario ? { custoUnitario: Number(String(movementForm.custoUnitario).replace(',', '.')) } : {})
         })
       });
 
@@ -260,10 +266,10 @@ export default function StockPage() {
 
       const newMovement = await response.json();
 
-      // Atualizar produto localmente
-      setProducts(products.map(p => 
-        p.id === selectedProduct.id 
-          ? { ...p, stock: newStock }
+      // Atualizar produto localmente (estoque + custo médio, se recalculado)
+      setProducts(products.map(p =>
+        p.id === selectedProduct.id
+          ? ({ ...p, stock: newStock, ...(newMovement.novoCustoMedio != null ? { custoPadrao: newMovement.novoCustoMedio } : {}) } as any)
           : p
       ));
 
@@ -285,9 +291,9 @@ export default function StockPage() {
 
       setIsMovementModalOpen(false);
       setSelectedProduct(null);
-      setMovementForm({ quantity: 1, reason: '' });
+      setMovementForm({ quantity: 1, reason: '', custoUnitario: '' });
       
-      toast.success(`Movimentação de ${movementType === 'IN' ? 'entrada' : 'saída'} registrada com sucesso!`);
+      toast.success(`Movimentação de ${movementType === 'IN' ? 'entrada' : 'saída'} registrada!${newMovement.novoCustoMedio != null ? ` Novo custo médio: R$ ${Number(newMovement.novoCustoMedio).toFixed(2)}` : ''}`);
     } catch (err) {
       console.error('Erro ao registrar movimentação:', err);
       const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido';
@@ -594,6 +600,8 @@ export default function StockPage() {
                           </td>
                           <td className="p-6">
                             <div className="flex items-center gap-1">
+                              {podeEditar && (
+                              <>
                               <button
                                 onClick={() => openMovementModal(product, 'IN')}
                                 className="p-2 text-green-600 hover:bg-green-50 rounded-xl transition-colors"
@@ -609,6 +617,8 @@ export default function StockPage() {
                               >
                                 <span style={{fontSize:"14px"}}>−</span>
                               </button>
+                              </>
+                              )}
                               <button
                                 onClick={() => openHistory(product)}
                                 className="p-2 text-blue-600 hover:bg-blue-50 rounded-xl transition-colors"
@@ -720,6 +730,21 @@ export default function StockPage() {
                   className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500/50 transition-all duration-300 text-gray-900"
                 />
               </div>
+
+              {movementType === 'IN' && canSeeCost && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Custo unitário da compra <span className="text-gray-400 font-normal">(opcional)</span></label>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={movementForm.custoUnitario}
+                    onChange={(e) => setMovementForm({...movementForm, custoUnitario: e.target.value})}
+                    placeholder="R$ por unidade"
+                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500/50 transition-all duration-300 text-gray-900"
+                  />
+                  <div className="text-xs text-gray-500 mt-1">Preencha pra recalcular o <b>custo médio</b> do item automaticamente.</div>
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Motivo</label>

@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { LuExternalLink, LuRefreshCcw } from "react-icons/lu";
 import { usePageTitle, usePageRightSlot } from "@/lib/ui/PageHeaderContext";
-import InboxRightPanel from "@/components/inbox/InboxRightPanel";
 
 const BOTCONVERSA_URL = "https://app.botconversa.com.br/";
 
@@ -28,7 +27,7 @@ function InboxStats() {
 }
 
 export default function InboxBcPage() {
-  usePageTitle("Inbox BC", "Conversas BotConversa com contexto do CRM");
+  usePageTitle("Inbox BC", "Atendimento pelo BotConversa (em transição para o Inbox Meta)");
   usePageRightSlot(<InboxStats />);
 
   const [reloadKey, setReloadKey] = useState(0);
@@ -47,7 +46,7 @@ export default function InboxBcPage() {
           Provisório
         </span>
         <span className="text-[11.5px] flex-1 min-w-0" style={{ color: "#8a6400" }}>
-          Veja o telefone no BotConversa, cole na busca à direita pra puxar contexto do CRM e registrar interação na ficha.
+          Atendimento pelo BotConversa, em transição para o Inbox Meta.
         </span>
         <div className="flex items-center gap-1.5 flex-shrink-0">
           <button
@@ -79,12 +78,6 @@ export default function InboxBcPage() {
           allow="camera; microphone; clipboard-read; clipboard-write; autoplay"
           title="BotConversa"
         />
-        <aside
-          className="w-[372px] border-l flex-shrink-0 overflow-hidden"
-          style={{ borderColor: "#E8E2D6" }}
-        >
-          <InboxRightPanel canal="WhatsApp BC" />
-        </aside>
       </div>
     </div>
   );

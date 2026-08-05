@@ -40,7 +40,7 @@ const DIAS_PLANTAO: Array<{ dow: number; label: string; turnos: Array<"dia" | "n
 export default function AcessoHorarioPage() {
   usePageTitle("Acesso por horário", "Restringe o login ao horário de escala de cada um");
 
-  const [cfg, setCfg] = useState<{ ativo: boolean; toleranciaMin: number; avisarAdmin: boolean }>({ ativo: false, toleranciaMin: 60, avisarAdmin: true });
+  const [cfg, setCfg] = useState<{ ativo: boolean; toleranciaMin: number; avisarAdmin: boolean; whatsappAviso: string }>({ ativo: false, toleranciaMin: 60, avisarAdmin: true, whatsappAviso: "" });
   const [cfgId, setCfgId] = useState<string | null>(null);
   const [profs, setProfs] = useState<Prof[]>([]);
   const [livres, setLivres] = useState<Record<string, string>>({}); // userId -> listaItemId
@@ -67,7 +67,7 @@ export default function AcessoHorarioPage() {
       setBloqueios(bqArr.map((x: any) => { try { return { id: x.id, ...JSON.parse(x.valor) }; } catch { return { id: x.id }; } }).sort((a: any, b: any) => String(b.at || "").localeCompare(String(a.at || ""))));
       setPlantaoTodos(Array.isArray(pl) ? pl : (pl.itens || pl.data || []));
       const cArr = Array.isArray(c) ? c : (c.itens || c.data || []);
-      if (cArr[0]) { setCfgId(cArr[0].id); try { const v = JSON.parse(cArr[0].valor); setCfg({ ativo: !!v.ativo, toleranciaMin: Number(v.toleranciaMin) || 60, avisarAdmin: v.avisarAdmin !== false }); } catch {} }
+      if (cArr[0]) { setCfgId(cArr[0].id); try { const v = JSON.parse(cArr[0].valor); setCfg({ ativo: !!v.ativo, toleranciaMin: Number(v.toleranciaMin) || 60, avisarAdmin: v.avisarAdmin !== false, whatsappAviso: v.whatsappAviso || "" }); } catch {} }
       const lArr = Array.isArray(l) ? l : (l.itens || l.data || []);
       const mapa: Record<string, string> = {}; lArr.forEach((x: any) => { if (x.valor) mapa[x.valor] = x.id; });
       setLivres(mapa);
@@ -164,6 +164,12 @@ export default function AcessoHorarioPage() {
             <div><div className="text-[13px] text-[#1F2A2E] font-medium">Avisar a administração</div><div className="text-[11.5px] text-[#374151]">Quando alguém for bloqueado por horário, registra um aviso pra você.</div></div>
             <Switch on={cfg.avisarAdmin} onClick={() => salvarCfg({ avisarAdmin: !cfg.avisarAdmin })} disabled={salvandoCfg} />
           </div>
+          {cfg.avisarAdmin && (
+            <div className="flex items-center justify-between gap-3 pt-3 border-t" style={{ borderColor: "#F0EBE0" }}>
+              <div><div className="text-[13px] text-[#1F2A2E] font-medium">📱 WhatsApp para aviso</div><div className="text-[11.5px] text-[#374151]">Recebe no seu celular quando alguém for bloqueado. Com DDD (ex.: 85 9xxxx-xxxx).</div></div>
+              <input type="tel" value={cfg.whatsappAviso} onChange={(e) => setCfg({ ...cfg, whatsappAviso: e.target.value })} onBlur={() => salvarCfg({ whatsappAviso: cfg.whatsappAviso.trim() })} placeholder="85 90000-0000" className="w-40 border rounded-lg px-2 py-1.5 text-[13px] text-right" style={{ borderColor: "#E8E2D6" }} />
+            </div>
+          )}
         </div>
       </div>
 

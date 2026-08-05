@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent 
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { LuArrowLeft, LuPawPrint, LuVenetianMask, LuCalendar, LuUser, LuSave, LuCamera, LuLoaderCircle, LuTrash, LuFiles } from "react-icons/lu";
+import { LuArrowLeft, LuPawPrint, LuVenetianMask, LuCalendar, LuUser, LuSave, LuCamera, LuLoaderCircle, LuTrash } from "react-icons/lu";
 import toast from "react-hot-toast";
 
 interface Tutor {
@@ -256,14 +256,6 @@ const emptyPet: Pet = {
   owner: "",
   avatar: ""};
 
-interface DocumentTemplate {
-  id: string;
-  title: string;
-  status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
-  category: string | null;
-  updatedAt: string;
-}
-
 export default function EditPetPage() {
   const params = useParams();
   const router = useRouter();
@@ -279,13 +271,9 @@ export default function EditPetPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'geral' | 'foto' | 'extras' | 'documentos'>('geral');
+  const [activeTab, setActiveTab] = useState<'geral' | 'foto' | 'extras'>('geral');
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [avatarError, setAvatarError] = useState<string | null>(null);
-  const [docTemplates, setDocTemplates] = useState<DocumentTemplate[]>([]);
-  const [docTemplatesLoading, setDocTemplatesLoading] = useState(false);
-  const [docTemplatesError, setDocTemplatesError] = useState<string | null>(null);
-  const [docSearch, setDocSearch] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Carregar raças do banco (por espécie)
@@ -423,47 +411,6 @@ export default function EditPetPage() {
     }
   }, [petId]);
 
-  // Carregar templates de documentos (para selecionar no pet)
-  useEffect(() => {
-    let cancelled = false;
-
-    const fetchDocs = async () => {
-      try {
-        setDocTemplatesLoading(true);
-        setDocTemplatesError(null);
-
-        // Por padrão, lista apenas templates publicados
-        const res = await fetch('/api/documents?status=PUBLISHED');
-        const data = await res.json().catch(() => null);
-        if (!res.ok) throw new Error(data?.error || 'Erro ao carregar templates de documentos');
-
-        const docs: DocumentTemplate[] = Array.isArray(data?.documents) ? data.documents : [];
-        if (!cancelled) setDocTemplates(docs);
-      } catch (e) {
-        if (!cancelled) setDocTemplatesError(e instanceof Error ? e.message : 'Erro ao carregar templates de documentos');
-      } finally {
-        if (!cancelled) setDocTemplatesLoading(false);
-      }
-    };
-
-    fetchDocs();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const filteredDocTemplates = useMemo(() => {
-    const q = docSearch.trim().toLowerCase();
-    if (!q) return docTemplates;
-    return docTemplates.filter((d) => d.title?.toLowerCase().includes(q));
-  }, [docTemplates, docSearch]);
-
-  const togglePetDocument = (docId: string) => {
-    setPet((prev) => {
-      const has = prev.documents.includes(docId);
-      return { ...prev, documents: has ? prev.documents.filter((id) => id !== docId) : [...prev.documents, docId] };
-    });
-  };
 
   // Máscara para data: formata automaticamente dd/mm/aaaa
   const formatDateMask = (value: string): string => {
@@ -825,19 +772,6 @@ export default function EditPetPage() {
                       activeTab === 'extras' ? 'scale-110' : 'group-hover:scale-110'
                     }`} />
                     <span>Extras</span>
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('documentos')}
-                    className={`group shrink-0 px-8 py-4 text-sm font-semibold transition-all duration-300 flex items-center space-x-2 ${
-                      activeTab === 'documentos'
-                        ? 'border-b-2 border-blue-500 text-blue-600 bg-blue-50/50'
-                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50/50'
-                    }`}
-                  >
-                    <LuFiles className={`w-4 h-4 transition-transform duration-300 ${
-                      activeTab === 'documentos' ? 'scale-110' : 'group-hover:scale-110'
-                    }`} />
-                    <span>Documentos</span>
                   </button>
                   </div>
                 </div>
@@ -1274,81 +1208,6 @@ export default function EditPetPage() {
                 </div>
               )}
 
-              {activeTab === 'documentos' && (
-                <div className="p-8">
-                  <div className="max-w-3xl mx-auto">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-1">Documentos</h3>
-                    <p className="text-gray-600 mb-6">
-                      Selecione quantos templates de documentos forem necessários para este pet.
-                    </p>
-
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-                      <div className="flex-1">
-                        <label className="text-sm font-semibold text-gray-700">Buscar template</label>
-                        <input
-                          type="text"
-                          value={docSearch}
-                          onChange={(e) => setDocSearch(e.target.value)}
-                          placeholder="Ex.: termo, contrato, prontuário..."
-                          className="mt-1 w-full px-4 py-2.5 bg-white/80 border border-gray-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500/40 transition-all duration-300 text-gray-900 placeholder-gray-400 hover:bg-white hover:border-gray-300/50 shadow-sm"
-                        />
-                      </div>
-                      <div className="sm:text-right pt-1">
-                        <div className="text-sm font-semibold text-gray-900">
-                          Selecionados: {pet.documents.length}
-                        </div>
-                        <Link
-                          href="/dashboard/erp/documentos"
-                          className="text-sm text-blue-600 hover:text-blue-700 underline underline-offset-2"
-                        >
-                          Gerenciar templates
-                        </Link>
-                      </div>
-                    </div>
-
-                    <div className="bg-white/70 border border-gray-200/70 rounded-2xl overflow-hidden">
-                      {docTemplatesLoading ? (
-                        <div className="p-4 text-sm text-gray-600">Carregando templates...</div>
-                      ) : docTemplatesError ? (
-                        <div className="p-4 text-sm text-red-600">{docTemplatesError}</div>
-                      ) : filteredDocTemplates.length === 0 ? (
-                        <div className="p-4 text-sm text-gray-600">
-                          Nenhum template publicado encontrado.
-                        </div>
-                      ) : (
-                        <ul className="divide-y divide-gray-100">
-                          {filteredDocTemplates.map((doc) => {
-                            const checked = pet.documents.includes(doc.id);
-                            return (
-                              <li key={doc.id} className="p-4 hover:bg-gray-50/60 transition-colors">
-                                <label className="flex items-start gap-3 cursor-pointer">
-                                  <input
-                                    type="checkbox"
-                                    checked={checked}
-                                    onChange={() => togglePetDocument(doc.id)}
-                                    className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                                  />
-                                  <div className="min-w-0">
-                                    <div className="font-semibold text-gray-900 truncate">{doc.title}</div>
-                                    <div className="text-sm text-gray-500 mt-0.5 flex flex-wrap gap-x-3 gap-y-1">
-                                      {doc.category ? <span>Categoria: {doc.category}</span> : null}
-                                      <span>Atualizado: {new Date(doc.updatedAt).toLocaleDateString('pt-BR')}</span>
-                                    </div>
-                                  </div>
-                                </label>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      )}
-                    </div>
-
-                    <p className="text-xs text-gray-500 mt-3">
-                      Os templates selecionados serão vinculados ao pet (salvo como IDs no banco).
-                    </p>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </div>

@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import Link from 'next/link';
 import { usePageTitle } from '@/lib/ui/PageHeaderContext';
 import { useRolePreview } from '@/lib/ui/RolePreview';
+import BuscaClientePet, { SelecaoClientePet } from '@/components/common/BuscaClientePet';
 
 const TEAL = '#009AAC';
 const NAVY = '#014D5E';
@@ -270,6 +271,13 @@ export default function PDVPage() {
     const pets = t.pets || [];
     setPetId(pets.length === 1 ? pets[0].id : '');
   };
+  // Busca padrão Cliente+Pet: escolhe os dois de uma vez.
+  const selClientePet = (sel: SelecaoClientePet) => {
+    setCliente(sel.tutor as Tutor);
+    const pets = sel.tutor.pets || [];
+    setPetId(sel.pet?.id || (pets.length === 1 ? pets[0].id : ''));
+    setCliAberto(false); setCliBusca('');
+  };
   const limparCliente = () => { setCliente(null); setPetId(''); setCliBusca(''); };
 
   const itensFiltrados = useMemo(() => {
@@ -386,23 +394,9 @@ export default function PDVPage() {
             {/* 1 cliente */}
             {step('👤', 'Cliente')}
             {!cliente ? (
-              <div style={{ position: 'relative', marginBottom: 20 }}>
-                <div style={{ background: SUAVE, border: `1px solid ${LINE}`, borderRadius: 12, padding: 12, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <input value={cliBusca} onChange={(e) => setCliBusca(e.target.value)} placeholder="🔍 Buscar cliente ou pet…" style={{ ...inp, flex: 1, minWidth: 180 }} />
-                  <button onClick={() => setCliAberto(true)} style={{ border: 'none', borderRadius: 9, padding: '9px 14px', cursor: 'pointer', background: TEAL, color: '#fff', fontSize: 13, fontWeight: 500 }}>Pesquisar</button>
-                </div>
-                {cliAberto && cliRes.length > 0 && (
-                  <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 20, marginTop: 4, background: '#fff', border: `1px solid ${LINE}`, borderRadius: 10, boxShadow: '0 8px 24px -6px rgba(0,0,0,.12)', maxHeight: 260, overflowY: 'auto' }}>
-                    {cliRes.map((t) => (
-                      <button key={t.id} onClick={() => selCliente(t)} style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left', padding: '9px 12px', border: 'none', borderBottom: `1px solid ${SOFT}`, background: '#fff', cursor: 'pointer', fontSize: 13 }}>
-                        <span style={{ width: 28, height: 28, borderRadius: '50%', background: avatarOf(t.name).bg, color: avatarOf(t.name).fg, fontSize: 11, fontWeight: 500, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>{iniciais(t.name)}</span>
-                        <span style={{ color: INK }}>{t.name}</span>
-                        <span style={{ color: MUT, fontSize: 11.5 }}>· {(t.pets || []).length} pet(s)</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-                <p style={{ fontSize: 11, color: MUT, margin: '7px 0 0' }}>Digite o nome do responsável ou do animal e clique em pesquisar.</p>
+              <div style={{ marginBottom: 20 }}>
+                {/* Busca padrão Cliente+Pet (duas caixinhas que se cruzam) */}
+                <BuscaClientePet onSelecionar={selClientePet} autoFocus />
               </div>
             ) : (
               <div style={{ background: AGUA, border: `1px solid ${LINE}`, borderRadius: 12, padding: 13, marginBottom: 20, display: 'flex', gap: 11, alignItems: 'center', flexWrap: 'wrap' }}>

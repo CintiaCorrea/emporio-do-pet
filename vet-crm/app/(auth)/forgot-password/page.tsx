@@ -13,17 +13,19 @@ export default function ForgotPasswordPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    
-    // Simulação de envio de email de recuperação
+    // Envia o pedido ao backend, que gera o token e manda o link por e-mail.
+    // Resposta é sempre neutra (não revela se o e-mail tem conta) — mostramos
+    // a mesma tela de sucesso independente do resultado.
     try {
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      console.log("Password recovery request:", { email });
-      
-      // Simular sucesso no envio
-      setIsSubmitted(true);
-    } catch (error) {
-      console.error("Password recovery error:", error);
+      await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+    } catch {
+      /* mesmo sem conexão, seguimos pra tela neutra */
     } finally {
+      setIsSubmitted(true);
       setIsLoading(false);
     }
   };
@@ -90,8 +92,8 @@ export default function ForgotPasswordPage() {
             </button>
 
             <div className="text-center">
-              <Link 
-                href="/login" 
+              <Link
+                href="/"
                 className="font-medium text-blue-600 hover:text-blue-500 transition-colors duration-200 text-sm"
               >
                 ← Voltar para o login
@@ -102,7 +104,7 @@ export default function ForgotPasswordPage() {
           {/* Footer */}
           <div className="mt-8 text-center">
             <p className="text-xs text-gray-500">
-              © 2024 PetCare CRM. Todos os direitos reservados.
+              © 2026 Empório do Pet. Todos os direitos reservados.
             </p>
           </div>
         </div>

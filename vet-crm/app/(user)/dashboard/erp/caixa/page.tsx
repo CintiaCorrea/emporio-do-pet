@@ -6,6 +6,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { usePageTitle } from '@/lib/ui/PageHeaderContext';
+import { usePodeEditar } from '@/lib/permissions/context';
 import {
   LuPlus, LuLock, LuLockOpen, LuPrinter, LuChevronLeft, LuChevronRight,
   LuX, LuWallet, LuTrash2, LuGift, LuSettings, LuCircleDollarSign, LuEye, LuEyeOff,
@@ -42,6 +43,7 @@ const tdStyle: React.CSSProperties = { padding: '9px 8px', borderBottom: '1px so
 
 export default function CaixaPage() {
   usePageTitle('Caixa', 'Controle de recebimentos do dia');
+  const podeEditar = usePodeEditar(); // perfil VISUALIZA = esconde ações do caixa
 
   const [date, setDate] = useState(hojeStr());
   const [caixas, setCaixas] = useState<Caixa[]>([]);
@@ -245,11 +247,11 @@ export default function CaixaPage() {
     const on = tab === id;
     return <button onClick={() => setTab(id)} style={{ fontSize: 13.5, color: on ? TEAL_DARK : '#5C6B70', fontWeight: on ? 600 : 400, padding: '10px 2px', cursor: 'pointer', background: 'none', border: 'none', borderBottom: `2px solid ${on ? TEAL : 'transparent'}`, whiteSpace: 'nowrap' }}>{label}</button>;
   };
-  const delBtn = (fn: () => void) => (
+  const delBtn = (fn: () => void) => podeEditar ? (
     <button onClick={fn} title="Excluir" className="no-print" style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 4, lineHeight: 0 }}>
       <LuTrash2 size={15} color="#b0408a" style={{ opacity: .7 }} />
     </button>
-  );
+  ) : null;
 
   return (
     <div style={{ width: '100%', background: '#F6F2EA', minHeight: '100%' }}>
@@ -266,7 +268,7 @@ export default function CaixaPage() {
             <span style={{ fontSize: 13, fontWeight: 500, padding: '0 12px' }}>{date === hojeStr() ? 'Hoje · ' : ''}{fmtDataLabel(date)}</span>
             <button onClick={() => mudarDia(1)} style={{ border: 'none', background: '#fff', padding: '8px 11px', color: TEAL_DARK, cursor: 'pointer' }} aria-label="Próximo dia"><LuChevronRight size={16} /></button>
           </div>
-          <button onClick={() => setAbrirOpen(true)} style={{ background: TEAL, color: '#fff', border: 'none', fontSize: 12.5, fontWeight: 500, padding: '9px 14px', borderRadius: 9, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}><LuPlus size={15} /> Abrir caixa</button>
+          {podeEditar && <button onClick={() => setAbrirOpen(true)} style={{ background: TEAL, color: '#fff', border: 'none', fontSize: 12.5, fontWeight: 500, padding: '9px 14px', borderRadius: 9, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}><LuPlus size={15} /> Abrir caixa</button>}
         </div>
 
         {loading && <p style={{ color: '#5C6B70' }}>Carregando…</p>}
@@ -326,17 +328,17 @@ export default function CaixaPage() {
               <div className="no-print" style={cardStyle}>
                 {cardH(<LuSettings size={15} />, 'Ações')}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 7 }}>
-                  <button onClick={() => abrirMov('SUPRIMENTO')} disabled={!aberto} style={{ background: TEAL, color: '#fff', border: 'none', fontSize: 12, fontWeight: 500, padding: '8px', borderRadius: 9, cursor: 'pointer', opacity: aberto ? 1 : .4 }}>Suprimento</button>
-                  <button onClick={() => abrirMov('SANGRIA')} disabled={!aberto} style={{ background: '#fff', color: ORANGE, border: `1px solid ${ORANGE}`, fontSize: 12, fontWeight: 500, padding: '8px', borderRadius: 9, cursor: 'pointer', opacity: aberto ? 1 : .4 }}>Sangria</button>
+                  {podeEditar && <button onClick={() => abrirMov('SUPRIMENTO')} disabled={!aberto} style={{ background: TEAL, color: '#fff', border: 'none', fontSize: 12, fontWeight: 500, padding: '8px', borderRadius: 9, cursor: 'pointer', opacity: aberto ? 1 : .4 }}>Suprimento</button>}
+                  {podeEditar && <button onClick={() => abrirMov('SANGRIA')} disabled={!aberto} style={{ background: '#fff', color: ORANGE, border: `1px solid ${ORANGE}`, fontSize: 12, fontWeight: 500, padding: '8px', borderRadius: 9, cursor: 'pointer', opacity: aberto ? 1 : .4 }}>Sangria</button>}
                   <button onClick={() => abrirMov('DESPESA')} disabled={!aberto} style={{ background: '#fff', color: ORANGE, border: `1px solid ${ORANGE}`, fontSize: 12, fontWeight: 500, padding: '8px', borderRadius: 9, cursor: 'pointer', opacity: aberto ? 1 : .4 }}>Despesa</button>
                   <button onClick={() => abrirMov('TRANSFERENCIA')} disabled={!aberto} style={{ background: '#fff', color: TEAL_DARK, border: `1px solid ${TEAL_DARK}`, fontSize: 12, fontWeight: 500, padding: '8px', borderRadius: 9, cursor: 'pointer', opacity: aberto ? 1 : .4 }}>Transferência</button>
                   <button onClick={abrirCredito} disabled={!aberto} style={{ gridColumn: '1 / -1', background: '#fff', color: TEAL, border: `1px solid ${TEAL}`, fontSize: 12, fontWeight: 500, padding: '8px', borderRadius: 9, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: aberto ? 1 : .4 }}><LuGift size={14} /> Crédito do pet</button>
                   <button onClick={() => window.print()} style={{ gridColumn: '1 / -1', background: '#fff', color: TEAL_DARK, border: `1px solid ${TEAL_DARK}`, fontSize: 12, fontWeight: 500, padding: '8px', borderRadius: 9, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><LuPrinter size={14} /> Imprimir relatório</button>
                   {aberto ? (
                     <button onClick={abrirFechar} style={{ gridColumn: '1 / -1', background: TEAL_DARK, color: '#fff', border: 'none', fontSize: 12, fontWeight: 500, padding: '9px', borderRadius: 9, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><LuLock size={14} /> Revisar e encerrar</button>
-                  ) : (
+                  ) : podeEditar ? (
                     <button onClick={reabrirCaixa} style={{ gridColumn: '1 / -1', background: '#fff', color: '#5C6B70', border: '1px solid #E8E2D6', fontSize: 12, fontWeight: 500, padding: '9px', borderRadius: 9, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><LuLockOpen size={14} /> Reabrir caixa</button>
-                  )}
+                  ) : null}
                 </div>
                 {!aberto && <p style={{ fontSize: 11, color: '#374151', margin: '8px 0 0' }}>Reabra o caixa para lançar ou excluir registros.</p>}
               </div>
@@ -390,7 +392,7 @@ export default function CaixaPage() {
                                   <span style={{ color: '#1F2A2E' }}>{v.numeroVenda != null && <b style={{ color: '#014D5E', fontWeight: 500, marginRight: 6 }}>{vendaLabel(v)}</b>}{v.tutor?.name || 'Cliente'} · {v.pet?.name || 'Pet'}</span>
                                   <span style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                                     <span style={{ color: ORANGE, fontWeight: 500 }}>{money(Number(v.value) - (pagoPorAppt.get(v.id) || 0))}</span>
-                                    <button onClick={() => abrirReceber(v)} style={{ background: TEAL, color: '#fff', border: 'none', fontSize: 12, padding: '6px 12px', borderRadius: 8, cursor: 'pointer' }}>Receber</button>
+                                    {podeEditar && <button onClick={() => abrirReceber(v)} style={{ background: TEAL, color: '#fff', border: 'none', fontSize: 12, padding: '6px 12px', borderRadius: 8, cursor: 'pointer' }}>Receber</button>}
                                   </span>
                                 </div>
                               ))}

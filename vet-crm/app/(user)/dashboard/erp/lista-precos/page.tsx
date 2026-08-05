@@ -4,6 +4,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { usePageTitle } from '@/lib/ui/PageHeaderContext';
+import { useCanSeeCost } from '@/lib/permissions/useCanSeeCost';
 import { LuEye, LuEyeOff, LuSearch } from 'react-icons/lu';
 
 const TEAL = '#009AAC';
@@ -18,6 +19,7 @@ const td: React.CSSProperties = { padding: '10px', borderBottom: '1px solid #F0E
 
 export default function ListaPrecosPage() {
   usePageTitle('Lista de preços', 'Tabela de serviços e valores');
+  const canSeeCost = useCanSeeCost(); // coluna Custo só p/ ADMIN
   const [rows, setRows] = useState<Servico[]>([]);
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState('');
@@ -73,15 +75,15 @@ export default function ListaPrecosPage() {
           <div style={{ padding: '12px 16px', borderBottom: `1px solid ${LINE}`, fontWeight: 600, fontSize: 14 }}>{filtradas.length} serviço(s)</div>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead><tr><th style={th}>Serviço</th><th style={th}>Categoria</th><th style={{ ...th, textAlign: 'right' }}>Custo</th><th style={{ ...th, textAlign: 'right' }}>Valor</th></tr></thead>
+              <thead><tr><th style={th}>Serviço</th><th style={th}>Categoria</th>{canSeeCost && <th style={{ ...th, textAlign: 'right' }}>Custo</th>}<th style={{ ...th, textAlign: 'right' }}>Valor</th></tr></thead>
               <tbody>
-                {loading && <tr><td colSpan={4} style={{ ...td, textAlign: 'center', color: '#374151', padding: 18 }}>Carregando…</td></tr>}
-                {!loading && filtradas.length === 0 && <tr><td colSpan={4} style={{ ...td, textAlign: 'center', color: '#374151', padding: 18 }}>Nenhum serviço encontrado.</td></tr>}
+                {loading && <tr><td colSpan={canSeeCost ? 4 : 3} style={{ ...td, textAlign: 'center', color: '#374151', padding: 18 }}>Carregando…</td></tr>}
+                {!loading && filtradas.length === 0 && <tr><td colSpan={canSeeCost ? 4 : 3} style={{ ...td, textAlign: 'center', color: '#374151', padding: 18 }}>Nenhum serviço encontrado.</td></tr>}
                 {filtradas.map((s) => (
                   <tr key={s.id}>
                     <td style={{ ...td, color: '#1F2A2E' }}>{s.nome}{!s.ativo && <span style={{ fontSize: 10.5, color: '#374151', marginLeft: 6 }}>(inativo)</span>}</td>
                     <td style={{ ...td, color: '#5C6B70' }}>{s.category?.nome || '—'}</td>
-                    <td style={{ ...td, textAlign: 'right', color: '#374151' }}>{s.custoPadrao != null ? money(s.custoPadrao) : '—'}</td>
+                    {canSeeCost && <td style={{ ...td, textAlign: 'right', color: '#374151' }}>{s.custoPadrao != null ? money(s.custoPadrao) : '—'}</td>}
                     <td style={{ ...td, textAlign: 'right', fontWeight: 600, color: TEAL_DARK }}>{money(s.valorPadrao)}</td>
                   </tr>
                 ))}

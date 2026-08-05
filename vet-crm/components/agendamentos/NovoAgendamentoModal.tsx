@@ -3,9 +3,12 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { LuX, LuSearch, LuRepeat, LuPlus, LuTrash2, LuCheck, LuUserPlus, LuExternalLink } from "react-icons/lu";
+import BuscaClientePet, { SelecaoClientePet } from "@/components/common/BuscaClientePet";
 
-type Defaults = { date?: string; time?: string; userId?: string; duration?: number; tutor?: any; petId?: string; agendaAvulsa?: string; avulsaNome?: string } | null;
-type Props = { open: boolean; onClose: () => void; onCreated?: () => void; defaults?: Defaults; editAppt?: any; inline?: boolean };
+type Defaults = { date?: string; time?: string; userId?: string; duration?: number; tutor?: any; petId?: string; agendaAvulsa?: string; avulsaNome?: string; novoCliente?: { nome?: string; tel?: string } } | null;
+// agendarAposCriar: ao criar um cliente novo aqui, EM VEZ de pular pra ficha, continua pro
+// agendamento (usado no inbox: agendar contato sem cadastro só com nome + telefone + pet).
+type Props = { open: boolean; onClose: () => void; onCreated?: (info?: { date?: string; time?: string; petNome?: string }) => void; defaults?: Defaults; editAppt?: any; inline?: boolean; agendarAposCriar?: boolean };
 
 const STATUS = ["Agendado", "Confirmado", "Em espera", "Em atendimento", "Atendido", "Animal pronto", "Atrasado", "Cancelado"];
 const DURACOES = [10, 15, 20, 30, 40, 45, 60, 90, 120];
@@ -14,7 +17,7 @@ const DIAS: [string, string][] = [["1", "seg"], ["2", "ter"], ["3", "qua"], ["4"
 const TIPOS_FALLBACK = ["Consulta Clínica", "Consulta Integrativa", "Consulta Fisioterapia", "MAP", "Retorno", "Vacinação", "Acupuntura", "Cirurgia"];
 // lbl/inp movidos para dentro do componente (variante "inline" mais delicada)
 
-export default function NovoAgendamentoModal({ open, onClose, onCreated, defaults, editAppt, inline }: Props) {
+export default function NovoAgendamentoModal({ open, onClose, onCreated, defaults, editAppt, inline, agendarAposCriar }: Props) {
   const router = useRouter();
   const { data: _sess } = useSession();
   const meId = (_sess as any)?.user?.id as string | undefined;
@@ -32,6 +35,7 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [duration, setDuration] = useState(30);
+  const [durCustom, setDurCustom] = useState(false); // duração personalizada (eventos/cursos = bloquear período maior)
   const [status, setStatus] = useState("Agendado");
   const [obs, setObs] = useState("");
   const [itens, setItens] = useState<{ descricao: string; qtd: string; valor: string; servicoId?: string }[]>([]);
@@ -46,6 +50,7 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
   const [novoCli, setNovoCli] = useState(false);
   const [nNome, setNNome] = useState("");
   const [nTel, setNTel] = useState("");
+  const [novoPetNome, setNovoPetNome] = useState(""); // pet a criar junto (cliente novo agendado do inbox)
   const [savingCli, setSavingCli] = useState(false);
   const [cfgAgenda, setCfgAgenda] = useState<any>({});
   const [agendaAvulsa, setAgendaAvulsa] = useState<string>("");
@@ -85,7 +90,7 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
       setAgendaAvulsa(editAppt.agendaAvulsa || ""); setAvulsaNome(editAppt.agendaAvulsaNome || "");
       // carrega o parceiro que atende (agendas de terceiros)
       fetch(`/api/listas?lista=agenda_terceiro_prof`).then((r) => r.json()).then((d) => { const arr = Array.isArray(d) ? d : (d.itens || d.data || []); const it = arr.find((x: any) => { try { return JSON.parse(x.valor).appointmentId === editAppt.id; } catch { return false; } }); try { setParceiroId(it ? JSON.parse(it.valor).id : ""); } catch {} }).catch(() => {});
-    } else if (defaults) { if (defaults.date) setDate(defaults.date); if (defaults.time) setTime(defaults.time); if (defaults.userId) setUserId(defaults.userId); if (defaults.duration) setDuration(Number(defaults.duration)); if (defaults.tutor) { setTutor(defaults.tutor); setStep(2); } if (defaults.petId) setPetId(defaults.petId); if (defaults.agendaAvulsa) setAgendaAvulsa(defaults.agendaAvulsa); if (defaults.avulsaNome) setAvulsaNome(defaults.avulsaNome); }
+    } else if (defaults) { if (defaults.date) setDate(defaults.date); if (defaults.time) setTime(defaults.time); if (defaults.userId) setUserId(defaults.userId); if (defaults.duration) setDuration(Number(defaults.duration)); if (defaults.tutor) { setTutor(defaults.tutor); setStep(2); } if (defaults.petId) setPetId(defaults.petId); if (defaults.agendaAvulsa) setAgendaAvulsa(defaults.agendaAvulsa); if (defaults.avulsaNome) setAvulsaNome(defaults.avulsaNome); if (defaults.novoCliente) { setNovoCli(true); if (defaults.novoCliente.nome) setNNome(defaults.novoCliente.nome); if (defaults.novoCliente.tel) setNTel(defaults.novoCliente.tel); } }
   }, [open, editAppt, defaults]);
 
   useEffect(() => {
@@ -131,6 +136,20 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
   const previsao = itens.reduce((s, it) => s + ((Number(it.qtd) || 1) * (Number(it.valor) || 0)), 0);
   function escDe(p: any) { let o: any = p?.escala; if (typeof o === "string") { try { o = JSON.parse(o); } catch { o = null; } } return o && typeof o === "object" ? o : null; }
   const fmtMin = (t: number) => `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`;
+
+  // Profissionais que ATENDEM no dia escolhido: filtra pela escala (quem não tem escala definida
+  // continua aparecendo — não dá pra afirmar que não trabalha). O selecionado nunca some.
+  const profsVisiveis = useMemo(() => {
+    if (!date) return profs;
+    const wd = new Date(`${date}T00:00:00`).getDay();
+    return profs.filter((p: any) => {
+      if (p.userId === userId) return true;
+      const e = escDe(p);
+      if (!e || !e.semana) return true;
+      if (Array.isArray(e.bloqueios) && e.bloqueios.some((b: any) => b.inicio && date >= b.inicio && (!b.fim || date <= b.fim))) return false;
+      return (e.semana[String(wd)] || []).length > 0;
+    });
+  }, [profs, date, userId]);
   // Agenda avulsa selecionada (pra saber se aceita sobreposição = agenda de terceiros).
   const avSel = useMemo(() => (agendaAvulsa ? avulsas.find((a: any) => a.id === agendaAvulsa) : null), [agendaAvulsa, avulsas]);
 
@@ -173,9 +192,16 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
     return out;
   }, [userId, date, duration, profs, cfgAgenda, dayAppts, editId, agendaAvulsa, avulsas]);
 
-  function reset() { setStep(1); setEditId(null); setNovoCli(false); setNNome(""); setNTel(""); setBusca(""); setTutor(null); setPets([]); setPetId(""); setUserId(""); setType(""); setDate(""); setTime(""); setDuration(30); setStatus("Agendado"); setObs(""); setItens([]); setRecOn(false); setFreq("7"); setDias([]); setAte(""); setAgendaAvulsa(""); setAvulsaNome(""); setParceiroId(""); }
+  function reset() { setStep(1); setEditId(null); setNovoCli(false); setNNome(""); setNTel(""); setNovoPetNome(""); setBusca(""); setTutor(null); setPets([]); setPetId(""); setUserId(""); setType(""); setDate(""); setTime(""); setDuration(30); setStatus("Agendado"); setObs(""); setItens([]); setRecOn(false); setFreq("7"); setDias([]); setAte(""); setAgendaAvulsa(""); setAvulsaNome(""); setParceiroId(""); }
   function fechar() { reset(); onClose(); }
   function escolherTutor(t: any) { setTutor(t); setStep(2); }
+  // Busca padrão Cliente+Pet: escolhe os dois de uma vez e já vai pro passo 2.
+  // O pet vem pré-selecionado (o useEffect de pets mantém o petId já setado).
+  function escolherClientePet(sel: SelecaoClientePet) {
+    setTutor(sel.tutor);
+    if (sel.pet?.id) setPetId(sel.pet.id);
+    setStep(2);
+  }
   function toggleDia(d: string) { setDias((p) => p.includes(d) ? p.filter((x) => x !== d) : [...p, d]); }
 
   function datasRecorrentes(): Date[] {
@@ -218,7 +244,10 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
   };
 
   const salvar = async () => {
-    if (!tutor || !petId || !userId || !date || !time) { alert("Preencha cliente, pet, profissional, data e horário."); return; }
+    if (saving) return; // 🛡️ trava de re-entrada: evita 2 agendamentos no clique-duplo (causava duplicado, ainda mais quando o banco estava lento)
+    // Só cria pet novo quando o cliente NÃO tem nenhum pet (evita duplicar a Luna de um cliente existente).
+    const criarPetNovo = !!novoPetNome.trim() && pets.length === 0;
+    if (!tutor || (!petId && !criarPetNovo) || !userId || !date || !time) { alert("Preencha cliente, pet, profissional, data e horário."); return; }
     setSaving(true);
     try {
       if (editId) {
@@ -229,7 +258,10 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
         await salvarParceiro(editId);
       } else {
         for (const d of datasRecorrentes()) {
-          const body: any = { tutorId: tutor.id, petId, userId, date: d.toISOString(), type: type || "Consulta", status, duration: Number(duration) || 30 };
+          const body: any = { tutorId: tutor.id, userId, date: d.toISOString(), type: type || "Consulta", status, duration: Number(duration) || 30 };
+          // Pet: existente (petId) OU cria junto quando é cliente novo (só o nome).
+          if (petId) body.petId = petId;
+          else if (criarPetNovo) body.pet = { name: novoPetNome.trim(), species: "OTHER" }; // espécie provisória; o tutor define ao completar o cadastro pelo link
           if (agendaAvulsa) body.agendaAvulsa = agendaAvulsa;
           if (obs) body.notes = obs;
           const its = itens.filter((i) => i.descricao || i.valor).map((i) => ({ descricao: i.descricao || "Item", quantidade: Number(i.qtd) || 1, valorUnitario: Number(i.valor) || 0, ...(i.servicoId ? { servicoId: i.servicoId, productId: i.servicoId } : {}) }));
@@ -244,7 +276,8 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
         // dia anterior (17h/19h) pelo agendador, ou na hora pelo botão "Enviar confirmação"
         // no card da agenda — evita mandar confirmação para agendamento de dias à frente.
       }
-      fechar(); if (onCreated) onCreated();
+      const petNome = (pets.find((p: any) => p.id === petId)?.name) || novoPetNome.trim() || "";
+      fechar(); if (onCreated) onCreated(editId ? undefined : { date, time, petNome });
     } catch { alert("Erro ao criar agendamento. Tente novamente."); } finally { setSaving(false); }
   };
 
@@ -258,9 +291,27 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
     if (!nNome.trim() || nTel.replace(/\D/g, "").length < 8) { alert("Informe nome e telefone."); return; }
     setSavingCli(true);
     try {
+      // Deduplica por telefone (ÚLTIMOS 8 DÍGITOS — o número do Meta vem sem o "9" do celular).
+      // Se já existe cliente com esse telefone, usa ele e segue pro agendamento (escolhe o pet no passo 2).
+      if (agendarAposCriar) {
+        const b8 = nTel.replace(/\D/g, "").slice(-8);
+        if (b8.length >= 8) {
+          try {
+            const rs = await fetch(`/api/tutors?search=${b8}`, { cache: "no-store" });
+            const ds = await rs.json();
+            const arr = Array.isArray(ds) ? ds : (ds.tutors || ds.data || ds.itens || []);
+            if (arr.length > 0) { setTutor(arr[0]); setNovoCli(false); setStep(2); setSavingCli(false); return; }
+          } catch { /* sem match ou erro de rede: segue e cria */ }
+        }
+      }
       const res = await fetch("/api/tutors", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ name: nNome.trim(), contacts: [{ type: "MOBILE", number: nTel.replace(/\D/g, ""), isPrimary: true, isWhatsApp: true }] }) });
       const novo = await res.json(); if (!res.ok || !novo?.id) throw new Error();
-      setNovoCli(false); setNNome(""); setNTel(""); onClose(); router.push(`/dashboard/erp/tutores/${novo.id}`);
+      if (agendarAposCriar) {
+        // Continua NO agendamento (não pula pra ficha): o pet é criado junto ao salvar.
+        setTutor(novo); setNovoCli(false); setStep(2);
+      } else {
+        setNovoCli(false); setNNome(""); setNTel(""); onClose(); router.push(`/dashboard/erp/tutores/${novo.id}`);
+      }
     } catch { alert("Erro ao cadastrar cliente."); } finally { setSavingCli(false); }
   };
 
@@ -277,38 +328,27 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
 
         {step === 1 && !editId ? (
           <div className="p-5">
-            <div className="flex items-center gap-2 border border-[#d8d0bc] rounded-lg px-3 py-2 mb-3">
-              <LuSearch size={16} className="text-[#94a3b8]" />
-              <input autoFocus value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar cliente (nome, telefone ou CPF)…" className="flex-1 text-[16px] text-[#14253a] focus:outline-none" />
-            </div>
-            <div className="space-y-1 max-h-[320px] overflow-y-auto">
-              {busca.trim().length < 2 ? (
-                <div className="text-center text-[13px] text-[#475569] py-8">Digite ao menos 2 letras do nome, telefone ou CPF.</div>
-              ) : buscandoCli ? (
-                <div className="text-center text-[13px] text-[#475569] py-8">Buscando…</div>
-              ) : resultados.length === 0 ? (
-                <div className="text-center text-[13px] text-[#475569] py-8">Nenhum cliente encontrado.</div>
-              ) : resultados.map((t: any) => (
-                <button key={t.id} onClick={() => escolherTutor(t)} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[#f6fdfd] text-left">
-                  <span className="w-8 h-8 rounded-full bg-[#E1F3F5] text-[#014D5E] text-[11px] font-medium flex items-center justify-center shrink-0">{(t.name || "?").split(" ").slice(0, 2).map((x: string) => x[0]).join("").toUpperCase()}</span>
-                  <span className="flex-1 min-w-0"><span className="block text-[15px] font-semibold text-[#0E2244] truncate">{t.name}</span><span className="block text-[13px] text-[#475569] truncate">{petNomes(t).length ? petNomes(t).join(", ") : telOf(t)}</span></span>
-                </button>
-              ))}
-            </div>
+            {/* Busca padrão Cliente+Pet (duas caixinhas que se cruzam) — escolhe os dois de uma vez. */}
+            <BuscaClientePet onSelecionar={escolherClientePet} autoFocus />
+            <div className="mt-3">
             {novoCli ? (
               <div className="border border-[#e8e3d4] rounded-lg p-4 mt-3 space-y-2">
                 <div className="text-[15px] font-semibold text-[#0E2244]">Novo cliente</div>
                 <div><label className={lbl}>Nome *</label><input value={nNome} onChange={(e) => setNNome(e.target.value)} placeholder="Nome completo" className={inp} /></div>
                 <div><label className={lbl}>Telefone</label><input value={nTel} onChange={(e) => setNTel(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") cadastrarCli(); }} placeholder="(85) 9 9999-9999" inputMode="tel" className={inp} /></div>
-                <p className="text-[12px] text-gray-400">Depois de criar, você completa o resto (CPF, endereço, pet…) direto na ficha.</p>
+                {agendarAposCriar && (
+                  <div><label className={lbl}>Nome do pet</label><input value={novoPetNome} onChange={(e) => setNovoPetNome(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") cadastrarCli(); }} placeholder="Ex.: Luna" className={inp} /></div>
+                )}
+                <p className="text-[12px] text-gray-400">{agendarAposCriar ? "Cria o cadastro mínimo e segue pro agendamento. O tutor completa o resto pelo link." : "Depois de criar, você completa o resto (CPF, endereço, pet…) direto na ficha."}</p>
                 <div className="flex justify-end gap-2 pt-1">
                   <button onClick={() => setNovoCli(false)} className="px-4 py-2 text-[14px] text-[#5b6470] bg-[#f3f1ea] rounded-lg">Cancelar</button>
-                  <button onClick={cadastrarCli} disabled={savingCli} className="px-4 py-2 text-[14px] text-white rounded-lg disabled:opacity-60 inline-flex items-center gap-1.5" style={{ background: "#009AAC" }}><LuExternalLink size={15} /> {savingCli ? "Criando…" : "Criar e abrir ficha"}</button>
+                  <button onClick={cadastrarCli} disabled={savingCli} className="px-4 py-2 text-[14px] text-white rounded-lg disabled:opacity-60 inline-flex items-center gap-1.5" style={{ background: "#009AAC" }}>{agendarAposCriar ? <LuCheck size={15} /> : <LuExternalLink size={15} />} {savingCli ? "Criando…" : (agendarAposCriar ? "Criar e agendar" : "Criar e abrir ficha")}</button>
                 </div>
               </div>
             ) : (
               <button onClick={() => setNovoCli(true)} className="text-[14px] text-[#009AAC] mt-3 inline-flex items-center gap-1"><LuUserPlus size={14} /> Cadastrar novo cliente</button>
             )}
+            </div>
           </div>
         ) : (
           <div className={inline ? "p-3 space-y-2.5 text-[12.5px] text-[#14253a]" : "p-5 space-y-3 text-[16px] text-[#14253a]"}>
@@ -323,10 +363,14 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
             <div className={inline ? "" : "grid grid-cols-2 gap-3"}>
               {!inline && (
               <div><label className={lbl}>Animal *</label>
+                {novoPetNome.trim() && pets.length === 0 ? (
+                  <div className="w-full border border-[#cfe8ec] bg-[#F0FBFC] rounded-lg px-3 py-2 text-[15px] text-[#014D5E]">🐾 Novo pet: <b>{novoPetNome}</b> <span className="text-[12px] text-[#5b6470]">— será criado com o agendamento</span></div>
+                ) : (
                 <select value={petId} onChange={(e) => setPetId(e.target.value)} className={inp}>
                   <option value="">{pets.length ? "Selecione o pet..." : "Cliente sem pets"}</option>
                   {pets.map((p: any) => <option key={p.id} value={p.id}>{p.name}{p.species ? ` · ${p.species}` : ""}</option>)}
                 </select>
+                )}
               </div>
               )}
               <div><label className={lbl}>Tipo de atendimento *</label>
@@ -349,7 +393,7 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
                 >
                   <option value="">Selecione...</option>
                   <optgroup label="👩‍⚕️ Profissionais">
-                    {profs.map((p: any) => <option key={p.id} value={`pf:${p.userId}`}>{p.nomeExibicao || p.nomeCompleto}</option>)}
+                    {profsVisiveis.map((p: any) => <option key={p.id} value={`pf:${p.userId}`}>{p.nomeExibicao || p.nomeCompleto}</option>)}
                   </optgroup>
                   {avulsas.length > 0 && (
                     <optgroup label="📋 Agendas avulsas">
@@ -391,7 +435,21 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
 
             <div className="grid grid-cols-2 gap-3">
               <div><label className={lbl}>Duração</label>
-                <select value={duration} onChange={(e) => setDuration(Number(e.target.value))} className={inp}>{DURACOES.map((d) => <option key={d} value={d}>{d >= 60 ? `${Math.floor(d / 60)}h${d % 60 ? ` ${d % 60}min` : ""}` : `${d} min`}</option>)}</select>
+                {durCustom ? (
+                  <div className="flex items-center gap-1.5">
+                    <input type="number" min={5} step={5} value={duration} autoFocus
+                      onChange={(e) => setDuration(Math.max(5, Number(e.target.value) || 0))}
+                      className={inp} placeholder="minutos" />
+                    <span className="text-[12px] text-[#5F5E5A] whitespace-nowrap">min</span>
+                    <button type="button" onClick={() => { setDurCustom(false); setDuration(30); }} className="text-[11px] text-[#00798A] whitespace-nowrap">▾ lista</button>
+                  </div>
+                ) : (
+                  <select value={DURACOES.includes(duration) ? duration : -1}
+                    onChange={(e) => { const val = Number(e.target.value); if (val === -1) setDurCustom(true); else setDuration(val); }} className={inp}>
+                    {DURACOES.map((d) => <option key={d} value={d}>{d >= 60 ? `${Math.floor(d / 60)}h${d % 60 ? ` ${d % 60}min` : ""}` : `${d} min`}</option>)}
+                    <option value={-1}>⏱️ Outro (personalizar)…</option>
+                  </select>
+                )}
               </div>
               <div><label className={lbl}>Status</label>
                 <select value={status} onChange={(e) => setStatus(e.target.value)} className={inp}>{STATUS.map((s) => <option key={s} value={s}>{s}</option>)}</select>

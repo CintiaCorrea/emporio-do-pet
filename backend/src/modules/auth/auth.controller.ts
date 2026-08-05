@@ -64,6 +64,20 @@ export class AuthController {
     return this.authService.trocarMinhaSenha(req.user.id, body?.senhaAtual || '', body?.novaSenha || '');
   }
 
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Pedir link de redefinição de senha por e-mail' })
+  async forgotPassword(@Body() body: { email: string }) {
+    return this.authService.solicitarResetSenha(body?.email || '');
+  }
+
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Redefinir a senha usando o token do e-mail' })
+  async resetPassword(@Body() body: { token: string; password: string }) {
+    return this.authService.resetarSenha(body?.token || '', body?.password || '');
+  }
+
   @Post('me')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)

@@ -2,6 +2,8 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { usePodeEditar } from '@/lib/permissions/context';
+import { formatBRL } from '@/lib/format';
 import {
   LuDownload,
   LuFileText,
@@ -43,10 +45,9 @@ interface FinanceSummary {
   paidCount: number;
 }
 
+// Esta tela trabalha em CENTAVOS — o helper compartilhado (lib/format) formata reais.
 function formatCurrency(valueCents: number) {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL'}).format((valueCents || 0) / 100);
+  return formatBRL((valueCents || 0) / 100);
 }
 
 function formatDate(dateString: string) {
@@ -115,6 +116,7 @@ function toDateISO(yyyyMmDd: string) {
 }
 
 export default function FinanceiroPage() {
+  const podeEditar = usePodeEditar(); // perfil VISUALIZA = esconde lançar/editar/excluir
   const [dateRange, setDateRange] = useState<'7dias' | '30dias' | '90dias' | 'ano'>('30dias');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'todos' | FinanceStatus>('todos');
@@ -306,6 +308,7 @@ export default function FinanceiroPage() {
                   <p className="text-gray-600 mt-2">Gerencie lançamentos e performance financeira</p>
                 </div>
                 <div className="flex gap-3">
+                  {podeEditar && (
                   <button
                     onClick={openCreate}
                     className="group px-6 py-3 text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-blue-500/25 flex items-center space-x-2 relative overflow-hidden"
@@ -314,6 +317,7 @@ export default function FinanceiroPage() {
                     <LuPlus className="w-4 h-4 relative z-10" />
                     <span className="relative z-10">Novo Lançamento</span>
                   </button>
+                  )}
                   <button className="group px-6 py-3 text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-blue-500/25 flex items-center space-x-2 relative overflow-hidden">
                     <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent transform -skew-x-12 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
                     <LuFileText className="w-4 h-4 relative z-10" />
@@ -547,6 +551,7 @@ export default function FinanceiroPage() {
                             <div className="text-gray-700">{methodLabel(entry.method)}</div>
                           </td>
                           <td className="p-6 text-right">
+                            {podeEditar ? (
                             <div className="inline-flex items-center gap-2">
                               <button
                                 onClick={() => openEdit(entry)}
@@ -563,6 +568,7 @@ export default function FinanceiroPage() {
                                 <LuTrash className="w-4 h-4" />
                               </button>
                             </div>
+                            ) : <span className="text-xs text-gray-300">👁️</span>}
                           </td>
                         </tr>
                       ))

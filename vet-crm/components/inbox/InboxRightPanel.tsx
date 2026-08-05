@@ -1,7 +1,9 @@
 "use client";
 import { confirmDelete } from "@/lib/ui/confirmDelete";
 
-import { useEffect, useState, useMemo, useRef } from "react";
+import { useEffect, useState, useMemo, useRef, type ChangeEvent } from "react";
+import { useSession } from "next-auth/react";
+import { registrarHistoricoFase } from "@/lib/petExame";
 import Link from "next/link";
 import {
   LuSearch, LuPhone, LuPlus, LuExternalLink, LuShare2, LuCheckCheck,
@@ -15,6 +17,7 @@ import toast from "react-hot-toast";
 import { speciesKey, ageFromBirth } from "@/lib/pets/labels";
 import NovoAgendamentoModal from "@/components/agendamentos/NovoAgendamentoModal";
 import BoletimModal from "@/components/pets/BoletimModal";
+import OrcamentoRapidoModal from "@/components/vendas/OrcamentoRapidoModal";
 import ClienteEditModal from "@/components/inbox/ClienteEditModal";
 import PetEditModal from "@/components/inbox/PetEditModal";
 import { SendEmailModal } from "@/components/email/SendEmailModal";
@@ -224,7 +227,7 @@ function extrairServico(resumo?: string | null, customField?: string | null): st
 type Tab = "inbox" | "contexto";
 
 // [EMP-COWORK] busca+acoes mesma linha (Cintia 07/06)
-export default function InboxRightPanel({ canal = "BotConversa", initialPhone, initialName, initialTutorId, conversationId, soContexto = false, onVinculado }: { canal?: string; initialPhone?: string | null; initialName?: string | null; initialTutorId?: string | null; conversationId?: string | null; soContexto?: boolean; onVinculado?: () => void }) {
+export default function InboxRightPanel({ canal = "BotConversa", initialPhone, initialName, initialTutorId, conversationId, soContexto = false, onVinculado, onEnviarTexto }: { canal?: string; initialPhone?: string | null; initialName?: string | null; initialTutorId?: string | null; conversationId?: string | null; soContexto?: boolean; onVinculado?: () => void; onEnviarTexto?: (texto: string) => void }) {
   // ===== Tab control =====
   // soContexto: quando o inbox já tem lista própria (Meta), o painel mostra SÓ o Contexto
   // (a ficha) — sem a 2ª "Caixa de entrada" redundante.
@@ -242,6 +245,8 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
   const [loadingIncoming, setLoadingIncoming] = useState(false);
   const [incomingError, setIncomingError] = useState(false);
   const [incomingLimit, setIncomingLimit] = useState(20);
+  const { data: session } = useSession();
+  const meNome = (session?.user as any)?.name || "";
 
   // ===== Busca / contexto =====
   const [search, setSearch] = useState("");
@@ -297,6 +302,29 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
   const [exList, setExList] = useState<{ id: string; data: any }[]>([]);
   const [exFases, setExFases] = useState<string[]>(["Solicitar", "Retirado", "Aguardando", "Resultado", "Entregue"]);
   const [exLoading, setExLoading] = useState(false);
+  const [avisandoLab, setAvisandoLab] = useState<string | null>(null);
+  const [subindoEx, setSubindoEx] = useState<string | null>(null);
+  const [exUploadTarget, setExUploadTarget] = useState<{ id: string; data: any } | null>(null);
+  const exFileRef = useRef<HTMLInputElement>(null);
+  // Agrupa os exames do pet POR LABORATÓRIO (fornecedor). Cada grupo sabe quais estão
+  // em coleta e ainda não avisados (→ botão "avisar" no bloco) e a última data avisada.
+  const gruposExame = useMemo(() => {
+    const map = new Map<string, { key: string; nome: string; externo: boolean; exames: { id: string; data: any }[]; pendentesColeta: { id: string; data: any }[]; avisadoEm: string | null }>();
+    for (const ex of exList) {
+      const fid = ex.data?.fornecedorId || "__sem__";
+      if (!map.has(fid)) map.set(fid, { key: fid, nome: ex.data?.fornecedorNome || (fid === "__sem__" ? "Sem laboratório" : "Laboratório"), externo: !!ex.data?.externo, exames: [], pendentesColeta: [], avisadoEm: null });
+      const g = map.get(fid)!;
+      g.exames.push(ex);
+      if (ex.data?.externo) g.externo = true;
+    }
+    const arr = Array.from(map.values());
+    for (const g of arr) {
+      g.pendentesColeta = g.exames.filter((e) => /coleta/i.test(String(e.data?.status || "")) && !e.data?.labAvisadoAt && e.data?.fornecedorId);
+      const avisados = g.exames.map((e) => e.data?.labAvisadoAt).filter(Boolean).sort();
+      g.avisadoEm = avisados.length ? avisados[avisados.length - 1] : null;
+    }
+    return arr;
+  }, [exList]);
   const [vacPend, setVacPend] = useState<{ id: string; nome: string; numero: number; dataPrevista: string; vencida: boolean; dias: number }[]>([]);
 
   const [cadastroOpen, setCadastroOpen] = useState(false);
@@ -448,15 +476,77 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
     setExLoading(false);
   }
 
-  // Avança a fase de um exame (grava no mesmo lugar das outras telas)
+  // Avança a fase de um exame (grava no mesmo lugar das outras telas, COM histórico quem/quando)
   async function mudarFaseExame(id: string, data: any, novo: string) {
-    setExList((l) => l.map((x) => (x.id === id ? { ...x, data: { ...x.data, status: novo } } : x))); // otimista
+    const historico = registrarHistoricoFase(data.historico, novo, meNome);
+    setExList((l) => l.map((x) => (x.id === id ? { ...x, data: { ...x.data, status: novo, historico } } : x))); // otimista
     try {
-      const r = await fetch(`/api/listas/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ valor: JSON.stringify({ ...data, status: novo }) }) });
+      const r = await fetch(`/api/listas/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ valor: JSON.stringify({ ...data, status: novo, historico }) }) });
       if (!r.ok) throw new Error();
       setAcaoFeita(true);
       toast.success("Fase do exame atualizada");
     } catch { toast.error("Erro ao atualizar a fase"); abrirExames(); }
+  }
+
+  function fmtDataCurta(iso?: string) { try { return iso ? new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) : ""; } catch { return ""; } }
+
+  // Seta "avançar" (igual à agenda): manda pra próxima fase configurada.
+  async function avancarFaseExame(ex: { id: string; data: any }) {
+    const st = ex.data?.status || exFases[0];
+    const i = exFases.indexOf(st);
+    const prox = i >= 0 && i < exFases.length - 1 ? exFases[i + 1] : null;
+    if (!prox) return;
+    await mudarFaseExame(ex.id, ex.data, prox);
+  }
+
+  // UM botão por laboratório: avisa a coleta de TODOS os exames daquele lab que estão
+  // em coleta e ainda não avisados (mesmo endpoint do "Enviar agora" da ficha e do cron 11:30/17:00).
+  async function avisarLabBloco(g: { key: string; pendentesColeta: { id: string; data: any }[] }) {
+    if (!g.pendentesColeta.length) return;
+    setAvisandoLab(g.key);
+    let ok = 0, erros = 0;
+    for (const e of g.pendentesColeta) {
+      try {
+        const r = await fetch(`/api/exames/avisar-lab/${e.id}`, { method: "POST", credentials: "include" });
+        const d = await r.json().catch(() => ({}));
+        if (r.ok && d?.ok) ok++; else erros++;
+      } catch { erros++; }
+    }
+    setAvisandoLab(null);
+    if (ok) { toast.success(`Laboratório avisado (${ok} exame${ok > 1 ? "s" : ""})`); setAcaoFeita(true); }
+    else if (erros) toast.error("Não consegui avisar o laboratório (o lab tem WhatsApp? o template está aprovado?)");
+    await abrirExames();
+  }
+
+  // 📎 Anexar resultado (arquivo) — mesma ação da ficha, agora também no inbox.
+  function pickAnexoExame(ex: { id: string; data: any }) { setExUploadTarget(ex); exFileRef.current?.click(); }
+  async function onExFileChange(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    const ex = exUploadTarget;
+    if (!file || !ex) { setExUploadTarget(null); return; }
+    setSubindoEx(ex.id);
+    try {
+      const fd = new FormData(); fd.append("file", file);
+      const up = await fetch(`/api/media/upload?pasta=exames&origem=exame&origemId=${selectedPet?.id || ""}`, { method: "POST", body: fd });
+      const j = await up.json().catch(() => ({}));
+      if (!up.ok || !j?.url) throw new Error();
+      const faseResultado = exFases.find((f) => /resultado/i.test(f)) || ex.data?.status;
+      const novo = { ...ex.data, resultadoUrl: j.url, resultadoArquivo: file.name, status: faseResultado, historico: registrarHistoricoFase(ex.data?.historico, faseResultado, meNome) };
+      const r = await fetch(`/api/listas/${ex.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ valor: JSON.stringify(novo) }) });
+      if (!r.ok) throw new Error();
+      toast.success("Resultado anexado"); setAcaoFeita(true);
+    } catch { toast.error("Não consegui anexar o resultado"); }
+    finally { setSubindoEx(null); setExUploadTarget(null); await abrirExames(); }
+  }
+
+  async function excluirExameInbox(id: string) {
+    if (!window.confirm("Excluir este exame do pet?")) return;
+    try {
+      const r = await fetch(`/api/listas/${id}`, { method: "DELETE" });
+      if (!r.ok) throw new Error();
+      toast.success("Exame removido"); await abrirExames();
+    } catch { toast.error("Erro ao remover"); }
   }
 
   // Vacinas a resolver (doses pendentes vencidas ou <=7 dias) do pet selecionado
@@ -711,11 +801,16 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
     setHistorico([]); setTutorScore(null); setPets([]); setSelectedPet(null); setSearch("");
     (async () => {
       try {
-        // (2a) a conversa já sabe quem é o cliente -> carrega direto pelo id
+        // (2a) a conversa já sabe quem é o cliente -> carrega tutor E pets EM PARALELO
+        // (antes eram 2 idas em fila: tutor -> depois pets). Com isso o pet e o
+        // "Próximo agendamento" aparecem juntos, sem montar o painel aos pedaços.
         if (initialTutorId) {
-          const res = await fetch(`/api/tutors/${initialTutorId}`);
-          const t = await safeJson<any>(res, null);
-          if (!cancelled && t?.id) await selectTutor(t);
+          const [t, dP] = await Promise.all([
+            fetch(`/api/tutors/${initialTutorId}`).then((r) => safeJson<any>(r, null)),
+            fetch(`/api/tutors/${initialTutorId}/pets`).then((r) => safeJson<any>(r, [])),
+          ]);
+          const petsList: Pet[] = Array.isArray(dP) ? dP : (dP?.pets || []);
+          if (!cancelled && t?.id) await selectTutor(t, petsList);
           return;
         }
         // (2b) senão, resolve pelo telefone do contato da conversa
@@ -845,7 +940,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
     finally { setVinculando(false); }
   }
 
-  async function selectTutor(t: Tutor) {
+  async function selectTutor(t: Tutor, prefetchedPets?: Pet[]) {
     setTutor(t);
     setLead(null);
     setLeadConversa(null);
@@ -855,9 +950,16 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
     setSearch(t.name);
     setActiveTab("contexto"); // ABRE aba contexto
 
-    const resP = await fetch(`/api/tutors/${t.id}/pets`);
-    const dP = await safeJson<any>(resP, []);
-    const petsList = Array.isArray(dP) ? dP : (dP.pets || []);
+    // Pets: se já vieram em PARALELO no carregamento inicial (ver useEffect do
+    // conversationId), usa direto — sem esperar outra ida ao backend. Mostrar os
+    // pets o quanto antes destrava o cartão "Próximo agendamento" (que depende do petId).
+    let petsList: Pet[];
+    if (prefetchedPets) {
+      petsList = prefetchedPets;
+    } else {
+      const dP = await safeJson<any>(await fetch(`/api/tutors/${t.id}/pets`), []);
+      petsList = Array.isArray(dP) ? dP : (dP.pets || []);
+    }
     setPets(petsList);
     setSelectedPet(petsList[0] || null);
 
@@ -986,6 +1088,42 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
     setAcaoFeita(true);
     setLead({ ...real, pipelineComercialEtapa: value });
   }
+
+  // Motivo da PERDA do lead — agora selecionável aqui no inbox (antes só na ficha). Opções
+  // da lista `motivos_perda`; salvo em `leadperda_<leadId>` (mesmo lugar da ficha do lead).
+  const [motivosPerdaOpts, setMotivosPerdaOpts] = useState<string[]>([]);
+  const [motivoPerda, setMotivoPerda] = useState("");
+  const [motivoPerdaId, setMotivoPerdaId] = useState<string | null>(null);
+  useEffect(() => {
+    fetch(`/api/listas?lista=motivos_perda`).then((r) => r.json()).then((d) => {
+      const arr = Array.isArray(d) ? d : (d?.itens || d?.data || []);
+      setMotivosPerdaOpts(arr.map((i: any) => i?.valor).filter(Boolean));
+    }).catch(() => {});
+  }, []);
+  useEffect(() => {
+    setMotivoPerda(""); setMotivoPerdaId(null);
+    const lid = lead?.id;
+    if (!lid || !/(perd|não fechou|nao fechou)/i.test(String(lead?.pipelineComercialEtapa || ""))) return;
+    fetch(`/api/listas?lista=leadperda_${lid}`, { cache: "no-store" }).then((r) => r.json()).then((d) => {
+      const arr = Array.isArray(d) ? d : (d?.itens || d?.data || []);
+      if (arr[0]) { setMotivoPerda(arr[0].valor || ""); setMotivoPerdaId(arr[0].id); }
+    }).catch(() => {});
+  }, [lead?.id, lead?.pipelineComercialEtapa]);
+  async function salvarMotivoPerda(m: string) {
+    setMotivoPerda(m);
+    const real = await materializarLead();
+    if (!real) return;
+    try {
+      if (motivoPerdaId) {
+        await fetch(`/api/listas/${motivoPerdaId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ valor: m }) });
+      } else {
+        const r = await fetch(`/api/listas`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lista: `leadperda_${real.id}`, valor: m }) });
+        const d = await r.json().catch(() => null);
+        if (d?.id) setMotivoPerdaId(d.id);
+      }
+      toast.success("Motivo da perda salvo");
+    } catch { toast.error("Erro ao salvar o motivo"); }
+  }
   async function salvarPetInteresse(nome: string, especie: string) {
     if (!lead) return;
     const real = await materializarLead();
@@ -1069,6 +1207,8 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
   }, [selectedPet?.id]);
   const [proximasConsultas, setProximasConsultas] = useState<any[]>([]);
   const [agendaOpen, setAgendaOpen] = useState(false);
+  const [editAppt, setEditAppt] = useState<any>(null); // agendamento sendo editado/cancelado a partir do card
+  const [orcRapidoOpen, setOrcRapidoOpen] = useState(false); // popup de orçamento rápido (envia pelo WhatsApp)
   const [proximasTick, setProximasTick] = useState(0);
   const agendaDefaults = useMemo(() => (tutor && selectedPet ? { tutor, petId: selectedPet.id } : undefined), [tutor?.id, selectedPet?.id]);
   useEffect(() => {
@@ -1080,7 +1220,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
         const d = await safeJson<any>(r, {});
         const arr = Array.isArray(d) ? d : (d.appointments || d.data || []);
         const futuras = (arr as any[])
-          .filter((a) => a && a.date && new Date(a.date).getTime() >= Date.now() && a.status !== "CANCELED" && a.status !== "CANCELLED")
+          .filter((a) => a && a.date && new Date(a.date).getTime() >= Date.now() && !/cancel|remarc/i.test(a.status || ""))
           .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
         if (!cancelled) setProximasConsultas(futuras);
       } catch { if (!cancelled) setProximasConsultas([]); }
@@ -1864,6 +2004,18 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
                     {(pipeDyn.comercial.length ? pipeDyn.comercial : PIPELINE_COMERCIAL).map(e => <option key={e} value={e}>{e}</option>)}
                   </select>
                 </div>
+                {/* MOTIVO DA PERDA — aparece quando o lead está "Perdido". Selecionável aqui
+                    no inbox (antes só na ficha); grava em leadperda_<id> e sai no card do lead. */}
+                {/(perd|não fechou|nao fechou)/i.test(String(lead.pipelineComercialEtapa || "")) && (
+                  <div className="flex items-center gap-2 mt-1.5">
+                    <span className="text-[9.5px] font-bold uppercase text-[#A32D2D] whitespace-nowrap">Motivo da perda</span>
+                    <select value={motivoPerda} onChange={e => salvarMotivoPerda(e.target.value)} className="flex-1 text-[10.5px] px-2 py-1 border rounded-lg font-medium" style={{ borderColor: "#CC3366", color: "#A32D2D", background: "white" }}>
+                      <option value="">— selecionar motivo —</option>
+                      {motivoPerda && !motivosPerdaOpts.includes(motivoPerda) && <option value={motivoPerda}>{motivoPerda}</option>}
+                      {motivosPerdaOpts.map(m => <option key={m} value={m}>{m}</option>)}
+                    </select>
+                  </div>
+                )}
                 {/* PET DE INTERESSE */}
                 <div className="text-[9.5px] font-bold uppercase text-[#92611A] mt-2 mb-1">🐾 Pet de interesse</div>
                 <div className="flex gap-1.5">
@@ -2266,43 +2418,83 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
               />
             )}
 
-            {/* Painel de exames do pet (Fatia 1 do item 8) — só acompanhar */}
+            {/* Painel de exames do pet (Fatia 4B) — acompanhar a pipeline POR LABORATÓRIO */}
             {exOpen && (
               <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={() => setExOpen(false)}>
-                <div className="bg-white rounded-xl w-full max-w-md p-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
-                  <div className="flex items-center gap-2 mb-3">
+                <div className="bg-white rounded-xl w-full max-w-md p-4 shadow-xl max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center gap-2 mb-1">
                     <LuFlaskConical size={16} style={{ color: "#009AAC" }} />
                     <div className="font-semibold text-[13px]" style={{ color: "#0E2244" }}>Exames{selectedPet ? ` · ${selectedPet.name}` : ""}</div>
                   </div>
+                  <div className="text-[10.5px] text-gray-400 mb-3">Acompanhamento — quem solicita é o veterinário</div>
                   {exLoading ? (
                     <div className="text-sm text-gray-400 py-6 text-center">Carregando…</div>
                   ) : exList.length === 0 ? (
                     <div className="text-[13px] text-gray-500 py-4 text-center leading-relaxed">
-                      Nenhum exame solicitado para este pet.<br />
-                      {selectedPet && <a href={`/dashboard/erp/pets/${selectedPet.id}/atendimentos/novo`} className="text-[#009AAC] font-medium hover:underline">Solicitar na ficha do pet</a>}
+                      Nenhum exame para este pet.<br />O veterinário solicita na ficha/atendimento.
                     </div>
                   ) : (
-                    <div className="space-y-1.5 max-h-80 overflow-y-auto">
-                      {exList.map((ex) => {
-                        const st = ex.data?.status || exFases[0];
-                        const opts = exFases.includes(st) ? exFases : [st, ...exFases];
-                        return (
-                          <div key={ex.id} className="border rounded-lg px-3 py-2 flex items-center gap-2" style={{ borderColor: "#E8DFC8" }}>
-                            <div className="flex-1 min-w-0">
-                              <div className="text-[12.5px] font-medium truncate" style={{ color: "#014D5E" }}>{ex.data?.nome || "Exame"}{ex.data?.externo ? " · externo" : ""}</div>
-                            </div>
-                            <select value={st} onChange={(e) => mudarFaseExame(ex.id, ex.data, e.target.value)} className="text-[12px] border rounded-md px-2 py-1 bg-white flex-shrink-0" style={{ borderColor: "#E8DFC8", color: "#0E5560" }}>
-                              {opts.map((f) => <option key={f} value={f}>{f}</option>)}
-                            </select>
+                    <div className="space-y-3">
+                      {gruposExame.map((g) => (
+                        <div key={g.key} className="border rounded-xl overflow-hidden" style={{ borderColor: "#E8DFC8" }}>
+                          {/* cabeçalho do laboratório + UM botão "avisar" por bloco */}
+                          <div className="flex items-center gap-2 px-3 py-2 border-b" style={{ borderColor: "#E8DFC8", background: g.externo ? "#FBF8FF" : "#F7FBFC" }}>
+                            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: g.externo ? "#7C3AED" : "#009AAC" }} />
+                            <span className="text-[12px] font-bold truncate" style={{ color: "#014D5E" }}>{g.nome}</span>
+                            {g.externo && <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full flex-shrink-0" style={{ color: "#7C3AED", background: "#F0E6FB" }}>externo</span>}
+                            {g.pendentesColeta.length > 0 ? (
+                              <button onClick={() => avisarLabBloco(g)} disabled={avisandoLab === g.key} className="ml-auto flex items-center gap-1 text-[11px] font-bold text-white rounded-lg px-2.5 py-1.5 disabled:opacity-60 flex-shrink-0" style={{ background: "#7C3AED" }}>
+                                {avisandoLab === g.key ? "Enviando…" : "📲 Avisar laboratório"}
+                              </button>
+                            ) : g.avisadoEm ? (
+                              <span className="ml-auto text-[10.5px] font-semibold flex-shrink-0" style={{ color: "#0F7B5A" }}>✅ Avisado · {fmtDataCurta(g.avisadoEm)}</span>
+                            ) : null}
                           </div>
-                        );
-                      })}
+                          {/* exames do laboratório */}
+                          <div className="px-3">
+                            {g.exames.map((ex, idx) => {
+                              const st = ex.data?.status || exFases[0];
+                              const idxFase = exFases.indexOf(st);
+                              const proxima = idxFase >= 0 && idxFase < exFases.length - 1 ? exFases[idxFase + 1] : null;
+                              const pronto = /resultado/i.test(st);
+                              return (
+                                <div key={ex.id} className="py-2.5" style={idx > 0 ? { borderTop: "1px dashed #E8DFC8" } : undefined}>
+                                  <div className="rounded-lg" style={pronto ? { background: "#F3FBF7", border: "1px solid #BCE4D3", padding: "6px 8px" } : undefined}>
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="flex-1 min-w-0 text-[12.5px] font-semibold truncate" style={{ color: "#014D5E" }}>{ex.data?.nome || "Exame"}</span>
+                                      {pronto && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0" style={{ color: "#0F7B5A", background: "#EAF7F0" }}>🔔 avisar cliente</span>}
+                                      {proxima && (
+                                        <button onClick={() => avancarFaseExame(ex)} title={`Avançar → ${proxima}`} className="w-6 h-6 flex items-center justify-center rounded-md border text-[15px] leading-none flex-shrink-0" style={{ borderColor: "#009AAC", color: "#009AAC" }}>›</button>
+                                      )}
+                                      <button onClick={() => pickAnexoExame(ex)} disabled={subindoEx === ex.id} title="Anexar resultado" className="w-6 h-6 flex items-center justify-center rounded-md border text-[12px] flex-shrink-0 disabled:opacity-50" style={{ borderColor: "#E8DFC8" }}>{subindoEx === ex.id ? "…" : "📎"}</button>
+                                      <button onClick={() => excluirExameInbox(ex.id)} title="Excluir exame" className="w-6 h-6 flex items-center justify-center rounded-md border flex-shrink-0" style={{ borderColor: "#F0D5D5", color: "#A32D2D" }}><LuTrash size={12} /></button>
+                                    </div>
+                                    {/* linha de fases (FU) independente por exame */}
+                                    <div className="flex items-start gap-1 mt-2">
+                                      {exFases.map((f, i) => {
+                                        const done = idxFase >= 0 && i <= idxFase;
+                                        const now = i === idxFase;
+                                        return (
+                                          <div key={f} className="flex-1 text-center min-w-0">
+                                            <div className="h-[3px] rounded" style={{ background: now ? "#014D5E" : done ? "#009AAC" : "#E8DFC8" }} />
+                                            <span className="block text-[8px] mt-1 leading-tight" style={{ color: now ? "#014D5E" : done ? "#009AAC" : "#9aa4ab", fontWeight: now ? 800 : 400 }}>{f}</span>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                    {ex.data?.labAvisadoAt && <div className="text-[10px] mt-1.5 font-semibold" style={{ color: "#0F7B5A" }}>✅ solicitação enviada ao laboratório · {fmtDataCurta(ex.data.labAvisadoAt)}</div>}
+                                    {ex.data?.resultadoUrl && <a href={ex.data.resultadoUrl} target="_blank" rel="noreferrer" className="text-[10px] mt-1 inline-block underline font-semibold" style={{ color: "#009AAC" }}>📄 ver resultado</a>}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   )}
-                  {selectedPet && exList.length > 0 && (
-                    <a href={`/dashboard/erp/pets/${selectedPet.id}/atendimentos/novo`} className="block text-center text-[11.5px] text-[#009AAC] hover:underline mt-3">+ Solicitar exame na ficha</a>
-                  )}
-                  <button type="button" onClick={() => setExOpen(false)} className="w-full mt-2 text-[12px] text-gray-500 py-1.5">Fechar</button>
+                  <input ref={exFileRef} type="file" className="hidden" onChange={onExFileChange} accept="image/*,application/pdf,.pdf" />
+                  <button type="button" onClick={() => setExOpen(false)} className="w-full mt-3 text-[12px] text-gray-500 py-1.5">Fechar</button>
                 </div>
               </div>
             )}
@@ -2323,15 +2515,23 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
                 ) : (
                   <div className="space-y-1.5">
                     {proximasConsultas.slice(0, 1).map((a: any) => (
-                      <Link key={a.id} href={`/dashboard/erp/atendimentos/${a.id}`} className="flex items-start gap-2 border rounded-lg p-2 hover:bg-gray-50" style={{ borderColor: "#E8DFC8" }}>
-                        <LuCalendar size={13} style={{ color: "#009AAC", marginTop: 1, flexShrink: 0 }} />
-                        <div className="min-w-0">
-                          <div className="text-[11.5px] font-medium" style={{ color: "#014D5E" }}>{fmtConsultaDateTime(a.date, a.duration)}</div>
-                          <div className="text-[10.5px] text-gray-500 truncate">{TYPE_LABEL[a.type] || a.type || "Consulta"}{a.user?.name ? ` · ${a.user.name}` : ""}</div>
-                        </div>
-                      </Link>
+                      <div key={a.id} className="flex items-stretch gap-1.5">
+                        <Link href={`/dashboard/erp/atendimentos/${a.id}`} className="flex items-start gap-2 border rounded-lg p-2 hover:bg-gray-50 flex-1 min-w-0" style={{ borderColor: "#E8DFC8" }}>
+                          <LuCalendar size={13} style={{ color: "#009AAC", marginTop: 1, flexShrink: 0 }} />
+                          <div className="min-w-0">
+                            <div className="text-[11.5px] font-medium" style={{ color: "#014D5E" }}>{fmtConsultaDateTime(a.date, a.duration)}</div>
+                            <div className="text-[10.5px] text-gray-500 truncate">{TYPE_LABEL[a.type] || a.type || "Consulta"}{a.user?.name ? ` · ${a.user.name}` : ""}</div>
+                          </div>
+                        </Link>
+                        <button type="button" title="Editar ou cancelar este agendamento"
+                          onClick={() => setEditAppt({ ...a, tutorId: tutor?.id, tutor: tutor ? { id: tutor.id, name: tutor.name } : undefined, petId: selectedPet?.id, pet: selectedPet ? { id: selectedPet.id, name: selectedPet.name } : undefined, userId: a.userId || a.user?.id })}
+                          className="flex items-center justify-center w-9 rounded-lg border hover:bg-[#E1F2F4] flex-shrink-0" style={{ borderColor: "#009AAC", background: "white", color: "#009AAC" }}>✏️</button>
+                      </div>
                     ))}
                   </div>
+                )}
+                {editAppt && (
+                  <NovoAgendamentoModal open={!!editAppt} editAppt={editAppt} onClose={() => setEditAppt(null)} onCreated={() => { setEditAppt(null); setProximasTick((t) => t + 1); }} />
                 )}
               </section>
             )}
@@ -2344,16 +2544,18 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
                   <LuStethoscope size={16} /> Atendimento
                 </button>
                 <div className="grid grid-cols-4 gap-1.5">
-                  <button type="button" onClick={() => setAgendaOpen((o) => !o)} title="Agendar para este pet" className="flex items-center justify-center h-11 rounded-lg border hover:bg-[#E1F2F4]" style={{ borderColor: "#009AAC", background: agendaOpen ? "#E1F2F4" : "white" }}><LuCalendar size={18} style={{ color: "#009AAC" }} /></button>
+                  {/* Botão de agenda removido daqui (03/08): a agenda já fica no box de conversação. */}
                   <button type="button" disabled title="Follow-up · em breve" className="flex items-center justify-center h-11 rounded-lg border cursor-not-allowed opacity-50" style={{ borderColor: "#E8DFC8", background: "#fafafa" }}><LuClock size={18} style={{ color: "#9aa0a8" }} /></button>
                   <button type="button" onClick={() => { setPetActForward(false); setInteracaoOpen(true); }} title="Registrar interação" className="flex items-center justify-center h-11 rounded-lg border hover:bg-[#E1F2F4]" style={{ borderColor: "#009AAC", background: "white" }}><LuMessageSquare size={18} style={{ color: "#009AAC" }} /></button>
-                  <button type="button" onClick={() => window.open(`/dashboard/erp/ponto-de-venda?tutorId=${tutor.id}${selectedPet ? `&petId=${selectedPet.id}` : ""}`, "_self")} title="Nova venda (Ponto de Venda)" className="flex items-center justify-center h-11 rounded-lg border transition hover:bg-[#E1F2F4]" style={{ borderColor: "#009AAC", background: "white" }}><LuDollarSign size={18} style={{ color: "#009AAC" }} /></button>
+                  <button type="button" onClick={() => setOrcRapidoOpen(true)} title="Venda / Orçamento rápido — enviar pelo WhatsApp (sem sair da tela)" className="flex items-center justify-center h-11 rounded-lg border transition hover:bg-[#E1F2F4]" style={{ borderColor: "#009AAC", background: "white" }}><LuDollarSign size={18} style={{ color: "#009AAC" }} /></button>
+                  <button type="button" onClick={() => setOrcRapidoOpen(true)} title="Orçamento rápido — enviar pelo WhatsApp" className="flex items-center justify-center h-11 rounded-lg border transition hover:bg-[#E1F2F4]" style={{ borderColor: "#009AAC", background: "white" }}><LuFileText size={18} style={{ color: "#009AAC" }} /></button>
                   <button type="button" onClick={abrirSeletorSequencia} title="Iniciar sequência de cuidado do pet" className="flex items-center justify-center h-11 rounded-lg border transition hover:bg-[#E1F2F4]" style={{ borderColor: "#009AAC", background: "white" }}><LuRepeat size={18} style={{ color: "#009AAC" }} /></button>
                   <button type="button" onClick={() => setEmailOpen(true)} title="Enviar e-mail para o cliente" className="flex items-center justify-center h-11 rounded-lg border transition hover:bg-[#E1F2F4]" style={{ borderColor: "#009AAC", background: "white" }}><LuMail size={18} style={{ color: "#009AAC" }} /></button>
                   <button type="button" onClick={() => setPetActForward(o => !o)} title="Encaminhar" className="flex items-center justify-center h-11 rounded-lg border hover:bg-[#E1F2F4]" style={{ borderColor: "#009AAC", background: "white" }}><LuShare2 size={18} style={{ color: "#009AAC" }} /></button>
                   <button type="button" onClick={abrirExames} title="Acompanhar exames do pet" className="flex items-center justify-center h-11 rounded-lg border transition hover:bg-[#E1F2F4]" style={{ borderColor: "#009AAC", background: "white" }}><LuFlaskConical size={18} style={{ color: "#009AAC" }} /></button>
                 </div>
                 <NovoAgendamentoModal inline open={agendaOpen} onClose={() => setAgendaOpen(false)} defaults={agendaDefaults} onCreated={() => { setAcaoFeita(true); setProximasTick((t) => t + 1); }} />
+                <OrcamentoRapidoModal open={orcRapidoOpen} onClose={() => setOrcRapidoOpen(false)} pet={selectedPet ? { id: selectedPet.id, name: selectedPet.name } : null} tutor={tutor ? { id: tutor.id, name: tutor.name } : null} onEnviarTexto={onEnviarTexto} phone={initialPhone} />
                 {petActForward && (
                   <div className="mt-2 border rounded-lg overflow-hidden" style={{ borderColor: "#E8DFC8" }}>
                     {staff.length === 0 ? (

@@ -50,11 +50,16 @@ export class PresenteReplyListener {
       const conv = await this.prisma.whatsAppConversation.findFirst({ where: { tutorId }, orderBy: { lastMessageAt: 'desc' } });
       if (!conv) return;
 
+      // Prazo de 7 dias pra usar o desconto — conta a partir da entrega (agora).
+      const venc = new Date(Date.now() + 7 * 24 * 3600 * 1000).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'America/Fortaleza' });
+
       const texto = dados.pet
         ? [
             `🎁 *Presente de aniversário!*`,
             ``,
             `Que alegria comemorar com vocês! Pelo aniversário do(a) *${dados.pet}*, vocês ganharam *10% de desconto* em nossos serviços. 💛`,
+            ``,
+            `⏳ Válido por *7 dias* — aproveite até *${venc}*.`,
             ``,
             `É só apresentar esta mensagem aqui no Empório do Pet. Te esperamos! 🐾`,
           ].join('\n')
@@ -63,12 +68,24 @@ export class PresenteReplyListener {
             ``,
             `Que alegria comemorar com você! Pelo seu aniversário, você ganhou *10% de desconto* em nossos serviços. 💛`,
             ``,
+            `⏳ Válido por *7 dias* — aproveite até *${venc}*.`,
+            ``,
             `É só apresentar esta mensagem aqui no Empório do Pet. Te esperamos! 🐾`,
           ].join('\n');
 
       await this.whatsapp.sendAndSaveMessage(conv.userId, conv.id, texto, 'TEXT', { senderType: 'SYSTEM', senderName: 'Presente 🎁' });
       await this.prisma.listaItem.delete({ where: { id: item.id } }).catch(() => undefined);
       this.logger.log(`Presente de aniversário (10% off) entregue ao tutor ${tutorId}${dados.pet ? ` (pet ${dados.pet})` : ''}`);
+
+      // 📴 A conversa promocional se ENCERRA sozinha após entregar o presente (Cintia 31/07):
+      // clicar no botão / mandar "quero"/"presente" é ação canned, não conversa de verdade.
+      // PROTEÇÃO: se o cliente ESCREVEU algo mais longo (pergunta real), NÃO fecha.
+      const textoCliente = String(payload?.content || '').trim();
+      if (textoCliente.length <= 30) {
+        await this.prisma.whatsAppConversation
+          .update({ where: { id: conv.id }, data: { status: 'CLOSED', unreadCount: 0 } })
+          .catch(() => undefined);
+      }
     } catch (e: any) {
       this.logger.warn(`Falha no PresenteReplyListener: ${e?.message || e}`);
     }

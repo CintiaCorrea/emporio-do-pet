@@ -1,9 +1,12 @@
 "use client";
 import { LuX, LuArrowLeft } from "react-icons/lu";
+import { useCanSeeCost } from "@/lib/permissions/useCanSeeCost";
 
 export default function PetAtendimentoPanel(props: any) {
   const { pet, atd, setAtd, atdTipos, atdStatus, vets, items, servicosCat, pickServico, addItem, updItem, rmItem, saving, onSalvar, onFechar } = props;
   const sa = (patch: any) => setAtd((a: any) => ({ ...a, ...patch }));
+  const canSeeCost = useCanSeeCost(); // coluna Custo do atendimento só p/ ADMIN
+  const gridCols = canSeeCost ? "1fr 40px 64px 64px 1fr 48px 70px 22px" : "1fr 40px 64px 1fr 48px 70px 22px";
   return (
     <div className="p-5">
       <div className="flex items-center justify-between mb-4 pb-3 border-b" style={{ borderColor: "#E8DFC8" }}>
@@ -40,16 +43,16 @@ export default function PetAtendimentoPanel(props: any) {
 
       <div className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mt-4 mb-1.5">Serviços e valores</div>
       <div className="text-xs">
-        <div className="hidden md:grid gap-1 text-[10px] text-gray-400 px-1 mb-1" style={{ gridTemplateColumns: "1fr 40px 64px 64px 1fr 48px 70px 22px" }}>
-          <span>Serviço/descrição</span><span className="text-center">Qtd</span><span>Valor</span><span>Custo</span><span>Executado por</span><span className="text-center">Com.%</span><span className="text-right">Total</span><span></span>
+        <div className="hidden md:grid gap-1 text-[10px] text-gray-400 px-1 mb-1" style={{ gridTemplateColumns: gridCols }}>
+          <span>Serviço/descrição</span><span className="text-center">Qtd</span><span>Valor</span>{canSeeCost && <span>Custo</span>}<span>Executado por</span><span className="text-center">Com.%</span><span className="text-right">Total</span><span></span>
         </div>
         {items.length === 0 && <p className="text-center text-gray-400 py-2">Nenhum serviço lançado.</p>}
         {items.map((it: any, i: number) => (
-          <div key={i} className="grid gap-1 mb-1 items-center" style={{ gridTemplateColumns: "1fr 40px 64px 64px 1fr 48px 70px 22px" }}>
+          <div key={i} className="grid gap-1 mb-1 items-center" style={{ gridTemplateColumns: gridCols }}>
             <input list="srvcat-atd" value={it.descricao} onChange={(e) => { const nome = e.target.value; const sv = servicosCat.find((x: any) => x.nome === nome); if (sv) { pickServico(i, sv.id); } else { updItem(i, { descricao: nome, servicoId: "" }); } }} placeholder="Serviço..." className="px-1.5 py-1 border rounded" style={{ borderColor: "#E8DFC8" }} />
             <input type="number" value={it.quantidade} onChange={(e) => updItem(i, { quantidade: e.target.value })} className="px-1 py-1 border rounded text-center" style={{ borderColor: "#E8DFC8" }} />
             <input type="number" value={it.valorUnitario} onChange={(e) => updItem(i, { valorUnitario: e.target.value })} className="px-1 py-1 border rounded" style={{ borderColor: "#E8DFC8" }} />
-            <input type="number" value={it.custoUnitario} onChange={(e) => updItem(i, { custoUnitario: e.target.value })} className="px-1 py-1 border rounded" style={{ borderColor: "#E8DFC8" }} />
+            {canSeeCost && <input type="number" value={it.custoUnitario} onChange={(e) => updItem(i, { custoUnitario: e.target.value })} className="px-1 py-1 border rounded" style={{ borderColor: "#E8DFC8" }} />}
             <select value={it.executorUserId} onChange={(e) => updItem(i, { executorUserId: e.target.value })} className="px-1 py-1 border rounded" style={{ borderColor: "#E8DFC8" }}><option value="">—</option>{vets.map((u: any) => <option key={u.id} value={u.id}>{u.name}</option>)}</select>
             <input type="number" value={it.comissaoValor} onChange={(e) => updItem(i, { comissaoValor: e.target.value })} className="px-1 py-1 border rounded text-center" style={{ borderColor: "#E8DFC8" }} />
             <span className="text-right tabular-nums text-[11px]">{((Number(it.quantidade) || 0) * (Number(it.valorUnitario) || 0)).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
@@ -58,7 +61,18 @@ export default function PetAtendimentoPanel(props: any) {
         ))}
         <datalist id="srvcat-atd">{servicosCat.slice(0, 1000).map((sv: any) => <option key={sv.id} value={sv.nome} />)}</datalist>
         <button onClick={addItem} className="w-full mt-1 px-3 py-1.5 rounded-lg border border-dashed text-[11px]" style={{ borderColor: "#009AAC", color: "#00798A" }}>+ Adicionar serviço</button>
-        {items.length > 0 && <div className="text-right text-sm font-medium mt-2" style={{ color: "#0E2244" }}>Total: {items.reduce((sm: number, it: any) => sm + (Number(it.quantidade) || 0) * (Number(it.valorUnitario) || 0), 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</div>}
+        {items.length > 0 && (
+          <div className="flex items-center justify-between gap-2 mt-2 flex-wrap">
+            <button
+              type="button"
+              onClick={() => { let n = 0; items.forEach((it: any) => { if (it.descricao) { n++; try { window.dispatchEvent(new CustomEvent("comanda:add", { detail: { descricao: it.descricao, valorUnitario: Number(it.valorUnitario) || 0, quantidade: Number(it.quantidade) || 1, servicoId: it.servicoId || undefined } })); } catch { /* noop */ } } }); }}
+              className="text-[11px] font-medium px-2.5 py-1.5 rounded-lg border flex items-center gap-1.5"
+              style={{ borderColor: "#009AAC", color: "#00798A", background: "#F0FBFC" }}
+              title="Envia estes itens para a comanda lateral (venda/orçamento)"
+            >🛒 Enviar itens para a comanda</button>
+            <div className="text-right text-sm font-medium" style={{ color: "#0E2244" }}>Total: {items.reduce((sm: number, it: any) => sm + (Number(it.quantidade) || 0) * (Number(it.valorUnitario) || 0), 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</div>
+          </div>
+        )}
       </div>
 
       <div className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mt-4 mb-1.5">Pós-atendimento</div>

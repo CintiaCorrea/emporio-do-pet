@@ -11,6 +11,7 @@ import { openWhatsAppMeta } from "@/lib/actions/whatsapp";
 import { montarTextoBoletim, BoletimData, EquipVal } from "@/lib/pets/boletim";
 import EquipamentosFisioEditor from "@/components/pets/EquipamentosFisioEditor";
 import { imprimirDocumento } from "@/lib/print";
+import { useAutoSaveDraft } from "@/hooks/useAutoSaveDraft";
 
 interface PetLite {
   id: string; name: string; species?: string; breed?: string | null; gender?: string | null; birthDate?: string | null;
@@ -122,6 +123,15 @@ export default function BoletimModal({ pet, boletimId, fisioRec, agenda, onClose
 
   const textoPreview = useMemo(() => montarTextoBoletim(b), [b]);
 
+  // Auto-save de rascunho (silencioso; restaura sozinho ao reabrir este boletim).
+  const { clear: limparRascunho } = useAutoSaveDraft<BoletimData>({
+    key: `boletimRasc:${petId}:${boletimId || "novo"}`,
+    enabled: ready,
+    value: b,
+    isVazio: (v) => !(v.obsTutor || v.obsMv || v.paraCasa || v.metas) && Object.keys(v.equipamentos || {}).length === 0,
+    onRestore: (s) => setB((prev) => ({ ...prev, ...s, equipamentos: s.equipamentos || prev.equipamentos })),
+  });
+
   async function persistir(enviado: boolean): Promise<boolean> {
     const payload: BoletimData = { ...b, enviadoAt: enviado ? new Date().toISOString() : (b.enviadoAt || null), createdAt: b.createdAt || new Date().toISOString() };
     // desconto da sessão: via agenda (quando o tutor chega/entra na sala de espera) — não descontamos aqui.
@@ -141,7 +151,7 @@ export default function BoletimModal({ pet, boletimId, fisioRec, agenda, onClose
     setSaving(true);
     const ok = await persistir(false);
     setSaving(false);
-    if (ok) { toast.success("Boletim salvo"); onSaved(); }
+    if (ok) { limparRascunho(); toast.success("Boletim salvo"); onSaved(); }
   }
 
   async function handleSalvarEnviar() {
@@ -151,6 +161,7 @@ export default function BoletimModal({ pet, boletimId, fisioRec, agenda, onClose
     setSaving(true);
     const ok = await persistir(true);
     if (!ok) { setSaving(false); return; }
+    limparRascunho(); // já salvou no banco — descarta o rascunho local
     // Conversa ABERTA → envia o boletim completo e registra no inbox.
     // Conversa FECHADA → manda a abridora e deixa o boletim na FILA (vai automático
     // quando o cliente tocar "Enviar o boletim").
@@ -200,7 +211,7 @@ export default function BoletimModal({ pet, boletimId, fisioRec, agenda, onClose
     const corpo = `<h1 style="font-size:19px">🌿 Boletim de Fisioterapia</h1>
       <div style="color:#6B7280;font-size:12px;margin-bottom:14px">${esc(pet.name || "")}${dataStr ? ` · ${esc(dataStr)}` : ""}</div>
       <pre style="border-top:2px solid #009AAC;padding-top:14px;white-space:pre-wrap;font-family:inherit">${rich}</pre>`;
-    await imprimirDocumento("Boletim de fisioterapia", corpo);
+    await imprimirDocumento("Boletim de fisioterapia", corpo, undefined, { pet, tutor: pet.tutor });
   }
 
   const inp = "w-full mt-0.5 px-3 py-2 border border-[#E8E2D6] rounded-[9px] text-[13px] text-[#1F2A2E] bg-white";

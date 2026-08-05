@@ -1100,6 +1100,35 @@ export class WhatsAppService {
       );
     }
 
+    // Motivo da PERDA dos leads (conversa sem cliente) — pra mostrar "❌ Perdido: X" no card
+    // do inbox. BATCHED: no máx. 2 queries (leads + motivos), NUNCA uma por conversa, pra não
+    // pesar a listagem (é caminho quente). Best-effort — nunca quebra a lista.
+    try {
+      const leadConvIds = conversations.filter((c: any) => !c.tutorId).map((c: any) => c.id);
+      if (leadConvIds.length) {
+        const leads = await this.prisma.lead.findMany({
+          where: { whatsappConversationId: { in: leadConvIds } },
+          select: { id: true, whatsappConversationId: true },
+        });
+        if (leads.length) {
+          const motivos = await this.prisma.listaItem.findMany({
+            where: { lista: { in: leads.map((l) => `leadperda_${l.id}`) } },
+            select: { lista: true, valor: true },
+          });
+          const motivoPorLead: Record<string, string> = {};
+          for (const m of motivos) motivoPorLead[m.lista.replace('leadperda_', '')] = m.valor;
+          const motivoPorConv: Record<string, string> = {};
+          for (const l of leads) {
+            const mv = motivoPorLead[l.id];
+            if (mv && l.whatsappConversationId) motivoPorConv[l.whatsappConversationId] = mv;
+          }
+          for (const c of conversations as any[]) {
+            if (motivoPorConv[c.id]) c.leadMotivoPerda = motivoPorConv[c.id];
+          }
+        }
+      }
+    } catch { /* enriquecimento best-effort — nunca quebra a listagem */ }
+
     return {
       data: conversations,
       pagination: {
@@ -1109,6 +1138,21 @@ export class WhatsAppService {
         totalPages: Math.ceil(total / limit),
       },
     };
+  }
+
+  // Contadores leves para o cabeçalho/menu (polling a cada 20s, em toda tela, p/ todo usuário).
+  // ANTES isto carregava 1000 conversas + religava órfãos (escrita no banco) só pra contar 4 números,
+  // sufocando o pool de conexões. Agora são 4 COUNT() diretos — o banco resolve sem carregar linhas.
+  // (O re-vínculo de conversas órfãs continua acontecendo na listagem do inbox e no webhook.)
+  async getStats() {
+    const [totalConversations, openConversations, unreadConversations, assignedToAgent] =
+      await Promise.all([
+        this.prisma.whatsAppConversation.count(),
+        this.prisma.whatsAppConversation.count({ where: { status: 'OPEN' } }),
+        this.prisma.whatsAppConversation.count({ where: { unreadCount: { gt: 0 } } }),
+        this.prisma.whatsAppConversation.count({ where: { assignedAgentId: { not: null } } }),
+      ]);
+    return { totalConversations, openConversations, unreadConversations, assignedToAgent };
   }
 
   // Get messages for a conversation
@@ -1192,9 +1236,17 @@ export class WhatsAppService {
       isAutoReplyEnabled?: boolean;
     },
   ) {
+    // Ao (des)atribuir a conversa a um humano pelo inbox, carimba QUANDO isso aconteceu.
+    // Isso alimenta o auto-soltar (conversa ociosa há 30 min volta pro geral) — sem o
+    // carimbo, uma conversa ANTIGA recém-assumida seria devolvida na hora. Só carimba
+    // se quem chamou não passou explicitamente um humanTakeoverAt.
+    const patch = { ...data };
+    if (Object.prototype.hasOwnProperty.call(data, 'assignedUserId') && patch.humanTakeoverAt === undefined) {
+      patch.humanTakeoverAt = data.assignedUserId ? new Date() : null;
+    }
     return this.prisma.whatsAppConversation.update({
       where: { id: conversationId },
-      data,
+      data: patch,
       include: {
         assignedAgent: true,
         assignedUser: { select: { id: true, name: true } },
@@ -1668,6 +1720,7 @@ export class WhatsAppService {
     templateName: string,
     params: Array<{ type: 'text'; text: string }>,
     textoLegivel?: string,
+    autoClose = false,
   ): Promise<{ success: boolean; error?: string }> {
     const res = await this.sendTemplateMessage(phone, templateName, params);
     if (!res.success) return { success: false, error: res.error };
@@ -1677,9 +1730,32 @@ export class WhatsAppService {
       if (conv) {
         await this.saveOutboundMessage(conv.id, textoLegivel || `[modelo enviado: ${templateName}]`, 'TEMPLATE', res.messageId, { template: templateName, fromSystem: true }, { senderType: 'SYSTEM', senderName: 'Sistema' });
         await this.prisma.whatsAppConversation.update({ where: { id: conv.id }, data: { lastMessageAt: new Date() } }).catch(() => undefined);
+        // 📴 Automáticas (confirmação/vacina/aniversário): fecham a conversa SE o cliente não interagiu.
+        if (autoClose) await this.fecharSeSemInteracao(conv.id);
       }
     } catch { /* registrar é best-effort — nunca trava o envio */ }
     return { success: true };
+  }
+
+  /**
+   * Fecha a conversa depois de uma mensagem AUTOMÁTICA (confirmação/vacina/aniversário),
+   * mas SÓ se o cliente não interagiu recentemente — protege conversas ativas.
+   * Se o cliente responder depois, `saveInboundMessage` reabre (status OPEN).
+   */
+  async fecharSeSemInteracao(conversationId: string) {
+    try {
+      const ultInbound = await this.prisma.whatsAppMessage.findFirst({
+        where: { conversationId, direction: 'INBOUND' },
+        orderBy: { createdAt: 'desc' },
+        select: { createdAt: true },
+      });
+      const recente = !!ultInbound && Date.now() - new Date(ultInbound.createdAt).getTime() < 24 * 60 * 60 * 1000;
+      if (recente) return; // cliente interagiu nas últimas 24h → não fecha
+      await this.prisma.whatsAppConversation.update({
+        where: { id: conversationId },
+        data: { status: 'CLOSED', unreadCount: 0 },
+      });
+    } catch { /* best-effort */ }
   }
 
   /**
