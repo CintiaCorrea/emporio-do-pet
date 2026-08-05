@@ -85,6 +85,15 @@ Resto: tabelas densas, paleta neutra.
 A Cintia nao programa. Etapas curtas, explicar simples, esperar OK.
 Mudancas vao para rascunho/PR — nunca direto em producao sem teste.
 
+## 11. Padrao de largura + visual em TODA pagina (check permanente)
+
+TODAS as paginas do dashboard tem o MESMO padrao de largura (largura cheia —
+`p-4`/`p-6`, SEM `max-w-*xl mx-auto` centralizado que deixa a coluna estreita) e
+a mesma linguagem grafica Base44 (paleta #009AAC/#014D5E/#E8DFC8, cabecalho
+padrao, cards `rounded-2xl` borda #E8DFC8). Regra da Cintia (05/08, fase final):
+**sempre que abrir/mexer numa pagina, conferir se esta no padrao; se NAO estiver,
+arrumar na hora — mesmo que nao seja a tarefa do momento.** Nao deixar passar.
+
 ---
 
 **Fonte da verdade dos dados:** Base44 (`emporio-vet-flow.base44.app`).
