@@ -1885,8 +1885,8 @@ export default function PetDetailPage() {
                   </div>
                 ) : (
                   <div className="bg-white">
-                    <div className="text-[11px] text-[#374151] mb-2 font-semibold uppercase tracking-wide">Adicionar ao histórico</div>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="text-[14px] text-[#5C6B70] mb-3 font-semibold">Adicionar</div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                       {([
                         { label: "Atendimento", ic: "🩺", bg: "#E1F3F5", fg: "#017E8C", act: () => router.push(`/dashboard/erp/pets/${petId}/atendimentos/novo`) },
                         { label: "Peso", ic: "⚖️", bg: "#F3ECDD", fg: "#8A6D3B", act: () => { setPesoVal(pet?.weight ? String(pet.weight) : ""); setAtdOpen(false); setArtefato("PESO"); } },
@@ -1898,9 +1898,9 @@ export default function PetDetailPage() {
                         { label: "Observação", ic: "📝", bg: "#EFEEE9", fg: "#6B6A63", act: () => { setObsVal(pet?.observations || ""); setAtdOpen(false); setArtefato("OBS"); } },
                         { label: "Patologia", ic: "🦠", bg: "#F3E8F5", fg: "#8E4585", act: async () => { await abrirDocumento(); setDocModeloNome("Laudo de patologia"); } },
                       ] as const).map((c) => (
-                        <button key={c.label} onClick={c.act} className="flex flex-col items-start gap-1 rounded-[13px] px-3 py-2.5 transition hover:brightness-95" style={{ background: c.bg, color: c.fg }}>
-                          <span className="text-[18px] leading-none">{c.ic}</span>
-                          <span className="text-[12px] font-bold">{c.label}</span>
+                        <button key={c.label} onClick={c.act} className="flex flex-col items-center justify-center gap-1.5 rounded-[12px] px-3 py-4 text-white transition hover:-translate-y-0.5" style={{ background: c.fg, boxShadow: "0 3px 8px rgba(1,30,36,.10)" }}>
+                          <span className="text-[21px] leading-none">{c.ic}</span>
+                          <span className="text-[12.5px] font-semibold">{c.label}</span>
                         </button>
                       ))}
                     </div>
