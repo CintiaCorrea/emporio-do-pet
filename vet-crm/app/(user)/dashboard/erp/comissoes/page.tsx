@@ -6,6 +6,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { usePageTitle } from '@/lib/ui/PageHeaderContext';
 import { usePodeEditar } from '@/lib/permissions/context';
@@ -124,11 +125,14 @@ function Avatar({ nome, iniciais }: { nome?: string; iniciais?: string }) {
 type TabKey = 'aberto' | 'extratos' | 'minhas';
 type SubMinha = 'grupo' | 'produto' | 'data' | 'resumo';
 
-export default function ComissoesPage() {
+// `fixedTab` vem das rotas de menu (Comissões em aberto / Extratos / Minhas comissões):
+// quando setado, a barra de abas interna some — o próprio menu é a navegação.
+export function ComissoesView({ fixedTab }: { fixedTab?: TabKey }) {
   usePageTitle('Comissionamento', 'Comissões dos profissionais');
+  const router = useRouter();
   const podeEditar = usePodeEditar(); // perfil VISUALIZA = esconde fechar/pagar/configurar
 
-  const [tab, setTab] = useState<TabKey>('aberto');
+  const [tab, setTab] = useState<TabKey>(fixedTab ?? 'aberto');
   const [config, setConfig] = useState<CommissionConfig | null>(null);
 
   // ---- Aba Em aberto ----
@@ -367,12 +371,14 @@ export default function ComissoesPage() {
           </div>
         </HeaderCard>
 
-        {/* Abas */}
-        <Tabs
-          tabs={tabs.filter((t) => t.show).map((t) => ({ k: t.key, label: `${t.emoji} ${t.label}` }))}
-          active={tab}
-          onChange={setTab}
-        />
+        {/* Abas (só quando NÃO veio do menu; do menu, cada item já é uma aba) */}
+        {!fixedTab && (
+          <Tabs
+            tabs={tabs.filter((t) => t.show).map((t) => ({ k: t.key, label: `${t.emoji} ${t.label}` }))}
+            active={tab}
+            onChange={setTab}
+          />
+        )}
 
         {/* ===================== ABA EM ABERTO ===================== */}
         {tab === 'aberto' && (
@@ -553,14 +559,19 @@ export default function ComissoesPage() {
         )}
 
         {/* ===================== ABA MINHAS COMISSÕES ===================== */}
-        {tab === 'minhas' && (
+        {tab === 'minhas' && !verPropria && (
+          <div style={{ padding: 24, textAlign: 'center', color: '#5C6B70', fontSize: 13, background: '#fff', border: '1px solid #E8E2D6', borderRadius: 13 }}>
+            A visualização da própria comissão está desativada pela administração.
+          </div>
+        )}
+        {tab === 'minhas' && verPropria && (
           <div>
             <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: 12, marginBottom: 20 }}>
               <div>
                 <label style={labelStyle}>Vendas baixadas até</label>
                 <Input type="date" value={minhasAte} onChange={(e) => setMinhasAte(e.target.value)} style={{ width: 170 }} />
               </div>
-              <Btn variant="ghost" onClick={() => setTab('extratos')}>📁 Ver meus extratos</Btn>
+              <Btn variant="ghost" onClick={() => (fixedTab ? router.push('/dashboard/erp/comissoes/extratos') : setTab('extratos'))}>📁 Ver meus extratos</Btn>
             </div>
 
             <div style={{ marginBottom: 22 }}>
@@ -726,4 +737,8 @@ export default function ComissoesPage() {
       </Modal>
     </PageShell>
   );
+}
+
+export default function ComissoesPage() {
+  return <ComissoesView fixedTab="aberto" />;
 }

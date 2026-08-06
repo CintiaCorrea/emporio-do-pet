@@ -104,7 +104,14 @@ const NAV: Entry[] = [
       { href: "/dashboard/erp/importar-vendas", label: "Importar vendas", emoji: "📥", roles: ["ADMIN"] },
     ],
   },
-  { href: "/dashboard/erp/comissoes", label: "Comissionamento", emoji: "🧾", roles: ["ADMIN"], section: "GESTAO" },
+  {
+    group: true, key: "comissionamento", label: "Comissionamento", emoji: "🧾", roles: ALL, section: "GESTAO",
+    children: [
+      { href: "/dashboard/erp/comissoes", label: "Comissões em aberto", emoji: "📂", roles: ["ADMIN"] },
+      { href: "/dashboard/erp/comissoes/extratos", label: "Extratos", emoji: "📁", roles: ["ADMIN"] },
+      { href: "/dashboard/erp/comissoes/minhas", label: "Minhas comissões", emoji: "👤", roles: ALL },
+    ],
+  },
   {
     group: true, key: "inteligencia", label: "Inteligência", emoji: "💡", roles: ALL, section: "GESTAO",
     children: [

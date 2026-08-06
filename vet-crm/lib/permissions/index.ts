@@ -68,7 +68,13 @@ export const PERM_SECTIONS: PermSection[] = [
           { key: "/dashboard/erp/importar-vendas", label: "Importar vendas", emoji: "📥" },
         ],
       },
-      { key: "/dashboard/erp/comissoes", label: "Comissionamento", emoji: "🧾" },
+      {
+        key: "comissionamento", label: "Comissionamento", emoji: "🧾", children: [
+          { key: "/dashboard/erp/comissoes", label: "Comissões em aberto", emoji: "📂" },
+          { key: "/dashboard/erp/comissoes/extratos", label: "Extratos", emoji: "📁" },
+          { key: "/dashboard/erp/comissoes/minhas", label: "Minhas comissões", emoji: "👤" },
+        ],
+      },
       {
         key: "inteligencia", label: "Inteligência", emoji: "💡", children: [
           { key: "/dashboard/erp/minhas-vendas", label: "Produtividade", emoji: "📈" },
