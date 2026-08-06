@@ -119,6 +119,7 @@ const NAV: Entry[] = [
       { href: "/dashboard/erp/consulta-vendas", label: "Consulta de vendas", emoji: "🔎", roles: ["ADMIN", "RECEPTIONIST"] },
       { href: "/dashboard/erp/ranking-clientes", label: "Ranking de clientes", emoji: "🏆", roles: ["ADMIN", "RECEPTIONIST"] },
       { href: "/dashboard/erp/retencao", label: "Retenção e Churn", emoji: "🔄", roles: ["ADMIN", "RECEPTIONIST"] },
+      { href: "/dashboard/erp/relacionamento", label: "Relacionamento (RFM)", emoji: "💎", roles: ["ADMIN", "RECEPTIONIST"] },
       { href: "/dashboard/configuracoes/metas", label: "Metas", emoji: "🎯", roles: ["ADMIN"] },
       { href: "/dashboard/agente-sombra", label: "Agente Sombra", emoji: "👻", roles: ["ADMIN"] },
       { href: "/dashboard/copiloto-clinico", label: "Copiloto Clínico", emoji: "🩺", roles: ["ADMIN"] },

@@ -201,6 +201,81 @@ export class CaixaService {
     };
   }
 
+  // RFM (Recência-Frequência-Monetário) em LOTE + níveis de relacionamento + key accounts.
+  // Usa a MESMA lógica de score da ficha (getScoreClient), agora com LTV real → níveis coerentes.
+  async rfm() {
+    const now = Date.now();
+    const appts = await this.prisma.appointment.findMany({
+      where: { status: { notIn: ['CANCELED', 'CANCELLED', 'MISSED'] as any } },
+      select: { tutorId: true, date: true, value: true, tutor: { select: { name: true } } },
+    });
+    const map = new Map<string, any>();
+    for (const a of appts) {
+      if (!a.tutorId) continue;
+      const ts = new Date(a.date).getTime();
+      if (ts > now) continue; // ignora futuros
+      if (!map.has(a.tutorId)) map.set(a.tutorId, { tutorId: a.tutorId, nome: a.tutor?.name || 'Cliente', last: 0, freq: 0, mon: 0 });
+      const g = map.get(a.tutorId);
+      if (ts > g.last) g.last = ts;
+      g.freq += 1; g.mon += Number(a.value) || 0;
+    }
+    const arr = [...map.values()].map((g) => ({ ...g, recDias: Math.floor((now - g.last) / 86400000) }));
+    if (!arr.length) return { total: 0, niveis: [], segmentos: [], keyAccounts: [] };
+
+    // Score idêntico ao da ficha (visitas 30 + LTV 30 + recência 25; NPS placeholder 0) → nível
+    const scoreDe = (g: any) => {
+      const visitas = Math.min(30, g.freq);
+      const ltv = Math.min(30, Math.floor(g.mon / 100));
+      let rec = 0;
+      if (g.recDias <= 30) rec = 25; else if (g.recDias <= 90) rec = 18; else if (g.recDias <= 180) rec = 10; else if (g.recDias <= 365) rec = 5;
+      return visitas + ltv + rec;
+    };
+    const nivelDe = (s: number) => (s >= 80 ? 'Diamante' : s >= 60 ? 'Ouro' : s >= 40 ? 'Prata' : 'Bronze');
+
+    // Escores RFM 1-5 por quintil
+    const rank5 = (get: (x: any) => number, higherBetter: boolean) => {
+      const sorted = [...arr].sort((a, b) => get(a) - get(b));
+      const n = sorted.length;
+      const m = new Map<string, number>();
+      sorted.forEach((it, i) => { const q = Math.min(4, Math.floor((i / n) * 5)); m.set(it.tutorId, higherBetter ? q + 1 : 5 - q); });
+      return m;
+    };
+    const R = rank5((x) => x.recDias, false); // menos dias = melhor
+    const F = rank5((x) => x.freq, true);
+    const M = rank5((x) => x.mon, true);
+
+    const segmentoDe = (r: number, f: number, m: number) => {
+      if (r >= 4 && f >= 4 && m >= 4) return 'Campeões';
+      if (f >= 4 && r >= 3) return 'Fiéis';
+      if (r >= 4 && f <= 2) return 'Promissores';
+      if (r === 3 && f >= 3) return 'Precisam de atenção';
+      if (r <= 2 && (m >= 4 || f >= 3)) return 'Em risco';
+      if (r <= 2 && f <= 2) return 'Hibernando';
+      return 'Regulares';
+    };
+
+    const enriched = arr.map((g) => {
+      const s = scoreDe(g);
+      const r = R.get(g.tutorId) || 1, f = F.get(g.tutorId) || 1, m = M.get(g.tutorId) || 1;
+      return { ...g, score: s, nivel: nivelDe(s), r, f, m, segmento: segmentoDe(r, f, m) };
+    });
+
+    const aggBy = (key: string, ordem: string[]) => {
+      const mm = new Map<string, { n: number; valor: number }>();
+      for (const e of enriched) { const k = (e as any)[key]; if (!mm.has(k)) mm.set(k, { n: 0, valor: 0 }); const o = mm.get(k)!; o.n++; o.valor += e.mon; }
+      return ordem.filter((k) => mm.has(k)).map((k) => ({ key: k, ...mm.get(k)! }));
+    };
+    const niveis = aggBy('nivel', ['Diamante', 'Ouro', 'Prata', 'Bronze']);
+    const segmentos = aggBy('segmento', ['Campeões', 'Fiéis', 'Promissores', 'Precisam de atenção', 'Regulares', 'Em risco', 'Hibernando']);
+    const keyAccounts = enriched
+      .filter((e) => e.nivel === 'Diamante' || e.nivel === 'Ouro')
+      .sort((a, b) => b.mon - a.mon)
+      .slice(0, 40)
+      .map((e) => ({ tutorId: e.tutorId, nome: e.nome, nivel: e.nivel, segmento: e.segmento, r: e.r, f: e.f, m: e.m, freq: e.freq, valor: e.mon, recDias: e.recDias }));
+
+    return { total: enriched.length, niveis, segmentos, keyAccounts };
+  }
+
   // Recebimentos analítico (Fase 3): KPIs + quebras por forma/usuário/dia/marca no período.
   async recebimentosResumo(query: any = {}) {
     const where = rangeFromQuery(query);
