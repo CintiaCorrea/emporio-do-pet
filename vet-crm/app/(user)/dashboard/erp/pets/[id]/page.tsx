@@ -20,6 +20,7 @@ import {
 } from "react-icons/lu";
 import toast from "react-hot-toast";
 import FeedTimeline from "@/components/pets/FeedTimeline";
+import WeightChart from "@/components/pets/WeightChart";
 import HistoricoAddGrid from "@/components/pets/HistoricoAddGrid";
 import PetProtocolosPanel from "@/components/pets/PetProtocolosPanel";
 import PetAtendimentoPanel from "@/components/pets/PetAtendimentoPanel";
@@ -1733,12 +1734,13 @@ export default function PetDetailPage() {
                       <h3 className="text-sm font-semibold" style={{ color: "#0E2244" }}>Peso</h3>
                       <div className="flex gap-2">
                         <button onClick={salvarPeso} disabled={savingArt} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingArt ? "..." : "Salvar"}</button>
-                        <button onClick={() => setArtefato(null)} className="px-3 py-1.5 rounded-lg text-xs border" style={{ borderColor: "#E8DFC8", color: "#475569" }}>Fechar</button>
+                        <button onClick={() => setArtefato(null)} title="Fechar" aria-label="Fechar" className="w-7 h-7 flex items-center justify-center rounded-lg text-lg leading-none border hover:bg-[#F6F2EA] transition-colors" style={{ borderColor: "#E8DFC8", color: "#64748B" }}>×</button>
                       </div>
                     </div>
                     <label className="text-xs text-gray-500">Peso atual (kg)</label>
                     <input type="number" step="0.01" value={pesoVal} onChange={(e) => setPesoVal(e.target.value)} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }} placeholder="Ex.: 6.25" />
                     <p className="text-[11px] text-gray-400 mt-2">Atualiza o peso atual do pet e entra no gráfico de peso.</p>
+                    <div className="mt-3"><WeightChart atendimentos={atendimentos} current={pet.weight} /></div>
                   </div>
                 ) : artefato === "OBS" ? (
                   <div className="bg-white">
@@ -1746,7 +1748,7 @@ export default function PetDetailPage() {
                       <h3 className="text-sm font-semibold" style={{ color: "#0E2244" }}>Observação</h3>
                       <div className="flex gap-2">
                         <button onClick={salvarObsArt} disabled={savingArt} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingArt ? "..." : "Salvar"}</button>
-                        <button onClick={() => setArtefato(null)} className="px-3 py-1.5 rounded-lg text-xs border" style={{ borderColor: "#E8DFC8", color: "#475569" }}>Fechar</button>
+                        <button onClick={() => setArtefato(null)} title="Fechar" aria-label="Fechar" className="w-7 h-7 flex items-center justify-center rounded-lg text-lg leading-none border hover:bg-[#F6F2EA] transition-colors" style={{ borderColor: "#E8DFC8", color: "#64748B" }}>×</button>
                       </div>
                     </div>
                     <textarea value={obsVal} onChange={(e) => setObsVal(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8", minHeight: "120px" }} placeholder="Anote algo sobre o pet…" />
@@ -1759,7 +1761,7 @@ export default function PetDetailPage() {
                         <button onClick={() => imprimirComTimbrado(recModeloNome || "Receita", recCorpo, recVetId)} className="px-3 py-1.5 rounded-lg text-xs border flex items-center gap-1" style={{ borderColor: "#E8DFC8", color: "#475569" }}><LuPrinter size={13} /> Imprimir</button>
                         <label className="px-3 py-1.5 rounded-lg text-xs border flex items-center gap-1 cursor-pointer" style={{ borderColor: "#009AAC", color: "#00798A" }}>📎 Anexar arquivo<input type="file" accept="application/pdf,image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) anexarArquivoDoc(f, "RECEITA"); (e.target as HTMLInputElement).value = ""; }} /></label>
                         <button onClick={salvarReceita} disabled={savingArt} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingArt ? "..." : "Salvar"}</button>
-                        <button onClick={() => setArtefato(null)} className="px-3 py-1.5 rounded-lg text-xs border" style={{ borderColor: "#E8DFC8", color: "#475569" }}>Fechar</button>
+                        <button onClick={() => setArtefato(null)} title="Fechar" aria-label="Fechar" className="w-7 h-7 flex items-center justify-center rounded-lg text-lg leading-none border hover:bg-[#F6F2EA] transition-colors" style={{ borderColor: "#E8DFC8", color: "#64748B" }}>×</button>
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-2 mb-2">
@@ -1796,7 +1798,7 @@ export default function PetDetailPage() {
                         <button onClick={() => imprimirComTimbrado(docModeloNome || "Documento", docCorpo, docVetId)} className="px-3 py-1.5 rounded-lg text-xs border flex items-center gap-1" style={{ borderColor: "#E8DFC8", color: "#475569" }}><LuPrinter size={13} /> Imprimir</button>
                         <label className="px-3 py-1.5 rounded-lg text-xs border flex items-center gap-1 cursor-pointer" style={{ borderColor: "#009AAC", color: "#00798A" }}>📎 Anexar arquivo<input type="file" accept="application/pdf,image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) anexarArquivoDoc(f, "DOCUMENTO"); (e.target as HTMLInputElement).value = ""; }} /></label>
                         <button onClick={salvarDocumento} disabled={savingArt} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingArt ? "..." : "Salvar"}</button>
-                        <button onClick={() => setArtefato(null)} className="px-3 py-1.5 rounded-lg text-xs border" style={{ borderColor: "#E8DFC8", color: "#475569" }}>Fechar</button>
+                        <button onClick={() => setArtefato(null)} title="Fechar" aria-label="Fechar" className="w-7 h-7 flex items-center justify-center rounded-lg text-lg leading-none border hover:bg-[#F6F2EA] transition-colors" style={{ borderColor: "#E8DFC8", color: "#64748B" }}>×</button>
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-2 mb-2">
@@ -1824,7 +1826,7 @@ export default function PetDetailPage() {
                       <h3 className="text-sm font-semibold" style={{ color: "#0E2244" }}>Vídeo (link)</h3>
                       <div className="flex gap-2">
                         <button onClick={salvarVideo} disabled={savingArt} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingArt ? "..." : "Salvar"}</button>
-                        <button onClick={() => setArtefato(null)} className="px-3 py-1.5 rounded-lg text-xs border" style={{ borderColor: "#E8DFC8", color: "#475569" }}>Fechar</button>
+                        <button onClick={() => setArtefato(null)} title="Fechar" aria-label="Fechar" className="w-7 h-7 flex items-center justify-center rounded-lg text-lg leading-none border hover:bg-[#F6F2EA] transition-colors" style={{ borderColor: "#E8DFC8", color: "#64748B" }}>×</button>
                       </div>
                     </div>
                     <label className="text-xs text-gray-500">Arquivo do vídeo (até 20MB)</label>
@@ -1844,7 +1846,7 @@ export default function PetDetailPage() {
                       <h3 className="text-sm font-semibold" style={{ color: "#0E2244" }}>🔬 Exame</h3>
                       <div className="flex gap-2">
                         <button onClick={salvarExameComArquivo} disabled={savingArt} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingArt ? "..." : "Salvar"}</button>
-                        <button onClick={() => setArtefato(null)} className="px-3 py-1.5 rounded-lg text-xs border" style={{ borderColor: "#E8DFC8", color: "#475569" }}>Fechar</button>
+                        <button onClick={() => setArtefato(null)} title="Fechar" aria-label="Fechar" className="w-7 h-7 flex items-center justify-center rounded-lg text-lg leading-none border hover:bg-[#F6F2EA] transition-colors" style={{ borderColor: "#E8DFC8", color: "#64748B" }}>×</button>
                       </div>
                     </div>
                     <label className="text-xs text-gray-500">Exame *</label>
@@ -1868,7 +1870,7 @@ export default function PetDetailPage() {
                       <h3 className="text-sm font-semibold" style={{ color: "#0E2244" }}>📷 Foto</h3>
                       <div className="flex gap-2">
                         <button onClick={salvarFoto} disabled={savingArt} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingArt ? "..." : "Salvar"}</button>
-                        <button onClick={() => setArtefato(null)} className="px-3 py-1.5 rounded-lg text-xs border" style={{ borderColor: "#E8DFC8", color: "#475569" }}>Fechar</button>
+                        <button onClick={() => setArtefato(null)} title="Fechar" aria-label="Fechar" className="w-7 h-7 flex items-center justify-center rounded-lg text-lg leading-none border hover:bg-[#F6F2EA] transition-colors" style={{ borderColor: "#E8DFC8", color: "#64748B" }}>×</button>
                       </div>
                     </div>
                     <label className="text-xs text-gray-500">Arquivo da foto</label>
