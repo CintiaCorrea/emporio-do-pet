@@ -17,7 +17,8 @@ const markupDe = (custo?: number | null, preco?: number | null) => {
 };
 
 type Grupo = "PRODUTO" | "SERVICO" | "EXAME";
-interface Item { key: string; rawId?: string; grupo: Grupo; tipo: string; nome: string; codigo?: number | string | null; custo?: number | null; preco?: number | null; estoque?: number | null; ativo: boolean; fornecedor?: string | null; categoria?: string | null; marca?: string | null; controlaValidade?: boolean | null; validade?: string | null; tempo?: number | null; }
+interface Item { key: string; rawId?: string; grupo: Grupo; tipo: string; nome: string; codigo?: number | string | null; custo?: number | null; preco?: number | null; estoque?: number | null; ativo: boolean; fornecedor?: string | null; categoria?: string | null; comissao?: string | null; marca?: string | null; controlaValidade?: boolean | null; validade?: string | null; tempo?: number | null; }
+const COM_LABEL: Record<string, string> = { VALOR_CHEIO: "Valor cheio", MARGEM: "Margem", SEM_COMISSAO: "Sem comissão", HERDAR: "Herdar" };
 
 const TIPO_PILL: Record<Grupo, { bg: string; fg: string; emoji: string }> = {
   PRODUTO: { bg: "#E6F1FB", fg: "#0C447C", emoji: "📦" },
@@ -121,7 +122,7 @@ export default function CatalogoPage() {
           tipo: isServ ? "Serviço" : (p.type === "VACCINE" ? "Vacina" : "Produto"),
           nome: p.name, codigo: p.codigo ?? null, custo: p.custoPadrao ?? null, preco: p.price ?? null,
           estoque: isServ ? null : (p.stock ?? 0), ativo: p.ativo !== false, fornecedor: p.fornecedor?.nome ?? null,
-          categoria: p.category?.nome ?? null, marca: p.marca ?? null, controlaValidade: p.controlaValidade ?? null, validade: p.validadeMaisAntiga ?? null,
+          categoria: p.category?.nome ?? null, comissao: p.comissaoBaseDefault ?? "HERDAR", marca: p.marca ?? null, controlaValidade: p.controlaValidade ?? null, validade: p.validadeMaisAntiga ?? null,
         });
       }
       for (const e of exames) {
@@ -129,7 +130,7 @@ export default function CatalogoPage() {
           key: `e-${e.id}`, rawId: e.id, grupo: "EXAME", tipo: "Exame",
           nome: e.nome, codigo: e.codigo ?? null, custo: e.valorFornecedor ?? null, preco: e.valorClienteSugerido ?? null,
           estoque: null, ativo: e.ativo !== false, fornecedor: e.fornecedor?.nome || null,
-          categoria: e.categoria ?? null, marca: null, controlaValidade: null, validade: null, tempo: e.tempoResultadoDias ?? null,
+          categoria: e.categoria ?? null, comissao: null, marca: null, controlaValidade: null, validade: null, tempo: e.tempoResultadoDias ?? null,
         });
       }
       rows.sort((a, b) => a.nome.localeCompare(b.nome));
@@ -241,6 +242,31 @@ export default function CatalogoPage() {
     load();
   }
 
+  // ── Ações por linha ──
+  const abrirEdicao = (it: Item) => {
+    if (!it.rawId) return;
+    if (it.grupo === "EXAME") setExameEdit({ id: it.rawId, nome: it.nome, codigo: it.codigo, fornecedor: it.fornecedor, valorFornecedor: it.custo, valorClienteSugerido: it.preco, tempo: it.tempo, ativo: it.ativo });
+    else { setEditId(it.rawId); setModalOpen(true); }
+  };
+  async function toggleAtivo(it: Item) {
+    if (!it.rawId) return;
+    try {
+      const r = await fetch(endpointDe(it), { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ativo: !it.ativo }) });
+      if (!r.ok) throw new Error();
+      setItens((prev) => prev.map((x) => (x.key === it.key ? { ...x, ativo: !it.ativo } : x)));
+    } catch { toast.error("Não consegui mudar a situação."); }
+  }
+  async function excluirUm(it: Item) {
+    if (!it.rawId) return;
+    if (!window.confirm(`Excluir "${it.nome}" de vez?\n\n⚠️ Não dá pra desfazer. Pra só tirar da lista, use o interruptor "Ativo".`)) return;
+    try {
+      const r = await fetch(endpointDe(it), { method: "DELETE", credentials: "include" });
+      if (!r.ok) throw new Error();
+      setItens((prev) => prev.filter((x) => x.key !== it.key));
+      toast.success("Item excluído");
+    } catch { toast.error("Erro ao excluir."); }
+  }
+
   return (
     <div className="cat-page">
       <style>{CSS}</style>
@@ -325,47 +351,39 @@ export default function CatalogoPage() {
             <thead>
               <tr>
                 <th className="no-print" style={{ width: 34, textAlign: "center" }}><input type="checkbox" checked={todosVisSel} onChange={toggleTodosVis} title="Selecionar todos (os filtrados)" /></th>
-                <th>Tipo</th><th>Nome</th><th className="col-sec2">Fornecedor</th>{isAdmin && <><th className="r col-sec">Custo</th><th className="r col-sec">Markup</th></>}<th className="r">Preço</th><th className="r">Estoque</th><th>Situação</th>
+                <th>Nome</th><th className="col-sec2">Fornecedor</th><th>Categoria</th>{isAdmin && <th className="r col-sec">Custo</th>}<th className="r">Preço</th><th>Comissão</th><th style={{ textAlign: "center" }}>Ativo</th><th className="no-print" style={{ textAlign: "center" }}>Ações</th>
               </tr>
             </thead>
             <tbody>
-              {loading && <tr><td colSpan={isAdmin ? 9 : 7} className="cat-empty">Carregando catálogo…</td></tr>}
-              {!loading && filtrados.length === 0 && <tr><td colSpan={isAdmin ? 9 : 7} className="cat-empty">Nenhum item encontrado.</td></tr>}
+              {loading && <tr><td colSpan={isAdmin ? 9 : 8} className="cat-empty">Carregando catálogo…</td></tr>}
+              {!loading && filtrados.length === 0 && <tr><td colSpan={isAdmin ? 9 : 8} className="cat-empty">Nenhum item encontrado.</td></tr>}
               {!loading && paginados.map((it) => {
                 const pill = TIPO_PILL[it.grupo];
                 const mk = markupDe(it.custo, it.preco);
                 return (
-                  <tr key={it.key} onClick={() => {
-                    if (!it.rawId) return;
-                    if (it.grupo === "EXAME") { setExameEdit({ id: it.rawId, nome: it.nome, codigo: it.codigo, fornecedor: it.fornecedor, valorFornecedor: it.custo, valorClienteSugerido: it.preco, tempo: it.tempo, ativo: it.ativo }); }
-                    else { setEditId(it.rawId); setModalOpen(true); }
-                  }} style={{ cursor: it.rawId ? "pointer" : "default", background: sel.has(it.key) ? "#EAF6F7" : undefined }}>
+                  <tr key={it.key} onClick={() => abrirEdicao(it)} style={{ cursor: it.rawId ? "pointer" : "default", background: sel.has(it.key) ? "#EAF6F7" : undefined }}>
                     <td className="no-print" onClick={(e) => e.stopPropagation()} style={{ textAlign: "center" }}>
                       {it.rawId ? <input type="checkbox" checked={sel.has(it.key)} onChange={() => toggleSel(it.key)} /> : null}
                     </td>
-                    <td><span className="cat-pill" style={{ background: pill.bg, color: pill.fg }}>{pill.emoji} {it.tipo}</span></td>
-                    <td className="cat-nm">{it.nome}{it.codigo != null && it.codigo !== "" ? <div className="cat-cod">cód. {it.codigo}</div> : null}</td>
+                    <td className="cat-nm"><span className="cat-pill" style={{ background: pill.bg, color: pill.fg, marginRight: 6 }}>{pill.emoji} {it.tipo}</span>{it.nome}{it.codigo != null && it.codigo !== "" ? <div className="cat-cod">cód. {it.codigo}</div> : null}</td>
                     <td className="cat-forn col-sec2" style={{ color: it.fornecedor ? "#5C6B70" : "#374151" }}>{it.fornecedor || "—"}</td>
-                    {isAdmin && <><td className="r col-sec" style={{ color: "#5C6B70" }}>{brl(it.custo)}</td>
-                    <td className="r col-sec" style={{ color: mk == null ? "#374151" : "#5C6B70" }} onClick={(e) => e.stopPropagation()}>
-                      {it.grupo === "EXAME" && it.custo && it.custo > 0 ? (
-                        <span style={{ display: "inline-flex", alignItems: "center", gap: 1, border: "1px solid #d9c98f", background: "#fffdf5", borderRadius: 6, padding: "2px 5px", opacity: savingPerc === it.key ? 0.5 : 1 }} title="Digite a % e tecle Enter — o preço calcula sozinho">
-                          <input
-                            value={percEdits[it.key] ?? (mk == null ? "" : String(mk))}
-                            onChange={(e) => setPercEdits((m) => ({ ...m, [it.key]: e.target.value }))}
-                            onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
-                            onBlur={(e) => { const v = e.target.value.trim(); if (v !== "" && v !== (mk == null ? "" : String(mk))) salvarPercExame(it, v); }}
-                            disabled={savingPerc === it.key}
-                            inputMode="decimal" placeholder="—"
-                            style={{ width: 38, border: "none", background: "transparent", textAlign: "right", fontSize: 12.5, color: "#1F2A2E", outline: "none", fontFamily: "inherit" }}
-                          />
-                          <span style={{ fontSize: 10, color: "#5C6B70" }}>%</span>
-                        </span>
-                      ) : (mk == null ? "—" : `${mk}%`)}
-                    </td></>}
+                    <td style={{ color: it.categoria ? "#5C6B70" : "#374151" }}>{it.categoria || "—"}</td>
+                    {isAdmin && <td className="r col-sec" style={{ color: "#5C6B70" }}>{brl(it.custo)}</td>}
                     <td className="r" style={{ color: "#014D5E", fontWeight: 500 }}>{brl(it.preco)}</td>
-                    <td className="r" style={{ color: it.estoque == null ? "#374151" : "#1F2A2E" }}>{it.estoque == null ? "—" : it.estoque}</td>
-                    <td><span className="cat-sit" style={it.ativo ? { background: "#E7F6EE", color: "#1c7a47" } : { background: "#F0EBE0", color: "#374151" }}>{it.ativo ? "Ativo" : "Inativo"}</span></td>
+                    <td style={{ color: "#5C6B70" }}>{it.grupo === "EXAME" ? "—" : (COM_LABEL[it.comissao || "HERDAR"] || "Herdar")}</td>
+                    <td style={{ textAlign: "center" }} onClick={(e) => e.stopPropagation()}>
+                      {it.rawId ? (
+                        <button onClick={() => toggleAtivo(it)} title={it.ativo ? "Ativo — clique pra inativar" : "Inativo — clique pra ativar"} style={{ width: 38, height: 20, borderRadius: 999, border: "none", cursor: "pointer", background: it.ativo ? "#1c7a47" : "#cbd2d0", position: "relative", verticalAlign: "middle" }}>
+                          <span style={{ position: "absolute", top: 2, left: it.ativo ? 20 : 2, width: 16, height: 16, borderRadius: "50%", background: "#fff", transition: "left .15s" }} />
+                        </button>
+                      ) : "—"}
+                    </td>
+                    <td className="no-print" style={{ textAlign: "center", whiteSpace: "nowrap" }} onClick={(e) => e.stopPropagation()}>
+                      {it.rawId ? (<>
+                        <button onClick={() => abrirEdicao(it)} title="Editar" style={{ border: "none", background: "none", cursor: "pointer", fontSize: 14, padding: 4 }}>✏️</button>
+                        <button onClick={() => excluirUm(it)} title="Excluir" style={{ border: "none", background: "none", cursor: "pointer", fontSize: 14, padding: 4, color: "#c0392b" }}>✕</button>
+                      </>) : null}
+                    </td>
                   </tr>
                 );
               })}
