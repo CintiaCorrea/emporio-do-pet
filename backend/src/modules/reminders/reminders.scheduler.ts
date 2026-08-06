@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
+import { fortalezaYMD, dataPuraMD, diasAteDataPura, ddmmDataPura } from './reminders-datas';
 
 /**
  * Lembretes automáticos (todo dia às 9h de Fortaleza):
@@ -55,12 +56,11 @@ export class RemindersScheduler {
   }
 
   // ---------- helpers ----------
-  private fort(d: Date) { const f = new Date(d.getTime() - 3 * 3600 * 1000); return { y: f.getUTCFullYear(), m: f.getUTCMonth(), d: f.getUTCDate() }; }
-  // Data PURA (nascimento/vencimento) é salva à meia-noite UTC — NÃO aplicar o fuso (-3h),
-  // senão vira o dia anterior. Lê os componentes UTC direto (dia/mês do calendário).
-  private mdData(d: Date) { return { m: d.getUTCMonth(), d: d.getUTCDate() }; }
-  private diffDias(prevista: Date): number { const h = this.fort(new Date()); const p = this.fort(prevista); return Math.round((Date.UTC(p.y, p.m, p.d) - Date.UTC(h.y, h.m, h.d)) / 86400000); }
-  private ddmm(d: Date) { const f = this.fort(d); return `${String(f.d).padStart(2, '0')}/${String(f.m + 1).padStart(2, '0')}`; }
+  // Toda a lógica de fuso mora em reminders-datas.ts (PURA + testada). Estes só delegam.
+  private fort(d: Date) { return fortalezaYMD(d); }
+  private mdData(d: Date) { return dataPuraMD(d); }                       // data pura → UTC (sem -3h)
+  private diffDias(prevista: Date): number { return diasAteDataPura(prevista, new Date()); } // vacina: sem o bug de 1 dia
+  private ddmm(d: Date) { return ddmmDataPura(d); }
   private primeiro(nome?: string | null) { return (nome || '').trim().split(/\s+/)[0] || 'tutor'; }
   private telDe(tutor: any): string | null { const cs = tutor?.contacts || []; const wa = cs.find((x: any) => x.isWhatsApp) || cs.find((x: any) => x.isPrimary) || cs[0]; return wa?.number || null; }
   private T(text: string) { return { type: 'text' as const, text }; }
