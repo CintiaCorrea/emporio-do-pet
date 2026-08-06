@@ -56,6 +56,9 @@ export class RemindersScheduler {
 
   // ---------- helpers ----------
   private fort(d: Date) { const f = new Date(d.getTime() - 3 * 3600 * 1000); return { y: f.getUTCFullYear(), m: f.getUTCMonth(), d: f.getUTCDate() }; }
+  // Data PURA (nascimento/vencimento) é salva à meia-noite UTC — NÃO aplicar o fuso (-3h),
+  // senão vira o dia anterior. Lê os componentes UTC direto (dia/mês do calendário).
+  private mdData(d: Date) { return { m: d.getUTCMonth(), d: d.getUTCDate() }; }
   private diffDias(prevista: Date): number { const h = this.fort(new Date()); const p = this.fort(prevista); return Math.round((Date.UTC(p.y, p.m, p.d) - Date.UTC(h.y, h.m, h.d)) / 86400000); }
   private ddmm(d: Date) { const f = this.fort(d); return `${String(f.d).padStart(2, '0')}/${String(f.m + 1).padStart(2, '0')}`; }
   private primeiro(nome?: string | null) { return (nome || '').trim().split(/\s+/)[0] || 'tutor'; }
@@ -90,7 +93,7 @@ export class RemindersScheduler {
       select: { id: true, name: true, birthDate: true, contacts: true },
     });
     for (const t of tutores) {
-      const b = this.fort(new Date(t.birthDate as Date));
+      const b = this.mdData(new Date(t.birthDate as Date));
       if (b.m !== h.m || b.d !== h.d) continue;
       const phone = this.telDe(t); if (!phone) continue;
       const enviou = await this.enviarUmaVez(`aniv-tutor:${t.id}:${ano}`, phone, 'aniversario_tutor', [this.T(this.primeiro(t.name))], `🎂 Mensagem de aniversário enviada para ${this.primeiro(t.name)}.`);
@@ -103,7 +106,7 @@ export class RemindersScheduler {
       select: { id: true, name: true, birthDate: true, tutor: { select: { id: true, name: true, contacts: true } } },
     });
     for (const p of pets) {
-      const b = this.fort(new Date(p.birthDate as Date));
+      const b = this.mdData(new Date(p.birthDate as Date));
       if (b.m !== h.m || b.d !== h.d) continue;
       const phone = this.telDe(p.tutor); if (!phone) continue;
       const enviou = await this.enviarUmaVez(`aniv-pet:${p.id}:${ano}`, phone, 'aniversario_pet', [this.T(this.primeiro(p.tutor?.name)), this.T(p.name || 'seu pet')], `🎂 Aniversário do pet ${p.name || ''} — mensagem enviada.`);

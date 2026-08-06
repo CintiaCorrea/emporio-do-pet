@@ -90,10 +90,32 @@ export default function RecadoPopup() {
     }
   }, [meId]);
 
-  // Tempo real: recado OU transferência → recarrega na hora.
+  // Tempo real: recado OU transferência → mostra na hora.
   useNotifications({
     onNotification: (n) => {
-      if (KINDS.includes((n?.metadata as any)?.kind)) carregar();
+      const kind = (n?.metadata as any)?.kind;
+      if (!KINDS.includes(kind)) return;
+      // Antes do baseline terminar, deixa o carregar() silenciar o que já existe
+      // (protege contra o socket reenviar histórico ao conectar).
+      if (!baseline.current) { carregar(); return; }
+      if (kind === 'conversa_encaminhada') {
+        // Transferência: a própria notificação é a entidade (id serve pro /read).
+        // Evento em tempo real = novo → enfileira direto (garante o popup na hora).
+        if (seen.current.has(n.id)) return;
+        seen.current.add(n.id);
+        const meta = (n.metadata as any) || {};
+        const item: Item = {
+          tipo: 'transferencia',
+          id: n.id,
+          texto: n.message || 'Você recebeu uma conversa.',
+          link: n.link || (meta.conversationId ? `/dashboard/inbox-nativo?conversa=${meta.conversationId}` : '/dashboard/inbox-nativo'),
+          createdAt: n.createdAt || new Date().toISOString(),
+        };
+        setFila((prev) => (prev.some((p) => p.id === item.id) ? prev : [...prev, item]));
+      } else {
+        // Recado interno: busca via /api/internal-notes pra pegar o id certo da nota.
+        carregar();
+      }
     },
   });
 
