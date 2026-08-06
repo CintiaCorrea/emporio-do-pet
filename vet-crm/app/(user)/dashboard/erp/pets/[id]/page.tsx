@@ -866,15 +866,7 @@ export default function PetDetailPage() {
       body: JSON.stringify({ valor: JSON.stringify({ ...data, resultadoUrl: limpa || null, resultadoArquivo: nomeArquivo || data.resultadoArquivo || null, status: limpa ? novoStatus : data.status }) }),
     });
     if (!r.ok) throw new Error("não consegui salvar o resultado no exame");
-    // Registra tambem como documento na timeline
-    if (limpa && pet) {
-      try {
-        await fetch("/api/appointments", {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ tutorId: pet.tutorId, petId: pet.id, userId: vets[0]?.id, date: new Date().toISOString(), type: "Resultado de exames", status: "Realizado", prescription: limpa, chiefComplaint: data.nome }),
-        });
-      } catch {}
-    }
+    // O resultado fica SÓ na aba Exames — não cria mais registro na anamnese/prontuário (Cintia 06/08).
     await loadPetColecoes(); await loadAtendimentos();
   }
   async function anexarResultado(id: string, data: any) {
