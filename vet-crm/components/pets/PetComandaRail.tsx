@@ -104,14 +104,14 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
 
   const nItens = itens.length;
 
-  // Aba recolhida (fixa na lateral direita)
+  // Botão flutuante (canto inferior direito) — não encobre o × dos blocos
   if (!aberto) {
     return (
       <button onClick={() => setAberto(true)} title="Abrir comanda"
-        className="fixed z-40 flex flex-col items-center gap-1 text-white font-bold shadow-lg print:hidden"
-        style={{ right: 0, top: "42%", background: "#009AAC", borderRadius: "12px 0 0 12px", padding: "12px 8px", writingMode: "vertical-rl" as any }}>
-        <LuShoppingCart size={18} style={{ transform: "rotate(90deg)" }} />
-        <span style={{ fontSize: 12 }}>Comanda{nItens ? ` (${nItens})` : ""}</span>
+        className="fixed z-40 flex items-center gap-2 text-white font-bold shadow-lg print:hidden hover:brightness-105 transition"
+        style={{ right: 20, bottom: 20, background: "#009AAC", borderRadius: 999, padding: "12px 18px" }}>
+        <LuShoppingCart size={18} />
+        <span style={{ fontSize: 13 }}>Comanda{nItens ? ` (${nItens})` : ""}</span>
       </button>
     );
   }
