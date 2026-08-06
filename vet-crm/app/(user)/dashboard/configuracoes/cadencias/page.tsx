@@ -27,7 +27,7 @@ const EMPTY_P: any = { ordem: 1, tipo: "WHATSAPP", titulo: "", conteudo: "", atr
 export default function CadenciasPage() {
   const [list, setList] = useState<Cadencia[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showInactive, setShowInactive] = useState(false);
+  const [showInactive, setShowInactive] = useState(true);
   const [search, setSearch] = useState("");
   const [filterGat, setFilterGat] = useState<"ALL" | Gatilho>("ALL");
   const [expanded, setExpanded] = useState<string | null>(null);
