@@ -31,7 +31,13 @@ export const PERM_SECTIONS: PermSection[] = [
       { key: "/dashboard/inbox-nativo", label: "Inbox Meta", emoji: "📲" },
       { key: "/dashboard/comercial", label: "Comercial", emoji: "🎯" },
       { key: "/dashboard/erp/tutores", label: "Clientes", emoji: "👥" },
-      { key: "/dashboard/erp/agendamentos/agenda", label: "Agenda", emoji: "📅" },
+      {
+        key: "agenda", label: "Agenda", emoji: "📅", children: [
+          { key: "/dashboard/erp/agendamentos/agenda", label: "Agenda", emoji: "📅" },
+          { key: "/dashboard/erp/agendamentos/escala", label: "Escala", emoji: "🗓️" },
+          { key: "/dashboard/erp/agendamentos/configuracoes", label: "Configuração", emoji: "⚙️" },
+        ],
+      },
       { key: "/dashboard/erp/vacinacao", label: "Vacinação", emoji: "💉" },
       { key: "/dashboard/erp/aniversarios", label: "Aniversários", emoji: "🎂" },
       {

@@ -68,7 +68,14 @@ const NAV: Entry[] = [
   },
   // LIXEIRA-PETS-MENU (Cintia 22/06): aba "Pets" removida do menu. Edicao do pet centralizada na ficha de Cliente; ficha clinica acessivel pelo nome do pet na lista de Clientes. Restaurar = descomentar a linha abaixo.
   // { href: "/dashboard/erp/pets", label: "Pets", emoji: "🐾", roles: ALL },
-  { href: "/dashboard/erp/agendamentos/agenda", label: "Agenda", emoji: "📅", roles: ALL, section: "DIA" },
+  {
+    group: true, key: "agenda", label: "Agenda", emoji: "📅", roles: ALL, section: "DIA",
+    children: [
+      { href: "/dashboard/erp/agendamentos/agenda", label: "Agenda", emoji: "📅", roles: ALL },
+      { href: "/dashboard/erp/agendamentos/escala", label: "Escala", emoji: "🗓️", roles: ALL },
+      { href: "/dashboard/erp/agendamentos/configuracoes", label: "Configuração", emoji: "⚙️", roles: ["ADMIN"] },
+    ],
+  },
   {
     group: true, key: "clinico", label: "Atendimento clínico", emoji: "🩺", roles: ALL, section: "DIA",
     children: [
