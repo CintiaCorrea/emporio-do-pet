@@ -97,7 +97,13 @@ export default function RecadoPopup() {
   // Tempo real: recado OU transferência → mostra na hora.
   useNotifications({
     onNotification: (n) => {
-      const kind = (n?.metadata as any)?.kind;
+      const meta = (n?.metadata as any) || {};
+      let kind = meta.kind;
+      const titulo = n?.title || '';
+      if (!kind) { // fallback: nem sempre o metadata vem no payload do socket
+        if (titulo.startsWith('📨 Conversa encaminhada')) kind = 'conversa_encaminhada';
+        else if (titulo.startsWith('💬 Mensagem interna')) kind = 'internal_note';
+      }
       if (!KINDS.includes(kind)) return;
       // Antes do baseline terminar, deixa o carregar() silenciar o que já existe
       // (protege contra o socket reenviar histórico ao conectar).
@@ -107,7 +113,6 @@ export default function RecadoPopup() {
         // Evento em tempo real = novo → enfileira direto (garante o popup na hora).
         if (seen.current.has(n.id)) return;
         seen.current.add(n.id);
-        const meta = (n.metadata as any) || {};
         const item: Item = {
           tipo: 'transferencia',
           id: n.id,

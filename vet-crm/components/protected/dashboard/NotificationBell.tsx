@@ -18,9 +18,15 @@ export default function NotificationBell() {
     markAllAsRead} = useNotifications({
     onNotification: (notification) => {
       // Recado interno e transferência de conversa são mostrados pelo POPUP grande
-      // (RecadoPopup). Não mostrar o toast pequeno aqui pra não duplicar o aviso.
+      // (RecadoPopup). NÃO mostrar o toast pequeno aqui pra não duplicar o aviso.
+      // Detecta por metadata.kind OU pelo título (fallback caso o metadata não venha
+      // no payload do socket) — assim o toast nunca escapa.
       const kind = (notification.metadata as any)?.kind;
-      if (kind === 'internal_note' || kind === 'conversa_encaminhada') return;
+      const titulo = notification.title || '';
+      const ehRecadoOuTransfer =
+        kind === 'internal_note' || kind === 'conversa_encaminhada' ||
+        titulo.startsWith('💬 Mensagem interna') || titulo.startsWith('📨 Conversa encaminhada');
+      if (ehRecadoOuTransfer) return;
       toast(notification.title, {
         description: notification.message});
     }});
