@@ -1704,7 +1704,9 @@ export default function PetDetailPage() {
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-5 items-start">
               <div className="lg:order-1">
-                <FeedTimeline atendimentos={atendimentos} clinDocs={clinDocs} historico={historico} onEditar={editarEntrada} onExcluir={excluirEntrada} onDetalhe={abrirDetalheHist} />
+                <div style={{ maxHeight: "72vh", overflowY: "auto" }} className="pr-1">
+                  <FeedTimeline atendimentos={atendimentos} clinDocs={clinDocs} historico={historico} onEditar={editarEntrada} onExcluir={excluirEntrada} onDetalhe={abrirDetalheHist} />
+                </div>
                 {detalheHist && (
                   <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ background: "rgba(20,35,40,.3)" }} onClick={() => setDetalheHist(null)}>
                     <div className="bg-white rounded-2xl w-full flex flex-col" style={{ maxWidth: 680, maxHeight: "85vh", border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
@@ -1897,30 +1899,14 @@ export default function PetDetailPage() {
                         { label: "Vídeo", ic: "🎥", bg: "#E3F3EF", fg: "#2E8B72", act: () => abrirVideo() },
                         { label: "Observação", ic: "📝", bg: "#EFEEE9", fg: "#6B6A63", act: () => { setObsVal(pet?.observations || ""); setAtdOpen(false); setArtefato("OBS"); } },
                         { label: "Patologia", ic: "🦠", bg: "#F3E8F5", fg: "#8E4585", act: async () => { await abrirDocumento(); setDocModeloNome("Laudo de patologia"); } },
+                        { label: "Vacina", ic: "💉", bg: "#FBF3D9", fg: "#C2952E", act: () => setMainTab("VACINAS") },
+                        { label: "Gravar consulta", ic: "🎤", bg: "#FCE9E7", fg: "#B0403A", act: () => router.push(`/dashboard/erp/pets/${petId}/atendimentos/novo`) },
                       ] as const).map((c) => (
                         <button key={c.label} onClick={c.act} className="flex flex-col items-center justify-center gap-1.5 rounded-[12px] px-3 py-4 text-white transition hover:-translate-y-0.5" style={{ background: c.fg, boxShadow: "0 3px 8px rgba(1,30,36,.10)" }}>
                           <span className="text-[21px] leading-none">{c.ic}</span>
                           <span className="text-[12.5px] font-semibold">{c.label}</span>
                         </button>
                       ))}
-                    </div>
-                    {/* Timeline dos atendimentos (data · tipo em pill · vet · resumo com rótulo em negrito) */}
-                    <div className="mt-4 pt-3 border-t border-[#F0EBE0] flex flex-col gap-1.5">
-                      {(atendimentos || []).length === 0 && <p className="text-[12px] text-[#374151] py-2 text-center">Nenhum atendimento registrado ainda.</p>}
-                      {(atendimentos || []).map((a: any) => {
-                        const resumo = a.conduct ? { l: "Conduta", v: a.conduct } : a.chiefComplaint ? { l: "Queixa", v: a.chiefComplaint } : a.diagnosis ? { l: "Diag.", v: a.diagnosis } : a.prescription ? { l: "Prescrição", v: documentoResumo(a.prescription) } : null;
-                        return (
-                          <button key={a.id} onClick={() => abrirAtd(a.id)} className="w-full text-left bg-[#FBF9F4] border border-[#F0EBE0] rounded-[11px] px-3 py-2 hover:border-[#009AAC] transition">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-[11px] text-[#374151]">{fmtDataBR(a.date)}</span>
-                              <span className="text-[10px] px-2 py-0.5 rounded-full font-medium" style={{ background: "#E0F4F6", color: "#014D5E" }}>{ATD_TIPO_LABEL(a.type)}</span>
-                              {a.user?.name && <span className="text-[11px] text-[#5C6B70]">🩺 {a.user.name}</span>}
-                              <span className="ml-auto text-[12px] text-[#014D5E] font-medium">{money(a.value)}</span>
-                            </div>
-                            {resumo && <div className="text-[12px] text-[#5C6B70] mt-1 truncate"><b className="text-[#1F2A2E]">{resumo.l}:</b> {resumo.v}</div>}
-                          </button>
-                        );
-                      })}
                     </div>
                   </div>
                 )}
