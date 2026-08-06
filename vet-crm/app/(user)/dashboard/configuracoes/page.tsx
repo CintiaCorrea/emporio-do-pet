@@ -16,7 +16,6 @@ const ITEMS: Item[] = [
   { href: "/dashboard/configuracoes/profissionais", title: "Equipe", description: "Equipe interna + acessos ao sistema (login)", emoji: "👥", group: "CADASTROS" },
   { href: "/dashboard/configuracoes/permissoes", title: "Perfis e Permissões", description: "O que cada perfil vê e edita em cada tela", emoji: "🔐", group: "CADASTROS" },
   { href: "/dashboard/configuracoes/etiquetas", title: "Etiquetas", description: "Tags pra Lead, Cliente e Pet", emoji: "🏷️", group: "CADASTROS" },
-  { href: "/dashboard/erp/catalogo", title: "Serviços e Produtos", description: "Catálogo único — preço, custo, comissão e categorias", emoji: "📦", group: "CADASTROS" },
   { href: "/dashboard/configuracoes/racas", title: "Raças", description: "Lista de raças por espécie", emoji: "🐾", group: "CADASTROS" },
   { href: "/dashboard/configuracoes/modelos-receita", title: "Modelos de Receita", description: "Modelos editáveis da ficha do pet", emoji: "💊", group: "CADASTROS" },
   { href: "/dashboard/configuracoes/modelos-documento", title: "Modelos de Documento", description: "Modelos editáveis da ficha do pet", emoji: "📄", group: "CADASTROS" },
@@ -25,7 +24,6 @@ const ITEMS: Item[] = [
   { href: "/dashboard/configuracoes/protocolos", title: "Protocolos", description: "Vacinas, vermífugos e ectoparasitas", emoji: "💉", group: "CADASTROS" },
 
   // Agenda & Atendimento
-  { href: "/dashboard/erp/agendamentos/configuracoes", title: "Agenda", description: "Horários, durações e tipos de agendamento", emoji: "📅", group: "AGENDA", novo: true },
   { href: "/dashboard/configuracoes/atendimento", title: "Atendimento", description: "Tipos e status do atendimento", emoji: "🩺", group: "AGENDA" },
 
   // Comunicação & Mensagens
@@ -40,7 +38,6 @@ const ITEMS: Item[] = [
   // Catálogo & Terceiros
   { href: "/dashboard/configuracoes/exames", title: "Exames, Fornecedores e Profissionais", description: "Catálogo de exames + fornecedores (lab/empresa) e profissionais", emoji: "🔬", group: "CATALOGO" },
   { href: "/dashboard/configuracoes/departamentos", title: "Departamentos (DRE)", description: "De-para: cada categoria do catálogo → departamento do Financeiro/DRE", emoji: "🔗", group: "CATALOGO", novo: true },
-  { href: "/dashboard/configuracoes/grupos", title: "Grupos do catálogo", description: "Categorias de produtos e serviços", emoji: "📁", group: "CATALOGO" },
 
   // Vendas & Financeiro
   { href: "/dashboard/erp/configuracoes-vendas", title: "Configuração de vendas", description: "Regras de venda, descontos e comportamento do PDV", emoji: "💰", group: "VENDAS", novo: true },
@@ -49,7 +46,6 @@ const ITEMS: Item[] = [
   // Sistema & Acesso
   { href: "/dashboard/erp/dados-clinica", title: "Dados da clínica", description: "Nome, CNPJ, endereço e marcas", emoji: "🏢", group: "SISTEMA", novo: true },
   { href: "/dashboard/configuracoes/metas", title: "Metas", description: "Faturamento, atendimentos, conversões", emoji: "🎯", group: "SISTEMA" },
-  { href: "/dashboard/erp/agendamentos/escala", title: "Escala e acesso por horário", description: "Escala de trabalho, acesso por horário e plantão da equipe", emoji: "🗓️", group: "SISTEMA" },
   { href: "/dashboard/configuracoes/timbrado", title: "Papel timbrado", description: "A folha com o logo pros documentos impressos (boletim, receituário…)", emoji: "📄", group: "SISTEMA", novo: true },
 ];
 
