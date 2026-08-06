@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Param,
+  Query,
   Res,
   Logger,
   NotFoundException,
@@ -9,13 +10,41 @@ import {
 } from '@nestjs/common';
 import { Response } from 'express';
 import { MediaService } from './media.service';
+import { CloudStorageService } from './cloud-storage.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @Controller('media')
 export class MediaController {
   private readonly logger = new Logger(MediaController.name);
 
-  constructor(private readonly mediaService: MediaService) {}
+  constructor(
+    private readonly mediaService: MediaService,
+    private readonly cloudStorage: CloudStorageService,
+  ) {}
+
+  /**
+   * Serve um arquivo PRIVADO do bucket (ex.: PDF anexado na ficha) de forma AUTENTICADA.
+   * O `u` é a URL direta do objeto no nosso bucket — baixarPorUrl só assina/baixa do NOSSO
+   * bucket (ignora qualquer outro host → seguro contra SSRF). GET /api/media/ver?u=<url>
+   */
+  @Get('ver')
+  @UseGuards(JwtAuthGuard)
+  async ver(@Query('u') u: string, @Res() res: Response) {
+    if (!u) throw new NotFoundException('Arquivo não encontrado');
+    const file = await this.cloudStorage.baixarPorUrl(u);
+    if (!file) {
+      // Não é do nosso bucket privado (URL pública/externa) → só redireciona.
+      if (/^https?:\/\//i.test(u)) return res.redirect(u);
+      throw new NotFoundException('Arquivo não encontrado');
+    }
+    res.set({
+      'Content-Type': file.contentType,
+      'Content-Length': file.buffer.length.toString(),
+      'Cache-Control': 'private, max-age=300',
+      'Content-Disposition': 'inline',
+    });
+    res.send(file.buffer);
+  }
 
   /**
    * Serve stored media files

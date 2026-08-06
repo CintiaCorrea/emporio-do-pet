@@ -2002,7 +2002,7 @@ export default function PetDetailPage() {
                       </div>
                       {x.data.resultadoUrl && (
                         // Mostra o NOME do arquivo quando temos; a URL crua do bucket é ilegível.
-                        <a href={x.data.resultadoUrl} target="_blank" rel="noopener" className="text-[11.5px] text-[#009AAC] underline break-all block mb-2">
+                        <a href={`/api/media/ver?u=${encodeURIComponent(x.data.resultadoUrl)}`} target="_blank" rel="noopener" className="text-[11.5px] text-[#009AAC] underline break-all block mb-2">
                           📄 {x.data.resultadoArquivo || x.data.resultadoUrl}
                         </a>
                       )}
