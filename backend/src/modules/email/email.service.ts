@@ -53,7 +53,9 @@ export class EmailService {
     const resendKey = this.configService.get<string>('RESEND_API_KEY');
     const host = resendKey ? 'smtp.resend.com' : (this.configService.get<string>('EMAIL_HOST') || 'mail.emporiodopet.com.br');
     const port = resendKey ? 465 : parseInt(this.configService.get<string>('EMAIL_PORT') || '465', 10);
-    const secure = this.configService.get<string>('EMAIL_SECURE') !== 'false';
+    // Resend usa 465 com TLS direto → secure DEVE ser true (senão dá "Greeting never received").
+    // Só o SMTP próprio (fallback) respeita o EMAIL_SECURE configurado.
+    const secure = resendKey ? true : (this.configService.get<string>('EMAIL_SECURE') !== 'false');
     const user = resendKey ? 'resend' : this.configService.get<string>('EMAIL_USER');
     const pass = resendKey || this.configService.get<string>('EMAIL_PASSWORD');
 
