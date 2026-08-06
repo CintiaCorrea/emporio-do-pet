@@ -25,6 +25,7 @@ export default function ItemFormModal({ editId, onClose, onSaved }: { editId?: s
   });
   const [cats, setCats] = useState<Cat[]>([]);
   const [forns, setForns] = useState<Forn[]>([]);
+  const [marcasCat, setMarcasCat] = useState<string[]>([]); // catálogo de marcas (autocompletar)
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(!!editId);
   const set = (k: string, v: any) => setF((x: any) => ({ ...x, [k]: v }));
@@ -36,12 +37,15 @@ export default function ItemFormModal({ editId, onClose, onSaved }: { editId?: s
 
   useEffect(() => {
     (async () => {
-      const [c, fo] = await Promise.all([
+      const [c, fo, mk] = await Promise.all([
         fetch("/api/servicos/categorias", { cache: "no-store" }).then((r) => r.json()).catch(() => []),
         fetch("/api/fornecedores?includeInactive=true", { cache: "no-store" }).then((r) => r.json()).catch(() => []),
+        fetch("/api/listas?lista=marcas", { cache: "no-store" }).then((r) => r.json()).catch(() => []),
       ]);
       setCats(Array.isArray(c) ? c : (c.data || c.itens || []));
       setForns(Array.isArray(fo) ? fo : (fo.data || []));
+      const mkArr = Array.isArray(mk) ? mk : (mk.itens || mk.data || []);
+      setMarcasCat(mkArr.map((x: any) => x.valor).filter(Boolean).sort());
     })();
   }, []);
 
@@ -183,7 +187,9 @@ export default function ItemFormModal({ editId, onClose, onSaved }: { editId?: s
               <h3 style={h3}>📋 Dados básicos</h3>
               <div style={grid}>
                 {isProd && <div><label style={lbl}>Código de barras</label><input style={inp} value={f.codigoBarras} onChange={(e) => set("codigoBarras", e.target.value)} placeholder="7896014670062" /></div>}
-                {isProd && <div><label style={lbl}>Marca</label><input style={inp} value={f.marca} onChange={(e) => set("marca", e.target.value)} placeholder="Ex.: Royal Canin" /></div>}
+                {isProd && <div><label style={lbl}>Marca</label><input style={inp} list="marcas-catalogo" value={f.marca} onChange={(e) => set("marca", e.target.value)} placeholder="Ex.: Royal Canin" />
+                  <datalist id="marcas-catalogo">{marcasCat.map((m) => <option key={m} value={m} />)}</datalist>
+                </div>}
                 <div style={{ gridColumn: "1 / -1" }}><label style={lbl}>Nome *</label><input style={inp} value={f.name} onChange={(e) => set("name", e.target.value)} placeholder="Nome do item" /></div>
                 <div><label style={lbl}>Unidade de venda</label><input style={inp} value={f.unidadeVenda} onChange={(e) => set("unidadeVenda", e.target.value)} placeholder="UN, KG, ML…" /></div>
                 <div>

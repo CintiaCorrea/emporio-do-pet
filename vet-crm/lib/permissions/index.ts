@@ -85,9 +85,12 @@ export const PERM_SECTIONS: PermSection[] = [
       },
       {
         key: "estoque", label: "Estoque e serviços", emoji: "📦", children: [
-          { key: "/dashboard/erp/produtos", label: "Produtos", emoji: "📦" },
-          { key: "/dashboard/erp/servicos", label: "Serviços", emoji: "🏷️" },
+          { key: "/dashboard/erp/catalogo", label: "Produtos e Serviços", emoji: "🗂️" },
           { key: "/dashboard/erp/estoque", label: "Estoque", emoji: "📊" },
+          { key: "/dashboard/erp/estoque/compras", label: "Compras", emoji: "🛒" },
+          { key: "/dashboard/erp/estoque/saidas", label: "Outras saídas de estoque", emoji: "📤" },
+          { key: "/dashboard/configuracoes/grupos", label: "Grupos de Produtos", emoji: "📁" },
+          { key: "/dashboard/erp/estoque/marcas", label: "Marcas", emoji: "🏷️" },
         ],
       },
       {
