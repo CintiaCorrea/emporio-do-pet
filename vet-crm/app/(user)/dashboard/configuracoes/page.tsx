@@ -16,7 +16,7 @@ const ITEMS: Item[] = [
   { href: "/dashboard/configuracoes/profissionais", title: "Equipe", description: "Equipe interna + acessos ao sistema (login)", emoji: "👥", group: "CADASTROS" },
   { href: "/dashboard/configuracoes/permissoes", title: "Perfis e Permissões", description: "O que cada perfil vê e edita em cada tela", emoji: "🔐", group: "CADASTROS" },
   { href: "/dashboard/configuracoes/etiquetas", title: "Etiquetas", description: "Tags pra Lead, Cliente e Pet", emoji: "🏷️", group: "CADASTROS" },
-  { href: "/dashboard/configuracoes/servicos", title: "Serviços e Produtos", description: "Catálogo com preço, custo e comissão", emoji: "📦", group: "CADASTROS" },
+  { href: "/dashboard/erp/catalogo", title: "Serviços e Produtos", description: "Catálogo único — preço, custo, comissão e categorias", emoji: "📦", group: "CADASTROS" },
   { href: "/dashboard/configuracoes/racas", title: "Raças", description: "Lista de raças por espécie", emoji: "🐾", group: "CADASTROS" },
   { href: "/dashboard/configuracoes/modelos-receita", title: "Modelos de Receita", description: "Modelos editáveis da ficha do pet", emoji: "💊", group: "CADASTROS" },
   { href: "/dashboard/configuracoes/modelos-documento", title: "Modelos de Documento", description: "Modelos editáveis da ficha do pet", emoji: "📄", group: "CADASTROS" },

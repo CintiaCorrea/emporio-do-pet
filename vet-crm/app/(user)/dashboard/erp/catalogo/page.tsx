@@ -8,6 +8,7 @@ import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { useRolePreview } from "@/lib/ui/RolePreview";
 import ItemFormModal from "@/components/catalogo/ItemFormModal";
 import ExameFormModal, { type ExameEdit } from "@/components/catalogo/ExameFormModal";
+import CategoriasModal from "@/components/catalogo/CategoriasModal";
 import toast from "react-hot-toast";
 
 const brl = (v?: number | null) => (v == null ? "—" : new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(v)));
@@ -82,6 +83,7 @@ export default function CatalogoPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [exameEdit, setExameEdit] = useState<ExameEdit | null>(null);
+  const [catModalOpen, setCatModalOpen] = useState(false);
   const [page, setPage] = useState(1);
   const PER_PAGE = 50;
   // % padrão dos exames (precificação em lote)
@@ -276,6 +278,7 @@ export default function CatalogoPage() {
         <button className="cat-btn" onClick={() => setShowFiltros((v) => !v)} style={nFiltros ? { borderColor: "#009AAC", color: "#009AAC", fontWeight: 600 } : undefined}>🔎 Filtros{nFiltros ? ` (${nFiltros})` : ""}</button>
         <div style={{ flex: 1 }} />
         <button className="cat-btn" style={{ background: "#009AAC", borderColor: "#009AAC", color: "#fff" }} onClick={() => { setEditId(null); setModalOpen(true); }}>➕ Novo item</button>
+        <button className="cat-btn" onClick={() => setCatModalOpen(true)}>🏷️ Categorias</button>
         <a className="cat-btn" href="/dashboard/erp/catalogo/importar" style={{ textDecoration: "none" }}>📥 Importar CSV</a>
         <button className="cat-btn" onClick={() => window.print()}>🖨️ Imprimir</button>
       </div>
@@ -405,6 +408,7 @@ export default function CatalogoPage() {
 
       {modalOpen && <ItemFormModal editId={editId} onClose={() => setModalOpen(false)} onSaved={() => { setModalOpen(false); load(); }} />}
       {exameEdit && <ExameFormModal exame={exameEdit} onClose={() => setExameEdit(null)} onSaved={() => { setExameEdit(null); load(); }} />}
+      {catModalOpen && <CategoriasModal onClose={() => setCatModalOpen(false)} onChanged={load} />}
     </div>
   );
 }
