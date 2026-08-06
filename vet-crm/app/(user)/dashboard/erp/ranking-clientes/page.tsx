@@ -35,6 +35,12 @@ const CSS = `
 .rk-cl{font-size:11px;font-weight:600;padding:2px 9px;border-radius:999px}
 .rk-cl.a{background:#E1F5EE;color:#0F6E56}.rk-cl.b{background:#E6F1FB;color:#0C447C}.rk-cl.c{background:#FBEFE0;color:#B45309}
 .rk-empty{padding:56px 24px;text-align:center;color:#5C6B70}
+.rk-seg{display:inline-flex;border:1px solid #E8E2D6;border-radius:9px;overflow:hidden}
+.rk-seg button{border:none;background:#fff;color:#5C6B70;padding:8px 12px;font-size:12.5px;cursor:pointer;font-weight:500;border-left:1px solid #E8E2D6}
+.rk-seg button:first-child{border-left:none}
+.rk-seg button.on{background:#009AAC;color:#fff}
+.rk-print-h{display:none}
+@media print{ .no-print{display:none!important} .rk-print-h{display:block;font-size:16px;font-weight:600;color:#014D5E;margin-bottom:10px} .rk-wrap{padding:0} }
 `;
 
 export default function RankingClientesPage() {
@@ -44,6 +50,7 @@ export default function RankingClientesPage() {
   const [resumo, setResumo] = useState<any>({ A: { count: 0, pct: 0 }, B: { count: 0, pct: 0 }, C: { count: 0, pct: 0 } });
   const [olho, setOlho] = useState(false);
   const [busca, setBusca] = useState("");
+  const [classeF, setClasseF] = useState<"" | "A" | "B" | "C">("");
 
   useEffect(() => {
     (async () => {
@@ -59,16 +66,26 @@ export default function RankingClientesPage() {
   const money = (v: number) => (olho ? fmtBRL(v) : "R$ •••");
   const lista = useMemo(() => {
     const q = busca.trim().toLowerCase();
-    return q ? clientes.filter((c) => (c.nome || "").toLowerCase().includes(q)) : clientes;
-  }, [clientes, busca]);
+    return clientes.filter((c) =>
+      (!q || (c.nome || "").toLowerCase().includes(q)) &&
+      (!classeF || c.classe === classeF)
+    );
+  }, [clientes, busca, classeF]);
 
   return (
     <div className="p-6">
       <style>{CSS}</style>
       <div className="rk-wrap">
-        <div className="rk-bar">
+        <div className="rk-print-h">Ranking de clientes — {new Date().toLocaleDateString("pt-BR")}</div>
+        <div className="rk-bar no-print">
           <input className="rk-search" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="🔍 Buscar cliente…" />
+          <div className="rk-seg">
+            {([["", "Todas"], ["A", "A"], ["B", "B"], ["C", "C"]] as const).map(([v, l]) => (
+              <button key={v || "todas"} className={classeF === v ? "on" : ""} onClick={() => setClasseF(v as any)}>{l}</button>
+            ))}
+          </div>
           <button className="rk-btn" onClick={() => setOlho((v) => !v)}>{olho ? "🙈 Ocultar valores" : "👁️ Mostrar valores"}</button>
+          <button className="rk-btn" onClick={() => window.print()}>🖨️ Imprimir</button>
         </div>
 
         <div className="rk-abc">

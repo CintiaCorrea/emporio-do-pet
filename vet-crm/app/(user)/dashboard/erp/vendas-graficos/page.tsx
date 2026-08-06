@@ -14,6 +14,8 @@ const MARCA: Record<string, { lbl: string; cls: string }> = {
 const CSS = `
 .vg-wrap{width:100%;padding:2px 0 40px}
 .vg-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.vg-print-h{display:none}
+@media print{ .no-print{display:none!important} .vg-print-h{display:block;font-size:16px;font-weight:600;color:#014D5E;margin-bottom:10px} .vg-wrap{padding:0} }
 .vg-in{border:1px solid #E8E2D6;border-radius:9px;padding:7px 10px;font-size:13px;background:#fff;color:#1F2A2E}
 .vg-btn{border:1px solid #E8E2D6;background:#fff;color:#5C6B70;border-radius:9px;padding:8px 12px;font-size:12.5px;cursor:pointer;font-weight:500}
 .vg-btn.pri{background:#009AAC;border-color:#009AAC;color:#fff}
@@ -75,12 +77,14 @@ export default function VendasGraficosPage() {
     <div className="p-6">
       <style>{CSS}</style>
       <div className="vg-wrap">
-        <div className="vg-sub">Como as vendas evoluem e de onde vêm (grupo, marca, top itens). Valores ocultáveis pelo 👁️.</div>
-        <div className="vg-bar">
+        <div className="vg-sub no-print">Como as vendas evoluem e de onde vêm (grupo, marca, top itens). Valores ocultáveis pelo 👁️.</div>
+        <div className="vg-print-h">Vendas — {from.split("-").reverse().join("/")} a {to.split("-").reverse().join("/")}</div>
+        <div className="vg-bar no-print">
           <input className="vg-in" type="date" value={from} onChange={(e) => setFrom(e.target.value)} /><span style={{ color: "#374151" }}>a</span>
           <input className="vg-in" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
           <button className="vg-btn pri" onClick={load}>🔍 Consultar</button>
           <button className="vg-btn" style={{ marginLeft: "auto" }} onClick={() => setOlho((v) => !v)}>{olho ? "🙈 Ocultar valores" : "👁️ Mostrar valores"}</button>
+          <button className="vg-btn" onClick={() => window.print()}>🖨️ Imprimir</button>
         </div>
 
         {loading ? (
