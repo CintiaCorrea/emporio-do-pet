@@ -22,9 +22,7 @@ const ITEMS: Item[] = [
   { href: "/dashboard/configuracoes/modelos-boletim", title: "Modelos de boletim", description: "Textos prontos para os boletins de internação", emoji: "🔔", group: "CADASTROS", novo: true },
   { href: "/dashboard/configuracoes/listas", title: "Listas customizáveis", description: "Canais, origens, motivos, fases…", emoji: "📋", group: "CADASTROS" },
   { href: "/dashboard/configuracoes/protocolos", title: "Protocolos", description: "Vacinas, vermífugos e ectoparasitas", emoji: "💉", group: "CADASTROS" },
-
-  // Agenda & Atendimento
-  { href: "/dashboard/configuracoes/atendimento", title: "Atendimento", description: "Tipos e status do atendimento", emoji: "🩺", group: "AGENDA" },
+  { href: "/dashboard/configuracoes/atendimento", title: "Atendimento", description: "Tipos e status do atendimento", emoji: "🩺", group: "CADASTROS" },
 
   // Comunicação & Mensagens
   { href: "/dashboard/configuracoes/inbox", title: "Caixa de Entrada", description: "WhatsApp: criar lead automático de número novo", emoji: "📥", group: "COMUNICACAO" },
@@ -39,13 +37,10 @@ const ITEMS: Item[] = [
   { href: "/dashboard/configuracoes/exames", title: "Exames, Fornecedores e Profissionais", description: "Catálogo de exames + fornecedores (lab/empresa) e profissionais", emoji: "🔬", group: "CATALOGO" },
   { href: "/dashboard/configuracoes/departamentos", title: "Departamentos (DRE)", description: "De-para: cada categoria do catálogo → departamento do Financeiro/DRE", emoji: "🔗", group: "CATALOGO", novo: true },
 
-  // Vendas & Financeiro
-  { href: "/dashboard/erp/configuracoes-vendas", title: "Configuração de vendas", description: "Regras de venda, descontos e comportamento do PDV", emoji: "💰", group: "VENDAS", novo: true },
-  { href: "/dashboard/erp/formas-recebimento", title: "Formas de recebimento", description: "Dinheiro, cartão, Pix, prazos…", emoji: "💳", group: "VENDAS" },
-
   // Sistema & Acesso
   { href: "/dashboard/erp/dados-clinica", title: "Dados da clínica", description: "Nome, CNPJ, endereço e marcas", emoji: "🏢", group: "SISTEMA", novo: true },
   { href: "/dashboard/configuracoes/metas", title: "Metas", description: "Faturamento, atendimentos, conversões", emoji: "🎯", group: "SISTEMA" },
+  { href: "/dashboard/configuracoes/notificacoes", title: "Notificações", description: "Ativar/testar os avisos que aparecem fora do sistema (push)", emoji: "🔔", group: "SISTEMA", novo: true },
   { href: "/dashboard/configuracoes/timbrado", title: "Papel timbrado", description: "A folha com o logo pros documentos impressos (boletim, receituário…)", emoji: "📄", group: "SISTEMA", novo: true },
 ];
 

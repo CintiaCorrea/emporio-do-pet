@@ -1,77 +1,38 @@
 'use client';
 
 /**
- * Ativa as notificações PUSH da equipe (aparecem mesmo com o sistema FECHADO).
- * Registra o service worker (/sw.js), pede permissão e inscreve o aparelho no
- * backend. Mostra um aviso discreto só quando a permissão ainda está "default".
- * Se já concedida, inscreve em silêncio. Se negada/sem suporte, some.
+ * Aviso discreto pra ATIVAR as notificações push (aparecem com o sistema fechado).
+ * A lógica de verdade mora em lib/push/pushClient (compartilhada com a tela
+ * Configurações › Notificações). Aqui é só o banner + inscrição silenciosa.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-
-function urlBase64ToUint8Array(base64String: string): Uint8Array {
-  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-  const raw = atob(base64);
-  const arr = new Uint8Array(raw.length);
-  for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
-  return arr;
-}
-
-const suportado = () =>
-  typeof window !== 'undefined' &&
-  'serviceWorker' in navigator &&
-  'PushManager' in window &&
-  'Notification' in window;
+import { pushSuportado, permissaoPush, inscreverAparelho, ativarPush, testarPush } from '@/lib/push/pushClient';
 
 export default function PushSetup() {
   const [mostrarBanner, setMostrarBanner] = useState(false);
   const [ativando, setAtivando] = useState(false);
 
-  // Inscreve este aparelho (registra SW + assina o push + manda pro backend).
-  const inscrever = useCallback(async (comTeste: boolean) => {
-    const reg = await navigator.serviceWorker.register('/sw.js');
-    await navigator.serviceWorker.ready;
-    const kr = await fetch('/api/push/public-key').then((r) => r.json()).catch(() => null);
-    const publicKey = kr?.publicKey;
-    if (!publicKey) throw new Error('sem chave pública');
-    let sub = await reg.pushManager.getSubscription();
-    if (!sub) {
-      sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(publicKey) as BufferSource,
-      });
-    }
-    const r = await fetch('/api/push/subscribe', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ subscription: sub.toJSON(), userAgent: navigator.userAgent }),
-    });
-    if (!r.ok) throw new Error('falha ao inscrever');
-    if (comTeste) { await fetch('/api/push/test', { method: 'POST' }).catch(() => undefined); }
-  }, []);
-
   useEffect(() => {
-    if (!suportado()) return;
-    const perm = Notification.permission;
+    if (!pushSuportado()) return;
+    const perm = permissaoPush();
     if (perm === 'granted') {
-      // Já autorizado → garante a inscrição em silêncio (ex.: trocou de navegador).
-      inscrever(false).catch(() => undefined);
+      inscreverAparelho().catch(() => undefined); // já autorizado → garante a inscrição em silêncio
     } else if (perm === 'default') {
       if (sessionStorage.getItem('push_banner_dispensado') !== '1') setMostrarBanner(true);
     }
-  }, [inscrever]);
+  }, []);
 
   const ativar = async () => {
     setAtivando(true);
     try {
-      const perm = await Notification.requestPermission();
+      const perm = await ativarPush();
       if (perm !== 'granted') {
-        toast('Sem problema — você pode ativar depois.', { icon: '🔕' });
+        toast('Sem problema — você pode ativar depois em Configurações › Notificações.', { icon: '🔕' });
         setMostrarBanner(false);
         return;
       }
-      await inscrever(true);
+      await testarPush();
       toast.success('Avisos ativados! Você recebe mesmo com o sistema fechado. 🔔');
       setMostrarBanner(false);
     } catch {
