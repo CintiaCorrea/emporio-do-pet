@@ -90,9 +90,6 @@ const NAV: Entry[] = [
       { href: "/dashboard/erp/pacotes", label: "Pacotes vendidos", emoji: "📦", roles: ALL },
       { href: "/dashboard/erp/saldo-clientes", label: "Saldo dos clientes", emoji: "👛", roles: ALL },
       { href: "/dashboard/erp/lista-precos", label: "Lista de preços", emoji: "💲", roles: ALL },
-      { href: "/dashboard/erp/consulta-vendas", label: "Consulta de vendas", emoji: "🔎", roles: ["ADMIN", "RECEPTIONIST"] },
-      { href: "/dashboard/erp/minhas-vendas", label: "Produtividade", emoji: "📈", roles: ALL },
-      { href: "/dashboard/erp/ranking-clientes", label: "Ranking de clientes", emoji: "🏆", roles: ["ADMIN", "RECEPTIONIST"] },
       { href: "/dashboard/erp/vendas-graficos", label: "Vendas — gráficos", emoji: "📊", roles: ["ADMIN", "RECEPTIONIST"] },
       { href: "/dashboard/erp/modelos-orcamento", label: "Modelo de orçamento", emoji: "📄", roles: ALL },
       { href: "/dashboard/erp/modelo-demonstrativo", label: "Modelo de demonstrativo", emoji: "🧾", roles: ["ADMIN"] },
@@ -102,6 +99,16 @@ const NAV: Entry[] = [
     ],
   },
   { href: "/dashboard/erp/comissoes", label: "Comissionamento", emoji: "🧾", roles: ["ADMIN"], section: "GESTAO" },
+  {
+    group: true, key: "inteligencia", label: "Inteligência", emoji: "💡", roles: ALL, section: "GESTAO",
+    children: [
+      { href: "/dashboard/erp/minhas-vendas", label: "Produtividade", emoji: "📈", roles: ALL },
+      { href: "/dashboard/erp/consulta-vendas", label: "Consulta de vendas", emoji: "🔎", roles: ["ADMIN", "RECEPTIONIST"] },
+      { href: "/dashboard/erp/ranking-clientes", label: "Ranking de clientes", emoji: "🏆", roles: ["ADMIN", "RECEPTIONIST"] },
+      { href: "/dashboard/agente-sombra", label: "Agente Sombra", emoji: "👻", roles: ["ADMIN"] },
+      { href: "/dashboard/copiloto-clinico", label: "Copiloto Clínico", emoji: "🩺", roles: ["ADMIN"] },
+    ],
+  },
   {
     group: true, key: "estoque", label: "Estoque e serviços", emoji: "📦", roles: ALL, section: "GESTAO",
     children: [
@@ -141,8 +148,6 @@ const NAV: Entry[] = [
       { href: "/dashboard/ai-agents/automacoes", label: "Automações", emoji: "⚡", roles: ["ADMIN"] },
       { href: "/dashboard/ai-agents/conexoes", label: "Conexões", emoji: "🔌", roles: ["ADMIN"] },
       { href: "/dashboard/ai-agents/templates", label: "Templates", emoji: "📋", roles: ["ADMIN"] },
-      { href: "/dashboard/agente-sombra", label: "Agente Sombra", emoji: "👻", roles: ["ADMIN"] },
-      { href: "/dashboard/copiloto-clinico", label: "Copiloto Clínico", emoji: "🩺", roles: ["ADMIN"] },
     ],
   },
 
