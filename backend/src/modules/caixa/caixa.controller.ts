@@ -46,6 +46,11 @@ export class CaixaController {
     return this.service.rankingClientes();
   }
 
+  @Get('retencao')
+  retencao() {
+    return this.service.retencao();
+  }
+
   @Get('recebimentos-resumo')
   recebimentosResumo(@Query() query: any) {
     return this.service.recebimentosResumo(query);

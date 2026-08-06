@@ -147,6 +147,60 @@ export class CaixaService {
     return { clientes, resumo };
   }
 
+  // Retenção e churn — recorte CLÍNICO vs FISIOTERAPIA por recência (dias desde a última visita).
+  // Sem mudar schema: usa a mesma heurística isFisio (type/descrição) já usada na confirmação de agenda.
+  async retencao() {
+    const now = Date.now();
+    const JANELA = 540; // lookback ~18 meses (base recuperável)
+    const LIM_ATIVO = 90, LIM_RISCO = 180;
+    const desde = new Date(now - JANELA * 86400000);
+    const appts = await this.prisma.appointment.findMany({
+      where: { date: { gte: desde, lte: new Date(now) }, status: { notIn: ['CANCELED', 'CANCELLED', 'MISSED'] as any } },
+      select: { tutorId: true, date: true, value: true, type: true, description: true, tutor: { select: { name: true } } },
+    });
+    const isFisio = (t?: string | null, d?: string | null) => /fisio|reabilit|hidroester/.test(`${t || ''} ${d || ''}`.toLowerCase());
+    const map = new Map<string, any>();
+    for (const a of appts) {
+      if (!a.tutorId) continue;
+      if (!map.has(a.tutorId)) map.set(a.tutorId, { tutorId: a.tutorId, nome: a.tutor?.name || 'Cliente', clin: { last: 0, val: 0 }, fis: { last: 0, val: 0 } });
+      const g = map.get(a.tutorId);
+      const ts = new Date(a.date).getTime();
+      const linha = isFisio(a.type, a.description) ? g.fis : g.clin;
+      if (ts > linha.last) linha.last = ts;
+      linha.val += Number(a.value) || 0;
+    }
+    const mkLinha = () => ({ total: 0, ativos: { n: 0, valor: 0 }, risco: { n: 0, valor: 0 }, inativos: { n: 0, valor: 0 } });
+    const clinico = mkLinha(), fisio = mkLinha();
+    const topInativos: any[] = [];
+    for (const g of map.values()) {
+      for (const [linha, dest, nome] of [[g.clin, clinico, 'Clínico'], [g.fis, fisio, 'Fisio']] as any[]) {
+        if (!linha.last) continue;
+        const dias = Math.floor((now - linha.last) / 86400000);
+        dest.total++;
+        const bucket = dias <= LIM_ATIVO ? dest.ativos : dias <= LIM_RISCO ? dest.risco : dest.inativos;
+        bucket.n++; bucket.valor += linha.val;
+        if (dias > LIM_ATIVO) topInativos.push({ tutorId: g.tutorId, nome: g.nome, linha: nome, dias, valor: linha.val });
+      }
+    }
+    topInativos.sort((a, b) => b.valor - a.valor);
+    // Churn de pacotes de fisioterapia
+    let pc: any = { ATIVO: 0, CONCLUIDO: 0, CANCELADO: 0, EXPIRADO: 0 };
+    try {
+      const pacs = await this.prisma.pacote.groupBy({ by: ['status'], _count: true });
+      for (const p of pacs as any[]) pc[p.status] = p._count;
+    } catch { /* modelo pode não ter dados */ }
+    const ativosPac = await this.prisma.pacote.findMany({ where: { status: 'ATIVO' as any, sessoesUsadas: { gt: 0 } }, select: { totalSessoes: true, sessoesUsadas: true } }).catch(() => [] as any[]);
+    const ultimaSessao = ativosPac.filter((p: any) => p.totalSessoes > 0 && p.sessoesUsadas >= p.totalSessoes - 1).length;
+    const fechados = pc.CONCLUIDO + pc.CANCELADO + pc.EXPIRADO;
+    const taxaConclusao = fechados ? Math.round((pc.CONCLUIDO / fechados) * 100) : null;
+    return {
+      janelaDias: JANELA, limites: { ativo: LIM_ATIVO, risco: LIM_RISCO },
+      linhas: { clinico, fisio },
+      pacotesFisio: { ativo: pc.ATIVO, ultimaSessao, concluido: pc.CONCLUIDO, cancelado: pc.CANCELADO, expirado: pc.EXPIRADO, taxaConclusao },
+      topInativos: topInativos.slice(0, 25),
+    };
+  }
+
   // Recebimentos analítico (Fase 3): KPIs + quebras por forma/usuário/dia/marca no período.
   async recebimentosResumo(query: any = {}) {
     const where = rangeFromQuery(query);
