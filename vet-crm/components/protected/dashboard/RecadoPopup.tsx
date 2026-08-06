@@ -17,10 +17,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
 import { useNotifications } from '@/hooks/useNotifications';
 
 type Item =
-  | { tipo: 'recado'; id: string; nome: string; texto: string; conversationId?: string | null; createdAt: string }
+  | { tipo: 'recado'; id: string; nome: string; texto: string; conversationId?: string | null; fromUserId?: string; createdAt: string }
   | { tipo: 'transferencia'; id: string; texto: string; link: string; createdAt: string };
 
 const POLL_MS = 15000;
@@ -32,6 +33,8 @@ export default function RecadoPopup() {
   const router = useRouter();
   const [fila, setFila] = useState<Item[]>([]);
   const [saindo, setSaindo] = useState(false);
+  const [resposta, setResposta] = useState('');   // resposta rápida na própria caixinha
+  const [enviando, setEnviando] = useState(false);
 
   // "seen-set": ids que NÃO devem popar. No 1º carregamento tudo que já está pendente
   // entra aqui (silencia o backlog). Depois, qualquer id fora do set = aviso NOVO → popa.
@@ -54,6 +57,7 @@ export default function RecadoPopup() {
           nome: n.fromUser?.name || 'Um colega',
           texto: n.content || '',
           conversationId: n.conversationId,
+          fromUserId: n.fromUserId,
           createdAt: n.createdAt,
         }));
 
@@ -164,6 +168,30 @@ export default function RecadoPopup() {
     setSaindo(false);
   }, [atual, saindo, marcarLido]);
 
+  // Responder na PRÓPRIA caixinha: manda um recado de volta pra quem enviou.
+  const responder = useCallback(async () => {
+    if (!atual || atual.tipo !== 'recado' || enviando) return;
+    const texto = resposta.trim();
+    if (!texto) return;
+    if (!atual.fromUserId) { toast.error('Não consegui identificar quem enviou — abra no interno pra responder.'); return; }
+    setEnviando(true);
+    try {
+      const r = await fetch('/api/internal-notes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ toUserId: atual.fromUserId, content: texto, conversationId: atual.conversationId || undefined }),
+      });
+      if (!r.ok) throw new Error();
+      await marcarLido(atual);   // marca a original como lida e tira da fila
+      setResposta('');
+      toast.success('Resposta enviada. ✅');
+    } catch { toast.error('Não consegui enviar a resposta.'); }
+    finally { setEnviando(false); }
+  }, [atual, resposta, enviando, marcarLido]);
+
+  // Cada aviso começa com a caixinha de resposta limpa.
+  useEffect(() => { setResposta(''); }, [atual?.id]);
+
   // Válvula de segurança: fecha o aviso SEM marcar lido (continua no sino/inbox).
   // Nunca deixa a tela presa — mesmo que algo dê errado, dá pra sair.
   const dispensar = useCallback(() => {
@@ -210,13 +238,33 @@ export default function RecadoPopup() {
           </div>
         </div>
         <div style={{ padding: '0 20px 18px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <button onClick={abrir} disabled={saindo} style={{ border: 'none', borderRadius: 11, padding: 13, fontSize: 15, fontWeight: 600, cursor: 'pointer', background: '#009AAC', color: '#fff', opacity: saindo ? .6 : 1 }}>
-            {saindo ? 'Abrindo…' : (ehRecado ? 'Responder agora →' : 'Abrir conversa →')}
-          </button>
-          {!ehRecado && (
-            <button onClick={ciente} disabled={saindo} style={{ border: '1px solid #E7E0D2', borderRadius: 11, padding: 9, fontSize: 13, fontWeight: 500, cursor: 'pointer', background: 'transparent', color: '#5B6A6E' }}>
-              Ok, ciente
-            </button>
+          {ehRecado ? (
+            <>
+              <textarea
+                value={resposta}
+                onChange={(e) => setResposta(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); responder(); } }}
+                placeholder="Escreva sua resposta aqui…"
+                rows={2}
+                autoFocus
+                style={{ width: '100%', boxSizing: 'border-box', border: '1px solid #E7E0D2', borderRadius: 11, padding: '10px 12px', fontSize: 14, fontFamily: 'inherit', color: '#222E30', resize: 'vertical', outline: 'none' }}
+              />
+              <button onClick={responder} disabled={enviando || !resposta.trim()} style={{ border: 'none', borderRadius: 11, padding: 13, fontSize: 15, fontWeight: 600, cursor: 'pointer', background: '#009AAC', color: '#fff', opacity: (enviando || !resposta.trim()) ? .6 : 1 }}>
+                {enviando ? 'Enviando…' : 'Enviar resposta'}
+              </button>
+              <button onClick={abrir} disabled={saindo} style={{ border: '1px solid #E7E0D2', borderRadius: 11, padding: 9, fontSize: 13, fontWeight: 500, cursor: 'pointer', background: 'transparent', color: '#5B6A6E' }}>
+                {saindo ? 'Abrindo…' : 'Abrir no interno →'}
+              </button>
+            </>
+          ) : (
+            <>
+              <button onClick={abrir} disabled={saindo} style={{ border: 'none', borderRadius: 11, padding: 13, fontSize: 15, fontWeight: 600, cursor: 'pointer', background: '#009AAC', color: '#fff', opacity: saindo ? .6 : 1 }}>
+                {saindo ? 'Abrindo…' : 'Abrir conversa →'}
+              </button>
+              <button onClick={ciente} disabled={saindo} style={{ border: '1px solid #E7E0D2', borderRadius: 11, padding: 9, fontSize: 13, fontWeight: 500, cursor: 'pointer', background: 'transparent', color: '#5B6A6E' }}>
+                Ok, ciente
+              </button>
+            </>
           )}
           {restantes > 0 && (
             <div style={{ textAlign: 'center', fontSize: 12, color: '#5B6A6E', marginTop: 2 }}>＋ mais {restantes} aviso{restantes > 1 ? 's' : ''} esperando</div>
