@@ -30,6 +30,8 @@ export default function MovimentosPage() {
   const [rows, setRows] = useState<Mov[]>([]);
   const [loading, setLoading] = useState(true);
   const [ocultar, setOcultar] = useState(false);
+  const [tipoF, setTipoF] = useState('');
+  const [contaF, setContaF] = useState('');
   const money = (v: number) => (ocultar ? 'R$ ••••' : brl(v));
 
   const fetchData = useCallback(async () => {
@@ -43,11 +45,16 @@ export default function MovimentosPage() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  const contasDisp = useMemo(() => [...new Set(rows.map((m) => m.conta).filter(Boolean))] as string[], [rows]);
+  const lista = useMemo(
+    () => rows.filter((m) => (!tipoF || m.tipo === tipoF) && (!contaF || m.conta === contaF)),
+    [rows, tipoF, contaF],
+  );
   const tot = useMemo(() => {
-    const ent = rows.filter((m) => ehEntrada(m.tipo)).reduce((s, m) => s + Number(m.valor || 0), 0);
-    const sai = rows.filter((m) => !ehEntrada(m.tipo)).reduce((s, m) => s + Number(m.valor || 0), 0);
+    const ent = lista.filter((m) => ehEntrada(m.tipo)).reduce((s, m) => s + Number(m.valor || 0), 0);
+    const sai = lista.filter((m) => !ehEntrada(m.tipo)).reduce((s, m) => s + Number(m.valor || 0), 0);
     return { ent, sai };
-  }, [rows]);
+  }, [lista]);
 
   return (
     <div style={{ width: '100%', background: '#F6F2EA', minHeight: '100%' }}>
@@ -56,6 +63,18 @@ export default function MovimentosPage() {
         <div className="no-print" style={{ display: 'flex', alignItems: 'flex-end', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
           <div><label style={lbl}>De</label><input type="date" value={from} onChange={(e) => setFrom(e.target.value)} style={inp} /></div>
           <div><label style={lbl}>Até</label><input type="date" value={to} onChange={(e) => setTo(e.target.value)} style={inp} /></div>
+          <div><label style={lbl}>Tipo</label>
+            <select value={tipoF} onChange={(e) => setTipoF(e.target.value)} style={inp}>
+              <option value="">Todos</option>
+              {Object.entries(tipoLabel).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+          </div>
+          <div><label style={lbl}>Conta</label>
+            <select value={contaF} onChange={(e) => setContaF(e.target.value)} style={inp}>
+              <option value="">Todas</option>
+              {contasDisp.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
           <button onClick={() => setOcultar((v) => !v)} style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 500, padding: '9px 12px', borderRadius: 9, cursor: 'pointer', border: '1px solid #E8E2D6', background: '#fff', color: TEAL_DARK }}>
             {ocultar ? <LuEyeOff size={15} /> : <LuEye size={15} />}{ocultar ? 'Mostrar valores' : 'Esconder valores'}
           </button>
@@ -64,7 +83,7 @@ export default function MovimentosPage() {
 
         <div style={{ background: '#fff', border: `1px solid ${LINE}`, borderRadius: 11, overflow: 'hidden' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14, padding: '12px 16px', borderBottom: `1px solid ${LINE}`, flexWrap: 'wrap' }}>
-            <span style={{ fontWeight: 600, fontSize: 14 }}>{rows.length} movimento(s)</span>
+            <span style={{ fontWeight: 600, fontSize: 14 }}>{lista.length} movimento(s)</span>
             <span style={{ fontSize: 13, display: 'flex', gap: 16 }}>
               <span style={{ color: '#014D5E' }}>Entradas <b style={{ color: GREEN }}>{money(tot.ent)}</b></span>
               <span style={{ color: '#014D5E' }}>Saídas <b style={{ color: ORANGE }}>{money(tot.sai)}</b></span>
@@ -75,8 +94,8 @@ export default function MovimentosPage() {
               <thead><tr><th style={th}>Data</th><th style={th}>Tipo</th><th style={th}>Descrição</th><th style={th}>Conta</th><th style={{ ...th, textAlign: 'right' }}>Valor</th></tr></thead>
               <tbody>
                 {loading && <tr><td colSpan={5} style={{ ...td, textAlign: 'center', color: '#374151', padding: 18 }}>Carregando…</td></tr>}
-                {!loading && rows.length === 0 && <tr><td colSpan={5} style={{ ...td, textAlign: 'center', color: '#374151', padding: 18 }}>Nenhum movimento no período.</td></tr>}
-                {rows.map((m) => {
+                {!loading && lista.length === 0 && <tr><td colSpan={5} style={{ ...td, textAlign: 'center', color: '#374151', padding: 18 }}>Nenhum movimento no período.</td></tr>}
+                {lista.map((m) => {
                   const ent = ehEntrada(m.tipo);
                   return (
                     <tr key={m.id}>
