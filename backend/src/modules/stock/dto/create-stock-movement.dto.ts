@@ -16,9 +16,10 @@ export class CreateStockMovementDto {
   @IsEnum(MovementType)
   type: MovementType;
 
+  // Min(0): o ajuste de inventário (ADJUSTMENT) pode zerar um item (saldo alvo = 0).
   @ApiProperty({ example: 1 })
   @IsInt()
-  @Min(1)
+  @Min(0)
   quantity: number;
 
   @ApiPropertyOptional()
