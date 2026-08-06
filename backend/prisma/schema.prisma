@@ -1563,6 +1563,24 @@ model Notification {
   @@map("notifications")
 }
 
+// Push (web push) da EQUIPE — 1 registro por aparelho/navegador de cada usuário.
+// Permite avisar mesmo com o sistema fechado (recado/transferência). Espelha o
+// ptl_push do Portal, mas por userId (equipe), não tutorId.
+model StaffPush {
+  id          String    @id @default(uuid())
+  userId      String
+  endpoint    String    @unique
+  p256dh      String
+  auth        String
+  userAgent   String?
+  ultimoEnvio DateTime?
+  falhas      Int       @default(0)
+  createdAt   DateTime  @default(now())
+
+  @@index([userId])
+  @@map("staff_push")
+}
+
 // ============================================
 // Mensagens agendadas (individuais — campanha existe à parte)
 // ============================================

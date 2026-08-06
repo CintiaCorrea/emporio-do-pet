@@ -30,6 +30,7 @@ import { TreatmentsModule } from './modules/treatments/treatments.module';
 import { ContactsModule } from './modules/contacts/contacts.module';
 import { StockModule } from './modules/stock/stock.module';
 import { PedidosCompraModule } from './modules/pedidos-compra/pedidos-compra.module';
+import { PushModule } from './modules/push/push.module';
 import { CommissionsModule } from './modules/commissions/commissions.module';
 import { HospitalizationsModule } from './modules/hospitalizations/hospitalizations.module';
 import { BoxesModule } from './modules/boxes/boxes.module';
@@ -172,6 +173,7 @@ import configuration from './config/configuration';
     ContactsModule,
     StockModule,
     PedidosCompraModule,
+    PushModule,
     CommissionsModule,
     AuditModule, // Log de auditoria (interceptor global + consulta)
     AniversariosModule, // Aniversários de pets/tutores

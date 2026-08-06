@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
+import { PushService } from '../push/push.service';
 import { NotificationChannel, NotificationType, Prisma } from '@prisma/client';
 
 export interface CreateNotificationDto {
@@ -29,6 +30,7 @@ export class NotificationsService {
   constructor(
     private prisma: PrismaService,
     private eventEmitter: EventEmitter2,
+    private push: PushService,
   ) {}
 
   async create(dto: CreateNotificationDto) {
@@ -55,6 +57,15 @@ export class NotificationsService {
       metadata: notification.metadata,
       createdAt: notification.createdAt,
     });
+
+    // Push (fora do sistema) só pros avisos que a Cintia pediu: recado e transferência.
+    // Fire-and-forget — nunca atrasa/derruba a criação da notificação.
+    const kind = (dto.metadata as any)?.kind;
+    if (kind === 'internal_note' || kind === 'conversa_encaminhada') {
+      this.push
+        .avisar(dto.userId, { titulo: dto.title, texto: dto.message, url: dto.link || '/dashboard', tag: kind })
+        .catch(() => undefined);
+    }
 
     this.logger.log(`Created notification ${notification.id} for user ${dto.userId}`);
 
