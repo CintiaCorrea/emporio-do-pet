@@ -1,12 +1,17 @@
 'use client';
 
 /**
- * RecadoPopup — popup GLOBAL que avisa, travando a tela, quando a pessoa recebe:
- *   1) um RECADO interno (só sai clicando "Responder"); ou
- *   2) uma TRANSFERÊNCIA de conversa (informativo: "Abrir conversa" ou "Ok, ciente").
- * Decisão da Cintia 05/08. Persiste enquanto não-lido (volta a cada carregamento,
- * mesmo se fechou o navegador). Puramente frontend — o backend já cria a nota/
- * notificação em tempo real (metadata.kind = 'internal_note' | 'conversa_encaminhada').
+ * RecadoPopup — popup que avisa quando a pessoa recebe:
+ *   1) um RECADO interno; ou
+ *   2) uma TRANSFERÊNCIA de conversa.
+ *
+ * SEGURANÇA (lição dos incidentes de 05/08 — ver memória recado-popup-desligado):
+ *   NUNCA mostra backlog. Abordagem "seen-set": no PRIMEIRO carregamento, tudo que já
+ *   está pendente é marcado como "já visto" (silenciado, sem popar). Só popa o que chega
+ *   DEPOIS que a tela abriu (poll de 15s + tempo real). Sem corte por tempo (fuso/relógio).
+ *   Além disso tem um "×" de escape — nada nunca prende a tela de vez.
+ * Puramente frontend — o backend já cria a nota/notificação (metadata.kind =
+ * 'internal_note' | 'conversa_encaminhada').
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -27,10 +32,11 @@ export default function RecadoPopup() {
   const router = useRouter();
   const [fila, setFila] = useState<Item[]>([]);
   const [saindo, setSaindo] = useState(false);
-  // Só avisos NOVOS: nada criado antes de a tela abrir (com 2 min de graça pra pegar
-  // o que chegou logo antes do login). Evita ressurgir o histórico já resolvido.
-  const desdeRef = useRef<number>(Date.now() - 2 * 60 * 1000);
-  const novo = (createdAt: string) => { const t = new Date(createdAt).getTime(); return Number.isFinite(t) && t > desdeRef.current; };
+
+  // "seen-set": ids que NÃO devem popar. No 1º carregamento tudo que já está pendente
+  // entra aqui (silencia o backlog). Depois, qualquer id fora do set = aviso NOVO → popa.
+  const seen = useRef<Set<string>>(new Set());
+  const baseline = useRef(false);
 
   const carregar = useCallback(async () => {
     if (!meId) return;
@@ -41,7 +47,7 @@ export default function RecadoPopup() {
       ]);
 
       const recados: Item[] = (rNotas || [])
-        .filter((n: any) => n.toUserId === meId && n.fromUserId !== meId && !n.readAt && novo(n.createdAt))
+        .filter((n: any) => n.toUserId === meId && n.fromUserId !== meId && !n.readAt)
         .map((n: any) => ({
           tipo: 'recado' as const,
           id: n.id,
@@ -52,17 +58,33 @@ export default function RecadoPopup() {
         }));
 
       const transfers: Item[] = ((rNotifs?.data) || [])
-        .filter((n: any) => !n.read && (n.metadata as any)?.kind === 'conversa_encaminhada' && novo(n.createdAt))
+        .filter((n: any) => !n.read && (n.metadata as any)?.kind === 'conversa_encaminhada')
         .map((n: any) => ({
           tipo: 'transferencia' as const,
           id: n.id,
           texto: n.message || 'Você recebeu uma conversa.',
-          link: n.link || (( n.metadata as any)?.conversationId ? `/dashboard/inbox-nativo?conversa=${(n.metadata as any).conversationId}` : '/dashboard/inbox-nativo'),
+          link: n.link || ((n.metadata as any)?.conversationId ? `/dashboard/inbox-nativo?conversa=${(n.metadata as any).conversationId}` : '/dashboard/inbox-nativo'),
           createdAt: n.createdAt,
         }));
 
-      const todos = [...recados, ...transfers].sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
-      setFila(todos);
+      const candidatos = [...recados, ...transfers];
+
+      // 1º carregamento: silencia TUDO que já existe (nunca popa backlog).
+      if (!baseline.current) {
+        candidatos.forEach((c) => seen.current.add(c.id));
+        baseline.current = true;
+        return;
+      }
+
+      // Depois: só o que ainda não vimos = aviso novo.
+      const novos = candidatos.filter((c) => !seen.current.has(c.id));
+      if (novos.length === 0) return;
+      novos.forEach((c) => seen.current.add(c.id));
+      setFila((prev) => {
+        const jaNaFila = new Set(prev.map((p) => p.id));
+        const add = novos.filter((n) => !jaNaFila.has(n.id));
+        return [...prev, ...add].sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
+      });
     } catch {
       /* rede instável — tenta de novo no próximo ciclo */
     }
@@ -120,6 +142,13 @@ export default function RecadoPopup() {
     setSaindo(false);
   }, [atual, saindo, marcarLido]);
 
+  // Válvula de segurança: fecha o aviso SEM marcar lido (continua no sino/inbox).
+  // Nunca deixa a tela presa — mesmo que algo dê errado, dá pra sair.
+  const dispensar = useCallback(() => {
+    if (!atual) return;
+    removerAtual(atual.id); // já está no seen-set, não volta a popar
+  }, [atual, removerAtual]);
+
   if (!atual) return null;
 
   const ehRecado = atual.tipo === 'recado';
@@ -137,15 +166,15 @@ export default function RecadoPopup() {
       role="alertdialog"
       aria-modal="true"
       style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(1,30,36,.55)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
-      onKeyDown={(e) => { if (e.key === 'Escape') e.preventDefault(); }}
     >
       <div style={{ width: '100%', maxWidth: 400, background: '#fff', borderRadius: 18, boxShadow: '0 24px 60px rgba(0,0,0,.35)', overflow: 'hidden' }}>
-        <div style={{ background: 'linear-gradient(135deg,#009AAC,#014D5E)', color: '#fff', padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ background: 'linear-gradient(135deg,#009AAC,#014D5E)', color: '#fff', padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 12, position: 'relative' }}>
           <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(255,255,255,.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>{ehRecado ? '📩' : '📨'}</div>
           <div>
             <b style={{ fontSize: 15, display: 'block' }}>{ehRecado ? 'Você recebeu um recado' : 'Conversa encaminhada pra você'}</b>
-            <span style={{ fontSize: 12, opacity: .85 }}>{ehRecado ? 'fica aqui até você responder' : 'um colega te passou uma conversa'}</span>
+            <span style={{ fontSize: 12, opacity: .85 }}>{ehRecado ? 'de um colega' : 'um colega te passou uma conversa'}</span>
           </div>
+          <button onClick={dispensar} title="Fechar (fica no sino)" aria-label="Fechar" style={{ position: 'absolute', top: 10, right: 12, border: 'none', background: 'rgba(255,255,255,.18)', color: '#fff', width: 26, height: 26, borderRadius: 8, cursor: 'pointer', fontSize: 15, lineHeight: 1 }}>×</button>
         </div>
         <div style={{ padding: '18px 20px' }}>
           {ehRecado && (
@@ -162,9 +191,7 @@ export default function RecadoPopup() {
           <button onClick={abrir} disabled={saindo} style={{ border: 'none', borderRadius: 11, padding: 13, fontSize: 15, fontWeight: 600, cursor: 'pointer', background: '#009AAC', color: '#fff', opacity: saindo ? .6 : 1 }}>
             {saindo ? 'Abrindo…' : (ehRecado ? 'Responder agora →' : 'Abrir conversa →')}
           </button>
-          {ehRecado ? (
-            <div style={{ textAlign: 'center', fontSize: 11.5, color: '#5B6A6E' }}>Este aviso só sai da tela quando você abrir para responder.</div>
-          ) : (
+          {!ehRecado && (
             <button onClick={ciente} disabled={saindo} style={{ border: '1px solid #E7E0D2', borderRadius: 11, padding: 9, fontSize: 13, fontWeight: 500, cursor: 'pointer', background: 'transparent', color: '#5B6A6E' }}>
               Ok, ciente
             </button>
