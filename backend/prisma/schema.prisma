@@ -633,6 +633,7 @@ model Product {
   composicao          ProdutoComposicao[] @relation("ProdutoPai")
   componenteDe        ProdutoComposicao[] @relation("ProdutoFilho")
   estoqueMovimentos   EstoqueMovimento[]
+  pedidoCompraItens   PedidoCompraItem[]
   treatments          Treatment[]
   appointmentItems    AppointmentItem[]
   orcamentoItens      OrcamentoItem[]
@@ -681,6 +682,42 @@ model EstoqueMovimento {
   @@index([productId])
   @@index([createdAt])
   @@map("est_movimentos")
+}
+
+// Pedido de compra — ordem de compra a um fornecedor. Ao "receber", cada item vira
+// uma ENTRADA de estoque (EstoqueMovimento origem COMPRA, recalculando custo médio).
+model PedidoCompra {
+  id           String             @id @default(uuid())
+  numero       Int                @default(autoincrement()) // nº sequencial legível
+  fornecedorId String?
+  fornecedor   Fornecedor?        @relation(fields: [fornecedorId], references: [id], onDelete: SetNull)
+  status       String             @default("RASCUNHO") // RASCUNHO | ENVIADO | RECEBIDO | CANCELADO
+  observacao   String?
+  previsao     DateTime? // previsão de entrega
+  recebidoEm   DateTime?
+  userId       String?
+  userName     String?
+  itens        PedidoCompraItem[]
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  @@index([status])
+  @@index([fornecedorId])
+  @@map("est_pedidos_compra")
+}
+
+model PedidoCompraItem {
+  id            String       @id @default(uuid())
+  pedidoId      String
+  pedido        PedidoCompra @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  productId     String?
+  product       Product?     @relation(fields: [productId], references: [id], onDelete: SetNull)
+  descricao     String // nome do item no momento do pedido (snapshot)
+  quantidade    Int
+  custoUnitario Float?
+
+  @@index([pedidoId])
+  @@map("est_pedidos_compra_itens")
 }
 
 // ============================================
@@ -2051,8 +2088,9 @@ model Fornecedor {
   ativo              Boolean         @default(true)
   observacoes        String?
 
-  exames   CatalogoExame[]
-  produtos Product[]       @relation("ProdutoFornecedor")
+  exames        CatalogoExame[]
+  produtos      Product[]       @relation("ProdutoFornecedor")
+  pedidosCompra PedidoCompra[]
 
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
