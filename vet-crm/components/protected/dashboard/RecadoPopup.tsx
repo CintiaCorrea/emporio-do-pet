@@ -26,7 +26,7 @@ type Item =
   | { tipo: 'transferencia'; id: string; texto: string; link: string; createdAt: string };
 
 const POLL_MS = 15000;
-const KINDS = ['internal_note', 'conversa_encaminhada'];
+const KINDS = ['internal_note', 'conversa_encaminhada', 'nps_detrator'];
 
 export default function RecadoPopup() {
   const { data: session } = useSession();

@@ -1,7 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { StatusAvaliacaoGoogle } from '@prisma/client';
+import { StatusAvaliacaoGoogle, NotificationType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { WhatsAppService } from './whatsapp.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 const GOOGLE_REVIEW_LINK = 'https://g.page/r/CctbNjVipnY8EAI/review';
 
@@ -17,7 +18,51 @@ export class SurveyAvaliacaoService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly whatsapp: WhatsAppService,
+    private readonly notifications: NotificationsService,
   ) {}
+
+  /** NPS → AÇÃO: cliente insatisfeito (detrator) na pesquisa → alerta a equipe (sino+popup+push)
+   *  E cria uma tarefa de follow-up que cai no "Hoje" (Retornos vencidos). Fecha o loop. */
+  private async alertarDetrator(tutorId: string, nota: number, phone: string) {
+    try {
+      const tutor = await this.prisma.tutor.findUnique({ where: { id: tutorId }, select: { name: true } });
+      const nome = tutor?.name || 'Cliente';
+      const digits = (phone || '').replace(/\D/g, '');
+      const link = digits ? `/dashboard/inbox-nativo?phone=${digits}` : `/dashboard/erp/tutores/${tutorId}`;
+      // 1) Alerta pra equipe (recepção + admin) — sino + popup + push (kind nps_detrator)
+      const equipe = await this.prisma.user.findMany({
+        where: { role: { in: ['ADMIN', 'RECEPTIONIST'] as any }, isBlocked: false },
+        select: { id: true },
+      });
+      for (const u of equipe) {
+        await this.notifications
+          .create({
+            userId: u.id,
+            type: NotificationType.WARNING,
+            title: '⚠️ Cliente insatisfeito (pesquisa)',
+            message: `${nome} deu nota ${nota} de 5. Ligar para entender e resolver.`,
+            link,
+            metadata: { kind: 'nps_detrator', tutorId },
+          })
+          .catch(() => undefined);
+      }
+      // 2) Tarefa de follow-up → aparece no "Hoje" (usa o mesmo campo proximoFollowupAt do tutor)
+      await this.prisma.interacao.create({
+        data: {
+          tutorId,
+          tipo: 'LIGACAO',
+          canal: 'Ligação',
+          texto: `Pesquisa de satisfação: nota ${nota}/5 (insatisfeito). Ligar para entender e resolver.`,
+          proximaAcao: 'Ligar para cliente insatisfeito',
+          proximoFollowupAt: new Date(),
+        },
+      });
+      await this.prisma.tutor.update({ where: { id: tutorId }, data: { proximoFollowupAt: new Date() } }).catch(() => undefined);
+      this.logger.warn(`NPS detrator: alerta+tarefa criados p/ tutor ${tutorId} (nota ${nota}, ${equipe.length} avisados)`);
+    } catch (e: any) {
+      this.logger.warn(`alertarDetrator: ${e?.message || e}`);
+    }
+  }
 
   /** Envia um texto livre para o WhatsApp do cliente (ex.: confirmacao de agendamento). */
   async enviarTextoParaTutor(tutorId: string, texto: string): Promise<{ success: boolean; error?: string }> {
@@ -129,6 +174,8 @@ export class SurveyAvaliacaoService {
         `Vamos usar o seu retorno para melhorar. Se quiser, conte pra gente o que podemos fazer melhor.`;
 
     await this.whatsapp.enviarTextoRegistrando(phone, reply);
+    // NPS → AÇÃO: se não gostou (detrator), avisa a equipe e abre a tarefa de follow-up.
+    if (!gostou) await this.alertarDetrator(tid, nota, phone);
     this.logger.log(`Resposta de pesquisa tratada: tutor ${tid}, nota ${nota}, gostou=${gostou}`);
     return true;
   }

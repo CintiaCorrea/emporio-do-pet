@@ -61,7 +61,7 @@ export class NotificationsService {
     // Push (fora do sistema) só pros avisos que a Cintia pediu: recado e transferência.
     // Fire-and-forget — nunca atrasa/derruba a criação da notificação.
     const kind = (dto.metadata as any)?.kind;
-    if (kind === 'internal_note' || kind === 'conversa_encaminhada') {
+    if (kind === 'internal_note' || kind === 'conversa_encaminhada' || kind === 'nps_detrator') {
       this.push
         .avisar(dto.userId, { titulo: dto.title, texto: dto.message, url: dto.link || '/dashboard', tag: kind })
         .catch(() => undefined);
