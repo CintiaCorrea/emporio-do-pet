@@ -789,8 +789,8 @@ export default function AgendaPage() {
               <div style={{ background: "#DCF8C6", borderRadius: "10px 10px 10px 2px", padding: "10px 12px", fontSize: 12.5, color: "#1f2a2e", whiteSpace: "pre-wrap", maxHeight: 320, overflowY: "auto" }}>{msgConfirmacao(confirmData)}</div>
               {/* Botões que vêm no template da Meta — o cliente toca e a agenda atualiza sozinha. */}
               <div style={{ marginTop: 6, borderRadius: 10, overflow: "hidden", border: "1px solid #E3E8EA", background: "#fff" }}>
-                <div style={{ padding: "9px", textAlign: "center", fontSize: 12.5, color: "#0a7cff", fontWeight: 600 }}>✅ Confirmar</div>
-                <div style={{ padding: "9px", textAlign: "center", fontSize: 12.5, color: "#0a7cff", fontWeight: 600, borderTop: "1px solid #E3E8EA" }}>🔄 Remarcar</div>
+                <div style={{ padding: "9px", textAlign: "center", fontSize: 12.5, color: "#0a7cff", fontWeight: 600 }}>Confirmar</div>
+                <div style={{ padding: "9px", textAlign: "center", fontSize: 12.5, color: "#0a7cff", fontWeight: 600, borderTop: "1px solid #E3E8EA" }}>Remarcar</div>
               </div>
               <div className="text-[11px] mt-2" style={{ color: "#374151" }}>É o <b>template aprovado da Meta</b>, com esses <b>botões</b>: o cliente toca e a agenda atualiza sozinha (Confirmado / Remarcar). Nome, data, hora, pet e profissional vêm do agendamento.</div>
             </div>
