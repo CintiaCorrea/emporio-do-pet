@@ -186,6 +186,7 @@ export default function ConsultaVendasPage() {
   const [marca, setMarca] = useState('');
   const [busca, setBusca] = useState('');
   const [cod, setCod] = useState('');
+  const [func, setFunc] = useState('');
   const [modo, setModo] = useState<'VENDAS' | 'ORCAMENTOS'>('VENDAS');
 
   const [data, setData] = useState<Resp | null>(null);
@@ -215,6 +216,8 @@ export default function ConsultaVendasPage() {
   useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
 
   const t = data?.totais;
+  const funcs = useMemo(() => [...new Set((data?.vendas || []).map((v) => v.funcionario).filter(Boolean))] as string[], [data]);
+  const vendasF = useMemo(() => (data?.vendas || []).filter((v) => !func || v.funcionario === func), [data, func]);
 
   return (
     <div className="p-6 min-h-screen" style={{ background: BG }}>
@@ -263,6 +266,15 @@ export default function ConsultaVendasPage() {
               <option value="DRA_VIVIAN">✨ Dra. Vivian</option>
             </select>
           </label>
+          {funcs.length > 0 && (
+            <label className="flex flex-col gap-1">
+              <span style={{ fontSize: 11.5, color: GREY2, fontWeight: 500 }}>Profissional</span>
+              <select value={func} onChange={(e) => setFunc(e.target.value)} style={{ ...inp, minWidth: 150 }}>
+                <option value="">Todos</option>
+                {funcs.map((f) => <option key={f} value={f}>{f}</option>)}
+              </select>
+            </label>
+          )}
           <label className="flex flex-col gap-1">
             <span style={{ fontSize: 11.5, color: GREY2, fontWeight: 500 }}>Cód. venda</span>
             <input
@@ -314,7 +326,7 @@ export default function ConsultaVendasPage() {
           <div className="flex items-center justify-center gap-2" style={{ padding: 48, color: GREY2, fontSize: 14 }}>
             <span className="animate-pulse">⏳ Carregando vendas…</span>
           </div>
-        ) : !data || data.vendas.length === 0 ? (
+        ) : !data || vendasF.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-2" style={{ padding: 56, color: GREY2 }}>
             <span style={{ fontSize: 32 }}>📭</span>
             <span style={{ fontSize: 14 }}>Nenhuma venda encontrada no período.</span>
@@ -338,7 +350,7 @@ export default function ConsultaVendasPage() {
               </tr>
             </thead>
             <tbody>
-              {data.vendas.map((v) => <LinhaVenda key={v.id} v={v} />)}
+              {vendasF.map((v) => <LinhaVenda key={v.id} v={v} />)}
             </tbody>
           </table>
         )}
