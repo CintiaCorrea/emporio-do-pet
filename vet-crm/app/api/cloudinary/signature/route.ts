@@ -131,6 +131,12 @@ export async function POST(request: NextRequest) {
     public_id = `doc_${userId}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   }
 
+  // Assinatura-imagem do veterinário (usada em receitas) — pasta/id próprios p/ NÃO sobrescrever o avatar
+  if (body && typeof body === 'object' && body.kind === 'signature') {
+    folder = 'emporio-do-pet/signatures';
+    public_id = `sig_${userId}`;
+  }
+
   // Params to be signed (excluding file, api_key, resource_type, etc.)
   const signParams: Record<string, string> = {
     folder,

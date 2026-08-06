@@ -35,6 +35,14 @@ export class UpdateUserDto {
   @IsUrl({ require_protocol: true }, { message: 'image deve ser uma URL válida' })
   image?: string;
 
+  @ApiPropertyOptional({
+    example: 'https://res.cloudinary.com/<cloud>/image/upload/v123/sig_user.png',
+    description: 'Assinatura-imagem do veterinário (carimbada em receitas comuns)',
+  })
+  @IsOptional()
+  @IsUrl({ require_protocol: true }, { message: 'signatureUrl deve ser uma URL válida' })
+  signatureUrl?: string;
+
   @ApiPropertyOptional({ example: 'senha123' })
   @IsOptional()
   @IsString()

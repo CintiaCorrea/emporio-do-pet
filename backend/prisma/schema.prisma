@@ -236,6 +236,7 @@ model User {
   email         String    @unique
   emailVerified DateTime?
   image         String?
+  signatureUrl  String? // 🖋️ assinatura-imagem do vet p/ carimbar em receitas comuns
   password      String?
   role          Role      @default(VETERINARIAN)
   permissions   String[]  @default([])

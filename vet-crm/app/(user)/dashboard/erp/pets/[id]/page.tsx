@@ -615,7 +615,10 @@ export default function PetDetailPage() {
     if (vet) {
       const vnome = vet.nomeExibicao || vet.name || "";
       const vcrmv = vet.crmv || (vet.profissional && vet.profissional.crmv) || "";
-      corpoFinal += `<div style="margin-top:64px;text-align:center"><div style="display:inline-block;min-width:260px;border-top:1px solid #14253a;padding-top:6px;font-size:13px"><b>${vnome}</b>${vcrmv ? `<div style="font-size:12px;color:#475569;margin-top:2px">${vcrmv}</div>` : ""}</div></div>`;
+      const vsig = vet.signatureUrl || "";
+      // 🖋️ assinatura-imagem (perfil do vet) por cima da linha, quando houver
+      const sigImg = vsig ? `<div><img src="${vsig}" alt="assinatura" style="max-height:72px;max-width:260px;object-fit:contain;mix-blend-mode:multiply" /></div>` : "";
+      corpoFinal += `<div style="margin-top:${vsig ? 40 : 64}px;text-align:center">${sigImg}<div style="display:inline-block;min-width:260px;border-top:1px solid #14253a;padding-top:6px;font-size:13px"><b>${vnome}</b>${vcrmv ? `<div style="font-size:12px;color:#475569;margin-top:2px">${vcrmv}</div>` : ""}</div></div>`;
     }
     imprimirDocumento(titulo, corpoFinal, cab);
   }
