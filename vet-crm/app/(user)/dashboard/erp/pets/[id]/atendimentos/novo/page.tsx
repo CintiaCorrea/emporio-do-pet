@@ -374,6 +374,15 @@ export default function NovoAtendimentoPage() {
       for (const e of exClinica) await listasAdd(`petexa_${pet.id}`, JSON.stringify(montarPetExame({ nome: e.nome, catalogo: e._cat, fases: exFases, externo: false, acompanha: true, por: meNome, status: e.status })));
       for (const e of exExterno) await listasAdd(`petexa_${pet.id}`, JSON.stringify(montarPetExame({ nome: e.nome, catalogo: e._cat, fases: exFases, externo: true, acompanha: false, por: meNome })));
 
+      // Receita → também registra na ABA DE RECEITAS (clinical-document tipo PRESCRIPTION),
+      // pra aparecer no BOX de receitas independente, além da linha do tempo. Mesmo molde do bloco Receita da ficha.
+      if (prescricao && novoAtdId) {
+        const vetNome = vets.find((u) => u.id === form.userId)?.name || meNome || undefined;
+        try {
+          await fetch(`/api/clinical-documents`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ appointmentId: novoAtdId, type: "PRESCRIPTION", title: form.recModelo || "Receita", content: prescricao, htmlContent: prescricao, signedBy: vetNome }) });
+        } catch {}
+      }
+
       // Pós-atendimento → integra ao Follow-up do pet (mesmo FU da Visão geral)
       const fuBody: any = {};
       if (form.followUpNotes !== (pet.followUpNotes || "")) fuBody.followUpNotes = form.followUpNotes || null;

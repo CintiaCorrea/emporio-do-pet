@@ -74,6 +74,7 @@ interface Pet {
   pipelineClinicoEtapa?: string | null;
   pipelineFisioEtapa?: string | null;
   proximoFollowupAt?: string | null;
+  followUpNotes?: string | null;
 }
 interface HistoricoItem {
   id: string;
@@ -2505,9 +2506,14 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
                 <div className={LBL} style={LBL_STYLE}><span>📅 Próximo agendamento · {selectedPet.name}</span></div>
                 {/* Follow-up agendado (mesmo campo da ficha; setado pela interação "próxima ação") */}
                 {selectedPet.proximoFollowupAt && new Date(selectedPet.proximoFollowupAt).getTime() > Date.now() && (
-                  <div className="flex items-center gap-2 border rounded-lg px-2.5 py-1.5 mb-1.5" style={{ borderColor: "#F0D8A8", background: "#FFFDF5" }}>
-                    <span>📌</span>
-                    <div className="text-[11.5px]" style={{ color: "#8a6400" }}>Follow-up agendado: <b>{fmtDate(selectedPet.proximoFollowupAt)}</b></div>
+                  <div className="border rounded-lg px-2.5 py-1.5 mb-1.5" style={{ borderColor: "#F0D8A8", background: "#FFFDF5" }}>
+                    <div className="flex items-center gap-2">
+                      <span>📌</span>
+                      <div className="text-[11.5px]" style={{ color: "#8a6400" }}>Follow-up agendado: <b>{fmtDate(selectedPet.proximoFollowupAt)}</b></div>
+                    </div>
+                    {selectedPet.followUpNotes && (
+                      <div className="text-[11px] mt-1 pl-6 leading-snug" style={{ color: "#9a7400" }}>📝 {selectedPet.followUpNotes}</div>
+                    )}
                   </div>
                 )}
                 {proximasConsultas.length === 0 ? (
