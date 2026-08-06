@@ -1,5 +1,6 @@
 "use client";
 import { confirmDelete } from "@/lib/ui/confirmDelete";
+import { setInternasAberta } from "@/lib/ui/inboxPresence";
 
 import { useEffect, useMemo, useState, useRef, Fragment, type ReactNode } from "react";
 import { useNotifications } from "@/hooks/useNotifications";
@@ -165,6 +166,7 @@ export default function InboxUnificadoPage() {
   const [convError, setConvError] = useState<string | null>(null);
   const [sessaoExpirada, setSessaoExpirada] = useState(false);
   const msgEndRef = useRef<HTMLDivElement>(null); // âncora p/ rolar até a última mensagem
+  const internasEndRef = useRef<HTMLDivElement>(null); // idem, nas mensagens internas
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [phoneParam, setPhoneParam] = useState(""); // ?phone= vindo dos botões "💬 WhatsApp"
@@ -372,6 +374,35 @@ export default function InboxUnificadoPage() {
   const [internasConvSel, setInternasConvSel] = useState<string | null>(null);
   const [internasReply, setInternasReply] = useState("");
   const [internasCompose, setInternasCompose] = useState(false);
+
+  // Aba Internas aberta? → o RecadoPopup não popa recado interno enquanto a pessoa está aqui.
+  useEffect(() => { setInternasAberta(tab === "internas"); return () => setInternasAberta(false); }, [tab]);
+
+  // Colar PRINT (imagem do clipboard) direto na conversa interna → vira anexo pra enviar.
+  function colarNasInternas(e: any) {
+    const items = e?.clipboardData?.items; if (!items) return;
+    for (const it of Array.from(items) as any[]) {
+      if (it.type && it.type.startsWith("image/")) {
+        const blob = it.getAsFile();
+        if (blob) {
+          e.preventDefault();
+          const nome = (blob.name && blob.name !== "image.png") ? blob.name : `captura-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.png`;
+          uploadDocInterno(new File([blob], nome, { type: blob.type || "image/png" }));
+        }
+        return;
+      }
+    }
+  }
+
+  // Divisórias de data (estilo WhatsApp) nas mensagens internas.
+  const mesmoDia = (a: string, b: string) => { const x = new Date(a), y = new Date(b); return x.getFullYear() === y.getFullYear() && x.getMonth() === y.getMonth() && x.getDate() === y.getDate(); };
+  const rotuloDia = (s: string) => {
+    const d = new Date(s); const hoje = new Date(); const ont = new Date(); ont.setDate(hoje.getDate() - 1);
+    const eq = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+    if (eq(d, hoje)) return "Hoje";
+    if (eq(d, ont)) return "Ontem";
+    return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+  };
 
   // Adicionar atendimento
   const [atendModalOpen, setAtendModalOpen] = useState(false);
@@ -1099,6 +1130,14 @@ export default function InboxUnificadoPage() {
     return arr;
   }, [internasRecebidas, meId]);
 
+  // Abre a conversa interna já na ÚLTIMA mensagem (rola pro fim ao abrir e quando chega msg nova).
+  const nMsgsInternaAtiva = useMemo(() => internasConversas.find((x) => x.userId === internasConvSel)?.msgs.length || 0, [internasConversas, internasConvSel]);
+  useEffect(() => {
+    if (tab !== "internas" || !internasConvSel) return;
+    const t = setTimeout(() => internasEndRef.current?.scrollIntoView({ block: "end" }), 60);
+    return () => clearTimeout(t);
+  }, [tab, internasConvSel, nMsgsInternaAtiva]);
+
   const abrirConversaInterna = async (c: any) => {
     setInternasConvSel(c.userId);
     setInternasCompose(false);
@@ -1822,7 +1861,7 @@ export default function InboxUnificadoPage() {
                   </select>
                 </div>
                 {internasAnexo && (<div className="mb-2 flex items-center gap-2 text-[11px] bg-[#F1EFE8] rounded px-2 py-1 w-fit"><span>📎 {internasAnexo.name}</span><button onClick={() => setInternasAnexo(null)} className="text-[#A32D2D] font-medium">remover</button></div>)}
-                <textarea value={internalNote} onChange={(e) => setInternalNote(e.target.value)} rows={6} placeholder="Escreva a mensagem..." className="w-full px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm focus:outline-none focus:border-[#009AAC] resize-none mb-3" />
+                <textarea value={internalNote} onChange={(e) => setInternalNote(e.target.value)} onPaste={colarNasInternas} rows={6} placeholder="Escreva a mensagem… (pode colar um print)" className="w-full px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm focus:outline-none focus:border-[#009AAC] resize-none mb-3" />
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1">
                     <EmojiPicker onPick={(em) => setInternalNote((v) => v + em)} />
@@ -1845,21 +1884,35 @@ export default function InboxUnificadoPage() {
                     <div className="text-sm text-[#0E2244] font-medium">{c.name}</div>
                   </div>
                   <div className="flex-1 overflow-y-auto px-5 py-4 flex flex-col gap-2.5 min-h-0">
-                    {c.msgs.map((m: any) => (
-                      <div key={m.id} className={`max-w-[75%] ${m.mine ? "self-end" : "self-start"}`}>
-                        <div className={`px-3 py-2 rounded-xl text-sm whitespace-pre-wrap ${m.mine ? "bg-[#009AAC] text-white rounded-br-sm" : "bg-[#F1EFE8] text-[#0E2244] rounded-bl-sm"}`}>{m.content}{m.attachmentUrl && (<a href={m.attachmentUrl} target="_blank" rel="noopener noreferrer" className={`mt-1 flex items-center gap-1 text-[12px] underline ${m.mine ? "text-white" : "text-[#0C447C]"}`}>📎 {m.attachmentName || "documento"}</a>)}</div>
-                        <div className={`text-[9.5px] text-[#374151] mt-0.5 flex items-center gap-1.5 ${m.mine ? "justify-end" : ""}`}>
-                          <span>{(() => { try { return new Date(m.createdAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }); } catch { return ""; } })()}</span>
-                          {String(m.id || "").indexOf("local_") !== 0 && <button onClick={() => excluirNotaInterna(m.id)} title="Excluir" className="text-[#B4B2A9] hover:text-[#A32D2D]"><LuTrash className="w-2.5 h-2.5" /></button>}
+                    {c.msgs.map((m: any, i: number) => {
+                      const prev = c.msgs[i - 1];
+                      const showData = i === 0 || (prev && !mesmoDia(prev.createdAt, m.createdAt));
+                      const isImg = /\.(png|jpe?g|gif|webp|bmp)(\?|$)/i.test(m.attachmentUrl || "") || /\.(png|jpe?g|gif|webp|bmp)$/i.test(m.attachmentName || "");
+                      return (
+                      <Fragment key={m.id}>
+                        {showData && (
+                          <div className="self-center my-1.5 text-[10px] text-[#5F5E5A] bg-[#EDE7D8] rounded-full px-3 py-0.5">{rotuloDia(m.createdAt)}</div>
+                        )}
+                        <div className={`max-w-[75%] ${m.mine ? "self-end" : "self-start"}`}>
+                          <div className={`px-3 py-2 rounded-xl text-sm whitespace-pre-wrap ${m.mine ? "bg-[#009AAC] text-white rounded-br-sm" : "bg-[#F1EFE8] text-[#0E2244] rounded-bl-sm"}`}>{m.content}
+                            {m.attachmentUrl && isImg && (<a href={m.attachmentUrl} target="_blank" rel="noopener noreferrer" className="block mt-1"><img src={m.attachmentUrl} alt={m.attachmentName || "imagem"} className="rounded-lg max-h-56 max-w-full" /></a>)}
+                            {m.attachmentUrl && !isImg && (<a href={m.attachmentUrl} target="_blank" rel="noopener noreferrer" className={`mt-1 flex items-center gap-1 text-[12px] underline ${m.mine ? "text-white" : "text-[#0C447C]"}`}>📎 {m.attachmentName || "documento"}</a>)}
+                          </div>
+                          <div className={`text-[9.5px] text-[#374151] mt-0.5 flex items-center gap-1.5 ${m.mine ? "justify-end" : ""}`}>
+                            <span>{(() => { try { return new Date(m.createdAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }); } catch { return ""; } })()}</span>
+                            {String(m.id || "").indexOf("local_") !== 0 && <button onClick={() => excluirNotaInterna(m.id)} title="Excluir" className="text-[#B4B2A9] hover:text-[#A32D2D]"><LuTrash className="w-2.5 h-2.5" /></button>}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      </Fragment>
+                      );
+                    })}
+                    <div ref={internasEndRef} />
                   </div>
                   <div className="border-t border-[#e8e1d2] p-3 flex-shrink-0">
                     {internasAnexo && (<div className="mb-2 flex items-center gap-2 text-[11px] bg-[#F1EFE8] rounded px-2 py-1 w-fit"><span>📎 {internasAnexo.name}</span><button onClick={() => setInternasAnexo(null)} className="text-[#A32D2D] font-medium">remover</button></div>)}
                     <div className="flex items-end gap-2">
                     <label className="cursor-pointer flex items-center justify-center w-8 h-8 rounded-lg hover:bg-[#f0f0ea]" title="Anexar documento"><input type="file" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadDocInterno(f); e.currentTarget.value = ""; }} /><span style={{ fontSize: "15px" }}>{anexandoDoc ? "…" : "📎"}</span></label>
-                    <textarea value={internasReply} onChange={(e) => setInternasReply(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); enviarRespostaInterna(); } }} rows={1} placeholder="Escreva uma mensagem..." className="flex-1 px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm focus:outline-none focus:border-[#009AAC] resize-none" />
+                    <textarea value={internasReply} onChange={(e) => setInternasReply(e.target.value)} onPaste={colarNasInternas} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); enviarRespostaInterna(); } }} rows={1} placeholder="Escreva uma mensagem… (pode colar um print)" className="flex-1 px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm focus:outline-none focus:border-[#009AAC] resize-none" />
                     <EmojiPicker onPick={(em) => setInternasReply((v) => v + em)} />
                     <button onClick={() => enviarRespostaInterna()} disabled={!internasReply.trim() && !internasAnexo} className="bg-[#009AAC] text-white px-4 py-2 rounded-lg text-xs font-medium disabled:opacity-50">Enviar</button>
                     </div>

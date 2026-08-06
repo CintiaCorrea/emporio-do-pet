@@ -19,6 +19,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { useNotifications } from '@/hooks/useNotifications';
+import { isInternasAberta } from '@/lib/ui/inboxPresence';
 
 type Item =
   | { tipo: 'recado'; id: string; nome: string; texto: string; conversationId?: string | null; fromUserId?: string; createdAt: string }
@@ -83,10 +84,13 @@ export default function RecadoPopup() {
       // Depois: só o que ainda não vimos = aviso novo.
       const novos = candidatos.filter((c) => !seen.current.has(c.id));
       if (novos.length === 0) return;
-      novos.forEach((c) => seen.current.add(c.id));
+      novos.forEach((c) => seen.current.add(c.id)); // marca como visto (não repopa depois)
+      // Se a aba "Internas" está aberta, NÃO popa recado (a pessoa já está lá vendo).
+      const paraFila = novos.filter((n) => !(n.tipo === 'recado' && isInternasAberta()));
+      if (paraFila.length === 0) return;
       setFila((prev) => {
         const jaNaFila = new Set(prev.map((p) => p.id));
-        const add = novos.filter((n) => !jaNaFila.has(n.id));
+        const add = paraFila.filter((n) => !jaNaFila.has(n.id));
         return [...prev, ...add].sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
       });
     } catch {
