@@ -63,7 +63,7 @@ export default function RecadoPopup() {
         }));
 
       const transfers: Item[] = ((rNotifs?.data) || [])
-        .filter((n: any) => !n.read && (n.metadata as any)?.kind === 'conversa_encaminhada')
+        .filter((n: any) => !(n.isRead ?? n.read) && (n.metadata as any)?.kind === 'conversa_encaminhada')
         .map((n: any) => ({
           tipo: 'transferencia' as const,
           id: n.id,
@@ -98,7 +98,8 @@ export default function RecadoPopup() {
     }
   }, [meId]);
 
-  // Tempo real: recado OU transferência → mostra na hora.
+  // Tempo real: recado OU transferência → recarrega na hora (MESMO caminho pros dois,
+  // o que já funciona pro recado). Detecta o tipo por metadata.kind OU pelo título.
   useNotifications({
     onNotification: (n) => {
       const meta = (n?.metadata as any) || {};
@@ -108,27 +109,7 @@ export default function RecadoPopup() {
         if (titulo.startsWith('📨 Conversa encaminhada')) kind = 'conversa_encaminhada';
         else if (titulo.startsWith('💬 Mensagem interna')) kind = 'internal_note';
       }
-      if (!KINDS.includes(kind)) return;
-      // Antes do baseline terminar, deixa o carregar() silenciar o que já existe
-      // (protege contra o socket reenviar histórico ao conectar).
-      if (!baseline.current) { carregar(); return; }
-      if (kind === 'conversa_encaminhada') {
-        // Transferência: a própria notificação é a entidade (id serve pro /read).
-        // Evento em tempo real = novo → enfileira direto (garante o popup na hora).
-        if (seen.current.has(n.id)) return;
-        seen.current.add(n.id);
-        const item: Item = {
-          tipo: 'transferencia',
-          id: n.id,
-          texto: n.message || 'Você recebeu uma conversa.',
-          link: n.link || (meta.conversationId ? `/dashboard/inbox-nativo?conversa=${meta.conversationId}` : '/dashboard/inbox-nativo'),
-          createdAt: n.createdAt || new Date().toISOString(),
-        };
-        setFila((prev) => (prev.some((p) => p.id === item.id) ? prev : [...prev, item]));
-      } else {
-        // Recado interno: busca via /api/internal-notes pra pegar o id certo da nota.
-        carregar();
-      }
+      if (KINDS.includes(kind)) carregar();
     },
   });
 
