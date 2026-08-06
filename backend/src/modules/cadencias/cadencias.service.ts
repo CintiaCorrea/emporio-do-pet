@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { OnEvent } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
@@ -6,12 +6,73 @@ import { WhatsAppService } from '../whatsapp/whatsapp.service';
 import { CreateCadenciaDto, UpdateCadenciaDto, CreatePassoDto, UpdatePassoDto, InscreverDto } from './dto/cadencia.dto';
 
 @Injectable()
-export class CadenciasService {
+export class CadenciasService implements OnModuleInit {
   private readonly logger = new Logger(CadenciasService.name);
   constructor(
     private readonly prisma: PrismaService,
     private readonly whatsapp: WhatsAppService,
   ) {}
+
+  // Semeia os templates dos gatilhos "faltantes" (reativação, fim de pacote, pós-cirúrgico)
+  // DESLIGADOS por padrão — a Cintia revisa o texto na tela de Cadências e liga quando quiser.
+  // Idempotente: só cria se ainda não existir um template com aquele gatilho.
+  async onModuleInit() {
+    try { await this.garantirCadenciasFaltantes(); }
+    catch (e: any) { this.logger.warn(`garantirCadenciasFaltantes: ${e?.message || e}`); }
+  }
+
+  async garantirCadenciasFaltantes() {
+    const faltantes: Array<{ gatilho: string; nome: string; descricao: string; passos: Array<{ ordem: number; titulo: string; conteudo: string; atrasoValor: number; atrasoUnidade: 'MINUTOS' | 'HORAS' | 'DIAS' }> }> = [
+      {
+        gatilho: 'CLIENTE_INATIVO_90D',
+        nome: 'Reativação — 90 dias sem voltar',
+        descricao: 'Reaproxima o cliente que não traz o pet há ~90 dias (começa DESLIGADA).',
+        passos: [
+          { ordem: 1, titulo: 'Sentimos sua falta', conteudo: 'Oi, {tutor}! 🐾 Faz um tempinho que a gente não vê o(a) {pet} por aqui. Está tudo bem com ele(a)? Se quiser, posso dar uma olhadinha na agenda pra um check-up. 💚', atrasoValor: 0, atrasoUnidade: 'MINUTOS' },
+          { ordem: 2, titulo: 'Reforço em 3 dias', conteudo: 'Oi, {tutor}! Só reforçando: se quiser agendar uma visita pro(a) {pet}, é só me chamar. A saúde dele(a) em dia é o que a gente mais quer. 🌿', atrasoValor: 3, atrasoUnidade: 'DIAS' },
+        ],
+      },
+      {
+        gatilho: 'PACOTE_PROXIMO_DO_FIM',
+        nome: 'Fim de pacote — renovação',
+        descricao: 'Convida a renovar quando o pacote está na última sessão (começa DESLIGADA).',
+        passos: [
+          { ordem: 1, titulo: 'Última sessão', conteudo: 'Oi, {tutor}! O pacote do(a) {pet} está chegando ao fim. Quer que eu já deixe a renovação encaminhada pra não interromper o tratamento? 🐾', atrasoValor: 0, atrasoUnidade: 'MINUTOS' },
+          { ordem: 2, titulo: 'Reforço em 2 dias', conteudo: 'Oi, {tutor}! Posso reservar as próximas sessões do(a) {pet}? Manter a constância faz toda a diferença no resultado. 💚', atrasoValor: 2, atrasoUnidade: 'DIAS' },
+        ],
+      },
+      {
+        gatilho: 'POS_CIRURGICO',
+        nome: 'Pós-cirúrgico (recuperação)',
+        descricao: 'Acompanha a recuperação após uma cirurgia (começa DESLIGADA).',
+        passos: [
+          { ordem: 1, titulo: 'Primeira noite', conteudo: 'Oi, {tutor}! Como o(a) {pet} passou a primeira noite após o procedimento? Qualquer sinal de dor, inchaço ou sangramento, me avise na hora. 🐾', atrasoValor: 1, atrasoUnidade: 'DIAS' },
+          { ordem: 2, titulo: 'Check-in 3 dias', conteudo: 'Oi, {tutor}! Seguindo o pós-operatório do(a) {pet}: está se alimentando bem e sem mexer no local? Lembre da medicação nos horários certos. 💚', atrasoValor: 2, atrasoUnidade: 'DIAS' },
+          { ordem: 3, titulo: 'Retorno / pontos', conteudo: 'Oi, {tutor}! Já está chegando a hora do retorno do(a) {pet} (avaliar cicatrização/retirar pontos). Quer que eu agende? 🌿', atrasoValor: 7, atrasoUnidade: 'DIAS' },
+        ],
+      },
+    ];
+
+    let criadas = 0;
+    for (const f of faltantes) {
+      const existe = await this.prisma.cadenciaTemplate.count({ where: { gatilho: f.gatilho as any } });
+      if (existe > 0) continue;
+      const tpl = await this.prisma.cadenciaTemplate.create({
+        data: { nome: f.nome, descricao: f.descricao, gatilho: f.gatilho as any, ativo: false },
+      });
+      for (const p of f.passos) {
+        await this.prisma.cadenciaPasso.create({ data: { ...p, tipo: 'WHATSAPP' as any, cadenciaId: tpl.id } });
+      }
+      criadas++;
+    }
+    if (criadas) this.logger.log(`Cadencias faltantes semeadas (DESLIGADAS): ${criadas}`);
+    return { criadas };
+  }
+
+  private async temCadAtiva(gatilho: string): Promise<boolean> {
+    const n = await this.prisma.cadenciaTemplate.count({ where: { ativo: true, gatilho: gatilho as any } });
+    return n > 0;
+  }
 
   async list(includeInactive = false) {
     return this.prisma.cadenciaTemplate.findMany({
@@ -348,8 +409,83 @@ export class CadenciasService {
           hora: d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
         };
         await this.dispararGatilho(gat, { tutorId: a.tutorId, petId: a.petId, phone, vars, origemId: `appt:${a.id}:${a.status}` });
+        // Pós-cirúrgico: além do pós-atendimento genérico, uma cadência própria quando é CIRURGIA finalizada.
+        if ((a as any).type === 'CIRURGIA' && (a.status === 'COMPLETED' || a.status === 'DONE')) {
+          await this.dispararGatilho('POS_CIRURGICO', { tutorId: a.tutorId, petId: a.petId, phone, vars, origemId: `poscirurg:${a.id}` });
+        }
       } catch (e: any) {
         this.logger.warn(`varrerAtendimentos ${a.id}: ${e?.message || e}`);
+      }
+    }
+  }
+
+  // Polling: cliente inativo há ~90 dias (janela 90–97d pra pegar quando cruza o limite, sem inundar).
+  @Cron(CronExpression.EVERY_6_HOURS)
+  async varrerClientesInativos90d() {
+    if (!(await this.temCadAtiva('CLIENTE_INATIVO_90D'))) return;
+    const now = Date.now();
+    const hi = new Date(now - 90 * 86_400_000); // limite: 90 dias atrás
+    const lo = new Date(now - 97 * 86_400_000); // janela de 7 dias
+    // Atendimentos realizados que caem na janela (candidatos a "última visita ~90d atrás")
+    const apps = await this.prisma.appointment.findMany({
+      where: { date: { gte: lo, lte: hi }, status: { in: ['COMPLETED', 'DONE'] as any } },
+      include: { tutor: { include: { contacts: true } }, pet: true },
+      orderBy: { date: 'desc' },
+      take: 300,
+    });
+    const jaVistos = new Set<string>();
+    for (const a of apps) {
+      try {
+        if (!a.tutorId || jaVistos.has(a.tutorId)) continue;
+        jaVistos.add(a.tutorId);
+        // Precisa ser a ÚLTIMA visita: nenhum atendimento não-cancelado depois do limite de 90d
+        const posteriores = await this.prisma.appointment.count({
+          where: { tutorId: a.tutorId, date: { gt: hi }, status: { not: 'CANCELLED' as any } },
+        });
+        if (posteriores > 0) continue;
+        const phone = this.bestPhone((a as any).tutor?.contacts || []);
+        if (!phone) continue;
+        await this.dispararGatilho('CLIENTE_INATIVO_90D', {
+          tutorId: a.tutorId,
+          petId: a.petId,
+          phone,
+          vars: { tutor: (a as any).tutor?.name || '', pet: (a as any).pet?.name || 'seu pet' },
+          origemId: `reativa90:${a.tutorId}:${a.id}`,
+        });
+      } catch (e: any) {
+        this.logger.warn(`varrerClientesInativos90d ${a.id}: ${e?.message || e}`);
+      }
+    }
+  }
+
+  // Polling: pacotes na última sessão → convite de renovação.
+  @Cron(CronExpression.EVERY_6_HOURS)
+  async varrerPacotesProximosDoFim() {
+    if (!(await this.temCadAtiva('PACOTE_PROXIMO_DO_FIM'))) return;
+    const ativos = await this.prisma.pacote.findMany({
+      where: { status: 'ATIVO' as any, sessoesUsadas: { gt: 0 } },
+      take: 300,
+    });
+    for (const pac of ativos) {
+      try {
+        // "próximo do fim" = falta 1 sessão (ou já usou todas mas o pacote segue ATIVO)
+        if (!(pac.totalSessoes > 0 && pac.sessoesUsadas >= pac.totalSessoes - 1)) continue;
+        const pet = await this.prisma.pet.findUnique({
+          where: { id: pac.petId },
+          include: { tutor: { include: { contacts: true } } },
+        });
+        if (!pet) continue;
+        const phone = this.bestPhone((pet as any).tutor?.contacts || []);
+        if (!phone) continue;
+        await this.dispararGatilho('PACOTE_PROXIMO_DO_FIM', {
+          tutorId: pac.tutorId || pet.tutorId,
+          petId: pac.petId,
+          phone,
+          vars: { tutor: (pet as any).tutor?.name || '', pet: pet.name || 'seu pet', servico: pac.servico || 'pacote' },
+          origemId: `pacotefim:${pac.id}`,
+        });
+      } catch (e: any) {
+        this.logger.warn(`varrerPacotesProximosDoFim ${pac.id}: ${e?.message || e}`);
       }
     }
   }
