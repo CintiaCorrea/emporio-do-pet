@@ -219,17 +219,35 @@ export class ProductsService {
   private normNome(s?: string): string {
     return (s || '').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ');
   }
+  // Parser de linha CSV que RESPEITA aspas (campos com o separador dentro de "..." não quebram).
+  private parseCsvLine(line: string, sep: string): string[] {
+    const out: string[] = [];
+    let cur = '', inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (inQ) {
+        if (ch === '"') { if (line[i + 1] === '"') { cur += '"'; i++; } else inQ = false; }
+        else cur += ch;
+      } else {
+        if (ch === '"') inQ = true;
+        else if (ch === sep) { out.push(cur); cur = ''; }
+        else cur += ch;
+      }
+    }
+    out.push(cur);
+    return out.map((s) => s.trim());
+  }
 
   async importarCatalogo(csv: string, opts?: { dryRun?: boolean }) {
     const dryRun = !!opts?.dryRun;
-    const linhas = String(csv || '').split(/\r?\n/).filter((l) => l.trim().length);
+    const linhas = String(csv || '').replace(/^﻿/, '').split(/\r?\n/).filter((l) => l.trim().length);
     if (!linhas.length) throw new BadRequestException('CSV vazio');
-    // Detecta o separador de colunas (";" padrão pt-BR, ou TAB). Vírgula é evitada
-    // porque colide com o decimal (ex.: "1,50") — se vier só vírgula, avisamos.
+    // Detecta o separador: TAB > ";" > ",". A vírgula agora é aceita porque o parser
+    // respeita aspas e os decimais deste catálogo usam ponto (1214.00).
     const cont = (s: string, ch: string) => (s.match(new RegExp(ch === '\t' ? '\\t' : `\\${ch}`, 'g')) || []).length;
     const h0 = linhas[0];
-    const sep = cont(h0, '\t') > cont(h0, ';') ? '\t' : ';';
-    const sepLabel = sep === '\t' ? 'TAB' : 'ponto e vírgula (;)';
+    const sep = cont(h0, '\t') > 0 ? '\t' : cont(h0, ';') > 0 ? ';' : cont(h0, ',') > 0 ? ',' : ';';
+    const sepLabel = sep === '\t' ? 'TAB' : sep === ',' ? 'vírgula (,)' : 'ponto e vírgula (;)';
     const start = /tipo/i.test(linhas[0]) && /nome/i.test(linhas[0]) ? 1 : 0;
 
     const vistos = new Set<string>();
@@ -238,7 +256,7 @@ export class ProductsService {
     let duplicadosRemovidos = 0;
 
     for (let i = start; i < linhas.length; i++) {
-      const c = linhas[i].split(sep);
+      const c = this.parseCsvLine(linhas[i], sep);
       const nome = (c[1] || '').trim();
       if (!nome) continue;
       const chave = this.normNome(nome);
@@ -261,13 +279,10 @@ export class ProductsService {
       });
     }
     if (!itens.length) {
-      const nCols = (linhas[start] || h0).split(sep).length;
-      const temVirgula = cont(h0, ',') > cont(h0, ';') && cont(h0, ';') === 0;
-      const dica = temVirgula
-        ? 'O arquivo parece separado por VÍRGULA. Reexporte como "CSV UTF-8" (que usa ; ) ou troque o separador para ponto e vírgula.'
-        : nCols < 2
-          ? 'Não consegui separar as colunas. Se você exportou do Excel, use "Salvar como > CSV UTF-8 (delimitado por ;)" — não envie .xlsx.'
-          : 'A 2ª coluna (nome) veio vazia em todas as linhas. Confira se a ordem é: tipo;nome;categoria;preco;custo;...';
+      const nCols = this.parseCsvLine(linhas[start] || h0, sep).length;
+      const dica = nCols < 2
+        ? 'Não consegui separar as colunas. Se você exportou do Excel, use "Salvar como > CSV UTF-8" — não envie .xlsx.'
+        : 'A 2ª coluna (nome) veio vazia em todas as linhas. Confira se a ordem é: tipo,nome,categoria,preco,custo,ativo,aparece_no_pdv,marca,unidade,codigo_barras,estoque';
       throw new BadRequestException(`Nenhum item válido. Detectei separador "${sepLabel}" e ${nCols} coluna(s) na 1ª linha de dados. ${dica}`);
     }
 
