@@ -56,6 +56,11 @@ export class CaixaController {
     return this.service.rfm();
   }
 
+  @Get('coorte')
+  coorte() {
+    return this.service.coorte();
+  }
+
   @Get('recebimentos-resumo')
   recebimentosResumo(@Query() query: any) {
     return this.service.recebimentosResumo(query);

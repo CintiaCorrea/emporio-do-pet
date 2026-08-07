@@ -289,6 +289,46 @@ export class CaixaService {
     return { total: enriched.length, niveis, segmentos, keyAccounts };
   }
 
+  // Coorte de retenção: por mês de aquisição (1ª visita), % que voltou em até 1..N meses.
+  async coorte() {
+    const now = new Date();
+    const N = 6;
+    const desde = new Date(now.getFullYear() - 1, now.getMonth(), 1); // coortes dos últimos ~12 meses
+    const appts = await this.prisma.appointment.findMany({
+      where: { status: { notIn: ['CANCELED', 'CANCELLED', 'MISSED'] as any }, date: { lte: now } },
+      select: { tutorId: true, date: true },
+    });
+    const byTutor = new Map<string, Date[]>();
+    for (const a of appts) {
+      if (!a.tutorId) continue;
+      if (!byTutor.has(a.tutorId)) byTutor.set(a.tutorId, []);
+      byTutor.get(a.tutorId)!.push(new Date(a.date));
+    }
+    const addMonths = (d: Date, n: number) => { const x = new Date(d); x.setMonth(x.getMonth() + n); return x; };
+    const ym = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const cohort = new Map<string, { size: number; ret: number[] }>();
+    for (const [, datas] of byTutor) {
+      datas.sort((a, b) => a.getTime() - b.getTime());
+      const first = datas[0];
+      if (first < desde) continue; // só coortes recentes
+      const key = ym(first);
+      if (!cohort.has(key)) cohort.set(key, { size: 0, ret: new Array(N).fill(0) });
+      const c = cohort.get(key)!;
+      c.size++;
+      for (let n = 1; n <= N; n++) {
+        const limite = addMonths(first, n);
+        if (datas.some((d) => d > first && d <= limite)) c.ret[n - 1]++;
+      }
+    }
+    const linhas = [...cohort.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([key, c]) => {
+      const [y, m] = key.split('-').map(Number);
+      const cohortStart = new Date(y, m - 1, 1);
+      const retencao = c.ret.map((r, i) => (addMonths(cohortStart, i + 1) <= now ? Math.round((r / c.size) * 100) : null));
+      return { mes: key, tamanho: c.size, retencao };
+    });
+    return { N, linhas };
+  }
+
   // Recebimentos analítico (Fase 3): KPIs + quebras por forma/usuário/dia/marca no período.
   async recebimentosResumo(query: any = {}) {
     const where = rangeFromQuery(query);

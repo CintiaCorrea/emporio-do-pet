@@ -9,6 +9,17 @@ import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 
 const fmtBRL = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
 const nf = (v: number) => new Intl.NumberFormat("pt-BR").format(v || 0);
+const MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+const mesLabel = (ym: string) => { const [y, m] = ym.split("-").map(Number); return `${MESES[m - 1]}/${String(y).slice(2)}`; };
+// Heatmap: verde (alto) → âmbar → vermelho (baixo)
+function heatColor(pct: number | null): { bg: string; fg: string } {
+  if (pct == null) return { bg: "#F4F6F7", fg: "#B6BEC3" };
+  if (pct >= 60) return { bg: "#1B9E5A", fg: "#fff" };
+  if (pct >= 40) return { bg: "#7DC98A", fg: "#0E3D22" };
+  if (pct >= 25) return { bg: "#F1D48A", fg: "#5C4410" };
+  if (pct >= 10) return { bg: "#F0B37E", fg: "#5c3212" };
+  return { bg: "#E8998C", fg: "#4a140c" };
+}
 
 type Bucket = { n: number; valor: number };
 type Linha = { total: number; ativos: Bucket; risco: Bucket; inativos: Bucket };
@@ -97,10 +108,12 @@ export default function RetencaoPage() {
   const [data, setData] = useState<any>(null);
   const [olho, setOlho] = useState(false);
 
+  const [coorte, setCoorte] = useState<any>(null);
   useEffect(() => {
     (async () => {
       try { setData(await fetch("/api/caixa/retencao").then((r) => r.json()).catch(() => null)); } catch {}
       setLoading(false);
+      try { setCoorte(await fetch("/api/caixa/coorte").then((r) => r.json()).catch(() => null)); } catch {}
     })();
   }, []);
 
@@ -170,6 +183,37 @@ export default function RetencaoPage() {
             </div>
           </div>
         </div>
+
+        {/* Coorte de retenção */}
+        {coorte?.linhas?.length > 0 && (
+          <div className="rt-card" style={{ marginBottom: 16 }}>
+            <div className="rt-h">📅 Coorte de retenção — quantos voltam depois da 1ª visita</div>
+            <div className="rt-scroll">
+              <table className="rt-tbl" style={{ minWidth: 560 }}>
+                <thead>
+                  <tr>
+                    <th>Chegaram em</th>
+                    <th className="r">Clientes</th>
+                    {Array.from({ length: coorte.N }, (_, i) => <th key={i} className="r">em {i + 1}{i + 1 === 1 ? " mês" : " meses"}</th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {coorte.linhas.slice().reverse().map((l: any) => (
+                    <tr key={l.mes}>
+                      <td style={{ fontWeight: 600, color: "#014D5E" }}>{mesLabel(l.mes)}</td>
+                      <td className="r" style={{ color: "#6b7e83" }}>{nf(l.tamanho)}</td>
+                      {l.retencao.map((p: number | null, i: number) => {
+                        const c = heatColor(p);
+                        return <td key={i} className="r" style={{ background: c.bg, color: c.fg, fontWeight: 700, textAlign: "center" }}>{p == null ? "—" : `${p}%`}</td>;
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="rt-note" style={{ padding: "0 16px 14px" }}>Lê-se por linha: <b>dos clientes que chegaram naquele mês</b>, quantos <b>voltaram pelo menos uma vez</b> em até 1, 2, 3… meses. Verde = mais gente voltou. "—" = ainda não passou tempo suficiente pra medir.</div>
+          </div>
+        )}
 
         {/* Top inativos por valor */}
         <div className="rt-card">
