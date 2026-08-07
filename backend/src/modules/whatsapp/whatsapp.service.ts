@@ -640,7 +640,8 @@ export class WhatsAppService {
    */
   async getMessageMedia(
     messageId: string,
-  ): Promise<{ buffer: Buffer; contentType: string } | null> {
+    range?: string,
+  ): Promise<{ buffer: Buffer; contentType: string; status: number; contentRange?: string } | null> {
     const msg = await this.prisma.whatsAppMessage.findUnique({
       where: { id: messageId },
       select: { mediaCloudUrl: true, mediaCloudId: true, mediaType: true },
@@ -677,11 +678,38 @@ export class WhatsAppService {
     const signingKey = crypto.createHmac('sha256', kService).update('aws4_request').digest();
     const signature = crypto.createHmac('sha256', signingKey).update(stringToSign).digest('hex');
     const authorization = `AWS4-HMAC-SHA256 Credential=${ak}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
-    const res = await fetch(`${endpoint}/${bucket}/${key}`, { headers: { 'x-amz-content-sha256': emptyHash, 'x-amz-date': date, Authorization: authorization } });
-    if (!res.ok) return null;
+    // Range: propaga pro bucket (não precisa assinar — headers não-assinados são aceitos).
+    // Vídeo no <video> exige 206/Content-Range pra tocar e avançar no navegador.
+    const fetchHeaders: Record<string, string> = { 'x-amz-content-sha256': emptyHash, 'x-amz-date': date, Authorization: authorization };
+    if (range) fetchHeaders['Range'] = range;
+    const res = await fetch(`${endpoint}/${bucket}/${key}`, { headers: fetchHeaders });
+    if (!(res.ok || res.status === 206)) return null;
     const buffer = Buffer.from(await res.arrayBuffer());
     const contentType = res.headers.get('content-type') || msg.mediaType || 'application/octet-stream';
-    return { buffer, contentType };
+    return { buffer, contentType, status: res.status, contentRange: res.headers.get('content-range') || undefined };
+  }
+
+  // Encaminha a mídia de uma mensagem para OUTRA conversa (reusa o envio outbound por URL).
+  async encaminharMidia(msgId: string, conversationIdDestino: string): Promise<{ success: boolean; error?: string }> {
+    const msg = await this.prisma.whatsAppMessage.findUnique({
+      where: { id: msgId },
+      select: { type: true, content: true, mediaCloudUrl: true, mediaUrl: true },
+    });
+    if (!msg) return { success: false, error: 'Mensagem não encontrada' };
+    const url = msg.mediaCloudUrl || msg.mediaUrl;
+    if (!url) return { success: false, error: 'Esta mensagem não tem mídia salva para encaminhar' };
+    const destino = await this.prisma.whatsAppConversation.findUnique({
+      where: { id: conversationIdDestino },
+      select: { id: true, contactPhone: true },
+    });
+    if (!destino?.contactPhone) return { success: false, error: 'Conversa de destino inválida' };
+    const tipo: 'image' | 'video' | 'document' = msg.type === 'IMAGE' ? 'image' : msg.type === 'VIDEO' ? 'video' : 'document';
+    const legenda = msg.content && !msg.content.startsWith('[') ? msg.content : undefined;
+    const r = await this.enviarMidiaDeUrl(destino.contactPhone, url, tipo, legenda);
+    if (!r.success) return { success: false, error: r.error || 'Falha ao encaminhar' };
+    const outType = (tipo === 'image' ? 'IMAGE' : tipo === 'video' ? 'VIDEO' : 'DOCUMENT') as WhatsAppMessageType;
+    await this.saveOutboundMessage(destino.id, legenda || '[Encaminhado]', outType, r.messageId, { mediaUrl: url, encaminhado: true }, { senderType: 'HUMAN', senderName: 'Encaminhado' }).catch(() => undefined);
+    return { success: true };
   }
 
   // Normaliza nome pra comparação: minúsculas, sem acento, só tokens ≥3 letras (ignora "da/de/dos").

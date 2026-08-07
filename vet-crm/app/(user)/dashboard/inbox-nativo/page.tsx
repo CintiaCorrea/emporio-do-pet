@@ -339,6 +339,22 @@ export default function InboxUnificadoPage() {
   const MSG_ENDERECO = "📍 *Empório do Pet*\nAv. Eng. Leal Lima Verde, 205\nEdson Queiroz — Fortaleza/CE · CEP 60833-175\n\n🗺️ Como chegar:\nhttps://maps.google.com/?q=-3.7899632,-38.4759969";
   const [encaminharOpen, setEncaminharOpen] = useState(false);
   const [resolvendo, setResolvendo] = useState(false);
+  // Encaminhar MÍDIA de uma mensagem para outra conversa
+  const [fwdMsgId, setFwdMsgId] = useState<string | null>(null);
+  const [fwdBusca, setFwdBusca] = useState("");
+  const [fwdEnviando, setFwdEnviando] = useState(false);
+  const abrirEncaminhar = (msgId: string) => { setFwdMsgId(msgId); setFwdBusca(""); };
+  const encaminharPara = async (conversationId: string, nome: string) => {
+    if (!fwdMsgId) return;
+    setFwdEnviando(true);
+    const t = toast.loading("Encaminhando…");
+    try {
+      const r = await fetch(`/api/whatsapp/messages/${fwdMsgId}/forward`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ conversationId }) });
+      const d = await r.json().catch(() => null);
+      if (r.ok && d?.success) { toast.success(`Encaminhado para ${nome} ✓`, { id: t }); setFwdMsgId(null); }
+      else toast.error(d?.message || "Não consegui encaminhar (pode estar fora da janela de 24h).", { id: t });
+    } catch { toast.error("Erro ao encaminhar.", { id: t }); } finally { setFwdEnviando(false); }
+  };
 
   // Controles IA / Agentes
   const [agentes, setAgentes] = useState<Array<{id: string; name: string}>>([]);
@@ -1633,16 +1649,37 @@ export default function InboxUnificadoPage() {
                             </div>
                           )}
                           {m.type === "IMAGE" && m.hasMedia ? (
-                            <a href={`/api/whatsapp/messages/${m.id}/media`} target="_blank" rel="noreferrer" className="block">
-                              <img src={`/api/whatsapp/messages/${m.id}/media`} alt={m.content || "Imagem"} className="rounded-lg max-w-full max-h-64 object-cover" loading="lazy" />
+                            <div>
+                              <a href={`/api/whatsapp/messages/${m.id}/media`} target="_blank" rel="noreferrer" className="block">
+                                <img src={`/api/whatsapp/messages/${m.id}/media`} alt={m.content || "Imagem"} className="rounded-lg max-w-full max-h-64 object-cover" loading="lazy" />
+                              </a>
                               {m.content && !m.content.startsWith("[") && <div className="mt-1">{m.content}</div>}
-                            </a>
+                              <div className="flex gap-3 mt-1">
+                                <a href={`/api/whatsapp/messages/${m.id}/media?download=1`} className="text-[10px] underline opacity-80">⬇️ Baixar</a>
+                                <button onClick={() => abrirEncaminhar(m.id)} className="text-[10px] underline opacity-80">↷ Encaminhar</button>
+                              </div>
+                            </div>
                           ) : (m.type === "STICKER") && m.hasMedia ? (
                             <img src={`/api/whatsapp/messages/${m.id}/media`} alt="Figurinha" className="max-w-[120px]" loading="lazy" />
                           ) : m.type === "AUDIO" && m.hasMedia ? (
                             <audio controls src={`/api/whatsapp/messages/${m.id}/media`} className="max-w-full" />
-                          ) : (m.type === "VIDEO" || m.type === "DOCUMENT") && m.hasMedia ? (
-                            <a href={`/api/whatsapp/messages/${m.id}/media`} target="_blank" rel="noreferrer" className="underline flex items-center gap-1">📎 {m.content && !m.content.startsWith("[") ? m.content : "Abrir arquivo"}</a>
+                          ) : m.type === "VIDEO" && m.hasMedia ? (
+                            <div>
+                              <video controls preload="metadata" src={`/api/whatsapp/messages/${m.id}/media`} className="rounded-lg max-w-full max-h-72 bg-black" />
+                              {m.content && !m.content.startsWith("[") && <div className="mt-1">{m.content}</div>}
+                              <div className="flex gap-3 mt-1">
+                                <a href={`/api/whatsapp/messages/${m.id}/media?download=1`} className="text-[10px] underline opacity-80">⬇️ Baixar</a>
+                                <button onClick={() => abrirEncaminhar(m.id)} className="text-[10px] underline opacity-80">↷ Encaminhar</button>
+                              </div>
+                            </div>
+                          ) : m.type === "DOCUMENT" && m.hasMedia ? (
+                            <div className="flex flex-col gap-1">
+                              <a href={`/api/whatsapp/messages/${m.id}/media`} target="_blank" rel="noreferrer" className="underline flex items-center gap-1">📎 {m.content && !m.content.startsWith("[") ? m.content : "Abrir arquivo"}</a>
+                              <div className="flex gap-3">
+                                <a href={`/api/whatsapp/messages/${m.id}/media?download=1`} className="text-[10px] underline opacity-80">⬇️ Baixar</a>
+                                <button onClick={() => abrirEncaminhar(m.id)} className="text-[10px] underline opacity-80">↷ Encaminhar</button>
+                              </div>
+                            </div>
                           ) : (m.type === "LOCATION" || m.metadata?.latitude) ? (
                             <a href={`https://www.google.com/maps?q=${m.metadata?.latitude},${m.metadata?.longitude}`} target="_blank" rel="noreferrer" className="underline flex items-center gap-1" style={{ color: "#009AAC" }}>📍 {m.metadata?.name || m.metadata?.address || "Ver localização no mapa"}</a>
                           ) : (m.mediaType || m.type === "DOCUMENT" || m.type === "IMAGE" || m.type === "AUDIO" || m.type === "VIDEO") ? (
@@ -2299,6 +2336,32 @@ export default function InboxUnificadoPage() {
             </div>
             <div className="flex justify-end mt-3">
               <button onClick={() => setEncaminharOpen(false)} className="px-3 py-1.5 text-xs text-[#5F5E5A]">Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Encaminhar MÍDIA para outra conversa */}
+      {fwdMsgId && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-[60]" onClick={() => !fwdEnviando && setFwdMsgId(null)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 py-3.5 border-b flex items-center justify-between" style={{ borderColor: "#eef0e6" }}>
+              <h3 className="text-[15px] font-semibold text-[#014D5E]">↷ Encaminhar para…</h3>
+              <button onClick={() => setFwdMsgId(null)} className="text-[#94a3b8] text-lg leading-none">×</button>
+            </div>
+            <div className="p-3 border-b" style={{ borderColor: "#F0EBE0" }}>
+              <input autoFocus value={fwdBusca} onChange={(e) => setFwdBusca(e.target.value)} placeholder="🔍 Buscar cliente/conversa…" className="w-full border rounded-lg px-3 py-2 text-[13px]" style={{ borderColor: "#E8DFC8" }} />
+            </div>
+            <div className="overflow-y-auto flex-1">
+              {conversations
+                .filter((c) => { const q = fwdBusca.trim().toLowerCase(); const nm = (c.tutor?.name || c.contactName || c.contactNumber || "").toLowerCase(); return !q || nm.includes(q) || (c.contactNumber || "").includes(q); })
+                .slice(0, 40)
+                .map((c) => { const nome = c.tutor?.name || c.contactName || c.contactNumber || "Sem nome"; return (
+                  <button key={c.id} disabled={fwdEnviando} onClick={() => encaminharPara(c.id, nome)} className="w-full text-left px-4 py-2.5 hover:bg-[#F6FDFD] border-b flex items-center gap-2 disabled:opacity-50" style={{ borderColor: "#F5F1E8" }}>
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-semibold flex-shrink-0" style={{ background: "#E0F4F6", color: "#014D5E" }}>{getInitials(c.tutor?.name || c.contactName)}</div>
+                    <div className="min-w-0"><div className="text-[13px] font-medium text-[#0E2244] truncate">{nome}</div><div className="text-[11px] text-[#94a3b8]">{c.contactNumber}</div></div>
+                  </button>
+                ); })}
             </div>
           </div>
         </div>

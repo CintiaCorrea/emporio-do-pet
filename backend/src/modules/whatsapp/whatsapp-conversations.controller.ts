@@ -9,6 +9,7 @@ import {
   UseGuards,
   Logger,
   Res,
+  Req,
   UploadedFile,
   UseInterceptors,
   BadRequestException,
@@ -19,7 +20,7 @@ import { spawn } from 'child_process';
 import { writeFile, readFile, unlink } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { WhatsAppService } from './whatsapp.service';
@@ -232,21 +233,46 @@ export class WhatsAppConversationsController {
     });
   }
 
-  // Serve a mídia (imagem/áudio) de uma mensagem, baixada do storage privado.
+  // Serve a mídia (imagem/vídeo/áudio) de uma mensagem, do storage privado.
+  // Suporta Range (206) — vídeo precisa disso pra tocar/avançar no navegador.
+  // ?download=1 força o download (attachment) em vez de abrir inline.
   @Get('messages/:msgId/media')
   async getMessageMedia(
     @Param('msgId') msgId: string,
+    @Req() req: Request,
     @Res() res: Response,
+    @Query('download') download?: string,
   ) {
-    const media = await this.whatsAppService.getMessageMedia(msgId);
+    const range = (req.headers['range'] as string) || undefined;
+    const media = await this.whatsAppService.getMessageMedia(msgId, range);
     if (!media) {
       res.status(404).json({ error: 'Mídia não encontrada' });
       return;
     }
     res.setHeader('Content-Type', media.contentType);
-    res.setHeader('Content-Disposition', 'inline');
+    res.setHeader('Accept-Ranges', 'bytes');
     res.setHeader('Cache-Control', 'private, max-age=300');
+    if (download) {
+      const ext = (media.contentType.split('/')[1] || 'bin').split(';')[0];
+      res.setHeader('Content-Disposition', `attachment; filename="anexo-${msgId.slice(0, 8)}.${ext}"`);
+    } else {
+      res.setHeader('Content-Disposition', 'inline');
+    }
+    if (media.status === 206 && media.contentRange) {
+      res.status(206);
+      res.setHeader('Content-Range', media.contentRange);
+    }
+    res.setHeader('Content-Length', String(media.buffer.length));
     res.send(media.buffer);
+  }
+
+  // Encaminha a mídia desta mensagem para OUTRA conversa.
+  @Post('messages/:msgId/forward')
+  async forwardMedia(@Param('msgId') msgId: string, @Body() body: { conversationId?: string }) {
+    if (!body?.conversationId) throw new BadRequestException('conversationId obrigatório.');
+    const r = await this.whatsAppService.encaminharMidia(msgId, body.conversationId);
+    if (!r.success) throw new BadRequestException(r.error || 'Não consegui encaminhar.');
+    return { success: true };
   }
 
   /**
