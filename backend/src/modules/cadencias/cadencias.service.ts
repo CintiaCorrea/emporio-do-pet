@@ -42,6 +42,15 @@ export class CadenciasService implements OnModuleInit {
         ],
       },
       {
+        gatilho: 'CLIENTE_NOVO',
+        nome: 'Boas-vindas (cliente novo)',
+        descricao: 'Recebe o cliente novo após o 1º atendimento — a primeira impressão (começa DESLIGADA).',
+        passos: [
+          { ordem: 1, titulo: 'Bem-vindo à família', conteudo: 'Que alegria receber você e o(a) {pet} na família Empório do Pet, {tutor}! 🐾 Foi um prazer cuidar dele(a). Estamos por aqui pra qualquer dúvida — é só chamar. 💚', atrasoValor: 2, atrasoUnidade: 'HORAS' },
+          { ordem: 2, titulo: 'Nossos canais / facilidades', conteudo: 'Oi, {tutor}! Pra facilitar o dia a dia: por aqui você agenda, tira dúvidas e recebe os lembretes de vacina e retorno do(a) {pet}. Conte com a gente pra cuidar dele(a) sempre. 🐶💙', atrasoValor: 5, atrasoUnidade: 'DIAS' },
+        ],
+      },
+      {
         gatilho: 'POS_CIRURGICO',
         nome: 'Pós-cirúrgico (recuperação)',
         descricao: 'Acompanha a recuperação após uma cirurgia (começa DESLIGADA).',
@@ -404,6 +413,7 @@ export class CadenciasService implements OnModuleInit {
       include: { tutor: { include: { contacts: true } }, pet: true, user: { select: { name: true } } },
       take: 50,
     });
+    const temBoasVindas = await this.temCadAtiva('CLIENTE_NOVO'); // evita a contagem por atendimento se estiver desligada
     for (const a of apps) {
       try {
         const phone = this.bestPhone((a as any).tutor?.contacts || []);
@@ -421,6 +431,15 @@ export class CadenciasService implements OnModuleInit {
         // Pós-cirúrgico: além do pós-atendimento genérico, uma cadência própria quando é CIRURGIA finalizada.
         if ((a as any).type === 'CIRURGIA' && (a.status === 'COMPLETED' || a.status === 'DONE')) {
           await this.dispararGatilho('POS_CIRURGICO', { tutorId: a.tutorId, petId: a.petId, phone, vars, origemId: `poscirurg:${a.id}` });
+        }
+        // Boas-vindas: se este é o PRIMEIRO atendimento realizado do cliente → jornada de boas-vindas (1x por cliente).
+        if (temBoasVindas && a.tutorId && (a.status === 'COMPLETED' || a.status === 'DONE')) {
+          const realizados = await this.prisma.appointment.count({
+            where: { tutorId: a.tutorId, status: { in: ['COMPLETED', 'DONE'] as any } },
+          });
+          if (realizados === 1) {
+            await this.dispararGatilho('CLIENTE_NOVO', { tutorId: a.tutorId, petId: a.petId, phone, vars, origemId: `boasvindas:${a.tutorId}` });
+          }
         }
       } catch (e: any) {
         this.logger.warn(`varrerAtendimentos ${a.id}: ${e?.message || e}`);
