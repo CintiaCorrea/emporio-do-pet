@@ -142,6 +142,25 @@ function renderWa(texto: string): ReactNode {
     <span key={i}>{i > 0 && <br />}{inlineWa(linha)}</span>
   ));
 }
+// Igual ao renderWa, mas realça (grifo amarelo) as ocorrências do termo buscado.
+function renderWaHL(texto: string, termo: string): ReactNode {
+  const t = (termo || "").trim().toLowerCase();
+  if (!t) return renderWa(texto);
+  return (texto || "").split("\n").map((linha, i) => {
+    const parts: ReactNode[] = [];
+    let rest = linha;
+    let guard = 0;
+    while (guard++ < 300) {
+      const idx = rest.toLowerCase().indexOf(t);
+      if (idx < 0) { if (rest) parts.push(<Fragment key={parts.length}>{inlineWa(rest)}</Fragment>); break; }
+      if (idx > 0) parts.push(<Fragment key={parts.length}>{inlineWa(rest.slice(0, idx))}</Fragment>);
+      parts.push(<mark key={parts.length} style={{ background: "#FFD84D", color: "inherit", borderRadius: "3px", padding: "0 1px" }}>{rest.slice(idx, idx + t.length)}</mark>);
+      rest = rest.slice(idx + t.length);
+      if (!rest) break;
+    }
+    return <span key={i}>{i > 0 && <br />}{parts}</span>;
+  });
+}
 
 export default function InboxUnificadoPage() {
   usePageTitle("Inbox Meta", "Conversas WhatsApp Business via API Meta");
@@ -178,6 +197,11 @@ export default function InboxUnificadoPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [messageInput, setMessageInput] = useState("");
   const [respondendo, setRespondendo] = useState<Message | null>(null); // mensagem sendo citada
+  // Buscar DENTRO da conversa aberta (como o WhatsApp): 🔍 no topo → barrinha com contador + setas.
+  const [buscaChatOpen, setBuscaChatOpen] = useState(false);
+  const [buscaChat, setBuscaChat] = useState("");
+  const [buscaIdx, setBuscaIdx] = useState(0);
+  const msgRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const [anexando, setAnexando] = useState(false);
   const [agendarOpen, setAgendarOpen] = useState(false); // pop-up de agendar consulta
   // Boletim de fisioterapia (abre a ficha de boletim do pet como popup)
@@ -870,6 +894,25 @@ export default function InboxUnificadoPage() {
 
   const selectedConv = conversations.find((c) => c.id === selectedId);
   const selectedPet = tutor?.pets?.find((p) => p.id === selectedPetId);
+
+  // Busca na conversa: ids das mensagens (em ordem) que contêm o termo.
+  const buscaMatches = useMemo(() => {
+    const t = buscaChat.trim().toLowerCase();
+    if (!t) return [] as string[];
+    return messages.filter((m) => (m.content || "").toLowerCase().includes(t)).map((m) => m.id);
+  }, [messages, buscaChat]);
+  // Ao mudar o termo (ou abrir), começa pelo resultado mais RECENTE (último), como o WhatsApp.
+  useEffect(() => {
+    if (buscaChatOpen && buscaMatches.length) setBuscaIdx(buscaMatches.length - 1);
+  }, [buscaChat, buscaChatOpen, buscaMatches.length]);
+  // Rola até o resultado atual e o realça.
+  useEffect(() => {
+    if (!buscaChatOpen || !buscaMatches.length) return;
+    const el = msgRefs.current[buscaMatches[buscaIdx]];
+    if (el) el.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [buscaIdx, buscaMatches, buscaChatOpen]);
+  // Trocar de conversa fecha a busca.
+  useEffect(() => { setBuscaChatOpen(false); setBuscaChat(""); }, [selectedId]);
   const primaryPhone = tutor?.contacts?.find((c) => c.isPrimary)?.number || tutor?.contacts?.[0]?.number || selectedConv?.contactNumber;
 
   const sendMessage = async (textOverride?: string) => {
@@ -1594,6 +1637,8 @@ export default function InboxUnificadoPage() {
                       style={{ background: "#0F6E56" }}>
                       <span style={{fontSize:"10px"}}>✅</span>{resolvendo ? "Encerrando…" : "Encerrar"}
                     </button>
+                    <button onClick={() => setBuscaChatOpen((o) => { const n = !o; if (!n) setBuscaChat(""); return n; })} title="Buscar nesta conversa"
+                      className={`w-7 h-7 rounded-full inline-flex items-center justify-center text-[13px] border ${buscaChatOpen ? "bg-[#F0FBFC] border-[#009AAC] text-[#00798A]" : "bg-white border-[#e8e1d2] text-[#888780]"}`}>🔍</button>
                     {/* ⋮ ações secundárias (como no mockup) */}
                     <div className="relative">
                       <button onClick={() => setHeaderMenuOpen((o) => !o)} title="Mais ações"
@@ -1633,7 +1678,37 @@ export default function InboxUnificadoPage() {
                   )}
                 </div>
 
+                {buscaChatOpen && (
+                  <div className="px-3 py-2 border-b border-[#e8e1d2] bg-[#F7FBFC] flex items-center gap-2">
+                    <span className="text-[13px] text-[#888780]">🔍</span>
+                    <input
+                      autoFocus
+                      value={buscaChat}
+                      onChange={(e) => setBuscaChat(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Escape") { setBuscaChatOpen(false); setBuscaChat(""); }
+                        if (e.key === "Enter" && buscaMatches.length) {
+                          e.preventDefault();
+                          setBuscaIdx((idx) => e.shiftKey ? (idx + 1) % buscaMatches.length : (idx - 1 + buscaMatches.length) % buscaMatches.length);
+                        }
+                      }}
+                      placeholder="Buscar nesta conversa…"
+                      className="flex-1 text-[13px] bg-transparent outline-none text-[#0E2244] placeholder-[#A8A69C]" />
+                    {buscaChat.trim() && (
+                      <span className="text-[11px] text-[#888780] tabular-nums whitespace-nowrap">
+                        {buscaMatches.length ? `${Math.min(buscaIdx + 1, buscaMatches.length)} de ${buscaMatches.length}` : "0 de 0"}
+                      </span>
+                    )}
+                    <button disabled={!buscaMatches.length} onClick={() => setBuscaIdx((idx) => (idx - 1 + buscaMatches.length) % buscaMatches.length)} title="Resultado anterior (mais antigo)" className="w-6 h-6 rounded-md border border-[#e8e1d2] text-[#5F5E5A] disabled:opacity-40 text-[12px] leading-none">↑</button>
+                    <button disabled={!buscaMatches.length} onClick={() => setBuscaIdx((idx) => (idx + 1) % buscaMatches.length)} title="Próximo resultado (mais recente)" className="w-6 h-6 rounded-md border border-[#e8e1d2] text-[#5F5E5A] disabled:opacity-40 text-[12px] leading-none">↓</button>
+                    <button onClick={() => { setBuscaChatOpen(false); setBuscaChat(""); }} title="Fechar busca" className="w-6 h-6 rounded-md text-[#888780] text-[16px] leading-none">×</button>
+                  </div>
+                )}
+
                 <div className="flex-1 overflow-y-auto p-4 bg-white flex flex-col gap-2">
+                  {buscaChatOpen && buscaChat.trim() && buscaMatches.length === 0 && (
+                    <p className="text-center text-[11px] text-[#888780] py-2">Nada encontrado para “{buscaChat.trim()}” nesta conversa</p>
+                  )}
                   {messages.length === 0 ? (
                     <p className="text-center text-[11px] text-[#888780]">Sem mensagens</p>
                   ) : messages.map((m, i) => {
@@ -1648,6 +1723,8 @@ export default function InboxUnificadoPage() {
                       try { return new Date(m.createdAt).toDateString() !== new Date(messages[i - 1].createdAt).toDateString(); }
                       catch { return false; }
                     })();
+                    // Resultado ATUAL da busca (recebe realce laranja + rolagem).
+                    const ehMatch = buscaChatOpen && buscaMatches.length > 0 && buscaMatches[buscaIdx] === m.id;
                     return (
                       <Fragment key={m.id}>
                       {mudouDia && (
@@ -1655,7 +1732,7 @@ export default function InboxUnificadoPage() {
                           {rotuloDia(m.createdAt)}
                         </div>
                       )}
-                      <div onClick={selMode ? () => toggleSel(m.id) : undefined} className={`group max-w-[75%] ${outbound ? "self-end" : "self-start"} ${selMode ? "cursor-pointer rounded-xl transition" : ""} ${selMode && selIds.has(m.id) ? "ring-2 ring-[#009AAC] ring-offset-2" : ""}`}>
+                      <div ref={(el) => { msgRefs.current[m.id] = el; }} onClick={selMode ? () => toggleSel(m.id) : undefined} className={`group max-w-[75%] ${outbound ? "self-end" : "self-start"} ${selMode ? "cursor-pointer rounded-xl transition" : ""} ${selMode && selIds.has(m.id) ? "ring-2 ring-[#009AAC] ring-offset-2" : ""} ${ehMatch ? "ring-2 ring-[#FFB300] ring-offset-2 rounded-xl" : ""}`}>
                         <div className={`px-3 py-2 rounded-xl text-[13px] ${outbound ? "bg-[#009AAC] text-white rounded-br-sm" : "bg-white border border-[#e8e1d2] text-[#0E2244] rounded-bl-sm"}`}>
                           {m.replyToWaMessageId && (
                             <div
@@ -1715,7 +1792,7 @@ export default function InboxUnificadoPage() {
                           ) : (m.mediaType || m.type === "DOCUMENT" || m.type === "IMAGE" || m.type === "AUDIO" || m.type === "VIDEO") ? (
                             <span className="italic text-[#888780]">📎 {m.content || "anexo"} <span className="text-[10px]">(não foi possível carregar o arquivo)</span></span>
                           ) : (
-                            m.content ? renderWa(m.content) : "(mídia)"
+                            m.content ? (buscaChatOpen && buscaChat.trim() ? renderWaHL(m.content, buscaChat) : renderWa(m.content)) : "(mídia)"
                           )}
                         </div>
                         <div className={`text-[9px] text-[#888780] mt-0.5 px-1 flex items-center gap-2 ${outbound ? "justify-end" : ""}`}>
