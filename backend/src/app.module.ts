@@ -56,6 +56,7 @@ import { CadenciasModule } from './modules/cadencias/cadencias.module';
 import { EmailTemplatesModule } from './modules/email-templates/email-templates.module';
 import { PipelinesModule } from './modules/pipelines/pipelines.module';
 import { AvaliacoesModule } from './modules/avaliacoes/avaliacoes.module';
+import { DigestModule } from './modules/digest/digest.module';
 import { MetasModule } from './modules/metas/metas.module';
 import { CampanhasModule } from './modules/campanhas/campanhas.module';
 import { EnrichmentModule } from './modules/enrichment/enrichment.module';
@@ -200,6 +201,7 @@ import configuration from './config/configuration';
     FornecedoresModule,
     ScriptsModule,
     CadenciasModule,
+    DigestModule,
     EmailTemplatesModule,
     PipelinesModule,
     AvaliacoesModule,

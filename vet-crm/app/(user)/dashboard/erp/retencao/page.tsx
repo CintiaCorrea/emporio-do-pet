@@ -4,6 +4,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import toast from "react-hot-toast";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 
 const fmtBRL = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
@@ -121,6 +122,15 @@ export default function RetencaoPage() {
       <div className="rt-wrap">
         <div className="rt-print-h">Retenção e Churn — {new Date().toLocaleDateString("pt-BR")}</div>
         <div className="rt-bar no-print">
+          <button className="rt-btn" onClick={async () => {
+            const t = toast.loading("Enviando resumo…");
+            try {
+              const r = await fetch("/api/digest/enviar-agora", { method: "POST" });
+              const d = await r.json().catch(() => null);
+              if (r.ok) toast.success(`Resumo enviado por e-mail${d?.enviados ? ` (${d.enviados} destinatário${d.enviados > 1 ? "s" : ""})` : ""}!`, { id: t });
+              else toast.error(d?.message || "Não foi possível enviar.", { id: t });
+            } catch { toast.error("Erro ao enviar.", { id: t }); }
+          }}>📧 Enviar resumo por e-mail</button>
           <button className="rt-btn" onClick={() => setOlho((v) => !v)}>{olho ? "🙈 Ocultar valores" : "👁️ Mostrar valores"}</button>
           <button className="rt-btn" onClick={() => window.print()}>🖨️ Imprimir</button>
         </div>
