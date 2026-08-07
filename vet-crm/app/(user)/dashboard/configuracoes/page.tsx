@@ -27,6 +27,7 @@ const ITEMS: Item[] = [
   { href: "/dashboard/configuracoes/cadastros-recebidos", title: "Cadastros recebidos", description: "Fichas que os clientes preenchem pelo link público", emoji: "📝", group: "COMUNICACAO", novo: true },
   { href: "/dashboard/configuracoes/resposta-automatica", title: "Resposta automática", description: "Mensagem automática fora do horário", emoji: "⏰", group: "COMUNICACAO" },
   { href: "/dashboard/configuracoes/scripts", title: "Scripts", description: "Roteiros de mensagem (texto/áudio/e-mail)", emoji: "💬", group: "COMUNICACAO" },
+  { href: "/dashboard/configuracoes/figurinhas", title: "Figurinhas", description: "Figurinhas da clínica pra enviar no WhatsApp", emoji: "🩹", group: "COMUNICACAO", novo: true },
   { href: "/dashboard/configuracoes/cadencias", title: "Cadências", description: "Sequências automáticas de comunicação", emoji: "🔁", group: "COMUNICACAO" },
   { href: "/dashboard/configuracoes/email-templates", title: "Templates de E-mail", description: "Modelos com variáveis", emoji: "✉️", group: "COMUNICACAO" },
   { href: "/dashboard/configuracoes/pipelines", title: "Pipelines", description: "Etapas comercial / clínico / fisio", emoji: "🧩", group: "COMUNICACAO" },

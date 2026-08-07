@@ -256,6 +256,42 @@ export default function InboxUnificadoPage() {
       setAnexando(false);
     }
   }
+
+  // === Figurinhas: biblioteca da clínica (Configurações › Figurinhas) enviadas com 1 clique ===
+  const [stickersOpen, setStickersOpen] = useState(false);
+  const [stickersList, setStickersList] = useState<{ id: string; nome?: string | null; url: string }[]>([]);
+  const [stickersCarregados, setStickersCarregados] = useState(false);
+  const [enviandoSticker, setEnviandoSticker] = useState(false);
+  async function abrirStickers() {
+    setStickersOpen((v) => !v);
+    if (stickersCarregados) return;
+    try {
+      const r = await fetch("/api/whatsapp/stickers", { cache: "no-store" });
+      const d = await r.json().catch(() => []);
+      setStickersList(Array.isArray(d) ? d : []);
+      setStickersCarregados(true);
+    } catch { /* deixa vazio; a tela mostra o aviso */ }
+  }
+  async function enviarSticker(stickerId: string) {
+    if (!selectedId || enviandoSticker) return;
+    setEnviandoSticker(true);
+    try {
+      const r = await fetch(`/api/whatsapp/conversations/${selectedId}/send-sticker`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stickerId }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j?.message || j?.error || "falha ao enviar");
+      setStickersOpen(false);
+      setRefreshTick((t) => t + 1);
+      setMsgTick((t) => t + 1);
+    } catch (e: any) {
+      toast.error(String(e?.message || e).slice(0, 140));
+    } finally {
+      setEnviandoSticker(false);
+    }
+  }
   // === Gravar áudio (microfone) e enviar como mensagem de voz ===
   const [gravando, setGravando] = useState(false);
   const [gravSeg, setGravSeg] = useState(0);
@@ -1994,6 +2030,36 @@ export default function InboxUnificadoPage() {
                         }}
                       />
                     </label>
+                    {/* Figurinhas da clínica (biblioteca) */}
+                    <div className="relative shrink-0">
+                      <button onClick={abrirStickers} title="Enviar figurinha da clínica"
+                        className={`w-8 h-8 rounded-lg flex items-center justify-center border border-[#e8e1d2] text-[#5F5E5A] ${stickersOpen ? "bg-[#F0FBFC] border-[#009AAC]" : "hover:bg-[#F0FBFC]"}`}>
+                        <span style={{ fontSize: "15px" }}>🩹</span>
+                      </button>
+                      {stickersOpen && (
+                        <div className="absolute bottom-11 left-0 z-40 bg-white border border-[#e8e1d2] rounded-xl shadow-lg p-2 w-72">
+                          <div className="flex items-center justify-between px-1 pb-1.5">
+                            <span className="text-[10px] font-medium uppercase text-[#888780]">Figurinhas da clínica</span>
+                            <button onClick={() => setStickersOpen(false)} className="text-[#888780] text-sm leading-none">×</button>
+                          </div>
+                          {!stickersCarregados ? (
+                            <p className="text-[12px] text-[#888780] px-1 py-4 text-center">Carregando…</p>
+                          ) : stickersList.length === 0 ? (
+                            <p className="text-[12px] text-[#888780] px-1 py-3 text-center">Nenhuma figurinha cadastrada. Suba as suas em <Link href="/dashboard/configuracoes/figurinhas" className="text-[#009AAC] underline">Configurações › Figurinhas</Link>.</p>
+                          ) : (
+                            <div className="grid grid-cols-4 gap-1.5 max-h-56 overflow-y-auto">
+                              {stickersList.map((s) => (
+                                <button key={s.id} onClick={() => enviarSticker(s.id)} disabled={enviandoSticker}
+                                  title={s.nome || "Enviar figurinha"}
+                                  className="aspect-square rounded-lg border border-[#eee] p-1 flex items-center justify-center hover:bg-[#F0FBFC] disabled:opacity-50" style={{ background: "#F4F8F9" }}>
+                                  <img src={s.url} alt={s.nome || "figurinha"} className="max-w-full max-h-full object-contain" loading="lazy" />
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                     {gravando ? (
                       <div className="flex-1 flex items-center gap-2 px-3 py-1.5 border rounded-lg" style={{ borderColor: "#E24B4A", background: "#FDECEC" }}>
                         <span className="w-2.5 h-2.5 rounded-full bg-[#E24B4A] animate-pulse shrink-0" />

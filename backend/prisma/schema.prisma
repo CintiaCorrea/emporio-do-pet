@@ -1413,6 +1413,22 @@ model WhatsAppMessage {
   @@map("whatsapp_messages")
 }
 
+// Biblioteca de FIGURINHAS da clínica (sobe uma vez em Configurações, reusa no inbox).
+// Guardadas em .webp 512x512 (a conversão é feita no navegador ao subir).
+model WhatsAppSticker {
+  id          String   @id @default(uuid())
+  nome        String? // rótulo opcional pra organizar
+  url         String // nossa URL permanente (cloud storage)
+  cloudId     String? // publicId no provider (pra apagar depois)
+  storageType String? // s3, cloudinary, local
+  mime        String   @default("image/webp")
+  ordem       Int      @default(0)
+  ativo       Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  @@map("whatsapp_stickers")
+}
+
 // WhatsApp Conversation - Conversas com contatos
 model WhatsAppConversation {
   id                 String                     @id @default(uuid())

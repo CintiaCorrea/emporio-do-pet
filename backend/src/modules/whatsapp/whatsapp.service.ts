@@ -787,6 +787,79 @@ export class WhatsAppService {
     }
   }
 
+  // ===== Biblioteca de FIGURINHAS da clínica =====
+  async listarStickers() {
+    return this.prisma.whatsAppSticker.findMany({
+      where: { ativo: true },
+      orderBy: [{ ordem: 'asc' }, { createdAt: 'desc' }],
+      select: { id: true, nome: true, url: true, mime: true, createdAt: true },
+    });
+  }
+
+  /** Guarda uma figurinha na biblioteca. Aceita só .webp (a conversão é feita no navegador). */
+  async salvarSticker(buffer: Buffer, mime: string, nome?: string): Promise<{ id: string; url: string } | { error: string }> {
+    if (mime !== 'image/webp') return { error: 'A figurinha precisa ser .webp (512x512).' };
+    const base = (nome || 'figurinha').replace(/[^a-zA-Z0-9._-]/g, '_').replace(/\.webp$/i, '');
+    const filename = `${Date.now()}-${base}.webp`;
+    const up = await this.cloudStorageService.upload(buffer, filename, 'image/webp', 'whatsapp/stickers');
+    if (!up.success || !up.url) return { error: up.error || 'Falha ao guardar a figurinha' };
+    const row = await this.prisma.whatsAppSticker.create({
+      data: { nome: nome || null, url: up.url, cloudId: up.publicId || null, storageType: up.provider || null, mime: 'image/webp' },
+    });
+    return { id: row.id, url: row.url };
+  }
+
+  async removerSticker(id: string): Promise<{ success: boolean }> {
+    const s = await this.prisma.whatsAppSticker.findUnique({ where: { id } });
+    if (!s) return { success: true };
+    if (s.url) await this.cloudStorageService.deleteByUrl(s.url).catch(() => undefined);
+    await this.prisma.whatsAppSticker.delete({ where: { id } }).catch(() => undefined);
+    return { success: true };
+  }
+
+  /** Envia uma figurinha DA BIBLIOTECA para uma conversa (baixa nosso webp → sobe p/ Meta → envia). */
+  async enviarStickerBiblioteca(conversationId: string, stickerId: string): Promise<{ success: boolean; error?: string; message?: { id: string } }> {
+    const sticker = await this.prisma.whatsAppSticker.findUnique({ where: { id: stickerId } });
+    if (!sticker) return { success: false, error: 'Figurinha não encontrada' };
+    const conv = await this.prisma.whatsAppConversation.findUnique({ where: { id: conversationId }, select: { id: true, userId: true, contactPhone: true } });
+    if (!conv?.contactPhone) return { success: false, error: 'Conversa não encontrada' };
+    const config = await this.getUserWhatsAppConfig(conv.userId);
+    // Baixa o webp guardado (bucket privado → assinado).
+    let buf: Buffer;
+    const r = await fetch(sticker.url).catch(() => null);
+    if (r && r.ok) {
+      buf = Buffer.from(await r.arrayBuffer());
+    } else {
+      const assinado = await this.cloudStorageService.baixarPorUrl(sticker.url);
+      if (!assinado) return { success: false, error: 'Não consegui ler a figurinha guardada' };
+      buf = assinado.buffer;
+    }
+    const up = await this.uploadMedia(buf, 'image/webp', (sticker.nome || 'figurinha') + '.webp', config || undefined);
+    if (!up.mediaId) return { success: false, error: up.error || 'A Meta não aceitou a figurinha' };
+    const res = await this.sendMediaMessage(conv.contactPhone, up.mediaId, 'sticker', undefined, undefined, config || undefined);
+    if (!res.success) return { success: false, error: res.error || 'Falha ao enviar a figurinha' };
+    const msg = await this.prisma.whatsAppMessage.create({
+      data: {
+        conversationId,
+        waMessageId: res.messageId,
+        direction: 'OUTBOUND',
+        type: 'STICKER',
+        status: 'SENT',
+        content: '[figurinha]',
+        mediaType: 'image/webp',
+        mediaCloudUrl: sticker.url,
+        mediaCloudId: sticker.cloudId,
+        mediaStorageType: sticker.storageType,
+        mediaDownloadedAt: new Date(),
+        sentAt: new Date(),
+        metadata: { senderType: 'HUMAN' },
+      },
+    });
+    await this.prisma.whatsAppConversation.update({ where: { id: conversationId }, data: { lastMessageAt: new Date(), lastMessagePreview: 'Figurinha' } }).catch(() => undefined);
+    this.eventEmitter.emit('whatsapp.message.sent', { userId: conv.userId, conversationId, messageId: msg.id });
+    return { success: true, message: { id: msg.id } };
+  }
+
   // Normaliza nome pra comparação: minúsculas, sem acento, só tokens ≥3 letras (ignora "da/de/dos").
   private tokensNome(n?: string | null): string[] {
     return String(n || '')

@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Param,
   Body,
   Query,
@@ -273,6 +274,35 @@ export class WhatsAppConversationsController {
     const r = await this.whatsAppService.encaminharMidia(msgId, body.conversationId);
     if (!r.success) throw new BadRequestException(r.error || 'Não consegui encaminhar.');
     return { success: true };
+  }
+
+  // ===== Biblioteca de figurinhas da clínica =====
+  @Get('stickers')
+  async listStickers() {
+    return this.whatsAppService.listarStickers();
+  }
+
+  @Post('stickers')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 1 * 1024 * 1024 } }))
+  async uploadSticker(@UploadedFile() file: Express.Multer.File, @Body('nome') nome?: string) {
+    if (!file) throw new BadRequestException('Nenhum arquivo enviado.');
+    const r = await this.whatsAppService.salvarSticker(file.buffer, file.mimetype || '', nome);
+    if ('error' in r) throw new BadRequestException(r.error);
+    return r;
+  }
+
+  @Delete('stickers/:id')
+  async deleteSticker(@Param('id') id: string) {
+    return this.whatsAppService.removerSticker(id);
+  }
+
+  // Envia uma figurinha DA BIBLIOTECA para a conversa.
+  @Post('conversations/:id/send-sticker')
+  async sendSticker(@Param('id') conversationId: string, @Body() body: { stickerId?: string }) {
+    if (!body?.stickerId) throw new BadRequestException('stickerId obrigatório.');
+    const r = await this.whatsAppService.enviarStickerBiblioteca(conversationId, body.stickerId);
+    if (!r.success) throw new BadRequestException(r.error || 'Não consegui enviar a figurinha.');
+    return { success: true, messageId: r.message?.id };
   }
 
   // A equipe reage a uma mensagem com um emoji (envia pela Meta). emoji vazio = remove.
