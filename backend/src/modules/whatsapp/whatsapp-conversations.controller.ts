@@ -199,6 +199,12 @@ export class WhatsAppConversationsController {
     return this.whatsAppService.updateConversation(id, { status: 'CLOSED' });
   }
 
+  // Marca a conversa como "não lida" (lembrete). Abrir a conversa limpa a marca.
+  @Post('conversations/:id/mark-unread')
+  async markUnread(@Param('id') id: string) {
+    return this.whatsAppService.marcarNaoLida(id);
+  }
+
   @Post('conversations/:id/reopen')
   async reopenConversation(
     @CurrentUser() user: JwtUser,

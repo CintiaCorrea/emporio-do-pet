@@ -1443,6 +1443,7 @@ model WhatsAppConversation {
   lastMessageAt      DateTime                   @default(now())
   lastMessagePreview String? // Preview da última mensagem
   unreadCount        Int                        @default(0)
+  manualUnread       Boolean                    @default(false) // marcada como "não lida" à mão (lembrete pra responder)
   isAutoReplyEnabled Boolean                    @default(false)
   assignedUserId     String?
   humanTakeoverAt    DateTime?

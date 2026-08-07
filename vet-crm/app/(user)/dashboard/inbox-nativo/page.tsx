@@ -37,6 +37,7 @@ interface Conversation {
   contactNumber: string;
   lastMessageAt: string;
   unreadCount: number;
+  manualUnread?: boolean; // marcada como "não lida" à mão
   status: string;
   tutor?: { id: string; name: string } | null;
   leadMotivoPerda?: string | null; // motivo da perda (lead sem cliente marcado como Perdido)
@@ -611,6 +612,7 @@ export default function InboxUnificadoPage() {
           contactNumber: c?.contactPhone || c?.contactNumber || "",
           lastMessageAt: c?.lastMessageAt || c?.createdAt || new Date().toISOString(),
           unreadCount: typeof c?.unreadCount === "number" ? c.unreadCount : 0,
+          manualUnread: !!c?.manualUnread,
           status: c?.status || "OPEN",
           tutor: c?.tutor ? { id: c.tutor.id, name: c.tutor.name } : null,
           assignedUser: c?.assignedUser ? { id: c.assignedUser.id, name: c.assignedUser.name } : null,
@@ -808,6 +810,22 @@ export default function InboxUnificadoPage() {
     } catch {
       setMessages((prev) => prev.map((m) => (m.id === msgId ? { ...m, myReaction: atual } : m)));
       toast.error("Não consegui enviar a reação.");
+    }
+  }
+
+  // Marca a conversa aberta como "não lida" (lembrete) e volta pra lista (senão o poll reabre e limpa).
+  async function marcarConversaNaoLida() {
+    if (!selectedId) return;
+    const id = selectedId;
+    setHeaderMenuOpen(false);
+    setConversations((prev) => prev.map((c) => (c.id === id ? { ...c, manualUnread: true, unreadCount: c.unreadCount || 0 } : c)));
+    setSelectedId(null);
+    try {
+      await fetch(`/api/whatsapp/conversations/${id}/mark-unread`, { method: "POST" });
+      setRefreshTick((t) => t + 1);
+      toast.success("Marcada como não lida");
+    } catch {
+      toast.error("Não consegui marcar como não lida.");
     }
   }
 
@@ -1606,7 +1624,7 @@ export default function InboxUnificadoPage() {
                 const isLead = !c.tutor?.id;
                 const isSel = c.id === selectedId;
                 const isBC = c.source === "BOTCONVERSA" || c.metadata?.source === "BOTCONVERSA";
-                const naoLida = (c.unreadCount || 0) > 0;
+                const naoLida = (c.unreadCount || 0) > 0 || !!c.manualUnread;
                 const nome = c.tutor?.name || c.contactName || c.contactNumber;
                 // Prévia: "Você: ..." quando a última foi nossa; mídia vira rótulo amigável.
                 const lm = c.lastMessage;
@@ -1657,7 +1675,11 @@ export default function InboxUnificadoPage() {
                             👤 {c.assignedUser.id === meId ? "Você" : (c.assignedUser.name || "").split(" ")[0]}
                           </span>
                         )}
-                        {naoLida && <span className="ml-auto bg-[#009AAC] text-white text-[9px] min-w-[18px] h-[18px] px-1 rounded-full font-bold flex items-center justify-center">{c.unreadCount}</span>}
+                        {naoLida && (
+                          (c.unreadCount || 0) > 0
+                            ? <span className="ml-auto bg-[#009AAC] text-white text-[9px] min-w-[18px] h-[18px] px-1 rounded-full font-bold flex items-center justify-center">{c.unreadCount}</span>
+                            : <span className="ml-auto bg-[#009AAC] w-[10px] h-[10px] rounded-full" title="Marcada como não lida" />
+                        )}
                       </div>
                     </div>
                   </button>
@@ -1737,6 +1759,7 @@ export default function InboxUnificadoPage() {
                         className={`w-7 h-7 rounded-full inline-flex items-center justify-center text-[15px] border ${headerMenuOpen ? "bg-[#F0FBFC] border-[#009AAC] text-[#00798A]" : "bg-white border-[#e8e1d2] text-[#888780]"}`}>⋮</button>
                       {headerMenuOpen && (
                         <div className="absolute right-0 top-9 z-30 bg-white border border-[#e8e1d2] rounded-lg shadow-lg w-56 overflow-hidden">
+                          <button onClick={marcarConversaNaoLida} className="w-full text-left px-3 py-2.5 text-[12px] hover:bg-[#F0FBFC] flex items-center gap-2 text-[#0E2244]">🔵 Marcar como não lida</button>
                           <button onClick={() => { setHeaderMenuOpen(false); setEncaminharOpen(true); }} className="w-full text-left px-3 py-2.5 text-[12px] hover:bg-[#F0FBFC] flex items-center gap-2 text-[#0E2244]">↪ Transferir de atendente</button>
                           <button onClick={() => { setHeaderMenuOpen(false); abrirGaleria(); }} className="w-full text-left px-3 py-2.5 text-[12px] hover:bg-[#F0FBFC] flex items-center gap-2 text-[#0E2244]">🖼️ Galeria de mídia</button>
                           <button onClick={() => { setHeaderMenuOpen(false); setExportAuto(true); setExportOpen(true); }} className="w-full text-left px-3 py-2.5 text-[12px] hover:bg-[#F0FBFC] flex items-center gap-2 text-[#0E2244]">📄 Exportar conversa (PDF)</button>

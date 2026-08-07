@@ -787,6 +787,15 @@ export class WhatsAppService {
     }
   }
 
+  /** Marca uma conversa como "não lida" à mão (lembrete pra responder depois). Abrir a conversa limpa. */
+  async marcarNaoLida(conversationId: string): Promise<{ success: boolean }> {
+    await this.prisma.whatsAppConversation.update({
+      where: { id: conversationId },
+      data: { manualUnread: true },
+    }).catch(() => undefined);
+    return { success: true };
+  }
+
   // ===== Biblioteca de FIGURINHAS da clínica =====
   async listarStickers() {
     return this.prisma.whatsAppSticker.findMany({
@@ -1396,10 +1405,10 @@ export class WhatsAppService {
       this.prisma.whatsAppMessage.count({ where: { conversationId } }),
     ]);
 
-    // Mark as read after fetching
+    // Mark as read after fetching (limpa também a marca manual de "não lida")
     await this.prisma.whatsAppConversation.update({
       where: { id: conversationId },
-      data: { unreadCount: 0 },
+      data: { unreadCount: 0, manualUnread: false },
     });
 
     return {
