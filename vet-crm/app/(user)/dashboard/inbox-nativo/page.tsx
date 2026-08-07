@@ -2075,7 +2075,7 @@ export default function InboxUnificadoPage() {
                                 <button key={s.id} onClick={() => enviarSticker(s.id)} disabled={enviandoSticker}
                                   title={s.nome || "Enviar figurinha"}
                                   className="aspect-square rounded-lg border border-[#eee] p-1 flex items-center justify-center hover:bg-[#F0FBFC] disabled:opacity-50" style={{ background: "#F4F8F9" }}>
-                                  <img src={s.url} alt={s.nome || "figurinha"} className="max-w-full max-h-full object-contain" loading="lazy" />
+                                  <img src={`/api/whatsapp/stickers/${s.id}/media`} alt={s.nome || "figurinha"} className="max-w-full max-h-full object-contain" loading="lazy" />
                                 </button>
                               ))}
                             </div>

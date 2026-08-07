@@ -176,7 +176,7 @@ export default function FigurinhasPage() {
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
             {stickers.map((s) => (
               <div key={s.id} className="group relative rounded-2xl border p-2 flex items-center justify-center aspect-square" style={{ borderColor: "#E8DFC8", background: "#F4F8F9" }}>
-                <img src={s.url} alt={s.nome || "figurinha"} className="max-w-full max-h-full object-contain" loading="lazy" />
+                <img src={`/api/whatsapp/stickers/${s.id}/media`} alt={s.nome || "figurinha"} className="max-w-full max-h-full object-contain" loading="lazy" />
                 <button onClick={() => remover(s)} title="Excluir figurinha"
                   className="absolute top-1 right-1 w-6 h-6 rounded-full bg-white border border-[#e8e1d2] text-[#C0392B] opacity-0 group-hover:opacity-100 transition flex items-center justify-center shadow-sm">
                   <LuTrash2 size={13} />

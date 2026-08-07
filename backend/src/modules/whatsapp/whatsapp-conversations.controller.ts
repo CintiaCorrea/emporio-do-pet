@@ -312,6 +312,20 @@ export class WhatsAppConversationsController {
     return this.whatsAppService.importarStickersDasConversas(body.messageIds);
   }
 
+  // Serve o arquivo de uma figurinha da biblioteca (bucket privado → assinado no backend).
+  @Get('stickers/:id/media')
+  async getStickerMedia(@Param('id') id: string, @Res() res: Response) {
+    const media = await this.whatsAppService.getStickerMedia(id);
+    if (!media) {
+      res.status(404).json({ error: 'Figurinha não encontrada' });
+      return;
+    }
+    res.setHeader('Content-Type', media.contentType);
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+    res.setHeader('Content-Length', String(media.buffer.length));
+    res.send(media.buffer);
+  }
+
   @Delete('stickers/:id')
   async deleteSticker(@Param('id') id: string) {
     return this.whatsAppService.removerSticker(id);

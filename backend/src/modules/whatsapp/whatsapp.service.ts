@@ -818,6 +818,17 @@ export class WhatsAppService {
     return { id: row.id, url: row.url };
   }
 
+  /** Serve o arquivo de uma figurinha da biblioteca (o bucket é privado → baixa assinado). */
+  async getStickerMedia(id: string): Promise<{ buffer: Buffer; contentType: string } | null> {
+    const s = await this.prisma.whatsAppSticker.findUnique({ where: { id }, select: { url: true, mime: true } });
+    if (!s?.url) return null;
+    const r = await fetch(s.url).catch(() => null);
+    if (r && r.ok) return { buffer: Buffer.from(await r.arrayBuffer()), contentType: r.headers.get('content-type') || s.mime || 'image/webp' };
+    const assinado = await this.cloudStorageService.baixarPorUrl(s.url);
+    if (!assinado) return null;
+    return { buffer: assinado.buffer, contentType: assinado.contentType || s.mime || 'image/webp' };
+  }
+
   async removerSticker(id: string): Promise<{ success: boolean }> {
     const s = await this.prisma.whatsAppSticker.findUnique({ where: { id } });
     if (!s) return { success: true };
