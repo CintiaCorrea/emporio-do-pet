@@ -221,7 +221,15 @@ export class CadenciasService implements OnModuleInit {
   }
   private render(text: string, vars: any): string {
     if (!text) return '';
-    const v = vars || {};
+    const v: any = { ...(vars || {}) };
+    // Apelidos: templates usam {tutor}/{tutor_nome} e {pet}/{pet_nome} sem padrão. Aceita os dois
+    // e garante {profissional} e {link_google} — senão o cliente receberia o texto literal "{tutor_nome}".
+    if (v.tutor != null && v.tutor_nome == null) v.tutor_nome = v.tutor;
+    if (v.tutor_nome != null && v.tutor == null) v.tutor = v.tutor_nome;
+    if (v.pet != null && v.pet_nome == null) v.pet_nome = v.pet;
+    if (v.pet_nome != null && v.pet == null) v.pet = v.pet_nome;
+    if (v.link_google == null) v.link_google = 'https://g.page/r/CctbNjVipnY8EAI/review';
+    if (v.profissional == null) v.profissional = 'nossa equipe';
     return text.replace(/\{(\w+)\}/g, (_m, k) => (v[k] != null ? String(v[k]) : `{${k}}`));
   }
 
@@ -393,7 +401,7 @@ export class CadenciasService implements OnModuleInit {
     const desde = new Date(Date.now() - 16 * 60_000);
     const apps = await this.prisma.appointment.findMany({
       where: { updatedAt: { gte: desde }, status: { in: ['COMPLETED', 'DONE', 'CONFIRMED'] } },
-      include: { tutor: { include: { contacts: true } }, pet: true },
+      include: { tutor: { include: { contacts: true } }, pet: true, user: { select: { name: true } } },
       take: 50,
     });
     for (const a of apps) {
@@ -405,6 +413,7 @@ export class CadenciasService implements OnModuleInit {
         const vars = {
           tutor: (a as any).tutor?.name || '',
           pet: (a as any).pet?.name || '',
+          profissional: (a as any).user?.name || 'nossa equipe',
           data: d.toLocaleDateString('pt-BR'),
           hora: d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
         };
