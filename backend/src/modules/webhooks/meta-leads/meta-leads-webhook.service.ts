@@ -187,6 +187,11 @@ export class MetaLeadsWebhookService implements OnModuleInit {
         metaCampaignId: (detail as any).campaign_id || undefined,
         metaAdId: (detail as any).ad_id || undefined,
         metaPageId: (ctx as any).page_id || undefined,
+        // UTM padronizado (pra ler "qual campanha trouxe" no mesmo lugar de todo lead)
+        utmSource: isInstagram ? 'instagram' : 'facebook',
+        utmMedium: 'paid_social',
+        utmCampaign: (detail as any).campaign_name || undefined,
+        utmContent: (detail as any).ad_name || undefined,
         status: LeadStatus.AGUARDANDO_TRIAGEM,
         tags,
         notes: notesParts.length ? notesParts.join(' | ') : undefined,

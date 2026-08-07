@@ -326,6 +326,17 @@ export class LeadsService {
       await this.createHistory(id, 'status_change', 'status', existing.status, dto.status);
     }
 
+    // TRAVA DE ORIGEM (first-touch): a origem do lead é imutável depois de registrada.
+    // Só deixa preencher se ainda estiver no default OTHER. Evita perder "de qual campanha veio".
+    if (existing.source && existing.source !== 'OTHER') {
+      delete (dto as any).source;
+      delete (dto as any).sourceDetail;
+      delete (dto as any).utmSource;
+      delete (dto as any).utmMedium;
+      delete (dto as any).utmCampaign;
+      delete (dto as any).utmContent;
+    }
+
     const updated = await this.prisma.lead.update({
       where: { id },
       data: {

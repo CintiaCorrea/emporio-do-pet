@@ -45,6 +45,15 @@ export class PublicCadastroController {
         age: (dto?.petAge || '').toString().trim(),
         weight: (dto?.petWeight || '').toString().trim(),
       },
+      // Origem/UTM (lidos do link do formulário) — pra saber qual campanha trouxe o cadastro
+      origem: {
+        utmSource: (dto?.utmSource || '').toString().trim() || null,
+        utmMedium: (dto?.utmMedium || '').toString().trim() || null,
+        utmCampaign: (dto?.utmCampaign || '').toString().trim() || null,
+        utmContent: (dto?.utmContent || '').toString().trim() || null,
+        referrer: (dto?.referrer || '').toString().trim() || null,
+        landingPage: (dto?.landingPage || '').toString().trim() || null,
+      },
     };
     if (!payload.tutor.name || !payload.tutor.phone) {
       return { ok: false, message: 'Nome e telefone são obrigatórios.' };
