@@ -380,6 +380,15 @@ export class WhatsAppController {
 
     this.logger.debug(`Message content: ${content}`);
 
+    // Reação do cliente (👍❤️…): anexa embaixo da mensagem-alvo em vez de criar um balão
+    // solto. Não segue o fluxo normal de "mensagem nova".
+    if ((messageMetadata as Record<string, unknown>)?.reaction) {
+      const alvo = (messageMetadata as Record<string, unknown>).reactionTo as string | undefined;
+      const emoji = ((messageMetadata as Record<string, unknown>).emoji as string) || '';
+      if (alvo) await this.whatsAppService.registrarReacaoCliente(alvo, emoji);
+      return;
+    }
+
     // Create or get conversation
     const conversation = await this.whatsAppService.createOrGetConversation(
       userId,

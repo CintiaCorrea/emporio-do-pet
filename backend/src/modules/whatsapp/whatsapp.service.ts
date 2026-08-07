@@ -736,6 +736,57 @@ export class WhatsAppService {
     return { enviados, falhas, erro: falhas && !enviados ? (ultimoErro || 'Não consegui encaminhar') : undefined };
   }
 
+  /**
+   * A EQUIPE reage a uma mensagem com um emoji (👍❤️😂…), igual ao WhatsApp Business.
+   * Envia a reação pela API da Meta (type: reaction) e guarda em `myReaction`.
+   * emoji vazio = REMOVE a reação (a Meta trata assim, e limpamos o campo).
+   */
+  async reagirMensagem(messageId: string, emoji: string): Promise<{ success: boolean; error?: string }> {
+    const msg = await this.prisma.whatsAppMessage.findUnique({ where: { id: messageId } });
+    if (!msg) return { success: false, error: 'Mensagem não encontrada' };
+    if (!msg.waMessageId) return { success: false, error: 'Mensagem sem ID do WhatsApp — não dá pra reagir' };
+    const conv = await this.prisma.whatsAppConversation.findUnique({ where: { id: msg.conversationId }, select: { contactPhone: true, userId: true } });
+    if (!conv?.contactPhone) return { success: false, error: 'Conversa não encontrada' };
+    const config = await this.getUserWhatsAppConfig(conv.userId);
+    const token = this.accessToken || config?.accessToken;
+    const phoneId = this.phoneNumberId || config?.phoneNumberId;
+    if (!token || !phoneId) return { success: false, error: 'WhatsApp não configurado' };
+    try {
+      const phone = this.formatPhoneNumber(conv.contactPhone);
+      const resp = await fetch(`${this.baseUrl}/${phoneId}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          recipient_type: 'individual',
+          to: phone,
+          type: 'reaction',
+          reaction: { message_id: msg.waMessageId, emoji: emoji || '' },
+        }),
+      });
+      const data: any = await resp.json().catch(() => ({}));
+      if (!resp.ok) return { success: false, error: data?.error?.message || `HTTP ${resp.status}` };
+      await this.prisma.whatsAppMessage.update({ where: { id: messageId }, data: { myReaction: emoji || null } });
+      return { success: true };
+    } catch (e: any) {
+      this.logger.error(`Erro ao reagir à mensagem ${messageId}: ${e?.message || e}`);
+      return { success: false, error: e?.message || 'Erro ao reagir' };
+    }
+  }
+
+  /**
+   * O CLIENTE reagiu a uma das NOSSAS mensagens (chega pelo webhook `reaction`).
+   * Anexa o emoji embaixo da mensagem-alvo (campo `reaction`) em vez de criar um balão solto.
+   * emoji vazio = reação removida → limpa o campo.
+   */
+  async registrarReacaoCliente(waMessageId: string, emoji: string): Promise<void> {
+    try {
+      await this.prisma.whatsAppMessage.updateMany({ where: { waMessageId }, data: { reaction: emoji || null } });
+    } catch (e: any) {
+      this.logger.warn(`Falha ao registrar reação do cliente (${waMessageId}): ${e?.message || e}`);
+    }
+  }
+
   // Normaliza nome pra comparação: minúsculas, sem acento, só tokens ≥3 letras (ignora "da/de/dos").
   private tokensNome(n?: string | null): string[] {
     return String(n || '')

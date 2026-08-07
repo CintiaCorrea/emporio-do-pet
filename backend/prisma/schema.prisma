@@ -1391,6 +1391,8 @@ model WhatsAppMessage {
   deliveredAt    DateTime?
   readAt         DateTime?
   failedReason   String?
+  reaction       String? // emoji com que o CLIENTE reagiu a esta mensagem (vazio = removida)
+  myReaction     String? // emoji com que a EQUIPE reagiu a esta mensagem
 
   // Cloud storage - mídia permanente
   mediaCloudUrl     String? // URL permanente no cloud storage

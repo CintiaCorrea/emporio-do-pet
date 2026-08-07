@@ -66,6 +66,10 @@ interface Message {
   status?: string | null;
   /** true quando esta mensagem foi encaminhada */
   encaminhado?: boolean;
+  /** emoji com que o CLIENTE reagiu a esta mensagem */
+  reaction?: string | null;
+  /** emoji com que a EQUIPE reagiu a esta mensagem */
+  myReaction?: string | null;
 }
 
 interface Pet {
@@ -202,6 +206,8 @@ export default function InboxUnificadoPage() {
   const [buscaChat, setBuscaChat] = useState("");
   const [buscaIdx, setBuscaIdx] = useState(0);
   const msgRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  // Reagir a uma mensagem com emoji (como o WhatsApp): paleta que abre ao passar o mouse.
+  const [reagindoId, setReagindoId] = useState<string | null>(null);
   const [anexando, setAnexando] = useState(false);
   const [agendarOpen, setAgendarOpen] = useState(false); // pop-up de agendar consulta
   // Boletim de fisioterapia (abre a ficha de boletim do pet como popup)
@@ -634,6 +640,7 @@ export default function InboxUnificadoPage() {
           createdAt: m?.createdAt || new Date().toISOString(),
           fromAgent: !!m?.metadata?.fromAgent || !!m?.fromAgent, mediaType: m?.mediaType || null, hasMedia: !!(m?.mediaCloudUrl || m?.mediaUrl), status: m?.status || null, encaminhado: !!m?.metadata?.encaminhado,
           waMessageId: m?.waMessageId || null,
+          reaction: m?.reaction ?? null, myReaction: m?.myReaction ?? null,
           replyToWaMessageId: m?.metadata?.replyToWaMessageId || null, metadata: m?.metadata || null})));
       } catch { /* tropeço: mantém as mensagens que já estão na tela */ }
     };
@@ -745,6 +752,26 @@ export default function InboxUnificadoPage() {
       toast.error("Não foi possível carregar a galeria.");
     } finally {
       setGaleriaLoading(false);
+    }
+  }
+
+  // A equipe reage a uma mensagem. Clicar no MESMO emoji remove a reação.
+  const EMOJIS_REACAO = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
+  async function reagir(msgId: string, emoji: string) {
+    const atual = messages.find((m) => m.id === msgId)?.myReaction ?? null;
+    const novo = atual === emoji ? "" : emoji;
+    setReagindoId(null);
+    setMessages((prev) => prev.map((m) => (m.id === msgId ? { ...m, myReaction: novo || null } : m)));
+    try {
+      const r = await fetch(`/api/whatsapp/messages/${msgId}/react`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emoji: novo }),
+      });
+      if (!r.ok) throw new Error();
+    } catch {
+      setMessages((prev) => prev.map((m) => (m.id === msgId ? { ...m, myReaction: atual } : m)));
+      toast.error("Não consegui enviar a reação.");
     }
   }
 
@@ -994,6 +1021,7 @@ export default function InboxUnificadoPage() {
         createdAt: m?.createdAt || new Date().toISOString(),
         fromAgent: !!m?.metadata?.fromAgent || !!m?.fromAgent, mediaType: m?.mediaType || null, hasMedia: !!(m?.mediaCloudUrl || m?.mediaUrl),
           waMessageId: m?.waMessageId || null,
+          reaction: m?.reaction ?? null, myReaction: m?.myReaction ?? null,
           replyToWaMessageId: m?.metadata?.replyToWaMessageId || null, metadata: m?.metadata || null})));
     } catch (e) { console.error(e); }
   };
@@ -1761,7 +1789,7 @@ export default function InboxUnificadoPage() {
                           {rotuloDia(m.createdAt)}
                         </div>
                       )}
-                      <div ref={(el) => { msgRefs.current[m.id] = el; }} onClick={selMode ? () => toggleSel(m.id) : undefined} className={`group max-w-[75%] ${outbound ? "self-end" : "self-start"} ${selMode ? "cursor-pointer rounded-xl transition" : ""} ${selMode && selIds.has(m.id) ? "ring-2 ring-[#009AAC] ring-offset-2" : ""} ${ehMatch ? "ring-2 ring-[#FFB300] ring-offset-2 rounded-xl" : ""}`}>
+                      <div ref={(el) => { msgRefs.current[m.id] = el; }} onClick={selMode ? () => toggleSel(m.id) : undefined} className={`group relative max-w-[75%] ${outbound ? "self-end" : "self-start"} ${selMode ? "cursor-pointer rounded-xl transition" : ""} ${selMode && selIds.has(m.id) ? "ring-2 ring-[#009AAC] ring-offset-2" : ""} ${ehMatch ? "ring-2 ring-[#FFB300] ring-offset-2 rounded-xl" : ""}`}>
                         <div className={`px-3 py-2 rounded-xl text-[13px] ${outbound ? "bg-[#009AAC] text-white rounded-br-sm" : "bg-white border border-[#e8e1d2] text-[#0E2244] rounded-bl-sm"}`}>
                           {m.replyToWaMessageId && (
                             <div
@@ -1824,18 +1852,32 @@ export default function InboxUnificadoPage() {
                             m.content ? (buscaChatOpen && buscaChat.trim() ? renderWaHL(m.content, buscaChat) : renderWa(m.content)) : "(mídia)"
                           )}
                         </div>
+                        {(m.reaction || m.myReaction) && (
+                          <div className={`flex gap-1 -mt-1.5 mb-0.5 ${outbound ? "justify-end pr-1" : "pl-1"}`}>
+                            {m.reaction && <span className="text-[12px] bg-white border border-[#e8e1d2] rounded-full px-1.5 py-0.5 shadow-sm" title="Reação do cliente">{m.reaction}</span>}
+                            {m.myReaction && <span className="text-[12px] bg-white border border-[#e8e1d2] rounded-full px-1.5 py-0.5 shadow-sm" title="Sua reação (da equipe)">{m.myReaction}</span>}
+                          </div>
+                        )}
                         <div className={`text-[9px] text-[#888780] mt-0.5 px-1 flex items-center gap-2 ${outbound ? "justify-end" : ""}`}>
                           {m.encaminhado && <span className="italic opacity-70">↷ encaminhada</span>}
                           {(() => { try { return new Date(m.createdAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }); } catch { return ""; } })()}
                           {outbound && statusTick(m)}
                           {!selMode && m.waMessageId && (
                             <>
+                              <button onClick={(e) => { e.stopPropagation(); setReagindoId(reagindoId === m.id ? null : m.id); }} title="Reagir com emoji" className="opacity-0 group-hover:opacity-100 transition-opacity text-[#009AAC] font-medium hover:underline">😀 Reagir</button>
                               <button onClick={(e) => { e.stopPropagation(); setRespondendo(m); }} title="Responder citando" className="opacity-0 group-hover:opacity-100 transition-opacity text-[#009AAC] font-medium hover:underline">↩ Responder</button>
                               <button onClick={(e) => { e.stopPropagation(); abrirEncaminhar(m.id); }} title="Encaminhar esta" className="opacity-0 group-hover:opacity-100 transition-opacity text-[#009AAC] font-medium hover:underline">↷ Encaminhar</button>
                               <button onClick={(e) => { e.stopPropagation(); entrarSelecao(m.id); }} title="Selecionar várias" className="opacity-0 group-hover:opacity-100 transition-opacity text-[#009AAC] font-medium hover:underline">☑︎ Selecionar</button>
                             </>
                           )}
                         </div>
+                        {reagindoId === m.id && (
+                          <div className={`absolute z-30 -top-8 ${outbound ? "right-0" : "left-0"} bg-white border border-[#e8e1d2] rounded-full shadow-lg px-1.5 py-1 flex items-center gap-1`} onClick={(e) => e.stopPropagation()}>
+                            {EMOJIS_REACAO.map((e) => (
+                              <button key={e} onClick={() => reagir(m.id, e)} title={m.myReaction === e ? "Remover reação" : `Reagir ${e}`} className={`text-[17px] leading-none hover:scale-125 transition ${m.myReaction === e ? "" : "opacity-85"}`}>{e}</button>
+                            ))}
+                          </div>
+                        )}
                       </div>
                       </Fragment>
                     );

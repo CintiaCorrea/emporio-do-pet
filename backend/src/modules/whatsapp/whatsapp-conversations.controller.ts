@@ -275,6 +275,14 @@ export class WhatsAppConversationsController {
     return { success: true };
   }
 
+  // A equipe reage a uma mensagem com um emoji (envia pela Meta). emoji vazio = remove.
+  @Post('messages/:msgId/react')
+  async reactMessage(@Param('msgId') msgId: string, @Body() body: { emoji?: string }) {
+    const r = await this.whatsAppService.reagirMensagem(msgId, body?.emoji ?? '');
+    if (!r.success) throw new BadRequestException(r.error || 'Não consegui reagir.');
+    return { success: true };
+  }
+
   // Encaminha VÁRIAS mensagens (selecionadas) para outra conversa.
   @Post('messages/forward-batch')
   async forwardBatch(@Body() body: { msgIds?: string[]; conversationId?: string }) {
