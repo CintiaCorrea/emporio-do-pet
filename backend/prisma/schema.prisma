@@ -1424,6 +1424,7 @@ model WhatsAppSticker {
   mime        String   @default("image/webp")
   ordem       Int      @default(0)
   ativo       Boolean  @default(true)
+  origem      String? // mediaCloudUrl de origem quando importada de uma conversa (evita duplicar)
   createdAt   DateTime @default(now())
 
   @@map("whatsapp_stickers")

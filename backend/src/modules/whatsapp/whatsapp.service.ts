@@ -860,6 +860,52 @@ export class WhatsAppService {
     return { success: true, message: { id: msg.id } };
   }
 
+  /** Lista as figurinhas que já apareceram nas conversas (recebidas/enviadas) pra importar. */
+  async listarStickersDasConversas() {
+    const msgs = await this.prisma.whatsAppMessage.findMany({
+      where: { type: 'STICKER', mediaCloudUrl: { not: null } },
+      select: { id: true, mediaCloudUrl: true, createdAt: true, conversation: { select: { contactName: true, contactPhone: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 500,
+    });
+    const jaImport = new Set(
+      (await this.prisma.whatsAppSticker.findMany({ where: { origem: { not: null } }, select: { origem: true } })).map((s) => s.origem),
+    );
+    const vistas = new Set<string>();
+    const out: Array<{ id: string; conversa: string; jaImportada: boolean }> = [];
+    for (const m of msgs) {
+      const url = m.mediaCloudUrl as string;
+      if (vistas.has(url)) continue;
+      vistas.add(url);
+      out.push({
+        id: m.id, // usa o messageId pra exibir via /messages/:id/media (bucket é privado)
+        conversa: m.conversation?.contactName || m.conversation?.contactPhone || '—',
+        jaImportada: jaImport.has(url),
+      });
+    }
+    return out;
+  }
+
+  /** Importa figurinhas das conversas (por messageId) pra biblioteca — copia o webp já guardado. */
+  async importarStickersDasConversas(messageIds: string[]): Promise<{ importadas: number }> {
+    let ok = 0;
+    for (const id of messageIds.slice(0, 200)) {
+      const m = await this.prisma.whatsAppMessage.findUnique({ where: { id }, select: { mediaCloudUrl: true } });
+      if (!m?.mediaCloudUrl) continue;
+      const jaTem = await this.prisma.whatsAppSticker.findFirst({ where: { origem: m.mediaCloudUrl } });
+      if (jaTem) { ok++; continue; }
+      const baix = await this.cloudStorageService.baixarPorUrl(m.mediaCloudUrl);
+      if (!baix) continue;
+      const up = await this.cloudStorageService.upload(baix.buffer, `${Date.now()}-import.webp`, 'image/webp', 'whatsapp/stickers');
+      if (!up.success || !up.url) continue;
+      await this.prisma.whatsAppSticker.create({
+        data: { nome: null, url: up.url, cloudId: up.publicId || null, storageType: up.provider || null, mime: 'image/webp', origem: m.mediaCloudUrl },
+      });
+      ok++;
+    }
+    return { importadas: ok };
+  }
+
   // Normaliza nome pra comparação: minúsculas, sem acento, só tokens ≥3 letras (ignora "da/de/dos").
   private tokensNome(n?: string | null): string[] {
     return String(n || '')

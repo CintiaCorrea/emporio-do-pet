@@ -2,10 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { LuArrowLeft, LuUpload, LuTrash2 } from "react-icons/lu";
+import { LuArrowLeft, LuUpload, LuTrash2, LuDownload } from "react-icons/lu";
 import { confirmDelete } from "@/lib/ui/confirmDelete";
 
 interface Sticker { id: string; nome?: string | null; url: string; mime: string; createdAt: string; }
+interface StickerChat { id: string; conversa: string; jaImportada: boolean; }
 
 // Converte qualquer imagem (PNG/JPG/WebP) numa FIGURINHA válida do WhatsApp:
 // .webp, 512x512, fundo transparente, "contain" (sem cortar). Reduz a qualidade
@@ -92,6 +93,50 @@ export default function FigurinhasPage() {
     if (!r.ok) { await carregar(); }
   }
 
+  // ===== Importar das conversas =====
+  const [impOpen, setImpOpen] = useState(false);
+  const [impLoading, setImpLoading] = useState(false);
+  const [impList, setImpList] = useState<StickerChat[]>([]);
+  const [impSel, setImpSel] = useState<Set<string>>(new Set());
+  const [importando, setImportando] = useState(false);
+  async function abrirImportar() {
+    setImpOpen(true);
+    setImpLoading(true);
+    setImpSel(new Set());
+    try {
+      const r = await fetch("/api/whatsapp/stickers/das-conversas", { cache: "no-store" });
+      const d = await r.json().catch(() => []);
+      setImpList(Array.isArray(d) ? d : []);
+    } catch {
+      setImpList([]);
+    } finally {
+      setImpLoading(false);
+    }
+  }
+  function toggleImp(id: string) {
+    setImpSel((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  }
+  function selecionarTodasNovas() {
+    setImpSel(new Set(impList.filter((s) => !s.jaImportada).map((s) => s.id)));
+  }
+  async function importarSelecionadas() {
+    if (!impSel.size || importando) return;
+    setImportando(true);
+    try {
+      const r = await fetch("/api/whatsapp/stickers/importar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messageIds: [...impSel] }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) { setErro(d?.error || d?.message || "Falha ao importar."); return; }
+      setImpOpen(false);
+      await carregar();
+    } finally {
+      setImportando(false);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-white">
       <div className="bg-white border-b" style={{ borderColor: "#E8DFC8" }}>
@@ -101,6 +146,9 @@ export default function FigurinhasPage() {
             <h1 className="text-xl font-semibold" style={{ color: "#0E2244" }}>Figurinhas da clínica</h1>
             <p className="text-sm text-gray-500">Suba as figurinhas uma vez aqui — depois é só enviar com 1 clique dentro do inbox.</p>
           </div>
+          <button onClick={abrirImportar} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border hover:bg-[#F0FBFC]" style={{ borderColor: "#009AAC", color: "#00798A" }}>
+            <LuDownload size={16} /> Importar das conversas
+          </button>
           <label className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-white text-sm font-medium cursor-pointer ${enviando ? "opacity-60" : "hover:opacity-90"}`} style={{ background: "#009AAC" }}>
             {enviando ? <span>Convertendo…</span> : <><LuUpload size={16} /> Adicionar figurinha</>}
             <input ref={inputRef} type="file" accept="image/png,image/jpeg,image/webp" multiple className="hidden" disabled={enviando}
@@ -138,6 +186,55 @@ export default function FigurinhasPage() {
           </div>
         )}
       </div>
+
+      {/* MODAL Importar das conversas */}
+      {impOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => !importando && setImpOpen(false)}>
+          <div className="bg-white rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 py-3 border-b flex items-center justify-between" style={{ borderColor: "#E8DFC8" }}>
+              <div>
+                <h3 className="text-base font-semibold" style={{ color: "#0E2244" }}>Importar figurinhas das conversas</h3>
+                <p className="text-[12px] text-gray-500">As que já apareceram no WhatsApp. Marque as que quer guardar na biblioteca.</p>
+              </div>
+              <button onClick={() => setImpOpen(false)} className="text-[#888780] text-xl leading-none">×</button>
+            </div>
+            <div className="px-5 py-2 border-b flex items-center gap-3 flex-wrap" style={{ borderColor: "#E8DFC8" }}>
+              <button onClick={selecionarTodasNovas} className="text-[12px] px-2.5 py-1 rounded-full border" style={{ borderColor: "#E8DFC8", color: "#5F5E5A" }}>Selecionar todas as novas</button>
+              <button onClick={() => setImpSel(new Set())} className="text-[12px] px-2.5 py-1 rounded-full border" style={{ borderColor: "#E8DFC8", color: "#5F5E5A" }}>Limpar seleção</button>
+              <span className="text-[12px] text-gray-500 ml-auto">{impSel.size} selecionada(s)</span>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4">
+              {impLoading ? (
+                <p className="text-center text-[12px] text-gray-400 py-10">Carregando…</p>
+              ) : impList.length === 0 ? (
+                <p className="text-center text-[12px] text-gray-500 py-10">Nenhuma figurinha encontrada nas conversas.</p>
+              ) : (
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+                  {impList.map((s) => {
+                    const sel = impSel.has(s.id);
+                    return (
+                      <button key={s.id} onClick={() => !s.jaImportada && toggleImp(s.id)} disabled={s.jaImportada}
+                        title={s.jaImportada ? "Já está na biblioteca" : `De: ${s.conversa}`}
+                        className={`relative rounded-xl border p-1.5 flex items-center justify-center aspect-square transition ${s.jaImportada ? "opacity-40 cursor-default" : sel ? "ring-2 ring-[#009AAC] ring-offset-1" : "hover:bg-[#F0FBFC]"}`}
+                        style={{ borderColor: "#E8DFC8", background: "#F4F8F9" }}>
+                        <img src={`/api/whatsapp/messages/${s.id}/media`} alt="figurinha" className="max-w-full max-h-full object-contain" loading="lazy" />
+                        {s.jaImportada && <span className="absolute top-1 left-1 text-[8px] bg-[#0F6E56] text-white px-1 rounded">✓ na biblioteca</span>}
+                        {sel && <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-[#009AAC] text-white text-[10px] flex items-center justify-center">✓</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            <div className="px-5 py-3 border-t flex justify-end gap-2" style={{ borderColor: "#E8DFC8" }}>
+              <button onClick={() => setImpOpen(false)} disabled={importando} className="px-4 py-2 text-sm text-[#5F5E5A] disabled:opacity-50">Cancelar</button>
+              <button onClick={importarSelecionadas} disabled={!impSel.size || importando} className="px-4 py-2 text-sm text-white rounded-xl font-medium disabled:opacity-50" style={{ background: "#009AAC" }}>
+                {importando ? "Importando…" : `Importar ${impSel.size || ""}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

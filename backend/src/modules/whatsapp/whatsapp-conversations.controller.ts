@@ -291,6 +291,21 @@ export class WhatsAppConversationsController {
     return r;
   }
 
+  // Lista as figurinhas que já passaram pelas conversas (pra importar pra biblioteca).
+  @Get('stickers/das-conversas')
+  async listStickersFromChats() {
+    return this.whatsAppService.listarStickersDasConversas();
+  }
+
+  // Importa figurinhas das conversas (por messageId) pra biblioteca.
+  @Post('stickers/importar')
+  async importStickers(@Body() body: { messageIds?: string[] }) {
+    if (!Array.isArray(body?.messageIds) || !body.messageIds.length) {
+      throw new BadRequestException('messageIds obrigatório.');
+    }
+    return this.whatsAppService.importarStickersDasConversas(body.messageIds);
+  }
+
   @Delete('stickers/:id')
   async deleteSticker(@Param('id') id: string) {
     return this.whatsAppService.removerSticker(id);
