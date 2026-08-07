@@ -720,6 +720,34 @@ export default function InboxUnificadoPage() {
   const [exportAuto, setExportAuto] = useState(true);
   const [exportando, setExportando] = useState(false);
 
+  // === Galeria de mídia da conversa (fotos/vídeos/áudios/docs juntos, como o WhatsApp) ===
+  type GalItem = { id: string; type: string; createdAt: string; content?: string | null };
+  const [galeriaOpen, setGaleriaOpen] = useState(false);
+  const [galeriaLoading, setGaleriaLoading] = useState(false);
+  const [galeriaItens, setGaleriaItens] = useState<GalItem[]>([]);
+  const [galeriaFiltro, setGaleriaFiltro] = useState<"todos" | "IMAGE" | "VIDEO" | "AUDIO" | "DOCUMENT">("todos");
+  async function abrirGaleria() {
+    if (!selectedId) return;
+    setGaleriaOpen(true);
+    setGaleriaFiltro("todos");
+    setGaleriaLoading(true);
+    setGaleriaItens([]);
+    try {
+      const r = await fetch(`/api/whatsapp/conversations/${selectedId}/messages?limit=3000`);
+      const d = await r.json().catch(() => ({}));
+      const lista: any[] = Array.isArray(d?.data) ? d.data : Array.isArray(d?.messages) ? d.messages : Array.isArray(d) ? d : [];
+      const midias = lista
+        .filter((m) => m?.hasMedia && ["IMAGE", "VIDEO", "AUDIO", "DOCUMENT", "STICKER"].includes(m?.type))
+        .map((m) => ({ id: m.id, type: m.type === "STICKER" ? "IMAGE" : m.type, createdAt: m.createdAt || m.sentAt, content: m.content }))
+        .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+      setGaleriaItens(midias);
+    } catch {
+      toast.error("Não foi possível carregar a galeria.");
+    } finally {
+      setGaleriaLoading(false);
+    }
+  }
+
   function ehMsgAutomatica(m: any): boolean {
     const meta = m?.metadata || {};
     return meta.fromSystem === true || meta.senderType === "SYSTEM" || meta.senderType === "AI" || m?.type === "TEMPLATE";
@@ -1646,6 +1674,7 @@ export default function InboxUnificadoPage() {
                       {headerMenuOpen && (
                         <div className="absolute right-0 top-9 z-30 bg-white border border-[#e8e1d2] rounded-lg shadow-lg w-56 overflow-hidden">
                           <button onClick={() => { setHeaderMenuOpen(false); setEncaminharOpen(true); }} className="w-full text-left px-3 py-2.5 text-[12px] hover:bg-[#F0FBFC] flex items-center gap-2 text-[#0E2244]">↪ Transferir de atendente</button>
+                          <button onClick={() => { setHeaderMenuOpen(false); abrirGaleria(); }} className="w-full text-left px-3 py-2.5 text-[12px] hover:bg-[#F0FBFC] flex items-center gap-2 text-[#0E2244]">🖼️ Galeria de mídia</button>
                           <button onClick={() => { setHeaderMenuOpen(false); setExportAuto(true); setExportOpen(true); }} className="w-full text-left px-3 py-2.5 text-[12px] hover:bg-[#F0FBFC] flex items-center gap-2 text-[#0E2244]">📄 Exportar conversa (PDF)</button>
                           <button onClick={() => { setHeaderMenuOpen(false); setTagsOpen(true); }} className="w-full text-left px-3 py-2.5 text-[12px] hover:bg-[#F0FBFC] flex items-center gap-2 text-[#0E2244]">🏷️ Etiquetas{(selectedConv?.tags?.length || 0) > 0 ? ` (${selectedConv!.tags!.length})` : ""}</button>
                           {selectedConv?.tutor?.id && (
@@ -2165,6 +2194,76 @@ export default function InboxUnificadoPage() {
             setMessageInput(`Prontinho, agendei o atendimento do seu pet! 🐾 Pra confirmar, é só completar seu cadastro rapidinho: ${l}\n\nAssim que você preencher, está tudo certo! 💙`);
           }
         }} />
+
+      {/* MODAL Galeria de mídia da conversa */}
+      {galeriaOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setGaleriaOpen(false)}>
+          <div className="bg-white rounded-xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 py-3 border-b border-[#e8e1d2] flex items-center justify-between">
+              <h3 className="text-base text-[#0E2244] font-medium">🖼️ Galeria de mídia
+                {!galeriaLoading && <span className="text-[12px] text-[#888780] font-normal"> · {galeriaItens.length} {galeriaItens.length === 1 ? "item" : "itens"}</span>}
+              </h3>
+              <button onClick={() => setGaleriaOpen(false)} className="text-[#5F5E5A] text-xl leading-none">×</button>
+            </div>
+            <div className="px-5 py-2 border-b border-[#e8e1d2] flex gap-1.5 flex-wrap">
+              {(([["todos", "Tudo"], ["IMAGE", "📷 Fotos"], ["VIDEO", "🎬 Vídeos"], ["AUDIO", "🎤 Áudios"], ["DOCUMENT", "📄 Docs"]]) as [typeof galeriaFiltro, string][]).map(([k, label]) => {
+                const n = k === "todos" ? galeriaItens.length : galeriaItens.filter((x) => x.type === k).length;
+                return (
+                  <button key={k} onClick={() => setGaleriaFiltro(k)}
+                    className={`text-[12px] px-2.5 py-1 rounded-full border transition ${galeriaFiltro === k ? "bg-[#009AAC] text-white border-[#009AAC]" : "bg-white text-[#5F5E5A] border-[#e8e1d2] hover:border-[#009AAC]"}`}>
+                    {label}{n ? ` (${n})` : ""}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="flex-1 overflow-y-auto p-4">
+              {galeriaLoading ? (
+                <p className="text-center text-[12px] text-[#888780] py-10">Carregando mídias…</p>
+              ) : galeriaItens.length === 0 ? (
+                <p className="text-center text-[12px] text-[#888780] py-10">Esta conversa não tem fotos, vídeos, áudios ou documentos.</p>
+              ) : (() => {
+                const itens = galeriaFiltro === "todos" ? galeriaItens : galeriaItens.filter((x) => x.type === galeriaFiltro);
+                if (!itens.length) return <p className="text-center text-[12px] text-[#888780] py-10">Nada nesse filtro.</p>;
+                const dt = (v: any) => { try { return new Date(v).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" }); } catch { return ""; } };
+                return (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                    {itens.map((it) => {
+                      const url = `/api/whatsapp/messages/${it.id}/media`;
+                      if (it.type === "IMAGE") return (
+                        <a key={it.id} href={url} target="_blank" rel="noreferrer" className="relative block aspect-square rounded-lg overflow-hidden border border-[#e8e1d2] bg-[#F4F8F9]">
+                          <img src={url} alt="" className="w-full h-full object-cover" loading="lazy" />
+                          <span className="absolute bottom-1 right-1 text-[9px] bg-black/50 text-white px-1 rounded">{dt(it.createdAt)}</span>
+                        </a>
+                      );
+                      if (it.type === "VIDEO") return (
+                        <a key={it.id} href={url} target="_blank" rel="noreferrer" className="relative block aspect-square rounded-lg overflow-hidden border border-[#e8e1d2] bg-black">
+                          <video src={url} preload="metadata" className="w-full h-full object-cover" />
+                          <span className="absolute inset-0 flex items-center justify-center text-white text-2xl pointer-events-none">▶</span>
+                          <span className="absolute bottom-1 right-1 text-[9px] bg-black/50 text-white px-1 rounded">{dt(it.createdAt)}</span>
+                        </a>
+                      );
+                      if (it.type === "AUDIO") return (
+                        <div key={it.id} className="aspect-square rounded-lg border border-[#e8e1d2] bg-[#F4F8F9] p-2 flex flex-col items-center justify-center gap-1 text-center">
+                          <span className="text-2xl">🎤</span>
+                          <audio controls src={url} className="w-full" style={{ height: "32px" }} />
+                          <span className="text-[9px] text-[#888780]">{dt(it.createdAt)}</span>
+                        </div>
+                      );
+                      return (
+                        <a key={it.id} href={url} target="_blank" rel="noreferrer" className="aspect-square rounded-lg border border-[#e8e1d2] bg-[#F4F8F9] p-2 flex flex-col items-center justify-center gap-1 text-center hover:bg-[#F0FBFC]">
+                          <span className="text-2xl">📄</span>
+                          <span className="text-[10px] text-[#0E2244] line-clamp-2 break-words">{it.content && !it.content.startsWith("[") ? it.content : "Documento"}</span>
+                          <span className="text-[9px] text-[#888780]">{dt(it.createdAt)}</span>
+                        </a>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* MODAL Exportar conversa (PDF) */}
       {exportOpen && (
