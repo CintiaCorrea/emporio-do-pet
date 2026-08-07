@@ -1,15 +1,108 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { NotificationType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreateAvaliacaoNPSDto, UpdateAvaliacaoNPSDto, CreateAvaliacaoGoogleDto, UpdateAvaliacaoGoogleDto } from './dto/avaliacao.dto';
 
 @Injectable()
-export class AvaliacoesService {
-  constructor(private readonly prisma: PrismaService) {}
+export class AvaliacoesService implements OnModuleInit {
+  private readonly logger = new Logger(AvaliacoesService.name);
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
+
+  // Migração única: leva os NPS antigos (guardados em lista_itens npsava_) pro modelo canônico.
+  async onModuleInit() {
+    try { await this.migrarNpsDasListas(); }
+    catch (e: any) { this.logger.warn(`migrarNpsDasListas: ${e?.message || e}`); }
+  }
+
+  async migrarNpsDasListas() {
+    const antigos = await this.prisma.listaItem.findMany({ where: { lista: { startsWith: 'npsava_' }, ativo: true } });
+    if (!antigos.length) return { migrados: 0 };
+    let migrados = 0;
+    for (const it of antigos) {
+      try {
+        const p = JSON.parse(it.valor);
+        const score = parseInt(String(p.score));
+        if (isNaN(score)) { continue; }
+        await this.prisma.avaliacaoNPS.create({
+          data: {
+            tutorId: p.tutorId || null,
+            categoriaAlvo: 'CLINICA_GERAL' as any,
+            score,
+            classificacao: this.classificarNPS(score) as any,
+            comentario: p.comentario || null,
+            canalColeta: this.mapCanal(p.canal),
+            dataColeta: p.data ? new Date(p.data) : new Date(it.createdAt),
+            tutorNome: p.tutorNome || null,
+            petNome: p.petNome || null,
+            profissionalNome: p.profissional || null,
+            categoriaLivre: p.categoria || null,
+            observacoes: 'Migrado da tela antiga de NPS',
+          },
+        });
+        // aposenta o antigo (mantém como backup, some da lista)
+        await this.prisma.listaItem.update({ where: { id: it.id }, data: { ativo: false } });
+        migrados++;
+      } catch { /* item malformado — ignora */ }
+    }
+    if (migrados) this.logger.log(`NPS migrados das listas antigas: ${migrados}`);
+    return { migrados };
+  }
+
+  private mapCanal(c?: string): any {
+    const k = (c || '').toLowerCase().trim();
+    if (k.includes('whats')) return 'WHATSAPP';
+    if (k.includes('tel')) return 'TELEFONE';
+    if (k.includes('mail')) return 'EMAIL';
+    if (k.includes('form')) return 'FORMULARIO';
+    return 'PRESENCIAL';
+  }
 
   private classificarNPS(score: number): 'PROMOTOR' | 'NEUTRO' | 'DETRATOR' {
     if (score >= 9) return 'PROMOTOR';
     if (score >= 7) return 'NEUTRO';
     return 'DETRATOR';
+  }
+
+  // NPS → AÇÃO: sempre que um DETRATOR é registrado (qualquer canal), avisa a equipe + abre tarefa no "Hoje".
+  private async alertarDetrator(aval: { tutorId?: string | null; score: number; tutorNome?: string | null; canalColeta?: string }) {
+    try {
+      const tutorId = aval.tutorId || null;
+      let nome = aval.tutorNome || 'Cliente';
+      let phoneDigits = '';
+      if (tutorId) {
+        const tutor = await this.prisma.tutor.findUnique({ where: { id: tutorId }, include: { contacts: true } });
+        if (tutor) {
+          nome = tutor.name || nome;
+          const c = tutor.contacts.find((x: any) => x.isPrimary) || tutor.contacts[0];
+          phoneDigits = c?.number ? String(c.number).replace(/\D/g, '') : '';
+        }
+      }
+      const link = phoneDigits ? `/dashboard/inbox-nativo?phone=${phoneDigits}` : (tutorId ? `/dashboard/erp/tutores/${tutorId}` : '/dashboard/marketing/nps');
+      const equipe = await this.prisma.user.findMany({ where: { role: { in: ['ADMIN', 'RECEPTIONIST'] as any }, isBlocked: false }, select: { id: true } });
+      for (const u of equipe) {
+        await this.notifications.create({
+          userId: u.id,
+          type: NotificationType.WARNING,
+          title: '⚠️ Cliente insatisfeito (NPS)',
+          message: `${nome} deu nota ${aval.score}. Ligar para entender e resolver.`,
+          link,
+          metadata: { kind: 'nps_detrator', tutorId },
+        }).catch(() => undefined);
+      }
+      if (tutorId) {
+        await this.prisma.interacao.create({
+          data: { tutorId, tipo: 'LIGACAO', canal: 'Ligação', texto: `NPS ${aval.score} (insatisfeito). Ligar para entender e resolver.`, proximaAcao: 'Ligar para cliente insatisfeito', proximoFollowupAt: new Date() },
+        }).catch(() => undefined);
+        await this.prisma.tutor.update({ where: { id: tutorId }, data: { proximoFollowupAt: new Date() } }).catch(() => undefined);
+      }
+      this.logger.warn(`NPS detrator (nota ${aval.score}): ${equipe.length} avisados`);
+    } catch (e: any) {
+      this.logger.warn(`alertarDetrator: ${e?.message || e}`);
+    }
   }
 
   // ===== NPS =====
@@ -18,7 +111,12 @@ export class AvaliacoesService {
   }
   async createNPS(dto: CreateAvaliacaoNPSDto) {
     const classificacao = (dto.classificacao || this.classificarNPS(dto.score)) as any;
-    return this.prisma.avaliacaoNPS.create({ data: { ...dto, classificacao } });
+    const criado = await this.prisma.avaliacaoNPS.create({ data: { ...dto, classificacao } });
+    if (classificacao === 'DETRATOR') {
+      // fire-and-forget — nunca derruba o registro do NPS
+      this.alertarDetrator({ tutorId: criado.tutorId, score: criado.score, tutorNome: criado.tutorNome, canalColeta: criado.canalColeta }).catch(() => undefined);
+    }
+    return criado;
   }
   async updateNPS(id: string, dto: UpdateAvaliacaoNPSDto) {
     const exists = await this.prisma.avaliacaoNPS.findUnique({ where: { id } });

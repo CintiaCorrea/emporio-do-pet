@@ -26,6 +26,7 @@ import { AgentsModule } from '../agents/agents.module';
 import { AudioModule } from '../audio/audio.module';
 import { MediaModule } from '../media/media.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { AvaliacoesModule } from '../avaliacoes/avaliacoes.module';
 import {
   WebhookReplayService,
   WhatsAppAnalyticsService,
@@ -41,6 +42,7 @@ import {
     AudioModule,
     MediaModule,
     NotificationsModule,
+    AvaliacoesModule,
   ],
   controllers: [
     WhatsAppController,

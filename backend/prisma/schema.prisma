@@ -2720,6 +2720,11 @@ model AvaliacaoNPS {
   dataColeta     DateTime         @default(now())
   coletadoPor    String? // email
   observacoes    String?
+  // Rótulos livres (preenchidos pela tela de NPS quando não há vínculo por ID)
+  tutorNome        String?
+  petNome          String?
+  profissionalNome String?
+  categoriaLivre   String? // categoria como digitada na tela (Consulta/Retorno/Fisioterapia…)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
