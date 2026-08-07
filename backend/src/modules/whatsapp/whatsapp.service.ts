@@ -712,6 +712,30 @@ export class WhatsAppService {
     return { success: true };
   }
 
+  // Encaminha VÁRIAS mensagens (mídia ou texto) para outra conversa, na ordem.
+  async encaminharMensagens(msgIds: string[], conversationIdDestino: string): Promise<{ enviados: number; falhas: number; erro?: string }> {
+    const destino = await this.prisma.whatsAppConversation.findUnique({
+      where: { id: conversationIdDestino },
+      select: { id: true, userId: true, contactPhone: true },
+    });
+    if (!destino?.contactPhone) return { enviados: 0, falhas: msgIds.length, erro: 'Conversa de destino inválida' };
+    let enviados = 0, falhas = 0, ultimoErro = '';
+    for (const id of msgIds) {
+      const msg = await this.prisma.whatsAppMessage.findUnique({ where: { id }, select: { type: true, content: true, mediaCloudUrl: true, mediaUrl: true } });
+      if (!msg) { falhas++; continue; }
+      const url = msg.mediaCloudUrl || msg.mediaUrl;
+      const ehMidia = !!url && ['IMAGE', 'VIDEO', 'DOCUMENT', 'AUDIO', 'STICKER'].includes(msg.type as string);
+      if (ehMidia) {
+        const r = await this.encaminharMidia(id, conversationIdDestino);
+        if (r.success) enviados++; else { falhas++; ultimoErro = r.error || ultimoErro; }
+      } else if (msg.content && !msg.content.startsWith('[')) {
+        const r: any = await this.sendAndSaveMessage(destino.userId, destino.id, msg.content, 'TEXT' as any, { senderType: 'HUMAN', senderName: 'Encaminhado' });
+        if (r?.success !== false) enviados++; else { falhas++; ultimoErro = r?.error || ultimoErro; }
+      } else { falhas++; }
+    }
+    return { enviados, falhas, erro: falhas && !enviados ? (ultimoErro || 'Não consegui encaminhar') : undefined };
+  }
+
   // Normaliza nome pra comparação: minúsculas, sem acento, só tokens ≥3 letras (ignora "da/de/dos").
   private tokensNome(n?: string | null): string[] {
     return String(n || '')

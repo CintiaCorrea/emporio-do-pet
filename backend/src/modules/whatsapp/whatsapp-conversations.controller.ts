@@ -275,6 +275,15 @@ export class WhatsAppConversationsController {
     return { success: true };
   }
 
+  // Encaminha VÁRIAS mensagens (selecionadas) para outra conversa.
+  @Post('messages/forward-batch')
+  async forwardBatch(@Body() body: { msgIds?: string[]; conversationId?: string }) {
+    if (!body?.conversationId || !Array.isArray(body?.msgIds) || !body.msgIds.length) {
+      throw new BadRequestException('msgIds e conversationId obrigatórios.');
+    }
+    return this.whatsAppService.encaminharMensagens(body.msgIds.slice(0, 30), body.conversationId);
+  }
+
   /**
    * Envia ANEXO (foto, documento, vídeo, áudio, figurinha) numa conversa.
    *

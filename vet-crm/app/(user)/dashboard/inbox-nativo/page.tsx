@@ -62,6 +62,10 @@ interface Message {
   replyToWaMessageId?: string | null;
   /** metadados (ex.: latitude/longitude de uma localização) */
   metadata?: any;
+  /** status de entrega: SENT/DELIVERED/READ/FAILED (mostra os ✓✓) */
+  status?: string | null;
+  /** true quando esta mensagem foi encaminhada */
+  encaminhado?: boolean;
 }
 
 interface Pet {
@@ -212,6 +216,7 @@ export default function InboxUnificadoPage() {
       setMessageInput("");
       setRespondendo(null);
       setRefreshTick((t) => t + 1);
+      setMsgTick((t) => t + 1); // recarrega o thread aberto → o anexo enviado aparece na hora
       toast.success("Anexo enviado");
     } catch (e: any) {
       // Erro do Meta (janela de 24h, formato, tamanho) chega inteiro aqui — melhor
@@ -339,21 +344,46 @@ export default function InboxUnificadoPage() {
   const MSG_ENDERECO = "📍 *Empório do Pet*\nAv. Eng. Leal Lima Verde, 205\nEdson Queiroz — Fortaleza/CE · CEP 60833-175\n\n🗺️ Como chegar:\nhttps://maps.google.com/?q=-3.7899632,-38.4759969";
   const [encaminharOpen, setEncaminharOpen] = useState(false);
   const [resolvendo, setResolvendo] = useState(false);
-  // Encaminhar MÍDIA de uma mensagem para outra conversa
+  // Encaminhar mídia/texto (uma ou VÁRIAS selecionadas) para outra conversa
   const [fwdMsgId, setFwdMsgId] = useState<string | null>(null);
+  const [fwdBatch, setFwdBatch] = useState(false);
   const [fwdBusca, setFwdBusca] = useState("");
   const [fwdEnviando, setFwdEnviando] = useState(false);
-  const abrirEncaminhar = (msgId: string) => { setFwdMsgId(msgId); setFwdBusca(""); };
+  const [selMode, setSelMode] = useState(false);
+  const [selIds, setSelIds] = useState<Set<string>>(new Set());
+  const toggleSel = (id: string) => setSelIds((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const entrarSelecao = (id: string) => { setSelMode(true); setSelIds(new Set([id])); };
+  const sairSelecao = () => { setSelMode(false); setSelIds(new Set()); };
+  // Encaminhar UMA mensagem: também passa pelo lote (assim texto e mídia funcionam igual).
+  const abrirEncaminhar = (msgId: string) => { setSelIds(new Set([msgId])); setFwdMsgId(null); setFwdBatch(true); setFwdBusca(""); };
+  const abrirEncaminharLote = () => { if (!selIds.size) return; setFwdMsgId(null); setFwdBatch(true); setFwdBusca(""); };
   const encaminharPara = async (conversationId: string, nome: string) => {
-    if (!fwdMsgId) return;
     setFwdEnviando(true);
     const t = toast.loading("Encaminhando…");
     try {
-      const r = await fetch(`/api/whatsapp/messages/${fwdMsgId}/forward`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ conversationId }) });
-      const d = await r.json().catch(() => null);
-      if (r.ok && d?.success) { toast.success(`Encaminhado para ${nome} ✓`, { id: t }); setFwdMsgId(null); }
-      else toast.error(d?.message || "Não consegui encaminhar (pode estar fora da janela de 24h).", { id: t });
+      let ok = false, msg = "";
+      if (fwdBatch) {
+        const r = await fetch(`/api/whatsapp/messages/forward-batch`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ msgIds: [...selIds], conversationId }) });
+        const d = await r.json().catch(() => null);
+        ok = r.ok && (d?.enviados ?? 0) > 0;
+        msg = ok ? `${d.enviados} mensagem(ns) encaminhada(s) para ${nome} ✓${d.falhas ? ` (${d.falhas} falhou/falharam)` : ""}` : (d?.erro || d?.message || "Não consegui encaminhar (janela de 24h?).");
+      } else if (fwdMsgId) {
+        const r = await fetch(`/api/whatsapp/messages/${fwdMsgId}/forward`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ conversationId }) });
+        const d = await r.json().catch(() => null);
+        ok = r.ok && d?.success; msg = ok ? `Encaminhado para ${nome} ✓` : (d?.message || "Não consegui encaminhar (janela de 24h?).");
+      }
+      if (ok) { toast.success(msg, { id: t }); setFwdMsgId(null); setFwdBatch(false); sairSelecao(); }
+      else toast.error(msg, { id: t });
     } catch { toast.error("Erro ao encaminhar.", { id: t }); } finally { setFwdEnviando(false); }
+  };
+  // ✓ enviado · ✓✓ entregue · ✓✓ azul lido · ⚠️ falhou (dados já vêm do backend)
+  const statusTick = (m: any) => {
+    if (m.direction !== "OUTBOUND") return null;
+    if (m.status === "READ") return <span title="Lida" style={{ color: "#8DE0FF" }}>✓✓</span>;
+    if (m.status === "DELIVERED") return <span title="Entregue">✓✓</span>;
+    if (m.status === "FAILED") return <span title="Falhou" style={{ color: "#ffd0d0" }}>⚠️</span>;
+    if (m.status === "SENT") return <span title="Enviada">✓</span>;
+    return null;
   };
 
   // Controles IA / Agentes
@@ -578,14 +608,14 @@ export default function InboxUnificadoPage() {
           content: typeof m?.content === "string" ? m.content : null,
           type: m?.type || "TEXT",
           createdAt: m?.createdAt || new Date().toISOString(),
-          fromAgent: !!m?.metadata?.fromAgent || !!m?.fromAgent, mediaType: m?.mediaType || null, hasMedia: !!(m?.mediaCloudUrl || m?.mediaUrl),
+          fromAgent: !!m?.metadata?.fromAgent || !!m?.fromAgent, mediaType: m?.mediaType || null, hasMedia: !!(m?.mediaCloudUrl || m?.mediaUrl), status: m?.status || null, encaminhado: !!m?.metadata?.encaminhado,
           waMessageId: m?.waMessageId || null,
           replyToWaMessageId: m?.metadata?.replyToWaMessageId || null, metadata: m?.metadata || null})));
       } catch { /* tropeço: mantém as mensagens que já estão na tela */ }
     };
     // Abrir a conversa já zera o unreadCount no servidor (getMessages) — avisa o menu p/ sumir o badge na hora.
     carregar().then(() => { if (!cancel) window.dispatchEvent(new Event("whatsapp:read")); });
-    const id = setInterval(carregar, 30000);
+    const id = setInterval(carregar, 8000);
     return () => { cancel = true; clearInterval(id); };
   }, [selectedId, msgTick]);
 
@@ -1625,7 +1655,7 @@ export default function InboxUnificadoPage() {
                           {rotuloDia(m.createdAt)}
                         </div>
                       )}
-                      <div className={`group max-w-[75%] ${outbound ? "self-end" : "self-start"}`}>
+                      <div onClick={selMode ? () => toggleSel(m.id) : undefined} className={`group max-w-[75%] ${outbound ? "self-end" : "self-start"} ${selMode ? "cursor-pointer rounded-xl transition" : ""} ${selMode && selIds.has(m.id) ? "ring-2 ring-[#009AAC] ring-offset-2" : ""}`}>
                         <div className={`px-3 py-2 rounded-xl text-[13px] ${outbound ? "bg-[#009AAC] text-white rounded-br-sm" : "bg-white border border-[#e8e1d2] text-[#0E2244] rounded-bl-sm"}`}>
                           {m.replyToWaMessageId && (
                             <div
@@ -1689,14 +1719,15 @@ export default function InboxUnificadoPage() {
                           )}
                         </div>
                         <div className={`text-[9px] text-[#888780] mt-0.5 px-1 flex items-center gap-2 ${outbound ? "justify-end" : ""}`}>
+                          {m.encaminhado && <span className="italic opacity-70">↷ encaminhada</span>}
                           {(() => { try { return new Date(m.createdAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }); } catch { return ""; } })()}
-                          {m.waMessageId && (
-                            <button
-                              onClick={() => setRespondendo(m)}
-                              title="Responder citando esta mensagem"
-                              className="opacity-0 group-hover:opacity-100 transition-opacity text-[#009AAC] font-medium hover:underline">
-                              ↩ Responder
-                            </button>
+                          {outbound && statusTick(m)}
+                          {!selMode && m.waMessageId && (
+                            <>
+                              <button onClick={(e) => { e.stopPropagation(); setRespondendo(m); }} title="Responder citando" className="opacity-0 group-hover:opacity-100 transition-opacity text-[#009AAC] font-medium hover:underline">↩ Responder</button>
+                              <button onClick={(e) => { e.stopPropagation(); abrirEncaminhar(m.id); }} title="Encaminhar esta" className="opacity-0 group-hover:opacity-100 transition-opacity text-[#009AAC] font-medium hover:underline">↷ Encaminhar</button>
+                              <button onClick={(e) => { e.stopPropagation(); entrarSelecao(m.id); }} title="Selecionar várias" className="opacity-0 group-hover:opacity-100 transition-opacity text-[#009AAC] font-medium hover:underline">☑︎ Selecionar</button>
+                            </>
                           )}
                         </div>
                       </div>
@@ -1705,6 +1736,16 @@ export default function InboxUnificadoPage() {
                   })}
                   <div ref={msgEndRef} />
                 </div>
+
+                {selMode && (
+                  <div className="px-4 py-2 border-t border-[#e8e1d2] bg-[#EAF6F7] flex items-center justify-between gap-2">
+                    <span className="text-[12px] font-medium text-[#014D5E]">☑︎ {selIds.size} selecionada(s) — toque nas mensagens</span>
+                    <div className="flex gap-2">
+                      <button onClick={sairSelecao} className="text-[12px] px-3 py-1.5 rounded-lg border" style={{ borderColor: "#E8DFC8", color: "#5F5E5A" }}>Cancelar</button>
+                      <button onClick={abrirEncaminharLote} disabled={!selIds.size} className="text-[12px] px-3 py-1.5 rounded-lg text-white font-medium disabled:opacity-50" style={{ background: "#009AAC" }}>↷ Encaminhar ({selIds.size})</button>
+                    </div>
+                  </div>
+                )}
 
                 {/* Input com Scripts dropdown */}
                 <div className="px-4 py-2.5 border-t border-[#e8e1d2]">
@@ -2341,13 +2382,13 @@ export default function InboxUnificadoPage() {
         </div>
       )}
 
-      {/* Encaminhar MÍDIA para outra conversa */}
-      {fwdMsgId && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-[60]" onClick={() => !fwdEnviando && setFwdMsgId(null)}>
+      {/* Encaminhar mídia/texto para outra conversa */}
+      {(fwdMsgId || fwdBatch) && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-[60]" onClick={() => { if (!fwdEnviando) { setFwdMsgId(null); setFwdBatch(false); } }}>
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-3.5 border-b flex items-center justify-between" style={{ borderColor: "#eef0e6" }}>
-              <h3 className="text-[15px] font-semibold text-[#014D5E]">↷ Encaminhar para…</h3>
-              <button onClick={() => setFwdMsgId(null)} className="text-[#94a3b8] text-lg leading-none">×</button>
+              <h3 className="text-[15px] font-semibold text-[#014D5E]">↷ Encaminhar {fwdBatch && selIds.size > 1 ? `${selIds.size} mensagens ` : ""}para…</h3>
+              <button onClick={() => { setFwdMsgId(null); setFwdBatch(false); }} className="text-[#94a3b8] text-lg leading-none">×</button>
             </div>
             <div className="p-3 border-b" style={{ borderColor: "#F0EBE0" }}>
               <input autoFocus value={fwdBusca} onChange={(e) => setFwdBusca(e.target.value)} placeholder="🔍 Buscar cliente/conversa…" className="w-full border rounded-lg px-3 py-2 text-[13px]" style={{ borderColor: "#E8DFC8" }} />
