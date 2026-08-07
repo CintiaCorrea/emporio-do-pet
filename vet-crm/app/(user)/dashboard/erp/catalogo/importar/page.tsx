@@ -12,6 +12,7 @@ type Prev = {
   novos: number; atualizados: number; duplicadosRemovidos: number;
   precoZeroInativados: number; foraDaListaInativados: number;
   totalSuspeitos: number; suspeitos: string[];
+  foraDaLista?: string[];
   criados?: number; inativados?: number;
 };
 
@@ -109,6 +110,17 @@ export default function ImportarCatalogoPage() {
               <div style={{ fontSize: 12, color: "#5C6B70", marginTop: 6, maxHeight: 180, overflowY: "auto", lineHeight: 1.7 }}>
                 {rel.suspeitos.map((s, i) => <div key={i}>• {s}</div>)}
                 {rel.totalSuspeitos > rel.suspeitos.length && <div>… e mais {rel.totalSuspeitos - rel.suspeitos.length}.</div>}
+              </div>
+            </details>
+          )}
+
+          {!feito && rel.foraDaListaInativados > 0 && rel.foraDaLista && (
+            <details style={{ marginBottom: 12 }}>
+              <summary style={{ fontSize: 12.5, color: "#b45309", cursor: "pointer", fontWeight: 600 }}>👀 Ver os {rel.foraDaListaInativados} itens que serão DESATIVADOS (não estão na planilha)</summary>
+              <div style={{ fontSize: 12, color: "#5C6B70", marginTop: 6, maxHeight: 220, overflowY: "auto", lineHeight: 1.7 }}>
+                {rel.foraDaLista.map((s, i) => <div key={i}>• {s}</div>)}
+                {rel.foraDaListaInativados > rel.foraDaLista.length && <div>… e mais {rel.foraDaListaInativados - rel.foraDaLista.length}.</div>}
+                <div style={{ marginTop: 6, color: "#8A6D3B" }}>É reversível (backup automático). Se algum aqui ainda é usado, cancele e adicione na planilha antes de confirmar.</div>
               </div>
             </details>
           )}

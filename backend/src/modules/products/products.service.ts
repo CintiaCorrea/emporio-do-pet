@@ -300,6 +300,7 @@ export class ProductsService {
       novos, atualizados, duplicadosRemovidos,
       precoZeroInativados: itens.filter((i) => !i.ativo).length,
       foraDaListaInativados: foraDaLista.length,
+      foraDaLista: foraDaLista.map((e) => e.name).sort((a, b) => a.localeCompare(b)).slice(0, 300),
       totalSuspeitos: suspeitos.length,
       suspeitos: suspeitos.slice(0, 60),
     };
