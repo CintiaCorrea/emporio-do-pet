@@ -325,6 +325,7 @@ model Tutor {
   id                    String                 @id @default(uuid())
   codigo                Int?                   @unique // Codigo sequencial curto (estilo SimplesVet)
   rankingAbc            String? // Ranking ABC: A/B/C (importado do SimplesVet)
+  nivelRelacionamento   String? // 💎 Diamante / 🥇 Ouro / 🥈 Prata / 🥉 Bronze (calculado do score RFM)
   nps                   Int? // NPS do cliente (importado do SimplesVet)
   ticketMedio           Float? // Ticket medio (snapshot SimplesVet)
   primeiraCompraAt      DateTime? // Data da primeira compra (SimplesVet)

@@ -78,6 +78,19 @@ export default function CadastrosRecebidosPage() {
   }
   async function limparSub(id: string) { await fetch(`/api/listas/${id}`, { method: "DELETE" }).catch(() => null); setSubs((s) => s.filter((x) => x._id !== id)); }
 
+  // UTM → registra na ficha (como nota) de qual campanha o cadastro veio, quando o link do formulário tinha utm_*.
+  async function registrarOrigem(tutorId: string, origem: any) {
+    if (!origem) return;
+    const partes: string[] = [];
+    if (origem.utmCampaign) partes.push(`campanha "${origem.utmCampaign}"`);
+    if (origem.utmSource) partes.push(`fonte ${origem.utmSource}`);
+    if (origem.utmMedium) partes.push(`meio ${origem.utmMedium}`);
+    if (origem.utmContent) partes.push(`anúncio ${origem.utmContent}`);
+    if (!partes.length && !origem.referrer) return; // sem UTM nem referência → nada a registrar
+    const texto = `🎯 Origem do cadastro (formulário público): ${partes.join(" · ") || "sem UTM"}${origem.referrer ? ` · veio de ${origem.referrer}` : ""}`;
+    try { await fetch("/api/interacoes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tutorId, tipo: "NOTA", canal: "Formulário", texto }) }); } catch {}
+  }
+
   // APROVAR: cria um cliente novo + pet a partir da submissão.
   async function aprovar(s: Sub) {
     if (!s.tutor?.name?.trim()) { toast.error("Cadastro sem nome — não dá pra aprovar."); return; }
@@ -99,6 +112,7 @@ export default function CadastrosRecebidosPage() {
       const novo = await r.json().catch(() => null);
       if (!r.ok || !novo?.id) { const msg = novo?.message ? (Array.isArray(novo.message) ? novo.message.join(" ") : novo.message) : `Erro (${r.status})`; toast.error(msg); setBusy(null); return; }
       await criarPetSe(s, novo.id);
+      await registrarOrigem(novo.id, (s as any).origem);
       await limparSub(s._id);
       toast.success("Cliente criado! 🎉");
     } catch { toast.error("Erro ao aprovar"); } finally { setBusy(null); }
@@ -115,6 +129,7 @@ export default function CadastrosRecebidosPage() {
       add("howFoundUs", s.tutor.howFoundUs?.trim()); const bd = toISO(s.tutor.birthDate); if (bd) patch.birthDate = bd;
       if (Object.keys(patch).length) await fetch(`/api/tutors/${tutorId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) }).catch(() => null);
       await criarPetSe(s, tutorId);
+      await registrarOrigem(tutorId, (s as any).origem);
       await limparSub(s._id);
       toast.success(`Vinculado a ${tutorNome || "cliente"} ✓`);
     } catch { toast.error("Erro ao vincular"); } finally { setBusy(null); }

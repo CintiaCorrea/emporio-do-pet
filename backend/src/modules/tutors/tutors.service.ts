@@ -176,7 +176,7 @@ export class TutorsService {
         id: true, name: true, codigo: true, status: true, estadoRelacionamento: true,
         classificacao: true, // etiqueta (Cliente/Fornecedor/Profissional) — reconhecida no inbox
         email: true, // a tela de Clientes oferece busca por e-mail; sem isso ela falha calada
-        birthDate: true, proximoFollowupAt: true, rankingAbc: true,
+        birthDate: true, proximoFollowupAt: true, rankingAbc: true, nivelRelacionamento: true,
         contacts: { take: 1, orderBy: { isPrimary: 'desc' }, select: { number: true, isPrimary: true } },
         pets: { select: { id: true, name: true, species: true } },
       },
@@ -438,10 +438,16 @@ export class TutorsService {
 
     const total = visitsScore + ltvScore + recenciaScore + npsScore;
     const label = total >= 70 ? 'Ativo' : total >= 30 ? 'Acompanhando' : 'Inativo';
+    // Nível de relacionamento (mesmos cortes da ficha) — PERSISTE no cadastro pra aparecer em listas/filtros.
+    const nivel = total >= 80 ? 'Diamante' : total >= 60 ? 'Ouro' : total >= 40 ? 'Prata' : 'Bronze';
+    if ((tutor as any).nivelRelacionamento !== nivel) {
+      this.prisma.tutor.update({ where: { id: tutorId }, data: { nivelRelacionamento: nivel } }).catch(() => undefined);
+    }
 
     return {
       total,
       label,
+      nivel,
       dimensions: {
         visitas: { score: visitsScore, max: 30, value: appointments.length },
         ltv: { score: ltvScore, max: 30, value: totalRevenue },

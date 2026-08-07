@@ -43,6 +43,12 @@ function scorePie(score: number, max: number, color: string) {
 
 
 interface Contact { id: string; number: string; isPrimary?: boolean; isWhatsApp?: boolean; }
+const NIVEL_UI: Record<string, { emoji: string; bg: string; fg: string }> = {
+  Diamante: { emoji: "💎", bg: "#EDE9FA", fg: "#3C3489" },
+  Ouro: { emoji: "🥇", bg: "#FBEFD6", fg: "#8A5A0B" },
+  Prata: { emoji: "🥈", bg: "#EEF1F3", fg: "#49555C" },
+  Bronze: { emoji: "🥉", bg: "#F6E7D8", fg: "#7A4A1E" },
+};
 interface Tutor {
   id: string; name: string; email?: string | null;
   classificacao?: string | null;
@@ -290,7 +296,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
   const [staff, setStaff] = useState<Staff[]>([]);
   const [forwardOpen, setForwardOpen] = useState(false);
   const [petActForward, setPetActForward] = useState(false);
-  const [tutorScore, setTutorScore] = useState<{ total: number; label: string; dimensions: any } | null>(null);
+  const [tutorScore, setTutorScore] = useState<{ total: number; label: string; nivel?: string; dimensions: any } | null>(null);
   const [inscricoes, setInscricoes] = useState<any[]>([]);
   // Seletor de sequência (cadência) pro pet — item 6
   const [seqPickerOpen, setSeqPickerOpen] = useState(false);
@@ -1888,6 +1894,9 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
                       </div>
                     ) : (
                       <div onClick={() => setClienteEditOpen(true)} className="text-[15px] font-semibold truncate cursor-pointer hover:underline" style={{ color: "#014D5E" }} title="Editar dados do cliente">{tutor.name} <LuPencil className="inline -mt-0.5 text-gray-300" size={12} /></div>
+                    )}
+                    {tutorScore?.nivel && NIVEL_UI[tutorScore.nivel] && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full mt-0.5" style={{ background: NIVEL_UI[tutorScore.nivel].bg, color: NIVEL_UI[tutorScore.nivel].fg }} title="Nível de relacionamento (RFM)">{NIVEL_UI[tutorScore.nivel].emoji} {tutorScore.nivel}</span>
                     )}
                     <div className="text-[10.5px] text-gray-500 leading-snug">
                       {editingPhone ? (

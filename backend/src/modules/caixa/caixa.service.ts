@@ -22,6 +22,7 @@ function rangeFromQuery(query: any) {
 
 @Injectable()
 export class CaixaService {
+  private ultimoPersistNivel = 0; // throttle do persist de nível (fire-and-forget)
   constructor(
     private readonly prisma: PrismaService,
     private readonly appointmentsService: AppointmentsService,
@@ -273,6 +274,18 @@ export class CaixaService {
       .slice(0, 40)
       .map((e) => ({ tutorId: e.tutorId, nome: e.nome, nivel: e.nivel, segmento: e.segmento, r: e.r, f: e.f, m: e.m, freq: e.freq, valor: e.mon, recDias: e.recDias }));
 
+    // Persiste o nível de cada cliente (fire-and-forget, no máx. 1x/hora) → aparece em listas/inbox.
+    // 4 updates em lote (um por nível) em vez de um por cliente.
+    if (Date.now() - this.ultimoPersistNivel > 3600_000) {
+      this.ultimoPersistNivel = Date.now();
+      const byNivel: Record<string, string[]> = { Diamante: [], Ouro: [], Prata: [], Bronze: [] };
+      for (const e of enriched) (byNivel[e.nivel] ||= []).push(e.tutorId);
+      (async () => {
+        for (const [niv, ids] of Object.entries(byNivel)) {
+          if (ids.length) { try { await this.prisma.tutor.updateMany({ where: { id: { in: ids } }, data: { nivelRelacionamento: niv } }); } catch { /* nao trava o painel */ } }
+        }
+      })().catch(() => undefined);
+    }
     return { total: enriched.length, niveis, segmentos, keyAccounts };
   }
 
