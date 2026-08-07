@@ -119,8 +119,8 @@ export class RemindersScheduler {
     const ini = new Date(); ini.setDate(ini.getDate() - 17);
     const fim = new Date(); fim.setDate(fim.getDate() + 17);
     const doses = await this.prisma.protocoloDose.findMany({
-      // Pet FALECIDO não recebe lembrete de vacina/vermífugo (nem antes, nem "vencido").
-      where: { status: 'PENDENTE', dataPrevista: { gte: ini, lte: fim }, protocolo: { pet: { status: { not: 'DECEASED' } } } },
+      // Pet FALECIDO ou em CUIDADOS PALIATIVOS não recebe lembrete de vacina/vermífugo (seria insensível).
+      where: { status: 'PENDENTE', dataPrevista: { gte: ini, lte: fim }, protocolo: { pet: { status: { not: 'DECEASED' }, cuidadoPaliativo: false } } },
       include: { protocolo: { select: { nomeProtocolo: true, pet: { select: { name: true, tutor: { select: { id: true, name: true, acceptsWhatsApp: true, contacts: true } } } }, tutor: { select: { id: true, name: true, acceptsWhatsApp: true, contacts: true } } } } },
       take: 1000,
     });

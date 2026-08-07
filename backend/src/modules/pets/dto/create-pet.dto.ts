@@ -6,6 +6,7 @@ import {
   IsNumber,
   IsDateString,
   IsArray,
+  IsBoolean,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -73,6 +74,11 @@ export class CreatePetDto {
   @IsOptional()
   @IsEnum(PetStatus)
   status?: PetStatus;
+
+  @ApiPropertyOptional({ description: 'Pet em cuidados paliativos (fim de vida)' })
+  @IsOptional()
+  @IsBoolean()
+  cuidadoPaliativo?: boolean;
 
   @ApiPropertyOptional({ enum: Gender })
   @IsOptional()

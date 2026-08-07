@@ -455,6 +455,13 @@ export default function PetDetailPage() {
     try { await patchPet({ status: obito ? "ACTIVE" : "DECEASED" }); toast.success(obito ? "Pet marcado como vivo" : "Óbito registrado 🕊️"); await load(); }
     catch { toast.error("Erro ao atualizar"); }
   }
+  // 🕊️ Cuidados paliativos: silencia cobranças (vacina/pacote) + dispara toques de carinho.
+  async function togglePaliativo() {
+    const on = !!(pet as any)?.cuidadoPaliativo;
+    if (!window.confirm(on ? "Tirar o(a) pet dos cuidados paliativos?" : "Marcar o(a) pet em CUIDADOS PALIATIVOS?\n\nOs lembretes de vacina e renovação de pacote param, e (se a cadência estiver ligada) a família recebe uma mensagem de apoio.")) return;
+    try { await patchPet({ cuidadoPaliativo: !on } as any); toast.success(on ? "Removido dos cuidados paliativos" : "Marcado em cuidados paliativos 🕊️"); await load(); }
+    catch { toast.error("Erro ao atualizar"); }
+  }
   function iniciarConsulta() { router.push(`/dashboard/erp/pets/${petId}/atendimentos/novo`); }
   async function saveClin() {
     setSavingClin(true);
@@ -1189,6 +1196,7 @@ export default function PetDetailPage() {
                 {pet.codigo ? <span className="text-[13px] text-[#374151] font-medium" title="Código do pet">#{pet.codigo}</span> : null}
                 <button onClick={() => setStatusOpen(true)} title="Status de saúde — clique para alterar" className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: saude.bg, color: saude.color }}>{saude.label} ▾</button>
                 {pet.status === "DECEASED" && <span className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: "#EEF0F2", color: "#5b6470" }}>🕊️ Óbito</span>}
+                {(pet as any).cuidadoPaliativo && pet.status !== "DECEASED" && <span className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: "#F3EEFA", color: "#6B4E9E" }}>🕊️ Cuidados paliativos</span>}
                 {/petlife/i.test(pet.insurancePlan || "") && <span className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: "#E6F0FF", color: "#0C447C" }}>🩺 Petlife</span>}
                 <button onClick={() => { setNotaVal(pet.medicalNotes || ""); setNotaOpen(true); }} title={pet.medicalNotes ? `Nota médica: ${pet.medicalNotes}` : "Adicionar nota médica"} className="text-[15px] leading-none">{(pet.medicalNotes || pet.observations) ? "❤️" : "🤍"}</button>
               </div>
@@ -1232,6 +1240,7 @@ export default function PetDetailPage() {
           </div>
           <div className="flex gap-1.5 flex-wrap items-center">
             <button onClick={iniciarConsulta} className="bg-[#014D5E] text-white rounded-[9px] px-3.5 py-2 text-[12.5px] hover:opacity-90 flex items-center gap-1.5">🩺 Iniciar consulta</button>
+            {pet.status !== "DECEASED" && <button onClick={togglePaliativo} title="Cuidados paliativos (silencia cobranças + apoio à família)" className="border rounded-[9px] px-3 py-2 text-[12.5px] flex items-center gap-1.5" style={(pet as any).cuidadoPaliativo ? { borderColor: "#6B4E9E", color: "#6B4E9E", background: "#fff" } : { borderColor: "#E8E2D6", color: "#5C6B70", background: "#fff" }}>{(pet as any).cuidadoPaliativo ? "↩️ Sair de paliativos" : "🕊️ Cuidados paliativos"}</button>}
             <button onClick={toggleObito} title="Registrar óbito / marcar vivo" className="border rounded-[9px] px-3 py-2 text-[12.5px] flex items-center gap-1.5" style={pet.status === "DECEASED" ? { borderColor: "#0F6E56", color: "#0F6E56", background: "#fff" } : { borderColor: "#E8E2D6", color: "#5C6B70", background: "#fff" }}>{pet.status === "DECEASED" ? "↩️ Marcar vivo" : "🕊️ Óbito"}</button>
             <button onClick={togglePetlife} title="Convênio Petlife" className="border rounded-[9px] px-3 py-2 text-[12.5px] flex items-center gap-1.5" style={/petlife/i.test(pet.insurancePlan || "") ? { borderColor: "#0C447C", color: "#0C447C", background: "#fff" } : { borderColor: "#E8E2D6", color: "#5C6B70", background: "#fff" }}>🩺 {/petlife/i.test(pet.insurancePlan || "") ? "Petlife ✓" : "Marcar Petlife"}</button>
             <button onClick={() => setShowValues((v) => !v)} className="border border-[#EAD9B6] bg-[#FBF6EC] rounded-[9px] px-3 py-2 text-[12.5px] text-[#8A5A0B] hover:border-[#E0A100] flex items-center gap-1.5">{showValues ? "🙈 Ocultar valores" : "👁️ Mostrar valores"}</button>

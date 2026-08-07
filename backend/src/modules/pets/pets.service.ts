@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { CreatePetDto } from './dto/create-pet.dto';
@@ -10,6 +11,7 @@ export class PetsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventsService: EventsService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   /** Histórico clínico (importado do SimplesVet) do pet, mais recente primeiro.
@@ -221,17 +223,27 @@ export class PetsService {
   }
 
   async update(id: string, updatePetDto: UpdatePetDto) {
-    await this.findById(id);
+    const antigo = await this.findById(id);
 
     const dados: any = { ...updatePetDto };
     if (dados.birthDate) { const d = new Date(dados.birthDate); dados.birthDate = isNaN(d.getTime()) ? undefined : d; }
-    return this.prisma.pet.update({
+    const atualizado = await this.prisma.pet.update({
       where: { id },
       data: dados,
       include: {
         tutor: true,
       },
     });
+    // 🕊️ Hospice: dispara os toques de carinho SÓ na transição (não a cada save).
+    try {
+      if (!(antigo as any)?.cuidadoPaliativo && atualizado.cuidadoPaliativo) {
+        this.eventEmitter.emit('crm.pet.paliativo', { petId: id });
+      }
+      if ((antigo as any)?.status !== 'DECEASED' && atualizado.status === 'DECEASED') {
+        this.eventEmitter.emit('crm.pet.faleceu', { petId: id });
+      }
+    } catch { /* evento nunca derruba o update */ }
+    return atualizado;
   }
 
   async remove(id: string) {

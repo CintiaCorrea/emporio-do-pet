@@ -60,6 +60,23 @@ export class CadenciasService implements OnModuleInit {
           { ordem: 3, titulo: 'Retorno / pontos', conteudo: 'Oi, {tutor}! Já está chegando a hora do retorno do(a) {pet} (avaliar cicatrização/retirar pontos). Quer que eu agende? 🌿', atrasoValor: 7, atrasoUnidade: 'DIAS' },
         ],
       },
+      {
+        gatilho: 'PET_PALIATIVO',
+        nome: 'Cuidados paliativos — apoio',
+        descricao: 'Acolhe a família quando o pet entra em cuidados de fim de vida (começa DESLIGADA — revise o tom).',
+        passos: [
+          { ordem: 1, titulo: 'Estamos aqui', conteudo: 'Oi, {tutor}. Sabemos que é um momento delicado com o(a) {pet}. Nossa equipe está aqui pra ajudar no que ele(a) precisar pra ficar confortável — dor, alimentação, qualquer dúvida. Conte com a gente. 💛', atrasoValor: 0, atrasoUnidade: 'MINUTOS' },
+          { ordem: 2, titulo: 'Como ele(a) está', conteudo: 'Oi, {tutor}. Só passando pra saber como o(a) {pet} está hoje. Se precisar de qualquer suporte, é só me chamar — estamos por perto. 🕊️', atrasoValor: 3, atrasoUnidade: 'DIAS' },
+        ],
+      },
+      {
+        gatilho: 'PET_FALECEU',
+        nome: 'Condolências (falecimento)',
+        descricao: 'Mensagem de carinho quando o pet parte (começa DESLIGADA — revise o tom).',
+        passos: [
+          { ordem: 1, titulo: 'Nossos sentimentos', conteudo: 'Oi, {tutor}. Ficamos muito tristes com a partida do(a) {pet}. Foi um privilégio cuidar dele(a) ao seu lado. Nossos sentimentos, de coração. 🕊️💛', atrasoValor: 2, atrasoUnidade: 'HORAS' },
+        ],
+      },
     ];
 
     let criadas = 0;
@@ -404,6 +421,32 @@ export class CadenciasService implements OnModuleInit {
     }
   }
 
+  // 🕊️ Hospice: pet marcado em cuidados paliativos → cadência de apoio (1x por pet).
+  @OnEvent('crm.pet.paliativo')
+  async onPetPaliativo(payload: { petId: string }) { await this.dispararHospice(payload.petId, 'PET_PALIATIVO', 'paliativo'); }
+
+  // 🕊️ Hospice: pet faleceu → cadência de condolências (1x por pet).
+  @OnEvent('crm.pet.faleceu')
+  async onPetFaleceu(payload: { petId: string }) { await this.dispararHospice(payload.petId, 'PET_FALECEU', 'faleceu'); }
+
+  private async dispararHospice(petId: string, gatilho: string, tag: string) {
+    try {
+      const pet = await this.prisma.pet.findUnique({ where: { id: petId }, include: { tutor: { include: { contacts: true } } } });
+      if (!pet) return;
+      const phone = this.bestPhone((pet as any).tutor?.contacts || []);
+      if (!phone) return;
+      await this.dispararGatilho(gatilho, {
+        tutorId: pet.tutorId,
+        petId: pet.id,
+        phone,
+        vars: { tutor: (pet as any).tutor?.name || '', pet: pet.name },
+        origemId: `${tag}:${pet.id}`,
+      });
+    } catch (e: any) {
+      this.logger.warn(`dispararHospice(${tag}): ${e?.message || e}`);
+    }
+  }
+
   // Polling: atendimentos finalizados / agendamentos confirmados recentes
   @Cron(CronExpression.EVERY_5_MINUTES)
   async varrerAtendimentos() {
@@ -503,6 +546,8 @@ export class CadenciasService implements OnModuleInit {
           include: { tutor: { include: { contacts: true } } },
         });
         if (!pet) continue;
+        // 🕊️ pet em cuidados paliativos ou falecido não recebe cobrança de renovação.
+        if ((pet as any).cuidadoPaliativo || pet.status === 'DECEASED') continue;
         const phone = this.bestPhone((pet as any).tutor?.contacts || []);
         if (!phone) continue;
         await this.dispararGatilho('PACOTE_PROXIMO_DO_FIM', {

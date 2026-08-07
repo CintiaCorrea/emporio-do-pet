@@ -441,6 +441,7 @@ model Pet {
   species              PetSpecies           @default(CANINE)
   breed                String?
   status               PetStatus            @default(ACTIVE)
+  cuidadoPaliativo     Boolean              @default(false) // 🕊️ pet em fim de vida: silencia cobranças + toques de carinho
   gender               Gender?
   sterilization        SterilizationStatus? @default(NOT_STERILIZED)
   birthDate            DateTime?
@@ -1936,6 +1937,8 @@ enum CadenciaGatilho {
   CLIENTE_INATIVO_90D
   POS_CIRURGICO
   CLIENTE_NOVO
+  PET_PALIATIVO
+  PET_FALECEU
   NIVER_PET
   NIVER_TUTOR
   MANUAL
