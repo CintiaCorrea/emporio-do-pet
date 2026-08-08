@@ -75,12 +75,12 @@ export class FornecedoresService {
     let afetados: number;
     if (sobrescrever) {
       afetados = forn
-        ? await this.prisma.$executeRaw`UPDATE catalogo_exames SET "valorClienteSugerido" = round(("valorFornecedor" * ${fator})::numeric, 2), "updatedAt" = now() WHERE "valorFornecedor" > 0 AND "fornecedorId" = ${forn}`
-        : await this.prisma.$executeRaw`UPDATE catalogo_exames SET "valorClienteSugerido" = round(("valorFornecedor" * ${fator})::numeric, 2), "updatedAt" = now() WHERE "valorFornecedor" > 0`;
+        ? await this.prisma.$executeRaw`UPDATE exa_catalogo SET "valorClienteSugerido" = round(("valorFornecedor" * ${fator})::numeric, 2), "updatedAt" = now() WHERE "valorFornecedor" > 0 AND "fornecedorId" = ${forn}`
+        : await this.prisma.$executeRaw`UPDATE exa_catalogo SET "valorClienteSugerido" = round(("valorFornecedor" * ${fator})::numeric, 2), "updatedAt" = now() WHERE "valorFornecedor" > 0`;
     } else {
       afetados = forn
-        ? await this.prisma.$executeRaw`UPDATE catalogo_exames SET "valorClienteSugerido" = round(("valorFornecedor" * ${fator})::numeric, 2), "updatedAt" = now() WHERE "valorFornecedor" > 0 AND "fornecedorId" = ${forn} AND ("valorClienteSugerido" IS NULL OR "valorClienteSugerido" = 0)`
-        : await this.prisma.$executeRaw`UPDATE catalogo_exames SET "valorClienteSugerido" = round(("valorFornecedor" * ${fator})::numeric, 2), "updatedAt" = now() WHERE "valorFornecedor" > 0 AND ("valorClienteSugerido" IS NULL OR "valorClienteSugerido" = 0)`;
+        ? await this.prisma.$executeRaw`UPDATE exa_catalogo SET "valorClienteSugerido" = round(("valorFornecedor" * ${fator})::numeric, 2), "updatedAt" = now() WHERE "valorFornecedor" > 0 AND "fornecedorId" = ${forn} AND ("valorClienteSugerido" IS NULL OR "valorClienteSugerido" = 0)`
+        : await this.prisma.$executeRaw`UPDATE exa_catalogo SET "valorClienteSugerido" = round(("valorFornecedor" * ${fator})::numeric, 2), "updatedAt" = now() WHERE "valorFornecedor" > 0 AND ("valorClienteSugerido" IS NULL OR "valorClienteSugerido" = 0)`;
     }
     return { atualizados: Number(afetados) };
   }
