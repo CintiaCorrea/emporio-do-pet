@@ -27,12 +27,6 @@ const TIPO_PILL: Record<Grupo, { bg: string; fg: string; emoji: string }> = {
   EXAME: { bg: "#F0E9F7", fg: "#6b3fa0", emoji: "🔬" },
 };
 
-const CHIPS: { v: string; label: string }[] = [
-  { v: "", label: "Todos" },
-  { v: "PRODUTO", label: "📦 Produtos" },
-  { v: "SERVICO", label: "🛎️ Serviços" },
-  { v: "EXAME", label: "🔬 Exames" },
-];
 
 const CSS = `
 .cat-page{width:100%;padding:2px 2px 48px}
@@ -104,8 +98,8 @@ export default function CatalogoPage() {
   const [fCtrlVal, setFCtrlVal] = useState<"" | "sim" | "nao">("");
   const [valDe, setValDe] = useState("");
   const [valAte, setValAte] = useState("");
-  const limparFiltros = () => { setFSit(""); setFGrupo(""); setFMarca(""); setFForn(""); setFCtrlVal(""); setValDe(""); setValAte(""); };
-  const nFiltros = [fSit, fGrupo, fMarca, fForn, fCtrlVal, valDe, valAte].filter(Boolean).length;
+  const limparFiltros = () => { setGrupo(""); setFSit(""); setFGrupo(""); setFMarca(""); setFForn(""); setFCtrlVal(""); setValDe(""); setValAte(""); };
+  const nFiltros = [grupo, fSit, fGrupo, fMarca, fForn, fCtrlVal, valDe, valAte].filter(Boolean).length;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -165,13 +159,6 @@ export default function CatalogoPage() {
       return true;
     });
   }, [itens, grupo, busca, fSit, fGrupo, fMarca, fForn, fCtrlVal, valDe, valAte]);
-
-  const cont = useMemo(() => ({
-    total: itens.length,
-    PRODUTO: itens.filter((i) => i.grupo === "PRODUTO").length,
-    SERVICO: itens.filter((i) => i.grupo === "SERVICO").length,
-    EXAME: itens.filter((i) => i.grupo === "EXAME").length,
-  }), [itens]);
 
   // Paginação: volta pra página 1 sempre que a busca/filtros mudam.
   useEffect(() => { setPage(1); }, [grupo, busca, fSit, fGrupo, fMarca, fForn, fCtrlVal, valDe, valAte]);
@@ -289,14 +276,6 @@ export default function CatalogoPage() {
         <button className="cat-btn" onClick={() => window.print()}>🖨️ Imprimir</button>
       </div>
 
-      <div className="cat-chips no-print">
-        {CHIPS.map((c) => (
-          <button key={c.v} className={`cat-chip ${grupo === c.v ? "on" : ""}`} onClick={() => setGrupo(c.v)}>
-            {c.label}{c.v ? ` (${(cont as any)[c.v]})` : ` (${cont.total})`}
-          </button>
-        ))}
-      </div>
-
       {grupo === "EXAME" && isAdmin && (
         <div className="no-print" style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", background: "#F0E9F7", border: "1px solid #E8E2D6", borderLeft: "4px solid #6b3fa0", borderRadius: 12, padding: "11px 15px", marginBottom: 14 }}>
           <span style={{ fontSize: 13, color: "#1F2A2E" }}>🔬 <b style={{ color: "#6b3fa0" }}>% padrão dos exames{fForn ? ` de ${fForn}` : ""}:</b></span>
@@ -318,16 +297,20 @@ export default function CatalogoPage() {
       {showFiltros && (
         <div className="cat-filtros no-print">
           <div className="cat-fgrid">
+            <div><label className="cat-flbl">Tipo</label>
+              <select className="cat-fin" value={grupo} onChange={(e) => setGrupo(e.target.value)}>
+                <option value="">Todos</option><option value="PRODUTO">📦 Produtos</option><option value="SERVICO">🛎️ Serviços</option><option value="EXAME">🔬 Exames</option>
+              </select></div>
             <div>
-              <label className="cat-flbl">Situação</label>
+              <label className="cat-flbl">Situação (Ativo)</label>
               <div className="cat-seg">
                 {([["", "Todos"], ["ativo", "Ativo"], ["inativo", "Inativo"]] as const).map(([v, l]) => (
                   <button key={v} className={fSit === v ? "on" : ""} onClick={() => setFSit(v as any)}>{l}</button>
                 ))}
               </div>
             </div>
-            <div><label className="cat-flbl">Grupo</label>
-              <select className="cat-fin" value={fGrupo} onChange={(e) => setFGrupo(e.target.value)}><option value="">Todos</option>{opts.grupos.map((g) => <option key={g} value={g}>{g}</option>)}</select></div>
+            <div><label className="cat-flbl">Categoria</label>
+              <select className="cat-fin" value={fGrupo} onChange={(e) => setFGrupo(e.target.value)}><option value="">Todas</option>{opts.grupos.map((g) => <option key={g} value={g}>{g}</option>)}</select></div>
             <div><label className="cat-flbl">Marca</label>
               <select className="cat-fin" value={fMarca} onChange={(e) => setFMarca(e.target.value)}><option value="">Todas</option>{opts.marcas.map((m) => <option key={m} value={m}>{m}</option>)}</select></div>
             <div><label className="cat-flbl">Fornecedor</label>
@@ -360,7 +343,7 @@ export default function CatalogoPage() {
             <thead>
               <tr>
                 <th className="no-print" style={{ width: 34, textAlign: "center" }}><input type="checkbox" checked={todosVisSel} onChange={toggleTodosVis} title="Selecionar todos (os filtrados)" /></th>
-                <th>Nome</th><th className="col-sec2">Fornecedor</th><th>Categoria</th>{isAdmin && <th className="r col-sec">Custo</th>}<th className="r" title="Markup: preço = custo × (1 + %). Editável nos exames.">%</th><th className="r">Preço</th><th>Comissão</th><th style={{ textAlign: "center" }}>Ativo</th><th className="no-print" style={{ textAlign: "center" }}>Ações</th>
+                <th>Nome <span style={{ color: "#8A928F", fontWeight: 400 }}>({filtrados.length})</span></th><th className="col-sec2">Fornecedor</th><th>Categoria</th>{isAdmin && <th className="r col-sec">Custo</th>}<th className="r" title="Markup: preço = custo × (1 + %). Editável nos exames.">%</th><th className="r">Preço</th><th>Comissão</th><th style={{ textAlign: "center" }}>Ativo</th><th className="no-print" style={{ textAlign: "center" }}>Ações</th>
               </tr>
             </thead>
             <tbody>
