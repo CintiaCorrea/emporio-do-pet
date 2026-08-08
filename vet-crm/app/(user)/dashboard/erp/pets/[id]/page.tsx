@@ -758,7 +758,9 @@ export default function PetDetailPage() {
   }
   async function loadCatalogos() {
     try { const r = await fetch(`/api/etiquetas/templates`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.templates || d.data || []); setTagTpls(arr.filter((t: any) => t.ativo !== false && (t.aplicaEm || []).includes("Pet"))); } catch {}
-    try { const r = await fetch(`/api/cadencias`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.cadencias || d.data || []); setCadOpts(arr); } catch {}
+    // #2 — inclui as sequências DESLIGADAS pra elas aparecerem no "+iniciar" da ficha (escolher por diagnóstico).
+    // Iniciar aqui só MARCA a sequência no pet (não dispara mensagem sozinho) — o envio automático é separado (ativo do template).
+    try { const r = await fetch(`/api/cadencias?includeInactive=true`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.cadencias || d.data || []); setCadOpts(arr); } catch {}
     try { const r = await fetch(`/api/servicos/itens`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.itens || d.data || d.servicos || []); setServicosCat(arr); setFisioSrv(arr.filter((srv: any) => JSON.stringify(srv).toLowerCase().includes("fisio"))); } catch {}
     try { const r = await fetch(`/api/fornecedores/exames/lista`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.exames || d.data || d.itens || []); setExCat(arr); } catch {}
     try { const r = await fetch(`/api/users`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.users || d.data || []); setVets(arr.filter((u: any) => !u.isBlocked)); } catch {}
