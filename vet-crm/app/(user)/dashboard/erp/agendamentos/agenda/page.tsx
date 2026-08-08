@@ -57,6 +57,7 @@ export default function AgendaPage() {
   const [appts, setAppts] = useState<any[]>([]);
   const [profs, setProfs] = useState<any[]>([]);
   const [avulsas, setAvulsas] = useState<any[]>([]); // agendas avulsas (Parceiro/MAP)
+  const [fisioEquipe, setFisioEquipe] = useState<string[]>([]); // userIds da equipe de fisio (Config)
   const [terceiroProf, setTerceiroProf] = useState<Record<string, { id: string; nome: string }>>({}); // appointmentId -> parceiro que atende
   const [arrastando, setArrastando] = useState<any>(null); // agendamento sendo arrastado (drag pra mudar horário)
   const { data: _sess } = useSession();
@@ -107,13 +108,15 @@ export default function AgendaPage() {
   async function load() {
     if (!jaCarregou.current) setLoading(true);
     try {
-      const [a, p, c, av, tp] = await Promise.all([
+      const [a, p, c, av, tp, fe] = await Promise.all([
         fetch("/api/appointments?limit=1000", { cache: "no-store" }).then((r) => r.json()).catch(() => []),
         fetch("/api/profissionais", { cache: "no-store" }).then((r) => r.json()).catch(() => []),
         fetch("/api/listas?lista=agenda_config", { cache: "no-store" }).then((r) => r.json()).catch(() => []),
         fetch("/api/listas?lista=agenda_avulsa", { cache: "no-store" }).then((r) => r.json()).catch(() => []),
         fetch("/api/listas?lista=agenda_terceiro_prof", { cache: "no-store" }).then((r) => r.json()).catch(() => []),
+        fetch("/api/listas?lista=fisio_equipe", { cache: "no-store" }).then((r) => r.json()).catch(() => []),
       ]);
+      try { const arr = Array.isArray(fe) ? fe : (fe.itens || fe.data || []); setFisioEquipe(arr.map((x: any) => x.valor).filter(Boolean)); } catch {}
       setAppts(Array.isArray(a) ? a : (a.data || a.appointments || a.items || []));
       setProfs(Array.isArray(p) ? p : (p.data || p.items || []));
       try { const arr = Array.isArray(c) ? c : (c.itens || c.data || []); if (arr[0]?.valor) setCfg(JSON.parse(arr[0].valor)); } catch {}
@@ -187,7 +190,9 @@ export default function AgendaPage() {
   function avulsaVisivelHoje(a: any) { const e = normEsc(a.horario); if (!temEscala(e)) return true; if (bloqueadoNoDia(e)) return doDia.some((x: any) => x.agendaAvulsa === a.id); return expedienteNoDia(e) || doDia.some((x: any) => x.agendaAvulsa === a.id); }
 
   const visiveis = useMemo(() => profsAtende.filter((p: any) => !hidden.has(p.id) && profVisivelHoje(p)), [profsAtende, hidden, externosDia, diaStr, doDia]);
-  const avulsasAtivas = useMemo(() => avulsas.filter((a: any) => a.ativo !== false), [avulsas]);
+  // Ordena as agendas avulsas por nome com ordenação NUMÉRICA (MAP 1, MAP 2, MAP 3… e depois Terceiros).
+  const avulsasAtivas = useMemo(() => avulsas.filter((a: any) => a.ativo !== false)
+    .sort((x: any, y: any) => String(x.nome || "").localeCompare(String(y.nome || ""), "pt-BR", { numeric: true })), [avulsas]);
   // Avulsa aparece se NÃO estiver desligada no seletor Filas (e for do dia); OU se já tiver
   // agendamento no dia (assim, mesmo desligada, ela volta quando tem algo marcado).
   const avulsasVis = useMemo(() => avulsasAtivas.filter((a: any) => (hidden.has(a.id) ? doDia.some((x: any) => x.agendaAvulsa === a.id) : avulsaVisivelHoje(a))), [avulsasAtivas, diaStr, doDia, hidden]);
@@ -348,16 +353,28 @@ export default function AgendaPage() {
   // #8 — quando a recepção marca "chegou", manda um aviso (pop-up) pro profissional do
   // atendimento. Usa o recado interno (caminho que já popa). Best-effort; não avisa a si mesmo.
   function notificarChegada(a: any) {
-    const vet = a.userId;
-    if (!vet || vet === meId) return;
-    if (a.user?.name) toast.success(`${a.user.name.split(" ")[0]} foi avisado(a) que o cliente chegou 🔔`, { duration: 2500 });
     const cliente = a.tutor?.name || "O cliente";
     const pet = a.pet?.name ? ` (${a.pet.name})` : "";
     const hora = (() => { try { return new Date(a.date).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }); } catch { return ""; } })();
-    fetch(`/api/internal-notes`, {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ toUserId: vet, content: `🚪 ${cliente}${pet} chegou${hora ? ` — agendamento das ${hora}` : ""}. Está na recepção.` }),
-    }).catch(() => undefined);
+    const avisar = (toUserId: string, texto: string) => {
+      if (!toUserId || toUserId === meId) return false;
+      fetch(`/api/internal-notes`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ toUserId, content: texto }) }).catch(() => undefined);
+      return true;
+    };
+    // MAP (Sala MAP) = agenda avulsa: o "profissional" costuma ser quem agendou, então avisa a
+    // EQUIPE DE FISIO (Config › lista fisio_equipe). Fora do MAP: avisa o profissional do atendimento.
+    const av = a.agendaAvulsa ? avulsas.find((x: any) => (x.id || x._id) === a.agendaAvulsa) : null;
+    const ehMap = !!av && (av.grupo === "Sala MAP" || /MAP/i.test(av.nome || ""));
+    if (ehMap) {
+      const sala = av?.nome || "MAP";
+      let n = 0;
+      for (const uid of fisioEquipe) { if (avisar(uid, `🚪 ${cliente}${pet} chegou${hora ? ` — ${hora}` : ""} na ${sala}. Está na recepção.`)) n++; }
+      if (n > 0) toast.success(`Equipe de fisio avisada — cliente chegou na ${sala} 🔔`, { duration: 2500 });
+      return;
+    }
+    if (avisar(a.userId, `🚪 ${cliente}${pet} chegou${hora ? ` — agendamento das ${hora}` : ""}. Está na recepção.`) && a.user?.name) {
+      toast.success(`${a.user.name.split(" ")[0]} foi avisado(a) que o cliente chegou 🔔`, { duration: 2500 });
+    }
   }
   // Volta o atendimento pro estágio anterior (corrigir clique errado). Por índice de estágio.
   const PREV_STATUS = [null, "Agendado", "Em espera", "Em atendimento"];
