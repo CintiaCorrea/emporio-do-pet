@@ -633,6 +633,10 @@ model Product {
   pacoteValidadeQtd     Int?
   pacoteValidadeUnidade String? // Dias | Meses
   pacoteTermos          String?         @db.Text
+  // 💊/🦵 PLANO por venda: ao vender no caixa, gera um plano com N sessões/doses na ficha do pet.
+  planoTipo          String? // FISIO (sessões) | MEDICAMENTO (doses/aplicações)
+  planoUnidades      Int? // sessões (fisio) ou doses (medicamento) por UNIDADE vendida
+  planoIntervaloDias Int? // dias entre doses (medicamento periódico)
   composicao          ProdutoComposicao[] @relation("ProdutoPai")
   componenteDe        ProdutoComposicao[] @relation("ProdutoFilho")
   estoqueMovimentos   EstoqueMovimento[]

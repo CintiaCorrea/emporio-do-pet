@@ -46,4 +46,8 @@ export class CreateProductDto {
   @ApiPropertyOptional() @IsOptional() @IsString() comissaoTipo?: string;
   @ApiPropertyOptional() @IsOptional() @IsNumber() comissaoValor?: number;
   @ApiPropertyOptional() @IsOptional() @IsString() fornecedorId?: string;
+  // Plano por venda (fisio/medicamento)
+  @ApiPropertyOptional() @IsOptional() @IsString() planoTipo?: string;
+  @ApiPropertyOptional() @IsOptional() @IsInt() planoUnidades?: number;
+  @ApiPropertyOptional() @IsOptional() @IsInt() planoIntervaloDias?: number;
 }

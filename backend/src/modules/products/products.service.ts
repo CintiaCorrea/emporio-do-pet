@@ -8,6 +8,7 @@ const PRODUCT_EXTRA_KEYS = [
   'codigoBarras', 'unidadeVenda', 'marca', 'categoryId', 'custoPadrao', 'proposito', 'markup',
   'exibeListaPreco', 'permiteAlterarPreco', 'controlaEstoque', 'estoqueMin', 'estoqueMax',
   'comissionado', 'comissaoTipo', 'comissaoValor', 'fornecedorId',
+  'planoTipo', 'planoUnidades', 'planoIntervaloDias',
 ] as const;
 
 @Injectable()
