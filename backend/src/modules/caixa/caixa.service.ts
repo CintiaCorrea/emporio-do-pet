@@ -600,6 +600,7 @@ export class CaixaService {
         if (pago >= Number(ap.value) - 0.001 && ap.paymentStatus !== 'PAID') {
           await this.prisma.appointment.update({ where: { id: ap.id }, data: { paymentStatus: 'PAID' } });
           await this.baixarEstoqueDaVenda(ap.id);
+          await this.criarPlanosDaVenda(ap.id); // #4 Fatia 1-B — venda de item-plano cria o plano na ficha
         }
       }
     }
@@ -644,6 +645,40 @@ export class CaixaService {
     } catch (e: any) {
       // não pode quebrar o recebimento (a venda já foi registrada)
       console.error('baixarEstoqueDaVenda erro:', e?.message);
+    }
+  }
+
+  // #4 Fatia 1-B — quando a venda é paga, os itens marcados como PLANO geram o plano na ficha do pet:
+  //   FISIO → Pacote (sessões = sessões-por-pacote × quantidade)
+  //   MEDICAMENTO → ProtocoloAplicado tipo OUTRO (doses = quantidade, espaçadas pelo intervalo)
+  // Best-effort: nunca quebra o recebimento. Roda 1x (só na transição p/ PAID).
+  private async criarPlanosDaVenda(appointmentId: string) {
+    try {
+      const ap = await this.prisma.appointment.findUnique({ where: { id: appointmentId }, select: { petId: true, tutorId: true } });
+      if (!ap?.petId) return; // sem pet vinculado → não dá pra criar plano na ficha
+      const itens = await this.prisma.appointmentItem.findMany({ where: { appointmentId, productId: { not: null } }, select: { productId: true, quantidade: true } });
+      for (const it of itens) {
+        if (!it.productId) continue;
+        const prod = await this.prisma.product.findUnique({ where: { id: it.productId }, select: { name: true, planoTipo: true, planoUnidades: true, planoIntervaloDias: true } });
+        if (!prod?.planoTipo) continue;
+        const qtd = Math.max(1, Math.round(Number(it.quantidade) || 1));
+        if (prod.planoTipo === 'FISIO') {
+          const sessoes = Math.max(1, (Number(prod.planoUnidades) || 1) * qtd);
+          await this.prisma.pacote.create({
+            data: { petId: ap.petId, tutorId: ap.tutorId ?? null, servico: prod.name || 'Fisioterapia', descricao: 'Gerado pela venda no caixa', totalSessoes: sessoes },
+          }).catch((e: any) => console.error('criarPlano fisio:', e?.message));
+        } else if (prod.planoTipo === 'MEDICAMENTO') {
+          const doses = Math.max(1, qtd);
+          const intervalo = Math.max(1, Number(prod.planoIntervaloDias) || 30);
+          const inicio = new Date();
+          const dosesData = Array.from({ length: doses }, (_, k) => ({ numero: k + 1, dataPrevista: new Date(inicio.getTime() + k * intervalo * 86400000), status: 'PENDENTE' }));
+          await this.prisma.protocoloAplicado.create({
+            data: { petId: ap.petId, tutorId: ap.tutorId ?? null, tipo: 'OUTRO', nomeProtocolo: prod.name || 'Medicamento periódico', dataInicial: inicio, appointmentId, doses: { create: dosesData } },
+          }).catch((e: any) => console.error('criarPlano medicamento:', e?.message));
+        }
+      }
+    } catch (e: any) {
+      console.error('criarPlanosDaVenda erro:', e?.message);
     }
   }
 
