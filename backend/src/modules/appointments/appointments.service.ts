@@ -52,7 +52,12 @@ export class AppointmentsService {
     const hora = mn && mn !== '00' ? `${hh}h${mn}` : `${hh}h`;
     const tutor = (appt.tutor?.name || 'tutor').trim().split(/\s+/)[0];
     const pet = appt.pet?.name || 'seu pet';
-    const prof = (appt.user?.name || 'nossa equipe').trim();
+    // #12 — o "profissional" só sai com NOME se for veterinário. Se o agendamento estiver com
+    // recepcionista/gerente no userId (quem operou), sai "nossa equipe" pra não mandar o nome errado
+    // (bug do caso Julianna 07/08: confirmação saiu no nome da recepcionista Maria Gabriela).
+    const profTipo = appt.user?.profissional?.tipo;
+    const profNome = (appt.user?.profissional?.nomeExibicao || appt.user?.name || '').trim();
+    const prof = (profTipo === 'RECEPCIONISTA' || profTipo === 'GERENTE' || !profNome) ? 'nossa equipe' : profNome;
     const T = (text: string) => ({ type: 'text' as const, text });
 
     if (this.isFisio(appt)) {
@@ -578,7 +583,7 @@ export class AppointmentsService {
             weight: true,
           },
         },
-        user: { select: { id: true, name: true, email: true } },
+        user: { select: { id: true, name: true, email: true, role: true, profissional: { select: { tipo: true, nomeExibicao: true } } } },
         treatments: {
           include: {
             product: { select: { id: true, name: true, type: true, price: true } },
