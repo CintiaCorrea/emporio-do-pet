@@ -42,6 +42,21 @@ export default function RecadoPopup() {
   const seen = useRef<Set<string>>(new Set());
   const baseline = useRef(false);
 
+  // #9 — sincroniza a baixa entre ABAS: quando um aviso é resolvido numa aba, avisa as
+  // outras pra tirarem da fila também (senão continua popando nas abas que já estavam abertas).
+  const bc = useRef<BroadcastChannel | null>(null);
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof BroadcastChannel === 'undefined') return;
+    const ch = new BroadcastChannel('recado-popup');
+    bc.current = ch;
+    ch.onmessage = (ev) => {
+      const id = (ev.data as any)?.id;
+      if (id) { seen.current.add(id); setFila((f) => f.filter((x) => x.id !== id)); }
+    };
+    return () => { ch.close(); bc.current = null; };
+  }, []);
+  const avisarOutrasAbas = useCallback((id: string) => { try { bc.current?.postMessage({ id }); } catch { /* noop */ } }, []);
+
   const carregar = useCallback(async () => {
     if (!meId) return;
     try {
@@ -80,6 +95,12 @@ export default function RecadoPopup() {
         baseline.current = true;
         return;
       }
+
+      // #9 — RECONCILIA com a verdade do servidor: se um aviso já não vem mais como
+      // "não-lido" (foi resolvido nesta OU em outra aba), tira ele da fila aqui também.
+      // Cobre o caso do BroadcastChannel não chegar (aba em outro processo, etc.).
+      const idsNaoLidos = new Set(candidatos.map((c) => c.id));
+      setFila((prev) => (prev.some((p) => !idsNaoLidos.has(p.id)) ? prev.filter((p) => idsNaoLidos.has(p.id)) : prev));
 
       // Depois: só o que ainda não vimos = aviso novo.
       const novos = candidatos.filter((c) => !seen.current.has(c.id));
@@ -138,7 +159,8 @@ export default function RecadoPopup() {
       : `/api/notifications/${item.id}/read`;
     try { await fetch(url, { method: 'PATCH' }); } catch { /* segue mesmo assim */ }
     removerAtual(item.id);
-  }, [removerAtual]);
+    avisarOutrasAbas(item.id); // #9 — some das outras abas também
+  }, [removerAtual, avisarOutrasAbas]);
 
   const abrir = useCallback(async () => {
     if (!atual || saindo) return;
@@ -187,7 +209,8 @@ export default function RecadoPopup() {
   const dispensar = useCallback(() => {
     if (!atual) return;
     removerAtual(atual.id); // já está no seen-set, não volta a popar
-  }, [atual, removerAtual]);
+    avisarOutrasAbas(atual.id); // #9 — fecha nas outras abas também
+  }, [atual, removerAtual, avisarOutrasAbas]);
 
   if (!atual) return null;
 

@@ -99,18 +99,25 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
   }, [tutor]);
 
   useEffect(() => {
-    if (!userId || !date) { setDayAppts([]); return; }
+    // #11 — Ocupação da agenda AVULSA (MAP/parceiro) é POR AGENDA, não por profissional:
+    // busca o dia INTEIRO (todos os profissionais) e o `busy` filtra pela agenda. Antes buscava
+    // só pelo userId selecionado → horário ocupado por OUTRO fisio no mesmo MAP aparecia livre.
+    // Sem agenda avulsa (coluna do profissional): mantém a busca por userId.
+    if (!date || (!agendaAvulsa && !userId)) { setDayAppts([]); return; }
     let cancelled = false;
     (async () => {
       try {
-        const r = await fetch(`/api/appointments?userId=${userId}&startDate=${date}T00:00:00&endDate=${date}T23:59:59&limit=200`, { cache: "no-store" });
+        const q = agendaAvulsa
+          ? `startDate=${date}T00:00:00&endDate=${date}T23:59:59&limit=500`
+          : `userId=${userId}&startDate=${date}T00:00:00&endDate=${date}T23:59:59&limit=200`;
+        const r = await fetch(`/api/appointments?${q}`, { cache: "no-store" });
         const d = await r.json();
         const arr = Array.isArray(d) ? d : (d.appointments || d.data || []);
         if (!cancelled) setDayAppts(arr);
       } catch { if (!cancelled) setDayAppts([]); }
     })();
     return () => { cancelled = true; };
-  }, [userId, date]);
+  }, [userId, date, agendaAvulsa]);
 
   const telOf = (t: any) => (t?.contacts?.[0]?.number) || (t?.contacts?.[0]?.value) || t?.phone || "";
   const petNomes = (t: any) => (t?.pets || []).map((p: any) => p.name).filter(Boolean);
