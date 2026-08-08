@@ -42,21 +42,6 @@ const CSS = `
 .cat-chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
 .cat-chip{border:1px solid #E8E2D6;background:#fff;color:#5C6B70;border-radius:999px;padding:6px 13px;font-size:12.5px;cursor:pointer;font-weight:500}
 .cat-chip.on{background:#009AAC;border-color:#009AAC;color:#fff}
-/* Chips de filtro (Fornecedor/Categoria/Situação) */
-.cat-fchips{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
-.cat-fchip{border:1px dashed #C9D3D2;background:#fff;color:#5C6B70;border-radius:999px;padding:6px 13px;font-size:12.5px;cursor:pointer;font-weight:500;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
-.cat-fchip:hover,.cat-fchip.open{border-color:#009AAC;color:#009AAC}
-.cat-fchip.on{border-style:solid;border-color:#009AAC;background:#EAF6F7;color:#014D5E}
-.cat-fchip-x{border:none;background:none;color:#5C8A90;cursor:pointer;font-size:12px;padding:0 0 0 2px;line-height:1}
-.cat-fchip-x:hover{color:#c0392b}
-.cat-fchip-clear{border:none;background:none;color:#8A928F;cursor:pointer;font-size:12px;text-decoration:underline;padding:4px 6px}
-.cat-fmenu{position:absolute;top:calc(100% + 6px);left:0;z-index:20;background:#fff;border:1px solid #E8E2D6;border-radius:12px;box-shadow:0 8px 24px rgba(1,77,94,.12);padding:6px;min-width:200px;max-width:280px}
-.cat-fmenu-in{width:100%;box-sizing:border-box;border:1px solid #E8E2D6;border-radius:8px;padding:6px 8px;font-size:12.5px;margin-bottom:6px;outline:none}
-.cat-fmenu-in:focus{border-color:#009AAC}
-.cat-fmenu-list{max-height:240px;overflow-y:auto;display:flex;flex-direction:column}
-.cat-fmenu-list button{text-align:left;border:none;background:none;padding:7px 9px;border-radius:8px;font-size:12.5px;color:#374151;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.cat-fmenu-list button:hover{background:#F0FBFC;color:#00798A}
-.cat-fmenu-empty{padding:8px 9px;font-size:12px;color:#8A928F}
 .cat-filtros{background:#FBF9F4;border:1px solid #E8E2D6;border-radius:12px;padding:14px 16px;margin-bottom:14px}
 .cat-fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px 14px}
 .cat-flbl{display:block;font-size:11px;color:#374151;font-weight:500;margin-bottom:4px;text-transform:uppercase;letter-spacing:.03em}
@@ -85,46 +70,6 @@ const CSS = `
 .cat-sit{font-size:11px;padding:2px 9px;border-radius:999px}
 @media print{ .no-print{display:none!important} body{background:#fff} .cat-page{padding:0} }
 `;
-
-// Chip de filtro: pílula "+ Rótulo" que abre um menu; ao escolher vira "Rótulo: valor ✕".
-function ChipFilter({ label, valueLabel, options, onPick, onClear, open, onToggle }: {
-  label: string;
-  valueLabel: string | null;
-  options: { v: string; label: string }[];
-  onPick: (v: string) => void;
-  onClear: () => void;
-  open: boolean;
-  onToggle: () => void;
-}) {
-  const [q, setQ] = useState("");
-  const filtered = q ? options.filter((o) => o.label.toLowerCase().includes(q.toLowerCase())) : options;
-  return (
-    <div style={{ position: "relative" }}>
-      {valueLabel ? (
-        <span className="cat-fchip on">
-          {label}: <b style={{ fontWeight: 600 }}>{valueLabel}</b>
-          <button onClick={onClear} title="Remover filtro" className="cat-fchip-x">✕</button>
-        </span>
-      ) : (
-        <button className={`cat-fchip ${open ? "open" : ""}`} onClick={onToggle}>+ {label}</button>
-      )}
-      {open && !valueLabel && (
-        <div className="cat-fmenu">
-          {options.length > 8 && (
-            <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="buscar…" className="cat-fmenu-in" />
-          )}
-          <div className="cat-fmenu-list">
-            {filtered.length === 0 ? (
-              <div className="cat-fmenu-empty">nada encontrado</div>
-            ) : filtered.map((o) => (
-              <button key={o.v} onClick={() => onPick(o.v)}>{o.label}</button>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
 
 export default function CatalogoPage() {
   usePageTitle("Produtos e Serviços", "Catálogo completo — produtos, serviços e exames num lugar só.");
@@ -161,8 +106,6 @@ export default function CatalogoPage() {
   const [valAte, setValAte] = useState("");
   const limparFiltros = () => { setFSit(""); setFGrupo(""); setFMarca(""); setFForn(""); setFCtrlVal(""); setValDe(""); setValAte(""); };
   const nFiltros = [fSit, fGrupo, fMarca, fForn, fCtrlVal, valDe, valAte].filter(Boolean).length;
-  // Qual chip de filtro está com o menu aberto (fornecedor / categoria / situação).
-  const [chipOpen, setChipOpen] = useState<"forn" | "cat" | "sit" | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -354,32 +297,6 @@ export default function CatalogoPage() {
         ))}
       </div>
 
-      {/* Filtros em pílula: Fornecedor, Categoria e Situação (escolhe → vira etiqueta com ✕). */}
-      <div className="cat-fchips no-print">
-        {chipOpen && <div onClick={() => setChipOpen(null)} style={{ position: "fixed", inset: 0, zIndex: 5 }} />}
-        <ChipFilter
-          label="Fornecedor" valueLabel={fForn || null}
-          options={opts.forns.map((f) => ({ v: f, label: f }))}
-          onPick={(v) => { setFForn(v); setChipOpen(null); }} onClear={() => setFForn("")}
-          open={chipOpen === "forn"} onToggle={() => setChipOpen(chipOpen === "forn" ? null : "forn")}
-        />
-        <ChipFilter
-          label="Categoria" valueLabel={fGrupo || null}
-          options={opts.grupos.map((g) => ({ v: g, label: g }))}
-          onPick={(v) => { setFGrupo(v); setChipOpen(null); }} onClear={() => setFGrupo("")}
-          open={chipOpen === "cat"} onToggle={() => setChipOpen(chipOpen === "cat" ? null : "cat")}
-        />
-        <ChipFilter
-          label="Situação" valueLabel={fSit === "ativo" ? "Só ativos" : fSit === "inativo" ? "Só inativos" : null}
-          options={[{ v: "ativo", label: "Só ativos" }, { v: "inativo", label: "Só inativos" }]}
-          onPick={(v) => { setFSit(v as any); setChipOpen(null); }} onClear={() => setFSit("")}
-          open={chipOpen === "sit"} onToggle={() => setChipOpen(chipOpen === "sit" ? null : "sit")}
-        />
-        {(fForn || fGrupo || fSit) && (
-          <button className="cat-fchip-clear" onClick={() => { setFForn(""); setFGrupo(""); setFSit(""); }}>limpar</button>
-        )}
-      </div>
-
       {grupo === "EXAME" && isAdmin && (
         <div className="no-print" style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", background: "#F0E9F7", border: "1px solid #E8E2D6", borderLeft: "4px solid #6b3fa0", borderRadius: 12, padding: "11px 15px", marginBottom: 14 }}>
           <span style={{ fontSize: 13, color: "#1F2A2E" }}>🔬 <b style={{ color: "#6b3fa0" }}>% padrão dos exames{fForn ? ` de ${fForn}` : ""}:</b></span>
@@ -394,7 +311,7 @@ export default function CatalogoPage() {
             <input type="checkbox" checked={sobrescrever} onChange={(e) => setSobrescrever(e.target.checked)} />
             {sobrescrever ? "em todos (reescreve preços)" : "só nos que ainda não têm preço"}
           </label>
-          <span style={{ fontSize: 11.5, color: "#8a6400" }}>preço = custo do lab × (1 + %). {fForn ? "Só neste laboratório (chip Fornecedor)." : "Dica: escolha um Fornecedor no chip acima pra precificar só aquele laboratório."} Depois ajuste item a item.</span>
+          <span style={{ fontSize: 11.5, color: "#8a6400" }}>preço = custo do lab × (1 + %). {fForn ? "Só neste laboratório (filtro Fornecedor)." : "Dica: escolha um Fornecedor em 🔎 Filtros pra precificar só aquele laboratório."} Depois ajuste item a item.</span>
         </div>
       )}
 
