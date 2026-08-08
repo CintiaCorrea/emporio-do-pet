@@ -360,12 +360,12 @@ export default function CatalogoPage() {
             <thead>
               <tr>
                 <th className="no-print" style={{ width: 34, textAlign: "center" }}><input type="checkbox" checked={todosVisSel} onChange={toggleTodosVis} title="Selecionar todos (os filtrados)" /></th>
-                <th>Nome</th><th className="col-sec2">Fornecedor</th><th>Categoria</th>{isAdmin && <th className="r col-sec">Custo</th>}<th className="r">Preço</th><th>Comissão</th><th style={{ textAlign: "center" }}>Ativo</th><th className="no-print" style={{ textAlign: "center" }}>Ações</th>
+                <th>Nome</th><th className="col-sec2">Fornecedor</th><th>Categoria</th>{isAdmin && <th className="r col-sec">Custo</th>}<th className="r" title="Markup: preço = custo × (1 + %). Editável nos exames.">%</th><th className="r">Preço</th><th>Comissão</th><th style={{ textAlign: "center" }}>Ativo</th><th className="no-print" style={{ textAlign: "center" }}>Ações</th>
               </tr>
             </thead>
             <tbody>
-              {loading && <tr><td colSpan={isAdmin ? 9 : 8} className="cat-empty">Carregando catálogo…</td></tr>}
-              {!loading && filtrados.length === 0 && <tr><td colSpan={isAdmin ? 9 : 8} className="cat-empty">Nenhum item encontrado.</td></tr>}
+              {loading && <tr><td colSpan={isAdmin ? 10 : 9} className="cat-empty">Carregando catálogo…</td></tr>}
+              {!loading && filtrados.length === 0 && <tr><td colSpan={isAdmin ? 10 : 9} className="cat-empty">Nenhum item encontrado.</td></tr>}
               {!loading && paginados.map((it) => {
                 const pill = TIPO_PILL[it.grupo];
                 const mk = markupDe(it.custo, it.preco);
@@ -378,6 +378,32 @@ export default function CatalogoPage() {
                     <td className="cat-forn col-sec2" style={{ color: it.fornecedor ? "#5C6B70" : "#374151" }}>{it.fornecedor || "—"}</td>
                     <td style={{ color: it.categoria ? "#5C6B70" : "#374151" }}>{it.categoria || "—"}</td>
                     {isAdmin && <td className="r col-sec" style={{ color: "#5C6B70" }}>{brl(it.custo)}</td>}
+                    <td className="r" onClick={(e) => e.stopPropagation()}>
+                      {it.grupo === "EXAME" ? (
+                        (it.custo && it.custo > 0) ? (
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: 3, justifyContent: "flex-end" }}>
+                            <input
+                              value={percEdits[it.key] ?? (markupDe(it.custo, it.preco) ?? "")}
+                              onChange={(e) => setPercEdits((m) => ({ ...m, [it.key]: e.target.value }))}
+                              onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                              onBlur={() => {
+                                const v = percEdits[it.key];
+                                if (v === undefined || v === "") return;
+                                if (Number(String(v).replace(",", ".")) === markupDe(it.custo, it.preco)) { setPercEdits((m) => { const n = { ...m }; delete n[it.key]; return n; }); return; }
+                                salvarPercExame(it, v);
+                              }}
+                              inputMode="decimal"
+                              disabled={savingPerc === it.key}
+                              title="Digite a % e tecle Enter — o preço recalcula (custo × (1 + %)) e salva."
+                              style={{ width: 46, textAlign: "right", border: "1px solid #E8E2D6", borderRadius: 6, padding: "3px 5px", fontSize: 12.5, fontFamily: "inherit", outline: "none", color: "#1F2A2E" }}
+                            />
+                            <span style={{ fontSize: 11, color: "#8A928F" }}>{savingPerc === it.key ? "⏳" : "%"}</span>
+                          </span>
+                        ) : <span style={{ color: "#B08900", fontSize: 11 }} title="Sem custo do laboratório — não dá pra calcular a %.">s/ custo</span>
+                      ) : (
+                        <span style={{ color: "#8A928F" }}>{markupDe(it.custo, it.preco) != null ? `${markupDe(it.custo, it.preco)}%` : "—"}</span>
+                      )}
+                    </td>
                     <td className="r" style={{ color: "#014D5E", fontWeight: 500 }}>{brl(it.preco)}</td>
                     <td style={{ color: "#5C6B70" }}>{it.grupo === "EXAME" ? "—" : (COM_LABEL[it.comissao || "HERDAR"] || "Herdar")}</td>
                     <td style={{ textAlign: "center" }} onClick={(e) => e.stopPropagation()}>
