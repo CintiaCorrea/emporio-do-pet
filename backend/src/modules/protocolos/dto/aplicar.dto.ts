@@ -14,6 +14,7 @@ export class AplicarProtocoloDto {
   @ApiPropertyOptional({ description: 'Intervalo entre doses em dias (protocolo Outros)' })
   @IsOptional() @IsInt() @Min(0) intervaloDias?: number;
   @ApiPropertyOptional() @IsOptional() @IsString() observacao?: string;
+  @ApiPropertyOptional({ description: 'Marca da vacina/produto (ex: Zoetis)' }) @IsOptional() @IsString() marca?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() appointmentId?: string;
 }
 

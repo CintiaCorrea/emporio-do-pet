@@ -1914,6 +1914,7 @@ export default function PetDetailPage() {
                         { label: "Observação", ic: "📝", bg: "#EFEEE9", fg: "#6B6A63", act: () => { setObsVal(pet?.observations || ""); setAtdOpen(false); setArtefato("OBS"); } },
                         { label: "Patologia", ic: "🦠", bg: "#F3E8F5", fg: "#8E4585", act: async () => { await abrirDocumento(); setDocModeloNome("Laudo de patologia"); } },
                         { label: "Vacina", ic: "💉", bg: "#FBF3D9", fg: "#C2952E", act: () => setMainTab("VACINAS") },
+                        { label: "Internação", ic: "🏥", bg: "#F7E9EB", fg: "#9b2c3a", act: () => router.push(`/dashboard/erp/internacoes?pet=${encodeURIComponent(pet?.name || "")}&petId=${petId}`) },
                         { label: "Gravar consulta", ic: "🎤", bg: "#FCE9E7", fg: "#B0403A", act: () => router.push(`/dashboard/erp/pets/${petId}/atendimentos/novo`) },
                       ] as const).map((c) => (
                         <button key={c.label} onClick={c.act} className="flex flex-col items-center justify-center gap-1.5 rounded-[12px] px-3 py-4 text-white transition hover:-translate-y-0.5" style={{ background: c.fg, boxShadow: "0 3px 8px rgba(1,30,36,.10)" }}>

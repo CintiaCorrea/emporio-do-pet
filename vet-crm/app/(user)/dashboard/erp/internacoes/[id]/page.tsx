@@ -144,7 +144,7 @@ export default function FichaInternacaoPage() {
   const [vitais, setVitais] = useState<any[]>([]);
   const [fluidos, setFluidos] = useState<any[]>([]);
   const [vitalOpen, setVitalOpen] = useState(false);
-  const [vitalForm, setVitalForm] = useState<any>({ fc: "", fr: "", temp: "", pa: "", mucosa: "Rósea", dor: "0", peso: "" });
+  const [vitalForm, setVitalForm] = useState<any>({ fc: "", fr: "", temp: "", pa: "", sat: "", mucosa: "Rósea", dor: "0", peso: "" });
   const [vitalSaving, setVitalSaving] = useState(false);
   // Agendamento das aferições (mesmo esquema das medicações) — guardado em vitalSigns.aferiCfg
   const [aferiFreq, setAferiFreq] = useState("");
@@ -400,13 +400,13 @@ export default function FichaInternacaoPage() {
   };
 
   // ── Sinais vitais & fluidos (F4) ──────────────────────────────────
-  const abrirVital = () => { setVitalEditId(""); setVitalForm({ fc: "", fr: "", temp: "", pa: "", mucosa: "Rósea", dor: "0", peso: "" }); setVitalOpen(true); };
-  const abrirVitalEdit = (v: any) => { setVitalEditId(v.id); setVitalForm({ fc: v.fc ?? "", fr: v.fr ?? "", temp: v.temp ?? "", pa: v.pa ?? "", mucosa: v.mucosa || "Rósea", dor: String(v.dor ?? "0"), peso: v.peso ?? "" }); setVitalOpen(true); };
+  const abrirVital = () => { setVitalEditId(""); setVitalForm({ fc: "", fr: "", temp: "", pa: "", sat: "", mucosa: "Rósea", dor: "0", peso: "" }); setVitalOpen(true); };
+  const abrirVitalEdit = (v: any) => { setVitalEditId(v.id); setVitalForm({ fc: v.fc ?? "", fr: v.fr ?? "", temp: v.temp ?? "", pa: v.pa ?? "", sat: v.sat ?? "", mucosa: v.mucosa || "Rósea", dor: String(v.dor ?? "0"), peso: v.peso ?? "" }); setVitalOpen(true); };
   const registrarVital = async () => {
-    if (![vitalForm.fc, vitalForm.fr, vitalForm.temp, vitalForm.pa, vitalForm.peso].some((x) => String(x).trim())) { alert("Preencha ao menos um sinal vital ou o peso."); return; }
+    if (![vitalForm.fc, vitalForm.fr, vitalForm.temp, vitalForm.pa, vitalForm.peso, vitalForm.sat].some((x) => String(x).trim())) { alert("Preencha ao menos um sinal vital ou o peso."); return; }
     setVitalSaving(true);
     try {
-      const campos = { fc: vitalForm.fc, fr: vitalForm.fr, temp: vitalForm.temp, pa: vitalForm.pa, mucosa: vitalForm.mucosa, dor: vitalForm.dor, peso: vitalForm.peso };
+      const campos = { fc: vitalForm.fc, fr: vitalForm.fr, temp: vitalForm.temp, pa: vitalForm.pa, sat: vitalForm.sat, mucosa: vitalForm.mucosa, dor: vitalForm.dor, peso: vitalForm.peso };
       if (vitalEditId) {
         const orig = vitais.find((x: any) => x.id === vitalEditId) || {};
         const valor = JSON.stringify({ at: orig.at, hora: orig.hora, ...campos, por: orig.por || userName });
@@ -419,7 +419,7 @@ export default function FichaInternacaoPage() {
         const cd = await r.json().catch(() => null);
         await logInterno("criou", "vital", cd?.id || "", null, campos);
       }
-      setVitalForm({ fc: "", fr: "", temp: "", pa: "", mucosa: "Rósea", dor: "0", peso: "" }); setVitalEditId(""); setVitalOpen(false); load();
+      setVitalForm({ fc: "", fr: "", temp: "", pa: "", sat: "", mucosa: "Rósea", dor: "0", peso: "" }); setVitalEditId(""); setVitalOpen(false); load();
     } catch { alert("Erro ao registrar aferição."); }
     finally { setVitalSaving(false); }
   };
@@ -783,7 +783,7 @@ export default function FichaInternacaoPage() {
       ``,
       `🌡️ *Sinais vitais:*`,
       `• Temp: ${v.temp ? `${v.temp}°C` : PLC}  • FC: ${v.fc || PLC}  • FR: ${v.fr || PLC}`,
-      `• Mucosa: ${v.mucosa || PLC}`,
+      `• SpO₂: ${v.sat ? `${v.sat}%` : PLC}  • Mucosa: ${v.mucosa || PLC}`,
       `• Alimentação: ${f.alimentacao || PLC}`,
       `• Xixi/Fezes: ${xixiFezes}`,
       ``,
@@ -1491,14 +1491,14 @@ export default function FichaInternacaoPage() {
                   <div className="overflow-x-auto mt-3">
                     <table className="w-full text-[12.5px]">
                       <thead><tr className="text-[10px] text-[#374151] uppercase tracking-wide">
-                        <th className="text-left font-medium px-3 py-2">Hora</th><th className="text-left font-medium px-2 py-2">Peso</th><th className="text-left font-medium px-2 py-2">FC</th><th className="text-left font-medium px-2 py-2">FR</th><th className="text-left font-medium px-2 py-2">Temp</th><th className="text-left font-medium px-2 py-2">PA</th><th className="text-left font-medium px-2 py-2">Mucosa</th><th className="text-left font-medium px-2 py-2">Dor</th><th className="text-left font-medium px-2 py-2">Por</th><th className="px-2 py-2"></th>
+                        <th className="text-left font-medium px-3 py-2">Hora</th><th className="text-left font-medium px-2 py-2">Peso</th><th className="text-left font-medium px-2 py-2">FC</th><th className="text-left font-medium px-2 py-2">FR</th><th className="text-left font-medium px-2 py-2">Temp</th><th className="text-left font-medium px-2 py-2">PA</th><th className="text-left font-medium px-2 py-2">SpO₂</th><th className="text-left font-medium px-2 py-2">Mucosa</th><th className="text-left font-medium px-2 py-2">Dor</th><th className="text-left font-medium px-2 py-2">Por</th><th className="px-2 py-2"></th>
                       </tr></thead>
                       <tbody>
                         {vitaisOrd.map((v) => (
                           <tr key={v.id} className="border-t tabular-nums" style={{ borderColor: "#F0EBE0" }}>
                             <td className="px-3 py-2 whitespace-nowrap">{v.hora || "—"}</td><td className="px-2 py-2 whitespace-nowrap font-medium" style={{ color: "#014D5E" }}>{v.peso ? `${v.peso} kg` : "—"}</td><td className="px-2 py-2">{v.fc || "—"}</td><td className="px-2 py-2">{v.fr || "—"}</td>
                             <td className="px-2 py-2 whitespace-nowrap" style={tempForaFaixa(v.temp) ? { color: "#CC3366", fontWeight: 500 } : {}}>{v.temp ? `${v.temp}°` : "—"}</td>
-                            <td className="px-2 py-2 whitespace-nowrap">{v.pa || "—"}</td><td className="px-2 py-2">{v.mucosa || "—"}</td><td className="px-2 py-2">{v.dor ?? "—"}</td>
+                            <td className="px-2 py-2 whitespace-nowrap">{v.pa || "—"}</td><td className="px-2 py-2 whitespace-nowrap">{v.sat ? `${v.sat}%` : "—"}</td><td className="px-2 py-2">{v.mucosa || "—"}</td><td className="px-2 py-2">{v.dor ?? "—"}</td>
                             <td className="px-2 py-2 text-[#5C6B70] whitespace-nowrap">{v.por || "—"}</td>
                             <td className="px-2 py-2 text-right whitespace-nowrap">{!alta && podeEditar && <><button onClick={() => abrirVitalEdit(v)} className="text-[12px] px-1" title="Editar">✏️</button><button onClick={() => excluirVital(v.id)} className="text-[12px] px-1" title="Excluir">🗑️</button></>}</td>
                           </tr>
@@ -1830,6 +1830,8 @@ export default function FichaInternacaoPage() {
                 <input type="number" step="0.1" value={vitalForm.temp} onChange={(e) => setVitalForm({ ...vitalForm, temp: e.target.value })} placeholder="38.5" className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
               <div><label className="text-[11px] text-[#374151] block mb-1">PA (mmHg)</label>
                 <input value={vitalForm.pa} onChange={(e) => setVitalForm({ ...vitalForm, pa: e.target.value })} placeholder="110/70" className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
+              <div><label className="text-[11px] text-[#374151] block mb-1">SpO₂ (%)</label>
+                <input type="number" min={0} max={100} value={vitalForm.sat} onChange={(e) => setVitalForm({ ...vitalForm, sat: e.target.value })} placeholder="98" className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
               <div><label className="text-[11px] text-[#374151] block mb-1">Mucosa</label>
                 <select value={vitalForm.mucosa} onChange={(e) => setVitalForm({ ...vitalForm, mucosa: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }}>{MUCOSAS.map((m) => <option key={m} value={m}>{m}</option>)}</select></div>
               <div><label className="text-[11px] text-[#374151] block mb-1">Dor (0–4)</label>

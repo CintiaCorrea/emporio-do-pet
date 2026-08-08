@@ -149,6 +149,7 @@ export class ProtocolosService {
         tipo,
         templateId: template?.id ?? null,
         nomeProtocolo,
+        marca: dto.marca ?? null,
         dataInicial,
         observacao: dto.observacao ?? null,
         appointmentId: dto.appointmentId ?? null,

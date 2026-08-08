@@ -37,11 +37,12 @@ const CSS = `
 .cat-chip{border:1px solid #E8E2D6;background:#fff;color:#5C6B70;border-radius:999px;padding:6px 13px;font-size:12.5px;cursor:pointer;font-weight:500}
 .cat-chip.on{background:#009AAC;border-color:#009AAC;color:#fff}
 .cat-filtros{background:#FBF9F4;border:1px solid #E8E2D6;border-radius:12px;padding:14px 16px;margin-bottom:14px}
-.cat-fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px 14px}
-.cat-flbl{display:block;font-size:11px;color:#374151;font-weight:500;margin-bottom:4px;text-transform:uppercase;letter-spacing:.03em}
-.cat-fin{width:100%;border:1px solid #E8E2D6;border-radius:9px;padding:8px 10px;font-size:13px;font-family:inherit;background:#fff;color:#1F2A2E;box-sizing:border-box}
+.cat-fgrid{display:flex;flex-wrap:wrap;gap:9px 11px;align-items:flex-end}
+.cat-fgrid>div{flex:1 1 150px;min-width:135px;max-width:220px}
+.cat-flbl{display:block;font-size:10px;color:#374151;font-weight:600;margin-bottom:3px;text-transform:uppercase;letter-spacing:.03em}
+.cat-fin{width:100%;border:1px solid #E8E2D6;border-radius:8px;padding:6px 8px;font-size:12.5px;font-family:inherit;background:#fff;color:#1F2A2E;box-sizing:border-box}
 .cat-seg{display:inline-flex;border:1px solid #E8E2D6;border-radius:9px;overflow:hidden;width:100%}
-.cat-seg button{flex:1;border:none;background:#fff;font-family:inherit;font-size:12px;font-weight:500;color:#5C6B70;padding:8px 4px;cursor:pointer}
+.cat-seg button{flex:1;border:none;background:#fff;font-family:inherit;font-size:11px;font-weight:500;color:#5C6B70;padding:6px 4px;cursor:pointer}
 .cat-seg button.on{background:#014D5E;color:#fff}
 .cat-factions{display:flex;justify-content:flex-end;margin-top:12px}
 .cat-card{background:#fff;border:1px solid #E8E2D6;border-radius:14px;overflow:hidden}

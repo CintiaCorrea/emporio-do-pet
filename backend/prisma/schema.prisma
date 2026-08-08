@@ -2987,6 +2987,7 @@ model ProtocoloAplicado {
   templateId    String?
   template      ProtocoloTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
   nomeProtocolo String // snapshot do nome (ex: "V10 - Filhote (3 x 30 dias)")
+  marca         String? // marca da vacina/produto (ex: Zoetis, MSD) — informado na aplicação
   dataInicial   DateTime
   status        String             @default("EM_ANDAMENTO") // EM_ANDAMENTO | CONCLUIDO | CANCELADO
   observacao    String?

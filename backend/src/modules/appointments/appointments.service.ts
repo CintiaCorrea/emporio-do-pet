@@ -729,6 +729,9 @@ export class AppointmentsService {
           });
           return criado;
         });
+        // Reagendamento: avisa o cliente do NOVO dia/horário pelo WhatsApp (mesma confirmação
+        // do agendamento). Best-effort — se o WhatsApp falhar, a remarcação segue valendo.
+        this.sendConfirmation(novo.id).catch(() => undefined);
         return this.findById(novo.id);
       }
     }
