@@ -774,8 +774,33 @@ export default function PetDetailPage() {
   }
   async function addTag(texto: string) { setSavingTag(true); try { await listasAdd(`petetq_${petId}`, texto); toast.success("Etiqueta adicionada"); await loadPetColecoes(); } catch { toast.error("Erro (talvez já exista)"); } finally { setSavingTag(false); } }
   async function delTag(id: string) { try { await listasDel(id); await loadPetColecoes(); } catch { toast.error("Erro ao remover"); } }
-  async function addCad(c: any) { setSavingCad(true); try { await listasAdd(`petcad_${petId}`, JSON.stringify({ cadenciaId: c.id, nome: c.nome || c.titulo, startedAt: new Date().toISOString() })); toast.success("Cadência iniciada"); setCadPick(false); await loadPetColecoes(); } catch { toast.error("Erro"); } finally { setSavingCad(false); } }
-  async function delCad(id: string) { try { await listasDel(id); toast.success("Cadência encerrada"); await loadPetColecoes(); } catch { toast.error("Erro"); } }
+  // #2 — inicia a sequência: MARCA no pet e DISPARA o acompanhamento (inscreve no motor de cadências;
+  // o cron manda os passos). Sem telefone do tutor → só marca (não envia).
+  async function addCad(c: any) {
+    setSavingCad(true);
+    try {
+      const phone = (tutorWhats || "").replace(/\D/g, "");
+      let inscId: string | null = null;
+      if (phone) {
+        try {
+          const r = await fetch(`/api/cadencias/${c.id}/inscrever`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tutorId: (pet as any)?.tutorId || pet?.tutor?.id, petId, phone }) });
+          if (r.ok) { const d = await r.json().catch(() => null); inscId = d?.id || null; }
+        } catch { /* segue e marca mesmo assim */ }
+      }
+      await listasAdd(`petcad_${petId}`, JSON.stringify({ cadenciaId: c.id, nome: c.nome || c.titulo, startedAt: new Date().toISOString(), inscId }));
+      toast.success(inscId ? "Sequência iniciada — acompanhamento agendado 📲" : (phone ? "Sequência marcada (não consegui agendar o envio)" : "Sequência marcada — tutor sem telefone, não envia"));
+      setCadPick(false); await loadPetColecoes();
+    } catch { toast.error("Erro"); } finally { setSavingCad(false); }
+  }
+  async function delCad(c: any) {
+    try {
+      const inscId = c?.data?.inscId;
+      if (inscId) await fetch(`/api/cadencias/inscricoes/${inscId}/cancelar`, { method: "PATCH" }).catch(() => undefined);
+      await listasDel(c.id);
+      toast.success("Sequência encerrada");
+      await loadPetColecoes();
+    } catch { toast.error("Erro"); }
+  }
   async function addPacote() {
     // EDIÇÃO: corrige nome/total/feitas de um pacote já lançado (fase de migração).
     if (pacForm.id) {
@@ -1522,7 +1547,7 @@ export default function PetDetailPage() {
                 {cadAtivas.map((c) => (
                   <div key={c.id} className="bg-[#FBF9F4] border border-[#F0EBE0] rounded-[10px] px-2.5 py-1.5 flex items-center justify-between text-[11.5px]">
                     <span className="text-[#1F2A2E]">⚡ {c.data?.nome || "Cadência"}</span>
-                    <button onClick={() => delCad(c.id)} className="text-[#b23b39] text-[10px]">encerrar</button>
+                    <button onClick={() => delCad(c)} className="text-[#b23b39] text-[10px]">encerrar</button>
                   </div>
                 ))}
                 {cadPick && (

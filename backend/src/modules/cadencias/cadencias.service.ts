@@ -265,7 +265,8 @@ export class CadenciasService implements OnModuleInit {
       include: { passos: { where: { ativo: true }, orderBy: { ordem: 'asc' } } },
     });
     if (!tpl) throw new NotFoundException('Cadencia nao encontrada');
-    if (!tpl.ativo) throw new NotFoundException('Cadencia inativa');
+    // Inscrição MANUAL (ex.: escolher a sequência de cuidado na ficha do pet) vale mesmo com o
+    // template desligado — o `ativo` controla só o disparo AUTOMÁTICO por gatilho, não a escolha manual.
     const primeiro = tpl.passos[0];
     if (!primeiro) throw new NotFoundException('Cadencia sem passos ativos');
     const phone = (dto.phone || '').replace(/\D/g, '');
