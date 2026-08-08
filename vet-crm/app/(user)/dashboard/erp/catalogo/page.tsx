@@ -106,6 +106,8 @@ export default function CatalogoPage() {
   const [valAte, setValAte] = useState("");
   const limparFiltros = () => { setFSit(""); setFGrupo(""); setFMarca(""); setFForn(""); setFCtrlVal(""); setValDe(""); setValAte(""); };
   const nFiltros = [fSit, fGrupo, fMarca, fForn, fCtrlVal, valDe, valAte].filter(Boolean).length;
+  // Estilo dos seletores de filtro que ficam embaixo do título de cada coluna.
+  const thfStyle = { width: "100%", fontWeight: 400, fontSize: 11, padding: "3px 4px", border: "1px solid #E8E2D6", borderRadius: 6, background: "#fff", color: "#374151" } as const;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -355,6 +357,30 @@ export default function CatalogoPage() {
               <tr>
                 <th className="no-print" style={{ width: 34, textAlign: "center" }}><input type="checkbox" checked={todosVisSel} onChange={toggleTodosVis} title="Selecionar todos (os filtrados)" /></th>
                 <th>Nome</th><th className="col-sec2">Fornecedor</th><th>Categoria</th>{isAdmin && <th className="r col-sec">Custo</th>}<th className="r">Preço</th><th>Comissão</th><th style={{ textAlign: "center" }}>Ativo</th><th className="no-print" style={{ textAlign: "center" }}>Ações</th>
+              </tr>
+              {/* Filtros direto na coluna (estilo planilha) — Fornecedor, Categoria e Ativo. */}
+              <tr className="no-print" style={{ background: "#FBF9F4" }}>
+                <th></th>
+                <th></th>
+                <th className="col-sec2">
+                  <select value={fForn} onChange={(e) => setFForn(e.target.value)} title="Filtrar por fornecedor" style={thfStyle}>
+                    <option value="">Todos</option>{opts.forns.map((f) => <option key={f} value={f}>{f}</option>)}
+                  </select>
+                </th>
+                <th>
+                  <select value={fGrupo} onChange={(e) => setFGrupo(e.target.value)} title="Filtrar por categoria" style={thfStyle}>
+                    <option value="">Todas</option>{opts.grupos.map((g) => <option key={g} value={g}>{g}</option>)}
+                  </select>
+                </th>
+                {isAdmin && <th className="col-sec"></th>}
+                <th></th>
+                <th></th>
+                <th style={{ textAlign: "center" }}>
+                  <select value={fSit} onChange={(e) => setFSit(e.target.value as any)} title="Filtrar por situação" style={thfStyle}>
+                    <option value="">Todos</option><option value="ativo">Ativos</option><option value="inativo">Inativos</option>
+                  </select>
+                </th>
+                <th className="no-print"></th>
               </tr>
             </thead>
             <tbody>
