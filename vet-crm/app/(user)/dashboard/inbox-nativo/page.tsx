@@ -754,6 +754,13 @@ export default function InboxUnificadoPage() {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId }),
       });
       if (!r.ok) throw new Error();
+      // #7 — garante o AVISO pra quem recebeu pelo mesmo caminho do recado (que já popa):
+      // manda um recado interno com o link da conversa. Best-effort.
+      const cliente = selectedConv?.tutor?.name || selectedConv?.contactName || selectedConv?.contactNumber || "um cliente";
+      fetch(`/api/internal-notes`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ toUserId: userId, content: `📨 Te passei a conversa de ${cliente} — abra o inbox pra atender.`, conversationId: selectedId }),
+      }).catch(() => undefined);
       toast.success(`Conversa transferida para ${nome}`);
       setEncaminharOpen(false);
       setRefreshTick((t) => t + 1);
