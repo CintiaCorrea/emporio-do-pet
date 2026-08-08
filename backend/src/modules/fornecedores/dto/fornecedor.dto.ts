@@ -13,6 +13,7 @@ export class CreateFornecedorDto {
   @ApiPropertyOptional({ enum: ComissaoTipo }) @IsOptional() @IsEnum(ComissaoTipo) comissaoTipo?: ComissaoTipo;
   @ApiPropertyOptional() @IsOptional() @IsNumber() comissaoValor?: number;
   @ApiPropertyOptional() @IsOptional() @IsInt() diaFechamentoLote?: number;
+  @ApiPropertyOptional() @IsOptional() @IsNumber() percExamePadrao?: number;
   @ApiPropertyOptional() @IsOptional() @IsBoolean() ativo?: boolean;
   @ApiPropertyOptional() @IsOptional() @IsString() observacoes?: string;
 }

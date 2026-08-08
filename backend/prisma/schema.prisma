@@ -2131,6 +2131,7 @@ model Fornecedor {
   comissaoTipo       ComissaoTipo?
   comissaoValor      Float?
   diaFechamentoLote  Int? // dia do mês (1-31)
+  percExamePadrao    Float? // % padrão de markup pra precificar os exames deste laboratório em lote
   ativo              Boolean         @default(true)
   observacoes        String?
 

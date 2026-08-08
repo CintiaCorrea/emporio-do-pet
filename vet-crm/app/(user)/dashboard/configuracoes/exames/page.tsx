@@ -22,7 +22,7 @@ interface Fornecedor {
   id: string; nome: string; tipo: FornTipo;
   especialidade?: string | null; telefone?: string | null; email?: string | null;
   contatoResponsavel?: string | null; modeloPagamento: ModeloPag;
-  diaFechamentoLote?: number | null; ativo: boolean; observacoes?: string | null;
+  diaFechamentoLote?: number | null; percExamePadrao?: number | null; ativo: boolean; observacoes?: string | null;
   _count?: { exames: number };
 }
 interface Exame {
@@ -183,6 +183,26 @@ export default function ExamesConfigPage() {
       if (fid) await salvarCrmv(fid, crmv || "");
       setFModalOpen(false); await load();
     } catch (e) { alert(`Erro: ${e}`); }
+  }
+  // Aplica a % padrão em TODOS os exames deste laboratório de uma vez.
+  const [aplicandoLab, setAplicandoLab] = useState(false);
+  async function aplicarPercLab() {
+    const p = Number(fForm.percExamePadrao);
+    if (!isFinite(p)) { alert("Informe a % padrão antes de aplicar."); return; }
+    if (!fEditId) { alert("Salve o laboratório primeiro."); return; }
+    if (!window.confirm(`Aplicar ${p}% em TODOS os exames deste laboratório?\n\nO preço de cada exame vira: custo × (1 + ${p}%). Isso reescreve os preços atuais — ajustes individuais feitos antes serão substituídos. Depois você pode ajustar exame a exame.`)) return;
+    setAplicandoLab(true);
+    try {
+      const r = await fetch("/api/fornecedores/exames/precificar-lote", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ percent: p, fornecedorId: fEditId, sobrescrever: true }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d?.message || "Erro ao precificar");
+      alert(`✅ ${d.atualizados ?? 0} exame(s) precificado(s) com ${p}%.`);
+      await load();
+    } catch (e: any) { alert("Erro ao aplicar: " + (e?.message || e)); }
+    finally { setAplicandoLab(false); }
   }
   async function deleteForn(f: Fornecedor) {
     if (!(await confirmDelete({ entityLabel: "fornecedor", itemName: f.nome, consequenceText: `Os ${f._count?.exames || 0} exames vinculados também serão removidos.` }))) return;
@@ -523,6 +543,21 @@ export default function ExamesConfigPage() {
                 <input value={fForm.email || ""} onChange={e => setFForm({ ...fForm, email: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E5DCC9" }} /></div>
               <div><label className="text-xs text-gray-600">Dia fechamento (1-31)</label>
                 <input type="number" min={1} max={31} value={fForm.diaFechamentoLote ?? ""} onChange={e => setFForm({ ...fForm, diaFechamentoLote: e.target.value ? Number(e.target.value) : null })} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E5DCC9" }} /></div>
+              {fForm.tipo === "LABORATORIO" && (
+                <div className="md:col-span-2" style={{ background: "#F0E9F7", border: "1px solid #E5DCC9", borderRadius: 10, padding: "10px 12px" }}>
+                  <label className="text-xs" style={{ color: "#6b3fa0", fontWeight: 600 }}>🔬 % padrão dos exames deste laboratório</label>
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                    <input type="number" inputMode="decimal" value={fForm.percExamePadrao ?? ""} onChange={e => setFForm({ ...fForm, percExamePadrao: e.target.value ? Number(e.target.value) : null })} placeholder="ex.: 100" className="px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E5DCC9", width: 110 }} />
+                    <span className="text-xs text-gray-500">% → preço = custo × (1 + %)</span>
+                    {fEditId && (
+                      <button type="button" onClick={aplicarPercLab} disabled={aplicandoLab} className="px-3 py-2 rounded-lg text-sm text-white disabled:opacity-60 ml-auto" style={{ background: "#6b3fa0" }}>
+                        {aplicandoLab ? "Aplicando…" : "Aplicar em todos os exames"}
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-gray-500 mt-1">{fEditId ? 'Guarde a % no Salvar. "Aplicar" precifica todos os exames deste lab de uma vez; depois ajuste 1 a 1 se quiser.' : "Salve o laboratório primeiro pra poder aplicar em todos os exames."}</p>
+                </div>
+              )}
               <div className="md:col-span-2"><label className="text-xs text-gray-600">Observações</label>
                 <textarea value={fForm.observacoes || ""} onChange={e => setFForm({ ...fForm, observacoes: e.target.value })} rows={2} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E5DCC9" }} /></div>
               <div className="md:col-span-2"><label className="flex items-center gap-2 text-sm cursor-pointer">
