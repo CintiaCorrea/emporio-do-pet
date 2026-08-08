@@ -18,7 +18,7 @@ const markupDe = (custo?: number | null, preco?: number | null) => {
 };
 
 type Grupo = "PRODUTO" | "SERVICO" | "EXAME";
-interface Item { key: string; rawId?: string; grupo: Grupo; tipo: string; nome: string; codigo?: number | string | null; custo?: number | null; preco?: number | null; estoque?: number | null; ativo: boolean; fornecedor?: string | null; categoria?: string | null; comissao?: string | null; marca?: string | null; controlaValidade?: boolean | null; validade?: string | null; tempo?: number | null; }
+interface Item { key: string; rawId?: string; grupo: Grupo; tipo: string; nome: string; codigo?: number | string | null; custo?: number | null; preco?: number | null; estoque?: number | null; ativo: boolean; fornecedor?: string | null; fornId?: string | null; categoria?: string | null; comissao?: string | null; marca?: string | null; controlaValidade?: boolean | null; validade?: string | null; tempo?: number | null; }
 const COM_LABEL: Record<string, string> = { VALOR_CHEIO: "Valor cheio", MARGEM: "Margem", SEM_COMISSAO: "Sem comissão", HERDAR: "Herdar" };
 
 const TIPO_PILL: Record<Grupo, { bg: string; fg: string; emoji: string }> = {
@@ -42,6 +42,21 @@ const CSS = `
 .cat-chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
 .cat-chip{border:1px solid #E8E2D6;background:#fff;color:#5C6B70;border-radius:999px;padding:6px 13px;font-size:12.5px;cursor:pointer;font-weight:500}
 .cat-chip.on{background:#009AAC;border-color:#009AAC;color:#fff}
+/* Chips de filtro (Fornecedor/Categoria/Situação) */
+.cat-fchips{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.cat-fchip{border:1px dashed #C9D3D2;background:#fff;color:#5C6B70;border-radius:999px;padding:6px 13px;font-size:12.5px;cursor:pointer;font-weight:500;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.cat-fchip:hover,.cat-fchip.open{border-color:#009AAC;color:#009AAC}
+.cat-fchip.on{border-style:solid;border-color:#009AAC;background:#EAF6F7;color:#014D5E}
+.cat-fchip-x{border:none;background:none;color:#5C8A90;cursor:pointer;font-size:12px;padding:0 0 0 2px;line-height:1}
+.cat-fchip-x:hover{color:#c0392b}
+.cat-fchip-clear{border:none;background:none;color:#8A928F;cursor:pointer;font-size:12px;text-decoration:underline;padding:4px 6px}
+.cat-fmenu{position:absolute;top:calc(100% + 6px);left:0;z-index:20;background:#fff;border:1px solid #E8E2D6;border-radius:12px;box-shadow:0 8px 24px rgba(1,77,94,.12);padding:6px;min-width:200px;max-width:280px}
+.cat-fmenu-in{width:100%;box-sizing:border-box;border:1px solid #E8E2D6;border-radius:8px;padding:6px 8px;font-size:12.5px;margin-bottom:6px;outline:none}
+.cat-fmenu-in:focus{border-color:#009AAC}
+.cat-fmenu-list{max-height:240px;overflow-y:auto;display:flex;flex-direction:column}
+.cat-fmenu-list button{text-align:left;border:none;background:none;padding:7px 9px;border-radius:8px;font-size:12.5px;color:#374151;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cat-fmenu-list button:hover{background:#F0FBFC;color:#00798A}
+.cat-fmenu-empty{padding:8px 9px;font-size:12px;color:#8A928F}
 .cat-filtros{background:#FBF9F4;border:1px solid #E8E2D6;border-radius:12px;padding:14px 16px;margin-bottom:14px}
 .cat-fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px 14px}
 .cat-flbl{display:block;font-size:11px;color:#374151;font-weight:500;margin-bottom:4px;text-transform:uppercase;letter-spacing:.03em}
@@ -70,6 +85,46 @@ const CSS = `
 .cat-sit{font-size:11px;padding:2px 9px;border-radius:999px}
 @media print{ .no-print{display:none!important} body{background:#fff} .cat-page{padding:0} }
 `;
+
+// Chip de filtro: pílula "+ Rótulo" que abre um menu; ao escolher vira "Rótulo: valor ✕".
+function ChipFilter({ label, valueLabel, options, onPick, onClear, open, onToggle }: {
+  label: string;
+  valueLabel: string | null;
+  options: { v: string; label: string }[];
+  onPick: (v: string) => void;
+  onClear: () => void;
+  open: boolean;
+  onToggle: () => void;
+}) {
+  const [q, setQ] = useState("");
+  const filtered = q ? options.filter((o) => o.label.toLowerCase().includes(q.toLowerCase())) : options;
+  return (
+    <div style={{ position: "relative" }}>
+      {valueLabel ? (
+        <span className="cat-fchip on">
+          {label}: <b style={{ fontWeight: 600 }}>{valueLabel}</b>
+          <button onClick={onClear} title="Remover filtro" className="cat-fchip-x">✕</button>
+        </span>
+      ) : (
+        <button className={`cat-fchip ${open ? "open" : ""}`} onClick={onToggle}>+ {label}</button>
+      )}
+      {open && !valueLabel && (
+        <div className="cat-fmenu">
+          {options.length > 8 && (
+            <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="buscar…" className="cat-fmenu-in" />
+          )}
+          <div className="cat-fmenu-list">
+            {filtered.length === 0 ? (
+              <div className="cat-fmenu-empty">nada encontrado</div>
+            ) : filtered.map((o) => (
+              <button key={o.v} onClick={() => onPick(o.v)}>{o.label}</button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function CatalogoPage() {
   usePageTitle("Produtos e Serviços", "Catálogo completo — produtos, serviços e exames num lugar só.");
@@ -106,8 +161,8 @@ export default function CatalogoPage() {
   const [valAte, setValAte] = useState("");
   const limparFiltros = () => { setFSit(""); setFGrupo(""); setFMarca(""); setFForn(""); setFCtrlVal(""); setValDe(""); setValAte(""); };
   const nFiltros = [fSit, fGrupo, fMarca, fForn, fCtrlVal, valDe, valAte].filter(Boolean).length;
-  // Estilo dos seletores de filtro que ficam embaixo do título de cada coluna.
-  const thfStyle = { width: "100%", fontWeight: 400, fontSize: 11, padding: "3px 4px", border: "1px solid #E8E2D6", borderRadius: 6, background: "#fff", color: "#374151" } as const;
+  // Qual chip de filtro está com o menu aberto (fornecedor / categoria / situação).
+  const [chipOpen, setChipOpen] = useState<"forn" | "cat" | "sit" | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -133,7 +188,7 @@ export default function CatalogoPage() {
         rows.push({
           key: `e-${e.id}`, rawId: e.id, grupo: "EXAME", tipo: "Exame",
           nome: e.nome, codigo: e.codigo ?? null, custo: e.valorFornecedor ?? null, preco: e.valorClienteSugerido ?? null,
-          estoque: null, ativo: e.ativo !== false, fornecedor: e.fornecedor?.nome || null,
+          estoque: null, ativo: e.ativo !== false, fornecedor: e.fornecedor?.nome || null, fornId: e.fornecedor?.id || null,
           categoria: e.categoria ?? null, comissao: null, marca: null, controlaValidade: null, validade: null, tempo: e.tempoResultadoDias ?? null,
         });
       }
@@ -187,15 +242,21 @@ export default function CatalogoPage() {
   const aplicarPercExame = async () => {
     const p = Number(String(percExame).replace(",", "."));
     if (!isFinite(p)) { toast.error("Informe uma porcentagem válida."); return; }
+    // Por bloco: se o chip de Fornecedor estiver ativo, precifica só os exames DAQUELE laboratório.
+    let fornecedorId: string | undefined;
+    if (fForn) {
+      fornecedorId = itens.find((it) => it.grupo === "EXAME" && it.fornecedor === fForn)?.fornId || undefined;
+      if (!fornecedorId) { toast.error(`"${fForn}" não tem exames pra precificar.`); return; }
+    }
     setAplicandoPerc(true);
     try {
       const r = await fetch("/api/fornecedores/exames/precificar-lote", {
         method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
-        body: JSON.stringify({ percent: p, sobrescrever }),
+        body: JSON.stringify({ percent: p, sobrescrever, ...(fornecedorId ? { fornecedorId } : {}) }),
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d?.message || "Erro ao precificar");
-      toast.success(`${d.atualizados ?? 0} exame(s) precificado(s) com ${p}% de markup.`);
+      toast.success(`${d.atualizados ?? 0} exame(s)${fForn ? ` de ${fForn}` : ""} precificado(s) com ${p}% de markup.`);
       load();
     } catch (e: any) { toast.error(e.message || "Erro ao precificar"); }
     finally { setAplicandoPerc(false); }
@@ -293,9 +354,35 @@ export default function CatalogoPage() {
         ))}
       </div>
 
+      {/* Filtros em pílula: Fornecedor, Categoria e Situação (escolhe → vira etiqueta com ✕). */}
+      <div className="cat-fchips no-print">
+        {chipOpen && <div onClick={() => setChipOpen(null)} style={{ position: "fixed", inset: 0, zIndex: 5 }} />}
+        <ChipFilter
+          label="Fornecedor" valueLabel={fForn || null}
+          options={opts.forns.map((f) => ({ v: f, label: f }))}
+          onPick={(v) => { setFForn(v); setChipOpen(null); }} onClear={() => setFForn("")}
+          open={chipOpen === "forn"} onToggle={() => setChipOpen(chipOpen === "forn" ? null : "forn")}
+        />
+        <ChipFilter
+          label="Categoria" valueLabel={fGrupo || null}
+          options={opts.grupos.map((g) => ({ v: g, label: g }))}
+          onPick={(v) => { setFGrupo(v); setChipOpen(null); }} onClear={() => setFGrupo("")}
+          open={chipOpen === "cat"} onToggle={() => setChipOpen(chipOpen === "cat" ? null : "cat")}
+        />
+        <ChipFilter
+          label="Situação" valueLabel={fSit === "ativo" ? "Só ativos" : fSit === "inativo" ? "Só inativos" : null}
+          options={[{ v: "ativo", label: "Só ativos" }, { v: "inativo", label: "Só inativos" }]}
+          onPick={(v) => { setFSit(v as any); setChipOpen(null); }} onClear={() => setFSit("")}
+          open={chipOpen === "sit"} onToggle={() => setChipOpen(chipOpen === "sit" ? null : "sit")}
+        />
+        {(fForn || fGrupo || fSit) && (
+          <button className="cat-fchip-clear" onClick={() => { setFForn(""); setFGrupo(""); setFSit(""); }}>limpar</button>
+        )}
+      </div>
+
       {grupo === "EXAME" && isAdmin && (
         <div className="no-print" style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", background: "#F0E9F7", border: "1px solid #E8E2D6", borderLeft: "4px solid #6b3fa0", borderRadius: 12, padding: "11px 15px", marginBottom: 14 }}>
-          <span style={{ fontSize: 13, color: "#1F2A2E" }}>🔬 <b style={{ color: "#6b3fa0" }}>% padrão dos exames:</b></span>
+          <span style={{ fontSize: 13, color: "#1F2A2E" }}>🔬 <b style={{ color: "#6b3fa0" }}>% padrão dos exames{fForn ? ` de ${fForn}` : ""}:</b></span>
           <div style={{ display: "flex", alignItems: "center", gap: 4, border: "1px solid #d9c98f", background: "#fffdf5", borderRadius: 8, padding: "5px 9px" }}>
             <input value={percExame} onChange={(e) => setPercExame(e.target.value)} inputMode="decimal" style={{ width: 52, border: "none", background: "transparent", fontSize: 13, textAlign: "right", color: "#1F2A2E", outline: "none", fontFamily: "inherit" }} />
             <span style={{ fontSize: 12, color: "#5C6B70" }}>%</span>
@@ -307,7 +394,7 @@ export default function CatalogoPage() {
             <input type="checkbox" checked={sobrescrever} onChange={(e) => setSobrescrever(e.target.checked)} />
             {sobrescrever ? "em todos (reescreve preços)" : "só nos que ainda não têm preço"}
           </label>
-          <span style={{ fontSize: 11.5, color: "#8a6400" }}>preço = custo do lab × (1 + %). Depois ajuste item a item.</span>
+          <span style={{ fontSize: 11.5, color: "#8a6400" }}>preço = custo do lab × (1 + %). {fForn ? "Só neste laboratório (chip Fornecedor)." : "Dica: escolha um Fornecedor no chip acima pra precificar só aquele laboratório."} Depois ajuste item a item.</span>
         </div>
       )}
 
@@ -357,30 +444,6 @@ export default function CatalogoPage() {
               <tr>
                 <th className="no-print" style={{ width: 34, textAlign: "center" }}><input type="checkbox" checked={todosVisSel} onChange={toggleTodosVis} title="Selecionar todos (os filtrados)" /></th>
                 <th>Nome</th><th className="col-sec2">Fornecedor</th><th>Categoria</th>{isAdmin && <th className="r col-sec">Custo</th>}<th className="r">Preço</th><th>Comissão</th><th style={{ textAlign: "center" }}>Ativo</th><th className="no-print" style={{ textAlign: "center" }}>Ações</th>
-              </tr>
-              {/* Filtros direto na coluna (estilo planilha) — Fornecedor, Categoria e Ativo. */}
-              <tr className="no-print" style={{ background: "#FBF9F4" }}>
-                <th></th>
-                <th></th>
-                <th className="col-sec2">
-                  <select value={fForn} onChange={(e) => setFForn(e.target.value)} title="Filtrar por fornecedor" style={thfStyle}>
-                    <option value="">Todos</option>{opts.forns.map((f) => <option key={f} value={f}>{f}</option>)}
-                  </select>
-                </th>
-                <th>
-                  <select value={fGrupo} onChange={(e) => setFGrupo(e.target.value)} title="Filtrar por categoria" style={thfStyle}>
-                    <option value="">Todas</option>{opts.grupos.map((g) => <option key={g} value={g}>{g}</option>)}
-                  </select>
-                </th>
-                {isAdmin && <th className="col-sec"></th>}
-                <th></th>
-                <th></th>
-                <th style={{ textAlign: "center" }}>
-                  <select value={fSit} onChange={(e) => setFSit(e.target.value as any)} title="Filtrar por situação" style={thfStyle}>
-                    <option value="">Todos</option><option value="ativo">Ativos</option><option value="inativo">Inativos</option>
-                  </select>
-                </th>
-                <th className="no-print"></th>
               </tr>
             </thead>
             <tbody>

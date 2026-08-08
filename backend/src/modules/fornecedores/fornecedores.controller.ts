@@ -42,8 +42,8 @@ export class FornecedoresController {
 
   // Precifica exames em lote aplicando um markup % sobre o custo do laboratório.
   @Post('exames/precificar-lote')
-  precificarLote(@Body() body: { percent: number; sobrescrever?: boolean }) {
-    return this.service.precificarEmLote(Number(body?.percent), !!body?.sobrescrever);
+  precificarLote(@Body() body: { percent: number; sobrescrever?: boolean; fornecedorId?: string }) {
+    return this.service.precificarEmLote(Number(body?.percent), !!body?.sobrescrever, body?.fornecedorId);
   }
 
   // ===== Seed inicial =====
