@@ -269,6 +269,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
   useEffect(() => { if (pets.length && !pets.some((p) => p.id === selectedPet?.id)) setSelectedPet(pets[0]); }, [pets]);
   const [breedOptions, setBreedOptions] = useState<string[]>([]);
   const [pacotesInbox, setPacotesInbox] = useState<{ id: string; data: any }[]>([]);
+  const [planosInbox, setPlanosInbox] = useState<{ id: string; nome: string; marca?: string; total: number; feitas: number; prox: string | null }[]>([]); // #4 Fatia 2 — medicamentos/planos periódicos (protocolos c/ doses)
   const [boletimOpen, setBoletimOpen] = useState(false); // popup de boletim de fisio (dentro do box)
   const [fisioSrvInbox, setFisioSrvInbox] = useState<any[]>([]);
   const [pacFormInbox, setPacFormInbox] = useState<{ open: boolean; serviceId: string; total: string; jaFeitas: string }>({ open: false, serviceId: "", total: "4", jaFeitas: "0" });
@@ -1169,6 +1170,22 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
       setPacotesInbox(arr.map((i: any) => { let dd: any = {}; try { dd = JSON.parse(i.valor); } catch {} return { id: i.id, data: dd }; }));
     } catch { setPacotesInbox([]); }
   }
+  // #4 Fatia 2 — planos de medicamento periódico (protocolos com doses) ativos do pet, pra controle no inbox
+  async function loadPlanosInbox(pid: string) {
+    try {
+      const r = await fetch(`/api/protocolos?petId=${pid}`, { cache: "no-store" });
+      const d = await r.json();
+      const arr = Array.isArray(d) ? d : (d.protocolos || d.data || []);
+      const planos = arr.map((p: any) => {
+        const validas = (p.doses || []).filter((x: any) => x.status !== "CANCELADA");
+        const feitas = validas.filter((x: any) => x.status === "APLICADA").length;
+        const pend = validas.filter((x: any) => x.status === "PENDENTE" && x.dataPrevista)
+          .sort((a: any, b: any) => new Date(a.dataPrevista).getTime() - new Date(b.dataPrevista).getTime());
+        return { id: p.id, nome: p.nomeProtocolo || "Medicamento", marca: p.marca || undefined, total: validas.length, feitas, prox: pend[0]?.dataPrevista || null, _ativo: pend.length > 0 && validas.length > 1 };
+      }).filter((p: any) => p._ativo);
+      setPlanosInbox(planos);
+    } catch { setPlanosInbox([]); }
+  }
   async function addPacoteInbox() {
     if (!selectedPet) return;
     const srv = fisioSrvInbox.find((x: any) => String(x.id) === pacFormInbox.serviceId);
@@ -1208,8 +1225,8 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
     (async () => { try { const r = await fetch(`/api/servicos/itens`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.itens || d.data || d.servicos || []); setFisioSrvInbox(arr.filter((srv: any) => JSON.stringify(srv).toLowerCase().includes("fisio"))); } catch {} })();
   }, []);
   useEffect(() => {
-    if (selectedPet?.id) loadPacotesInbox(selectedPet.id);
-    else { setPacotesInbox([]); setPacFormInbox({ open: false, serviceId: "", total: "4", jaFeitas: "0" }); }
+    if (selectedPet?.id) { loadPacotesInbox(selectedPet.id); loadPlanosInbox(selectedPet.id); }
+    else { setPacotesInbox([]); setPlanosInbox([]); setPacFormInbox({ open: false, serviceId: "", total: "4", jaFeitas: "0" }); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPet?.id]);
   const [proximasConsultas, setProximasConsultas] = useState<any[]>([]);
@@ -2370,6 +2387,41 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
                       </div>
                     );
                   })}
+                </div>
+              </section>
+            )}
+
+            {/* BLOCO 3.46: MEDICAMENTOS / PLANOS PERIÓDICOS (#4 Fatia 2) */}
+            {tutor && selectedPet && planosInbox.length > 0 && (
+              <section className={SECTION} style={SECTION_STYLE}>
+                <div className={LBL} style={{ ...LBL_STYLE, cursor: "pointer" }} onClick={() => toggleSec("planos")}>
+                  <span>💊 Medicamentos e planos</span>
+                  <span style={{ marginLeft: "auto", color: "#A7ADA8", transition: "transform .15s", transform: secFechadas.has("planos") ? "rotate(-90deg)" : "none" }}>▾</span>
+                </div>
+                <div className="space-y-2" style={{ display: secFechadas.has("planos") ? "none" : undefined }}>
+                  {planosInbox.map(pl => {
+                    const restam = Math.max(0, pl.total - pl.feitas);
+                    let proxLbl = "—";
+                    if (pl.prox) { const dt = new Date(pl.prox); proxLbl = dt.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }); }
+                    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+                    const atrasada = pl.prox ? new Date(pl.prox) < hoje : false;
+                    return (
+                      <div key={pl.id} className="border rounded-lg p-2.5" style={{ borderColor: atrasada ? "#C0392B" : "#E8DFC8", background: atrasada ? "#FDF3F2" : "#fff" }}>
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span style={{ fontSize: "13px" }}>💊</span>
+                          <span className="text-[11.5px] font-medium truncate" style={{ color: "#014D5E" }}>{pl.nome}{pl.marca ? ` · ${pl.marca}` : ""}</span>
+                          <span className="ml-auto text-[12px] font-semibold flex-shrink-0" style={{ color: "#0E5560" }}>{pl.feitas}/{pl.total}</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1 mb-1">
+                          {Array.from({ length: Math.min(pl.total, 20) }).map((_, i) => <span key={i} style={{ fontSize: "13px" }} title={`Dose ${i + 1}`}>{i < pl.feitas ? "💠" : "⚪"}</span>)}
+                        </div>
+                        <div className="text-[10.5px]" style={{ color: atrasada ? "#C0392B" : "#6B7280" }}>
+                          {restam > 0 ? <>Faltam <b>{restam}</b> · próxima <b>{proxLbl}</b>{atrasada ? " ⚠ atrasada" : ""}</> : "Plano concluído 🏆"}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <div className="text-[9.5px] text-gray-400">As doses são aplicadas pela ficha do pet (aba Vacinas) e atualizam aqui.</div>
                 </div>
               </section>
             )}
