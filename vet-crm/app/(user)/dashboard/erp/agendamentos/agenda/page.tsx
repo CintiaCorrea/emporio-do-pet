@@ -337,10 +337,27 @@ export default function AgendaPage() {
     try {
       const r = await fetch(`/api/appointments/${a.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ status: next }) });
       if (!r.ok) throw new Error();
-      if (next === "Em espera" && tipoFisio(a)) await darBaixaFisio(a); // chegou numa fisio → baixa
+      if (next === "Em espera") { // cliente CHEGOU
+        if (tipoFisio(a)) await darBaixaFisio(a); // chegou numa fisio → baixa
+        notificarChegada(a); // #8 — avisa o profissional que o cliente chegou (pop-up)
+      }
       load();
     } catch { toast.error("Não consegui atualizar o estágio."); }
     setAvancandoId(null);
+  }
+  // #8 — quando a recepção marca "chegou", manda um aviso (pop-up) pro profissional do
+  // atendimento. Usa o recado interno (caminho que já popa). Best-effort; não avisa a si mesmo.
+  function notificarChegada(a: any) {
+    const vet = a.userId;
+    if (!vet || vet === meId) return;
+    if (a.user?.name) toast.success(`${a.user.name.split(" ")[0]} foi avisado(a) que o cliente chegou 🔔`, { duration: 2500 });
+    const cliente = a.tutor?.name || "O cliente";
+    const pet = a.pet?.name ? ` (${a.pet.name})` : "";
+    const hora = (() => { try { return new Date(a.date).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }); } catch { return ""; } })();
+    fetch(`/api/internal-notes`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ toUserId: vet, content: `🚪 ${cliente}${pet} chegou${hora ? ` — agendamento das ${hora}` : ""}. Está na recepção.` }),
+    }).catch(() => undefined);
   }
   // Volta o atendimento pro estágio anterior (corrigir clique errado). Por índice de estágio.
   const PREV_STATUS = [null, "Agendado", "Em espera", "Em atendimento"];
