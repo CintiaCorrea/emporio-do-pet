@@ -119,10 +119,26 @@ export default function StockPage() {
 
   // Form state
   const [movementForm, setMovementForm] = useState({ quantity: 1, reason: '', custoUnitario: '' });
+  // #3 — motivos padronizados de saída (configuráveis: lista estoque_motivo_saida; auto-cresce ao digitar "Outro")
+  const MOTIVOS_SAIDA_PADRAO = ['Perda / vencimento', 'Avaria / quebra', 'Consumo interno - Cirurgia', 'Consumo interno - Clínica', 'Consumo interno - Exames', 'Consumo interno - Internação', 'Doação', 'Devolução ao fornecedor', 'Uso em atendimento'];
+  const [motivosSaida, setMotivosSaida] = useState<string[]>(MOTIVOS_SAIDA_PADRAO);
+  const [motivoOutro, setMotivoOutro] = useState(false);
 
   useEffect(() => {
     fetchProducts();
     fetchMovements();
+  }, []);
+
+  // #3 — carrega motivos de saída salvos (mescla com os padrões, sem duplicar)
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await fetch('/api/listas?lista=estoque_motivo_saida', { cache: 'no-store' });
+        const d = await r.json();
+        const arr = (Array.isArray(d) ? d : (d.itens || d.data || [])).map((i: any) => i.valor).filter(Boolean);
+        if (arr.length) setMotivosSaida((prev) => Array.from(new Set([...prev, ...arr])));
+      } catch { /* usa os padrões */ }
+    })();
   }, []);
 
   const fetchProducts = async () => {
@@ -207,7 +223,7 @@ export default function StockPage() {
   const openMovementModal = (product: Product, type: 'IN' | 'OUT') => {
     setSelectedProduct(product);
     setMovementType(type);
-    setMovementForm({ quantity: 1, reason: '', custoUnitario: '' });
+    setMovementForm({ quantity: 1, reason: '', custoUnitario: '' }); setMotivoOutro(false);
     setIsMovementModalOpen(true);
   };
 
@@ -251,9 +267,15 @@ export default function StockPage() {
         newStock: newMovement.newStock, reason: newMovement.reason || '', date: newMovement.createdAt,
         user: newMovement.userName || 'Sistema', userId: newMovement.userId, userName: newMovement.userName,
       }, ...movements]);
+      // #3 — se digitou um motivo novo ("Outro"), salva na lista pra aparecer da próxima vez
+      if (movementType === 'OUT' && movementForm.reason.trim() && !motivosSaida.includes(movementForm.reason.trim())) {
+        const nv = movementForm.reason.trim();
+        fetch('/api/listas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lista: 'estoque_motivo_saida', valor: nv }) }).catch(() => {});
+        setMotivosSaida((prev) => [...prev, nv]);
+      }
       setIsMovementModalOpen(false);
       setSelectedProduct(null);
-      setMovementForm({ quantity: 1, reason: '', custoUnitario: '' });
+      setMovementForm({ quantity: 1, reason: '', custoUnitario: '' }); setMotivoOutro(false);
       toast.success(`Movimentação de ${movementType === 'IN' ? 'entrada' : 'saída'} registrada!${newMovement.novoCustoMedio != null ? ` Novo custo médio: R$ ${Number(newMovement.novoCustoMedio).toFixed(2)}` : ''}`);
     } catch (err) {
       console.error('Erro ao registrar movimentação:', err);
@@ -453,10 +475,27 @@ export default function StockPage() {
                 </div>
               )}
               <div>
-                <label className="block text-xs font-semibold mb-1.5" style={{ color: '#014D5E' }}>Motivo</label>
-                <input type="text" placeholder={movementType === 'IN' ? 'Ex: Compra - NF 12345' : 'Ex: Consulta #456'} value={movementForm.reason}
-                  onChange={(e) => setMovementForm({ ...movementForm, reason: e.target.value })}
-                  className="w-full px-3 py-2.5 border rounded-lg text-sm" style={{ borderColor: '#E8DFC8' }} />
+                <label className="block text-xs font-semibold mb-1.5" style={{ color: '#014D5E' }}>Motivo{movementType === 'OUT' ? ' *' : ''}</label>
+                {movementType === 'IN' ? (
+                  <input type="text" placeholder="Ex: Compra - NF 12345" value={movementForm.reason}
+                    onChange={(e) => setMovementForm({ ...movementForm, reason: e.target.value })}
+                    className="w-full px-3 py-2.5 border rounded-lg text-sm" style={{ borderColor: '#E8DFC8' }} />
+                ) : (
+                  <>
+                    <select value={motivoOutro ? '__OUTRO__' : movementForm.reason}
+                      onChange={(e) => { const v = e.target.value; if (v === '__OUTRO__') { setMotivoOutro(true); setMovementForm((f) => ({ ...f, reason: '' })); } else { setMotivoOutro(false); setMovementForm((f) => ({ ...f, reason: v })); } }}
+                      className="w-full px-3 py-2.5 border rounded-lg text-sm" style={{ borderColor: '#E8DFC8' }}>
+                      <option value="">Selecione o motivo…</option>
+                      {motivosSaida.map((m) => <option key={m} value={m}>{m}</option>)}
+                      <option value="__OUTRO__">➕ Outro (digitar)…</option>
+                    </select>
+                    {motivoOutro && (
+                      <input type="text" autoFocus placeholder="Descreva o motivo (fica salvo pra próxima)" value={movementForm.reason}
+                        onChange={(e) => setMovementForm((f) => ({ ...f, reason: e.target.value }))}
+                        className="w-full mt-2 px-3 py-2.5 border rounded-lg text-sm" style={{ borderColor: '#E8DFC8' }} />
+                    )}
+                  </>
+                )}
               </div>
               <div style={{ background: '#EAF6F7', borderRadius: 12, padding: 12 }}>
                 <div style={{ fontSize: 12.5, color: '#5C6B70' }}>Novo estoque após a movimentação:</div>
@@ -465,7 +504,7 @@ export default function StockPage() {
             </div>
             <div className="px-5 py-4 border-t flex justify-end gap-2" style={{ borderColor: '#E8DFC8' }}>
               <button onClick={() => setIsMovementModalOpen(false)} className="px-4 py-2 rounded-lg text-sm border" style={{ borderColor: '#E8DFC8', color: '#475569' }}>Cancelar</button>
-              <button onClick={handleMovement} disabled={movementForm.quantity <= 0 || (movementType === 'OUT' && movementForm.quantity > selectedProduct.stock)}
+              <button onClick={handleMovement} disabled={movementForm.quantity <= 0 || (movementType === 'OUT' && movementForm.quantity > selectedProduct.stock) || (movementType === 'OUT' && !movementForm.reason.trim())}
                 className="px-4 py-2 rounded-lg text-sm text-white font-bold disabled:opacity-50"
                 style={{ background: movementType === 'IN' ? '#1c7a47' : '#b23b39' }}>
                 Confirmar {movementType === 'IN' ? 'entrada' : 'saída'}

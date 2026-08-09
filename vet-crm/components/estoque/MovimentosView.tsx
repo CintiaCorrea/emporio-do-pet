@@ -75,6 +75,19 @@ export default function MovimentosView({ tipo }: { tipo: "IN" | "OUT" }) {
   const totalItens = filtrados.reduce((a, m) => a + (m.quantity || 0), 0);
   const totalValor = filtrados.reduce((a, m) => a + (m.custoUnitario ? m.custoUnitario * m.quantity : 0), 0);
 
+  // #3 — resumo por motivo (só nas saídas): agrupa os lançamentos filtrados por motivo
+  const resumoMotivos = useMemo(() => {
+    if (compra) return [] as { motivo: string; n: number; qtd: number; custo: number }[];
+    const map = new Map<string, { motivo: string; n: number; qtd: number; custo: number }>();
+    for (const m of filtrados) {
+      const k = (m.reason || "—").trim() || "—";
+      const g = map.get(k) || { motivo: k, n: 0, qtd: 0, custo: 0 };
+      g.n++; g.qtd += m.quantity || 0; g.custo += m.custoUnitario ? m.custoUnitario * m.quantity : 0;
+      map.set(k, g);
+    }
+    return [...map.values()].sort((a, b) => b.qtd - a.qtd);
+  }, [filtrados, compra]);
+
   return (
     <div className="mv-page">
       <style>{CSS}</style>
@@ -101,6 +114,29 @@ export default function MovimentosView({ tipo }: { tipo: "IN" | "OUT" }) {
         <div className="mv-card"><div className="lbl">🔢 Itens no total</div><div className="val">{totalItens}</div></div>
         {compra && canSeeCost && <div className="mv-card"><div className="lbl">💰 Valor comprado</div><div className="val" style={{ fontSize: 17 }}>{brl(totalValor)}</div></div>}
       </div>
+
+      {!compra && resumoMotivos.length > 0 && (
+        <div className="mv-panel" style={{ marginBottom: 16 }}>
+          <div className="mv-ph">📊 Resumo por motivo — {resumoMotivos.length} motivo(s){de || ate ? " no período" : ""}</div>
+          <div className="mv-scroll">
+            <table className="mv-tbl">
+              <thead>
+                <tr><th>Motivo</th><th className="r">Saídas</th><th className="r">Qtd total</th>{canSeeCost && <th className="r">Custo total</th>}</tr>
+              </thead>
+              <tbody>
+                {resumoMotivos.map((g) => (
+                  <tr key={g.motivo}>
+                    <td style={{ fontWeight: 600 }}>{g.motivo}</td>
+                    <td className="r" style={{ color: "#5C6B70" }}>{g.n}</td>
+                    <td className="r"><b style={{ color: "#b23b39" }}>{g.qtd}</b></td>
+                    {canSeeCost && <td className="r" style={{ color: "#014D5E", fontWeight: 600 }}>{g.custo ? brl(g.custo) : "—"}</td>}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       <div className="mv-panel">
         <div className="mv-ph">{compra ? "🛒 Entradas de compra" : "📤 Outras saídas"} — {filtrados.length} lançamento(s)</div>
