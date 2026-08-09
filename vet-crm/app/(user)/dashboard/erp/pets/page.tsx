@@ -67,6 +67,39 @@ function normStatusKey(s?: string | null): string {
   return s || "";
 }
 
+// ── Helpers do filtro avançado ──
+function genderKey(g?: string | null): string {
+  const v = (g || "").toUpperCase();
+  if (v === "MALE" || v === "M" || v === "MACHO") return "M";
+  if (v === "FEMALE" || v === "F" || v === "FEMEA" || v === "FÊMEA") return "F";
+  return "";
+}
+function isCastrado(s?: string | null): boolean | null {
+  const v = (s || "").toUpperCase();
+  if (v === "STERILIZED" || v === "CASTRADO") return true;
+  if (v === "NOT_STERILIZED" || v === "NAO_CASTRADO") return false;
+  return null;
+}
+function idadeAnos(bd?: string | null): number | null {
+  if (!bd) return null;
+  const d = new Date(bd);
+  if (isNaN(d.getTime())) return null;
+  const now = new Date();
+  let a = now.getFullYear() - d.getUTCFullYear();
+  const m = now.getMonth() - d.getUTCMonth();
+  if (m < 0 || (m === 0 && now.getDate() < d.getUTCDate())) a--;
+  return a < 0 ? null : a;
+}
+function idadeNaFaixa(a: number | null, faixa: string): boolean {
+  if (a == null) return false;
+  if (faixa === "LT1") return a < 1;
+  if (faixa === "1_3") return a >= 1 && a <= 3;
+  if (faixa === "4_7") return a >= 4 && a <= 7;
+  if (faixa === "8P") return a >= 8;
+  return true;
+}
+const soDigitos = (s?: string | null) => String(s || "").replace(/\D/g, "");
+
 export default function PetsListPage() {
   usePageTitle("Pets", "Pacientes cadastrados");
   const [pets, setPets] = useState<Pet[]>([]);
@@ -74,6 +107,14 @@ export default function PetsListPage() {
   const [search, setSearch] = useState("");
   const [filterSpecies, setFilterSpecies] = useState<string>("ALL");
   const [filterStatus, setFilterStatus] = useState<string>("ALL");
+  // Filtros avançados (client-side, sobre os pets já carregados)
+  const [advOpen, setAdvOpen] = useState(false);
+  const [fSexo, setFSexo] = useState("ALL");
+  const [fCastr, setFCastr] = useState("ALL");
+  const [fIdade, setFIdade] = useState("ALL");
+  const [fChip, setFChip] = useState("");
+  const [fCpf, setFCpf] = useState("");
+  const [fFone, setFFone] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const router = useRouter();
   const [novoOpen, setNovoOpen] = useState(false);
@@ -131,8 +172,17 @@ export default function PetsListPage() {
     let arr = pets;
     if (filterSpecies !== "ALL") arr = arr.filter(p => speciesKey(p.species) === filterSpecies);
     if (filterStatus !== "ALL") arr = arr.filter(p => normStatusKey(p.status) === filterStatus);
+    if (fSexo !== "ALL") arr = arr.filter(p => genderKey((p as any).gender) === fSexo);
+    if (fCastr !== "ALL") arr = arr.filter(p => { const c = isCastrado((p as any).sterilization); return fCastr === "SIM" ? c === true : c === false; });
+    if (fIdade !== "ALL") arr = arr.filter(p => idadeNaFaixa(idadeAnos(p.birthDate), fIdade));
+    if (fChip.trim()) { const q = fChip.trim().toLowerCase(); arr = arr.filter(p => String((p as any).microchip || "").toLowerCase().includes(q)); }
+    if (soDigitos(fCpf)) { const q = soDigitos(fCpf); arr = arr.filter(p => soDigitos((p as any).tutor?.cpf).includes(q)); }
+    if (soDigitos(fFone)) { const q = soDigitos(fFone); arr = arr.filter(p => ((p as any).tutor?.contacts || []).some((c: any) => soDigitos(c?.number).includes(q))); }
     return arr;
-  }, [pets, filterSpecies, filterStatus]);
+  }, [pets, filterSpecies, filterStatus, fSexo, fCastr, fIdade, fChip, fCpf, fFone]);
+
+  const advCount = (fSexo !== "ALL" ? 1 : 0) + (fCastr !== "ALL" ? 1 : 0) + (fIdade !== "ALL" ? 1 : 0) + (fChip.trim() ? 1 : 0) + (soDigitos(fCpf) ? 1 : 0) + (soDigitos(fFone) ? 1 : 0);
+  const limparAdv = () => { setFSexo("ALL"); setFCastr("ALL"); setFIdade("ALL"); setFChip(""); setFCpf(""); setFFone(""); };
 
   const counts = useMemo(() => {
     const c: Record<string, number> = { ALL: pets.length };
@@ -144,7 +194,7 @@ export default function PetsListPage() {
   }, [pets]);
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-6">
       <header className="flex justify-between items-start mb-4">
         <div>
           <p className="text-sm text-[#5b6470] mt-0.5">
@@ -172,7 +222,44 @@ export default function PetsListPage() {
         <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="bg-white border border-[#d8d0bc] rounded-lg px-3 py-2 text-sm text-[#4d5a66] focus:outline-none focus:border-[#009AAC]">
           {STATUS_FILTERS.map(s => <option key={s.k} value={s.k}>{s.label}</option>)}
         </select>
+        <button onClick={() => setAdvOpen(o => !o)} className={`px-3 py-2 rounded-lg text-sm font-medium border flex items-center gap-1.5 ${advCount ? "border-[#009AAC] text-[#00798A] bg-[#E0F4F6]" : "border-[#d8d0bc] text-[#4d5a66] bg-white"}`}>⚙️ Filtros avançados{advCount ? ` (${advCount})` : ""} {advOpen ? "▲" : "▾"}</button>
+        {advCount > 0 && <button onClick={limparAdv} className="px-3 py-2 rounded-lg text-sm border border-[#d8d0bc] text-[#8a5a0b] bg-white">Limpar</button>}
+        <span className="text-xs text-[#5b6470] ml-auto">{filtered.length} resultado{filtered.length === 1 ? "" : "s"}</span>
       </div>
+      {advOpen && (
+        <div className="bg-white border border-[#d8d0bc] rounded-xl p-3 mb-3 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
+          <div>
+            <label className="text-[10.5px] text-[#8a938f] block mb-0.5">Sexo</label>
+            <select value={fSexo} onChange={e => setFSexo(e.target.value)} className="w-full bg-white border border-[#d8d0bc] rounded-lg px-2 py-1.5 text-sm">
+              <option value="ALL">Todos</option><option value="M">Macho</option><option value="F">Fêmea</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-[10.5px] text-[#8a938f] block mb-0.5">Castrado</label>
+            <select value={fCastr} onChange={e => setFCastr(e.target.value)} className="w-full bg-white border border-[#d8d0bc] rounded-lg px-2 py-1.5 text-sm">
+              <option value="ALL">Todos</option><option value="SIM">Sim</option><option value="NAO">Não</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-[10.5px] text-[#8a938f] block mb-0.5">Idade</label>
+            <select value={fIdade} onChange={e => setFIdade(e.target.value)} className="w-full bg-white border border-[#d8d0bc] rounded-lg px-2 py-1.5 text-sm">
+              <option value="ALL">Todas</option><option value="LT1">Menos de 1 ano</option><option value="1_3">1 a 3 anos</option><option value="4_7">4 a 7 anos</option><option value="8P">8+ anos</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-[10.5px] text-[#8a938f] block mb-0.5">Microchip</label>
+            <input value={fChip} onChange={e => setFChip(e.target.value)} placeholder="nº do chip" className="w-full bg-white border border-[#d8d0bc] rounded-lg px-2 py-1.5 text-sm" />
+          </div>
+          <div>
+            <label className="text-[10.5px] text-[#8a938f] block mb-0.5">CPF do tutor</label>
+            <input value={fCpf} onChange={e => setFCpf(e.target.value)} placeholder="só números" className="w-full bg-white border border-[#d8d0bc] rounded-lg px-2 py-1.5 text-sm" />
+          </div>
+          <div>
+            <label className="text-[10.5px] text-[#8a938f] block mb-0.5">Telefone do tutor</label>
+            <input value={fFone} onChange={e => setFFone(e.target.value)} placeholder="só números" className="w-full bg-white border border-[#d8d0bc] rounded-lg px-2 py-1.5 text-sm" />
+          </div>
+        </div>
+      )}
 
       <div className="bg-white rounded-xl border border-[#d8d0bc] overflow-hidden">
         <table className="w-full text-sm">
