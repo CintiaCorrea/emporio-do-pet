@@ -187,7 +187,7 @@ export default function ConsultaVendasPage() {
   const [busca, setBusca] = useState('');
   const [cod, setCod] = useState('');
   const [func, setFunc] = useState('');
-  const [modo, setModo] = useState<'VENDAS' | 'ORCAMENTOS'>('VENDAS');
+  const [modo, setModo] = useState<'VENDAS' | 'ORCAMENTOS' | 'TOTAIS'>('VENDAS');
 
   const [data, setData] = useState<Resp | null>(null);
   const [loading, setLoading] = useState(true);
@@ -218,16 +218,28 @@ export default function ConsultaVendasPage() {
   const t = data?.totais;
   const funcs = useMemo(() => [...new Set((data?.vendas || []).map((v) => v.funcionario).filter(Boolean))] as string[], [data]);
   const vendasF = useMemo(() => (data?.vendas || []).filter((v) => !func || v.funcionario === func), [data, func]);
+  // Totais por produto/serviço (agrega os itens das vendas do período)
+  const totaisProduto = useMemo(() => {
+    const m = new Map<string, { qtd: number; total: number }>();
+    for (const v of vendasF) for (const it of (v.itens || [])) {
+      const nm = it.descricao || 'Item';
+      const cur = m.get(nm) || { qtd: 0, total: 0 };
+      cur.qtd += Number(it.quantidade) || 0; cur.total += Number(it.valorTotal) || 0;
+      m.set(nm, cur);
+    }
+    return [...m.entries()].map(([nome, x]) => ({ nome, ...x })).sort((a, b) => b.total - a.total);
+  }, [vendasF]);
 
   return (
     <div className="p-6 min-h-screen" style={{ background: BG }}>
       <style>{`@media print{ .no-print{display:none!important;} body{background:#fff;} .cv-print-h{display:block!important;} }`}</style>
 
       {/* Abas: Vendas | Orçamentos (busca global de orçamentos) */}
-      <div className="flex gap-1 mb-4 no-print">
-        {(([['VENDAS', '🧾 Vendas'], ['ORCAMENTOS', '📄 Orçamentos']]) as [('VENDAS' | 'ORCAMENTOS'), string][]).map(([k, lbl]) => (
+      <div className="flex gap-1 mb-4 no-print items-center">
+        {(([['VENDAS', '🧾 Vendas'], ['TOTAIS', '📊 Totais por produto'], ['ORCAMENTOS', '📄 Orçamentos']]) as [('VENDAS' | 'ORCAMENTOS' | 'TOTAIS'), string][]).map(([k, lbl]) => (
           <button key={k} onClick={() => setModo(k)} style={{ fontSize: 13, fontWeight: 600, padding: '8px 16px', borderRadius: 9, border: `1px solid ${CARD_LINE}`, background: modo === k ? TEAL : '#fff', color: modo === k ? '#fff' : NAVY }}>{lbl}</button>
         ))}
+        <a href="/dashboard/erp/recebimentos" style={{ marginLeft: 'auto', fontSize: 13, fontWeight: 600, padding: '8px 14px', borderRadius: 9, border: `1px solid ${CARD_LINE}`, background: '#fff', color: NAVY, textDecoration: 'none' }}>💰 Recebimentos →</a>
       </div>
 
       {modo === 'ORCAMENTOS' ? <OrcamentosBusca /> : (<>
@@ -331,6 +343,25 @@ export default function ConsultaVendasPage() {
             <span style={{ fontSize: 32 }}>📭</span>
             <span style={{ fontSize: 14 }}>Nenhuma venda encontrada no período.</span>
           </div>
+        ) : modo === 'TOTAIS' ? (
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ background: '#FBF9F4' }}>
+                {['Produto / Serviço', 'Qtd', 'Total'].map((h, i) => (
+                  <th key={h} style={{ padding: '10px 12px', fontSize: 11, color: GREY2, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '.4px', textAlign: i === 0 ? 'left' : 'right' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {totaisProduto.length === 0 ? <tr><td colSpan={3} style={{ padding: 24, textAlign: 'center', color: GREY2, fontSize: 13 }}>Sem itens no período.</td></tr> : totaisProduto.map((x) => (
+                <tr key={x.nome} style={{ borderTop: `1px solid ${CARD_LINE}` }}>
+                  <td style={{ padding: '10px 12px', fontSize: 13, color: NAVY }}>{x.nome}</td>
+                  <td style={{ padding: '10px 12px', fontSize: 13, textAlign: 'right', color: GREY }}>{x.qtd.toLocaleString('pt-BR')}</td>
+                  <td style={{ padding: '10px 12px', fontSize: 13, textAlign: 'right', fontWeight: 600, color: NAVY }}>{brl(x.total)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
