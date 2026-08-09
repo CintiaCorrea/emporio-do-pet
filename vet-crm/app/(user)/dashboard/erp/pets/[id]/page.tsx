@@ -184,6 +184,7 @@ export default function PetDetailPage() {
   // aba (e por isso não tinha como fechar/voltar), e anexar exigia "Solicitar" antes.
   const [exNome, setExNome] = useState("");
   const [exFile, setExFile] = useState<File | null>(null);
+  const [laudoView, setLaudoView] = useState<{ url: string; nome?: string } | null>(null); // pop-up do laudo
   const [fotoUrl, setFotoUrl] = useState("");
   const [fotoFile, setFotoFile] = useState<File | null>(null);
   const [fotoLegenda, setFotoLegenda] = useState("");
@@ -341,13 +342,13 @@ export default function PetDetailPage() {
     w.document.close(); w.focus(); setTimeout(() => w.print(), 300);
   }
   useEffect(() => { if (petId) { load(); loadPipes(); loadPetColecoes(); loadCatalogos(); loadInteracoesPet(); loadAtendimentos(); loadClinDocs(); loadHistorico(); loadAtdConfig(); loadProtocolos(); loadBoletins(); loadFisioRec(); } /* eslint-disable-next-line */ }, [petId]);
-  // ESC fecha o painel aberto (exame/receita/documento/atendimento…) e volta pra ficha.
+  // ESC fecha o laudo aberto / o painel aberto (exame/receita/documento/atendimento…).
   useEffect(() => {
-    if (!artefato && !atdOpen) return;
-    const onEsc = (e: KeyboardEvent) => { if (e.key === "Escape") { setArtefato(null); setAtdOpen(false); } };
+    if (!artefato && !atdOpen && !laudoView) return;
+    const onEsc = (e: KeyboardEvent) => { if (e.key === "Escape") { if (laudoView) { setLaudoView(null); } else { setArtefato(null); setAtdOpen(false); } } };
     window.addEventListener("keydown", onEsc);
     return () => window.removeEventListener("keydown", onEsc);
-  }, [artefato, atdOpen]);
+  }, [artefato, atdOpen, laudoView]);
   useEffect(() => { const t = searchParams?.get("tab"); if (t === "fisio") setMainTab("FISIO"); /* eslint-disable-next-line */ }, [searchParams]);
   // 💳 Crédito do tutor (Fig 3a) — saldo mostrado na Visão geral
   useEffect(() => {
@@ -1319,6 +1320,22 @@ export default function PetDetailPage() {
         ))}
       </div>
 
+      {/* Pop-up do LAUDO do exame (imagem/PDF) — fecha no X, ESC ou clique fora */}
+      {laudoView && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 no-print" style={{ background: "rgba(20,35,40,.55)" }} onClick={() => setLaudoView(null)}>
+          <div className="bg-white rounded-2xl w-full flex flex-col" style={{ maxWidth: 900, height: "88vh", border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
+            <div className="px-4 py-2.5 border-b flex items-center justify-between gap-2" style={{ borderColor: "#F0EBE0" }}>
+              <div className="text-[13.5px] font-semibold truncate" style={{ color: "#014D5E" }}>🔬 {laudoView.nome || "Laudo do exame"}</div>
+              <div className="flex items-center gap-2 shrink-0">
+                <a href={`/api/media/ver?u=${encodeURIComponent(laudoView.url)}`} target="_blank" rel="noreferrer" className="text-[12px] px-2.5 py-1 rounded-lg border" style={{ borderColor: "#E8E2D6", color: "#5C6B70" }}>nova aba ↗</a>
+                <button onClick={() => setLaudoView(null)} title="Fechar (ESC)" className="w-8 h-8 rounded-lg border flex items-center justify-center text-[#5C6B70]" style={{ borderColor: "#E8E2D6" }}>✕</button>
+              </div>
+            </div>
+            <iframe src={`/api/media/ver?u=${encodeURIComponent(laudoView.url)}`} title="Laudo do exame" className="flex-1 w-full" style={{ border: "none", borderBottomLeftRadius: 16, borderBottomRightRadius: 16 }} />
+          </div>
+        </div>
+      )}
+
       {/* ═══════════ ABA 👤 VISÃO GERAL ═══════════ */}
       {mainTab === "GERAL" && (
       <div className="mb-3 flex flex-col gap-3">
@@ -1783,8 +1800,7 @@ export default function PetDetailPage() {
               </div>
               {/* min-w-0: sem isso, um texto longo (conduta grande) não corta com "…" e
                   ESTOURA a coluna, empurrando os cartões pra fora da tela (bug da Dra. Vivian 23/07). */}
-              <div className={(atdOpen || artefato) ? "fixed inset-0 z-[60] flex items-start justify-center p-4 overflow-y-auto no-print" : "lg:order-2 min-w-0"} style={(atdOpen || artefato) ? { background: "rgba(20,35,40,.42)" } : undefined} onClick={(atdOpen || artefato) ? (() => { setArtefato(null); setAtdOpen(false); }) : undefined}>
-                <div className={(atdOpen || artefato) ? "bg-white rounded-2xl w-full my-6" : "contents"} style={(atdOpen || artefato) ? { maxWidth: 780, border: "1px solid #E8E2D6", padding: "18px 20px" } : undefined} onClick={(atdOpen || artefato) ? ((e: any) => e.stopPropagation()) : undefined}>
+              <div className="lg:order-2 min-w-0">
                 {atdOpen ? (
                   <PetAtendimentoPanel pet={pet} atd={atd} setAtd={setAtd} atdTipos={atdTipos} atdStatus={atdStatus} vets={vets} items={items} servicosCat={servicosCat} pickServico={pickServico} addItem={addItem} updItem={updItem} rmItem={rmItem} saving={savingAtd} onSalvar={criarAtendimento} onFechar={() => setAtdOpen(false)} />
                 ) : artefato === "PESO" ? (
@@ -1936,7 +1952,7 @@ export default function PetDetailPage() {
                                 </div>
                                 <div className="flex items-center gap-1.5 shrink-0">
                                   {url ? (
-                                    <button type="button" onClick={() => window.open(`/api/media/ver?u=${encodeURIComponent(url)}`, "_blank")} className="text-[11px] px-2 py-1 rounded-lg border" style={{ borderColor: "#009AAC", color: "#00798A" }}>📎 abrir laudo</button>
+                                    <button type="button" onClick={() => setLaudoView({ url, nome: x.data?.nome })} className="text-[11px] px-2 py-1 rounded-lg border" style={{ borderColor: "#009AAC", color: "#00798A" }}>📎 abrir laudo</button>
                                   ) : <span className="text-[10.5px] text-[#94a3a0]">sem laudo</span>}
                                   <button type="button" title="Excluir exame" onClick={async () => { if (!(await confirmDelete({ entityLabel: "exame", itemName: x.data?.nome || "exame" }))) return; await delExame(x.id); }} className="text-[13px] px-2 py-1 rounded-lg border hover:bg-[#FBEEEC]" style={{ borderColor: "#E8DFC8", color: "#b23b39" }}>🗑️</button>
                                 </div>
@@ -1996,7 +2012,6 @@ export default function PetDetailPage() {
                     </div>
                   </div>
                 )}
-                </div>
               </div>
             </div>
           </div>
