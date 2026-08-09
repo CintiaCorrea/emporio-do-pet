@@ -32,7 +32,7 @@ interface Pet { id: string; name: string }
 interface Tutor { id: string; name: string; pets?: Pet[] }
 interface Servico { id: string; nome: string; valorPadrao?: number | null }
 interface Prof { id: string; name: string }
-interface CartItem { servicoId?: string; descricao: string; quantidade: number; valorUnitario: number; desconto: number }
+interface CartItem { servicoId?: string; descricao: string; quantidade: number; valorUnitario: number; desconto: number; executorUserId?: string }
 interface Forma { forma: string; valor: number }
 interface Venda { id: string; tutor: string; pet: string; valor: number; pago: number; status: string; pagoTotal: boolean; date: string }
 
@@ -290,11 +290,11 @@ export default function PDVPage() {
     setCarrinho((c) => {
       const i = c.findIndex((x) => x.servicoId === s.id);
       if (i >= 0) { const cp = [...c]; cp[i] = { ...cp[i], quantidade: cp[i].quantidade + qtd }; return cp; }
-      return [...c, { servicoId: s.id, descricao: s.nome, quantidade: qtd, valorUnitario: Number(s.valorPadrao || 0), desconto: 0 }];
+      return [...c, { servicoId: s.id, descricao: s.nome, quantidade: qtd, valorUnitario: Number(s.valorPadrao || 0), desconto: 0, executorUserId: profId || undefined }];
     });
     setItemBusca(''); setItemAberto(false); setQtd(1);
   };
-  const addAvulso = () => setCarrinho((c) => [...c, { descricao: '', quantidade: 1, valorUnitario: 0, desconto: 0 }]);
+  const addAvulso = () => setCarrinho((c) => [...c, { descricao: '', quantidade: 1, valorUnitario: 0, desconto: 0, executorUserId: profId || undefined }]);
   const updItem = (i: number, patch: Partial<CartItem>) => setCarrinho((c) => c.map((x, j) => j === i ? { ...x, ...patch } : x));
   const rmItem = (i: number) => setCarrinho((c) => c.filter((_, j) => j !== i));
 
@@ -321,7 +321,7 @@ export default function PDVPage() {
 
   const payload = (extra: any) => ({
     tutorId: cliente!.id, petId, userId: profId || undefined, date: new Date(data + 'T12:00:00').toISOString(),
-    itens: carrinho.map((it) => ({ servicoId: it.servicoId, productId: it.servicoId, descricao: it.descricao, quantidade: it.quantidade, valorUnitario: it.valorUnitario, desconto: it.desconto })),
+    itens: carrinho.map((it) => ({ servicoId: it.servicoId, productId: it.servicoId, descricao: it.descricao, quantidade: it.quantidade, valorUnitario: it.valorUnitario, desconto: it.desconto, executorUserId: it.executorUserId || profId || undefined })),
     desconto: num(descontoGlobal), observacao: obs || null, ...extra,
   });
 
@@ -417,8 +417,8 @@ export default function PDVPage() {
             {/* 2 produtos */}
             {step('🛒', 'Produtos e serviços')}
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
-              <select value={profId} onChange={(e) => setProfId(e.target.value)} style={{ ...inp, minWidth: 150 }} title="Profissional">
-                <option value="">Profissional…</option>
+              <select value={profId} onChange={(e) => { const novo = e.target.value; setCarrinho((c) => c.map((it) => (!it.executorUserId || it.executorUserId === profId) ? { ...it, executorUserId: novo || undefined } : it)); setProfId(novo); }} style={{ ...inp, minWidth: 150 }} title="Profissional padrão — preenche o vendedor de cada item (trocável por linha)">
+                <option value="">Profissional padrão…</option>
                 {profs.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
               <div style={{ display: 'inline-flex', alignItems: 'center', border: `1px solid ${LINE}`, borderRadius: 9, overflow: 'hidden' }}>
@@ -462,6 +462,13 @@ export default function PDVPage() {
                       <input value={it.valorUnitario || ''} inputMode="decimal" placeholder="Unit." onChange={(e) => updItem(i, { valorUnitario: num(e.target.value) })} title="Valor unitário" style={{ ...inp, flex: 1, padding: '6px 8px' }} />
                       <input value={it.desconto || ''} inputMode="decimal" placeholder="Desc." onChange={(e) => updItem(i, { desconto: num(e.target.value) })} title="Desconto" style={{ ...inp, width: 70, padding: '6px 8px' }} />
                       <span style={{ fontSize: 12.5, fontWeight: 500, color: NAVY, minWidth: 76, textAlign: 'right' }}>{brl(itemTotal(it))}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+                      <span style={{ color: MUT, fontSize: 11, flexShrink: 0 }}>Vendedor</span>
+                      <select value={it.executorUserId || ''} onChange={(e) => updItem(i, { executorUserId: e.target.value || undefined })} title="Vendedor deste item" style={{ ...inp, flex: 1, padding: '5px 8px', fontSize: 12, ...(it.executorUserId && it.executorUserId !== profId ? { borderColor: TEAL, background: AGUA } : {}) }}>
+                        <option value="">— sem vendedor —</option>
+                        {profs.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                      </select>
                     </div>
                   </div>
                 </div>
