@@ -383,31 +383,56 @@ export class CaixaService {
     };
   }
 
-  // Vendas — gráficos (Fase 3): total/ticket + evolução (bucketizada) + por grupo/marca + top itens.
+  // Vendas — gráficos / BI Fatia 1: evolução RICA (bruto/desconto/líquido/nº vendas/nº
+  // itens) com agrupamento dia/semana/mês (groupBy) + por grupo/marca + top itens.
   async vendasResumo(query: any = {}) {
     const from = query?.from, to = query?.to;
+    const groupBy = String(query?.groupBy || 'MES').toUpperCase();
     const where: any = { value: { gt: 0 }, status: { not: 'CANCELLED' } };
     if (from || to) { where.date = {}; if (from) where.date.gte = new Date(String(from) + 'T00:00:00'); if (to) where.date.lte = new Date(String(to) + 'T23:59:59'); }
     const appts = await this.prisma.appointment.findMany({
       where,
-      select: { value: true, date: true, items: { select: { grupo: true, marca: true, valorTotal: true, descricao: true } } },
+      select: { value: true, date: true, items: { select: { grupo: true, marca: true, valorTotal: true, desconto: true, quantidade: true, descricao: true } } },
     });
-    const total = appts.reduce((s, a) => s + (Number(a.value) || 0), 0);
-    const count = appts.length;
-    const ticket = count ? total / count : 0;
-    const porDia = new Map<string, number>();
-    for (const a of appts) { const d = new Date(a.date).toISOString().slice(0, 10); porDia.set(d, (porDia.get(d) || 0) + (Number(a.value) || 0)); }
-    const evolucao = this.bucketizeEvolucao(from, to, porDia);
+
+    const MESN = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+    const mondayOf = (d: Date) => { const x = new Date(d); const day = (x.getDay() + 6) % 7; x.setDate(x.getDate() - day); x.setHours(0, 0, 0, 0); return x; };
+    const bucketOf = (dt: Date): { key: string; label: string } => {
+      if (groupBy === 'DIA') { const k = dt.toISOString().slice(0, 10); return { key: k, label: `${k.slice(8, 10)}/${k.slice(5, 7)}` }; }
+      if (groupBy === 'MES') { const k = dt.toISOString().slice(0, 7); return { key: k, label: `${MESN[dt.getUTCMonth()]}/${String(dt.getUTCFullYear()).slice(2)}` }; }
+      const m = mondayOf(dt); const k = m.toISOString().slice(0, 10); return { key: k, label: `${k.slice(8, 10)}/${k.slice(5, 7)}` }; // SEMANA
+    };
+
+    const buckets = new Map<string, { label: string; bruto: number; desconto: number; liquido: number; qtdVendas: number; qtdItens: number }>();
+    let totBruto = 0, totDesc = 0, totLiq = 0, totV = 0, totI = 0;
     const MARCAS: Record<string, string> = { EMPORIO: 'EMPORIO', MUNDO_A_PARTE: 'MUNDO_A_PARTE', DRA_VIVIAN: 'DRA_VIVIAN' };
     const porGrupo = new Map<string, number>(), porMarca = new Map<string, number>(), topItens = new Map<string, number>();
-    for (const a of appts) for (const it of (a.items || [])) {
-      const v = Number(it.valorTotal) || 0;
-      porGrupo.set(it.grupo || 'Sem grupo', (porGrupo.get(it.grupo || 'Sem grupo') || 0) + v);
-      const m = MARCAS[it.marca as string] || 'Sem marca'; porMarca.set(m, (porMarca.get(m) || 0) + v);
-      const nm = it.descricao || 'Item'; topItens.set(nm, (topItens.get(nm) || 0) + v);
+    for (const a of appts) {
+      const items = a.items || [];
+      const liq = Number(a.value) || 0;
+      const bruto = items.length ? items.reduce((s, it: any) => s + (Number(it.valorTotal) || 0) + (Number(it.desconto) || 0), 0) : liq;
+      const desc = Math.max(0, bruto - liq);
+      const qi = items.reduce((s, it: any) => s + (Number(it.quantidade) || 0), 0);
+      const { key, label } = bucketOf(new Date(a.date));
+      const b = buckets.get(key) || { label, bruto: 0, desconto: 0, liquido: 0, qtdVendas: 0, qtdItens: 0 };
+      b.bruto += bruto; b.desconto += desc; b.liquido += liq; b.qtdVendas += 1; b.qtdItens += qi;
+      buckets.set(key, b);
+      totBruto += bruto; totDesc += desc; totLiq += liq; totV += 1; totI += qi;
+      for (const it of items) {
+        const v = Number(it.valorTotal) || 0;
+        porGrupo.set(it.grupo || 'Sem grupo', (porGrupo.get(it.grupo || 'Sem grupo') || 0) + v);
+        const mk = MARCAS[it.marca as string] || 'Sem marca'; porMarca.set(mk, (porMarca.get(mk) || 0) + v);
+        const nm = it.descricao || 'Item'; topItens.set(nm, (topItens.get(nm) || 0) + v);
+      }
     }
+    const evolucao = [...buckets.entries()].sort(([a], [b]) => (a < b ? -1 : 1)).map(([, v]) => v);
     const toArr = (mp: Map<string, number>) => [...mp.entries()].map(([nome, valor]) => ({ nome, valor })).sort((a, b) => b.valor - a.valor);
-    return { total, count, ticket, evolucao, porGrupo: toArr(porGrupo), porMarca: toArr(porMarca), topItens: toArr(topItens).slice(0, 8) };
+    return {
+      total: totLiq, count: totV, ticket: totV ? totLiq / totV : 0,
+      totais: { bruto: totBruto, desconto: totDesc, liquido: totLiq, qtdVendas: totV, qtdItens: totI, ticket: totV ? totLiq / totV : 0 },
+      groupBy, evolucao,
+      porGrupo: toArr(porGrupo), porMarca: toArr(porMarca), topItens: toArr(topItens).slice(0, 8),
+    };
   }
 
   private bucketizeEvolucao(from: string, to: string, porDia: Map<string, number>) {

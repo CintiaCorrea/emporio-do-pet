@@ -10,6 +10,16 @@ const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart
 const MARCA: Record<string, { lbl: string; cls: string }> = {
   EMPORIO: { lbl: "🏥 Empório", cls: "e" }, MUNDO_A_PARTE: { lbl: "🌿 Mundo à Parte", cls: "m" }, DRA_VIVIAN: { lbl: "✨ Dra. Vivian", cls: "v" },
 };
+// Métricas do gráfico de evolução (BI Fatia 1)
+const METRICAS: { k: string; l: string; money: boolean; v: (b: any) => number }[] = [
+  { k: "LIQUIDA", l: "💰 Venda líquida", money: true, v: (b) => Number(b.liquido) || 0 },
+  { k: "BRUTA", l: "Venda bruta", money: true, v: (b) => Number(b.bruto) || 0 },
+  { k: "TICKET", l: "Ticket médio", money: true, v: (b) => (b.qtdVendas ? (Number(b.liquido) || 0) / b.qtdVendas : 0) },
+  { k: "DESCONTO", l: "Descontos", money: true, v: (b) => Number(b.desconto) || 0 },
+  { k: "QTDV", l: "Nº de vendas", money: false, v: (b) => Number(b.qtdVendas) || 0 },
+  { k: "QTDI", l: "Nº de itens", money: false, v: (b) => Number(b.qtdItens) || 0 },
+];
+const GRUPOS: { k: string; l: string }[] = [{ k: "DIA", l: "Dia" }, { k: "SEMANA", l: "Semana" }, { k: "MES", l: "Mês" }];
 
 const CSS = `
 .vg-wrap{width:100%;padding:2px 0 40px}
@@ -31,6 +41,11 @@ const CSS = `
 .vg-chart .col{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;height:100%;justify-content:flex-end}
 .vg-chart .b{width:100%;max-width:26px;background:#009AAC;border-radius:5px 5px 0 0;min-height:2px}
 .vg-chart .x{font-size:9.5px;color:#374151}
+.vg-seg{display:inline-flex;border:1px solid #E8E2D6;border-radius:9px;overflow:hidden}
+.vg-segb{border:none;background:#fff;color:#5C6B70;padding:6px 12px;font-size:12.5px;font-weight:500;cursor:pointer;font-family:inherit}
+.vg-segb.on{background:#E0F4F6;color:#014D5E}
+.vg-chart .b .bv{position:absolute;top:-16px;left:50%;transform:translateX(-50%);font-size:9.5px;color:#33454A;white-space:nowrap;opacity:0}
+.vg-chart .col:hover .bv{opacity:1}
 .vg-hbar{display:flex;align-items:center;gap:10px;margin-bottom:9px}
 .vg-hbar:last-child{margin-bottom:0}
 .vg-hbar .nm{width:150px;font-size:12.5px;color:#5C6B70;flex-shrink:0;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -56,17 +71,22 @@ export default function VendasGraficosPage() {
   const [olho, setOlho] = useState(false);
   const [loading, setLoading] = useState(true);
   const [d, setD] = useState<any>(null);
+  const [metrica, setMetrica] = useState("LIQUIDA");
+  const [grupo, setGrupo] = useState("MES");
 
   const load = useCallback(async () => {
     setLoading(true);
-    try { const r = await fetch(`/api/caixa/vendas-resumo?from=${from}&to=${to}`, { cache: "no-store" }).then((x) => x.json()).catch(() => null); setD(r); } catch {}
+    try { const r = await fetch(`/api/caixa/vendas-resumo?from=${from}&to=${to}&groupBy=${grupo}`, { cache: "no-store" }).then((x) => x.json()).catch(() => null); setD(r); } catch {}
     setLoading(false);
-  }, [from, to]);
+  }, [from, to, grupo]);
   useEffect(() => { load(); }, [load]);
 
   const money = (v: number) => (olho ? brl(v) : "R$ •••");
+  const met = METRICAS.find((m) => m.k === metrica) || METRICAS[0];
+  const fmtMet = (v: number) => (met.money ? money(v) : (Number(v) || 0).toLocaleString("pt-BR"));
   const evol = d?.evolucao || [];
-  const maxEvol = Math.max(1, ...evol.map((e: any) => Number(e.valor) || 0));
+  const maxEvol = Math.max(1, ...evol.map((e: any) => met.v(e)));
+  const totais = d?.totais || { liquido: d?.total || 0, qtdVendas: d?.count || 0, ticket: d?.ticket || 0, desconto: 0 };
   const grupos = d?.porGrupo || [];
   const maxGrupo = Math.max(1, ...grupos.map((g: any) => Number(g.valor) || 0));
   const marcas = d?.porMarca || [];
@@ -93,19 +113,28 @@ export default function VendasGraficosPage() {
           <div className="vg-card"><div className="vg-empty">📊 Sem vendas no período para gráficos.<br /><span style={{ fontSize: 12 }}>Conforme as vendas forem lançadas, os gráficos aparecem aqui.</span></div></div>
         ) : (
           <>
-            <div className="vg-kpis">
-              <div className="vg-kpi"><div className="l">💰 Total vendido</div><div className="v">{money(Number(d.total) || 0)}</div></div>
-              <div className="vg-kpi"><div className="l">🧾 Nº de vendas</div><div className="v">{d.count || 0}</div></div>
-              <div className="vg-kpi"><div className="l">🎯 Ticket médio</div><div className="v">{money(Number(d.ticket) || 0)}</div></div>
+            <div className="vg-kpis" style={{ gridTemplateColumns: "repeat(4,1fr)" }}>
+              <div className="vg-kpi"><div className="l">💰 Venda líquida</div><div className="v">{money(Number(totais.liquido) || 0)}</div></div>
+              <div className="vg-kpi"><div className="l">🧾 Nº de vendas</div><div className="v">{totais.qtdVendas || 0}</div></div>
+              <div className="vg-kpi"><div className="l">🎯 Ticket médio</div><div className="v">{money(Number(totais.ticket) || 0)}</div></div>
+              <div className="vg-kpi"><div className="l">🏷️ Descontos</div><div className="v">{money(Number(totais.desconto) || 0)}</div></div>
             </div>
 
             <div className="vg-card">
-              <div className="vg-ch">📈 Evolução no período</div>
+              <div className="vg-ch" style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                <span>📈 Evolução — {met.l.replace(/^💰 /, "")}</span>
+                <select className="vg-in no-print" value={metrica} onChange={(e) => setMetrica(e.target.value)} style={{ marginLeft: "auto", padding: "6px 8px" }}>
+                  {METRICAS.map((m) => <option key={m.k} value={m.k}>{m.l}</option>)}
+                </select>
+                <div className="vg-seg no-print">
+                  {GRUPOS.map((g) => <button key={g.k} onClick={() => setGrupo(g.k)} className={`vg-segb${grupo === g.k ? " on" : ""}`}>{g.l}</button>)}
+                </div>
+              </div>
               <div className="vg-cb">
-                <div className="vg-chart">
-                  {evol.map((e: any, i: number) => (
-                    <div className="col" key={i}><div className="b" style={{ height: `${Math.max(2, (Number(e.valor) || 0) / maxEvol * 100)}%` }} title={money(Number(e.valor) || 0)} /><div className="x">{e.label}</div></div>
-                  ))}
+                <div className="vg-chart" style={{ height: 180 }}>
+                  {evol.length === 0 ? <div style={{ fontSize: 12, color: "#374151" }}>Sem dados no período.</div> : evol.map((e: any, i: number) => { const val = met.v(e); return (
+                    <div className="col" key={i}><div className="b" style={{ position: "relative", height: `${Math.max(2, val / maxEvol * 100)}%` }} title={fmtMet(val)}><span className="bv">{fmtMet(val)}</span></div><div className="x">{e.label}</div></div>
+                  ); })}
                 </div>
               </div>
             </div>
