@@ -180,7 +180,7 @@ export default function PetDetailPage() {
   const [atdOpen, setAtdOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [savingAtd, setSavingAtd] = useState(false);
-  const [artefato, setArtefato] = useState<null | "PESO" | "OBS" | "RECEITA" | "DOCUMENTO" | "VIDEO" | "FOTO" | "EXAME">(null);
+  const [artefato, setArtefato] = useState<null | "PESO" | "OBS" | "RECEITA" | "DOCUMENTO" | "VIDEO" | "FOTO" | "EXAME" | "PATOLOGIA">(null);
   // Exame pelo histórico: nome + arquivo de uma vez. Antes o card "Exame" só trocava de
   // aba (e por isso não tinha como fechar/voltar), e anexar exigia "Solicitar" antes.
   const [exNome, setExNome] = useState("");
@@ -901,6 +901,30 @@ export default function PetDetailPage() {
       toast.success(externo ? "Exame solicitado (externo) ✅" : "Exame solicitado na clínica ✅ — entra no 'Exames a entregar'");
       setExNome(""); await loadPetColecoes(); await loadAtendimentos();
     } catch (e: any) { toast.error("Não solicitou: " + String(e?.message || e).slice(0, 80)); } finally { setSavingEx(false); }
+  }
+  // Lista compacta dentro do box (receitas/documentos/patologias) — abrir laudo/PDF + excluir.
+  function boxDocList(filtro: (d: any) => boolean, label: string, entity: string) {
+    const arr = (clinDocs || []).filter(filtro);
+    if (arr.length === 0) return <div className="mt-4 pt-3 border-t text-[12px] text-[#374151]" style={{ borderColor: "#F0EBE0" }}>Nenhum(a) {entity} deste pet ainda.</div>;
+    return (
+      <div className="mt-4 pt-3 border-t" style={{ borderColor: "#F0EBE0" }}>
+        <div className="text-[11px] uppercase tracking-wide text-[#374151] mb-2 font-semibold">{label} ({arr.length})</div>
+        <div className="flex flex-col gap-1.5" style={{ maxHeight: "35vh", overflowY: "auto" }}>
+          {arr.map((d: any) => (
+            <div key={d.id} className="flex items-center justify-between gap-2 border rounded-lg px-2.5 py-1.5" style={{ borderColor: "#E8DFC8", background: "#FBF9F4" }}>
+              <div className="min-w-0">
+                <div className="text-[12.5px] font-medium truncate" style={{ color: "#014D5E" }}>{d.title || label}</div>
+                <div className="text-[10.5px] text-[#5C6B70]">{d.createdAt ? fmtDataBR(d.createdAt) : ""}{d.signedBy ? " · " + d.signedBy : ""}</div>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                {d.pdfUrl ? <button type="button" onClick={() => setLaudoView({ url: d.pdfUrl, nome: d.title })} className="text-[11px] px-2 py-1 rounded-lg border" style={{ borderColor: "#009AAC", color: "#00798A" }}>📎 abrir</button> : <span className="text-[10.5px] text-[#94a3a0]">sem arquivo</span>}
+                <button type="button" title="Excluir" onClick={async () => { if (!(await confirmDelete({ entityLabel: entity, itemName: d.title || entity }))) return; try { const r = await fetch(`/api/clinical-documents/${d.id}`, { method: "DELETE" }); if (!r.ok) throw new Error(); await loadClinDocs(); toast.success("Excluído"); } catch { toast.error("Erro ao excluir"); } }} className="text-[13px] px-2 py-1 rounded-lg border hover:bg-[#FBEEEC]" style={{ borderColor: "#E8DFC8", color: "#b23b39" }}>🗑️</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
   }
   // Fatia 4C — "Cobrar" o exame: lança na COMANDA da ficha (PetComandaRail já escuta 'comanda:add').
   // Explícito por card (decisão da Cintia 04/08) — não cobra automático ao solicitar.
@@ -1899,6 +1923,7 @@ export default function PetDetailPage() {
                     </div>
                     <EditorDocumento value={recCorpo} onChange={setRecCorpo} minHeight={160} />
                     <p className="text-[11px] text-gray-400 mt-2">Ao salvar, entra na timeline como atendimento "Receitas". Modelos editáveis em Configurações › Modelos de Receita.</p>
+                    {boxDocList((d: any) => d.type === "PRESCRIPTION", "💊 Receitas deste pet", "receita")}
                   </div>
                 ) : artefato === "DOCUMENTO" ? (
                   <div className="bg-white">
@@ -1929,6 +1954,38 @@ export default function PetDetailPage() {
                     </div>
                     <EditorDocumento value={docCorpo} onChange={setDocCorpo} minHeight={160} />
                     <p className="text-[11px] text-gray-400 mt-2">Ao salvar, entra na timeline como "Documento". Modelos editáveis em Configurações › Modelos de Documento.</p>
+                    {boxDocList((d: any) => d.type === "GENERAL" && !/patolog/i.test(d.title || ""), "📄 Documentos deste pet", "documento")}
+                  </div>
+                ) : artefato === "PATOLOGIA" ? (
+                  <div className="bg-white">
+                    <div className="flex items-center justify-between border-b pb-2.5 mb-3" style={{ borderColor: "#E8DFC8" }}>
+                      <h3 className="text-sm font-semibold" style={{ color: "#0E2244" }}>🦠 Patologia</h3>
+                      <div className="flex gap-2">
+                        <button onClick={() => imprimirComTimbrado(docModeloNome || "Patologia", docCorpo, docVetId)} className="px-3 py-1.5 rounded-lg text-xs border flex items-center gap-1" style={{ borderColor: "#E8DFC8", color: "#475569" }}><LuPrinter size={13} /> Imprimir</button>
+                        <label className="px-3 py-1.5 rounded-lg text-xs border flex items-center gap-1 cursor-pointer" style={{ borderColor: "#009AAC", color: "#00798A" }}>📎 Anexar arquivo<input type="file" accept="application/pdf,image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) anexarArquivoDoc(f, "DOCUMENTO"); (e.target as HTMLInputElement).value = ""; }} /></label>
+                        <button onClick={salvarDocumento} disabled={savingArt} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingArt ? "..." : "Salvar"}</button>
+                        <button onClick={() => setArtefato(null)} title="Fechar" aria-label="Fechar" className="w-7 h-7 flex items-center justify-center rounded-lg text-lg leading-none border hover:bg-[#F6F2EA] transition-colors" style={{ borderColor: "#E8DFC8", color: "#64748B" }}>×</button>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 mb-2">
+                      <div>
+                        <label className="text-xs text-gray-500">Modelo</label>
+                        <select value={docModeloNome} onChange={(e) => { const nm = e.target.value; setDocModeloNome(nm); const m = docModelos.find((x) => x.nome === nm); if (m && m.corpo) setDocCorpo(preencherModelo(m.corpo, docVetId)); }} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }}>
+                          <option value="">Selecione o modelo…</option>
+                          {docModelos.map((m) => <option key={m.nome} value={m.nome}>{m.nome}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500">Profissional</label>
+                        <select value={docVetId} onChange={(e) => setDocVetId(e.target.value)} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }}>
+                          <option value="">Selecionar...</option>
+                          {vets.map((u: any) => <option key={u.id} value={u.id}>{u.name}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    <EditorDocumento value={docCorpo} onChange={setDocCorpo} minHeight={160} />
+                    <p className="text-[11px] text-gray-400 mt-2">🦠 Box de patologias — cadastre a patologia do pet. Vamos ampliar com o catálogo de patologias e protocolos.</p>
+                    {boxDocList((d: any) => /patolog/i.test(d.title || ""), "🦠 Patologias deste pet", "patologia")}
                   </div>
                 ) : artefato === "VIDEO" ? (
                   <div className="bg-white">
@@ -2050,7 +2107,7 @@ export default function PetDetailPage() {
                         { label: "Fotos", ic: "📷", bg: "#E8F0FA", fg: "#3E6DA6", act: () => abrirFoto() },
                         { label: "Vídeo", ic: "🎥", bg: "#E3F3EF", fg: "#2E8B72", act: () => abrirVideo() },
                         { label: "Observação", ic: "📝", bg: "#EFEEE9", fg: "#6B6A63", act: () => { setObsVal(pet?.observations || ""); setObsFile(null); setAtdOpen(false); setArtefato("OBS"); } },
-                        { label: "Patologia", ic: "🦠", bg: "#F3E8F5", fg: "#8E4585", act: async () => { await abrirDocumento(); setDocModeloNome("Laudo de patologia"); } },
+                        { label: "Patologia", ic: "🦠", bg: "#F3E8F5", fg: "#8E4585", act: async () => { await abrirDocumento(); setArtefato("PATOLOGIA"); } },
                         { label: "Vacina", ic: "💉", bg: "#FBF3D9", fg: "#C2952E", act: () => setMainTab("VACINAS") },
                         { label: "Internação", ic: "🏥", bg: "#F7E9EB", fg: "#9b2c3a", act: () => router.push(`/dashboard/erp/internacoes?pet=${encodeURIComponent(pet?.name || "")}&petId=${petId}`) },
                         { label: "Gravar consulta", ic: "🎤", bg: "#FCE9E7", fg: "#B0403A", act: () => router.push(`/dashboard/erp/pets/${petId}/atendimentos/novo`) },
