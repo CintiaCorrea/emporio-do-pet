@@ -341,6 +341,13 @@ export default function PetDetailPage() {
     w.document.close(); w.focus(); setTimeout(() => w.print(), 300);
   }
   useEffect(() => { if (petId) { load(); loadPipes(); loadPetColecoes(); loadCatalogos(); loadInteracoesPet(); loadAtendimentos(); loadClinDocs(); loadHistorico(); loadAtdConfig(); loadProtocolos(); loadBoletins(); loadFisioRec(); } /* eslint-disable-next-line */ }, [petId]);
+  // ESC fecha o painel aberto (exame/receita/documento/atendimento…) e volta pra ficha.
+  useEffect(() => {
+    if (!artefato && !atdOpen) return;
+    const onEsc = (e: KeyboardEvent) => { if (e.key === "Escape") { setArtefato(null); setAtdOpen(false); } };
+    window.addEventListener("keydown", onEsc);
+    return () => window.removeEventListener("keydown", onEsc);
+  }, [artefato, atdOpen]);
   useEffect(() => { const t = searchParams?.get("tab"); if (t === "fisio") setMainTab("FISIO"); /* eslint-disable-next-line */ }, [searchParams]);
   // 💳 Crédito do tutor (Fig 3a) — saldo mostrado na Visão geral
   useEffect(() => {
