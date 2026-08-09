@@ -102,6 +102,7 @@ export default function HojePage() {
   const [boletinsPend, setBoletinsPend] = useState<any[]>([]);
   const [fuDue, setFuDue] = useState<any[]>([]);
   const [fuDueOpen, setFuDueOpen] = useState(false);
+  const [fuMine, setFuMine] = useState(true); // "Meus" (responsável=eu + sem dono) x "Todos"
   const [toques, setToques] = useState<any[]>([]);
   const [toquesOpen, setToquesOpen] = useState(false);
   const [aniv, setAniv] = useState<any[]>([]);
@@ -236,9 +237,17 @@ export default function HojePage() {
         tutorArr.forEach((t: any) => { tutorMap[t.id] = t.name; });
         const startToday = new Date(); startToday.setHours(0, 0, 0, 0);
         const endToday = new Date(); endToday.setHours(23, 59, 59, 999);
+        // 👤 responsável pelo FU (KV fu_responsavel) — mapa petId → {userId,nome}
+        const fuRespMap: Record<string, { userId: string; nome: string }> = {};
+        for (const it of listArr) {
+          if ((it.lista || "") === "fu_responsavel") {
+            let dd: any = {}; try { dd = JSON.parse(it.valor); } catch {}
+            if (dd.petId && dd.userId) fuRespMap[dd.petId] = { userId: dd.userId, nome: dd.nome || "" };
+          }
+        }
         const fu: any[] = [];
         for (const t of tutorArr) if (t.proximoFollowupAt && new Date(t.proximoFollowupAt) <= endToday) fu.push({ id: "t" + t.id, tipo: "Cliente", nome: t.name || "Cliente", date: t.proximoFollowupAt, href: `/dashboard/erp/tutores/${t.id}` });
-        for (const p of petArr) if (p.proximoFollowupAt && new Date(p.proximoFollowupAt) <= endToday) fu.push({ id: "p" + p.id, tipo: "Pet", nome: p.name || "Pet", date: p.proximoFollowupAt, href: `/dashboard/erp/pets/${p.id}` });
+        for (const p of petArr) if (p.proximoFollowupAt && new Date(p.proximoFollowupAt) <= endToday) { const rr = fuRespMap[p.id]; fu.push({ id: "p" + p.id, tipo: "Pet", nome: p.name || "Pet", date: p.proximoFollowupAt, href: `/dashboard/erp/pets/${p.id}`, respUserId: rr?.userId, respNome: rr?.nome }); }
         for (const l of leadArr) if (l.proximoFollowupAt && new Date(l.proximoFollowupAt) <= endToday) fu.push({ id: "l" + l.id, tipo: "Lead", nome: l.name || "Lead", date: l.proximoFollowupAt, href: `/dashboard/crm/leads/${l.id}` });
         fu.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
         setFuDue(fu);
@@ -342,6 +351,10 @@ export default function HojePage() {
     const arr = Array.isArray(dosesPend) ? dosesPend : [];
     return (effectiveRole === "VET" && meId) ? arr.filter((d: any) => d.vetId === meId) : arr;
   }, [dosesPend, effectiveRole, meId]);
+  // Retornos filtrados por responsável: "Meus" = eu OU sem dono; "Todos" = tudo
+  const fuShown = useMemo(() => (
+    fuMine ? fuDue.filter((f: any) => !f.respUserId || f.respUserId === meId) : fuDue
+  ), [fuDue, fuMine, meId]);
 
   const items: Pendencia[] = useMemo(() => {
     if (!data) return [];
@@ -350,7 +363,7 @@ export default function HojePage() {
         key: "retornos",
         title: "Retornos vencidos",
         sub: "Follow-ups vencidos e de hoje (Cliente/Pet/Lead)",
-        count: fuDue.length,
+        count: fuShown.length,
         link: "Follow-up",
         href: "#",
         Icon: LuRefreshCcw,
@@ -407,7 +420,7 @@ export default function HojePage() {
         emoji: "🎂",
       },
     ];
-  }, [data, examesPend, dosesView, fuDue, toques, aniv, pacRisco]);
+  }, [data, examesPend, dosesView, fuShown, toques, aniv, pacRisco]);
 
   const total = items.reduce((s, t) => s + t.count, 0);
 
@@ -470,17 +483,19 @@ export default function HojePage() {
                 </div>
               );
             }
-            const fuExpand = (list: any[], open: boolean, setOpen: (f: (o: boolean) => boolean) => void, emptyMsg: string) => (
+            const fuExpand = (list: any[], open: boolean, setOpen: (f: (o: boolean) => boolean) => void, emptyMsg: string, topNode?: any) => (
               <div key={p.key}>
                 <div className={rowCls} style={{ borderColor: B44.lineSoft }} onClick={() => setOpen(o => !o)}>{inner}</div>
                 {open && (
                   <div style={{ background: B44.soft }}>
+                    {topNode}
                     {list.length === 0 ? (
                       <div className="px-[58px] py-3 text-xs border-b" style={{ color: B44.text3, borderColor: B44.lineSoft }}>{emptyMsg}</div>
                     ) : list.map((e: any) => (
                       <Link key={e.id} href={e.href} className="flex items-center gap-2 px-[58px] py-2.5 border-b hover:bg-[#E0F4F6]/60 text-xs" style={{ borderColor: B44.lineSoft }}>
                         <TipoChip tipo={e.tipo} />
                         <span className="font-medium" style={{ color: B44.text1 }}>{e.nome}</span>
+                        {e.respNome && <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: "#E0F4F6", color: "#00798A" }}>👤 {String(e.respNome).split(" ")[0]}</span>}
                         {e.date && <span className="ml-auto" style={{ color: B44.text2 }}>{new Date(e.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}</span>}
                       </Link>
                     ))}
@@ -488,7 +503,14 @@ export default function HojePage() {
                 )}
               </div>
             );
-            if (p.key === "retornos") return fuExpand(fuDue, fuDueOpen, setFuDueOpen, "Nenhum follow-up vencido ou de hoje.");
+            if (p.key === "retornos") return fuExpand(fuShown, fuDueOpen, setFuDueOpen, fuMine ? "Nenhum follow-up seu (ou sem dono) para hoje." : "Nenhum follow-up vencido ou de hoje.", (
+              <div className="flex items-center gap-2 px-[58px] py-2 border-b" style={{ borderColor: B44.lineSoft }}>
+                <span className="text-[11px]" style={{ color: B44.text3 }}>Mostrar:</span>
+                <button onClick={(ev) => { ev.preventDefault(); ev.stopPropagation(); setFuMine(true); }} className="text-[11px] px-2.5 py-1 rounded-full font-medium" style={fuMine ? { background: "#009AAC", color: "#fff" } : { background: "#fff", border: "1px solid " + B44.line, color: B44.text2 }}>Meus</button>
+                <button onClick={(ev) => { ev.preventDefault(); ev.stopPropagation(); setFuMine(false); }} className="text-[11px] px-2.5 py-1 rounded-full font-medium" style={!fuMine ? { background: "#009AAC", color: "#fff" } : { background: "#fff", border: "1px solid " + B44.line, color: B44.text2 }}>Todos</button>
+                <span className="ml-auto text-[10.5px]" style={{ color: B44.text3 }}>{fuShown.length} de {fuDue.length}</span>
+              </div>
+            ));
             if (p.key === "aniversariantes") return fuExpand(aniv, anivOpen, setAnivOpen, "Ninguém faz aniversário hoje.");
             if (p.key === "toques") return (
               <div key={p.key}>

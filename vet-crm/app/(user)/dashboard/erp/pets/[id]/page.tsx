@@ -795,7 +795,12 @@ export default function PetDetailPage() {
   async function saveFu() {
     if (!fuDate) { toast.error("Escolha uma data"); return; }
     setSavingFu(true);
-    try { await patchPet({ proximoFollowupAt: new Date(fuDate + "T12:00:00").toISOString() }); toast.success("Follow-up agendado"); setFuDate(""); await load(); } catch { toast.error("Erro ao agendar"); } finally { setSavingFu(false); }
+    try {
+      await patchPet({ proximoFollowupAt: new Date(fuDate + "T12:00:00").toISOString() });
+      // 👤 responsável padrão = quem agendou (se ninguém foi definido) → cai no "Hoje" dessa pessoa
+      if (!fuResp && meId) { await upsertFuResp(meId, meNome || ""); await loadInteracoesPet(); }
+      toast.success("Follow-up agendado"); setFuDate(""); await load();
+    } catch { toast.error("Erro ao agendar"); } finally { setSavingFu(false); }
   }
   async function clearFu() {
     try {
