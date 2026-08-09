@@ -204,6 +204,11 @@ export default function PetDetailPage() {
   const [docModeloNome, setDocModeloNome] = useState("");
   const [docCorpo, setDocCorpo] = useState("");
   const [docVetId, setDocVetId] = useState("");
+  // 🦠 Patologia — lista/estado PRÓPRIOS (não puxa modelos de documento)
+  const [patModelos, setPatModelos] = useState<{ nome: string; corpo: string }[]>([]);
+  const [patModeloNome, setPatModeloNome] = useState("");
+  const [patCorpo, setPatCorpo] = useState("");
+  const [patVetId, setPatVetId] = useState("");
   const [clinica, setClinica] = useState<any>({}); // dadosclinica — pra preencher variáveis dos modelos
   const [vacinasFmt, setVacinasFmt] = useState<{ aplicadas: string; aplicadasResumo: string; programadas: string }>({ aplicadas: "", aplicadasResumo: "", programadas: "" });
   const [vidUrl, setVidUrl] = useState("");
@@ -544,6 +549,32 @@ export default function PetDetailPage() {
   async function abrirDocumento() {
     setEditId(null); setAtdOpen(false); setArtefato("DOCUMENTO"); setDocModeloNome(""); setDocCorpo(""); setDocVetId(vetPadrao());
     try { const ms = await listasGet("documento_modelo"); const parsed = ms.map((i: any) => { let o: any = {}; try { o = JSON.parse(i.valor); } catch { o = { nome: i.valor, corpo: "" }; } return { nome: o.nome || i.valor, corpo: o.corpo || "" }; }); setDocModelos(parsed); } catch {}
+  }
+  // 🦠 Box Patologia — lista/estado próprios (modelos em Configurações › "patologia_modelo", vazia por ora)
+  async function abrirPatologia() {
+    setEditId(null); setAtdOpen(false); setPatModeloNome(""); setPatCorpo(""); setPatVetId(vetPadrao());
+    try { const ms = await listasGet("patologia_modelo"); setPatModelos(parseModelos(ms)); } catch { setPatModelos([]); }
+    setArtefato("PATOLOGIA");
+  }
+  async function salvarPatologia() {
+    if (!pet) return;
+    if (!patCorpo.trim()) { toast.error("Escreva ou escolha uma patologia"); return; }
+    if (!patVetId) { toast.error("Selecione o profissional"); return; }
+    setSavingArt(true);
+    try {
+      // título marcado com "Patologia — …" pra cair na lista de PATOLOGIAS (e sair da de documentos)
+      const titulo = patModeloNome ? `Patologia — ${patModeloNome}` : "Patologia";
+      const body: any = { tutorId: pet.tutorId, petId: pet.id, userId: patVetId, date: new Date().toISOString(), type: "Patologia", status: "Realizado", prescription: patCorpo, chiefComplaint: patModeloNome || "Patologia" };
+      const r = await fetch("/api/appointments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (!r.ok) throw new Error(await r.text());
+      const dc = await r.json().catch(() => null);
+      const apptId = dc?.id || dc?.appointment?.id;
+      if (apptId) {
+        const vetNome = vets.find((u: any) => u.id === patVetId)?.name || meNome || "";
+        try { await fetch(`/api/clinical-documents`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ appointmentId: apptId, type: "GENERAL", title: titulo, content: patCorpo, htmlContent: patCorpo, signedBy: vetNome || undefined }) }); } catch {}
+      }
+      toast.success("Patologia salva"); setArtefato(null); await loadAtendimentos(); await loadClinDocs();
+    } catch { toast.error("Erro ao salvar patologia"); } finally { setSavingArt(false); }
   }
   async function salvarDocumento() {
     if (!pet) return;
@@ -1918,16 +1949,9 @@ export default function PetDetailPage() {
                     <div className="grid grid-cols-2 gap-2 mb-2">
                       <div>
                         <label className="text-xs text-gray-500">Modelo</label>
-                        <select value={recModeloNome} onChange={(e) => { const nm = e.target.value; setRecModeloNome(nm); const m = recModelos.find((x) => x.nome === nm) || recDocModelos.find((x) => x.nome === nm); if (m && m.corpo) setRecCorpo(preencherModelo(m.corpo, recVetId)); }} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }}>
+                        <select value={recModeloNome} onChange={(e) => { const nm = e.target.value; setRecModeloNome(nm); const m = recModelos.find((x) => x.nome === nm); if (m && m.corpo) setRecCorpo(preencherModelo(m.corpo, recVetId)); }} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }}>
                           <option value="">Selecione o modelo…</option>
-                          <optgroup label="Receitas">
-                            {recModelos.map((m) => <option key={"r-" + m.nome} value={m.nome}>{m.nome}</option>)}
-                          </optgroup>
-                          {recDocModelos.length > 0 && (
-                            <optgroup label="Documentos">
-                              {recDocModelos.map((m) => <option key={"d-" + m.nome} value={m.nome}>{m.nome}</option>)}
-                            </optgroup>
-                          )}
+                          {recModelos.map((m) => <option key={"r-" + m.nome} value={m.nome}>{m.nome}</option>)}
                         </select>
                       </div>
                       <div>
@@ -1978,30 +2002,29 @@ export default function PetDetailPage() {
                     <div className="flex items-center justify-between border-b pb-2.5 mb-3" style={{ borderColor: "#E8DFC8" }}>
                       <h3 className="text-sm font-semibold" style={{ color: "#0E2244" }}>🦠 Patologia</h3>
                       <div className="flex gap-2">
-                        <button onClick={() => imprimirComTimbrado(docModeloNome || "Patologia", docCorpo, docVetId)} className="px-3 py-1.5 rounded-lg text-xs border flex items-center gap-1" style={{ borderColor: "#E8DFC8", color: "#475569" }}><LuPrinter size={13} /> Imprimir</button>
-                        <label className="px-3 py-1.5 rounded-lg text-xs border flex items-center gap-1 cursor-pointer" style={{ borderColor: "#009AAC", color: "#00798A" }}>📎 Anexar arquivo<input type="file" accept="application/pdf,image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) anexarArquivoDoc(f, "DOCUMENTO"); (e.target as HTMLInputElement).value = ""; }} /></label>
-                        <button onClick={salvarDocumento} disabled={savingArt} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingArt ? "..." : "Salvar"}</button>
+                        <button onClick={() => imprimirComTimbrado(patModeloNome || "Patologia", patCorpo, patVetId)} className="px-3 py-1.5 rounded-lg text-xs border flex items-center gap-1" style={{ borderColor: "#E8DFC8", color: "#475569" }}><LuPrinter size={13} /> Imprimir</button>
+                        <button onClick={salvarPatologia} disabled={savingArt} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingArt ? "..." : "Salvar"}</button>
                         <button onClick={() => setArtefato(null)} title="Fechar" aria-label="Fechar" className="w-7 h-7 flex items-center justify-center rounded-lg text-lg leading-none border hover:bg-[#F6F2EA] transition-colors" style={{ borderColor: "#E8DFC8", color: "#64748B" }}>×</button>
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-2 mb-2">
                       <div>
-                        <label className="text-xs text-gray-500">Modelo</label>
-                        <select value={docModeloNome} onChange={(e) => { const nm = e.target.value; setDocModeloNome(nm); const m = docModelos.find((x) => x.nome === nm); if (m && m.corpo) setDocCorpo(preencherModelo(m.corpo, docVetId)); }} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }}>
-                          <option value="">Selecione o modelo…</option>
-                          {docModelos.map((m) => <option key={m.nome} value={m.nome}>{m.nome}</option>)}
+                        <label className="text-xs text-gray-500">Modelo de patologia</label>
+                        <select value={patModeloNome} onChange={(e) => { const nm = e.target.value; setPatModeloNome(nm); const m = patModelos.find((x) => x.nome === nm); if (m && m.corpo) setPatCorpo(preencherModelo(m.corpo, patVetId)); }} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }}>
+                          <option value="">{patModelos.length ? "Selecione a patologia…" : "Ainda sem modelos — escreva abaixo"}</option>
+                          {patModelos.map((m) => <option key={m.nome} value={m.nome}>{m.nome}</option>)}
                         </select>
                       </div>
                       <div>
                         <label className="text-xs text-gray-500">Profissional</label>
-                        <select value={docVetId} onChange={(e) => setDocVetId(e.target.value)} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }}>
+                        <select value={patVetId} onChange={(e) => setPatVetId(e.target.value)} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }}>
                           <option value="">Selecionar...</option>
                           {vets.map((u: any) => <option key={u.id} value={u.id}>{u.name}</option>)}
                         </select>
                       </div>
                     </div>
-                    <EditorDocumento value={docCorpo} onChange={setDocCorpo} minHeight={160} />
-                    <p className="text-[11px] text-gray-400 mt-2">🦠 Box de patologias — cadastre a patologia do pet. Vamos ampliar com o catálogo de patologias e protocolos.</p>
+                    <EditorDocumento value={patCorpo} onChange={setPatCorpo} minHeight={160} />
+                    <p className="text-[11px] text-gray-400 mt-2">🦠 Box de patologias — cadastre a patologia do pet. Vamos ampliar com o catálogo de patologias e protocolos (modelos em Configurações › "patologia_modelo").</p>
                     {boxDocList((d: any) => /patolog/i.test(d.title || ""), "🦠 Patologias deste pet", "patologia")}
                   </div>
                 ) : artefato === "VIDEO" ? (
@@ -2124,7 +2147,7 @@ export default function PetDetailPage() {
                         { label: "Fotos", ic: "📷", bg: "#E8F0FA", fg: "#3E6DA6", act: () => abrirFoto() },
                         { label: "Vídeo", ic: "🎥", bg: "#E3F3EF", fg: "#2E8B72", act: () => abrirVideo() },
                         { label: "Observação", ic: "📝", bg: "#EFEEE9", fg: "#6B6A63", act: () => { setObsVal(pet?.observations || ""); setObsFile(null); setAtdOpen(false); setArtefato("OBS"); } },
-                        { label: "Patologia", ic: "🦠", bg: "#F3E8F5", fg: "#8E4585", act: async () => { await abrirDocumento(); setArtefato("PATOLOGIA"); } },
+                        { label: "Patologia", ic: "🦠", bg: "#F3E8F5", fg: "#8E4585", act: () => abrirPatologia() },
                         { label: "Vacina", ic: "💉", bg: "#FBF3D9", fg: "#C2952E", act: () => setMainTab("VACINAS") },
                         { label: "Internação", ic: "🏥", bg: "#F7E9EB", fg: "#9b2c3a", act: () => router.push(`/dashboard/erp/internacoes?pet=${encodeURIComponent(pet?.name || "")}&petId=${petId}`) },
                         { label: "Gravar consulta", ic: "🎤", bg: "#FCE9E7", fg: "#B0403A", act: () => router.push(`/dashboard/erp/pets/${petId}/atendimentos/novo`) },
