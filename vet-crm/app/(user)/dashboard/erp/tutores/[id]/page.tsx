@@ -514,11 +514,12 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
     <div className="p-4 min-h-screen bg-[#F6F2EA]">
       <Toaster position="top-right" />
 
+      {/* ── Cabeçalho FIXO (sticky): migalha + card juntos, colam abaixo da barra global (64px) ── */}
+      <div className="sticky top-16 z-30 -mx-4 px-4 pt-2" style={{ background: "#F6F2EA" }}>
       {/* Breadcrumb */}
       <div className="text-[12px] text-[#374151] mb-2 px-1">
         <Link href="/dashboard/erp/tutores" className="hover:text-[#009AAC]">Clientes</Link> / <b className="text-[#009AAC] font-medium">{tutor.name || "Sem nome"}</b>
       </div>
-
       {/* Cabeçalho em card */}
       <div className="bg-white border border-[#E8E2D6] rounded-[14px] mb-3" style={{ padding: "14px 16px" }}>
         <div className="flex justify-between items-start flex-wrap gap-3">
@@ -596,6 +597,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
             </div>
           </div>
         </div>
+      </div>
       </div>
 
       {/* Barra de abas (no celular rola de lado) */}
