@@ -1339,13 +1339,12 @@ export default function PetDetailPage() {
     <div className="p-4 min-h-screen bg-[#F6F2EA]">
       {/* 🛒 Comanda lateral fixa (Fatia 2) — lança venda/orçamento sem sair da ficha */}
       <PetComandaRail petId={petId} tutorId={pet.tutorId} petNome={pet.name} tutorNome={(pet as any)?.tutor?.name} />
-      {/* Breadcrumb */}
+      {/* ── Cabeçalho FIXO (sticky): migalha + card juntos, colam abaixo da barra global (64px) ── */}
+      <div className="sticky top-16 z-30 -mx-4 px-4 pt-2" style={{ background: "#F6F2EA" }}>
+      {/* Breadcrumb (dentro do fixo, como na 2ª figura) */}
       <div className="text-[12px] text-[#374151] mb-2 px-1">
         <Link href="/dashboard/erp/pets" className="hover:text-[#009AAC]">Pets</Link> / <b className="text-[#009AAC] font-medium">{pet.name}</b>
       </div>
-
-      {/* ── Cabeçalho FIXO (sticky) — cola logo abaixo da barra global (64px) ── */}
-      <div className="sticky top-16 z-30 -mx-4 px-4 pt-1" style={{ background: "#F6F2EA" }}>
       <div className="bg-white border border-[#E8E2D6] rounded-[14px] mb-3" style={{ padding: "14px 16px" }}>
         <div className="flex justify-between items-start flex-wrap gap-3">
           <div className="flex items-start gap-3 flex-1" style={{ minWidth: "220px" }}>
