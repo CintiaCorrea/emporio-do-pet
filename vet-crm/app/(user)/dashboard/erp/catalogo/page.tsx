@@ -344,12 +344,12 @@ export default function CatalogoPage() {
             <thead>
               <tr>
                 <th className="no-print" style={{ width: 34, textAlign: "center" }}><input type="checkbox" checked={todosVisSel} onChange={toggleTodosVis} title="Selecionar todos (os filtrados)" /></th>
-                <th>Nome <span style={{ color: "#8A928F", fontWeight: 400 }}>({filtrados.length})</span></th><th className="col-sec2">Fornecedor</th><th>Categoria</th>{isAdmin && <th className="r col-sec">Custo</th>}<th className="r" title="Markup: preço = custo × (1 + %). Editável nos exames.">%</th><th className="r">Preço</th><th>Comissão</th><th style={{ textAlign: "center" }}>Ativo</th><th className="no-print" style={{ textAlign: "center" }}>Ações</th>
+                <th>Nome <span style={{ color: "#8A928F", fontWeight: 400 }}>({filtrados.length})</span></th><th>Tipo</th><th className="col-sec2">Fornecedor</th><th>Categoria</th>{isAdmin && <th className="r col-sec">Custo</th>}<th className="r" title="Markup: preço = custo × (1 + %). Editável nos exames.">%</th><th className="r">Preço</th><th>Comissão</th><th style={{ textAlign: "center" }}>Ativo</th><th className="no-print" style={{ textAlign: "center" }}>Ações</th>
               </tr>
             </thead>
             <tbody>
-              {loading && <tr><td colSpan={isAdmin ? 10 : 9} className="cat-empty">Carregando catálogo…</td></tr>}
-              {!loading && filtrados.length === 0 && <tr><td colSpan={isAdmin ? 10 : 9} className="cat-empty">Nenhum item encontrado.</td></tr>}
+              {loading && <tr><td colSpan={isAdmin ? 11 : 10} className="cat-empty">Carregando catálogo…</td></tr>}
+              {!loading && filtrados.length === 0 && <tr><td colSpan={isAdmin ? 11 : 10} className="cat-empty">Nenhum item encontrado.</td></tr>}
               {!loading && paginados.map((it) => {
                 const pill = TIPO_PILL[it.grupo];
                 const mk = markupDe(it.custo, it.preco);
@@ -358,7 +358,8 @@ export default function CatalogoPage() {
                     <td className="no-print" onClick={(e) => e.stopPropagation()} style={{ textAlign: "center" }}>
                       {it.rawId ? <input type="checkbox" checked={sel.has(it.key)} onChange={() => toggleSel(it.key)} /> : null}
                     </td>
-                    <td className="cat-nm"><span className="cat-pill" style={{ background: pill.bg, color: pill.fg, marginRight: 6 }}>{pill.emoji} {it.tipo}</span>{it.nome}{it.codigo != null && it.codigo !== "" ? <div className="cat-cod">cód. {it.codigo}</div> : null}</td>
+                    <td className="cat-nm">{it.nome}{it.codigo != null && it.codigo !== "" ? <div className="cat-cod">cód. {it.codigo}</div> : null}</td>
+                    <td><span className="cat-pill" style={{ background: pill.bg, color: pill.fg }}>{pill.emoji} {it.tipo}</span></td>
                     <td className="cat-forn col-sec2" style={{ color: it.fornecedor ? "#5C6B70" : "#374151" }}>{it.fornecedor || "—"}</td>
                     <td style={{ color: it.categoria ? "#5C6B70" : "#374151" }}>{it.categoria || "—"}</td>
                     {isAdmin && <td className="r col-sec" style={{ color: "#5C6B70" }}>{brl(it.custo)}</td>}

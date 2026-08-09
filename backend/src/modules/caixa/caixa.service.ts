@@ -184,16 +184,26 @@ export class CaixaService {
       }
     }
     topInativos.sort((a, b) => b.valor - a.valor);
-    // Churn de pacotes de fisioterapia
-    let pc: any = { ATIVO: 0, CONCLUIDO: 0, CANCELADO: 0, EXPIRADO: 0 };
+    // Churn de pacotes de fisioterapia — lê do controle REAL que a equipe usa
+    // (lista petpac_<petId>, a mesma da ficha/inbox/agenda). A tabela Pacote antiga
+    // ficava órfã (a agenda nunca a descontava), então dava número irreal.
+    let pcAtivo = 0, pcConcluido = 0, ultimaSessao = 0;
     try {
-      const pacs = await this.prisma.pacote.groupBy({ by: ['status'], _count: true });
-      for (const p of pacs as any[]) pc[p.status] = p._count;
-    } catch { /* modelo pode não ter dados */ }
-    const ativosPac = await this.prisma.pacote.findMany({ where: { status: 'ATIVO' as any, sessoesUsadas: { gt: 0 } }, select: { totalSessoes: true, sessoesUsadas: true } }).catch(() => [] as any[]);
-    const ultimaSessao = ativosPac.filter((p: any) => p.totalSessoes > 0 && p.sessoesUsadas >= p.totalSessoes - 1).length;
-    const fechados = pc.CONCLUIDO + pc.CANCELADO + pc.EXPIRADO;
-    const taxaConclusao = fechados ? Math.round((pc.CONCLUIDO / fechados) * 100) : null;
+      const itensPac = await this.prisma.listaItem.findMany({ where: { lista: { startsWith: 'petpac_' } }, select: { valor: true } });
+      for (const it of itensPac) {
+        let d: any = {};
+        try { d = JSON.parse(it.valor); } catch { continue; }
+        const total = Number(d.total) || 0;
+        const used = Number(d.used) || 0;
+        const concluido = d.concluido === true || (total > 0 && used >= total);
+        if (concluido) { pcConcluido++; }
+        else { pcAtivo++; if (total > 0 && used >= total - 1) ultimaSessao++; } // última/penúltima → renovar
+      }
+    } catch { /* sem pacotes ainda */ }
+    // petpac_ não guarda cancelado/expirado (item cancelado é apagado) → 0
+    const pc = { ATIVO: pcAtivo, CONCLUIDO: pcConcluido, CANCELADO: 0, EXPIRADO: 0 };
+    const totalPac = pcAtivo + pcConcluido;
+    const taxaConclusao = totalPac ? Math.round((pcConcluido / totalPac) * 100) : null;
     return {
       janelaDias: JANELA, limites: { ativo: LIM_ATIVO, risco: LIM_RISCO },
       linhas: { clinico, fisio },
@@ -649,9 +659,10 @@ export class CaixaService {
   }
 
   // #4 Fatia 1-B — quando a venda é paga, os itens marcados como PLANO geram o plano na ficha do pet:
-  //   FISIO → Pacote (sessões = sessões-por-pacote × quantidade)
+  //   FISIO → pacote na lista petpac_<petId> (MESMO formato do lançamento manual da ficha/inbox),
+  //           pra aparecer na ficha/inbox e DESCONTAR a sessão pela agenda quando o pet chega.
   //   MEDICAMENTO → ProtocoloAplicado tipo OUTRO (doses = quantidade, espaçadas pelo intervalo)
-  // Best-effort: nunca quebra o recebimento. Roda 1x (só na transição p/ PAID).
+  // Best-effort: nunca quebra o recebimento. Roda 1x (só na transição p/ PAID) e é idempotente.
   private async criarPlanosDaVenda(appointmentId: string) {
     try {
       const ap = await this.prisma.appointment.findUnique({ where: { id: appointmentId }, select: { petId: true, tutorId: true } });
@@ -664,9 +675,15 @@ export class CaixaService {
         const qtd = Math.max(1, Math.round(Number(it.quantidade) || 1));
         if (prod.planoTipo === 'FISIO') {
           const sessoes = Math.max(1, (Number(prod.planoUnidades) || 1) * qtd);
-          await this.prisma.pacote.create({
-            data: { petId: ap.petId, tutorId: ap.tutorId ?? null, servico: prod.name || 'Fisioterapia', descricao: 'Gerado pela venda no caixa', totalSessoes: sessoes },
-          }).catch((e: any) => console.error('criarPlano fisio:', e?.message));
+          // Cria no MESMO formato que o pacote manual (ficha/inbox) → agenda desconta sozinho.
+          // Idempotente: marca a origem (venda+produto) e não recria se já existir.
+          const origemVenda = `venda:${appointmentId}:${it.productId}`;
+          const jaExiste = await this.prisma.listaItem.findFirst({ where: { lista: `petpac_${ap.petId}`, valor: { contains: origemVenda } } });
+          if (!jaExiste) {
+            await this.prisma.listaItem.create({
+              data: { lista: `petpac_${ap.petId}`, valor: JSON.stringify({ serviceId: it.productId, nome: prod.name || 'Fisioterapia', total: sessoes, used: 0, createdAt: new Date().toISOString(), baixas: [], origem: 'venda', origemVenda }) },
+            }).catch((e: any) => console.error('criarPlano fisio (petpac_):', e?.message));
+          }
         } else if (prod.planoTipo === 'MEDICAMENTO') {
           const doses = Math.max(1, qtd);
           const intervalo = Math.max(1, Number(prod.planoIntervaloDias) || 30);
