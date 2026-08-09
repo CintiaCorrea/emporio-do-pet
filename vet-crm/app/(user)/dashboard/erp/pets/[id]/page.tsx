@@ -1914,6 +1914,27 @@ export default function PetDetailPage() {
                     <p className="text-[11px] text-gray-400 mt-2">
                       Com laudo anexado, o exame já entra como resultado. Sem laudo, entra como solicitado — dá pra anexar depois na aba Exames.
                     </p>
+                    {exames.length > 0 && (
+                      <div className="mt-4 pt-3 border-t" style={{ borderColor: "#F0EBE0" }}>
+                        <div className="text-[11px] uppercase tracking-wide text-[#374151] mb-2 font-semibold">🔬 Exames deste pet ({exames.length})</div>
+                        <div className="flex flex-col gap-1.5" style={{ maxHeight: "40vh", overflowY: "auto" }}>
+                          {exames.map((x) => {
+                            const url = x.data?.resultadoUrl;
+                            return (
+                              <div key={x.id} className="flex items-center justify-between gap-2 border rounded-lg px-2.5 py-1.5" style={{ borderColor: "#E8DFC8", background: "#FBF9F4" }}>
+                                <div className="min-w-0">
+                                  <div className="text-[12.5px] font-medium truncate" style={{ color: "#014D5E" }}>{x.data?.nome || "Exame"}</div>
+                                  <div className="text-[10.5px] text-[#5C6B70]">{x.data?.status || "Solicitado"}{x.data?.date ? " · " + fmtDataBR(x.data.date) : ""}{x.data?.externo ? " · externo" : ""}</div>
+                                </div>
+                                {url ? (
+                                  <button type="button" onClick={() => window.open(`/api/media/ver?u=${encodeURIComponent(url)}`, "_blank")} className="text-[11px] px-2 py-1 rounded-lg border shrink-0" style={{ borderColor: "#009AAC", color: "#00798A" }}>📎 abrir laudo</button>
+                                ) : <span className="text-[10.5px] text-[#94a3a0] shrink-0">sem laudo</span>}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ) : artefato === "FOTO" ? (
                   <div className="bg-white">

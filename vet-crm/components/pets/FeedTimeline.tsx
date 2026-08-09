@@ -86,7 +86,7 @@ export default function FeedTimeline({ atendimentos = [], clinDocs = [], histori
                 <div onClick={() => {
                   // Importado do SimplesVet (hist) → baixa do storage privado; anexado (doc) → abre a URL do PDF.
                   if (it.src === "hist" && it.temArquivo) return void window.open(`/api/pets/historico/${it.rawId}/arquivo`, "_blank");
-                  if (it.src === "doc" && it.arquivoUrl) return void window.open(`/api/media/ver?u=${encodeURIComponent(it.arquivoUrl)}`, "_blank");
+                  if ((it.src === "doc" || it.src === "exame") && it.arquivoUrl) return void window.open(`/api/media/ver?u=${encodeURIComponent(it.arquivoUrl)}`, "_blank");
                   if (it.src === "hist" && onDetalhe) return void onDetalhe(it.rawId);
                 }} className="group flex gap-2.5 py-2 pl-2.5 pr-2 rounded-r-lg" style={{ borderLeft: `3px solid ${cor}`, background: "#f6fdfd", cursor: (it.temArquivo || it.src === "hist") ? "pointer" : undefined }}>
                   <div className="flex-1 min-w-0">
