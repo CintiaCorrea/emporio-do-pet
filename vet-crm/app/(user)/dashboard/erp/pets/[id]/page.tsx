@@ -748,14 +748,20 @@ export default function PetDetailPage() {
   }
 
   async function listasGet(lista: string) { try { const r = await fetch(`/api/listas?lista=${encodeURIComponent(lista)}`, { cache: "no-store" }); const d = await r.json(); return Array.isArray(d) ? d : (d.itens || d.data || []); } catch { return []; } }
-  async function listasAdd(lista: string, valor: string) { const r = await fetch(`/api/listas`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lista, valor }) }); if (!r.ok) throw new Error(String(r.status)); return r.json(); }
+  async function listasAdd(lista: string, valor: string) { const r = await fetch(`/api/listas`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lista, valor }) }); if (!r.ok) { const e = await r.json().catch(() => null); throw new Error(e?.message || e?.error || `HTTP ${r.status}`); } return r.json(); }
   async function listasDel(id: string) { const r = await fetch(`/api/listas/${id}`, { method: "DELETE" }); if (!r.ok) throw new Error(String(r.status)); }
   async function loadPetColecoes() {
-    const [tags, cads, pacs, exs] = await Promise.all([listasGet(`petetq_${petId}`), listasGet(`petcad_${petId}`), listasGet(`petpac_${petId}`), listasGet(`petexa_${petId}`)]);
-    setPetTags(tags.map((i: any) => ({ id: i.id, texto: i.valor })));
-    setCadAtivas(cads.map((i: any) => { let d: any = {}; try { d = JSON.parse(i.valor); } catch {} return { id: i.id, data: d }; }));
+    // getSafe devolve null se a LEITURA falhar (≠ lista vazia []). Assim, uma falha de rede
+    // NÃO apaga os exames/pacotes já mostrados (bug do "sumiu da aba") — só avisa.
+    const getSafe = async (lista: string): Promise<any[] | null> => {
+      try { const r = await fetch(`/api/listas?lista=${encodeURIComponent(lista)}`, { cache: "no-store" }); if (!r.ok) return null; const d = await r.json(); return Array.isArray(d) ? d : (d.itens || d.data || []); } catch { return null; }
+    };
+    const [tags, cads, pacs, exs] = await Promise.all([getSafe(`petetq_${petId}`), getSafe(`petcad_${petId}`), getSafe(`petpac_${petId}`), getSafe(`petexa_${petId}`)]);
     const parse = (arr: any[]) => arr.map((i: any) => { let d: any = {}; try { d = JSON.parse(i.valor); } catch {} return { id: i.id, data: d }; });
-    setPacotes(parse(pacs)); setExames(parse(exs));
+    if (tags) setPetTags(tags.map((i: any) => ({ id: i.id, texto: i.valor })));
+    if (cads) setCadAtivas(parse(cads));
+    if (pacs) setPacotes(parse(pacs));
+    if (exs) setExames(parse(exs)); else toast.error("Não consegui carregar os exames agora — recarregue a página.");
   }
   async function loadCatalogos() {
     try { const r = await fetch(`/api/etiquetas/templates`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.templates || d.data || []); setTagTpls(arr.filter((t: any) => t.ativo !== false && (t.aplicaEm || []).includes("Pet"))); } catch {}
@@ -853,7 +859,7 @@ export default function PetDetailPage() {
     await load(); await loadInteracoesPet();
   }
   async function delPacote(id: string) { try { await listasDel(id); toast.success("Pacote removido"); await loadPetColecoes(); } catch { toast.error("Erro"); } }
-  async function addExame() { if (!exPick.trim()) { toast.error("Escolha um exame"); return; } setSavingEx(true); try { const _cat = acharExameNoCatalogo(exCat as any, exPick); await listasAdd(`petexa_${petId}`, JSON.stringify(montarPetExame({ nome: exPick, catalogo: _cat, fases: examFases, externo: false, por: meNome }))); toast.success("Exame solicitado"); setExPick(""); await loadPetColecoes(); } catch { toast.error("Erro"); } finally { setSavingEx(false); } }
+  async function addExame() { if (!exPick.trim()) { toast.error("Escolha um exame"); return; } setSavingEx(true); try { const _cat = acharExameNoCatalogo(exCat as any, exPick); await listasAdd(`petexa_${petId}`, JSON.stringify(montarPetExame({ nome: exPick, catalogo: _cat, fases: examFases, externo: false, por: meNome }))); toast.success("Exame solicitado"); setExPick(""); await loadPetColecoes(); } catch (e: any) { toast.error("Não salvou o exame: " + String(e?.message || e).slice(0, 90)); } finally { setSavingEx(false); } }
   async function updExameStatus(id: string, data: any, novoStatus: string) { try { const historico = registrarHistoricoFase(data.historico, novoStatus, meNome); const r = await fetch(`/api/listas/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ valor: JSON.stringify({ ...data, status: novoStatus, historico }) }) }); if (!r.ok) throw new Error(); await loadPetColecoes(); } catch { toast.error("Erro ao atualizar fase"); } }
   async function delExame(id: string) { try { await listasDel(id); await loadPetColecoes(); } catch { toast.error("Erro"); } }
   // Fatia 4C — "Cobrar" o exame: lança na COMANDA da ficha (PetComandaRail já escuta 'comanda:add').
