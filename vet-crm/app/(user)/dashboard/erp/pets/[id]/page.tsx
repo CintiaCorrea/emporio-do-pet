@@ -1537,28 +1537,7 @@ export default function PetDetailPage() {
               </div>
             </div>
 
-            {/* Sequências (o Follow-up foi unificado no box de Acompanhamento abaixo) */}
-            <div className="bg-white border border-[#E8E2D6] rounded-[13px]">
-              <div className="flex items-center justify-between border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
-                <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">⚡ Sequências</h3>
-                <button onClick={() => setCadPick((v) => !v)} className="text-[11px] text-[#009AAC] hover:underline">+ iniciar</button>
-              </div>
-              <div style={{ padding: "10px 14px" }} className="flex flex-col gap-1.5">
-                {cadAtivas.length === 0 && !cadPick && <p className="text-[12px] text-[#374151]">Nenhuma cadência ativa.</p>}
-                {cadAtivas.map((c) => (
-                  <div key={c.id} className="bg-[#FBF9F4] border border-[#F0EBE0] rounded-[10px] px-2.5 py-1.5 flex items-center justify-between text-[11.5px]">
-                    <span className="text-[#1F2A2E]">⚡ {c.data?.nome || "Cadência"}</span>
-                    <button onClick={() => delCad(c)} className="text-[#b23b39] text-[10px]">encerrar</button>
-                  </div>
-                ))}
-                {cadPick && (
-                  <div className="pt-1.5 border-t border-[#F0EBE0] flex flex-wrap gap-1.5">
-                    {cadOpts.length === 0 ? <p className="text-[11px] text-[#374151]">Nenhuma cadência cadastrada em Configurações.</p> :
-                      cadOpts.map((c: any) => (<button key={c.id} disabled={savingCad} onClick={() => addCad(c)} className="text-[11px] px-2 py-1 rounded-lg border disabled:opacity-50" style={{ borderColor: "#E8E2D6", color: "#009AAC" }}>+ {c.nome || c.titulo}</button>))}
-                  </div>
-                )}
-              </div>
-            </div>
+            {/* ⚡ Sequências foram movidas para BAIXO do Follow-up (a pedido da Cintia) */}
 
           </div>
         </div>
@@ -1610,6 +1589,29 @@ export default function PetDetailPage() {
                     {it.autor?.name && <p className="text-[10px] text-[#374151] mt-0.5">por {it.autor.name}</p>}
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ⚡ Sequências — abaixo do Follow-up (a pedido da Cintia) */}
+        <div className="bg-white border border-[#E8E2D6] rounded-[13px]">
+          <div className="flex items-center justify-between border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
+            <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">⚡ Sequências de cuidado</h3>
+            <button onClick={() => setCadPick((v) => !v)} className="text-[11px] text-[#009AAC] hover:underline">+ iniciar</button>
+          </div>
+          <div style={{ padding: "10px 14px" }} className="flex flex-col gap-1.5">
+            {cadAtivas.length === 0 && !cadPick && <p className="text-[12px] text-[#374151]">Nenhuma cadência ativa.</p>}
+            {cadAtivas.map((c) => (
+              <div key={c.id} className="bg-[#FBF9F4] border border-[#F0EBE0] rounded-[10px] px-2.5 py-1.5 flex items-center justify-between text-[11.5px]">
+                <span className="text-[#1F2A2E]">⚡ {c.data?.nome || "Cadência"}</span>
+                <button onClick={() => delCad(c)} className="text-[#b23b39] text-[10px]">encerrar</button>
+              </div>
+            ))}
+            {cadPick && (
+              <div className="pt-1.5 border-t border-[#F0EBE0] flex flex-wrap gap-1.5">
+                {cadOpts.length === 0 ? <p className="text-[11px] text-[#374151]">Nenhuma cadência cadastrada em Configurações.</p> :
+                  cadOpts.map((c: any) => (<button key={c.id} disabled={savingCad} onClick={() => addCad(c)} className="text-[11px] px-2 py-1 rounded-lg border disabled:opacity-50" style={{ borderColor: "#E8E2D6", color: "#009AAC" }}>+ {c.nome || c.titulo}</button>))}
               </div>
             )}
           </div>

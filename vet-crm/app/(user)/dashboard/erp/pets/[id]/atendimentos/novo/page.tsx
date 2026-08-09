@@ -83,6 +83,12 @@ export default function NovoAtendimentoPage() {
   const [fisioSrv, setFisioSrv] = useState<any[]>([]);
   const [pacForm, setPacForm] = useState<{ open: boolean; serviceId: string; nome: string; total: string; jaFeitas: string }>({ open: false, serviceId: "", nome: "", total: "4", jaFeitas: "0" });
   const [savingPac, setSavingPac] = useState(false);
+  // ⚡ Sequências (cadências) — mesmo controle da Visão geral, embutido no atendimento
+  const [cadAtivas, setCadAtivas] = useState<{ id: string; data: any }[]>([]);
+  const [cadOpts, setCadOpts] = useState<any[]>([]);
+  const [cadPick, setCadPick] = useState(false);
+  const [savingCad, setSavingCad] = useState(false);
+  const [tutorWhats, setTutorWhats] = useState("");
 
   useEffect(() => {
     if (!petId) return;
@@ -95,6 +101,11 @@ export default function NovoAtendimentoPage() {
       setVets(list);
       if ((session as any)?.user?.id) setForm((f) => ({ ...f, userId: (session as any).user.id }));
       else if (list[0]?.id) setForm((f) => ({ ...f, userId: list[0].id }));
+      // ⚡ Sequências: catálogo de cadências + as ativas do pet + telefone do tutor (p/ inscrever no motor)
+      const cds = await safeJson<any>(await fetch(`/api/cadencias?includeInactive=true`, { cache: "no-store" }), []);
+      setCadOpts(Array.isArray(cds) ? cds : (cds.cadencias || cds.data || []));
+      loadCad();
+      if (p?.tutorId) { const tt = await safeJson<any>(await fetch(`/api/tutors/${p.tutorId}`), null); const ph = tt?.phone || tt?.telefone || (Array.isArray(tt?.contacts) ? (tt.contacts.find((c: any) => c.phone || c.value)?.phone || tt.contacts.find((c: any) => c.value)?.value) : "") || ""; if (ph) setTutorWhats(ph); }
       // catálogo de exames (planilha config)
       const exm = await safeJson<any>(await fetch(`/api/fornecedores/exames/lista`), []);
       setExCat(Array.isArray(exm) ? exm : (exm.exames || exm.data || []));
@@ -288,6 +299,31 @@ export default function NovoAtendimentoPage() {
   }
 
   async function listasAdd(lista: string, valor: string) { try { await fetch(`/api/listas`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lista, valor }) }); } catch {} }
+  // ⚡ Sequências — carrega as ativas do pet (petcad_) e permite iniciar/encerrar aqui mesmo.
+  async function loadCad() {
+    const arr = await safeJson<any>(await fetch(`/api/listas?lista=petcad_${petId}`, { cache: "no-store" }), []);
+    const list = Array.isArray(arr) ? arr : (arr.itens || arr.data || []);
+    setCadAtivas(list.map((i: any) => { let d: any = {}; try { d = JSON.parse(i.valor); } catch {} return { id: i.id, data: d }; }));
+  }
+  async function addCad(c: any) {
+    setSavingCad(true);
+    try {
+      const phone = (tutorWhats || "").replace(/\D/g, "");
+      let inscId: string | null = null;
+      if (phone) { try { const r = await fetch(`/api/cadencias/${c.id}/inscrever`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tutorId: pet?.tutorId, petId, phone }) }); if (r.ok) { const d = await r.json().catch(() => null); inscId = d?.id || null; } } catch {} }
+      await listasAdd(`petcad_${petId}`, JSON.stringify({ cadenciaId: c.id, nome: c.nome || c.titulo, startedAt: new Date().toISOString(), inscId }));
+      toast.success(inscId ? "Sequência iniciada — acompanhamento agendado 📲" : (phone ? "Sequência marcada" : "Sequência marcada — tutor sem telefone, não envia"));
+      setCadPick(false); await loadCad();
+    } catch { toast.error("Erro"); } finally { setSavingCad(false); }
+  }
+  async function delCad(c: any) {
+    try {
+      const inscId = c?.data?.inscId;
+      if (inscId) await fetch(`/api/cadencias/inscricoes/${inscId}/cancelar`, { method: "PATCH" }).catch(() => undefined);
+      await fetch(`/api/listas/${c.id}`, { method: "DELETE" });
+      toast.success("Sequência encerrada"); await loadCad();
+    } catch { toast.error("Erro"); }
+  }
 
   function receberNoCaixa() {
     if (!itens.some((i) => i.descricao || i.servicoId)) { toast.error("Adicione ao menos um serviço/produto para receber."); return; }
@@ -668,6 +704,30 @@ export default function NovoAtendimentoPage() {
             <div><label className={lbl}>Data do follow-up</label><input type="date" value={form.followUpDate} onChange={(e) => set("followUpDate", e.target.value)} className={inp} /></div>
           </div>
           <p className="text-[11px] text-[#374151] mt-1.5">Grava no follow-up do pet (aparece na Visão geral e no Hoje).</p>
+        </div>
+
+        {/* ⚡ SEQUÊNCIA DE CUIDADO — mesma da Visão geral, embutida no atendimento */}
+        <div className={card} style={{ padding: "13px 16px" }}>
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-[12px] font-medium uppercase tracking-wide text-[#014D5E]">⚡ Sequência de cuidado</div>
+            <button type="button" onClick={() => setCadPick((v) => !v)} className="text-[11px] text-[#009AAC] hover:underline">+ iniciar</button>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            {cadAtivas.length === 0 && !cadPick && <p className="text-[12px] text-[#374151]">Nenhuma sequência ativa.</p>}
+            {cadAtivas.map((c) => (
+              <div key={c.id} className="bg-[#FBF9F4] border border-[#F0EBE0] rounded-[10px] px-2.5 py-1.5 flex items-center justify-between text-[12px]">
+                <span className="text-[#1F2A2E]">⚡ {c.data?.nome || "Cadência"}</span>
+                <button type="button" onClick={() => delCad(c)} className="text-[#b23b39] text-[10.5px]">encerrar</button>
+              </div>
+            ))}
+            {cadPick && (
+              <div className="pt-1.5 border-t border-[#F0EBE0] flex flex-wrap gap-1.5">
+                {cadOpts.length === 0 ? <p className="text-[11px] text-[#374151]">Nenhuma sequência cadastrada em Configurações.</p> :
+                  cadOpts.map((c: any) => (<button type="button" key={c.id} disabled={savingCad} onClick={() => addCad(c)} className="text-[11px] px-2 py-1 rounded-lg border disabled:opacity-50" style={{ borderColor: "#E8E2D6", color: "#009AAC" }}>+ {c.nome || c.titulo}</button>))}
+              </div>
+            )}
+          </div>
+          <p className="text-[11px] text-[#374151] mt-1.5">Inicia a cadência de mensagens (mesma da Visão geral) sem sair do atendimento.</p>
         </div>
       </div>
 
