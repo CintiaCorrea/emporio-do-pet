@@ -653,7 +653,8 @@ export default function PetDetailPage() {
   // Vet padrão = o profissional LOGADO (se estiver na lista), senão o 1º da lista
   function vetPadrao(): string {
     const me = vets.find((u: any) => (meId && u.id === meId) || (meNome && String(u.name || "").trim().toLowerCase() === meNome.trim().toLowerCase()));
-    return me?.id || (vets[0]?.id || "");
+    // sempre cai no usuário LOGADO (meId) se ele não estiver na lista — evita a trava "Selecione o profissional".
+    return me?.id || meId || (vets[0]?.id || "");
   }
   const parseModelos = (ms: any[]) => ms.map((i: any) => { let o: any = {}; try { o = JSON.parse(i.valor); } catch { o = { nome: i.valor, corpo: "" }; } return { nome: o.nome || i.valor, corpo: o.corpo || "" }; });
   async function abrirReceita() {

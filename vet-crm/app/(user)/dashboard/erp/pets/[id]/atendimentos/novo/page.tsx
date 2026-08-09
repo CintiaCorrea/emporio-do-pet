@@ -233,22 +233,14 @@ export default function NovoAtendimentoPage() {
   function addMed() { setMeds((m) => [...m, { nome: "", posologia: "", via: "Oral (VO)" }]); }
   function updMed(i: number, patch: any) { setMeds((m) => m.map((x, idx) => idx === i ? { ...x, ...patch } : x)); }
   function rmMed(i: number) { setMeds((m) => m.filter((_, idx) => idx !== i)); }
+  // Atendimento texto-livre: escolher um modelo INSERE o texto no campo de prescrição (não em blocos).
   function aplicarModeloReceita(nome: string) {
     set("recModelo", nome);
     const m = recModelos.find((x) => x.nome === nome);
-    if (m && m.corpo) {
-      // insere o corpo do modelo como um "medicamento" de texto livre (posologia = corpo), sem quebrar a estrutura
-      setMeds((prev) => [...prev, { nome: m.nome, posologia: m.corpo, via: "" }]);
-    }
+    if (m && m.corpo) setPrescEdit((prev) => (prev.trim() ? prev.trimEnd() + "\n" : "") + m.corpo);
   }
-  // Texto compatível salvo em Appointment.prescription (retrocompatível com a timeline existente)
-  function prescricaoTexto() {
-    if (meds.length === 0) return "";
-    return meds.map((md) => {
-      const via = md.via ? ` — ${md.via}` : "";
-      return `• ${md.nome || "(medicamento)"}: ${md.posologia || ""}${via}`.trim();
-    }).join("\n");
-  }
+  // A prescrição é um texto único (prescEdit) — conectado ao bloco Receita. Salvo em Appointment.prescription.
+  function prescricaoTexto() { return prescEdit.trim(); }
 
   // Lança o exame na comanda lateral com o VALOR AO CLIENTE (tabela de exames por laboratório).
   function lancarExameNaComanda(ex: ExameCat) {
@@ -288,7 +280,7 @@ export default function NovoAtendimentoPage() {
     w.document.write('<html><head><title>' + esc(titulo) + '</title><style>body{font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#0E2244;padding:40px;max-width:720px;margin:0 auto}h1{color:#014D5E;font-size:20px;margin:0 0 4px}.sub{color:#6B7280;font-size:12px;margin-bottom:18px}.who{font-size:13px;color:#475569;margin-bottom:14px}.box{white-space:pre-wrap;font-size:14px;line-height:1.6;border-top:2px solid #009AAC;padding-top:16px}.ft{margin-top:48px;font-size:12px;color:#6B7280;border-top:1px solid #ddd;padding-top:10px}</style></head><body><h1>Empório do Pet</h1><div class="sub">' + esc(titulo) + ' — ' + esc(dt) + '</div><div class="who">Pet: <b>' + esc(pet?.name || "") + '</b>' + (pet?.tutor?.name ? ' · Tutor: ' + esc(pet.tutor.name) : '') + (vetNome ? ' · Profissional: ' + esc(vetNome) : '') + '</div><div class="box">' + esc(corpo) + '</div>' + sigBlock + '<div class="ft">Documento gerado pelo sistema Empório do Pet</div></body></html>');
     w.document.close(); w.focus(); setTimeout(() => w.print(), 300);
   }
-  function imprimirReceita() { const t = prescricaoTexto(); if (!t) { toast.error("Adicione ao menos um medicamento"); return; } imprimirFolha("Receita", t); }
+  function imprimirReceita() { const t = prescricaoTexto(); if (!t) { toast.error("Escreva a prescrição primeiro"); return; } imprimirFolha("Receita", t); }
   function imprimirSolicitacao() {
     const linhas = [...exClinica.map((e) => `• ${e.nome} (fazemos na clínica)`), ...exExterno.map((e) => `• ${e.nome} (externo)`)];
     if (linhas.length === 0) { toast.error("Escolha ao menos um exame"); return; }
@@ -454,16 +446,20 @@ export default function NovoAtendimentoPage() {
       const diag = [a.diagnostico, ...(a.diagnosticosDiferenciais || []).map((d: string) => `DD: ${d}`)].filter(Boolean).join("\n");
       const exames = (a.examesSolicitados || []).filter(Boolean).join(", ");
 
-      // Preenche só campos vazios (não sobrescreve o que a vet já digitou).
+      // Atendimento texto-livre: a IA junta tudo num texto só (Anotações) + Resumo. Só preenche se vazio.
       let n = 0;
+      const corpoIA = [
+        a.historico && `Anamnese: ${a.historico}`,
+        a.exameClinico && `Exame físico: ${a.exameClinico}`,
+        diag && `Diagnóstico: ${diag}`,
+        conduta && `Conduta:\n${conduta}`,
+        exames && `Exames solicitados: ${exames}`,
+      ].filter(Boolean).join("\n\n");
       setForm((f) => {
         const nf = { ...f };
         const put = (k: keyof typeof f, v: string) => { if (v && !String((f as any)[k] || "").trim()) { (nf as any)[k] = v; n++; } };
         put("chiefComplaint", a.queixaPrincipal || "");
-        put("anamnesis", a.historico || "");
-        put("physicalExam", a.exameClinico || "");
-        put("diagnosis", diag);
-        put("conduct", conduta);
+        put("anamnesis", corpoIA);
         put("followUpNotes", a.retorno || "");
         return nf;
       });
@@ -561,56 +557,29 @@ export default function NovoAtendimentoPage() {
           </div>
         </div>
 
-        {/* CLÍNICO */}
+        {/* ATENDIMENTO — texto livre (estilo SimplesVet): Resumo + um campo só */}
         <div className={card} style={{ padding: "13px 16px" }}>
-          <div className="text-[12px] font-medium uppercase tracking-wide text-[#014D5E] mb-2">📋 Clínico</div>
+          <div className="text-[12px] font-medium uppercase tracking-wide text-[#014D5E] mb-2">📋 Atendimento</div>
           <div className="flex flex-col gap-2.5">
-            <div><label className={lbl}>Queixa / motivo</label><input value={form.chiefComplaint} onChange={(e) => set("chiefComplaint", e.target.value)} className={inp} placeholder="O que motivou a consulta" /></div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div><label className={lbl}>Anamnese</label><textarea rows={3} value={form.anamnesis} onChange={(e) => set("anamnesis", e.target.value)} className={inp} /></div>
-              <div><label className={lbl}>Exame físico</label><textarea rows={3} value={form.physicalExam} onChange={(e) => set("physicalExam", e.target.value)} className={inp} /></div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div><label className={lbl}>Diagnóstico</label><textarea rows={2} value={form.diagnosis} onChange={(e) => set("diagnosis", e.target.value)} className={inp} /></div>
-              <div><label className={lbl}>Conduta</label><textarea rows={2} value={form.conduct} onChange={(e) => set("conduct", e.target.value)} className={inp} /></div>
-            </div>
+            <div><label className={lbl}>Resumo <span className="normal-case text-[#94a3a0]">(1 linha, opcional)</span></label><input value={form.chiefComplaint} onChange={(e) => set("chiefComplaint", e.target.value)} className={inp} placeholder="Ex.: Reavaliação — melhora do quadro" /></div>
+            <div><label className={lbl}>Anotações do atendimento</label><textarea rows={10} value={form.anamnesis} onChange={(e) => set("anamnesis", e.target.value)} className={inp} placeholder="Escreva livremente: queixa, anamnese, exame físico, diagnóstico, conduta…" /></div>
           </div>
         </div>
 
-        {/* PRESCRIÇÃO estruturada */}
+        {/* PRESCRIÇÃO — texto livre, conectada ao bloco Receita */}
         <div className={card} style={{ padding: "13px 16px" }}>
           <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
             <div className="text-[12px] font-medium uppercase tracking-wide text-[#014D5E]">💊 Prescrição</div>
             <div className="flex items-center gap-2">
               <select value={form.recModelo} onChange={(e) => aplicarModeloReceita(e.target.value)} className="border border-[#E8E2D6] rounded-[9px] px-2 py-1.5 text-[12px] text-[#5C6B70] bg-white">
-                <option value="">Modelo (Normal/Especial)…</option>
+                <option value="">Inserir modelo…</option>
                 {recModelos.map((m) => <option key={m.nome} value={m.nome}>{m.nome}</option>)}
               </select>
               <button onClick={imprimirReceita} className="text-[12px] px-3 py-1.5 rounded-[9px] border border-[#E8E2D6] text-[#5C6B70] hover:border-[#009AAC] hover:text-[#009AAC]">🖨️ Imprimir receita</button>
             </div>
           </div>
-          <div className="flex flex-col gap-2">
-            {editId && (
-              <div>
-                <label className={lbl}>Prescrição atual (editável)</label>
-                <textarea rows={3} value={prescEdit} onChange={(e) => setPrescEdit(e.target.value)} className={inp} placeholder="Prescrição registrada neste atendimento" />
-                <p className="text-[11px] text-[#374151] mt-0.5">Edite o texto acima ou adicione medicamentos abaixo (os medicamentos, se houver, substituem o texto ao salvar).</p>
-              </div>
-            )}
-            {meds.length === 0 && <p className="text-[12px] text-[#374151]">Nenhum medicamento. Use "＋ adicionar medicamento" ou escolha um modelo.</p>}
-            {meds.map((md, i) => (
-              <div key={i} className="grid grid-cols-1 md:grid-cols-[1fr_1fr_150px_auto] gap-2 items-center">
-                <input value={md.nome} onChange={(e) => updMed(i, { nome: e.target.value })} placeholder="Medicamento" className="px-2 py-1.5 border border-[#E8E2D6] rounded-[9px] text-[13px]" />
-                <input value={md.posologia} onChange={(e) => updMed(i, { posologia: e.target.value })} placeholder="Posologia" className="px-2 py-1.5 border border-[#E8E2D6] rounded-[9px] text-[13px]" />
-                <select value={md.via} onChange={(e) => updMed(i, { via: e.target.value })} className="px-2 py-1.5 border border-[#E8E2D6] rounded-[9px] text-[13px] text-[#5C6B70]">
-                  <option value="">Via…</option>
-                  {VIAS.map((v) => <option key={v} value={v}>{v}</option>)}
-                </select>
-                <button onClick={() => rmMed(i)} title="Remover" className="text-[#b23b39] px-2 py-1.5 text-[14px]">✕</button>
-              </div>
-            ))}
-            <button onClick={addMed} className="self-start text-[12px] px-3 py-1.5 rounded-full border border-dashed border-[#E8E2D6] text-[#009AAC] hover:border-[#009AAC]">＋ adicionar medicamento</button>
-          </div>
+          <textarea rows={5} value={prescEdit} onChange={(e) => setPrescEdit(e.target.value)} className={inp} placeholder="Escreva a prescrição livremente (um medicamento por linha). Escolha um modelo acima pra já inserir pronto." />
+          <p className="text-[11px] text-[#374151] mt-1">📄 Ao salvar, a prescrição entra como <b>Receita</b> ligada a este atendimento (aparece no box de Receitas e na linha do tempo). Use 🖨️ pra imprimir e assinar.</p>
         </div>
 
         {/* EXAMES — duas caixas */}
