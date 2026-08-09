@@ -149,6 +149,7 @@ export default function PetDetailPage() {
   const [savingClin, setSavingClin] = useState(false);
   const [editObs, setEditObs] = useState(false);
   const [obsVal, setObsVal] = useState("");
+  const [obsFile, setObsFile] = useState<File | null>(null); // Parte 6 — anexo na observação
   const [savingObs, setSavingObs] = useState(false);
   const [editName, setEditName] = useState(false);
   const [nameVal, setNameVal] = useState("");
@@ -491,8 +492,24 @@ export default function PetDetailPage() {
     try { await patchPet({ weight: w }); toast.success("Peso atualizado"); setArtefato(null); await load(); await loadAtendimentos(); } catch { toast.error("Erro ao salvar peso"); } finally { setSavingArt(false); }
   }
   async function salvarObsArt() {
+    if (!pet) return;
     setSavingArt(true);
-    try { await patchPet({ observations: obsVal }); toast.success("Observação salva"); setArtefato(null); await load(); } catch { toast.error("Erro ao salvar"); } finally { setSavingArt(false); }
+    try {
+      await patchPet({ observations: obsVal });
+      if (obsFile) {
+        // Com anexo: sobe o arquivo e cria uma entrada clicável na linha do tempo.
+        const url = await subirArquivo(obsFile, "documentos");
+        const body: any = { tutorId: pet.tutorId, petId: pet.id, userId: meId || vets[0]?.id, date: new Date().toISOString(), type: "Observação", status: "Realizado", anamnesis: obsVal || null, prescription: `[Arquivo anexado: ${obsFile.name}]` };
+        const r = await fetch("/api/appointments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+        const dc = await r.json().catch(() => null);
+        const apptId = dc?.id || dc?.appointment?.id;
+        if (apptId) { try { await fetch("/api/clinical-documents", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ appointmentId: apptId, type: "GENERAL", title: "Observação", content: obsVal || obsFile.name, pdfUrl: url }) }); } catch {} }
+        toast.success("Observação salva com anexo ✅ — o arquivo entra na linha do tempo");
+      } else {
+        toast.success("Observação salva");
+      }
+      setArtefato(null); setObsFile(null); await load(); await loadAtendimentos(); await loadClinDocs();
+    } catch (e: any) { toast.error("Erro ao salvar: " + String(e?.message || e).slice(0, 80)); } finally { setSavingArt(false); }
   }
   function fmtLocal(d: any) { const x = new Date(d); const p = (n: number) => String(n).padStart(2, "0"); return `${x.getFullYear()}-${p(x.getMonth() + 1)}-${p(x.getDate())}T${p(x.getHours())}:${p(x.getMinutes())}`; }
   async function editarEntrada(it: any) {
@@ -1839,6 +1856,12 @@ export default function PetDetailPage() {
                       </div>
                     </div>
                     <textarea value={obsVal} onChange={(e) => setObsVal(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8", minHeight: "120px" }} placeholder="Anote algo sobre o pet…" />
+                    <label className="text-[11.5px] font-medium cursor-pointer inline-flex items-center gap-2 px-3 py-2 rounded-lg border mt-2" style={{ borderColor: "#009AAC", color: "#00798A", background: "#F0FBFC" }}>
+                      📎 Anexar arquivo (exame, laudo, foto)
+                      <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,.doc,.docx" className="hidden" onChange={(e) => setObsFile(e.target.files?.[0] || null)} />
+                    </label>
+                    {obsFile && <p className="text-[11px] text-[#0F6E56] mt-1.5">📄 {obsFile.name} · {(obsFile.size / 1024 / 1024).toFixed(1)}MB</p>}
+                    <p className="text-[10.5px] text-gray-400 mt-2">Com anexo, a observação entra na linha do tempo com o arquivo <b>clicável</b>.</p>
                   </div>
                 ) : artefato === "RECEITA" ? (
                   <div className="bg-white">
@@ -1932,6 +1955,7 @@ export default function PetDetailPage() {
                     <div className="flex items-center justify-between border-b pb-2.5 mb-3" style={{ borderColor: "#E8DFC8" }}>
                       <h3 className="text-sm font-semibold" style={{ color: "#0E2244" }}>🔬 Exame</h3>
                       <div className="flex gap-2">
+                        <button onClick={() => imprimirComTimbrado("Solicitação de exames", exames.map((e) => "• " + (e.data?.nome || "Exame") + (e.data?.status ? " — " + e.data.status : "")).join("<br>") || exNome || "—", meId)} className="px-3 py-1.5 rounded-lg text-xs border flex items-center gap-1" style={{ borderColor: "#E8DFC8", color: "#475569" }}><LuPrinter size={13} /> Imprimir</button>
                         <button onClick={salvarExameComArquivo} disabled={savingArt} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingArt ? "..." : "Salvar"}</button>
                         <button onClick={() => setArtefato(null)} title="Fechar" aria-label="Fechar" className="w-7 h-7 flex items-center justify-center rounded-lg text-lg leading-none border hover:bg-[#F6F2EA] transition-colors" style={{ borderColor: "#E8DFC8", color: "#64748B" }}>×</button>
                       </div>
@@ -2025,7 +2049,7 @@ export default function PetDetailPage() {
                         { label: "Exame", ic: "🔬", bg: "#FCE9EE", fg: "#B0416B", act: () => abrirExame() },
                         { label: "Fotos", ic: "📷", bg: "#E8F0FA", fg: "#3E6DA6", act: () => abrirFoto() },
                         { label: "Vídeo", ic: "🎥", bg: "#E3F3EF", fg: "#2E8B72", act: () => abrirVideo() },
-                        { label: "Observação", ic: "📝", bg: "#EFEEE9", fg: "#6B6A63", act: () => { setObsVal(pet?.observations || ""); setAtdOpen(false); setArtefato("OBS"); } },
+                        { label: "Observação", ic: "📝", bg: "#EFEEE9", fg: "#6B6A63", act: () => { setObsVal(pet?.observations || ""); setObsFile(null); setAtdOpen(false); setArtefato("OBS"); } },
                         { label: "Patologia", ic: "🦠", bg: "#F3E8F5", fg: "#8E4585", act: async () => { await abrirDocumento(); setDocModeloNome("Laudo de patologia"); } },
                         { label: "Vacina", ic: "💉", bg: "#FBF3D9", fg: "#C2952E", act: () => setMainTab("VACINAS") },
                         { label: "Internação", ic: "🏥", bg: "#F7E9EB", fg: "#9b2c3a", act: () => router.push(`/dashboard/erp/internacoes?pet=${encodeURIComponent(pet?.name || "")}&petId=${petId}`) },
