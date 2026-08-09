@@ -1781,7 +1781,7 @@ export default function PetDetailPage() {
             <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-5 items-start">
               <div className="lg:order-1">
                 <div style={{ maxHeight: "72vh", overflowY: "auto" }} className="pr-1">
-                  <FeedTimeline atendimentos={atendimentos} clinDocs={clinDocs} historico={historico} exames={exames} forceCat={atdOpen ? "ATENDIMENTO" : artefato === "EXAME" ? "EXAME" : artefato === "RECEITA" ? "RECEITA" : artefato === "DOCUMENTO" ? "DOCUMENTO" : artefato === "OBS" ? "OBSERVACAO" : artefato === "PESO" ? "PESO" : undefined} onEditar={editarEntrada} onExcluir={excluirEntrada} onDetalhe={abrirDetalheHist} />
+                  <FeedTimeline atendimentos={atendimentos} clinDocs={clinDocs} historico={historico} exames={exames} onEditar={editarEntrada} onExcluir={excluirEntrada} onDetalhe={abrirDetalheHist} />
                 </div>
                 {detalheHist && (
                   <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ background: "rgba(20,35,40,.3)" }} onClick={() => setDetalheHist(null)}>

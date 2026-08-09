@@ -19,7 +19,7 @@ const LEGENDA: { n: string; c: string; I: any }[] = [
   { n: "Vídeo", c: "#0f7a52", I: LuVideo },
 ];
 
-export default function FeedTimeline({ atendimentos = [], clinDocs = [], historico = [], exames = [], forceCat, onEditar, onExcluir, onDetalhe }: { atendimentos?: any[]; clinDocs?: any[]; historico?: any[]; exames?: any[]; forceCat?: string; onEditar?: (it: any) => void; onExcluir?: (it: any) => void; onDetalhe?: (id: string) => void }) {
+export default function FeedTimeline({ atendimentos = [], clinDocs = [], historico = [], exames = [], onEditar, onExcluir, onDetalhe }: { atendimentos?: any[]; clinDocs?: any[]; historico?: any[]; exames?: any[]; onEditar?: (it: any) => void; onExcluir?: (it: any) => void; onDetalhe?: (id: string) => void }) {
   const [pOpen, setPOpen] = useState(false);
   const [pIni, setPIni] = useState("");
   const [pFim, setPFim] = useState("");
@@ -43,13 +43,12 @@ export default function FeedTimeline({ atendimentos = [], clinDocs = [], histori
     return [...a, ...d, ...h, ...e].filter((i: any) => i.date).sort((x: any, y: any) => new Date(y.date).getTime() - new Date(x.date).getTime());
   }, [atendimentos, clinDocs, historico, exames]);
 
-  const catAtivo = forceCat || cat; // quando um BOX está aberto, filtra por ele (compartimentaliza)
   const items = useMemo(() => all.filter((it: any) => {
-    if (catAtivo !== "TODOS" && it.cat !== catAtivo) return false;
+    if (cat !== "TODOS" && it.cat !== cat) return false;
     if (pIni && new Date(it.date) < new Date(pIni + "T00:00:00")) return false;
     if (pFim && new Date(it.date) > new Date(pFim + "T23:59:59")) return false;
     return true;
-  }), [all, pIni, pFim, catAtivo]);
+  }), [all, pIni, pFim, cat]);
   const catCount = (k: string) => k === "TODOS" ? all.length : all.filter((i: any) => i.cat === k).length;
 
   if (all.length === 0) return <div className="text-sm text-gray-400 py-8 text-center">Sem registros no histórico ainda.</div>;
@@ -68,13 +67,11 @@ export default function FeedTimeline({ atendimentos = [], clinDocs = [], histori
           <input type="date" value={pFim} onChange={(e) => setPFim(e.target.value)} className="text-[11px] border rounded-lg px-2 py-1" style={{ borderColor: "#E8DFC8" }} />
         </div>
       ) : null}
-      {!forceCat && (
       <div className="flex gap-1.5 flex-wrap mb-3">
         {CATS.map((c) => { const n = catCount(c.k); if (c.k !== "TODOS" && n === 0) return null; const on = cat === c.k; return (
           <button key={c.k} onClick={() => setCat(c.k)} className="text-[11px] px-2.5 py-1 rounded-full border transition" style={on ? { background: "#009AAC", color: "#fff", borderColor: "#009AAC" } : { background: "#fff", color: "#5C6B70", borderColor: "#E8E2D6" }}>{c.lbl} <span style={{ opacity: .65 }}>{n}</span></button>
         ); })}
       </div>
-      )}
       {items.length === 0 ? (
         <div className="text-sm text-gray-400 py-6 text-center">Nenhum registro neste período.</div>
       ) : (
