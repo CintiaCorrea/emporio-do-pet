@@ -1250,6 +1250,13 @@ export default function PetDetailPage() {
     const wa = pet.tutor.contacts.find(c => c.isWhatsApp) || pet.tutor.contacts.find(c => c.isPrimary) || pet.tutor.contacts[0];
     return wa?.number || null;
   }, [pet]);
+  // Peso mais recente + data (dos atendimentos com petWeight; senão o peso atual do cadastro)
+  const pesoRecente = useMemo(() => {
+    const pts = (atendimentos || []).filter((a: any) => a.petWeight != null && a.date).sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    if (pts.length) return { w: Number(pts[0].petWeight), date: pts[0].date as string };
+    if (pet?.weight != null) return { w: Number(pet.weight), date: null as string | null };
+    return null;
+  }, [atendimentos, pet?.weight]);
 
   if (loading) {
     return <div className="p-10 text-center text-gray-400">Carregando ficha...</div>;
@@ -1337,7 +1344,8 @@ export default function PetDetailPage() {
         <Link href="/dashboard/erp/pets" className="hover:text-[#009AAC]">Pets</Link> / <b className="text-[#009AAC] font-medium">{pet.name}</b>
       </div>
 
-      {/* ── Cabeçalho em card branco (padrão ficha do cliente) ── */}
+      {/* ── Cabeçalho FIXO (sticky) — contexto sempre à vista ao rolar ── */}
+      <div className="sticky top-0 z-30 -mx-4 px-4 pt-1" style={{ background: "#F6F2EA" }}>
       <div className="bg-white border border-[#E8E2D6] rounded-[14px] mb-3" style={{ padding: "14px 16px" }}>
         <div className="flex justify-between items-start flex-wrap gap-3">
           <div className="flex items-start gap-3 flex-1" style={{ minWidth: "220px" }}>
@@ -1365,10 +1373,13 @@ export default function PetDetailPage() {
               </div>
               <p className="text-[12.5px] text-[#5C6B70] mt-0.5">
                 {[speciesLabel(pet.species), pet.breed, genderLabel(pet.gender), pet.birthDate ? ageFromBirth(pet.birthDate) : null, sterilLabel(pet.sterilization)].filter((x) => x && x !== "—").join(" · ")}
+                {pesoRecente && <> · <b className="text-[#0E2244]">⚖️ {pesoRecente.w} kg</b>{pesoRecente.date ? <span className="text-[#8A938F]"> ({fmtDataBR(pesoRecente.date).slice(0, 10)})</span> : null}</>}
               </p>
               {pet.tutor && (
-                <p className="text-[12.5px] text-[#5C6B70] mt-0.5">
-                  🧑 Tutor(a): <Link href={`/dashboard/erp/tutores/${pet.tutorId}`} className="text-[#009AAC] hover:underline">{pet.tutor.name} →</Link>
+                <p className="text-[12.5px] text-[#5C6B70] mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                  <span>🧑 Tutor(a): <Link href={`/dashboard/erp/tutores/${pet.tutorId}`} className="text-[#009AAC] hover:underline">{pet.tutor.name} →</Link></span>
+                  {tutorWhats && <span>📞 {tutorWhats}</span>}
+                  {(pet as any)?.tutor?.email && <span>✉️ {(pet as any).tutor.email}</span>}
                 </p>
               )}
               {/* Etiquetas (chips + tag) */}
@@ -1421,6 +1432,7 @@ export default function PetDetailPage() {
             </div>
           </div>
         </div>
+      </div>
       </div>
 
       {/* ── Barra de abas (no celular rola de lado; no desktop cabe tudo) ── */}
