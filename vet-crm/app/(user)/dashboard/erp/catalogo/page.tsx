@@ -19,6 +19,14 @@ const markupDe = (custo?: number | null, preco?: number | null) => {
 
 type Grupo = "PRODUTO" | "SERVICO" | "EXAME";
 interface Item { key: string; rawId?: string; grupo: Grupo; tipo: string; nome: string; codigo?: number | string | null; custo?: number | null; preco?: number | null; estoque?: number | null; ativo: boolean; fornecedor?: string | null; fornId?: string | null; categoria?: string | null; comissao?: string | null; marca?: string | null; controlaValidade?: boolean | null; validade?: string | null; tempo?: number | null; }
+
+// #2 validade — dias até vencer (negativo = já venceu). Módulo-level pra não entrar nas deps dos hooks.
+function diasParaVencer(v?: string | null): number | null {
+  if (!v) return null;
+  const d = new Date(String(v).slice(0, 10) + "T00:00:00").getTime();
+  const now = new Date(); now.setHours(0, 0, 0, 0);
+  return Math.round((d - now.getTime()) / 86400000);
+}
 const COM_LABEL: Record<string, string> = { VALOR_CHEIO: "Valor cheio", MARGEM: "Margem", SEM_COMISSAO: "Sem comissão", HERDAR: "Herdar" };
 
 const TIPO_PILL: Record<Grupo, { bg: string; fg: string; emoji: string }> = {
@@ -161,6 +169,18 @@ export default function CatalogoPage() {
     });
   }, [itens, grupo, busca, fSit, fGrupo, fMarca, fForn, fCtrlVal, valDe, valAte]);
 
+  // #2 — contador global de itens perto do vencimento (só produtos que controlam validade)
+  const { nVencendo, nVencidos } = useMemo(() => {
+    let ven = 0, vez = 0;
+    for (const it of itens) {
+      if (it.controlaValidade !== true || !it.validade) continue;
+      const d = diasParaVencer(it.validade);
+      if (d == null) continue;
+      if (d < 0) vez++; else if (d <= 60) ven++;
+    }
+    return { nVencendo: ven, nVencidos: vez };
+  }, [itens]);
+
   // Paginação: volta pra página 1 sempre que a busca/filtros mudam.
   useEffect(() => { setPage(1); }, [grupo, busca, fSit, fGrupo, fMarca, fForn, fCtrlVal, valDe, valAte]);
   const totalPag = Math.max(1, Math.ceil(filtrados.length / PER_PAGE));
@@ -277,6 +297,16 @@ export default function CatalogoPage() {
         <button className="cat-btn" onClick={() => window.print()}>🖨️ Imprimir</button>
       </div>
 
+      {(nVencendo > 0 || nVencidos > 0) && (
+        <div className="no-print" title="Clique para filtrar os itens que vencem em até 60 dias"
+          onClick={() => { const dt = new Date(); dt.setDate(dt.getDate() + 60); setShowFiltros(true); setValDe(""); setValAte(dt.toISOString().slice(0, 10)); }}
+          style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", cursor: "pointer", background: "#FBF1E2", border: "1px solid #E8E2D6", borderLeft: "4px solid #B26A00", borderRadius: 12, padding: "9px 14px", marginBottom: 14 }}>
+          <span style={{ fontSize: 13, color: "#1F2A2E" }}>⏰ <b style={{ color: "#B26A00" }}>{nVencendo}</b> vencendo em até 60 dias</span>
+          {nVencidos > 0 && <span style={{ fontSize: 13, color: "#1F2A2E" }}>· <b style={{ color: "#C0392B" }}>{nVencidos}</b> já vencido(s)</span>}
+          <span style={{ fontSize: 11.5, color: "#8A928F" }}>(só produtos que controlam validade)</span>
+        </div>
+      )}
+
       {grupo === "EXAME" && isAdmin && (
         <div className="no-print" style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", background: "#F0E9F7", border: "1px solid #E8E2D6", borderLeft: "4px solid #6b3fa0", borderRadius: 12, padding: "11px 15px", marginBottom: 14 }}>
           <span style={{ fontSize: 13, color: "#1F2A2E" }}>🔬 <b style={{ color: "#6b3fa0" }}>% padrão dos exames{fForn ? ` de ${fForn}` : ""}:</b></span>
@@ -344,12 +374,12 @@ export default function CatalogoPage() {
             <thead>
               <tr>
                 <th className="no-print" style={{ width: 34, textAlign: "center" }}><input type="checkbox" checked={todosVisSel} onChange={toggleTodosVis} title="Selecionar todos (os filtrados)" /></th>
-                <th>Nome <span style={{ color: "#8A928F", fontWeight: 400 }}>({filtrados.length})</span></th><th>Tipo</th><th className="col-sec2">Fornecedor</th><th>Categoria</th>{isAdmin && <th className="r col-sec">Custo</th>}<th className="r" title="Markup: preço = custo × (1 + %). Editável nos exames.">%</th><th className="r">Preço</th><th>Comissão</th><th style={{ textAlign: "center" }}>Ativo</th><th className="no-print" style={{ textAlign: "center" }}>Ações</th>
+                <th>Nome <span style={{ color: "#8A928F", fontWeight: 400 }}>({filtrados.length})</span></th><th>Tipo</th><th className="col-sec2">Fornecedor</th><th>Categoria</th><th className="col-sec">Validade</th>{isAdmin && <th className="r col-sec">Custo</th>}<th className="r" title="Markup: preço = custo × (1 + %). Editável nos exames.">%</th><th className="r">Preço</th><th>Comissão</th><th style={{ textAlign: "center" }}>Ativo</th><th className="no-print" style={{ textAlign: "center" }}>Ações</th>
               </tr>
             </thead>
             <tbody>
-              {loading && <tr><td colSpan={isAdmin ? 11 : 10} className="cat-empty">Carregando catálogo…</td></tr>}
-              {!loading && filtrados.length === 0 && <tr><td colSpan={isAdmin ? 11 : 10} className="cat-empty">Nenhum item encontrado.</td></tr>}
+              {loading && <tr><td colSpan={isAdmin ? 12 : 11} className="cat-empty">Carregando catálogo…</td></tr>}
+              {!loading && filtrados.length === 0 && <tr><td colSpan={isAdmin ? 12 : 11} className="cat-empty">Nenhum item encontrado.</td></tr>}
               {!loading && paginados.map((it) => {
                 const pill = TIPO_PILL[it.grupo];
                 const mk = markupDe(it.custo, it.preco);
@@ -362,6 +392,13 @@ export default function CatalogoPage() {
                     <td><span className="cat-pill" style={{ background: pill.bg, color: pill.fg }}>{pill.emoji} {it.tipo}</span></td>
                     <td className="cat-forn col-sec2" style={{ color: it.fornecedor ? "#5C6B70" : "#374151" }}>{it.fornecedor || "—"}</td>
                     <td style={{ color: it.categoria ? "#5C6B70" : "#374151" }}>{it.categoria || "—"}</td>
+                    <td className="col-sec">{(() => {
+                      if (!it.validade) return <span style={{ color: "#374151" }}>—</span>;
+                      const dv = diasParaVencer(it.validade);
+                      const dt = new Date(String(it.validade).slice(0, 10) + "T00:00:00").toLocaleDateString("pt-BR");
+                      const bd = dv == null ? null : dv < 0 ? { c: "#C0392B", b: "#FBEEEC", t: "vencido" } : dv <= 30 ? { c: "#C0392B", b: "#FBEEEC", t: `${dv}d` } : dv <= 60 ? { c: "#B26A00", b: "#FBF1E2", t: `${dv}d` } : null;
+                      return <span style={{ display: "inline-flex", alignItems: "center", gap: 5, color: "#5C6B70", fontSize: 12.5, whiteSpace: "nowrap" }}>{dt}{bd && <span style={{ background: bd.b, color: bd.c, fontSize: 10.5, fontWeight: 700, padding: "1px 6px", borderRadius: 20 }}>{bd.t}</span>}</span>;
+                    })()}</td>
                     {isAdmin && <td className="r col-sec" style={{ color: "#5C6B70" }}>{brl(it.custo)}</td>}
                     <td className="r" onClick={(e) => e.stopPropagation()}>
                       {it.grupo === "EXAME" ? (
