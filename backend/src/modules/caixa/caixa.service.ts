@@ -689,9 +689,20 @@ export class CaixaService {
     return this.prisma.caixaSessao.update({ where: { id }, data: { status: 'ABERTO', fechamento: null } });
   }
 
+  // Lê as regras do módulo de vendas (lista `configvendas`, 1 item JSON).
+  private async getConfigVendas(): Promise<any> {
+    try { const it = await this.prisma.listaItem.findFirst({ where: { lista: 'configvendas' } }); if (it?.valor) return JSON.parse(it.valor); } catch { /* usa vazio */ }
+    return {};
+  }
+
   async registrarRecebimento(caixaId: string, dto: any, userId: string) {
     const appointmentId = dto.appointmentId || null;
     const formas = Array.isArray(dto.formas) ? dto.formas : [];
+    // Config de vendas: obrigar NSU do cartão (maquininha/cartão)
+    const cfgRec = await this.getConfigVendas();
+    if (cfgRec.obrigarNsu && formas.some((f: any) => /cart|maquin/i.test(f.forma || '') && !String(f.nsu || '').trim())) {
+      throw new BadRequestException('Informe o NSU do cartão (a configuração de vendas exige).');
+    }
     const creditoUsado = formas
       .filter((f: any) => /cr[eé]dito/i.test(f.forma || ''))
       .reduce((s: number, f: any) => s + Number(f.valor || 0), 0);
@@ -874,6 +885,11 @@ export class CaixaService {
       const valorTotal = Math.max(0, quantidade * valorUnitario - desconto);
       return { servicoId: it.servicoId ?? undefined, productId: it.productId ?? undefined, descricao: it.descricao ?? undefined, quantidade, valorUnitario, desconto, valorTotal, executorUserId: it.executorUserId ?? undefined };
     });
+    // Config de vendas: obrigar profissional (vendedor) em cada item
+    const cfgVenda = await this.getConfigVendas();
+    if (cfgVenda.obrigarProfissionalItem && items.some((it: any) => !it.executorUserId)) {
+      throw new BadRequestException('Cada item precisa de um profissional/vendedor (a configuração de vendas exige).');
+    }
     const itensTotal = items.reduce((s: number, it: any) => s + it.valorTotal, 0);
     const descontoGlobal = Number(dto.desconto || 0);
     const valorVenda = Math.max(0, Number((itensTotal - descontoGlobal).toFixed(2)));

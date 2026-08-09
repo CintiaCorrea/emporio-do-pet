@@ -33,7 +33,7 @@ interface Tutor { id: string; name: string; pets?: Pet[] }
 interface Servico { id: string; nome: string; valorPadrao?: number | null }
 interface Prof { id: string; name: string }
 interface CartItem { servicoId?: string; descricao: string; quantidade: number; valorUnitario: number; desconto: number; executorUserId?: string }
-interface Forma { forma: string; valor: number }
+interface Forma { forma: string; valor: number; nsu?: string }
 interface Venda { id: string; tutor: string; pet: string; valor: number; pago: number; status: string; pagoTotal: boolean; date: string }
 
 const FORMAS = ['Dinheiro', 'Pix', 'Cartão crédito', 'Cartão débito', 'Crédito do pet'];
@@ -575,13 +575,14 @@ export default function PDVPage() {
                 <span style={{ fontSize: 13, color: INK2 }}>Total da venda</span>
                 <span style={{ fontSize: 20, fontWeight: 500, color: NAVY }}>{brl(total)}</span>
               </div>
-              {formas.map((f, i) => (
-                <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 7 }}>
-                  <select value={f.forma} onChange={(e) => setFormas(formas.map((x, j) => j === i ? { ...x, forma: e.target.value } : x))} style={{ ...inp, flex: 1.3, padding: '8px' }}>{formasList.map((op) => <option key={op} value={op}>{op}</option>)}</select>
-                  <input value={f.valor || ''} inputMode="decimal" placeholder="R$" onChange={(e) => setFormas(formas.map((x, j) => j === i ? { ...x, valor: num(e.target.value) } : x))} style={{ ...inp, flex: 1, padding: '8px' }} />
+              {formas.map((f, i) => { const ehCartao = /cart|maquin/i.test(f.forma || ''); return (
+                <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 7, flexWrap: 'wrap' }}>
+                  <select value={f.forma} onChange={(e) => setFormas(formas.map((x, j) => j === i ? { ...x, forma: e.target.value } : x))} style={{ ...inp, flex: 1.3, padding: '8px', minWidth: 120 }}>{formasList.map((op) => <option key={op} value={op}>{op}</option>)}</select>
+                  <input value={f.valor || ''} inputMode="decimal" placeholder="R$" onChange={(e) => setFormas(formas.map((x, j) => j === i ? { ...x, valor: num(e.target.value) } : x))} style={{ ...inp, flex: 1, padding: '8px', minWidth: 80 }} />
+                  {ehCartao && <input value={f.nsu || ''} placeholder="NSU" title="NSU do cartão (para conciliação)" onChange={(e) => setFormas(formas.map((x, j) => j === i ? { ...x, nsu: e.target.value } : x))} style={{ ...inp, flex: 1, padding: '8px', minWidth: 80 }} />}
                   {formas.length > 1 && <button onClick={() => setFormas(formas.filter((_, j) => j !== i))} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 13 }}>🗑️</button>}
                 </div>
-              ))}
+              ); })}
               <button onClick={() => setFormas([...formas, { forma: 'Pix', valor: 0 }])} style={{ border: 'none', background: 'none', color: TEAL, fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>➕ outra forma</button>
 
               <div style={{ marginTop: 12, fontSize: 13, lineHeight: 2, borderTop: `1px solid ${SOFT}`, paddingTop: 8 }}>
