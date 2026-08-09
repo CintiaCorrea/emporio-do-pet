@@ -617,7 +617,8 @@ export class CaixaService {
     return rec;
   }
 
-  // Fase 5 — quando a venda é paga, desconta o estoque dos itens que são PRODUTO estocável (serviço não baixa).
+  // Fase 5 — quando a venda é paga, desconta o estoque dos PRODUTOS estocáveis (serviço não baixa).
+  // #4 — usa baixa segura: transação (saldo+movimento juntos), NUNCA negativa, loga discrepâncias.
   private async baixarEstoqueDaVenda(appointmentId: string) {
     try {
       const itens = await this.prisma.appointmentItem.findMany({
@@ -631,30 +632,42 @@ export class CaixaService {
         const comps = await this.prisma.produtoComposicao.findMany({ where: { paiId: it.productId }, select: { itemId: true, quantidade: true } });
         if (comps.length > 0) {
           for (const c of comps) {
-            const insumo = await this.prisma.product.findUnique({ where: { id: c.itemId }, select: { type: true, stock: true } });
+            const insumo = await this.prisma.product.findUnique({ where: { id: c.itemId }, select: { type: true } });
             if (!insumo || insumo.type === 'SERVICE') continue;
-            const q = Math.max(0, Math.round((Number(c.quantidade) || 0) * vendidos));
-            if (q <= 0) continue;
-            const antes = insumo.stock, depois = antes - q;
-            await this.prisma.product.update({ where: { id: c.itemId }, data: { stock: depois } });
-            await this.prisma.estoqueMovimento.create({
-              data: { productId: c.itemId, tipo: 'OUT', quantidade: q, saldoAntes: antes, saldoDepois: depois, motivo: 'Baixa por ficha técnica (venda)', origem: 'COMPOSICAO', refId: appointmentId },
-            }).catch(() => undefined);
+            await this.baixarUmItem(c.itemId, Math.round((Number(c.quantidade) || 0) * vendidos), 'Baixa por ficha técnica (venda)', 'COMPOSICAO', appointmentId);
           }
-          continue; // já baixou os insumos; o "pai" (serviço/kit) não movimenta
+          continue; // o "pai" (serviço/kit) não movimenta
         }
         // 2) Sem ficha técnica: produto estocável baixa a si mesmo (serviço não movimenta).
-        const prod = await this.prisma.product.findUnique({ where: { id: it.productId }, select: { type: true, stock: true } });
+        const prod = await this.prisma.product.findUnique({ where: { id: it.productId }, select: { type: true } });
         if (!prod || prod.type === 'SERVICE') continue;
-        const antes = prod.stock, depois = antes - vendidos;
-        await this.prisma.product.update({ where: { id: it.productId }, data: { stock: depois } });
-        await this.prisma.estoqueMovimento.create({
-          data: { productId: it.productId, tipo: 'OUT', quantidade: vendidos, saldoAntes: antes, saldoDepois: depois, motivo: 'Baixa por venda', origem: 'VENDA', refId: appointmentId },
-        }).catch(() => undefined);
+        await this.baixarUmItem(it.productId, vendidos, 'Baixa por venda', 'VENDA', appointmentId);
       }
     } catch (e: any) {
       // não pode quebrar o recebimento (a venda já foi registrada)
       console.error('baixarEstoqueDaVenda erro:', e?.message);
+    }
+  }
+
+  // #4 — baixa segura de UM item na venda: tudo numa transação (saldo + movimento juntos),
+  // NUNCA deixa o estoque negativar (baixa só até zerar) e LOGA a discrepância (não engole erro).
+  private async baixarUmItem(productId: string, qDesejado: number, motivo: string, origem: string, appointmentId: string) {
+    const q = Math.max(0, Math.round(qDesejado || 0));
+    if (q <= 0) return;
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        const prod = await tx.product.findUnique({ where: { id: productId }, select: { name: true, stock: true } });
+        if (!prod) return;
+        const antes = prod.stock;
+        const real = Math.min(q, Math.max(0, antes)); // nunca deixa negativar: baixa no máximo o que há
+        if (real <= 0) { console.warn(`[estoque] venda ${appointmentId}: "${prod.name}" sem saldo (tinha ${antes}, pedia ${q}) — não baixou.`); return; }
+        if (real < q) console.warn(`[estoque] venda ${appointmentId}: "${prod.name}" saldo insuficiente (tinha ${antes}, pedia ${q}) — baixou ${real} e zerou o estoque.`);
+        const depois = antes - real;
+        await tx.product.update({ where: { id: productId }, data: { stock: depois } });
+        await tx.estoqueMovimento.create({ data: { productId, tipo: 'OUT', quantidade: real, saldoAntes: antes, saldoDepois: depois, motivo, origem, refId: appointmentId } });
+      });
+    } catch (e: any) {
+      console.error(`[estoque] falha ao baixar ${productId} da venda ${appointmentId}:`, e?.message);
     }
   }
 
