@@ -283,6 +283,27 @@ export default function CatalogoPage() {
     } catch { toast.error("Erro ao excluir."); }
   }
 
+  // #5 — exporta o que está filtrado como planilha (.csv, abre no Excel). Cobre Lista de preços,
+  // Validade e Posição de estoque numa tabela só. Separador ";" + BOM p/ acentos no Excel pt-BR.
+  function exportarPlanilha() {
+    const num = (v?: number | null) => (v == null ? "" : String(v).replace(".", ","));
+    const esc = (v: any) => { const s = v == null ? "" : String(v); return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+    const cols = ["Tipo", "Nome", "Código", "Fornecedor", "Categoria", "Custo", "Markup %", "Preço", "Comissão", "Estoque", "Valor em estoque", "Validade", "Ativo"];
+    const linhas = filtrados.map((it) => {
+      const mk = markupDe(it.custo, it.preco);
+      const valEst = (it.estoque != null && it.custo != null) ? Math.round(it.estoque * it.custo * 100) / 100 : null;
+      const val = it.validade ? new Date(String(it.validade).slice(0, 10) + "T00:00:00").toLocaleDateString("pt-BR") : "";
+      return [it.tipo, it.nome, it.codigo ?? "", it.fornecedor ?? "", it.categoria ?? "", num(it.custo), mk ?? "", num(it.preco), (COM_LABEL[it.comissao || "HERDAR"] || ""), it.estoque ?? "", num(valEst), val, it.ativo ? "Sim" : "Não"];
+    });
+    const csv = [cols, ...linhas].map((r) => r.map(esc).join(";")).join("\r\n");
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `catalogo_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    toast.success(`Planilha exportada (${filtrados.length} itens)`);
+  }
+
   return (
     <div className="cat-page">
       <style>{CSS}</style>
@@ -294,6 +315,7 @@ export default function CatalogoPage() {
         <button className="cat-btn" style={{ background: "#009AAC", borderColor: "#009AAC", color: "#fff" }} onClick={() => { setEditId(null); setModalOpen(true); }}>➕ Novo item</button>
         <button className="cat-btn" onClick={() => setCatModalOpen(true)}>🏷️ Categorias</button>
         <a className="cat-btn" href="/dashboard/erp/catalogo/importar" style={{ textDecoration: "none" }}>📥 Importar CSV</a>
+        <button className="cat-btn" onClick={exportarPlanilha} title="Baixa uma planilha (.csv) do que está filtrado — abre no Excel">📊 Exportar</button>
         <button className="cat-btn" onClick={() => window.print()}>🖨️ Imprimir</button>
       </div>
 
