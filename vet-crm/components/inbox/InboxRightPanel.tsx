@@ -1524,6 +1524,14 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
     };
     const res = await fetch("/api/interacoes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
     if (!res.ok) { toast.error("Erro"); return; }
+    // 🔗 FU UNIFICADO: grava o follow-up TAMBÉM no pet (mesma fonte que a ficha/Visão geral lê),
+    // pra inbox e ficha mostrarem sempre a mesma data.
+    if (interacaoForm.proximoFollowupAt && selectedPet) {
+      const fuISO = new Date(interacaoForm.proximoFollowupAt).toISOString();
+      try { await fetch(`/api/pets/${selectedPet.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ proximoFollowupAt: fuISO }) }); } catch {}
+      setSelectedPet((sp) => sp ? ({ ...sp, proximoFollowupAt: fuISO } as Pet) : sp);
+      setPets((ps) => ps.map((pp) => pp.id === selectedPet.id ? ({ ...pp, proximoFollowupAt: fuISO } as Pet) : pp));
+    }
     toast.success("Interação registrada");
     setAcaoFeita(true);
     setInteracaoOpen(false);
@@ -2613,7 +2621,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
                 <div className="grid grid-cols-4 gap-1.5">
                   {/* Botão de agenda removido daqui (03/08): a agenda já fica no box de conversação. */}
                   <button type="button" disabled title="Follow-up · em breve" className="flex items-center justify-center h-11 rounded-lg border cursor-not-allowed opacity-50" style={{ borderColor: "#E8DFC8", background: "#fafafa" }}><LuClock size={18} style={{ color: "#9aa0a8" }} /></button>
-                  <button type="button" onClick={() => { setPetActForward(false); setInteracaoOpen(true); }} title="Registrar interação" className="flex items-center justify-center h-11 rounded-lg border hover:bg-[#E1F2F4]" style={{ borderColor: "#009AAC", background: "white" }}><LuMessageSquare size={18} style={{ color: "#009AAC" }} /></button>
+                  <button type="button" onClick={() => { setPetActForward(false); setInteracaoForm((f) => ({ ...f, proximoFollowupAt: selectedPet?.proximoFollowupAt ? String(selectedPet.proximoFollowupAt).slice(0, 10) : "" })); setInteracaoOpen(true); }} title="Registrar interação" className="flex items-center justify-center h-11 rounded-lg border hover:bg-[#E1F2F4]" style={{ borderColor: "#009AAC", background: "white" }}><LuMessageSquare size={18} style={{ color: "#009AAC" }} /></button>
                   <button type="button" onClick={() => setOrcRapidoOpen(true)} title="Venda / Orçamento rápido — enviar pelo WhatsApp (sem sair da tela)" className="flex items-center justify-center h-11 rounded-lg border transition hover:bg-[#E1F2F4]" style={{ borderColor: "#009AAC", background: "white" }}><LuDollarSign size={18} style={{ color: "#009AAC" }} /></button>
                   <button type="button" onClick={() => setOrcRapidoOpen(true)} title="Orçamento rápido — enviar pelo WhatsApp" className="flex items-center justify-center h-11 rounded-lg border transition hover:bg-[#E1F2F4]" style={{ borderColor: "#009AAC", background: "white" }}><LuFileText size={18} style={{ color: "#009AAC" }} /></button>
                   <button type="button" onClick={abrirSeletorSequencia} title="Iniciar sequência de cuidado do pet" className="flex items-center justify-center h-11 rounded-lg border transition hover:bg-[#E1F2F4]" style={{ borderColor: "#009AAC", background: "white" }}><LuRepeat size={18} style={{ color: "#009AAC" }} /></button>
@@ -2701,7 +2709,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
                     </select>
                     <textarea value={interacaoForm.texto} onChange={e => setInteracaoForm({ ...interacaoForm, texto: e.target.value })} placeholder="Resumo da conversa..." rows={3} className="w-full px-2 py-1 text-xs border rounded" style={BORDER_STYLE} />
                     <input value={interacaoForm.proximaAcao} onChange={e => setInteracaoForm({ ...interacaoForm, proximaAcao: e.target.value })} placeholder="Próxima ação (opcional)" className="w-full px-2 py-1 text-xs border rounded" style={BORDER_STYLE} />
-                    <input type="date" value={interacaoForm.proximoFollowupAt} onChange={e => setInteracaoForm({ ...interacaoForm, proximoFollowupAt: e.target.value })} className="w-full px-2 py-1 text-xs border rounded" style={BORDER_STYLE} />
+                    <div><label className="text-[10px]" style={{ color: "#8a6400" }}>📅 Follow-up (mesmo da ficha)</label><input type="date" value={interacaoForm.proximoFollowupAt} onChange={e => setInteracaoForm({ ...interacaoForm, proximoFollowupAt: e.target.value })} className="w-full px-2 py-1 text-xs border rounded" style={BORDER_STYLE} /></div>
                     <div className="flex gap-2">
                       <button onClick={() => setInteracaoOpen(false)} className="flex-1 px-2 py-1 text-xs border rounded" style={BORDER_STYLE}>Cancelar</button>
                       <button onClick={handleInteracao} className="flex-1 px-2 py-1 text-xs text-white rounded font-semibold" style={{ background: "#009AAC" }}>Salvar na ficha</button>
