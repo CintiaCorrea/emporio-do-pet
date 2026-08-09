@@ -945,8 +945,18 @@ export default function PetDetailPage() {
     setSavingEx(true);
     try {
       const _cat = acharExameNoCatalogo(exCat as any, nome);
-      await listasAdd(`petexa_${petId}`, JSON.stringify(montarPetExame({ nome, catalogo: _cat, fases: examFases, externo, por: meNome })));
-      toast.success(externo ? "Exame solicitado (externo) ✅" : "Exame solicitado na clínica ✅ — entra no 'Exames a entregar'");
+      const _exObj: any = montarPetExame({ nome, catalogo: _cat, fases: examFases, externo, por: meNome });
+      const _valor = Number(_exObj.valor) || 0;
+      // 💰 Cobrança AUTOMÁTICA ao solicitar (mockup 9cf0a95b): lança na comanda do cliente
+      // pelo preço do catálogo e marca `cobrado` pra não cobrar de novo no botão.
+      if (_valor > 0) { _exObj.cobrado = true; _exObj.cobradoAt = new Date().toISOString(); }
+      await listasAdd(`petexa_${petId}`, JSON.stringify(_exObj));
+      if (_valor > 0) {
+        try { window.dispatchEvent(new CustomEvent("comanda:add", { detail: { descricao: nome, valorUnitario: _valor, quantidade: 1 } })); } catch {}
+        toast.success(`Exame solicitado e lançado na comanda (${_valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}) 🧾`);
+      } else {
+        toast.success((externo ? "Exame solicitado (externo) ✅" : "Exame solicitado na clínica ✅") + " — sem preço no catálogo, não lançou na comanda");
+      }
       setExNome(""); await loadPetColecoes(); await loadAtendimentos();
     } catch (e: any) { toast.error("Não solicitou: " + String(e?.message || e).slice(0, 80)); } finally { setSavingEx(false); }
   }
@@ -976,11 +986,13 @@ export default function PetDetailPage() {
   }
   // Fatia 4C — "Cobrar" o exame: lança na COMANDA da ficha (PetComandaRail já escuta 'comanda:add').
   // Explícito por card (decisão da Cintia 04/08) — não cobra automático ao solicitar.
-  function cobrarExame(x: { id: string; data: any }) {
+  async function cobrarExame(x: { id: string; data: any }) {
     const valor = Number(x.data?.valor) || 0;
     if (!valor) { toast.error("Este exame está sem preço de venda no catálogo (Catálogo › Exames)."); return; }
     try {
       window.dispatchEvent(new CustomEvent("comanda:add", { detail: { descricao: x.data?.nome || "Exame", valorUnitario: valor, quantidade: 1 } }));
+      // marca cobrado (não duplica no automático) — persiste no item
+      try { await fetch(`/api/listas/${x.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ valor: JSON.stringify({ ...x.data, cobrado: true, cobradoAt: new Date().toISOString() }) }) }); await loadPetColecoes(); } catch {}
       toast.success("Exame lançado na comanda 🧾");
     } catch { toast.error("Não consegui lançar na comanda"); }
   }
@@ -2204,8 +2216,10 @@ export default function PetDetailPage() {
                           {x.data.valor != null && x.data.valor !== "" && <span className="text-[11.5px] font-semibold ml-2" style={{ color: "#0F6E56" }}>{Number(x.data.valor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>}
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          {/* Cobrar: joga o exame na comanda da ficha pelo preço de venda */}
-                          <button onClick={() => cobrarExame(x)} title="Lançar este exame na comanda (caixa)" className="text-[11px] px-2.5 py-1 rounded-full font-semibold text-white hover:opacity-90" style={{ background: "#0F7B5A" }}>💲 Cobrar</button>
+                          {/* Cobrar: joga o exame na comanda da ficha pelo preço de venda (automático ao solicitar; manual aqui p/ sem preço/antigos) */}
+                          {x.data.cobrado
+                            ? <span title={`Já lançado na comanda${x.data.cobradoAt ? " em " + fmtDataBR(x.data.cobradoAt) : ""}`} className="text-[11px] px-2.5 py-1 rounded-full font-semibold" style={{ background: "#E1F5EE", color: "#0F6E56" }}>🧾 Cobrado</span>
+                            : <button onClick={() => cobrarExame(x)} title="Lançar este exame na comanda (caixa)" className="text-[11px] px-2.5 py-1 rounded-full font-semibold text-white hover:opacity-90" style={{ background: "#0F7B5A" }}>💲 Cobrar</button>}
                           {/* Anexar ARQUIVO — o label é um file picker disfarçado de botão */}
                           <label
                             title="Subir o PDF/foto do laudo (até 20MB)"
