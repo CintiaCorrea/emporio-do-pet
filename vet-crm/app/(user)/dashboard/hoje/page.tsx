@@ -157,6 +157,32 @@ export default function HojePage() {
       if (!r.ok) throw new Error();
     } catch { toast.error("Erro ao atualizar a fase do exame"); }
   }
+  // Fase que representa "retirado pelo laboratório" (config exame_fases; fallback "Retirado")
+  const faseRetirado = examFases.find((f) => /retir/i.test(f)) || "Retirado";
+  const idxRetirado = examFases.indexOf(faseRetirado);
+  // Exame ainda AGUARDANDO retirada = da clínica (não externo) e numa fase ANTES de "Retirado".
+  function aguardandoRetirada(e: any): boolean {
+    if (e?.data?.externo) return false;
+    const i = examFases.indexOf(e.status);
+    if (idxRetirado < 0) return i <= 0;
+    return i >= 0 ? i < idxRetirado : true;
+  }
+  // 🧪 Baixa em LOTE: o laboratório retirou → todos aqueles exames vão pra "Retirado" de uma vez.
+  // O resto do acompanhamento (Aguardando → Resultado → Entregue) segue individual.
+  async function baixarLoteRetirada(lab: string, exs: any[]) {
+    if (!exs.length) return;
+    const ids = new Set(exs.map((e) => e.id));
+    setExamesPend((l) => l.map((x) => (ids.has(x.id) ? { ...x, status: faseRetirado, data: { ...x.data, status: faseRetirado } } : x)));
+    let ok = 0;
+    for (const e of exs) {
+      try {
+        const novaData = { ...e.data, status: faseRetirado, historico: { ...(e.data?.historico || {}), [faseRetirado]: { at: new Date().toISOString(), por: "Recepção (lote)" } } };
+        const r = await fetch(`/api/listas/${e.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ valor: JSON.stringify(novaData) }) });
+        if (r.ok) ok++;
+      } catch {}
+    }
+    toast.success(`${ok} exame(s) de ${lab} → ${faseRetirado} 🧪`);
+  }
 
   useEffect(() => {
     (async () => {
@@ -489,6 +515,18 @@ export default function HojePage() {
                   <div className={rowCls} style={rowStyle} onClick={() => setExamesOpen(o => !o)}>{inner}</div>
                   {examesOpen && (
                     <div style={{ background: B44.soft }}>
+                      {(() => {
+                        const porLab: Record<string, any[]> = {};
+                        examesPend.filter(aguardandoRetirada).forEach((e: any) => { const lab = e.data?.fornecedorNome || "Sem laboratório"; (porLab[lab] ||= []).push(e); });
+                        const labs = Object.entries(porLab);
+                        if (!labs.length) return null;
+                        return labs.map(([lab, exs]: any) => (
+                          <div key={"lote-" + lab} className="flex items-center gap-2 px-[58px] py-2 border-b" style={{ borderColor: B44.lineSoft, background: "#F3F0FA" }}>
+                            <span className="text-[11.5px] font-medium" style={{ color: "#4B3B8F" }}>🧪 {lab}: {exs.length} aguardando retirada</span>
+                            <button onClick={() => baixarLoteRetirada(lab, exs)} className="ml-auto text-[11px] px-3 py-1 rounded-full font-semibold text-white hover:opacity-90 flex-shrink-0" style={{ background: "#6A4FB0" }} title={`Marcar os ${exs.length} exames de ${lab} como ${faseRetirado}`}>Laboratório retirou — baixa em lote</button>
+                          </div>
+                        ));
+                      })()}
                       {examesPend.length === 0 ? (
                         <div className="px-[58px] py-3 text-xs border-b" style={{ color: B44.text3, borderColor: B44.lineSoft }}>Nenhum exame em acompanhamento.</div>
                       ) : examesPend.map((e: any) => (
