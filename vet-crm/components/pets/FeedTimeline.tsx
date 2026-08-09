@@ -19,7 +19,7 @@ const LEGENDA: { n: string; c: string; I: any }[] = [
   { n: "Vídeo", c: "#0f7a52", I: LuVideo },
 ];
 
-export default function FeedTimeline({ atendimentos = [], clinDocs = [], historico = [], onEditar, onExcluir, onDetalhe }: { atendimentos?: any[]; clinDocs?: any[]; historico?: any[]; onEditar?: (it: any) => void; onExcluir?: (it: any) => void; onDetalhe?: (id: string) => void }) {
+export default function FeedTimeline({ atendimentos = [], clinDocs = [], historico = [], exames = [], onEditar, onExcluir, onDetalhe }: { atendimentos?: any[]; clinDocs?: any[]; historico?: any[]; exames?: any[]; onEditar?: (it: any) => void; onExcluir?: (it: any) => void; onDetalhe?: (id: string) => void }) {
   const [pOpen, setPOpen] = useState(false);
   const [pIni, setPIni] = useState("");
   const [pFim, setPFim] = useState("");
@@ -38,8 +38,10 @@ export default function FeedTimeline({ atendimentos = [], clinDocs = [], histori
     const d = (clinDocs || []).map((x: any) => ({ id: "d" + x.id, src: "doc", raw: x, rawId: x.id, kind: x.type || "GENERAL", cat: x.type === "PRESCRIPTION" ? "RECEITA" : "DOCUMENTO", date: x.createdAt || x.appointment?.date, title: DOC_LBL(x.type), prof: x.user?.name, summary: x.title || "", status: "", arquivoUrl: x.pdfUrl || x.fileUrl || null, temArquivo: !!(x.pdfUrl || x.fileUrl) }));
     // Histórico importado do SimplesVet (só-leitura)
     const h = (historico || []).map((x: any) => ({ id: "h" + x.id, src: "hist", raw: x, rawId: x.id, kind: x.tipo, cat: x.tipo, date: x.data, title: x.titulo || TIPO_HIST(x.tipo), prof: x.autor, summary: x.resumo || stripHtml(x.texto).slice(0, 140), status: "", imported: x.origem !== "MANUAL", temArquivo: !!x.temArquivo }));
-    return [...a, ...d, ...h].filter((i: any) => i.date).sort((x: any, y: any) => new Date(y.date).getTime() - new Date(x.date).getTime());
-  }, [atendimentos, clinDocs, historico]);
+    // 🔬 Exames (lista petexa_) — aparecem no histórico ALÉM da aba própria (pra não "sumirem")
+    const e = (exames || []).map((x: any) => { const u = x.data?.resultadoUrl || null; return { id: "e" + x.id, src: "exame", raw: x, rawId: x.id, kind: "EXAME", cat: "EXAME", date: x.data?.date || x.createdAt || new Date().toISOString(), title: "Exame · " + (x.data?.nome || "Exame"), prof: x.data?.por, summary: (x.data?.status ? x.data.status : "Solicitado") + (x.data?.externo ? " · externo" : ""), status: x.data?.status || "", arquivoUrl: u, temArquivo: !!u }; });
+    return [...a, ...d, ...h, ...e].filter((i: any) => i.date).sort((x: any, y: any) => new Date(y.date).getTime() - new Date(x.date).getTime());
+  }, [atendimentos, clinDocs, historico, exames]);
 
   const items = useMemo(() => all.filter((it: any) => {
     if (cat !== "TODOS" && it.cat !== cat) return false;

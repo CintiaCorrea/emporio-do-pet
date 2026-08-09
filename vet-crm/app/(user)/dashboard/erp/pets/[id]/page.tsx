@@ -573,26 +573,29 @@ export default function PetDetailPage() {
     if (!nome) { toast.error("Informe o nome do exame"); return; }
     setSavingArt(true);
     try {
-      const url = exFile ? await subirArquivo(exFile, "exames") : "";
       const _cat = acharExameNoCatalogo(exCat as any, nome);
-      // Com laudo já anexado, o exame nasce na fase de resultado; sem laudo, como solicitado.
-      const statusInicial = url
-        ? (examFases.find((f) => /resultado/i.test(f)) || examFases[0] || "Solicitado")
-        : (examFases[0] || "Solicitado");
-      const _payload = montarPetExame({ nome, catalogo: _cat, fases: examFases, externo: false, por: meNome, status: statusInicial });
-      if (url) { _payload.resultadoUrl = url; _payload.resultadoArquivo = exFile?.name; }
-      await listasAdd(`petexa_${petId}`, JSON.stringify(_payload));
-      if (url) {
+      // 1) SALVA O EXAME PRIMEIRO (nunca se perde) — nasce como solicitado.
+      const _payload = montarPetExame({ nome, catalogo: _cat, fases: examFases, externo: false, por: meNome, status: examFases[0] || "Solicitado" });
+      const criado = await listasAdd(`petexa_${petId}`, JSON.stringify(_payload));
+      const exId = criado?.id;
+      // 2) Se tem laudo, sobe e anexa POR CIMA. Se o upload falhar, o exame JÁ está salvo (solicitado).
+      if (exFile && exId) {
         try {
-          await fetch("/api/appointments", { method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ tutorId: pet.tutorId, petId: pet.id, userId: vets[0]?.id, date: new Date().toISOString(), type: "Resultado de exames", status: "Realizado", prescription: url, chiefComplaint: nome }) });
-        } catch {}
+          const url = await subirArquivo(exFile, "exames");
+          const statusRes = examFases.find((f) => /resultado/i.test(f)) || examFases[0] || "Solicitado";
+          await fetch(`/api/listas/${exId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ valor: JSON.stringify({ ..._payload, resultadoUrl: url, resultadoArquivo: exFile.name, status: statusRes }) }) });
+          try { await fetch("/api/appointments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tutorId: pet.tutorId, petId: pet.id, userId: meId || vets[0]?.id, date: new Date().toISOString(), type: "Resultado de exames", status: "Realizado", prescription: url, chiefComplaint: nome }) }); } catch {}
+          toast.success("Exame anexado ✅ — aparece no histórico e na aba 🔬 Exames");
+        } catch (upErr: any) {
+          toast.error("Exame salvo, mas o arquivo NÃO subiu (" + String(upErr?.message || upErr).slice(0, 55) + "). Anexe o laudo de novo na aba Exames.");
+        }
+      } else {
+        toast.success("Exame solicitado ✅");
       }
-      toast.success(url ? "Exame anexado" : "Exame solicitado");
       setArtefato(null); setExNome(""); setExFile(null);
       await loadPetColecoes(); await loadAtendimentos();
     } catch (e: any) {
-      toast.error(String(e?.message || e).slice(0, 130));
+      toast.error("Não salvou o exame: " + String(e?.message || e).slice(0, 100));
     } finally { setSavingArt(false); }
   }
   function abrirFoto() { setEditId(null); setAtdOpen(false); setArtefato("FOTO"); setFotoUrl(""); setFotoLegenda(""); setFotoFile(null); }
@@ -761,7 +764,7 @@ export default function PetDetailPage() {
     if (tags) setPetTags(tags.map((i: any) => ({ id: i.id, texto: i.valor })));
     if (cads) setCadAtivas(parse(cads));
     if (pacs) setPacotes(parse(pacs));
-    if (exs) setExames(parse(exs)); else toast.error("Não consegui carregar os exames agora — recarregue a página.");
+    if (exs) setExames(exs.map((i: any) => { let d: any = {}; try { d = JSON.parse(i.valor); } catch {} return { id: i.id, data: d, createdAt: i.createdAt }; })); else toast.error("Não consegui carregar os exames agora — recarregue a página.");
   }
   async function loadCatalogos() {
     try { const r = await fetch(`/api/etiquetas/templates`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.templates || d.data || []); setTagTpls(arr.filter((t: any) => t.ativo !== false && (t.aplicaEm || []).includes("Pet"))); } catch {}
@@ -1754,7 +1757,7 @@ export default function PetDetailPage() {
             <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-5 items-start">
               <div className="lg:order-1">
                 <div style={{ maxHeight: "72vh", overflowY: "auto" }} className="pr-1">
-                  <FeedTimeline atendimentos={atendimentos} clinDocs={clinDocs} historico={historico} onEditar={editarEntrada} onExcluir={excluirEntrada} onDetalhe={abrirDetalheHist} />
+                  <FeedTimeline atendimentos={atendimentos} clinDocs={clinDocs} historico={historico} exames={exames} onEditar={editarEntrada} onExcluir={excluirEntrada} onDetalhe={abrirDetalheHist} />
                 </div>
                 {detalheHist && (
                   <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ background: "rgba(20,35,40,.3)" }} onClick={() => setDetalheHist(null)}>
@@ -1965,7 +1968,7 @@ export default function PetDetailPage() {
             </div>
           </div>
         )}
-        {tab === "TIMELINE" && <div className="p-5"><FeedTimeline atendimentos={atendimentos} clinDocs={clinDocs} historico={historico} onDetalhe={abrirDetalheHist} /></div>}
+        {tab === "TIMELINE" && <div className="p-5"><FeedTimeline atendimentos={atendimentos} clinDocs={clinDocs} historico={historico} exames={exames} onDetalhe={abrirDetalheHist} /></div>}
         {tab === "EXAMES" && (
           <div className="p-5">
             {/* Adicionar exame do catálogo */}
