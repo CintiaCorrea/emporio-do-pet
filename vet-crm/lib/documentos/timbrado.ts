@@ -34,8 +34,12 @@ export function montarTimbradoHtml(args: {
     ? `<img src="${esc(clinica.logoUrl)}" alt="" style="height:52px;max-height:60px;width:auto;max-width:280px;object-fit:contain;display:block" />`
     : LOGO_FALLBACK;
 
-  const cidadeCep = [v("CLINICA_CIDADE") && `${v("CLINICA_CIDADE")}${clinica?.uf ? "/" + esc(clinica.uf) : ""}`, clinica?.cep ? `CEP ${esc(clinica.cep)}` : ""].filter(Boolean).join(" — ");
-  const tels = [v("CLINICA_TELEFONE"), v("CLINICA_TELEFONE2")].filter(Boolean).join(" · ");
+  // Cabeçalho (a pedido da Cintia): 1ª linha = endereço + bairro; cidade/UF + CEP e telefones abaixo.
+  // Monta dos campos crus (rua/numero/bairro/cidade/uf/cep) pra não repetir cidade/CEP.
+  const rua = clinica?.rua ? `${esc(clinica.rua)}${clinica?.numero ? " " + esc(clinica.numero) : ""}` : v("CLINICA_ENDERECO");
+  const enderecoLinha1 = [rua, clinica?.bairro ? esc(clinica.bairro) : ""].filter(Boolean).join(", ");
+  const cidadeCep = [clinica?.cidade ? `${esc(clinica.cidade)}${clinica?.uf ? "/" + esc(clinica.uf) : ""}` : v("CLINICA_CIDADE"), clinica?.cep ? `CEP ${esc(clinica.cep)}` : ""].filter(Boolean).join(" — ");
+  const tels = [clinica?.telefone ? esc(clinica.telefone) : v("CLINICA_TELEFONE"), clinica?.whatsapp ? esc(clinica.whatsapp) : v("CLINICA_TELEFONE2")].filter(Boolean).join(" · ");
 
   // linhas do quadro de dados (só mostra o que existir)
   const animalNome = [v("ANIMAL_FICHA"), v("ANIMAL_NOME")].filter(Boolean).join(" - ");
@@ -75,7 +79,7 @@ export function montarTimbradoHtml(args: {
     <div class="tb-logo">${logo}</div>
     <div class="tb-cl">
       ${temLogo ? "" : `<div class="tb-nm">${v("CLINICA_NOME") || "Empório do Pet"}</div>`}
-      <div class="tb-ln">${v("CLINICA_ENDERECO")}${cidadeCep ? "<br>" + cidadeCep : ""}${tels ? "<br>" + tels : ""}</div>
+      <div class="tb-ln">${enderecoLinha1}${cidadeCep ? "<br>" + cidadeCep : ""}${tels ? "<br>" + tels : ""}</div>
     </div>
   </div>
   ${titulo ? `<div class="tb-titulo">${esc(titulo)}</div>` : ""}
