@@ -1783,7 +1783,8 @@ export default function PetDetailPage() {
               </div>
               {/* min-w-0: sem isso, um texto longo (conduta grande) não corta com "…" e
                   ESTOURA a coluna, empurrando os cartões pra fora da tela (bug da Dra. Vivian 23/07). */}
-              <div className="lg:order-2 min-w-0">
+              <div className={(atdOpen || artefato) ? "fixed inset-0 z-[60] flex items-start justify-center p-4 overflow-y-auto no-print" : "lg:order-2 min-w-0"} style={(atdOpen || artefato) ? { background: "rgba(20,35,40,.42)" } : undefined} onClick={(atdOpen || artefato) ? (() => { setArtefato(null); setAtdOpen(false); }) : undefined}>
+                <div className={(atdOpen || artefato) ? "bg-white rounded-2xl w-full my-6" : "contents"} style={(atdOpen || artefato) ? { maxWidth: 780, border: "1px solid #E8E2D6", padding: "18px 20px" } : undefined} onClick={(atdOpen || artefato) ? ((e: any) => e.stopPropagation()) : undefined}>
                 {atdOpen ? (
                   <PetAtendimentoPanel pet={pet} atd={atd} setAtd={setAtd} atdTipos={atdTipos} atdStatus={atdStatus} vets={vets} items={items} servicosCat={servicosCat} pickServico={pickServico} addItem={addItem} updItem={updItem} rmItem={rmItem} saving={savingAtd} onSalvar={criarAtendimento} onFechar={() => setAtdOpen(false)} />
                 ) : artefato === "PESO" ? (
@@ -1933,9 +1934,12 @@ export default function PetDetailPage() {
                                   <div className="text-[12.5px] font-medium truncate" style={{ color: "#014D5E" }}>{x.data?.nome || "Exame"}</div>
                                   <div className="text-[10.5px] text-[#5C6B70]">{x.data?.status || "Solicitado"}{x.data?.date ? " · " + fmtDataBR(x.data.date) : ""}{x.data?.externo ? " · externo" : ""}</div>
                                 </div>
-                                {url ? (
-                                  <button type="button" onClick={() => window.open(`/api/media/ver?u=${encodeURIComponent(url)}`, "_blank")} className="text-[11px] px-2 py-1 rounded-lg border shrink-0" style={{ borderColor: "#009AAC", color: "#00798A" }}>📎 abrir laudo</button>
-                                ) : <span className="text-[10.5px] text-[#94a3a0] shrink-0">sem laudo</span>}
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  {url ? (
+                                    <button type="button" onClick={() => window.open(`/api/media/ver?u=${encodeURIComponent(url)}`, "_blank")} className="text-[11px] px-2 py-1 rounded-lg border" style={{ borderColor: "#009AAC", color: "#00798A" }}>📎 abrir laudo</button>
+                                  ) : <span className="text-[10.5px] text-[#94a3a0]">sem laudo</span>}
+                                  <button type="button" title="Excluir exame" onClick={async () => { if (!(await confirmDelete({ entityLabel: "exame", itemName: x.data?.nome || "exame" }))) return; await delExame(x.id); }} className="text-[13px] px-2 py-1 rounded-lg border hover:bg-[#FBEEEC]" style={{ borderColor: "#E8DFC8", color: "#b23b39" }}>🗑️</button>
+                                </div>
                               </div>
                             );
                           })}
@@ -1992,6 +1996,7 @@ export default function PetDetailPage() {
                     </div>
                   </div>
                 )}
+                </div>
               </div>
             </div>
           </div>
