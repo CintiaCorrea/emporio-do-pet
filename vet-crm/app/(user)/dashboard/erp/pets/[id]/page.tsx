@@ -873,6 +873,18 @@ export default function PetDetailPage() {
   async function addExame() { if (!exPick.trim()) { toast.error("Escolha um exame"); return; } setSavingEx(true); try { const _cat = acharExameNoCatalogo(exCat as any, exPick); await listasAdd(`petexa_${petId}`, JSON.stringify(montarPetExame({ nome: exPick, catalogo: _cat, fases: examFases, externo: false, por: meNome }))); toast.success("Exame solicitado"); setExPick(""); await loadPetColecoes(); } catch (e: any) { toast.error("Não salvou o exame: " + String(e?.message || e).slice(0, 90)); } finally { setSavingEx(false); } }
   async function updExameStatus(id: string, data: any, novoStatus: string) { try { const historico = registrarHistoricoFase(data.historico, novoStatus, meNome); const r = await fetch(`/api/listas/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ valor: JSON.stringify({ ...data, status: novoStatus, historico }) }) }); if (!r.ok) throw new Error(); await loadPetColecoes(); } catch { toast.error("Erro ao atualizar fase"); } }
   async function delExame(id: string) { try { await listasDel(id); await loadPetColecoes(); } catch { toast.error("Erro"); } }
+  // Solicitação de exame (clínica/externo) — nasce como SOLICITADO e dispara o fluxo (Hoje/lab/financeiro).
+  async function solicitarExame(externo: boolean) {
+    const nome = exNome.trim();
+    if (!nome) { toast.error("Escolha ou digite o exame primeiro"); return; }
+    setSavingEx(true);
+    try {
+      const _cat = acharExameNoCatalogo(exCat as any, nome);
+      await listasAdd(`petexa_${petId}`, JSON.stringify(montarPetExame({ nome, catalogo: _cat, fases: examFases, externo, por: meNome })));
+      toast.success(externo ? "Exame solicitado (externo) ✅" : "Exame solicitado na clínica ✅ — entra no 'Exames a entregar'");
+      setExNome(""); await loadPetColecoes(); await loadAtendimentos();
+    } catch (e: any) { toast.error("Não solicitou: " + String(e?.message || e).slice(0, 80)); } finally { setSavingEx(false); }
+  }
   // Fatia 4C — "Cobrar" o exame: lança na COMANDA da ficha (PetComandaRail já escuta 'comanda:add').
   // Explícito por card (decisão da Cintia 04/08) — não cobra automático ao solicitar.
   function cobrarExame(x: { id: string; data: any }) {
@@ -1927,17 +1939,32 @@ export default function PetDetailPage() {
                     <label className="text-xs text-gray-500">Exame *</label>
                     <input list="exames-catalogo-hist" value={exNome} onChange={(e) => setExNome(e.target.value)} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }} placeholder="Busque no catálogo ou digite…" />
                     <datalist id="exames-catalogo-hist">{exCat.slice(0, 1000).map((e: any, i: number) => <option key={i} value={e.nome || e.titulo || e.descricao} />)}</datalist>
-                    <label className="text-xs text-gray-500 mt-2 block">Laudo / resultado (opcional)</label>
-                    <input
-                      type="file"
-                      accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,.doc,.docx"
-                      onChange={(e) => setExFile(e.target.files?.[0] || null)}
-                      className="w-full mt-1 text-sm file:mr-3 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-[#E0F4F6] file:text-[#00798A] file:cursor-pointer"
-                    />
-                    {exFile && <p className="text-[11px] text-[#0F6E56] mt-1.5">📄 {exFile.name} · {(exFile.size / 1024 / 1024).toFixed(1)}MB</p>}
-                    <p className="text-[11px] text-gray-400 mt-2">
-                      Com laudo anexado, o exame já entra como resultado. Sem laudo, entra como solicitado — dá pra anexar depois na aba Exames.
-                    </p>
+
+                    {/* SOLICITAÇÃO — dispara o fluxo (Hoje / lab / financeiro) */}
+                    <div className="mt-3 rounded-lg border p-3" style={{ borderColor: "#BEE7EC", background: "#F4FCFD" }}>
+                      <div className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: "#014D5E" }}>🧪 Solicitar exame <span className="font-normal" style={{ color: "#8a6400" }}>— dispara o fluxo (Hoje / lab / financeiro)</span></div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <button type="button" onClick={() => solicitarExame(false)} disabled={savingEx} className="rounded-lg border px-3 py-2 text-left disabled:opacity-50 hover:border-[#009AAC]" style={{ borderColor: "#E8DFC8", background: "#fff" }}>
+                          <div className="text-[12.5px] font-semibold" style={{ color: "#014D5E" }}>🏥 Fazemos na clínica</div>
+                          <div className="text-[10.5px] text-[#5C6B70]">Acompanhamos o resultado (entra no "Exames a entregar").</div>
+                        </button>
+                        <button type="button" onClick={() => solicitarExame(true)} disabled={savingEx} className="rounded-lg border px-3 py-2 text-left disabled:opacity-50 hover:border-[#009AAC]" style={{ borderColor: "#E8DFC8", background: "#fff" }}>
+                          <div className="text-[12.5px] font-semibold" style={{ color: "#014D5E" }}>📤 Solicitar (externo)</div>
+                          <div className="text-[10.5px] text-[#5C6B70]">Só a solicitação, sem acompanhar.</div>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* RESULTADO / LAUDO */}
+                    <div className="mt-3 rounded-lg border p-3" style={{ borderColor: "#E8DFC8" }}>
+                      <div className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: "#014D5E" }}>📎 Anexar resultado / laudo</div>
+                      <label className="text-[11.5px] font-medium cursor-pointer inline-flex items-center gap-2 px-3 py-2 rounded-lg border" style={{ borderColor: "#009AAC", color: "#00798A", background: "#F0FBFC" }}>
+                        📎 Escolher laudo (PDF/imagem)
+                        <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,.doc,.docx" className="hidden" onChange={(e) => setExFile(e.target.files?.[0] || null)} />
+                      </label>
+                      {exFile && <p className="text-[11px] text-[#0F6E56] mt-1.5">📄 {exFile.name} · {(exFile.size / 1024 / 1024).toFixed(1)}MB</p>}
+                      <p className="text-[10.5px] text-gray-400 mt-2">Digite o exame acima, anexe o laudo e clique <b>Salvar</b> — entra como resultado.</p>
+                    </div>
                     {exames.length > 0 && (
                       <div className="mt-4 pt-3 border-t" style={{ borderColor: "#F0EBE0" }}>
                         <div className="text-[11px] uppercase tracking-wide text-[#374151] mb-2 font-semibold">🔬 Exames deste pet ({exames.length})</div>
